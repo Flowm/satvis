@@ -7,6 +7,7 @@ if (process.env.NODE_ENV === "dev") {
 }
 
 require("../lib/Cesium/Widgets/widgets.css")
+require('./css/main.css');
 
 var Cesium = window.Cesium
 
