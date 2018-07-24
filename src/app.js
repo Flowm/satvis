@@ -35,3 +35,95 @@ var viewer = new Cesium.Viewer("cesiumContainer", {
 viewer.scene.globe.enableLighting = false;
 viewer.scene.fog.enabled = false;
 viewer.scene.debugShowFramesPerSecond = true;
+
+// Satellite Position
+var moment = require('moment');
+var satellite = require('satellite.js');
+const satelliteTLE = "0 First-MOVE\n1 39439U 13066Z   18203.92296999 +.00000436 +00000-0 +59983-4 0  9994\n2 39439 097.5919 229.8528 0066721 040.9363 319.6832 14.81533022250876"
+
+var satInfo = satelliteTLE.split('\n');
+var satrec = satellite.twoline2satrec(satInfo[1], satInfo[2]);
+
+function computeGeodeticPosition(timestamp) {
+  const positionAndVelocity = satellite.propagate(satrec, timestamp);
+  const positionEci = positionAndVelocity.position;
+  const velocityEci = positionAndVelocity.velocity;
+
+  const gmst = satellite.gstimeFromDate(timestamp);
+  const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+  const velocityGd = satellite.eciToGeodetic(velocityEci, gmst);
+  const velocity = Math.sqrt(velocityGd.longitude * velocityGd.longitude +
+    velocityGd.latitude * velocityGd.latitude +
+    velocityGd.height * velocityGd.height);
+
+  return {
+    longitude: positionGd.longitude,
+    latitude: positionGd.latitude,
+    heightInMeters: positionGd.height * 1000,
+    velocity
+  };
+}
+
+function computeOrbitTrack(timestamp, steps = 120, interval = 1) {
+  // Orbit calculation crashes if year is before 1900
+  if (timestamp.getFullYear() < 1900) {
+    return [];
+  }
+
+  var trackArray = [];
+  const momentTimestamp = moment(timestamp);
+  for (let step = 0; step < steps; step++) {
+    const {longitude, latitude, heightInMeters} =
+      computeGeodeticPosition(momentTimestamp.toDate());
+    momentTimestamp.add(interval, 'm');
+    trackArray.push(longitude, latitude, heightInMeters);
+  }
+
+  return trackArray;
+}
+
+function computeSatellitePosition(timestamp) {
+  const position = computeOrbitTrack(Cesium.JulianDate.toDate(timestamp), 1);
+  if (position.length < 3) {
+    return Cesium.Cartesian3.fromRadians(0, 0, 0);
+  }
+  return Cesium.Cartesian3.fromRadians(position[0], position[1], position[2]);
+}
+
+// Satellite Model
+const satelliteProperties = {
+  name: 'MOVE-II',
+  size: 10.0,
+  ellipseSize: 2.8e6,
+  ellipseColor: Cesium.Color.RED.withAlpha(0.15),
+  viewFrom: new Cesium.Cartesian3(0, -1200000., 1150000.)
+};
+
+var satelliteLabel = new Cesium.LabelGraphics({
+  text: satelliteProperties.name,
+  horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
+  scaleByDistance : Cesium.NearFarScalar(1.0e1, 1, 5.0e7, 0.1),
+  distanceDisplayCondition: Cesium.DistanceDisplayCondition(2.0e3, 3.0e7),
+  pixelOffset: Cesium.Cartesian2(10.0, 0.0),
+  pixelOffsetScaleByDistance: Cesium.NearFarScalar(1.0e3, 10.0, 1.0e7, 1.0)
+});
+
+var satelliteDummy = new Cesium.BoxGraphics({
+  dimensions: new Cesium.Cartesian3(satelliteProperties.size, satelliteProperties.size, satelliteProperties.size),
+  outline: true,
+  outlineColor: Cesium.Color.WHITE,
+  outlineWidth: 5,
+  material: Cesium.Color.BLACK
+});
+
+var satelliteEntity = new Cesium.Entity({
+  name: satelliteProperties.name,
+  box: satelliteDummy,
+  size: satelliteProperties.size,
+  label: satelliteLabel,
+  viewFrom: satelliteProperties.viewFrom,
+  position: new Cesium.CallbackProperty(computeSatellitePosition, false)
+});
+
+var satelliteEntity = viewer.entities.add(satelliteEntity);
+viewer.zoomTo(viewer.entities);
