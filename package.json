@@ -1,7 +1,7 @@
 {
-  "name": "move-ii-orbit",
+  "name": "move-ii-orbit-standalone",
   "version": "0.0.1",
-  "description": "",
+  "description": "MOVE-II orbit visualization",
   "main": "app.js",
   "scripts": {
     "postinstall": "mkdirp lib && cpx './node_modules/cesium/Build/**/*' ./lib",
@@ -12,7 +12,8 @@
     "start": "npm run build && npm run devserver",
     "release": "npm run build -- --optimize-minimize"
   },
-  "author": "",
+  "author": "Florian Mauracher",
+  "private": true,
   "license": "MIT",
   "dependencies": {
     "cesium": "^1.34.0"
