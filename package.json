@@ -16,7 +16,7 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
-    "cesium": "^1.34.0"
+    "cesium": "^1.47.0"
   },
   "devDependencies": {
     "cpx": "^1.5.0",
