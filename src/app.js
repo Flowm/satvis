@@ -49,7 +49,7 @@ function computeGeodeticPosition(timestamp) {
   const positionEci = positionAndVelocity.position;
   const velocityEci = positionAndVelocity.velocity;
 
-  const gmst = satellite.gstimeFromDate(timestamp);
+  const gmst = satellite.gstime(timestamp);
   const positionGd = satellite.eciToGeodetic(positionEci, gmst);
   const velocityGd = satellite.eciToGeodetic(velocityEci, gmst);
   const velocity = Math.sqrt(velocityGd.longitude * velocityGd.longitude +
