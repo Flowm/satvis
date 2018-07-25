@@ -1,4 +1,3 @@
 /node_modules/
-/public/
-/lib/
+/dist/
 package-lock.json

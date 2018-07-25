@@ -2,17 +2,13 @@
   "name": "move-ii-orbit-standalone",
   "version": "0.0.1",
   "description": "MOVE-II orbit visualization",
-  "main": "app.js",
   "scripts": {
-    "postinstall": "mkdirp lib && cpx './node_modules/cesium/Build/**/*' ./lib",
-    "clean": "mkdirp public & rimraf public/*",
-    "prebuild": "npm run clean && cpx './lib/Cesium/**/*' ./public",
-    "build": "webpack --config config/webpack.config.js --progress",
-    "devserver": "webpack-dev-server --config config/webpack.config.js --progress",
-    "devserverpub": "webpack-dev-server --config config/webpack.config.js --progress --host 0.0.0.0",
-    "start": "npm run build && npm run devserver",
-    "startpub": "npm run build && npm run devserverpub",
-    "release": "npm run build -- --optimize-minimize"
+    "build": "webpack --config webpack.dev.js --progress",
+    "clean": "mkdirp dist & rimraf dist/*",
+    "start": "webpack-dev-server --config webpack.dev.js --progress",
+    "start-pub": "webpack-dev-server --config webpack.dev.js --progress --host 0.0.0.0",
+    "release": "webpack --config webpack.prod.js",
+    "serve-release": "webpack-dev-server --config webpack.prod.js --content-base /dist"
   },
   "author": "Florian Mauracher",
   "private": true,
@@ -24,15 +20,18 @@
     "satellite.js": "^2.0.2"
   },
   "devDependencies": {
-    "cpx": "^1.5.0",
-    "css-loader": "^0.23.1",
-    "file-loader": "^0.9.0",
-    "html-webpack-plugin": "^2.22.0",
+    "copy-webpack-plugin": "^4.5.2",
+    "css-loader": "^1.0.0",
+    "html-webpack-plugin": "^3.2.0",
     "mkdirp": "^0.5.1",
-    "rimraf": "^2.5.2",
-    "script-loader": "^0.7.0",
-    "style-loader": "^0.13.0",
-    "webpack": "^3.0.0",
-    "webpack-dev-server": "^2.5.0"
+    "rimraf": "^2.6.2",
+    "script-loader": "^0.7.2",
+    "strip-pragma-loader": "^1.0.0",
+    "style-loader": "^0.21.0",
+    "url-loader": "^1.0.1",
+    "webpack": "^4.16.2",
+    "webpack-cli": "^3.1.0",
+    "webpack-dev-server": "^3.1.5",
+    "webpack-merge": "^4.1.3"
   }
 }
