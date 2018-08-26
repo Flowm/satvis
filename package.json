@@ -3,12 +3,12 @@
   "version": "0.0.1",
   "description": "MOVE-II orbit visualization",
   "scripts": {
-    "build": "webpack --config webpack.dev.js --progress",
+    "build": "webpack --config webpack.prod.js",
+    "build-dev": "webpack --config webpack.dev.js --progress",
     "clean": "mkdirp dist & rimraf dist/*",
     "start": "webpack-dev-server --config webpack.dev.js --progress",
-    "start-pub": "webpack-dev-server --config webpack.dev.js --progress --host 0.0.0.0",
-    "release": "webpack --config webpack.prod.js",
-    "serve-release": "webpack-dev-server --config webpack.prod.js --content-base /dist"
+    "start-pub": "webpack-dev-server --config webpack.dev.js --progress --disable-host-check --host 0.0.0.0",
+    "serve-release": "npm run build && http-server dist"
   },
   "author": "Florian Mauracher",
   "private": true,
@@ -23,6 +23,7 @@
     "copy-webpack-plugin": "^4.5.2",
     "css-loader": "^1.0.0",
     "html-webpack-plugin": "^3.2.0",
+    "http-server": "^0.11.1",
     "mkdirp": "^0.5.1",
     "rimraf": "^2.6.2",
     "script-loader": "^0.7.2",
