@@ -2,6 +2,8 @@ const path = require('path');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const CleanWebpackPlugin = require('clean-webpack-plugin');
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 
 // The path to the cesium source code
 const cesiumSource = 'node_modules/cesium/Source';
@@ -38,7 +40,11 @@ module.exports = {
   module: {
     rules: [{
       test: /\.css$/,
-      use: ['style-loader', 'css-loader']
+      use: [
+        MiniCssExtractPlugin.loader,
+        'css-loader',
+        'postcss-loader',
+      ]
     }, {
       test: /\.(png|gif|jpg|jpeg|svg|xml|json)$/,
       use: ['url-loader']
@@ -56,8 +62,12 @@ module.exports = {
     }
   },
   plugins: [
+    new CleanWebpackPlugin(['dist']),
     new HtmlWebpackPlugin({
       template: "src/index.html"
+    }),
+    new MiniCssExtractPlugin({
+      filename: "main.css"
     }),
     new CopyWebpackPlugin([
       // Copy Cesium Assets, Widgets, and Workers to a static directory

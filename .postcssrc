@@ -1,0 +1,15 @@
+{
+  "modules": true,
+  "plugins": {
+    "autoprefixer": {
+    },
+    "cssnano": {
+      preset: ['default', {
+        calc: false,
+        discardComments: {
+          removeAll: true,
+        }
+        }]
+    }
+  }
+}
