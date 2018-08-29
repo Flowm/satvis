@@ -117,4 +117,4 @@ var satelliteEntity = new Cesium.Entity({
 });
 
 var satelliteEntity = viewer.entities.add(satelliteEntity);
-viewer.zoomTo(viewer.entities);
+//viewer.zoomTo(viewer.entities);
