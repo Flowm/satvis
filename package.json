@@ -15,7 +15,7 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
-    "cesium": "^1.47.0",
+    "cesium": "^1.48.0",
     "jspredict-move2": "^1.0.5",
     "moment": "^2.22.2",
     "satellite.js": "^2.0.2"
