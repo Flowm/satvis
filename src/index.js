@@ -1,6 +1,7 @@
 require('cesium/Widgets/widgets.css');
 var Cesium = require('cesium/Cesium');
 require('./css/main.css');
+import {SatelliteOrbit} from './modules/orbit'
 
 var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 var isLocalOnly = true;
@@ -28,53 +29,10 @@ viewer.scene.fog.enabled = false;
 viewer.scene.debugShowFramesPerSecond = true;
 
 // Satellite Position
-var moment = require('moment');
-var satellite = require('satellite.js');
 const satelliteTLE = "0 First-MOVE\n1 39439U 13066Z   18203.92296999 +.00000436 +00000-0 +59983-4 0  9994\n2 39439 097.5919 229.8528 0066721 040.9363 319.6832 14.81533022250876"
-
-var satInfo = satelliteTLE.split('\n');
-var satrec = satellite.twoline2satrec(satInfo[1], satInfo[2]);
-
-function computeGeodeticPosition(timestamp) {
-  const positionAndVelocity = satellite.propagate(satrec, timestamp);
-  const positionEci = positionAndVelocity.position;
-  const velocityEci = positionAndVelocity.velocity;
-
-  const gmst = satellite.gstime(timestamp);
-  const positionGd = satellite.eciToGeodetic(positionEci, gmst);
-  const velocityGd = satellite.eciToGeodetic(velocityEci, gmst);
-  const velocity = Math.sqrt(velocityGd.longitude * velocityGd.longitude +
-    velocityGd.latitude * velocityGd.latitude +
-    velocityGd.height * velocityGd.height);
-
-  return {
-    longitude: positionGd.longitude,
-    latitude: positionGd.latitude,
-    heightInMeters: positionGd.height * 1000,
-    velocity
-  };
-}
-
-function computeOrbitTrack(timestamp, steps = 120, interval = 1) {
-  // Orbit calculation crashes if year is before 1900
-  if (timestamp.getFullYear() < 1900) {
-    return [];
-  }
-
-  var trackArray = [];
-  const momentTimestamp = moment(timestamp);
-  for (let step = 0; step < steps; step++) {
-    const {longitude, latitude, heightInMeters} =
-      computeGeodeticPosition(momentTimestamp.toDate());
-    momentTimestamp.add(interval, 'm');
-    trackArray.push(longitude, latitude, heightInMeters);
-  }
-
-  return trackArray;
-}
-
+var satellite = new SatelliteOrbit(satelliteTLE);
 function computeSatellitePosition(timestamp) {
-  const position = computeOrbitTrack(Cesium.JulianDate.toDate(timestamp), 1);
+  const position = satellite.computeOrbitTrack(Cesium.JulianDate.toDate(timestamp), 1);
   if (position.length < 3) {
     return Cesium.Cartesian3.fromRadians(0, 0, 0);
   }
