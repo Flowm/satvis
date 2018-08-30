@@ -1,7 +1,8 @@
-require('cesium/Widgets/widgets.css');
-var Cesium = require('cesium/Cesium');
-require('./css/main.css');
+import Cesium from 'cesium/Cesium';
 import {SatelliteOrbit} from './modules/orbit'
+
+import "cesium/Widgets/widgets.css"
+import "./css/main.css";
 
 var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 var isLocalOnly = true;
