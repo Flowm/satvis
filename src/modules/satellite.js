@@ -15,6 +15,7 @@ export class SatelliteEntity {
     this.entities = {}
     this.entities["Satellite"] = this.createSatellite();
     this.entities["OrbitTrack"] = this.createOrbitTrack();
+    //this.entities["GroundTrack"] = this.createGroundTrack();
   }
 
   add(name) {
@@ -82,7 +83,6 @@ export class SatelliteEntity {
 
   createOrbitTrack() {
     const polyline = new Cesium.PolylineGraphics({
-      width: 5,
       material: new Cesium.PolylineGlowMaterialProperty({
         glowPower: 1,
         color: Cesium.Color.BLACK,
@@ -91,6 +91,35 @@ export class SatelliteEntity {
         return Cesium.Cartesian3.fromRadiansArrayHeights(
           this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time)));
       }, false),
+      width: 5,
+    });
+
+    const entity = new Cesium.Entity({
+      polyline: polyline
+    });
+
+    return entity;
+  }
+
+  createGroundTrack() {
+    const polyline = new Cesium.PolylineGraphics({
+      material: new Cesium.PolylineGlowMaterialProperty({
+        glowPower: 1,
+        color: Cesium.Color.RED,
+      }),
+      positions: new Cesium.CallbackProperty((time) => {
+        const orbitTrackPositions = this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time));
+        const groundTrackPositions = [];
+        for (let i = 0; i < orbitTrackPositions.length; i++) {
+          if ((i + 1) % 3 === 0) {
+            groundTrackPositions[i] = 0;
+          } else {
+            groundTrackPositions[i] = orbitTrackPositions[i];
+          }
+        }
+        return Cesium.Cartesian3.fromRadiansArrayHeights(groundTrackPositions);
+      }, false),
+      width: 5,
     });
 
     const entity = new Cesium.Entity({
