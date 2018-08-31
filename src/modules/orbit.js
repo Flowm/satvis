@@ -1,9 +1,9 @@
-import moment from 'moment'
-import * as satellitejs from 'satellite.js'
+import moment from "moment";
+import * as satellitejs from "satellite.js";
 
 export class SatelliteOrbit {
   constructor(satelliteTLE) {
-    this.tle = satelliteTLE.split('\n');
+    this.tle = satelliteTLE.split("\n");
     this.satrec = satellitejs.twoline2satrec(this.tle[1], this.tle[2]);
   }
 
@@ -38,7 +38,7 @@ export class SatelliteOrbit {
     for (let step = 0; step < steps; step++) {
       const {longitude, latitude, heightInMeters} =
         this.computeGeodeticPosition(momentTimestamp.toDate());
-      momentTimestamp.add(interval, 'm');
+      momentTimestamp.add(interval, "m");
       trackArray.push(longitude, latitude, heightInMeters);
     }
 

@@ -1,19 +1,19 @@
-import Cesium from 'cesium/Cesium';
-import {SatelliteOrbit} from './modules/orbit'
+import Cesium from "cesium/Cesium";
+import { SatelliteOrbit } from "./modules/orbit";
 
-import "cesium/Widgets/widgets.css"
+import "cesium/Widgets/widgets.css";
 import "./css/main.css";
 
-var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-var isLocalOnly = true;
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+const isLocalOnly = true;
 
-var viewer = new Cesium.Viewer("cesiumContainer", {
-  imageryProvider: isLocalOnly ?
-    new Cesium.createTileMapServiceImageryProvider({
-      url : Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII')
-    }) :
-    new Cesium.ArcGisMapServerImageryProvider({
-      url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
+const viewer = new Cesium.Viewer("cesiumContainer", {
+  imageryProvider: isLocalOnly
+    ? new Cesium.createTileMapServiceImageryProvider({
+      url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
+    })
+    : new Cesium.ArcGisMapServerImageryProvider({
+      url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
     }),
   baseLayerPicker: !isLocalOnly,
   animation: !isIOS,
@@ -30,8 +30,8 @@ viewer.scene.fog.enabled = false;
 viewer.scene.debugShowFramesPerSecond = true;
 
 // Satellite Position
-const satelliteTLE = "0 First-MOVE\n1 39439U 13066Z   18203.92296999 +.00000436 +00000-0 +59983-4 0  9994\n2 39439 097.5919 229.8528 0066721 040.9363 319.6832 14.81533022250876"
-var satellite = new SatelliteOrbit(satelliteTLE);
+const satelliteTLE = "0 First-MOVE\n1 39439U 13066Z   18203.92296999 +.00000436 +00000-0 +59983-4 0  9994\n2 39439 097.5919 229.8528 0066721 040.9363 319.6832 14.81533022250876";
+const satellite = new SatelliteOrbit(satelliteTLE);
 function computeSatellitePosition(timestamp) {
   const position = satellite.computeOrbitTrack(Cesium.JulianDate.toDate(timestamp), 1);
   if (position.length < 3) {
@@ -42,38 +42,38 @@ function computeSatellitePosition(timestamp) {
 
 // Satellite Model
 const satelliteProperties = {
-  name: 'MOVE-II',
+  name: "MOVE-II",
   size: 1000.0,
-  viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000)
+  viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
 };
 
-var satelliteLabel = new Cesium.LabelGraphics({
+const satelliteLabel = new Cesium.LabelGraphics({
   text: satelliteProperties.name,
   horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
   pixelOffset: new Cesium.Cartesian2(10, 0),
   distanceDisplayCondition: new Cesium.DistanceDisplayCondition(satelliteProperties.size * 5, 5.0e7),
-  pixelOffsetScaleByDistance: new Cesium.NearFarScalar(satelliteProperties.size, 50, 2.0e5, 1)
+  pixelOffsetScaleByDistance: new Cesium.NearFarScalar(satelliteProperties.size, 50, 2.0e5, 1),
 });
 
-var satellitePoint = new Cesium.PointGraphics({
+const satellitePoint = new Cesium.PointGraphics({
   pixelSize: 10,
-  color: Cesium.Color.WHITE
+  color: Cesium.Color.WHITE,
 });
 
-var satelliteDummy = new Cesium.BoxGraphics({
+const satelliteDummy = new Cesium.BoxGraphics({
   dimensions: new Cesium.Cartesian3(satelliteProperties.size, satelliteProperties.size, satelliteProperties.size),
-  material: Cesium.Color.WHITE
+  material: Cesium.Color.WHITE,
 });
 
-var satelliteEntity = new Cesium.Entity({
+const satelliteEntity = new Cesium.Entity({
   name: satelliteProperties.name,
   point: satellitePoint,
   box: satelliteDummy,
   size: satelliteProperties.size,
   label: satelliteLabel,
   viewFrom: satelliteProperties.viewFrom,
-  position: new Cesium.CallbackProperty(computeSatellitePosition, false)
+  position: new Cesium.CallbackProperty(computeSatellitePosition, false),
 });
 
-var satelliteEntity = viewer.entities.add(satelliteEntity);
+viewer.entities.add(satelliteEntity);
 viewer.trackedEntity = satelliteEntity;
