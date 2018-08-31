@@ -7,8 +7,8 @@
     "build-dev": "webpack --config webpack.dev.js --progress",
     "clean": "mkdirp dist & rimraf dist/*",
     "start": "webpack-dev-server --config webpack.dev.js --progress",
-    "start-dev": "webpack-dev-server --config webpack.dev.js --progress --disable-host-check --host 0.0.0.0",
-    "start-prod": "webpack-dev-server --config webpack.prod.js --progress --disable-host-check --host 0.0.0.0",
+    "start-dev": "webpack-dev-server --config webpack.dev.js --progress --host 0.0.0.0",
+    "start-prod": "webpack-dev-server --config webpack.prod.js --progress --host 0.0.0.0",
     "serve-release": "npm run build && http-server -g -c0 dist"
   },
   "author": "Florian Mauracher",
