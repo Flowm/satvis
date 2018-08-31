@@ -25,9 +25,9 @@ export class SatelliteEntity {
     const satelliteLabel = new Cesium.LabelGraphics({
       text: this.name,
       horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
-      pixelOffset: new Cesium.Cartesian2(10, 0),
+      pixelOffset: new Cesium.Cartesian2(40, 0),
       distanceDisplayCondition: new Cesium.DistanceDisplayCondition(this.size * 5, 5.0e7),
-      pixelOffsetScaleByDistance: new Cesium.NearFarScalar(this.size, 50, 2.0e5, 1),
+      pixelOffsetScaleByDistance: new Cesium.NearFarScalar(1.0e1, 10, 2.0e5, 1),
     });
 
     const satellitePoint = new Cesium.PointGraphics({
