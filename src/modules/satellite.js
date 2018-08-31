@@ -12,10 +12,7 @@ export class SatelliteEntity {
     this.orbit = new SatelliteOrbit(tle);
     this.size = 1000;
 
-    this.entities = {}
-    this.entities["Satellite"] = this.createSatellite();
-    this.entities["OrbitTrack"] = this.createOrbitTrack();
-    //this.entities["GroundTrack"] = this.createGroundTrack();
+    this.createEntities();
   }
 
   add(name) {
@@ -42,6 +39,13 @@ export class SatelliteEntity {
     this.viewer.trackedEntity = this.entities["Satellite"];
   }
 
+  createEntities() {
+    this.entities = {}
+    this.createSatellite();
+    this.createOrbitTrack();
+    this.createGroundTrack();
+  }
+
   createSatellite() {
     const label = new Cesium.LabelGraphics({
       text: this.name,
@@ -62,7 +66,7 @@ export class SatelliteEntity {
     });
 
 
-    const satellite = new Cesium.Entity({
+    this.entities["Satellite"] = new Cesium.Entity({
       box: box,
       label: label,
       name: this.name,
@@ -77,8 +81,6 @@ export class SatelliteEntity {
         return Cesium.Cartesian3.fromRadians(position[0], position[1], position[2]);
       }, false),
     });
-
-    return satellite;
   }
 
   createOrbitTrack() {
@@ -94,11 +96,9 @@ export class SatelliteEntity {
       width: 5,
     });
 
-    const entity = new Cesium.Entity({
+    this.entities["OrbitTrack"] = new Cesium.Entity({
       polyline: polyline
     });
-
-    return entity;
   }
 
   createGroundTrack() {
@@ -122,10 +122,8 @@ export class SatelliteEntity {
       width: 5,
     });
 
-    const entity = new Cesium.Entity({
+    this.entities["GroundTrack"] = new Cesium.Entity({
       polyline: polyline
     });
-
-    return entity;
   }
 }
