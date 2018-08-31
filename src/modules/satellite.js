@@ -3,7 +3,10 @@ import { SatelliteOrbit } from "./orbit";
 
 export class SatelliteEntity {
   constructor(tle) {
-    this.name = tle.split("\n")[0].split(" ")[1];
+    this.name = tle.split("\n")[0]
+    if (tle.startsWith("0 ")) {
+      this.name = this.name.substring(2);
+    }
     this.orbit = new SatelliteOrbit(tle);
     this.size = 1000;
     this.entity = this.createSatelliteEntity();
