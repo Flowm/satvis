@@ -43,31 +43,31 @@ function computeSatellitePosition(timestamp) {
 // Satellite Model
 const satelliteProperties = {
   name: 'MOVE-II',
-  size: 10.0,
-  ellipseSize: 2.8e6,
-  ellipseColor: Cesium.Color.RED.withAlpha(0.15),
-  viewFrom: new Cesium.Cartesian3(0, -1200000., 1150000.)
+  size: 1000.0,
+  viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000)
 };
 
 var satelliteLabel = new Cesium.LabelGraphics({
   text: satelliteProperties.name,
   horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
-  scaleByDistance : Cesium.NearFarScalar(1.0e1, 1, 5.0e7, 0.1),
-  distanceDisplayCondition: Cesium.DistanceDisplayCondition(2.0e3, 3.0e7),
-  pixelOffset: Cesium.Cartesian2(10.0, 0.0),
-  pixelOffsetScaleByDistance: Cesium.NearFarScalar(1.0e3, 10.0, 1.0e7, 1.0)
+  pixelOffset: new Cesium.Cartesian2(10, 0),
+  distanceDisplayCondition: new Cesium.DistanceDisplayCondition(satelliteProperties.size * 5, 5.0e7),
+  pixelOffsetScaleByDistance: new Cesium.NearFarScalar(satelliteProperties.size, 50, 2.0e5, 1)
+});
+
+var satellitePoint = new Cesium.PointGraphics({
+  pixelSize: 10,
+  color: Cesium.Color.WHITE
 });
 
 var satelliteDummy = new Cesium.BoxGraphics({
   dimensions: new Cesium.Cartesian3(satelliteProperties.size, satelliteProperties.size, satelliteProperties.size),
-  outline: true,
-  outlineColor: Cesium.Color.WHITE,
-  outlineWidth: 5,
-  material: Cesium.Color.BLACK
+  material: Cesium.Color.WHITE
 });
 
 var satelliteEntity = new Cesium.Entity({
   name: satelliteProperties.name,
+  point: satellitePoint,
   box: satelliteDummy,
   size: satelliteProperties.size,
   label: satelliteLabel,
@@ -76,4 +76,4 @@ var satelliteEntity = new Cesium.Entity({
 });
 
 var satelliteEntity = viewer.entities.add(satelliteEntity);
-//viewer.zoomTo(viewer.entities);
+viewer.trackedEntity = satelliteEntity;
