@@ -47,7 +47,7 @@ export class SatelliteEntity {
     this.entities = {};
     this.createSatellite();
     this.createOrbitTrack();
-    //this.createGroundTrack();
+    this.createGroundTrack();
     this.createCone();
   }
 
@@ -86,10 +86,7 @@ export class SatelliteEntity {
 
   createOrbitTrack() {
     const polyline = new Cesium.PolylineGraphics({
-      material: new Cesium.PolylineGlowMaterialProperty({
-        glowPower: 1,
-        color: Cesium.Color.BLACK,
-      }),
+      material: Cesium.Color.WHITE.withAlpha(0.2),
       positions: new Cesium.CallbackProperty((time) => {
         return Cesium.Cartesian3.fromRadiansArrayHeights(
           this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time)));
@@ -104,9 +101,8 @@ export class SatelliteEntity {
 
   createGroundTrack() {
     const polyline = new Cesium.PolylineGraphics({
-      material: new Cesium.PolylineGlowMaterialProperty({
-        glowPower: 1,
-        color: Cesium.Color.RED,
+      material : new Cesium.PolylineDashMaterialProperty({
+        color: Cesium.Color.WHITE.withAlpha(0.5)
       }),
       positions: new Cesium.CallbackProperty((time) => {
         const orbitTrackPositions = this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time));
@@ -147,9 +143,9 @@ export class SatelliteEntity {
       radius: 10000000,
       innerHalfAngle: Cesium.Math.toRadians(0),
       outerHalfAngle: Cesium.Math.toRadians(fov),
-      lateralSurfaceMaterial: Cesium.Color.BLUE.withAlpha(0.2),
-      intersectionColor: Cesium.Color.RED.withAlpha(0.5),
-      showIntersection: true,
+      lateralSurfaceMaterial: Cesium.Color.GOLD.withAlpha(0.15),
+      intersectionColor: Cesium.Color.GOLD.withAlpha(0.3),
+      intersectionWidth: 1,
     });
     this.entities["Cone"] = cone;
   }
