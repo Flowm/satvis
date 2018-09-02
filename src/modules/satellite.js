@@ -19,23 +19,33 @@ export class SatelliteEntity {
     this.createEntities();
   }
 
-  add(name) {
-    if (typeof name !== "undefined" && name in this.entities) {
-      this.viewer.entities.add(this.entities[name]);
-    } else {
-      for (var entity in this.entities) {
-        this.viewer.entities.add(this.entities[entity]);
-      }
+  show() {
+    for (var entity in this.entities) {
+      this.showComponent(entity);
     }
   }
 
-  remove(name) {
-    if (typeof name !== "undefined" && name in this.entities) {
+  showComponent(name) {
+    if (typeof name === "undefined") {
+      return;
+    }
+    if (name in this.entities && ! this.viewer.entities.contains(this.entities[name])) {
+      this.viewer.entities.add(this.entities[name]);
+    }
+  }
+
+  hide() {
+    for (var entity in this.entities) {
+      this.hideComponent(entity);
+    }
+  }
+
+  hideComponent(name) {
+    if (typeof name === "undefined") {
+      return;
+    }
+    if (name in this.entities && this.viewer.entities.contains(this.entities[name])) {
       this.viewer.entities.remove(this.entities[name]);
-    } else {
-      for (var entity in this.entities) {
-        this.viewer.entities.remove(this.entities[entity]);
-      }
     }
   }
 
