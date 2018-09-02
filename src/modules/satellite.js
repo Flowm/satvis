@@ -50,7 +50,34 @@ export class SatelliteEntity {
   }
 
   track() {
-    this.viewer.trackedEntity = this.entities["Satellite"];
+    if (typeof this.defaultEntity === "undefined") {
+      return;
+    }
+
+    this.focus(this.defaultEntity, () => {
+      //this.viewer.selectedEntity = this.defaultEntity;
+      //this.viewer.trackedEntity = this.defaultEntity;
+    });
+  }
+
+  get isTracked() {
+    return this.viewer.trackedEntity === this.defaultEntity;
+  }
+
+  focus(entity, callback = () => {}) {
+    this.viewer.selectedEntity = undefined;
+    this.viewer.trackedEntity = undefined;
+
+    const clockRunning = this.viewer.clock.shouldAnimate;
+    this.viewer.clock.shouldAnimate = false;
+
+    const offset = new Cesium.HeadingPitchRange(0, -Cesium.Math.PI_OVER_FOUR, 1580000);
+    this.viewer.flyTo(entity, { offset }).then((result) => {
+      if (result) {
+        this.viewer.clock.shouldAnimate = clockRunning;
+        callback();
+      }
+    });
   }
 
   createEntities() {
@@ -93,6 +120,7 @@ export class SatelliteEntity {
         return Cesium.Cartesian3.fromRadians(position[0], position[1], position[2]);
       }, false),
     });
+    this.defaultEntity = this.entities["Satellite"];
   }
 
   createOrbitTrack() {
