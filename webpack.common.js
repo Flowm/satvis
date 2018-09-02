@@ -37,6 +37,10 @@ module.exports = {
       cesium: path.resolve(__dirname, cesiumSource)
     }
   },
+  externals: {
+    Cesium: 'Cesium',
+    CesiumSensorVolumes: 'CesiumSensorVolumes',
+  },
   module: {
     rules: [{
       test: /\.css$/,
@@ -50,17 +54,17 @@ module.exports = {
       use: ['url-loader']
     }]
   },
-  optimization: {
-    splitChunks: {
-      cacheGroups: {
-        commons: {
-          test: /[\\/]node_modules[\\/]cesium/,
-          name: 'cesium',
-          chunks: 'all'
-        }
-      }
-    }
-  },
+  //optimization: {
+  //  splitChunks: {
+  //    cacheGroups: {
+  //      commons: {
+  //        test: /[\\/]node_modules[\\/]cesium/,
+  //        name: 'cesium',
+  //        chunks: 'all'
+  //      }
+  //    }
+  //  }
+  //},
   plugins: [
     new CleanWebpackPlugin(['dist']),
     new HtmlWebpackPlugin({
@@ -71,16 +75,21 @@ module.exports = {
     }),
     new CopyWebpackPlugin([
       // Copy Cesium Assets, Widgets, and Workers to a static directory
-      {from: path.join(cesiumSource, 'Assets'), to: 'Assets'},
-      {from: path.join(cesiumSource, 'ThirdParty'), to: 'ThirdParty'},
-      {from: path.join(cesiumSource, 'Widgets'), to: 'Widgets'},
-      {from: path.join(cesiumSource, 'Workers'), to: 'Workers'},
-      {from: path.join(cesiumSource, '../Build/Cesium/ThirdParty/Workers'), to: 'ThirdParty/Workers', force: true},
-      {from: path.join(cesiumSource, '../Build/Cesium/Workers'), to: 'Workers', force: true}
+      {from: path.join(cesiumSource, 'Assets'), to: 'dist/Assets'},
+      {from: path.join(cesiumSource, 'ThirdParty'), to: 'dist/ThirdParty'},
+      {from: path.join(cesiumSource, 'Widgets'), to: 'dist/Widgets'},
+      {from: path.join(cesiumSource, 'Workers'), to: 'dist/Workers'},
+      {from: path.join(cesiumSource, '../Build/Cesium/ThirdParty/Workers'), to: 'dist/ThirdParty/Workers', force: true},
+      {from: path.join(cesiumSource, '../Build/Cesium/Workers'), to: 'dist/Workers', force: true},
+      {from: path.join(cesiumSource, '../Build/Cesium/Cesium.js'), to: 'dist/'},
+      {from: 'node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.js', to: 'dist/'},
     ]),
     new webpack.DefinePlugin({
       // Define relative base path in cesium for loading assets
-      CESIUM_BASE_URL: JSON.stringify('')
-    })
+      CESIUM_BASE_URL: JSON.stringify('dist/')
+    }),
+    //new webpack.ProvidePlugin({
+    //  'Cesium': 'cesium/Cesium'
+    //})
   ]
 };

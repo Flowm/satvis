@@ -1,11 +1,15 @@
-import Cesium from "cesium/Cesium";
 import { SatelliteOrbit } from "./orbit";
+//import Cesium from "cesium/Cesium";
+
+// Import webpack externals
+import Cesium from "Cesium";
+import CesiumSensorVolumes from "CesiumSensorVolumes";
 
 export class SatelliteEntity {
   constructor(viewer, tle) {
     this.viewer = viewer;
 
-    this.name = tle.split("\n")[0]
+    this.name = tle.split("\n")[0];
     if (tle.startsWith("0 ")) {
       this.name = this.name.substring(2);
     }
@@ -16,7 +20,7 @@ export class SatelliteEntity {
   }
 
   add(name) {
-    if (typeof name !== 'undefined' && name in this.entities) {
+    if (typeof name !== "undefined" && name in this.entities) {
       this.viewer.entities.add(this.entities[name]);
     } else {
       for (var entity in this.entities) {
@@ -26,7 +30,7 @@ export class SatelliteEntity {
   }
 
   remove(name) {
-    if (typeof name !== 'undefined' && name in this.entities) {
+    if (typeof name !== "undefined" && name in this.entities) {
       this.viewer.entities.remove(this.entities[name]);
     } else {
       for (var entity in this.entities) {
@@ -40,10 +44,11 @@ export class SatelliteEntity {
   }
 
   createEntities() {
-    this.entities = {}
+    this.entities = {};
     this.createSatellite();
     this.createOrbitTrack();
     this.createGroundTrack();
+    this.addRectangularSensor();
   }
 
   createSatellite() {
@@ -125,5 +130,35 @@ export class SatelliteEntity {
     this.entities["GroundTrack"] = new Cesium.Entity({
       polyline: polyline
     });
+  }
+
+  getModelMatrix() {
+    var longitude = Cesium.Math.toRadians(-90.0);
+    var latitude = Cesium.Math.toRadians(30.0);
+    var altitude = 3000000.0;
+    var clock = 0.0;
+    var cone = Cesium.Math.toRadians(15.0);
+    var twist = 0.0;
+    var ellipsoid = this.viewer.scene.globe.ellipsoid;
+    var location = ellipsoid.cartographicToCartesian(new Cesium.Cartographic(longitude, latitude, altitude));
+    var modelMatrix = Cesium.Transforms.northEastDownToFixedFrame(location);
+    var orientation = Cesium.Matrix3.multiply(
+      Cesium.Matrix3.multiply(Cesium.Matrix3.fromRotationZ(clock), Cesium.Matrix3.fromRotationY(cone), new Cesium.Matrix3()),
+      Cesium.Matrix3.fromRotationX(twist), new Cesium.Matrix3()
+    );
+    return Cesium.Matrix4.multiply(modelMatrix, Cesium.Matrix4.fromRotationTranslation(orientation, Cesium.Cartesian3.ZERO), new Cesium.Matrix4());
+  }
+
+  addRectangularSensor() {
+    var rectangularPyramidSensor = new CesiumSensorVolumes.RectangularPyramidSensorVolume();
+
+    rectangularPyramidSensor.modelMatrix = this.getModelMatrix();
+    rectangularPyramidSensor.radius = 20000000.0;
+    rectangularPyramidSensor.xHalfAngle = Cesium.Math.toRadians(40.0);
+    rectangularPyramidSensor.yHalfAngle = Cesium.Math.toRadians(20.0);
+
+    rectangularPyramidSensor.lateralSurfaceMaterial = Cesium.Material.fromType("Color");
+    rectangularPyramidSensor.lateralSurfaceMaterial.uniforms.color = new Cesium.Color(0.0, 1.0, 1.0, 0.5);
+    this.viewer.scene.primitives.add(rectangularPyramidSensor);
   }
 }

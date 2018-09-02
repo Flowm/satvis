@@ -1,4 +1,4 @@
-import Cesium from "cesium/Cesium";
+import Cesium from "Cesium";
 import { SatelliteEntity } from "./modules/satellite";
 
 import "cesium/Widgets/widgets.css";

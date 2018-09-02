@@ -3,20 +3,22 @@
   "version": "0.0.1",
   "description": "MOVE-II orbit visualization",
   "scripts": {
-    "build": "webpack --config webpack.prod.js --progress",
-    "build-dev": "webpack --config webpack.dev.js --progress",
+    "build": "webpack --config webpack.prod.js",
+    "build-dev": "webpack --config webpack.dev.js",
     "clean": "mkdirp dist & rimraf dist/*",
     "lint": "eslint src",
-    "serve-release": "npm run build && http-server -g -c0 dist",
-    "start": "webpack-dev-server --config webpack.dev.js --progress",
-    "start-dev": "webpack-dev-server --config webpack.dev.js --progress --host 0.0.0.0",
-    "start-prod": "webpack-dev-server --config webpack.prod.js --progress --host 0.0.0.0"
+    "serve-dev": "npm run build-dev && http-server -g -c0 dist",
+    "serve-prod": "npm run build && http-server -g -c0 dist",
+    "start": "webpack-dev-server --config webpack.dev.js",
+    "start-dev": "webpack-dev-server --config webpack.dev.js --host 0.0.0.0",
+    "start-prod": "webpack-dev-server --config webpack.prod.js --host 0.0.0.0"
   },
   "author": "Florian Mauracher",
   "private": true,
   "license": "MIT",
   "dependencies": {
     "cesium": "^1.48.0",
+    "cesium-sensor-volumes": "^1.32.0",
     "jspredict-move2": "^1.0.5",
     "moment": "^2.22.2",
     "satellite.js": "^2.0.2"
