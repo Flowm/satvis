@@ -28,6 +28,7 @@ const viewer = new Cesium.Viewer("cesiumContainer", {
 viewer.scene.globe.enableLighting = false;
 viewer.scene.fog.enabled = false;
 viewer.scene.debugShowFramesPerSecond = true;
+viewer.clock.shouldAnimate = true;
 
 // Create satellite
 const move = new SatelliteEntity(viewer, "0 First-MOVE\n1 39439U 13066Z   18203.92296999 +.00000436 +00000-0 +59983-4 0  9994\n2 39439 097.5919 229.8528 0066721 040.9363 319.6832 14.81533022250876");
