@@ -54,6 +54,7 @@ export class SatelliteEntity {
   createSatellite() {
     const label = new Cesium.LabelGraphics({
       text: this.name,
+      scale: 0.8,
       horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
       pixelOffset: new Cesium.Cartesian2(20, 0),
       distanceDisplayCondition: new Cesium.DistanceDisplayCondition(this.size * 10, 5.0e7),
