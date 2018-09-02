@@ -47,8 +47,8 @@ export class SatelliteEntity {
     this.entities = {};
     this.createSatellite();
     this.createOrbitTrack();
-    this.createGroundTrack();
-    this.addRectangularSensor();
+    //this.createGroundTrack();
+    this.createCone();
   }
 
   createSatellite() {
@@ -70,7 +70,6 @@ export class SatelliteEntity {
       material: Cesium.Color.WHITE,
     });
 
-
     this.entities["Satellite"] = new Cesium.Entity({
       box: box,
       label: label,
@@ -80,9 +79,6 @@ export class SatelliteEntity {
       viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
       position: new Cesium.CallbackProperty((time) => {
         const position = this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time), 1);
-        if (position.length < 3) {
-          return Cesium.Cartesian3.fromRadians(0, 0, 0);
-        }
         return Cesium.Cartesian3.fromRadians(position[0], position[1], position[2]);
       }, false),
     });
@@ -132,33 +128,29 @@ export class SatelliteEntity {
     });
   }
 
-  getModelMatrix() {
-    var longitude = Cesium.Math.toRadians(-90.0);
-    var latitude = Cesium.Math.toRadians(30.0);
-    var altitude = 3000000.0;
-    var clock = 0.0;
-    var cone = Cesium.Math.toRadians(15.0);
-    var twist = 0.0;
-    var ellipsoid = this.viewer.scene.globe.ellipsoid;
-    var location = ellipsoid.cartographicToCartesian(new Cesium.Cartographic(longitude, latitude, altitude));
-    var modelMatrix = Cesium.Transforms.northEastDownToFixedFrame(location);
-    var orientation = Cesium.Matrix3.multiply(
-      Cesium.Matrix3.multiply(Cesium.Matrix3.fromRotationZ(clock), Cesium.Matrix3.fromRotationY(cone), new Cesium.Matrix3()),
-      Cesium.Matrix3.fromRotationX(twist), new Cesium.Matrix3()
-    );
-    return Cesium.Matrix4.multiply(modelMatrix, Cesium.Matrix4.fromRotationTranslation(orientation, Cesium.Cartesian3.ZERO), new Cesium.Matrix4());
-  }
+  createCone(fov = 10) {
+    const cone = new Cesium.Entity({
+      position: new Cesium.CallbackProperty((time) => {
+        const position = this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time), 1);
+        return Cesium.Cartesian3.fromRadians(position[0], position[1], position[2]);
+      }, false),
+      orientation: new Cesium.CallbackProperty((time) => {
+        const position = this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time), 1);
+        const positionCartesian = new Cesium.Cartesian3.fromRadians(position[0], position[1], position[2]);
+        const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
+        return Cesium.Transforms.headingPitchRollQuaternion(positionCartesian, hpr);
+      }, false),
+    });
 
-  addRectangularSensor() {
-    var rectangularPyramidSensor = new CesiumSensorVolumes.RectangularPyramidSensorVolume();
-
-    rectangularPyramidSensor.modelMatrix = this.getModelMatrix();
-    rectangularPyramidSensor.radius = 20000000.0;
-    rectangularPyramidSensor.xHalfAngle = Cesium.Math.toRadians(40.0);
-    rectangularPyramidSensor.yHalfAngle = Cesium.Math.toRadians(20.0);
-
-    rectangularPyramidSensor.lateralSurfaceMaterial = Cesium.Material.fromType("Color");
-    rectangularPyramidSensor.lateralSurfaceMaterial.uniforms.color = new Cesium.Color(0.0, 1.0, 1.0, 0.5);
-    this.viewer.scene.primitives.add(rectangularPyramidSensor);
+    cone.addProperty('conicSensor');
+    cone.conicSensor = new CesiumSensorVolumes.ConicSensorGraphics({
+      radius: 10000000,
+      innerHalfAngle: Cesium.Math.toRadians(0),
+      outerHalfAngle: Cesium.Math.toRadians(fov),
+      lateralSurfaceMaterial: Cesium.Color.BLUE.withAlpha(0.2),
+      intersectionColor: Cesium.Color.RED.withAlpha(0.5),
+      showIntersection: true,
+    });
+    this.entities["Cone"] = cone;
   }
 }

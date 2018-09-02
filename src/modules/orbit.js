@@ -41,6 +41,10 @@ export class SatelliteOrbit {
       momentTimestamp.add(interval, "m");
       trackArray.push(longitude, latitude, heightInMeters);
     }
+    if (trackArray.length < 3) {
+      console.log("Error calculating satellite position");
+      return [0, 0, 0];
+    }
 
     return trackArray;
   }
