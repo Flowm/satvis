@@ -56,7 +56,7 @@ export class SatelliteEntity {
 
     this.focus(this.defaultEntity, () => {
       //this.viewer.selectedEntity = this.defaultEntity;
-      //this.viewer.trackedEntity = this.defaultEntity;
+      this.viewer.trackedEntity = this.defaultEntity;
     });
   }
 
@@ -80,12 +80,30 @@ export class SatelliteEntity {
     });
   }
 
+  artificiallyTrack() {
+    const cameraTracker = new Cesium.EntityView(this.defaultEntity, this.viewer.scene, this.viewer.scene.globe.ellipsoid);
+
+    const onTickEventRemovalCallback = this.viewer.clock.onTick.addEventListener((clock) => {
+      cameraTracker.update(clock.currentTime);
+    });
+    const onTrackedEntityChangedRemovalCallback = this.viewer.trackedEntityChanged.addEventListener(() => {
+      onTickEventRemovalCallback();
+      onTrackedEntityChangedRemovalCallback();
+    });
+  }
+
   createEntities() {
     this.entities = {};
     this.createSatellite();
     //this.createOrbitTrack();
     //this.createGroundTrack();
     //this.createCone();
+
+    this.viewer.trackedEntityChanged.addEventListener(() => {
+      if (this.isTracked) {
+        this.artificiallyTrack();
+      }
+    });
   }
 
   createSatellite() {
