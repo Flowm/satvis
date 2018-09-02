@@ -83,6 +83,7 @@ module.exports = {
       {from: path.join(cesiumSource, '../Build/Cesium/Workers'), to: 'dist/Workers', force: true},
       {from: path.join(cesiumSource, '../Build/Cesium/Cesium.js'), to: 'dist/'},
       {from: 'node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.js', to: 'dist/'},
+      {from: 'data', to: 'data'},
     ]),
     new webpack.DefinePlugin({
       // Define relative base path in cesium for loading assets

@@ -46,9 +46,9 @@ export class SatelliteEntity {
   createEntities() {
     this.entities = {};
     this.createSatellite();
-    this.createOrbitTrack();
-    this.createGroundTrack();
-    this.createCone();
+    //this.createOrbitTrack();
+    //this.createGroundTrack();
+    //this.createCone();
   }
 
   createSatellite() {
