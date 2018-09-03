@@ -22,30 +22,44 @@ export class SatelliteOrbit {
     return {
       longitude: positionGd.longitude,
       latitude: positionGd.latitude,
-      heightInMeters: positionGd.height * 1000,
+      height: positionGd.height * 1000,
       velocity
     };
   }
 
   computeOrbitTrack(timestamp, steps = 120, interval = 1) {
-    // Orbit calculation crashes if year is before 1900
+    // Orbit calculation crashes for years before 1900
     if (timestamp.getFullYear() < 1900) {
       return [];
     }
 
-    var trackArray = [];
+    // Check if track for current timestap is already computed
+    if (typeof this.last !== "undefined" &&
+        this.last.steps >= steps &&
+        this.last.interval == interval &&
+        this.last.timestamp.getTime() === timestamp.getTime()) {
+      return this.last.orbitTrack;
+    }
+
+    var orbitTrack = [];
     const momentTimestamp = moment(timestamp);
     for (let step = 0; step < steps; step++) {
-      const {longitude, latitude, heightInMeters} =
-        this.computeGeodeticPosition(momentTimestamp.toDate());
+      const {longitude, latitude, height} = this.computeGeodeticPosition(momentTimestamp.toDate());
       momentTimestamp.add(interval, "m");
-      trackArray.push(longitude, latitude, heightInMeters);
+      orbitTrack.push(longitude, latitude, height);
     }
-    if (trackArray.length < 3) {
-      console.log("Error calculating satellite position");
+    if (orbitTrack.length < 3) {
+      console.log("Error in satellite orbit calculation");
       return [0, 0, 0];
     }
 
-    return trackArray;
+    this.last = {
+      timestamp: timestamp,
+      steps: steps,
+      interval: interval,
+      orbitTrack: orbitTrack,
+    };
+
+    return orbitTrack;
   }
 }
