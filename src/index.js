@@ -38,20 +38,17 @@ const iss = new SatelliteEntity(viewer, "0 ISS (ZARYA)\n1 25544U 98067A   18243.
 iss.show();
 iss.track();
 
-function handleErrors(response) {
-  if (!response.ok) {
-    throw Error(response.statusText);
-  }
-  return response;
-}
-
 fetch("data/weather.txt", {
   mode: "no-cors",
-}).then(handleErrors)
-  .then(response => response.text())
+})
+  .then(response => {
+    if (!response.ok) {
+      throw Error(response.statusText);
+    }
+    return response;
+  }).then(response => response.text())
   .then(data => {
     const tles = data.match(/[\s\S]{168}/g); //.*?\n1.*?\n2.*?\n
-    //console.log(tles);
     for (var tle of tles) {
       const sat = new SatelliteEntity(viewer, tle);
       sat.show();

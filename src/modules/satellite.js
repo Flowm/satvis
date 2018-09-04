@@ -195,7 +195,7 @@ export class SatelliteEntity {
       }, false),
     });
 
-    cone.addProperty('conicSensor');
+    cone.addProperty("conicSensor");
     cone.conicSensor = new CesiumSensorVolumes.ConicSensorGraphics({
       radius: 10000000,
       innerHalfAngle: Cesium.Math.toRadians(0),
