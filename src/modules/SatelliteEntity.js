@@ -1,4 +1,4 @@
-import { SatelliteOrbit } from "./orbit";
+import { SatelliteOrbit } from "./SatelliteOrbit";
 //import Cesium from "cesium/Cesium";
 
 // Import webpack externals
@@ -23,6 +23,10 @@ export class SatelliteEntity {
     for (var entity in this.entities) {
       this.showComponent(entity);
     }
+  }
+
+  get components() {
+    return Object.keys(this.entities);
   }
 
   showComponent(name) {
@@ -94,9 +98,9 @@ export class SatelliteEntity {
       return Cesium.Cartesian3.fromRadians(position[0], position[1], position[2]);
     }, false);
     this.createSatellite();
-    //this.createOrbitTrack();
-    //this.createGroundTrack();
-    //this.createCone();
+    this.createOrbitTrack();
+    this.createGroundTrack();
+    this.createCone();
 
     this.viewer.trackedEntityChanged.addEventListener(() => {
       if (this.isTracked) {

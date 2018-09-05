@@ -17,6 +17,12 @@
                 </button>
             </div>
             <div id="toolbarSwitches" v-show="showSwitches">
+                <label class='switch' v-for="componentName in availableComponents">
+                    <input type='checkbox' :value="componentName" v-model="enabledComponents"/>
+                    <span class='slider round'></span>
+                    {{ componentName }}
+                </label>
+
                 <label class='switch'>
                     <input type='checkbox' v-model='viewer.scene.globe.enableLighting' />
                     <span class='slider round'></span>
