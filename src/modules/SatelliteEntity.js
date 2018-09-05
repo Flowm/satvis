@@ -93,10 +93,6 @@ export class SatelliteEntity {
 
   createEntities() {
     this.entities = {};
-    this.positionProperty = new Cesium.CallbackProperty((time) => {
-      const position = this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time), 1);
-      return Cesium.Cartesian3.fromRadians(position[0], position[1], position[2]);
-    }, false);
     this.createSatellite();
     this.createOrbitTrack();
     this.createGroundTrack();
@@ -135,7 +131,9 @@ export class SatelliteEntity {
       name: this.name,
       point: point,
       viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
-      position: this.positionProperty
+      position: new Cesium.CallbackProperty((time) => {
+        return this.orbit.computePositionCartesian3(time);
+      }, false),
     });
     this.defaultEntity = this.entities["Satellite"];
   }
@@ -145,7 +143,7 @@ export class SatelliteEntity {
       material: Cesium.Color.WHITE.withAlpha(0.2),
       positions: new Cesium.CallbackProperty((time) => {
         return Cesium.Cartesian3.fromRadiansArrayHeights(
-          this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time)));
+          this.orbit.computeOrbitTrack(time));
       }, false),
       width: 5,
     });
@@ -161,7 +159,7 @@ export class SatelliteEntity {
         color: Cesium.Color.WHITE.withAlpha(0.5)
       }),
       positions: new Cesium.CallbackProperty((time) => {
-        const orbitTrackPositions = this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time));
+        const orbitTrackPositions = this.orbit.computeOrbitTrack(time);
         const groundTrackPositions = [];
         for (let i = 0; i < orbitTrackPositions.length; i++) {
           if ((i + 1) % 3 === 0) {
@@ -182,12 +180,13 @@ export class SatelliteEntity {
 
   createCone(fov = 10) {
     const cone = new Cesium.Entity({
-      position: this.positionProperty,
+      position: new Cesium.CallbackProperty((time) => {
+        return this.orbit.computePositionCartesian3(time);
+      }, false),
       orientation: new Cesium.CallbackProperty((time) => {
-        const position = this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time), 1);
-        const positionCartesian = new Cesium.Cartesian3.fromRadians(position[0], position[1], position[2]);
+        const position = this.orbit.computePositionCartesian3(time);
         const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
-        return Cesium.Transforms.headingPitchRollQuaternion(positionCartesian, hpr);
+        return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
       }, false),
     });
 
