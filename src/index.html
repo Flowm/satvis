@@ -12,8 +12,10 @@
         <div id="toolbar" v-cloak>
             <div id="toolbarButtons">
                 <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="showSwitches = !showSwitches">
-                    SB
-                    <!--<img src="">-->
+                    SB<!--<img src="">-->
+                </button>
+                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="showDebug = !showDebug">
+                    DBG
                 </button>
             </div>
             <div id="toolbarSwitches" v-show="showSwitches">
@@ -28,6 +30,8 @@
                     <span class="slider round"></span>
                     Day/Night cycle
                 </label>
+            </div>
+            <div id="toolbarSwitches" v-show="showDebug">
                 <label class="switch">
                     <input type="checkbox" v-model="viewer.scene.fog.enabled" />
                     <span class="slider round"></span>

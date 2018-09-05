@@ -25,15 +25,16 @@ const viewer = new Cesium.Viewer("cesiumContainer", {
   fullscreenElement: document.body,
   navigationInstructionsInitiallyVisible: false,
 });
+viewer.scene.debugShowFramesPerSecond = true;
+viewer.clock.shouldAnimate = true;
 
 const sats = new SatelliteManager(viewer);
-
-viewer.clock.shouldAnimate = true;
 Vue.prototype.viewer = viewer;
 const app = new Vue({
   el: "#toolbar",
   data: {
-    showSwitches: false,
+    showSwitches: true,
+    showDebug: true,
     availableComponents: sats.availableComponents,
     enabledComponents: sats.enabledComponents,
   },
