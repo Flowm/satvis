@@ -9,5 +9,30 @@
     </head>
     <body>
         <div id="cesiumContainer"></div>
+        <div id="toolbar">
+            <div id="toolbarButtons">
+                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="showSwitches = !showSwitches">
+                    SB
+                    <!--<img src="">-->
+                </button>
+            </div>
+            <div id="toolbarSwitches" v-show="showSwitches">
+                <label class='switch'>
+                    <input type='checkbox' v-model='viewer.scene.globe.enableLighting' />
+                    <span class='slider round'></span>
+                    Day/Night cycle
+                </label>
+                <label class='switch'>
+                    <input type='checkbox' v-model='viewer.scene.fog.enabled' />
+                    <span class='slider round'></span>
+                    Fog
+                </label>
+                <label class='switch'>
+                    <input type='checkbox' v-model='viewer.scene.debugShowFramesPerSecond' />
+                    <span class='slider round'></span>
+                    FPS
+                </label>
+            </div>
+        </div>
     </body>
 </html>

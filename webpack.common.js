@@ -34,7 +34,8 @@ module.exports = {
   resolve: {
     alias: {
       // Cesium module name
-      cesium: path.resolve(__dirname, cesiumSource)
+      cesium: path.resolve(__dirname, cesiumSource),
+      'vue$': 'vue/dist/vue.esm.js',
     }
   },
   externals: {

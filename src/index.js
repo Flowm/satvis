@@ -1,5 +1,6 @@
 import Cesium from "Cesium";
 import { SatelliteEntity } from "./modules/satellite";
+import Vue from "vue"
 
 import "cesium/Widgets/widgets.css";
 import "./css/main.css";
@@ -25,10 +26,14 @@ const viewer = new Cesium.Viewer("cesiumContainer", {
   navigationInstructionsInitiallyVisible: false,
 });
 
-viewer.scene.globe.enableLighting = false;
-viewer.scene.fog.enabled = false;
-viewer.scene.debugShowFramesPerSecond = true;
 viewer.clock.shouldAnimate = true;
+Vue.prototype.viewer = viewer;
+var app = new Vue({
+  el: '#toolbar',
+  data: {
+    showSwitches: false,
+  },
+})
 
 // Create satellite
 const move = new SatelliteEntity(viewer, "0 First-MOVE\n1 39439U 13066Z   18203.92296999 +.00000436 +00000-0 +59983-4 0  9994\n2 39439 097.5919 229.8528 0066721 040.9363 319.6832 14.81533022250876");
