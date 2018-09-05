@@ -49,35 +49,30 @@ export class SatelliteEntity {
     }
   }
 
-  track() {
+  track(animate = false) {
     if (typeof this.defaultEntity === "undefined") {
       return;
     }
-
-    this.focus(this.defaultEntity, () => {
-      //this.viewer.selectedEntity = this.defaultEntity;
+    if (!animate) {
       this.viewer.trackedEntity = this.defaultEntity;
+      return;
+    }
+
+    this.viewer.trackedEntity = undefined;
+    const clockRunning = this.viewer.clock.shouldAnimate;
+    this.viewer.clock.shouldAnimate = false;
+
+    const offset = new Cesium.HeadingPitchRange(0, -Cesium.Math.PI_OVER_FOUR, 1580000);
+    this.viewer.flyTo(this.defaultEntity, { offset }).then((result) => {
+      if (result) {
+        this.viewer.trackedEntity = this.defaultEntity;
+        this.viewer.clock.shouldAnimate = clockRunning;
+      }
     });
   }
 
   get isTracked() {
     return this.viewer.trackedEntity === this.defaultEntity;
-  }
-
-  focus(entity, callback = () => {}) {
-    this.viewer.selectedEntity = undefined;
-    this.viewer.trackedEntity = undefined;
-
-    const clockRunning = this.viewer.clock.shouldAnimate;
-    this.viewer.clock.shouldAnimate = false;
-
-    const offset = new Cesium.HeadingPitchRange(0, -Cesium.Math.PI_OVER_FOUR, 1580000);
-    this.viewer.flyTo(entity, { offset }).then((result) => {
-      if (result) {
-        this.viewer.clock.shouldAnimate = clockRunning;
-        callback();
-      }
-    });
   }
 
   artificiallyTrack() {
@@ -94,6 +89,10 @@ export class SatelliteEntity {
 
   createEntities() {
     this.entities = {};
+    this.positionProperty = new Cesium.CallbackProperty((time) => {
+      const position = this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time), 1);
+      return Cesium.Cartesian3.fromRadians(position[0], position[1], position[2]);
+    }, false);
     this.createSatellite();
     //this.createOrbitTrack();
     //this.createGroundTrack();
@@ -131,12 +130,8 @@ export class SatelliteEntity {
       label: label,
       name: this.name,
       point: point,
-      size: this.size,
       viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
-      position: new Cesium.CallbackProperty((time) => {
-        const position = this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time), 1);
-        return Cesium.Cartesian3.fromRadians(position[0], position[1], position[2]);
-      }, false),
+      position: this.positionProperty
     });
     this.defaultEntity = this.entities["Satellite"];
   }
@@ -183,10 +178,7 @@ export class SatelliteEntity {
 
   createCone(fov = 10) {
     const cone = new Cesium.Entity({
-      position: new Cesium.CallbackProperty((time) => {
-        const position = this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time), 1);
-        return Cesium.Cartesian3.fromRadians(position[0], position[1], position[2]);
-      }, false),
+      position: this.positionProperty,
       orientation: new Cesium.CallbackProperty((time) => {
         const position = this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(time), 1);
         const positionCartesian = new Cesium.Cartesian3.fromRadians(position[0], position[1], position[2]);
