@@ -8,6 +8,10 @@ html, body, #cesiumContainer {
     color: #edffff;
 }
 
+[v-cloak] {
+    display: none;
+}
+
 #toolbar {
     position: absolute;
     top: 5px;
