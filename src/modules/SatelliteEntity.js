@@ -132,10 +132,10 @@ export class SatelliteEntity {
   createLabel() {
     const label = new Cesium.LabelGraphics({
       text: this.name,
-      scale: 0.8,
+      scale: 0.6,
       horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
-      pixelOffset: new Cesium.Cartesian2(20, 0),
-      distanceDisplayCondition: new Cesium.DistanceDisplayCondition(this.size * 10, 5.0e7),
+      pixelOffset: new Cesium.Cartesian2(15, 0),
+      distanceDisplayCondition: new Cesium.DistanceDisplayCondition(this.size * 10, 6.0e7),
       pixelOffsetScaleByDistance: new Cesium.NearFarScalar(1.0e1, 10, 2.0e5, 1),
     });
 

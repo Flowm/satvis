@@ -12,7 +12,7 @@ export class SatelliteManager {
       "GroundTrack",
       "Cone",
     ];
-    this.enabledComponents = ["Model"];
+    this.enabledComponents = ["Model", "Label"];
   }
 
   addFromTle(tle) {
