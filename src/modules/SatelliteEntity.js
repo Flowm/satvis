@@ -92,6 +92,8 @@ export class SatelliteEntity {
   }
 
   createEntities() {
+    this.position = this.orbit.computeSampledPosition(Cesium.JulianDate.now())
+
     this.entities = {};
     this.createSatellite();
     this.createOrbitTrack();
@@ -125,15 +127,23 @@ export class SatelliteEntity {
       material: Cesium.Color.WHITE,
     });
 
+    const path = new Cesium.PathGraphics({
+      leadTime: 3600,
+      material: Cesium.Color.WHITE.withAlpha(0.2),
+      resolution: 600,
+      trailTime: 0,
+      width: 5,
+    });
+
     this.entities["Satellite"] = new Cesium.Entity({
       box: box,
       label: label,
       name: this.name,
+      path: path,
       point: point,
+      position: this.position,
+      orientation: new Cesium.VelocityOrientationProperty(this.position),
       viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
-      position: new Cesium.CallbackProperty((time) => {
-        return this.orbit.computePositionCartesian3(time);
-      }, false),
     });
     this.defaultEntity = this.entities["Satellite"];
   }
@@ -180,9 +190,7 @@ export class SatelliteEntity {
 
   createCone(fov = 10) {
     const cone = new Cesium.Entity({
-      position: new Cesium.CallbackProperty((time) => {
-        return this.orbit.computePositionCartesian3(time);
-      }, false),
+      position: this.position,
       orientation: new Cesium.CallbackProperty((time) => {
         const position = this.orbit.computePositionCartesian3(time);
         const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
