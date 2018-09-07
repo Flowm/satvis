@@ -8,8 +8,8 @@ export class SatelliteManager {
     this.availableComponents = [
       "Model",
       "Label",
-      "Path",
-      "GroundTrack",
+      "Orbit",
+      "Ground",
       "Cone",
     ];
     this.enabledComponents = ["Model", "Label"];

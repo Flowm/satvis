@@ -96,8 +96,8 @@ export class SatelliteEntity {
     this.entities = {};
     this.createModel();
     this.createLabel();
-    this.createPath();
-    this.createGroundTrack();
+    this.createOrbit();
+    this.createGround();
     this.createCone();
 
     this.viewer.trackedEntityChanged.addEventListener(() => {
@@ -145,7 +145,7 @@ export class SatelliteEntity {
     });
   }
 
-  createPath(leadTime = 3600, trailTime = 0) {
+  createOrbit(leadTime = 3600, trailTime = 0) {
     const path = new Cesium.PathGraphics({
       leadTime: leadTime,
       trailTime: trailTime,
@@ -154,17 +154,15 @@ export class SatelliteEntity {
       width: 5,
     });
 
-    this.entities["Path"] = new Cesium.Entity({
+    this.entities["Orbit"] = new Cesium.Entity({
       path: path,
       position: this.position,
     });
   }
 
-  createGroundTrack() {
+  createGround() {
     const polyline = new Cesium.PolylineGraphics({
-      material : new Cesium.PolylineDashMaterialProperty({
-        color: Cesium.Color.WHITE.withAlpha(0.5)
-      }),
+      material: Cesium.Color.YELLOW.withAlpha(0.1),
       positions: new Cesium.CallbackProperty((time) => {
         const orbitTrackPositions = this.orbit.computeOrbitTrack(time);
         const groundTrackPositions = [];
@@ -177,10 +175,10 @@ export class SatelliteEntity {
         }
         return Cesium.Cartesian3.fromRadiansArrayHeights(groundTrackPositions);
       }, false),
-      width: 5,
+      width: 10,
     });
 
-    this.entities["GroundTrack"] = new Cesium.Entity({
+    this.entities["Ground"] = new Cesium.Entity({
       polyline: polyline
     });
   }
