@@ -10,7 +10,6 @@ export class SatelliteManager {
       "Label",
       "Path",
       "GroundTrack",
-      "OrbitTrack",
       "Cone",
     ];
     this.enabledComponents = ["Model"];

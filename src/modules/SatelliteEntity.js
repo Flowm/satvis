@@ -97,7 +97,6 @@ export class SatelliteEntity {
     this.createModel();
     this.createLabel();
     this.createPath();
-    this.createOrbitTrack();
     this.createGroundTrack();
     this.createCone();
 
@@ -158,21 +157,6 @@ export class SatelliteEntity {
     this.entities["Path"] = new Cesium.Entity({
       path: path,
       position: this.position,
-    });
-  }
-
-  createOrbitTrack() {
-    const polyline = new Cesium.PolylineGraphics({
-      material: Cesium.Color.WHITE.withAlpha(0.2),
-      positions: new Cesium.CallbackProperty((time) => {
-        return Cesium.Cartesian3.fromRadiansArrayHeights(
-          this.orbit.computeOrbitTrack(time));
-      }, false),
-      width: 5,
-    });
-
-    this.entities["OrbitTrack"] = new Cesium.Entity({
-      polyline: polyline
     });
   }
 
