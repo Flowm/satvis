@@ -27,6 +27,8 @@ const viewer = new Cesium.Viewer("cesiumContainer", {
 });
 viewer.scene.debugShowFramesPerSecond = true;
 viewer.clock.shouldAnimate = true;
+// Export viewer variable for debugger
+window.viewer = viewer;
 
 const sats = new SatelliteManager(viewer);
 Vue.prototype.viewer = viewer;
@@ -55,3 +57,4 @@ const app = new Vue({
 sats.addFromTle("0 First-MOVE\n1 39439U 13066Z   18203.92296999 +.00000436 +00000-0 +59983-4 0  9994\n2 39439 097.5919 229.8528 0066721 040.9363 319.6832 14.81533022250876");
 sats.addFromTle("0 ISS (ZARYA)\n1 25544U 98067A   18243.71849541  .00002853  00000-0  50721-4 0  9994\n2 25544  51.6429   2.2915 0005795 114.7130 347.8859 15.53913300130267");
 sats.addFromTleUrl("data/weather.txt");
+sats.getSatellite("First-MOVE").track();

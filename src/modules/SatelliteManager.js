@@ -51,6 +51,12 @@ export class SatelliteManager {
     }
   }
 
+  getSatellite(name) {
+    if (name in this.satellites) {
+      return this.satellites[name];
+    }
+  }
+
   show(name) {
     if (name in this.satellites) {
       this.satellites[name].show();
