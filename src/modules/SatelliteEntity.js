@@ -93,9 +93,10 @@ export class SatelliteEntity {
 
   createEntities() {
     this.position = this.orbit.computeSampledPosition(Cesium.JulianDate.now())
-
     this.entities = {};
-    this.createSatellite();
+    this.createModel();
+    this.createLabel();
+    this.createPath();
     this.createOrbitTrack();
     this.createGroundTrack();
     this.createCone();
@@ -107,7 +108,29 @@ export class SatelliteEntity {
     });
   }
 
-  createSatellite() {
+  createModel() {
+    const box = new Cesium.BoxGraphics({
+      dimensions: new Cesium.Cartesian3(this.size, this.size, this.size),
+      material: Cesium.Color.WHITE,
+    });
+
+    const point = new Cesium.PointGraphics({
+      pixelSize: 10,
+      color: Cesium.Color.WHITE,
+    });
+
+    this.entities["Model"] = new Cesium.Entity({
+      box: box,
+      point: point,
+      name: this.name,
+      position: this.position,
+      orientation: new Cesium.VelocityOrientationProperty(this.position),
+      viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
+    });
+    this.defaultEntity = this.entities["Model"];
+  }
+
+  createLabel() {
     const label = new Cesium.LabelGraphics({
       text: this.name,
       scale: 0.8,
@@ -117,35 +140,25 @@ export class SatelliteEntity {
       pixelOffsetScaleByDistance: new Cesium.NearFarScalar(1.0e1, 10, 2.0e5, 1),
     });
 
-    const point = new Cesium.PointGraphics({
-      pixelSize: 10,
-      color: Cesium.Color.WHITE,
+    this.entities["Label"] = new Cesium.Entity({
+      label: label,
+      position: this.position,
     });
+  }
 
-    const box = new Cesium.BoxGraphics({
-      dimensions: new Cesium.Cartesian3(this.size, this.size, this.size),
-      material: Cesium.Color.WHITE,
-    });
-
+  createPath(leadTime = 3600, trailTime = 0) {
     const path = new Cesium.PathGraphics({
-      leadTime: 3600,
+      leadTime: leadTime,
+      trailTime: trailTime,
       material: Cesium.Color.WHITE.withAlpha(0.2),
       resolution: 600,
-      trailTime: 0,
       width: 5,
     });
 
-    this.entities["Satellite"] = new Cesium.Entity({
-      box: box,
-      label: label,
-      name: this.name,
+    this.entities["Path"] = new Cesium.Entity({
       path: path,
-      point: point,
       position: this.position,
-      orientation: new Cesium.VelocityOrientationProperty(this.position),
-      viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
     });
-    this.defaultEntity = this.entities["Satellite"];
   }
 
   createOrbitTrack() {
