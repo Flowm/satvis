@@ -11,32 +11,41 @@
         <div id="cesiumContainer"></div>
         <div id="toolbar" v-cloak>
             <div id="toolbarButtons">
-                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="showSwitches = !showSwitches">
-                    SB<!--<img src="">-->
+                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="menu.sat = !menu.sat">
+                    SAT
                 </button>
-                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="showDebug = !showDebug">
+                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="menu.env = !menu.env">
+                    ENV
+                </button>
+                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="menu.ios = !menu.ios" v-if="isIOS">
+                    iOS
+                </button>
+                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="menu.dbg = !menu.dbg">
                     DBG
                 </button>
             </div>
-            <div id="toolbarSwitches" v-show="showSwitches">
+            <div id="toolbarSwitches" v-show="menu.sat">
                 <label class="switch" v-for="componentName in availableComponents">
                     <input type="checkbox" :value="componentName" v-model="enabledComponents"/>
                     <span class="slider round"></span>
                     {{ componentName }}
                 </label>
-
+            </div>
+            <div id="toolbarSwitches" v-show="menu.env">
                 <label class="switch">
                     <input type="checkbox" v-model="viewer.scene.globe.enableLighting" />
                     <span class="slider round"></span>
                     Day/Night cycle
                 </label>
-            </div>
-            <div id="toolbarSwitches" v-show="showDebug">
                 <label class="switch">
                     <input type="checkbox" v-model="viewer.scene.fog.enabled" />
                     <span class="slider round"></span>
                     Fog
                 </label>
+            </div>
+            <div id="toolbarSwitches" v-show="menu.ios">
+            </div>
+            <div id="toolbarSwitches" v-show="menu.dbg">
                 <label class="switch">
                     <input type="checkbox" v-model="viewer.scene.debugShowFramesPerSecond" />
                     <span class="slider round"></span>

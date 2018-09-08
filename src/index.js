@@ -35,8 +35,13 @@ Vue.prototype.viewer = viewer;
 const app = new Vue({
   el: "#toolbar",
   data: {
-    showSwitches: true,
-    showDebug: true,
+    menu: {
+      sat: true,
+      env: false,
+      ios: false,
+      dbg: false,
+    },
+    isIOS: isIOS,
     availableComponents: sats.availableComponents,
     enabledComponents: sats.enabledComponents,
   },
