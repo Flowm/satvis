@@ -6,13 +6,15 @@ export class SatelliteManager {
 
     this.satellites = {};
     this.availableComponents = [
+      "Point",
+      "Box",
       "Model",
       "Label",
       "Orbit",
       "Ground",
       "Cone",
     ];
-    this.enabledComponents = ["Model", "Label"];
+    this.enabledComponents = ["Point", "Label"];
   }
 
   addFromTle(tle) {

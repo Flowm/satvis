@@ -94,6 +94,8 @@ export class SatelliteEntity {
   createEntities() {
     this.position = this.orbit.computeSampledPosition(Cesium.JulianDate.now())
     this.entities = {};
+    this.createPoint();
+    this.createBox();
     this.createModel();
     this.createLabel();
     this.createOrbit();
@@ -107,26 +109,50 @@ export class SatelliteEntity {
     });
   }
 
-  createModel() {
-    const box = new Cesium.BoxGraphics({
-      dimensions: new Cesium.Cartesian3(this.size, this.size, this.size),
-      material: Cesium.Color.WHITE,
-    });
-
+  createPoint() {
     const point = new Cesium.PointGraphics({
       pixelSize: 10,
       color: Cesium.Color.WHITE,
     });
 
-    this.entities["Model"] = new Cesium.Entity({
-      box: box,
+    this.entities["Point"] = new Cesium.Entity({
       point: point,
       name: this.name,
       position: this.position,
       orientation: new Cesium.VelocityOrientationProperty(this.position),
       viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
     });
-    this.defaultEntity = this.entities["Model"];
+    this.defaultEntity = this.entities["Point"];
+  }
+
+  createBox() {
+    const box = new Cesium.BoxGraphics({
+      dimensions: new Cesium.Cartesian3(this.size, this.size, this.size),
+      material: Cesium.Color.WHITE,
+    });
+
+    this.entities["Box"] = new Cesium.Entity({
+      box: box,
+      name: this.name,
+      position: this.position,
+      orientation: new Cesium.VelocityOrientationProperty(this.position),
+      viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
+    });
+  }
+
+  createModel() {
+    const path = "./data/models/" + this.name.toLowerCase() + ".glb";
+    const model = new Cesium.ModelGraphics({
+      uri: path,
+    });
+
+    this.entities["Model"] = new Cesium.Entity({
+      model: model,
+      name: this.name,
+      position: this.position,
+      orientation: new Cesium.VelocityOrientationProperty(this.position),
+      viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
+    });
   }
 
   createLabel() {
@@ -141,7 +167,10 @@ export class SatelliteEntity {
 
     this.entities["Label"] = new Cesium.Entity({
       label: label,
+      name: this.name,
       position: this.position,
+      orientation: new Cesium.VelocityOrientationProperty(this.position),
+      viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
     });
   }
 
