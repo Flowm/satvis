@@ -44,6 +44,16 @@
                 </label>
             </div>
             <div id="toolbarSwitches" v-show="menu.ios">
+                <label class="switch">
+                    <input type="checkbox" v-model="viewer.clock.shouldAnimate" />
+                    <span class="slider round"></span>
+                    Play
+                </label>
+                <label class="switch">
+                    <input type="checkbox" v-model="viewer.scene.useWebVR" />
+                    <span class="slider round"></span>
+                    VR
+                </label>
             </div>
             <div id="toolbarSwitches" v-show="menu.dbg">
                 <label class="switch">

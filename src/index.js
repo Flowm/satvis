@@ -16,14 +16,16 @@ const viewer = new Cesium.Viewer("cesiumContainer", {
     : new Cesium.ArcGisMapServerImageryProvider({
       url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
     }),
-  baseLayerPicker: !isLocalOnly,
   animation: !isIOS,
-  geocoder: false,
-  timeline: !isIOS,
-  vrButton: true,
+  baseLayerPicker: !isLocalOnly,
   fullscreenButton: !isIOS,
   fullscreenElement: document.body,
+  geocoder: false,
+  navigationHelpButton: false,
   navigationInstructionsInitiallyVisible: false,
+  selectionIndicator: false,
+  timeline: !isIOS,
+  vrButton: true,
 });
 viewer.scene.debugShowFramesPerSecond = true;
 viewer.clock.shouldAnimate = true;
