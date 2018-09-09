@@ -1,39 +1,15 @@
-import Cesium from "Cesium";
-import Vue from "vue";
+import { CesiumController } from "./modules/CesiumController";
 import { SatelliteManager } from "./modules/SatelliteManager";
+import Vue from "vue";
 
 import "cesium/Widgets/widgets.css";
 import "./css/main.css";
 
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-const isLocalOnly = true;
+const cc = new CesiumController();
+const sats = new SatelliteManager(cc.viewer);
+Vue.prototype.cc = cc;
+Vue.prototype.sats = sats;
 
-const viewer = new Cesium.Viewer("cesiumContainer", {
-  imageryProvider: isLocalOnly
-    ? new Cesium.createTileMapServiceImageryProvider({
-      url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
-    })
-    : new Cesium.ArcGisMapServerImageryProvider({
-      url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
-    }),
-  animation: !isIOS,
-  baseLayerPicker: !isLocalOnly,
-  fullscreenButton: !isIOS,
-  fullscreenElement: document.body,
-  geocoder: false,
-  navigationHelpButton: false,
-  navigationInstructionsInitiallyVisible: false,
-  selectionIndicator: false,
-  timeline: !isIOS,
-  vrButton: true,
-});
-viewer.scene.debugShowFramesPerSecond = true;
-viewer.clock.shouldAnimate = true;
-// Export viewer variable for debugger
-window.viewer = viewer;
-
-const sats = new SatelliteManager(viewer);
-Vue.prototype.viewer = viewer;
 const app = new Vue({
   el: "#toolbar",
   data: {
@@ -43,7 +19,7 @@ const app = new Vue({
       ios: false,
       dbg: false,
     },
-    isIOS: isIOS,
+    isIOS: cc.isIOS,
     availableComponents: sats.availableComponents,
     enabledComponents: sats.enabledComponents,
   },

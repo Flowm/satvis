@@ -33,36 +33,36 @@
             </div>
             <div id="toolbarSwitches" v-show="menu.env">
                 <label class="switch">
-                    <input type="checkbox" v-model="viewer.scene.globe.enableLighting" />
+                    <input type="checkbox" v-model="cc.viewer.scene.globe.enableLighting" />
                     <span class="slider round"></span>
                     Day/Night cycle
                 </label>
                 <label class="switch">
-                    <input type="checkbox" v-model="viewer.scene.fog.enabled" />
+                    <input type="checkbox" v-model="cc.viewer.scene.fog.enabled" />
                     <span class="slider round"></span>
                     Fog
                 </label>
             </div>
             <div id="toolbarSwitches" v-show="menu.ios">
                 <label class="switch">
-                    <input type="checkbox" v-model="viewer.clock.shouldAnimate" />
+                    <input type="checkbox" v-model="cc.viewer.clock.shouldAnimate" />
                     <span class="slider round"></span>
                     Play
                 </label>
                 <label class="switch">
-                    <input type="checkbox" v-model="viewer.scene.useWebVR" />
+                    <input type="checkbox" v-model="cc.viewer.scene.useWebVR" />
                     <span class="slider round"></span>
                     VR
                 </label>
             </div>
             <div id="toolbarSwitches" v-show="menu.dbg">
                 <label class="switch">
-                    <input type="checkbox" v-model="viewer.scene.debugShowFramesPerSecond" />
+                    <input type="checkbox" v-model="cc.viewer.scene.debugShowFramesPerSecond" />
                     <span class="slider round"></span>
                     FPS
                 </label>
                 <label class="switch">
-                    <input type="checkbox" v-model="viewer.scene.requestRenderMode" />
+                    <input type="checkbox" v-model="cc.viewer.scene.requestRenderMode" />
                     <span class="slider round"></span>
                     RequestRender
                 </label>
