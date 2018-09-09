@@ -4,6 +4,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const CleanWebpackPlugin = require('clean-webpack-plugin');
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const VueLoaderPlugin = require('vue-loader/lib/plugin');
 
 // The path to the cesium source code
 const cesiumSource = 'node_modules/cesium/Source';
@@ -51,6 +52,9 @@ module.exports = {
         'postcss-loader',
       ]
     }, {
+      test: /\.vue$/,
+      loader: 'vue-loader'
+    }, {
       test: /\.(png|gif|jpg|jpeg|svg|xml|json)$/,
       use: ['url-loader']
     }]
@@ -74,6 +78,7 @@ module.exports = {
     new MiniCssExtractPlugin({
       filename: "main.css"
     }),
+    new VueLoaderPlugin(),
     new CopyWebpackPlugin([
       // Copy Cesium Assets, Widgets, and Workers to a static directory
       {from: path.join(cesiumSource, 'Assets'), to: 'dist/Assets'},
