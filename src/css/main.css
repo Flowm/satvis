@@ -19,11 +19,8 @@ html, body, #cesiumContainer {
 }
 
 #toolbarSwitches {
-    padding: 5px 8px;
-    border-radius: 5px;
     display: flex;
     flex-direction: column;
-    background: rgba(42, 42, 42, 0.8);
     margin: 2px 3px;
 }
 
@@ -52,7 +49,7 @@ html, body, #cesiumContainer {
     bottom: 0;
     cursor: pointer;
     background-color: #303336;
-    border-radius: 24px;
+    border-radius: 8px;
     opacity: 0.5;
 }
 
