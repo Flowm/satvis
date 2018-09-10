@@ -2,27 +2,15 @@
 import Cesium from "Cesium";
 
 export class CesiumController {
-  constructor(hires = true) {
+  constructor(imageryProvider = "offline-highres") {
     this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
-    const imageryProvider = hires ?
-      new Cesium.createTileMapServiceImageryProvider({
-        url : "data/cesium-assets/imagery/NaturalEarthII",
-        maximumLevel : 5,
-        credit : "Imagery courtesy Natural Earth"
-      })
-      :
-      new Cesium.createTileMapServiceImageryProvider({
-        url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
-      });
-
     this.viewer = new Cesium.Viewer("cesiumContainer", {
       animation: !this.isIOS,
       baseLayerPicker: false,
       fullscreenButton: !this.isIOS,
       fullscreenElement: document.body,
       geocoder: false,
-      imageryProvider: imageryProvider,
+      imageryProvider: this.createImageryProvider(imageryProvider),
       navigationHelpButton: false,
       navigationInstructionsInitiallyVisible: false,
       selectionIndicator: false,
@@ -35,5 +23,40 @@ export class CesiumController {
 
     // Export viewer variable for debugger
     window.viewer = this.viewer;
+  }
+
+  changeImageryProvider(name) {
+    const layers = this.viewer.scene.imageryLayers;
+    layers.removeAll();
+    layers.addImageryProvider(this.createImageryProvider(name));
+  }
+
+  createImageryProvider(imageryProvider = "offline") {
+    let provider;
+    switch(imageryProvider) {
+      case "offline":
+        provider = new Cesium.createTileMapServiceImageryProvider({
+          url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
+        });
+        break;
+      case "offline-highres":
+        provider = new Cesium.createTileMapServiceImageryProvider({
+          url : "data/cesium-assets/imagery/NaturalEarthII",
+          maximumLevel : 5,
+          credit : "Imagery courtesy Natural Earth"
+        });
+        break;
+      case "arcgis":
+        provider = new Cesium.ArcGisMapServerImageryProvider({
+          url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
+        });
+        break;
+      case "osm":
+        provider = new Cesium.createOpenStreetMapImageryProvider({
+          url : "https://a.tile.openstreetmap.org/"
+        });
+        break;
+    }
+    return provider;
   }
 }
