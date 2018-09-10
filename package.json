@@ -1,7 +1,7 @@
 {
-  "name": "move-ii-orbit-standalone",
+  "name": "cesium-orbit",
   "version": "0.0.1",
-  "description": "MOVE-II orbit visualization",
+  "description": "Cesium satellite orbit visualization",
   "scripts": {
     "build": "webpack --config webpack.prod.js",
     "build-dev": "webpack --config webpack.dev.js",
