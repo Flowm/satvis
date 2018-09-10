@@ -2,23 +2,27 @@
 import Cesium from "Cesium";
 
 export class CesiumController {
-  constructor() {
-    const isLocalOnly = true;
-
+  constructor(hires = true) {
     this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    this.viewer = new Cesium.Viewer("cesiumContainer", {
-      imageryProvider: isLocalOnly
-      ? new Cesium.createTileMapServiceImageryProvider({
-        url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
+
+    const imageryProvider = hires ?
+      new Cesium.createTileMapServiceImageryProvider({
+        url : "data/cesium-assets/imagery/NaturalEarthII",
+        maximumLevel : 5,
+        credit : "Imagery courtesy Natural Earth"
       })
-      : new Cesium.ArcGisMapServerImageryProvider({
-        url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
-      }),
+      :
+      new Cesium.createTileMapServiceImageryProvider({
+        url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
+      });
+
+    this.viewer = new Cesium.Viewer("cesiumContainer", {
       animation: !this.isIOS,
-      baseLayerPicker: !isLocalOnly,
+      baseLayerPicker: false,
       fullscreenButton: !this.isIOS,
       fullscreenElement: document.body,
       geocoder: false,
+      imageryProvider: imageryProvider,
       navigationHelpButton: false,
       navigationInstructionsInitiallyVisible: false,
       selectionIndicator: false,
