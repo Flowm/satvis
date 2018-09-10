@@ -92,7 +92,7 @@ export class SatelliteEntity {
   }
 
   createEntities() {
-    this.position = this.orbit.computeSampledPosition(Cesium.JulianDate.now())
+    this.position = this.orbit.computeSampledPosition(Cesium.JulianDate.now());
     this.entities = {};
     this.createPoint();
     this.createBox();

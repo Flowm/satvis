@@ -34,28 +34,28 @@ export class CesiumController {
   createImageryProvider(imageryProvider = "offline") {
     let provider;
     switch(imageryProvider) {
-      case "offline":
-        provider = new Cesium.createTileMapServiceImageryProvider({
-          url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
-        });
-        break;
-      case "offline-highres":
-        provider = new Cesium.createTileMapServiceImageryProvider({
-          url : "data/cesium-assets/imagery/NaturalEarthII",
-          maximumLevel : 5,
-          credit : "Imagery courtesy Natural Earth"
-        });
-        break;
-      case "arcgis":
-        provider = new Cesium.ArcGisMapServerImageryProvider({
-          url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
-        });
-        break;
-      case "osm":
-        provider = new Cesium.createOpenStreetMapImageryProvider({
-          url : "https://a.tile.openstreetmap.org/"
-        });
-        break;
+    case "offline":
+      provider = new Cesium.createTileMapServiceImageryProvider({
+        url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
+      });
+      break;
+    case "offline-highres":
+      provider = new Cesium.createTileMapServiceImageryProvider({
+        url : "data/cesium-assets/imagery/NaturalEarthII",
+        maximumLevel : 5,
+        credit : "Imagery courtesy Natural Earth"
+      });
+      break;
+    case "arcgis":
+      provider = new Cesium.ArcGisMapServerImageryProvider({
+        url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
+      });
+      break;
+    case "osm":
+      provider = new Cesium.createOpenStreetMapImageryProvider({
+        url : "https://a.tile.openstreetmap.org/"
+      });
+      break;
     }
     return provider;
   }
