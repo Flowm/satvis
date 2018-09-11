@@ -10,6 +10,7 @@ export class CesiumController {
       fullscreenButton: !this.isIOS,
       fullscreenElement: document.body,
       geocoder: false,
+      homeButton: false,
       imageryProvider: this.createImageryProvider(imageryProvider),
       navigationHelpButton: false,
       navigationInstructionsInitiallyVisible: false,

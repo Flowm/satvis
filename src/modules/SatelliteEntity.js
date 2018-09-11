@@ -66,8 +66,9 @@ export class SatelliteEntity {
     const clockRunning = this.viewer.clock.shouldAnimate;
     this.viewer.clock.shouldAnimate = false;
 
-    const offset = new Cesium.HeadingPitchRange(0, -Cesium.Math.PI_OVER_FOUR, 1580000);
-    this.viewer.flyTo(this.defaultEntity, { offset }).then((result) => {
+    this.viewer.flyTo(this.defaultEntity, {
+      offset: new Cesium.HeadingPitchRange(0, -Cesium.Math.PI_OVER_FOUR, 1580000)
+    }).then((result) => {
       if (result) {
         this.viewer.trackedEntity = this.defaultEntity;
         this.viewer.clock.shouldAnimate = clockRunning;
@@ -88,6 +89,13 @@ export class SatelliteEntity {
     const onTrackedEntityChangedRemovalCallback = this.viewer.trackedEntityChanged.addEventListener(() => {
       onTickEventRemovalCallback();
       onTrackedEntityChangedRemovalCallback();
+
+      // Restore default view angle if no new entity is tracked
+      if (typeof this.viewer.trackedEntity === "undefined") {
+        this.viewer.flyTo(this.defaultEntity, {
+          offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-90.0), 1580000)
+        });
+      }
     });
   }
 

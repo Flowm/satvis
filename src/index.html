@@ -42,6 +42,11 @@
                     <span class="slider round"></span>
                     Fog
                 </label>
+                <label class="switch">
+                    <input type="button" v-on:click="cc.viewer.trackedEntity = undefined" />
+                    <span class="slider round"></span>
+                    Untrack Entity
+                </label>
             </div>
             <div id="toolbarSwitches" v-show="menu.ios">
                 <label class="switch">
