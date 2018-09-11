@@ -20,7 +20,7 @@ export class CesiumController {
       vrButton: true,
     });
 
-    this.viewer.scene.debugShowFramesPerSecond = true;
+    //this.viewer.scene.debugShowFramesPerSecond = true;
     this.viewer.clock.shouldAnimate = true;
 
     // Export viewer variable for debugger
