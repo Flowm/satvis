@@ -11,6 +11,7 @@ export class CesiumController {
       fullscreenElement: document.body,
       geocoder: false,
       homeButton: false,
+      sceneModePicker: false,
       imageryProvider: this.createImageryProvider(imageryProvider),
       navigationHelpButton: false,
       navigationInstructionsInitiallyVisible: false,

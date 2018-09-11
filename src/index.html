@@ -47,6 +47,21 @@
                     <span class="slider round"></span>
                     Untrack Entity
                 </label>
+                <label class="switch">
+                    <input type="button" v-on:click="cc.viewer.scene.morphTo3D()" />
+                    <span class="slider round"></span>
+                    3D View
+                </label>
+                <label class="switch">
+                    <input type="button" v-on:click="cc.viewer.scene.morphTo2D()" />
+                    <span class="slider round"></span>
+                    2D View
+                </label>
+                <label class="switch">
+                    <input type="button" v-on:click="cc.viewer.scene.morphToColumbusView()" />
+                    <span class="slider round"></span>
+                    Columbus View
+                </label>
             </div>
             <div id="toolbarSwitches" v-show="menu.ios">
                 <label class="switch">
