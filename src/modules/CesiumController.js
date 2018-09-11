@@ -2,7 +2,7 @@
 import Cesium from "Cesium";
 
 export class CesiumController {
-  constructor(imageryProvider = "offline-highres") {
+  constructor(imageryProvider = "offlinehighres") {
     this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     this.viewer = new Cesium.Viewer("cesiumContainer", {
       animation: !this.isIOS,
@@ -23,14 +23,25 @@ export class CesiumController {
     //this.viewer.scene.debugShowFramesPerSecond = true;
     this.viewer.clock.shouldAnimate = true;
 
-    // Export viewer variable for debugger
-    window.viewer = this.viewer;
+    // Export CesiumController for debugger
+    window.cc = this;
+
+    this.imageryProviders = {
+      offline: "Offline",
+      offlinehighres: "Offline Highres",
+      arcgis: "ArcGis",
+      osm: "OSM",
+    }
   }
 
-  changeImageryProvider(name) {
+  changeImageryProvider(imageryProvider) {
+    if (!this.imageryProviders.hasOwnProperty(imageryProvider)) {
+      return;
+    }
+
     const layers = this.viewer.scene.imageryLayers;
     layers.removeAll();
-    layers.addImageryProvider(this.createImageryProvider(name));
+    layers.addImageryProvider(this.createImageryProvider(imageryProvider));
   }
 
   createImageryProvider(imageryProvider = "offline") {
@@ -41,7 +52,7 @@ export class CesiumController {
         url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
       });
       break;
-    case "offline-highres":
+    case "offlinehighres":
       provider = new Cesium.createTileMapServiceImageryProvider({
         url : "data/cesium-assets/imagery/NaturalEarthII",
         maximumLevel : 5,

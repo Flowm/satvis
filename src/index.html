@@ -47,6 +47,7 @@
                     <span class="slider round"></span>
                     Untrack Entity
                 </label>
+
                 <label class="switch">
                     <input type="button" v-on:click="cc.viewer.scene.morphTo3D()" />
                     <span class="slider round"></span>
@@ -61,6 +62,12 @@
                     <input type="button" v-on:click="cc.viewer.scene.morphToColumbusView()" />
                     <span class="slider round"></span>
                     Columbus View
+                </label>
+
+                <label class="switch" v-for="(name, key) in availableImageryProviders">
+                    <input type="button" v-on:click="cc.changeImageryProvider(key)"/>
+                    <span class="slider round"></span>
+                    {{ name }}
                 </label>
             </div>
             <div id="toolbarSwitches" v-show="menu.ios">

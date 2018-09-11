@@ -14,7 +14,7 @@ const app = new Vue({
   el: "#toolbar",
   data: {
     menu: {
-      sat: true,
+      sat: false,
       env: false,
       ios: false,
       dbg: false,
@@ -22,6 +22,7 @@ const app = new Vue({
     isIOS: cc.isIOS,
     availableComponents: sats.availableComponents,
     enabledComponents: sats.enabledComponents,
+    availableImageryProviders: cc.imageryProviders,
   },
   watch: {
     enabledComponents: function (newComponents, oldComponents) {
