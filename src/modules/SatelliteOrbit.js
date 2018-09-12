@@ -33,10 +33,14 @@ export class SatelliteOrbit {
       interpolationAlgorithm : Cesium.HermitePolynomialApproximation
     });
 
+    // Spread sampledPosition updates
+    const randomOffset = Math.random() * 60 * 15;
+    let reference = Cesium.JulianDate.addSeconds(julianDate, randomOffset, new Cesium.JulianDate())
+
     const startTime = -samplesBwd * interval;
     const stopTime = samplesFwd * interval;
     for (let time = startTime; time <= stopTime; time += interval) {
-      const timestamp = Cesium.JulianDate.addSeconds(julianDate, time, new Cesium.JulianDate());
+      const timestamp = Cesium.JulianDate.addSeconds(reference, time, new Cesium.JulianDate());
       const position = this.computePositionCartesian3(timestamp);
       sampledPosition.addSample(timestamp, position);
 
@@ -51,6 +55,6 @@ export class SatelliteOrbit {
       //  }
       //});
     }
-    return sampledPosition;
+    return [sampledPosition, reference];
   }
 }
