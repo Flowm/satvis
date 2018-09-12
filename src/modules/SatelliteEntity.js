@@ -16,6 +16,7 @@ export class SatelliteEntity {
     this.orbit = new SatelliteOrbit(tle);
     this.size = 1000;
 
+    this.createSampledPosition();
     this.createEntities();
   }
 
@@ -99,8 +100,26 @@ export class SatelliteEntity {
     });
   }
 
+  createSampledPosition() {
+    // Spread sampledPosition updates
+    const randomStartOffset = Math.random() * 60 * 15;
+    const randomStart = Cesium.JulianDate.addSeconds(this.viewer.clock.currentTime, randomStartOffset, new Cesium.JulianDate())
+    this.position = this.orbit.computeSampledPosition(randomStart);
+    let lastUpdated = randomStart;
+
+    this.viewer.clock.onTick.addEventListener((clock) => {
+      const dt = Math.abs(Cesium.JulianDate.secondsDifference(clock.currentTime, lastUpdated));
+      if (dt >= 60 * 15) {
+        this.position = this.orbit.computeSampledPosition(clock.currentTime);
+        for (var entity in this.entities) {
+          this.entities[entity].position = this.position;
+        }
+        lastUpdated = clock.currentTime;
+      }
+    });
+  }
+
   createEntities() {
-    this.position = this.orbit.computeSampledPosition(Cesium.JulianDate.now());
     this.entities = {};
     this.createPoint();
     this.createBox();

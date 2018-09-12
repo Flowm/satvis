@@ -24,7 +24,7 @@ export class SatelliteOrbit {
     return this.lastPosition;
   }
 
-  computeSampledPosition(julianDate, duration = 3600, interval = 30) {
+  computeSampledPosition(julianDate, samplesFwd = 150, samplesBwd = 120, interval = 30) {
     const sampledPosition = new Cesium.SampledPositionProperty();
     sampledPosition.backwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
     sampledPosition.forwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
@@ -33,7 +33,9 @@ export class SatelliteOrbit {
       interpolationAlgorithm : Cesium.HermitePolynomialApproximation
     });
 
-    for (let time = -duration; time < duration; time += interval) {
+    const startTime = -samplesBwd * interval;
+    const stopTime = samplesFwd * interval;
+    for (let time = startTime; time <= stopTime; time += interval) {
       const timestamp = Cesium.JulianDate.addSeconds(julianDate, time, new Cesium.JulianDate());
       const position = this.computePositionCartesian3(timestamp);
       sampledPosition.addSample(timestamp, position);
