@@ -9,7 +9,7 @@ export class SatelliteEntity {
   constructor(viewer, tle) {
     this.viewer = viewer;
 
-    this.name = tle.split("\n")[0];
+    this.name = tle.split("\n")[0].trim();
     if (tle.startsWith("0 ")) {
       this.name = this.name.substring(2);
     }
@@ -163,7 +163,7 @@ export class SatelliteEntity {
   }
 
   createModel() {
-    const path = "./data/models/" + this.name.toLowerCase() + ".glb";
+    const path = "./data/models/" + this.name + ".glb";
     const model = new Cesium.ModelGraphics({
       uri: path,
     });
