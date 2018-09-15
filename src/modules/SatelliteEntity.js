@@ -102,11 +102,11 @@ export class SatelliteEntity {
 
   createSampledPosition() {
     let lastUpdated;
-    [this.position, lastUpdated] = this.orbit.computeSampledPosition(this.viewer.clock.currentTime)
+    [this.position, lastUpdated] = this.orbit.computeSampledPosition(this.viewer.clock.currentTime);
     this.viewer.clock.onTick.addEventListener((clock) => {
       const dt = Math.abs(Cesium.JulianDate.secondsDifference(clock.currentTime, lastUpdated));
       if (dt >= 60 * 15) {
-        [this.position, lastUpdated] = this.orbit.computeSampledPosition(clock.currentTime)
+        [this.position, lastUpdated] = this.orbit.computeSampledPosition(clock.currentTime);
         for (var entity in this.entities) {
           this.entities[entity].position = this.position;
         }

@@ -31,7 +31,7 @@ export class CesiumController {
       offlinehighres: "Offline Highres",
       arcgis: "ArcGis",
       osm: "OSM",
-    }
+    };
   }
 
   changeImageryProvider(imageryProvider) {

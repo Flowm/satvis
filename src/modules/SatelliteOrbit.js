@@ -35,7 +35,7 @@ export class SatelliteOrbit {
 
     // Spread sampledPosition updates
     const randomOffset = Math.random() * 60 * 15;
-    let reference = Cesium.JulianDate.addSeconds(julianDate, randomOffset, new Cesium.JulianDate())
+    let reference = Cesium.JulianDate.addSeconds(julianDate, randomOffset, new Cesium.JulianDate());
 
     const startTime = -samplesBwd * interval;
     const stopTime = samplesFwd * interval;
