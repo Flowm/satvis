@@ -6,10 +6,6 @@ export class SatelliteOrbit {
     this.orbit = new Orbit(satelliteTLE);
   }
 
-  computeOrbitTrack(julianDate) {
-    return this.orbit.computeOrbitTrack(Cesium.JulianDate.toDate(julianDate));
-  }
-
   computePositionCartesian3(julianDate) {
     // Check if Position for current timestap is already computed
     if (typeof this.lastPosition !== "undefined" && Cesium.JulianDate.compare(this.lastDate, julianDate) == 0) {

@@ -38,40 +38,4 @@ export class Orbit {
       velocity
     };
   }
-
-  computeOrbitTrack(timestamp, steps = 120, interval = 1) {
-    // Check if track for current timestap is already computed
-    if (typeof this.lastTrack !== "undefined" &&
-        this.lastTrack.steps >= steps &&
-        this.lastTrack.interval == interval &&
-        this.lastTrack.timestamp.getTime() === timestamp.getTime()) {
-      return this.lastTrack.orbitTrack;
-    }
-
-    // Orbit calculation crashes for years before 1900
-    if (timestamp.getFullYear() < 1900) {
-      return [];
-    }
-
-    var orbitTrack = [];
-    const momentTimestamp = moment(timestamp);
-    for (let step = 0; step < steps; step++) {
-      const {longitude, latitude, height} = this.computeGeodeticPosition(momentTimestamp.toDate());
-      momentTimestamp.add(interval, "m");
-      orbitTrack.push(longitude, latitude, height);
-    }
-    if (orbitTrack.length < 3) {
-      console.log("Error in satellite orbit calculation");
-      return [0, 0, 0];
-    }
-
-    this.lastTrack = {
-      timestamp: timestamp,
-      steps: steps,
-      interval: interval,
-      orbitTrack: orbitTrack,
-    };
-
-    return orbitTrack;
-  }
 }
