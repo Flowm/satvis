@@ -222,7 +222,7 @@ export class SatelliteEntity {
   createCone(fov = 10) {
     const cone = new Cesium.Entity({
       position: this.orbit.sampledPosition,
-      orientation: new Cesium.CallbackProperty((time) => {
+      orientation: new Cesium.CallbackProperty(() => {
         const position = this.orbit.position;
         const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
         return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);

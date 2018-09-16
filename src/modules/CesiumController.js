@@ -93,9 +93,9 @@ export class CesiumController {
     properties.didHitGlobe = Cesium.defined(properties.position);
     if (properties.didHitGlobe) {
       const cartographicPosition = Cesium.Cartographic.fromCartesian(properties.position);
-      properties.longitude = Cesium.Math.toDegrees(cartographicPosition.longitude)
-      properties.latitude = Cesium.Math.toDegrees(cartographicPosition.latitude)
-      properties.height = Cesium.Math.toDegrees(cartographicPosition.height)
+      properties.longitude = Cesium.Math.toDegrees(cartographicPosition.longitude);
+      properties.latitude = Cesium.Math.toDegrees(cartographicPosition.latitude);
+      properties.height = Cesium.Math.toDegrees(cartographicPosition.height);
     }
     callback(properties);
   }

@@ -90,7 +90,7 @@ export class SatelliteOrbit {
       const timestamp = Cesium.JulianDate.addSeconds(julianDate, time, new Cesium.JulianDate());
       const position = this.sampledPosition.getValue(timestamp);
       const cartographic = Cesium.Cartographic.fromCartesian(position);
-      const groudPosition = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, 1000)
+      const groudPosition = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, 1000);
       groundTrack.push(groudPosition);
     }
     return groundTrack;

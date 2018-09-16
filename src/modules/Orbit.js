@@ -1,4 +1,3 @@
-import moment from "moment";
 import * as satellitejs from "satellite.js";
 
 export class Orbit {
