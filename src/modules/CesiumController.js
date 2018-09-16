@@ -1,5 +1,6 @@
 // Import webpack externals
 import Cesium from "Cesium";
+import { SatelliteManager } from "./SatelliteManager";
 
 export class CesiumController {
   constructor(imageryProvider = "offlinehighres") {
@@ -34,6 +35,9 @@ export class CesiumController {
     };
 
     this.createInputHandler();
+
+    // Create Satellite Manager
+    this.sats = new SatelliteManager(this.viewer);
   }
 
   changeImageryProvider(imageryProvider) {
