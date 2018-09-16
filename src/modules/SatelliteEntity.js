@@ -211,21 +211,13 @@ export class SatelliteEntity {
     });
   }
 
-  createGround() {
+  createGroundTrack() {
     const polyline = new Cesium.PolylineGraphics({
       material: Cesium.Color.YELLOW.withAlpha(0.1),
       positions: new Cesium.CallbackProperty((time) => {
-        const orbitTrackPositions = this.orbit.computeOrbitTrack(time);
-        const groundTrackPositions = [];
-        for (let i = 0; i < orbitTrackPositions.length; i++) {
-          if ((i + 1) % 3 === 0) {
-            groundTrackPositions[i] = 0;
-          } else {
-            groundTrackPositions[i] = orbitTrackPositions[i];
-          }
-        }
-        return Cesium.Cartesian3.fromRadiansArrayHeights(groundTrackPositions);
-      }, false),
+        return this.orbit.computeGroundTrack(this.position, time);
+      }),
+      followSurface: false,
       width: 10,
     });
 

@@ -57,4 +57,19 @@ export class SatelliteOrbit {
     }
     return [sampledPosition, reference];
   }
+
+  computeGroundTrack(sampledPosition, reference, samplesFwd = 0, samplesBwd = 120, interval = 30) {
+    const groundTrack = [];
+
+    const startTime = -samplesBwd * interval;
+    const stopTime = samplesFwd * interval;
+    for (let time = startTime; time <= stopTime; time += interval) {
+      const timestamp = Cesium.JulianDate.addSeconds(reference, time, new Cesium.JulianDate());
+      const position = sampledPosition.getValue(timestamp);
+      const cartographic = Cesium.Cartographic.fromCartesian(position);
+      const groudPosition = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, 1000)
+      groundTrack.push(groudPosition);
+    }
+    return groundTrack;
+  }
 }
