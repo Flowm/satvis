@@ -32,6 +32,8 @@ export class CesiumController {
       arcgis: "ArcGis",
       osm: "OSM",
     };
+
+    this.createInputHandler();
   }
 
   changeImageryProvider(imageryProvider) {
@@ -71,5 +73,30 @@ export class CesiumController {
       break;
     }
     return provider;
+  }
+
+  createGroundStation(clickPosition) {
+    console.log(clickPosition);
+  }
+
+  createInputHandler() {
+    const handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
+    handler.setInputAction((event) => {
+      this.clickEventHandler(event, this.createGroundStation);
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  }
+
+  clickEventHandler(event, callback) {
+    const properties = {};
+    properties.screenPosition = event.position;
+    properties.position = this.viewer.camera.pickEllipsoid(event.position);
+    properties.didHitGlobe = Cesium.defined(properties.position);
+    if (properties.didHitGlobe) {
+      const cartographicPosition = Cesium.Cartographic.fromCartesian(properties.position);
+      properties.longitude = Cesium.Math.toDegrees(cartographicPosition.longitude)
+      properties.latitude = Cesium.Math.toDegrees(cartographicPosition.latitude)
+      properties.height = Cesium.Math.toDegrees(cartographicPosition.height)
+    }
+    callback(properties);
   }
 }
