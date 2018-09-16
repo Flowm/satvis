@@ -2,8 +2,21 @@ import { Orbit } from "./Orbit";
 import Cesium from "Cesium";
 
 export class SatelliteOrbit {
-  constructor(satelliteTLE) {
+  constructor(satelliteTLE, clock) {
     this.orbit = new Orbit(satelliteTLE);
+    this.clock = clock;
+  }
+
+  get position() {
+    return this.sampledPosition.getValue(this.clock.currentTime);
+  }
+
+  get cartographic() {
+    return Cesium.Cartographic.fromCartesian(this.position);
+  }
+
+  get height() {
+    return this.cartographic.height;
   }
 
   computePositionCartesian3(julianDate) {
@@ -20,7 +33,19 @@ export class SatelliteOrbit {
     return this.lastPosition;
   }
 
-  computeSampledPosition(julianDate, samplesFwd = 150, samplesBwd = 120, interval = 30) {
+  createSampledPosition(callback) {
+    let lastUpdated;
+    lastUpdated = this.updateSampledPosition(this.clock.currentTime);
+    this.clock.onTick.addEventListener((clock) => {
+      const dt = Math.abs(Cesium.JulianDate.secondsDifference(clock.currentTime, lastUpdated));
+      if (dt >= 60 * 15) {
+        lastUpdated = this.updateSampledPosition(clock.currentTime);
+        callback(this.sampledPosition);
+      }
+    });
+  }
+
+  updateSampledPosition(julianDate, samplesFwd = 150, samplesBwd = 120, interval = 30) {
     const sampledPosition = new Cesium.SampledPositionProperty();
     sampledPosition.backwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
     sampledPosition.forwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
@@ -51,17 +76,19 @@ export class SatelliteOrbit {
       //  }
       //});
     }
-    return [sampledPosition, reference];
+
+    this.sampledPosition = sampledPosition;
+    return reference;
   }
 
-  computeGroundTrack(sampledPosition, reference, samplesFwd = 0, samplesBwd = 120, interval = 30) {
+  groundTrack(julianDate, samplesFwd = 0, samplesBwd = 120, interval = 30) {
     const groundTrack = [];
 
     const startTime = -samplesBwd * interval;
     const stopTime = samplesFwd * interval;
     for (let time = startTime; time <= stopTime; time += interval) {
-      const timestamp = Cesium.JulianDate.addSeconds(reference, time, new Cesium.JulianDate());
-      const position = sampledPosition.getValue(timestamp);
+      const timestamp = Cesium.JulianDate.addSeconds(julianDate, time, new Cesium.JulianDate());
+      const position = this.sampledPosition.getValue(timestamp);
       const cartographic = Cesium.Cartographic.fromCartesian(position);
       const groudPosition = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, 1000)
       groundTrack.push(groudPosition);

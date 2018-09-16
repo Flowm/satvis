@@ -13,10 +13,14 @@ export class SatelliteEntity {
     if (tle.startsWith("0 ")) {
       this.name = this.name.substring(2);
     }
-    this.orbit = new SatelliteOrbit(tle);
+    this.orbit = new SatelliteOrbit(tle, viewer.clock);
     this.size = 1000;
 
-    this.createSampledPosition();
+    this.orbit.createSampledPosition(sampledPosition => {
+      for (var entity in this.entities) {
+        this.entities[entity].position = sampledPosition;
+      }
+    });
     this.createEntities();
   }
 
@@ -100,20 +104,6 @@ export class SatelliteEntity {
     });
   }
 
-  createSampledPosition() {
-    let lastUpdated;
-    [this.position, lastUpdated] = this.orbit.computeSampledPosition(this.viewer.clock.currentTime);
-    this.viewer.clock.onTick.addEventListener((clock) => {
-      const dt = Math.abs(Cesium.JulianDate.secondsDifference(clock.currentTime, lastUpdated));
-      if (dt >= 60 * 15) {
-        [this.position, lastUpdated] = this.orbit.computeSampledPosition(clock.currentTime);
-        for (var entity in this.entities) {
-          this.entities[entity].position = this.position;
-        }
-      }
-    });
-  }
-
   createEntities() {
     this.entities = {};
     this.createPoint();
@@ -121,7 +111,9 @@ export class SatelliteEntity {
     this.createModel();
     this.createLabel();
     this.createOrbit();
-    this.createGround();
+    if (this.orbit.height < 10000000) {
+      this.createGroundTrack();
+    }
     this.createCone();
 
     this.viewer.trackedEntityChanged.addEventListener(() => {
@@ -140,8 +132,8 @@ export class SatelliteEntity {
     this.entities["Point"] = new Cesium.Entity({
       point: point,
       name: this.name,
-      position: this.position,
-      orientation: new Cesium.VelocityOrientationProperty(this.position),
+      position: this.orbit.sampledPosition,
+      orientation: new Cesium.VelocityOrientationProperty(this.orbit.sampledPosition),
       viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
     });
     this.defaultEntity = this.entities["Point"];
@@ -156,8 +148,8 @@ export class SatelliteEntity {
     this.entities["Box"] = new Cesium.Entity({
       box: box,
       name: this.name,
-      position: this.position,
-      orientation: new Cesium.VelocityOrientationProperty(this.position),
+      position: this.orbit.sampledPosition,
+      orientation: new Cesium.VelocityOrientationProperty(this.orbit.sampledPosition),
       viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
     });
   }
@@ -171,8 +163,8 @@ export class SatelliteEntity {
     this.entities["Model"] = new Cesium.Entity({
       model: model,
       name: this.name,
-      position: this.position,
-      orientation: new Cesium.VelocityOrientationProperty(this.position),
+      position: this.orbit.sampledPosition,
+      orientation: new Cesium.VelocityOrientationProperty(this.orbit.sampledPosition),
       viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
     });
   }
@@ -190,8 +182,8 @@ export class SatelliteEntity {
     this.entities["Label"] = new Cesium.Entity({
       label: label,
       name: this.name,
-      position: this.position,
-      orientation: new Cesium.VelocityOrientationProperty(this.position),
+      position: this.orbit.sampledPosition,
+      orientation: new Cesium.VelocityOrientationProperty(this.orbit.sampledPosition),
       viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
     });
   }
@@ -207,7 +199,7 @@ export class SatelliteEntity {
 
     this.entities["Orbit"] = new Cesium.Entity({
       path: path,
-      position: this.position,
+      position: this.orbit.sampledPosition,
     });
   }
 
@@ -215,7 +207,7 @@ export class SatelliteEntity {
     const polyline = new Cesium.PolylineGraphics({
       material: Cesium.Color.YELLOW.withAlpha(0.1),
       positions: new Cesium.CallbackProperty((time) => {
-        return this.orbit.computeGroundTrack(this.position, time);
+        return this.orbit.groundTrack(time);
       }),
       followSurface: false,
       width: 10,
@@ -228,9 +220,9 @@ export class SatelliteEntity {
 
   createCone(fov = 10) {
     const cone = new Cesium.Entity({
-      position: this.position,
+      position: this.orbit.sampledPosition,
       orientation: new Cesium.CallbackProperty((time) => {
-        const position = this.orbit.computePositionCartesian3(time);
+        const position = this.orbit.position;
         const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
         return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
       }, false),
