@@ -19,6 +19,7 @@ export class SatelliteEntity {
     this.orbit.createSampledPosition(sampledPosition => {
       for (var entity in this.entities) {
         this.entities[entity].position = sampledPosition;
+        this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(this.orbit.sampledPosition);
       }
     });
     this.createEntities();
