@@ -1,6 +1,7 @@
 // Import webpack externals
 import Cesium from "Cesium";
 import { SatelliteManager } from "./SatelliteManager";
+import { GroundStation } from "./GroundStation";
 
 export class CesiumController {
   constructor(imageryProvider = "offlinehighres") {
@@ -38,6 +39,7 @@ export class CesiumController {
 
     // Create Satellite Manager
     this.sats = new SatelliteManager(this.viewer);
+    this.groundStation = new GroundStation(this.viewer);
   }
 
   changeImageryProvider(imageryProvider) {
@@ -79,28 +81,25 @@ export class CesiumController {
     return provider;
   }
 
-  createGroundStation(clickPosition) {
-    console.log(clickPosition);
-  }
-
   createInputHandler() {
     const handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
     handler.setInputAction((event) => {
-      this.clickEventHandler(event, this.createGroundStation);
+      const position = this.clickEventHandler(event);
+      this.groundStation.update(position);
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   }
 
-  clickEventHandler(event, callback) {
+  clickEventHandler(event) {
     const properties = {};
     properties.screenPosition = event.position;
     properties.position = this.viewer.camera.pickEllipsoid(event.position);
     properties.didHitGlobe = Cesium.defined(properties.position);
     if (properties.didHitGlobe) {
       const cartographicPosition = Cesium.Cartographic.fromCartesian(properties.position);
-      properties.longitude = Cesium.Math.toDegrees(cartographicPosition.longitude);
-      properties.latitude = Cesium.Math.toDegrees(cartographicPosition.latitude);
+      properties.lon = Cesium.Math.toDegrees(cartographicPosition.longitude);
+      properties.lat = Cesium.Math.toDegrees(cartographicPosition.latitude);
       properties.height = Cesium.Math.toDegrees(cartographicPosition.height);
     }
-    callback(properties);
+    return properties;
   }
 }

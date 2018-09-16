@@ -10,6 +10,7 @@ const app = new Vue({
   data: {
     menu: {
       sat: false,
+      gs: false,
       env: false,
       ios: false,
       dbg: false,

@@ -14,6 +14,9 @@
                 <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="menu.sat = !menu.sat">
                     SAT
                 </button>
+                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="menu.gs = !menu.gs">
+                    GS
+                </button>
                 <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="menu.env = !menu.env">
                     ENV
                 </button>
@@ -29,6 +32,13 @@
                     <input type="checkbox" :value="componentName" v-model="enabledComponents"/>
                     <span class="slider round"></span>
                     {{ componentName }}
+                </label>
+            </div>
+            <div id="toolbarSwitches" v-show="menu.gs">
+                <label class="switch">
+                    <input type="checkbox" v-model="cc.groundStation.pickerEnabled" />
+                    <span class="slider round"></span>
+                    GroundStation picker
                 </label>
             </div>
             <div id="toolbarSwitches" v-show="menu.env">
