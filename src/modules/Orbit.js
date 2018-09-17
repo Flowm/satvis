@@ -45,8 +45,6 @@ export class Orbit {
     endDate = dayjs(startDate).add(7, "day").toDate(),
     minElevation = 10,
     maxTransits = 50) {
-    const transits = jspredict.transits(this.tle.join("\n"), groundPosition, startDate, endDate, minElevation, maxTransits);
-    console.log(transits);
-    return transits;
+    return jspredict.transits(this.tle.join("\n"), groundPosition, startDate, endDate, minElevation, maxTransits);
   }
 }

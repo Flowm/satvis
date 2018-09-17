@@ -124,6 +124,7 @@ export class SatelliteEntity {
 
     this.viewer.trackedEntityChanged.addEventListener(() => {
       if (this.isTracked) {
+        this.timeline.clearInterval();
         this.artificiallyTrack();
       }
     });

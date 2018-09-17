@@ -41,8 +41,8 @@ export class CesiumTimelineHelper {
     }
 
     this.interval = new Cesium.TimeInterval({
-      start: Cesium.JulianDate.addDays(currentTime, -3, Cesium.JulianDate.clone(currentTime)),
-      stop: Cesium.JulianDate.addDays(currentTime, 3, Cesium.JulianDate.clone(currentTime))
+      start: Cesium.JulianDate.addDays(currentTime, -1, Cesium.JulianDate.clone(currentTime)),
+      stop: Cesium.JulianDate.addDays(currentTime, 2, Cesium.JulianDate.clone(currentTime))
     });
     return true;
   }
