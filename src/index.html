@@ -33,12 +33,17 @@
                     <span class="slider round"></span>
                     {{ componentName }}
                 </label>
+                <label class="switch">
+                    <input type="button" v-on:click="cc.viewer.trackedEntity = undefined" />
+                    <span class="slider round"></span>
+                    Untrack Entity
+                </label>
             </div>
             <div id="toolbarSwitches" v-show="menu.gs">
                 <label class="switch">
                     <input type="checkbox" v-model="cc.sats.pickerEnabled" />
                     <span class="slider round"></span>
-                    GroundStation picker
+                    Pick ground station
                 </label>
             </div>
             <div id="toolbarSwitches" v-show="menu.env">
@@ -46,16 +51,6 @@
                     <input type="checkbox" v-model="cc.viewer.scene.globe.enableLighting" />
                     <span class="slider round"></span>
                     Day/Night cycle
-                </label>
-                <label class="switch">
-                    <input type="checkbox" v-model="cc.viewer.scene.fog.enabled" />
-                    <span class="slider round"></span>
-                    Fog
-                </label>
-                <label class="switch">
-                    <input type="button" v-on:click="cc.viewer.trackedEntity = undefined" />
-                    <span class="slider round"></span>
-                    Untrack Entity
                 </label>
 
                 <label class="switch">
@@ -102,6 +97,11 @@
                     <input type="checkbox" v-model="cc.viewer.scene.requestRenderMode" />
                     <span class="slider round"></span>
                     RequestRender
+                </label>
+                <label class="switch">
+                    <input type="checkbox" v-model="cc.viewer.scene.fog.enabled" />
+                    <span class="slider round"></span>
+                    Fog
                 </label>
             </div>
         </div>
