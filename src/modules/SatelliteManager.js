@@ -1,5 +1,4 @@
 import { SatelliteEntity } from "./SatelliteEntity";
-import { GroundStation } from "./GroundStation";
 
 export class SatelliteManager {
   constructor(viewer) {
@@ -16,7 +15,7 @@ export class SatelliteManager {
       "Cone",
     ];
     this.enabledComponents = ["Point", "Label"];
-    this.groundStation = new GroundStation(this.viewer);
+    this.pickerEnabled = false;
   }
 
   addFromTle(tle) {
@@ -80,8 +79,9 @@ export class SatelliteManager {
 
     for (var sat in this.satellites) {
       this.satellites[sat].showComponent(componentName);
-      if (this.groundStation.available) {
-        this.satellites[sat].orbit.orbit.computeTransits(this.groundStation.latlonalt);
+      // XXX: Test
+      if (this.groundStationAvailable) {
+        this.satellites[sat].orbit.orbit.computeTransits(this.latlonalt);
       }
     }
   }
@@ -93,5 +93,34 @@ export class SatelliteManager {
     for (var sat in this.satellites) {
       this.satellites[sat].hideComponent(componentName);
     }
+  }
+
+  get groundStationAvailable() {
+    return (typeof this.groundStation !== "undefined");
+  }
+
+  setGroundStation(position) {
+    if (!this.pickerEnabled) {
+      return;
+    }
+    if (this.groundStationAvailable) {
+      this.viewer.entities.remove(this.groundStation);
+    }
+
+    // Set groundstation for all satellites
+    this.latlonalt = [position.lat, position.lon, position.height/1000];
+    for (var sat in this.satellites) {
+      this.satellites[sat].groundStation = this.latlonalt;
+    }
+
+    this.groundStation = {
+      id: "Groundstation",
+      name: "Groundstation",
+      position: new Cesium.Cartesian3.fromDegrees(position.lon, position.lat),
+      billboard: {
+        image: require("../../node_modules/cesium/Build/Apps/Sandcastle/images/facility.gif"),
+      }
+    };
+    this.viewer.entities.add(this.groundStation);
   }
 }

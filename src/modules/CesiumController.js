@@ -83,7 +83,7 @@ export class CesiumController {
     const handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
     handler.setInputAction((event) => {
       const position = this.clickEventHandler(event);
-      this.sats.groundStation.update(position);
+      this.sats.setGroundStation(position);
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   }
 

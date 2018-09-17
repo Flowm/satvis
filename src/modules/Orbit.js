@@ -40,12 +40,12 @@ export class Orbit {
     };
   }
 
-  computeTransits(position,
+  computeTransits(groundPosition,
                   startDate = new Date(),
                   endDate = dayjs(startDate).add(7, "day").toDate(),
-                  minElevation = 0,
+                  minElevation = 10,
                   maxTransits = 30) {
-    const transits = jspredict.transits(this.tle.join("\n"), position, startDate, endDate, minElevation, maxTransits);
+    const transits = jspredict.transits(this.tle.join("\n"), groundPosition, startDate, endDate, minElevation, maxTransits);
     console.log(transits);
     return transits;
   }

@@ -91,10 +91,13 @@ export class SatelliteEntity {
 
     const onTickEventRemovalCallback = this.viewer.clock.onTick.addEventListener((clock) => {
       cameraTracker.update(clock.currentTime);
+      this.updateTimeline();
+
     });
     const onTrackedEntityChangedRemovalCallback = this.viewer.trackedEntityChanged.addEventListener(() => {
       onTickEventRemovalCallback();
       onTrackedEntityChangedRemovalCallback();
+      this.clearTimeline();
 
       // Restore default view angle if no new entity is tracked
       if (typeof this.viewer.trackedEntity === "undefined") {
@@ -240,4 +243,55 @@ export class SatelliteEntity {
     });
     this.entities["Cone"] = cone;
   }
+
+  set groundStation(latlonalt) {
+    this.groundStationPosition = latlonalt;
+    this.timelineInterval = undefined;
+    if (this.isTracked) {
+      this.clearTimeline();
+    }
+  }
+
+  clearTimeline() {
+    this.viewer.timeline._highlightRanges = [];
+    this.viewer.timeline.updateFromClock();
+    this.viewer.timeline.zoomTo(this.viewer.clock.startTime, this.viewer.clock.stopTime);
+  }
+
+  updateTimeline() {
+    if (typeof this.groundStationPosition === "undefined") {
+      return;
+    }
+
+    // Check if still inside of current timeline
+    if (typeof this.timelineInterval !== "undefined" && Cesium.TimeInterval.contains(this.timelineInterval, this.viewer.clock.currentTime)) {
+      return;
+    }
+
+    // Start and stop dates of displayed timeline don't seem to be accessible
+    this.timelineInterval = calculateNewIntervalWithinSixDays(this.viewer.clock.currentTime);
+    const transits = this.orbit.orbit.computeTransits(
+      this.groundStationPosition,
+      Cesium.JulianDate.toDate(this.timelineInterval.start),
+      Cesium.JulianDate.toDate(this.timelineInterval.stop));
+    this.timelineAddHighlightRanges(transits);
+  }
+
+  timelineAddHighlightRanges(ranges) {
+    for (const range of ranges) {
+      const startJulian = new Cesium.JulianDate.fromDate(new Date(range.start));
+      const endJulian = new Cesium.JulianDate.fromDate(new Date(range.end));
+      const highlightRange = this.viewer.timeline.addHighlightRange(Cesium.Color.BLUE, 100, 0);
+      highlightRange.setRange(startJulian, endJulian);
+      this.viewer.timeline.updateFromClock();
+      this.viewer.timeline.zoomTo(this.viewer.clock.startTime, this.viewer.clock.stopTime);
+    }
+  }
 }
+
+const calculateNewIntervalWithinSixDays = (currentTime) => {
+  return new Cesium.TimeInterval({
+    start: Cesium.JulianDate.addDays(currentTime, -3, Cesium.JulianDate.clone(currentTime)),
+    stop: Cesium.JulianDate.addDays(currentTime, 3, Cesium.JulianDate.clone(currentTime))
+  });
+};
