@@ -1,7 +1,6 @@
 // Import webpack externals
 import Cesium from "Cesium";
 import { SatelliteManager } from "./SatelliteManager";
-import { GroundStation } from "./GroundStation";
 
 export class CesiumController {
   constructor(imageryProvider = "offlinehighres") {
@@ -39,7 +38,6 @@ export class CesiumController {
 
     // Create Satellite Manager
     this.sats = new SatelliteManager(this.viewer);
-    this.groundStation = new GroundStation(this.viewer);
   }
 
   changeImageryProvider(imageryProvider) {
@@ -85,7 +83,7 @@ export class CesiumController {
     const handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
     handler.setInputAction((event) => {
       const position = this.clickEventHandler(event);
-      this.groundStation.update(position);
+      this.sats.groundStation.update(position);
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   }
 
@@ -99,6 +97,9 @@ export class CesiumController {
       properties.lon = Cesium.Math.toDegrees(cartographicPosition.longitude);
       properties.lat = Cesium.Math.toDegrees(cartographicPosition.latitude);
       properties.height = Cesium.Math.toDegrees(cartographicPosition.height);
+      if (properties.height < 0) {
+        properties.height = 0;
+      }
     }
     return properties;
   }

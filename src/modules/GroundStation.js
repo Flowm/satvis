@@ -9,18 +9,24 @@ export class GroundStation {
     this.pickerEnabled = false;
   }
 
+  get available() {
+    return (typeof this.groundStation !== "undefined");
+  }
+
   update(position) {
     if (!this.pickerEnabled) {
       return;
     }
-    if (typeof this.groundStation !== "undefined") {
+    if (this.available) {
       this.viewer.entities.remove(this.groundStation);
     }
 
+    this.position = Cesium.Cartesian3.fromDegrees(position.lon, position.lat);
+    this.latlonalt = [position.lat, position.lon, position.height/1000];
     this.groundStation = {
       id: "Groundstation",
       name: "Groundstation",
-      position: Cesium.Cartesian3.fromDegrees(position.lon, position.lat),
+      position: this.position,
       billboard: {
         image: require("../../node_modules/cesium/Build/Apps/Sandcastle/images/facility.gif"),
       }

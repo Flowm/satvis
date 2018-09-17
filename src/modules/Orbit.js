@@ -1,4 +1,6 @@
 import * as satellitejs from "satellite.js";
+import * as jspredict from "jspredict-move2";
+import dayjs from "dayjs"
 
 export class Orbit {
   constructor(satelliteTLE) {
@@ -36,5 +38,15 @@ export class Orbit {
       height: positionGd.height * 1000,
       velocity
     };
+  }
+
+  computeTransits(position,
+                  startDate = new Date(),
+                  endDate = dayjs(startDate).add(7, "day").toDate(),
+                  minElevation = 0,
+                  maxTransits = 30) {
+    const transits = jspredict.transits(this.tle.join("\n"), position, startDate, endDate, minElevation, maxTransits);
+    console.log(transits);
+    return transits;
   }
 }

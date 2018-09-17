@@ -19,8 +19,8 @@
   "dependencies": {
     "cesium": "1.49.0",
     "cesium-sensor-volumes": "^1.32.0",
+    "dayjs": "^1.7.5",
     "jspredict-move2": "^1.0.5",
-    "moment": "^2.22.2",
     "satellite.js": "^2.0.2",
     "vue": "^2.5.17"
   },

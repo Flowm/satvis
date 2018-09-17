@@ -1,4 +1,5 @@
 import { SatelliteEntity } from "./SatelliteEntity";
+import { GroundStation } from "./GroundStation";
 
 export class SatelliteManager {
   constructor(viewer) {
@@ -15,6 +16,7 @@ export class SatelliteManager {
       "Cone",
     ];
     this.enabledComponents = ["Point", "Label"];
+    this.groundStation = new GroundStation(this.viewer);
   }
 
   addFromTle(tle) {
@@ -78,6 +80,9 @@ export class SatelliteManager {
 
     for (var sat in this.satellites) {
       this.satellites[sat].showComponent(componentName);
+      if (this.groundStation.available) {
+        this.satellites[sat].orbit.orbit.computeTransits(this.groundStation.latlonalt);
+      }
     }
   }
 
