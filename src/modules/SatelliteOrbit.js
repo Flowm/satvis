@@ -5,6 +5,8 @@ export class SatelliteOrbit {
   constructor(satelliteTLE, clock) {
     this.orbit = new Orbit(satelliteTLE);
     this.clock = clock;
+
+    this.transitIntervals = new Cesium.TimeIntervalCollection();
   }
 
   get position() {
@@ -94,5 +96,18 @@ export class SatelliteOrbit {
       groundTrack.push(groudPosition);
     }
     return groundTrack;
+  }
+
+  setTransitIntervals(transits) {
+    const transitIntervalArray = [];
+    for (const transit of transits) {
+      const startJulian = new Cesium.JulianDate.fromDate(new Date(transit.start));
+      const endJulian = new Cesium.JulianDate.fromDate(new Date(transit.end));
+      transitIntervalArray.push(new Cesium.TimeInterval({
+        start: startJulian,
+        stop: endJulian
+      }));
+    }
+    this.transitIntervals = new Cesium.TimeIntervalCollection(transitIntervalArray);
   }
 }

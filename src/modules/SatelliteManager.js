@@ -13,6 +13,7 @@ export class SatelliteManager {
       "Orbit",
       "Ground",
       "Cone",
+      "GroundStationLink",
     ];
     this.enabledComponents = ["Point", "Label"];
     this.pickerEnabled = false;
@@ -79,10 +80,6 @@ export class SatelliteManager {
 
     for (var sat in this.satellites) {
       this.satellites[sat].showComponent(componentName);
-      // XXX: Test
-      if (this.groundStationAvailable) {
-        this.satellites[sat].orbit.orbit.computeTransits(this.latlonalt);
-      }
     }
   }
 

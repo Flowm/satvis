@@ -246,11 +246,36 @@ export class SatelliteEntity {
     this.entities["Cone"] = cone;
   }
 
+  createGroundStationLink() {
+    const polyline = new Cesium.PolylineGraphics({
+      followSurface: false,
+      material: new Cesium.PolylineGlowMaterialProperty({
+        glowPower: 0.2,
+        color: Cesium.Color.FORESTGREEN
+      }),
+      positions: new Cesium.CallbackProperty(() => {
+        const satPosition = this.orbit.position;
+        const groundPosition = new Cesium.Cartesian3.fromDegrees(this.groundStationPosition[1], this.groundStationPosition[0], this.groundStationPosition[2]);
+        const positions = [satPosition, groundPosition];
+        return positions;
+      }),
+      show: new Cesium.CallbackProperty((time) => {
+        return this.orbit.transitIntervals.contains(time);
+      }),
+      width: 5,
+    });
+
+    this.entities["GroundStationLink"] = new Cesium.Entity({
+      polyline: polyline
+    });
+  }
+
   set groundStation(latlonalt) {
     this.groundStationPosition = latlonalt;
     if (this.isTracked) {
       this.timeline.clear();
     }
+    this.createGroundStationLink();
   }
 
   updateTimelineTransits() {
@@ -265,6 +290,8 @@ export class SatelliteEntity {
       this.groundStationPosition,
       Cesium.JulianDate.toDate(this.timeline.interval.start),
       Cesium.JulianDate.toDate(this.timeline.interval.stop));
+
     this.timeline.addHighlightRanges(transits);
+    this.orbit.setTransitIntervals(transits);
   }
 }
