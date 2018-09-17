@@ -23,6 +23,11 @@ export class SatelliteEntity {
         this.entities[entity].position = sampledPosition;
         this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(this.orbit.sampledPosition);
       }
+      this.entities["Cone"].orientation = new Cesium.CallbackProperty(() => {
+        const position = this.orbit.position;
+        const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
+        return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
+      }, false);
     });
     this.createEntities();
   }
