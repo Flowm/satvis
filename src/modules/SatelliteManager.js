@@ -105,15 +105,15 @@ export class SatelliteManager {
     }
 
     // Set groundstation for all satellites
-    this.latlonalt = [position.lat, position.lon, position.height/1000];
     for (var sat in this.satellites) {
-      this.satellites[sat].groundStation = this.latlonalt;
+      this.satellites[sat].groundStation = position;
     }
 
+    // Create groundstation entity
     this.groundStation = {
       id: "Groundstation",
       name: "Groundstation",
-      position: new Cesium.Cartesian3.fromDegrees(position.lon, position.lat),
+      position: position.cartesian,
       billboard: {
         image: require("../../node_modules/cesium/Build/Apps/Sandcastle/images/facility.gif"),
       }

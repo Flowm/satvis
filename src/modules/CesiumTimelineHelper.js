@@ -9,8 +9,12 @@ export class CesiumTimelineHelper {
     this.interval = undefined;
   }
 
-  clear() {
+  clearInterval() {
     this.interval = undefined;
+  }
+
+  clearTimeline() {
+    this.clearInterval();
     this.viewer.timeline._highlightRanges = [];
     this.viewer.timeline.updateFromClock();
     this.viewer.timeline.zoomTo(this.viewer.clock.startTime, this.viewer.clock.stopTime);

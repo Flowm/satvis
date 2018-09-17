@@ -93,13 +93,13 @@ export class SatelliteEntity {
 
     const onTickEventRemovalCallback = this.viewer.clock.onTick.addEventListener((clock) => {
       cameraTracker.update(clock.currentTime);
-      this.updateTimelineTransits();
+      this.updateTransits();
 
     });
     const onTrackedEntityChangedRemovalCallback = this.viewer.trackedEntityChanged.addEventListener(() => {
       onTickEventRemovalCallback();
       onTrackedEntityChangedRemovalCallback();
-      this.timeline.clear();
+      this.timeline.clearTimeline();
 
       // Restore default view angle if no new entity is tracked
       if (typeof this.viewer.trackedEntity === "undefined") {
@@ -255,7 +255,7 @@ export class SatelliteEntity {
       }),
       positions: new Cesium.CallbackProperty(() => {
         const satPosition = this.orbit.position;
-        const groundPosition = new Cesium.Cartesian3.fromDegrees(this.groundStationPosition[1], this.groundStationPosition[0], this.groundStationPosition[2]);
+        const groundPosition = this.orbit.groundStationPosition.cartesian;
         const positions = [satPosition, groundPosition];
         return positions;
       }),
@@ -270,28 +270,29 @@ export class SatelliteEntity {
     });
   }
 
-  set groundStation(latlonalt) {
-    this.groundStationPosition = latlonalt;
-    if (this.isTracked) {
-      this.timeline.clear();
+  set groundStation(position) {
+    // No groundstation calculation for GEO satellites
+    if (this.orbit.height > 10000000) {
+      return;
     }
+
+    this.orbit.groundStationPosition = position;
+    if (this.isTracked) {
+      this.timeline.clearTimeline();
+    } else {
+      this.timeline.clearInterval();
+    }
+    this.updateTransits();
     this.createGroundStationLink();
   }
 
-  updateTimelineTransits() {
-    if (typeof this.groundStationPosition === "undefined") {
-      return;
-    }
+  updateTransits() {
     if (!this.timeline.updateTimelineInterval()) {
       return;
     }
-
-    const transits = this.orbit.orbit.computeTransits(
-      this.groundStationPosition,
-      Cesium.JulianDate.toDate(this.timeline.interval.start),
-      Cesium.JulianDate.toDate(this.timeline.interval.stop));
-
-    this.timeline.addHighlightRanges(transits);
-    this.orbit.setTransitIntervals(transits);
+    this.orbit.updateTransits(this.timeline.interval.start, this.timeline.interval.stop)
+    if (this.isTracked) {
+      this.timeline.addHighlightRanges(this.orbit.transits);
+    }
   }
 }

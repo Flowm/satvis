@@ -6,6 +6,8 @@ export class SatelliteOrbit {
     this.orbit = new Orbit(satelliteTLE);
     this.clock = clock;
 
+    this.groundStationPosition = undefined;
+    this.transits = [];
     this.transitIntervals = new Cesium.TimeIntervalCollection();
   }
 
@@ -98,9 +100,23 @@ export class SatelliteOrbit {
     return groundTrack;
   }
 
-  setTransitIntervals(transits) {
+  updateTransits(start, stop) {
+    if (typeof this.groundStationPosition === "undefined") {
+      return;
+    }
+
+    const latlonalt = [this.groundStationPosition.lat, this.groundStationPosition.lon, this.groundStationPosition.alt/1000];
+    this.transits = this.orbit.computeTransits(
+      latlonalt,
+      Cesium.JulianDate.toDate(start),
+      Cesium.JulianDate.toDate(stop));
+
+    this.updateTransitIntervals();
+  }
+
+  updateTransitIntervals() {
     const transitIntervalArray = [];
-    for (const transit of transits) {
+    for (const transit of this.transits) {
       const startJulian = new Cesium.JulianDate.fromDate(new Date(transit.start));
       const endJulian = new Cesium.JulianDate.fromDate(new Date(transit.end));
       transitIntervalArray.push(new Cesium.TimeInterval({

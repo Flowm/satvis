@@ -82,21 +82,23 @@ export class CesiumController {
   createInputHandler() {
     const handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
     handler.setInputAction((event) => {
-      const position = this.clickEventHandler(event);
-      this.sats.setGroundStation(position);
+      const properties = this.clickEventHandler(event);
+      if (properties.didHitGlobe) {
+        this.sats.setGroundStation(properties);
+      }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   }
 
   clickEventHandler(event) {
     const properties = {};
-    properties.screenPosition = event.position;
-    properties.position = this.viewer.camera.pickEllipsoid(event.position);
-    properties.didHitGlobe = Cesium.defined(properties.position);
+    //properties.screenPosition = event.position;
+    properties.cartesian = this.viewer.camera.pickEllipsoid(event.position);
+    properties.didHitGlobe = Cesium.defined(properties.cartesian);
     if (properties.didHitGlobe) {
-      const cartographicPosition = Cesium.Cartographic.fromCartesian(properties.position);
+      const cartographicPosition = Cesium.Cartographic.fromCartesian(properties.cartesian);
       properties.lon = Cesium.Math.toDegrees(cartographicPosition.longitude);
       properties.lat = Cesium.Math.toDegrees(cartographicPosition.latitude);
-      properties.height = Cesium.Math.toDegrees(cartographicPosition.height);
+      properties.alt = Cesium.Math.toDegrees(cartographicPosition.height);
       if (properties.height < 0) {
         properties.height = 0;
       }
