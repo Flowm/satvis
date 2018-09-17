@@ -1,4 +1,5 @@
 import { SatelliteOrbit } from "./SatelliteOrbit";
+import { CesiumTimelineHelper } from "./CesiumTimelineHelper";
 //import Cesium from "cesium/Cesium";
 
 // Import webpack externals
@@ -8,6 +9,7 @@ import CesiumSensorVolumes from "CesiumSensorVolumes";
 export class SatelliteEntity {
   constructor(viewer, tle) {
     this.viewer = viewer;
+    this.timeline = new CesiumTimelineHelper(viewer);
 
     this.name = tle.split("\n")[0].trim();
     if (tle.startsWith("0 ")) {
@@ -91,13 +93,13 @@ export class SatelliteEntity {
 
     const onTickEventRemovalCallback = this.viewer.clock.onTick.addEventListener((clock) => {
       cameraTracker.update(clock.currentTime);
-      this.updateTimeline();
+      this.updateTimelineTransits();
 
     });
     const onTrackedEntityChangedRemovalCallback = this.viewer.trackedEntityChanged.addEventListener(() => {
       onTickEventRemovalCallback();
       onTrackedEntityChangedRemovalCallback();
-      this.clearTimeline();
+      this.timeline.clear();
 
       // Restore default view angle if no new entity is tracked
       if (typeof this.viewer.trackedEntity === "undefined") {
@@ -246,52 +248,23 @@ export class SatelliteEntity {
 
   set groundStation(latlonalt) {
     this.groundStationPosition = latlonalt;
-    this.timelineInterval = undefined;
     if (this.isTracked) {
-      this.clearTimeline();
+      this.timeline.clear();
     }
   }
 
-  clearTimeline() {
-    this.viewer.timeline._highlightRanges = [];
-    this.viewer.timeline.updateFromClock();
-    this.viewer.timeline.zoomTo(this.viewer.clock.startTime, this.viewer.clock.stopTime);
-  }
-
-  updateTimeline() {
+  updateTimelineTransits() {
     if (typeof this.groundStationPosition === "undefined") {
       return;
     }
-
-    // Check if still inside of current timeline
-    if (typeof this.timelineInterval !== "undefined" && Cesium.TimeInterval.contains(this.timelineInterval, this.viewer.clock.currentTime)) {
+    if (!this.timeline.updateTimelineInterval()) {
       return;
     }
 
-    // Start and stop dates of displayed timeline don't seem to be accessible
-    this.timelineInterval = calculateNewIntervalWithinSixDays(this.viewer.clock.currentTime);
     const transits = this.orbit.orbit.computeTransits(
       this.groundStationPosition,
-      Cesium.JulianDate.toDate(this.timelineInterval.start),
-      Cesium.JulianDate.toDate(this.timelineInterval.stop));
-    this.timelineAddHighlightRanges(transits);
-  }
-
-  timelineAddHighlightRanges(ranges) {
-    for (const range of ranges) {
-      const startJulian = new Cesium.JulianDate.fromDate(new Date(range.start));
-      const endJulian = new Cesium.JulianDate.fromDate(new Date(range.end));
-      const highlightRange = this.viewer.timeline.addHighlightRange(Cesium.Color.BLUE, 100, 0);
-      highlightRange.setRange(startJulian, endJulian);
-      this.viewer.timeline.updateFromClock();
-      this.viewer.timeline.zoomTo(this.viewer.clock.startTime, this.viewer.clock.stopTime);
-    }
+      Cesium.JulianDate.toDate(this.timeline.interval.start),
+      Cesium.JulianDate.toDate(this.timeline.interval.stop));
+    this.timeline.addHighlightRanges(transits);
   }
 }
-
-const calculateNewIntervalWithinSixDays = (currentTime) => {
-  return new Cesium.TimeInterval({
-    start: Cesium.JulianDate.addDays(currentTime, -3, Cesium.JulianDate.clone(currentTime)),
-    stop: Cesium.JulianDate.addDays(currentTime, 3, Cesium.JulianDate.clone(currentTime))
-  });
-};
