@@ -1,5 +1,8 @@
 import { Orbit } from "./Orbit";
 import Cesium from "Cesium";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+dayjs.extend(relativeTime);
 
 export class SatelliteOrbit {
   constructor(satelliteTLE, clock) {
@@ -125,5 +128,42 @@ export class SatelliteOrbit {
       }));
     }
     this.transitIntervals = new Cesium.TimeIntervalCollection(transitIntervalArray);
+  }
+
+  renderTransits() {
+    if (this.transits.length == 0) {
+      return "";
+    }
+    const upcomingTransitIdx = this.transits.findIndex(transit => {
+      return dayjs(transit.end).isAfter(dayjs());
+    });
+    const upcomingTransits = this.transits.slice(upcomingTransitIdx);
+
+    const html = `
+      <h3>Transits</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Countdown</th>
+            <th>Start</th>
+            <th>End</th>
+            <th>El</th>
+            <th>Az</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${upcomingTransits.map(transit => `
+            <tr>
+              <td>${dayjs(transit.start).fromNow()}</td>
+              <td>${dayjs(transit.end).format("DD.MM HH:mm:ss")}</td>
+              <td>${dayjs(transit.end).format("DD.MM HH:mm:ss")}</td>
+              <td>${transit.maxElevation.toFixed(0)}&deg</td>
+              <td>${transit.minAzimuth.toFixed(2)}&deg</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+    return html;
   }
 }

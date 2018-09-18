@@ -141,7 +141,23 @@ export class SatelliteEntity {
       color: Cesium.Color.WHITE,
     });
 
+    const description = new Cesium.CallbackProperty((time) => {
+      const positionCartesian = this.orbit.sampledPosition.getValue(time);
+      const positionCartographic = Cesium.Cartographic.fromCartesian(positionCartesian);
+      let description = `
+        <div id="sat-description">
+          <h3>Position</h3>
+          <div>Latitude: ${positionCartographic.latitude.toFixed(2)}&deg</div>
+          <div>Longitude: ${positionCartographic.longitude.toFixed(2)}&deg</div>
+          <div>Elevation: ${(positionCartographic.height / 1000).toFixed(2)} km</div>
+          ${this.orbit.renderTransits()}
+        </div>
+      `;
+      return description;
+    });
+
     this.entities["Point"] = new Cesium.Entity({
+      description: description,
       point: point,
       name: this.name,
       position: this.orbit.sampledPosition,
@@ -296,7 +312,7 @@ export class SatelliteEntity {
     if (!this.timeline.updateTimelineInterval()) {
       return;
     }
-    this.orbit.updateTransits(this.timeline.interval.start, this.timeline.interval.stop)
+    this.orbit.updateTransits(this.timeline.interval.start, this.timeline.interval.stop);
     if (this.isTracked) {
       this.timeline.addHighlightRanges(this.orbit.transits);
     }
