@@ -16,7 +16,6 @@ const app = new Vue({
       dbg: false,
     },
     isIOS: cc.isIOS,
-    availableComponents: cc.sats.availableComponents,
     enabledComponents: cc.sats.enabledComponents,
     availableImageryProviders: cc.imageryProviders,
   },

@@ -28,7 +28,7 @@
                 </button>
             </div>
             <div id="toolbarSwitches" v-show="menu.sat">
-                <label class="switch" v-for="componentName in availableComponents">
+                <label class="switch" v-for="componentName in cc.sats.components">
                     <input type="checkbox" :value="componentName" v-model="enabledComponents"/>
                     <span class="slider round"></span>
                     {{ componentName }}

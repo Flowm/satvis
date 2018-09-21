@@ -5,16 +5,6 @@ export class SatelliteManager {
     this.viewer = viewer;
 
     this.satellites = {};
-    this.availableComponents = [
-      "Point",
-      "Box",
-      "Model",
-      "Label",
-      "Orbit",
-      "Ground",
-      "Cone",
-      "GroundStationLink",
-    ];
     this.enabledComponents = ["Point", "Label"];
     this.pickerEnabled = false;
   }
@@ -72,6 +62,11 @@ export class SatelliteManager {
     if (name in this.satellites) {
       this.satellites[name].hide();
     }
+  }
+
+  get components() {
+    const components = Object.values(this.satellites).map(sat => sat.components);
+    return [...new Set([].concat(...components))];
   }
 
   showComponent(componentName) {
