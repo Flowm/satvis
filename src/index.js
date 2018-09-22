@@ -8,11 +8,11 @@ import "./css/main.css";
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").then(reg => {
-      console.log("SW registered: ", reg);
+      console.log("SW registered:", reg);
 
       // Update service worker on page refresh
       // https://redfin.engineering/how-to-fix-the-refresh-button-when-using-service-workers-a8e27af6df68
-      function listenForWaitingServiceWorker (reg, callback) {
+      function listenForWaitingServiceWorker(reg, callback) {
         function awaitStateChange () {
           reg.installing.addEventListener("statechange", function () {
             if (this.state === "installed") callback(reg);
@@ -33,6 +33,7 @@ if ("serviceWorker" in navigator) {
         window.location.reload();
       });
       function promptUserToRefresh (reg) {
+        console.log("New version available!");
         // Immediately load service worker
         reg.waiting.postMessage("skipWaiting");
         // if (window.confirm("New version available! OK to refresh?")) {

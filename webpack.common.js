@@ -110,6 +110,7 @@ module.exports = {
         /dist\/Assets\/.*\.png$/,
         /dist\/Assets\/.*\.jpg$/,
         /dist\/Assets\/.*\.xml$/,
+        /data\/tle\/.*\.txt$/,
       ],
       exclude: [
         /dist\/ThirdParty\//,

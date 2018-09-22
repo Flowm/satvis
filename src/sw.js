@@ -9,7 +9,7 @@ addEventListener("message", event => {
 
 // Cache Cesium runtime dependencies
 workbox.routing.registerRoute(
-  /dist\/(Widgets|Workers)\/.*\.(css|js)$/,
+  /dist\/(Assets|Widgets|Workers)\/.*\.(css|js|json)$/,
   workbox.strategies.cacheFirst({
     cacheName: "cesium-cache",
   })
@@ -17,9 +17,9 @@ workbox.routing.registerRoute(
 
 // Cache high res map tiles
 workbox.routing.registerRoute(
-  /cesium-assets\/imagery\/.*\.(jpg|xml)$/,
+  /data\/cesium-assets\/imagery\/.*\.(jpg|xml)$/,
   workbox.strategies.cacheFirst({
-    cacheName: "tile-cache",
+    cacheName: "cesium-tile-cache",
     plugins: [
       new workbox.expiration.Plugin({
         maxEntries: 20000,
