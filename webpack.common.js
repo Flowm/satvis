@@ -5,6 +5,7 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const CleanWebpackPlugin = require('clean-webpack-plugin');
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const VueLoaderPlugin = require('vue-loader/lib/plugin');
+const WorkboxPlugin = require('workbox-webpack-plugin');
 
 // The path to the cesium source code
 const cesiumSource = 'node_modules/cesium/Source';
@@ -81,7 +82,7 @@ module.exports = {
     new VueLoaderPlugin(),
     new CopyWebpackPlugin([
       // Copy Cesium Assets, Widgets, and Workers to a static directory
-      {from: path.join(cesiumSource, 'Assets'), to: 'dist/Assets'},
+      {from: path.join(cesiumSource, 'Assets'), to: 'dist/Assets', ignore: ["**/maki/*.png"]},
       {from: path.join(cesiumSource, 'ThirdParty'), to: 'dist/ThirdParty'},
       {from: path.join(cesiumSource, 'Widgets'), to: 'dist/Widgets'},
       {from: path.join(cesiumSource, 'Workers'), to: 'dist/Workers'},
@@ -89,12 +90,32 @@ module.exports = {
       {from: path.join(cesiumSource, '../Build/Cesium/Workers'), to: 'dist/Workers', force: true},
       {from: path.join(cesiumSource, '../Build/Cesium/Cesium.js'), to: 'dist/'},
       {from: 'node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.js', to: 'dist/'},
-      {from: 'data', to: 'data'},
+      {from: 'data', to: 'data', ignore: ["**/.git/**"]},
       {from: 'src/assets'},
     ]),
     new webpack.DefinePlugin({
       // Define relative base path in cesium for loading assets
       CESIUM_BASE_URL: JSON.stringify('dist/')
+    }),
+    new WorkboxPlugin.InjectManifest({
+      importWorkboxFrom: 'local',
+      swSrc: './src/sw.js',
+      swDest: 'sw.js',
+      include: [
+        /\.html$/,
+        /\.js$/,
+        /\.css$/,
+        /\.css$/,
+        /dist\/Assets\/approximateTerrainHeights.json$/,
+        /dist\/Assets\/.*\.png$/,
+        /dist\/Assets\/.*\.jpg$/,
+        /dist\/Assets\/.*\.xml$/,
+      ],
+      exclude: [
+        /dist\/ThirdParty\//,
+        /dist\/Workers\//,
+        /dist\/Widgets\//,
+      ],
     }),
     //new webpack.ProvidePlugin({
     //  'Cesium': 'cesium/Cesium'

@@ -3,7 +3,7 @@ import Cesium from "Cesium";
 import { SatelliteManager } from "./SatelliteManager";
 
 export class CesiumController {
-  constructor(imageryProvider = "offlinehighres") {
+  constructor(imageryProvider = "offline") {
     this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     this.viewer = new Cesium.Viewer("cesiumContainer", {
       animation: !this.isIOS,
