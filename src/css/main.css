@@ -15,7 +15,7 @@ html, body, #cesiumContainer {
 #toolbar {
     position: absolute;
     top: 5px;
-    left: 5px;
+    left: 2px;
 }
 
 #toolbarSwitches {
@@ -101,6 +101,22 @@ input:checked + .slider::before {
 
 .ibt .ibt-right {
     text-align: right;
+}
+
+.cesium-infoBox {
+    /*right: 5px;*/
+    width: calc(100% - 10px);
+    max-width: 540px;
+    margin-left: 5px;
+    margin-right: 5px;
+    border-radius: 7px;
+    border: none;
+    box-sizing: border-box;
+}
+
+.cesium-infoBox-title {
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
 }
 
 .cesium-infoBox-description {
