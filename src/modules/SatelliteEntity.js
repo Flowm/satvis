@@ -154,11 +154,25 @@ export class SatelliteEntity {
       const positionCartesian = this.orbit.sampledPosition.getValue(time);
       const positionCartographic = Cesium.Cartographic.fromCartesian(positionCartesian);
       let content = `
-        <div id="sat-description">
-          <h3>Position</h3>
-          <div>Latitude: ${positionCartographic.latitude.toFixed(2)}&deg</div>
-          <div>Longitude: ${positionCartographic.longitude.toFixed(2)}&deg</div>
-          <div>Elevation: ${(positionCartographic.height / 1000).toFixed(2)} km</div>
+        <div class="ib">
+          <table class="ibt">
+            <thead>
+              <tr>
+                <th>Position</th>
+                <th>Latitude</th>
+                <th>Longitude</th>
+                <th>Elevation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${this.name}</td>
+                <td>${positionCartographic.latitude.toFixed(2)}&deg</td>
+                <td>${positionCartographic.longitude.toFixed(2)}&deg</td>
+                <td>${(positionCartographic.height / 1000).toFixed(2)} km</td>
+              </tr>
+            </tbody>
+          </table>
           ${this.orbit.renderTransits(time)}
         </div>
       `;

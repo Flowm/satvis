@@ -35,6 +35,7 @@ export class CesiumController {
     };
 
     this.createInputHandler();
+    this.styleInfoBox();
 
     // Create Satellite Manager
     this.sats = new SatelliteManager(this.viewer);
@@ -104,5 +105,16 @@ export class CesiumController {
       }
     }
     return properties;
+  }
+
+  styleInfoBox() {
+    const frame = this.viewer.infoBox.frame;
+    frame.addEventListener("load", function () {
+      const cssLink = frame.contentDocument.createElement("link");
+      cssLink.href = "main.css";
+      cssLink.rel = "stylesheet";
+      cssLink.type = "text/css";
+      frame.contentDocument.head.appendChild(cssLink);
+    }, false);
   }
 }

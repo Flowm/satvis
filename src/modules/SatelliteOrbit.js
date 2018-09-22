@@ -140,16 +140,15 @@ export class SatelliteOrbit {
       return dayjs(transit.end).isAfter(start);
     });
     if (upcomingTransitIdx < 0) {
-      return;
+      return "";
     }
     const upcomingTransits = this.transits.slice(upcomingTransitIdx);
 
     const html = `
-      <h3>Transits</h3>
-      <table>
+      <table class="ibt">
         <thead>
           <tr>
-            <th>Countdown</th>
+            <th>Transits</th>
             <th>Start</th>
             <th>End</th>
             <th>El</th>
@@ -176,9 +175,9 @@ export class SatelliteOrbit {
       <tr>
         <td>${timeUntil}</td>
         <td>${dayjs(transit.start).format("DD.MM HH:mm:ss")}</td>
-        <td>${dayjs(transit.end).format("DD.MM HH:mm:ss")}</td>
-        <td>${transit.maxElevation.toFixed(0)}&deg</td>
-        <td>${transit.minAzimuth.toFixed(2)}&deg</td>
+        <td>${dayjs(transit.end).format("HH:mm:ss")}</td>
+        <td class="ibt-right">${transit.maxElevation.toFixed(0)}&deg</td>
+        <td class="ibt-right">${transit.minAzimuth.toFixed(2)}&deg</td>
       </tr>
     `;
     return html;
