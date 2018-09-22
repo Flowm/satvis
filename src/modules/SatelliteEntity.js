@@ -159,7 +159,7 @@ export class SatelliteEntity {
           <div>Latitude: ${positionCartographic.latitude.toFixed(2)}&deg</div>
           <div>Longitude: ${positionCartographic.longitude.toFixed(2)}&deg</div>
           <div>Elevation: ${(positionCartographic.height / 1000).toFixed(2)} km</div>
-          ${this.orbit.renderTransits()}
+          ${this.orbit.renderTransits(time)}
         </div>
       `;
       return content;
