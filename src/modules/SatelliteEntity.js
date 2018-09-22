@@ -16,12 +16,17 @@ export class SatelliteEntity {
       this.name = this.name.substring(2);
     }
     this.orbit = new SatelliteOrbit(tle, viewer.clock);
-    this.createEntities();
   }
 
   show() {
     for (var entity in this.entities) {
       this.showComponent(entity);
+    }
+  }
+
+  hide() {
+    for (var entity in this.entities) {
+      this.hideComponent(entity);
     }
   }
 
@@ -35,12 +40,6 @@ export class SatelliteEntity {
     }
     if (name in this.entities && ! this.viewer.entities.contains(this.entities[name])) {
       this.viewer.entities.add(this.entities[name]);
-    }
-  }
-
-  hide() {
-    for (var entity in this.entities) {
-      this.hideComponent(entity);
     }
   }
 

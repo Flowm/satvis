@@ -9,11 +9,6 @@ export class SatelliteManager {
     this.pickerEnabled = false;
   }
 
-  addFromTle(tle) {
-    const sat = new SatelliteEntity(this.viewer, tle);
-    this.add(sat);
-  }
-
   addFromTleUrl(url) {
     fetch(url, {
       mode: "no-cors",
@@ -34,11 +29,17 @@ export class SatelliteManager {
       });
   }
 
+  addFromTle(tle) {
+    const sat = new SatelliteEntity(this.viewer, tle);
+    this.add(sat);
+  }
+
   add(satelliteEntity) {
     if (satelliteEntity.name in this.satellites) {
       console.log("Satellite ${satelliteEntity.name} already exists");
       return;
     }
+    satelliteEntity.createEntities();
     this.satellites[satelliteEntity.name] = satelliteEntity;
 
     for (let componentName of this.enabledComponents) {
