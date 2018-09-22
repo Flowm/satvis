@@ -1,0 +1,53 @@
+@import url("../../node_modules/cesium/Source/Widgets/InfoBox/InfoBoxDescription.css");
+
+#ib {
+}
+
+.ibt {
+    border-collapse: collapse;
+    border-radius: 6px;
+    width: 100%;
+    margin: 10px 0px 10px 0px;
+}
+
+.ibt th, .ibt td {
+    border: 1px solid #6d6d6d;
+}
+
+.ibt th {
+    background-color: #4CAF50;
+    padding: 6px;
+}
+
+.ibt td {
+    text-align: center;
+    padding: 4px;
+}
+
+.ibt td:first-child, .ibt th:first-child {
+    text-align: left;
+}
+
+.ibt .ibt-right {
+    text-align: right;
+}
+
+.cesium-infoBox {
+    /*right: 5px;*/
+    width: calc(100% - 10px);
+    max-width: 540px;
+    margin-left: 5px;
+    margin-right: 5px;
+    border-radius: 7px;
+    border: none;
+    box-sizing: border-box;
+}
+
+.cesium-infoBox-title {
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+}
+
+.cesium-infoBox-description {
+    margin-right: 0px;
+}

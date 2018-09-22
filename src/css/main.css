@@ -70,39 +70,6 @@ input:checked + .slider::before {
     transform: translateX(20px);
 }
 
-/* InfoBox */
-#ib {
-}
-
-.ibt {
-    border-collapse: collapse;
-    border-radius: 6px;
-    width: 100%;
-    margin: 10px 0px 10px 0px;
-}
-
-.ibt th, .ibt td {
-    border: 1px solid #6d6d6d;
-}
-
-.ibt th {
-    background-color: #4CAF50;
-    padding: 6px;
-}
-
-.ibt td {
-    text-align: center;
-    padding: 4px;
-}
-
-.ibt td:first-child, .ibt th:first-child {
-    text-align: left;
-}
-
-.ibt .ibt-right {
-    text-align: right;
-}
-
 .cesium-infoBox {
     /*right: 5px;*/
     width: calc(100% - 10px);

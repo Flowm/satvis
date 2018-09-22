@@ -110,11 +110,17 @@ export class CesiumController {
   styleInfoBox() {
     const frame = this.viewer.infoBox.frame;
     frame.addEventListener("load", function () {
-      const cssLink = frame.contentDocument.createElement("link");
-      cssLink.href = "main.css";
-      cssLink.rel = "stylesheet";
-      cssLink.type = "text/css";
-      frame.contentDocument.head.appendChild(cssLink);
+      // Inline infobox css as iframe does not use service worker
+      const head = frame.contentDocument.head;
+      const links = head.getElementsByTagName("link");
+      for (const link of links) {
+        head.removeChild(link);
+      }
+      const css = require('to-string-loader!css-loader!postcss-loader!../css/infobox.ecss');
+      const style = frame.contentDocument.createElement("style");
+      var node = document.createTextNode(css);
+      style.appendChild(node);
+      head.appendChild(style);
     }, false);
   }
 }
