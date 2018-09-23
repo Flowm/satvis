@@ -15,6 +15,5 @@
     ],
     "theme_color": "#ffffff",
     "background_color": "#ffffff",
-    "display_XXX": "Display mode standalone breaks workbox caching, thus use browser mode for now https://github.com/GoogleChrome/workbox/issues/1583",
-    "display": "browser"
+    "display": "standalone"
 }
