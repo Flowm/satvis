@@ -34,6 +34,7 @@ export class CesiumController {
       osm: "OSM",
     };
 
+    this.pickerEnabled = false;
     this.createInputHandler();
     this.styleInfoBox();
 
@@ -83,28 +84,37 @@ export class CesiumController {
   createInputHandler() {
     const handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
     handler.setInputAction((event) => {
-      const properties = this.clickEventHandler(event);
-      if (properties.didHitGlobe) {
-        this.sats.setGroundStation(properties);
+      if (!this.pickerEnabled) {
+        return;
       }
+      this.setGroundStationFromClickEvent(event);
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   }
 
-  clickEventHandler(event) {
-    const properties = {};
-    //properties.screenPosition = event.position;
-    properties.cartesian = this.viewer.camera.pickEllipsoid(event.position);
-    properties.didHitGlobe = Cesium.defined(properties.cartesian);
-    if (properties.didHitGlobe) {
-      const cartographicPosition = Cesium.Cartographic.fromCartesian(properties.cartesian);
-      properties.lon = Cesium.Math.toDegrees(cartographicPosition.longitude);
-      properties.lat = Cesium.Math.toDegrees(cartographicPosition.latitude);
-      properties.alt = Cesium.Math.toDegrees(cartographicPosition.height);
-      if (properties.height < 0) {
-        properties.height = 0;
-      }
+  setGroundStationFromClickEvent(event) {
+    const cartesian = this.viewer.camera.pickEllipsoid(event.position);
+    const didHitGlobe = Cesium.defined(cartesian);
+    if (didHitGlobe) {
+      const cartographicPosition = Cesium.Cartographic.fromCartesian(cartesian);
+      const coordinates = {};
+      coordinates.longitude = Cesium.Math.toDegrees(cartographicPosition.longitude);
+      coordinates.latitude = Cesium.Math.toDegrees(cartographicPosition.latitude);
+      coordinates.altitude = Cesium.Math.toDegrees(cartographicPosition.height);
+      this.sats.setGroundStation(coordinates);
     }
-    return properties;
+  }
+
+  setGroundStationFromGeolocation() {
+    navigator.geolocation.getCurrentPosition(position => {
+      if (typeof position === "undefined") {
+        return;
+      }
+      const coordinates = {};
+      coordinates.longitude = position.coords.longitude;
+      coordinates.latitude = position.coords.latitude;
+      coordinates.altitude = position.coords.altitude;
+      this.sats.setGroundStation(coordinates);
+    });
   }
 
   styleInfoBox() {

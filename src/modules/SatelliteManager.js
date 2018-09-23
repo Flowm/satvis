@@ -6,7 +6,6 @@ export class SatelliteManager {
 
     this.satellites = {};
     this.enabledComponents = ["Point", "Label"];
-    this.pickerEnabled = false;
   }
 
   addFromTleUrl(url) {
@@ -93,11 +92,11 @@ export class SatelliteManager {
   }
 
   setGroundStation(position) {
-    if (!this.pickerEnabled) {
-      return;
-    }
     if (this.groundStationAvailable) {
       this.viewer.entities.remove(this.groundStation);
+    }
+    if (position.altitude < 1) {
+      position.altitude = 0;
     }
 
     // Set groundstation for all satellites
@@ -109,7 +108,7 @@ export class SatelliteManager {
     this.groundStation = {
       id: "Groundstation",
       name: "Groundstation",
-      position: position.cartesian,
+      position: new Cesium.Cartesian3.fromDegrees(position.longitude, position.latitude, position.altitude),
       billboard: {
         image: require("../../node_modules/cesium/Build/Apps/Sandcastle/images/facility.gif"),
       }

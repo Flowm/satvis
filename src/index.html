@@ -49,9 +49,14 @@
             </div>
             <div class="toolbarSwitches" v-show="menu.gs">
                 <label class="switch">
-                    <input type="checkbox" v-model="cc.sats.pickerEnabled" />
+                    <input type="button" v-on:click="cc.setGroundStationFromGeolocation()" />
                     <span class="slider round"></span>
-                    Pick ground station
+                    From geolocation
+                </label>
+                <label class="switch">
+                    <input type="checkbox" v-model="cc.pickerEnabled" />
+                    <span class="slider round"></span>
+                    Pick on globe
                 </label>
             </div>
             <div class="toolbarSwitches" v-show="menu.env">
