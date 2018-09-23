@@ -18,13 +18,13 @@ html, body, #cesiumContainer {
     left: 2px;
 }
 
-#toolbarSwitches {
+.toolbarSwitches {
     display: flex;
     flex-direction: column;
     margin: 2px 3px;
 }
 
-#toolbarSwitches label{
+.toolbarSwitches label{
     padding-left: 50px;
     margin: 1px 0px 1px 0px;
 }

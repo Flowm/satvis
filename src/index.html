@@ -1,4 +1,5 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
     <head>
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -17,7 +18,7 @@
     <body>
         <div id="cesiumContainer"></div>
         <div id="toolbar" v-cloak>
-            <div id="toolbarButtons">
+            <div class="toolbarButtons">
                 <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="menu.sat = !menu.sat">
                     SAT
                 </button>
@@ -34,7 +35,7 @@
                     DBG
                 </button>
             </div>
-            <div id="toolbarSwitches" v-show="menu.sat">
+            <div class="toolbarSwitches" v-show="menu.sat">
                 <label class="switch" v-for="componentName in cc.sats.components">
                     <input type="checkbox" :value="componentName" v-model="enabledComponents"/>
                     <span class="slider round"></span>
@@ -46,14 +47,14 @@
                     Untrack Entity
                 </label>
             </div>
-            <div id="toolbarSwitches" v-show="menu.gs">
+            <div class="toolbarSwitches" v-show="menu.gs">
                 <label class="switch">
                     <input type="checkbox" v-model="cc.sats.pickerEnabled" />
                     <span class="slider round"></span>
                     Pick ground station
                 </label>
             </div>
-            <div id="toolbarSwitches" v-show="menu.env">
+            <div class="toolbarSwitches" v-show="menu.env">
                 <label class="switch">
                     <input type="checkbox" v-model="cc.viewer.scene.globe.enableLighting" />
                     <span class="slider round"></span>
@@ -82,7 +83,7 @@
                     {{ name }}
                 </label>
             </div>
-            <div id="toolbarSwitches" v-show="menu.ios">
+            <div class="toolbarSwitches" v-show="menu.ios">
                 <label class="switch">
                     <input type="checkbox" v-model="cc.viewer.clock.shouldAnimate" />
                     <span class="slider round"></span>
@@ -94,7 +95,7 @@
                     VR
                 </label>
             </div>
-            <div id="toolbarSwitches" v-show="menu.dbg">
+            <div class="toolbarSwitches" v-show="menu.dbg">
                 <label class="switch">
                     <input type="checkbox" v-model="cc.viewer.scene.debugShowFramesPerSecond" />
                     <span class="slider round"></span>
