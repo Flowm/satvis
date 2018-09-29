@@ -19,19 +19,19 @@
         <div id="cesiumContainer"></div>
         <div id="toolbar" v-cloak>
             <div class="toolbarButtons">
-                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="menu.sat = !menu.sat">
+                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('sat')">
                     SAT
                 </button>
-                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="menu.gs = !menu.gs">
+                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('gs')">
                     GS
                 </button>
-                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="menu.env = !menu.env">
+                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('env')">
                     ENV
                 </button>
-                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="menu.ios = !menu.ios" v-if="isIOS">
+                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('ios')" v-if="isIOS">
                     iOS
                 </button>
-                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="menu.dbg = !menu.dbg">
+                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('dbg')">
                     DBG
                 </button>
             </div>

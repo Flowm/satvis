@@ -62,6 +62,13 @@ const app = new Vue({
     enabledComponents: cc.sats.enabledComponents,
     availableImageryProviders: cc.imageryProviders,
   },
+  methods: {
+    toggleMenu: function(name) {
+      const oldState = this.menu[name];
+      Object.keys(this.menu).forEach(k => this.menu[k] = false)
+      this.menu[name] = !oldState;
+    },
+  },
   watch: {
     enabledComponents: function (newComponents, oldComponents) {
       let add = newComponents.filter(x => !oldComponents.includes(x));
@@ -72,7 +79,7 @@ const app = new Vue({
       for (let component of del) {
         cc.sats.hideComponent(component);
       }
-    }
+    },
   },
 });
 
