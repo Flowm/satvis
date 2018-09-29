@@ -21,7 +21,9 @@ export class CesiumController {
       vrButton: true,
     });
 
+    // Default settings
     //this.viewer.scene.debugShowFramesPerSecond = true;
+    this.viewer.scene.globe.enableLighting = true;
     this.viewer.clock.shouldAnimate = true;
 
     // Export CesiumController for debugger
@@ -42,7 +44,7 @@ export class CesiumController {
     this.sats = new SatelliteManager(this.viewer);
   }
 
-  changeImageryProvider(imageryProvider) {
+  set setImageryProvider(imageryProvider) {
     if (!this.imageryProviders.hasOwnProperty(imageryProvider)) {
       return;
     }

@@ -25,8 +25,8 @@
                 <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('gs')">
                     GS
                 </button>
-                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('env')">
-                    ENV
+                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('map')">
+                    MAP
                 </button>
                 <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('ios')" v-if="isIOS">
                     iOS
@@ -59,8 +59,9 @@
                     Pick on globe
                 </label>
             </div>
-            <div class="toolbarSwitches" v-show="menu.env">
-                <div>
+            <div class="toolbarSwitches" v-show="menu.map">
+                <div class="toolbarSwitches">
+                    View
                     <label class="switch">
                         <input type="button" v-on:click="cc.viewer.scene.morphTo3D()" />
                         <span class="slider round"></span>
@@ -77,13 +78,14 @@
                         Columbus View
                     </label>
                 </div>
-                <div>
-                    <label class="switch" v-for="(name, key) in availableImageryProviders">
-                        <input type="button" v-on:click="cc.changeImageryProvider(key)"/>
+                <section class="toolbarSwitches">
+                    Imagery
+                    <label class="switch" v-for="(name, key) in cc.imageryProviders">
+                        <input type="radio" v-model="imageryProvider" :value=key />
                         <span class="slider round"></span>
                         {{ name }}
                     </label>
-                </div>
+                </section>
             </div>
             <div class="toolbarSwitches" v-show="menu.ios">
                 <label class="switch">
