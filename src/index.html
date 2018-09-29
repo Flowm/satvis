@@ -60,33 +60,30 @@
                 </label>
             </div>
             <div class="toolbarSwitches" v-show="menu.env">
-                <label class="switch">
-                    <input type="checkbox" v-model="cc.viewer.scene.globe.enableLighting" />
-                    <span class="slider round"></span>
-                    Day/Night cycle
-                </label>
-
-                <label class="switch">
-                    <input type="button" v-on:click="cc.viewer.scene.morphTo3D()" />
-                    <span class="slider round"></span>
-                    3D View
-                </label>
-                <label class="switch">
-                    <input type="button" v-on:click="cc.viewer.scene.morphTo2D()" />
-                    <span class="slider round"></span>
-                    2D View
-                </label>
-                <label class="switch">
-                    <input type="button" v-on:click="cc.viewer.scene.morphToColumbusView()" />
-                    <span class="slider round"></span>
-                    Columbus View
-                </label>
-
-                <label class="switch" v-for="(name, key) in availableImageryProviders">
-                    <input type="button" v-on:click="cc.changeImageryProvider(key)"/>
-                    <span class="slider round"></span>
-                    {{ name }}
-                </label>
+                <div>
+                    <label class="switch">
+                        <input type="button" v-on:click="cc.viewer.scene.morphTo3D()" />
+                        <span class="slider round"></span>
+                        3D View
+                    </label>
+                    <label class="switch">
+                        <input type="button" v-on:click="cc.viewer.scene.morphTo2D()" />
+                        <span class="slider round"></span>
+                        2D View
+                    </label>
+                    <label class="switch">
+                        <input type="button" v-on:click="cc.viewer.scene.morphToColumbusView()" />
+                        <span class="slider round"></span>
+                        Columbus View
+                    </label>
+                </div>
+                <div>
+                    <label class="switch" v-for="(name, key) in availableImageryProviders">
+                        <input type="button" v-on:click="cc.changeImageryProvider(key)"/>
+                        <span class="slider round"></span>
+                        {{ name }}
+                    </label>
+                </div>
             </div>
             <div class="toolbarSwitches" v-show="menu.ios">
                 <label class="switch">
@@ -115,6 +112,11 @@
                     <input type="checkbox" v-model="cc.viewer.scene.fog.enabled" />
                     <span class="slider round"></span>
                     Fog
+                </label>
+                <label class="switch">
+                    <input type="checkbox" v-model="cc.viewer.scene.globe.enableLighting" />
+                    <span class="slider round"></span>
+                    Lighting
                 </label>
             </div>
         </div>
