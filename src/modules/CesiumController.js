@@ -21,7 +21,7 @@ export class CesiumController {
       vrButton: true,
     });
 
-    // Default settings
+    // Cesium default settings
     //this.viewer.scene.debugShowFramesPerSecond = true;
     this.viewer.scene.globe.enableLighting = true;
     this.viewer.clock.shouldAnimate = true;
@@ -29,6 +29,7 @@ export class CesiumController {
     // Export CesiumController for debugger
     window.cc = this;
 
+    // CesiumController config
     this.imageryProviders = {
       offline: "Offline",
       offlinehighres: "Offline Highres",
@@ -36,8 +37,8 @@ export class CesiumController {
       osm: "OSM",
     };
     this.sceneModes = ["3D", "2D", "Columbus"];
+    this.groundStationPicker = { enabled: false };
 
-    this.pickerEnabled = false;
     this.createInputHandler();
     this.styleInfoBox();
 
@@ -101,7 +102,7 @@ export class CesiumController {
   createInputHandler() {
     const handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
     handler.setInputAction((event) => {
-      if (!this.pickerEnabled) {
+      if (!this.groundStationPicker.enabled) {
         return;
       }
       this.setGroundStationFromClickEvent(event);
@@ -118,6 +119,7 @@ export class CesiumController {
       coordinates.latitude = Cesium.Math.toDegrees(cartographicPosition.latitude);
       coordinates.altitude = Cesium.Math.toDegrees(cartographicPosition.height);
       this.sats.setGroundStation(coordinates);
+      this.groundStationPicker.enabled = false;
     }
   }
 

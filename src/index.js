@@ -61,6 +61,7 @@ const app = new Vue({
     imageryProvider: "offline",
     sceneMode: "3D",
     isIOS: cc.isIOS,
+    groundStationPicker: cc.groundStationPicker,
     enabledComponents: cc.sats.enabledComponents,
   },
   methods: {
