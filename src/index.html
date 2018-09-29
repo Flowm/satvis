@@ -60,26 +60,16 @@
                 </label>
             </div>
             <div class="toolbarSwitches" v-show="menu.map">
-                <div class="toolbarSwitches">
-                    View
-                    <label class="switch">
-                        <input type="button" v-on:click="cc.viewer.scene.morphTo3D()" />
-                        <span class="slider round"></span>
-                        3D View
-                    </label>
-                    <label class="switch">
-                        <input type="button" v-on:click="cc.viewer.scene.morphTo2D()" />
-                        <span class="slider round"></span>
-                        2D View
-                    </label>
-                    <label class="switch">
-                        <input type="button" v-on:click="cc.viewer.scene.morphToColumbusView()" />
-                        <span class="slider round"></span>
-                        Columbus View
-                    </label>
-                </div>
                 <section class="toolbarSwitches">
-                    Imagery
+                    <div>View</div>
+                    <label class="switch" v-for="name in cc.sceneModes">
+                        <input type="radio" v-model="sceneMode" :value=name />
+                        <span class="slider round"></span>
+                        {{ name }}
+                    </label>
+                </section>
+                <section class="toolbarSwitches">
+                    <div>Imagery</div>
                     <label class="switch" v-for="(name, key) in cc.imageryProviders">
                         <input type="radio" v-model="imageryProvider" :value=key />
                         <span class="slider round"></span>

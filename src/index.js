@@ -59,6 +59,7 @@ const app = new Vue({
       dbg: false,
     },
     imageryProvider: "offline",
+    sceneMode: "3D",
     isIOS: cc.isIOS,
     enabledComponents: cc.sats.enabledComponents,
   },
@@ -72,6 +73,10 @@ const app = new Vue({
   watch: {
     imageryProvider: function(newVal, oldVal) {
       cc.setImageryProvider = newVal;
+    },
+    sceneMode: function(newVal, oldVal) {
+      console.log(newVal);
+      cc.setSceneMode = newVal;
     },
     enabledComponents: function(newComponents, oldComponents) {
       let add = newComponents.filter(x => !oldComponents.includes(x));

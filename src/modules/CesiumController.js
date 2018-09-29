@@ -35,6 +35,7 @@ export class CesiumController {
       arcgis: "ArcGis",
       osm: "OSM",
     };
+    this.sceneModes = ["3D", "2D", "Columbus"];
 
     this.pickerEnabled = false;
     this.createInputHandler();
@@ -42,6 +43,20 @@ export class CesiumController {
 
     // Create Satellite Manager
     this.sats = new SatelliteManager(this.viewer);
+  }
+
+  set setSceneMode(sceneMode) {
+    switch(sceneMode) {
+    case "3D":
+      this.viewer.scene.morphTo3D()
+      break;
+    case "2D":
+      this.viewer.scene.morphTo2D()
+      break;
+    case "Columbus":
+      this.viewer.scene.morphToColumbusView()
+      break;
+    }
   }
 
   set setImageryProvider(imageryProvider) {
