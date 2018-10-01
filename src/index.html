@@ -87,6 +87,16 @@
                     <span class="slider round"></span>
                     Play
                 </label>
+                <label class="switch">
+                    <input type="button" v-on:click="cc.viewer.clockViewModel.multiplier *= 2" />
+                    <span class="slider round"></span>
+                    Increase simulation speed
+                </label>
+                <label class="switch">
+                    <input type="button" v-on:click="cc.viewer.clockViewModel.multiplier /= 2" />
+                    <span class="slider round"></span>
+                    Decrease simulation speed
+                </label>
             </div>
             <div class="toolbarSwitches" v-show="menu.dbg">
                 <div class="toolbarTitle">Debug settings</div>
