@@ -22,17 +22,22 @@ html, body, #cesiumContainer {
     display: flex;
     flex-direction: column;
     margin: 2px 3px;
+    background-color: #30333680;
+    border-radius: 8px;
 }
 
-.toolbarSwitches label{
+.toolbarTitle {
     padding-left: 50px;
-    margin: 1px 0px 1px 0px;
+    height: 24px;
+    line-height: 24px;
 }
 
 .switch {
+    padding-left: 50px;
+    margin: 1px 0px 1px 0px;
     position: relative;
     display: inline-block;
-    width: 220px;
+    width: 200px;
     height: 24px;
     line-height: 24px;
 }
