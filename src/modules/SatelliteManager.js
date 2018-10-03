@@ -110,7 +110,11 @@ export class SatelliteManager {
       name: "Groundstation",
       position: new Cesium.Cartesian3.fromDegrees(position.longitude, position.latitude, position.altitude),
       billboard: {
-        image: require("../../data/images/facility.gif"),
+        image: require("../assets/images/icons/dish.svg"),
+        horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        width: 24,
+        height: 24,
       }
     };
     this.viewer.entities.add(this.groundStation);
