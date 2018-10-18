@@ -1,14 +1,14 @@
 import { SatelliteOrbit } from "./SatelliteOrbit";
 import { CesiumTimelineHelper } from "./CesiumTimelineHelper";
-//import Cesium from "cesium/Cesium";
+import { CesiumEntityWrapper } from "./CesiumEntityWrapper";
 
 // Import webpack externals
 import Cesium from "Cesium";
 import CesiumSensorVolumes from "CesiumSensorVolumes";
 
-export class SatelliteEntity {
+export class SatelliteEntity extends CesiumEntityWrapper {
   constructor(viewer, tle) {
-    this.viewer = viewer;
+    super(viewer);
     this.timeline = new CesiumTimelineHelper(viewer);
 
     this.name = tle.split("\n")[0].trim();
@@ -16,89 +16,6 @@ export class SatelliteEntity {
       this.name = this.name.substring(2);
     }
     this.orbit = new SatelliteOrbit(tle, viewer.clock);
-  }
-
-  show() {
-    for (var entity in this.entities) {
-      this.showComponent(entity);
-    }
-  }
-
-  hide() {
-    for (var entity in this.entities) {
-      this.hideComponent(entity);
-    }
-  }
-
-  get components() {
-    return Object.keys(this.entities);
-  }
-
-  showComponent(name) {
-    if (typeof name === "undefined") {
-      return;
-    }
-    if (name in this.entities && ! this.viewer.entities.contains(this.entities[name])) {
-      this.viewer.entities.add(this.entities[name]);
-    }
-  }
-
-  hideComponent(name) {
-    if (typeof name === "undefined") {
-      return;
-    }
-    if (name in this.entities && this.viewer.entities.contains(this.entities[name])) {
-      this.viewer.entities.remove(this.entities[name]);
-    }
-  }
-
-  track(animate = false) {
-    if (typeof this.defaultEntity === "undefined") {
-      return;
-    }
-    if (!animate) {
-      this.viewer.trackedEntity = this.defaultEntity;
-      return;
-    }
-
-    this.viewer.trackedEntity = undefined;
-    const clockRunning = this.viewer.clock.shouldAnimate;
-    this.viewer.clock.shouldAnimate = false;
-
-    this.viewer.flyTo(this.defaultEntity, {
-      offset: new Cesium.HeadingPitchRange(0, -Cesium.Math.PI_OVER_FOUR, 1580000)
-    }).then((result) => {
-      if (result) {
-        this.viewer.trackedEntity = this.defaultEntity;
-        this.viewer.clock.shouldAnimate = clockRunning;
-      }
-    });
-  }
-
-  get isTracked() {
-    return this.viewer.trackedEntity === this.defaultEntity;
-  }
-
-  artificiallyTrack() {
-    const cameraTracker = new Cesium.EntityView(this.defaultEntity, this.viewer.scene, this.viewer.scene.globe.ellipsoid);
-
-    const onTickEventRemovalCallback = this.viewer.clock.onTick.addEventListener((clock) => {
-      cameraTracker.update(clock.currentTime);
-      this.updateTransits();
-
-    });
-    const onTrackedEntityChangedRemovalCallback = this.viewer.trackedEntityChanged.addEventListener(() => {
-      onTickEventRemovalCallback();
-      onTrackedEntityChangedRemovalCallback();
-      this.timeline.clearTimeline();
-
-      // Restore default view angle if no new entity is tracked
-      if (typeof this.viewer.trackedEntity === "undefined") {
-        this.viewer.flyTo(this.defaultEntity, {
-          offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-90.0), 1580000)
-        });
-      }
-    });
   }
 
   createEntities() {
@@ -132,7 +49,10 @@ export class SatelliteEntity {
     this.viewer.trackedEntityChanged.addEventListener(() => {
       if (this.isTracked) {
         this.timeline.clearInterval();
-        this.artificiallyTrack();
+        this.artificiallyTrack(
+          () => { this.updateTransits(); },
+          () => { this.timeline.clearTimeline(); },
+        );
       }
     });
   }
