@@ -89,4 +89,20 @@ export class CesiumEntityWrapper {
       }
     });
   }
+
+  createCesiumEntity(name, key, value, position, moving = true) {
+    const entity = new Cesium.Entity({
+      name: this.name,
+      description: this.description,
+      position: position,
+    });
+
+    if (moving) {
+      entity.orientation = new Cesium.VelocityOrientationProperty(position);
+      entity.viewFrom = new Cesium.Cartesian3(0, -1200000, 1150000);
+    }
+
+    entity[key] = value;
+    this.entities[name] = entity;
+  }
 }

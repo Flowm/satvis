@@ -57,18 +57,6 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     });
   }
 
-  createCesiumEntity(name, key, value) {
-    const entity = new Cesium.Entity({
-      name: this.name,
-      description: this.description,
-      position: this.orbit.sampledPosition,
-      orientation: new Cesium.VelocityOrientationProperty(this.orbit.sampledPosition),
-      viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
-    });
-    entity[key] = value;
-    this.entities[name] = entity;
-  }
-
   createDesciption() {
     const description = new Cesium.CallbackProperty((time) => {
       const positionCartesian = this.orbit.sampledPosition.getValue(time);
@@ -106,7 +94,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       pixelSize: 10,
       color: Cesium.Color.WHITE,
     });
-    this.createCesiumEntity("Point", "point", point);
+    this.createCesiumEntity("Point", "point", point, this.orbit.sampledPosition);
   }
 
   createBox() {
@@ -115,14 +103,14 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       dimensions: new Cesium.Cartesian3(size, size, size),
       material: Cesium.Color.WHITE,
     });
-    this.createCesiumEntity("Box", "box", box);
+    this.createCesiumEntity("Box", "box", box, this.orbit.sampledPosition);
   }
 
   createModel() {
     const model = new Cesium.ModelGraphics({
       uri: "./data/models/" + this.name + ".glb",
     });
-    this.createCesiumEntity("Model", "model", model);
+    this.createCesiumEntity("Model", "model", model, this.orbit.sampledPosition);
   }
 
   createLabel() {
@@ -134,7 +122,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       distanceDisplayCondition: new Cesium.DistanceDisplayCondition(10000, 6.0e7),
       pixelOffsetScaleByDistance: new Cesium.NearFarScalar(1.0e1, 10, 2.0e5, 1),
     });
-    this.createCesiumEntity("Label", "label", label);
+    this.createCesiumEntity("Label", "label", label, this.orbit.sampledPosition);
   }
 
   createOrbit(leadTime = 3600, trailTime = 0) {
@@ -145,7 +133,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       resolution: 600,
       width: 5,
     });
-    this.createCesiumEntity("Orbit", "path", path);
+    this.createCesiumEntity("Orbit", "path", path, this.orbit.sampledPosition);
   }
 
   createGroundTrack() {
@@ -157,7 +145,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       followSurface: false,
       width: 10,
     });
-    this.createCesiumEntity("Ground", "polyline", polyline);
+    this.createCesiumEntity("Ground", "polyline", polyline, this.orbit.sampledPosition);
   }
 
   createCone(fov = 10) {
@@ -200,7 +188,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       }),
       width: 5,
     });
-    this.createCesiumEntity("GroundStationLink", "polyline", polyline);
+    this.createCesiumEntity("GroundStationLink", "polyline", polyline, this.orbit.sampledPosition);
   }
 
   set groundStation(position) {

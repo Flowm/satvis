@@ -133,6 +133,7 @@ export class CesiumController {
       coordinates.longitude = position.coords.longitude;
       coordinates.latitude = position.coords.latitude;
       coordinates.altitude = position.coords.altitude;
+      coordinates.cartesian = Cesium.Cartesian3.fromDegrees(coordinates.longitude, coordinates.latitude, coordinates.altitude);
       this.sats.setGroundStation(coordinates);
     });
   }

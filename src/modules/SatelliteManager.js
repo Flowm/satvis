@@ -1,4 +1,5 @@
 import { SatelliteEntity } from "./SatelliteEntity";
+import { GroundStationEntity } from "./GroundStationEntity";
 
 export class SatelliteManager {
   constructor(viewer) {
@@ -93,7 +94,7 @@ export class SatelliteManager {
 
   setGroundStation(position) {
     if (this.groundStationAvailable) {
-      this.viewer.entities.remove(this.groundStation);
+      this.groundStation.hide();
     }
     if (position.altitude < 1) {
       position.altitude = 0;
@@ -105,18 +106,7 @@ export class SatelliteManager {
     }
 
     // Create groundstation entity
-    this.groundStation = {
-      id: "Groundstation",
-      name: "Groundstation",
-      position: new Cesium.Cartesian3.fromDegrees(position.longitude, position.latitude, position.altitude),
-      billboard: {
-        image: require("../assets/images/icons/dish.svg"),
-        horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-        width: 24,
-        height: 24,
-      }
-    };
-    this.viewer.entities.add(this.groundStation);
+    this.groundStation = new GroundStationEntity(this.viewer, position.cartesian);
+    this.groundStation.show();
   }
 }
