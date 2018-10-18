@@ -95,11 +95,11 @@ export class CesiumEntityWrapper {
       name: this.name,
       description: this.description,
       position: position,
+      viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
     });
 
     if (moving) {
       entity.orientation = new Cesium.VelocityOrientationProperty(position);
-      entity.viewFrom = new Cesium.Cartesian3(0, -1200000, 1150000);
     }
 
     entity[key] = value;

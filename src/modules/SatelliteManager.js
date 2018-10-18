@@ -92,6 +92,12 @@ export class SatelliteManager {
     return (typeof this.groundStation !== "undefined");
   }
 
+  focusGroundStation() {
+    if (this.groundStationAvailable) {
+      this.groundStation.track();
+    }
+  }
+
   setGroundStation(position) {
     if (this.groundStationAvailable) {
       this.groundStation.hide();
