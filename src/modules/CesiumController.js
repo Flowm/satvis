@@ -113,11 +113,12 @@ export class CesiumController {
     const cartesian = this.viewer.camera.pickEllipsoid(event.position);
     const didHitGlobe = Cesium.defined(cartesian);
     if (didHitGlobe) {
-      const cartographicPosition = Cesium.Cartographic.fromCartesian(cartesian);
       const coordinates = {};
+      const cartographicPosition = Cesium.Cartographic.fromCartesian(cartesian);
       coordinates.longitude = Cesium.Math.toDegrees(cartographicPosition.longitude);
       coordinates.latitude = Cesium.Math.toDegrees(cartographicPosition.latitude);
       coordinates.altitude = Cesium.Math.toDegrees(cartographicPosition.height);
+      coordinates.cartesian = cartesian;
       this.sats.setGroundStation(coordinates);
       this.groundStationPicker.enabled = false;
     }
