@@ -1,7 +1,7 @@
 {
   "name": "cesium-orbit",
   "version": "0.0.1",
-  "description": "Cesium satellite orbit visualization",
+  "description": "Satellite orbit visualization with CesiumJS",
   "scripts": {
     "build": "webpack --config webpack.prod.js",
     "build-dev": "webpack --config webpack.dev.js",
