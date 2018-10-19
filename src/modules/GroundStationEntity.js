@@ -35,7 +35,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
   createDescription() {
     const description = new Cesium.CallbackProperty((time) => {
       const transits = this.transits(time);
-      const content = DescriptionHelper.renderDescription(time, this.name, this.position, transits);
+      const content = DescriptionHelper.renderDescription(time, this.name, this.position, transits, true);
       return content;
     });
     this.description = description;
@@ -45,14 +45,13 @@ export class GroundStationEntity extends CesiumEntityWrapper {
     let transits = [];
     // Aggregate transits from all satellites
     for (let [name, sat] of Object.entries(this.sats.satellites)) {
-      let satTransits = sat.props.transits.filter((transit) => {
-        return dayjs(transit.start).diff(time, "hours") < deltaHours;
-      }).map((transit) => {
-        transit.name = name;
-        return transit;
-      });
-      transits.push(...satTransits);
+      transits.push(...sat.props.transits);
     }
+
+    // Filter transits based on time
+    transits = transits.filter((transit) => {
+      return dayjs(transit.start).diff(time, "hours") < deltaHours;
+    });
 
     // Sort transits by time
     transits = transits.sort((a, b) => {

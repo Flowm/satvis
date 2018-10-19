@@ -109,6 +109,7 @@ export class SatelliteProperties {
 
     const latlonalt = [this.groundStationPosition.latitude, this.groundStationPosition.longitude, this.groundStationPosition.height/1000];
     this.transits = this.orbit.computeTransits(
+      this.name,
       latlonalt,
       Cesium.JulianDate.toDate(start),
       Cesium.JulianDate.toDate(stop));

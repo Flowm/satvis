@@ -3,7 +3,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);
 
 export class DescriptionHelper {
-  static renderDescription(time, name, position, transits) {
+  static renderDescription(time, name, position, transits, showTransitName) {
     let description = `
       <div class="ib">
         <h3>Position</h3>
@@ -25,13 +25,13 @@ export class DescriptionHelper {
             </tr>
           </tbody>
         </table>
-        ${this.renderTransits(transits, time)}
+        ${this.renderTransits(transits, time, showTransitName)}
       </div>
     `;
     return description;
   }
 
-  static renderTransits(transits, time) {
+  static renderTransits(transits, time, showTransitName) {
     if (transits.length == 0) {
       return "";
     }
@@ -45,7 +45,7 @@ export class DescriptionHelper {
     }
     const upcomingTransits = transits.slice(upcomingTransitIdx);
 
-    const htmlName = transits[0].name ? "<th>Name</th>\n" : "";
+    const htmlName = showTransitName ? "<th>Name</th>\n" : "";
     const html = `
       <h3>Transits</h3>
       <table class="ibt">
@@ -60,14 +60,14 @@ export class DescriptionHelper {
           </tr>
         </thead>
         <tbody>
-          ${upcomingTransits.map(transit => this.renderTransit(start, transit)).join("")}
+          ${upcomingTransits.map(transit => this.renderTransit(start, transit, showTransitName)).join("")}
         </tbody>
       </table>
     `;
     return html;
   }
 
-  static renderTransit(time, transit) {
+  static renderTransit(time, transit, showTransitName) {
     function pad2(num) {
       return String(num).padStart(2, "0");
     }
@@ -75,7 +75,7 @@ export class DescriptionHelper {
     if (dayjs(transit.start).diff(time) > 0) {
       timeUntil = `${pad2(dayjs(transit.start).diff(time, "days"))}:${pad2(dayjs(transit.start).diff(time, "hours")%24)}:${pad2(dayjs(transit.start).diff(time, "minutes")%60)}:${pad2(dayjs(transit.start).diff(time, "seconds")%60)}`;
     }
-    const htmlName = transit.name ? `<td>${transit.name}</td>\n` : "";
+    const htmlName = showTransitName ? `<td>${transit.name}</td>\n` : "";
     const html = `
       <tr>
         ${htmlName}
