@@ -3,8 +3,8 @@ import * as jspredict from "jspredict-move2";
 import dayjs from "dayjs";
 
 export class Orbit {
-  constructor(satelliteTLE) {
-    this.tle = satelliteTLE.split("\n");
+  constructor(tle) {
+    this.tle = tle.split("\n");
     this.satrec = satellitejs.twoline2satrec(this.tle[1], this.tle[2]);
   }
 

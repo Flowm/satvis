@@ -1,4 +1,4 @@
-import { SatelliteOrbit } from "./SatelliteOrbit";
+import { SatelliteProperties } from "./SatelliteProperties";
 import { CesiumTimelineHelper } from "./CesiumTimelineHelper";
 import { CesiumEntityWrapper } from "./CesiumEntityWrapper";
 import { DescriptionHelper } from "./DescriptionHelper";
@@ -11,23 +11,18 @@ export class SatelliteEntity extends CesiumEntityWrapper {
   constructor(viewer, tle) {
     super(viewer);
     this.timeline = new CesiumTimelineHelper(viewer);
-
-    this.name = tle.split("\n")[0].trim();
-    if (tle.startsWith("0 ")) {
-      this.name = this.name.substring(2);
-    }
-    this.orbit = new SatelliteOrbit(tle, viewer.clock);
+    this.props = new SatelliteProperties(viewer.clock, tle);
   }
 
   createEntities() {
-    this.orbit.createSampledPosition(sampledPosition => {
+    this.props.createSampledPosition(sampledPosition => {
       for (var entity in this.entities) {
         this.entities[entity].position = sampledPosition;
-        this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(this.orbit.sampledPosition);
+        this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(this.props.sampledPosition);
       }
       if (this.entities.hasOwnProperty("Cone")) {
         this.entities["Cone"].orientation = new Cesium.CallbackProperty(() => {
-          const position = this.orbit.position;
+          const position = this.props.position;
           const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
           return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
         }, false);
@@ -41,7 +36,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     this.createModel();
     this.createLabel();
     this.createOrbit();
-    if (this.orbit.height < 10000000) {
+    if (this.props.height < 10000000) {
       this.createGroundTrack();
       this.createCone();
     }
@@ -60,12 +55,16 @@ export class SatelliteEntity extends CesiumEntityWrapper {
 
   createDescription() {
     const description = new Cesium.CallbackProperty((time) => {
-      const positionCartesian = this.orbit.sampledPosition.getValue(time);
+      const positionCartesian = this.props.sampledPosition.getValue(time);
       const positionCartographic = Cesium.Cartographic.fromCartesian(positionCartesian);
-      const content = DescriptionHelper.renderDescription(time, this.name, positionCartographic, this.orbit.transits);
+      const content = DescriptionHelper.renderDescription(time, this.props.name, positionCartographic, this.props.transits);
       return content;
     });
     this.description = description;
+  }
+
+  createCesiumSatelliteEntity(entityName, entityKey, entityValue) {
+    this.createCesiumEntity(entityName, entityKey, entityValue, this.props.name, this.description, this.props.sampledPosition, true)
   }
 
   createPoint() {
@@ -73,7 +72,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       pixelSize: 10,
       color: Cesium.Color.WHITE,
     });
-    this.createCesiumEntity("Point", "point", point, this.orbit.sampledPosition);
+    this.createCesiumSatelliteEntity("Point", "point", point);
   }
 
   createBox() {
@@ -82,26 +81,26 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       dimensions: new Cesium.Cartesian3(size, size, size),
       material: Cesium.Color.WHITE,
     });
-    this.createCesiumEntity("Box", "box", box, this.orbit.sampledPosition);
+    this.createCesiumSatelliteEntity("Box", "box", box);
   }
 
   createModel() {
     const model = new Cesium.ModelGraphics({
-      uri: "./data/models/" + this.name + ".glb",
+      uri: "./data/models/" + this.props.name + ".glb",
     });
-    this.createCesiumEntity("Model", "model", model, this.orbit.sampledPosition);
+    this.createCesiumSatelliteEntity("Model", "model", model);
   }
 
   createLabel() {
     const label = new Cesium.LabelGraphics({
-      text: this.name,
+      text: this.props.name,
       scale: 0.6,
       horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
       pixelOffset: new Cesium.Cartesian2(15, 0),
       distanceDisplayCondition: new Cesium.DistanceDisplayCondition(10000, 6.0e7),
       pixelOffsetScaleByDistance: new Cesium.NearFarScalar(1.0e1, 10, 2.0e5, 1),
     });
-    this.createCesiumEntity("Label", "label", label, this.orbit.sampledPosition);
+    this.createCesiumSatelliteEntity("Label", "label", label);
   }
 
   createOrbit(leadTime = 3600, trailTime = 0) {
@@ -112,26 +111,26 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       resolution: 600,
       width: 5,
     });
-    this.createCesiumEntity("Orbit", "path", path, this.orbit.sampledPosition);
+    this.createCesiumSatelliteEntity("Orbit", "path", path);
   }
 
   createGroundTrack() {
     const polyline = new Cesium.PolylineGraphics({
       material: Cesium.Color.YELLOW.withAlpha(0.1),
       positions: new Cesium.CallbackProperty((time) => {
-        return this.orbit.groundTrack(time);
+        return this.props.groundTrack(time);
       }),
       followSurface: false,
       width: 10,
     });
-    this.createCesiumEntity("Ground", "polyline", polyline, this.orbit.sampledPosition);
+    this.createCesiumSatelliteEntity("Ground", "polyline", polyline);
   }
 
   createCone(fov = 10) {
     const cone = new Cesium.Entity({
-      position: this.orbit.sampledPosition,
+      position: this.props.sampledPosition,
       orientation: new Cesium.CallbackProperty(() => {
-        const position = this.orbit.position;
+        const position = this.props.position;
         const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
         return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
       }, false),
@@ -157,26 +156,26 @@ export class SatelliteEntity extends CesiumEntityWrapper {
         color: Cesium.Color.FORESTGREEN
       }),
       positions: new Cesium.CallbackProperty(() => {
-        const satPosition = this.orbit.position;
-        const groundPosition = this.orbit.groundStationPosition.cartesian;
+        const satPosition = this.props.position;
+        const groundPosition = this.props.groundStationPosition.cartesian;
         const positions = [satPosition, groundPosition];
         return positions;
       }),
       show: new Cesium.CallbackProperty((time) => {
-        return this.orbit.transitIntervals.contains(time);
+        return this.props.transitIntervals.contains(time);
       }),
       width: 5,
     });
-    this.createCesiumEntity("GroundStationLink", "polyline", polyline, this.orbit.sampledPosition);
+    this.createCesiumSatelliteEntity("GroundStationLink", "polyline", polyline);
   }
 
   set groundStation(position) {
     // No groundstation calculation for GEO satellites
-    if (this.orbit.height > 10000000) {
+    if (this.props.height > 10000000) {
       return;
     }
 
-    this.orbit.groundStationPosition = position;
+    this.props.groundStationPosition = position;
     if (this.isTracked) {
       this.timeline.clearTimeline();
     } else {
@@ -190,9 +189,9 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     if (!this.timeline.updateTimelineInterval()) {
       return;
     }
-    this.orbit.updateTransits(this.timeline.interval.start, this.timeline.interval.stop);
+    this.props.updateTransits(this.timeline.interval.start, this.timeline.interval.stop);
     if (this.isTracked) {
-      this.timeline.addHighlightRanges(this.orbit.transits);
+      this.timeline.addHighlightRanges(this.props.transits);
     }
   }
 }

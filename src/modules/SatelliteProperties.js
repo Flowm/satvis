@@ -1,9 +1,14 @@
 import { Orbit } from "./Orbit";
 import Cesium from "Cesium";
 
-export class SatelliteOrbit {
-  constructor(satelliteTLE, clock) {
-    this.orbit = new Orbit(satelliteTLE);
+export class SatelliteProperties {
+  constructor(clock, tle) {
+    this.name = tle.split("\n")[0].trim();
+    if (tle.startsWith("0 ")) {
+      this.name = this.name.substring(2);
+    }
+
+    this.orbit = new Orbit(tle);
     this.clock = clock;
 
     this.groundStationPosition = undefined;

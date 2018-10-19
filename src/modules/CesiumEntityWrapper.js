@@ -90,10 +90,10 @@ export class CesiumEntityWrapper {
     });
   }
 
-  createCesiumEntity(name, key, value, position, moving = true) {
+  createCesiumEntity(entityName, entityKey, entityValue, name, description, position, moving) {
     const entity = new Cesium.Entity({
-      name: this.name,
-      description: this.description,
+      name: name,
+      description: description,
       position: position,
       viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
     });
@@ -102,7 +102,7 @@ export class CesiumEntityWrapper {
       entity.orientation = new Cesium.VelocityOrientationProperty(position);
     }
 
-    entity[key] = value;
-    this.entities[name] = entity;
+    entity[entityKey] = entityValue;
+    this.entities[entityName] = entity;
   }
 }

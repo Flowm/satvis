@@ -35,12 +35,12 @@ export class SatelliteManager {
   }
 
   add(satelliteEntity) {
-    if (satelliteEntity.name in this.satellites) {
-      console.log("Satellite ${satelliteEntity.name} already exists");
+    if (satelliteEntity.props.name in this.satellites) {
+      console.log("Satellite ${satelliteEntity.props.name} already exists");
       return;
     }
     satelliteEntity.createEntities();
-    this.satellites[satelliteEntity.name] = satelliteEntity;
+    this.satellites[satelliteEntity.props.name] = satelliteEntity;
 
     for (let componentName of this.enabledComponents) {
       satelliteEntity.showComponent(componentName);

@@ -28,7 +28,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
       width: 24,
       height: 24,
     });
-    this.createCesiumEntity("Groundstation", "billboard", billboard, this.position.cartesian, false);
+    this.createCesiumEntity("Groundstation", "billboard", billboard, this.name, this.description, this.position.cartesian, false);
     this.defaultEntity = this.entities["Groundstation"];
   }
 
@@ -45,7 +45,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
     let transits = [];
     // Aggregate transits from all satellites
     for (let [name, sat] of Object.entries(this.sats.satellites)) {
-      let satTransits = sat.orbit.transits.filter((transit) => {
+      let satTransits = sat.props.transits.filter((transit) => {
         return dayjs(transit.start).diff(time, "hours") < deltaHours;
       }).map((transit) => {
         transit.name = name;
