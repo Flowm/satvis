@@ -11,18 +11,18 @@ export class SatelliteEntity extends CesiumEntityWrapper {
   constructor(viewer, tle) {
     super(viewer);
     this.timeline = new CesiumTimelineHelper(viewer);
-    this.props = new SatelliteProperties(viewer.clock, tle);
+    this.props = new SatelliteProperties(tle);
   }
 
   createEntities() {
-    this.props.createSampledPosition(sampledPosition => {
+    this.props.createSampledPosition(this.viewer.clock, sampledPosition => {
       for (var entity in this.entities) {
         this.entities[entity].position = sampledPosition;
-        this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(this.props.sampledPosition);
+        this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(sampledPosition);
       }
       if (this.entities.hasOwnProperty("Cone")) {
-        this.entities["Cone"].orientation = new Cesium.CallbackProperty(() => {
-          const position = this.props.position;
+        this.entities["Cone"].orientation = new Cesium.CallbackProperty((time) => {
+          const position = this.props.position(time);
           const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
           return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
         }, false);
@@ -36,7 +36,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     this.createModel();
     this.createLabel();
     this.createOrbit();
-    if (this.props.height < 10000000) {
+    if (this.props.positionCartographic(this.viewer.clock.currentTime).height < 10000000) {
       this.createGroundTrack();
       this.createCone();
     }
@@ -55,9 +55,8 @@ export class SatelliteEntity extends CesiumEntityWrapper {
 
   createDescription() {
     const description = new Cesium.CallbackProperty((time) => {
-      const positionCartesian = this.props.sampledPosition.getValue(time);
-      const positionCartographic = Cesium.Cartographic.fromCartesian(positionCartesian);
-      const content = DescriptionHelper.renderDescription(time, this.props.name, positionCartographic, this.props.transits);
+      const cartographic = this.props.positionCartographic(time);
+      const content = DescriptionHelper.renderDescription(time, this.props.name, cartographic, this.props.transits);
       return content;
     });
     this.description = description;
@@ -129,8 +128,8 @@ export class SatelliteEntity extends CesiumEntityWrapper {
   createCone(fov = 10) {
     const cone = new Cesium.Entity({
       position: this.props.sampledPosition,
-      orientation: new Cesium.CallbackProperty(() => {
-        const position = this.props.position;
+      orientation: new Cesium.CallbackProperty((time) => {
+        const position = this.props.position(time);
         const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
         return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
       }, false),
@@ -155,8 +154,8 @@ export class SatelliteEntity extends CesiumEntityWrapper {
         glowPower: 0.2,
         color: Cesium.Color.FORESTGREEN
       }),
-      positions: new Cesium.CallbackProperty(() => {
-        const satPosition = this.props.position;
+      positions: new Cesium.CallbackProperty((time) => {
+        const satPosition = this.props.position(time);
         const groundPosition = this.props.groundStationPosition.cartesian;
         const positions = [satPosition, groundPosition];
         return positions;
@@ -171,7 +170,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
 
   set groundStation(position) {
     // No groundstation calculation for GEO satellites
-    if (this.props.height > 10000000) {
+    if (this.props.positionCartographic(this.viewer.clock.currentTime).height > 10000000) {
       return;
     }
 

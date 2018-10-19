@@ -2,26 +2,24 @@ import { Orbit } from "./Orbit";
 import Cesium from "Cesium";
 
 export class SatelliteProperties {
-  constructor(clock, tle) {
+  constructor(tle) {
     this.name = tle.split("\n")[0].trim();
     if (tle.startsWith("0 ")) {
       this.name = this.name.substring(2);
     }
-
     this.orbit = new Orbit(tle);
-    this.clock = clock;
 
     this.groundStationPosition = undefined;
     this.transits = [];
     this.transitIntervals = new Cesium.TimeIntervalCollection();
   }
 
-  get position() {
-    return this.sampledPosition.getValue(this.clock.currentTime);
+  position(time) {
+    return this.sampledPosition.getValue(time);
   }
 
-  get cartographic() {
-    return Cesium.Cartographic.fromCartesian(this.position);
+  positionCartographic(time) {
+    return Cesium.Cartographic.fromCartesian(this.position(time));
   }
 
   get height() {
@@ -42,10 +40,10 @@ export class SatelliteProperties {
     return this.lastPosition;
   }
 
-  createSampledPosition(callback) {
+  createSampledPosition(clock, callback) {
     let lastUpdated;
-    lastUpdated = this.updateSampledPosition(this.clock.currentTime);
-    this.clock.onTick.addEventListener((clock) => {
+    lastUpdated = this.updateSampledPosition(clock.currentTime);
+    clock.onTick.addEventListener((clock) => {
       const dt = Math.abs(Cesium.JulianDate.secondsDifference(clock.currentTime, lastUpdated));
       if (dt >= 60 * 15) {
         lastUpdated = this.updateSampledPosition(clock.currentTime);
@@ -97,8 +95,7 @@ export class SatelliteProperties {
     const stopTime = samplesFwd * interval;
     for (let time = startTime; time <= stopTime; time += interval) {
       const timestamp = Cesium.JulianDate.addSeconds(julianDate, time, new Cesium.JulianDate());
-      const position = this.sampledPosition.getValue(timestamp);
-      const cartographic = Cesium.Cartographic.fromCartesian(position);
+      const cartographic = this.positionCartographic(timestamp);
       const groudPosition = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, 1000);
       groundTrack.push(groudPosition);
     }
