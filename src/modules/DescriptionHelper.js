@@ -3,7 +3,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);
 
 export class DescriptionHelper {
-  static renderSatelliteDescription(name, position, transits, time) {
+  static renderSatelliteDescription(time, name, position, transits) {
     let description = `
       <div class="ib">
         <table class="ibt">

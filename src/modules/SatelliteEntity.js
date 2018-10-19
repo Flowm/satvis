@@ -33,7 +33,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
         }, false);
       }
     });
-    this.createDesciption();
+    this.createDescription();
 
     this.entities = {};
     this.createPoint();
@@ -58,11 +58,11 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     });
   }
 
-  createDesciption() {
+  createDescription() {
     const description = new Cesium.CallbackProperty((time) => {
       const positionCartesian = this.orbit.sampledPosition.getValue(time);
       const positionCartographic = Cesium.Cartographic.fromCartesian(positionCartesian);
-      const content = DescriptionHelper.renderSatelliteDescription(this.name, positionCartographic, this.orbit.transits, time);
+      const content = DescriptionHelper.renderSatelliteDescription(time, this.name, positionCartographic, this.orbit.transits);
       return content;
     });
     this.description = description;

@@ -102,8 +102,8 @@ export class SatelliteManager {
     if (this.groundStationAvailable) {
       this.groundStation.hide();
     }
-    if (position.altitude < 1) {
-      position.altitude = 0;
+    if (position.height < 1) {
+      position.height = 0;
     }
 
     // Set groundstation for all satellites
@@ -112,7 +112,7 @@ export class SatelliteManager {
     }
 
     // Create groundstation entity
-    this.groundStation = new GroundStationEntity(this.viewer, position.cartesian);
+    this.groundStation = new GroundStationEntity(this.viewer, position);
     this.groundStation.show();
   }
 }

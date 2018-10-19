@@ -117,7 +117,7 @@ export class CesiumController {
       const cartographicPosition = Cesium.Cartographic.fromCartesian(cartesian);
       coordinates.longitude = Cesium.Math.toDegrees(cartographicPosition.longitude);
       coordinates.latitude = Cesium.Math.toDegrees(cartographicPosition.latitude);
-      coordinates.altitude = Cesium.Math.toDegrees(cartographicPosition.height);
+      coordinates.height = Cesium.Math.toDegrees(cartographicPosition.height);
       coordinates.cartesian = cartesian;
       this.sats.setGroundStation(coordinates);
       this.groundStationPicker.enabled = false;
@@ -132,8 +132,8 @@ export class CesiumController {
       const coordinates = {};
       coordinates.longitude = position.coords.longitude;
       coordinates.latitude = position.coords.latitude;
-      coordinates.altitude = position.coords.altitude;
-      coordinates.cartesian = Cesium.Cartesian3.fromDegrees(coordinates.longitude, coordinates.latitude, coordinates.altitude);
+      coordinates.height = position.coords.altitude;
+      coordinates.cartesian = Cesium.Cartesian3.fromDegrees(coordinates.longitude, coordinates.latitude, coordinates.height);
       this.sats.setGroundStation(coordinates);
     });
   }
