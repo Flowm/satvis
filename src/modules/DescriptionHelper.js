@@ -6,10 +6,11 @@ export class DescriptionHelper {
   static renderSatelliteDescription(time, name, position, transits) {
     let description = `
       <div class="ib">
+        <h3>Position</h3>
         <table class="ibt">
           <thead>
             <tr>
-              <th>Position</th>
+              <th>Name</th>
               <th>Latitude</th>
               <th>Longitude</th>
               <th>Elevation</th>
@@ -45,10 +46,11 @@ export class DescriptionHelper {
     const upcomingTransits = transits.slice(upcomingTransitIdx);
 
     const html = `
+      <h3>Transits</h3>
       <table class="ibt">
         <thead>
           <tr>
-            <th>Transits</th>
+            <th>Countdown</th>
             <th>Start</th>
             <th>End</th>
             <th>El</th>

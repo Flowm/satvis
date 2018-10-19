@@ -1,6 +1,9 @@
 @import url("../../node_modules/cesium/Source/Widgets/InfoBox/InfoBoxDescription.css");
 
-#ib {
+.ib h3 {
+    text-align: center;
+    margin-block-start: 0px;
+    margin-block-end: 0px;
 }
 
 .ibt {
