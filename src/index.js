@@ -47,7 +47,8 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-Vue.prototype.cc = new CesiumController();
+const cc = new CesiumController();
+Vue.prototype.cc = cc;
 const app = new Vue({
   el: "#toolbar",
   data: {
@@ -67,17 +68,16 @@ const app = new Vue({
   methods: {
     toggleMenu: function(name) {
       const oldState = this.menu[name];
-      Object.keys(this.menu).forEach(k => this.menu[k] = false)
+      Object.keys(this.menu).forEach(k => this.menu[k] = false);
       this.menu[name] = !oldState;
     },
   },
   watch: {
-    imageryProvider: function(newVal, oldVal) {
-      cc.setImageryProvider = newVal;
+    imageryProvider: function(newProvider) {
+      cc.setImageryProvider = newProvider;
     },
-    sceneMode: function(newVal, oldVal) {
-      console.log(newVal);
-      cc.setSceneMode = newVal;
+    sceneMode: function(newMode) {
+      cc.setSceneMode = newMode;
     },
     enabledComponents: function(newComponents, oldComponents) {
       let add = newComponents.filter(x => !oldComponents.includes(x));

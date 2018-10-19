@@ -1,3 +1,4 @@
+/* global workbox */
 //workbox.setConfig({ debug: true });
 
 // Update service worker on page refresh

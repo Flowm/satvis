@@ -49,13 +49,13 @@ export class CesiumController {
   set setSceneMode(sceneMode) {
     switch(sceneMode) {
     case "3D":
-      this.viewer.scene.morphTo3D()
+      this.viewer.scene.morphTo3D();
       break;
     case "2D":
-      this.viewer.scene.morphTo2D()
+      this.viewer.scene.morphTo2D();
       break;
     case "Columbus":
-      this.viewer.scene.morphToColumbusView()
+      this.viewer.scene.morphToColumbusView();
       break;
     }
   }
@@ -147,7 +147,7 @@ export class CesiumController {
       for (const link of links) {
         head.removeChild(link);
       }
-      const css = require('to-string-loader!css-loader!postcss-loader!../css/infobox.ecss');
+      const css = require("to-string-loader!css-loader!postcss-loader!../css/infobox.ecss");
       const style = frame.contentDocument.createElement("style");
       var node = document.createTextNode(css);
       style.appendChild(node);

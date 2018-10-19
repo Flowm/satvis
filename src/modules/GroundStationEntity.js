@@ -1,4 +1,3 @@
-import { SatelliteOrbit } from "./SatelliteOrbit";
 import { CesiumEntityWrapper } from "./CesiumEntityWrapper";
 import { DescriptionHelper } from "./DescriptionHelper";
 
@@ -10,7 +9,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
     super(viewer);
     this.sats = sats;
 
-    this.name = "Ground station"
+    this.name = "Ground station";
     this.position = position;
 
     this.createEntities();
@@ -35,7 +34,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
 
   createDescription() {
     const description = new Cesium.CallbackProperty((time) => {
-      const transits = this.transits(time)
+      const transits = this.transits(time);
       const content = DescriptionHelper.renderDescription(time, this.name, this.position, transits);
       return content;
     });
@@ -57,7 +56,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
 
     // Sort transits by time
     transits = transits.sort((a, b) => {
-        return a.start - b.start;
+      return a.start - b.start;
     });
     return transits;
   }

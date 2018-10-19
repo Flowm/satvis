@@ -45,7 +45,7 @@ export class DescriptionHelper {
     }
     const upcomingTransits = transits.slice(upcomingTransitIdx);
 
-    const htmlName = transits[0].name ? `<th>Name</th>\n` : "";
+    const htmlName = transits[0].name ? "<th>Name</th>\n" : "";
     const html = `
       <h3>Transits</h3>
       <table class="ibt">
@@ -67,7 +67,7 @@ export class DescriptionHelper {
     return html;
   }
 
-  static renderTransit(time, transit, name) {
+  static renderTransit(time, transit) {
     function pad2(num) {
       return String(num).padStart(2, "0");
     }

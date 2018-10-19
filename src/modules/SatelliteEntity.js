@@ -52,7 +52,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
         this.timeline.clearInterval();
         this.artificiallyTrack(
           () => { this.updateTransits(); },
-          () => { this.timeline.clearTimeline(); },
+          () => { this.timeline.clearTimeline(); }
         );
       }
     });
