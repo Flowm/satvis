@@ -1,24 +1,15 @@
-//import Cesium from "cesium/Cesium";
-
-// Import webpack externals
 import Cesium from "Cesium";
 
 export class CesiumTimelineHelper {
   constructor(viewer) {
     this.viewer = viewer;
-    this.interval = undefined;
   }
 
   get enabled() {
     return (typeof this.viewer.timeline !== "undefined");
   }
 
-  clearInterval() {
-    this.interval = undefined;
-  }
-
   clearTimeline() {
-    this.clearInterval();
     if (!this.enabled) {
       return;
     }
@@ -39,21 +30,5 @@ export class CesiumTimelineHelper {
       this.viewer.timeline.updateFromClock();
       this.viewer.timeline.zoomTo(this.viewer.clock.startTime, this.viewer.clock.stopTime);
     }
-  }
-
-  updateTimelineInterval() {
-    const currentTime = this.viewer.clock.currentTime;
-
-    // Check if still inside of current timeline
-    if (typeof this.interval !== "undefined" &&
-        Cesium.TimeInterval.contains(this.interval, currentTime)) {
-      return false;
-    }
-
-    this.interval = new Cesium.TimeInterval({
-      start: Cesium.JulianDate.addDays(currentTime, -1, Cesium.JulianDate.clone(currentTime)),
-      stop: Cesium.JulianDate.addDays(currentTime, 2, Cesium.JulianDate.clone(currentTime))
-    });
-    return true;
   }
 }

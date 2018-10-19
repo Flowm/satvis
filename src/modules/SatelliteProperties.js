@@ -11,6 +11,7 @@ export class SatelliteProperties {
 
     this.groundStationPosition = undefined;
     this.transits = [];
+    this.transitInterval = undefined;
     this.transitIntervals = new Cesium.TimeIntervalCollection();
   }
 
@@ -102,9 +103,37 @@ export class SatelliteProperties {
     return groundTrack;
   }
 
-  updateTransits(start, stop) {
+  updateTransits(time, callback = ()=>{}) {
     if (typeof this.groundStationPosition === "undefined") {
-      return;
+      return false;
+    }
+    // Check if still inside of current transit interval
+    if (typeof this.transitInterval !== "undefined" &&
+        Cesium.TimeInterval.contains(new Cesium.TimeInterval({start: this.transitInterval.start, stop: this.transitInterval.stop}), time)) {
+      return false;
+    }
+    this.transitInterval = {
+      start: new Cesium.JulianDate.addDays(time, -1, Cesium.JulianDate.clone(time)),
+      stop: new Cesium.JulianDate.addDays(time, 1, Cesium.JulianDate.clone(time)),
+      stopPrediction: new Cesium.JulianDate.addDays(time, 3, Cesium.JulianDate.clone(time)),
+    }
+
+    if (this.computeTransits(this.transitInterval.start, this.transitInterval.stopPrediction)) {
+      callback();
+    }
+
+    return true;
+  }
+
+  clearTransits() {
+    this.transitInterval = undefined;
+    this.transits = []
+    this.transitIntervals = new Cesium.TimeIntervalCollection();
+  }
+
+  computeTransits(start, stop) {
+    if (typeof this.groundStationPosition === "undefined") {
+      return false;
     }
 
     const latlonalt = [this.groundStationPosition.latitude, this.groundStationPosition.longitude, this.groundStationPosition.height/1000];
@@ -112,12 +141,12 @@ export class SatelliteProperties {
       this.name,
       latlonalt,
       Cesium.JulianDate.toDate(start),
-      Cesium.JulianDate.toDate(stop));
-
-    this.updateTransitIntervals();
+      Cesium.JulianDate.toDate(stop)
+    );
+    return true;
   }
 
-  updateTransitIntervals() {
+  computeTransitIntervals() {
     const transitIntervalArray = [];
     for (const transit of this.transits) {
       const startJulian = new Cesium.JulianDate.fromDate(new Date(transit.start));

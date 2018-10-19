@@ -44,7 +44,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
 
     this.viewer.trackedEntityChanged.addEventListener(() => {
       if (this.isTracked) {
-        this.timeline.clearInterval();
+        this.props.clearTransits();
         this.artificiallyTrack(
           () => { this.updateTransits(); },
           () => { this.timeline.clearTimeline(); }
@@ -175,22 +175,20 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     }
 
     this.props.groundStationPosition = position;
+    this.props.clearTransits();
     if (this.isTracked) {
       this.timeline.clearTimeline();
-    } else {
-      this.timeline.clearInterval();
     }
     this.updateTransits();
     this.createGroundStationLink();
   }
 
   updateTransits() {
-    if (!this.timeline.updateTimelineInterval()) {
-      return;
-    }
-    this.props.updateTransits(this.timeline.interval.start, this.timeline.interval.stop);
-    if (this.isTracked) {
-      this.timeline.addHighlightRanges(this.props.transits);
-    }
+    this.props.updateTransits(this.viewer.clock.currentTime, () => {
+      if (this.isTracked) {
+        this.props.computeTransitIntervals();
+        this.timeline.addHighlightRanges(this.props.transits);
+      }
+    });
   }
 }
