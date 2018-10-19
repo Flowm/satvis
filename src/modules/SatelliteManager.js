@@ -112,7 +112,7 @@ export class SatelliteManager {
     }
 
     // Create groundstation entity
-    this.groundStation = new GroundStationEntity(this.viewer, position);
+    this.groundStation = new GroundStationEntity(this.viewer, this, position);
     this.groundStation.show();
   }
 }

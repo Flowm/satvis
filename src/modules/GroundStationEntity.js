@@ -2,12 +2,14 @@ import { SatelliteOrbit } from "./SatelliteOrbit";
 import { CesiumEntityWrapper } from "./CesiumEntityWrapper";
 import { DescriptionHelper } from "./DescriptionHelper";
 
-// Import webpack externals
 import Cesium from "Cesium";
+import dayjs from "dayjs";
 
 export class GroundStationEntity extends CesiumEntityWrapper {
-  constructor(viewer, position) {
+  constructor(viewer, sats, position) {
     super(viewer);
+    this.sats = sats;
+
     this.name = "Ground station"
     this.position = position;
 
@@ -33,9 +35,30 @@ export class GroundStationEntity extends CesiumEntityWrapper {
 
   createDescription() {
     const description = new Cesium.CallbackProperty((time) => {
-      const content = DescriptionHelper.renderSatelliteDescription(time, this.name, this.position, []);
+      const transits = this.transits(time)
+      const content = DescriptionHelper.renderDescription(time, this.name, this.position, transits);
       return content;
     });
     this.description = description;
+  }
+
+  transits(time, deltaHours = 48) {
+    let transits = [];
+    // Aggregate transits from all satellites
+    for (let [name, sat] of Object.entries(this.sats.satellites)) {
+      let satTransits = sat.orbit.transits.filter((transit) => {
+        return dayjs(transit.start).diff(time, "hours") < deltaHours;
+      }).map((transit) => {
+        transit.name = name;
+        return transit;
+      });
+      transits.push(...satTransits);
+    }
+
+    // Sort transits by time
+    transits = transits.sort((a, b) => {
+        return a.start - b.start;
+    });
+    return transits;
   }
 }

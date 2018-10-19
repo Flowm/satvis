@@ -3,7 +3,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);
 
 export class DescriptionHelper {
-  static renderSatelliteDescription(time, name, position, transits) {
+  static renderDescription(time, name, position, transits) {
     let description = `
       <div class="ib">
         <h3>Position</h3>
@@ -45,11 +45,13 @@ export class DescriptionHelper {
     }
     const upcomingTransits = transits.slice(upcomingTransitIdx);
 
+    const htmlName = transits[0].name ? `<th>Name</th>\n` : "";
     const html = `
       <h3>Transits</h3>
       <table class="ibt">
         <thead>
           <tr>
+            ${htmlName}
             <th>Countdown</th>
             <th>Start</th>
             <th>End</th>
@@ -58,14 +60,14 @@ export class DescriptionHelper {
           </tr>
         </thead>
         <tbody>
-          ${upcomingTransits.map(transit => this.renderTransit(transit, start)).join("")}
+          ${upcomingTransits.map(transit => this.renderTransit(start, transit)).join("")}
         </tbody>
       </table>
     `;
     return html;
   }
 
-  static renderTransit(transit, time) {
+  static renderTransit(time, transit, name) {
     function pad2(num) {
       return String(num).padStart(2, "0");
     }
@@ -73,8 +75,10 @@ export class DescriptionHelper {
     if (dayjs(transit.start).diff(time) > 0) {
       timeUntil = `${pad2(dayjs(transit.start).diff(time, "days"))}:${pad2(dayjs(transit.start).diff(time, "hours")%24)}:${pad2(dayjs(transit.start).diff(time, "minutes")%60)}:${pad2(dayjs(transit.start).diff(time, "seconds")%60)}`;
     }
+    const htmlName = transit.name ? `<td>${transit.name}</td>\n` : "";
     const html = `
       <tr>
+        ${htmlName}
         <td>${timeUntil}</td>
         <td>${dayjs(transit.start).format("DD.MM HH:mm:ss")}</td>
         <td>${dayjs(transit.end).format("HH:mm:ss")}</td>

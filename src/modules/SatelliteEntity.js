@@ -62,7 +62,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     const description = new Cesium.CallbackProperty((time) => {
       const positionCartesian = this.orbit.sampledPosition.getValue(time);
       const positionCartographic = Cesium.Cartographic.fromCartesian(positionCartesian);
-      const content = DescriptionHelper.renderSatelliteDescription(time, this.name, positionCartographic, this.orbit.transits);
+      const content = DescriptionHelper.renderDescription(time, this.name, positionCartographic, this.orbit.transits);
       return content;
     });
     this.description = description;
