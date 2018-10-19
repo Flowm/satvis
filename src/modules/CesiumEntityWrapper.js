@@ -42,6 +42,14 @@ export class CesiumEntityWrapper {
     }
   }
 
+  get isSelected() {
+    return this.viewer.selectedEntity === this.defaultEntity;
+  }
+
+  get isTracked() {
+    return this.viewer.trackedEntity === this.defaultEntity;
+  }
+
   track(animate = false) {
     if (typeof this.defaultEntity === "undefined") {
       return;
@@ -65,22 +73,35 @@ export class CesiumEntityWrapper {
     });
   }
 
-  get isTracked() {
-    return this.viewer.trackedEntity === this.defaultEntity;
+  setSelectedOnTickCallback(onTickCallback = (clock)=>{}, onUnselectCallback = ()=>{}) {
+    const onTickEventRemovalCallback = this.viewer.clock.onTick.addEventListener((clock) => {
+      onTickCallback(clock);
+    });
+    const onSelectedEntityChangedRemovalCallback = this.viewer.selectedEntityChanged.addEventListener(() => {
+      onTickEventRemovalCallback();
+      onSelectedEntityChangedRemovalCallback();
+      onUnselectCallback();
+    });
   }
 
-  artificiallyTrack(onTickCallback = ()=>{}, onUntrackCallback = ()=>{}) {
-    const cameraTracker = new Cesium.EntityView(this.defaultEntity, this.viewer.scene, this.viewer.scene.globe.ellipsoid);
-
+  setTrackedOnTickCallback(onTickCallback = (clock)=>{}, onUntrackCallback = ()=>{}) {
     const onTickEventRemovalCallback = this.viewer.clock.onTick.addEventListener((clock) => {
-      cameraTracker.update(clock.currentTime);
-      onTickCallback();
+      onTickCallback(clock);
     });
     const onTrackedEntityChangedRemovalCallback = this.viewer.trackedEntityChanged.addEventListener(() => {
       onTickEventRemovalCallback();
       onTrackedEntityChangedRemovalCallback();
       onUntrackCallback();
+    });
+  }
 
+  artificiallyTrack(onTickCallback = (clock)=>{}, onUntrackCallback = ()=>{}) {
+    const cameraTracker = new Cesium.EntityView(this.defaultEntity, this.viewer.scene, this.viewer.scene.globe.ellipsoid);
+    this.setTrackedOnTickCallback((clock) => {
+      cameraTracker.update(clock.currentTime);
+      onTickCallback();
+    }, () => {
+      onUntrackCallback();
       // Restore default view angle if no new entity is tracked
       if (typeof this.viewer.trackedEntity === "undefined") {
         this.viewer.flyTo(this.defaultEntity, {

@@ -42,11 +42,15 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     }
     this.defaultEntity = this.entities["Point"];
 
+    this.viewer.selectedEntityChanged.addEventListener(() => {
+      if (this.isSelected && !this.isTracked) {
+        this.updateTransits();
+      }
+    });
     this.viewer.trackedEntityChanged.addEventListener(() => {
       if (this.isTracked) {
-        this.props.clearTransits();
         this.artificiallyTrack(
-          () => { this.updateTransits(); },
+          (clock) => { this.updateTransits(); },
           () => { this.timeline.clearTimeline(); }
         );
       }
@@ -178,15 +182,14 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     this.props.clearTransits();
     if (this.isTracked) {
       this.timeline.clearTimeline();
+      this.updateTransits();
     }
-    this.updateTransits();
     this.createGroundStationLink();
   }
 
   updateTransits() {
     this.props.updateTransits(this.viewer.clock.currentTime, () => {
       if (this.isTracked) {
-        this.props.computeTransitIntervals();
         this.timeline.addHighlightRanges(this.props.transits);
       }
     });

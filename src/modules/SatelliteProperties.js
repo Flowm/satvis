@@ -143,6 +143,7 @@ export class SatelliteProperties {
       Cesium.JulianDate.toDate(start),
       Cesium.JulianDate.toDate(stop)
     );
+    this.computeTransitIntervals();
     return true;
   }
 

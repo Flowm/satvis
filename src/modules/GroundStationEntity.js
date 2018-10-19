@@ -18,6 +18,25 @@ export class GroundStationEntity extends CesiumEntityWrapper {
   createEntities() {
     this.createDescription();
     this.createGroundStation();
+
+    this.viewer.selectedEntityChanged.addEventListener(() => {
+      if (this.isSelected && !this.isTracked) {
+        this.setSelectedOnTickCallback((clock) => {
+          for (let [name, sat] of Object.entries(this.sats.satellites)) {
+            sat.props.updateTransits(clock.currentTime);
+          }
+        });
+      }
+    });
+    this.viewer.trackedEntityChanged.addEventListener(() => {
+      if (this.isTracked) {
+        this.setTrackedOnTickCallback((clock) => {
+          for (let [name, sat] of Object.entries(this.sats.satellites)) {
+            sat.props.updateTransits(clock.currentTime);
+          }
+        });
+      }
+    });
   }
 
   createGroundStation() {
