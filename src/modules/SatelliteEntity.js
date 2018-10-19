@@ -1,6 +1,7 @@
 import { SatelliteOrbit } from "./SatelliteOrbit";
 import { CesiumTimelineHelper } from "./CesiumTimelineHelper";
 import { CesiumEntityWrapper } from "./CesiumEntityWrapper";
+import { DescriptionHelper } from "./DescriptionHelper";
 
 // Import webpack externals
 import Cesium from "Cesium";
@@ -61,29 +62,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     const description = new Cesium.CallbackProperty((time) => {
       const positionCartesian = this.orbit.sampledPosition.getValue(time);
       const positionCartographic = Cesium.Cartographic.fromCartesian(positionCartesian);
-      let content = `
-        <div class="ib">
-          <table class="ibt">
-            <thead>
-              <tr>
-                <th>Position</th>
-                <th>Latitude</th>
-                <th>Longitude</th>
-                <th>Elevation</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>${this.name}</td>
-                <td>${positionCartographic.latitude.toFixed(2)}&deg</td>
-                <td>${positionCartographic.longitude.toFixed(2)}&deg</td>
-                <td>${(positionCartographic.height / 1000).toFixed(2)} km</td>
-              </tr>
-            </tbody>
-          </table>
-          ${this.orbit.renderTransits(time)}
-        </div>
-      `;
+      const content = DescriptionHelper.renderSatelliteDescription(this.name, positionCartographic, this.orbit.transits, time);
       return content;
     });
     this.description = description;
