@@ -73,7 +73,7 @@ export class CesiumEntityWrapper {
     });
   }
 
-  setSelectedOnTickCallback(onTickCallback = (clock)=>{}, onUnselectCallback = ()=>{}) {
+  setSelectedOnTickCallback(onTickCallback = ()=>{}, onUnselectCallback = ()=>{}) {
     const onTickEventRemovalCallback = this.viewer.clock.onTick.addEventListener((clock) => {
       onTickCallback(clock);
     });
@@ -84,7 +84,7 @@ export class CesiumEntityWrapper {
     });
   }
 
-  setTrackedOnTickCallback(onTickCallback = (clock)=>{}, onUntrackCallback = ()=>{}) {
+  setTrackedOnTickCallback(onTickCallback = ()=>{}, onUntrackCallback = ()=>{}) {
     const onTickEventRemovalCallback = this.viewer.clock.onTick.addEventListener((clock) => {
       onTickCallback(clock);
     });
@@ -95,7 +95,7 @@ export class CesiumEntityWrapper {
     });
   }
 
-  artificiallyTrack(onTickCallback = (clock)=>{}, onUntrackCallback = ()=>{}) {
+  artificiallyTrack(onTickCallback = ()=>{}, onUntrackCallback = ()=>{}) {
     const cameraTracker = new Cesium.EntityView(this.defaultEntity, this.viewer.scene, this.viewer.scene.globe.ellipsoid);
     this.setTrackedOnTickCallback((clock) => {
       cameraTracker.update(clock.currentTime);

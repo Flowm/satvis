@@ -50,7 +50,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     this.viewer.trackedEntityChanged.addEventListener(() => {
       if (this.isTracked) {
         this.artificiallyTrack(
-          (clock) => { this.updateTransits(); },
+          () => { this.updateTransits(); },
           () => { this.timeline.clearTimeline(); }
         );
       }
@@ -67,7 +67,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
   }
 
   createCesiumSatelliteEntity(entityName, entityKey, entityValue) {
-    this.createCesiumEntity(entityName, entityKey, entityValue, this.props.name, this.description, this.props.sampledPosition, true)
+    this.createCesiumEntity(entityName, entityKey, entityValue, this.props.name, this.description, this.props.sampledPosition, true);
   }
 
   createPoint() {

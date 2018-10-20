@@ -41,11 +41,11 @@ export class Orbit {
   }
 
   computeTransits(satName,
-      groundPosition,
-      startDate = new Date(),
-      endDate = dayjs(startDate).add(7, "day").toDate(),
-      minElevation = 10,
-      maxTransits = 50) {
+    groundPosition,
+    startDate = new Date(),
+    endDate = dayjs(startDate).add(7, "day").toDate(),
+    minElevation = 10,
+    maxTransits = 50) {
     let transits = jspredict.transits(this.tle.join("\n"), groundPosition, startDate, endDate, minElevation, maxTransits);
     transits.map((transit) => {
       transit.name = satName;

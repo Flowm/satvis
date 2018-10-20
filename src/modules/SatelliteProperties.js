@@ -116,7 +116,7 @@ export class SatelliteProperties {
       start: new Cesium.JulianDate.addDays(time, -1, Cesium.JulianDate.clone(time)),
       stop: new Cesium.JulianDate.addDays(time, 1, Cesium.JulianDate.clone(time)),
       stopPrediction: new Cesium.JulianDate.addDays(time, 3, Cesium.JulianDate.clone(time)),
-    }
+    };
 
     if (this.computeTransits(this.transitInterval.start, this.transitInterval.stopPrediction)) {
       callback();
@@ -127,7 +127,7 @@ export class SatelliteProperties {
 
   clearTransits() {
     this.transitInterval = undefined;
-    this.transits = []
+    this.transits = [];
     this.transitIntervals = new Cesium.TimeIntervalCollection();
   }
 

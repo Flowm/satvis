@@ -22,7 +22,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
     this.viewer.selectedEntityChanged.addEventListener(() => {
       if (this.isSelected && !this.isTracked) {
         this.setSelectedOnTickCallback((clock) => {
-          for (let [name, sat] of Object.entries(this.sats.satellites)) {
+          for (let sat of Object.values(this.sats.satellites)) {
             sat.props.updateTransits(clock.currentTime);
           }
         });
@@ -31,7 +31,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
     this.viewer.trackedEntityChanged.addEventListener(() => {
       if (this.isTracked) {
         this.setTrackedOnTickCallback((clock) => {
-          for (let [name, sat] of Object.entries(this.sats.satellites)) {
+          for (let sat of Object.values(this.sats.satellites)) {
             sat.props.updateTransits(clock.currentTime);
           }
         });
@@ -63,7 +63,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
   transits(time, deltaHours = 48) {
     let transits = [];
     // Aggregate transits from all satellites
-    for (let [name, sat] of Object.entries(this.sats.satellites)) {
+    for (let sat of Object.values(this.sats.satellites)) {
       transits.push(...sat.props.transits);
     }
 
