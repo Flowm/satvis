@@ -2,17 +2,22 @@ import { Orbit } from "./Orbit";
 import Cesium from "Cesium";
 
 export class SatelliteProperties {
-  constructor(tle) {
+  constructor(tle, tags = []) {
     this.name = tle.split("\n")[0].trim();
     if (tle.startsWith("0 ")) {
       this.name = this.name.substring(2);
     }
     this.orbit = new Orbit(tle);
+    this.tags = tags;
 
     this.groundStationPosition = undefined;
     this.transits = [];
     this.transitInterval = undefined;
     this.transitIntervals = new Cesium.TimeIntervalCollection();
+  }
+
+  hasTag(tag) {
+    return this.tags.includes(tag);
   }
 
   position(time) {

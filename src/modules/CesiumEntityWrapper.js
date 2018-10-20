@@ -8,14 +8,14 @@ export class CesiumEntityWrapper {
     this.defaultStatus = undefined;
   }
 
-  show() {
-    for (var entity in this.entities) {
+  show(components = this.components) {
+    for (var entity of components) {
       this.showComponent(entity);
     }
   }
 
-  hide() {
-    for (var entity in this.entities) {
+  hide(components = this.components) {
+    for (var entity of components) {
       this.hideComponent(entity);
     }
   }

@@ -19,6 +19,9 @@
         <div id="cesiumContainer"></div>
         <div id="toolbar" v-cloak>
             <div class="toolbarButtons">
+                <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('cat')">
+                    CAT
+                </button>
                 <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('sat')">
                     SAT
                 </button>
@@ -34,6 +37,14 @@
                 <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('dbg')">
                     DBG
                 </button>
+            </div>
+            <div class="toolbarSwitches" v-show="menu.cat">
+                <div class="toolbarTitle">Categories</div>
+                <label class="switch" v-for="tag in cc.sats.tags">
+                    <input type="checkbox" :value="tag" v-model="cc.sats.enabledTags" @change="cc.sats.showSatsWithEnabledTags()" />
+                    <span class="slider round"></span>
+                    {{ tag }}
+                </label>
             </div>
             <div class="toolbarSwitches" v-show="menu.sat">
                 <div class="toolbarTitle">Satellite</div>

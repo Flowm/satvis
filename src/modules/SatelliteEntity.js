@@ -8,10 +8,10 @@ import Cesium from "Cesium";
 import CesiumSensorVolumes from "CesiumSensorVolumes";
 
 export class SatelliteEntity extends CesiumEntityWrapper {
-  constructor(viewer, tle) {
+  constructor(viewer, tle, tags) {
     super(viewer);
     this.timeline = new CesiumTimelineHelper(viewer);
-    this.props = new SatelliteProperties(tle);
+    this.props = new SatelliteProperties(tle, tags);
   }
 
   createEntities() {

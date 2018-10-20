@@ -7,9 +7,10 @@ export class SatelliteManager {
 
     this.satellites = {};
     this.enabledComponents = ["Point", "Label"];
+    this.enabledTags = [];
   }
 
-  addFromTleUrl(url) {
+  addFromTleUrl(url, tags) {
     fetch(url, {
       mode: "no-cors",
     })
@@ -22,28 +23,28 @@ export class SatelliteManager {
       .then(data => {
         const tles = data.match(/[\s\S]{168}/g); //.*?\n1.*?\n2.*?\n
         for (var tle of tles) {
-          this.addFromTle(tle);
+          this.addFromTle(tle, tags);
         }
       }).catch(function(error) {
         console.log(error);
       });
   }
 
-  addFromTle(tle) {
-    const sat = new SatelliteEntity(this.viewer, tle);
+  addFromTle(tle, tags) {
+    const sat = new SatelliteEntity(this.viewer, tle, tags);
     this.add(sat);
   }
 
   add(satelliteEntity) {
     if (satelliteEntity.props.name in this.satellites) {
-      console.log("Satellite ${satelliteEntity.props.name} already exists");
+      console.log(`Satellite ${satelliteEntity.props.name} already exists`);
       return;
     }
     satelliteEntity.createEntities();
     this.satellites[satelliteEntity.props.name] = satelliteEntity;
 
-    for (let componentName of this.enabledComponents) {
-      satelliteEntity.showComponent(componentName);
+    if (satelliteEntity.props.tags.some(tag => this.enabledTags.includes(tag))) {
+      satelliteEntity.show(this.enabledComponents);
     }
   }
 
@@ -53,16 +54,35 @@ export class SatelliteManager {
     }
   }
 
-  show(name) {
-    if (name in this.satellites) {
-      this.satellites[name].show();
-    }
+  get tags() {
+    const tags = Object.values(this.satellites).map(sat => sat.props.tags);
+    return [...new Set([].concat(...tags))];
   }
 
-  hide(name) {
-    if (name in this.satellites) {
-      this.satellites[name].hide();
-    }
+  getSatellitesWithTag(tag) {
+    return Object.values(this.satellites).filter( (sat) => {
+      return sat.props.hasTag(tag);
+    });
+  }
+
+  showSatsWithEnabledTags() {
+    Object.values(this.satellites).forEach((sat) => {
+      if (this.enabledTags.some(tag => sat.props.hasTag(tag))) {
+        sat.show(this.enabledComponents);
+      } else {
+        sat.hide();
+      }
+    });
+  }
+
+  showTag(tag) {
+    this.enabledTags = [...new Set(this.enabledTags.concat(tag))];
+    this.showSatsWithEnabledTags();
+  }
+
+  hideTag(tag) {
+    this.enabledTags = this.enabledTags.filter(enabledTag => enabledTag !== tag);
+    this.showSatsWithEnabledTags();
   }
 
   get components() {

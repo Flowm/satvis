@@ -53,6 +53,7 @@ const app = new Vue({
   el: "#toolbar",
   data: {
     menu: {
+      cat: false,
       sat: false,
       gs: false,
       map: false,
@@ -95,9 +96,13 @@ const app = new Vue({
 // Export Vue for debugger
 window.app = app;
 
-cc.sats.addFromTle("EVE-1\n1 39439U 13066Z   18203.92296999 +.00000436 +00000-0 +59983-4 0  9994\n2 39439 097.5919 229.8528 0066721 040.9363 319.6832 14.81533022250876");
-cc.sats.addFromTle("ISS\n1 25544U 98067A   18257.91439815  .00001783  00000-0  34518-4 0  9997\n2 25544  51.6414 291.5521 0005015 157.3801 208.5555 15.53849779132479");
-cc.sats.addFromTleUrl("data/tle/weather.txt");
-//cc.sats.addFromTleUrl("data/tle/resource.txt");
-//cc.sats.addFromTleUrl("data/tle/science.txt");
+cc.sats.addFromTle("EVE-1\n1 39439U 13066Z   18203.92296999 +.00000436 +00000-0 +59983-4 0  9994\n2 39439 097.5919 229.8528 0066721 040.9363 319.6832 14.81533022250876", ["Custom"]);
+cc.sats.addFromTle("ISS\n1 25544U 98067A   18257.91439815  .00001783  00000-0  34518-4 0  9997\n2 25544  51.6414 291.5521 0005015 157.3801 208.5555 15.53849779132479", ["Station"]);
+cc.sats.addFromTleUrl("data/tle/weather.txt", ["Weather"]);
+cc.sats.addFromTleUrl("data/tle/resource.txt", ["Resource"]);
+cc.sats.addFromTleUrl("data/tle/science.txt", ["Science"]);
+
+cc.sats.showTag("Custom");
+cc.sats.showTag("Station");
+cc.sats.showTag("Weather");
 cc.sats.getSatellite("ISS").track();
