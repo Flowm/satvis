@@ -48,15 +48,25 @@ export class SatelliteManager {
     }
   }
 
+  get taglist() {
+    let taglist = {}
+    Object.values(this.satellites).forEach((sat) => {
+      sat.props.tags.forEach((tag) => {
+        (taglist[tag] = taglist[tag] || []).push(sat.props.name);
+      });
+    });
+    return taglist;
+  }
+
   get satlist() {
-    let satlist = Object.values(this.satellites).map((sat) => {
+    let satlist = Object.keys(this.taglist).map((tag) => {
       return {
-        id: sat.props.name,
-        name: sat.props.name
-      }
+        name: tag,
+        list: this.taglist[tag],
+      };
     });
     if (satlist.length === 0) {
-      satlist = [];
+      satlist = [{name: "None", list: ["No Satellites"]}];
     }
     return satlist;
   }
@@ -81,6 +91,10 @@ export class SatelliteManager {
 
   set enabledSatellitesString(sats) {
     return this.enabledSatellites = sats.split(",");
+  }
+
+  get satelliteNames() {
+    return Object.keys(this.satellites);
   }
 
   getSatellite(name) {

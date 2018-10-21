@@ -1,6 +1,6 @@
 import { CesiumController } from "./modules/CesiumController";
 import Vue from "vue";
-import vSelectMenu from 'v-selectmenu';
+import MultiSelect from "./components/MultiSelect.vue";
 
 import "cesium/Widgets/widgets.css";
 import "./css/main.css";
@@ -48,11 +48,15 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-Vue.use(vSelectMenu, {
-  language: "en"
-});
-const cc = new CesiumController();
-Vue.prototype.cc = cc;
+const VueCesiumController = {
+  install(Vue, options) {
+    //Vue.cc = new CesiumController();
+    Vue.prototype.cc = new CesiumController();
+  }
+};
+//export default VueCesiumController;
+Vue.use(VueCesiumController);
+
 const app = new Vue({
   el: "#toolbar",
   data: {
@@ -95,6 +99,12 @@ const app = new Vue({
       }
     },
   },
+});
+
+new Vue({
+    el: "#multiselect",
+    components: { MultiSelect },
+    template: "<MultiSelect/>"
 });
 
 // Export Vue for debugger

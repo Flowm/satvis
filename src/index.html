@@ -46,13 +46,9 @@
                     {{ tag }}
                 </label>
                 <div class="toolbarTitle">Satellites</div>
-                <label class="switch">
-                    <v-selectmenu :data="cc.sats.satlist" :key="cc.sats.satlist.length" :multiple="true" show-field="name" v-model="cc.sats.enabledSatellitesString">
-                        <input type="button" />
-                        <span class="slider round"></span>
-                        Menu
-                    </v-selectmenu>
-                </label>
+                <div class="toolbarContent">
+                    <div id="multiselect"></div>
+                </div>
             </div>
             <div class="toolbarSwitches" v-show="menu.sat">
                 <div class="toolbarTitle">Satellite</div>
