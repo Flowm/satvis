@@ -8,6 +8,10 @@ export class CesiumEntityWrapper {
     this.defaultStatus = undefined;
   }
 
+  get enabled() {
+    return Object.values(this.entities).some(entity => this.viewer.entities.contains(entity))
+  }
+
   show(components = this.components) {
     for (var entity of components) {
       this.showComponent(entity);

@@ -22,6 +22,7 @@
     "dayjs": "^1.7.7",
     "jspredict-move2": "^1.0.5",
     "satellite.js": "^2.0.3",
+    "v-selectmenu": "^1.0.5",
     "vue": "^2.5.17"
   },
   "devDependencies": {
