@@ -49,11 +49,14 @@ export class SatelliteManager {
   }
 
   get taglist() {
-    let taglist = {}
+    let taglist = {};
     Object.values(this.satellites).forEach((sat) => {
       sat.props.tags.forEach((tag) => {
         (taglist[tag] = taglist[tag] || []).push(sat.props.name);
       });
+    });
+    Object.values(taglist).forEach((tag) => {
+      tag.sort();
     });
     return taglist;
   }
@@ -66,7 +69,7 @@ export class SatelliteManager {
       };
     });
     if (satlist.length === 0) {
-      satlist = [{name: "None", list: ["No Satellites"]}];
+      satlist = [{name: "", list: []}];
     }
     return satlist;
   }

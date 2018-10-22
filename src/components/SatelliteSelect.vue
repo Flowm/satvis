@@ -1,23 +1,27 @@
 <template>
-  <div>
+  <div class="wrapper">
     <input type="button" @click="update" />
     <multi-select
     v-model="values"
     search
     :options="options"
-    :selectOptions="data" />
+    :selectOptions="data"
+    :btnLabel="btnLabel"
+    />
   </div>
 </template>
 
 <script>
-import multiSelect from 'vue-multi-select';
-import 'vue-multi-select/dist/lib/vue-multi-select.min.css';
+import multiSelect from "vue-multi-select";
+import "vue-multi-select/dist/lib/vue-multi-select.min.css";
 
 export default {
+  components: {
+    multiSelect,
+  },
   data() {
     return {
-      btnLabel: 'A simple vue multi select',
-      name: 'first group',
+      btnLabel: "Satellites",
       values: [],
       data: cc.sats.satlist,
       options: {
@@ -26,12 +30,8 @@ export default {
       },
     };
   },
-  components: {
-    multiSelect,
-  },
   watch: {
     values: function(newSats, oldSats) {
-      console.log("DIFF ", newSats, oldSats);
       if (newSats.length === 0 && oldSats.length === 0) {
         return;
       }
@@ -46,3 +46,22 @@ export default {
   }
 };
 </script>
+
+<style lang="css">
+.wrapper .select .checkboxLayer {
+  min-width: 400px;
+}
+
+.wrapper .tab {
+  padding: 0px;
+  justify-content: space-around;
+}
+
+.wrapper .tab .tab-item span {
+  color: #50596c;
+}
+
+.wrapper .select .selectItem, .selectItemDeactive {
+  min-height: 0px;
+}
+</style>

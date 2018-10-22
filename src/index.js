@@ -1,6 +1,6 @@
 import { CesiumController } from "./modules/CesiumController";
 import Vue from "vue";
-import MultiSelect from "./components/MultiSelect.vue";
+import SatelliteSelect from "./components/SatelliteSelect.vue";
 
 import "cesium/Widgets/widgets.css";
 import "./css/main.css";
@@ -49,8 +49,7 @@ if ("serviceWorker" in navigator) {
 }
 
 const VueCesiumController = {
-  install(Vue, options) {
-    //Vue.cc = new CesiumController();
+  install(Vue) {
     Vue.prototype.cc = new CesiumController();
   }
 };
@@ -58,6 +57,9 @@ const VueCesiumController = {
 Vue.use(VueCesiumController);
 
 const app = new Vue({
+  components: {
+    "satellite-select": SatelliteSelect,
+  },
   el: "#toolbar",
   data: {
     menu: {
@@ -99,12 +101,6 @@ const app = new Vue({
       }
     },
   },
-});
-
-new Vue({
-    el: "#multiselect",
-    components: { MultiSelect },
-    template: "<MultiSelect/>"
 });
 
 // Export Vue for debugger
