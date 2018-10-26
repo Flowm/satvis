@@ -24,7 +24,7 @@
     "satellite.js": "^2.0.3",
     "v-selectmenu": "^1.0.5",
     "vue": "^2.5.17",
-    "vue-multi-select": "^3.9.1"
+    "vue-multi-select": "^3.11.0"
   },
   "devDependencies": {
     "autoprefixer": "^9.3.1",

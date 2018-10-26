@@ -4,6 +4,8 @@
     <multi-select
     v-model="values"
     search
+    historyButton
+    :filters="filters"
     :options="options"
     :selectOptions="data"
     :btnLabel="btnLabel"
@@ -25,6 +27,13 @@ export default {
       btnLabel: "Satellites",
       values: [],
       data: cc.sats.satlist,
+      filters: [{
+          nameAll: 'Select all',
+          nameNotAll: 'Deselect all',
+          func() {
+              return true;
+          },
+      }],
       options: {
         multi: true,
         groups: true,
