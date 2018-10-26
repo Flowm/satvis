@@ -5,7 +5,10 @@
     "es6": true,
     "serviceworker": true
   },
-  "extends": ["eslint:recommended"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:vue/essential"
+  ],
   "parserOptions": {
     "ecmaVersion": 6,
     "sourceType": "module"

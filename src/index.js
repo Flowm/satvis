@@ -48,6 +48,7 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+/*global cc*/
 const VueCesiumController = {
   install(Vue) {
     Vue.prototype.cc = new CesiumController();
