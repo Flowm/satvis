@@ -177,6 +177,7 @@ export class SatelliteProperties {
       let start = dayjs(transit.start).startOf("second");
       this.pm.notifyAtDate(start.subtract(aheadMin, "minute"), `${transit.name} transit in ${aheadMin} minutes`);
       this.pm.notifyAtDate(start, `${transit.name} transit starting now`);
+      this.pm.notifyAtDate(dayjs().add(5, "second"), `${transit.name} test transit in ${aheadMin} minutes`);
     });
   }
 }
