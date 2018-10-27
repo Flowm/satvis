@@ -1,19 +1,22 @@
 <template>
   <div class="wrapper">
-    <input type="button" @click="update" />
+    <input
+      type="button"
+      @click="update"
+    >
     <multi-select
-    v-model="values"
-    search
-    historyButton
-    :options="options"
-    :selectOptions="data"
-    :btnLabel="btnLabel"
+      v-model="values"
+      search
+      history-button
+      :options="options"
+      :select-options="data"
+      :btn-label="btnLabel"
     />
   </div>
 </template>
 
 <script>
-/*global cc*/
+/* global cc */
 import multiSelect from "vue-multi-select";
 import "vue-multi-select/dist/lib/vue-multi-select.min.css";
 
@@ -32,17 +35,17 @@ export default {
     };
   },
   watch: {
-    values: function(newSats, oldSats) {
-      if (newSats.length === 0) {
+    values: function(newSat) {
+      if (newSat.length !== 1) {
         return;
       }
-      cc.sats.trackedSatellite = newSats[0];
+      cc.sats.trackedSatellite = newSat[0];
     }
   },
   methods: {
     update: function() {
       this.data = cc.sats.satlist;
-      this.values = [cc.sats.trackedSatellite.props.name];
+      this.values = [cc.sats.trackedSatellite];
     },
   }
 };

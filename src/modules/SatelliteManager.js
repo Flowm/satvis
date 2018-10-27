@@ -91,9 +91,10 @@ export class SatelliteManager {
   get trackedSatellite() {
     for (let sat of this.satellites) {
       if (sat.isTracked) {
-        return sat;
+        return sat.props.name;
       }
     }
+    return "";
   }
 
   set trackedSatellite(name) {

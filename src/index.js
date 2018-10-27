@@ -49,7 +49,7 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-/*global cc*/
+/* global cc */
 const VueCesiumController = {
   install(Vue) {
     Vue.prototype.cc = new CesiumController();
@@ -59,11 +59,11 @@ const VueCesiumController = {
 Vue.use(VueCesiumController);
 
 const app = new Vue({
+  el: "#toolbar",
   components: {
     "satellite-select": SatelliteSelect,
     "satellite-multi-select": SatelliteMultiSelect,
   },
-  el: "#toolbar",
   data: {
     menu: {
       cat: false,
@@ -78,13 +78,6 @@ const app = new Vue({
     isIOS: cc.isIOS,
     groundStationPicker: cc.groundStationPicker,
     enabledComponents: cc.sats.enabledComponents,
-  },
-  methods: {
-    toggleMenu: function(name) {
-      const oldState = this.menu[name];
-      Object.keys(this.menu).forEach(k => this.menu[k] = false);
-      this.menu[name] = !oldState;
-    },
   },
   watch: {
     imageryProvider: function(newProvider) {
@@ -102,6 +95,13 @@ const app = new Vue({
       for (let component of del) {
         cc.sats.disableComponent(component);
       }
+    },
+  },
+  methods: {
+    toggleMenu: function(name) {
+      const oldState = this.menu[name];
+      Object.keys(this.menu).forEach(k => this.menu[k] = false);
+      this.menu[name] = !oldState;
     },
   },
 });
