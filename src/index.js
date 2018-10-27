@@ -117,7 +117,7 @@ cc.sats.addFromTleUrl("data/tle/weather.txt", ["Weather"]);
 cc.sats.addFromTleUrl("data/tle/resource.txt", ["Resource"]);
 cc.sats.addFromTleUrl("data/tle/science.txt", ["Science"]);
 
-cc.sats.showTag("Custom");
-cc.sats.showTag("Station");
-cc.sats.showTag("Weather");
+cc.sats.enableTag("Custom");
+cc.sats.enableTag("Station");
+cc.sats.enableTag("Weather");
 cc.sats.getSatellite("MOVE-II").track();

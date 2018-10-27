@@ -5,7 +5,7 @@ export class SatelliteManager {
   constructor(viewer) {
     this.viewer = viewer;
 
-    this.satellites = {};
+    this.satellites = [];
     this.enabledComponents = ["Point", "Label"];
     this.enabledTags = [];
   }
@@ -36,12 +36,12 @@ export class SatelliteManager {
   }
 
   add(satelliteEntity) {
-    if (satelliteEntity.props.name in this.satellites) {
+    if (satelliteEntity.props.name in this.satelliteNames) {
       console.log(`Satellite ${satelliteEntity.props.name} already exists`);
       return;
     }
     satelliteEntity.createEntities();
-    this.satellites[satelliteEntity.props.name] = satelliteEntity;
+    this.satellites.push(satelliteEntity);
 
     if (satelliteEntity.props.tags.some(tag => this.enabledTags.includes(tag))) {
       satelliteEntity.show(this.enabledComponents);
@@ -50,7 +50,7 @@ export class SatelliteManager {
 
   get taglist() {
     let taglist = {};
-    Object.values(this.satellites).forEach((sat) => {
+    this.satellites.forEach((sat) => {
       sat.props.tags.forEach((tag) => {
         (taglist[tag] = taglist[tag] || []).push(sat.props.name);
       });
@@ -75,11 +75,11 @@ export class SatelliteManager {
   }
 
   get enabledSatellites() {
-    return Object.values(this.satellites).filter((sat) => sat.enabled).map((sat) => sat.props.name);
+    return this.satellites.filter((sat) => sat.enabled).map((sat) => sat.props.name);
   }
 
   set enabledSatellites(sats) {
-    Object.values(this.satellites).forEach((sat) => {
+    this.satellites.forEach((sat) => {
       if (sats.includes(sat.props.name)) {
         sat.show(this.enabledComponents);
       } else {
@@ -88,41 +88,46 @@ export class SatelliteManager {
     });
   }
 
-  get selectedSatellite() {
-    for (let sat in this.satellites) {
-      if (this.satellites[sat].isTracked) {
+  get trackedSatellite() {
+    for (let sat of this.satellites) {
+      if (sat.isTracked) {
         return sat;
       }
     }
   }
 
-  set selectedSatellite(name) {
-    this.satellites[name].track()
+  set trackedSatellite(name) {
+    let sat = this.getSatellite(name);
+    if (sat) {
+      sat.track();
+    }
   }
 
   get satelliteNames() {
-    return Object.keys(this.satellites);
+    return this.satellites.map((sat) => sat.props.name);
   }
 
   getSatellite(name) {
-    if (name in this.satellites) {
-      return this.satellites[name];
+    for (let sat of this.satellites) {
+      if (sat.props.name === name) {
+        return sat;
+      }
     }
   }
 
   get tags() {
-    const tags = Object.values(this.satellites).map(sat => sat.props.tags);
+    const tags = this.satellites.map(sat => sat.props.tags);
     return [...new Set([].concat(...tags))];
   }
 
   getSatellitesWithTag(tag) {
-    return Object.values(this.satellites).filter((sat) => {
+    return this.satellites.filter((sat) => {
       return sat.props.hasTag(tag);
     });
   }
 
   showSatsWithEnabledTags() {
-    Object.values(this.satellites).forEach((sat) => {
+    this.satellites.forEach((sat) => {
       if (this.enabledTags.some(tag => sat.props.hasTag(tag))) {
         sat.show(this.enabledComponents);
       } else {
@@ -131,18 +136,18 @@ export class SatelliteManager {
     });
   }
 
-  showTag(tag) {
+  enableTag(tag) {
     this.enabledTags = [...new Set(this.enabledTags.concat(tag))];
     this.showSatsWithEnabledTags();
   }
 
-  hideTag(tag) {
+  disableTag(tag) {
     this.enabledTags = this.enabledTags.filter(enabledTag => enabledTag !== tag);
     this.showSatsWithEnabledTags();
   }
 
   get components() {
-    const components = Object.values(this.satellites).map(sat => sat.components);
+    const components = this.satellites.map(sat => sat.components);
     return [...new Set([].concat(...components))];
   }
 
@@ -151,7 +156,7 @@ export class SatelliteManager {
     if (index === -1) this.enabledComponents.push(componentName);
 
     this.enabledSatellites.forEach((sat) => {
-      this.satellites[sat].showComponent(componentName);
+      this.getSatellite(sat).showComponent(componentName);
     });
   }
 
@@ -159,9 +164,9 @@ export class SatelliteManager {
     var index = this.enabledComponents.indexOf(componentName);
     if (index !== -1) this.enabledComponents.splice(index, 1);
 
-    for (var sat in this.satellites) {
-      this.satellites[sat].hideComponent(componentName);
-    }
+    this.enabledSatellites.forEach((sat) => {
+      this.getSatellite(sat).hideComponent(componentName);
+    });
   }
 
   get groundStationAvailable() {
@@ -183,9 +188,9 @@ export class SatelliteManager {
     }
 
     // Set groundstation for all satellites
-    for (var sat in this.satellites) {
-      this.satellites[sat].groundStation = position;
-    }
+    this.satellites.forEach((sat) => {
+      sat.groundStation = position;
+    });
 
     // Create groundstation entity
     this.groundStation = new GroundStationEntity(this.viewer, this, position);

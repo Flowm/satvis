@@ -36,13 +36,13 @@ export default {
       if (newSats.length === 0) {
         return;
       }
-      cc.sats.selectedSatellite = newSats[0];
+      cc.sats.trackedSatellite = newSats[0];
     }
   },
   methods: {
     update: function() {
       this.data = cc.sats.satlist;
-      this.values = [cc.sats.selectedSatellite];
+      this.values = [cc.sats.trackedSatellite];
     },
   }
 };
