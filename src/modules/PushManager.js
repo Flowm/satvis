@@ -20,33 +20,33 @@ export class PushManager {
     return true;
   }
 
-  static persistentNotification(message) {
+  static persistentNotification(message, options) {
     if (!this.available()) {
       return;
     }
 
     try {
       navigator.serviceWorker.getRegistration()
-        .then(reg => reg.showNotification(message))
+        .then(reg => reg.showNotification(message, options))
         .catch(err => console.log("Service Worker registration error: " + err));
     } catch (err) {
       console.log("Notification API error: " + err);
     }
   }
 
-  static notifyInMs(ms, message) {
+  static notifyInMs(ms, message, options) {
     if (!this.available()) {
       return;
     }
     console.log(`Notify "${message}" in ${ms / 1000}s`);
-    setTimeout(() => { this.persistentNotification(message); }, ms);
+    setTimeout(() => { this.persistentNotification(message, options); }, ms);
   }
 
-  static notifyAtDate(date, message) {
+  static notifyAtDate(date, message, options) {
     let waitMs = dayjs(date).diff(dayjs());
     if (waitMs < 0) {
       return;
     }
-    this.notifyInMs(waitMs, message);
+    this.notifyInMs(waitMs, message, options);
   }
 }

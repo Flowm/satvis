@@ -171,8 +171,11 @@ export class SatelliteProperties {
   notifyTransits(aheadMin = 5) {
     let transits = this.computeTransits(dayjs().toDate(), dayjs().add(7, "day").toDate());
     transits.forEach((transit) => {
-      PushManager.notifyAtDate(dayjs(transit.start).subtract(aheadMin, "minute"), `${transit.name} transit in ${aheadMin} minutes`);
-      PushManager.notifyAtDate(dayjs(transit.start), `${transit.name} transit starting now`);
+      let options = {
+        icon: require("../assets/android-chrome-192x192.png"),
+      };
+      PushManager.notifyAtDate(dayjs(transit.start).subtract(aheadMin, "minute"), `${transit.name} transit in ${aheadMin} minutes`, options);
+      PushManager.notifyAtDate(dayjs(transit.start), `${transit.name} transit starting now`, options);
     });
   }
 }
