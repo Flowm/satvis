@@ -33,29 +33,21 @@ html, body, #cesiumContainer {
 }
 
 .switch {
-    padding-left: 50px;
-    margin: 1px 0px 1px 0px;
-    position: relative;
+    background-color: #303336;
+    border-radius: 8px;
+    cursor: pointer;
     display: inline-block;
-    width: 200px;
     height: 24px;
     line-height: 24px;
+    margin: 1px 0px 1px 0px;
+    opacity: 0.5;
+    padding-left: 50px;
+    position: relative;
+    width: 200px;
 }
 
 .switch input {
     display:none;
-}
-
-.slider {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    cursor: pointer;
-    background-color: #303336;
-    border-radius: 8px;
-    opacity: 0.5;
 }
 
 .slider::before {
