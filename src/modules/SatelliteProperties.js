@@ -1,5 +1,7 @@
-import { Orbit } from "./Orbit";
 import Cesium from "Cesium";
+import dayjs from "dayjs";
+import { Orbit } from "./Orbit";
+import { PushManager } from "./PushManager";
 
 export class SatelliteProperties {
   constructor(tle, tags = []) {
@@ -108,7 +110,7 @@ export class SatelliteProperties {
     return groundTrack;
   }
 
-  updateTransits(time, callback = ()=>{}) {
+  updateTransits(time, updateCallback = ()=>{}) {
     if (typeof this.groundStationPosition === "undefined") {
       return false;
     }
@@ -123,8 +125,11 @@ export class SatelliteProperties {
       stopPrediction: new Cesium.JulianDate.addDays(time, 3, Cesium.JulianDate.clone(time)),
     };
 
-    if (this.computeTransits(this.transitInterval.start, this.transitInterval.stopPrediction)) {
-      callback();
+    let transits = this.computeTransits(Cesium.JulianDate.toDate(this.transitInterval.start), Cesium.JulianDate.toDate(this.transitInterval.stopPrediction));
+    if (transits) {
+      this.transits = transits;
+      this.computeTransitIntervals();
+      updateCallback();
     }
 
     return true;
@@ -142,14 +147,12 @@ export class SatelliteProperties {
     }
 
     const latlonalt = [this.groundStationPosition.latitude, this.groundStationPosition.longitude, this.groundStationPosition.height/1000];
-    this.transits = this.orbit.computeTransits(
+    return this.orbit.computeTransits(
       this.name,
       latlonalt,
-      Cesium.JulianDate.toDate(start),
-      Cesium.JulianDate.toDate(stop)
+      start,
+      stop
     );
-    this.computeTransitIntervals();
-    return true;
   }
 
   computeTransitIntervals() {
@@ -163,5 +166,13 @@ export class SatelliteProperties {
       }));
     }
     this.transitIntervals = new Cesium.TimeIntervalCollection(transitIntervalArray);
+  }
+
+  notifyTransits(aheadMin = 5) {
+    let transits = this.computeTransits(dayjs().toDate(), dayjs().add(7, "day").toDate());
+    transits.forEach((transit) => {
+      PushManager.notifyAtDate(dayjs(transit.start).subtract(aheadMin, "minute"), `${transit.name} transit in ${aheadMin} minutes`);
+      PushManager.notifyAtDate(dayjs(transit.start), `${transit.name} transit starting now`);
+    });
   }
 }

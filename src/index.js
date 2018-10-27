@@ -39,7 +39,7 @@ if ("serviceWorker" in navigator) {
         // Immediately load service worker
         reg.waiting.postMessage("skipWaiting");
         // if (window.confirm("New version available! OK to refresh?")) {
-        //  reg.waiting.postMessage('skipWaiting');
+        //  reg.waiting.postMessage("skipWaiting");
         // }
       }
       listenForWaitingServiceWorker(reg, promptUserToRefresh);
