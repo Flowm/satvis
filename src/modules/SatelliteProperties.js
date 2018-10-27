@@ -16,6 +16,9 @@ export class SatelliteProperties {
     this.transits = [];
     this.transitInterval = undefined;
     this.transitIntervals = new Cesium.TimeIntervalCollection();
+    this.pm = new PushManager({
+      icon: require("../assets/android-chrome-192x192.png"),
+    });
   }
 
   hasTag(tag) {
@@ -171,11 +174,9 @@ export class SatelliteProperties {
   notifyTransits(aheadMin = 5) {
     let transits = this.computeTransits(dayjs().toDate(), dayjs().add(7, "day").toDate());
     transits.forEach((transit) => {
-      let options = {
-        icon: require("../assets/android-chrome-192x192.png"),
-      };
-      PushManager.notifyAtDate(dayjs(transit.start).subtract(aheadMin, "minute"), `${transit.name} transit in ${aheadMin} minutes`, options);
-      PushManager.notifyAtDate(dayjs(transit.start), `${transit.name} transit starting now`, options);
+      let start = dayjs(transit.start).startOf("second");
+      this.pm.notifyAtDate(start.subtract(aheadMin, "minute"), `${transit.name} transit in ${aheadMin} minutes`);
+      this.pm.notifyAtDate(start, `${transit.name} transit starting now`);
     });
   }
 }
