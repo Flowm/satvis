@@ -150,9 +150,9 @@ export class SatelliteManager {
     var index = this.enabledComponents.indexOf(componentName);
     if (index === -1) this.enabledComponents.push(componentName);
 
-    for (var sat in this.satellites) {
+    this.enabledSatellites.forEach((sat) => {
       this.satellites[sat].showComponent(componentName);
-    }
+    });
   }
 
   hideComponent(componentName) {
