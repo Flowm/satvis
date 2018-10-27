@@ -5,6 +5,7 @@
     v-model="values"
     search
     historyButton
+    :filters="filters"
     :options="options"
     :selectOptions="data"
     :btnLabel="btnLabel"
@@ -23,26 +24,34 @@ export default {
   },
   data() {
     return {
-      btnLabel: "Tracked satellite",
+      btnLabel: "Enabled satellites",
       values: [],
       data: cc.sats.satlist,
+      filters: [{
+          nameAll: 'Select all',
+          nameNotAll: 'Deselect all',
+          func() {
+              return true;
+          },
+      }],
       options: {
+        multi: true,
         groups: true,
       },
     };
   },
   watch: {
     values: function(newSats, oldSats) {
-      if (newSats.length === 0) {
+      if (newSats.length === 0 && oldSats.length === 0) {
         return;
       }
-      cc.sats.selectedSatellite = newSats[0];
+      cc.sats.enabledSatellites = newSats;
     }
   },
   methods: {
     update: function() {
       this.data = cc.sats.satlist;
-      this.values = [cc.sats.selectedSatellite];
+      this.values = cc.sats.enabledSatellites;
     },
   }
 };

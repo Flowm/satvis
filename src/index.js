@@ -1,6 +1,7 @@
 import { CesiumController } from "./modules/CesiumController";
 import Vue from "vue";
 import SatelliteSelect from "./components/SatelliteSelect.vue";
+import SatelliteMultiSelect from "./components/SatelliteMultiSelect.vue";
 
 import "cesium/Widgets/widgets.css";
 import "./css/main.css";
@@ -60,6 +61,7 @@ Vue.use(VueCesiumController);
 const app = new Vue({
   components: {
     "satellite-select": SatelliteSelect,
+    "satellite-multi-select": SatelliteMultiSelect,
   },
   el: "#toolbar",
   data: {

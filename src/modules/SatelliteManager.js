@@ -88,12 +88,16 @@ export class SatelliteManager {
     });
   }
 
-  get enabledSatellitesString() {
-    return this.enabledSatellites.join(",");
+  get selectedSatellite() {
+    for (let sat in this.satellites) {
+      if (this.satellites[sat].isTracked) {
+        return sat;
+      }
+    }
   }
 
-  set enabledSatellitesString(sats) {
-    return this.enabledSatellites = sats.split(",");
+  set selectedSatellite(name) {
+    this.satellites[name].track()
   }
 
   get satelliteNames() {
