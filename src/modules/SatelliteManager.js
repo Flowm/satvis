@@ -151,21 +151,21 @@ export class SatelliteManager {
     return [...new Set([].concat(...components))];
   }
 
-  showComponent(componentName) {
+  enableComponent(componentName) {
     var index = this.enabledComponents.indexOf(componentName);
     if (index === -1) this.enabledComponents.push(componentName);
 
     this.enabledSatellites.forEach((sat) => {
-      this.getSatellite(sat).showComponent(componentName);
+      this.getSatellite(sat).enableComponent(componentName);
     });
   }
 
-  hideComponent(componentName) {
+  disableComponent(componentName) {
     var index = this.enabledComponents.indexOf(componentName);
     if (index !== -1) this.enabledComponents.splice(index, 1);
 
     this.enabledSatellites.forEach((sat) => {
-      this.getSatellite(sat).hideComponent(componentName);
+      this.getSatellite(sat).disableComponent(componentName);
     });
   }
 

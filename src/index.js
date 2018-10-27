@@ -96,11 +96,11 @@ const app = new Vue({
     enabledComponents: function(newComponents, oldComponents) {
       let add = newComponents.filter(x => !oldComponents.includes(x));
       for (let component of add) {
-        cc.sats.showComponent(component);
+        cc.sats.enableComponent(component);
       }
       let del = oldComponents.filter(x => !newComponents.includes(x));
       for (let component of del) {
-        cc.sats.hideComponent(component);
+        cc.sats.disableComponent(component);
       }
     },
   },

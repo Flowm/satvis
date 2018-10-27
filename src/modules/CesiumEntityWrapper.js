@@ -14,13 +14,13 @@ export class CesiumEntityWrapper {
 
   show(components = this.components) {
     for (var entity of components) {
-      this.showComponent(entity);
+      this.enableComponent(entity);
     }
   }
 
   hide(components = this.components) {
     for (var entity of components) {
-      this.hideComponent(entity);
+      this.disableComponent(entity);
     }
   }
 
@@ -28,7 +28,7 @@ export class CesiumEntityWrapper {
     return Object.keys(this.entities);
   }
 
-  showComponent(name) {
+  enableComponent(name) {
     if (typeof name === "undefined") {
       return;
     }
@@ -37,7 +37,7 @@ export class CesiumEntityWrapper {
     }
   }
 
-  hideComponent(name) {
+  disableComponent(name) {
     if (typeof name === "undefined") {
       return;
     }
