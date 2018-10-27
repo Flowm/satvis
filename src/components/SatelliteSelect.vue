@@ -42,7 +42,7 @@ export default {
   methods: {
     update: function() {
       this.data = cc.sats.satlist;
-      this.values = [cc.sats.trackedSatellite];
+      this.values = [cc.sats.trackedSatellite.props.name];
     },
   }
 };
