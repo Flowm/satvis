@@ -36,7 +36,7 @@ export class SatelliteManager {
   }
 
   add(satelliteEntity) {
-    if (satelliteEntity.props.name in this.satelliteNames) {
+    if (this.satelliteNames.includes(satelliteEntity.props.name)) {
       console.log(`Satellite ${satelliteEntity.props.name} already exists`);
       return;
     }
