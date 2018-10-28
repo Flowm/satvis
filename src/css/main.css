@@ -37,7 +37,7 @@ html, body, #cesiumContainer {
     margin: 5px;
 }
 
-.switch {
+.toolbarSwitch {
     background-color: #303336;
     border-radius: 8px;
     cursor: pointer;
@@ -51,7 +51,7 @@ html, body, #cesiumContainer {
     width: 200px;
 }
 
-.switch input {
+.toolbarSwitch input {
     display:none;
 }
 

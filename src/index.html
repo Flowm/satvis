@@ -54,41 +54,41 @@
             </div>
             <div class="toolbarSwitches" v-show="menu.sat">
                 <div class="toolbarTitle">Satellite</div>
-                <label class="switch" v-for="componentName in cc.sats.components">
+                <label class="toolbarSwitch" v-for="componentName in cc.sats.components">
                     <input type="checkbox" :value="componentName" v-model="enabledComponents"/>
                     <span class="slider"></span>
                     {{ componentName }}
                 </label>
-                <label class="switch">
+                <label class="toolbarSwitch">
                     <input type="button" v-on:click="cc.viewer.trackedEntity = undefined" />
                     Untrack Entity
                 </label>
             </div>
             <div class="toolbarSwitches" v-show="menu.gs">
                 <div class="toolbarTitle">Ground Station</div>
-                <label class="switch">
+                <label class="toolbarSwitch">
                     <input type="checkbox" v-model="groundStationPicker.enabled" />
                     <span class="slider"></span>
                     Pick on globe
                 </label>
-                <label class="switch">
+                <label class="toolbarSwitch">
                     <input type="button" v-on:click="cc.setGroundStationFromGeolocation()" />
                     Set from geolocation
                 </label>
-                <label class="switch">
+                <label class="toolbarSwitch">
                     <input type="button" v-on:click="cc.sats.focusGroundStation()" />
                     Focus
                 </label>
             </div>
             <div class="toolbarSwitches" v-show="menu.map">
                 <div class="toolbarTitle">View</div>
-                <label class="switch" v-for="name in cc.sceneModes">
+                <label class="toolbarSwitch" v-for="name in cc.sceneModes">
                     <input type="radio" v-model="sceneMode" :value=name />
                     <span class="slider"></span>
                     {{ name }}
                 </label>
                 <div class="toolbarTitle">Imagery</div>
-                <label class="switch" v-for="(name, key) in cc.imageryProviders">
+                <label class="toolbarSwitch" v-for="(name, key) in cc.imageryProviders">
                     <input type="radio" v-model="imageryProvider" :value=key />
                     <span class="slider"></span>
                     {{ name }}
@@ -96,48 +96,48 @@
             </div>
             <div class="toolbarSwitches" v-show="menu.ios">
                 <div class="toolbarTitle">Mobile settings</div>
-                <label class="switch">
+                <label class="toolbarSwitch">
                     <input type="checkbox" v-model="cc.viewer.scene.useWebVR" />
                     <span class="slider"></span>
                     VR
                 </label>
-                <label class="switch">
+                <label class="toolbarSwitch">
                     <input type="checkbox" v-model="cc.viewer.clock.shouldAnimate" />
                     <span class="slider"></span>
                     Play
                 </label>
-                <label class="switch">
+                <label class="toolbarSwitch">
                     <input type="button" v-on:click="cc.viewer.clockViewModel.multiplier *= 2" />
                     Increase simulation speed
                 </label>
-                <label class="switch">
+                <label class="toolbarSwitch">
                     <input type="button" v-on:click="cc.viewer.clockViewModel.multiplier /= 2" />
                     Decrease simulation speed
                 </label>
             </div>
             <div class="toolbarSwitches" v-show="menu.dbg">
                 <div class="toolbarTitle">Debug settings</div>
-                <label class="switch">
+                <label class="toolbarSwitch">
                     <input type="checkbox" v-model="cc.viewer.scene.debugShowFramesPerSecond" />
                     <span class="slider"></span>
                     FPS
                 </label>
-                <label class="switch">
+                <label class="toolbarSwitch">
                     <input type="checkbox" v-model="cc.viewer.scene.requestRenderMode" />
                     <span class="slider"></span>
                     RequestRender
                 </label>
-                <label class="switch">
+                <label class="toolbarSwitch">
                     <input type="checkbox" v-model="cc.viewer.scene.fog.enabled" />
                     <span class="slider"></span>
                     Fog
                 </label>
-                <label class="switch">
+                <label class="toolbarSwitch">
                     <input type="checkbox" v-model="cc.viewer.scene.globe.enableLighting" />
                     <span class="slider"></span>
                     Lighting
                 </label>
-                <label class="switch">
+                <label class="toolbarSwitch">
                     <input type="checkbox" v-model="cc.viewer.scene.globe.showGroundAtmosphere" />
                     <span class="slider"></span>
                     Atmosphere
