@@ -78,7 +78,8 @@ export default {
 }
 
 .wrapper .select .checkboxLayer {
-    min-width: 400px;
+    width: 400px;
+    max-width: calc(100vw - 20px);
 }
 
 .wrapper .tab {
@@ -101,5 +102,4 @@ export default {
     outline: none;
     height: 100%;
 }
-
 </style>
