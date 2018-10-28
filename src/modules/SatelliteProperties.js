@@ -173,6 +173,10 @@ export class SatelliteProperties {
 
   notifyTransits(aheadMin = 5) {
     let transits = this.computeTransits(dayjs().toDate(), dayjs().add(7, "day").toDate());
+    if (!transits) {
+      return;
+    }
+
     transits.forEach((transit) => {
       let start = dayjs(transit.start).startOf("second");
       this.pm.notifyAtDate(start.subtract(aheadMin, "minute"), `${transit.name} transit in ${aheadMin} minutes`);

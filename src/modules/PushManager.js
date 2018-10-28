@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 export class PushManager {
   constructor(options = {}) {
     this.options = options;
+    this.timers = [];
   }
 
   requestPermission() {
@@ -24,11 +25,22 @@ export class PushManager {
     return true;
   }
 
+  get active() {
+    return this.timers.length > 0;
+  }
+
+  clearTimers() {
+    this.timers.forEach((timer) => {
+      clearTimeout(timer.id);
+    });
+    this.timers = [];
+  }
+
   persistentNotification(message, options) {
     if (!this.available()) {
       return;
     }
-
+    options = {...this.options, ...options};
     try {
       navigator.serviceWorker.getRegistration()
         .then(reg => reg.showNotification(message, options))
@@ -42,7 +54,6 @@ export class PushManager {
     if (!this.available()) {
       return;
     }
-    options = {...this.options,...options};
     console.log(`Notify "${message}" in ${ms / 1000}s`);
     setTimeout(() => { this.persistentNotification(message, options); }, ms);
   }
@@ -52,6 +63,17 @@ export class PushManager {
     if (waitMs < 0) {
       return;
     }
-    this.notifyInMs(waitMs, message, options);
+    if (this.timers.some((timer) => timer.date.isSame(date))) {
+      console.log("Ignore duplicate entry");
+      return;
+    }
+    console.log(`Notify "${message}" at ${date}s`);
+
+    let id = setTimeout(() => { this.persistentNotification(message, options); }, waitMs);
+    this.timers.push({
+      id: id,
+      date: date,
+      message: message,
+    });
   }
 }
