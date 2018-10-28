@@ -74,20 +74,6 @@ export class SatelliteManager {
     return satlist;
   }
 
-  get enabledSatellites() {
-    return this.satellites.filter((sat) => sat.enabled).map((sat) => sat.props.name);
-  }
-
-  set enabledSatellites(sats) {
-    this.satellites.forEach((sat) => {
-      if (sats.includes(sat.props.name)) {
-        sat.show(this.enabledComponents);
-      } else {
-        sat.hide();
-      }
-    });
-  }
-
   get trackedSatellite() {
     for (let sat of this.satellites) {
       if (sat.isTracked) {
@@ -102,6 +88,34 @@ export class SatelliteManager {
     if (sat) {
       sat.track();
     }
+  }
+
+  get enabledSatellites() {
+    return this.satellites.filter((sat) => sat.enabled).map((sat) => sat.props.name);
+  }
+
+  set enabledSatellites(sats) {
+    this.satellites.forEach((sat) => {
+      if (sats.includes(sat.props.name)) {
+        sat.show(this.enabledComponents);
+      } else {
+        sat.hide();
+      }
+    });
+  }
+
+  get monitoredSatellites() {
+    return this.satellites.filter((sat) => sat.props.pm.active).map((sat) => sat.props.name);
+  }
+
+  set monitoredSatellites(sats) {
+    this.satellites.forEach((sat) => {
+      if (sats.includes(sat.props.name)) {
+        sat.props.notifyTransits();
+      } else {
+        sat.props.pm.clearTimers();
+      }
+    });
   }
 
   get satelliteNames() {
