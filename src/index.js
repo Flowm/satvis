@@ -1,12 +1,11 @@
-// Application
-import { CesiumController } from "./modules/CesiumController";
-
-// UI
 import Vue from "vue";
 import Buefy from "buefy";
 import SatelliteSelect from "./components/SatelliteSelect.vue";
 import SatelliteMultiSelect from "./components/SatelliteMultiSelect.vue";
 import SatelliteNotifyMultiSelect from "./components/SatelliteNotifyMultiSelect.vue";
+import VueCesiumController from "./components/VueCesiumController.js";
+Vue.use(Buefy);
+Vue.use(VueCesiumController);
 
 import "buefy/dist/buefy.css";
 import "cesium/Widgets/widgets.css";
@@ -61,18 +60,7 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-
-Vue.use(Buefy);
-
 /* global cc */
-const VueCesiumController = {
-  install(Vue) {
-    Vue.prototype.cc = new CesiumController();
-  }
-};
-//export default VueCesiumController;
-Vue.use(VueCesiumController);
-
 const app = new Vue({
   el: "#toolbar",
   components: {
