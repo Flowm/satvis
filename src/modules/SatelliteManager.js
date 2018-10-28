@@ -8,6 +8,13 @@ export class SatelliteManager {
     this.satellites = [];
     this.enabledComponents = ["Point", "Label"];
     this.enabledTags = [];
+
+    this.viewer.trackedEntityChanged.addEventListener(() => {
+      let trackedSatelliteName = this.trackedSatellite;
+      if (trackedSatelliteName) {
+        this.getSatellite(trackedSatelliteName).show(this.enabledComponents);
+      }
+    });
   }
 
   addFromTleUrl(url, tags) {

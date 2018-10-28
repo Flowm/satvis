@@ -9,7 +9,7 @@ export class CesiumEntityWrapper {
   }
 
   get enabled() {
-    return Object.values(this.entities).some(entity => this.viewer.entities.contains(entity));
+    return this.enabledComponents.length > 0;
   }
 
   show(components = this.components) {
@@ -26,6 +26,10 @@ export class CesiumEntityWrapper {
 
   get components() {
     return Object.keys(this.entities);
+  }
+
+  get enabledComponents() {
+    return Object.values(this.entities).filter(entity => this.viewer.entities.contains(entity));
   }
 
   enableComponent(name) {

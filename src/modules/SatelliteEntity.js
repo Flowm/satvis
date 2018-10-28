@@ -14,6 +14,13 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     this.props = new SatelliteProperties(tle, tags);
   }
 
+  enableComponent(name) {
+    if (name === "Model" && !this.isTracked) {
+      return;
+    }
+    super.enableComponent(name);
+  }
+
   createEntities() {
     this.props.createSampledPosition(this.viewer.clock, sampledPosition => {
       for (var entity in this.entities) {
