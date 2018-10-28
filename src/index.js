@@ -1,3 +1,6 @@
+import { ServiceWorkerManager } from "./modules/ServiceWorkerManager";
+ServiceWorkerManager.registerAndUpdate();
+
 import Vue from "vue";
 import Buefy from "buefy";
 import SatelliteSelect from "./components/SatelliteSelect.vue";
@@ -16,49 +19,6 @@ import { library, dom } from "@fortawesome/fontawesome-svg-core";
 import { faRedo } from "@fortawesome/free-solid-svg-icons";
 library.add(faRedo);
 dom.watch();
-
-// Register service worker
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").then(reg => {
-      console.log("SW registered:", reg);
-
-      // Update service worker on page refresh
-      // https://redfin.engineering/how-to-fix-the-refresh-button-when-using-service-workers-a8e27af6df68
-      function listenForWaitingServiceWorker(reg, callback) {
-        function awaitStateChange () {
-          reg.installing.addEventListener("statechange", function () {
-            if (this.state === "installed") callback(reg);
-          });
-        }
-        if (!reg) return;
-        if (reg.waiting) return callback(reg);
-        if (reg.installing) awaitStateChange();
-        reg.addEventListener("updatefound", awaitStateChange);
-      }
-
-      // Reload once when the new Service Worker starts activating
-      var refreshing;
-      navigator.serviceWorker.addEventListener("controllerchange", function () {
-        console.log("Reloading page for latest content");
-        if (refreshing) return;
-        refreshing = true;
-        window.location.reload();
-      });
-      function promptUserToRefresh (reg) {
-        console.log("New version available!");
-        // Immediately load service worker
-        reg.waiting.postMessage("skipWaiting");
-        // if (window.confirm("New version available! OK to refresh?")) {
-        //  reg.waiting.postMessage("skipWaiting");
-        // }
-      }
-      listenForWaitingServiceWorker(reg, promptUserToRefresh);
-    }).catch(registrationError => {
-      console.log("SW registration failed: ", registrationError);
-    });
-  });
-}
 
 /* global cc */
 const app = new Vue({
