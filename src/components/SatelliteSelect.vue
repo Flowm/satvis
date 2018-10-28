@@ -8,10 +8,14 @@
       :select-options="data"
       :btn-label="btnLabel"
     />
-    <input
-      type="button"
+    <button
+      class="button"
       @click="update"
     >
+      <span class="icon is-small">
+        <i class="fas fa-redo" />
+      </span>
+    </button>
   </div>
 </template>
 

@@ -1,11 +1,22 @@
+// Application
 import { CesiumController } from "./modules/CesiumController";
+
+// UI
 import Vue from "vue";
+import Buefy from "buefy";
 import SatelliteSelect from "./components/SatelliteSelect.vue";
 import SatelliteMultiSelect from "./components/SatelliteMultiSelect.vue";
 import SatelliteNotifyMultiSelect from "./components/SatelliteNotifyMultiSelect.vue";
 
+import "buefy/dist/buefy.css";
 import "cesium/Widgets/widgets.css";
 import "./css/main.css";
+
+// Font awesome setup
+import { library, dom } from "@fortawesome/fontawesome-svg-core";
+import { faRedo } from "@fortawesome/free-solid-svg-icons";
+library.add(faRedo);
+dom.watch();
 
 // Register service worker
 if ("serviceWorker" in navigator) {
@@ -49,6 +60,9 @@ if ("serviceWorker" in navigator) {
     });
   });
 }
+
+
+Vue.use(Buefy);
 
 /* global cc */
 const VueCesiumController = {

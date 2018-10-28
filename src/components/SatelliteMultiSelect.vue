@@ -9,10 +9,14 @@
       :select-options="data"
       :btn-label="btnLabel"
     />
-    <input
-      type="button"
+    <button
+      class="button"
       @click="update"
     >
+      <span class="icon is-small">
+        <i class="fas fa-redo" />
+      </span>
+    </button>
   </div>
 </template>
 
@@ -62,32 +66,40 @@ export default {
 
 <style lang="css">
 .wrapper .select .btn-select {
-  width: 250px;
+    width: 250px;
 }
 
 .wrapper .select .buttonLabel {
-  width: 100%;
+    width: 100%;
 }
+
 .wrapper .select .buttonLabel .caret {
-    position: absolute;
-    right: 10px;
-    top: 50%;
+    display: none;
 }
 
 .wrapper .select .checkboxLayer {
-  min-width: 400px;
+    min-width: 400px;
 }
 
 .wrapper .tab {
-  padding: 0px;
-  justify-content: space-around;
+    padding: 0px;
+    justify-content: space-around;
 }
 
 .wrapper .tab .tab-item span {
-  color: #50596c;
+    color: #50596c;
 }
 
 .wrapper .select .selectItem, .selectItemDeactive {
-  min-height: 0px;
+    min-height: 0px;
 }
+
+.wrapper button {
+    background-color: Transparent;
+    border: none;
+    color: white;
+    outline: none;
+    height: 100%;
+}
+
 </style>

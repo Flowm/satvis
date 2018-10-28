@@ -17,16 +17,20 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
+    "buefy": "^0.7.0",
     "cesium": "^1.50.0",
     "cesium-sensor-volumes": "^1.32.0",
     "dayjs": "^1.7.7",
     "jspredict-move2": "^1.0.5",
     "satellite.js": "^2.0.3",
-    "v-selectmenu": "^1.0.5",
     "vue": "^2.5.17",
     "vue-multi-select": "^3.11.1"
   },
   "devDependencies": {
+    "@fortawesome/fontawesome-svg-core": "^1.2.7",
+    "@fortawesome/free-brands-svg-icons": "^5.4.2",
+    "@fortawesome/free-regular-svg-icons": "^5.4.2",
+    "@fortawesome/free-solid-svg-icons": "^5.4.2",
     "autoprefixer": "^9.3.1",
     "clean-webpack-plugin": "^0.1.19",
     "copy-webpack-plugin": "^4.5.4",
