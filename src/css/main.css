@@ -3,7 +3,7 @@ html, body, #cesiumContainer {
     height: 100%;
     margin: 0;
     padding: 0;
-    /*overflow: hidden;*/
+    overflow: hidden;
     font-family: sans-serif;
     color: #edffff;
 }
@@ -27,9 +27,14 @@ html, body, #cesiumContainer {
 }
 
 .toolbarTitle {
-    padding-left: 50px;
+    text-align: center;
     height: 24px;
     line-height: 24px;
+    margin-top: 5px;
+}
+
+.toolbarContent {
+    margin: 5px;
 }
 
 .switch {

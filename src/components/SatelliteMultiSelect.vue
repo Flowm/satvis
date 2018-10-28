@@ -1,9 +1,5 @@
 <template>
   <div class="wrapper">
-    <input
-      type="button"
-      @click="update"
-    >
     <multiSelect
       v-model="values"
       search
@@ -13,6 +9,10 @@
       :select-options="data"
       :btn-label="btnLabel"
     />
+    <input
+      type="button"
+      @click="update"
+    >
   </div>
 </template>
 
@@ -61,6 +61,19 @@ export default {
 </script>
 
 <style lang="css">
+.wrapper .select .btn-select {
+  width: 250px;
+}
+
+.wrapper .select .buttonLabel {
+  width: 100%;
+}
+.wrapper .select .buttonLabel .caret {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+}
+
 .wrapper .select .checkboxLayer {
   min-width: 400px;
 }

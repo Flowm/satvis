@@ -1,9 +1,5 @@
 <template>
   <div class="wrapper">
-    <input
-      type="button"
-      @click="update"
-    >
     <multi-select
       v-model="values"
       search
@@ -12,6 +8,10 @@
       :select-options="data"
       :btn-label="btnLabel"
     />
+    <input
+      type="button"
+      @click="update"
+    >
   </div>
 </template>
 
@@ -26,7 +26,7 @@ export default {
   },
   data() {
     return {
-      btnLabel: "Tracked satellite",
+      btnLabel: "No tracked satellite",
       values: [],
       data: cc.sats.satlist,
       options: {
@@ -50,22 +50,3 @@ export default {
   }
 };
 </script>
-
-<style lang="css">
-.wrapper .select .checkboxLayer {
-  min-width: 400px;
-}
-
-.wrapper .tab {
-  padding: 0px;
-  justify-content: space-around;
-}
-
-.wrapper .tab .tab-item span {
-  color: #50596c;
-}
-
-.wrapper .select .selectItem, .selectItemDeactive {
-  min-height: 0px;
-}
-</style>

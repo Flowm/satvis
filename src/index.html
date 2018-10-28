@@ -39,20 +39,16 @@
                 </button>
             </div>
             <div class="toolbarSwitches" v-show="menu.cat">
-                <div class="toolbarTitle">Categories</div>
-                <label class="switch" v-for="tag in cc.sats.tags">
-                    <input type="checkbox" :value="tag" v-model="cc.sats.enabledTags" @change="cc.sats.showSatsWithEnabledTags()" />
-                    <span class="slider"></span>
-                    {{ tag }}
-                </label>
-                <div class="toolbarTitle">Satellites</div>
-                <div>
+                <div class="toolbarTitle">Tracked Satellite</div>
+                <div class="toolbarContent">
                     <satellite-select />
                 </div>
-                <div>
+                <div class="toolbarTitle">Visible Satellite</div>
+                <div class="toolbarContent">
                     <satellite-multi-select />
                 </div>
-                <div>
+                <div class="toolbarTitle">Monitored Satellite</div>
+                <div class="toolbarContent">
                     <satellite-notify-multi-select />
                 </div>
             </div>
