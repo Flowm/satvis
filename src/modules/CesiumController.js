@@ -139,6 +139,19 @@ export class CesiumController {
   }
 
   styleInfoBox() {
+    const container = this.viewer.infoBox.container.getElementsByClassName("cesium-infoBox")[0];
+    const close = this.viewer.infoBox.container.getElementsByClassName("cesium-infoBox-close")[0];
+    if (container && close) {
+      let newButton = document.createElement("button");
+      newButton.setAttribute("type", "button");
+      newButton.setAttribute("class", "cesium-button cesium-infoBox-custom");
+      newButton.innerHTML = '<i class="fas fa-bell"></i>';
+      newButton.addEventListener("click", () => {
+        this.sats.getSatellite(this.sats.trackedSatellite).props.notifyPasses();
+      });
+      container.insertBefore(newButton, close);
+    }
+
     const frame = this.viewer.infoBox.frame;
     frame.addEventListener("load", function () {
       // Inline infobox css as iframe does not use service worker
