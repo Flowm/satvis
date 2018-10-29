@@ -1,5 +1,5 @@
 {
-  "name": "cesium-orbit",
+  "name": "SatVis",
   "version": "0.0.1",
   "description": "Satellite orbit visualization with CesiumJS",
   "scripts": {
