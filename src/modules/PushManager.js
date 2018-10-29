@@ -6,23 +6,29 @@ export class PushManager {
     this.timers = [];
   }
 
-  requestPermission() {
-    if (!("Notification" in window)) {
+  get available() {
+    if (!("Notification" in window) || !("ServiceWorkerRegistration" in window)) {
       console.log("Notification API not supported!");
-      return;
+      return false;
     }
+    switch(Notification.permission) {
+      case "granted":
+        return true;
+        break;
+      case "default":
+        this.requestPermission();
+        return true;
+        break;
+      case "denied":
+        return false;
+        break;
+    }
+  }
 
+  requestPermission() {
     Notification.requestPermission((result) => {
       console.log("Notifcation permission result: " + result);
     });
-  }
-
-  available() {
-    if (!("Notification" in window) || !("ServiceWorkerRegistration" in window)) {
-      console.log("Persistent Notification API not supported!");
-      return false;
-    }
-    return true;
   }
 
   get active() {
@@ -37,7 +43,7 @@ export class PushManager {
   }
 
   persistentNotification(message, options) {
-    if (!this.available()) {
+    if (!this.available) {
       return;
     }
     options = {...this.options, ...options};
@@ -51,7 +57,7 @@ export class PushManager {
   }
 
   notifyInMs(ms, message, options) {
-    if (!this.available()) {
+    if (!this.available) {
       return;
     }
     console.log(`Notify "${message}" in ${ms / 1000}s`);
@@ -59,6 +65,9 @@ export class PushManager {
   }
 
   notifyAtDate(date, message, options) {
+    if (!this.available) {
+      return;
+    }
     let waitMs = dayjs(date).diff(dayjs());
     if (waitMs < 0) {
       return;
