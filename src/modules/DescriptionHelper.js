@@ -3,7 +3,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);
 
 export class DescriptionHelper {
-  static renderDescription(time, name, position, transits, showTransitName) {
+  static renderDescription(time, name, position, passes, showPassName) {
     let description = `
       <div class="ib">
         <h3>Position</h3>
@@ -25,29 +25,29 @@ export class DescriptionHelper {
             </tr>
           </tbody>
         </table>
-        ${this.renderTransits(transits, time, showTransitName)}
+        ${this.renderPasses(passes, time, showPassName)}
       </div>
     `;
     return description;
   }
 
-  static renderTransits(transits, time, showTransitName) {
-    if (transits.length == 0) {
+  static renderPasses(passes, time, showPassName) {
+    if (passes.length == 0) {
       return "";
     }
 
     const start = dayjs(time);
-    const upcomingTransitIdx = transits.findIndex(transit => {
-      return dayjs(transit.end).isAfter(start);
+    const upcomingPassIdx = passes.findIndex(pass => {
+      return dayjs(pass.end).isAfter(start);
     });
-    if (upcomingTransitIdx < 0) {
+    if (upcomingPassIdx < 0) {
       return "";
     }
-    const upcomingTransits = transits.slice(upcomingTransitIdx);
+    const upcomingPasses = passes.slice(upcomingPassIdx);
 
-    const htmlName = showTransitName ? "<th>Name</th>\n" : "";
+    const htmlName = showPassName ? "<th>Name</th>\n" : "";
     const html = `
-      <h3>Transits</h3>
+      <h3>Passes</h3>
       <table class="ibt">
         <thead>
           <tr>
@@ -60,30 +60,30 @@ export class DescriptionHelper {
           </tr>
         </thead>
         <tbody>
-          ${upcomingTransits.map(transit => this.renderTransit(start, transit, showTransitName)).join("")}
+          ${upcomingPasses.map(pass => this.renderPass(start, pass, showPassName)).join("")}
         </tbody>
       </table>
     `;
     return html;
   }
 
-  static renderTransit(time, transit, showTransitName) {
+  static renderPass(time, pass, showPassName) {
     function pad2(num) {
       return String(num).padStart(2, "0");
     }
     let timeUntil = "ONGOING";
-    if (dayjs(transit.start).diff(time) > 0) {
-      timeUntil = `${pad2(dayjs(transit.start).diff(time, "days"))}:${pad2(dayjs(transit.start).diff(time, "hours")%24)}:${pad2(dayjs(transit.start).diff(time, "minutes")%60)}:${pad2(dayjs(transit.start).diff(time, "seconds")%60)}`;
+    if (dayjs(pass.start).diff(time) > 0) {
+      timeUntil = `${pad2(dayjs(pass.start).diff(time, "days"))}:${pad2(dayjs(pass.start).diff(time, "hours")%24)}:${pad2(dayjs(pass.start).diff(time, "minutes")%60)}:${pad2(dayjs(pass.start).diff(time, "seconds")%60)}`;
     }
-    const htmlName = showTransitName ? `<td>${transit.name}</td>\n` : "";
+    const htmlName = showPassName ? `<td>${pass.name}</td>\n` : "";
     const html = `
       <tr>
         ${htmlName}
         <td>${timeUntil}</td>
-        <td>${dayjs(transit.start).format("DD.MM HH:mm:ss")}</td>
-        <td>${dayjs(transit.end).format("HH:mm:ss")}</td>
-        <td class="ibt-right">${transit.maxElevation.toFixed(0)}&deg</td>
-        <td class="ibt-right">${transit.minAzimuth.toFixed(2)}&deg</td>
+        <td>${dayjs(pass.start).format("DD.MM HH:mm:ss")}</td>
+        <td>${dayjs(pass.end).format("HH:mm:ss")}</td>
+        <td class="ibt-right">${pass.maxElevation.toFixed(0)}&deg</td>
+        <td class="ibt-right">${pass.minAzimuth.toFixed(2)}&deg</td>
       </tr>
     `;
     return html;

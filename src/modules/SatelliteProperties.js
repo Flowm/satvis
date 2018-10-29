@@ -13,9 +13,9 @@ export class SatelliteProperties {
     this.tags = tags;
 
     this.groundStationPosition = undefined;
-    this.transits = [];
-    this.transitInterval = undefined;
-    this.transitIntervals = new Cesium.TimeIntervalCollection();
+    this.passes = [];
+    this.passInterval = undefined;
+    this.passIntervals = new Cesium.TimeIntervalCollection();
     this.pm = new PushManager({
       icon: require("../assets/android-chrome-192x192.png"),
     });
@@ -113,44 +113,44 @@ export class SatelliteProperties {
     return groundTrack;
   }
 
-  updateTransits(time, updateCallback = ()=>{}) {
+  updatePasses(time, updateCallback = ()=>{}) {
     if (typeof this.groundStationPosition === "undefined") {
       return false;
     }
-    // Check if still inside of current transit interval
-    if (typeof this.transitInterval !== "undefined" &&
-        Cesium.TimeInterval.contains(new Cesium.TimeInterval({start: this.transitInterval.start, stop: this.transitInterval.stop}), time)) {
+    // Check if still inside of current pass interval
+    if (typeof this.passInterval !== "undefined" &&
+        Cesium.TimeInterval.contains(new Cesium.TimeInterval({start: this.passInterval.start, stop: this.passInterval.stop}), time)) {
       return false;
     }
-    this.transitInterval = {
+    this.passInterval = {
       start: new Cesium.JulianDate.addDays(time, -1, Cesium.JulianDate.clone(time)),
       stop: new Cesium.JulianDate.addDays(time, 1, Cesium.JulianDate.clone(time)),
       stopPrediction: new Cesium.JulianDate.addDays(time, 3, Cesium.JulianDate.clone(time)),
     };
 
-    let transits = this.computeTransits(Cesium.JulianDate.toDate(this.transitInterval.start), Cesium.JulianDate.toDate(this.transitInterval.stopPrediction));
-    if (transits) {
-      this.transits = transits;
-      this.computeTransitIntervals();
+    let passes = this.computePasses(Cesium.JulianDate.toDate(this.passInterval.start), Cesium.JulianDate.toDate(this.passInterval.stopPrediction));
+    if (passes) {
+      this.passes = passes;
+      this.computePassIntervals();
       updateCallback();
     }
 
     return true;
   }
 
-  clearTransits() {
-    this.transitInterval = undefined;
-    this.transits = [];
-    this.transitIntervals = new Cesium.TimeIntervalCollection();
+  clearPasses() {
+    this.passInterval = undefined;
+    this.passes = [];
+    this.passIntervals = new Cesium.TimeIntervalCollection();
   }
 
-  computeTransits(start, stop) {
+  computePasses(start, stop) {
     if (typeof this.groundStationPosition === "undefined") {
       return false;
     }
 
     const latlonalt = [this.groundStationPosition.latitude, this.groundStationPosition.longitude, this.groundStationPosition.height/1000];
-    return this.orbit.computeTransits(
+    return this.orbit.computePasses(
       this.name,
       latlonalt,
       start,
@@ -158,30 +158,30 @@ export class SatelliteProperties {
     );
   }
 
-  computeTransitIntervals() {
-    const transitIntervalArray = [];
-    for (const transit of this.transits) {
-      const startJulian = new Cesium.JulianDate.fromDate(new Date(transit.start));
-      const endJulian = new Cesium.JulianDate.fromDate(new Date(transit.end));
-      transitIntervalArray.push(new Cesium.TimeInterval({
+  computePassIntervals() {
+    const passIntervalArray = [];
+    for (const pass of this.passes) {
+      const startJulian = new Cesium.JulianDate.fromDate(new Date(pass.start));
+      const endJulian = new Cesium.JulianDate.fromDate(new Date(pass.end));
+      passIntervalArray.push(new Cesium.TimeInterval({
         start: startJulian,
         stop: endJulian
       }));
     }
-    this.transitIntervals = new Cesium.TimeIntervalCollection(transitIntervalArray);
+    this.passIntervals = new Cesium.TimeIntervalCollection(passIntervalArray);
   }
 
-  notifyTransits(aheadMin = 5) {
-    let transits = this.computeTransits(dayjs().toDate(), dayjs().add(7, "day").toDate());
-    if (!transits) {
+  notifyPasses(aheadMin = 5) {
+    let passes = this.computePasses(dayjs().toDate(), dayjs().add(7, "day").toDate());
+    if (!passes) {
       return;
     }
 
-    transits.forEach((transit) => {
-      let start = dayjs(transit.start).startOf("second");
-      this.pm.notifyAtDate(start.subtract(aheadMin, "minute"), `${transit.name} transit in ${aheadMin} minutes`);
-      this.pm.notifyAtDate(start, `${transit.name} transit starting now`);
-      this.pm.notifyAtDate(dayjs().add(5, "second"), `${transit.name} test transit in ${aheadMin} minutes`);
+    passes.forEach((pass) => {
+      let start = dayjs(pass.start).startOf("second");
+      this.pm.notifyAtDate(start.subtract(aheadMin, "minute"), `${pass.name} pass in ${aheadMin} minutes`);
+      this.pm.notifyAtDate(start, `${pass.name} pass starting now`);
+      this.pm.notifyAtDate(dayjs().add(5, "second"), `${pass.name} test pass in ${aheadMin} minutes`);
     });
   }
 }

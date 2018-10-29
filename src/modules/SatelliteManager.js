@@ -118,7 +118,7 @@ export class SatelliteManager {
   set monitoredSatellites(sats) {
     this.satellites.forEach((sat) => {
       if (sats.includes(sat.props.name)) {
-        sat.props.notifyTransits();
+        sat.props.notifyPasses();
       } else {
         sat.props.pm.clearTimers();
       }

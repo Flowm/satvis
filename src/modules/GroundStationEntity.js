@@ -23,7 +23,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
       if (this.isSelected && !this.isTracked) {
         this.setSelectedOnTickCallback((clock) => {
           for (let sat of Object.values(this.sats.satellites)) {
-            sat.props.updateTransits(clock.currentTime);
+            sat.props.updatePasses(clock.currentTime);
           }
         });
       }
@@ -32,7 +32,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
       if (this.isTracked) {
         this.setTrackedOnTickCallback((clock) => {
           for (let sat of Object.values(this.sats.satellites)) {
-            sat.props.updateTransits(clock.currentTime);
+            sat.props.updatePasses(clock.currentTime);
           }
         });
       }
@@ -53,29 +53,29 @@ export class GroundStationEntity extends CesiumEntityWrapper {
 
   createDescription() {
     const description = new Cesium.CallbackProperty((time) => {
-      const transits = this.transits(time);
-      const content = DescriptionHelper.renderDescription(time, this.name, this.position, transits, true);
+      const passes = this.passes(time);
+      const content = DescriptionHelper.renderDescription(time, this.name, this.position, passes, true);
       return content;
     });
     this.description = description;
   }
 
-  transits(time, deltaHours = 48) {
-    let transits = [];
-    // Aggregate transits from all satellites
+  passes(time, deltaHours = 48) {
+    let passes = [];
+    // Aggregate passes from all satellites
     for (let sat of Object.values(this.sats.satellites)) {
-      transits.push(...sat.props.transits);
+      passes.push(...sat.props.passes);
     }
 
-    // Filter transits based on time
-    transits = transits.filter((transit) => {
-      return dayjs(transit.start).diff(time, "hours") < deltaHours;
+    // Filter passes based on time
+    passes = passes.filter((pass) => {
+      return dayjs(pass.start).diff(time, "hours") < deltaHours;
     });
 
-    // Sort transits by time
-    transits = transits.sort((a, b) => {
+    // Sort passes by time
+    passes = passes.sort((a, b) => {
       return a.start - b.start;
     });
-    return transits;
+    return passes;
   }
 }

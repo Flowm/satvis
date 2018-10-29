@@ -51,13 +51,13 @@ export class SatelliteEntity extends CesiumEntityWrapper {
 
     this.viewer.selectedEntityChanged.addEventListener(() => {
       if (this.isSelected && !this.isTracked) {
-        this.updateTransits();
+        this.updatePasses();
       }
     });
     this.viewer.trackedEntityChanged.addEventListener(() => {
       if (this.isTracked) {
         this.artificiallyTrack(
-          () => { this.updateTransits(); },
+          () => { this.updatePasses(); },
           () => { this.timeline.clearTimeline(); }
         );
       }
@@ -67,7 +67,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
   createDescription() {
     const description = new Cesium.CallbackProperty((time) => {
       const cartographic = this.props.positionCartographic(time);
-      const content = DescriptionHelper.renderDescription(time, this.props.name, cartographic, this.props.transits, false);
+      const content = DescriptionHelper.renderDescription(time, this.props.name, cartographic, this.props.passes, false);
       return content;
     });
     this.description = description;
@@ -172,7 +172,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
         return positions;
       }),
       show: new Cesium.CallbackProperty((time) => {
-        return this.props.transitIntervals.contains(time);
+        return this.props.passIntervals.contains(time);
       }),
       width: 5,
     });
@@ -186,18 +186,18 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     }
 
     this.props.groundStationPosition = position;
-    this.props.clearTransits();
+    this.props.clearPasses();
     if (this.isTracked) {
       this.timeline.clearTimeline();
-      this.updateTransits();
+      this.updatePasses();
     }
     this.createGroundStationLink();
   }
 
-  updateTransits() {
-    this.props.updateTransits(this.viewer.clock.currentTime, () => {
+  updatePasses() {
+    this.props.updatePasses(this.viewer.clock.currentTime, () => {
       if (this.isTracked) {
-        this.timeline.addHighlightRanges(this.props.transits);
+        this.timeline.addHighlightRanges(this.props.passes);
       }
     });
   }

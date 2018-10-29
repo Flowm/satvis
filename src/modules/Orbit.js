@@ -40,17 +40,17 @@ export class Orbit {
     };
   }
 
-  computeTransits(satName,
+  computePasses(satName,
     groundPosition,
     startDate = new Date(),
     endDate = dayjs(startDate).add(7, "day").toDate(),
     minElevation = 10,
-    maxTransits = 50) {
-    let transits = jspredict.transits(this.tle.join("\n"), groundPosition, startDate, endDate, minElevation, maxTransits);
-    transits.map((transit) => {
-      transit.name = satName;
-      return transit;
+    maxPasses = 50) {
+    let passes = jspredict.transits(this.tle.join("\n"), groundPosition, startDate, endDate, minElevation, maxPasses);
+    passes.map((pass) => {
+      pass.name = satName;
+      return pass;
     });
-    return transits;
+    return passes;
   }
 }
