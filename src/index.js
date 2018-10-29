@@ -17,7 +17,8 @@ import "./css/main.css";
 // Font awesome setup
 import { library, dom } from "@fortawesome/fontawesome-svg-core";
 import { faRedo, faBell } from "@fortawesome/free-solid-svg-icons";
-library.add(faRedo, faBell);
+import { faGithub } from "@fortawesome/free-brands-svg-icons";
+library.add(faRedo, faBell, faGithub);
 dom.watch();
 
 /* global cc */
