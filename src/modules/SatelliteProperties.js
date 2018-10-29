@@ -63,7 +63,7 @@ export class SatelliteProperties {
     });
   }
 
-  updateSampledPosition(julianDate, samplesFwd = 150, samplesBwd = 120, interval = 30) {
+  updateSampledPosition(julianDate, samplesFwd = 240, samplesBwd = 120, interval = 30) {
     const sampledPosition = new Cesium.SampledPositionProperty();
     sampledPosition.backwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
     sampledPosition.forwardExtrapolationType = Cesium.ExtrapolationType.HOLD;

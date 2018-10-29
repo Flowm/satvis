@@ -113,7 +113,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     this.createCesiumSatelliteEntity("Label", "label", label);
   }
 
-  createOrbit(leadTime = 3600, trailTime = 0) {
+  createOrbit(leadTime = 5400, trailTime = 0) {
     const path = new Cesium.PathGraphics({
       leadTime: leadTime,
       trailTime: trailTime,
