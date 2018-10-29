@@ -17,7 +17,7 @@
     </head>
     <body>
         <div id="cesiumContainer"></div>
-        <div id="toolbar" v-cloak>
+        <div id="toolbarLeft" v-cloak>
             <div class="toolbarButtons">
                 <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('cat')">
                     <span class="icon fill-parent">
@@ -49,11 +49,6 @@
                         <i class="fas fa-hammer fa-fw mfa-button-width"></i>
                     </span>
                 </button>
-                <a class="cesium-button cesium-toolbar-button" href="https://github.com/Flowm/satvis/">
-                    <span class="icon fill-parent">
-                        <i class="fab fa-github fa-2x"></i>
-                    </span>
-                </a>
             </div>
             <div class="toolbarSwitches" v-show="menu.cat">
                 <div class="toolbarTitle">Tracked Satellite</div>
@@ -160,6 +155,13 @@
                     Atmosphere
                 </label>
             </div>
+        </div>
+        <div id="toolbarRight">
+            <a class="cesium-button cesium-toolbar-button" href="https://github.com/Flowm/satvis/">
+                <span class="icon fill-parent">
+                    <i class="fab fa-github fa-2x"></i>
+                </span>
+            </a>
         </div>
     </body>
 </html>

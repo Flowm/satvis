@@ -23,7 +23,7 @@ dom.watch();
 
 /* global cc */
 const app = new Vue({
-  el: "#toolbar",
+  el: "#toolbarLeft",
   components: {
     "satellite-select": SatelliteSelect,
     "satellite-multi-select": SatelliteMultiSelect,

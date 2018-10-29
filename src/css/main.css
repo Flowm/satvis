@@ -6,16 +6,23 @@ html, body, #cesiumContainer {
     overflow: hidden;
     font-family: sans-serif;
     color: #edffff;
+    background-color: black;
 }
 
 [v-cloak] {
     display: none;
 }
 
-#toolbar {
+#toolbarLeft {
     position: absolute;
     top: 5px;
     left: 2px;
+}
+
+#toolbarRight {
+    position: absolute;
+    top: 5px;
+    right: 2px;
 }
 
 .toolbarSwitches {
