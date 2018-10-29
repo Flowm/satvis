@@ -63,7 +63,7 @@ export class PushManager {
     if (waitMs < 0) {
       return;
     }
-    if (this.timers.some((timer) => timer.date.isSame(date))) {
+    if (this.timers.some((timer) => Math.abs(timer.date.diff(date, "seconds")) < 10)) {
       console.log("Ignore duplicate entry");
       return;
     }
