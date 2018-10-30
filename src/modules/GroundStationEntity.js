@@ -20,20 +20,11 @@ export class GroundStationEntity extends CesiumEntityWrapper {
     this.createGroundStation();
 
     this.viewer.selectedEntityChanged.addEventListener(() => {
-      if (this.isSelected && !this.isTracked) {
+      if (this.isSelected) {
         this.setSelectedOnTickCallback((clock) => {
-          for (let sat of Object.values(this.sats.satellites)) {
+          this.sats.enabledSatellites.forEach((sat) => {
             sat.props.updatePasses(clock.currentTime);
-          }
-        });
-      }
-    });
-    this.viewer.trackedEntityChanged.addEventListener(() => {
-      if (this.isTracked) {
-        this.setTrackedOnTickCallback((clock) => {
-          for (let sat of Object.values(this.sats.satellites)) {
-            sat.props.updatePasses(clock.currentTime);
-          }
+          });
         });
       }
     });
@@ -62,10 +53,10 @@ export class GroundStationEntity extends CesiumEntityWrapper {
 
   passes(time, deltaHours = 48) {
     let passes = [];
-    // Aggregate passes from all satellites
-    for (let sat of Object.values(this.sats.satellites)) {
+    // Aggregate passes from all enabled satellites
+    this.sats.enabledSatellites.forEach((sat) => {
       passes.push(...sat.props.passes);
-    }
+    });
 
     // Filter passes based on time
     passes = passes.filter((pass) => {

@@ -98,10 +98,14 @@ export class SatelliteManager {
   }
 
   get enabledSatellites() {
-    return this.satellites.filter((sat) => sat.enabled).map((sat) => sat.props.name);
+    return this.satellites.filter((sat) => sat.enabled)
   }
 
-  set enabledSatellites(sats) {
+  get enabledSatellitesByName() {
+    return this.enabledSatellites.map((sat) => sat.props.name);
+  }
+
+  set enabledSatellitesByName(sats) {
     this.satellites.forEach((sat) => {
       if (sats.includes(sat.props.name)) {
         sat.show(this.enabledComponents);
@@ -178,7 +182,7 @@ export class SatelliteManager {
     if (index === -1) this.enabledComponents.push(componentName);
 
     this.enabledSatellites.forEach((sat) => {
-      this.getSatellite(sat).enableComponent(componentName);
+      sat.enableComponent(componentName);
     });
   }
 
@@ -187,7 +191,7 @@ export class SatelliteManager {
     if (index !== -1) this.enabledComponents.splice(index, 1);
 
     this.enabledSatellites.forEach((sat) => {
-      this.getSatellite(sat).disableComponent(componentName);
+      sat.disableComponent(componentName);
     });
   }
 

@@ -52,13 +52,13 @@ export default {
       if (newSats.length === 0 && oldSats.length === 0) {
         return;
       }
-      cc.sats.enabledSatellites = newSats;
+      cc.sats.enabledSatellitesByName = newSats;
     }
   },
   methods: {
     update: function() {
       this.data = cc.sats.satlist;
-      this.values = cc.sats.enabledSatellites;
+      this.values = cc.sats.enabledSatellitesByName;
     },
   }
 };
