@@ -181,7 +181,7 @@ export class SatelliteProperties {
       let start = dayjs(pass.start).startOf("second");
       this.pm.notifyAtDate(start.subtract(aheadMin, "minute"), `${pass.name} pass in ${aheadMin} minutes`);
       this.pm.notifyAtDate(start, `${pass.name} pass starting now`);
-      this.pm.notifyAtDate(dayjs().add(5, "second"), `${pass.name} test pass in ${aheadMin} minutes`);
+      //this.pm.notifyAtDate(dayjs().add(5, "second"), `${pass.name} test pass in ${aheadMin} minutes`);
     });
   }
 }
