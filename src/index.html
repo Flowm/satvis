@@ -51,15 +51,15 @@
                 </button>
             </div>
             <div class="toolbarSwitches" v-show="menu.cat">
-                <div class="toolbarTitle">Tracked Satellite</div>
+                <div class="toolbarTitle">Tracked satellite</div>
                 <div class="toolbarContent">
                     <satellite-select />
                 </div>
-                <div class="toolbarTitle">Visible Satellite</div>
+                <div class="toolbarTitle">Enabled satellites</div>
                 <div class="toolbarContent">
                     <satellite-multi-select />
                 </div>
-                <div class="toolbarTitle">Monitored Satellite</div>
+                <div class="toolbarTitle">Monitored satellites</div>
                 <div class="toolbarContent">
                     <satellite-notify-multi-select />
                 </div>
@@ -77,7 +77,7 @@
                 </label>
             </div>
             <div class="toolbarSwitches" v-show="menu.gs">
-                <div class="toolbarTitle">Ground Station</div>
+                <div class="toolbarTitle">Ground station</div>
                 <label class="toolbarSwitch">
                     <input type="checkbox" v-model="groundStationPicker.enabled" />
                     <span class="slider"></span>
@@ -107,7 +107,7 @@
                 </label>
             </div>
             <div class="toolbarSwitches" v-show="menu.ios">
-                <div class="toolbarTitle">Mobile settings</div>
+                <div class="toolbarTitle">Mobile</div>
                 <label class="toolbarSwitch">
                     <input type="checkbox" v-model="cc.viewer.scene.useWebVR" />
                     <span class="slider"></span>
@@ -128,7 +128,7 @@
                 </label>
             </div>
             <div class="toolbarSwitches" v-show="menu.dbg">
-                <div class="toolbarTitle">Debug settings</div>
+                <div class="toolbarTitle">Debug</div>
                 <label class="toolbarSwitch">
                     <input type="checkbox" v-model="cc.viewer.scene.debugShowFramesPerSecond" />
                     <span class="slider"></span>
