@@ -12,6 +12,10 @@ class ViewController: UIViewController {
             webView.load(request)
         }
     }
+
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        return .lightContent
+    }
 }
 
 extension WKWebView {
