@@ -18,7 +18,7 @@
   "license": "MIT",
   "dependencies": {
     "buefy": "^0.7.0",
-    "cesium": "^1.50.0",
+    "cesium": "^1.51.0",
     "cesium-sensor-volumes": "^1.32.0",
     "dayjs": "^1.7.7",
     "jspredict-move2": "^1.0.5",
