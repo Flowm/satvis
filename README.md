@@ -1,6 +1,6 @@
-# SatVis
+# [SatVis.space](https://satvis.space)
 
-Satellite orbit visualization with [CesiumJS](https://cesiumjs.org).
+Satellite orbit visualization and pass prediction.
 
 ![Screenshot](https://user-images.githubusercontent.com/1117666/47623704-f0c3e900-db14-11e8-9cf9-7bf13acb267c.png)
 
@@ -34,3 +34,6 @@ npm install
 
 ## License
 This project is licensed under the MIT License - see `LICENSE` file for details.
+
+## Acknowledgements
+Original version developed for the [MOVE-II CubeSat project](https://www.move2space.de) by Jonathan, Marco and Flo.
