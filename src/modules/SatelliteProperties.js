@@ -33,6 +33,16 @@ export class SatelliteProperties {
     return Cesium.Cartographic.fromCartesian(this.position(time));
   }
 
+  positionCartographicDegrees(time) {
+    const cartographic = this.positionCartographic(time);
+    const cartographicDegrees = {
+      longitude: Cesium.Math.toDegrees(cartographic.longitude),
+      latitude: Cesium.Math.toDegrees(cartographic.latitude),
+      height: cartographic.height,
+    }
+    return cartographicDegrees;
+  }
+
   get height() {
     return this.cartographic.height;
   }
