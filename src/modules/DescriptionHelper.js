@@ -3,7 +3,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);
 
 export class DescriptionHelper {
-  static renderDescription(time, name, position, passes, showPassName) {
+  static renderDescription(time, name, position, passes, isGroundStation) {
     let description = `
       <div class="ib">
         <h3>Position</h3>
@@ -13,7 +13,7 @@ export class DescriptionHelper {
               <th>Name</th>
               <th>Latitude</th>
               <th>Longitude</th>
-              <th>Elevation</th>
+              <th>${isGroundStation ? "Elevation" : "Altitude"}</th>
             </tr>
           </thead>
           <tbody>
@@ -25,7 +25,7 @@ export class DescriptionHelper {
             </tr>
           </tbody>
         </table>
-        ${this.renderPasses(passes, time, showPassName)}
+        ${this.renderPasses(passes, time, isGroundStation)}
       </div>
     `;
     return description;
