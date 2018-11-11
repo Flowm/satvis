@@ -105,7 +105,7 @@ export class SatelliteManager {
   }
 
   get enabledSatellites() {
-    return this.satellites.filter((sat) => sat.enabled)
+    return this.satellites.filter((sat) => sat.enabled);
   }
 
   get enabledSatellitesByName() {

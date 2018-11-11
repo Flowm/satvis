@@ -145,7 +145,7 @@ export class CesiumController {
       let newButton = document.createElement("button");
       newButton.setAttribute("type", "button");
       newButton.setAttribute("class", "cesium-button cesium-infoBox-custom");
-      newButton.innerHTML = '<i class="fas fa-bell"></i>';
+      newButton.innerHTML = "<i class=\"fas fa-bell\"></i>";
       newButton.addEventListener("click", () => {
         this.sats.getSatellite(this.sats.trackedSatellite).props.notifyPasses();
       });

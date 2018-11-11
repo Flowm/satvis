@@ -8,7 +8,7 @@ import SatelliteMultiSelect from "./components/SatelliteMultiSelect.vue";
 import SatelliteNotifyMultiSelect from "./components/SatelliteNotifyMultiSelect.vue";
 import VueCesiumController from "./components/VueCesiumController.js";
 Vue.use(Buefy);
-Vue.use(VueCesiumController);
+Vue.use(VueCesiumController); /* global cc */
 
 import "buefy/dist/buefy.css";
 import "cesium/Widgets/widgets.css";
@@ -21,7 +21,6 @@ import { faGithub } from "@fortawesome/free-brands-svg-icons";
 library.add(faLayerGroup, faGlobeAfrica, faMobileAlt, faHammer, faRedo, faBell, faGithub);
 dom.watch();
 
-/* global cc */
 const app = new Vue({
   el: "#toolbarLeft",
   components: {

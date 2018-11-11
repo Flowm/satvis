@@ -39,7 +39,7 @@ export class SatelliteProperties {
       longitude: Cesium.Math.toDegrees(cartographic.longitude),
       latitude: Cesium.Math.toDegrees(cartographic.latitude),
       height: cartographic.height,
-    }
+    };
     return cartographicDegrees;
   }
 
