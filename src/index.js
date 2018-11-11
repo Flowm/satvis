@@ -82,4 +82,5 @@ cc.sats.addFromTleUrl("data/tle/weather.txt", ["Weather"]);
 
 cc.sats.enableTag("Custom");
 cc.sats.enableTag("Stations");
-//cc.sats.enableTag("Weather");
+cc.sats.enableTag("Weather");
+cc.sats.trackedSatellite = "MOVE-II";

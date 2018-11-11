@@ -52,6 +52,9 @@ export class SatelliteManager {
 
     if (satelliteEntity.props.tags.some(tag => this.enabledTags.includes(tag))) {
       satelliteEntity.show(this.enabledComponents);
+      if (this.pendingTrackedSatellite === satelliteEntity.props.name) {
+        this.trackedSatellite = satelliteEntity.props.name;
+      }
     }
   }
 
@@ -94,6 +97,10 @@ export class SatelliteManager {
     let sat = this.getSatellite(name);
     if (sat) {
       sat.track();
+      this.pendingTrackedSatellite = undefined;
+    } else {
+      // Satellite does not exist (yet)
+      this.pendingTrackedSatellite = name;
     }
   }
 
