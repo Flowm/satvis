@@ -101,6 +101,7 @@ export class SatelliteManager {
     } else {
       // Satellite does not exist (yet)
       this.pendingTrackedSatellite = name;
+      this.viewer.trackedEntity = undefined;
     }
   }
 

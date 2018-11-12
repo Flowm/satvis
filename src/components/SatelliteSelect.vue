@@ -42,6 +42,7 @@ export default {
     values: function(newSat, oldSat) {
       if (newSat.length !== 1) {
         if (oldSat.length === 1) {
+          cc.sats.trackedSatellite = undefined;
           this.$router.replace({'query': null});
         }
         return;
