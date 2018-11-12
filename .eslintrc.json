@@ -19,6 +19,13 @@
     "no-console": "off",
     "quotes": ["error", "double"],
     "semi": ["error", "always"],
-    "vue/no-unused-components": "off"
+    "vue/no-unused-components": "off",
+    "vue/max-attributes-per-line": [2, {
+      "singleline": 4,
+      "multiline": {
+        "max": 1,
+        "allowFirstLine": false
+      }
+    }]
   }
 }

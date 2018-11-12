@@ -1,39 +1,39 @@
 <template>
-  <div class="wrapper">
+  <div class="app">
     <div id="toolbarLeft">
       <div class="toolbarButtons">
-        <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('cat')">
+        <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('cat')">
           <span class="icon fill-parent">
-            <i class="svg-sat"></i>
+            <i class="svg-sat" />
           </span>
         </button>
-        <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('sat')">
+        <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('sat')">
           <span class="icon fill-parent">
-            <i class="fas fa-layer-group fa-2x"></i>
+            <i class="fas fa-layer-group fa-2x" />
           </span>
         </button>
-        <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('gs')">
+        <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('gs')">
           <span class="icon fill-parent">
-            <i class="svg-groundstation"></i>
+            <i class="svg-groundstation" />
           </span>
         </button>
-        <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('map')">
+        <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('map')">
           <span class="icon fill-parent">
-            <i class="fas fa-globe-africa fa-2x"></i>
+            <i class="fas fa-globe-africa fa-2x" />
           </span>
         </button>
-        <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('ios')" v-if="isIOS">
+        <button v-if="isIOS" type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('ios')">
           <span class="icon fill-parent">
-            <i class="fas fa-mobile-alt fa-2x"></i>
+            <i class="fas fa-mobile-alt fa-2x" />
           </span>
         </button>
-        <button type="button" class="cesium-button cesium-toolbar-button" v-on:click="toggleMenu('dbg')">
+        <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('dbg')">
           <span class="icon fill-parent">
-            <i class="fas fa-hammer fa-fw mfa-button-width"></i>
+            <i class="fas fa-hammer fa-fw mfa-button-width" />
           </span>
         </button>
       </div>
-      <div class="toolbarSwitches" v-show="menu.cat">
+      <div v-show="menu.cat" class="toolbarSwitches">
         <div class="toolbarTitle">Tracked satellite</div>
         <div class="toolbarContent">
           <satellite-select />
@@ -47,94 +47,94 @@
           <satellite-notify-multi-select />
         </div>
       </div>
-      <div class="toolbarSwitches" v-show="menu.sat">
+      <div v-show="menu.sat" class="toolbarSwitches">
         <div class="toolbarTitle">Satellite</div>
-        <label class="toolbarSwitch" v-for="componentName in cc.sats.components">
-          <input type="checkbox" :value="componentName" v-model="enabledComponents"/>
-          <span class="slider"></span>
+        <label v-for="componentName in cc.sats.components" :key="componentName" class="toolbarSwitch">
+          <input v-model="enabledComponents" type="checkbox" :value="componentName">
+          <span class="slider" />
           {{ componentName }}
         </label>
         <label class="toolbarSwitch">
-          <input type="button" v-on:click="cc.viewer.trackedEntity = undefined" />
+          <input type="button" @click="cc.viewer.trackedEntity = undefined">
           Untrack Entity
         </label>
       </div>
-      <div class="toolbarSwitches" v-show="menu.gs">
+      <div v-show="menu.gs" class="toolbarSwitches">
         <div class="toolbarTitle">Ground station</div>
         <label class="toolbarSwitch">
-          <input type="checkbox" v-model="groundStationPicker.enabled" />
-          <span class="slider"></span>
+          <input v-model="groundStationPicker.enabled" type="checkbox">
+          <span class="slider" />
           Pick on globe
         </label>
         <label class="toolbarSwitch">
-          <input type="button" v-on:click="cc.setGroundStationFromGeolocation()" />
+          <input type="button" @click="cc.setGroundStationFromGeolocation()">
           Set from geolocation
         </label>
         <label class="toolbarSwitch">
-          <input type="button" v-on:click="cc.sats.focusGroundStation()" />
+          <input type="button" @click="cc.sats.focusGroundStation()">
           Focus
         </label>
       </div>
-      <div class="toolbarSwitches" v-show="menu.map">
+      <div v-show="menu.map" class="toolbarSwitches">
         <div class="toolbarTitle">View</div>
-        <label class="toolbarSwitch" v-for="name in cc.sceneModes">
-          <input type="radio" v-model="sceneMode" :value=name />
-          <span class="slider"></span>
+        <label v-for="name in cc.sceneModes" :key="name" class="toolbarSwitch">
+          <input v-model="sceneMode" type="radio" :value="name">
+          <span class="slider" />
           {{ name }}
         </label>
         <div class="toolbarTitle">Imagery</div>
-        <label class="toolbarSwitch" v-for="(name, key) in cc.imageryProviders">
-          <input type="radio" v-model="imageryProvider" :value=key />
-          <span class="slider"></span>
+        <label v-for="(name, key) in cc.imageryProviders" :key="name" class="toolbarSwitch">
+          <input v-model="imageryProvider" type="radio" :value="key">
+          <span class="slider" />
           {{ name }}
         </label>
       </div>
-      <div class="toolbarSwitches" v-show="menu.ios">
+      <div v-show="menu.ios" class="toolbarSwitches">
         <div class="toolbarTitle">Mobile</div>
         <label class="toolbarSwitch">
-          <input type="checkbox" v-model="cc.viewer.scene.useWebVR" />
-          <span class="slider"></span>
+          <input v-model="cc.viewer.scene.useWebVR" type="checkbox">
+          <span class="slider" />
           VR
         </label>
         <label class="toolbarSwitch">
-          <input type="checkbox" v-model="cc.viewer.clock.shouldAnimate" />
-          <span class="slider"></span>
+          <input v-model="cc.viewer.clock.shouldAnimate" type="checkbox">
+          <span class="slider" />
           Play
         </label>
         <label class="toolbarSwitch">
-          <input type="button" v-on:click="cc.viewer.clockViewModel.multiplier *= 2" />
+          <input type="button" @click="cc.viewer.clockViewModel.multiplier *= 2">
           Increase simulation speed
         </label>
         <label class="toolbarSwitch">
-          <input type="button" v-on:click="cc.viewer.clockViewModel.multiplier /= 2" />
+          <input type="button" @click="cc.viewer.clockViewModel.multiplier /= 2">
           Decrease simulation speed
         </label>
       </div>
-      <div class="toolbarSwitches" v-show="menu.dbg">
+      <div v-show="menu.dbg" class="toolbarSwitches">
         <div class="toolbarTitle">Debug</div>
         <label class="toolbarSwitch">
-          <input type="checkbox" v-model="cc.viewer.scene.debugShowFramesPerSecond" />
-          <span class="slider"></span>
+          <input v-model="cc.viewer.scene.debugShowFramesPerSecond" type="checkbox">
+          <span class="slider" />
           FPS
         </label>
         <label class="toolbarSwitch">
-          <input type="checkbox" v-model="cc.viewer.scene.requestRenderMode" />
-          <span class="slider"></span>
+          <input v-model="cc.viewer.scene.requestRenderMode" type="checkbox">
+          <span class="slider" />
           RequestRender
         </label>
         <label class="toolbarSwitch">
-          <input type="checkbox" v-model="cc.viewer.scene.fog.enabled" />
-          <span class="slider"></span>
+          <input v-model="cc.viewer.scene.fog.enabled" type="checkbox">
+          <span class="slider" />
           Fog
         </label>
         <label class="toolbarSwitch">
-          <input type="checkbox" v-model="cc.viewer.scene.globe.enableLighting" />
-          <span class="slider"></span>
+          <input v-model="cc.viewer.scene.globe.enableLighting" type="checkbox">
+          <span class="slider" />
           Lighting
         </label>
         <label class="toolbarSwitch">
-          <input type="checkbox" v-model="cc.viewer.scene.globe.showGroundAtmosphere" />
-          <span class="slider"></span>
+          <input v-model="cc.viewer.scene.globe.showGroundAtmosphere" type="checkbox">
+          <span class="slider" />
           Atmosphere
         </label>
       </div>
@@ -142,7 +142,7 @@
     <div id="toolbarRight">
       <a class="cesium-button cesium-toolbar-button" href="https://github.com/Flowm/satvis/">
         <span class="icon fill-parent">
-          <i class="fab fa-github fa-2x"></i>
+          <i class="fab fa-github fa-2x" />
         </span>
       </a>
     </div>
@@ -191,7 +191,8 @@ export default {
       isIOS: cc.isIOS,
       groundStationPicker: cc.groundStationPicker,
       enabledComponents: cc.sats.enabledComponents,
-    }},
+    };
+  },
   watch: {
     imageryProvider: function(newProvider) {
       cc.setImageryProvider = newProvider;
