@@ -39,11 +39,15 @@ export default {
     };
   },
   watch: {
-    values: function(newSat) {
+    values: function(newSat, oldSat) {
       if (newSat.length !== 1) {
+        if (oldSat.length === 1) {
+          this.$router.replace({'query': null});
+        }
         return;
       }
       cc.sats.trackedSatellite = newSat[0];
+      this.$router.push({query: {sat: newSat[0]}})
     }
   },
   methods: {

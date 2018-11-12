@@ -22,7 +22,7 @@
             <i class="fas fa-globe-africa fa-2x" />
           </span>
         </button>
-        <button v-if="isIOS" type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('ios')">
+        <button v-if="cc.isIOS" type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('ios')">
           <span class="icon fill-parent">
             <i class="fas fa-mobile-alt fa-2x" />
           </span>
@@ -62,7 +62,7 @@
       <div v-show="menu.gs" class="toolbarSwitches">
         <div class="toolbarTitle">Ground station</div>
         <label class="toolbarSwitch">
-          <input v-model="groundStationPicker.enabled" type="checkbox">
+          <input v-model="cc.groundStationPicker.enabled" type="checkbox">
           <span class="slider" />
           Pick on globe
         </label>
@@ -177,10 +177,13 @@ export default {
       },
       imageryProvider: "offline",
       sceneMode: "3D",
-      isIOS: cc.isIOS,
-      groundStationPicker: cc.groundStationPicker,
       enabledComponents: cc.sats.enabledComponents,
     };
+  },
+  mounted() {
+    if (this.$route.query.sat) {
+      cc.sats.trackedSatellite = this.$route.query.sat;
+    }
   },
   watch: {
     imageryProvider: function(newProvider) {
