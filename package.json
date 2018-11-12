@@ -24,7 +24,8 @@
     "jspredict-move2": "^1.0.5",
     "satellite.js": "^2.0.3",
     "vue": "^2.5.17",
-    "vue-multi-select": "^3.11.1"
+    "vue-multi-select": "^3.11.1",
+    "vue-router": "^3.0.1"
   },
   "devDependencies": {
     "@fortawesome/fontawesome-svg-core": "^1.2.8",
