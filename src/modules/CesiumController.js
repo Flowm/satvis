@@ -169,7 +169,13 @@ export class CesiumController {
       notifyButton.setAttribute("class", "cesium-button cesium-infoBox-custom");
       notifyButton.innerHTML = "<i class=\"fas fa-bell\" />";
       notifyButton.addEventListener("click", () => {
-        this.sats.getSatellite(this.sats.trackedSatellite).props.notifyPasses();
+        if (this.sats.selectedSatellite) {
+          this.sats.getSatellite(this.sats.selectedSatellite).props.notifyPasses();
+        } else if (this.sats.groundStationAvailable && this.sats.groundStation.isSelected) {
+          this.sats.enabledSatellites.forEach((sat) => {
+            sat.props.notifyPasses();
+          });
+        }
       });
       container.appendChild(notifyButton);
 
