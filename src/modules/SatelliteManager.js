@@ -94,7 +94,7 @@ export class SatelliteManager {
         return sat.props.name;
       }
     }
-    return;
+    return "";
   }
 
   get trackedSatellite() {
@@ -103,18 +103,26 @@ export class SatelliteManager {
         return sat.props.name;
       }
     }
-    return;
+    return "";
   }
 
   set trackedSatellite(name) {
+    if (!name) {
+      if (this.trackedSatellite) {
+        this.viewer.trackedEntity = undefined;
+      }
+      return;
+    } else if (name === this.trackedSatellite) {
+      return;
+    }
+
     let sat = this.getSatellite(name);
     if (sat) {
       sat.track();
       this.pendingTrackedSatellite = undefined;
     } else {
-      // Satellite does not exist (yet)
+      // Satellite does not exist (yet?)
       this.pendingTrackedSatellite = name;
-      this.viewer.trackedEntity = undefined;
     }
   }
 
@@ -242,5 +250,10 @@ export class SatelliteManager {
     // Create groundstation entity
     this.groundStation = new GroundStationEntity(this.viewer, this, position);
     this.groundStation.show();
+
+    if (app) {
+      const latlon = `${position.latitude.toFixed(4)},${position.longitude.toFixed(4)}`;
+      app.$router.push({query: {...app.$route.query, gs: latlon}});
+    }
   }
 }

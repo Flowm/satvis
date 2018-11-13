@@ -42,15 +42,17 @@ export default {
   },
   watch: {
     values: function(newSat, oldSat) {
-      if (newSat.every(e => oldSat.includes(e))) {
+      if (newSat.every(e => oldSat.includes(e)) && oldSat.every(e => newSat.includes(e))) {
         return;
       }
       if (newSat.length === 1) {
         cc.sats.trackedSatellite = newSat[0];
-        this.$router.push({query: {sat: newSat[0]}});
+        this.$router.push({query: {...this.$route.query, sat: newSat[0]}});
       } else if (oldSat.length === 1) {
-        cc.sats.trackedSatellite = undefined;
-        this.$router.replace({"query": null});
+        cc.sats.trackedSatellite = "";
+        let query = Object.assign({}, this.$route.query);
+        delete query.sat;
+        this.$router.replace({query});
       }
     }
   },
@@ -66,7 +68,11 @@ export default {
   methods: {
     update: function() {
       this.data = cc.sats.satlist;
-      this.values = [cc.sats.trackedSatellite];
+      if (cc.sats.trackedSatellite) {
+        this.values = [cc.sats.trackedSatellite];
+      } else {
+        this.values = [];
+      }
     },
   }
 };
