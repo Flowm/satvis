@@ -79,7 +79,7 @@ export class SatelliteManager {
   }
 
   get satlist() {
-    let satlist = Object.keys(this.taglist).map((tag) => {
+    let satlist = Object.keys(this.taglist).sort().map((tag) => {
       return {
         name: tag,
         list: this.taglist[tag],
