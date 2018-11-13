@@ -12,16 +12,15 @@ export class PushManager {
       return false;
     }
     switch(Notification.permission) {
-      case "granted":
-        return true;
-        break;
-      case "default":
-        this.requestPermission();
-        return true;
-        break;
-      case "denied":
-        return false;
-        break;
+    case "granted":
+      return true;
+    case "default":
+      this.requestPermission();
+      return true;
+    case "denied":
+      return false;
+    default:
+      return false;
     }
   }
 
