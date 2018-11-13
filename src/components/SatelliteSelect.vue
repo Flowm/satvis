@@ -42,16 +42,26 @@ export default {
   },
   watch: {
     values: function(newSat, oldSat) {
-      if (newSat.length !== 1) {
-        if (oldSat.length === 1) {
-          cc.sats.trackedSatellite = undefined;
-          this.$router.replace({"query": null});
-        }
+      if (newSat.every(e => oldSat.includes(e))) {
         return;
       }
-      cc.sats.trackedSatellite = newSat[0];
-      this.$router.push({query: {sat: newSat[0]}});
+      if (newSat.length === 1) {
+        cc.sats.trackedSatellite = newSat[0];
+        this.$router.push({query: {sat: newSat[0]}});
+      } else if (oldSat.length === 1) {
+        cc.sats.trackedSatellite = undefined;
+        this.$router.replace({"query": null});
+      }
     }
+  },
+  mounted() {
+    if (this.$route.query.sat) {
+      cc.sats.trackedSatellite = this.$route.query.sat;
+    }
+    this.$root.$on("updateTracked", this.update);
+  },
+  beforeDestroy () {
+    this.$root.$off("updateTracked", this.update);
   },
   methods: {
     update: function() {

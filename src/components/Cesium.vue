@@ -199,9 +199,6 @@ export default {
     },
   },
   mounted() {
-    if (this.$route.query.sat) {
-      cc.sats.trackedSatellite = this.$route.query.sat;
-    }
     this.$root.$on("updateCat", this.updateCat);
   },
   beforeDestroy () {

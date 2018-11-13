@@ -1,5 +1,6 @@
 import { SatelliteEntity } from "./SatelliteEntity";
 import { GroundStationEntity } from "./GroundStationEntity";
+/* global app */
 
 export class SatelliteManager {
   constructor(viewer) {
@@ -13,6 +14,9 @@ export class SatelliteManager {
       let trackedSatelliteName = this.trackedSatellite;
       if (trackedSatelliteName) {
         this.getSatellite(trackedSatelliteName).show(this.enabledComponents);
+      }
+      if (app) {
+        app.$emit("updateTracked");
       }
     });
   }
@@ -90,7 +94,7 @@ export class SatelliteManager {
         return sat.props.name;
       }
     }
-    return "";
+    return;
   }
 
   get trackedSatellite() {
@@ -99,7 +103,7 @@ export class SatelliteManager {
         return sat.props.name;
       }
     }
-    return "";
+    return;
   }
 
   set trackedSatellite(name) {
