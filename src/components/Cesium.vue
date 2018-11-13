@@ -181,17 +181,6 @@ export default {
     };
   },
   watch: {
-    menu: {
-      handler(val) {
-        if (val.cat) {
-          // Update multiselect data when it is displayed
-          this.$refs.SatelliteSelect.update();
-          this.$refs.SatelliteMultiSelect.update();
-          this.$refs.SatelliteNotifyMultiSelect.update();
-        }
-      },
-      deep: true
-    },
     imageryProvider: function(newProvider) {
       cc.setImageryProvider = newProvider;
     },
@@ -213,12 +202,26 @@ export default {
     if (this.$route.query.sat) {
       cc.sats.trackedSatellite = this.$route.query.sat;
     }
+    this.$root.$on("updateCat", this.updateCat);
+  },
+  beforeDestroy () {
+    this.$root.$off("updateCat", this.updateCat);
   },
   methods: {
     toggleMenu: function(name) {
       const oldState = this.menu[name];
       Object.keys(this.menu).forEach(k => this.menu[k] = false);
       this.menu[name] = !oldState;
+
+      if (this.menu.cat) {
+        // Update multiselect data when it is displayed
+        this.updateCat();
+      }
+    },
+    updateCat: function() {
+      this.$refs.SatelliteSelect.update();
+      this.$refs.SatelliteMultiSelect.update();
+      this.$refs.SatelliteNotifyMultiSelect.update();
     },
   },
 };
