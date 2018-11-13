@@ -36,15 +36,15 @@
       <div v-show="menu.cat" class="toolbarSwitches">
         <div class="toolbarTitle">Tracked satellite</div>
         <div class="toolbarContent">
-          <satellite-select />
+          <satellite-select ref="SatelliteSelect" />
         </div>
         <div class="toolbarTitle">Enabled satellites</div>
         <div class="toolbarContent">
-          <satellite-multi-select />
+          <satellite-multi-select ref="SatelliteMultiSelect" />
         </div>
         <div class="toolbarTitle">Monitored satellites</div>
         <div class="toolbarContent">
-          <satellite-notify-multi-select />
+          <satellite-notify-multi-select ref="SatelliteNotifyMultiSelect" />
         </div>
       </div>
       <div v-show="menu.sat" class="toolbarSwitches">
@@ -180,12 +180,18 @@ export default {
       enabledComponents: cc.sats.enabledComponents,
     };
   },
-  mounted() {
-    if (this.$route.query.sat) {
-      cc.sats.trackedSatellite = this.$route.query.sat;
-    }
-  },
   watch: {
+    menu: {
+      handler(val) {
+        if (val.cat) {
+          // Update multiselect data when it is displayed
+          this.$refs.SatelliteSelect.update();
+          this.$refs.SatelliteMultiSelect.update();
+          this.$refs.SatelliteNotifyMultiSelect.update();
+        }
+      },
+      deep: true
+    },
     imageryProvider: function(newProvider) {
       cc.setImageryProvider = newProvider;
     },
@@ -202,6 +208,11 @@ export default {
         cc.sats.disableComponent(component);
       }
     },
+  },
+  mounted() {
+    if (this.$route.query.sat) {
+      cc.sats.trackedSatellite = this.$route.query.sat;
+    }
   },
   methods: {
     toggleMenu: function(name) {

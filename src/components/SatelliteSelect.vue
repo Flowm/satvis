@@ -8,6 +8,7 @@
       :select-options="data"
       :btn-label="btnLabel"
     />
+    <!--
     <button
       class="button"
       @click="update"
@@ -16,6 +17,7 @@
         <i class="fas fa-redo" />
       </span>
     </button>
+    -->
   </div>
 </template>
 
@@ -43,12 +45,12 @@ export default {
       if (newSat.length !== 1) {
         if (oldSat.length === 1) {
           cc.sats.trackedSatellite = undefined;
-          this.$router.replace({'query': null});
+          this.$router.replace({"query": null});
         }
         return;
       }
       cc.sats.trackedSatellite = newSat[0];
-      this.$router.push({query: {sat: newSat[0]}})
+      this.$router.push({query: {sat: newSat[0]}});
     }
   },
   methods: {

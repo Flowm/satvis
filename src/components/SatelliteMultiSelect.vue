@@ -9,6 +9,7 @@
       :select-options="data"
       :btn-label="btnLabel"
     />
+    <!--
     <button
       class="button"
       @click="update"
@@ -17,6 +18,7 @@
         <i class="fas fa-redo" />
       </span>
     </button>
+    -->
   </div>
 </template>
 
