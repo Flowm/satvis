@@ -110,7 +110,6 @@ input:checked + .slider::before {
 }
 
 .cesium-infoBox {
-    /*right: 5px;*/
     width: calc(100% - 10px);
     max-width: 540px;
     margin-left: 5px;
@@ -129,17 +128,23 @@ input:checked + .slider::before {
     margin-right: 0px;
 }
 
-.cesium-infoBox-custom {
-    background: transparent;
-    border-color: transparent;
-    border-radius: 3px;
-    display: block;
-    font-size: 18px;
-    height: 22px;
-    left: 30px;
-    margin: 0;
-    padding: 0;
+.cesium-infoBox-container {
+    float: left;
     position: absolute;
     top: 4px;
+    left: 30px;
+    height: 22px;
+    margin: 0;
+    padding: 0;
+}
+
+.cesium-infoBox-custom {
+    background: transparent;
+    border: 1px solid transparent;
+    display: inline-block;
+    font-size: 16px;
+    height: 22px;
     width: 22px;
+    padding: 0px;
+    margin: 0px 3px;
 }

@@ -84,6 +84,15 @@ export class SatelliteManager {
     return satlist;
   }
 
+  get selectedSatellite() {
+    for (let sat of this.satellites) {
+      if (sat.isSelected) {
+        return sat.props.name;
+      }
+    }
+    return "";
+  }
+
   get trackedSatellite() {
     for (let sat of this.satellites) {
       if (sat.isTracked) {

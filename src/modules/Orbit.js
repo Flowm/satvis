@@ -8,6 +8,10 @@ export class Orbit {
     this.satrec = satellitejs.twoline2satrec(this.tle[1], this.tle[2]);
   }
 
+  get satnum() {
+    return this.satrec.satnum;
+  }
+
   computeGeodeticPosition(timestamp) {
     const positionEci = satellitejs.propagate(this.satrec, timestamp).position;
     const gmst = satellitejs.gstime(timestamp);

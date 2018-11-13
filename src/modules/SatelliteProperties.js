@@ -10,6 +10,7 @@ export class SatelliteProperties {
       this.name = this.name.substring(2);
     }
     this.orbit = new Orbit(tle);
+    this.satnum = this.orbit.satnum;
     this.tags = tags;
 
     this.groundStationPosition = undefined;

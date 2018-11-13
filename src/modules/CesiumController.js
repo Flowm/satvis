@@ -139,17 +139,38 @@ export class CesiumController {
   }
 
   styleInfoBox() {
-    const container = this.viewer.infoBox.container.getElementsByClassName("cesium-infoBox")[0];
+    const infoBox = this.viewer.infoBox.container.getElementsByClassName("cesium-infoBox")[0];
     const close = this.viewer.infoBox.container.getElementsByClassName("cesium-infoBox-close")[0];
-    if (container && close) {
-      let newButton = document.createElement("button");
-      newButton.setAttribute("type", "button");
-      newButton.setAttribute("class", "cesium-button cesium-infoBox-custom");
-      newButton.innerHTML = "<i class=\"fas fa-bell\"></i>";
-      newButton.addEventListener("click", () => {
+    if (infoBox && close) {
+      // Container for additional buttons
+      let container = document.createElement("div");
+      container.setAttribute("class", "cesium-infoBox-container");
+      infoBox.insertBefore(container, close);
+
+      // Notify button
+      let notifyButton = document.createElement("button");
+      notifyButton.setAttribute("type", "button");
+      notifyButton.setAttribute("class", "cesium-button cesium-infoBox-custom");
+      notifyButton.innerHTML = "<i class=\"fas fa-bell\" />";
+      notifyButton.addEventListener("click", () => {
         this.sats.getSatellite(this.sats.trackedSatellite).props.notifyPasses();
       });
-      container.insertBefore(newButton, close);
+      container.appendChild(notifyButton);
+
+      // Info button
+      let infoButton = document.createElement("button");
+      infoButton.setAttribute("type", "button");
+      infoButton.setAttribute("class", "cesium-button cesium-infoBox-custom");
+      infoButton.innerHTML = "<i class=\"fas fa-info\" />";
+      infoButton.addEventListener("click", () => {
+        if (!this.sats.selectedSatellite) {
+          return;
+        }
+        const satnum = this.sats.getSatellite(this.sats.selectedSatellite).props.satnum;
+        const url = "https://www.n2yo.com/satellite/?s=" + satnum;
+        window.open(url, '_blank');
+      });
+      container.appendChild(infoButton);
     }
 
     const frame = this.viewer.infoBox.frame;
