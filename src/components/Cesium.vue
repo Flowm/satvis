@@ -199,6 +199,9 @@ export default {
     },
   },
   mounted() {
+    if (this.$route.query.gs) {
+      cc.setGroundStationFromLatLon(this.$route.query.gs);
+    }
     this.$root.$on("updateCat", this.updateCat);
   },
   beforeDestroy () {

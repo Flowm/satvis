@@ -138,6 +138,22 @@ export class CesiumController {
     });
   }
 
+  setGroundStationFromLatLon(latlon) {
+    let [latitude, longitude, height] = latlon.split(",");
+    if (!latitude || !longitude) {
+      return;
+    }
+    const coordinates = {};
+    coordinates.longitude = parseFloat(longitude);
+    coordinates.latitude = parseFloat(latitude);
+    coordinates.height = 0;
+    if (height) {
+      coordinates.height = parseFloat(height);
+    }
+    coordinates.cartesian = Cesium.Cartesian3.fromDegrees(coordinates.longitude, coordinates.latitude, coordinates.height);
+    this.sats.setGroundStation(coordinates);
+  }
+
   styleInfoBox() {
     const infoBox = this.viewer.infoBox.container.getElementsByClassName("cesium-infoBox")[0];
     const close = this.viewer.infoBox.container.getElementsByClassName("cesium-infoBox-close")[0];

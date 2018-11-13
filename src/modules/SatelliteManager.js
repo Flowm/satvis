@@ -15,7 +15,7 @@ export class SatelliteManager {
       if (trackedSatelliteName) {
         this.getSatellite(trackedSatelliteName).show(this.enabledComponents);
       }
-      if (app) {
+      if ("app" in window) {
         app.$emit("updateTracked");
       }
     });
@@ -52,6 +52,9 @@ export class SatelliteManager {
       return;
     }
     satelliteEntity.createEntities();
+    if (this.groundStationAvailable) {
+      satelliteEntity.groundStation = this.groundStation.position;
+    }
     this.satellites.push(satelliteEntity);
 
     if (satelliteEntity.props.tags.some(tag => this.enabledTags.includes(tag))) {
@@ -242,16 +245,16 @@ export class SatelliteManager {
       position.height = 0;
     }
 
-    // Set groundstation for all satellites
-    this.satellites.forEach((sat) => {
-      sat.groundStation = position;
-    });
-
     // Create groundstation entity
     this.groundStation = new GroundStationEntity(this.viewer, this, position);
     this.groundStation.show();
 
-    if (app) {
+    // Set groundstation for all satellites
+    this.satellites.forEach((sat) => {
+      sat.groundStation = this.groundStation.position;
+    });
+
+    if ("app" in window) {
       const latlon = `${position.latitude.toFixed(4)},${position.longitude.toFixed(4)}`;
       app.$router.push({query: {...app.$route.query, gs: latlon}});
     }
