@@ -78,10 +78,15 @@ export class PushManager {
       console.log("Ignore duplicate entry");
       return;
     }
-    console.log(`Notify "${message}" at ${date}s`);
+    console.log(`Notify "${message}" at ${date}s ${dayjs(date).unix()}`);
 
     if ("webkit" in window) {
-      window.webkit.messageHandlers.iosNotify.postMessage({delay: waitMs/1000, message: message});
+      let content = {
+        date: dayjs(date).unix(),
+        delay: waitMs/1000,
+        message: message,
+      }
+      window.webkit.messageHandlers.iosNotify.postMessage(content);
     } else {
       let id = setTimeout(() => { this.persistentNotification(message, options); }, waitMs);
       this.timers.push({
