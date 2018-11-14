@@ -12,10 +12,10 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) {
             (granted, error) in
             guard error == nil else {
-                NSLog("UNUserNotificationCenter ERR: \(String(describing: error))")
+                NSLog("NotificationManager: ERROR \(String(describing: error))")
                 return
             }
-            NSLog("UNUserNotificationCenter: Permission granted \(granted)")
+            NSLog("NotificationManager: Permission granted \(granted)")
             guard granted else {
                 return
             }
