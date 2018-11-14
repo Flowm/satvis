@@ -51,11 +51,11 @@ export class CesiumEntityWrapper {
   }
 
   get isSelected() {
-    return this.viewer.selectedEntity === this.defaultEntity;
+    return Object.values(this.entities).some(entity => this.viewer.selectedEntity === entity);
   }
 
   get isTracked() {
-    return this.viewer.trackedEntity === this.defaultEntity;
+    return Object.values(this.entities).some(entity => this.viewer.trackedEntity === entity);
   }
 
   track(animate = false) {
