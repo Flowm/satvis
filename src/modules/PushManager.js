@@ -7,6 +7,9 @@ export class PushManager {
   }
 
   get available() {
+    if ("webkit" in window) {
+      return true;
+    }
     if (!("Notification" in window) || !("ServiceWorkerRegistration" in window)) {
       console.log("Notification API not supported!");
       return false;
@@ -77,11 +80,15 @@ export class PushManager {
     }
     console.log(`Notify "${message}" at ${date}s`);
 
-    let id = setTimeout(() => { this.persistentNotification(message, options); }, waitMs);
-    this.timers.push({
-      id: id,
-      date: date,
-      message: message,
-    });
+    if ("webkit" in window) {
+      window.webkit.messageHandlers.iosNotify.postMessage({delay: waitMs/1000, message: message});
+    } else {
+      let id = setTimeout(() => { this.persistentNotification(message, options); }, waitMs);
+      this.timers.push({
+        id: id,
+        date: date,
+        message: message,
+      });
+    }
   }
 }
