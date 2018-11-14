@@ -26,14 +26,16 @@ extension ViewController: WKScriptMessageHandler {
             guard let dict = message.body as? Dictionary<String, Any> else {
                 return
             }
-            guard let body = dict["message"] as? String, let delay = dict["delay"] as? Double else {
+            guard let body = dict["message"] as? String,
+                let delay = dict["delay"] as? Double,
+                let date = dict["date"] as? Int else {
                 return
             }
-            NSLog("NOTIFY: \(body) in \(delay)s")
+            NSLog("NOTIFY: \(date) \(body) in \(delay)s")
             AppDelegate.shared().notificationManager.triggerNotification(title: "Satvis",
                                                                          body: body,
                                                                          timeInterval: delay,
-                                                                         indentifier: body)
+                                                                         indentifier: "\(date) \(body)")
         }
     }
 }
