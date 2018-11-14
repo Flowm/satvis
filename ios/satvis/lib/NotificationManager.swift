@@ -50,6 +50,14 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         completionHandler([.alert, .sound])
     }
 
+    func printPendingNotifications() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests(completionHandler: { requests in
+            for request in requests {
+                print(request)
+            }
+        })
+    }
+
     func clearNotifications(clearPending: Bool = true) {
         UIApplication.shared.applicationIconBadgeNumber = 0
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
