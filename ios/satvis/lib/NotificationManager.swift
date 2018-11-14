@@ -27,13 +27,18 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    func triggerNotification(title: String, body: String, timeInterval: Double, categoryIdentifier: String, indentifier: String) {
+    func triggerNotification(title: String,
+                             body: String,
+                             badge: Bool = false,
+                             timeInterval: Double,
+                             indentifier: String) {
         let content = UNMutableNotificationContent()
-        content.title = NSString.localizedUserNotificationString(forKey: title, arguments: nil)
-        content.body = NSString.localizedUserNotificationString(forKey: body, arguments: nil)
+        content.title = title
+        content.body = body
         content.sound = UNNotificationSound.default
-        content.badge = NSNumber(integerLiteral: UIApplication.shared.applicationIconBadgeNumber + 1);
-        content.categoryIdentifier = categoryIdentifier
+        if (badge) {
+            content.badge = NSNumber(integerLiteral: UIApplication.shared.applicationIconBadgeNumber + 1)
+        }
         let trigger = UNTimeIntervalNotificationTrigger.init(timeInterval: timeInterval, repeats: false)
         let request = UNNotificationRequest.init(identifier: indentifier, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request)
@@ -45,9 +50,11 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         completionHandler([.alert, .sound])
     }
 
-    func clearNotifications() {
+    func clearNotifications(clearPending: Bool = true) {
         UIApplication.shared.applicationIconBadgeNumber = 0
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
-        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        if (clearPending) {
+            UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        }
     }
 }
