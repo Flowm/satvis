@@ -1,6 +1,6 @@
 <template>
   <div class="cesium">
-    <div id="toolbarLeft">
+    <div v-if="showUI" id="toolbarLeft">
       <div class="toolbarButtons">
         <b-tooltip label="Satellite selection" position="is-right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('cat')">
@@ -154,12 +154,19 @@
       </div>
     </div>
     <div id="toolbarRight">
-      <b-tooltip label="Github" position="is-left">
+      <b-tooltip v-if="showUI" label="Github" position="is-left">
         <a class="cesium-button cesium-toolbar-button" href="https://github.com/Flowm/satvis/">
           <span class="icon fill-parent">
             <i class="fab fa-github fa-2x"></i>
           </span>
         </a>
+      </b-tooltip>
+      <b-tooltip label="Toggle UI" position="is-left">
+        <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleUI">
+          <span class="icon fill-parent">
+            <i class="fas fa-eye fa-2x"></i>
+          </span>
+        </button>
       </b-tooltip>
     </div>
   </div>
@@ -191,6 +198,7 @@ export default {
         ios: false,
         dbg: false,
       },
+      showUI: true,
       imageryProvider: "offline",
       sceneMode: "3D",
       enabledComponents: cc.sats.enabledComponents,
@@ -233,6 +241,12 @@ export default {
       if (this.menu.cat) {
         // Update multiselect data when it is displayed
         this.updateCat();
+      }
+    },
+    toggleUI: function() {
+      this.showUI = !this.showUI;
+      if (!cc.isIOS) {
+        cc.showUI = this.showUI;
       }
     },
     updateCat: function() {

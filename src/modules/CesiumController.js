@@ -44,6 +44,11 @@ export class CesiumController {
 
     // Create Satellite Manager
     this.sats = new SatelliteManager(this.viewer);
+
+    // Fix Cesium logo on ios fullscreen
+    if (this.isIOS) {
+      setTimeout(() => { this.fixLogoIOS(); }, 1000);
+    }
   }
 
   set setSceneMode(sceneMode) {
@@ -175,6 +180,11 @@ export class CesiumController {
 
   get showUI() {
     return this.viewer._timeline.container.style.visibility !== "hidden";
+  }
+
+  fixLogoIOS() {
+    this.viewer._bottomContainer.style.left = "5px";
+    this.viewer._bottomContainer.style.bottom = "20px";
   }
 
   styleInfoBox() {
