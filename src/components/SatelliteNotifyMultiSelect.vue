@@ -51,7 +51,7 @@ export default {
   },
   watch: {
     values: function(newSats, oldSats) {
-      if (newSats.every(e => oldSats.includes(e))) {
+      if (newSats.every(e => oldSats.includes(e)) && oldSats.every(e => newSats.includes(e))) {
         return;
       }
       cc.sats.monitoredSatellites = newSats;
