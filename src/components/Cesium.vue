@@ -4,32 +4,32 @@
       <div class="toolbarButtons">
         <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('cat')">
           <span class="icon fill-parent">
-            <i class="svg-sat" />
+            <i class="svg-sat"></i>
           </span>
         </button>
         <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('sat')">
           <span class="icon fill-parent">
-            <i class="fas fa-layer-group fa-2x" />
+            <i class="fas fa-layer-group fa-2x"></i>
           </span>
         </button>
         <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('gs')">
           <span class="icon fill-parent">
-            <i class="svg-groundstation" />
+            <i class="svg-groundstation"></i>
           </span>
         </button>
         <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('map')">
           <span class="icon fill-parent">
-            <i class="fas fa-globe-africa fa-2x" />
+            <i class="fas fa-globe-africa fa-2x"></i>
           </span>
         </button>
         <button v-if="cc.isIOS" type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('ios')">
           <span class="icon fill-parent">
-            <i class="fas fa-mobile-alt fa-2x" />
+            <i class="fas fa-mobile-alt fa-2x"></i>
           </span>
         </button>
         <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('dbg')">
           <span class="icon fill-parent">
-            <i class="fas fa-hammer fa-fw mfa-button-width" />
+            <i class="fas fa-hammer fa-fw mfa-button-width"></i>
           </span>
         </button>
       </div>
@@ -51,7 +51,7 @@
         <div class="toolbarTitle">Satellite</div>
         <label v-for="componentName in cc.sats.components" :key="componentName" class="toolbarSwitch">
           <input v-model="enabledComponents" type="checkbox" :value="componentName">
-          <span class="slider" />
+          <span class="slider"></span>
           {{ componentName }}
         </label>
         <label class="toolbarSwitch">
@@ -63,7 +63,7 @@
         <div class="toolbarTitle">Ground station</div>
         <label class="toolbarSwitch">
           <input v-model="cc.groundStationPicker.enabled" type="checkbox">
-          <span class="slider" />
+          <span class="slider"></span>
           Pick on globe
         </label>
         <label class="toolbarSwitch">
@@ -79,13 +79,13 @@
         <div class="toolbarTitle">View</div>
         <label v-for="name in cc.sceneModes" :key="name" class="toolbarSwitch">
           <input v-model="sceneMode" type="radio" :value="name">
-          <span class="slider" />
+          <span class="slider"></span>
           {{ name }}
         </label>
         <div class="toolbarTitle">Imagery</div>
         <label v-for="(name, key) in cc.imageryProviders" :key="name" class="toolbarSwitch">
           <input v-model="imageryProvider" type="radio" :value="key">
-          <span class="slider" />
+          <span class="slider"></span>
           {{ name }}
         </label>
       </div>
@@ -93,12 +93,12 @@
         <div class="toolbarTitle">Mobile</div>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.useWebVR" type="checkbox">
-          <span class="slider" />
+          <span class="slider"></span>
           VR
         </label>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.clock.shouldAnimate" type="checkbox">
-          <span class="slider" />
+          <span class="slider"></span>
           Play
         </label>
         <label class="toolbarSwitch">
@@ -114,27 +114,27 @@
         <div class="toolbarTitle">Debug</div>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.debugShowFramesPerSecond" type="checkbox">
-          <span class="slider" />
+          <span class="slider"></span>
           FPS
         </label>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.requestRenderMode" type="checkbox">
-          <span class="slider" />
+          <span class="slider"></span>
           RequestRender
         </label>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.fog.enabled" type="checkbox">
-          <span class="slider" />
+          <span class="slider"></span>
           Fog
         </label>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.globe.enableLighting" type="checkbox">
-          <span class="slider" />
+          <span class="slider"></span>
           Lighting
         </label>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.globe.showGroundAtmosphere" type="checkbox">
-          <span class="slider" />
+          <span class="slider"></span>
           Atmosphere
         </label>
       </div>
@@ -142,7 +142,7 @@
     <div id="toolbarRight">
       <a class="cesium-button cesium-toolbar-button" href="https://github.com/Flowm/satvis/">
         <span class="icon fill-parent">
-          <i class="fab fa-github fa-2x" />
+          <i class="fab fa-github fa-2x"></i>
         </span>
       </a>
     </div>

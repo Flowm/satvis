@@ -85,7 +85,7 @@ export class PushManager {
         date: dayjs(date).unix(),
         delay: waitMs/1000,
         message: message,
-      }
+      };
       window.webkit.messageHandlers.iosNotify.postMessage(content);
     } else {
       let id = setTimeout(() => { this.persistentNotification(message, options); }, waitMs);

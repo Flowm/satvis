@@ -96,7 +96,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
 
   createModel() {
     const model = new Cesium.ModelGraphics({
-      uri: "./data/models/" + this.props.name.split(' ').join('_') + ".glb",
+      uri: "./data/models/" + this.props.name.split(" ").join("_") + ".glb",
     });
     this.createCesiumSatelliteEntity("Model", "model", model);
   }

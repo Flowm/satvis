@@ -26,6 +26,15 @@
         "max": 1,
         "allowFirstLine": false
       }
+    }],
+    "vue/html-self-closing": ["error", {
+      "html": {
+        "void": "never",
+        "normal": "never",
+        "component": "always"
+      },
+      "svg": "always",
+      "math": "always"
     }]
   }
 }
