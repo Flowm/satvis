@@ -74,7 +74,7 @@
       <div v-show="menu.gs" class="toolbarSwitches">
         <div class="toolbarTitle">Ground station</div>
         <label class="toolbarSwitch">
-          <input v-model="cc.groundStationPicker.enabled" type="checkbox">
+          <input v-model="groundStationPicker.enabled" type="checkbox">
           <span class="slider"></span>
           Pick on globe
         </label>
@@ -192,6 +192,7 @@ export default {
       imageryProvider: "offline",
       sceneMode: "3D",
       enabledComponents: cc.sats.enabledComponents,
+      groundStationPicker: cc.groundStationPicker,
     };
   },
   watch: {
