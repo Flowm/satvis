@@ -2,6 +2,7 @@ import Cesium from "Cesium";
 import dayjs from "dayjs";
 import { Orbit } from "./Orbit";
 import { PushManager } from "./PushManager";
+import { Toast } from "buefy/dist/components/toast";
 
 export class SatelliteProperties {
   constructor(tle, tags = []) {
@@ -185,6 +186,12 @@ export class SatelliteProperties {
   notifyPasses(aheadMin = 5) {
     let passes = this.computePasses(dayjs().toDate(), dayjs().add(7, "day").toDate());
     if (!passes) {
+      Toast.open({
+        message: `No passes for ${this.name}`,
+        type: "is-warning",
+        position: "is-bottom",
+        duration: 4000,
+      });
       return;
     }
 
@@ -193,6 +200,12 @@ export class SatelliteProperties {
       this.pm.notifyAtDate(start.subtract(aheadMin, "minute"), `${pass.name} pass in ${aheadMin} minutes`);
       this.pm.notifyAtDate(start, `${pass.name} pass starting now`);
       //this.pm.notifyAtDate(dayjs().add(5, "second"), `${pass.name} test pass in ${aheadMin} minutes`);
+    });
+    Toast.open({
+      message: `Notifying for passes of ${this.name}`,
+      type: "is-success",
+      position: "is-bottom",
+      duration: 4000,
     });
   }
 }

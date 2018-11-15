@@ -2,36 +2,48 @@
   <div class="cesium">
     <div id="toolbarLeft">
       <div class="toolbarButtons">
-        <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('cat')">
-          <span class="icon fill-parent">
-            <i class="svg-sat"></i>
-          </span>
-        </button>
-        <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('sat')">
-          <span class="icon fill-parent">
-            <i class="fas fa-layer-group fa-2x"></i>
-          </span>
-        </button>
-        <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('gs')">
-          <span class="icon fill-parent">
-            <i class="svg-groundstation"></i>
-          </span>
-        </button>
-        <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('map')">
-          <span class="icon fill-parent">
-            <i class="fas fa-globe-africa fa-2x"></i>
-          </span>
-        </button>
-        <button v-if="cc.isIOS" type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('ios')">
-          <span class="icon fill-parent">
-            <i class="fas fa-mobile-alt fa-2x"></i>
-          </span>
-        </button>
-        <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('dbg')">
-          <span class="icon fill-parent">
-            <i class="fas fa-hammer fa-fw mfa-button-width"></i>
-          </span>
-        </button>
+        <b-tooltip label="Satellite selection" position="is-right">
+          <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('cat')">
+            <span class="icon fill-parent">
+              <i class="svg-sat"></i>
+            </span>
+          </button>
+        </b-tooltip>
+        <b-tooltip label="Satellite elements" position="is-right">
+          <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('sat')">
+            <span class="icon fill-parent">
+              <i class="fas fa-layer-group fa-2x"></i>
+            </span>
+          </button>
+        </b-tooltip>
+        <b-tooltip label="Groundstation" position="is-right">
+          <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('gs')">
+            <span class="icon fill-parent">
+              <i class="svg-groundstation"></i>
+            </span>
+          </button>
+        </b-tooltip>
+        <b-tooltip label="Map" position="is-right">
+          <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('map')">
+            <span class="icon fill-parent">
+              <i class="fas fa-globe-africa fa-2x"></i>
+            </span>
+          </button>
+        </b-tooltip>
+        <b-tooltip v-if="cc.isIOS" label="Mobile" position="is-right">
+          <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('ios')">
+            <span class="icon fill-parent">
+              <i class="fas fa-mobile-alt fa-2x"></i>
+            </span>
+          </button>
+        </b-tooltip>
+        <b-tooltip label="Debug" position="is-right">
+          <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('dbg')">
+            <span class="icon fill-parent">
+              <i class="fas fa-hammer fa-fw mfa-button-width"></i>
+            </span>
+          </button>
+        </b-tooltip>
       </div>
       <div v-show="menu.cat" class="toolbarSwitches">
         <div class="toolbarTitle">Tracked satellite</div>
@@ -140,11 +152,13 @@
       </div>
     </div>
     <div id="toolbarRight">
-      <a class="cesium-button cesium-toolbar-button" href="https://github.com/Flowm/satvis/">
-        <span class="icon fill-parent">
-          <i class="fab fa-github fa-2x"></i>
-        </span>
-      </a>
+      <b-tooltip label="Github" position="is-left">
+        <a class="cesium-button cesium-toolbar-button" href="https://github.com/Flowm/satvis/">
+          <span class="icon fill-parent">
+            <i class="fab fa-github fa-2x"></i>
+          </span>
+        </a>
+      </b-tooltip>
     </div>
   </div>
 </template>
