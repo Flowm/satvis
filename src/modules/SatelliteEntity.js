@@ -39,14 +39,14 @@ export class SatelliteEntity extends CesiumEntityWrapper {
 
     this.entities = {};
     this.createPoint();
-    this.createBox();
-    this.createModel();
+    //this.createBox();
     this.createLabel();
     this.createOrbit();
     if (this.props.positionCartographic(this.viewer.clock.currentTime).height < 10000000) {
       this.createGroundTrack();
       this.createCone();
     }
+    this.createModel();
     this.defaultEntity = this.entities["Point"];
 
     this.viewer.selectedEntityChanged.addEventListener(() => {
@@ -98,7 +98,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     const model = new Cesium.ModelGraphics({
       uri: "./data/models/" + this.props.name.split(" ").join("_") + ".glb",
     });
-    this.createCesiumSatelliteEntity("Model", "model", model);
+    this.createCesiumSatelliteEntity("3D model", "model", model);
   }
 
   createLabel() {
@@ -121,19 +121,19 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       resolution: 600,
       width: 5,
     });
-    this.createCesiumSatelliteEntity("Orbit", "path", path);
+    this.createCesiumSatelliteEntity("Orbit track", "path", path);
   }
 
   createGroundTrack() {
     const polyline = new Cesium.PolylineGraphics({
-      material: Cesium.Color.YELLOW.withAlpha(0.1),
+      material: Cesium.Color.GOLD.withAlpha(0.1),
       positions: new Cesium.CallbackProperty((time) => {
         return this.props.groundTrack(time);
       }),
       followSurface: false,
       width: 10,
     });
-    this.createCesiumSatelliteEntity("Ground", "polyline", polyline);
+    this.createCesiumSatelliteEntity("Ground track", "polyline", polyline);
   }
 
   createCone(fov = 10) {
@@ -155,7 +155,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       intersectionColor: Cesium.Color.GOLD.withAlpha(0.3),
       intersectionWidth: 1,
     });
-    this.entities["Cone"] = cone;
+    this.entities["Sensor cone"] = cone;
   }
 
   createGroundStationLink() {
@@ -176,7 +176,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       }),
       width: 5,
     });
-    this.createCesiumSatelliteEntity("GroundStationLink", "polyline", polyline);
+    this.createCesiumSatelliteEntity("Ground station link", "polyline", polyline);
   }
 
   set groundStation(position) {

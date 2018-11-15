@@ -16,7 +16,7 @@
             </span>
           </button>
         </b-tooltip>
-        <b-tooltip label="Groundstation" position="is-right">
+        <b-tooltip label="Ground station" position="is-right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('gs')">
             <span class="icon fill-parent">
               <i class="svg-groundstation"></i>
@@ -60,16 +60,18 @@
         </div>
       </div>
       <div v-show="menu.sat" class="toolbarSwitches">
-        <div class="toolbarTitle">Satellite</div>
+        <div class="toolbarTitle">Satellite elements</div>
         <label v-for="componentName in cc.sats.components" :key="componentName" class="toolbarSwitch">
           <input v-model="enabledComponents" type="checkbox" :value="componentName">
           <span class="slider"></span>
           {{ componentName }}
         </label>
+        <!--
         <label class="toolbarSwitch">
           <input type="button" @click="cc.viewer.trackedEntity = undefined">
           Untrack Entity
         </label>
+        -->
       </div>
       <div v-show="menu.gs" class="toolbarSwitches">
         <div class="toolbarTitle">Ground station</div>

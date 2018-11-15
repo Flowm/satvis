@@ -32,7 +32,7 @@ export class CesiumController {
     // CesiumController config
     this.imageryProviders = {
       offline: "Offline",
-      offlinehighres: "Offline Highres",
+      offlinehighres: "Offline highres",
       arcgis: "ArcGis",
       osm: "OSM",
     };
