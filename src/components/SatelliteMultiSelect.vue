@@ -80,7 +80,7 @@ export default {
 }
 
 .wrapper .select .checkboxLayer {
-    width: 400px;
+    width: 450px;
     max-width: calc(100vw - 20px);
 }
 
