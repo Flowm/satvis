@@ -56,11 +56,21 @@ export class SatelliteProperties {
     }
 
     this.lastDate = julianDate;
-    const {longitude, latitude, height} = this.orbit.computeGeodeticPosition(Cesium.JulianDate.toDate(julianDate));
+    const {longitude, latitude, height} = this.orbit.positionGeodetic(Cesium.JulianDate.toDate(julianDate));
     this.lastPosition = new Cesium.Cartesian3.fromRadians(longitude, latitude, height);
     //console.log(`TS ${julianDate} POS ${this.lastPosition}`);
 
     return this.lastPosition;
+  }
+
+  positionInertial(time, constprop = false) {
+    const eci = this.orbit.positionECI(Cesium.JulianDate.toDate(time));
+    const position = new Cesium.Cartesian3(eci.x*1000, eci.y*1000, eci.z*1000);
+    if (constprop) {
+      return new Cesium.ConstantPositionProperty(position, Cesium.ReferenceFrame.INERTIAL);
+    } else {
+      return position;
+    }
   }
 
   createSampledPosition(clock, callback) {
@@ -84,6 +94,14 @@ export class SatelliteProperties {
       interpolationAlgorithm : Cesium.HermitePolynomialApproximation
     });
 
+    const sampledPositionInertial = new Cesium.SampledPositionProperty(Cesium.ReferenceFrame.INERTIAL);
+    sampledPositionInertial.backwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
+    sampledPositionInertial.forwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
+    sampledPositionInertial.setInterpolationOptions({
+      interpolationDegree : 2,
+      interpolationAlgorithm : Cesium.HermitePolynomialApproximation
+    });
+
     // Spread sampledPosition updates
     const randomOffset = Math.random() * 60 * 15;
     let reference = Cesium.JulianDate.addSeconds(julianDate, randomOffset, new Cesium.JulianDate());
@@ -94,6 +112,9 @@ export class SatelliteProperties {
       const timestamp = Cesium.JulianDate.addSeconds(reference, time, new Cesium.JulianDate());
       const position = this.computePositionCartesian3(timestamp);
       sampledPosition.addSample(timestamp, position);
+
+      const positionInertial = this.positionInertial(timestamp);
+      sampledPositionInertial.addSample(timestamp, positionInertial);
 
       // Show computed sampled position
       //viewer.entities.add({
@@ -108,6 +129,7 @@ export class SatelliteProperties {
     }
 
     this.sampledPosition = sampledPosition;
+    this.sampledPositionInertial = sampledPositionInertial;
     return reference;
   }
 

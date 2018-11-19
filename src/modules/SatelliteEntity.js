@@ -24,8 +24,13 @@ export class SatelliteEntity extends CesiumEntityWrapper {
   createEntities() {
     this.props.createSampledPosition(this.viewer.clock, sampledPosition => {
       for (var entity in this.entities) {
-        this.entities[entity].position = sampledPosition;
-        this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(sampledPosition);
+        if (entity === "Orbit") {
+          this.entities[entity].position = this.props.sampledPositionInertial;
+          this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(this.props.sampledPositionInertial);
+        } else {
+          this.entities[entity].position = sampledPosition;
+          this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(sampledPosition);
+        }
       }
       if (this.entities.hasOwnProperty("Cone")) {
         this.entities["Cone"].orientation = new Cesium.CallbackProperty((time) => {
@@ -42,6 +47,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     //this.createBox();
     this.createLabel();
     this.createOrbit();
+    this.createOrbitTrack();
     if (this.props.positionCartographic(this.viewer.clock.currentTime).height < 10000000) {
       this.createGroundTrack();
       this.createCone();
@@ -113,11 +119,22 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     this.createCesiumSatelliteEntity("Label", "label", label);
   }
 
-  createOrbit(leadTime = 5400, trailTime = 0) {
+  createOrbit() {
+    const path = new Cesium.PathGraphics({
+      leadTime: 8000,
+      trailTime: 0,
+      material: Cesium.Color.WHITE.withAlpha(0.2),
+      resolution: 600,
+      width: 5,
+    });
+    this.createCesiumEntity("Orbit", "path", path, this.props.name, this.description, this.props.sampledPositionInertial, true);
+  }
+
+  createOrbitTrack(leadTime = 5400, trailTime = 0) {
     const path = new Cesium.PathGraphics({
       leadTime: leadTime,
       trailTime: trailTime,
-      material: Cesium.Color.WHITE.withAlpha(0.2),
+      material: Cesium.Color.RED.withAlpha(0.2),
       resolution: 600,
       width: 5,
     });

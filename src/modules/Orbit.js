@@ -12,9 +12,13 @@ export class Orbit {
     return this.satrec.satnum;
   }
 
-  computeGeodeticPosition(timestamp) {
-    const positionEci = satellitejs.propagate(this.satrec, timestamp).position;
-    const gmst = satellitejs.gstime(timestamp);
+  positionECI(time) {
+    return satellitejs.propagate(this.satrec, time).position;
+  }
+
+  positionGeodetic(time) {
+    const positionEci = this.positionECI(time);
+    const gmst = satellitejs.gstime(time);
     const positionGd = satellitejs.eciToGeodetic(positionEci, gmst);
 
     return {
