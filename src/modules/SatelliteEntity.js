@@ -27,17 +27,17 @@ export class SatelliteEntity extends CesiumEntityWrapper {
         if (entity === "Orbit") {
           this.entities[entity].position = this.props.sampledPositionInertial;
           this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(this.props.sampledPositionInertial);
+        } else if (entity === "Sensor cone") {
+          this.entities[entity].position = sampledPosition;
+          this.entities[entity].orientation = new Cesium.CallbackProperty((time) => {
+            const position = this.props.position(time);
+            const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
+            return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
+          }, false);
         } else {
           this.entities[entity].position = sampledPosition;
           this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(sampledPosition);
         }
-      }
-      if (this.entities.hasOwnProperty("Cone")) {
-        this.entities["Cone"].orientation = new Cesium.CallbackProperty((time) => {
-          const position = this.props.position(time);
-          const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
-          return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
-        }, false);
       }
     });
     this.createDescription();
