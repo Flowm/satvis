@@ -90,16 +90,16 @@ export class SatelliteProperties {
     sampledPosition.backwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
     sampledPosition.forwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
     sampledPosition.setInterpolationOptions({
-      interpolationDegree : 2,
-      interpolationAlgorithm : Cesium.HermitePolynomialApproximation
+      interpolationDegree: 5,
+      interpolationAlgorithm: Cesium.LagrangePolynomialApproximation,
     });
 
     const sampledPositionInertial = new Cesium.SampledPositionProperty(Cesium.ReferenceFrame.INERTIAL);
     sampledPositionInertial.backwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
     sampledPositionInertial.forwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
     sampledPositionInertial.setInterpolationOptions({
-      interpolationDegree : 2,
-      interpolationAlgorithm : Cesium.HermitePolynomialApproximation
+      interpolationDegree: 5,
+      interpolationAlgorithm: Cesium.LagrangePolynomialApproximation,
     });
 
     // Spread sampledPosition updates
