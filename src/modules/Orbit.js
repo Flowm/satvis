@@ -12,6 +12,12 @@ export class Orbit {
     return this.satrec.satnum;
   }
 
+  get orbitalPeriod() {
+    const meanMotionRad = this.satrec.no;
+    const period = 2 * Math.PI / meanMotionRad;
+    return period;
+  }
+
   positionECI(time) {
     return satellitejs.propagate(this.satrec, time).position;
   }
