@@ -46,9 +46,9 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     this.createPoint();
     //this.createBox();
     this.createLabel();
-    this.createOrbit();
-    this.createOrbitTrack();
-    if (this.props.positionCartographic(this.viewer.clock.currentTime).height < 10000000) {
+    if (this.props.orbit.orbitalPeriod < 60 * 12) {
+      this.createOrbit();
+      this.createOrbitTrack();
       this.createGroundTrack();
       this.createCone();
     }
@@ -134,7 +134,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     const path = new Cesium.PathGraphics({
       leadTime: leadTime,
       trailTime: trailTime,
-      material: Cesium.Color.RED.withAlpha(0.2),
+      material: Cesium.Color.GOLD.withAlpha(0.2),
       resolution: 600,
       width: 5,
     });
@@ -143,7 +143,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
 
   createGroundTrack() {
     const polyline = new Cesium.PolylineGraphics({
-      material: Cesium.Color.GOLD.withAlpha(0.1),
+      material: Cesium.Color.ORANGE.withAlpha(0.2),
       positions: new Cesium.CallbackProperty((time) => {
         return this.props.groundTrack(time);
       }),
@@ -179,8 +179,8 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     const polyline = new Cesium.PolylineGraphics({
       followSurface: false,
       material: new Cesium.PolylineGlowMaterialProperty({
-        glowPower: 0.2,
-        color: Cesium.Color.FORESTGREEN
+        glowPower: 0.5,
+        color: Cesium.Color.FORESTGREEN,
       }),
       positions: new Cesium.CallbackProperty((time) => {
         const satPosition = this.props.position(time);
@@ -198,7 +198,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
 
   set groundStation(position) {
     // No groundstation calculation for GEO satellites
-    if (this.props.positionCartographic(this.viewer.clock.currentTime).height > 10000000) {
+    if (this.props.orbit.orbitalPeriod > 60 * 12) {
       return;
     }
 
