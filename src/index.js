@@ -24,6 +24,6 @@ cc.sats.addFromTleUrl("data/tle/stations.txt", ["Stations"]);
 cc.sats.addFromTleUrl("data/tle/weather.txt", ["Weather"]);
 
 cc.sats.enableTag("MOVE");
-cc.sats.enableTag("OT");
-cc.sats.enableTag("Stations");
-cc.sats.enableTag("Weather");
+//cc.sats.enableTag("OT");
+//cc.sats.enableTag("Stations");
+//cc.sats.enableTag("Weather");
