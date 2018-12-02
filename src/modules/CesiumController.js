@@ -4,7 +4,7 @@ import { SatelliteManager } from "./SatelliteManager";
 import { DeviceDetect } from "./util/DeviceDetect";
 
 export class CesiumController {
-  constructor(imageryProvider = "offline") {
+  constructor() {
     this.minimalUI = DeviceDetect.inIframe() || DeviceDetect.isIos();
     this.minimalUIAtStartup = DeviceDetect.inIframe();
 
@@ -16,7 +16,7 @@ export class CesiumController {
       geocoder: false,
       homeButton: false,
       sceneModePicker: false,
-      imageryProvider: this.createImageryProvider(imageryProvider),
+      imageryProvider: this.createImageryProvider(),
       navigationHelpButton: false,
       navigationInstructionsInitiallyVisible: false,
       selectionIndicator: false,
@@ -33,12 +33,7 @@ export class CesiumController {
     window.cc = this;
 
     // CesiumController config
-    this.imageryProviders = {
-      offline: "Offline",
-      offlinehighres: "Offline Highres",
-      arcgis: "ArcGis",
-      osm: "OSM",
-    };
+    this.imageryProviders = ["Offline", "OfflineHighres", "ArcGis", "OSM"];
     this.sceneModes = ["3D", "2D", "Columbus"];
     this.groundStationPicker = { enabled: false };
 
@@ -54,7 +49,7 @@ export class CesiumController {
     }
   }
 
-  set setSceneMode(sceneMode) {
+  set sceneMode(sceneMode) {
     switch(sceneMode) {
     case "3D":
       this.viewer.scene.morphTo3D();
@@ -68,8 +63,8 @@ export class CesiumController {
     }
   }
 
-  set setImageryProvider(imageryProvider) {
-    if (!this.imageryProviders.hasOwnProperty(imageryProvider)) {
+  set imageryProvider(imageryProvider) {
+    if (!this.imageryProviders.includes(imageryProvider)) {
       return;
     }
 
@@ -78,27 +73,27 @@ export class CesiumController {
     layers.addImageryProvider(this.createImageryProvider(imageryProvider));
   }
 
-  createImageryProvider(imageryProvider = "offline") {
+  createImageryProvider(imageryProvider = "Offline") {
     let provider;
     switch(imageryProvider) {
-    case "offline":
+    case "Offline":
       provider = new Cesium.createTileMapServiceImageryProvider({
         url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
       });
       break;
-    case "offlinehighres":
+    case "OfflineHighres":
       provider = new Cesium.createTileMapServiceImageryProvider({
         url : "data/cesium-assets/imagery/NaturalEarthII",
         maximumLevel : 5,
         credit : "Imagery courtesy Natural Earth"
       });
       break;
-    case "arcgis":
+    case "ArcGis":
       provider = new Cesium.ArcGisMapServerImageryProvider({
         url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
       });
       break;
-    case "osm":
+    case "OSM":
       provider = new Cesium.createOpenStreetMapImageryProvider({
         url : "https://a.tile.openstreetmap.org/"
       });

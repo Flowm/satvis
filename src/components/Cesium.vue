@@ -97,8 +97,8 @@
           {{ name }}
         </label>
         <div class="toolbarTitle">Imagery</div>
-        <label v-for="(name, key) in cc.imageryProviders" :key="name" class="toolbarSwitch">
-          <input v-model="imageryProvider" type="radio" :value="key">
+        <label v-for="name in cc.imageryProviders" :key="name" class="toolbarSwitch">
+          <input v-model="imageryProvider" type="radio" :value="name">
           <span class="slider"></span>
           {{ name }}
         </label>
@@ -199,7 +199,7 @@ export default {
         dbg: false,
       },
       showUI: true,
-      imageryProvider: "offline",
+      imageryProvider: "Offline",
       sceneMode: "3D",
       enabledComponents: cc.sats.enabledComponents,
       groundStationPicker: cc.groundStationPicker,
@@ -207,10 +207,11 @@ export default {
   },
   watch: {
     imageryProvider: function(newProvider) {
-      cc.setImageryProvider = newProvider;
+      cc.imageryProvider = newProvider;
+      this.$router.push({query: {...this.$route.query, imagery: newProvider}});
     },
     sceneMode: function(newMode) {
-      cc.setSceneMode = newMode;
+      cc.sceneMode = newMode;
     },
     enabledComponents: function(newComponents, oldComponents) {
       let add = newComponents.filter(x => !oldComponents.includes(x));
@@ -226,6 +227,9 @@ export default {
   mounted() {
     if (this.$route.query.gs) {
       cc.setGroundStationFromLatLon(this.$route.query.gs);
+    }
+    if (this.$route.query.imagery) {
+      cc.imageryProvider = this.$route.query.imagery;
     }
     this.showUI = !cc.minimalUIAtStartup;
     this.$root.$on("updateCat", this.updateCat);
