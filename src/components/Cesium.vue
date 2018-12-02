@@ -30,7 +30,7 @@
             </span>
           </button>
         </b-tooltip>
-        <b-tooltip v-if="cc.isIOS" label="Mobile" position="is-right">
+        <b-tooltip v-if="cc.minimalUI" label="Mobile" position="is-right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('ios')">
             <span class="icon fill-parent">
               <i class="fas fa-mobile-alt fa-2x"></i>
@@ -117,11 +117,11 @@
         </label>
         <label class="toolbarSwitch">
           <input type="button" @click="cc.viewer.clockViewModel.multiplier *= 2">
-          Increase simulation speed
+          Increase play speed
         </label>
         <label class="toolbarSwitch">
           <input type="button" @click="cc.viewer.clockViewModel.multiplier /= 2">
-          Decrease simulation speed
+          Decrease play speed
         </label>
       </div>
       <div v-show="menu.dbg" class="toolbarSwitches">
@@ -227,9 +227,10 @@ export default {
     if (this.$route.query.gs) {
       cc.setGroundStationFromLatLon(this.$route.query.gs);
     }
+    this.showUI = !cc.minimalUIAtStartup;
     this.$root.$on("updateCat", this.updateCat);
   },
-  beforeDestroy () {
+  beforeDestroy() {
     this.$root.$off("updateCat", this.updateCat);
   },
   methods: {
@@ -245,7 +246,7 @@ export default {
     },
     toggleUI: function() {
       this.showUI = !this.showUI;
-      if (!cc.isIOS) {
+      if (!cc.minimalUI) {
         cc.showUI = this.showUI;
       }
     },

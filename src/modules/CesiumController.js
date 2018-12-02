@@ -1,14 +1,17 @@
 // Import webpack externals
 import Cesium from "Cesium";
 import { SatelliteManager } from "./SatelliteManager";
+import { DeviceDetect } from "./util/DeviceDetect";
 
 export class CesiumController {
   constructor(imageryProvider = "offline") {
-    this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    this.minimalUI = DeviceDetect.inIframe() || DeviceDetect.isIos();
+    this.minimalUIAtStartup = DeviceDetect.inIframe();
+
     this.viewer = new Cesium.Viewer("cesiumContainer", {
-      animation: !this.isIOS,
+      animation: !this.minimalUI,
       baseLayerPicker: false,
-      fullscreenButton: !this.isIOS,
+      fullscreenButton: !this.minimalUI,
       fullscreenElement: document.body,
       geocoder: false,
       homeButton: false,
@@ -17,8 +20,8 @@ export class CesiumController {
       navigationHelpButton: false,
       navigationInstructionsInitiallyVisible: false,
       selectionIndicator: false,
-      timeline: !this.isIOS,
-      vrButton: true,
+      timeline: !this.minimalUI,
+      vrButton: !this.minimalUI,
     });
 
     // Cesium default settings
@@ -32,7 +35,7 @@ export class CesiumController {
     // CesiumController config
     this.imageryProviders = {
       offline: "Offline",
-      offlinehighres: "Offline highres",
+      offlinehighres: "Offline Highres",
       arcgis: "ArcGis",
       osm: "OSM",
     };
@@ -45,9 +48,9 @@ export class CesiumController {
     // Create Satellite Manager
     this.sats = new SatelliteManager(this.viewer);
 
-    // Fix Cesium logo on ios fullscreen
-    if (this.isIOS) {
-      setTimeout(() => { this.fixLogoIOS(); }, 1000);
+    // Fix Cesium logo in minimal ui mode
+    if (this.minimalUI) {
+      setTimeout(() => { this.fixLogo(); }, 2000);
     }
   }
 
@@ -182,9 +185,13 @@ export class CesiumController {
     return this.viewer._timeline.container.style.visibility !== "hidden";
   }
 
-  fixLogoIOS() {
-    this.viewer._bottomContainer.style.left = "5px";
-    this.viewer._bottomContainer.style.bottom = "20px";
+  fixLogo() {
+    if (this.minimalUI) {
+      this.viewer._bottomContainer.style.left = "5px";
+    }
+    if (DeviceDetect.isiPhoneWithNotch()) {
+      this.viewer._bottomContainer.style.bottom = "20px";
+    }
   }
 
   styleInfoBox() {
