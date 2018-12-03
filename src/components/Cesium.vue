@@ -231,6 +231,10 @@ export default {
     if (this.$route.query.imagery) {
       cc.imageryProvider = this.$route.query.imagery;
     }
+    if (this.$route.query.elements) {
+      const elements = this.$route.query.elements.split(",");
+      this.enabledComponents = [...new Set(this.enabledComponents.concat(...elements))]
+    }
     this.showUI = !cc.minimalUIAtStartup;
     this.$root.$on("updateCat", this.updateCat);
   },
