@@ -113,7 +113,7 @@ export class CesiumEntityWrapper {
       // Restore default view angle if no new entity is tracked
       if (typeof this.viewer.trackedEntity === "undefined") {
         this.viewer.flyTo(this.defaultEntity, {
-          offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-90.0), 1580000)
+          offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-90.0), 2000000)
         });
       }
     });
@@ -124,7 +124,7 @@ export class CesiumEntityWrapper {
       name: name,
       description: description,
       position: position,
-      viewFrom: new Cesium.Cartesian3(0, -1200000, 1150000),
+      viewFrom: new Cesium.Cartesian3(0, -2000000, 2500000),
     });
 
     if (moving) {
