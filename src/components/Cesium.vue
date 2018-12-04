@@ -155,7 +155,7 @@
     </div>
     <div id="toolbarRight">
       <b-tooltip v-if="showUI" label="Github" position="is-left">
-        <a class="cesium-button cesium-toolbar-button" href="https://github.com/Flowm/satvis/">
+        <a class="cesium-button cesium-toolbar-button" href="https://github.com/Flowm/satvis/" target="_blank" rel="noopener">
           <span class="icon fill-parent">
             <i class="fab fa-github fa-2x"></i>
           </span>
@@ -233,7 +233,7 @@ export default {
     }
     if (this.$route.query.elements) {
       const elements = this.$route.query.elements.split(",");
-      this.enabledComponents = [...new Set(this.enabledComponents.concat(...elements))]
+      this.enabledComponents = [...new Set(this.enabledComponents.concat(...elements))];
     }
     this.showUI = !cc.minimalUIAtStartup;
     this.$root.$on("updateCat", this.updateCat);

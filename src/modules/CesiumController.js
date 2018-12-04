@@ -225,7 +225,7 @@ export class CesiumController {
         }
         const satnum = this.sats.getSatellite(this.sats.selectedSatellite).props.satnum;
         const url = "https://www.n2yo.com/satellite/?s=" + satnum;
-        window.open(url, "_blank");
+        window.open(url, "_blank", "noopener");
       });
       container.appendChild(infoButton);
     }
