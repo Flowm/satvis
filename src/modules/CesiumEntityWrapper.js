@@ -124,7 +124,7 @@ export class CesiumEntityWrapper {
       name: name,
       description: description,
       position: position,
-      viewFrom: new Cesium.Cartesian3(0, -2000000, 2500000),
+      viewFrom: new Cesium.Cartesian3(0, -3600000, 4200000),
     });
 
     if (moving) {

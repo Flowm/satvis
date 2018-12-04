@@ -121,8 +121,8 @@ export class SatelliteEntity extends CesiumEntityWrapper {
 
   createOrbit() {
     const path = new Cesium.PathGraphics({
-      leadTime: this.props.orbit.orbitalPeriod * 60 / 2,
-      trailTime: this.props.orbit.orbitalPeriod * 60 / 2,
+      leadTime: this.props.orbit.orbitalPeriod * 60 / 2 + 5,
+      trailTime: this.props.orbit.orbitalPeriod * 60 / 2 + 5,
       material: Cesium.Color.WHITE.withAlpha(0.2),
       resolution: 600,
       width: 5,
