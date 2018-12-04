@@ -232,7 +232,7 @@ export default {
       cc.imageryProvider = this.$route.query.imagery;
     }
     if (this.$route.query.elements) {
-      const elements = this.$route.query.elements.split(",");
+      const elements = this.$route.query.elements.replace(/_/g, " ").split(",");
       this.enabledComponents = [...new Set(this.enabledComponents.concat(...elements))];
     }
     this.showUI = !cc.minimalUIAtStartup;
