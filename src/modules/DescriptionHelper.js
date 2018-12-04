@@ -3,7 +3,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);
 
 export class DescriptionHelper {
-  static renderDescription(time, name, position, passes, isGroundStation) {
+  static renderDescription(time, name, position, passes, isGroundStation, tle) {
     let description = `
       <div class="ib">
         <h3>Position</h3>
@@ -26,6 +26,7 @@ export class DescriptionHelper {
           </tbody>
         </table>
         ${this.renderPasses(passes, time, isGroundStation)}
+        ${typeof tle === "undefined" ? "" : this.renderTLE(tle)}
       </div>
     `;
     return description;
@@ -33,7 +34,11 @@ export class DescriptionHelper {
 
   static renderPasses(passes, time, showPassName) {
     if (passes.length == 0) {
-      return "";
+      const html = `
+        <h3>Passes</h3>
+        <div class="ib-text">No ground station set</div>
+        `;
+      return html;
     }
 
     const start = dayjs(time);
@@ -86,6 +91,13 @@ export class DescriptionHelper {
         <td class="ibt-right">${pass.minAzimuth.toFixed(2)}&deg</td>
       </tr>
     `;
+    return html;
+  }
+
+  static renderTLE(tle) {
+    const html = `
+      <h3>TLE</h3>
+      <pre class="ib-code"><code>${tle.slice(1,3).join("\n")}</code></pre>`;
     return html;
   }
 }
