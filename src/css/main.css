@@ -84,7 +84,7 @@ input:checked + .slider::before {
 }
 
 .cesium-toolbar-button .icon {
-    filter: brightness(100) brightness(0.95);
+    filter: brightness(1.1);
 }
 
 .icon .mfa-button-width {
@@ -96,7 +96,7 @@ input:checked + .slider::before {
     background-repeat: no-repeat;
     width: 22px;
     height: 22px;
-    filter: brightness(100);
+    filter: brightness(3.1);
     transform: rotate(-90deg);
 }
 
@@ -105,7 +105,7 @@ input:checked + .slider::before {
     background-repeat: no-repeat;
     width: 22px;
     height: 22px;
-    filter: brightness(100);
+    filter: brightness(3.1);
     margin-left: 2px;
 }
 
