@@ -1,6 +1,6 @@
 <template>
   <div class="wrapper">
-    <multiSelect
+    <multi-select
       v-model="values"
       search
       history-button

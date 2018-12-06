@@ -46,21 +46,29 @@
         </b-tooltip>
       </div>
       <div v-show="menu.cat" class="toolbarSwitches">
-        <div class="toolbarTitle">Tracked satellite</div>
+        <div class="toolbarTitle">
+          Tracked satellite
+        </div>
         <div class="toolbarContent">
           <satellite-select ref="SatelliteSelect" />
         </div>
-        <div class="toolbarTitle">Enabled satellites</div>
+        <div class="toolbarTitle">
+          Enabled satellites
+        </div>
         <div class="toolbarContent">
           <satellite-multi-select ref="SatelliteMultiSelect" />
         </div>
-        <div class="toolbarTitle">Monitored satellites</div>
+        <div class="toolbarTitle">
+          Monitored satellites
+        </div>
         <div class="toolbarContent">
           <satellite-notify-multi-select ref="SatelliteNotifyMultiSelect" />
         </div>
       </div>
       <div v-show="menu.sat" class="toolbarSwitches">
-        <div class="toolbarTitle">Satellite elements</div>
+        <div class="toolbarTitle">
+          Satellite elements
+        </div>
         <label v-for="componentName in cc.sats.components" :key="componentName" class="toolbarSwitch">
           <input v-model="enabledComponents" type="checkbox" :value="componentName">
           <span class="slider"></span>
@@ -74,7 +82,9 @@
         -->
       </div>
       <div v-show="menu.gs" class="toolbarSwitches">
-        <div class="toolbarTitle">Ground station</div>
+        <div class="toolbarTitle">
+          Ground station
+        </div>
         <label class="toolbarSwitch">
           <input v-model="groundStationPicker.enabled" type="checkbox">
           <span class="slider"></span>
@@ -90,13 +100,17 @@
         </label>
       </div>
       <div v-show="menu.map" class="toolbarSwitches">
-        <div class="toolbarTitle">View</div>
+        <div class="toolbarTitle">
+          View
+        </div>
         <label v-for="name in cc.sceneModes" :key="name" class="toolbarSwitch">
           <input v-model="sceneMode" type="radio" :value="name">
           <span class="slider"></span>
           {{ name }}
         </label>
-        <div class="toolbarTitle">Imagery</div>
+        <div class="toolbarTitle">
+          Imagery
+        </div>
         <label v-for="name in cc.imageryProviders" :key="name" class="toolbarSwitch">
           <input v-model="imageryProvider" type="radio" :value="name">
           <span class="slider"></span>
@@ -104,7 +118,9 @@
         </label>
       </div>
       <div v-show="menu.ios" class="toolbarSwitches">
-        <div class="toolbarTitle">Mobile</div>
+        <div class="toolbarTitle">
+          Mobile
+        </div>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.useWebVR" type="checkbox">
           <span class="slider"></span>
@@ -125,7 +141,9 @@
         </label>
       </div>
       <div v-show="menu.dbg" class="toolbarSwitches">
-        <div class="toolbarTitle">Debug</div>
+        <div class="toolbarTitle">
+          Debug
+        </div>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.debugShowFramesPerSecond" type="checkbox">
           <span class="slider"></span>

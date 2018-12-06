@@ -20,6 +20,7 @@
     "quotes": ["error", "double"],
     "semi": ["error", "always"],
     "vue/no-unused-components": "off",
+    "vue/component-name-in-template-casing": ["error", "kebab-case"],
     "vue/max-attributes-per-line": [2, {
       "singleline": 4,
       "multiline": {
