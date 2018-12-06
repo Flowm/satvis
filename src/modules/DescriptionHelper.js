@@ -97,7 +97,7 @@ export class DescriptionHelper {
   static renderTLE(tle) {
     const html = `
       <h3>TLE</h3>
-      <pre class="ib-code"><code>${tle.slice(1,3).join("\n")}</code></pre>`;
+      <div class="ib-code"><code>${tle.slice(1,3).join("\n")}</code></div>`;
     return html;
   }
 }

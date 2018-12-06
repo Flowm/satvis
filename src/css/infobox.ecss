@@ -16,8 +16,12 @@
     font-size: 12px;
     line-height: 1.5;
     margin: 0px;
-    overflow: auto;
     padding: 4px;
+    white-space: pre-wrap;
+}
+
+.ib .ib-code code {
+    background: inherit;
 }
 
 .ibt {
