@@ -147,6 +147,11 @@
           Lighting
         </label>
         <label class="toolbarSwitch">
+          <input v-model="cc.viewer.scene.highDynamicRange" type="checkbox">
+          <span class="slider"></span>
+          HDR
+        </label>
+        <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.globe.showGroundAtmosphere" type="checkbox">
           <span class="slider"></span>
           Atmosphere
