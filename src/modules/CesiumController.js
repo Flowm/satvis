@@ -73,7 +73,7 @@ export class CesiumController {
     layers.addImageryProvider(this.createImageryProvider(imageryProvider));
   }
 
-  createImageryProvider(imageryProvider = "Offline") {
+  createImageryProvider(imageryProvider = "OfflineHighres") {
     let provider;
     switch(imageryProvider) {
     case "Offline":
