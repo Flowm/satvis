@@ -22,7 +22,6 @@ class ViewController: UIViewController {
 extension ViewController: WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.name == "iosNotify" {
-            NSLog("NOTIFY: \(message.body)")
             guard let dict = message.body as? Dictionary<String, Any> else {
                 return
             }
@@ -31,11 +30,19 @@ extension ViewController: WKScriptMessageHandler {
                 let date = dict["date"] as? Int else {
                 return
             }
-            NSLog("NOTIFY: \(date) \(body) in \(delay)s")
-            AppDelegate.shared().notificationManager.triggerNotification(title: "Satvis",
-                                                                         body: body,
-                                                                         timeInterval: delay,
-                                                                         indentifier: "\(date) \(body)")
+            guard let notificationManager = AppDelegate.shared().notificationManager else {
+                return
+            }
+            let request = notificationManager.createNotificationRequest(title: "Satvis",
+                                                                        body: body,
+                                                                        timeInterval: delay,
+                                                                        indentifier: "\(date) \(body)")
+            if (notificationManager.scheduleRequestChronological(request: request)) {
+                NSLog("NOTIFY: \(date) \"\(body)\" in \(delay)s")
+            } else {
+                NSLog("NOTIFY: \(date) \"\(body)\" in \(delay)s ignored due to notification limit")
+
+            }
         }
     }
 }
