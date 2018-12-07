@@ -32,6 +32,12 @@ npm install
 - `npm run build` to build the application (output in `dist` folder)
 - `npm run serve-prod` to build the application and serve with static webserver
 
+## iOS App
+To provide pass notifications on iOS where local browser notifications are [not
+supported](https://developer.mozilla.org/en-US/docs/Web/API/Notifications_API#Browser_compatibility)
+a simple app wraps the webview and handles the scheduling of
+[UserNotifications](https://developer.apple.com/documentation/usernotifications).
+
 ## License
 This project is licensed under the MIT License - see `LICENSE` file for details.
 
