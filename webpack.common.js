@@ -13,7 +13,8 @@ const cesiumSource = 'node_modules/cesium/Source';
 module.exports = {
   context: __dirname,
   entry: {
-    app: './src/index.js'
+    app: './src/app.js',
+    test: './src/test/test.js'
   },
   output: {
     filename: '[name].js',
@@ -60,21 +61,31 @@ module.exports = {
       use: ['url-loader']
     }]
   },
-  //optimization: {
-  //  splitChunks: {
-  //    cacheGroups: {
-  //      commons: {
-  //        test: /[\\/]node_modules[\\/]cesium/,
-  //        name: 'cesium',
-  //        chunks: 'all'
-  //      }
-  //    }
-  //  }
-  //},
+  optimization: {
+    splitChunks: {
+      cacheGroups: {
+        commons: {
+          test: /[\\/]node_modules[\\/]cesium/,
+          name: 'cesium',
+          chunks: 'all'
+        }
+      }
+    }
+  },
   plugins: [
     new CleanWebpackPlugin(['dist']),
     new HtmlWebpackPlugin({
-      template: "src/index.html"
+      template: "src/index.html",
+      excludeChunks: ["test"]
+    }),
+    new HtmlWebpackPlugin({
+      filename: "embedded.html",
+      template: "src/embedded.html",
+      chunks: []
+    }),
+    new HtmlWebpackPlugin({
+      filename: "test.html",
+      chunks: ["test"]
     }),
     new MiniCssExtractPlugin({
       filename: "main.css"
