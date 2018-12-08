@@ -58,7 +58,7 @@ export class Orbit {
     groundPosition,
     startDate = new Date(),
     endDate = dayjs(startDate).add(7, "day").toDate(),
-    minElevation = 0,
+    minElevation = 1,
     maxPasses = 50) {
     let passes = jspredict.transits(this.tle.join("\n"), groundPosition, startDate, endDate, minElevation, maxPasses);
     passes.map((pass) => {
