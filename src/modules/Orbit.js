@@ -3,7 +3,8 @@ import * as jspredict from "jspredict-move2";
 import dayjs from "dayjs";
 
 export class Orbit {
-  constructor(tle) {
+  constructor(name, tle) {
+    this.name = name;
     this.tle = tle.split("\n");
     this.satrec = satellitejs.twoline2satrec(this.tle[1], this.tle[2]);
   }
@@ -54,15 +55,19 @@ export class Orbit {
     };
   }
 
-  computePasses(satName,
-    groundPosition,
-    startDate = new Date(),
+  computePasses(groundStation,
+    startDate = dayjs().toDate(),
     endDate = dayjs(startDate).add(7, "day").toDate(),
     minElevation = 1,
     maxPasses = 50) {
-    let passes = jspredict.transits(this.tle.join("\n"), groundPosition, startDate, endDate, minElevation, maxPasses);
+
+    if (typeof groundStation === "undefined") {
+      return [];
+    }
+    const latlonalt = [groundStation.latitude, groundStation.longitude, groundStation.height/1000];
+    let passes = jspredict.transits(this.tle.join("\n"), latlonalt, startDate, endDate, minElevation, maxPasses);
     passes.map((pass) => {
-      pass.name = satName;
+      pass.name = this.name;
       return pass;
     });
     return passes;

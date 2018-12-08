@@ -10,7 +10,7 @@ export class SatelliteProperties {
     if (tle.startsWith("0 ")) {
       this.name = this.name.substring(2);
     }
-    this.orbit = new Orbit(tle);
+    this.orbit = new Orbit(this.name, tle);
     this.satnum = this.orbit.satnum;
     this.tags = tags;
 
@@ -162,7 +162,7 @@ export class SatelliteProperties {
       stopPrediction: new Cesium.JulianDate.addDays(time, 3, Cesium.JulianDate.clone(time)),
     };
 
-    let passes = this.computePasses(Cesium.JulianDate.toDate(this.passInterval.start), Cesium.JulianDate.toDate(this.passInterval.stopPrediction));
+    let passes = this.orbit.computePasses(this.groundStationPosition, Cesium.JulianDate.toDate(this.passInterval.start), Cesium.JulianDate.toDate(this.passInterval.stopPrediction));
     if (passes) {
       this.passes = passes;
       this.computePassIntervals();
@@ -176,20 +176,6 @@ export class SatelliteProperties {
     this.passInterval = undefined;
     this.passes = [];
     this.passIntervals = new Cesium.TimeIntervalCollection();
-  }
-
-  computePasses(start, stop) {
-    if (typeof this.groundStationPosition === "undefined") {
-      return false;
-    }
-
-    const latlonalt = [this.groundStationPosition.latitude, this.groundStationPosition.longitude, this.groundStationPosition.height/1000];
-    return this.orbit.computePasses(
-      this.name,
-      latlonalt,
-      start,
-      stop
-    );
   }
 
   computePassIntervals() {
@@ -206,7 +192,7 @@ export class SatelliteProperties {
   }
 
   notifyPasses(aheadMin = 5) {
-    let passes = this.computePasses(dayjs().toDate(), dayjs().add(7, "day").toDate());
+    let passes = this.orbit.computePasses(this.groundStationPosition);
     if (!passes) {
       Toast.open({
         message: `No passes for ${this.name}`,
