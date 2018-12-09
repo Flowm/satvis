@@ -222,7 +222,7 @@ export default {
         dbg: false,
       },
       showUI: true,
-      imageryProvider: "Offline",
+      imageryProvider: "OfflineHighres",
       sceneMode: "3D",
       enabledComponents: cc.sats.enabledComponents,
       groundStationPicker: cc.groundStationPicker,

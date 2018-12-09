@@ -73,7 +73,7 @@ export class Orbit {
     groundStation.height /= 1000;
 
     let date = startDate;
-    let passes = []
+    let passes = [];
     let pass = false;
     let ongoingPass = false;
     let lastElevation = 0;
@@ -91,7 +91,7 @@ export class Orbit {
             azimuthStart: lookAngles.azimuth,
             maxElevation: elevation,
             azimuthApex: lookAngles.azimuth,
-          }
+          };
           ongoingPass = true;
         } else {
           // Ongoing pass

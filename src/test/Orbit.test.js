@@ -1,4 +1,4 @@
-import test from 'ava';
+import test from "ava";
 import dayjs from "dayjs";
 import { Orbit } from "../modules/Orbit";
 
@@ -8,7 +8,7 @@ test.beforeEach(t => {
 });
 
 test("Can calculate satellite position", t => {
-  const orbit = t.context.orbit
+  const orbit = t.context.orbit;
   const time = dayjs("2018-12-01");
 
   const positionECI = orbit.positionECI(time.toDate());
@@ -25,11 +25,11 @@ test("Can calculate satellite position", t => {
 });
 
 test("Can calculate passes", t => {
-  const orbit = t.context.orbit
+  const orbit = t.context.orbit;
   const gs = {
-        latitude: 48.1770,
-        longitude: 11.7476,
-        height: 0
+    latitude: 48.1770,
+    longitude: 11.7476,
+    height: 0
   };
   const start = dayjs("2018-12-08");
   const end = dayjs("2018-12-22");
