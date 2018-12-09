@@ -34,13 +34,23 @@ test("Can calculate passes", t => {
   const start = dayjs("2018-12-08");
   const end = dayjs("2018-12-15");
 
-  const passes = orbit.computePasses(gs, start.toDate(), end.toDate());
+  const passes = orbit.computePasses(gs, start.toDate(), end.toDate(), 1);
   //passes.forEach((pass, i) => {
   //  console.log(`Pass ${i} start ${dayjs(pass.start).format()} maxElevation ${pass.maxElevation.toFixed(2)}`);
   //});
-  t.true(passes.length == 43);
+  t.true(passes.length == 44);
 });
 
-test.failing("Can calculate passes without jspredict", t => {
-  t.fail();
+test("Can calculate passes with jspredict", t => {
+  const orbit = t.context.orbit
+  const gs = {
+        latitude: 48.1770,
+        longitude: 11.7476,
+        height: 0
+  };
+  const start = dayjs("2018-12-08");
+  const end = dayjs("2018-12-15");
+
+  const passes = orbit.computePassesJspredict(gs, start.toDate(), end.toDate(), 0.9);
+  t.true(passes.length == 44);
 });
