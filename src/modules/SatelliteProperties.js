@@ -159,7 +159,7 @@ export class SatelliteProperties {
     this.passInterval = {
       start: new Cesium.JulianDate.addDays(time, -1, Cesium.JulianDate.clone(time)),
       stop: new Cesium.JulianDate.addDays(time, 1, Cesium.JulianDate.clone(time)),
-      stopPrediction: new Cesium.JulianDate.addDays(time, 3, Cesium.JulianDate.clone(time)),
+      stopPrediction: new Cesium.JulianDate.addDays(time, 4, Cesium.JulianDate.clone(time)),
     };
 
     let passes = this.orbit.computePasses(this.groundStationPosition, Cesium.JulianDate.toDate(this.passInterval.start), Cesium.JulianDate.toDate(this.passInterval.stopPrediction));
