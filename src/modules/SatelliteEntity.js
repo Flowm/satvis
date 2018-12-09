@@ -15,6 +15,9 @@ export class SatelliteEntity extends CesiumEntityWrapper {
   }
 
   enableComponent(name) {
+    if (!this.created) {
+      this.createEntities();
+    }
     if (name === "Model" && !this.isTracked) {
       return;
     }
@@ -53,6 +56,9 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       this.createCone();
     }
     this.createModel();
+    if (this.props.groundStationAvailable) {
+      this.createGroundStationLink();
+    }
     this.defaultEntity = this.entities["Point"];
 
     this.viewer.selectedEntityChanged.addEventListener(() => {
@@ -206,9 +212,13 @@ export class SatelliteEntity extends CesiumEntityWrapper {
     this.props.clearPasses();
     if (this.isTracked) {
       this.timeline.clearTimeline();
+    }
+    if (this.isTracked || this.isSelected) {
       this.updatePasses();
     }
-    this.createGroundStationLink();
+    if (this.created) {
+      this.createGroundStationLink();
+    }
   }
 
   updatePasses() {

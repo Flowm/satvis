@@ -8,6 +8,10 @@ export class CesiumEntityWrapper {
     this.defaultStatus = undefined;
   }
 
+  get created() {
+    return this.components.length > 0;
+  }
+
   get enabled() {
     return this.enabledComponents.length > 0;
   }

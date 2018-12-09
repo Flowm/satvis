@@ -52,7 +52,6 @@ export class SatelliteManager {
       console.log(`Satellite ${satelliteEntity.props.name} already exists`);
       return;
     }
-    satelliteEntity.createEntities();
     if (this.groundStationAvailable) {
       satelliteEntity.groundStation = this.groundStation.position;
     }

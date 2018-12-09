@@ -147,8 +147,12 @@ export class SatelliteProperties {
     return groundTrack;
   }
 
+  get groundStationAvailable() {
+    return this.groundStationPosition !== "undefined";
+  }
+
   updatePasses(time, updateCallback = ()=>{}) {
-    if (typeof this.groundStationPosition === "undefined") {
+    if (!this.groundStationAvailable) {
       return false;
     }
     // Check if still inside of current pass interval
