@@ -22,7 +22,6 @@
     "cesium": "^1.52.0",
     "cesium-sensor-volumes": "^1.32.0",
     "dayjs": "^1.7.7",
-    "jspredict-move2": "^1.0.5",
     "satellite.js": "^3.0.0",
     "vue": "^2.5.17",
     "vue-multi-select": "^3.11.1",

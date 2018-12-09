@@ -1,5 +1,4 @@
 import * as satellitejs from "satellite.js";
-import * as jspredict from "jspredict-move2";
 import dayjs from "dayjs";
 
 export class Orbit {
@@ -138,25 +137,6 @@ export class Orbit {
         }
       }
     }
-    return passes;
-  }
-
-  computePassesJspredict(groundStation,
-    startDate = dayjs().toDate(),
-    endDate = dayjs(startDate).add(7, "day").toDate(),
-    minElevation = 1,
-    maxPasses = 50) {
-
-    if (typeof groundStation === "undefined") {
-      return [];
-    }
-    const latlonalt = [groundStation.latitude, groundStation.longitude, groundStation.height/1000];
-    let passes = jspredict.transits(this.tle.join("\n"), latlonalt, startDate, endDate, minElevation, maxPasses);
-    passes.map((pass) => {
-      pass.name = this.name;
-      pass.azimuthApex = pass.apexAzimuth;
-      return pass;
-    });
     return passes;
   }
 }

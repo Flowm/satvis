@@ -40,17 +40,3 @@ test("Can calculate passes", t => {
   //});
   t.true(passes.length == 87);
 });
-
-test("Can calculate passes with jspredict", t => {
-  const orbit = t.context.orbit
-  const gs = {
-        latitude: 48.1770,
-        longitude: 11.7476,
-        height: 0
-  };
-  const start = dayjs("2018-12-08");
-  const end = dayjs("2018-12-22");
-
-  const passes = orbit.computePassesJspredict(gs, start.toDate(), end.toDate(), 0.9, 500);
-  t.true(passes.length == 87);
-});
