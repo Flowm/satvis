@@ -1,61 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <title>SatVis Embedded Example</title>
-        <style>
-          body {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            background: black url("data/images/bg.jpg") top center / cover no-repeat;
-            color: white;
-          }
-          #title {
-            text-align: center;
-            color: white;
-          }
-        </style>
-    </head>
-    <body>
-      <div id="title">
-        <h1>SatVis Embedded Example</h1>
-      </div>
-      <div id="satvis-content">
-        <style>
-          #satvis-content {
-            display: block;
-            margin: auto;
-            text-align: center;
-            width: 80%;
-          }
-          #satvis-button {
-            background-color: #555555;
-            border: none;
-            border-radius: 5px;
-            color: white;
-            padding: 14px 32px;
-            margin-bottom: 8px;
-            font-size: 16px;
-            cursor: pointer;
-          }
-          #satvis-frame {
-            display: none;
-            margin: auto;
-            width: 100%;
-            max-width: 800px;
-            height: 500px;
-            border: none;
-            border-radius: 5px;
-          }
-        </style>
-        <button id="satvis-button" onclick='let frame = document.getElementById("satvis-frame"); frame.src="/?imagery=OfflineHighres&elements=Orbit&sat=MOVE-II"; frame.style.display = "block";'>
-          Current satellite position
-        </button>
-        <iframe id="satvis-frame"></iframe>
-        <br />
-        Simple example to embed the sativs site on other pages.
-      </div>
-    </body>
+  <head>
+    <meta charset="utf-8">
+    <title>SatVis Embedded Example</title>
+    <style>
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background: black url("data/images/bg.jpg") top center / cover no-repeat;
+        color: white;
+      }
+      #title {
+        text-align: center;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="title">
+      <h1>SatVis Embedded Example</h1>
+    </div>
+    <div id="satvis-content">
+      <style>
+        #satvis-content {
+          display: block;
+          margin: auto;
+          text-align: center;
+          width: 80%;
+        }
+        #satvis-button {
+          background-color: #555555;
+          border: none;
+          border-radius: 5px;
+          color: white;
+          padding: 14px 32px;
+          margin-bottom: 8px;
+          font-size: 16px;
+          cursor: pointer;
+        }
+        #satvis-frame {
+          display: none;
+          margin: auto;
+          width: 100%;
+          max-width: 800px;
+          height: 500px;
+          border: none;
+          border-radius: 5px;
+        }
+      </style>
+      <button id="satvis-button" onclick='let frame = document.getElementById("satvis-frame"); frame.src="/?imagery=OfflineHighres&elements=Orbit&sat=MOVE-II"; frame.style.display = "block";'>
+        Current satellite position
+      </button>
+      <iframe id="satvis-frame"></iframe>
+      <br />
+      Simple example to embed the sativs site on other pages.
+    </div>
+  </body>
 </html>
