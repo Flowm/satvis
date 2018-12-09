@@ -32,13 +32,13 @@ test("Can calculate passes", t => {
         height: 0
   };
   const start = dayjs("2018-12-08");
-  const end = dayjs("2018-12-15");
+  const end = dayjs("2018-12-22");
 
-  const passes = orbit.computePasses(gs, start.toDate(), end.toDate(), 1);
+  const passes = orbit.computePasses(gs, start.toDate(), end.toDate(), 1, 500);
   //passes.forEach((pass, i) => {
   //  console.log(`Pass ${i} start ${dayjs(pass.start).format()} maxElevation ${pass.maxElevation.toFixed(2)}`);
   //});
-  t.true(passes.length == 44);
+  t.true(passes.length == 87);
 });
 
 test("Can calculate passes with jspredict", t => {
@@ -49,8 +49,8 @@ test("Can calculate passes with jspredict", t => {
         height: 0
   };
   const start = dayjs("2018-12-08");
-  const end = dayjs("2018-12-15");
+  const end = dayjs("2018-12-22");
 
-  const passes = orbit.computePassesJspredict(gs, start.toDate(), end.toDate(), 0.9);
-  t.true(passes.length == 44);
+  const passes = orbit.computePassesJspredict(gs, start.toDate(), end.toDate(), 0.9, 500);
+  t.true(passes.length == 87);
 });

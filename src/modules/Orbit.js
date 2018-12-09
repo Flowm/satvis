@@ -65,42 +65,43 @@ export class Orbit {
   computePasses(groundStation,
     startDate = dayjs().toDate(),
     endDate = dayjs(startDate).add(7, "day").toDate(),
-    minElevation = 4,
+    minElevation = 1,
     maxPasses = 50) {
 
     const deg2rad = (Math.PI/180);
     groundStation.latitude *= deg2rad;
     groundStation.longitude *= deg2rad;
     groundStation.height /= 1000;
-    minElevation *= deg2rad;
+
     let date = startDate;
     let passes = []
-
-    let ongoingPass = false;
     let pass = false;
+    let ongoingPass = false;
+    let lastElevation = 0;
     while (date < endDate) {
-      let positionEcf = this.positionECF(date);
-      let lookAngles = satellitejs.ecfToLookAngles(groundStation, positionEcf);
+      const positionEcf = this.positionECF(date);
+      const lookAngles = satellitejs.ecfToLookAngles(groundStation, positionEcf);
+      const elevation = lookAngles.elevation / deg2rad;
 
-      if (lookAngles.elevation > 0) {
+      if (elevation > 0) {
         if (!ongoingPass) {
           // Start of new pass
           pass = {
             name: this.name,
             start: date.getTime(),
             azimuthStart: lookAngles.azimuth,
-            maxElevation: lookAngles.elevation,
+            maxElevation: elevation,
             azimuthApex: lookAngles.azimuth,
           }
           ongoingPass = true;
         } else {
           // Ongoing pass
-          if (lookAngles.elevation > pass.maxElevation) {
-            pass.maxElevation = lookAngles.elevation;
+          if (elevation > pass.maxElevation) {
+            pass.maxElevation = elevation;
             pass.azimuthApex = lookAngles.azimuth;
           }
         }
-        date.setSeconds(date.getSeconds() + 1);
+        date.setSeconds(date.getSeconds() + 5);
       } else {
         if (ongoingPass) {
           // End of pass
@@ -111,16 +112,29 @@ export class Orbit {
             pass.azimuthStart /= deg2rad;
             pass.azimuthApex /= deg2rad;
             pass.azimuthEnd /= deg2rad;
-            pass.maxElevation /= deg2rad;
             passes.push(pass);
             if (passes.length > maxPasses) {
               break;
             }
           }
           ongoingPass = false;
-          date.setMinutes(date.getMinutes() + 60);
+          lastElevation = -180;
+          date.setMinutes(date.getMinutes() + this.orbitalPeriod * 0.75);
         } else {
-          date.setSeconds(date.getSeconds() + 1);
+          let deltaElevation = elevation - lastElevation;
+          lastElevation = elevation;
+          if (deltaElevation < 0) {
+            date.setMinutes(date.getMinutes() + this.orbitalPeriod * 0.75);
+            lastElevation = -180;
+          } else if (elevation < -20) {
+            date.setMinutes(date.getMinutes() + 5);
+          } else if (elevation < -5) {
+            date.setMinutes(date.getMinutes() + 1);
+          } else if (elevation < -1) {
+            date.setSeconds(date.getSeconds() + 5);
+          } else {
+            date.setSeconds(date.getSeconds() + 2);
+          }
         }
       }
     }
