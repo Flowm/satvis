@@ -32,8 +32,9 @@ export class SatelliteManager {
         return response;
       }).then(response => response.text())
       .then(data => {
-        const tles = data.match(/[\s\S]{168}/g); //.*?\n1.*?\n2.*?\n
-        for (var tle of tles) {
+        const lines = data.split(/\r?\n/);
+        for (let i = 3; i < lines.length; i + 3) {
+          let tle = lines.splice(i - 3, i).join("\n");
           this.addFromTle(tle, tags);
         }
       }).catch(function(error) {
