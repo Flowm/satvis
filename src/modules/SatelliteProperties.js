@@ -148,10 +148,10 @@ export class SatelliteProperties {
   }
 
   get groundStationAvailable() {
-    return this.groundStationPosition !== "undefined";
+    return (typeof this.groundStationPosition !== "undefined");
   }
 
-  updatePasses(time, updateCallback = ()=>{}) {
+  updatePasses(time) {
     if (!this.groundStationAvailable) {
       return false;
     }
@@ -167,12 +167,12 @@ export class SatelliteProperties {
     };
 
     let passes = this.orbit.computePasses(this.groundStationPosition, Cesium.JulianDate.toDate(this.passInterval.start), Cesium.JulianDate.toDate(this.passInterval.stopPrediction));
-    if (passes) {
-      this.passes = passes;
-      this.computePassIntervals();
-      updateCallback();
+    if (!passes) {
+      return false;
     }
 
+    this.passes = passes;
+    this.computePassIntervals();
     return true;
   }
 

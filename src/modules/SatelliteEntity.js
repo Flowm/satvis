@@ -222,10 +222,10 @@ export class SatelliteEntity extends CesiumEntityWrapper {
   }
 
   updatePasses() {
-    this.props.updatePasses(this.viewer.clock.currentTime, () => {
+    if (this.props.updatePasses(this.viewer.clock.currentTime)) {
       if (this.isTracked) {
         this.timeline.addHighlightRanges(this.props.passes);
       }
-    });
+    };
   }
 }
