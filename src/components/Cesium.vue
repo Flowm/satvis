@@ -101,6 +101,14 @@
       </div>
       <div v-show="menu.map" class="toolbarSwitches">
         <div class="toolbarTitle">
+          Imagery
+        </div>
+        <label v-for="name in cc.imageryProviders" :key="name" class="toolbarSwitch">
+          <input v-model="imageryProvider" type="radio" :value="name">
+          <span class="slider"></span>
+          {{ name }}
+        </label>
+        <div class="toolbarTitle">
           View
         </div>
         <label v-for="name in cc.sceneModes" :key="name" class="toolbarSwitch">
@@ -109,10 +117,10 @@
           {{ name }}
         </label>
         <div class="toolbarTitle">
-          Imagery
+          Camera
         </div>
-        <label v-for="name in cc.imageryProviders" :key="name" class="toolbarSwitch">
-          <input v-model="imageryProvider" type="radio" :value="name">
+        <label v-for="name in cc.cameraModes" :key="name" class="toolbarSwitch">
+          <input v-model="cameraMode" type="radio" :value="name">
           <span class="slider"></span>
           {{ name }}
         </label>
@@ -224,6 +232,7 @@ export default {
       showUI: true,
       imageryProvider: "OfflineHighres",
       sceneMode: "3D",
+      cameraMode: "Fixed",
       enabledComponents: cc.sats.enabledComponents,
       groundStationPicker: cc.groundStationPicker,
     };
@@ -235,6 +244,9 @@ export default {
     },
     sceneMode: function(newMode) {
       cc.sceneMode = newMode;
+    },
+    cameraMode: function(newMode) {
+      cc.cameraMode = newMode;
     },
     enabledComponents: function(newComponents, oldComponents) {
       let add = newComponents.filter(x => !oldComponents.includes(x));

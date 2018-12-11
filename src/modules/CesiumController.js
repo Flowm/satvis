@@ -35,6 +35,7 @@ export class CesiumController {
     // CesiumController config
     this.imageryProviders = ["Offline", "OfflineHighres", "ArcGis", "OSM"];
     this.sceneModes = ["3D", "2D", "Columbus"];
+    this.cameraModes = ["Fixed", "Inertial"];
     this.groundStationPicker = { enabled: false };
 
     this.createInputHandler();
@@ -100,6 +101,31 @@ export class CesiumController {
       break;
     }
     return provider;
+  }
+
+  set cameraMode(cameraMode) {
+    switch(cameraMode) {
+    case "Inertial":
+      this.viewer.scene.postUpdate.addEventListener(this.cameraTrackEci);
+      break;
+    case "Fixed":
+      this.viewer.scene.postUpdate.removeEventListener(this.cameraTrackEci);
+      break;
+    }
+  }
+
+  cameraTrackEci(scene, time) {
+    if (scene.mode !== Cesium.SceneMode.SCENE3D) {
+      return;
+    }
+
+    const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(time);
+    if (Cesium.defined(icrfToFixed)) {
+      const camera = scene.camera;
+      const offset = Cesium.Cartesian3.clone(camera.position);
+      const transform = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
+      camera.lookAtTransform(transform, offset);
+    }
   }
 
   createInputHandler() {
