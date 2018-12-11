@@ -12,7 +12,9 @@
     "start": "webpack-dev-server --config webpack.dev.js",
     "start-dev": "webpack-dev-server --config webpack.dev.js --host 0.0.0.0",
     "start-prod": "webpack-dev-server --config webpack.prod.js --host 0.0.0.0",
-    "test": "ava"
+    "test": "ava",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run"
   },
   "author": "Florian Mauracher",
   "private": true,
@@ -38,6 +40,7 @@
     "copy-webpack-plugin": "^4.6.0",
     "css-loader": "^2.0.0",
     "cssnano": "^4.1.7",
+    "cypress": "^3.1.3",
     "eslint": "^5.10.0",
     "eslint-plugin-ava": "^5.1.1",
     "eslint-plugin-vue": "^5.0.0",
