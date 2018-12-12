@@ -4,7 +4,8 @@
   "description": "Satellite orbit visualization with CesiumJS",
   "scripts": {
     "build": "webpack --config webpack.prod.js",
-    "build:dev": "webpack --config webpack.dev.js",
+    "build:dev": "webpack --progress --config webpack.dev.js",
+    "build:stats": "webpack --progress --config webpack.stats.js",
     "clean": "mkdirp dist & rimraf dist/*",
     "lint": "eslint --ext .js,.vue src",
     "serve:dev": "npm run build-dev && http-server -g -c0 dist",
@@ -62,6 +63,7 @@
     "vue-loader": "^15.4.2",
     "vue-template-compiler": "^2.5.18",
     "webpack": "^4.27.1",
+    "webpack-bundle-analyzer": "^3.0.3",
     "webpack-cli": "^3.1.2",
     "webpack-dev-server": "^3.1.10",
     "webpack-merge": "^4.1.4",
