@@ -226,6 +226,6 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       if (this.isTracked) {
         this.timeline.addHighlightRanges(this.props.passes);
       }
-    };
+    }
   }
 }
