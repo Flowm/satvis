@@ -205,12 +205,12 @@
 
 <script>
 import Vue from "vue";
-import Buefy from "buefy";
+import Tooltip from "buefy/dist/components/tooltip";
 import SatelliteSelect from "./SatelliteSelect.vue";
 import SatelliteMultiSelect from "./SatelliteMultiSelect.vue";
 import SatelliteNotifyMultiSelect from "./SatelliteNotifyMultiSelect.vue";
 import VueCesiumController from "./VueCesiumController.js";
-Vue.use(Buefy);
+Vue.use(Tooltip);
 Vue.use(VueCesiumController); /* global cc */
 
 export default {
