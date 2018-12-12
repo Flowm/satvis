@@ -196,6 +196,15 @@ export class SatelliteProperties {
   }
 
   notifyPasses(aheadMin = 5) {
+    if (!this.groundStationAvailable) {
+      Toast.open({
+        message: "Ground station required to notify for passes",
+        type: "is-warning",
+        position: "is-bottom",
+        duration: 4000,
+      });
+      return;
+    }
     let passes = this.orbit.computePasses(this.groundStationPosition);
     if (!passes) {
       Toast.open({
