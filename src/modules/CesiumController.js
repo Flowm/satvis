@@ -25,9 +25,11 @@ export class CesiumController {
     });
 
     // Cesium default settings
-    //this.viewer.scene.debugShowFramesPerSecond = true;
-    this.viewer.scene.globe.enableLighting = true;
     this.viewer.clock.shouldAnimate = true;
+    this.viewer.scene.globe.enableLighting = true;
+    this.viewer.scene.requestRenderMode = true;
+    this.viewer.scene.maximumRenderTimeChange = 1/30;
+    //this.viewer.scene.debugShowFramesPerSecond = true;
 
     // Export CesiumController for debugger
     window.cc = this;
