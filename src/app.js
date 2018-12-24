@@ -17,11 +17,12 @@ window.app = app;
 
 /* global cc */
 cc.sats.addFromTleUrl("data/tle/move.txt", ["MOVE"]);
-cc.sats.addFromTleUrl("data/tle/ssoa.txt", ["SSOA"]);
+cc.sats.addFromTleUrl("data/tle/sso-a.txt", ["SSO-A"]);
 cc.sats.addFromTleUrl("data/tle/resource.txt", ["Resource"]);
 cc.sats.addFromTleUrl("data/tle/science.txt", ["Science"]);
 cc.sats.addFromTleUrl("data/tle/stations.txt", ["Stations"]);
 cc.sats.addFromTleUrl("data/tle/weather.txt", ["Weather"]);
 cc.sats.addFromTleUrl("data/tle/ot.txt", ["OT"]);
+cc.sats.addFromTleUrl("data/tle/planet.txt", ["PLANET"]);
 
 cc.sats.enableTag("MOVE");
