@@ -1,4 +1,4 @@
-workflow "NPM" {
+workflow "Main workflow" {
   on = "push"
   resolves = [
     "NPM lint",
@@ -7,18 +7,18 @@ workflow "NPM" {
 }
 
 action "NPM install" {
-  uses = "actions/npm@6309cd9"
+  uses = "actions/npm@master"
   args = "install"
 }
 
 action "NPM lint" {
-  uses = "actions/npm@6309cd9"
+  uses = "actions/npm@master"
   needs = ["NPM install"]
   args = "run lint"
 }
 
 action "NPM build" {
-  uses = "actions/npm@6309cd9"
+  uses = "actions/npm@master"
   needs = ["NPM install"]
   args = "run build"
 }
