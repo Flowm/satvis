@@ -24,7 +24,7 @@
 <script>
 /* global cc */
 import multiSelect from "vue-multi-select";
-import "vue-multi-select/dist/lib/vue-multi-select.min.css";
+import "vue-multi-select/dist/lib/vue-multi-select.css";
 
 export default {
   components: {
@@ -32,7 +32,7 @@ export default {
   },
   data() {
     return {
-      btnLabel: "No tracked satellite",
+      btnLabel: values => values.length > 0 ? values[0] : "Select...",
       values: [],
       data: cc.sats.satlist,
       options: {
