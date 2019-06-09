@@ -16,13 +16,15 @@ const app = new Vue({
 window.app = app;
 
 /* global cc */
-cc.sats.addFromTleUrl("data/tle/move.txt", ["MOVE"]);
-cc.sats.addFromTleUrl("data/tle/sso-a.txt", ["SSO-A"]);
-cc.sats.addFromTleUrl("data/tle/resource.txt", ["Resource"]);
-cc.sats.addFromTleUrl("data/tle/science.txt", ["Science"]);
-cc.sats.addFromTleUrl("data/tle/stations.txt", ["Stations"]);
-cc.sats.addFromTleUrl("data/tle/weather.txt", ["Weather"]);
-cc.sats.addFromTleUrl("data/tle/ot.txt", ["OT"]);
-cc.sats.addFromTleUrl("data/tle/planet.txt", ["PLANET"]);
+//cc.sats.addFromTleUrl("data/tle/norad/active.txt", ["ACTIVE"]);
+cc.sats.addFromTleUrl("data/tle/norad/planet.txt", ["PLANET"]);
+cc.sats.addFromTleUrl("data/tle/norad/starlink.txt", ["STARLINK"]);
+cc.sats.addFromTleUrl("data/tle/norad/resource.txt", ["Resource"]);
+cc.sats.addFromTleUrl("data/tle/norad/science.txt", ["Science"]);
+cc.sats.addFromTleUrl("data/tle/norad/stations.txt", ["Stations"]);
+cc.sats.addFromTleUrl("data/tle/norad/weather.txt", ["Weather"]);
+
+cc.sats.addFromTleUrl("data/tle/custom/move.txt", ["MOVE"]);
+cc.sats.addFromTleUrl("data/tle/custom/ot.txt", ["OT"]);
 
 cc.sats.enableTag("MOVE");
