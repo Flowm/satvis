@@ -27,6 +27,10 @@ export class SatelliteProperties {
     return this.tags.includes(tag);
   }
 
+  addTags(tags) {
+    this.tags = [...new Set(this.tags.concat(tags))];
+  }
+
   position(time) {
     return this.sampledPosition.getValue(time);
   }
