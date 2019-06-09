@@ -48,8 +48,9 @@ export class SatelliteManager {
   }
 
   add(satelliteEntity) {
-    if (this.satelliteNames.includes(satelliteEntity.props.name)) {
-      console.log(`Satellite ${satelliteEntity.props.name} already exists`);
+    const existingSatellite = this.satellites.find((sat) => sat.props.satnum == satelliteEntity.props.satnum);
+    if (existingSatellite) {
+      existingSatellite.props.addTags(satelliteEntity.props.tags);
       return;
     }
     if (this.groundStationAvailable) {
