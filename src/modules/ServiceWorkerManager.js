@@ -6,6 +6,15 @@ export class ServiceWorkerManager {
       return;
     }
 
+    // XXX: Temporary workaround for cesium cache issue on upgrade
+    // https://github.com/AnalyticalGraphicsInc/cesium/issues/7617
+    caches.keys().then(cacheNames => {
+      console.log(cacheNames)
+      cacheNames.forEach(cacheName => {
+        caches.delete(cacheName);
+      });
+    });
+
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("./sw.js").then(reg => {
         console.log("SW registered:", reg);
