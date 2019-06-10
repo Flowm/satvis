@@ -2,8 +2,8 @@
 //workbox.setConfig({ debug: true });
 
 // Update service worker on page refresh
-addEventListener("message", event => {
-  if (event.data === "skipWaiting") {
+addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
     skipWaiting();
   }
 });
@@ -11,7 +11,7 @@ addEventListener("message", event => {
 // Cache Cesium runtime dependencies
 workbox.routing.registerRoute(
   /dist\/(Assets|Widgets|Workers)\/.*\.(css|js|json)$/,
-  workbox.strategies.cacheFirst({
+  new workbox.strategies.CacheFirst({
     cacheName: "cesium-cache",
   })
 );
@@ -19,7 +19,7 @@ workbox.routing.registerRoute(
 // Cache high res map tiles
 workbox.routing.registerRoute(
   /data\/cesium-assets\/imagery\/.*\.(jpg|xml)$/,
-  workbox.strategies.cacheFirst({
+  new workbox.strategies.CacheFirst({
     cacheName: "cesium-tile-cache",
     plugins: [
       new workbox.expiration.Plugin({

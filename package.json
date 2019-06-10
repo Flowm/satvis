@@ -8,7 +8,7 @@
     "build:stats": "webpack --progress --config webpack.stats.js",
     "clean": "mkdirp dist & rimraf dist/*",
     "lint": "eslint --ext .js,.vue src",
-    "serve:dev": "npm run build-dev && http-server -g -c0 dist",
+    "serve:dev": "npm run build:dev && http-server -g -c0 dist",
     "serve:prod": "npm run build && http-server -g -c0 dist",
     "start": "webpack-dev-server --config webpack.dev.js",
     "start:dev": "webpack-dev-server --config webpack.dev.js --host 0.0.0.0",
@@ -28,7 +28,8 @@
     "satellite.js": "^3.0.1",
     "vue": "^2.6.10",
     "vue-multi-select": "^4.0.0",
-    "vue-router": "^3.0.6"
+    "vue-router": "^3.0.6",
+    "workbox-window": "^4.3.1"
   },
   "devDependencies": {
     "@babel/core": "^7.4.5",
