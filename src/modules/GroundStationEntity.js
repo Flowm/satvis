@@ -47,7 +47,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
       const passes = this.passes(time);
       const content = DescriptionHelper.renderDescription(time, this.name, this.position, passes, true);
       return content;
-    });
+    }, false);
     this.description = description;
   }
 
