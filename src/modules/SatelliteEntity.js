@@ -81,7 +81,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       const cartographic = this.props.positionCartographicDegrees(time);
       const content = DescriptionHelper.renderDescription(time, this.props.name, cartographic, this.props.passes, false, this.props.orbit.tle);
       return content;
-    });
+    }, false);
     this.description = description;
   }
 
@@ -152,7 +152,7 @@ export class SatelliteEntity extends CesiumEntityWrapper {
       material: Cesium.Color.ORANGE.withAlpha(0.2),
       positions: new Cesium.CallbackProperty((time) => {
         return this.props.groundTrack(time);
-      }),
+      }, false),
       followSurface: false,
       width: 10,
     });
@@ -193,10 +193,10 @@ export class SatelliteEntity extends CesiumEntityWrapper {
         const groundPosition = this.props.groundStationPosition.cartesian;
         const positions = [satPosition, groundPosition];
         return positions;
-      }),
+      }, false),
       show: new Cesium.CallbackProperty((time) => {
         return this.props.passIntervals.contains(time);
-      }),
+      }, false),
       width: 5,
     });
     this.createCesiumSatelliteEntity("Ground station link", "polyline", polyline);
