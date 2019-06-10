@@ -30,14 +30,11 @@ cc.sats.enableTag("MOVE");
 // Register service worker
 if ("serviceWorker" in navigator) {
   const wb = new Workbox("sw.js");
-
   wb.addEventListener("waiting", (event) => {
-    if (confirm("A new version is available! Click OK to refresh")) {
-      wb.addEventListener("controlling", (event) => {
-        window.location.reload();
-      });
-      wb.messageSW({type: "SKIP_WAITING"});
-    }
+    wb.addEventListener("controlling", (event) => {
+      window.location.reload();
+    });
+    wb.messageSW({type: "SKIP_WAITING"});
   });
   wb.register();
 }
