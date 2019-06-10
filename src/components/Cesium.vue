@@ -147,6 +147,10 @@
           <input type="button" @click="cc.viewer.clockViewModel.multiplier /= 2">
           Decrease play speed
         </label>
+        <label class="toolbarSwitch">
+          <input type="button" @click="$router.go({path: '', force: true})">
+          Reload
+        </label>
       </div>
       <div v-show="menu.dbg" class="toolbarSwitches">
         <div class="toolbarTitle">
