@@ -19,6 +19,8 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
                 NSLog("Location: WhenInUse")
             case .authorizedAlways:
                 NSLog("Location: Always")
+            @unknown default:
+                NSLog("Location: Unknown")
             }
         } else {
             NSLog("Location services are not enabled")
