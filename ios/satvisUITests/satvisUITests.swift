@@ -1,13 +1,25 @@
 import XCTest
 
 class satvisUITests: XCTestCase {
-    override func setUp() {
-        // In UI tests it is usually best to stop immediately when a failure occurs.
-        continueAfterFailure = false
+    let app = XCUIApplication()
 
-        let app = XCUIApplication()
+    override func setUp() {
+        continueAfterFailure = false
         setupSnapshot(app)
         app.launch()
+
+        addUIInterruptionMonitor(withDescription: "System Dialog") {
+            (alert) -> Bool in
+            let okButton = alert.buttons["OK"]
+            if okButton.exists {
+                okButton.tap()
+            }
+            let allowButton = alert.buttons["Allow"]
+            if allowButton.exists {
+                allowButton.tap()
+            }
+            return true
+        }
     }
 
     override func tearDown() {
@@ -15,8 +27,10 @@ class satvisUITests: XCTestCase {
     }
 
     func testExample() {
-        // Use recording to get started writing UI tests.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+        sleep(10)
+        app.webViews.buttons.firstMatch.tap()
+        app.webViews.buttons.firstMatch.tap()
+        print(app.webViews.buttons.debugDescription)
         snapshot("0Launch")
     }
 }
