@@ -33,3 +33,9 @@ playground.xcworkspace
 # Carthage
 # Carthage/Checkouts
 Carthage/Build
+
+# Fastlane
+Gemfile.lock
+fastlane/README.md
+fastlane/report.xml
+fastlane/screenshots/

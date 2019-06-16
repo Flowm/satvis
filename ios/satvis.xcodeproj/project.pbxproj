@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		570DD92A22B5BA980078A4A1 /* satvisUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 570DD92922B5BA980078A4A1 /* satvisUITests.swift */; };
+		570DD93722B5BB4E0078A4A1 /* SnapshotHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 570DD93622B5BB4E0078A4A1 /* SnapshotHelper.swift */; };
 		579DA874218C123A00B417CB /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 579DA873218C123A00B417CB /* AppDelegate.swift */; };
 		579DA876218C123A00B417CB /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 579DA875218C123A00B417CB /* ViewController.swift */; };
 		579DA879218C123A00B417CB /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 579DA877218C123A00B417CB /* Main.storyboard */; };
@@ -16,7 +18,21 @@
 		57D6E2BB219BC66D00CBDB06 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D6E2BA219BC66D00CBDB06 /* NotificationManager.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		570DD92C22B5BA980078A4A1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 579DA868218C123A00B417CB /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 579DA86F218C123A00B417CB;
+			remoteInfo = satvis;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		570DD92722B5BA980078A4A1 /* satvisUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = satvisUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		570DD92922B5BA980078A4A1 /* satvisUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = satvisUITests.swift; sourceTree = "<group>"; };
+		570DD92B22B5BA980078A4A1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		570DD93622B5BB4E0078A4A1 /* SnapshotHelper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SnapshotHelper.swift; sourceTree = "<group>"; };
 		579DA870218C123A00B417CB /* satvis.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = satvis.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		579DA873218C123A00B417CB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		579DA875218C123A00B417CB /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -29,6 +45,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		570DD92422B5BA980078A4A1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		579DA86D218C123A00B417CB /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -39,10 +62,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		570DD92822B5BA980078A4A1 /* satvisUITests */ = {
+			isa = PBXGroup;
+			children = (
+				570DD93622B5BB4E0078A4A1 /* SnapshotHelper.swift */,
+				570DD92922B5BA980078A4A1 /* satvisUITests.swift */,
+				570DD92B22B5BA980078A4A1 /* Info.plist */,
+			);
+			path = satvisUITests;
+			sourceTree = "<group>";
+		};
 		579DA867218C123A00B417CB = {
 			isa = PBXGroup;
 			children = (
 				579DA872218C123A00B417CB /* satvis */,
+				570DD92822B5BA980078A4A1 /* satvisUITests */,
 				579DA871218C123A00B417CB /* Products */,
 			);
 			sourceTree = "<group>";
@@ -51,6 +85,7 @@
 			isa = PBXGroup;
 			children = (
 				579DA870218C123A00B417CB /* satvis.app */,
+				570DD92722B5BA980078A4A1 /* satvisUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -81,6 +116,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		570DD92622B5BA980078A4A1 /* satvisUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 570DD93022B5BA980078A4A1 /* Build configuration list for PBXNativeTarget "satvisUITests" */;
+			buildPhases = (
+				570DD92322B5BA980078A4A1 /* Sources */,
+				570DD92422B5BA980078A4A1 /* Frameworks */,
+				570DD92522B5BA980078A4A1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				570DD92D22B5BA980078A4A1 /* PBXTargetDependency */,
+			);
+			name = satvisUITests;
+			productName = satvisUITests;
+			productReference = 570DD92722B5BA980078A4A1 /* satvisUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		579DA86F218C123A00B417CB /* satvis */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 579DA882218C123C00B417CB /* Build configuration list for PBXNativeTarget "satvis" */;
@@ -104,10 +157,14 @@
 		579DA868218C123A00B417CB /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastSwiftUpdateCheck = 1010;
+				LastSwiftUpdateCheck = 1020;
 				LastUpgradeCheck = 1010;
 				ORGANIZATIONNAME = "Florian Mauracher";
 				TargetAttributes = {
+					570DD92622B5BA980078A4A1 = {
+						CreatedOnToolsVersion = 10.2.1;
+						TestTargetID = 579DA86F218C123A00B417CB;
+					};
 					579DA86F218C123A00B417CB = {
 						CreatedOnToolsVersion = 10.1;
 						LastSwiftMigration = 1020;
@@ -128,11 +185,19 @@
 			projectRoot = "";
 			targets = (
 				579DA86F218C123A00B417CB /* satvis */,
+				570DD92622B5BA980078A4A1 /* satvisUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		570DD92522B5BA980078A4A1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		579DA86E218C123A00B417CB /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -146,6 +211,15 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		570DD92322B5BA980078A4A1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				570DD92A22B5BA980078A4A1 /* satvisUITests.swift in Sources */,
+				570DD93722B5BB4E0078A4A1 /* SnapshotHelper.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		579DA86C218C123A00B417CB /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -158,6 +232,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		570DD92D22B5BA980078A4A1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 579DA86F218C123A00B417CB /* satvis */;
+			targetProxy = 570DD92C22B5BA980078A4A1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		579DA877218C123A00B417CB /* Main.storyboard */ = {
@@ -179,6 +261,46 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		570DD92E22B5BA980078A4A1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 4L2672L4VX;
+				INFOPLIST_FILE = satvisUITests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.frcy.app.satvisUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = satvis;
+			};
+			name = Debug;
+		};
+		570DD92F22B5BA980078A4A1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 4L2672L4VX;
+				INFOPLIST_FILE = satvisUITests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.frcy.app.satvisUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = satvis;
+			};
+			name = Release;
+		};
 		579DA880218C123C00B417CB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -334,6 +456,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		570DD93022B5BA980078A4A1 /* Build configuration list for PBXNativeTarget "satvisUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				570DD92E22B5BA980078A4A1 /* Debug */,
+				570DD92F22B5BA980078A4A1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		579DA86B218C123A00B417CB /* Build configuration list for PBXProject "satvis" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

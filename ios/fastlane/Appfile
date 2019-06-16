@@ -1,0 +1,8 @@
+app_identifier("org.frcy.app.satvis") # The bundle identifier of your app
+apple_id("fry@mauracher.eu") # Your Apple email address
+
+itc_team_id("119354998") # App Store Connect Team ID
+team_id("4L2672L4VX") # Developer Portal Team ID
+
+# For more information about the Appfile, see:
+#     https://docs.fastlane.tools/advanced/#appfile
