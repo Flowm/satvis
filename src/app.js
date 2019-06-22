@@ -32,9 +32,12 @@ if ("serviceWorker" in navigator) {
   const wb = new Workbox("sw.js");
   wb.addEventListener("waiting", (event) => {
     wb.addEventListener("controlling", (event) => {
+      console.log("Reloading page for latest content");
       window.location.reload();
     });
     wb.messageSW({type: "SKIP_WAITING"});
+    // Old serviceworker message for migration, can be removed in the future
+    wb.messageSW("SKIP_WAITING");
   });
   wb.register();
 }
