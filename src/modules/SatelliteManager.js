@@ -1,4 +1,4 @@
-import { SatelliteEntity } from "./SatelliteEntity";
+import { SatelliteEntityWrapper } from "./SatelliteEntityWrapper";
 import { GroundStationEntity } from "./GroundStationEntity";
 /* global app */
 
@@ -43,25 +43,25 @@ export class SatelliteManager {
   }
 
   addFromTle(tle, tags) {
-    const sat = new SatelliteEntity(this.viewer, tle, tags);
+    const sat = new SatelliteEntityWrapper(this.viewer, tle, tags);
     this.add(sat);
   }
 
-  add(satelliteEntity) {
-    const existingSatellite = this.satellites.find((sat) => sat.props.satnum == satelliteEntity.props.satnum);
-    if (existingSatellite) {
-      existingSatellite.props.addTags(satelliteEntity.props.tags);
+  add(newSat) {
+    const existingSat = this.satellites.find((sat) => sat.props.satnum == newSat.props.satnum);
+    if (existingSat) {
+      existingSat.props.addTags(newSat.props.tags);
       return;
     }
     if (this.groundStationAvailable) {
-      satelliteEntity.groundStation = this.groundStation.position;
+      newSat.groundStation = this.groundStation.position;
     }
-    this.satellites.push(satelliteEntity);
+    this.satellites.push(newSat);
 
-    if (satelliteEntity.props.tags.some(tag => this.enabledTags.includes(tag))) {
-      satelliteEntity.show(this.enabledComponents);
-      if (this.pendingTrackedSatellite === satelliteEntity.props.name) {
-        this.trackedSatellite = satelliteEntity.props.name;
+    if (newSat.props.tags.some(tag => this.enabledTags.includes(tag))) {
+      newSat.show(this.enabledComponents);
+      if (this.pendingTrackedSatellite === newSat.props.name) {
+        this.trackedSatellite = newSat.props.name;
       }
     }
   }

@@ -7,7 +7,7 @@ import { DescriptionHelper } from "./DescriptionHelper";
 import Cesium from "Cesium";
 import CesiumSensorVolumes from "CesiumSensorVolumes";
 
-export class SatelliteEntity extends CesiumEntityWrapper {
+export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   constructor(viewer, tle, tags) {
     super(viewer);
     this.timeline = new CesiumTimelineHelper(viewer);
