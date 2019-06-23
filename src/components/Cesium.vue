@@ -276,7 +276,7 @@ export default {
     }
     if (this.$route.query.elements) {
       const elements = this.$route.query.elements.replace(/-/g, " ").split(",");
-      this.enabledComponents = [...new Set(this.enabledComponents.concat(...elements))];
+      this.enabledComponents = elements;
     }
     if (this.$route.query.time) {
       cc.setTime(this.$route.query.time);
