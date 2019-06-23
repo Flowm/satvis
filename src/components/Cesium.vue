@@ -278,6 +278,9 @@ export default {
       const elements = this.$route.query.elements.replace(/-/g, " ").split(",");
       this.enabledComponents = [...new Set(this.enabledComponents.concat(...elements))];
     }
+    if (this.$route.query.time) {
+      cc.setTime(this.$route.query.time);
+    }
     this.showUI = !cc.minimalUIAtStartup;
     this.$root.$on("updateCat", this.updateCat);
   },

@@ -1,7 +1,8 @@
 // Import webpack externals
 import Cesium from "Cesium";
-import { SatelliteManager } from "./SatelliteManager";
+import dayjs from "dayjs";
 import { DeviceDetect } from "./util/DeviceDetect";
+import { SatelliteManager } from "./SatelliteManager";
 
 export class CesiumController {
   constructor() {
@@ -128,6 +129,14 @@ export class CesiumController {
       const transform = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
       camera.lookAtTransform(transform, offset);
     }
+  }
+
+  setTime(current, start = dayjs(current).subtract(12, 'hour').toISOString(), stop = dayjs(current).add(7, 'day').toISOString()) {
+    this.viewer.clock.startTime = Cesium.JulianDate.fromIso8601(dayjs(start).toISOString());
+    this.viewer.clock.stopTime = Cesium.JulianDate.fromIso8601(dayjs(stop).toISOString());
+    this.viewer.clock.currentTime = Cesium.JulianDate.fromIso8601(dayjs(current).toISOString());
+    this.viewer.timeline.updateFromClock();
+    this.viewer.timeline.zoomTo(this.viewer.clock.startTime, this.viewer.clock.stopTime);
   }
 
   createInputHandler() {
