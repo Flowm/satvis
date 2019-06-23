@@ -129,9 +129,9 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
     const path = new Cesium.PathGraphics({
       leadTime: this.props.orbit.orbitalPeriod * 60 / 2 + 5,
       trailTime: this.props.orbit.orbitalPeriod * 60 / 2 + 5,
-      material: Cesium.Color.WHITE.withAlpha(0.2),
+      material: Cesium.Color.WHITE.withAlpha(0.15),
       resolution: 600,
-      width: 5,
+      width: 2,
     });
     this.createCesiumEntity("Orbit", "path", path, this.props.name, this.description, this.props.sampledPositionInertial, true);
   }
@@ -140,9 +140,9 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
     const path = new Cesium.PathGraphics({
       leadTime: leadTime,
       trailTime: trailTime,
-      material: Cesium.Color.GOLD.withAlpha(0.2),
+      material: Cesium.Color.GOLD.withAlpha(0.15),
       resolution: 600,
-      width: 5,
+      width: 2,
     });
     this.createCesiumSatelliteEntity("Orbit track", "path", path);
   }
