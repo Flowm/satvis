@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
+set -eu
+
 cd "${0%/*}"
+mkdir -p norad && cd norad
 
 # https://celestrak.com/NORAD/elements/
 # [...document.links].forEach(link => {if (link.href.match(/txt$/)) {console.log(link.href)}});
@@ -54,3 +57,5 @@ curl -O https://celestrak.com/NORAD/elements/military.txt
 curl -O https://celestrak.com/NORAD/elements/radar.txt
 curl -O https://celestrak.com/NORAD/elements/cubesat.txt
 curl -O https://celestrak.com/NORAD/elements/other.txt
+
+egrep -A2 '(FIRST-MOVE|MOVE-II)' --no-group-separator active.txt > ../custom/move.txt
