@@ -49,7 +49,7 @@ export class SatelliteManager {
 
   add(newSat) {
     const existingSat = this.satellites.find((sat) => sat.props.satnum == newSat.props.satnum);
-    if (existingSat) {
+    if (existingSat && existingSat.props.name == newSat.props.name) {
       existingSat.props.addTags(newSat.props.tags);
       return;
     }
