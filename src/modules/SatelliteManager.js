@@ -51,6 +51,9 @@ export class SatelliteManager {
     const existingSat = this.satellites.find((sat) => sat.props.satnum == newSat.props.satnum && sat.props.name == newSat.props.name);
     if (existingSat) {
       existingSat.props.addTags(newSat.props.tags);
+      if (newSat.props.tags.some(tag => this.enabledTags.includes(tag))) {
+        existingSat.show(this.enabledComponents);
+      }
       return;
     }
     if (this.groundStationAvailable) {
