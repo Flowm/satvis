@@ -25,7 +25,9 @@ cc.sats.addFromTleUrl("data/tle/norad/weather.txt", ["Weather"]);
 cc.sats.addFromTleUrl("data/tle/custom/move.txt", ["MOVE"]);
 cc.sats.addFromTleUrl("data/tle/ext/ot.txt", ["OT"]);
 
-cc.sats.enableTag("MOVE");
+if (cc.sats.enabledTags.length === 0) {
+  cc.sats.enableTag("MOVE");
+}
 
 // Register service worker
 if ("serviceWorker" in navigator) {
