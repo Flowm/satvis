@@ -22,9 +22,7 @@ cc.sats.addFromTleUrl("data/tle/norad/science.txt", ["Science"]);
 cc.sats.addFromTleUrl("data/tle/norad/stations.txt", ["Stations"]);
 cc.sats.addFromTleUrl("data/tle/norad/weather.txt", ["Weather"]);
 
-cc.sats.addFromTleUrl("data/tle/custom/move.txt", ["MOVE"]);
-cc.sats.addFromTleUrl("data/tle/ext/ot.txt", ["OT"]);
-
+cc.sats.addFromTleUrl("data/tle/ext/move.txt", ["MOVE"]);
 if (cc.sats.enabledTags.length === 0) {
   cc.sats.enableTag("MOVE");
 }

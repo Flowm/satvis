@@ -58,4 +58,5 @@ curl -O https://celestrak.com/NORAD/elements/radar.txt
 curl -O https://celestrak.com/NORAD/elements/cubesat.txt
 curl -O https://celestrak.com/NORAD/elements/other.txt
 
-egrep -A2 '(FIRST-MOVE|MOVE-II)' --no-group-separator active.txt > ../custom/move.txt
+mkdir -p ../ext
+egrep -A2 '(FIRST-MOVE|MOVE-II)' --no-group-separator active.txt > ../ext/move.txt
