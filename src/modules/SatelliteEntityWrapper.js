@@ -159,7 +159,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
     this.createCesiumSatelliteEntity("Ground track", "polyline", polyline);
   }
 
-  createCone(fov = 10) {
+  createCone(fov = 12) {
     const cone = new Cesium.Entity({
       position: this.props.sampledPosition,
       orientation: new Cesium.CallbackProperty((time) => {
