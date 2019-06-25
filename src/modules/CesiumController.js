@@ -17,7 +17,7 @@ export class CesiumController {
       geocoder: false,
       homeButton: false,
       sceneModePicker: false,
-      imageryProvider: this.createImageryProvider(),
+      imageryProvider: this.createImageryProvider().provider,
       navigationHelpButton: false,
       navigationInstructionsInitiallyVisible: false,
       selectionIndicator: false,
@@ -36,7 +36,7 @@ export class CesiumController {
     window.cc = this;
 
     // CesiumController config
-    this.imageryProviders = ["Offline", "OfflineHighres", "ArcGis", "OSM"];
+    this.imageryProviders = ["Offline", "OfflineHighres", "ArcGis", "OSM", "Tiles", "GOES-IR", "Nextrad", "Meteocool"];
     this.sceneModes = ["3D", "2D", "Columbus"];
     this.cameraModes = ["Fixed", "Inertial"];
     this.groundStationPicker = { enabled: false };
@@ -67,19 +67,38 @@ export class CesiumController {
     }
   }
 
-  set imageryProvider(imageryProvider) {
-    if (!this.imageryProviders.includes(imageryProvider)) {
+  set imageryProvider(imageryProviderName) {
+    if (!this.imageryProviders.includes(imageryProviderName)) {
       return;
     }
 
     const layers = this.viewer.scene.imageryLayers;
     layers.removeAll();
-    layers.addImageryProvider(this.createImageryProvider(imageryProvider));
+    layers.addImageryProvider(this.createImageryProvider(imageryProviderName).provider);
   }
 
-  createImageryProvider(imageryProvider = "OfflineHighres") {
+  clearImageryLayers() {
+    this.viewer.scene.imageryLayers.removeAll();
+  }
+
+  addImageryLayer(imageryProviderName, alpha) {
+    if (!this.imageryProviders.includes(imageryProviderName)) {
+      return;
+    }
+
+    const layers = this.viewer.scene.imageryLayers;
+    const imagery = this.createImageryProvider(imageryProviderName);
+    const layer = layers.addImageryProvider(imagery.provider);
+    if (typeof alpha === "undefined") {
+      alpha = imagery.alpha;
+    }
+    layer.alpha = alpha;
+  }
+
+  createImageryProvider(imageryProviderName = "OfflineHighres") {
     let provider;
-    switch(imageryProvider) {
+    let alpha = 1;
+    switch(imageryProviderName) {
     case "Offline":
       provider = new Cesium.createTileMapServiceImageryProvider({
         url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
@@ -102,8 +121,46 @@ export class CesiumController {
         url : "https://a.tile.openstreetmap.org/"
       });
       break;
+    case "Tiles":
+      provider = new Cesium.TileCoordinatesImageryProvider();
+      break;
+    case "GOES-IR":
+      provider = new Cesium.WebMapServiceImageryProvider({
+        url : "https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi?",
+        layers : "goes_conus_ir",
+        credit : "Infrared data courtesy Iowa Environmental Mesonet",
+        parameters : {
+          transparent : "true",
+          format : "image/png"
+        }
+      });
+      alpha = 0.5;
+      break;
+    case "Nextrad":
+      provider = new Cesium.WebMapServiceImageryProvider({
+        url : "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi?",
+        layers : "nexrad-n0r",
+        credit : "US Radar data courtesy Iowa Environmental Mesonet",
+        parameters : {
+          transparent : "true",
+          format : "image/png"
+        }
+      });
+      alpha = 0.5;
+      break;
+    case "Meteocool":
+      provider = new Cesium.UrlTemplateImageryProvider({
+        url : "https://{s}.tileserver.unimplemented.org/data/raa01-wx_10000-latest-dwd-wgs84_transformed/{z}/{x}/{y}.png",
+        rectangle: Cesium.Rectangle.fromDegrees(2.8125, 45, 19.6875, 56.25),
+        minimumLevel: 6,
+        maximumLevel: 10,
+        credit : "DE Radar data courtesy of meteocool.com",
+        subdomains: "ab"
+      });
+      alpha = 0.5;
+      break;
     }
-    return provider;
+    return { provider, alpha };
   }
 
   set cameraMode(cameraMode) {
@@ -131,7 +188,7 @@ export class CesiumController {
     }
   }
 
-  setTime(current, start = dayjs(current).subtract(12, 'hour').toISOString(), stop = dayjs(current).add(7, 'day').toISOString()) {
+  setTime(current, start = dayjs(current).subtract(12, "hour").toISOString(), stop = dayjs(current).add(7, "day").toISOString()) {
     this.viewer.clock.startTime = Cesium.JulianDate.fromIso8601(dayjs(start).toISOString());
     this.viewer.clock.stopTime = Cesium.JulianDate.fromIso8601(dayjs(stop).toISOString());
     this.viewer.clock.currentTime = Cesium.JulianDate.fromIso8601(dayjs(current).toISOString());

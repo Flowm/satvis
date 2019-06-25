@@ -268,7 +268,9 @@ export default {
       cc.setGroundStationFromLatLon(this.$route.query.gs);
     }
     if (this.$route.query.imagery) {
-      cc.imageryProvider = this.$route.query.imagery;
+      const layers = this.$route.query.imagery.split(",");
+      cc.clearImageryLayers();
+      layers.forEach(provider => cc.addImageryLayer(provider));
     }
     if (this.$route.query.tags) {
       const tags = this.$route.query.tags.split(",");
