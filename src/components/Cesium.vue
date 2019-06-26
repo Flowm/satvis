@@ -101,7 +101,7 @@
       </div>
       <div v-show="menu.map" class="toolbarSwitches">
         <div class="toolbarTitle">
-          Imagery
+          Layers
         </div>
         <label v-for="name in cc.imageryProviders" :key="name" class="toolbarSwitch">
           <input v-model="imageryProvider" type="radio" :value="name">
@@ -244,7 +244,7 @@ export default {
   watch: {
     imageryProvider: function(newProvider) {
       cc.imageryProvider = newProvider;
-      this.$router.push({query: {...this.$route.query, imagery: newProvider}});
+      this.$router.push({query: {...this.$route.query, layers: newProvider}});
     },
     sceneMode: function(newMode) {
       cc.sceneMode = newMode;
@@ -267,8 +267,8 @@ export default {
     if (this.$route.query.gs) {
       cc.setGroundStationFromLatLon(this.$route.query.gs);
     }
-    if (this.$route.query.imagery) {
-      const layers = this.$route.query.imagery.split(",");
+    if (this.$route.query.layers) {
+      const layers = this.$route.query.layers.split(",");
       cc.clearImageryLayers();
       layers.forEach(provider => cc.addImageryLayer(provider));
     }
