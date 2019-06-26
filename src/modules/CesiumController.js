@@ -150,12 +150,39 @@ export class CesiumController {
       break;
     case "Meteocool":
       provider = new Cesium.UrlTemplateImageryProvider({
-        url : "https://{s}.tileserver.unimplemented.org/data/raa01-wx_10000-latest-dwd-wgs84_transformed/{z}/{x}/{y}.png",
+        url: "https://{s}.tileserver.unimplemented.org/data/{time}/{z}/{x}/{y}.png",
         rectangle: Cesium.Rectangle.fromDegrees(2.8125, 45, 19.6875, 56.25),
         minimumLevel: 6,
         maximumLevel: 10,
         credit : "DE Radar data courtesy of meteocool.com",
-        subdomains: "ab"
+        subdomains: "ab",
+        customTags: {
+          time: (imageryProvider, x, y, level) => {
+            const time = dayjs(Cesium.JulianDate.toDate(this.viewer.clock.currentTime));
+            const diff = time.diff(dayjs(), "minute");
+            if (diff >= 0) {
+              return "raa01-wx_10000-latest-dwd-wgs84_transformed";
+            } else if (diff >= -5) {
+              return "FX_005-latest";
+            } else if (diff >= -10) {
+              return "FX_010-latest";
+            } else if (diff >= -15) {
+              return "FX_015-latest";
+            } else if (diff >= -20) {
+              return "FX_020-latest";
+            } else if (diff >= -25) {
+              return "FX_025-latest";
+            } else if (diff >= -30) {
+              return "FX_030-latest";
+            } else if (diff >= -35) {
+              return "FX_035-latest";
+            } else if (diff >= -40) {
+              return "FX_040-latest";
+            } else {
+              return "FX_045-latest";
+            }
+          }
+        }
       });
       alpha = 0.5;
       break;
