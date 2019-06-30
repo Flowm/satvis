@@ -5,10 +5,12 @@ class satvisUITests: XCTestCase {
 
     override func setUp() {
         continueAfterFailure = false
+        SpringboardHelper.deleteMyApp()
+
         setupSnapshot(app)
         app.launch()
 
-        addUIInterruptionMonitor(withDescription: "System Dialog") {
+        addUIInterruptionMonitor(withDescription: "Alert") {
             (alert) -> Bool in
             let okButton = alert.buttons["OK"]
             if okButton.exists {
@@ -20,6 +22,7 @@ class satvisUITests: XCTestCase {
             }
             return true
         }
+        app.activate()
     }
 
     override func tearDown() {
@@ -27,10 +30,11 @@ class satvisUITests: XCTestCase {
     }
 
     func testExample() {
+        app.tap()
         sleep(10)
-        app.webViews.buttons.firstMatch.tap()
-        app.webViews.buttons.firstMatch.tap()
-        print(app.webViews.buttons.debugDescription)
         snapshot("0Launch")
+
+        //app.webViews.buttons.firstMatch.tap()
+        //print(app.webViews.buttons.debugDescription)
     }
 }
