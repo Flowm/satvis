@@ -1,8 +1,11 @@
 // Import webpack externals
 import Cesium from "Cesium";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import { DeviceDetect } from "./util/DeviceDetect";
 import { SatelliteManager } from "./SatelliteManager";
+
+dayjs.extend(utc);
 
 export class CesiumController {
   constructor() {
@@ -188,10 +191,10 @@ export class CesiumController {
     }
   }
 
-  setTime(current, start = dayjs(current).subtract(12, "hour").toISOString(), stop = dayjs(current).add(7, "day").toISOString()) {
-    this.viewer.clock.startTime = Cesium.JulianDate.fromIso8601(dayjs(start).toISOString());
-    this.viewer.clock.stopTime = Cesium.JulianDate.fromIso8601(dayjs(stop).toISOString());
-    this.viewer.clock.currentTime = Cesium.JulianDate.fromIso8601(dayjs(current).toISOString());
+  setTime(current, start = dayjs.utc(current).subtract(12, "hour").toISOString(), stop = dayjs.utc(current).add(7, "day").toISOString()) {
+    this.viewer.clock.startTime = Cesium.JulianDate.fromIso8601(dayjs.utc(start).toISOString());
+    this.viewer.clock.stopTime = Cesium.JulianDate.fromIso8601(dayjs.utc(stop).toISOString());
+    this.viewer.clock.currentTime = Cesium.JulianDate.fromIso8601(dayjs.utc(current).toISOString());
     this.viewer.timeline.updateFromClock();
     this.viewer.timeline.zoomTo(this.viewer.clock.startTime, this.viewer.clock.stopTime);
   }
