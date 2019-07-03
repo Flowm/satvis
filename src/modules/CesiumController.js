@@ -52,7 +52,7 @@ export class CesiumController {
 
     // Fix Cesium logo in minimal ui mode
     if (this.minimalUI) {
-      setTimeout(() => { this.fixLogo(); }, 2000);
+      setTimeout(() => { this.fixLogo(); }, 2500);
     }
   }
 
@@ -281,7 +281,7 @@ export class CesiumController {
     if (this.minimalUI) {
       this.viewer._bottomContainer.style.left = "5px";
     }
-    if (DeviceDetect.isiPhoneWithNotch()) {
+    if (DeviceDetect.isiPhoneWithNotchVisible()) {
       this.viewer._bottomContainer.style.bottom = "20px";
     }
   }

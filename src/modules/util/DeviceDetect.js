@@ -12,12 +12,21 @@ export class DeviceDetect {
     return /iphone|ipad|ipod/.test(userAgent);
   }
 
+  static isSafari() {
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    return /safari/.test(userAgent);
+  }
+
   static isInStandaloneMode() {
     return ("standalone" in window.navigator) && (window.navigator.standalone);
   }
 
   static isiPhoneWithNotch() {
-    return this.isIos() && this.isInStandaloneMode() && /iPhone X/.test(this.getiPhoneModel());
+    return this.isIos() && /iPhone X/.test(this.getiPhoneModel());
+  }
+
+  static isiPhoneWithNotchVisible() {
+    return this.isiPhoneWithNotch() && (this.isInStandaloneMode() || !this.isSafari());
   }
 
   static getiPhoneModel() {
