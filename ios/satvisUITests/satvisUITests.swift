@@ -8,6 +8,7 @@ class satvisUITests: XCTestCase {
         SpringboardHelper.deleteMyApp()
 
         setupSnapshot(app)
+        app.launchEnvironment["URL"] = "https://satvis.space/?time=2019-07-15T15:52&layers=ArcGis&tags=MOVE&elements=Point,Label,Orbit"
         app.launch()
 
         addUIInterruptionMonitor(withDescription: "Alert") {
@@ -29,12 +30,12 @@ class satvisUITests: XCTestCase {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
-    func testExample() {
-        app.tap()
-        sleep(10)
-        snapshot("0Launch")
+    func testBasicUI() {
+        // Interact with app to trigger alert handling
+        app.statusBars.firstMatch.tap()
 
-        //app.webViews.buttons.firstMatch.tap()
-        //print(app.webViews.buttons.debugDescription)
+        // Wait for map tiles to load
+        sleep(60)
+        snapshot("0Launch")
     }
 }

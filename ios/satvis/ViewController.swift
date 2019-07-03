@@ -7,7 +7,8 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        if let url = URL(string: "https://satvis.space/") {
+        let urlString = ProcessInfo.processInfo.environment["URL"] ?? "https://satvis.space/"
+        if let url = URL(string: urlString) {
             let request = URLRequest(url: url)
             webView.load(request)
             webView.configuration.userContentController.add(self, name: "iosNotify")
