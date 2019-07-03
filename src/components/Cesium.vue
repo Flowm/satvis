@@ -273,9 +273,9 @@ export default {
       layers.forEach(layer => {
         const provider = layer.split("_");
         if (provider.length == 1) {
-          cc.addImageryLayer(provider[0])
+          cc.addImageryLayer(provider[0]);
         } else {
-          cc.addImageryLayer(provider[0], provider[1])
+          cc.addImageryLayer(provider[0], provider[1]);
         }
       });
     }

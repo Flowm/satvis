@@ -33,7 +33,7 @@ export default {
   },
   data() {
     return {
-      btnLabel: values => `Enabled satellites (${cc.sats.enabledSatellites.length})`,
+      btnLabel: () => `Enabled satellites (${cc.sats.enabledSatellites.length})`,
       values: [],
       data: cc.sats.satlist,
       filters: [{

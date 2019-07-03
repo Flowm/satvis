@@ -30,8 +30,8 @@ if (cc.sats.enabledTags.length === 0) {
 // Register service worker
 if ("serviceWorker" in navigator) {
   const wb = new Workbox("sw.js");
-  wb.addEventListener("waiting", (event) => {
-    wb.addEventListener("controlling", (event) => {
+  wb.addEventListener("waiting", () => {
+    wb.addEventListener("controlling", () => {
       console.log("Reloading page for latest content");
       window.location.reload();
     });
