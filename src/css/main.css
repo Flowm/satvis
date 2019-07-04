@@ -3,6 +3,7 @@ html, body, #cesiumContainer {
     height: 100%;
     margin: 0;
     padding: 0;
+    position: fixed;
     overflow: hidden;
     font-family: sans-serif;
     color: #edffff;
