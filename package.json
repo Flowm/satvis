@@ -23,7 +23,7 @@
   "dependencies": {
     "buefy": "^0.7.8",
     "cesium": "^1.59.0",
-    "cesium-sensor-volumes": "^1.32.0",
+    "cesium-sensor-volumes": "Flowm/cesium-sensor-volumes#cesium-1.59",
     "dayjs": "^1.8.14",
     "satellite.js": "^3.0.1",
     "vue": "^2.6.10",
