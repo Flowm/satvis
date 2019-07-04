@@ -109,7 +109,7 @@ module.exports = {
       {from: path.join(cesiumSource, '../Build/Cesium/ThirdParty/Workers'), to: 'dist/ThirdParty/Workers', force: true},
       {from: path.join(cesiumSource, '../Build/Cesium/Workers'), to: 'dist/Workers', force: true},
       {from: path.join(cesiumSource, '../Build/Cesium/Cesium.js'), to: 'dist/'},
-      {from: 'node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.js', to: 'dist/'},
+      {from: 'node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.min.js', to: 'dist/'},
       {from: 'data', to: 'data', ignore: ["**/.git/**"]},
       {from: 'src/assets'},
     ]),
