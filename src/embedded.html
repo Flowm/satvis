@@ -50,7 +50,7 @@
           border-radius: 5px;
         }
       </style>
-      <button id="satvis-button" onclick='let frame = document.getElementById("satvis-frame"); frame.src="/?imagery=OfflineHighres&elements=Orbit&sat=MOVE-II"; frame.style.display = "block";'>
+      <button id="satvis-button" onclick='let frame = document.getElementById("satvis-frame"); frame.src="/?elements=Point,Label,Orbit&layers=OfflineHighres&gs=48.1770,11.7476&tags=MOVE&sat=MOVE-II"; frame.style.display = "block";'>
         Current satellite position
       </button>
       <iframe id="satvis-frame"></iframe>
