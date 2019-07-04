@@ -1,4 +1,4 @@
-# [SatVis.space](https://satvis.space)
+# [satvis.space](https://satvis.space)
 
 Satellite orbit visualization and pass prediction.
 
@@ -38,8 +38,10 @@ supported](https://developer.mozilla.org/en-US/docs/Web/API/Notifications_API#Br
 a simple app wraps the webview and handles the scheduling of
 [UserNotifications](https://developer.apple.com/documentation/usernotifications).
 
+<p align="center"><a href="https://apps.apple.com/app/satvis/id1441084766"><img src="src/assets/app-store-badge.svg" width="250" /></a></p>
+
 ## License
 This project is licensed under the MIT License - see `LICENSE` file for details.
 
 ## Acknowledgements
-Original version developed for the [MOVE-II CubeSat project](https://www.move2space.de) by Jonathan, Marco and Flo.
+Inspired by a visualization developed for the [MOVE-II CubeSat project](https://www.move2space.de) by Jonathan, Marco and Flo.
