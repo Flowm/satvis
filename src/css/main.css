@@ -124,10 +124,6 @@ input:checked + .slider::before {
     border-top-right-radius: 7px;
 }
 
-.cesium-infoBox-description {
-    margin-right: 0px;
-}
-
 .cesium-infoBox-container {
     float: left;
     position: absolute;

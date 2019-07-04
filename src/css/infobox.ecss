@@ -52,22 +52,10 @@
     text-align: right;
 }
 
-.cesium-infoBox {
-    /*right: 5px;*/
-    width: calc(100% - 10px);
-    max-width: 540px;
-    margin-left: 5px;
-    margin-right: 5px;
-    border-radius: 7px;
-    border: none;
-    box-sizing: border-box;
-}
-
-.cesium-infoBox-title {
-    border-top-left-radius: 7px;
-    border-top-right-radius: 7px;
-}
-
 .cesium-infoBox-description {
     margin-right: 0px;
+    min-height: 200px;
+    max-height: 500px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
