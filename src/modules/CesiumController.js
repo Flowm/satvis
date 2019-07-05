@@ -35,6 +35,9 @@ export class CesiumController {
     this.viewer.scene.maximumRenderTimeChange = 1/30;
     //this.viewer.scene.debugShowFramesPerSecond = true;
 
+    // Add privacy policy to credits
+    this.viewer.scene.frameState.creditDisplay.addDefaultCredit(new Cesium.Credit('<a href="/privacy.html" target="_blank"><u>Privacy</u></a>'));
+
     // Export CesiumController for debugger
     window.cc = this;
 
