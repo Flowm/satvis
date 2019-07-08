@@ -7,9 +7,8 @@ Vue.use(Router);
 export default new Router({
   mode: "history",
   routes: [
-    {
-      path: "/",
-      component: Cesium,
-    },
+    { path: "/", component: Cesium, },
+    { path: "/move.html", component: Cesium, },
+    { path: "/ot.html", component: Cesium, },
   ]
 });

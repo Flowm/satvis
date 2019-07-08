@@ -14,7 +14,9 @@ module.exports = {
   context: __dirname,
   entry: {
     app: './src/app.js',
-    test: './src/test/test.js'
+    move: './src/move.js',
+    ot: './src/ot.js',
+    test: './src/test/test.js',
   },
   output: {
     filename: '[name].js',
@@ -84,8 +86,19 @@ module.exports = {
   plugins: [
     new CleanWebpackPlugin(),
     new HtmlWebpackPlugin({
+      filename: "index.html",
       template: "src/index.html",
-      excludeChunks: ["test"]
+      chunks: ["app", "cesium"]
+    }),
+    new HtmlWebpackPlugin({
+      filename: "move.html",
+      template: "src/index.html",
+      chunks: ["move", "cesium"]
+    }),
+    new HtmlWebpackPlugin({
+      filename: "ot.html",
+      template: "src/index.html",
+      chunks: ["ot", "cesium"]
     }),
     new HtmlWebpackPlugin({
       filename: "embedded.html",
