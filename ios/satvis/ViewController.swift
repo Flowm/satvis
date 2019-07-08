@@ -6,6 +6,7 @@ class ViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        webView.navigationDelegate = self
 
         let urlString = ProcessInfo.processInfo.environment["URL"] ?? "https://satvis.space/"
         if let url = URL(string: urlString) {
@@ -44,6 +45,21 @@ extension ViewController: WKScriptMessageHandler {
                 NSLog("NOTIFY: \(date) \"\(body)\" in \(delay)s ignored due to notification limit")
 
             }
+        }
+    }
+}
+
+extension ViewController: WKNavigationDelegate {
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        if navigationAction.navigationType == .linkActivated  {
+            if let url = navigationAction.request.url, UIApplication.shared.canOpenURL(url) {
+                UIApplication.shared.open(url)
+                decisionHandler(.cancel)
+            } else {
+                decisionHandler(.allow)
+            }
+        } else {
+            decisionHandler(.allow)
         }
     }
 }
