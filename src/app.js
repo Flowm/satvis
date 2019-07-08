@@ -21,6 +21,7 @@ cc.sats.addFromTleUrl("data/tle/norad/resource.txt", ["Resource"]);
 cc.sats.addFromTleUrl("data/tle/norad/science.txt", ["Science"]);
 cc.sats.addFromTleUrl("data/tle/norad/stations.txt", ["Stations"]);
 cc.sats.addFromTleUrl("data/tle/norad/weather.txt", ["Weather"]);
+cc.sats.addFromTleUrl("data/tle/norad/tle-new.txt", ["New"]);
 
 cc.sats.addFromTleUrl("data/tle/ext/move.txt", ["MOVE"]);
 if (cc.sats.enabledTags.length === 0) {
