@@ -17,7 +17,9 @@ default_platform(:ios)
 
 platform :ios do
   lane :beta do
-    increment_build_number(build_number: latest_testflight_build_number + 1)
+    version = get_version_number
+    build = latest_testflight_build_number(version: version, live: false)
+    increment_build_number(build_number: build + 1)
     build_app(scheme: "satvis")
     upload_to_testflight(skip_waiting_for_build_processing: true)
   end
