@@ -46,6 +46,7 @@ export class CesiumController {
 
     // CesiumController config
     this.imageryProviders = ["Offline", "OfflineHighres", "ArcGis", "OSM", "Tiles", "GOES-IR", "Nextrad", "Meteocool"];
+    this.terrainProviders = ["None", "Maptiler"];
     this.sceneModes = ["3D", "2D", "Columbus"];
     this.cameraModes = ["Fixed", "Inertial"];
     this.groundStationPicker = { enabled: false };
@@ -175,6 +176,30 @@ export class CesiumController {
       break;
     }
     return { provider, alpha };
+  }
+
+  set terrainProvider(terrainProviderName) {
+    if (!this.terrainProviders.includes(terrainProviderName)) {
+      return;
+    }
+
+    switch(terrainProviderName) {
+    case "None":
+      this.viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
+      break;
+    case "Maptiler":
+      this.viewer.terrainProvider = new Cesium.CesiumTerrainProvider({
+        url: "https://api.maptiler.com/tiles/terrain-quantized-mesh/?key=8urAyLJIrn6TeDtH0Ubh",
+        credit: "<a href=\"https://www.maptiler.com/copyright/\" target=\"_blank\">© MapTiler</a> <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">© OpenStreetMap contributors</a>",
+        requestVertexNormals: true,
+      });
+      break;
+    case "ArcGIS":
+      this.viewer.terrainProvider = new Cesium.ArcGISTiledElevationTerrainProvider({
+        url: "https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer"
+      });
+      break;
+    }
   }
 
   set cameraMode(cameraMode) {

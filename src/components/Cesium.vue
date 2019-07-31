@@ -109,6 +109,14 @@
           {{ name }}
         </label>
         <div class="toolbarTitle">
+          Terrain
+        </div>
+        <label v-for="name in cc.terrainProviders" :key="name" class="toolbarSwitch">
+          <input v-model="terrainProvider" type="radio" :value="name">
+          <span class="slider"></span>
+          {{ name }}
+        </label>
+        <div class="toolbarTitle">
           View
         </div>
         <label v-for="name in cc.sceneModes" :key="name" class="toolbarSwitch">
@@ -235,6 +243,7 @@ export default {
       },
       showUI: true,
       imageryProvider: "OfflineHighres",
+      terrainProvider: "None",
       sceneMode: "3D",
       cameraMode: "Fixed",
       enabledComponents: cc.sats.enabledComponents,
@@ -245,6 +254,10 @@ export default {
     imageryProvider: function(newProvider) {
       cc.imageryProvider = newProvider;
       this.$router.push({query: {...this.$route.query, layers: newProvider}});
+    },
+    terrainProvider: function(newProvider) {
+      cc.terrainProvider = newProvider;
+      this.$router.push({query: {...this.$route.query, terrain: newProvider}});
     },
     sceneMode: function(newMode) {
       cc.sceneMode = newMode;
@@ -281,6 +294,9 @@ export default {
           cc.addImageryLayer(provider[0], provider[1]);
         }
       });
+    }
+    if (this.$route.query.terrain) {
+      this.terrainProvider = this.$route.query.terrain;
     }
     if (this.$route.query.tags) {
       const tags = this.$route.query.tags.split(",");
