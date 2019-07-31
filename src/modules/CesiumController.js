@@ -202,6 +202,19 @@ export class CesiumController {
     }
   }
 
+  jumpTo(location) {
+    switch(location) {
+    case "Everest":
+      this.viewer.camera.lookAt(new Cesium.Cartesian3(300770.50872389384, 5634912.131394585, 2978152.2865545116), new Cesium.Cartesian3(6344.974098678562, -793.3419798081741, 2499.9508860763162));
+      this.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+      break;
+    case "HalfDome":
+      this.viewer.camera.lookAt(new Cesium.Cartesian3(-2489625.0836225147, -4393941.44443024, 3882535.9454173897), new Cesium.Cartesian3(-6857.40902037546, 412.3284835694358, 2147.5545426812023));
+      this.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+      break;
+    }
+  }
+
   set cameraMode(cameraMode) {
     switch(cameraMode) {
     case "Inertial":

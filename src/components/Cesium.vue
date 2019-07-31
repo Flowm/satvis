@@ -194,6 +194,14 @@
           <span class="slider"></span>
           Atmosphere
         </label>
+        <label class="toolbarSwitch">
+          <input type="button" @click="cc.jumpTo('Everest')">
+          Jump to Everest
+        </label>
+        <label class="toolbarSwitch">
+          <input type="button" @click="cc.jumpTo('HalfDome')">
+          Jump to HalfDome
+        </label>
       </div>
     </div>
     <div id="toolbarRight">
