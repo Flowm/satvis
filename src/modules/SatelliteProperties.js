@@ -2,7 +2,7 @@ import Cesium from "Cesium";
 import dayjs from "dayjs";
 import { Orbit } from "./Orbit";
 import { PushManager } from "./PushManager";
-import { Toast } from "buefy/dist/components/toast";
+import { ToastProgrammatic as Toast } from "buefy";
 
 export class SatelliteProperties {
   constructor(tle, tags = []) {

@@ -209,7 +209,7 @@
 
 <script>
 import Vue from "vue";
-import Tooltip from "buefy/dist/components/tooltip";
+import Tooltip from "buefy";
 import SatelliteSelect from "./SatelliteSelect.vue";
 import SatelliteMultiSelect from "./SatelliteMultiSelect.vue";
 import SatelliteNotifyMultiSelect from "./SatelliteNotifyMultiSelect.vue";
