@@ -21,6 +21,7 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
+    "@sentry/browser": "^5.6.2",
     "buefy": "^0.8.2",
     "cesium": "^1.60.0",
     "cesium-sensor-volumes": "Flowm/cesium-sensor-volumes#cesium-1.59",

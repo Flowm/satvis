@@ -2,6 +2,9 @@ import Vue from "vue";
 import App from "./App.vue";
 import router from "./components/Router";
 import { Workbox } from "workbox-window";
+import * as Sentry from "@sentry/browser";
+
+Sentry.init({ dsn: "https://0c7d1a82eedb48ee8b83d87bf09ad144@sentry.io/1541793" });
 
 const app = new Vue({
   el: "#app",
