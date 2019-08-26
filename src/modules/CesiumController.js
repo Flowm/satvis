@@ -35,9 +35,6 @@ export class CesiumController {
     this.viewer.scene.maximumRenderTimeChange = 1/30;
     //this.viewer.scene.debugShowFramesPerSecond = true;
 
-    // Add privacy policy to credits
-    this.viewer.scene.frameState.creditDisplay.addDefaultCredit(new Cesium.Credit("<a href=\"/privacy.html\" target=\"_blank\"><u>Privacy</u></a>"));
-
     // Export CesiumController for debugger
     window.cc = this;
 
@@ -52,6 +49,11 @@ export class CesiumController {
 
     // Create Satellite Manager
     this.sats = new SatelliteManager(this.viewer);
+
+    // Add privacy policy to credits when not running in iframe
+    if (!DeviceDetect.inIframe()) {
+      this.viewer.scene.frameState.creditDisplay.addDefaultCredit(new Cesium.Credit("<a href=\"/privacy.html\" target=\"_blank\"><u>Privacy</u></a>"));
+    }
 
     // Fix Cesium logo in minimal ui mode
     if (this.minimalUI) {
