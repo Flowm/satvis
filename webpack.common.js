@@ -19,7 +19,9 @@ module.exports = {
     test: './src/test/test.js',
   },
   output: {
-    filename: '[name].js',
+    filename: '[name].[chunkhash:8].js',
+    sourceMapFilename: '[name].[chunkhash:8].map',
+    chunkFilename: '[id].[chunkhash:8].js',
     path: path.resolve(__dirname, 'dist'),
     // Needed by Cesium for multiline strings
     sourcePrefix: ''
@@ -110,7 +112,8 @@ module.exports = {
       chunks: ["test"]
     }),
     new MiniCssExtractPlugin({
-      filename: "main.css"
+      filename: '[name].[chunkhash:8].css',
+      chunkFilename: '[id].[chunkhash:8].css'
     }),
     new VueLoaderPlugin(),
     new CopyWebpackPlugin([
