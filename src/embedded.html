@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>SatVis Embedded Example</title>
+    <title>Satvis Embedded Example</title>
     <style>
       body {
         width: 100%;
@@ -20,7 +20,7 @@
   </head>
   <body>
     <div id="title">
-      <h1>SatVis Embedded Example</h1>
+      <h1>Satvis Embedded Example</h1>
     </div>
     <div id="satvis-content">
       <style>
@@ -53,7 +53,10 @@
       <button id="satvis-button" onclick='let frame = document.getElementById("satvis-frame"); frame.src="/?elements=Point,Label,Orbit&layers=OfflineHighres&gs=48.1770,11.7476&tags=MOVE&sat=MOVE-II"; frame.style.display = "block";'>
         Current satellite position
       </button>
-      <iframe id="satvis-frame"></iframe>
+      <button id="satvis-button" onclick='let frame = document.getElementById("satvis-frame"); frame.src="/?bg=false&elements=Point,Label,Orbit&layers=ArcGis&gs=48.1770,11.7476&tags=MOVE"; frame.style.display = "block";'>
+        Transparent background
+      </button>
+      <iframe id="satvis-frame" allowtransparency="true"></iframe>
       <br />
       Simple example to embed the sativs site on other pages.
     </div>

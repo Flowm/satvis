@@ -264,6 +264,9 @@ export default {
     },
   },
   mounted() {
+    if (this.$route.query.bg) {
+      cc.enableTransparency();
+    }
     if (this.$route.query.gs) {
       cc.setGroundStationFromLatLon(this.$route.query.gs);
     }

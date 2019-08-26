@@ -26,6 +26,11 @@ export class CesiumController {
       selectionIndicator: false,
       timeline: !this.minimalUI,
       vrButton: !this.minimalUI,
+      contextOptions: {
+        webgl: {
+          alpha: true,
+        },
+      },
     });
 
     // Cesium default settings
@@ -289,6 +294,17 @@ export class CesiumController {
     if (DeviceDetect.isiPhoneWithNotchVisible()) {
       this.viewer._bottomContainer.style.bottom = "20px";
     }
+  }
+
+  enableTransparency() {
+    this.viewer.scene.backgroundColor = Cesium.Color.TRANSPARENT;
+    this.viewer.scene.moon = undefined;
+    this.viewer.scene.skyAtmosphere = undefined;
+    this.viewer.scene.skyBox = undefined;
+    this.viewer.scene.sun = undefined;
+    document.documentElement.style.background = "transparent";
+    document.body.style.background = "transparent";
+    document.getElementById("cesiumContainer").style.background = "transparent";
   }
 
   styleInfoBox() {
