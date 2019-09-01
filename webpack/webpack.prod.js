@@ -3,7 +3,7 @@ const webpack = require('webpack');
 const merge = require('webpack-merge');
 const common = require('./webpack.common.js');
 
-// The path to the cesium source code
+const basePath = `${__dirname}/..`;
 const cesiumSource = 'node_modules/cesium/Source';
 
 module.exports = merge(common, {
@@ -13,7 +13,7 @@ module.exports = merge(common, {
       // Remove pragmas
       test: /\.js$/,
       enforce: 'pre',
-      include: path.resolve(__dirname, cesiumSource),
+      include: path.resolve(basePath, cesiumSource),
       use: [{
         loader: 'strip-pragma-loader',
         options: {

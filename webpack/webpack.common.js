@@ -7,11 +7,11 @@ const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const VueLoaderPlugin = require('vue-loader/lib/plugin');
 const WorkboxPlugin = require('workbox-webpack-plugin');
 
-// The path to the cesium source code
+const basePath = `${__dirname}/..`;
 const cesiumSource = 'node_modules/cesium/Source';
 
 module.exports = {
-  context: __dirname,
+  context: basePath,
   entry: {
     app: './src/app.js',
     move: './src/move.js',
@@ -22,7 +22,7 @@ module.exports = {
     filename: '[name].[chunkhash:8].js',
     sourceMapFilename: '[name].[chunkhash:8].map',
     chunkFilename: '[id].[chunkhash:8].js',
-    path: path.resolve(__dirname, 'dist'),
+    path: path.resolve(basePath, 'dist'),
     // Needed by Cesium for multiline strings
     sourcePrefix: ''
   },
@@ -41,7 +41,7 @@ module.exports = {
   resolve: {
     alias: {
       // Cesium module name
-      cesium: path.resolve(__dirname, cesiumSource),
+      cesium: path.resolve(basePath, cesiumSource),
       'vue$': 'vue/dist/vue.esm.js',
     }
   },
