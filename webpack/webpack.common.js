@@ -1,30 +1,30 @@
-const path = require('path');
-const webpack = require('webpack');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
-const { CleanWebpackPlugin } = require('clean-webpack-plugin');
+const path = require("path");
+const webpack = require("webpack");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
+const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
-const VueLoaderPlugin = require('vue-loader/lib/plugin');
-const WorkboxPlugin = require('workbox-webpack-plugin');
+const VueLoaderPlugin = require("vue-loader/lib/plugin");
+const WorkboxPlugin = require("workbox-webpack-plugin");
 
 const basePath = `${__dirname}/..`;
-const cesiumSource = 'node_modules/cesium/Source';
+const cesiumSource = "node_modules/cesium/Source";
 
 module.exports = {
   context: basePath,
   entry: {
-    app: './src/app.js',
-    move: './src/move.js',
-    ot: './src/ot.js',
-    test: './src/test/test.js',
+    app: "./src/app.js",
+    move: "./src/move.js",
+    ot: "./src/ot.js",
+    test: "./src/test/test.js",
   },
   output: {
-    filename: '[name].[chunkhash:8].js',
-    sourceMapFilename: '[name].[chunkhash:8].map',
-    chunkFilename: '[id].[chunkhash:8].js',
-    path: path.resolve(basePath, 'dist'),
+    filename: "[name].[chunkhash:8].js",
+    sourceMapFilename: "[name].[chunkhash:8].map",
+    chunkFilename: "[id].[chunkhash:8].js",
+    path: path.resolve(basePath, "dist"),
     // Needed by Cesium for multiline strings
-    sourcePrefix: ''
+    sourcePrefix: ""
   },
   amd: {
     // Enable webpack-friendly use of require in cesium
@@ -42,36 +42,36 @@ module.exports = {
     alias: {
       // Cesium module name
       cesium: path.resolve(basePath, cesiumSource),
-      'vue$': 'vue/dist/vue.esm.js',
+      "vue$": "vue/dist/vue.esm.js",
     }
   },
   externals: {
-    Cesium: 'Cesium',
-    CesiumSensorVolumes: 'CesiumSensorVolumes',
+    Cesium: "Cesium",
+    CesiumSensorVolumes: "CesiumSensorVolumes",
   },
   module: {
     rules: [{
       test: /\.js$/,
       exclude: /node_modules/,
       use: {
-        loader: 'babel-loader',
+        loader: "babel-loader",
         options: {
-          presets: ['@babel/preset-env']
+          presets: ["@babel/preset-env"]
         }
       }
     }, {
       test: /\.css$/,
       use: [
         MiniCssExtractPlugin.loader,
-        'css-loader',
-        'postcss-loader',
+        "css-loader",
+        "postcss-loader",
       ]
     }, {
       test: /\.vue$/,
-      loader: 'vue-loader'
+      loader: "vue-loader"
     }, {
       test: /\.(png|gif|jpg|jpeg|svg|xml|json)$/,
-      use: ['url-loader']
+      use: ["url-loader"]
     }]
   },
   optimization: {
@@ -79,8 +79,8 @@ module.exports = {
       cacheGroups: {
         commons: {
           test: /[\\/]node_modules[\\/]cesium/,
-          name: 'cesium',
-          chunks: 'all'
+          name: "cesium",
+          chunks: "all"
         }
       }
     }
@@ -112,31 +112,31 @@ module.exports = {
       chunks: ["test"]
     }),
     new MiniCssExtractPlugin({
-      filename: '[name].[chunkhash:8].css',
-      chunkFilename: '[id].[chunkhash:8].css'
+      filename: "[name].[chunkhash:8].css",
+      chunkFilename: "[id].[chunkhash:8].css"
     }),
     new VueLoaderPlugin(),
     new CopyWebpackPlugin([
       // Copy Cesium Assets, Widgets, and Workers to a static directory
-      {from: path.join(cesiumSource, 'Assets'), to: 'dist/Assets', ignore: ["**/maki/*.png"]},
-      {from: path.join(cesiumSource, 'ThirdParty'), to: 'dist/ThirdParty'},
-      {from: path.join(cesiumSource, 'Widgets'), to: 'dist/Widgets'},
-      {from: path.join(cesiumSource, 'Workers'), to: 'dist/Workers'},
-      {from: path.join(cesiumSource, '../Build/Cesium/ThirdParty/Workers'), to: 'dist/ThirdParty/Workers', force: true},
-      {from: path.join(cesiumSource, '../Build/Cesium/Workers'), to: 'dist/Workers', force: true},
-      {from: path.join(cesiumSource, '../Build/Cesium/Cesium.js'), to: 'dist/'},
-      {from: 'node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.min.js', to: 'dist/'},
-      {from: 'data', to: 'data', ignore: ["**/.git/**"]},
-      {from: 'src/assets'},
+      {from: path.join(cesiumSource, "Assets"), to: "dist/Assets", ignore: ["**/maki/*.png"]},
+      {from: path.join(cesiumSource, "ThirdParty"), to: "dist/ThirdParty"},
+      {from: path.join(cesiumSource, "Widgets"), to: "dist/Widgets"},
+      {from: path.join(cesiumSource, "Workers"), to: "dist/Workers"},
+      {from: path.join(cesiumSource, "../Build/Cesium/ThirdParty/Workers"), to: "dist/ThirdParty/Workers", force: true},
+      {from: path.join(cesiumSource, "../Build/Cesium/Workers"), to: "dist/Workers", force: true},
+      {from: path.join(cesiumSource, "../Build/Cesium/Cesium.js"), to: "dist/"},
+      {from: "node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.min.js", to: "dist/"},
+      {from: "data", to: "data", ignore: ["**/.git/**"]},
+      {from: "src/assets"},
     ]),
     new webpack.DefinePlugin({
       // Define relative base path in cesium for loading assets
-      CESIUM_BASE_URL: JSON.stringify('dist/')
+      CESIUM_BASE_URL: JSON.stringify("dist/")
     }),
     new WorkboxPlugin.InjectManifest({
-      importWorkboxFrom: 'local',
-      swSrc: './src/sw.js',
-      swDest: 'sw.js',
+      importWorkboxFrom: "local",
+      swSrc: "./src/sw.js",
+      swDest: "sw.js",
       include: [
         /\.css$/,
         /\.css$/,
