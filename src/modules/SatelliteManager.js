@@ -260,7 +260,9 @@ export class SatelliteManager {
 
     if ("app" in window) {
       const latlon = `${position.latitude.toFixed(4)},${position.longitude.toFixed(4)}`;
-      app.$router.push({query: {...app.$route.query, gs: latlon}});
+      if (app.$route.query.gs != latlon) {
+        app.$router.push({query: {...app.$route.query, gs: latlon}});
+      }
     }
   }
 }
