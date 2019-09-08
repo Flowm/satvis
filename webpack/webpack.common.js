@@ -117,21 +117,23 @@ module.exports = {
     }),
     new VueLoaderPlugin(),
     new CopyWebpackPlugin([
-      // Copy Cesium Assets, Widgets, and Workers to a static directory
-      {from: path.join(cesiumSource, "Assets"), to: "dist/Assets", ignore: ["**/maki/*.png"]},
-      {from: path.join(cesiumSource, "ThirdParty"), to: "dist/ThirdParty"},
-      {from: path.join(cesiumSource, "Widgets"), to: "dist/Widgets"},
-      {from: path.join(cesiumSource, "Workers"), to: "dist/Workers"},
-      {from: path.join(cesiumSource, "../Build/Cesium/ThirdParty/Workers"), to: "dist/ThirdParty/Workers", force: true},
-      {from: path.join(cesiumSource, "../Build/Cesium/Workers"), to: "dist/Workers", force: true},
-      {from: path.join(cesiumSource, "../Build/Cesium/Cesium.js"), to: "dist/"},
-      {from: "node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.min.js", to: "dist/"},
+      // Copy Cesium Assets
+      {from: path.join(cesiumSource, "../Build/Cesium/Assets"), to: "cesium/Assets", ignore: ["**/maki/*.png"]},
+      // Copy Cesium non-JS widget-bits (CSS, SVG, etc.)
+      {from: path.join(cesiumSource, "../Build/Cesium/Widgets"), to: "cesium/Widgets"},
+      // Copy Cesium Almond-bundled-and-minified Web Worker scripts
+      {from: path.join(cesiumSource, "../Build/Cesium/Workers"), to: "cesium/Workers"},
+      // Copy Cesium minified third-party scripts
+      {from: path.join(cesiumSource, "../Build/Cesium/ThirdParty/Workers"), to: "cesium/ThirdParty/Workers"},
+      // Copy prebuilt Cesium
+      {from: path.join(cesiumSource, "../Build/Cesium/Cesium.js"), to: "cesium/"},
+      {from: "node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.min.js", to: "cesium/"},
       {from: "data", to: "data", ignore: ["**/.git/**"]},
       {from: "src/assets"},
     ]),
     new webpack.DefinePlugin({
       // Define relative base path in cesium for loading assets
-      CESIUM_BASE_URL: JSON.stringify("dist/")
+      CESIUM_BASE_URL: JSON.stringify("cesium/")
     }),
     new WorkboxPlugin.InjectManifest({
       importWorkboxFrom: "local",
