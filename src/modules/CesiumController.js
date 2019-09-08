@@ -36,8 +36,9 @@ export class CesiumController {
     // Cesium default settings
     this.viewer.clock.shouldAnimate = true;
     this.viewer.scene.globe.enableLighting = true;
-    this.viewer.scene.requestRenderMode = true;
+    this.viewer.scene.highDynamicRange = true;
     this.viewer.scene.maximumRenderTimeChange = 1/30;
+    this.viewer.scene.requestRenderMode = true;
     //this.viewer.scene.debugShowFramesPerSecond = true;
 
     // Export CesiumController for debugger
