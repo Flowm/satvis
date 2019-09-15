@@ -297,15 +297,19 @@ export default {
     }
     if (this.$route.query.layers) {
       const layers = this.$route.query.layers.split(",");
-      cc.clearImageryLayers();
-      layers.forEach(layer => {
-        const provider = layer.split("_");
-        if (provider.length == 1) {
-          cc.addImageryLayer(provider[0]);
-        } else {
-          cc.addImageryLayer(provider[0], provider[1]);
-        }
-      });
+      if (layers.length === 1) {
+        this.imageryProvider = layers[0];
+      } else {
+        cc.clearImageryLayers();
+        layers.forEach(layer => {
+          const provider = layer.split("_");
+          if (provider.length == 1) {
+            cc.addImageryLayer(provider[0]);
+          } else {
+            cc.addImageryLayer(provider[0], provider[1]);
+          }
+        });
+      }
     }
     if (this.$route.query.terrain) {
       this.terrainProvider = this.$route.query.terrain;
