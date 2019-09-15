@@ -261,11 +261,15 @@ export default {
   watch: {
     imageryProvider: function(newProvider) {
       cc.imageryProvider = newProvider;
-      this.$router.push({query: {...this.$route.query, layers: newProvider}});
+      if (this.$route.query.layers != newProvider) {
+        this.$router.push({query: {...this.$route.query, layers: newProvider}});
+      }
     },
     terrainProvider: function(newProvider) {
       cc.terrainProvider = newProvider;
-      this.$router.push({query: {...this.$route.query, terrain: newProvider}});
+      if (this.$route.query.terrain != newProvider) {
+        this.$router.push({query: {...this.$route.query, terrain: newProvider}});
+      }
     },
     sceneMode: function(newMode) {
       cc.sceneMode = newMode;

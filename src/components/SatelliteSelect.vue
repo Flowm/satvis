@@ -47,7 +47,9 @@ export default {
       }
       if (newSat.length === 1) {
         cc.sats.trackedSatellite = newSat[0];
-        this.$router.push({query: {...this.$route.query, sat: newSat[0]}});
+        if (this.$route.query.sat != newSat[0]) {
+          this.$router.push({query: {...this.$route.query, sat: newSat[0]}});
+        }
       } else if (oldSat.length === 1) {
         cc.sats.trackedSatellite = "";
         let query = Object.assign({}, this.$route.query);
