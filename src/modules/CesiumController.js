@@ -45,7 +45,7 @@ export class CesiumController {
     window.cc = this;
 
     // CesiumController config
-    this.imageryProviders = ["Offline", "OfflineHighres", "ArcGis", "OSM", "Tiles", "GOES-IR", "Nextrad", "Meteocool"];
+    this.imageryProviders = ["Offline", "OfflineHighres", "ArcGis", "OSM", "Tiles", "BlackMarble", "GOES-IR", "Nextrad", "Meteocool"];
     this.terrainProviders = ["None", "Maptiler"];
     this.sceneModes = ["3D", "2D", "Columbus"];
     this.cameraModes = ["Fixed", "Inertial"];
@@ -138,6 +138,18 @@ export class CesiumController {
       break;
     case "Tiles":
       provider = new Cesium.TileCoordinatesImageryProvider();
+      break;
+    case "BlackMarble":
+      provider = new Cesium.WebMapServiceImageryProvider({
+        url: "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi",
+        layers: "VIIRS_Black_Marble",
+        style: "default",
+        tileMatrixSetID: "250m",
+        format: "image/png",
+        tileWidth: 512,
+        tileHeight: 512,
+        credit: "NASA Global Imagery Browse Services for EOSDIS"
+      });
       break;
     case "GOES-IR":
       provider = new Cesium.WebMapServiceImageryProvider({
