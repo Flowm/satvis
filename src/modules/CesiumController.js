@@ -256,8 +256,10 @@ export class CesiumController {
     this.viewer.clock.startTime = Cesium.JulianDate.fromIso8601(dayjs.utc(start).toISOString());
     this.viewer.clock.stopTime = Cesium.JulianDate.fromIso8601(dayjs.utc(stop).toISOString());
     this.viewer.clock.currentTime = Cesium.JulianDate.fromIso8601(dayjs.utc(current).toISOString());
-    this.viewer.timeline.updateFromClock();
-    this.viewer.timeline.zoomTo(this.viewer.clock.startTime, this.viewer.clock.stopTime);
+    if (typeof this.viewer.timeline !== "undefined") {
+      this.viewer.timeline.updateFromClock();
+      this.viewer.timeline.zoomTo(this.viewer.clock.startTime, this.viewer.clock.stopTime);
+    }
   }
 
   createInputHandler() {
