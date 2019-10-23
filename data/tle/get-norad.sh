@@ -60,3 +60,5 @@ curl -O https://celestrak.com/NORAD/elements/other.txt
 
 mkdir -p ../ext
 egrep -A2 '(FIRST-MOVE|MOVE-II)' --no-group-separator active.txt > ../ext/move.txt
+egrep -A2 '^(SENTINEL-3A|SENTINEL-3B|AQUA|TERRA |SUOMI NPP|NOAA 20)' --no-group-separator active.txt > ../ext/wfs.txt
+egrep -A2 '^(SENTINEL-3A|SENTINEL-3B|AQUA|TERRA |SUOMI NPP|NOAA 18|NOAA 19|NOAA 20|METOP-A|METOP-B|METOP-C|MSG-1|METEOSAT-8|METEOSAT-9|METEOSAT-10|METEOSAT-11|GOES 16|GOES 17|HIMAWARI-8|HIMAWARI-9|METEOR-M 1|METEOR-M 2|METEOR-M2 2|KANOPUS-V-IK)' --no-group-separator active.txt > ../ext/wfsf.txt

@@ -16,6 +16,8 @@ window.app = app;
 
 /* global cc */
 //cc.sats.addFromTleUrl("data/tle/norad/active.txt", ["Active"]);
+cc.sats.addFromTleUrl("data/tle/ext/wfs.txt", ["WFS"]);
+cc.sats.addFromTleUrl("data/tle/ext/wfsf.txt", ["WFSF"]);
 cc.sats.addFromTleUrl("data/tle/norad/planet.txt", ["Planet"]);
 cc.sats.addFromTleUrl("data/tle/norad/starlink.txt", ["Starlink"]);
 cc.sats.addFromTleUrl("data/tle/norad/globalstar.txt", ["Globalstar"]);
