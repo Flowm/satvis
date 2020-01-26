@@ -1,11 +1,11 @@
 const path = require("path");
 const webpack = require("webpack");
+const VueLoaderPlugin = require("vue-loader/lib/plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
-const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
-const VueLoaderPlugin = require("vue-loader/lib/plugin");
 const WorkboxPlugin = require("workbox-webpack-plugin");
+const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 
 const basePath = `${__dirname}/..`;
 const cesiumSource = "node_modules/cesium/Source";
@@ -21,7 +21,7 @@ module.exports = {
   output: {
     filename: "[name].[chunkhash:8].js",
     sourceMapFilename: "[name].[chunkhash:8].map",
-    chunkFilename: "[id].[chunkhash:8].js",
+    chunkFilename: "[name].[chunkhash:8].js",
     path: path.resolve(basePath, "dist"),
     // Needed by Cesium for multiline strings
     sourcePrefix: ""
@@ -34,15 +34,12 @@ module.exports = {
     // Avoid including node libraries
     fs: "empty",
     Buffer: false,
-    http: "empty",
-    https: "empty",
-    zlib: "empty"
   },
   resolve: {
     alias: {
       // Cesium module name
       cesium: path.resolve(basePath, cesiumSource),
-      "vue$": "vue/dist/vue.esm.js",
+      "vue$": "vue/dist/vue.esm.js"
     }
   },
   externals: {
@@ -76,31 +73,38 @@ module.exports = {
   },
   optimization: {
     splitChunks: {
+      chunks: "all",
       cacheGroups: {
+        vendors: {
+          name: "vendors",
+          test: /[\\/]node_modules[\\/]/,
+          priority: -10,
+          chunks: "initial",
+        },
         commons: {
-          test: /[\\/]node_modules[\\/]cesium/,
           name: "cesium",
-          chunks: "all"
-        }
-      }
-    }
+          test: /[\\/]node_modules[\\/]cesium/,
+          chunks: "all",
+        },
+      },
+    },
   },
   plugins: [
     new CleanWebpackPlugin(),
     new HtmlWebpackPlugin({
       filename: "index.html",
       template: "src/index.html",
-      chunks: ["app", "cesium"]
+      chunks: ["app", "cesium", "vendors"]
     }),
     new HtmlWebpackPlugin({
       filename: "move.html",
       template: "src/index.html",
-      chunks: ["move", "cesium"]
+      chunks: ["move", "cesium", "vendors"]
     }),
     new HtmlWebpackPlugin({
       filename: "ot.html",
       template: "src/index.html",
-      chunks: ["ot", "cesium"]
+      chunks: ["ot", "cesium", "vendors"]
     }),
     new HtmlWebpackPlugin({
       filename: "embedded.html",
@@ -118,13 +122,13 @@ module.exports = {
     new VueLoaderPlugin(),
     new CopyWebpackPlugin([
       // Copy Cesium Assets
-      {from: path.join(cesiumSource, "../Build/Cesium/Assets"), to: "cesium/Assets", ignore: ["**/maki/*.png"]},
+      { from: path.join(cesiumSource, "../Build/Cesium/Assets"), to: "cesium/Assets", ignore: ["**/maki/*.png"] },
       // Copy Cesium non-JS widget-bits (CSS, SVG, etc.)
-      {from: path.join(cesiumSource, "../Build/Cesium/Widgets"), to: "cesium/Widgets"},
+      { from: path.join(cesiumSource, "../Build/Cesium/Widgets"), to: "cesium/Widgets" },
       // Copy Cesium Almond-bundled-and-minified Web Worker scripts
-      {from: path.join(cesiumSource, "../Build/Cesium/Workers"), to: "cesium/Workers"},
+      { from: path.join(cesiumSource, "../Build/Cesium/Workers"), to: "cesium/Workers" },
       // Copy Cesium minified third-party scripts
-      {from: path.join(cesiumSource, "../Build/Cesium/ThirdParty/Workers"), to: "cesium/ThirdParty/Workers"},
+      { from: path.join(cesiumSource, "../Build/Cesium/ThirdParty"), to: "cesium/ThirdParty" },
       // Copy prebuilt CesiumSensorVolumes
       // {from: "node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.min.js", to: "cesium/"},
       {from: "data", to: "data", ignore: ["**/.git/**"]},
