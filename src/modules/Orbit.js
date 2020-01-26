@@ -1,7 +1,7 @@
 import * as satellitejs from "satellite.js";
 import dayjs from "dayjs";
 
-export class Orbit {
+export default class Orbit {
   constructor(name, tle) {
     this.name = name;
     this.tle = tle.split("\n");
@@ -14,7 +14,7 @@ export class Orbit {
 
   get orbitalPeriod() {
     const meanMotionRad = this.satrec.no;
-    const period = 2 * Math.PI / meanMotionRad;
+    const period = (2 * Math.PI) / meanMotionRad;
     return period;
   }
 
@@ -57,7 +57,7 @@ export class Orbit {
       longitude: positionGd.longitude,
       latitude: positionGd.latitude,
       height: positionGd.height * 1000,
-      velocity
+      velocity,
     };
   }
 
@@ -66,14 +66,13 @@ export class Orbit {
     endDate = dayjs(startDate).add(7, "day").toDate(),
     minElevation = 1,
     maxPasses = 50) {
-
-    const deg2rad = (Math.PI/180);
+    const deg2rad = (Math.PI / 180);
     groundStation.latitude *= deg2rad;
     groundStation.longitude *= deg2rad;
     groundStation.height /= 1000;
 
-    let date = startDate;
-    let passes = [];
+    const date = startDate;
+    const passes = [];
     let pass = false;
     let ongoingPass = false;
     let lastElevation = 0;
@@ -93,47 +92,44 @@ export class Orbit {
             azimuthApex: lookAngles.azimuth,
           };
           ongoingPass = true;
-        } else {
+        } else if (elevation > pass.maxElevation) {
           // Ongoing pass
-          if (elevation > pass.maxElevation) {
-            pass.maxElevation = elevation;
-            pass.azimuthApex = lookAngles.azimuth;
-          }
+          pass.maxElevation = elevation;
+          pass.apex = date.getTime();
+          pass.azimuthApex = lookAngles.azimuth;
         }
         date.setSeconds(date.getSeconds() + 5);
+      } else if (ongoingPass) {
+        // End of pass
+        if (pass.maxElevation > minElevation) {
+          pass.end = date.getTime();
+          pass.duration = pass.end - pass.start;
+          pass.azimuthEnd = lookAngles.azimuth;
+          pass.azimuthStart /= deg2rad;
+          pass.azimuthApex /= deg2rad;
+          pass.azimuthEnd /= deg2rad;
+          passes.push(pass);
+          if (passes.length > maxPasses) {
+            break;
+          }
+        }
+        ongoingPass = false;
+        lastElevation = -180;
+        date.setMinutes(date.getMinutes() + this.orbitalPeriod * 0.75);
       } else {
-        if (ongoingPass) {
-          // End of pass
-          if (pass.maxElevation > minElevation) {
-            pass.end = date.getTime();
-            pass.duration = pass.end - pass.start;
-            pass.azimuthEnd = lookAngles.azimuth;
-            pass.azimuthStart /= deg2rad;
-            pass.azimuthApex /= deg2rad;
-            pass.azimuthEnd /= deg2rad;
-            passes.push(pass);
-            if (passes.length > maxPasses) {
-              break;
-            }
-          }
-          ongoingPass = false;
-          lastElevation = -180;
+        const deltaElevation = elevation - lastElevation;
+        lastElevation = elevation;
+        if (deltaElevation < 0) {
           date.setMinutes(date.getMinutes() + this.orbitalPeriod * 0.75);
+          lastElevation = -180;
+        } else if (elevation < -20) {
+          date.setMinutes(date.getMinutes() + 5);
+        } else if (elevation < -5) {
+          date.setMinutes(date.getMinutes() + 1);
+        } else if (elevation < -1) {
+          date.setSeconds(date.getSeconds() + 5);
         } else {
-          let deltaElevation = elevation - lastElevation;
-          lastElevation = elevation;
-          if (deltaElevation < 0) {
-            date.setMinutes(date.getMinutes() + this.orbitalPeriod * 0.75);
-            lastElevation = -180;
-          } else if (elevation < -20) {
-            date.setMinutes(date.getMinutes() + 5);
-          } else if (elevation < -5) {
-            date.setMinutes(date.getMinutes() + 1);
-          } else if (elevation < -1) {
-            date.setSeconds(date.getSeconds() + 5);
-          } else {
-            date.setSeconds(date.getSeconds() + 2);
-          }
+          date.setSeconds(date.getSeconds() + 2);
         }
       }
     }

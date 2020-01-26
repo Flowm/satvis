@@ -1,6 +1,6 @@
 import * as Cesium from "cesium/Cesium";
 import dayjs from "dayjs";
-import { Orbit } from "./Orbit";
+import Orbit from "./Orbit";
 import { PushManager } from "./PushManager";
 import { ToastProgrammatic as Toast } from "buefy";
 
