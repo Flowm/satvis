@@ -1,8 +1,9 @@
 import { CesiumEntityWrapper } from "./CesiumEntityWrapper";
 import { DescriptionHelper } from "./DescriptionHelper";
 
-import Cesium from "Cesium";
+import * as Cesium from "cesium/Cesium";
 import dayjs from "dayjs";
+import icon from "../assets/images/icons/dish.svg";
 
 export class GroundStationEntity extends CesiumEntityWrapper {
   constructor(viewer, sats, position) {
@@ -32,7 +33,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
 
   createGroundStation() {
     const billboard = new Cesium.BillboardGraphics({
-      image: require("../assets/images/icons/dish.svg"),
+      image: icon,
       horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
       verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
       width: 24,

@@ -46,8 +46,7 @@ module.exports = {
     }
   },
   externals: {
-    Cesium: "Cesium",
-    CesiumSensorVolumes: "CesiumSensorVolumes",
+    // CesiumSensorVolumes: "CesiumSensorVolumes",
   },
   module: {
     rules: [{
@@ -72,7 +71,8 @@ module.exports = {
     }, {
       test: /\.(png|gif|jpg|jpeg|svg|xml|json)$/,
       use: ["url-loader"]
-    }]
+    }],
+    unknownContextCritical: false,
   },
   optimization: {
     splitChunks: {
@@ -125,9 +125,8 @@ module.exports = {
       {from: path.join(cesiumSource, "../Build/Cesium/Workers"), to: "cesium/Workers"},
       // Copy Cesium minified third-party scripts
       {from: path.join(cesiumSource, "../Build/Cesium/ThirdParty/Workers"), to: "cesium/ThirdParty/Workers"},
-      // Copy prebuilt Cesium
-      {from: path.join(cesiumSource, "../Build/Cesium/Cesium.js"), to: "cesium/"},
-      {from: "node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.min.js", to: "cesium/"},
+      // Copy prebuilt CesiumSensorVolumes
+      // {from: "node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.min.js", to: "cesium/"},
       {from: "data", to: "data", ignore: ["**/.git/**"]},
       {from: "src/assets"},
     ]),
@@ -157,8 +156,5 @@ module.exports = {
         /dist\/Widgets\//,
       ],
     }),
-    //new webpack.ProvidePlugin({
-    //  'Cesium': 'cesium/Cesium'
-    //})
   ]
 };

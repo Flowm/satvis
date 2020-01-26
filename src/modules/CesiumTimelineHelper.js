@@ -1,4 +1,4 @@
-import Cesium from "Cesium";
+import * as Cesium from "cesium/Cesium";
 
 export class CesiumTimelineHelper {
   constructor(viewer) {

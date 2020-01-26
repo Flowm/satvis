@@ -1,5 +1,5 @@
 // Import webpack externals
-import Cesium from "Cesium";
+import * as Cesium from "cesium/Cesium";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { DeviceDetect } from "./util/DeviceDetect";
@@ -115,12 +115,12 @@ export class CesiumController {
     let alpha = 1;
     switch(imageryProviderName) {
     case "Offline":
-      provider = new Cesium.createTileMapServiceImageryProvider({
+      provider = new Cesium.TileMapServiceImageryProvider({
         url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
       });
       break;
     case "OfflineHighres":
-      provider = new Cesium.createTileMapServiceImageryProvider({
+      provider = new Cesium.TileMapServiceImageryProvider({
         url : "data/cesium-assets/imagery/NaturalEarthII",
         maximumLevel : 5,
         credit : "Imagery courtesy Natural Earth"
@@ -132,7 +132,7 @@ export class CesiumController {
       });
       break;
     case "OSM":
-      provider = new Cesium.createOpenStreetMapImageryProvider({
+      provider = new Cesium.OpenStreetMapImageryProvider({
         url : "https://a.tile.openstreetmap.org/"
       });
       break;

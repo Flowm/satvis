@@ -1,5 +1,4 @@
-// Import webpack externals
-import Cesium from "Cesium";
+import * as Cesium from "cesium/Cesium";
 
 export class CesiumEntityWrapper {
   constructor(viewer) {
