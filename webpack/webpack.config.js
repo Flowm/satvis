@@ -1,11 +1,11 @@
 const path = require("path");
 const webpack = require("webpack");
-const VueLoaderPlugin = require("vue-loader/lib/plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
-const WorkboxPlugin = require("workbox-webpack-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
+const VueLoaderPlugin = require("vue-loader/lib/plugin");
+const WorkboxPlugin = require("workbox-webpack-plugin");
 
 const basePath = `${__dirname}/..`;
 const cesiumSource = "node_modules/cesium/Source";
@@ -19,32 +19,29 @@ module.exports = {
     test: "./src/test/test.js",
   },
   output: {
-    filename: "[name].[chunkhash:8].js",
-    sourceMapFilename: "[name].[chunkhash:8].map",
-    chunkFilename: "[name].[chunkhash:8].js",
+    filename: "js/[name].[hash:8].js",
+    sourceMapFilename: "js/[name].[hash:8].map",
+    chunkFilename: "js/[name].[hash:8].js",
     path: path.resolve(basePath, "dist"),
     // Needed by Cesium for multiline strings
-    sourcePrefix: ""
+    sourcePrefix: "",
   },
   amd: {
-    // Enable webpack-friendly use of require in cesium
-    toUrlUndefined: true
+    // Enable webpack-friendly use of require in Cesium
+    toUrlUndefined: true,
   },
   node: {
-    // Avoid including node libraries
+    // Resolve node module use of fs
     fs: "empty",
-    Buffer: false,
+    //Buffer: false,
   },
-  resolve: {
-    alias: {
-      // Cesium module name
-      cesium: path.resolve(basePath, cesiumSource),
-      "vue$": "vue/dist/vue.esm.js"
-    }
+  devServer: {
+    compress: true,
+    contentBase: path.resolve(basePath, "dist"),
+    port: 8080,
   },
-  externals: {
-    // CesiumSensorVolumes: "CesiumSensorVolumes",
-  },
+  devtool: "eval-source-map",
+  mode: "development",
   module: {
     rules: [{
       test: /\.js$/,
@@ -70,6 +67,20 @@ module.exports = {
       use: ["url-loader"]
     }],
     unknownContextCritical: false,
+  },
+  resolve: {
+    modules: [
+      path.resolve(__dirname, "./src"),
+      "node_modules",
+    ],
+    alias: {
+      // Cesium module name
+      cesium: path.resolve(basePath, cesiumSource),
+      "vue$": "vue/dist/vue.esm.js"
+    }
+  },
+  externals: {
+    // CesiumSensorVolumes: "CesiumSensorVolumes",
   },
   optimization: {
     splitChunks: {
@@ -136,7 +147,7 @@ module.exports = {
     ]),
     new webpack.DefinePlugin({
       // Define relative base path in cesium for loading assets
-      CESIUM_BASE_URL: JSON.stringify("cesium/")
+      CESIUM_BASE_URL: JSON.stringify("cesium/"),
     }),
     new WorkboxPlugin.InjectManifest({
       importWorkboxFrom: "local",
@@ -160,5 +171,5 @@ module.exports = {
         /dist\/Widgets\//,
       ],
     }),
-  ]
+  ],
 };
