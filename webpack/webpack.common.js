@@ -94,17 +94,17 @@ module.exports = {
     new HtmlWebpackPlugin({
       filename: "index.html",
       template: "src/index.html",
-      chunks: ["app", "cesium", "vendors"]
+      chunks: ["app"]
     }),
     new HtmlWebpackPlugin({
       filename: "move.html",
       template: "src/index.html",
-      chunks: ["move", "cesium", "vendors"]
+      chunks: ["move"]
     }),
     new HtmlWebpackPlugin({
       filename: "ot.html",
       template: "src/index.html",
-      chunks: ["ot", "cesium", "vendors"]
+      chunks: ["ot"]
     }),
     new HtmlWebpackPlugin({
       filename: "embedded.html",
