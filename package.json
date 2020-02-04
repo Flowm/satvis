@@ -21,26 +21,26 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
-    "@sentry/browser": "^5.11.1",
+    "@sentry/browser": "^5.12.0",
     "buefy": "^0.8.10",
-    "cesium": "^1.65.0",
+    "cesium": "^1.66.0",
     "cesium-sensor-volumes": "github:Flowm/cesium-sensor-volumes#cesium-1.59",
     "dayjs": "^1.8.19",
     "satellite.js": "^4.0.0",
     "vue": "^2.6.11",
     "vue-multi-select": "^4.5.0",
     "vue-router": "^3.1.5",
-    "workbox-window": "^4.3.1"
+    "workbox-window": "^5.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.8.3",
-    "@babel/preset-env": "^7.8.3",
+    "@babel/core": "^7.8.4",
+    "@babel/preset-env": "^7.8.4",
     "@fortawesome/fontawesome-svg-core": "^1.2.26",
     "@fortawesome/free-brands-svg-icons": "^5.12.0",
     "@fortawesome/free-regular-svg-icons": "^5.12.0",
     "@fortawesome/free-solid-svg-icons": "^5.12.0",
     "autoprefixer": "^9.7.4",
-    "ava": "3.0.0",
+    "ava": "3.2.0",
     "babel-loader": "^8.0.6",
     "clean-webpack-plugin": "^3.0.0",
     "copy-webpack-plugin": "^5.1.1",
@@ -48,7 +48,7 @@
     "cssnano": "^4.1.10",
     "cypress": "^3.8.3",
     "eslint": "^6.8.0",
-    "eslint-plugin-ava": "^10.0.0",
+    "eslint-plugin-ava": "^10.0.1",
     "eslint-plugin-vue": "^6.1.2",
     "esm": "^3.2.25",
     "html-webpack-plugin": "^4.0.0-beta.11",
@@ -57,7 +57,7 @@
     "mkdirp": "^1.0.3",
     "obj2gltf": "^3.0.4",
     "postcss-loader": "^3.0.0",
-    "rimraf": "^3.0.0",
+    "rimraf": "^3.0.1",
     "script-loader": "^0.7.2",
     "strip-pragma-loader": "^1.0.0",
     "to-string-loader": "^1.1.6",
@@ -67,9 +67,9 @@
     "webpack": "^4.41.5",
     "webpack-bundle-analyzer": "^3.6.0",
     "webpack-cli": "^3.3.10",
-    "webpack-dev-server": "^3.10.1",
+    "webpack-dev-server": "^3.10.2",
     "webpack-merge": "^4.2.2",
-    "workbox-webpack-plugin": "^4.3.1"
+    "workbox-webpack-plugin": "^5.0.0"
   },
   "ava": {
     "require": [

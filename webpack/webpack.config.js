@@ -150,7 +150,6 @@ module.exports = {
       CESIUM_BASE_URL: JSON.stringify("cesium/"),
     }),
     new WorkboxPlugin.InjectManifest({
-      importWorkboxFrom: "local",
       swSrc: "./src/sw.js",
       swDest: "sw.js",
       include: [

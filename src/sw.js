@@ -1,34 +1,33 @@
-/* global workbox */
-//workbox.setConfig({ debug: true });
-
-// Update service worker on page refresh
-addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
-    skipWaiting();
-  }
-});
+import { skipWaiting, clientsClaim } from "workbox-core";
+import { registerRoute } from "workbox-routing";
+import { CacheFirst } from "workbox-strategies";
+import { ExpirationPlugin } from "workbox-expiration";
+import { cleanupOutdatedCaches, precacheAndRoute } from "workbox-precaching";
 
 // Cache Cesium runtime dependencies
-workbox.routing.registerRoute(
+registerRoute(
   /dist\/(Assets|Widgets|Workers)\/.*\.(css|js|json)$/,
-  new workbox.strategies.CacheFirst({
+  new CacheFirst({
     cacheName: "cesium-cache",
   })
 );
 
 // Cache high res map tiles
-workbox.routing.registerRoute(
+registerRoute(
   /data\/cesium-assets\/imagery\/.*\.(jpg|xml)$/,
-  new workbox.strategies.CacheFirst({
+  new CacheFirst({
     cacheName: "cesium-tile-cache",
     plugins: [
-      new workbox.expiration.Plugin({
+      new ExpirationPlugin({
         maxEntries: 20000,
         maxAgeSeconds: 7 * 24 * 60 * 60,
-        purgeOnQuotaError: true
+        purgeOnQuotaError: true,
       })
     ]
   })
 );
 
-workbox.precaching.precacheAndRoute(self.__precacheManifest || []);
+cleanupOutdatedCaches();
+precacheAndRoute(self.__precacheManifest || self.__WB_MANIFEST);
+skipWaiting();
+clientsClaim();
