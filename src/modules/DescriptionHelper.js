@@ -13,7 +13,8 @@ export class DescriptionHelper {
               <th>Name</th>
               <th>Latitude</th>
               <th>Longitude</th>
-              <th>${isGroundStation ? "Elevation" : "Altitude"}</th>
+              ${isGroundStation ? "" : "<th>Altitude</th>"}
+              ${isGroundStation ? "" : "<th>Velocity</th>"}
             </tr>
           </thead>
           <tbody>
@@ -21,7 +22,8 @@ export class DescriptionHelper {
               <td>${name}</td>
               <td>${position.latitude.toFixed(2)}&deg</td>
               <td>${position.longitude.toFixed(2)}&deg</td>
-              <td>${(position.height / 1000).toFixed(2)} km</td>
+              ${isGroundStation ? "" : `<td>${(position.height / 1000).toFixed(2)} km</td>`}
+              ${isGroundStation ? "" : `<td>${position.velocity.toFixed(2)} km/s</td>`}
             </tr>
           </tbody>
         </table>

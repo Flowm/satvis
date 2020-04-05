@@ -67,6 +67,17 @@ export class SatelliteProperties {
     return this.lastPosition;
   }
 
+  computePositionCartographicDegrees(julianDate) {
+    const {longitude, latitude, height, velocity} = this.orbit.positionGeodeticWithVelocity(Cesium.JulianDate.toDate(julianDate));
+    const cartographicDegrees = {
+      longitude: Cesium.Math.toDegrees(longitude),
+      latitude: Cesium.Math.toDegrees(latitude),
+      height,
+      velocity,
+    };
+    return cartographicDegrees;
+  }
+
   positionInertial(time, constprop = false) {
     const eci = this.orbit.positionECI(Cesium.JulianDate.toDate(time));
     const position = new Cesium.Cartesian3(eci.x*1000, eci.y*1000, eci.z*1000);

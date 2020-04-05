@@ -41,17 +41,17 @@ export default class Orbit {
     };
   }
 
-  computeGeodeticPositionVelocity(timestamp) {
+  positionGeodeticWithVelocity(timestamp) {
     const positionAndVelocity = satellitejs.propagate(this.satrec, timestamp);
     const positionEci = positionAndVelocity.position;
     const velocityEci = positionAndVelocity.velocity;
 
     const gmst = satellitejs.gstime(timestamp);
     const positionGd = satellitejs.eciToGeodetic(positionEci, gmst);
-    const velocityGd = satellitejs.eciToGeodetic(velocityEci, gmst);
-    const velocity = Math.sqrt(velocityGd.longitude * velocityGd.longitude +
-      velocityGd.latitude * velocityGd.latitude +
-      velocityGd.height * velocityGd.height);
+
+    const velocity = Math.sqrt(velocityEci.x * velocityEci.x +
+      velocityEci.y * velocityEci.y +
+      velocityEci.z * velocityEci.z);
 
     return {
       longitude: positionGd.longitude,
