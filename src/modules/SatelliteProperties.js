@@ -181,7 +181,7 @@ export class SatelliteProperties {
       stopPrediction: new Cesium.JulianDate.addDays(time, 4, Cesium.JulianDate.clone(time)),
     };
 
-    let passes = this.orbit.computePasses(this.groundStationPosition, Cesium.JulianDate.toDate(this.passInterval.start), Cesium.JulianDate.toDate(this.passInterval.stopPrediction));
+    let passes = this.orbit.computePassesElevation(this.groundStationPosition, Cesium.JulianDate.toDate(this.passInterval.start), Cesium.JulianDate.toDate(this.passInterval.stopPrediction));
     if (!passes) {
       return false;
     }
@@ -220,7 +220,7 @@ export class SatelliteProperties {
       });
       return;
     }
-    let passes = this.orbit.computePasses(this.groundStationPosition);
+    let passes = this.orbit.computePassesElevation(this.groundStationPosition);
     if (!passes) {
       Toast.open({
         message: `No passes for ${this.name}`,

@@ -17,7 +17,7 @@ const gs = {
 };
 
 console.log("Passes");
-let passes = orbit.computePasses(gs, start.toDate());
+let passes = orbit.computePassesElevation(gs, start.toDate());
 //passes.forEach((pass, i) => {
 //  console.log(`Pass ${i} start ${dayjs(pass.start).format()} maxElevation ${pass.maxElevation.toFixed(2)}`);
 //});

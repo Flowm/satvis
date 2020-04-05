@@ -34,7 +34,7 @@ test("Can calculate passes", t => {
   const start = dayjs("2018-12-08");
   const end = dayjs("2018-12-22");
 
-  const passes = orbit.computePasses(gs, start.toDate(), end.toDate(), 1, 500);
+  const passes = orbit.computePassesElevation(gs, start.toDate(), end.toDate(), 1, 500);
   //passes.forEach((pass, i) => {
   //  console.log(`Pass ${i} start ${dayjs(pass.start).format()} maxElevation ${pass.maxElevation.toFixed(2)}`);
   //});

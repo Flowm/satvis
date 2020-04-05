@@ -1,6 +1,9 @@
 import * as satellitejs from "satellite.js";
 import dayjs from "dayjs";
 
+const deg2rad = Math.PI / 180;
+//const rad2deg = 180 / Math.PI;
+
 export default class Orbit {
   constructor(name, tle) {
     this.name = name;
@@ -61,18 +64,17 @@ export default class Orbit {
     };
   }
 
-  computePasses(groundStationPosition,
+  computePassesElevation(groundStationPosition,
     startDate = dayjs().toDate(),
     endDate = dayjs(startDate).add(7, "day").toDate(),
     minElevation = 1,
     maxPasses = 50) {
     const groundStation = { ...groundStationPosition };
-    const deg2rad = (Math.PI / 180);
     groundStation.latitude *= deg2rad;
     groundStation.longitude *= deg2rad;
     groundStation.height /= 1000;
 
-    const date = startDate;
+    const date = new Date(startDate);
     const passes = [];
     let pass = false;
     let ongoingPass = false;
