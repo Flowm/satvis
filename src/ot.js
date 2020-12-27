@@ -25,7 +25,10 @@ cc.sats.addFromTleUrl("data/tle/norad/globalstar.txt", ["Globalstar"]);
 //cc.sats.addFromTleUrl("data/tle/ext/ot576-24.txt", ["OT576-24"]);
 //cc.sats.addFromTleUrl("data/tle/ext/ot288-24.txt", ["OT288-24"]);
 //cc.sats.addFromTleUrl("data/tle/ext/ot288-12.txt", ["OT288-12"]);
-cc.sats.addFromTleUrl("data/tle/ext/ot144-12.txt", ["OT144-12"]);
+//cc.sats.addFromTleUrl("data/tle/ext/ot144-12.txt", ["OT144-12"]);
+cc.sats.addFromTleUrl("data/tle/ext/otmvc.txt", ["OTMVC-1-16"]);
+cc.sats.addFromTleUrl("data/tle/ext/otmvc-8-16.txt", ["OTMVC-8-16"]);
+cc.sats.addFromTleUrl("data/tle/ext/otmvc-8-24.txt", ["OTMVC-8-24"]);
 
 // Register service worker
 if ("serviceWorker" in navigator) {
