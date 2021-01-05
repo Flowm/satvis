@@ -10,9 +10,11 @@ if (window.location.href.includes("satvis.space")) {
 
 const app = new Vue({
   el: "#app",
+  components: {
+    app: App,
+  },
+  render: (h) => h("app"),
   router,
-  components: { App },
-  template: "<App/>"
 });
 
 // Export Vue for debugger

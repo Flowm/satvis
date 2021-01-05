@@ -84,7 +84,6 @@ module.exports = {
     alias: {
       // Cesium module name
       cesium: path.resolve(basePath, cesiumSource),
-      "vue$": "vue/dist/vue.esm.js"
     },
   },
   externals: {
