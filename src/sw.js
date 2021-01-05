@@ -1,4 +1,4 @@
-import { skipWaiting, clientsClaim } from "workbox-core";
+import { clientsClaim } from "workbox-core";
 import { registerRoute } from "workbox-routing";
 import { CacheFirst } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
@@ -6,7 +6,7 @@ import { cleanupOutdatedCaches, precacheAndRoute } from "workbox-precaching";
 
 // Cache Cesium runtime dependencies
 registerRoute(
-  /dist\/(Assets|Widgets|Workers)\/.*\.(css|js|json)$/,
+  /cesium\/(Assets|Widgets|Workers)\/.*\.(css|js|json)$/,
   new CacheFirst({
     cacheName: "cesium-cache",
   })
@@ -28,6 +28,6 @@ registerRoute(
 );
 
 cleanupOutdatedCaches();
-precacheAndRoute(self.__precacheManifest || self.__WB_MANIFEST);
-skipWaiting();
+precacheAndRoute(self.__WB_MANIFEST);
+self.skipWaiting();
 clientsClaim();

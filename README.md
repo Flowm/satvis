@@ -5,12 +5,12 @@ Satellite orbit visualization and pass prediction.
 ![Screenshot](https://user-images.githubusercontent.com/1117666/47623704-f0c3e900-db14-11e8-9cf9-7bf13acb267c.png)
 
 ## Features
-- Calculate posistion and orbit of satellites from TLE
+- Calculate position and orbit of satellites from TLE
 - Set groundstation through geolocation or pick on map
-- Calculate passes for groundstation
+- Calculate passes for a set groundstation
 - Local browser notifications for passes
 - Serverless architecture
-- Works offline as Progressive Web App
+- Works offline as Progressive Web App (PWA)
 
 ## Built With
 - [CesiumJS](https://cesiumjs.org)
