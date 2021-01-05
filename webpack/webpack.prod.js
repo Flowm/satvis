@@ -1,37 +1,37 @@
 const path = require("path");
-const webpack = require("webpack");
-const merge = require("webpack-merge");
-const common = require("./webpack.config.js");
+const { merge } = require("webpack-merge");
 
 const basePath = `${__dirname}/..`;
+const common = require("./webpack.config.js");
+
 const cesiumSource = "node_modules/cesium/Source";
 
 module.exports = merge(common, {
   output: {
-    filename: "js/[name].[chunkhash:8].js",
-    sourceMapFilename: "js/[name].[chunkhash:8].map",
-    chunkFilename: "js/[name].[chunkhash:8].js",
+    filename: "js/[name].[chunkhash].js",
+    sourceMapFilename: "js/[name].[chunkhash][ext].map",
+    chunkFilename: "js/[name].[chunkhash].js",
+    hashDigestLength: 8,
   },
   devtool: "source-map",
   mode: "production",
+  target: "browserslist",
   module: {
-    rules: [{
-      test: /\.js$/,
-      enforce: "pre",
-      include: path.resolve(basePath, cesiumSource),
-      use: [{
-        loader: "strip-pragma-loader",
-        options: {
-          pragmas: {
-            debug: false
-          }
-        }
-      }]
-    }]
+    rules: [
+      {
+        test: /\.js$/,
+        enforce: "pre",
+        include: path.resolve(basePath, cesiumSource),
+        sideEffects: false,
+        use: [{
+          loader: "strip-pragma-loader",
+          options: {
+            pragmas: {
+              debug: false,
+            },
+          },
+        }],
+      },
+    ],
   },
-  plugins: [
-    new webpack.DefinePlugin({
-      "process.env.NODE_ENV": JSON.stringify("production")
-    })
-  ]
 });

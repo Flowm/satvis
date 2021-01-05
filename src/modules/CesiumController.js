@@ -409,9 +409,10 @@ export class CesiumController {
       for (const link of links) {
         head.removeChild(link);
       }
-      const css = require("to-string-loader!css-loader!postcss-loader!../css/infobox.ecss");
+
       const style = frame.contentDocument.createElement("style");
-      var node = document.createTextNode(css);
+      const css = require("!!css-loader?esModule=false!../css/infobox.ecss").toString();
+      const node = document.createTextNode(css);
       style.appendChild(node);
       head.appendChild(style);
     }, false);

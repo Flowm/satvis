@@ -2,8 +2,9 @@ const path = require("path");
 const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
-const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const SizePlugin = require("size-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const VueLoaderPlugin = require("vue-loader/lib/plugin");
 const WorkboxPlugin = require("workbox-webpack-plugin");
 
@@ -19,9 +20,9 @@ module.exports = {
     test: "./src/test/test.js",
   },
   output: {
-    filename: "js/[name].[hash:8].js",
-    sourceMapFilename: "js/[name].[hash:8].map",
-    chunkFilename: "js/[name].[hash:8].js",
+    filename: "js/[name].js",
+    sourceMapFilename: "js/[name][ext].map",
+    chunkFilename: "js/[name].js",
     path: path.resolve(basePath, "dist"),
     // Needed by Cesium for multiline strings
     sourcePrefix: "",
@@ -30,42 +31,49 @@ module.exports = {
     // Enable webpack-friendly use of require in Cesium
     toUrlUndefined: true,
   },
-  node: {
-    // Resolve node module use of fs
-    fs: "empty",
-    //Buffer: false,
-  },
   devServer: {
     compress: true,
     contentBase: path.resolve(basePath, "dist"),
+    hot: true,
     port: 8080,
+    stats: {
+      assets: false,
+      modules: false,
+      entrypoints: false,
+    },
+    historyApiFallback: {
+      index: "index.html",
+    },
   },
   devtool: "eval-source-map",
   mode: "development",
+  target: "web",
   module: {
-    rules: [{
-      test: /\.js$/,
-      exclude: /node_modules/,
-      use: {
-        loader: "babel-loader",
-        options: {
-          presets: ["@babel/preset-env"]
-        }
-      }
-    }, {
-      test: /\.css$/,
-      use: [
-        MiniCssExtractPlugin.loader,
-        "css-loader",
-        "postcss-loader",
-      ]
-    }, {
-      test: /\.vue$/,
-      loader: "vue-loader"
-    }, {
-      test: /\.(png|gif|jpg|jpeg|svg|xml|json)$/,
-      use: ["url-loader"]
-    }],
+    rules: [
+      {
+        test: /\.js$/,
+        use: {
+          loader: "babel-loader",
+          options: {
+            presets: ["@babel/preset-env"],
+          },
+        },
+        exclude: /node_modules/,
+      }, {
+        test: /\.vue$/,
+        loader: "vue-loader",
+      }, {
+        test: /\.css$/,
+        use: [
+          MiniCssExtractPlugin.loader,
+          "css-loader",
+          "postcss-loader",
+        ],
+      }, {
+        test: /\.(png|gif|jpg|jpeg|svg|xml|json)$/,
+        use: ["url-loader"],
+      },
+    ],
     unknownContextCritical: false,
   },
   resolve: {
@@ -77,7 +85,7 @@ module.exports = {
       // Cesium module name
       cesium: path.resolve(basePath, cesiumSource),
       "vue$": "vue/dist/vue.esm.js"
-    }
+    },
   },
   externals: {
     // CesiumSensorVolumes: "CesiumSensorVolumes",
@@ -105,49 +113,54 @@ module.exports = {
     new HtmlWebpackPlugin({
       filename: "index.html",
       template: "src/index.html",
-      chunks: ["app"]
+      chunks: ["app"],
     }),
     new HtmlWebpackPlugin({
       filename: "move.html",
       template: "src/index.html",
-      chunks: ["move"]
+      chunks: ["move"],
     }),
     new HtmlWebpackPlugin({
       filename: "ot.html",
       template: "src/index.html",
-      chunks: ["ot"]
+      chunks: ["ot"],
     }),
     new HtmlWebpackPlugin({
       filename: "embedded.html",
       template: "src/embedded.html",
-      chunks: []
+      chunks: [],
     }),
     new HtmlWebpackPlugin({
       filename: "test.html",
-      chunks: ["test"]
+      chunks: ["test"],
     }),
     new MiniCssExtractPlugin({
-      filename: "[name].[chunkhash:8].css",
-      chunkFilename: "[id].[chunkhash:8].css"
+      filename: "js/[name].[chunkhash].css",
+      chunkFilename: "js/[name].[chunkhash].css",
     }),
     new VueLoaderPlugin(),
-    new CopyWebpackPlugin([
-      // Copy Cesium Assets
-      { from: path.join(cesiumSource, "../Build/Cesium/Assets"), to: "cesium/Assets", ignore: ["**/maki/*.png"] },
-      // Copy Cesium non-JS widget-bits (CSS, SVG, etc.)
-      { from: path.join(cesiumSource, "../Build/Cesium/Widgets"), to: "cesium/Widgets" },
-      // Copy Cesium Almond-bundled-and-minified Web Worker scripts
-      { from: path.join(cesiumSource, "../Build/Cesium/Workers"), to: "cesium/Workers" },
-      // Copy Cesium minified third-party scripts
-      { from: path.join(cesiumSource, "../Build/Cesium/ThirdParty"), to: "cesium/ThirdParty" },
-      // Copy prebuilt CesiumSensorVolumes
-      // {from: "node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.min.js", to: "cesium/"},
-      {from: "data", to: "data", ignore: ["**/.git/**"]},
-      {from: "src/assets"},
-    ]),
+    new CopyWebpackPlugin({
+      patterns: [
+        // Copy Cesium Assets
+        { from: path.join(cesiumSource, "../Build/Cesium/Assets"), to: "cesium/Assets", globOptions: { ignore: ["**/maki/*.png"] }},
+        // Copy Cesium non-JS widget-bits (CSS, SVG, etc.)
+        { from: path.join(cesiumSource, "../Build/Cesium/Widgets"), to: "cesium/Widgets" },
+        // Copy Cesium Almond-bundled-and-minified Web Worker scripts
+        { from: path.join(cesiumSource, "../Build/Cesium/Workers"), to: "cesium/Workers" },
+        // Copy Cesium minified third-party scripts
+        { from: path.join(cesiumSource, "../Build/Cesium/ThirdParty"), to: "cesium/ThirdParty" },
+        // Copy prebuilt CesiumSensorVolumes
+        // {from: "node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.min.js", to: "cesium/"},
+        {from: "data", to: "data", globOptions: { ignore: ["**/.git/**"] }},
+        {from: "src/assets"},
+      ],
+    }),
     new webpack.DefinePlugin({
       // Define relative base path in cesium for loading assets
       CESIUM_BASE_URL: JSON.stringify("cesium/"),
+    }),
+    new SizePlugin({
+      exclude: "cesium/**/*",
     }),
     new WorkboxPlugin.InjectManifest({
       swSrc: "./src/sw.js",
