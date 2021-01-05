@@ -89,14 +89,14 @@ input:checked + .slider::before {
 }
 
 .icon .mfa-button-width {
-    width: 22px
+    width: 24px;
 }
 
 .svg-sat {
     background-image: url("../assets/images/icons/sat/2.svg");
     background-repeat: no-repeat;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     filter: brightness(3.1);
     transform: rotate(-90deg);
 }
@@ -104,8 +104,8 @@ input:checked + .slider::before {
 .svg-groundstation {
     background-image: url("../assets/images/icons/sat/9.svg");
     background-repeat: no-repeat;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     filter: brightness(3.1);
     margin-left: 2px;
 }

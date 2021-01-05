@@ -12,7 +12,7 @@
         <b-tooltip label="Satellite elements" position="is-right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('sat')">
             <span class="icon fill-parent">
-              <i class="fas fa-layer-group fa-2x"></i>
+              <i class="fas fa-layer-group fa-fw mfa-button-width"></i>
             </span>
           </button>
         </b-tooltip>
@@ -26,14 +26,14 @@
         <b-tooltip label="Map" position="is-right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('map')">
             <span class="icon fill-parent">
-              <i class="fas fa-globe-africa fa-2x"></i>
+              <i class="fas fa-globe-africa fa-fw mfa-button-width"></i>
             </span>
           </button>
         </b-tooltip>
         <b-tooltip v-if="cc.minimalUI" label="Mobile" position="is-right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('ios')">
             <span class="icon fill-parent">
-              <i class="fas fa-mobile-alt fa-2x"></i>
+              <i class="fas fa-mobile-alt fa-fw"></i>
             </span>
           </button>
         </b-tooltip>
@@ -208,14 +208,14 @@
       <b-tooltip v-if="showUI" label="Github" position="is-left">
         <a class="cesium-button cesium-toolbar-button" href="https://github.com/Flowm/satvis/" target="_blank" rel="noopener">
           <span class="icon fill-parent">
-            <i class="fab fa-github fa-2x"></i>
+            <i class="fab fa-github fa-fw mfa-button-width"></i>
           </span>
         </a>
       </b-tooltip>
       <b-tooltip label="Toggle UI" position="is-left">
         <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleUI">
           <span class="icon fill-parent">
-            <i class="fas fa-eye fa-2x"></i>
+            <i class="fas fa-eye fa-fw mfa-button-width"></i>
           </span>
         </button>
       </b-tooltip>
