@@ -2,7 +2,7 @@ import Vue from "vue";
 import App from "./App.vue";
 import router from "./components/Router";
 import { Workbox } from "workbox-window";
-import * as Cesium from "cesium/Cesium";
+import * as Cesium from "Cesium/Cesium";
 
 const app = new Vue({
   el: "#app",

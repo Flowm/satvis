@@ -3,8 +3,8 @@ import { CesiumTimelineHelper } from "./CesiumTimelineHelper";
 import { CesiumEntityWrapper } from "./CesiumEntityWrapper";
 import { DescriptionHelper } from "./DescriptionHelper";
 
-import * as Cesium from "cesium/Cesium";
-// import CesiumSensorVolumes from "CesiumSensorVolumes";
+import * as Cesium from "Cesium/Cesium";
+import CesiumSensorVolumes from "cesium-sensor-volumes";
 
 export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   constructor(viewer, tle, tags) {
@@ -52,7 +52,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
       this.createOrbit();
       this.createOrbitTrack();
       this.createGroundTrack();
-      //this.createCone();
+      this.createCone();
     }
     this.createModel();
     if (this.props.groundStationAvailable) {
@@ -158,27 +158,27 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
     this.createCesiumSatelliteEntity("Ground track", "polyline", polyline);
   }
 
-  // createCone(fov = 12) {
-  //   const cone = new Cesium.Entity({
-  //     position: this.props.sampledPosition,
-  //     orientation: new Cesium.CallbackProperty((time) => {
-  //       const position = this.props.position(time);
-  //       const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
-  //       return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
-  //     }, false),
-  //   });
+  createCone(fov = 12) {
+    const cone = new Cesium.Entity({
+      position: this.props.sampledPosition,
+      orientation: new Cesium.CallbackProperty((time) => {
+        const position = this.props.position(time);
+        const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
+        return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
+      }, false),
+    });
 
-  //   cone.addProperty("conicSensor");
-  //   cone.conicSensor = new CesiumSensorVolumes.ConicSensorGraphics({
-  //     radius: 10000000,
-  //     innerHalfAngle: Cesium.Math.toRadians(0),
-  //     outerHalfAngle: Cesium.Math.toRadians(fov),
-  //     lateralSurfaceMaterial: Cesium.Color.GOLD.withAlpha(0.15),
-  //     intersectionColor: Cesium.Color.GOLD.withAlpha(0.3),
-  //     intersectionWidth: 1,
-  //   });
-  //   this.entities["Sensor cone"] = cone;
-  // }
+    cone.addProperty("conicSensor");
+    cone.conicSensor = new CesiumSensorVolumes.ConicSensorGraphics({
+      radius: 1000000,
+      innerHalfAngle: Cesium.Math.toRadians(0),
+      outerHalfAngle: Cesium.Math.toRadians(fov),
+      lateralSurfaceMaterial: Cesium.Color.GOLD.withAlpha(0.15),
+      intersectionColor: Cesium.Color.GOLD.withAlpha(0.3),
+      intersectionWidth: 1,
+    });
+    this.entities["Sensor cone"] = cone;
+  }
 
   createGroundStationLink() {
     const polyline = new Cesium.PolylineGraphics({

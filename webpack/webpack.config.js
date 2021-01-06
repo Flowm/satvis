@@ -83,11 +83,8 @@ module.exports = {
     ],
     alias: {
       // Cesium module name
-      cesium: path.resolve(basePath, cesiumSource),
+      Cesium: path.resolve(basePath, cesiumSource),
     },
-  },
-  externals: {
-    // CesiumSensorVolumes: "CesiumSensorVolumes",
   },
   optimization: {
     splitChunks: {
@@ -148,8 +145,7 @@ module.exports = {
         { from: path.join(cesiumSource, "../Build/Cesium/Workers"), to: "cesium/Workers" },
         // Copy Cesium minified third-party scripts
         { from: path.join(cesiumSource, "../Build/Cesium/ThirdParty"), to: "cesium/ThirdParty" },
-        // Copy prebuilt CesiumSensorVolumes
-        // {from: "node_modules/cesium-sensor-volumes/dist/cesium-sensor-volumes.min.js", to: "cesium/"},
+        // Copy assets
         {from: "data", to: "data", globOptions: { ignore: ["**/.git/**"] }},
         {from: "src/assets"},
       ],

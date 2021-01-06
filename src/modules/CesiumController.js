@@ -1,5 +1,4 @@
-// Import webpack externals
-import * as Cesium from "cesium/Cesium";
+import * as Cesium from "Cesium/Cesium";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { DeviceDetect } from "./util/DeviceDetect";
@@ -40,6 +39,7 @@ export class CesiumController {
     this.viewer.scene.maximumRenderTimeChange = 1/30;
     this.viewer.scene.requestRenderMode = true;
     //this.viewer.scene.debugShowFramesPerSecond = true;
+    //this.viewer.extend(Cesium.viewerCesiumInspectorMixin);
 
     // Export CesiumController for debugger
     window.cc = this;

@@ -1,4 +1,4 @@
-import * as Cesium from "cesium/Cesium";
+import * as Cesium from "Cesium/Cesium";
 import dayjs from "dayjs";
 import Orbit from "./Orbit";
 import { PushManager } from "./PushManager";

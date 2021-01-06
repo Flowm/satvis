@@ -13,7 +13,7 @@ library.add(faLayerGroup, faGlobeAfrica, faMobileAlt, faHammer, faEye, faRedo, f
 dom.watch();
 
 import "buefy/dist/buefy.css";
-import "cesium/Widgets/widgets.css";
+import "Cesium/Widgets/widgets.css";
 import "./css/main.css";
 
 export default {
