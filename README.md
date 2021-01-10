@@ -1,4 +1,4 @@
-# [satvis.space](https://satvis.space)
+# [satvis.space](https://satvis.space) ![Node CI](https://github.com/Flowm/satvis/workflows/Node%20CI/badge.svg)
 
 Satellite orbit visualization and pass prediction.
 
