@@ -2,42 +2,42 @@
   <div class="cesium">
     <div v-if="showUI" id="toolbarLeft">
       <div class="toolbarButtons">
-        <b-tooltip label="Satellite selection" position="is-right">
+        <b-tooltip label="Satellite selection" :triggers="tooltipTriggers" position="is-right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('cat')">
             <span class="icon fill-parent">
               <i class="svg-sat"></i>
             </span>
           </button>
         </b-tooltip>
-        <b-tooltip label="Satellite elements" position="is-right">
+        <b-tooltip label="Satellite elements" :triggers="tooltipTriggers" position="is-right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('sat')">
             <span class="icon fill-parent">
               <i class="fas fa-layer-group fa-fw mfa-button-width"></i>
             </span>
           </button>
         </b-tooltip>
-        <b-tooltip label="Ground station" position="is-right">
+        <b-tooltip label="Ground station" :triggers="tooltipTriggers" position="is-right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('gs')">
             <span class="icon fill-parent">
               <i class="svg-groundstation"></i>
             </span>
           </button>
         </b-tooltip>
-        <b-tooltip label="Map" position="is-right">
+        <b-tooltip label="Map" :triggers="tooltipTriggers" position="is-right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('map')">
             <span class="icon fill-parent">
               <i class="fas fa-globe-africa fa-fw mfa-button-width"></i>
             </span>
           </button>
         </b-tooltip>
-        <b-tooltip v-if="cc.minimalUI" label="Mobile" position="is-right">
+        <b-tooltip v-if="cc.minimalUI" label="Mobile" :triggers="tooltipTriggers" position="is-right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('ios')">
             <span class="icon fill-parent">
               <i class="fas fa-mobile-alt fa-fw"></i>
             </span>
           </button>
         </b-tooltip>
-        <b-tooltip label="Debug" position="is-right">
+        <b-tooltip label="Debug" :triggers="tooltipTriggers" position="is-right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('dbg')">
             <span class="icon fill-parent">
               <i class="fas fa-hammer fa-fw mfa-button-width"></i>
@@ -205,14 +205,14 @@
       </div>
     </div>
     <div id="toolbarRight">
-      <b-tooltip v-if="showUI" label="Github" position="is-left">
+      <b-tooltip v-if="showUI" label="Github" :triggers="tooltipTriggers" position="is-left">
         <a class="cesium-button cesium-toolbar-button" href="https://github.com/Flowm/satvis/" target="_blank" rel="noopener">
           <span class="icon fill-parent">
             <i class="fab fa-github fa-fw mfa-button-width"></i>
           </span>
         </a>
       </b-tooltip>
-      <b-tooltip label="Toggle UI" position="is-left">
+      <b-tooltip label="Toggle UI" :triggers="tooltipTriggers" position="is-left">
         <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleUI">
           <span class="icon fill-parent">
             <i class="fas fa-eye fa-fw mfa-button-width"></i>
@@ -230,6 +230,7 @@ import SatelliteSelect from "./SatelliteSelect.vue";
 import SatelliteMultiSelect from "./SatelliteMultiSelect.vue";
 import SatelliteNotifyMultiSelect from "./SatelliteNotifyMultiSelect.vue";
 import VueCesiumController from "./VueCesiumController.js";
+import { DeviceDetect } from "../modules/util/DeviceDetect";
 Vue.use(Tooltip);
 Vue.use(VueCesiumController); /* global cc */
 
@@ -256,6 +257,7 @@ export default {
       cameraMode: "Fixed",
       enabledComponents: cc.sats.enabledComponents,
       groundStationPicker: cc.groundStationPicker,
+      tooltipTriggers: DeviceDetect.canHover() ? ["hover"] : ["contextmenu"],
     };
   },
   watch: {

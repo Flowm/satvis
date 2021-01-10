@@ -7,6 +7,14 @@ export class DeviceDetect {
     }
   }
 
+  static hasTouch() {
+    return window.matchMedia("(pointer: coarse)").matches;
+  }
+
+  static canHover() {
+    return !window.matchMedia("(hover: none)").matches;
+  }
+
   static isIos() {
     const userAgent = window.navigator.userAgent.toLowerCase();
     return /iphone|ipad|ipod/.test(userAgent);
