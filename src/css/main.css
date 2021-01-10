@@ -10,6 +10,11 @@ html, body, #cesiumContainer {
     background-color: black;
 }
 
+body {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
 [v-cloak] {
     display: none;
 }
