@@ -13,12 +13,12 @@ console.log("PositionECF", positionECF);
 const gs = {
   latitude: 48.1770,
   longitude: 11.7476,
-  height: 0
+  height: 0,
 };
 
 console.log("Passes");
-let passes = orbit.computePassesElevation(gs, start.toDate());
-//passes.forEach((pass, i) => {
+const passes = orbit.computePassesElevation(gs, start.toDate());
+// passes.forEach((pass, i) => {
 //  console.log(`Pass ${i} start ${dayjs(pass.start).format()} maxElevation ${pass.maxElevation.toFixed(2)}`);
-//});
+// });
 console.log(passes);

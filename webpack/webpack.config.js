@@ -72,6 +72,12 @@ module.exports = {
       }, {
         test: /\.(png|gif|jpg|jpeg|svg|xml|json)$/,
         use: ["url-loader"],
+      }, {
+        test: /\.ecss$/,
+        loader: "css-loader",
+        options: {
+          esModule: false,
+        }
       },
     ],
     unknownContextCritical: false,

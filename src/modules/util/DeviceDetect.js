@@ -43,12 +43,12 @@ export class DeviceDetect {
     const ratio = window.devicePixelRatio;
     if (window.screen.height / window.screen.width === 896 / 414) {
       switch (ratio) {
-      default:
-        return "iPhone XR, iPhone XS Max";
-      case 2:
-        return "iPhone XR";
-      case 3:
-        return "iPhone XS Max";
+        default:
+          return "iPhone XR, iPhone XS Max";
+        case 2:
+          return "iPhone XR";
+        case 3:
+          return "iPhone XS Max";
       }
     } else if (window.screen.height / window.screen.width === 812 / 375) {
       return "iPhone X, iPhone XS";
@@ -57,9 +57,8 @@ export class DeviceDetect {
     } else if (window.screen.height / window.screen.width === 667 / 375) {
       if (ratio === 2) {
         return "iPhone 6, 6s, 7 or 8";
-      } else {
-        return "iPhone 6 Plus, 6s Plus , 7 Plus or 8 Plus (display zoom)";
       }
+      return "iPhone 6 Plus, 6s Plus , 7 Plus or 8 Plus (display zoom)";
     } else if (window.screen.height / window.screen.width === 1.775) {
       return "iPhone 5, 5C, 5S, SE or 6, 6s, 7 and 8 (display zoom)";
     } else if ((window.screen.height / window.screen.width === 1.5) && (ratio === 2)) {

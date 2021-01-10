@@ -1,8 +1,8 @@
+import * as Cesium from "Cesium/Cesium";
+import dayjs from "dayjs";
 import { CesiumEntityWrapper } from "./CesiumEntityWrapper";
 import { DescriptionHelper } from "./DescriptionHelper";
 
-import * as Cesium from "Cesium/Cesium";
-import dayjs from "dayjs";
 import icon from "../assets/images/icons/dish.svg";
 
 export class GroundStationEntity extends CesiumEntityWrapper {
@@ -40,7 +40,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
       height: 24,
     });
     this.createCesiumEntity("Groundstation", "billboard", billboard, this.name, this.description, this.position.cartesian, false);
-    this.defaultEntity = this.entities["Groundstation"];
+    this.defaultEntity = this.entities.Groundstation;
   }
 
   createDescription() {
@@ -60,14 +60,10 @@ export class GroundStationEntity extends CesiumEntityWrapper {
     });
 
     // Filter passes based on time
-    passes = passes.filter((pass) => {
-      return dayjs(pass.start).diff(time, "hours") < deltaHours;
-    });
+    passes = passes.filter((pass) => dayjs(pass.start).diff(time, "hours") < deltaHours);
 
     // Sort passes by time
-    passes = passes.sort((a, b) => {
-      return a.start - b.start;
-    });
+    passes = passes.sort((a, b) => a.start - b.start);
     return passes;
   }
 }

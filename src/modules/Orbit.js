@@ -2,7 +2,7 @@ import * as satellitejs from "satellite.js";
 import dayjs from "dayjs";
 
 const deg2rad = Math.PI / 180;
-//const rad2deg = 180 / Math.PI;
+// const rad2deg = 180 / Math.PI;
 
 export default class Orbit {
   constructor(name, tle) {

@@ -50,19 +50,19 @@ export default {
     };
   },
   watch: {
-    values: function(newSats, oldSats) {
-      if (newSats.every(e => oldSats.includes(e)) && oldSats.every(e => newSats.includes(e))) {
+    values(newSats, oldSats) {
+      if (newSats.every((e) => oldSats.includes(e)) && oldSats.every((e) => newSats.includes(e))) {
         return;
       }
       cc.sats.enabledSatellitesByName = newSats;
-    }
+    },
   },
   methods: {
-    update: function() {
+    update() {
       this.data = cc.sats.satlist;
       this.values = cc.sats.enabledSatellitesByName;
     },
-  }
+  },
 };
 </script>
 

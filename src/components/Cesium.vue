@@ -229,8 +229,9 @@ import Tooltip from "buefy";
 import SatelliteSelect from "./SatelliteSelect.vue";
 import SatelliteMultiSelect from "./SatelliteMultiSelect.vue";
 import SatelliteNotifyMultiSelect from "./SatelliteNotifyMultiSelect.vue";
-import VueCesiumController from "./VueCesiumController.js";
+import VueCesiumController from "./VueCesiumController";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
+
 Vue.use(Tooltip);
 Vue.use(VueCesiumController); /* global cc */
 
@@ -261,33 +262,33 @@ export default {
     };
   },
   watch: {
-    imageryProvider: function(newProvider) {
+    imageryProvider(newProvider) {
       cc.imageryProvider = newProvider;
-      if (this.$route.query.layers != newProvider) {
-        this.$router.push({query: {...this.$route.query, layers: newProvider}});
+      if (this.$route.query.layers !== newProvider) {
+        this.$router.push({ query: { ...this.$route.query, layers: newProvider } });
       }
     },
-    terrainProvider: function(newProvider) {
+    terrainProvider(newProvider) {
       cc.terrainProvider = newProvider;
-      if (this.$route.query.terrain != newProvider) {
-        this.$router.push({query: {...this.$route.query, terrain: newProvider}});
+      if (this.$route.query.terrain !== newProvider) {
+        this.$router.push({ query: { ...this.$route.query, terrain: newProvider } });
       }
     },
-    sceneMode: function(newMode) {
+    sceneMode(newMode) {
       cc.sceneMode = newMode;
     },
-    cameraMode: function(newMode) {
+    cameraMode(newMode) {
       cc.cameraMode = newMode;
     },
-    enabledComponents: function(newComponents, oldComponents) {
-      let add = newComponents.filter(x => !oldComponents.includes(x));
-      for (let component of add) {
+    enabledComponents(newComponents, oldComponents) {
+      const add = newComponents.filter((x) => !oldComponents.includes(x));
+      add.forEach((component) => {
         cc.sats.enableComponent(component);
-      }
-      let del = oldComponents.filter(x => !newComponents.includes(x));
-      for (let component of del) {
+      });
+      const del = oldComponents.filter((x) => !newComponents.includes(x));
+      del.forEach((component) => {
         cc.sats.disableComponent(component);
-      }
+      });
     },
   },
   mounted() {
@@ -300,12 +301,12 @@ export default {
     if (this.$route.query.layers) {
       const layers = this.$route.query.layers.split(",");
       if (layers.length === 1) {
-        this.imageryProvider = layers[0];
+        [this.imageryProvider] = layers;
       } else {
         cc.clearImageryLayers();
-        layers.forEach(layer => {
+        layers.forEach((layer) => {
           const provider = layer.split("_");
-          if (provider.length == 1) {
+          if (provider.length === 1) {
             cc.addImageryLayer(provider[0]);
           } else {
             cc.addImageryLayer(provider[0], provider[1]);
@@ -334,9 +335,11 @@ export default {
     this.$root.$off("updateCat", this.updateCat);
   },
   methods: {
-    toggleMenu: function(name) {
+    toggleMenu(name) {
       const oldState = this.menu[name];
-      Object.keys(this.menu).forEach(k => this.menu[k] = false);
+      Object.keys(this.menu).forEach((k) => {
+        this.menu[k] = false;
+      });
       this.menu[name] = !oldState;
 
       if (this.menu.cat) {
@@ -344,13 +347,13 @@ export default {
         this.updateCat();
       }
     },
-    toggleUI: function() {
+    toggleUI() {
       this.showUI = !this.showUI;
       if (!cc.minimalUI) {
         cc.showUI = this.showUI;
       }
     },
-    updateCat: function() {
+    updateCat() {
       this.$refs.SatelliteSelect.update();
       this.$refs.SatelliteMultiSelect.update();
       this.$refs.SatelliteNotifyMultiSelect.update();

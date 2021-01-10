@@ -33,7 +33,7 @@ export default {
   },
   data() {
     return {
-      btnLabel: values => `Monitored satellites (${values.length})`,
+      btnLabel: (values) => `Monitored satellites (${values.length})`,
       values: [],
       data: cc.sats.satlist,
       filters: [{
@@ -50,18 +50,18 @@ export default {
     };
   },
   watch: {
-    values: function(newSats, oldSats) {
-      if (newSats.every(e => oldSats.includes(e)) && oldSats.every(e => newSats.includes(e))) {
+    values(newSats, oldSats) {
+      if (newSats.every((e) => oldSats.includes(e)) && oldSats.every((e) => newSats.includes(e))) {
         return;
       }
       cc.sats.monitoredSatellites = newSats;
-    }
+    },
   },
   methods: {
-    update: function() {
+    update() {
       this.data = cc.sats.satlist;
       this.values = cc.sats.monitoredSatellites;
     },
-  }
+  },
 };
 </script>

@@ -1,10 +1,9 @@
+import * as Cesium from "Cesium/Cesium";
+import CesiumSensorVolumes from "cesium-sensor-volumes";
 import { SatelliteProperties } from "./SatelliteProperties";
 import { CesiumTimelineHelper } from "./CesiumTimelineHelper";
 import { CesiumEntityWrapper } from "./CesiumEntityWrapper";
 import { DescriptionHelper } from "./DescriptionHelper";
-
-import * as Cesium from "Cesium/Cesium";
-import CesiumSensorVolumes from "cesium-sensor-volumes";
 
 export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   constructor(viewer, tle, tags) {
@@ -24,8 +23,8 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   }
 
   createEntities() {
-    this.props.createSampledPosition(this.viewer.clock, sampledPosition => {
-      for (var entity in this.entities) {
+    this.props.createSampledPosition(this.viewer.clock, (sampledPosition) => {
+      this.entities.forEach((entity) => {
         if (entity === "Orbit") {
           this.entities[entity].position = this.props.sampledPositionInertial;
           this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(this.props.sampledPositionInertial);
@@ -40,13 +39,13 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
           this.entities[entity].position = sampledPosition;
           this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(sampledPosition);
         }
-      }
+      });
     });
     this.createDescription();
 
     this.entities = {};
     this.createPoint();
-    //this.createBox();
+    // this.createBox();
     this.createLabel();
     if (this.props.orbit.orbitalPeriod < 60 * 12) {
       this.createOrbit();
@@ -58,7 +57,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
     if (this.props.groundStationAvailable) {
       this.createGroundStationLink();
     }
-    this.defaultEntity = this.entities["Point"];
+    this.defaultEntity = this.entities.Point;
 
     this.viewer.selectedEntityChanged.addEventListener(() => {
       if (this.isSelected && !this.isTracked) {
@@ -69,7 +68,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
       if (this.isTracked) {
         this.artificiallyTrack(
           () => { this.updatePasses(); },
-          () => { this.timeline.clearTimeline(); }
+          () => { this.timeline.clearTimeline(); },
         );
       }
     });
@@ -107,7 +106,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
 
   createModel() {
     const model = new Cesium.ModelGraphics({
-      uri: "./data/models/" + this.props.name.split(" ").join("-") + ".glb",
+      uri: `./data/models/${this.props.name.split(" ").join("-")}.glb`,
     });
     this.createCesiumSatelliteEntity("3D model", "model", model);
   }
@@ -126,8 +125,8 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
 
   createOrbit() {
     const path = new Cesium.PathGraphics({
-      leadTime: this.props.orbit.orbitalPeriod * 60 / 2 + 5,
-      trailTime: this.props.orbit.orbitalPeriod * 60 / 2 + 5,
+      leadTime: (this.props.orbit.orbitalPeriod * 60) / 2 + 5,
+      trailTime: (this.props.orbit.orbitalPeriod * 60) / 2 + 5,
       material: Cesium.Color.WHITE.withAlpha(0.15),
       resolution: 600,
       width: 2,
@@ -137,8 +136,8 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
 
   createOrbitTrack(leadTime = this.props.orbit.orbitalPeriod * 60, trailTime = 0) {
     const path = new Cesium.PathGraphics({
-      leadTime: leadTime,
-      trailTime: trailTime,
+      leadTime,
+      trailTime,
       material: Cesium.Color.GOLD.withAlpha(0.15),
       resolution: 600,
       width: 2,
@@ -149,9 +148,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   createGroundTrack() {
     const polyline = new Cesium.PolylineGraphics({
       material: Cesium.Color.ORANGE.withAlpha(0.2),
-      positions: new Cesium.CallbackProperty((time) => {
-        return this.props.groundTrack(time);
-      }, false),
+      positions: new Cesium.CallbackProperty((time) => this.props.groundTrack(time), false),
       followSurface: false,
       width: 10,
     });
@@ -193,9 +190,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
         const positions = [satPosition, groundPosition];
         return positions;
       }, false),
-      show: new Cesium.CallbackProperty((time) => {
-        return this.props.passIntervals.contains(time);
-      }, false),
+      show: new Cesium.CallbackProperty((time) => this.props.passIntervals.contains(time), false),
       width: 5,
     });
     this.createCesiumSatelliteEntity("Ground station link", "polyline", polyline);

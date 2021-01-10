@@ -4,6 +4,8 @@ import utc from "dayjs/plugin/utc";
 import { DeviceDetect } from "./util/DeviceDetect";
 import { SatelliteManager } from "./SatelliteManager";
 
+import infoBoxCss from "../css/infobox.ecss";
+
 dayjs.extend(utc);
 
 export class CesiumController {
@@ -36,10 +38,10 @@ export class CesiumController {
     this.viewer.clock.shouldAnimate = true;
     this.viewer.scene.globe.enableLighting = true;
     this.viewer.scene.highDynamicRange = true;
-    this.viewer.scene.maximumRenderTimeChange = 1/30;
+    this.viewer.scene.maximumRenderTimeChange = 1 / 30;
     this.viewer.scene.requestRenderMode = true;
-    //this.viewer.scene.debugShowFramesPerSecond = true;
-    //this.viewer.extend(Cesium.viewerCesiumInspectorMixin);
+    // this.viewer.scene.debugShowFramesPerSecond = true;
+    // this.viewer.extend(Cesium.viewerCesiumInspectorMixin);
 
     // Export CesiumController for debugger
     window.cc = this;
@@ -69,16 +71,18 @@ export class CesiumController {
   }
 
   set sceneMode(sceneMode) {
-    switch(sceneMode) {
-    case "3D":
-      this.viewer.scene.morphTo3D();
-      break;
-    case "2D":
-      this.viewer.scene.morphTo2D();
-      break;
-    case "Columbus":
-      this.viewer.scene.morphToColumbusView();
-      break;
+    switch (sceneMode) {
+      case "3D":
+        this.viewer.scene.morphTo3D();
+        break;
+      case "2D":
+        this.viewer.scene.morphTo2D();
+        break;
+      case "Columbus":
+        this.viewer.scene.morphToColumbusView();
+        break;
+      default:
+        console.error("Unknown scene mode");
     }
   }
 
@@ -105,87 +109,90 @@ export class CesiumController {
     const imagery = this.createImageryProvider(imageryProviderName);
     const layer = layers.addImageryProvider(imagery.provider);
     if (typeof alpha === "undefined") {
-      alpha = imagery.alpha;
+      layer.alpha = imagery.alpha;
+    } else {
+      layer.alpha = alpha;
     }
-    layer.alpha = alpha;
   }
 
   createImageryProvider(imageryProviderName = "OfflineHighres") {
     let provider;
     let alpha = 1;
-    switch(imageryProviderName) {
-    case "Offline":
-      provider = new Cesium.TileMapServiceImageryProvider({
-        url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
-      });
-      break;
-    case "OfflineHighres":
-      provider = new Cesium.TileMapServiceImageryProvider({
-        url : "data/cesium-assets/imagery/NaturalEarthII",
-        maximumLevel : 5,
-        credit : "Imagery courtesy Natural Earth"
-      });
-      break;
-    case "ArcGis":
-      provider = new Cesium.ArcGisMapServerImageryProvider({
-        url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
-      });
-      break;
-    case "OSM":
-      provider = new Cesium.OpenStreetMapImageryProvider({
-        url : "https://a.tile.openstreetmap.org/"
-      });
-      break;
-    case "Tiles":
-      provider = new Cesium.TileCoordinatesImageryProvider();
-      break;
-    case "BlackMarble":
-      provider = new Cesium.WebMapServiceImageryProvider({
-        url: "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi",
-        layers: "VIIRS_Black_Marble",
-        style: "default",
-        tileMatrixSetID: "250m",
-        format: "image/png",
-        tileWidth: 512,
-        tileHeight: 512,
-        credit: "NASA Global Imagery Browse Services for EOSDIS"
-      });
-      break;
-    case "GOES-IR":
-      provider = new Cesium.WebMapServiceImageryProvider({
-        url : "https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi?",
-        layers : "goes_conus_ir",
-        credit : "Infrared data courtesy Iowa Environmental Mesonet",
-        parameters : {
-          transparent : "true",
-          format : "image/png"
-        }
-      });
-      alpha = 0.5;
-      break;
-    case "Nextrad":
-      provider = new Cesium.WebMapServiceImageryProvider({
-        url : "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi?",
-        layers : "nexrad-n0r",
-        credit : "US Radar data courtesy Iowa Environmental Mesonet",
-        parameters : {
-          transparent : "true",
-          format : "image/png"
-        }
-      });
-      alpha = 0.5;
-      break;
-    case "Meteocool":
-      provider = new Cesium.UrlTemplateImageryProvider({
-        url : "https://{s}.tileserver.unimplemented.org/data/raa01-wx_10000-latest-dwd-wgs84_transformed/{z}/{x}/{y}.png",
-        rectangle: Cesium.Rectangle.fromDegrees(2.8125, 45, 19.6875, 56.25),
-        minimumLevel: 6,
-        maximumLevel: 10,
-        credit : "DE Radar data courtesy of meteocool.com",
-        subdomains: "ab"
-      });
-      alpha = 0.5;
-      break;
+    switch (imageryProviderName) {
+      case "Offline":
+        provider = new Cesium.TileMapServiceImageryProvider({
+          url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
+        });
+        break;
+      case "OfflineHighres":
+        provider = new Cesium.TileMapServiceImageryProvider({
+          url: "data/cesium-assets/imagery/NaturalEarthII",
+          maximumLevel: 5,
+          credit: "Imagery courtesy Natural Earth",
+        });
+        break;
+      case "ArcGis":
+        provider = new Cesium.ArcGisMapServerImageryProvider({
+          url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
+        });
+        break;
+      case "OSM":
+        provider = new Cesium.OpenStreetMapImageryProvider({
+          url: "https://a.tile.openstreetmap.org/",
+        });
+        break;
+      case "Tiles":
+        provider = new Cesium.TileCoordinatesImageryProvider();
+        break;
+      case "BlackMarble":
+        provider = new Cesium.WebMapServiceImageryProvider({
+          url: "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi",
+          layers: "VIIRS_Black_Marble",
+          style: "default",
+          tileMatrixSetID: "250m",
+          format: "image/png",
+          tileWidth: 512,
+          tileHeight: 512,
+          credit: "NASA Global Imagery Browse Services for EOSDIS",
+        });
+        break;
+      case "GOES-IR":
+        provider = new Cesium.WebMapServiceImageryProvider({
+          url: "https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi?",
+          layers: "goes_conus_ir",
+          credit: "Infrared data courtesy Iowa Environmental Mesonet",
+          parameters: {
+            transparent: "true",
+            format: "image/png",
+          },
+        });
+        alpha = 0.5;
+        break;
+      case "Nextrad":
+        provider = new Cesium.WebMapServiceImageryProvider({
+          url: "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi?",
+          layers: "nexrad-n0r",
+          credit: "US Radar data courtesy Iowa Environmental Mesonet",
+          parameters: {
+            transparent: "true",
+            format: "image/png",
+          },
+        });
+        alpha = 0.5;
+        break;
+      case "Meteocool":
+        provider = new Cesium.UrlTemplateImageryProvider({
+          url: "https://{s}.tileserver.unimplemented.org/data/raa01-wx_10000-latest-dwd-wgs84_transformed/{z}/{x}/{y}.png",
+          rectangle: Cesium.Rectangle.fromDegrees(2.8125, 45, 19.6875, 56.25),
+          minimumLevel: 6,
+          maximumLevel: 10,
+          credit: "DE Radar data courtesy of meteocool.com",
+          subdomains: "ab",
+        });
+        alpha = 0.5;
+        break;
+      default:
+        console.error("Unknown imagery provider");
     }
     return { provider, alpha };
   }
@@ -195,46 +202,58 @@ export class CesiumController {
       return;
     }
 
-    switch(terrainProviderName) {
-    case "None":
-      this.viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
-      break;
-    case "Maptiler":
-      this.viewer.terrainProvider = new Cesium.CesiumTerrainProvider({
-        url: "https://api.maptiler.com/tiles/terrain-quantized-mesh/?key=8urAyLJIrn6TeDtH0Ubh",
-        credit: "<a href=\"https://www.maptiler.com/copyright/\" target=\"_blank\">© MapTiler</a> <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">© OpenStreetMap contributors</a>",
-        requestVertexNormals: true,
-      });
-      break;
-    case "ArcGIS":
-      this.viewer.terrainProvider = new Cesium.ArcGISTiledElevationTerrainProvider({
-        url: "https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer"
-      });
-      break;
+    switch (terrainProviderName) {
+      case "None":
+        this.viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
+        break;
+      case "Maptiler":
+        this.viewer.terrainProvider = new Cesium.CesiumTerrainProvider({
+          url: "https://api.maptiler.com/tiles/terrain-quantized-mesh/?key=8urAyLJIrn6TeDtH0Ubh",
+          credit: "<a href=\"https://www.maptiler.com/copyright/\" target=\"_blank\">© MapTiler</a> <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">© OpenStreetMap contributors</a>",
+          requestVertexNormals: true,
+        });
+        break;
+      case "ArcGIS":
+        this.viewer.terrainProvider = new Cesium.ArcGISTiledElevationTerrainProvider({
+          url: "https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer",
+        });
+        break;
+      default:
+        console.error("Unknown terrain provider");
     }
   }
 
   jumpTo(location) {
-    switch(location) {
-    case "Everest":
-      this.viewer.camera.lookAt(new Cesium.Cartesian3(300770.50872389384, 5634912.131394585, 2978152.2865545116), new Cesium.Cartesian3(6344.974098678562, -793.3419798081741, 2499.9508860763162));
-      this.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-      break;
-    case "HalfDome":
-      this.viewer.camera.lookAt(new Cesium.Cartesian3(-2489625.0836225147, -4393941.44443024, 3882535.9454173897), new Cesium.Cartesian3(-6857.40902037546, 412.3284835694358, 2147.5545426812023));
-      this.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-      break;
+    switch (location) {
+      case "Everest": {
+        const target = new Cesium.Cartesian3(300770.50872389384, 5634912.131394585, 2978152.2865545116);
+        const offset = new Cesium.Cartesian3(6344.974098678562, -793.3419798081741, 2499.9508860763162);
+        this.viewer.camera.lookAt(target, offset);
+        this.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+        break;
+      }
+      case "HalfDome": {
+        const target = new Cesium.Cartesian3(-2489625.0836225147, -4393941.44443024, 3882535.9454173897);
+        const offset = new Cesium.Cartesian3(-6857.40902037546, 412.3284835694358, 2147.5545426812023);
+        this.viewer.camera.lookAt(target, offset);
+        this.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+        break;
+      }
+      default:
+        console.error("Unknown location");
     }
   }
 
   set cameraMode(cameraMode) {
-    switch(cameraMode) {
-    case "Inertial":
-      this.viewer.scene.postUpdate.addEventListener(this.cameraTrackEci);
-      break;
-    case "Fixed":
-      this.viewer.scene.postUpdate.removeEventListener(this.cameraTrackEci);
-      break;
+    switch (cameraMode) {
+      case "Inertial":
+        this.viewer.scene.postUpdate.addEventListener(this.cameraTrackEci);
+        break;
+      case "Fixed":
+        this.viewer.scene.postUpdate.removeEventListener(this.cameraTrackEci);
+        break;
+      default:
+        console.error("Unknown camera mode");
     }
   }
 
@@ -245,7 +264,7 @@ export class CesiumController {
 
     const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(time);
     if (Cesium.defined(icrfToFixed)) {
-      const camera = scene.camera;
+      const { camera } = scene;
       const offset = Cesium.Cartesian3.clone(camera.position);
       const transform = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
       camera.lookAtTransform(transform, offset);
@@ -288,7 +307,7 @@ export class CesiumController {
   }
 
   setGroundStationFromGeolocation() {
-    navigator.geolocation.getCurrentPosition(position => {
+    navigator.geolocation.getCurrentPosition((position) => {
       if (typeof position === "undefined") {
         return;
       }
@@ -302,7 +321,7 @@ export class CesiumController {
   }
 
   setGroundStationFromLatLon(latlon) {
-    let [latitude, longitude, height] = latlon.split(",");
+    const [latitude, longitude, height] = latlon.split(",");
     if (!latitude || !longitude) {
       return;
     }
@@ -319,6 +338,7 @@ export class CesiumController {
 
   set showUI(enabled) {
     if (enabled) {
+      /* eslint-disable no-underscore-dangle */
       this.viewer._animation.container.style.visibility = "";
       this.viewer._timeline.container.style.visibility = "";
       this.viewer._fullscreenButton._container.style.visibility = "";
@@ -333,18 +353,22 @@ export class CesiumController {
       this.oldBottomContainerStyleLeft = this.viewer._bottomContainer.style.left;
       this.viewer._bottomContainer.style.left = "5px";
       this.viewer._bottomContainer.style.bottom = "0px";
+      /* eslint-enable no-underscore-dangle */
     }
   }
 
   get showUI() {
+    // eslint-disable-next-line
     return this.viewer._timeline.container.style.visibility !== "hidden";
   }
 
   fixLogo() {
     if (this.minimalUI) {
+      // eslint-disable-next-line
       this.viewer._bottomContainer.style.left = "5px";
     }
     if (DeviceDetect.isiPhoneWithNotchVisible()) {
+      // eslint-disable-next-line
       this.viewer._bottomContainer.style.bottom = "20px";
     }
   }
@@ -365,12 +389,12 @@ export class CesiumController {
     const close = this.viewer.infoBox.container.getElementsByClassName("cesium-infoBox-close")[0];
     if (infoBox && close) {
       // Container for additional buttons
-      let container = document.createElement("div");
+      const container = document.createElement("div");
       container.setAttribute("class", "cesium-infoBox-container");
       infoBox.insertBefore(container, close);
 
       // Notify button
-      let notifyButton = document.createElement("button");
+      const notifyButton = document.createElement("button");
       notifyButton.setAttribute("type", "button");
       notifyButton.setAttribute("class", "cesium-button cesium-infoBox-custom");
       notifyButton.innerHTML = "<i class=\"fas fa-bell\" />";
@@ -386,7 +410,7 @@ export class CesiumController {
       container.appendChild(notifyButton);
 
       // Info button
-      let infoButton = document.createElement("button");
+      const infoButton = document.createElement("button");
       infoButton.setAttribute("type", "button");
       infoButton.setAttribute("class", "cesium-button cesium-infoBox-custom");
       infoButton.innerHTML = "<i class=\"fas fa-info\" />";
@@ -394,24 +418,24 @@ export class CesiumController {
         if (!this.sats.selectedSatellite) {
           return;
         }
-        const satnum = this.sats.getSatellite(this.sats.selectedSatellite).props.satnum;
-        const url = "https://www.n2yo.com/satellite/?s=" + satnum;
+        const { satnum } = this.sats.getSatellite(this.sats.selectedSatellite).props;
+        const url = `https://www.n2yo.com/satellite/?s=${satnum}`;
         window.open(url, "_blank", "noopener");
       });
       container.appendChild(infoButton);
     }
 
-    const frame = this.viewer.infoBox.frame;
-    frame.addEventListener("load", function () {
+    const { frame } = this.viewer.infoBox;
+    frame.addEventListener("load", () => {
       // Inline infobox css as iframe does not use service worker
-      const head = frame.contentDocument.head;
+      const { head } = frame.contentDocument;
       const links = head.getElementsByTagName("link");
-      for (const link of links) {
+      [...links].forEach((link) => {
         head.removeChild(link);
-      }
+      });
 
       const style = frame.contentDocument.createElement("style");
-      const css = require("!!css-loader?esModule=false!../css/infobox.ecss").toString();
+      const css = infoBoxCss.toString();
       const node = document.createTextNode(css);
       style.appendChild(node);
       head.appendChild(style);

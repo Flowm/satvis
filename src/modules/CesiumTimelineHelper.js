@@ -13,6 +13,7 @@ export class CesiumTimelineHelper {
     if (!this.enabled) {
       return;
     }
+    // eslint-disable-next-line
     this.viewer.timeline._highlightRanges = [];
     this.viewer.timeline.updateFromClock();
     this.viewer.timeline.zoomTo(this.viewer.clock.startTime, this.viewer.clock.stopTime);
@@ -22,13 +23,13 @@ export class CesiumTimelineHelper {
     if (!this.enabled) {
       return;
     }
-    for (const range of ranges) {
-      const startJulian = new Cesium.JulianDate.fromDate(new Date(range.start));
-      const endJulian = new Cesium.JulianDate.fromDate(new Date(range.end));
+    ranges.forEach((range) => {
+      const startJulian = Cesium.JulianDate.fromDate(new Date(range.start));
+      const endJulian = Cesium.JulianDate.fromDate(new Date(range.end));
       const highlightRange = this.viewer.timeline.addHighlightRange(Cesium.Color.BLUE, 100, 0);
       highlightRange.setRange(startJulian, endJulian);
       this.viewer.timeline.updateFromClock();
       this.viewer.timeline.zoomTo(this.viewer.clock.startTime, this.viewer.clock.stopTime);
-    }
+    });
   }
 }

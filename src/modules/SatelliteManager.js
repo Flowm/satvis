@@ -11,7 +11,7 @@ export class SatelliteManager {
     this.enabledTags = [];
 
     this.viewer.trackedEntityChanged.addEventListener(() => {
-      let trackedSatelliteName = this.trackedSatellite;
+      const trackedSatelliteName = this.trackedSatellite;
       if (trackedSatelliteName) {
         this.getSatellite(trackedSatelliteName).show(this.enabledComponents);
       }
@@ -25,19 +25,20 @@ export class SatelliteManager {
     fetch(url, {
       mode: "no-cors",
     })
-      .then(response => {
+      .then((response) => {
         if (!response.ok) {
           throw Error(response.statusText);
         }
         return response;
-      }).then(response => response.text())
-      .then(data => {
+      }).then((response) => response.text())
+      .then((data) => {
         const lines = data.split(/\r?\n/);
         for (let i = 3; i < lines.length; i + 3) {
-          let tle = lines.splice(i - 3, i).join("\n");
+          const tle = lines.splice(i - 3, i).join("\n");
           this.addFromTle(tle, tags);
         }
-      }).catch(function(error) {
+      })
+      .catch((error) => {
         console.log(error);
       });
   }
@@ -48,10 +49,10 @@ export class SatelliteManager {
   }
 
   add(newSat) {
-    const existingSat = this.satellites.find((sat) => sat.props.satnum == newSat.props.satnum && sat.props.name == newSat.props.name);
+    const existingSat = this.satellites.find((sat) => sat.props.satnum === newSat.props.satnum && sat.props.name === newSat.props.name);
     if (existingSat) {
       existingSat.props.addTags(newSat.props.tags);
-      if (newSat.props.tags.some(tag => this.enabledTags.includes(tag))) {
+      if (newSat.props.tags.some((tag) => this.enabledTags.includes(tag))) {
         existingSat.show(this.enabledComponents);
       }
       return;
@@ -61,7 +62,7 @@ export class SatelliteManager {
     }
     this.satellites.push(newSat);
 
-    if (newSat.props.tags.some(tag => this.enabledTags.includes(tag))) {
+    if (newSat.props.tags.some((tag) => this.enabledTags.includes(tag))) {
       newSat.show(this.enabledComponents);
       if (this.pendingTrackedSatellite === newSat.props.name) {
         this.trackedSatellite = newSat.props.name;
@@ -70,7 +71,7 @@ export class SatelliteManager {
   }
 
   get taglist() {
-    let taglist = {};
+    const taglist = {};
     this.satellites.forEach((sat) => {
       sat.props.tags.forEach((tag) => {
         (taglist[tag] = taglist[tag] || []).push(sat.props.name);
@@ -83,34 +84,24 @@ export class SatelliteManager {
   }
 
   get satlist() {
-    let satlist = Object.keys(this.taglist).sort().map((tag) => {
-      return {
-        name: tag,
-        list: this.taglist[tag],
-      };
-    });
+    let satlist = Object.keys(this.taglist).sort().map((tag) => ({
+      name: tag,
+      list: this.taglist[tag],
+    }));
     if (satlist.length === 0) {
-      satlist = [{name: "", list: []}];
+      satlist = [{ name: "", list: [] }];
     }
     return satlist;
   }
 
   get selectedSatellite() {
-    for (let sat of this.satellites) {
-      if (sat.isSelected) {
-        return sat.props.name;
-      }
-    }
-    return "";
+    const satellite = this.satellites.find((sat) => sat.isSelected);
+    return satellite ? satellite.props.name : "";
   }
 
   get trackedSatellite() {
-    for (let sat of this.satellites) {
-      if (sat.isTracked) {
-        return sat.props.name;
-      }
-    }
-    return "";
+    const satellite = this.satellites.find((sat) => sat.isTracked);
+    return satellite ? satellite.props.name : "";
   }
 
   set trackedSatellite(name) {
@@ -119,11 +110,11 @@ export class SatelliteManager {
         this.viewer.trackedEntity = undefined;
       }
       return;
-    } else if (name === this.trackedSatellite) {
+    } if (name === this.trackedSatellite) {
       return;
     }
 
-    let sat = this.getSatellite(name);
+    const sat = this.getSatellite(name);
     if (sat) {
       sat.track();
       this.pendingTrackedSatellite = undefined;
@@ -170,27 +161,21 @@ export class SatelliteManager {
   }
 
   getSatellite(name) {
-    for (let sat of this.satellites) {
-      if (sat.props.name === name) {
-        return sat;
-      }
-    }
+    return this.satellites.find((sat) => sat.props.name === name);
   }
 
   get tags() {
-    const tags = this.satellites.map(sat => sat.props.tags);
+    const tags = this.satellites.map((sat) => sat.props.tags);
     return [...new Set([].concat(...tags))];
   }
 
   getSatellitesWithTag(tag) {
-    return this.satellites.filter((sat) => {
-      return sat.props.hasTag(tag);
-    });
+    return this.satellites.filter((sat) => sat.props.hasTag(tag));
   }
 
   showSatsWithEnabledTags() {
     this.satellites.forEach((sat) => {
-      if (this.enabledTags.some(tag => sat.props.hasTag(tag))) {
+      if (this.enabledTags.some((tag) => sat.props.hasTag(tag))) {
         sat.show(this.enabledComponents);
       } else {
         sat.hide();
@@ -204,17 +189,17 @@ export class SatelliteManager {
   }
 
   disableTag(tag) {
-    this.enabledTags = this.enabledTags.filter(enabledTag => enabledTag !== tag);
+    this.enabledTags = this.enabledTags.filter((enabledTag) => enabledTag !== tag);
     this.showSatsWithEnabledTags();
   }
 
   get components() {
-    const components = this.satellites.map(sat => sat.components);
+    const components = this.satellites.map((sat) => sat.components);
     return [...new Set([].concat(...components))];
   }
 
   enableComponent(componentName) {
-    var index = this.enabledComponents.indexOf(componentName);
+    const index = this.enabledComponents.indexOf(componentName);
     if (index === -1) this.enabledComponents.push(componentName);
 
     this.enabledSatellites.forEach((sat) => {
@@ -223,7 +208,7 @@ export class SatelliteManager {
   }
 
   disableComponent(componentName) {
-    var index = this.enabledComponents.indexOf(componentName);
+    const index = this.enabledComponents.indexOf(componentName);
     if (index !== -1) this.enabledComponents.splice(index, 1);
 
     this.enabledSatellites.forEach((sat) => {
@@ -260,8 +245,8 @@ export class SatelliteManager {
 
     if ("app" in window) {
       const latlon = `${position.latitude.toFixed(4)},${position.longitude.toFixed(4)}`;
-      if (app.$route.query.gs != latlon) {
-        app.$router.push({query: {...app.$route.query, gs: latlon}});
+      if (app.$route.query.gs !== latlon) {
+        app.$router.push({ query: { ...app.$route.query, gs: latlon } });
       }
     }
   }

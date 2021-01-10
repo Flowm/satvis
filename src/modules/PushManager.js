@@ -14,22 +14,22 @@ export class PushManager {
       console.log("Notification API not supported!");
       return false;
     }
-    switch(Notification.permission) {
-    case "granted":
-      return true;
-    case "default":
-      this.requestPermission();
-      return true;
-    case "denied":
-      return false;
-    default:
-      return false;
+    switch (Notification.permission) {
+      case "granted":
+        return true;
+      case "default":
+        this.requestPermission();
+        return true;
+      case "denied":
+        return false;
+      default:
+        return false;
     }
   }
 
   requestPermission() {
     Notification.requestPermission((result) => {
-      console.log("Notifcation permission result: " + result);
+      console.log(`Notifcation permission result: ${result}`);
     });
   }
 
@@ -48,13 +48,13 @@ export class PushManager {
     if (!this.available) {
       return;
     }
-    options = {...this.options, ...options};
+    const optionsMerged = { ...this.options, ...options };
     try {
       navigator.serviceWorker.getRegistration()
-        .then(reg => reg.showNotification(message, options))
-        .catch(err => console.log("Service Worker registration error: " + err));
+        .then((reg) => reg.showNotification(message, optionsMerged))
+        .catch((err) => console.log(`Service Worker registration error: ${err}`));
     } catch (err) {
-      console.log("Notification API error: " + err);
+      console.log(`Notification API error: ${err}`);
     }
   }
 
@@ -70,7 +70,7 @@ export class PushManager {
     if (!this.available) {
       return;
     }
-    let waitMs = dayjs(date).diff(dayjs());
+    const waitMs = dayjs(date).diff(dayjs());
     if (waitMs < 0) {
       return;
     }
@@ -81,18 +81,18 @@ export class PushManager {
     console.log(`Notify "${message}" at ${date}s ${dayjs(date).unix()}`);
 
     if ("webkit" in window) {
-      let content = {
+      const content = {
         date: dayjs(date).unix(),
-        delay: waitMs/1000,
-        message: message,
+        delay: waitMs / 1000,
+        message,
       };
       window.webkit.messageHandlers.iosNotify.postMessage(content);
     } else {
-      let id = setTimeout(() => { this.persistentNotification(message, options); }, waitMs);
+      const id = setTimeout(() => { this.persistentNotification(message, options); }, waitMs);
       this.timers.push({
-        id: id,
-        date: date,
-        message: message,
+        id,
+        date,
+        message,
       });
     }
   }

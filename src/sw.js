@@ -9,7 +9,7 @@ registerRoute(
   /cesium\/(Assets|Widgets|Workers)\/.*\.(css|js|json)$/,
   new CacheFirst({
     cacheName: "cesium-cache",
-  })
+  }),
 );
 
 // Cache high res map tiles
@@ -22,11 +22,12 @@ registerRoute(
         maxEntries: 20000,
         maxAgeSeconds: 7 * 24 * 60 * 60,
         purgeOnQuotaError: true,
-      })
-    ]
-  })
+      }),
+    ],
+  }),
 );
 
+/* eslint-disable no-restricted-globals, no-underscore-dangle */
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 self.skipWaiting();

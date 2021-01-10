@@ -1,12 +1,14 @@
 {
   "env": {
     "browser": true,
-    "commonjs": true,
     "es6": true,
     "serviceworker": true
   },
   "extends": [
+    "airbnb-base",
     "eslint:recommended",
+    "plugin:import/errors",
+    "plugin:import/warnings",
     "plugin:vue/recommended"
   ],
   "parserOptions": {
@@ -14,11 +16,19 @@
     "sourceType": "module"
   },
   "rules": {
-    "indent": ["error", 2],
-    "linebreak-style": ["error", "unix"],
+    "class-methods-use-this": "off",
     "no-console": "off",
-    "quotes": ["error", "double"],
-    "semi": ["error", "always"],
+    "no-param-reassign": ["error", { "props": false }],
+    "object-curly-newline": "off",
+    "operator-linebreak": ["error", "after"],
+    "quotes": ["error", "double", { "allowTemplateLiterals": true }],
+    "max-len": ["error", 170, 2, {
+      "ignoreUrls": true,
+      "ignoreComments": false,
+      "ignoreRegExpLiterals": true,
+      "ignoreStrings": true,
+      "ignoreTemplateLiterals": true
+    }],
     "vue/no-unused-components": "off",
     "vue/component-name-in-template-casing": ["error", "kebab-case"],
     "vue/max-attributes-per-line": [2, {
@@ -36,6 +46,15 @@
       },
       "svg": "always",
       "math": "always"
-    }]
+    }],
+    "import/prefer-default-export": "off",
+    "import/no-extraneous-dependencies": "off"
+  },
+  "settings": {
+    "import/resolver": {
+      "webpack": {
+        "config": "webpack/webpack.config.js"
+      }
+    }
   }
 }
