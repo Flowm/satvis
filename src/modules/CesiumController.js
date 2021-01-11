@@ -1,6 +1,7 @@
 import * as Cesium from "Cesium/Cesium";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import * as Sentry from "@sentry/browser";
 import { DeviceDetect } from "./util/DeviceDetect";
 import { SatelliteManager } from "./SatelliteManager";
 
@@ -54,6 +55,7 @@ export class CesiumController {
     this.groundStationPicker = { enabled: false };
 
     this.createInputHandler();
+    this.addErrorHandler();
     this.styleInfoBox();
 
     // Create Satellite Manager
@@ -382,6 +384,23 @@ export class CesiumController {
     document.documentElement.style.background = "transparent";
     document.body.style.background = "transparent";
     document.getElementById("cesiumContainer").style.background = "transparent";
+  }
+
+  addErrorHandler() {
+    // Rethrow scene render errors
+    this.viewer.scene.rethrowRenderErrors = true;
+    this.viewer.scene.renderError.addEventListener((scene, error) => {
+      console.error(scene, error);
+      Sentry.captureException(error);
+    });
+
+    // Proxy and log CesiumWidget render loop errors that only display a UI error message
+    const widget = this.viewer.cesiumWidget;
+    const proxied = widget.showErrorPanel;
+    widget.showErrorPanel = function widgetError(title, message, error) {
+      proxied.apply(this, [title, message, error]);
+      Sentry.captureException(error);
+    };
   }
 
   styleInfoBox() {
