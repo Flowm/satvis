@@ -92,6 +92,7 @@ export class SatelliteProperties {
   createSampledPosition(clock, callback) {
     let lastUpdated;
     lastUpdated = this.updateSampledPosition(clock.currentTime);
+    callback(this.sampledPosition);
     clock.onTick.addEventListener((onTickClock) => {
       const dt = Math.abs(Cesium.JulianDate.secondsDifference(onTickClock.currentTime, lastUpdated));
       if (dt >= 60 * 15) {

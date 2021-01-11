@@ -23,24 +23,6 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   }
 
   createEntities() {
-    this.props.createSampledPosition(this.viewer.clock, (sampledPosition) => {
-      this.entities.forEach((entity) => {
-        if (entity === "Orbit") {
-          this.entities[entity].position = this.props.sampledPositionInertial;
-          this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(this.props.sampledPositionInertial);
-        } else if (entity === "Sensor cone") {
-          this.entities[entity].position = sampledPosition;
-          this.entities[entity].orientation = new Cesium.CallbackProperty((time) => {
-            const position = this.props.position(time);
-            const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
-            return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
-          }, false);
-        } else {
-          this.entities[entity].position = sampledPosition;
-          this.entities[entity].orientation = new Cesium.VelocityOrientationProperty(sampledPosition);
-        }
-      });
-    });
     this.createDescription();
 
     this.entities = {};
@@ -58,6 +40,26 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
       this.createGroundStationLink();
     }
     this.defaultEntity = this.entities.Point;
+
+    // Add sampled position to all entities
+    this.props.createSampledPosition(this.viewer.clock, (sampledPosition) => {
+      Object.entries(this.entities).forEach(([type, entity]) => {
+        if (type === "Orbit") {
+          entity.position = this.props.sampledPositionInertial;
+          entity.orientation = new Cesium.VelocityOrientationProperty(this.props.sampledPositionInertial);
+        } else if (type === "Sensor cone") {
+          entity.position = sampledPosition;
+          entity.orientation = new Cesium.CallbackProperty((time) => {
+            const position = this.props.position(time);
+            const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
+            return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
+          }, false);
+        } else {
+          entity.position = sampledPosition;
+          entity.orientation = new Cesium.VelocityOrientationProperty(sampledPosition);
+        }
+      });
+    });
 
     this.viewer.selectedEntityChanged.addEventListener(() => {
       if (this.isSelected && !this.isTracked) {
@@ -156,15 +158,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   }
 
   createCone(fov = 12) {
-    const cone = new Cesium.Entity({
-      position: this.props.sampledPosition,
-      orientation: new Cesium.CallbackProperty((time) => {
-        const position = this.props.position(time);
-        const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
-        return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
-      }, false),
-    });
-
+    const cone = new Cesium.Entity();
     cone.addProperty("conicSensor");
     cone.conicSensor = new CesiumSensorVolumes.ConicSensorGraphics({
       radius: 1000000,
