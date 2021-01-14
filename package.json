@@ -16,7 +16,8 @@
     "serve:stats": "npm run build:stats && http-server -c-1 dist",
     "start": "webpack serve --progress --config webpack/webpack.config.js",
     "start:anyhost": "webpack serve --progress --config webpack/webpack.config.js --host 0.0.0.0 --disable-host-check",
-    "test": "ava"
+    "test": "ava",
+    "update-tle": "data/tle/get-norad.sh"
   },
   "author": "Florian Mauracher",
   "private": true,

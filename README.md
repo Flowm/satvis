@@ -28,9 +28,10 @@ npm install
 ```
 
 ### Run
-- `npm run start-dev` for the dev server
+- `npm run start` for the dev server
 - `npm run build` to build the application (output in `dist` folder)
-- `npm run serve-prod` to build the application and serve with static webserver
+- `npm run serve` to build the application and serve with static webserver
+- `npm run update-tle` to retrieve the latest satellite TLEs from NORAD
 
 ## iOS App
 To provide pass notifications on iOS where local browser notifications are [not
