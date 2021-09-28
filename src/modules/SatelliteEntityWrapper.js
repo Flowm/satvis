@@ -47,7 +47,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
         if (type === "Orbit") {
           entity.position = this.props.sampledPositionInertial;
           entity.orientation = new Cesium.VelocityOrientationProperty(this.props.sampledPositionInertial);
-        } else if (type === "Sensor cone") {
+        } else if (type === "SensorCone") {
           entity.position = sampledPosition;
           entity.orientation = new Cesium.CallbackProperty((time) => {
             const position = this.props.position(time);
@@ -168,7 +168,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
       intersectionColor: Cesium.Color.GOLD.withAlpha(0.3),
       intersectionWidth: 1,
     });
-    this.entities["Sensor cone"] = cone;
+    this.entities.SensorCone = cone;
   }
 
   createGroundStationLink() {

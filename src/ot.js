@@ -47,7 +47,7 @@ if (cc.sats.enabledTags.length === 0) {
   // cc.sats.disableComponent("Label");
   // cc.imageryProvider = "ArcGis";
   // setTimeout(() => {
-  //   cc.sats.getSatellitesWithTag("OT144-12").forEach((sat) => { sat.enableComponent("Orbit"); sat.enableComponent("Sensor cone"); });
+  //   cc.sats.getSatellitesWithTag("OT144-12").forEach((sat) => { sat.enableComponent("Orbit"); sat.enableComponent("SensorCone"); });
   //   cc.sats.getSatellitesWithTag("OT144-12").forEach((sat) => { sat.entities.Orbit.path.material = Cesium.Color.WHITE.withAlpha(0.01); });
   //   cc.sats.getSatellitesWithTag("Globalstar").forEach((sat) => { sat.entities.Point.point.color = Cesium.Color.RED; sat.entities.Point.point.pixelSize = 5; });
   // }, 2000);
