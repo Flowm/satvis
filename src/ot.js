@@ -19,11 +19,13 @@ window.app = app;
 /* global cc */
 cc.sats.addFromTleUrl("data/tle/ext/wfs.txt", ["WFS"]);
 cc.sats.addFromTleUrl("data/tle/ext/wfsf.txt", ["WFSF"]);
+cc.sats.addFromTleUrl("data/tle/ext/ot.txt", ["OT"]);
 cc.sats.addFromTleUrl("data/tle/ext/otmvc.txt", ["OTMVC-1-16"]);
 cc.sats.addFromTleUrl("data/tle/norad/planet.txt", ["Planet"]);
 cc.sats.addFromTleUrl("data/tle/norad/spire.txt", ["Spire"]);
 cc.sats.addFromTleUrl("data/tle/norad/starlink.txt", ["Starlink"]);
 cc.sats.addFromTleUrl("data/tle/norad/globalstar.txt", ["Globalstar"]);
+cc.sats.addFromTleUrl("data/tle/norad/transporter-3.txt", ["Transporter-3"]);
 
 // Register service worker
 if ("serviceWorker" in navigator) {

@@ -12,11 +12,11 @@ curl -O https://celestrak.com/NORAD/elements/stations.txt
 curl -O https://celestrak.com/NORAD/elements/visual.txt
 curl -O https://celestrak.com/NORAD/elements/active.txt
 curl -O https://celestrak.com/NORAD/elements/analyst.txt
+curl -O https://celestrak.com/NORAD/elements/1982-092.txt
 curl -O https://celestrak.com/NORAD/elements/2019-006.txt
 curl -O https://celestrak.com/NORAD/elements/1999-025.txt
 curl -O https://celestrak.com/NORAD/elements/iridium-33-debris.txt
 curl -O https://celestrak.com/NORAD/elements/cosmos-2251-debris.txt
-curl -O https://celestrak.com/NORAD/elements/2012-044.txt
 curl -O https://celestrak.com/NORAD/elements/weather.txt
 curl -O https://celestrak.com/NORAD/elements/noaa.txt
 curl -O https://celestrak.com/NORAD/elements/goes.txt
@@ -33,8 +33,10 @@ curl -O https://celestrak.com/NORAD/elements/ses.txt
 curl -O https://celestrak.com/NORAD/elements/iridium.txt
 curl -O https://celestrak.com/NORAD/elements/iridium-NEXT.txt
 curl -O https://celestrak.com/NORAD/elements/starlink.txt
+curl -O https://celestrak.com/NORAD/elements/oneweb.txt
 curl -O https://celestrak.com/NORAD/elements/orbcomm.txt
 curl -O https://celestrak.com/NORAD/elements/globalstar.txt
+curl -O https://celestrak.com/NORAD/elements/swarm.txt
 curl -O https://celestrak.com/NORAD/elements/amateur.txt
 curl -O https://celestrak.com/NORAD/elements/x-comm.txt
 curl -O https://celestrak.com/NORAD/elements/other-comm.txt
@@ -42,6 +44,7 @@ curl -O https://celestrak.com/NORAD/elements/satnogs.txt
 curl -O https://celestrak.com/NORAD/elements/gorizont.txt
 curl -O https://celestrak.com/NORAD/elements/raduga.txt
 curl -O https://celestrak.com/NORAD/elements/molniya.txt
+curl -O https://celestrak.com/NORAD/elements/gnss.txt
 curl -O https://celestrak.com/NORAD/elements/gps-ops.txt
 curl -O https://celestrak.com/NORAD/elements/glo-ops.txt
 curl -O https://celestrak.com/NORAD/elements/galileo.txt
@@ -57,6 +60,8 @@ curl -O https://celestrak.com/NORAD/elements/military.txt
 curl -O https://celestrak.com/NORAD/elements/radar.txt
 curl -O https://celestrak.com/NORAD/elements/cubesat.txt
 curl -O https://celestrak.com/NORAD/elements/other.txt
+curl -O https://celestrak.com/NORAD/elements/supplemental/transporter-3.txt
+
 
 mkdir -p ../ext
 egrep -A2 '(FIRST-MOVE|MOVE-II)' --no-group-separator active.txt > ../ext/move.txt
