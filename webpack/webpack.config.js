@@ -3,7 +3,6 @@ const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const SizePlugin = require("size-plugin");
-const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const VueLoaderPlugin = require("vue-loader/lib/plugin");
 const WorkboxPlugin = require("workbox-webpack-plugin");
@@ -20,11 +19,13 @@ module.exports = {
     test: "./src/test/test.js",
   },
   output: {
+    clean: true,
     filename: "js/[name].js",
     sourceMapFilename: "js/[name][ext].map",
     chunkFilename: "js/[name].js",
+    assetModuleFilename: "assets/[name][ext]",
     path: path.resolve(basePath, "dist"),
-    // Needed by Cesium for multiline strings
+    // Required by Cesium for multiline strings
     sourcePrefix: "",
   },
   amd: {
@@ -32,18 +33,26 @@ module.exports = {
     toUrlUndefined: true,
   },
   devServer: {
+    client: {
+      overlay: {
+        errors: true,
+        warnings: false,
+      },
+    },
     compress: true,
-    contentBase: path.resolve(basePath, "dist"),
+    devMiddleware: {
+      stats: {
+        assets: false,
+        modules: false,
+        entrypoints: false,
+      },
+    },
     hot: true,
     port: 8080,
-    stats: {
-      assets: false,
-      modules: false,
-      entrypoints: false,
+    static: {
+      directory: path.resolve(basePath, "dist"),
     },
-    historyApiFallback: {
-      index: "index.html",
-    },
+    historyApiFallback: true,
   },
   devtool: "eval-source-map",
   mode: "development",
@@ -71,7 +80,7 @@ module.exports = {
         ],
       }, {
         test: /\.(png|gif|jpg|jpeg|svg|xml|json)$/,
-        use: ["url-loader"],
+        type: "asset",
       }, {
         test: /\.ecss$/,
         loader: "css-loader",
@@ -111,7 +120,6 @@ module.exports = {
     },
   },
   plugins: [
-    new CleanWebpackPlugin(),
     new HtmlWebpackPlugin({
       filename: "index.html",
       template: "src/index.html",
@@ -144,7 +152,7 @@ module.exports = {
     new CopyWebpackPlugin({
       patterns: [
         // Copy Cesium Assets
-        { from: path.join(cesiumSource, "../Build/Cesium/Assets"), to: "cesium/Assets", globOptions: { ignore: ["**/maki/*.png"] }},
+        { from: path.join(cesiumSource, "../Build/Cesium/Assets"), to: "cesium/Assets", globOptions: { ignore: ["**/maki/*.png"] } },
         // Copy Cesium non-JS widget-bits (CSS, SVG, etc.)
         { from: path.join(cesiumSource, "../Build/Cesium/Widgets"), to: "cesium/Widgets" },
         // Copy Cesium Almond-bundled-and-minified Web Worker scripts
@@ -152,8 +160,8 @@ module.exports = {
         // Copy Cesium minified third-party scripts
         { from: path.join(cesiumSource, "../Build/Cesium/ThirdParty"), to: "cesium/ThirdParty" },
         // Copy assets
-        {from: "data", to: "data", globOptions: { ignore: ["**/.git/**"] }},
-        {from: "src/assets"},
+        { from: "data", to: "data", globOptions: { ignore: ["**/.git/**"] } },
+        { from: "src/assets" },
       ],
     }),
     new webpack.DefinePlugin({

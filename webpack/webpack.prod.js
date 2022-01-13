@@ -11,6 +11,7 @@ module.exports = merge(common, {
     filename: "js/[name].[chunkhash].js",
     sourceMapFilename: "js/[name].[chunkhash][ext].map",
     chunkFilename: "js/[name].[chunkhash].js",
+    assetModuleFilename: "assets/[name].[contenthash][ext]",
     hashDigestLength: 8,
   },
   devtool: "source-map",
@@ -24,7 +25,7 @@ module.exports = merge(common, {
         include: path.resolve(basePath, cesiumSource),
         sideEffects: false,
         use: [{
-          loader: "strip-pragma-loader",
+          loader: "webpack-strip-pragma-loader",
           options: {
             pragmas: {
               debug: false,
