@@ -64,11 +64,13 @@ export default class Orbit {
     };
   }
 
-  computePassesElevation(groundStationPosition,
+  computePassesElevation(
+    groundStationPosition,
     startDate = dayjs().toDate(),
     endDate = dayjs(startDate).add(7, "day").toDate(),
     minElevation = 1,
-    maxPasses = 50) {
+    maxPasses = 50,
+  ) {
     const groundStation = { ...groundStationPosition };
     groundStation.latitude *= deg2rad;
     groundStation.longitude *= deg2rad;

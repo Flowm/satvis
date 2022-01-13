@@ -31,13 +31,15 @@
     }],
     "vue/no-unused-components": "off",
     "vue/component-name-in-template-casing": ["error", "kebab-case"],
-    "vue/max-attributes-per-line": [2, {
-      "singleline": 4,
+    "vue/max-attributes-per-line": ["warn", {
+      "singleline": {
+        "max": 8
+      },
       "multiline": {
-        "max": 1,
-        "allowFirstLine": false
+        "max": 1
       }
     }],
+    "vue/multi-word-component-names": "off",
     "vue/html-self-closing": ["error", {
       "html": {
         "void": "never",

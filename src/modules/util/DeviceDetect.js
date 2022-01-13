@@ -43,12 +43,12 @@ export class DeviceDetect {
     const ratio = window.devicePixelRatio;
     if (window.screen.height / window.screen.width === 896 / 414) {
       switch (ratio) {
-        default:
-          return "iPhone XR, iPhone XS Max";
         case 2:
           return "iPhone XR";
         case 3:
           return "iPhone XS Max";
+        default:
+          return "iPhone XR, iPhone XS Max";
       }
     } else if (window.screen.height / window.screen.width === 812 / 375) {
       return "iPhone X, iPhone XS";

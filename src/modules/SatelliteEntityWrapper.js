@@ -120,7 +120,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
       horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
       pixelOffset: new Cesium.Cartesian2(15, 0),
       distanceDisplayCondition: new Cesium.DistanceDisplayCondition(10000, 6.0e7),
-      pixelOffsetScaleByDistance: new Cesium.NearFarScalar(1.0e1, 10, 2.0e5, 1),
+      pixelOffsetScaleByDistance: new Cesium.NearFarScalar(1e1, 10, 2e5, 1),
     });
     this.createCesiumSatelliteEntity("Label", "label", label);
   }
