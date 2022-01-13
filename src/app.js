@@ -1,6 +1,7 @@
 import Vue from "vue";
 import { Workbox } from "workbox-window";
 import * as Sentry from "@sentry/browser";
+
 import App from "./App.vue";
 import router from "./components/Router";
 
@@ -22,6 +23,7 @@ window.app = app;
 
 /* global cc */
 // cc.sats.addFromTleUrl("data/tle/norad/active.txt", ["Active"]);
+cc.sats.addFromTleUrl("data/tle/norad/spire.txt", ["Spire"]);
 cc.sats.addFromTleUrl("data/tle/norad/planet.txt", ["Planet"]);
 cc.sats.addFromTleUrl("data/tle/norad/starlink.txt", ["Starlink"]);
 cc.sats.addFromTleUrl("data/tle/norad/globalstar.txt", ["Globalstar"]);
