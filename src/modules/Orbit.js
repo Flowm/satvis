@@ -68,7 +68,7 @@ export default class Orbit {
     groundStationPosition,
     startDate = dayjs().toDate(),
     endDate = dayjs(startDate).add(7, "day").toDate(),
-    minElevation = 1,
+    minElevation = 10,
     maxPasses = 50,
   ) {
     const groundStation = { ...groundStationPosition };
@@ -86,7 +86,7 @@ export default class Orbit {
       const lookAngles = satellitejs.ecfToLookAngles(groundStation, positionEcf);
       const elevation = lookAngles.elevation / deg2rad;
 
-      if (elevation > 0) {
+      if (elevation > minElevation) {
         if (!ongoingPass) {
           // Start of new pass
           pass = {
@@ -106,26 +106,24 @@ export default class Orbit {
         date.setSeconds(date.getSeconds() + 5);
       } else if (ongoingPass) {
         // End of pass
-        if (pass.maxElevation > minElevation) {
-          pass.end = date.getTime();
-          pass.duration = pass.end - pass.start;
-          pass.azimuthEnd = lookAngles.azimuth;
-          pass.azimuthStart /= deg2rad;
-          pass.azimuthApex /= deg2rad;
-          pass.azimuthEnd /= deg2rad;
-          passes.push(pass);
-          if (passes.length > maxPasses) {
-            break;
-          }
+        pass.end = date.getTime();
+        pass.duration = pass.end - pass.start;
+        pass.azimuthEnd = lookAngles.azimuth;
+        pass.azimuthStart /= deg2rad;
+        pass.azimuthApex /= deg2rad;
+        pass.azimuthEnd /= deg2rad;
+        passes.push(pass);
+        if (passes.length > maxPasses) {
+          break;
         }
         ongoingPass = false;
         lastElevation = -180;
-        date.setMinutes(date.getMinutes() + this.orbitalPeriod * 0.75);
+        date.setMinutes(date.getMinutes() + this.orbitalPeriod * 0.5);
       } else {
         const deltaElevation = elevation - lastElevation;
         lastElevation = elevation;
         if (deltaElevation < 0) {
-          date.setMinutes(date.getMinutes() + this.orbitalPeriod * 0.75);
+          date.setMinutes(date.getMinutes() + this.orbitalPeriod * 0.5);
           lastElevation = -180;
         } else if (elevation < -20) {
           date.setMinutes(date.getMinutes() + 5);
