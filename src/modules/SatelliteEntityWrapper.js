@@ -110,7 +110,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
     const model = new Cesium.ModelGraphics({
       uri: `./data/models/${this.props.name.split(" ").join("-")}.glb`,
       minimumPixelSize: 50,
-      maximumScale: 1000,
+      maximumScale: 10000,
     });
     this.createCesiumSatelliteEntity("3D model", "model", model);
   }
