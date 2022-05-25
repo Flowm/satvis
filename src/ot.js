@@ -1,7 +1,6 @@
 import Vue from "vue";
 import { Workbox } from "workbox-window";
 import * as Sentry from "@sentry/browser";
-// import * as Cesium from "Cesium/Cesium";
 
 import App from "./App.vue";
 import router from "./components/Router";
@@ -33,16 +32,10 @@ cc.sats.addFromTleUrl("data/tle/norad/globalstar.txt", ["Globalstar"]);
 cc.sats.addFromTleUrl("data/tle/norad/transporter-3.txt", ["Transporter-3"]);
 
 if (cc.sats.enabledTags.length === 0) {
-  // cc.setTime("2019-07-01");
-  // cc.sats.enableTag("OT144-12");
-  // cc.sats.enableTag("Globalstar");
-  // cc.sats.disableComponent("Label");
-  // cc.imageryProvider = "ArcGis";
-  // setTimeout(() => {
-  //   cc.sats.getSatellitesWithTag("OT144-12").forEach((sat) => { sat.enableComponent("Orbit"); sat.enableComponent("SensorCone"); });
-  //   cc.sats.getSatellitesWithTag("OT144-12").forEach((sat) => { sat.entities.Orbit.path.material = Cesium.Color.WHITE.withAlpha(0.01); });
-  //   cc.sats.getSatellitesWithTag("Globalstar").forEach((sat) => { sat.entities.Point.point.color = Cesium.Color.RED; sat.entities.Point.point.pixelSize = 5; });
-  // }, 2000);
+  cc.sats.enableTag("OT");
+  cc.sats.enableComponent("Orbit");
+  cc.sats.enableComponent("SensorCone");
+  cc.imageryProvider = "ArcGis";
 }
 
 // Register service worker
