@@ -39,16 +39,13 @@ if (cc.sats.enabledTags.length === 0) {
 }
 
 // Register service worker
-if ("serviceWorker" in navigator) {
+if ("serviceWorker" in navigator && !window.location.href.includes("localhost")) {
   const wb = new Workbox("sw.js");
-  wb.addEventListener("waiting", () => {
-    wb.addEventListener("controlling", () => {
+  wb.addEventListener("controlling", (evt) => {
+    if (evt.isUpdate) {
       console.log("Reloading page for latest content");
       window.location.reload();
-    });
-    wb.messageSW({ type: "SKIP_WAITING" });
-    // Old serviceworker message for migration, can be removed in the future
-    wb.messageSW("SKIP_WAITING");
+    }
   });
   wb.register();
 }

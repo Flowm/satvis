@@ -39,7 +39,7 @@ if (cc.sats.enabledTags.length === 0) {
 }
 
 // Register service worker
-if ("serviceWorker" in navigator) {
+if ("serviceWorker" in navigator && !window.location.href.includes("localhost")) {
   const wb = new Workbox("sw.js");
   wb.addEventListener("controlling", (evt) => {
     if (evt.isUpdate) {
