@@ -1,3 +1,5 @@
+@import "./oruga.css";
+
 html, body, #cesiumContainer {
     width: 100%;
     height: 100%;
@@ -84,22 +86,22 @@ input:checked + .slider::before {
     transform: translateX(20px);
 }
 
-.fill-parent {
+.cesium-toolbar-button .icon-container {
     width: 100%;
     height: 100%;
-}
-
-.cesium-toolbar-button .icon {
+    align-items: center;
+    justify-content: center;
+    display: inline-flex;
     filter: brightness(1.1);
 }
 
-.icon .mfa-button-width {
+.icon-container .fa-fw {
+    height: inherit;
     width: 24px;
 }
 
 .svg-sat {
-    background-image: url("../assets/images/icons/sat/2.svg");
-    background-repeat: no-repeat;
+    background: url("../assets/images/icons/sat/2.svg") no-repeat;
     width: 24px;
     height: 24px;
     filter: brightness(3.1);
@@ -107,8 +109,7 @@ input:checked + .slider::before {
 }
 
 .svg-groundstation {
-    background-image: url("../assets/images/icons/sat/9.svg");
-    background-repeat: no-repeat;
+    background: url("../assets/images/icons/sat/9.svg") no-repeat;
     width: 24px;
     height: 24px;
     filter: brightness(3.1);

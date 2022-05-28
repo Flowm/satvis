@@ -1,6 +1,6 @@
 import * as Cesium from "Cesium/Cesium";
 import dayjs from "dayjs";
-import { ToastProgrammatic as Toast } from "buefy";
+// import { NotificationProgrammatic } from "@oruga-ui/oruga";
 import Orbit from "./Orbit";
 import { PushManager } from "./PushManager";
 
@@ -217,22 +217,22 @@ export class SatelliteProperties {
 
   notifyPasses(aheadMin = 5) {
     if (!this.groundStationAvailable) {
-      Toast.open({
-        message: "Ground station required to notify for passes",
-        type: "is-warning",
-        position: "is-bottom",
-        duration: 4000,
-      });
+      // NotificationProgrammatic.open({
+      //   message: "Ground station required to notify for passes",
+      //   type: "is-warning",
+      //   position: "is-bottom",
+      //   duration: 4000,
+      // });
       return;
     }
     const passes = this.orbit.computePassesElevation(this.groundStationPosition);
     if (!passes) {
-      Toast.open({
-        message: `No passes for ${this.name}`,
-        type: "is-warning",
-        position: "is-bottom",
-        duration: 4000,
-      });
+      // NotificationProgrammatic.open({
+      //   message: `No passes for ${this.name}`,
+      //   type: "is-warning",
+      //   position: "is-bottom",
+      //   duration: 4000,
+      // });
       return;
     }
 
@@ -242,11 +242,11 @@ export class SatelliteProperties {
       this.pm.notifyAtDate(start, `${pass.name} pass starting now`);
       // this.pm.notifyAtDate(dayjs().add(5, "second"), `${pass.name} test pass in ${aheadMin} minutes`);
     });
-    Toast.open({
-      message: `Notifying for passes of ${this.name}`,
-      type: "is-success",
-      position: "is-bottom",
-      duration: 4000,
-    });
+    // NotificationProgrammatic.open({
+    //   message: `Notifying for passes of ${this.name}`,
+    //   type: "is-success",
+    //   position: "is-bottom",
+    //   duration: 4000,
+    // });
   }
 }
