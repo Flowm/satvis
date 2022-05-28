@@ -1,4 +1,4 @@
-import Vue from "vue";
+import { createApp } from "vue";
 import { Workbox } from "workbox-window";
 import * as Sentry from "@sentry/browser";
 
@@ -9,16 +9,9 @@ if (window.location.href.includes("satvis.space")) {
   Sentry.init({ dsn: "https://0c7d1a82eedb48ee8b83d87bf09ad144@sentry.io/1541793" });
 }
 
-const app = new Vue({
-  el: "#app",
-  components: {
-    app: App,
-  },
-  render: (h) => h("app"),
-  router,
-});
-
-// Export Vue for debugger
+const app = createApp(App);
+app.use(router);
+app.mount("#app");
 window.app = app;
 
 /* global cc */
