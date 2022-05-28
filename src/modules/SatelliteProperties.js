@@ -1,6 +1,6 @@
 import * as Cesium from "Cesium/Cesium";
 import dayjs from "dayjs";
-// import { NotificationProgrammatic } from "@oruga-ui/oruga";
+// import { NotificationProgrammatic } from "@oruga-ui/oruga-next";
 import Orbit from "./Orbit";
 import { PushManager } from "./PushManager";
 
