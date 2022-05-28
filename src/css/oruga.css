@@ -1,0 +1,6 @@
+@import "@oruga-ui/oruga/dist/oruga-full-vars.css";
+
+:root {
+    --oruga-tooltip-background-color: #7957d5;
+}
+
