@@ -279,16 +279,19 @@ export default {
     cameraMode(newMode) {
       cc.cameraMode = newMode;
     },
-    enabledComponents(newComponents, oldComponents) {
-      const add = newComponents.filter((x) => !oldComponents.includes(x));
-      add.forEach((component) => {
-        cc.sats.enableComponent(component);
-      });
-      const del = oldComponents.filter((x) => !newComponents.includes(x));
-      del.forEach((component) => {
-        cc.sats.disableComponent(component);
-      });
-    },
+    enabledComponents: {
+      handler(newComponents, oldComponents) {
+        const add = newComponents.filter((x) => !oldComponents.includes(x));
+        add.forEach((component) => {
+          cc.sats.enableComponent(component);
+        });
+        const del = oldComponents.filter((x) => !newComponents.includes(x));
+        del.forEach((component) => {
+          cc.sats.disableComponent(component);
+        });
+      },
+      deep: true,
+    }
   },
   mounted() {
     if (this.$route.query.bg) {
