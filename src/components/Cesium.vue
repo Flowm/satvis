@@ -226,14 +226,13 @@
 <script>
 import Vue from "vue";
 import { Tooltip } from "@oruga-ui/oruga-next";
+
 import SatelliteSelect from "./SatelliteSelect.vue";
 import SatelliteMultiSelect from "./SatelliteMultiSelect.vue";
 import SatelliteNotifyMultiSelect from "./SatelliteNotifyMultiSelect.vue";
-import VueCesiumController from "./VueCesiumController";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
 
 Vue.use(Tooltip);
-Vue.use(VueCesiumController); /* global cc */
 
 export default {
   components: {
