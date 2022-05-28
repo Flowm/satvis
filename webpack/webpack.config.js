@@ -3,7 +3,7 @@ const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
-const VueLoaderPlugin = require("vue-loader/lib/plugin");
+const { VueLoaderPlugin } = require("vue-loader");
 const WorkboxPlugin = require("workbox-webpack-plugin");
 
 const basePath = `${__dirname}/..`;
@@ -70,6 +70,13 @@ module.exports = {
       }, {
         test: /\.vue$/,
         loader: "vue-loader",
+        options: {
+          compilerOptions: {
+            compatConfig: {
+              MODE: 2
+            }
+          }
+        }
       }, {
         test: /\.css$/,
         use: [
@@ -98,6 +105,7 @@ module.exports = {
     alias: {
       // Cesium module name
       Cesium: path.resolve(basePath, cesiumSource),
+      vue: "@vue/compat",
     },
   },
   optimization: {
