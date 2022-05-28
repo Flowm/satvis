@@ -2,7 +2,6 @@ const path = require("path");
 const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
-const SizePlugin = require("size-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const VueLoaderPlugin = require("vue-loader/lib/plugin");
 const WorkboxPlugin = require("workbox-webpack-plugin");
@@ -167,9 +166,6 @@ module.exports = {
     new webpack.DefinePlugin({
       // Define relative base path in cesium for loading assets
       CESIUM_BASE_URL: JSON.stringify("cesium/"),
-    }),
-    new SizePlugin({
-      exclude: "cesium/**/*",
     }),
     new WorkboxPlugin.InjectManifest({
       swSrc: "./src/sw.js",
