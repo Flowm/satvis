@@ -23,7 +23,6 @@
 </template>
 
 <script>
-/* global cc */
 import multiSelect from "vue-multi-select";
 import "vue-multi-select/dist/lib/vue-multi-select.css";
 

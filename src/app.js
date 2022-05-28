@@ -4,17 +4,18 @@ import * as Sentry from "@sentry/browser";
 
 import App from "./App.vue";
 import router from "./components/Router";
+import { CesiumController } from "./modules/CesiumController";
 
 if (window.location.href.includes("satvis.space")) {
   Sentry.init({ dsn: "https://0c7d1a82eedb48ee8b83d87bf09ad144@sentry.io/1541793" });
 }
 
 const app = createApp(App);
+app.config.globalProperties.cc = new CesiumController();
 app.use(router);
 app.mount("#app");
 window.app = app;
 
-/* global cc */
 // cc.sats.addFromTleUrl("data/tle/norad/active.txt", ["Active"]);
 cc.sats.addFromTleUrl("data/tle/norad/spire.txt", ["Spire"]);
 cc.sats.addFromTleUrl("data/tle/norad/planet.txt", ["Planet"]);
