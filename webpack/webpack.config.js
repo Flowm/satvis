@@ -59,13 +59,8 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.js$/,
-        use: {
-          loader: "babel-loader",
-          options: {
-            presets: ["@babel/preset-env"],
-          },
-        },
+        test: /\.(ts|js)x?$/,
+        loader: "babel-loader",
         exclude: /node_modules/,
       }, {
         test: /\.vue$/,
@@ -103,6 +98,7 @@ module.exports = {
       path.resolve(__dirname, "./src"),
       "node_modules",
     ],
+    extensions: [".ts", ".tsx", ".js", ".json"],
     alias: {
       // Cesium module name
       Cesium: path.resolve(basePath, cesiumSource),
