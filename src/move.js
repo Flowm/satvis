@@ -1,10 +1,11 @@
-import { createApp } from "vue";
+import { createApp, markRaw } from "vue";
 import { createPinia } from "pinia";
 import { Workbox } from "workbox-window";
 import * as Sentry from "@sentry/browser";
 
 import App from "./App.vue";
 import router from "./components/Router";
+import piniaUrlSync from "./modules/util/pinia-plugin-url-sync";
 import { CesiumController } from "./modules/CesiumController";
 
 if (window.location.href.includes("satvis.space")) {
@@ -15,6 +16,8 @@ const app = createApp(App);
 const cc = new CesiumController();
 app.config.globalProperties.cc = cc;
 const pinia = createPinia();
+pinia.use(({ store }) => { store.router = markRaw(router); });
+pinia.use(piniaUrlSync);
 app.use(pinia);
 app.use(router);
 app.mount("#app");
