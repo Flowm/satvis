@@ -1,4 +1,5 @@
 import { createApp } from "vue";
+import { createPinia } from "pinia";
 import { Workbox } from "workbox-window";
 import * as Sentry from "@sentry/browser";
 
@@ -11,7 +12,10 @@ if (window.location.href.includes("satvis.space")) {
 }
 
 const app = createApp(App);
-app.config.globalProperties.cc = new CesiumController();
+const cc = new CesiumController();
+app.config.globalProperties.cc = cc;
+const pinia = createPinia();
+app.use(pinia);
 app.use(router);
 app.mount("#app");
 window.app = app;
