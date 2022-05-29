@@ -11,6 +11,8 @@ dayjs.extend(utc);
 
 export class CesiumController {
   constructor() {
+    this.initConstants();
+
     this.minimalUI = DeviceDetect.inIframe() || DeviceDetect.isIos();
     this.minimalUIAtStartup = DeviceDetect.inIframe();
 
@@ -22,7 +24,7 @@ export class CesiumController {
       geocoder: false,
       homeButton: false,
       sceneModePicker: false,
-      imageryProvider: this.createImageryProvider().provider,
+      imageryProvider: this.imageryProviders.OfflineHighres.create(),
       navigationHelpButton: false,
       navigationInstructionsInitiallyVisible: false,
       selectionIndicator: false,
@@ -48,7 +50,6 @@ export class CesiumController {
     window.cc = this;
 
     // CesiumController config
-    this.imageryProviders = ["Offline", "OfflineHighres", "ArcGis", "OSM", "Tiles", "BlackMarble", "GOES-IR", "Nextrad", "Meteocool"];
     this.terrainProviders = ["None", "Maptiler"];
     this.sceneModes = ["3D", "2D", "Columbus"];
     this.cameraModes = ["Fixed", "Inertial"];
@@ -70,6 +71,139 @@ export class CesiumController {
     if (this.minimalUI) {
       setTimeout(() => { this.fixLogo(); }, 2500);
     }
+
+    this.activeLayers = [];
+  }
+
+  initConstants() {
+    this.imageryProviders = {
+      Offline: {
+        create: () => new Cesium.TileMapServiceImageryProvider({
+          url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
+        }),
+        alpha: 1,
+        base: true,
+      },
+      OfflineHighres: {
+        create: () => new Cesium.TileMapServiceImageryProvider({
+          url: "data/cesium-assets/imagery/NaturalEarthII",
+          maximumLevel: 5,
+          credit: "Imagery courtesy Natural Earth",
+        }),
+        alpha: 1,
+        base: true,
+      },
+      ArcGis: {
+        create: () => new Cesium.ArcGisMapServerImageryProvider({
+          url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
+        }),
+        alpha: 1,
+        base: true,
+      },
+      OSM: {
+        create: () => new Cesium.OpenStreetMapImageryProvider({
+          url: "https://a.tile.openstreetmap.org/",
+        }),
+        alpha: 1,
+        base: true,
+      },
+      BlackMarble: {
+        create: () => new Cesium.WebMapServiceImageryProvider({
+          url: "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi",
+          layers: "VIIRS_Black_Marble",
+          style: "default",
+          tileMatrixSetID: "250m",
+          format: "image/png",
+          tileWidth: 512,
+          tileHeight: 512,
+          credit: "NASA Global Imagery Browse Services for EOSDIS",
+        }),
+        alpha: 1,
+        base: true,
+      },
+      Tiles: {
+        create: () => new Cesium.TileCoordinatesImageryProvider(),
+        alpha: 1,
+        base: false,
+      },
+      "GOES-IR": {
+        create: () => new Cesium.WebMapServiceImageryProvider({
+          url: "https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi?",
+          layers: "goes_conus_ir",
+          credit: "Infrared data courtesy Iowa Environmental Mesonet",
+          parameters: {
+            transparent: "true",
+            format: "image/png",
+          },
+        }),
+        alpha: 0.5,
+        base: false,
+      },
+      Nextrad: {
+        create: () => new Cesium.WebMapServiceImageryProvider({
+          url: "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi?",
+          layers: "nexrad-n0r",
+          credit: "US Radar data courtesy Iowa Environmental Mesonet",
+          parameters: {
+            transparent: "true",
+            format: "image/png",
+          },
+        }),
+        alpha: 0.5,
+        base: false,
+      },
+      Meteocool: {
+        create: () => new Cesium.UrlTemplateImageryProvider({
+          url: "https://{s}.tileserver.unimplemented.org/data/raa01-wx_10000-latest-dwd-wgs84_transformed/{z}/{x}/{y}.png",
+          rectangle: Cesium.Rectangle.fromDegrees(2.8125, 45, 19.6875, 56.25),
+          minimumLevel: 6,
+          maximumLevel: 10,
+          credit: "DE Radar data courtesy of meteocool.com",
+          subdomains: "ab",
+        }),
+        alpha: 0.5,
+        base: false,
+      },
+    };
+  }
+
+  get imageryProviderNames() {
+    return Object.keys(this.imageryProviders);
+  }
+
+  get baseLayers() {
+    return Object.entries(this.imageryProviders).filter(([, val]) => val.base).map(([key]) => key);
+  }
+
+  get overlayLayers() {
+    return Object.entries(this.imageryProviders).filter(([, val]) => !val.base).map(([key]) => key);
+  }
+
+  set imageryLayers(newLayers) {
+    this.clearImageryLayers();
+    newLayers.forEach((layer) => {
+      const [name, alpha] = layer.split("_");
+      this.addImageryLayer(name, alpha);
+    });
+  }
+
+  clearImageryLayers() {
+    this.viewer.scene.imageryLayers.removeAll();
+  }
+
+  addImageryLayer(imageryProviderName, alpha) {
+    if (!this.imageryProviderNames.includes(imageryProviderName)) {
+      return;
+    }
+
+    const layers = this.viewer.scene.imageryLayers;
+    const newLayer = this.imageryProviders[imageryProviderName];
+    const layer = layers.addImageryProvider(newLayer.create());
+    if (alpha === undefined) {
+      layer.alpha = newLayer.alpha;
+    } else {
+      layer.alpha = alpha;
+    }
   }
 
   set sceneMode(sceneMode) {
@@ -86,117 +220,6 @@ export class CesiumController {
       default:
         console.error("Unknown scene mode");
     }
-  }
-
-  set imageryProvider(imageryProviderName) {
-    if (!this.imageryProviders.includes(imageryProviderName)) {
-      return;
-    }
-
-    const layers = this.viewer.scene.imageryLayers;
-    layers.removeAll();
-    layers.addImageryProvider(this.createImageryProvider(imageryProviderName).provider);
-  }
-
-  clearImageryLayers() {
-    this.viewer.scene.imageryLayers.removeAll();
-  }
-
-  addImageryLayer(imageryProviderName, alpha) {
-    if (!this.imageryProviders.includes(imageryProviderName)) {
-      return;
-    }
-
-    const layers = this.viewer.scene.imageryLayers;
-    const imagery = this.createImageryProvider(imageryProviderName);
-    const layer = layers.addImageryProvider(imagery.provider);
-    if (typeof alpha === "undefined") {
-      layer.alpha = imagery.alpha;
-    } else {
-      layer.alpha = alpha;
-    }
-  }
-
-  createImageryProvider(imageryProviderName = "OfflineHighres") {
-    let provider;
-    let alpha = 1;
-    switch (imageryProviderName) {
-      case "Offline":
-        provider = new Cesium.TileMapServiceImageryProvider({
-          url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
-        });
-        break;
-      case "OfflineHighres":
-        provider = new Cesium.TileMapServiceImageryProvider({
-          url: "data/cesium-assets/imagery/NaturalEarthII",
-          maximumLevel: 5,
-          credit: "Imagery courtesy Natural Earth",
-        });
-        break;
-      case "ArcGis":
-        provider = new Cesium.ArcGisMapServerImageryProvider({
-          url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
-        });
-        break;
-      case "OSM":
-        provider = new Cesium.OpenStreetMapImageryProvider({
-          url: "https://a.tile.openstreetmap.org/",
-        });
-        break;
-      case "Tiles":
-        provider = new Cesium.TileCoordinatesImageryProvider();
-        break;
-      case "BlackMarble":
-        provider = new Cesium.WebMapServiceImageryProvider({
-          url: "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi",
-          layers: "VIIRS_Black_Marble",
-          style: "default",
-          tileMatrixSetID: "250m",
-          format: "image/png",
-          tileWidth: 512,
-          tileHeight: 512,
-          credit: "NASA Global Imagery Browse Services for EOSDIS",
-        });
-        break;
-      case "GOES-IR":
-        provider = new Cesium.WebMapServiceImageryProvider({
-          url: "https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi?",
-          layers: "goes_conus_ir",
-          credit: "Infrared data courtesy Iowa Environmental Mesonet",
-          parameters: {
-            transparent: "true",
-            format: "image/png",
-          },
-        });
-        alpha = 0.5;
-        break;
-      case "Nextrad":
-        provider = new Cesium.WebMapServiceImageryProvider({
-          url: "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi?",
-          layers: "nexrad-n0r",
-          credit: "US Radar data courtesy Iowa Environmental Mesonet",
-          parameters: {
-            transparent: "true",
-            format: "image/png",
-          },
-        });
-        alpha = 0.5;
-        break;
-      case "Meteocool":
-        provider = new Cesium.UrlTemplateImageryProvider({
-          url: "https://{s}.tileserver.unimplemented.org/data/raa01-wx_10000-latest-dwd-wgs84_transformed/{z}/{x}/{y}.png",
-          rectangle: Cesium.Rectangle.fromDegrees(2.8125, 45, 19.6875, 56.25),
-          minimumLevel: 6,
-          maximumLevel: 10,
-          credit: "DE Radar data courtesy of meteocool.com",
-          subdomains: "ab",
-        });
-        alpha = 0.5;
-        break;
-      default:
-        console.error("Unknown imagery provider");
-    }
-    return { provider, alpha };
   }
 
   set terrainProvider(terrainProviderName) {

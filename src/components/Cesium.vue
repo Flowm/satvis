@@ -103,8 +103,8 @@
         <div class="toolbarTitle">
           Layers
         </div>
-        <label v-for="name in cc.imageryProviders" :key="name" class="toolbarSwitch">
-          <input v-model="imageryProvider" type="radio" :value="name">
+        <label v-for="name in cc.imageryProviderNames" :key="name" class="toolbarSwitch">
+          <input v-model="layers" type="checkbox" :value="name">
           <span class="slider"></span>
           {{ name }}
         </label>
@@ -226,6 +226,9 @@
 <script>
 import Vue from "vue";
 import { Tooltip } from "@oruga-ui/oruga-next";
+import { mapWritableState } from "pinia";
+import { useCesiumStore } from "../stores/cesium";
+import { useSatStore } from "../stores/sat";
 
 import SatelliteSelect from "./SatelliteSelect.vue";
 import SatelliteMultiSelect from "./SatelliteMultiSelect.vue";
@@ -251,21 +254,31 @@ export default {
         dbg: false,
       },
       showUI: true,
-      imageryProvider: "OfflineHighres",
-      terrainProvider: "None",
-      sceneMode: "3D",
-      cameraMode: "Fixed",
-      enabledComponents: cc.sats.enabledComponents,
       groundStationPicker: cc.groundStationPicker,
       tooltipTriggers: DeviceDetect.canHover() ? ["hover"] : ["contextmenu"],
     };
   },
+  computed: {
+    ...mapWritableState(useCesiumStore, [
+      "layers",
+      "terrainProvider",
+      "sceneMode",
+      "cameraMode",
+    ]),
+    ...mapWritableState(useSatStore, [
+      "enabledComponents",
+    ]),
+  },
   watch: {
-    imageryProvider(newProvider) {
-      cc.imageryProvider = newProvider;
-      if (this.$route.query.layers !== newProvider) {
-        this.$router.push({ query: { ...this.$route.query, layers: newProvider } });
+    layers(newLayers, oldLayers) {
+      // Ensure only a single base layer is active
+      const newBaseLayers = newLayers.filter((layer) => cc.baseLayers.includes(layer));
+      if (newBaseLayers.length > 1) {
+        const oldBaseLayers = oldLayers.filter((layer) => cc.baseLayers.includes(layer));
+        this.layers = newBaseLayers.filter((layer) => !oldBaseLayers.includes(layer));
+        return;
       }
+      cc.imageryLayers = newLayers;
     },
     terrainProvider(newProvider) {
       cc.terrainProvider = newProvider;
@@ -279,19 +292,9 @@ export default {
     cameraMode(newMode) {
       cc.cameraMode = newMode;
     },
-    enabledComponents: {
-      handler(newComponents, oldComponents) {
-        const add = newComponents.filter((x) => !oldComponents.includes(x));
-        add.forEach((component) => {
-          cc.sats.enableComponent(component);
-        });
-        const del = oldComponents.filter((x) => !newComponents.includes(x));
-        del.forEach((component) => {
-          cc.sats.disableComponent(component);
-        });
-      },
-      deep: true,
-    }
+    enabledComponents(newComponents) {
+      cc.sats.enabledComponents = newComponents;
+    },
   },
   mounted() {
     if (this.$route.query.bg) {
@@ -302,19 +305,7 @@ export default {
     }
     if (this.$route.query.layers) {
       const layers = this.$route.query.layers.split(",");
-      if (layers.length === 1) {
-        [this.imageryProvider] = layers;
-      } else {
-        cc.clearImageryLayers();
-        layers.forEach((layer) => {
-          const provider = layer.split("_");
-          if (provider.length === 1) {
-            cc.addImageryLayer(provider[0]);
-          } else {
-            cc.addImageryLayer(provider[0], provider[1]);
-          }
-        });
-      }
+      cc.imageryLayers = layers;
     }
     if (this.$route.query.terrain) {
       this.terrainProvider = this.$route.query.terrain;
