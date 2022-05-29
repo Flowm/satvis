@@ -42,6 +42,7 @@
   "devDependencies": {
     "@babel/core": "^7.18.2",
     "@babel/preset-env": "^7.18.2",
+    "@babel/preset-typescript": "^7.17.12",
     "autoprefixer": "^10.4.7",
     "ava": "4.2.0",
     "babel-loader": "^8.2.5",
@@ -64,6 +65,7 @@
     "rimraf": "^3.0.2",
     "script-loader": "^0.7.2",
     "style-loader": "^3.3.1",
+    "typescript": "^4.7.2",
     "url-loader": "^4.1.1",
     "vue-loader": "^17.0.0",
     "webpack": "^5.72.1",
