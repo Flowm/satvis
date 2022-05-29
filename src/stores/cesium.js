@@ -9,4 +9,14 @@ export const useCesiumStore = defineStore("cesium", {
   }),
   actions: {
   },
-})
+  urlsync: {
+    enabled: true,
+    config: [{
+      name: "layers",
+      url: "layers",
+      serialize: (v) => v.join(","),
+      deserialize: (v) => v.split(",").filter((e) => e),
+      default: ["OfflineHighres"],
+    }],
+  },
+});

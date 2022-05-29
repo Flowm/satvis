@@ -303,10 +303,6 @@ export default {
     if (this.$route.query.gs) {
       cc.setGroundStationFromLatLon(this.$route.query.gs);
     }
-    if (this.$route.query.layers) {
-      const layers = this.$route.query.layers.split(",");
-      cc.imageryLayers = layers;
-    }
     if (this.$route.query.terrain) {
       this.terrainProvider = this.$route.query.terrain;
     }
