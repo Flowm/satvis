@@ -20,23 +20,25 @@ function urlToState(store: Store, syncConfig: SyncConfigEntry[]): void {
   const { router } = store;
   const route = router.currentRoute.value;
 
-  syncConfig.forEach((param: SyncConfigEntry) => {
+  syncConfig.forEach((config: SyncConfigEntry) => {
+    const param = config.url || config.name;
+    const deserialize = config.deserialize || defaultDeserialize;
+
     const query = { ...route.query };
-    const deserialize = param.deserialize || defaultDeserialize;
-    if (!(param.url in query)) {
+    if (!(param in query)) {
       return;
     }
     try {
-      console.info("Parse param", param.url, route.query[param.url]);
-      const value = deserialize(query[param.url]);
-      if ("valid" in param && !param.valid(value)) {
+      console.info("Parse url param", param, route.query[param]);
+      const value = deserialize(query[param]);
+      if ("valid" in config && !config.valid(value)) {
         throw new TypeError("Validation failed");
       }
       // TODO: Resolve nested values
-      store[param.name] = value;
+      store[config.name] = value;
     } catch (error) {
-      console.error(`Invalid URL param ${param.url} ${route.query[param.url]}: ${error}`);
-      query[param.url] = undefined;
+      console.error(`Invalid url param ${param} ${route.query[param]}: ${error}`);
+      query[param] = undefined;
       router.replace({ query });
     }
   });
@@ -46,26 +48,27 @@ function stateToUrl(store: Store, syncConfig: SyncConfigEntry[]): void {
   const { router } = store;
   const route = router.currentRoute.value;
 
-  syncConfig.forEach((param: SyncConfigEntry) => {
-    const query = { ...route.query };
-    const value = resolve(param.name, store);
-    const serialize = param.serialize || defaultSerialize;
-    console.info("State update", param.name, value);
+  syncConfig.forEach((config: SyncConfigEntry) => {
+    const value = resolve(config.name, store);
+    const param = config.url || config.name;
+    const serialize = config.serialize || defaultSerialize;
+    console.info("State update", config.name, value);
 
-    if ("default" in param && serialize(value) === serialize(param.default)) {
-      query[param.url] = undefined;
+    const query = { ...route.query };
+    if ("default" in config && serialize(value) === serialize(config.default)) {
+      query[param] = undefined;
     } else {
-      query[param.url] = serialize(value);
+      query[param] = serialize(value);
     }
 
-    if (query[param.url] !== route.query[param.url]) {
+    if (query[param] !== route.query[param]) {
       router.replace({ query });
     }
   });
 }
 
 function createUrlSync({ options, store }: PiniaPluginContext): void {
-  console.info("createUrlSync", options);
+  // console.info("createUrlSync", options);
   if (!options.urlsync?.enabled && !options.urlsync?.config) {
     return;
   }
