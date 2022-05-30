@@ -320,7 +320,7 @@ export default {
     this.showUI = !cc.minimalUIAtStartup;
     this.$root.$on("updateCat", this.updateCat);
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$root.$off("updateCat", this.updateCat);
   },
   methods: {

@@ -63,7 +63,7 @@ export default {
     }
     this.$root.$on("updateTracked", this.update);
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.$root.$off("updateTracked", this.update);
   },
   methods: {
