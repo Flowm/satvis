@@ -282,9 +282,6 @@ export default {
     },
     terrainProvider(newProvider) {
       cc.terrainProvider = newProvider;
-      if (this.$route.query.terrain !== newProvider) {
-        this.$router.push({ query: { ...this.$route.query, terrain: newProvider } });
-      }
     },
     sceneMode(newMode) {
       cc.sceneMode = newMode;
@@ -303,16 +300,9 @@ export default {
     if (this.$route.query.gs) {
       cc.setGroundStationFromLatLon(this.$route.query.gs);
     }
-    if (this.$route.query.terrain) {
-      this.terrainProvider = this.$route.query.terrain;
-    }
     if (this.$route.query.tags) {
       const tags = this.$route.query.tags.split(",");
       cc.sats.enableTag(tags);
-    }
-    if (this.$route.query.elements) {
-      const elements = this.$route.query.elements.replace(/-/g, " ").split(",");
-      this.enabledComponents = elements;
     }
     if (this.$route.query.time) {
       cc.setTime(this.$route.query.time);
