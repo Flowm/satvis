@@ -3,17 +3,19 @@ import { GroundStationEntity } from "./GroundStationEntity";
 /* global app */
 
 export class SatelliteManager {
+  #enabledComponents;
+
   constructor(viewer) {
     this.viewer = viewer;
 
     this.satellites = [];
-    this._enabledComponents = ["Point", "Label"];
+    this.#enabledComponents = ["Point", "Label"];
     this.enabledTags = [];
 
     this.viewer.trackedEntityChanged.addEventListener(() => {
       const trackedSatelliteName = this.trackedSatellite;
       if (trackedSatelliteName) {
-        this.getSatellite(trackedSatelliteName).show(this._enabledComponents);
+        this.getSatellite(trackedSatelliteName).show(this.#enabledComponents);
       }
       if ("app" in window) {
         app.$emit("updateTracked");
@@ -53,7 +55,7 @@ export class SatelliteManager {
     if (existingSat) {
       existingSat.props.addTags(newSat.props.tags);
       if (newSat.props.tags.some((tag) => this.enabledTags.includes(tag))) {
-        existingSat.show(this._enabledComponents);
+        existingSat.show(this.#enabledComponents);
       }
       return;
     }
@@ -63,7 +65,7 @@ export class SatelliteManager {
     this.satellites.push(newSat);
 
     if (newSat.props.tags.some((tag) => this.enabledTags.includes(tag))) {
-      newSat.show(this._enabledComponents);
+      newSat.show(this.#enabledComponents);
       if (this.pendingTrackedSatellite === newSat.props.name) {
         this.trackedSatellite = newSat.props.name;
       }
@@ -135,7 +137,7 @@ export class SatelliteManager {
   set enabledSatellitesByName(sats) {
     this.satellites.forEach((sat) => {
       if (sats.includes(sat.props.name)) {
-        sat.show(this._enabledComponents);
+        sat.show(this.#enabledComponents);
       } else {
         sat.hide();
       }
@@ -176,7 +178,7 @@ export class SatelliteManager {
   showSatsWithEnabledTags() {
     this.satellites.forEach((sat) => {
       if (this.enabledTags.some((tag) => sat.props.hasTag(tag))) {
-        sat.show(this._enabledComponents);
+        sat.show(this.#enabledComponents);
       } else {
         sat.hide();
       }
@@ -199,11 +201,11 @@ export class SatelliteManager {
   }
 
   get enabledComponents() {
-    return this._enabledComponents;
+    return this.#enabledComponents;
   }
 
   set enabledComponents(newComponents) {
-    const oldComponents = this._enabledComponents;
+    const oldComponents = this.#enabledComponents;
     const add = newComponents.filter((x) => !oldComponents.includes(x));
     const del = oldComponents.filter((x) => !newComponents.includes(x));
     add.forEach((component) => {
@@ -215,8 +217,8 @@ export class SatelliteManager {
   }
 
   enableComponent(componentName) {
-    const index = this._enabledComponents.indexOf(componentName);
-    if (index === -1) this._enabledComponents.push(componentName);
+    const index = this.#enabledComponents.indexOf(componentName);
+    if (index === -1) this.#enabledComponents.push(componentName);
 
     this.enabledSatellites.forEach((sat) => {
       sat.enableComponent(componentName);
@@ -224,8 +226,8 @@ export class SatelliteManager {
   }
 
   disableComponent(componentName) {
-    const index = this._enabledComponents.indexOf(componentName);
-    if (index !== -1) this._enabledComponents.splice(index, 1);
+    const index = this.#enabledComponents.indexOf(componentName);
+    if (index !== -1) this.#enabledComponents.splice(index, 1);
 
     this.enabledSatellites.forEach((sat) => {
       sat.disableComponent(componentName);

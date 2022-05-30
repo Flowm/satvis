@@ -41,6 +41,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.18.2",
+    "@babel/eslint-parser": "^7.18.2",
     "@babel/preset-env": "^7.18.2",
     "@babel/preset-typescript": "^7.17.12",
     "autoprefixer": "^10.4.7",

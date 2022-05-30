@@ -1,24 +1,23 @@
 {
   "env": {
     "browser": true,
-    "es6": true,
     "serviceworker": true
   },
   "extends": [
     "airbnb-base",
     "eslint:recommended",
-    "plugin:import/errors",
-    "plugin:import/warnings",
-    "plugin:vue/recommended"
+    "plugin:vue/vue3-recommended",
+    "plugin:import/recommended"
   ],
+  "parser": "vue-eslint-parser",
   "parserOptions": {
-    "ecmaVersion": 2018,
-    "sourceType": "module"
+    "parser": "@babel/eslint-parser"
   },
   "rules": {
     "class-methods-use-this": "off",
     "no-console": "off",
     "no-param-reassign": ["error", { "props": false }],
+    "no-multi-spaces": ["error", { "ignoreEOLComments": true }],
     "object-curly-newline": "off",
     "operator-linebreak": ["error", "after"],
     "quotes": ["error", "double", { "allowTemplateLiterals": true }],
@@ -49,6 +48,11 @@
       "svg": "always",
       "math": "always"
     }],
+    "import/extensions": ["error", "ignorePackages", {
+        "js": "never",
+        "ts": "never"
+      }
+    ],
     "import/prefer-default-export": "off",
     "import/no-extraneous-dependencies": "off"
   },
