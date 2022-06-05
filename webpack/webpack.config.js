@@ -12,7 +12,7 @@ const cesiumSource = "node_modules/cesium/Source";
 module.exports = {
   context: basePath,
   entry: {
-    app: "./src/app.js",
+    index: "./src/index.js",
     move: "./src/move.js",
     ot: "./src/ot.js",
     test: "./src/test/test.js",
@@ -127,7 +127,7 @@ module.exports = {
     new HtmlWebpackPlugin({
       filename: "index.html",
       template: "src/index.html",
-      chunks: ["app"],
+      chunks: ["index"],
     }),
     new HtmlWebpackPlugin({
       filename: "move.html",
