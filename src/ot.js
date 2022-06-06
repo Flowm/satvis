@@ -2,16 +2,18 @@ import satvisSetup from "./app";
 
 const { cc } = satvisSetup();
 
-cc.sats.addFromTleUrl("data/tle/ext/wfs.txt", ["WFS"]);
-cc.sats.addFromTleUrl("data/tle/ext/wfsf.txt", ["WFSF"]);
-cc.sats.addFromTleUrl("data/tle/ext/ot.txt", ["OT"]);
-cc.sats.addFromTleUrl("data/tle/norad/spire.txt", ["Spire"]);
-cc.sats.addFromTleUrl("data/tle/norad/planet.txt", ["Planet"]);
-cc.sats.addFromTleUrl("data/tle/norad/starlink.txt", ["Starlink"]);
-cc.sats.addFromTleUrl("data/tle/norad/globalstar.txt", ["Globalstar"]);
-cc.sats.addFromTleUrl("data/tle/norad/transporter-3.txt", ["Transporter-3"]);
+cc.sats.addFromTleUrls([
+  ["data/tle/ext/wfs.txt", ["WFS"]],
+  ["data/tle/ext/wfsf.txt", ["WFSF"]],
+  ["data/tle/ext/ot.txt", ["OT"]],
+  ["data/tle/norad/spire.txt", ["Spire"]],
+  ["data/tle/norad/planet.txt", ["Planet"]],
+  ["data/tle/norad/globalstar.txt", ["Globalstar"]],
+  ["data/tle/norad/transporter-3.txt", ["Transporter-3"]],
+]);
 
 window.addEventListener("load", () => {
+  cc.sats.updateStore();
   if (cc.sats.enabledTags.length === 0) {
     cc.sats.enabledTags = ["OT"];
     cc.sats.enableComponent("Orbit");

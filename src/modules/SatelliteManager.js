@@ -1,13 +1,15 @@
 import { SatelliteEntityWrapper } from "./SatelliteEntityWrapper";
 import { GroundStationEntity } from "./GroundStationEntity";
-/* global app */
 
 import { useSatStore } from "../stores/sat";
+/* global app */
 
 export class SatelliteManager {
   #enabledComponents;
 
   #enabledTags;
+
+  #enabledSatellites;
 
   constructor(viewer) {
     this.viewer = viewer;
@@ -15,28 +17,34 @@ export class SatelliteManager {
     this.satellites = [];
     this.#enabledComponents = ["Point", "Label"];
     this.#enabledTags = [];
+    this.#enabledSatellites = [];
 
     this.viewer.trackedEntityChanged.addEventListener(() => {
       const trackedSatelliteName = this.trackedSatellite;
       if (trackedSatelliteName) {
         this.getSatellite(trackedSatelliteName).show(this.#enabledComponents);
       }
-      if ("app" in window) {
-        app.$emit("updateTracked");
-      }
+      // if ("app" in window) {
+      //   app.$emit("updateTracked");
+      // }
+    });
+  }
+
+  addFromTleUrls(urlTagList) {
+    urlTagList.forEach(([url, tags]) => {
+      this.addFromTleUrl(url, tags);
     });
   }
 
   addFromTleUrl(url, tags) {
     fetch(url, {
       mode: "no-cors",
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw Error(response.statusText);
-        }
-        return response;
-      }).then((response) => response.text())
+    }).then((response) => {
+      if (!response.ok) {
+        throw Error(response.statusText);
+      }
+      return response;
+    }).then((response) => response.text())
       .then((data) => {
         const lines = data.split(/\r?\n/);
         for (let i = 3; i < lines.length; i + 3) {
@@ -52,6 +60,12 @@ export class SatelliteManager {
   addFromTle(tle, tags) {
     const sat = new SatelliteEntityWrapper(this.viewer, tle, tags);
     this.add(sat);
+  }
+
+  updateStore() {
+    const satStore = useSatStore();
+    satStore.availableTags = this.tags;
+    satStore.availableSatellitesByTag = this.taglist;
   }
 
   add(newSat) {
@@ -74,8 +88,6 @@ export class SatelliteManager {
         this.trackedSatellite = newSat.props.name;
       }
     }
-    const satStore = useSatStore();
-    satStore.availableTags = this.tags;
   }
 
   get taglist() {
@@ -89,17 +101,6 @@ export class SatelliteManager {
       tag.sort();
     });
     return taglist;
-  }
-
-  get satlist() {
-    let satlist = Object.keys(this.taglist).sort().map((tag) => ({
-      name: tag,
-      list: this.taglist[tag],
-    }));
-    if (satlist.length === 0) {
-      satlist = [{ name: "", list: [] }];
-    }
-    return satlist;
   }
 
   get selectedSatellite() {
@@ -132,12 +133,12 @@ export class SatelliteManager {
     }
   }
 
-  get enabledSatellites() {
+  get visibleSatellites() {
     return this.satellites.filter((sat) => sat.enabled);
   }
 
   get enabledSatellitesByName() {
-    return this.enabledSatellites.map((sat) => sat.props.name);
+    return this.visibleSatellites.map((sat) => sat.props.name);
   }
 
   set enabledSatellitesByName(sats) {
@@ -172,6 +173,18 @@ export class SatelliteManager {
     return this.satellites.find((sat) => sat.props.name === name);
   }
 
+  get enabledSatellites() {
+    return this.#enabledSatellites;
+  }
+
+  set enabledSatellites(newSats) {
+    this.#enabledSatellites = newSats;
+    this.showEnabledSatellites();
+
+    const satStore = useSatStore();
+    satStore.enabledSatellites = newSats;
+  }
+
   get tags() {
     const tags = this.satellites.map((sat) => sat.props.tags);
     return [...new Set([].concat(...tags))];
@@ -181,9 +194,15 @@ export class SatelliteManager {
     return this.satellites.filter((sat) => sat.props.hasTag(tag));
   }
 
-  showSatsWithEnabledTags() {
+  satIsEnabled(sat) {
+    const enabledByTag = this.#enabledTags.some((tag) => sat.props.hasTag(tag));
+    const enabledByName = this.#enabledSatellites.includes(sat.props.name);
+    return enabledByTag || enabledByName;
+  }
+
+  showEnabledSatellites() {
     this.satellites.forEach((sat) => {
-      if (this.#enabledTags.some((tag) => sat.props.hasTag(tag))) {
+      if (this.satIsEnabled(sat)) {
         sat.show(this.#enabledComponents);
       } else {
         sat.hide();
@@ -197,7 +216,7 @@ export class SatelliteManager {
 
   set enabledTags(newTags) {
     this.#enabledTags = newTags;
-    this.showSatsWithEnabledTags();
+    this.showEnabledSatellites();
 
     const satStore = useSatStore();
     satStore.enabledTags = newTags;
@@ -228,7 +247,7 @@ export class SatelliteManager {
     const index = this.#enabledComponents.indexOf(componentName);
     if (index === -1) this.#enabledComponents.push(componentName);
 
-    this.enabledSatellites.forEach((sat) => {
+    this.visibleSatellites.forEach((sat) => {
       sat.enableComponent(componentName);
     });
   }
@@ -237,7 +256,7 @@ export class SatelliteManager {
     const index = this.#enabledComponents.indexOf(componentName);
     if (index !== -1) this.#enabledComponents.splice(index, 1);
 
-    this.enabledSatellites.forEach((sat) => {
+    this.visibleSatellites.forEach((sat) => {
       sat.disableComponent(componentName);
     });
   }
