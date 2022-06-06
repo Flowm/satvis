@@ -18,8 +18,7 @@ cc.sats.addFromTleUrls([
 
 window.addEventListener("load", () => {
   cc.sats.updateStore();
-  if (cc.sats.enabledTags.length === 0) {
-    console.log("TAGS", cc.sats.enabledTags);
+  if (cc.sats.visibleSatellites.length === 0) {
     cc.sats.enabledTags = ["MOVE"];
   }
 });

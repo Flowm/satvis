@@ -14,7 +14,7 @@ cc.sats.addFromTleUrls([
 
 window.addEventListener("load", () => {
   cc.sats.updateStore();
-  if (cc.sats.enabledTags.length === 0) {
+  if (cc.sats.visibleSatellites.length === 0) {
     cc.sats.enabledTags = ["OT"];
     cc.sats.enableComponent("Orbit");
     cc.sats.enableComponent("SensorCone");
