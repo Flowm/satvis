@@ -14,6 +14,10 @@ cc.sats.addFromTleUrl("data/tle/norad/weather.txt", ["Weather"]);
 cc.sats.addFromTleUrl("data/tle/norad/tle-new.txt", ["New"]);
 
 cc.sats.addFromTleUrl("data/tle/ext/move.txt", ["MOVE"]);
-if (cc.sats.enabledTags.length === 0) {
-  cc.sats.enableTag("MOVE");
-}
+
+window.addEventListener("load", () => {
+  if (cc.sats.enabledTags.length === 0) {
+    console.log("TAGS", cc.sats.enabledTags);
+    cc.sats.enabledTags = ["MOVE"];
+  }
+});
