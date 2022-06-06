@@ -62,12 +62,6 @@ export class SatelliteManager {
     this.add(sat);
   }
 
-  updateStore() {
-    const satStore = useSatStore();
-    satStore.availableTags = this.tags;
-    satStore.availableSatellitesByTag = this.taglist;
-  }
-
   add(newSat) {
     const existingSat = this.satellites.find((sat) => sat.props.satnum === newSat.props.satnum && sat.props.name === newSat.props.name);
     if (existingSat) {
@@ -82,12 +76,18 @@ export class SatelliteManager {
     }
     this.satellites.push(newSat);
 
-    if (newSat.props.tags.some((tag) => this.#enabledTags.includes(tag))) {
+    if (this.satIsEnabled(newSat)) {
       newSat.show(this.#enabledComponents);
       if (this.pendingTrackedSatellite === newSat.props.name) {
         this.trackedSatellite = newSat.props.name;
       }
     }
+  }
+
+  updateStore() {
+    const satStore = useSatStore();
+    satStore.availableTags = this.tags;
+    satStore.availableSatellitesByTag = this.taglist;
   }
 
   get taglist() {

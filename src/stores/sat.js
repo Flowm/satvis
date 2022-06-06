@@ -19,8 +19,8 @@ export const useSatStore = defineStore("sat", {
     }, {
       name: "enabledSatellites",
       url: "sats",
-      serialize: (v) => v.join(",").replaceAll(" ", "-"),
-      deserialize: (v) => v.replaceAll("-", " ").split(",").filter((e) => e),
+      serialize: (v) => v.join(",").replaceAll(" ", "~"),
+      deserialize: (v) => v.replaceAll("~", " ").split(",").filter((e) => e),
       default: [],
     }, {
       name: "enabledTags",

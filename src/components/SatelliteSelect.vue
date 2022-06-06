@@ -7,8 +7,9 @@
       <multiselect
         v-model="enabledTags"
         mode="tags"
+        placeholder="0 satellite groups selected"
         :options="availableTags"
-        :close-on-select="false"
+        :close-on-select="true"
         :hide-selected="false"
         :searchable="true"
         class="multiselect-dark"
@@ -21,6 +22,7 @@
       <multiselect
         v-model="allEnabledSatellites"
         mode="multiple"
+        placeholder="0 satellites selected"
         :options="availableSatellites"
         group-label="tag"
         group-options="sats"
@@ -29,7 +31,13 @@
         :hide-selected="false"
         :searchable="true"
         class="multiselect-dark"
-      />
+      >
+        <template #multiplelabel="{ values }">
+          <div class="multiselect-multiple-label">
+            {{ values.length }} satellite{{ values.length > 1 ? "s" : "" }} selected
+          </div>
+        </template>
+      </multiselect>
     </div>
   </div>
 </template>
@@ -50,10 +58,10 @@ export default {
   },
   computed: {
     ...mapWritableState(useSatStore, [
-      "availableTags",
       "availableSatellitesByTag",
-      "enabledTags",
+      "availableTags",
       "enabledSatellites",
+      "enabledTags",
     ]),
     availableSatellites() {
       let satlist = Object.keys(this.availableSatellitesByTag).map((tag) => ({
@@ -82,6 +90,9 @@ export default {
     },
   },
   watch: {
+    enabledSatellites(newSats) {
+      cc.sats.enabledSatellites = newSats;
+    },
     enabledTags(newTags) {
       cc.sats.enabledTags = newTags;
     },
