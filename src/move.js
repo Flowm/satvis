@@ -1,6 +1,6 @@
 import satvisSetup from "./app";
 
-const { app, cc } = satvisSetup();
+const { cc } = satvisSetup();
 
 cc.sats.addFromTleUrl("data/tle/ext/move.txt", ["MOVE"]);
 if (cc.sats.enabledTags.length === 0) {

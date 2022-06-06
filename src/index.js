@@ -1,6 +1,6 @@
 import satvisSetup from "./app";
 
-const { app, cc } = satvisSetup();
+const { cc } = satvisSetup();
 
 // cc.sats.addFromTleUrl("data/tle/norad/active.txt", ["Active"]);
 cc.sats.addFromTleUrl("data/tle/norad/spire.txt", ["Spire"]);

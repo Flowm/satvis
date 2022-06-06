@@ -1,6 +1,6 @@
 import satvisSetup from "./app";
 
-const { app, cc } = satvisSetup();
+const { cc } = satvisSetup();
 
 cc.sats.addFromTleUrl("data/tle/ext/wfs.txt", ["WFS"]);
 cc.sats.addFromTleUrl("data/tle/ext/wfsf.txt", ["WFSF"]);
