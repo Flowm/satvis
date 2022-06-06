@@ -2,15 +2,19 @@ import { SatelliteEntityWrapper } from "./SatelliteEntityWrapper";
 import { GroundStationEntity } from "./GroundStationEntity";
 /* global app */
 
+import { useSatStore } from "../stores/sat";
+
 export class SatelliteManager {
   #enabledComponents;
+
+  #enabledTags;
 
   constructor(viewer) {
     this.viewer = viewer;
 
     this.satellites = [];
     this.#enabledComponents = ["Point", "Label"];
-    this.enabledTags = [];
+    this.#enabledTags = [];
 
     this.viewer.trackedEntityChanged.addEventListener(() => {
       const trackedSatelliteName = this.trackedSatellite;
@@ -54,7 +58,7 @@ export class SatelliteManager {
     const existingSat = this.satellites.find((sat) => sat.props.satnum === newSat.props.satnum && sat.props.name === newSat.props.name);
     if (existingSat) {
       existingSat.props.addTags(newSat.props.tags);
-      if (newSat.props.tags.some((tag) => this.enabledTags.includes(tag))) {
+      if (newSat.props.tags.some((tag) => this.#enabledTags.includes(tag))) {
         existingSat.show(this.#enabledComponents);
       }
       return;
@@ -64,12 +68,14 @@ export class SatelliteManager {
     }
     this.satellites.push(newSat);
 
-    if (newSat.props.tags.some((tag) => this.enabledTags.includes(tag))) {
+    if (newSat.props.tags.some((tag) => this.#enabledTags.includes(tag))) {
       newSat.show(this.#enabledComponents);
       if (this.pendingTrackedSatellite === newSat.props.name) {
         this.trackedSatellite = newSat.props.name;
       }
     }
+    const satStore = useSatStore();
+    satStore.availableTags = this.tags;
   }
 
   get taglist() {
@@ -177,7 +183,7 @@ export class SatelliteManager {
 
   showSatsWithEnabledTags() {
     this.satellites.forEach((sat) => {
-      if (this.enabledTags.some((tag) => sat.props.hasTag(tag))) {
+      if (this.#enabledTags.some((tag) => sat.props.hasTag(tag))) {
         sat.show(this.#enabledComponents);
       } else {
         sat.hide();
@@ -185,14 +191,16 @@ export class SatelliteManager {
     });
   }
 
-  enableTag(tag) {
-    this.enabledTags = [...new Set(this.enabledTags.concat(tag))];
-    this.showSatsWithEnabledTags();
+  get enabledTags() {
+    return this.#enabledTags;
   }
 
-  disableTag(tag) {
-    this.enabledTags = this.enabledTags.filter((enabledTag) => enabledTag !== tag);
+  set enabledTags(newTags) {
+    this.#enabledTags = newTags;
     this.showSatsWithEnabledTags();
+
+    const satStore = useSatStore();
+    satStore.enabledTags = newTags;
   }
 
   get components() {

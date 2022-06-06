@@ -46,6 +46,7 @@
         </o-tooltip>
       </div>
       <div v-show="menu.cat" class="toolbarSwitches">
+        <satellite-select />
       </div>
       <div v-show="menu.sat" class="toolbarSwitches">
         <div class="toolbarTitle">
@@ -210,10 +211,12 @@ import { mapWritableState } from "pinia";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 
+import SatelliteSelect from "./SatelliteSelect.vue";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
 
 export default {
   components: {
+    "satellite-select": SatelliteSelect,
   },
   data() {
     return {
@@ -277,10 +280,6 @@ export default {
     }
     if (this.$route.query.gs) {
       cc.setGroundStationFromLatLon(this.$route.query.gs);
-    }
-    if (this.$route.query.tags) {
-      const tags = this.$route.query.tags.split(",");
-      cc.sats.enableTag(tags);
     }
     if (this.$route.query.time) {
       cc.setTime(this.$route.query.time);

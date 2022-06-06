@@ -11,9 +11,11 @@ cc.sats.addFromTleUrl("data/tle/norad/starlink.txt", ["Starlink"]);
 cc.sats.addFromTleUrl("data/tle/norad/globalstar.txt", ["Globalstar"]);
 cc.sats.addFromTleUrl("data/tle/norad/transporter-3.txt", ["Transporter-3"]);
 
-if (cc.sats.enabledTags.length === 0) {
-  cc.sats.enableTag("OT");
-  cc.sats.enableComponent("Orbit");
-  cc.sats.enableComponent("SensorCone");
-  cc.imageryProvider = "ArcGis";
-}
+window.addEventListener("load", () => {
+  if (cc.sats.enabledTags.length === 0) {
+    cc.sats.enabledTags = ["OT"];
+    cc.sats.enableComponent("Orbit");
+    cc.sats.enableComponent("SensorCone");
+    cc.imageryProvider = "ArcGis";
+  }
+});
