@@ -46,24 +46,6 @@
         </o-tooltip>
       </div>
       <div v-show="menu.cat" class="toolbarSwitches">
-        <div class="toolbarTitle">
-          Tracked satellite
-        </div>
-        <div class="toolbarContent">
-          <satellite-select ref="SatelliteSelect" />
-        </div>
-        <div class="toolbarTitle">
-          Enabled satellites
-        </div>
-        <div class="toolbarContent">
-          <satellite-multi-select ref="SatelliteMultiSelect" />
-        </div>
-        <div class="toolbarTitle">
-          Monitored satellites
-        </div>
-        <div class="toolbarContent">
-          <satellite-notify-multi-select ref="SatelliteNotifyMultiSelect" />
-        </div>
       </div>
       <div v-show="menu.sat" class="toolbarSwitches">
         <div class="toolbarTitle">
@@ -224,24 +206,14 @@
 </template>
 
 <script>
-import Vue from "vue";
-import { Tooltip } from "@oruga-ui/oruga-next";
 import { mapWritableState } from "pinia";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 
-import SatelliteSelect from "./SatelliteSelect.vue";
-import SatelliteMultiSelect from "./SatelliteMultiSelect.vue";
-import SatelliteNotifyMultiSelect from "./SatelliteNotifyMultiSelect.vue";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
-
-Vue.use(Tooltip);
 
 export default {
   components: {
-    "satellite-select": SatelliteSelect,
-    "satellite-multi-select": SatelliteMultiSelect,
-    "satellite-notify-multi-select": SatelliteNotifyMultiSelect,
   },
   data() {
     return {
@@ -270,15 +242,18 @@ export default {
     ]),
   },
   watch: {
-    layers(newLayers, oldLayers) {
-      // Ensure only a single base layer is active
-      const newBaseLayers = newLayers.filter((layer) => cc.baseLayers.includes(layer));
-      if (newBaseLayers.length > 1) {
-        const oldBaseLayers = oldLayers.filter((layer) => cc.baseLayers.includes(layer));
-        this.layers = newBaseLayers.filter((layer) => !oldBaseLayers.includes(layer));
-        return;
-      }
-      cc.imageryLayers = newLayers;
+    layers: {
+      handler(newLayers, oldLayers) {
+        // Ensure only a single base layer is active
+        const newBaseLayers = newLayers.filter((layer) => cc.baseLayers.includes(layer));
+        if (newBaseLayers.length > 1) {
+          const oldBaseLayers = oldLayers.filter((layer) => cc.baseLayers.includes(layer));
+          this.layers = newBaseLayers.filter((layer) => !oldBaseLayers.includes(layer));
+          return;
+        }
+        cc.imageryLayers = newLayers;
+      },
+      deep: true,
     },
     terrainProvider(newProvider) {
       cc.terrainProvider = newProvider;
@@ -289,8 +264,11 @@ export default {
     cameraMode(newMode) {
       cc.cameraMode = newMode;
     },
-    enabledComponents(newComponents) {
-      cc.sats.enabledComponents = newComponents;
+    enabledComponents: {
+      handler(newComponents) {
+        cc.sats.enabledComponents = newComponents;
+      },
+      deep: true,
     },
   },
   mounted() {
@@ -308,10 +286,6 @@ export default {
       cc.setTime(this.$route.query.time);
     }
     this.showUI = !cc.minimalUIAtStartup;
-    this.$root.$on("updateCat", this.updateCat);
-  },
-  beforeUnmount() {
-    this.$root.$off("updateCat", this.updateCat);
   },
   methods: {
     toggleMenu(name) {
@@ -320,22 +294,12 @@ export default {
         this.menu[k] = false;
       });
       this.menu[name] = !oldState;
-
-      if (this.menu.cat) {
-        // Update multiselect data when it is displayed
-        this.updateCat();
-      }
     },
     toggleUI() {
       this.showUI = !this.showUI;
       if (!cc.minimalUI) {
         cc.showUI = this.showUI;
       }
-    },
-    updateCat() {
-      this.$refs.SatelliteSelect.update();
-      this.$refs.SatelliteMultiSelect.update();
-      this.$refs.SatelliteNotifyMultiSelect.update();
     },
   },
 };

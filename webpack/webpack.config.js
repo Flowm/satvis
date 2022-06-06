@@ -65,14 +65,6 @@ module.exports = {
       }, {
         test: /\.vue$/,
         loader: "vue-loader",
-        options: {
-          compilerOptions: {
-            compatConfig: {
-              MODE: 2,
-              RENDER_FUNCTION: false,
-            }
-          }
-        }
       }, {
         test: /\.css$/,
         use: [
@@ -102,7 +94,6 @@ module.exports = {
     alias: {
       // Cesium module name
       Cesium: path.resolve(basePath, cesiumSource),
-      vue: "@vue/compat",
     },
   },
   optimization: {

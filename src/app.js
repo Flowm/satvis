@@ -1,6 +1,7 @@
 import { createApp, markRaw } from "vue";
 import { createPinia } from "pinia";
 import { Workbox } from "workbox-window";
+import { Tooltip } from "@oruga-ui/oruga-next";
 import * as Sentry from "@sentry/browser";
 
 import App from "./App.vue";
@@ -23,6 +24,7 @@ function satvisSetup() {
   pinia.use(piniaUrlSync);
   app.use(pinia);
   app.use(router);
+  app.use(Tooltip);
   app.mount("#app");
   window.app = app;
 
