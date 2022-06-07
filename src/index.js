@@ -1,6 +1,6 @@
 import satvisSetup from "./app";
 
-const { cc } = satvisSetup();
+const { cc, state } = satvisSetup();
 
 cc.sats.addFromTleUrls([
   // ["data/tle/norad/active.txt", ["Active"]],
@@ -19,6 +19,6 @@ cc.sats.addFromTleUrls([
 window.addEventListener("load", () => {
   cc.sats.updateStore();
   if (cc.sats.visibleSatellites.length === 0) {
-    cc.sats.enabledTags = ["MOVE"];
+    state.sat.enabledTags = ["MOVE"];
   }
 });

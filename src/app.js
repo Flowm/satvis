@@ -20,6 +20,7 @@ function satvisSetup() {
   const cc = new CesiumController();
   app.config.globalProperties.cc = cc;
   const pinia = createPinia();
+  const state = pinia.state.value;
   pinia.use(({ store }) => { store.router = markRaw(router); });
   pinia.use(piniaUrlSync);
   app.use(pinia);
@@ -40,7 +41,7 @@ function satvisSetup() {
     wb.register();
   }
 
-  return { app, cc };
+  return { app, state, cc };
 }
 
 export default satvisSetup;
