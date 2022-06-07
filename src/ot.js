@@ -1,6 +1,6 @@
 import satvisSetup from "./app";
 
-const { cc } = satvisSetup();
+const { cc, state } = satvisSetup();
 
 cc.sats.addFromTleUrls([
   ["data/tle/ext/wfs.txt", ["WFS"]],
@@ -15,9 +15,8 @@ cc.sats.addFromTleUrls([
 window.addEventListener("load", () => {
   cc.sats.updateStore();
   if (cc.sats.visibleSatellites.length === 0) {
-    cc.sats.enabledTags = ["OT"];
-    cc.sats.enableComponent("Orbit");
-    cc.sats.enableComponent("SensorCone");
-    cc.imageryProvider = "ArcGis";
+    state.sat.enabledTags = ["OT"];
+    state.sat.enabledComponents = ["Point", "Label", "Orbit", "SensorCone"];
+    state.cesium.layers = ["ArcGis"];
   }
 });
