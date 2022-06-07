@@ -48,20 +48,22 @@ function stateToUrl(store: Store, syncConfig: SyncConfigEntry[]): void {
   const { router } = store;
   const route = router.currentRoute.value;
 
-  const query = { ...route.query };
+  const urlParams = new URLSearchParams(location.search);
+  const params = Object.fromEntries(urlParams)
   syncConfig.forEach((config: SyncConfigEntry) => {
     const value = resolve(config.name, store);
     const param = config.url || config.name;
     const serialize = config.serialize || defaultSerialize;
-    console.info("State update", config.name, value);
+    console.info("State update", config.name, value, params);
 
     if ("default" in config && serialize(value) === serialize(config.default)) {
-      delete query[param];
+      delete params[param];
     } else {
-      query[param] = serialize(value);
+      params[param] = serialize(value);
     }
   });
-  router.replace({ query });
+  const query = Object.entries(params).reduce((query, [k, v]) => `${query}&${k}=${v}`, "").slice(1);
+  window.history.replaceState({}, "", `?${query}`);
 }
 
 function createUrlSync({ options, store }: PiniaPluginContext): void {
