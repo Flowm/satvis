@@ -86,21 +86,21 @@ module.exports = {
     unknownContextCritical: false,
   },
   resolve: {
-    modules: [
-      path.resolve(__dirname, "./src"),
-      "node_modules",
-    ],
-    extensions: [".ts", ".tsx", ".js", ".json"],
     alias: {
       // Cesium module name
       Cesium: path.resolve(basePath, cesiumSource),
     },
+    extensions: [".ts", ".tsx", ".js", ".json"],
     fallback: {
       "url": false,
       "zlib": false,
       "http": false,
       "https": false,
     },
+    modules: [
+      path.resolve(__dirname, "./src"),
+      "node_modules",
+    ],
   },
   optimization: {
     splitChunks: {
