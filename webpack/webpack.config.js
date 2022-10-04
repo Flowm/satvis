@@ -100,6 +100,12 @@ module.exports = {
       // Cesium module name
       Cesium: path.resolve(basePath, cesiumSource),
     },
+    fallback: {
+      "url": false,
+      "zlib": false,
+      "http": false,
+      "https": false,
+    },
   },
   optimization: {
     splitChunks: {
