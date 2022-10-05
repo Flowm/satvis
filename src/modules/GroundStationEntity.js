@@ -44,28 +44,11 @@ export class GroundStationEntity extends CesiumEntityWrapper {
   }
 
   createDescription() {
-    let cache;
-    const description = new Cesium.CallbackProperty((time) => {
-      // The callback property is invoked for every animation frame
-      // To reduce cpu load cache description for 1s of sim time or 1000 callback invocations
-      if (cache && Cesium.JulianDate.equalsEpsilon(time, cache.time, 1) && cache.usage < 1000) {
-        cache.usage += 1;
-        return cache.content
-      }
-
-      // Get passes and render description
+    this.description = DescriptionHelper.cachedCallbackProperty((time) => {
       const passes = this.passes(time);
       const content = DescriptionHelper.renderDescription(time, this.name, this.position, passes, true);
-
-      cache = {
-        time,
-        content,
-        usage: 0,
-      };
-
       return content;
-    }, false);
-    this.description = description;
+    });
   }
 
   passes(time, deltaHours = 48) {

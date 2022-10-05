@@ -1,9 +1,34 @@
+import * as Cesium from "Cesium/Cesium";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 dayjs.extend(relativeTime);
 
 export class DescriptionHelper {
+  /** cachedCallbackProperty
+   * Caches the results of a callback property to prevent unnecessary recalculation.
+   * @param {function} callback - The amount of simulation time to use the calculated result
+   * @param {number} updateTreshold - The amount of simulation time to use the calculated result
+   * @param {number} usageTreshold - The number of invocations to serve the same result
+   */
+  static cachedCallbackProperty(callback, updateTreshold = 1, usageTreshold = 1000) {
+    let cache;
+    return new Cesium.CallbackProperty((time) => {
+      if (cache && Cesium.JulianDate.equalsEpsilon(time, cache.time, updateTreshold) && cache.usage < usageTreshold) {
+        // console.log("Cached callback", time, cache.usage);
+        cache.usage += 1;
+        return cache.content;
+      }
+      const content = callback(time);
+      cache = {
+        time,
+        content,
+        usage: 0,
+      };
+      return content;
+    }, false);
+  }
+
   static renderDescription(time, name, position, passes, isGroundStation, tle) {
     const description = `
       <div class="ib">
