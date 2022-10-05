@@ -2,7 +2,6 @@ import { SatelliteEntityWrapper } from "./SatelliteEntityWrapper";
 import { GroundStationEntity } from "./GroundStationEntity";
 
 import { useSatStore } from "../stores/sat";
-/* global app */
 
 export class SatelliteManager {
   #enabledComponents;
@@ -288,11 +287,8 @@ export class SatelliteManager {
       sat.groundStation = this.groundStation.position;
     });
 
-    if ("app" in window) {
-      const latlon = `${position.latitude.toFixed(4)},${position.longitude.toFixed(4)}`;
-      if (app.$route.query.gs !== latlon) {
-        app.$router.push({ query: { ...app.$route.query, gs: latlon } });
-      }
-    }
+    // Update store for url state
+    const satStore = useSatStore();
+    satStore.groundstation = [position.latitude, position.longitude];
   }
 }

@@ -23,7 +23,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
     this.viewer.selectedEntityChanged.addEventListener(() => {
       if (this.isSelected) {
         this.setSelectedOnTickCallback((clock) => {
-          this.sats.enabledSatellites.forEach((sat) => {
+          this.sats.visibleSatellites.forEach((sat) => {
             sat.props.updatePasses(clock.currentTime);
           });
         });
@@ -54,8 +54,8 @@ export class GroundStationEntity extends CesiumEntityWrapper {
 
   passes(time, deltaHours = 48) {
     let passes = [];
-    // Aggregate passes from all enabled satellites
-    this.sats.enabledSatellites.forEach((sat) => {
+    // Aggregate passes from all visible satellites
+    this.sats.visibleSatellites.forEach((sat) => {
       passes.push(...sat.props.passes);
     });
 
