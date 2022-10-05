@@ -60,13 +60,18 @@ export class DescriptionHelper {
     return description;
   }
 
-  static renderPasses(passes, time, showPassName) {
+  static renderPasses(passes, time, isGroundStation) {
     if (passes.length === 0) {
-      const html = `
+      if (isGroundStation) {
+        return `
+          <h3>Passes</h3>
+          <div class="ib-text">No passes available</div>
+          `;
+      }
+      return `
         <h3>Passes</h3>
         <div class="ib-text">No ground station set</div>
         `;
-      return html;
     }
 
     const start = dayjs(time);
@@ -76,6 +81,7 @@ export class DescriptionHelper {
     }
     const upcomingPasses = passes.slice(upcomingPassIdx);
 
+    const showPassName = isGroundStation;
     const htmlName = showPassName ? "<th>Name</th>\n" : "";
     const html = `
       <h3>Passes</h3>
