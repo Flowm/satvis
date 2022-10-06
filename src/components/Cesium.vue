@@ -239,9 +239,11 @@ export default {
       "terrainProvider",
       "sceneMode",
       "cameraMode",
+      "background",
     ]),
     ...mapWritableState(useSatStore, [
       "enabledComponents",
+      "groundstation",
     ]),
   },
   watch: {
@@ -267,20 +269,20 @@ export default {
     cameraMode(newMode) {
       cc.cameraMode = newMode;
     },
+    background(value) {
+      cc.setBackground(value);
+    },
     enabledComponents: {
       handler(newComponents) {
         cc.sats.enabledComponents = newComponents;
       },
       deep: true,
     },
+    groundstation(position) {
+      cc.setGroundStationFromLatLon(...position);
+    },
   },
   mounted() {
-    if (this.$route.query.bg) {
-      cc.enableTransparency();
-    }
-    if (this.$route.query.gs) {
-      cc.setGroundStationFromLatLon(this.$route.query.gs);
-    }
     if (this.$route.query.time) {
       cc.setTime(this.$route.query.time);
     }

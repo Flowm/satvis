@@ -345,18 +345,18 @@ export class CesiumController {
     });
   }
 
-  setGroundStationFromLatLon(latlon) {
-    const [latitude, longitude, height] = latlon.split(",");
-    if (!latitude || !longitude) {
+  setGroundStationFromLatLon(lat, lon, height = 0) {
+    if (!lat || !lon) {
       return;
     }
-    const coordinates = {};
-    coordinates.longitude = parseFloat(longitude);
-    coordinates.latitude = parseFloat(latitude);
-    coordinates.height = 0;
-    if (height) {
-      coordinates.height = parseFloat(height);
-    }
+    const coordinates = {
+      longitude: lon,
+      latitude: lat,
+      height,
+    };
+    coordinates.longitude = lon;
+    coordinates.latitude = lat;
+    coordinates.height = height;
     coordinates.cartesian = Cesium.Cartesian3.fromDegrees(coordinates.longitude, coordinates.latitude, coordinates.height);
     this.sats.setGroundStation(coordinates);
   }
@@ -398,15 +398,17 @@ export class CesiumController {
     }
   }
 
-  enableTransparency() {
-    this.viewer.scene.backgroundColor = Cesium.Color.TRANSPARENT;
-    this.viewer.scene.moon = undefined;
-    this.viewer.scene.skyAtmosphere = undefined;
-    this.viewer.scene.skyBox = undefined;
-    this.viewer.scene.sun = undefined;
-    document.documentElement.style.background = "transparent";
-    document.body.style.background = "transparent";
-    document.getElementById("cesiumContainer").style.background = "transparent";
+  setBackground(active) {
+    if (!active) {
+      this.viewer.scene.backgroundColor = Cesium.Color.TRANSPARENT;
+      this.viewer.scene.moon = undefined;
+      this.viewer.scene.skyAtmosphere = undefined;
+      this.viewer.scene.skyBox = undefined;
+      this.viewer.scene.sun = undefined;
+      document.documentElement.style.background = "transparent";
+      document.body.style.background = "transparent";
+      document.getElementById("cesiumContainer").style.background = "transparent";
+    }
   }
 
   addErrorHandler() {
