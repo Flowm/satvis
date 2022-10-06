@@ -1,4 +1,5 @@
 @import "./oruga.css";
+@import "vue-toastification/dist/index.css";
 
 html, body, #cesiumContainer {
     width: 100%;

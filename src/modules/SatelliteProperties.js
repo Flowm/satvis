@@ -1,6 +1,6 @@
 import * as Cesium from "Cesium/Cesium";
 import dayjs from "dayjs";
-// import { NotificationProgrammatic } from "@oruga-ui/oruga-next";
+import { useToast } from "vue-toastification";
 import Orbit from "./Orbit";
 import { PushManager } from "./PushManager";
 
@@ -216,23 +216,15 @@ export class SatelliteProperties {
   }
 
   notifyPasses(aheadMin = 5) {
+    const toast = useToast();
+
     if (!this.groundStationAvailable) {
-      // NotificationProgrammatic.open({
-      //   message: "Ground station required to notify for passes",
-      //   type: "is-warning",
-      //   position: "is-bottom",
-      //   duration: 4000,
-      // });
+      toast.warning("Ground station required to notify for passes");
       return;
     }
     const passes = this.orbit.computePassesElevation(this.groundStationPosition);
     if (!passes) {
-      // NotificationProgrammatic.open({
-      //   message: `No passes for ${this.name}`,
-      //   type: "is-warning",
-      //   position: "is-bottom",
-      //   duration: 4000,
-      // });
+      toast.info(`No passes for ${this.name}`);
       return;
     }
 
@@ -242,11 +234,6 @@ export class SatelliteProperties {
       this.pm.notifyAtDate(start, `${pass.name} pass starting now`);
       // this.pm.notifyAtDate(dayjs().add(5, "second"), `${pass.name} test pass in ${aheadMin} minutes`);
     });
-    // NotificationProgrammatic.open({
-    //   message: `Notifying for passes of ${this.name}`,
-    //   type: "is-success",
-    //   position: "is-bottom",
-    //   duration: 4000,
-    // });
+    toast.success(`Notifying for ${passes.length} passes of ${this.name}`);
   }
 }

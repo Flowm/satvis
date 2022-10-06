@@ -2,6 +2,7 @@ import { createApp, markRaw } from "vue";
 import { createPinia } from "pinia";
 import { Workbox } from "workbox-window";
 import { Tooltip } from "@oruga-ui/oruga-next";
+import Toast from "vue-toastification";
 import * as Sentry from "@sentry/browser";
 
 import App from "./App.vue";
@@ -26,6 +27,9 @@ function satvisSetup() {
   app.use(pinia);
   app.use(router);
   app.use(Tooltip);
+  app.use(Toast, {
+    position: "bottom-right",
+  });
   app.mount("#app");
   window.app = app;
 
