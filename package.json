@@ -7,8 +7,6 @@
     "build:dev": "webpack --config webpack/webpack.config.js",
     "build:stats": "webpack --config webpack/webpack.stats.js",
     "clean": "mkdirp dist & rimraf dist/*",
-    "cypress:open": "cypress open",
-    "cypress:run": "cypress run",
     "lint": "eslint --ext js,vue src",
     "lint:fix": "eslint --ext js,vue --fix src",
     "serve": "npm run build && http-server -c-1 dist",
@@ -16,7 +14,6 @@
     "serve:stats": "npm run build:stats && http-server -c-1 dist",
     "start": "webpack serve --progress --config webpack/webpack.config.js",
     "start:anyhost": "webpack serve --progress --config webpack/webpack.config.js --host 0.0.0.0",
-    "test": "ava",
     "update-tle": "data/tle/get-norad.sh"
   },
   "author": "Florian Mauracher",
@@ -45,23 +42,19 @@
     "@babel/preset-env": "^7.19.3",
     "@babel/preset-typescript": "^7.18.6",
     "autoprefixer": "^10.4.12",
-    "ava": "4.3.3",
     "babel-loader": "^8.2.5",
     "copy-webpack-plugin": "^11.0.0",
     "css-loader": "^6.7.1",
     "cssnano": "^5.1.13",
-    "cypress": "^10.9.0",
     "eslint": "^8.24.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-import-resolver-webpack": "^0.13.2",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-vue": "^9.6.0",
-    "esm": "^3.2.25",
     "html-webpack-plugin": "^5.5.0",
     "http-server": "^14.1.1",
     "mini-css-extract-plugin": "^2.6.1",
     "mkdirp": "^1.0.4",
-    "obj2gltf": "^3.1.4",
     "postcss-loader": "^7.0.1",
     "rimraf": "^3.0.2",
     "script-loader": "^0.7.2",
@@ -76,11 +69,6 @@
     "webpack-merge": "^5.8.0",
     "webpack-strip-pragma-loader": "^1.0.1",
     "workbox-webpack-plugin": "^6.5.4"
-  },
-  "ava": {
-    "require": [
-      "esm"
-    ]
   },
   "browserslist": [
     "> 1%",
