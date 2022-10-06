@@ -5,6 +5,7 @@ import * as Sentry from "@sentry/browser";
 import { DeviceDetect } from "./util/DeviceDetect";
 import { SatelliteManager } from "./SatelliteManager";
 
+import { useCesiumStore } from "../stores/cesium";
 import infoBoxCss from "../css/infobox.ecss";
 
 dayjs.extend(utc);
@@ -53,7 +54,6 @@ export class CesiumController {
     this.terrainProviders = ["None", "Maptiler"];
     this.sceneModes = ["3D", "2D", "Columbus"];
     this.cameraModes = ["Fixed", "Inertial"];
-    this.groundStationPicker = { enabled: false };
 
     this.createInputHandler();
     this.addErrorHandler();
@@ -309,7 +309,8 @@ export class CesiumController {
   createInputHandler() {
     const handler = new Cesium.ScreenSpaceEventHandler(this.viewer.scene.canvas);
     handler.setInputAction((event) => {
-      if (!this.groundStationPicker.enabled) {
+      const { pickMode } = useCesiumStore();
+      if (!pickMode) {
         return;
       }
       this.setGroundStationFromClickEvent(event);
@@ -327,7 +328,7 @@ export class CesiumController {
       coordinates.height = Cesium.Math.toDegrees(cartographicPosition.height);
       coordinates.cartesian = cartesian;
       this.sats.setGroundStation(coordinates);
-      this.groundStationPicker.enabled = false;
+      useCesiumStore().pickMode = false;
     }
   }
 

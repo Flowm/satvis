@@ -69,7 +69,7 @@
           Ground station
         </div>
         <label class="toolbarSwitch">
-          <input v-model="groundStationPicker.enabled" type="checkbox">
+          <input v-model="pickMode" type="checkbox">
           <span class="slider"></span>
           Pick on globe
         </label>
@@ -229,7 +229,6 @@ export default {
         dbg: false,
       },
       showUI: true,
-      groundStationPicker: cc.groundStationPicker,
       tooltipTriggers: DeviceDetect.canHover() ? ["hover"] : ["contextmenu"],
     };
   },
@@ -239,6 +238,7 @@ export default {
       "terrainProvider",
       "sceneMode",
       "cameraMode",
+      "pickMode",
       "background",
     ]),
     ...mapWritableState(useSatStore, [
