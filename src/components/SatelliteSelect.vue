@@ -62,6 +62,7 @@ export default {
       "availableTags",
       "enabledSatellites",
       "enabledTags",
+      "trackedSatellite",
     ]),
     availableSatellites() {
       let satlist = Object.keys(this.availableSatellitesByTag).map((tag) => ({
@@ -90,11 +91,14 @@ export default {
     },
   },
   watch: {
-    enabledSatellites(newSats) {
-      cc.sats.enabledSatellites = newSats;
+    enabledSatellites(sats) {
+      cc.sats.enabledSatellites = sats;
     },
-    enabledTags(newTags) {
-      cc.sats.enabledTags = newTags;
+    enabledTags(tags) {
+      cc.sats.enabledTags = tags;
+    },
+    trackedSatellite(satellite) {
+      cc.sats.trackedSatellite = satellite;
     },
   },
   methods: {

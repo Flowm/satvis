@@ -19,13 +19,10 @@ export class SatelliteManager {
     this.#enabledSatellites = [];
 
     this.viewer.trackedEntityChanged.addEventListener(() => {
-      const trackedSatelliteName = this.trackedSatellite;
-      if (trackedSatelliteName) {
-        this.getSatellite(trackedSatelliteName).show(this.#enabledComponents);
+      if (this.trackedSatellite) {
+        this.getSatellite(this.trackedSatellite).show(this.#enabledComponents);
       }
-      // if ("app" in window) {
-      //   app.$emit("updateTracked");
-      // }
+      useSatStore().trackedSatellite = this.trackedSatellite;
     });
   }
 
@@ -118,7 +115,8 @@ export class SatelliteManager {
         this.viewer.trackedEntity = undefined;
       }
       return;
-    } if (name === this.trackedSatellite) {
+    }
+    if (name === this.trackedSatellite) {
       return;
     }
 

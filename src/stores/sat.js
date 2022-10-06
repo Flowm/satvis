@@ -8,6 +8,7 @@ export const useSatStore = defineStore("sat", {
     enabledSatellites: [],
     enabledTags: [],
     groundstation: [],
+    trackedSatellite: "",
   }),
   urlsync: {
     enabled: true,
@@ -35,6 +36,10 @@ export const useSatStore = defineStore("sat", {
       serialize: (v) => v.map((c) => c.toFixed(4)).join(","),
       deserialize: (v) => v.split(",").map((c) => parseFloat(c, 10)),
       default: [],
+    }, {
+      name: "trackedSatellite",
+      url: "track",
+      default: "",
     }],
   },
 });
