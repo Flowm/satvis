@@ -148,14 +148,14 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
     this.createCesiumSatelliteEntity("Orbit track", "path", path);
   }
 
-  createGroundTrack() {
-    const polyline = new Cesium.PolylineGraphics({
+  createGroundTrack(width = 165) {
+    const corridor = new Cesium.CorridorGraphics({
+      cornerType: Cesium.CornerType.MITERED,
       material: Cesium.Color.ORANGE.withAlpha(0.2),
       positions: new Cesium.CallbackProperty((time) => this.props.groundTrack(time), false),
-      followSurface: false,
-      width: 10,
+      width: width * 1000,
     });
-    this.createCesiumSatelliteEntity("Ground track", "polyline", polyline);
+    this.createCesiumSatelliteEntity("Ground track", "corridor", corridor);
   }
 
   createCone(fov = 10) {
