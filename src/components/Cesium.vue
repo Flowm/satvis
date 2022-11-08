@@ -278,8 +278,12 @@ export default {
       },
       deep: true,
     },
-    groundstation(position) {
-      cc.setGroundStationFromLatLon(...position);
+    groundstation(newPosition, oldPosition) {
+      // Ignore if new and old positions are identical
+      if (oldPosition && oldPosition[0] === newPosition[0] && oldPosition[1] === newPosition[1]) {
+        return;
+      }
+      cc.setGroundStationFromLatLon(...newPosition);
     },
   },
   mounted() {
