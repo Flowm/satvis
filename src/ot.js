@@ -4,7 +4,6 @@ const { cc, state } = satvisSetup();
 
 cc.sats.addFromTleUrls([
   ["data/tle/ext/wfs.txt", ["WFS"]],
-  ["data/tle/ext/wfsf.txt", ["WFSF"]],
   ["data/tle/ext/ot.txt", ["OT"]],
   ["data/tle/norad/spire.txt", ["Spire"]],
   ["data/tle/norad/planet.txt", ["Planet"]],

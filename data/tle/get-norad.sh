@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eu
+set -u
 
 cd "${0%/*}"
 mkdir -p norad && cd norad
@@ -65,7 +65,7 @@ curl -O https://celestrak.org/NORAD/elements/supplemental/transporter-3.txt
 
 mkdir -p ../ext
 egrep -A2 '(FIRST-MOVE|MOVE-II)' --no-group-separator active.txt > ../ext/move.txt
-egrep -A2 '(LEMUR-2-ROHOVITHSA)' --no-group-separator spire.txt > ../ext/ot.txt
-egrep -A2 '^(SENTINEL-2A|SENTINEL-2B|SENTINEL-3A|SENTINEL-3B|AQUA|TERRA |SUOMI NPP|NOAA 20|METEOSAT-8|METEOSAT-10|METEOSAT-11|GOES 16|GOES 17|HIMAWARI-8|METOP-A|METOP-B|METOP-C|LANDSAT 8|FENGYUN 3D)' --no-group-separator active.txt > ../ext/wfs.txt
-egrep -A2 '^(SENTINEL-2A|SENTINEL-2B|SENTINEL-3A|SENTINEL-3B|AQUA|TERRA |SUOMI NPP|NOAA 20|METEOSAT-8|METEOSAT-10|METEOSAT-11|GOES 16|GOES 17|HIMAWARI-8|METOP-A|METOP-B|METOP-C|LANDSAT 8|FENGYUN 3D|LANDSAT 9|NOAA 15|NOAA 18|NOAA 19|METEOR-M 1|METEOR-M 2|METEOR-M2 2|KANOPUS-V-IK)' --no-group-separator active.txt > ../ext/wfsf.txt
-cat ../ext/wfsfa.txt >> ../ext/wfsf.txt
+egrep -A2 '(LEMUR-2-ROHOVITHSA)' --no-group-separator active.txt > ../ext/ot.txt
+cat ../ext/ot-add.txt >> ../ext/ot.txt 2> /dev/null
+egrep -A2 '^(SENTINEL-2A|SENTINEL-2B|SENTINEL-3A|SENTINEL-3B|AQUA|TERRA |SUOMI NPP|NOAA 20|NOAA 21|METEOSAT-8|METEOSAT-10|METEOSAT-11|GOES 16|GOES 17|HIMAWARI-8|METOP-A|METOP-B|METOP-C|LANDSAT 8|LANDSAT 9|FENGYUN 3D|GEO-KOMPSAT-2A)' --no-group-separator active.txt > ../ext/wfs.txt
+cat ../ext/wfs-add.txt >> ../ext/wfs.txt 2> /dev/null
