@@ -1,10 +1,11 @@
-import * as Cesium from "Cesium/Cesium";
+import * as Cesium from "@cesium/engine";
+import { Viewer } from "@cesium/widgets";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import * as Sentry from "@sentry/browser";
+
 import { DeviceDetect } from "./util/DeviceDetect";
 import { SatelliteManager } from "./SatelliteManager";
-
 import { useCesiumStore } from "../stores/cesium";
 import infoBoxCss from "../css/infobox.ecss";
 
@@ -17,7 +18,7 @@ export class CesiumController {
     this.minimalUI = DeviceDetect.inIframe() || DeviceDetect.isIos();
     this.minimalUIAtStartup = DeviceDetect.inIframe();
 
-    this.viewer = new Cesium.Viewer("cesiumContainer", {
+    this.viewer = new Viewer("cesiumContainer", {
       animation: !this.minimalUI,
       baseLayerPicker: false,
       fullscreenButton: !this.minimalUI,

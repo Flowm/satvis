@@ -7,7 +7,8 @@ const { VueLoaderPlugin } = require("vue-loader");
 const WorkboxPlugin = require("workbox-webpack-plugin");
 
 const basePath = `${__dirname}/..`;
-const cesiumSource = "node_modules/cesium/Source";
+const cesiumEngineSource = "node_modules/@cesium/engine/Source";
+const cesiumWidgetsSource = "node_modules/@cesium/widgets/Source";
 
 module.exports = {
   context: basePath,
@@ -24,12 +25,6 @@ module.exports = {
     chunkFilename: "js/[name].js",
     assetModuleFilename: "assets/[name][ext]",
     path: path.resolve(basePath, "dist"),
-    // Required by Cesium for multiline strings
-    sourcePrefix: "",
-  },
-  amd: {
-    // Enable webpack-friendly use of require in Cesium
-    toUrlUndefined: true,
   },
   devServer: {
     client: {
@@ -88,19 +83,10 @@ module.exports = {
   resolve: {
     alias: {
       // Cesium module name
-      Cesium: path.resolve(basePath, cesiumSource),
+      Cesium: path.resolve(basePath, cesiumEngineSource),
     },
     extensions: [".ts", ".tsx", ".js", ".json"],
-    fallback: {
-      "url": false,
-      "zlib": false,
-      "http": false,
-      "https": false,
-    },
-    modules: [
-      path.resolve(__dirname, "./src"),
-      "node_modules",
-    ],
+    fallback: { https: false, zlib: false, http: false, url: false },
   },
   optimization: {
     splitChunks: {
@@ -114,7 +100,7 @@ module.exports = {
         },
         commons: {
           name: "cesium",
-          test: /[\\/]node_modules[\\/]cesium/,
+          test: /[\\/]node_modules[\\/]@cesium/,
           chunks: "all",
         },
       },
@@ -153,13 +139,15 @@ module.exports = {
     new CopyWebpackPlugin({
       patterns: [
         // Copy Cesium Assets
-        { from: path.join(cesiumSource, "../Build/Cesium/Assets"), to: "cesium/Assets", globOptions: { ignore: ["**/maki/*.png"] } },
-        // Copy Cesium non-JS widget-bits (CSS, SVG, etc.)
-        { from: path.join(cesiumSource, "../Build/Cesium/Widgets"), to: "cesium/Widgets" },
-        // Copy Cesium Almond-bundled-and-minified Web Worker scripts
-        { from: path.join(cesiumSource, "../Build/Cesium/Workers"), to: "cesium/Workers" },
+        { from: path.join(cesiumEngineSource, "Assets"), to: "cesium/Assets", globOptions: { ignore: ["**/maki/*.png"] } },
         // Copy Cesium minified third-party scripts
-        { from: path.join(cesiumSource, "../Build/Cesium/ThirdParty"), to: "cesium/ThirdParty" },
+        { from: path.join(cesiumEngineSource, "ThirdParty"), to: "cesium/ThirdParty" },
+        // Copy Cesium Almond-bundled-and-minified Web Worker scripts
+        { from: path.join(cesiumEngineSource, "../Build/Workers"), to: "cesium/Workers" },
+        // Copy Cesium Widget
+        { from: path.join(cesiumEngineSource, "Widget"), to: "cesium/Widgets/CesiumWidget" },
+        // Copy all other Cesium Widgets
+        { from: cesiumWidgetsSource, to: "cesium/Widgets" },
         // Copy assets
         { from: "data", to: "data", globOptions: { ignore: ["**/.git/**"] } },
         { from: "src/assets" },

@@ -1,4 +1,4 @@
-import * as Cesium from "Cesium/Cesium";
+import * as Cesium from "@cesium/engine";
 import CesiumSensorVolumes from "cesium-sensor-volumes";
 import { SatelliteProperties } from "./SatelliteProperties";
 import { CesiumTimelineHelper } from "./CesiumTimelineHelper";
