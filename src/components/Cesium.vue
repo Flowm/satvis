@@ -1,6 +1,6 @@
 <template>
   <div class="cesium">
-    <div v-if="showUI" id="toolbarLeft">
+    <div v-show="showUI" id="toolbarLeft">
       <div class="toolbarButtons">
         <o-tooltip label="Satellite selection" :triggers="tooltipTriggers" position="right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('cat')">
@@ -290,7 +290,7 @@ export default {
     if (this.$route.query.time) {
       cc.setTime(this.$route.query.time);
     }
-    this.showUI = !cc.minimalUIAtStartup;
+    this.showUI = !DeviceDetect.inIframe();
   },
   methods: {
     toggleMenu(name) {

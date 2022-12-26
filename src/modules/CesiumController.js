@@ -14,9 +14,7 @@ dayjs.extend(utc);
 export class CesiumController {
   constructor() {
     this.initConstants();
-
     this.minimalUI = DeviceDetect.inIframe() || DeviceDetect.isIos();
-    this.minimalUIAtStartup = DeviceDetect.inIframe();
 
     this.viewer = new Viewer("cesiumContainer", {
       animation: !this.minimalUI,
