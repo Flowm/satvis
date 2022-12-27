@@ -27,13 +27,13 @@ export class SatelliteManager {
   }
 
   addFromTleUrls(urlTagList) {
-    urlTagList.forEach(([url, tags]) => {
-      this.addFromTleUrl(url, tags);
-    });
+    // Initiate async download of all TLE URLs and update store afterwards
+    const promises = urlTagList.map(([url, tags]) => this.addFromTleUrl(url, tags, false));
+    Promise.all(promises).then(() => this.updateStore());
   }
 
-  addFromTleUrl(url, tags) {
-    fetch(url, {
+  addFromTleUrl(url, tags, updateStore = true) {
+    return fetch(url, {
       mode: "no-cors",
     }).then((response) => {
       if (!response.ok) {
@@ -45,7 +45,7 @@ export class SatelliteManager {
         const lines = data.split(/\r?\n/);
         for (let i = 3; i < lines.length; i + 3) {
           const tle = lines.splice(i - 3, i).join("\n");
-          this.addFromTle(tle, tags);
+          this.addFromTle(tle, tags, updateStore);
         }
       })
       .catch((error) => {
@@ -53,12 +53,15 @@ export class SatelliteManager {
       });
   }
 
-  addFromTle(tle, tags) {
+  addFromTle(tle, tags, updateStore = true) {
     const sat = new SatelliteEntityWrapper(this.viewer, tle, tags);
-    this.add(sat);
+    this.#add(sat);
+    if (updateStore) {
+      this.updateStore();
+    }
   }
 
-  add(newSat) {
+  #add(newSat) {
     const existingSat = this.satellites.find((sat) => sat.props.satnum === newSat.props.satnum && sat.props.name === newSat.props.name);
     if (existingSat) {
       existingSat.props.addTags(newSat.props.tags);

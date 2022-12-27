@@ -12,7 +12,6 @@ cc.sats.addFromTleUrls([
 ]);
 
 window.addEventListener("load", () => {
-  cc.sats.updateStore();
   if (cc.sats.visibleSatellites.length === 0) {
     state.sat.enabledTags = ["OT"];
     state.sat.enabledComponents = ["Point", "Label", "Orbit", "SensorCone"];
