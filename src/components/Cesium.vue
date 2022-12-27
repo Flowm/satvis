@@ -158,6 +158,11 @@
           RequestRender
         </label>
         <label class="toolbarSwitch">
+          <input v-model="qualityPreset" true-value="high" false-value="low" type="checkbox">
+          <span class="slider"></span>
+          High Quality
+        </label>
+        <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.fog.enabled" type="checkbox">
           <span class="slider"></span>
           Fog
@@ -238,8 +243,9 @@ export default {
       "terrainProvider",
       "sceneMode",
       "cameraMode",
-      "pickMode",
+      "qualityPreset",
       "background",
+      "pickMode",
     ]),
     ...mapWritableState(useSatStore, [
       "enabledComponents",
@@ -269,8 +275,11 @@ export default {
     cameraMode(newMode) {
       cc.cameraMode = newMode;
     },
+    qualityPreset(value) {
+      cc.qualityPreset = value;
+    },
     background(value) {
-      cc.setBackground(value);
+      cc.background = value;
     },
     enabledComponents: {
       handler(newComponents) {

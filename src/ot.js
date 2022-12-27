@@ -17,5 +17,6 @@ window.addEventListener("load", () => {
     state.sat.enabledTags = ["OT"];
     state.sat.enabledComponents = ["Point", "Label", "Orbit", "SensorCone"];
     state.cesium.layers = ["ArcGis"];
+    state.cesium.qualityPreset = "high";
   }
 });

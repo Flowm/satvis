@@ -6,8 +6,9 @@ export const useCesiumStore = defineStore("cesium", {
     terrainProvider: "None",
     sceneMode: "3D",
     cameraMode: "Fixed",
-    pickMode: false,
+    qualityPreset: "low",
     background: true,
+    pickMode: false,
   }),
   urlsync: {
     enabled: true,
@@ -25,6 +26,10 @@ export const useCesiumStore = defineStore("cesium", {
       name: "sceneMode",
       url: "mode",
       default: "3D",
+    }, {
+      name: "qualityPreset",
+      url: "quality",
+      default: "low",
     }, {
       name: "background",
       url: "bg",

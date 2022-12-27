@@ -398,7 +398,22 @@ export class CesiumController {
     }
   }
 
-  setBackground(active) {
+  set qualityPreset(quality) {
+    switch (quality) {
+      case "low":
+        // Ignore browser's device pixel ratio and use CSS pixels instead of device pixels for render resolution
+        this.viewer.useBrowserRecommendedResolution = true;
+        break;
+      case "high":
+        // Use browser's device pixel ratio for render resolution
+        this.viewer.useBrowserRecommendedResolution = false;
+        break;
+      default:
+        console.error("Unknown quality preset");
+    }
+  }
+
+  set background(active) {
     if (!active) {
       this.viewer.scene.backgroundColor = Cesium.Color.TRANSPARENT;
       this.viewer.scene.moon = undefined;
