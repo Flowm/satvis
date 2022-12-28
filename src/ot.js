@@ -12,10 +12,8 @@ cc.sats.addFromTleUrls([
 ]);
 
 window.addEventListener("load", () => {
-  if (cc.sats.visibleSatellites.length === 0) {
-    state.sat.enabledTags = ["OT"];
-    state.sat.enabledComponents = ["Point", "Label", "Orbit", "SensorCone"];
-    state.cesium.layers = ["ArcGis"];
-    state.cesium.qualityPreset = "high";
-  }
+  state.sat.setIfDefault("enabledTags", ["OT"]);
+  state.sat.setIfDefault("enabledComponents", ["Point", "Label", "Orbit", "SensorCone"]);
+  state.cesium.setIfDefault("layers", ["ArcGis"]);
+  state.cesium.setIfDefault("qualityPreset", "high");
 });

@@ -17,7 +17,5 @@ cc.sats.addFromTleUrls([
 ]);
 
 window.addEventListener("load", () => {
-  if (cc.sats.visibleSatellites.length === 0) {
-    state.sat.enabledTags = ["MOVE"];
-  }
+  state.sat.setIfDefault("enabledTags", ["MOVE"]);
 });

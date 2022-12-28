@@ -36,6 +36,7 @@ function urlToState(store: Store, syncConfig: SyncConfigEntry[]): void {
       }
       // TODO: Resolve nested values
       store[config.name] = value;
+      config.setFromUrl = true;
     } catch (error) {
       console.error(`Invalid url param ${param} ${route.query[param]}: ${error}`);
       query[param] = undefined;
@@ -79,6 +80,22 @@ function createUrlSync({ options, store }: PiniaPluginContext): void {
   store.$subscribe(() => {
     stateToUrl(store, options.urlsync.config);
   });
+
+  // Helper getters and setters to allow conditional overrides of store values
+  store.getConfigForKey = (key) => {
+    return options.urlsync.config.find((entry) => entry.name === key);
+  }
+
+  store.setIfDefault = (key, value) => {
+    const config = store.getConfigForKey(key);
+    const serialize = config.serialize || defaultSerialize;
+    console.log("CHK", key, serialize(store[key]), serialize(config.default));
+    // if ("default" in config && serialize(store[key]) === serialize(config.default)) {
+    if (!config.setFromUrl) {
+      console.log("WRT", key, value);
+      store[key] = value;
+    }
+  }
 }
 
 export default createUrlSync;

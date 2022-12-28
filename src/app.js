@@ -9,6 +9,8 @@ import App from "./App.vue";
 import router from "./components/Router";
 import piniaUrlSync from "./modules/util/pinia-plugin-url-sync";
 import { CesiumController } from "./modules/CesiumController";
+import { useCesiumStore } from "./stores/cesium";
+import { useSatStore } from "./stores/sat";
 
 function satvisSetup() {
   // Enable sentry for production version
@@ -21,7 +23,6 @@ function satvisSetup() {
   const cc = new CesiumController();
   app.config.globalProperties.cc = cc;
   const pinia = createPinia();
-  const state = pinia.state.value;
   pinia.use(({ store }) => { store.router = markRaw(router); });
   pinia.use(piniaUrlSync);
   app.use(pinia);
@@ -31,7 +32,11 @@ function satvisSetup() {
     position: "bottom-right",
   });
   app.mount("#app");
-  window.app = app;
+
+  const state = {
+    sat: useSatStore(),
+    cesium: useCesiumStore(),
+  };
 
   // Register service worker
   if ("serviceWorker" in navigator && !window.location.href.includes("localhost")) {
@@ -45,7 +50,7 @@ function satvisSetup() {
     wb.register();
   }
 
-  return { app, state, cc };
+  return { app, cc, state };
 }
 
 export default satvisSetup;
