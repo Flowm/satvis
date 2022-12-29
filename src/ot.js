@@ -1,6 +1,15 @@
 import satvisSetup from "./app";
 
-const { cc, state } = satvisSetup();
+const { cc } = satvisSetup({
+  sat: {
+    enabledTags: ["OT"],
+    enabledComponents: ["Point", "Label", "Orbit", "SensorCone"],
+  },
+  cesium: {
+    layers: ["ArcGis"],
+    qualityPreset: "high",
+  },
+});
 
 cc.sats.addFromTleUrls([
   ["data/tle/ext/wfs.txt", ["WFS"]],
@@ -10,10 +19,3 @@ cc.sats.addFromTleUrls([
   ["data/tle/norad/globalstar.txt", ["Globalstar"]],
   ["data/tle/norad/transporter-3.txt", ["Transporter-3"]],
 ]);
-
-window.addEventListener("load", () => {
-  state.sat.setIfDefault("enabledTags", ["OT"]);
-  state.sat.setIfDefault("enabledComponents", ["Point", "Label", "Orbit", "SensorCone"]);
-  state.cesium.setIfDefault("layers", ["ArcGis"]);
-  state.cesium.setIfDefault("qualityPreset", "high");
-});

@@ -17,12 +17,23 @@ function resolve(path, obj, separator = ".") {
 }
 
 function urlToState(store: Store, syncConfig: SyncConfigEntry[]): void {
-  const { router } = store;
+  const { router, customConfig } = store;
   const route = router.currentRoute.value;
+  store.defaults = {};
+
+  // Override store default values with custom app config
+  if (customConfig[store.$id]) {
+    Object.entries(customConfig[store.$id]).forEach(([key, val]) => {
+      store[key] = val;
+    });
+  };
 
   syncConfig.forEach((config: SyncConfigEntry) => {
     const param = config.url || config.name;
     const deserialize = config.deserialize || defaultDeserialize;
+
+    // Save default value of merged app config
+    store.defaults[config.name] = store[config.name];
 
     const query = { ...route.query };
     if (!(param in query)) {
@@ -36,7 +47,6 @@ function urlToState(store: Store, syncConfig: SyncConfigEntry[]): void {
       }
       // TODO: Resolve nested values
       store[config.name] = value;
-      config.setFromUrl = true;
     } catch (error) {
       console.error(`Invalid url param ${param} ${route.query[param]}: ${error}`);
       query[param] = undefined;
@@ -56,7 +66,7 @@ function stateToUrl(store: Store, syncConfig: SyncConfigEntry[]): void {
     const serialize = config.serialize || defaultSerialize;
     console.info("State update", config.name, value);
 
-    if ("default" in config && serialize(value) === serialize(config.default)) {
+    if (config.name in store.defaults && serialize(store.defaults[config.name]) === serialize(value)) {
       params.delete(param);
     } else {
       params.set(param, serialize(value));
@@ -80,22 +90,6 @@ function createUrlSync({ options, store }: PiniaPluginContext): void {
   store.$subscribe(() => {
     stateToUrl(store, options.urlsync.config);
   });
-
-  // Helper getters and setters to allow conditional overrides of store values
-  store.getConfigForKey = (key) => {
-    return options.urlsync.config.find((entry) => entry.name === key);
-  }
-
-  store.setIfDefault = (key, value) => {
-    const config = store.getConfigForKey(key);
-    const serialize = config.serialize || defaultSerialize;
-    console.log("CHK", key, serialize(store[key]), serialize(config.default));
-    // if ("default" in config && serialize(store[key]) === serialize(config.default)) {
-    if (!config.setFromUrl) {
-      console.log("WRT", key, value);
-      store[key] = value;
-    }
-  }
 }
 
 export default createUrlSync;

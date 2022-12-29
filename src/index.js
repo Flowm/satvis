@@ -1,6 +1,10 @@
 import satvisSetup from "./app";
 
-const { cc, state } = satvisSetup();
+const { cc } = satvisSetup({
+  sat: {
+    enabledTags: ["MOVE"],
+  },
+});
 
 cc.sats.addFromTleUrls([
   // ["data/tle/norad/active.txt", ["Active"]],
@@ -15,7 +19,3 @@ cc.sats.addFromTleUrls([
   ["data/tle/norad/tle-new.txt", ["New"]],
   ["data/tle/ext/move.txt", ["MOVE"]],
 ]);
-
-window.addEventListener("load", () => {
-  state.sat.setIfDefault("enabledTags", ["MOVE"]);
-});
