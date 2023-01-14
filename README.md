@@ -24,7 +24,7 @@ Satellite orbit visualization and pass prediction.
 Initialize submodules and install npm build dependencies:
 ```
 git submodule update --init
-npm install
+npm clean-install
 ```
 
 ### Run

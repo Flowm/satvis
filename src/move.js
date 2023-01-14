@@ -6,4 +6,4 @@ const { cc } = satvisSetup({
   },
 });
 
-cc.sats.addFromTleUrl("data/tle/ext/move.txt", ["MOVE"]);
+cc.sats.addFromTleUrl("data/tle/custom/move.txt", ["MOVE"]);

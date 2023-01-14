@@ -6,3 +6,4 @@ cypress/screenshots/
 cypress/videos/
 cypress/fixtures/
 cypress/support/
+report/
