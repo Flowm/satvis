@@ -36,8 +36,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
       image: icon,
       horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
       verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-      width: 24,
-      height: 24,
+      scaleByDistance: new Cesium.NearFarScalar(1e2, 0.2, 4e7, 0.1),
     });
     this.createCesiumEntity("Groundstation", "billboard", billboard, this.name, this.description, this.position.cartesian, false);
     this.defaultEntity = this.entities.Groundstation;
