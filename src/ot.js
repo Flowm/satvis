@@ -12,8 +12,8 @@ const { cc } = satvisSetup({
 });
 
 cc.sats.addFromTleUrls([
-  ["data/tle/custom/wfs.txt", ["WFS"]],
-  ["data/tle/custom/ot.txt", ["OT"]],
+  ["data/tle/wfs.txt", ["WFS"]],
+  ["data/tle/ot.txt", ["OT"]],
   ["data/tle/groups/spire.txt", ["Spire"]],
   ["data/tle/groups/planet.txt", ["Planet"]],
   ["data/tle/groups/globalstar.txt", ["Globalstar"]],

@@ -1,3 +1,6 @@
 [submodule "data/cesium-assets"]
 	path = data/cesium-assets
 	url = https://github.com/Flowm/cesium-assets.git
+[submodule "data/models"]
+	path = data/models
+	url = https://github.com/Flowm/satvis-3d-models.git

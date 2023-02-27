@@ -149,7 +149,8 @@ module.exports = {
         // Copy all other Cesium Widgets
         { from: cesiumWidgetsSource, to: "cesium/Widgets" },
         // Copy assets
-        { from: "data", to: "data", globOptions: { ignore: ["**/.git/**"] } },
+        { from: "data", to: "data", globOptions: { ignore: ["**/.git/**", "**/custom/**"] } },
+        { from: "data/custom/dist", to: "data" },
         { from: "src/assets" },
       ],
     }),

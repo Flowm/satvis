@@ -15,7 +15,7 @@
     "start": "webpack serve --progress --config webpack/webpack.config.js",
     "start:anyhost": "webpack serve --progress --config webpack/webpack.config.js --host 0.0.0.0",
     "update-tle": "node data/tle/update-tle.js",
-    "update-tle-custom": "bash data/tle/update-tle-custom.sh"
+    "update-custom-data": "npm run update-tle && bash data/custom/update-custom-data.sh"
   },
   "author": "Florian Mauracher",
   "private": true,
