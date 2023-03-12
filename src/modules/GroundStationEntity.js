@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import { CesiumEntityWrapper } from "./CesiumEntityWrapper";
 import { DescriptionHelper } from "./DescriptionHelper";
 
-import icon from "../assets/images/icons/dish.svg";
+import icon from "../images/icons/dish.svg";
 
 export class GroundStationEntity extends CesiumEntityWrapper {
   constructor(viewer, sats, position) {

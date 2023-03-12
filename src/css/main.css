@@ -102,7 +102,7 @@ input:checked + .slider::before {
 }
 
 .svg-sat {
-    background: url("../assets/images/icons/sat/2.svg") no-repeat;
+    background: url("../images/icons/sat/2.svg") no-repeat;
     width: 24px;
     height: 24px;
     filter: brightness(3.1);
@@ -110,7 +110,7 @@ input:checked + .slider::before {
 }
 
 .svg-groundstation {
-    background: url("../assets/images/icons/sat/9.svg") no-repeat;
+    background: url("../images/icons/sat/9.svg") no-repeat;
     width: 24px;
     height: 24px;
     filter: brightness(3.1);
