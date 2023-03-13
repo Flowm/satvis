@@ -4,53 +4,48 @@
       Enabled satellite groups
     </div>
     <div class="toolbarContent">
-      <multiselect
+      <vue-multiselect
         v-model="enabledTags"
-        mode="tags"
-        placeholder="0 satellite groups selected"
         :options="availableTags"
-        :close-on-select="true"
-        :hide-selected="false"
-        :searchable="true"
-        class="multiselect-dark"
+        :multiple="true"
+        :searchable="false"
+        placeholder="0 satellite groups selected"
       />
     </div>
     <div class="toolbarTitle">
       Enabled satellites
     </div>
     <div class="toolbarContent">
-      <multiselect
+      <vue-multiselect
         v-model="allEnabledSatellites"
-        mode="multiple"
-        placeholder="0 satellites selected"
         :options="availableSatellites"
+        :multiple="true"
+        group-values="sats"
         group-label="tag"
-        group-options="sats"
-        :groups="true"
+        :group-select="true"
+        placeholder="Type to search"
         :close-on-select="false"
-        :hide-selected="false"
-        :searchable="true"
-        class="multiselect-dark"
+        :limit="0"
+        :limit-text="count => `${count} satellite${ count > 1 ? 's' : '' } selected`"
+        :options-limit="100000"
       >
-        <template #multiplelabel="{ values }">
-          <div class="multiselect-multiple-label">
-            {{ values.length }} satellite{{ values.length > 1 ? "s" : "" }} selected
-          </div>
+        <template #noResult>
+          No matching satellites
         </template>
-      </multiselect>
+      </vue-multiselect>
     </div>
   </div>
 </template>
 
 <script>
-import Multiselect from "@vueform/multiselect";
+import VueMultiselect from "vue-multiselect";
 import { mapWritableState } from "pinia";
 
 import { useSatStore } from "../stores/sat";
 
 export default {
   components: {
-    Multiselect,
+    VueMultiselect,
   },
   data() {
     return {
@@ -109,16 +104,16 @@ export default {
 };
 </script>
 
-<style>
-@import "@vueform/multiselect/themes/default.css";
-
-.multiselect-dark {
-  color: #50596c;
-  --ms-max-height: 15rem;
-}
-</style>
 <style scoped>
 .satellite-select {
   width: 300px;
+}
+</style>
+
+<style>
+@import "vue-multiselect/dist/vue3-multiselect.css";
+
+.multiselect__single {
+  display: none;
 }
 </style>
