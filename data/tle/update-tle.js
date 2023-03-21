@@ -61,7 +61,7 @@ const groups = [
   // "gorizont",
   // "raduga",
   // "molniya",
-  // "gnss",
+  "gnss",
   // "gps-ops",
   // "glo-ops",
   // "galileo",
