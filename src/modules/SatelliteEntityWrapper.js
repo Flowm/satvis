@@ -29,9 +29,10 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
     this.createPoint();
     // this.createBox();
     this.createLabel();
-    if (this.props.orbit.orbitalPeriod < 60 * 12) {
-      this.createOrbit();
-      this.createOrbitTrack();
+    this.createOrbit();
+    this.createOrbitTrack();
+    if (this.props.orbit.orbitalPeriod < 60 * 2) {
+      // Ground track and cone graphic are optimized for LEO satellites
       this.createGroundTrack();
       this.createCone();
     }
@@ -42,11 +43,11 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
     this.defaultEntity = this.entities.Point;
 
     // Add sampled position to all entities
-    this.props.createSampledPosition(this.viewer.clock, (sampledPosition) => {
+    this.props.createSampledPosition(this.viewer.clock, (sampledPosition, sampledPositionInertial) => {
       Object.entries(this.entities).forEach(([type, entity]) => {
         if (type === "Orbit") {
-          entity.position = this.props.sampledPositionInertial;
-          entity.orientation = new Cesium.VelocityOrientationProperty(this.props.sampledPositionInertial);
+          entity.position = sampledPositionInertial;
+          entity.orientation = new Cesium.VelocityOrientationProperty(sampledPositionInertial);
         } else if (type === "SensorCone") {
           entity.position = sampledPosition;
           entity.orientation = new Cesium.CallbackProperty((time) => {

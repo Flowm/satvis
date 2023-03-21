@@ -90,14 +90,23 @@ export class SatelliteProperties {
   }
 
   createSampledPosition(clock, callback) {
+    // Determine sampling interval and number of samples based on orbital period
+    // For improved performance use 180 sampled positions per orbit
+    const samplingInterval = (this.orbit.orbitalPeriod * 60) / 180;
+    const samplingRefreshRate = 60 * 15;
+    // Propagate a full orbit forward and half an orbit backwards
+    const samplesFwd = Math.ceil((this.orbit.orbitalPeriod * 60) / samplingInterval);
+    const samplesBwd = Math.ceil(((this.orbit.orbitalPeriod * 60) / 2 + samplingRefreshRate) / samplingInterval);
+    // console.log("createSampledPosition", this.name, this.orbit.orbitalPeriod, samplesFwd, samplesBwd, interval);
+
     let lastUpdated;
-    lastUpdated = this.updateSampledPosition(clock.currentTime);
-    callback(this.sampledPosition);
+    lastUpdated = this.updateSampledPosition(clock.currentTime, samplesFwd, samplesBwd, samplingInterval);
+    callback(this.sampledPosition, this.sampledPositionInertial);
     clock.onTick.addEventListener((onTickClock) => {
       const dt = Math.abs(Cesium.JulianDate.secondsDifference(onTickClock.currentTime, lastUpdated));
-      if (dt >= 60 * 15) {
-        lastUpdated = this.updateSampledPosition(onTickClock.currentTime);
-        callback(this.sampledPosition);
+      if (dt >= samplingRefreshRate) {
+        lastUpdated = this.updateSampledPosition(onTickClock.currentTime, samplesFwd, samplesBwd, samplingInterval);
+        callback(this.sampledPosition, this.sampledPositionInertial);
       }
     });
   }
