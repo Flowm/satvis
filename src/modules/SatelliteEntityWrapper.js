@@ -16,10 +16,19 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
     if (!this.created) {
       this.createEntities();
     }
-    if (name === "Model" && !this.isTracked) {
-      return;
+    if (name === "3D model") {
+      // Adjust label offset to avoid overlap with model
+      this.entities.Label.label.pixelOffset = new Cesium.Cartesian2(20, 0);
     }
     super.enableComponent(name);
+  }
+
+  disableComponent(name) {
+    if (name === "3D model") {
+      // Restore old label offset
+      this.entities.Label.label.pixelOffset = new Cesium.Cartesian2(10, 0);
+    }
+    super.disableComponent(name);
   }
 
   createEntities() {
@@ -90,8 +99,10 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
 
   createPoint() {
     const point = new Cesium.PointGraphics({
-      pixelSize: 10,
+      pixelSize: 6,
       color: Cesium.Color.WHITE,
+      outlineColor: Cesium.Color.DIMGREY,
+      outlineWidth: 1,
     });
     this.createCesiumSatelliteEntity("Point", "point", point);
   }
@@ -117,11 +128,14 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   createLabel() {
     const label = new Cesium.LabelGraphics({
       text: this.props.name,
-      scale: 0.6,
+      font: "15px Arial",
+      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      outlineColor: Cesium.Color.DIMGREY,
+      outlineWidth: 2,
       horizontalOrigin: Cesium.HorizontalOrigin.LEFT,
-      pixelOffset: new Cesium.Cartesian2(15, 0),
-      distanceDisplayCondition: new Cesium.DistanceDisplayCondition(10000, 6.0e7),
-      pixelOffsetScaleByDistance: new Cesium.NearFarScalar(1e1, 10, 2e5, 1),
+      pixelOffset: new Cesium.Cartesian2(10, 0),
+      distanceDisplayCondition: new Cesium.DistanceDisplayCondition(2000, 8e7),
+      translucencyByDistance: new Cesium.NearFarScalar(6e7, 1.0, 8e7, 0.0),
     });
     this.createCesiumSatelliteEntity("Label", "label", label);
   }

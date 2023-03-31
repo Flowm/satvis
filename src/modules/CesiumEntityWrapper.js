@@ -36,18 +36,12 @@ export class CesiumEntityWrapper {
   }
 
   enableComponent(name) {
-    if (typeof name === "undefined") {
-      return;
-    }
     if (name in this.entities && !this.viewer.entities.contains(this.entities[name])) {
       this.viewer.entities.add(this.entities[name]);
     }
   }
 
   disableComponent(name) {
-    if (typeof name === "undefined") {
-      return;
-    }
     if (name in this.entities && this.viewer.entities.contains(this.entities[name])) {
       this.viewer.entities.remove(this.entities[name]);
     }
