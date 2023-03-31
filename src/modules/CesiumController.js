@@ -3,6 +3,8 @@ import { Viewer } from "@cesium/widgets";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import * as Sentry from "@sentry/browser";
+import { icon } from "@fortawesome/fontawesome-svg-core";
+import { faBell, faInfo } from "@fortawesome/free-solid-svg-icons";
 
 import { DeviceDetect } from "./util/DeviceDetect";
 import { SatelliteManager } from "./SatelliteManager";
@@ -456,7 +458,7 @@ export class CesiumController {
       const notifyButton = document.createElement("button");
       notifyButton.setAttribute("type", "button");
       notifyButton.setAttribute("class", "cesium-button cesium-infoBox-custom");
-      notifyButton.innerHTML = "<i class=\"fas fa-bell\" />";
+      notifyButton.innerHTML = icon(faBell).html;
       notifyButton.addEventListener("click", () => {
         if (this.sats.selectedSatellite) {
           this.sats.getSatellite(this.sats.selectedSatellite).props.notifyPasses();
@@ -472,7 +474,7 @@ export class CesiumController {
       const infoButton = document.createElement("button");
       infoButton.setAttribute("type", "button");
       infoButton.setAttribute("class", "cesium-button cesium-infoBox-custom");
-      infoButton.innerHTML = "<i class=\"fas fa-info\" />";
+      infoButton.innerHTML = icon(faInfo).html;
       infoButton.addEventListener("click", () => {
         if (!this.sats.selectedSatellite) {
           return;

@@ -4,6 +4,10 @@ import { Workbox } from "workbox-window";
 import { Tooltip } from "@oruga-ui/oruga-next";
 import Toast from "vue-toastification";
 import * as Sentry from "@sentry/browser";
+import { library } from "@fortawesome/fontawesome-svg-core";
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+import { faLayerGroup, faGlobeAfrica, faMobileAlt, faHammer, faEye } from "@fortawesome/free-solid-svg-icons";
+import { faGithub } from "@fortawesome/free-brands-svg-icons";
 
 import App from "./App.vue";
 import router from "./components/Router";
@@ -30,6 +34,8 @@ function satvisSetup(customConfig = {}) {
   app.use(Toast, {
     position: "bottom-right",
   });
+  library.add(faLayerGroup, faGlobeAfrica, faMobileAlt, faHammer, faEye, faGithub);
+  app.component("FontAwesomeIcon", FontAwesomeIcon);
   app.mount("#app");
 
   // Register service worker

@@ -4,44 +4,32 @@
       <div class="toolbarButtons">
         <o-tooltip label="Satellite selection" :triggers="tooltipTriggers" position="right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('cat')">
-            <span class="icon-container">
-              <i class="svg-sat"></i>
-            </span>
+            <i class="icon svg-sat"></i>
           </button>
         </o-tooltip>
         <o-tooltip label="Satellite elements" :triggers="tooltipTriggers" position="right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('sat')">
-            <span class="icon-container">
-              <i class="fas fa-layer-group fa-fw"></i>
-            </span>
+            <font-awesome-icon icon="fas fa-layer-group" />
           </button>
         </o-tooltip>
         <o-tooltip label="Ground station" :triggers="tooltipTriggers" position="right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('gs')">
-            <span class="icon-container">
-              <i class="svg-groundstation"></i>
-            </span>
+            <i class="icon svg-groundstation"></i>
           </button>
         </o-tooltip>
         <o-tooltip label="Map" :triggers="tooltipTriggers" position="right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('map')">
-            <span class="icon-container">
-              <i class="fas fa-globe-africa fa-fw"></i>
-            </span>
+            <font-awesome-icon icon="fas fa-globe-africa" />
           </button>
         </o-tooltip>
         <o-tooltip v-if="cc.minimalUI" label="Mobile" :triggers="tooltipTriggers" position="right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('ios')">
-            <span class="icon-container">
-              <i class="fas fa-mobile-alt fa-fw"></i>
-            </span>
+            <font-awesome-icon icon="fas fa-mobile-alt" />
           </button>
         </o-tooltip>
         <o-tooltip label="Debug" :triggers="tooltipTriggers" position="right">
           <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('dbg')">
-            <span class="icon-container">
-              <i class="fas fa-hammer fa-fw"></i>
-            </span>
+            <font-awesome-icon icon="fas fa-hammer" />
           </button>
         </o-tooltip>
       </div>
@@ -195,16 +183,12 @@
     <div id="toolbarRight">
       <o-tooltip v-if="showUI" label="Github" :triggers="tooltipTriggers" position="left">
         <a class="cesium-button cesium-toolbar-button" href="https://github.com/Flowm/satvis/" target="_blank" rel="noopener">
-          <span class="icon-container">
-            <i class="fab fa-github fa-fw"></i>
-          </span>
+          <font-awesome-icon icon="fab fa-github" />
         </a>
       </o-tooltip>
       <o-tooltip label="Toggle UI" :triggers="tooltipTriggers" position="left">
         <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleUI">
-          <span class="icon-container">
-            <i class="fas fa-eye fa-fw"></i>
-          </span>
+          <font-awesome-icon icon="fas fa-eye" />
         </button>
       </o-tooltip>
     </div>
