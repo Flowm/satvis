@@ -47,7 +47,6 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
       Object.entries(this.entities).forEach(([type, entity]) => {
         if (type === "Orbit") {
           entity.position = sampledPositionInertial;
-          entity.orientation = new Cesium.VelocityOrientationProperty(sampledPositionInertial);
         } else if (type === "SensorCone") {
           entity.position = sampledPosition;
           entity.orientation = new Cesium.CallbackProperty((time) => {

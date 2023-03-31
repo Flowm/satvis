@@ -136,15 +136,27 @@ export class SatelliteProperties {
     const stopTime = samplesFwd * interval;
     for (let time = startTime; time <= stopTime; time += interval) {
       const timestamp = Cesium.JulianDate.addSeconds(reference, time, new Cesium.JulianDate());
-      const position = this.computePositionCartesian3(timestamp);
-      sampledPosition.addSample(timestamp, position);
 
-      const positionInertial = this.positionInertial(timestamp);
-      sampledPositionInertial.addSample(timestamp, positionInertial);
+      const positionInertialTEME = this.positionInertial(timestamp);
+      const temeToFixed = Cesium.Transforms.computeTemeToPseudoFixedMatrix(timestamp);
+      if (!Cesium.defined(temeToFixed)) {
+        console.error("Reference frame transformation data failed to load");
+      }
+      const positionFixed = new Cesium.Cartesian3();
+      Cesium.Matrix3.multiplyByVector(temeToFixed, positionInertialTEME, positionFixed);
+      sampledPosition.addSample(timestamp, positionFixed);
+
+      const fixedToIcrf = Cesium.Transforms.computeFixedToIcrfMatrix(timestamp);
+      const positionICRF = new Cesium.Cartesian3();
+      if (!Cesium.defined(fixedToIcrf)) {
+        console.error("Reference frame transformation data failed to load");
+      }
+      Cesium.Matrix3.multiplyByVector(fixedToIcrf, positionFixed, positionICRF);
+      sampledPositionInertial.addSample(timestamp, positionICRF);
 
       // Show computed sampled position
-      // viewer.entities.add({
-      //  position : position,
+      // window.cc.viewer.entities.add({
+      //  position : positionFixed,
       //  point : {
       //    pixelSize : 8,
       //    color : Cesium.Color.TRANSPARENT,
