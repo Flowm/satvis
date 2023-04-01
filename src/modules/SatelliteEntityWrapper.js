@@ -87,7 +87,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
 
   createDescription() {
     this.description = DescriptionHelper.cachedCallbackProperty((time) => {
-      const cartographic = this.props.computePositionCartographicDegrees(time);
+      const cartographic = this.props.orbit.positionGeodetic(Cesium.JulianDate.toDate(time), true);
       const content = DescriptionHelper.renderDescription(time, this.props.name, cartographic, this.props.passes, false, this.props.orbit.tle);
       return content;
     });

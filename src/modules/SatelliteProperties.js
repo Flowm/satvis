@@ -37,50 +37,7 @@ export class SatelliteProperties {
     return this.sampledPosition.getValue(time);
   }
 
-  positionCartographic(time) {
-    return Cesium.Cartographic.fromCartesian(this.position(time));
-  }
-
-  positionCartographicDegrees(time) {
-    const cartographic = this.positionCartographic(time);
-    const cartographicDegrees = {
-      longitude: Cesium.Math.toDegrees(cartographic.longitude),
-      latitude: Cesium.Math.toDegrees(cartographic.latitude),
-      height: cartographic.height,
-    };
-    return cartographicDegrees;
-  }
-
-  get height() {
-    return this.cartographic.height;
-  }
-
-  computePositionCartesian3(julianDate) {
-    // Check if Position for current timestap is already computed
-    if (typeof this.lastPosition !== "undefined" && Cesium.JulianDate.compare(this.lastDate, julianDate) === 0) {
-      return this.lastPosition;
-    }
-
-    this.lastDate = julianDate;
-    const { longitude, latitude, height } = this.orbit.positionGeodetic(Cesium.JulianDate.toDate(julianDate));
-    this.lastPosition = Cesium.Cartesian3.fromRadians(longitude, latitude, height);
-    // console.log(`TS ${julianDate} POS ${this.lastPosition}`);
-
-    return this.lastPosition;
-  }
-
-  computePositionCartographicDegrees(julianDate) {
-    const { longitude, latitude, height, velocity } = this.orbit.positionGeodeticWithVelocity(Cesium.JulianDate.toDate(julianDate));
-    const cartographicDegrees = {
-      longitude: Cesium.Math.toDegrees(longitude),
-      latitude: Cesium.Math.toDegrees(latitude),
-      height,
-      velocity,
-    };
-    return cartographicDegrees;
-  }
-
-  positionInertial(time, constprop = false) {
+  computePositionInertial(time, constprop = false) {
     const eci = this.orbit.positionECI(Cesium.JulianDate.toDate(time));
     const position = new Cesium.Cartesian3(eci.x * 1000, eci.y * 1000, eci.z * 1000);
     if (constprop) {
@@ -137,7 +94,7 @@ export class SatelliteProperties {
     for (let time = startTime; time <= stopTime; time += interval) {
       const timestamp = Cesium.JulianDate.addSeconds(reference, time, new Cesium.JulianDate());
 
-      const positionInertialTEME = this.positionInertial(timestamp);
+      const positionInertialTEME = this.computePositionInertial(timestamp);
       const temeToFixed = Cesium.Transforms.computeTemeToPseudoFixedMatrix(timestamp);
       if (!Cesium.defined(temeToFixed)) {
         console.error("Reference frame transformation data failed to load");
@@ -178,7 +135,7 @@ export class SatelliteProperties {
     const stopTime = samplesFwd * interval;
     for (let time = startTime; time <= stopTime; time += interval) {
       const timestamp = Cesium.JulianDate.addSeconds(julianDate, time, new Cesium.JulianDate());
-      const cartographic = this.positionCartographic(timestamp);
+      const cartographic = Cesium.Cartographic.fromCartesian(this.position(timestamp));
       const groudPosition = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, 1000);
       groundTrack.push(groudPosition);
     }
