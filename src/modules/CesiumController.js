@@ -16,6 +16,7 @@ dayjs.extend(utc);
 export class CesiumController {
   constructor() {
     this.initConstants();
+    this.preloadReferenceFrameData();
     this.minimalUI = DeviceDetect.inIframe() || DeviceDetect.isIos();
 
     this.viewer = new Viewer("cesiumContainer", {
@@ -166,6 +167,17 @@ export class CesiumController {
         base: false,
       },
     };
+  }
+
+  preloadReferenceFrameData() {
+    // Preload reference frame data for a timeframe of 180 days
+    const timeInterval = new Cesium.TimeInterval({
+      start: Cesium.JulianDate.addDays(Cesium.JulianDate.now(), -60, new Cesium.JulianDate()),
+      stop: Cesium.JulianDate.addDays(Cesium.JulianDate.now(), 120, new Cesium.JulianDate()),
+    });
+    Cesium.Transforms.preloadIcrfFixed(timeInterval).then(() => {
+      console.log("Reference frame data loaded");
+    });
   }
 
   get imageryProviderNames() {
