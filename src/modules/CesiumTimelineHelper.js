@@ -1,35 +1,33 @@
 import * as Cesium from "@cesium/engine";
 
 export class CesiumTimelineHelper {
-  constructor(viewer) {
-    this.viewer = viewer;
-  }
-
-  get enabled() {
-    return (typeof this.viewer.timeline !== "undefined");
-  }
-
-  clearTimeline() {
-    if (!this.enabled) {
+  static clearHighlightRanges(viewer) {
+    // eslint-disable-next-line
+    if (!viewer.timeline || viewer.timeline._highlightRanges.length === 0) {
       return;
     }
     // eslint-disable-next-line
-    this.viewer.timeline._highlightRanges = [];
-    this.viewer.timeline.updateFromClock();
-    this.viewer.timeline.zoomTo(this.viewer.clock.startTime, this.viewer.clock.stopTime);
+    viewer.timeline._highlightRanges = [];
+    viewer.timeline.updateFromClock();
+    viewer.timeline.zoomTo(viewer.clock.startTime, viewer.clock.stopTime);
   }
 
-  addHighlightRanges(ranges) {
-    if (!this.enabled) {
+  static addHighlightRanges(viewer, ranges) {
+    if (!viewer.timeline) {
       return;
     }
     ranges.forEach((range) => {
       const startJulian = Cesium.JulianDate.fromDate(new Date(range.start));
       const endJulian = Cesium.JulianDate.fromDate(new Date(range.end));
-      const highlightRange = this.viewer.timeline.addHighlightRange(Cesium.Color.BLUE, 100, 0);
+      const highlightRange = viewer.timeline.addHighlightRange(Cesium.Color.BLUE, 100, 0);
       highlightRange.setRange(startJulian, endJulian);
-      this.viewer.timeline.updateFromClock();
-      this.viewer.timeline.zoomTo(this.viewer.clock.startTime, this.viewer.clock.stopTime);
+      viewer.timeline.updateFromClock();
+      viewer.timeline.zoomTo(viewer.clock.startTime, viewer.clock.stopTime);
     });
+  }
+
+  static updateHighlightRanges(viewer, ranges) {
+    this.clearHighlightRanges(viewer);
+    this.addHighlightRanges(viewer, ranges);
   }
 }

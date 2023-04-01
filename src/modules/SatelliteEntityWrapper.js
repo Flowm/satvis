@@ -8,7 +8,6 @@ import { DescriptionHelper } from "./DescriptionHelper";
 export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   constructor(viewer, tle, tags) {
     super(viewer);
-    this.timeline = new CesiumTimelineHelper(viewer);
     this.props = new SatelliteProperties(tle, tags);
   }
 
@@ -70,17 +69,21 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
       });
     });
 
-    this.viewer.selectedEntityChanged.addEventListener(() => {
-      if (this.isSelected && !this.isTracked) {
-        this.updatePasses();
+    // Set up event listeners
+    this.viewer.selectedEntityChanged.addEventListener((entity) => {
+      if (!entity || entity?.name === "Ground station") {
+        CesiumTimelineHelper.clearHighlightRanges(this.viewer);
+        return;
+      }
+      if (this.isSelected) {
+        this.props.updatePasses(this.viewer.clock.currentTime);
+        CesiumTimelineHelper.updateHighlightRanges(this.viewer, this.props.passes);
       }
     });
+
     this.viewer.trackedEntityChanged.addEventListener(() => {
       if (this.isTracked) {
-        this.artificiallyTrack(
-          () => { this.updatePasses(); },
-          () => { this.timeline.clearTimeline(); },
-        );
+        this.artificiallyTrack();
       }
     });
   }
@@ -213,22 +216,14 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
 
     this.props.groundStationPosition = position;
     this.props.clearPasses();
-    if (this.isTracked) {
-      this.timeline.clearTimeline();
-    }
-    if (this.isTracked || this.isSelected) {
-      this.updatePasses();
+    if (this.isSelected || this.isTracked) {
+      this.props.updatePasses(this.viewer.clock.currentTime);
+      if (this.isSelected) {
+        CesiumTimelineHelper.updateHighlightRanges(this.viewer, this.props.passes);
+      }
     }
     if (this.created) {
       this.createGroundStationLink();
-    }
-  }
-
-  updatePasses() {
-    if (this.props.updatePasses(this.viewer.clock.currentTime)) {
-      if (this.isTracked) {
-        this.timeline.addHighlightRanges(this.props.passes);
-      }
     }
   }
 }

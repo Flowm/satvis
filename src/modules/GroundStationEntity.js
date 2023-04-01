@@ -23,6 +23,7 @@ export class GroundStationEntity extends CesiumEntityWrapper {
     this.viewer.selectedEntityChanged.addEventListener(() => {
       if (this.isSelected) {
         this.setSelectedOnTickCallback((clock) => {
+          // TODO: Update passes less frequently
           this.sats.visibleSatellites.forEach((sat) => {
             sat.props.updatePasses(clock.currentTime);
           });
