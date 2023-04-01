@@ -6,7 +6,7 @@ export const useCesiumStore = defineStore("cesium", {
     terrainProvider: "None",
     sceneMode: "3D",
     cameraMode: "Fixed",
-    qualityPreset: "low",
+    qualityPreset: "high",
     background: true,
     showFps: false,
     pickMode: false,
@@ -34,7 +34,7 @@ export const useCesiumStore = defineStore("cesium", {
     }, {
       name: "qualityPreset",
       url: "quality",
-      default: "low",
+      default: "high",
     }, {
       name: "showFps",
       url: "fps",

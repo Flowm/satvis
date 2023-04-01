@@ -7,7 +7,6 @@ const { cc } = satvisSetup({
   },
   cesium: {
     layers: ["ArcGis"],
-    qualityPreset: "high",
   },
 });
 
