@@ -136,7 +136,7 @@
           Debug
         </div>
         <label class="toolbarSwitch">
-          <input v-model="cc.viewer.scene.debugShowFramesPerSecond" type="checkbox">
+          <input v-model="showFps" type="checkbox">
           <span class="slider"></span>
           FPS
         </label>
@@ -228,6 +228,7 @@ export default {
       "sceneMode",
       "cameraMode",
       "qualityPreset",
+      "showFps",
       "background",
       "pickMode",
     ]),
@@ -261,6 +262,9 @@ export default {
     },
     qualityPreset(value) {
       cc.qualityPreset = value;
+    },
+    showFps(value) {
+      cc.showFps = value;
     },
     background(value) {
       cc.background = value;

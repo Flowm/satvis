@@ -415,6 +415,10 @@ export class CesiumController {
     }
   }
 
+  set showFps(value) {
+    cc.viewer.scene.debugShowFramesPerSecond = value;
+  }
+
   set background(active) {
     if (!active) {
       this.viewer.scene.backgroundColor = Cesium.Color.TRANSPARENT;

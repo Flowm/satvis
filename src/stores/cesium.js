@@ -8,6 +8,7 @@ export const useCesiumStore = defineStore("cesium", {
     cameraMode: "Fixed",
     qualityPreset: "low",
     background: true,
+    showFps: false,
     pickMode: false,
   }),
   urlsync: {
@@ -24,12 +25,20 @@ export const useCesiumStore = defineStore("cesium", {
       default: "None",
     }, {
       name: "sceneMode",
-      url: "mode",
+      url: "scene",
       default: "3D",
+    }, {
+      name: "cameraMode",
+      url: "camera",
+      default: "Fixed",
     }, {
       name: "qualityPreset",
       url: "quality",
       default: "low",
+    }, {
+      name: "showFps",
+      url: "fps",
+      default: "false",
     }, {
       name: "background",
       url: "bg",
