@@ -2,6 +2,7 @@ import { SatelliteEntityWrapper } from "./SatelliteEntityWrapper";
 import { GroundStationEntity } from "./GroundStationEntity";
 
 import { useSatStore } from "../stores/sat";
+import { CesiumCleanupHelper } from "./util/CesiumCleanupHelper";
 
 export class SatelliteManager {
   #enabledComponents;
@@ -208,6 +209,9 @@ export class SatelliteManager {
         sat.hide();
       }
     });
+    if (this.visibleSatellites.length === 0) {
+      CesiumCleanupHelper.cleanup(this.viewer);
+    }
   }
 
   get enabledTags() {
