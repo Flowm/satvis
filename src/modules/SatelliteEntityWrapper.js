@@ -13,11 +13,22 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
 
   enableComponent(name) {
     if (!this.created) {
-      this.createEntities();
+      this.create();
     }
+    if (!(name in this.entities)) {
+      this.createComponent(name);
+      this.addSampledPositionToEntities();
+
+      if (!this.defaultEntity) {
+        this.defaultEntity = this.entities[name];
+      }
+    }
+
     if (name === "3D model") {
       // Adjust label offset to avoid overlap with model
-      this.entities.Label.label.pixelOffset = new Cesium.Cartesian2(20, 0);
+      if (this.entities.Label) {
+        this.entities.Label.label.pixelOffset = new Cesium.Cartesian2(20, 0);
+      }
     }
     super.enableComponent(name);
   }
@@ -25,48 +36,19 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   disableComponent(name) {
     if (name === "3D model") {
       // Restore old label offset
-      this.entities.Label.label.pixelOffset = new Cesium.Cartesian2(10, 0);
+      if (this.entities.Label) {
+        this.entities.Label.label.pixelOffset = new Cesium.Cartesian2(10, 0);
+      }
     }
     super.disableComponent(name);
   }
 
-  createEntities() {
+  create() {
     this.createDescription();
-
     this.entities = {};
-    this.createPoint();
-    // this.createBox();
-    this.createLabel();
-    this.createOrbit();
-    this.createOrbitTrack();
-    if (this.props.orbit.orbitalPeriod < 60 * 2) {
-      // Ground track and cone graphic are optimized for LEO satellites
-      this.createGroundTrack();
-      this.createCone();
-    }
-    this.createModel();
-    if (this.props.groundStationAvailable) {
-      this.createGroundStationLink();
-    }
-    this.defaultEntity = this.entities.Point;
 
-    // Add sampled position to all entities
-    this.props.createSampledPosition(this.viewer.clock, (sampledPosition, sampledPositionInertial) => {
-      Object.entries(this.entities).forEach(([type, entity]) => {
-        if (type === "Orbit") {
-          entity.position = sampledPositionInertial;
-        } else if (type === "Sensor cone") {
-          entity.position = sampledPosition;
-          entity.orientation = new Cesium.CallbackProperty((time) => {
-            const position = this.props.position(time);
-            const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
-            return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
-          }, false);
-        } else {
-          entity.position = sampledPosition;
-          entity.orientation = new Cesium.VelocityOrientationProperty(sampledPosition);
-        }
-      });
+    this.props.createSampledPosition(this.viewer.clock, () => {
+      this.addSampledPositionToEntities();
     });
 
     // Set up event listeners
@@ -86,6 +68,59 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
         this.artificiallyTrack();
       }
     });
+  }
+
+  addSampledPositionToEntities() {
+    const { sampledPosition } = this.props;
+    const { sampledPositionInertial } = this.props;
+
+    Object.entries(this.entities).forEach(([type, entity]) => {
+      if (type === "Orbit") {
+        entity.position = sampledPositionInertial;
+      } else if (type === "Sensor cone") {
+        console.log("Sensor cone");
+        entity.position = sampledPosition;
+        entity.orientation = new Cesium.CallbackProperty((time) => {
+          const position = this.props.position(time);
+          const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
+          return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
+        }, false);
+      } else {
+        entity.position = sampledPosition;
+        entity.orientation = new Cesium.VelocityOrientationProperty(sampledPosition);
+      }
+    });
+  }
+
+  createComponent(name) {
+    switch (name) {
+      case "Point":
+        this.createPoint();
+        break;
+      case "Label":
+        this.createLabel();
+        break;
+      case "Orbit":
+        this.createOrbit();
+        break;
+      case "Orbit track":
+        this.createOrbitTrack();
+        break;
+      case "Ground track":
+        this.createGroundTrack();
+        break;
+      case "Sensor cone":
+        this.createCone();
+        break;
+      case "3D model":
+        this.createModel();
+        break;
+      case "Ground station link":
+        this.createGroundStationLink();
+        break;
+      default:
+        console.error("Unknown component");
+    }
   }
 
   createDescription() {
@@ -166,6 +201,10 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   }
 
   createGroundTrack(width = 165) {
+    if (this.props.orbit.orbitalPeriod > 60 * 2) {
+      // Ground track unavailable for non-LEO satellites
+      return;
+    }
     const corridor = new Cesium.CorridorGraphics({
       cornerType: Cesium.CornerType.MITERED,
       material: Cesium.Color.ORANGE.withAlpha(0.2),
@@ -176,6 +215,10 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   }
 
   createCone(fov = 10) {
+    if (this.props.orbit.orbitalPeriod > 60 * 2) {
+      // Cone graphic unavailable for non-LEO satellites
+      return;
+    }
     const entity = new Cesium.Entity();
     entity.addProperty("conicSensor");
     entity.conicSensor = new CesiumSensorVolumes.ConicSensorGraphics({
@@ -190,6 +233,9 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   }
 
   createGroundStationLink() {
+    if (!this.props.groundStationAvailable) {
+      return;
+    }
     const polyline = new Cesium.PolylineGraphics({
       followSurface: false,
       material: new Cesium.PolylineGlowMaterialProperty({

@@ -44,6 +44,7 @@ export class CesiumEntityWrapper {
   disableComponent(name) {
     if (name in this.entities && this.viewer.entities.contains(this.entities[name])) {
       this.viewer.entities.remove(this.entities[name]);
+      delete this.entities[name];
     }
   }
 

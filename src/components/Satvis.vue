@@ -40,7 +40,7 @@
         <div class="toolbarTitle">
           Satellite elements
         </div>
-        <label v-for="componentName in cc.sats.components" :key="componentName" class="toolbarSwitch">
+        <label v-for="componentName in cc.sats.availableComponents" :key="componentName" class="toolbarSwitch">
           <input v-model="enabledComponents" type="checkbox" :value="componentName">
           <span class="slider"></span>
           {{ componentName }}
