@@ -7,6 +7,7 @@ import { icon } from "@fortawesome/fontawesome-svg-core";
 import { faBell, faInfo } from "@fortawesome/free-solid-svg-icons";
 
 import { DeviceDetect } from "./util/DeviceDetect";
+import { CesiumPerformanceStats } from "./util/CesiumPerformanceStats";
 import { SatelliteManager } from "./SatelliteManager";
 import { useCesiumStore } from "../stores/cesium";
 import infoBoxCss from "../css/infobox.ecss";
@@ -46,8 +47,14 @@ export class CesiumController {
     this.viewer.scene.highDynamicRange = true;
     this.viewer.scene.maximumRenderTimeChange = 1 / 30;
     this.viewer.scene.requestRenderMode = true;
+
+    // Cesium Performance Tools
     // this.viewer.scene.debugShowFramesPerSecond = true;
-    // this.viewer.extend(Cesium.viewerCesiumInspectorMixin);
+    // this.FrameRateMonitor = Cesium.FrameRateMonitor.fromScene(this.viewer.scene);
+    // this.viewer.scene.postRender.addEventListener((scene) => {
+    //   console.log(this.FrameRateMonitor.lastFramesPerSecond)
+    // });
+    // this.enablePerformanceLogger(true);
 
     // Export CesiumController for debugger
     window.cc = this;
@@ -442,6 +449,10 @@ export class CesiumController {
       document.body.style.background = "transparent";
       document.getElementById("cesiumContainer").style.background = "transparent";
     }
+  }
+
+  enablePerformanceStats(logContinuously = false) {
+    this.performanceStats = new CesiumPerformanceStats(this.viewer.scene, logContinuously);
   }
 
   addErrorHandler() {
