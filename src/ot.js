@@ -3,7 +3,7 @@ import satvisSetup from "./app";
 const { cc } = satvisSetup({
   sat: {
     enabledTags: ["OT"],
-    enabledComponents: ["Point", "Label", "Orbit", "SensorCone"],
+    enabledComponents: ["Point", "Label", "Orbit", "Sensor cone"],
   },
   cesium: {
     layers: ["ArcGis"],

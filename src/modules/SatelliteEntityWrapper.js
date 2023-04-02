@@ -55,7 +55,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
       Object.entries(this.entities).forEach(([type, entity]) => {
         if (type === "Orbit") {
           entity.position = sampledPositionInertial;
-        } else if (type === "SensorCone") {
+        } else if (type === "Sensor cone") {
           entity.position = sampledPosition;
           entity.orientation = new Cesium.CallbackProperty((time) => {
             const position = this.props.position(time);
@@ -176,9 +176,9 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   }
 
   createCone(fov = 10) {
-    const cone = new Cesium.Entity();
-    cone.addProperty("conicSensor");
-    cone.conicSensor = new CesiumSensorVolumes.ConicSensorGraphics({
+    const entity = new Cesium.Entity();
+    entity.addProperty("conicSensor");
+    entity.conicSensor = new CesiumSensorVolumes.ConicSensorGraphics({
       radius: 1000000,
       innerHalfAngle: Cesium.Math.toRadians(0),
       outerHalfAngle: Cesium.Math.toRadians(fov),
@@ -186,7 +186,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
       intersectionColor: Cesium.Color.GOLD.withAlpha(0.3),
       intersectionWidth: 1,
     });
-    this.entities.SensorCone = cone;
+    this.entities["Sensor cone"] = entity;
   }
 
   createGroundStationLink() {
