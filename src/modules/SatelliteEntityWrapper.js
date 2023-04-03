@@ -1,9 +1,9 @@
 import * as Cesium from "@cesium/engine";
 import CesiumSensorVolumes from "cesium-sensor-volumes";
 import { SatelliteProperties } from "./SatelliteProperties";
-import { CesiumTimelineHelper } from "./CesiumTimelineHelper";
+import { CesiumTimelineHelper } from "./util/CesiumTimelineHelper";
 import { CesiumEntityWrapper } from "./CesiumEntityWrapper";
-import { DescriptionHelper } from "./DescriptionHelper";
+import { DescriptionHelper } from "./util/DescriptionHelper";
 
 export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   constructor(viewer, tle, tags) {

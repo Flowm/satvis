@@ -2,7 +2,7 @@ import * as Cesium from "@cesium/engine";
 import dayjs from "dayjs";
 import { useToast } from "vue-toastification";
 import Orbit from "./Orbit";
-import { PushManager } from "./PushManager";
+import { PushManager } from "./util/PushManager";
 
 import satvisIcon from "../assets/android-chrome-192x192.png";
 

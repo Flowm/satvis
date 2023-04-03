@@ -1,7 +1,7 @@
 import * as Cesium from "@cesium/engine";
 import dayjs from "dayjs";
 import { CesiumEntityWrapper } from "./CesiumEntityWrapper";
-import { DescriptionHelper } from "./DescriptionHelper";
+import { DescriptionHelper } from "./util/DescriptionHelper";
 
 import icon from "../images/icons/dish.svg";
 
