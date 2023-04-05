@@ -27,7 +27,7 @@
     "@fortawesome/vue-fontawesome": "^3.0.3",
     "@oruga-ui/oruga-next": "^0.5.10",
     "@sentry/browser": "^7.46.0",
-    "cesium": "^1.103.0",
+    "cesium": "^1.104.0",
     "cesium-sensor-volumes": "github:Flowm/cesium-sensor-volumes#1.102.0",
     "dayjs": "^1.11.7",
     "pinia": "^2.0.33",

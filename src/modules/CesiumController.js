@@ -28,7 +28,7 @@ export class CesiumController {
       geocoder: false,
       homeButton: false,
       sceneModePicker: false,
-      imageryProvider: this.imageryProviders.OfflineHighres.create(),
+      baseLayer: this.createImageryLayer("OfflineHighres"),
       navigationHelpButton: false,
       navigationInstructionsInitiallyVisible: false,
       selectionIndicator: false,
@@ -87,15 +87,12 @@ export class CesiumController {
   initConstants() {
     this.imageryProviders = {
       Offline: {
-        create: () => new Cesium.TileMapServiceImageryProvider({
-          url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
-        }),
+        create: () => Cesium.TileMapServiceImageryProvider.fromUrl(Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII")),
         alpha: 1,
         base: true,
       },
       OfflineHighres: {
-        create: () => new Cesium.TileMapServiceImageryProvider({
-          url: "data/cesium-assets/imagery/NaturalEarthII",
+        create: () => Cesium.TileMapServiceImageryProvider.fromUrl("data/cesium-assets/imagery/NaturalEarthII", {
           maximumLevel: 5,
           credit: "Imagery courtesy Natural Earth",
         }),
@@ -103,9 +100,7 @@ export class CesiumController {
         base: true,
       },
       ArcGis: {
-        create: () => new Cesium.ArcGisMapServerImageryProvider({
-          url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer",
-        }),
+        create: () => Cesium.ArcGisMapServerImageryProvider.fromUrl("https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"),
         alpha: 1,
         base: true,
       },
@@ -199,11 +194,14 @@ export class CesiumController {
     return Object.entries(this.imageryProviders).filter(([, val]) => !val.base).map(([key]) => key);
   }
 
-  set imageryLayers(newLayers) {
+  set imageryLayers(newLayerNames) {
     this.clearImageryLayers();
-    newLayers.forEach((layer) => {
-      const [name, alpha] = layer.split("_");
-      this.addImageryLayer(name, alpha);
+    newLayerNames.forEach((layerName) => {
+      const [name, alpha] = layerName.split("_");
+      const layer = this.createImageryLayer(name, alpha);
+      if (layer) {
+        this.viewer.scene.imageryLayers.add(layer);
+      }
     });
   }
 
@@ -211,19 +209,20 @@ export class CesiumController {
     this.viewer.scene.imageryLayers.removeAll();
   }
 
-  addImageryLayer(imageryProviderName, alpha) {
+  createImageryLayer(imageryProviderName, alpha) {
     if (!this.imageryProviderNames.includes(imageryProviderName)) {
-      return;
+      console.error("Unknown imagery layer");
+      return false;
     }
 
-    const layers = this.viewer.scene.imageryLayers;
-    const newLayer = this.imageryProviders[imageryProviderName];
-    const layer = layers.addImageryProvider(newLayer.create());
+    const provider = this.imageryProviders[imageryProviderName];
+    const layer = Cesium.ImageryLayer.fromProviderAsync(provider.create());
     if (alpha === undefined) {
-      layer.alpha = newLayer.alpha;
+      layer.alpha = provider.alpha;
     } else {
       layer.alpha = alpha;
     }
+    return layer;
   }
 
   set sceneMode(sceneMode) {
