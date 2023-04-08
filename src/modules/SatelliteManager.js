@@ -1,23 +1,20 @@
-import { SatelliteEntityWrapper } from "./SatelliteEntityWrapper";
+import { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { GroundStationEntity } from "./GroundStationEntity";
 
 import { useSatStore } from "../stores/sat";
 import { CesiumCleanupHelper } from "./util/CesiumCleanupHelper";
 
 export class SatelliteManager {
-  #enabledComponents;
+  #enabledComponents = ["Point", "Label"];
 
-  #enabledTags;
+  #enabledTags = [];
 
-  #enabledSatellites;
+  #enabledSatellites = [];
 
   constructor(viewer) {
     this.viewer = viewer;
 
     this.satellites = [];
-    this.#enabledComponents = ["Point", "Label"];
-    this.#enabledTags = [];
-    this.#enabledSatellites = [];
     this.availableComponents = ["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model"];
 
     this.viewer.trackedEntityChanged.addEventListener(() => {
@@ -56,7 +53,7 @@ export class SatelliteManager {
   }
 
   addFromTle(tle, tags, updateStore = true) {
-    const sat = new SatelliteEntityWrapper(this.viewer, tle, tags);
+    const sat = new SatelliteComponentCollection(this.viewer, tle, tags);
     this.#add(sat);
     if (updateStore) {
       this.updateStore();

@@ -1,11 +1,12 @@
 import * as Cesium from "@cesium/engine";
 import CesiumSensorVolumes from "cesium-sensor-volumes";
+
 import { SatelliteProperties } from "./SatelliteProperties";
+import { CesiumComponentCollection } from "./util/CesiumComponentCollection";
 import { CesiumTimelineHelper } from "./util/CesiumTimelineHelper";
-import { CesiumEntityWrapper } from "./CesiumEntityWrapper";
 import { DescriptionHelper } from "./util/DescriptionHelper";
 
-export class SatelliteEntityWrapper extends CesiumEntityWrapper {
+export class SatelliteComponentCollection extends CesiumComponentCollection {
   constructor(viewer, tle, tags) {
     super(viewer);
     this.props = new SatelliteProperties(tle, tags);
@@ -15,19 +16,19 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
     if (!this.created) {
       this.create();
     }
-    if (!(name in this.entities)) {
+    if (!(name in this.components)) {
       this.createComponent(name);
-      this.addSampledPositionToEntities();
+      this.addSampledPositionToComponents();
 
       if (!this.defaultEntity) {
-        this.defaultEntity = this.entities[name];
+        this.defaultEntity = this.components[name];
       }
     }
 
     if (name === "3D model") {
       // Adjust label offset to avoid overlap with model
-      if (this.entities.Label) {
-        this.entities.Label.label.pixelOffset = new Cesium.Cartesian2(20, 0);
+      if (this.components.Label) {
+        this.components.Label.label.pixelOffset = new Cesium.Cartesian2(20, 0);
       }
     }
     super.enableComponent(name);
@@ -36,8 +37,8 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   disableComponent(name) {
     if (name === "3D model") {
       // Restore old label offset
-      if (this.entities.Label) {
-        this.entities.Label.label.pixelOffset = new Cesium.Cartesian2(10, 0);
+      if (this.components.Label) {
+        this.components.Label.label.pixelOffset = new Cesium.Cartesian2(10, 0);
       }
     }
     super.disableComponent(name);
@@ -45,10 +46,9 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
 
   create() {
     this.createDescription();
-    this.entities = {};
 
     this.props.createSampledPosition(this.viewer.clock, () => {
-      this.addSampledPositionToEntities();
+      this.addSampledPositionToComponents();
     });
 
     // Set up event listeners
@@ -67,27 +67,30 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
       if (this.isTracked) {
         this.artificiallyTrack();
       }
+      if ("Orbit" in this.components && !this.isCorrectOrbitComponent()) {
+        // Recreate Orbit to change visualisation type
+        this.disableComponent("Orbit");
+        this.enableComponent("Orbit");
+      }
     });
   }
 
-  addSampledPositionToEntities() {
-    const { sampledPosition } = this.props;
-    const { sampledPositionInertial } = this.props;
+  addSampledPositionToComponents() {
+    const { sampledPosition, sampledPositionInertial } = this.props;
 
-    Object.entries(this.entities).forEach(([type, entity]) => {
+    Object.entries(this.components).forEach(([type, component]) => {
       if (type === "Orbit") {
-        entity.position = sampledPositionInertial;
+        component.position = sampledPositionInertial;
       } else if (type === "Sensor cone") {
-        console.log("Sensor cone");
-        entity.position = sampledPosition;
-        entity.orientation = new Cesium.CallbackProperty((time) => {
+        component.position = sampledPosition;
+        component.orientation = new Cesium.CallbackProperty((time) => {
           const position = this.props.position(time);
           const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
           return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
         }, false);
       } else {
-        entity.position = sampledPosition;
-        entity.orientation = new Cesium.VelocityOrientationProperty(sampledPosition);
+        component.position = sampledPosition;
+        component.orientation = new Cesium.VelocityOrientationProperty(sampledPosition);
       }
     });
   }
@@ -179,6 +182,22 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
   }
 
   createOrbit() {
+    if (this.isTracked) {
+      // Use a path graphic to visualize the currently tracked satellite's orbit
+      this.createOrbitPath();
+    } else {
+      // For all other satellites use a polyline geometry to visualize the orbit for significantly improved performance.
+      // A polyline geometry is used instead of a polyline graphic as entities don't support adjusting the model matrix
+      // in order to display the orbit in the inertial frame.
+      this.createOrbitPolyline();
+    }
+  }
+
+  isCorrectOrbitComponent() {
+    return this.isTracked ? this.components.Orbit instanceof Cesium.Entity : this.components.Orbit instanceof Cesium.Primitive;
+  }
+
+  createOrbitPath() {
     const path = new Cesium.PathGraphics({
       leadTime: (this.props.orbit.orbitalPeriod * 60) / 2 + 5,
       trailTime: (this.props.orbit.orbitalPeriod * 60) / 2 + 5,
@@ -187,6 +206,38 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
       width: 2,
     });
     this.createCesiumEntity("Orbit", "path", path, this.props.name, this.description, this.props.sampledPositionInertial, true);
+  }
+
+  createOrbitPolyline() {
+    const primitive = new Cesium.Primitive({
+      geometryInstances: new Cesium.GeometryInstance({
+        geometry: new Cesium.PolylineGeometry({
+          positions: this.props.positionsInertial,
+          width: 2,
+          loop: true,
+          // arcType: Cesium.ArcType.GEODESIC,
+          vertexFormat: Cesium.PolylineColorAppearance.VERTEX_FORMAT,
+        }),
+        attributes: {
+          color: Cesium.ColorGeometryInstanceAttribute.fromColor(new Cesium.Color(1.0, 1.0, 1.0, 0.15)),
+        },
+      }),
+      appearance: new Cesium.PolylineColorAppearance(),
+      asynchronous: false,
+    });
+    this.components.Orbit = primitive;
+    let lastUpdated = this.viewer.clock.currentTime;
+    const orbitRefreshRate = 0.5;
+    this.viewer.clock.onTick.addEventListener((onTickClock) => {
+      const dt = Math.abs(Cesium.JulianDate.secondsDifference(onTickClock.currentTime, lastUpdated));
+      if (dt >= orbitRefreshRate) {
+        lastUpdated = onTickClock.currentTime;
+        const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(onTickClock.currentTime);
+        if (Cesium.defined(icrfToFixed)) {
+          primitive.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
+        }
+      }
+    });
   }
 
   createOrbitTrack(leadTime = this.props.orbit.orbitalPeriod * 60, trailTime = 0) {
@@ -229,7 +280,7 @@ export class SatelliteEntityWrapper extends CesiumEntityWrapper {
       intersectionColor: Cesium.Color.GOLD.withAlpha(0.3),
       intersectionWidth: 1,
     });
-    this.entities["Sensor cone"] = entity;
+    this.components["Sensor cone"] = entity;
   }
 
   createGroundStationLink() {

@@ -1,11 +1,11 @@
 import * as Cesium from "@cesium/engine";
 import dayjs from "dayjs";
-import { CesiumEntityWrapper } from "./CesiumEntityWrapper";
+import { CesiumComponentCollection } from "./util/CesiumComponentCollection";
 import { DescriptionHelper } from "./util/DescriptionHelper";
 
 import icon from "../images/icons/dish.svg";
 
-export class GroundStationEntity extends CesiumEntityWrapper {
+export class GroundStationEntity extends CesiumComponentCollection {
   constructor(viewer, sats, position) {
     super(viewer);
     this.sats = sats;

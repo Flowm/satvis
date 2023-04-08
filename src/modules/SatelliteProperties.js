@@ -54,7 +54,8 @@ export class SatelliteProperties {
     const samplingRefreshRate = 60 * 15;
     // Propagate a full orbit forward and half an orbit backwards
     const samplesFwd = Math.ceil((this.orbit.orbitalPeriod * 60) / samplingInterval);
-    const samplesBwd = Math.ceil(((this.orbit.orbitalPeriod * 60) / 2 + samplingRefreshRate) / samplingInterval);
+    // const samplesBwd = Math.ceil(((this.orbit.orbitalPeriod * 60) / 2 + samplingRefreshRate) / samplingInterval);
+    const samplesBwd = 0;
     // console.log("createSampledPosition", this.name, this.orbit.orbitalPeriod, samplesFwd, samplesBwd, samplingInterval.toFixed(2));
 
     let lastUpdated;
@@ -86,8 +87,10 @@ export class SatelliteProperties {
       interpolationAlgorithm: Cesium.LagrangePolynomialApproximation,
     });
 
+    const positionsInertial = [];
+
     // Spread sampledPosition updates
-    const randomOffset = Math.random() * 60 * 15;
+    const randomOffset = 0; // Math.random() * 60 * 15;
     const reference = Cesium.JulianDate.addSeconds(julianDate, randomOffset, new Cesium.JulianDate());
 
     const startTime = -samplesBwd * interval;
@@ -111,6 +114,7 @@ export class SatelliteProperties {
       }
       Cesium.Matrix3.multiplyByVector(fixedToIcrf, positionFixed, positionICRF);
       sampledPositionInertial.addSample(timestamp, positionICRF);
+      positionsInertial.push(positionICRF);
 
       // Show computed sampled position
       // window.cc.viewer.entities.add({
@@ -127,6 +131,7 @@ export class SatelliteProperties {
 
     this.sampledPosition = sampledPosition;
     this.sampledPositionInertial = sampledPositionInertial;
+    this.positionsInertial = positionsInertial;
     return reference;
   }
 
