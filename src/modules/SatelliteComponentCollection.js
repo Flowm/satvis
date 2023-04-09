@@ -16,9 +16,13 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
     if (!this.created) {
       this.create();
     }
+    if (!this.props.sampledPosition.valid) {
+      console.error(`No valid position data available for ${this.props.name}`);
+      return;
+    }
     if (!(name in this.components)) {
       this.createComponent(name);
-      this.addSampledPositionToComponents();
+      this.updatedSampledPositionForComponents();
 
       if (!this.defaultEntity) {
         this.defaultEntity = this.components[name];
@@ -48,7 +52,7 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
     this.createDescription();
 
     this.props.createSampledPosition(this.viewer.clock, () => {
-      this.addSampledPositionToComponents();
+      this.updatedSampledPositionForComponents(true);
     });
 
     // Set up event listeners
@@ -75,24 +79,36 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
     });
   }
 
-  addSampledPositionToComponents() {
-    const { sampledPosition, sampledPositionInertial } = this.props;
+  updatedSampledPositionForComponents(update = false) {
+    const { fixed, inertial } = this.props.sampledPosition;
 
     Object.entries(this.components).forEach(([type, component]) => {
       if (type === "Orbit") {
-        component.position = sampledPositionInertial;
+        component.position = inertial;
+        if (update && component instanceof Cesium.Primitive) {
+          // Primitives need to be recreated to update the geometry
+          this.disableComponent("Orbit");
+          this.enableComponent("Orbit");
+        }
       } else if (type === "Sensor cone") {
-        component.position = sampledPosition;
+        component.position = fixed;
         component.orientation = new Cesium.CallbackProperty((time) => {
           const position = this.props.position(time);
           const hpr = new Cesium.HeadingPitchRoll(0, Cesium.Math.toRadians(180), 0);
           return Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
         }, false);
       } else {
-        component.position = sampledPosition;
-        component.orientation = new Cesium.VelocityOrientationProperty(sampledPosition);
+        component.position = fixed;
+        component.orientation = new Cesium.VelocityOrientationProperty(fixed);
       }
     });
+    // Request a single frame after satellite position updates when the clock is paused
+    if (!this.viewer.clock.shouldAnimate) {
+      const removeCallback = this.viewer.clock.onTick.addEventListener(() => {
+        this.viewer.scene.requestRender();
+        removeCallback();
+      });
+    }
   }
 
   createComponent(name) {
@@ -135,7 +151,7 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
   }
 
   createCesiumSatelliteEntity(entityName, entityKey, entityValue) {
-    this.createCesiumEntity(entityName, entityKey, entityValue, this.props.name, this.description, this.props.sampledPosition, true);
+    this.createCesiumEntity(entityName, entityKey, entityValue, this.props.name, this.description, this.props.sampledPosition.fixed, true);
   }
 
   createPoint() {
@@ -205,36 +221,45 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
       resolution: 600,
       width: 2,
     });
-    this.createCesiumEntity("Orbit", "path", path, this.props.name, this.description, this.props.sampledPositionInertial, true);
+    this.createCesiumEntity("Orbit", "path", path, this.props.name, this.description, this.props.sampledPosition.inertial, true);
   }
 
   createOrbitPolyline() {
     const primitive = new Cesium.Primitive({
       geometryInstances: new Cesium.GeometryInstance({
         geometry: new Cesium.PolylineGeometry({
-          positions: this.props.positionsInertial,
+          positions: this.props.getSampledInertialPositionsForNextOrbit(this.viewer.clock.currentTime),
           width: 2,
-          loop: true,
-          // arcType: Cesium.ArcType.GEODESIC,
+          arcType: Cesium.ArcType.NONE,
+          // granularity: Cesium.Math.RADIANS_PER_DEGREE * 10,
           vertexFormat: Cesium.PolylineColorAppearance.VERTEX_FORMAT,
         }),
         attributes: {
           color: Cesium.ColorGeometryInstanceAttribute.fromColor(new Cesium.Color(1.0, 1.0, 1.0, 0.15)),
         },
+        id: this.props.name,
       }),
       appearance: new Cesium.PolylineColorAppearance(),
       asynchronous: false,
     });
+    const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(this.viewer.clock.currentTime);
+    if (Cesium.defined(icrfToFixed)) {
+      // TODO: Cache the model matrix
+      primitive.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
+    }
     this.components.Orbit = primitive;
+
+    // Update the model matrix periodically to keep the orbit in the inertial frame
     let lastUpdated = this.viewer.clock.currentTime;
     const orbitRefreshRate = 0.5;
     this.viewer.clock.onTick.addEventListener((onTickClock) => {
+      // TODO: Investigate recreation of the primitive
       const dt = Math.abs(Cesium.JulianDate.secondsDifference(onTickClock.currentTime, lastUpdated));
       if (dt >= orbitRefreshRate) {
         lastUpdated = onTickClock.currentTime;
-        const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(onTickClock.currentTime);
-        if (Cesium.defined(icrfToFixed)) {
-          primitive.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
+        const icrfToFixed2 = Cesium.Transforms.computeIcrfToFixedMatrix(onTickClock.currentTime);
+        if (Cesium.defined(icrfToFixed2)) {
+          primitive.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed2);
         }
       }
     });

@@ -1,8 +1,10 @@
 import * as Cesium from "@cesium/engine";
 import dayjs from "dayjs";
 import { useToast } from "vue-toastification";
+
 import Orbit from "./Orbit";
 import { PushManager } from "./util/PushManager";
+import "./util/CesiumSampledPositionRawValueAccess";
 
 import satvisIcon from "../assets/android-chrome-192x192.png";
 
@@ -34,105 +36,151 @@ export class SatelliteProperties {
   }
 
   position(time) {
-    return this.sampledPosition.getValue(time);
+    return this.sampledPosition.fixed.getValue(time);
   }
 
-  computePositionInertial(time, constprop = false) {
-    const eci = this.orbit.positionECI(Cesium.JulianDate.toDate(time));
-    const position = new Cesium.Cartesian3(eci.x * 1000, eci.y * 1000, eci.z * 1000);
-    if (constprop) {
-      return new Cesium.ConstantPositionProperty(position, Cesium.ReferenceFrame.INERTIAL);
-    }
-    return position;
+  getSampledInertialPositionsForNextOrbit(start) {
+    const end = Cesium.JulianDate.addSeconds(start, this.orbit.orbitalPeriod * 60, new Cesium.JulianDate());
+    const positions = this.sampledPosition.inertial.getRawValues(start, end);
+    // Readd the first position to the end of the array to close the loop
+    return [...positions, positions[0]];
   }
 
   createSampledPosition(clock, callback) {
-    // Determine sampling interval and number of samples based on orbital period
-    // For improved performance use 120 sampled positions per orbit
-    const samplingPointsPerOrbit = 120;
-    const samplingInterval = (this.orbit.orbitalPeriod * 60) / samplingPointsPerOrbit;
-    const samplingRefreshRate = 60 * 15;
-    // Propagate a full orbit forward and half an orbit backwards
-    const samplesFwd = Math.ceil((this.orbit.orbitalPeriod * 60) / samplingInterval);
-    // const samplesBwd = Math.ceil(((this.orbit.orbitalPeriod * 60) / 2 + samplingRefreshRate) / samplingInterval);
-    const samplesBwd = 0;
-    // console.log("createSampledPosition", this.name, this.orbit.orbitalPeriod, samplesFwd, samplesBwd, samplingInterval.toFixed(2));
+    let lastUpdated = this.updateSampledPosition(clock.currentTime);
+    callback(this.sampledPosition);
 
-    let lastUpdated;
-    lastUpdated = this.updateSampledPosition(clock.currentTime, samplesFwd, samplesBwd, samplingInterval);
-    callback(this.sampledPosition, this.sampledPositionInertial);
+    const samplingRefreshRate = (this.orbit.orbitalPeriod * 60) / 4;
     clock.onTick.addEventListener((onTickClock) => {
       const dt = Math.abs(Cesium.JulianDate.secondsDifference(onTickClock.currentTime, lastUpdated));
       if (dt >= samplingRefreshRate) {
-        lastUpdated = this.updateSampledPosition(onTickClock.currentTime, samplesFwd, samplesBwd, samplingInterval);
-        callback(this.sampledPosition, this.sampledPositionInertial);
+        lastUpdated = this.updateSampledPosition(onTickClock.currentTime);
+        callback(this.sampledPosition);
       }
     });
   }
 
-  updateSampledPosition(julianDate, samplesFwd = 240, samplesBwd = 120, interval = 30) {
-    const sampledPosition = new Cesium.SampledPositionProperty();
-    sampledPosition.backwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
-    sampledPosition.forwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
-    sampledPosition.setInterpolationOptions({
-      interpolationDegree: 5,
-      interpolationAlgorithm: Cesium.LagrangePolynomialApproximation,
-    });
+  updateSampledPosition(currentTime) {
+    // Determine sampling interval based on sampled positions per orbit and orbital period
+    // 120 samples per orbit seems to be a good compromise between performance and accuracy
+    const samplingPointsPerOrbit = 120;
+    const orbitalPeriod = this.orbit.orbitalPeriod * 60;
+    const samplingInterval = orbitalPeriod / samplingPointsPerOrbit;
+    // console.log("updateSampledPosition", this.name, this.orbit.orbitalPeriod, samplingInterval.toFixed(2));
 
-    const sampledPositionInertial = new Cesium.SampledPositionProperty(Cesium.ReferenceFrame.INERTIAL);
-    sampledPositionInertial.backwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
-    sampledPositionInertial.forwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
-    sampledPositionInertial.setInterpolationOptions({
-      interpolationDegree: 5,
-      interpolationAlgorithm: Cesium.LagrangePolynomialApproximation,
-    });
+    // Always keep half an orbit backwards and a full orbit forwards in the sampled position
+    const start = Cesium.JulianDate.addSeconds(currentTime, -orbitalPeriod / 2, new Cesium.JulianDate());
+    const stop = Cesium.JulianDate.addSeconds(currentTime, orbitalPeriod * 1.5, new Cesium.JulianDate());
+    const request = new Cesium.TimeInterval({ start, stop });
 
-    const positionsInertial = [];
-
-    // Spread sampledPosition updates
-    const randomOffset = 0; // Math.random() * 60 * 15;
-    const reference = Cesium.JulianDate.addSeconds(julianDate, randomOffset, new Cesium.JulianDate());
-
-    const startTime = -samplesBwd * interval;
-    const stopTime = samplesFwd * interval;
-    for (let time = startTime; time <= stopTime; time += interval) {
-      const timestamp = Cesium.JulianDate.addSeconds(reference, time, new Cesium.JulianDate());
-
-      const positionInertialTEME = this.computePositionInertial(timestamp);
-      const temeToFixed = Cesium.Transforms.computeTemeToPseudoFixedMatrix(timestamp);
-      if (!Cesium.defined(temeToFixed)) {
-        console.error("Reference frame transformation data failed to load");
-      }
-      const positionFixed = new Cesium.Cartesian3();
-      Cesium.Matrix3.multiplyByVector(temeToFixed, positionInertialTEME, positionFixed);
-      sampledPosition.addSample(timestamp, positionFixed);
-
-      const fixedToIcrf = Cesium.Transforms.computeFixedToIcrfMatrix(timestamp);
-      const positionICRF = new Cesium.Cartesian3();
-      if (!Cesium.defined(fixedToIcrf)) {
-        console.error("Reference frame transformation data failed to load");
-      }
-      Cesium.Matrix3.multiplyByVector(fixedToIcrf, positionFixed, positionICRF);
-      sampledPositionInertial.addSample(timestamp, positionICRF);
-      positionsInertial.push(positionICRF);
-
-      // Show computed sampled position
-      // window.cc.viewer.entities.add({
-      //  position: positionFixed,
-      //  // position: new Cesium.ConstantPositionProperty(positionICRF, Cesium.ReferenceFrame.INERTIAL),
-      //  point: {
-      //    pixelSize: 8,
-      //    color: Cesium.Color.TRANSPARENT,
-      //    outlineColor: Cesium.Color.YELLOW,
-      //    outlineWidth: 3
-      //  }
-      // });
+    // (Re)create sampled position if it does not exist or if it does not contain the current time
+    if (!this.sampledPosition || !Cesium.TimeInterval.contains(this.sampledPosition.interval, currentTime)) {
+      this.initSampledPosition(start);
     }
 
-    this.sampledPosition = sampledPosition;
-    this.sampledPositionInertial = sampledPositionInertial;
-    this.positionsInertial = positionsInertial;
-    return reference;
+    // Determine which parts of the requested interval are missing
+    const intersect = Cesium.TimeInterval.intersect(this.sampledPosition.interval, request);
+    const missingSecondsEnd = Cesium.JulianDate.secondsDifference(request.stop, intersect.stop);
+    const missingSecondsStart = Cesium.JulianDate.secondsDifference(intersect.start, request.start);
+    // console.log(`updateSampledPosition ${this.name}`,
+    //   `Missing ${missingSecondsStart.toFixed(2)}s ${missingSecondsEnd.toFixed(2)}s`,
+    //   `Request ${Cesium.TimeInterval.toIso8601(request, 0)}`,
+    //   `Current ${Cesium.TimeInterval.toIso8601(this.sampledPosition.interval, 0)}`,
+    //   `Intersect ${Cesium.TimeInterval.toIso8601(intersect, 0)}`,
+    // );
+
+    if (missingSecondsStart > 0) {
+      const samplingStart = Cesium.JulianDate.addSeconds(intersect.start, -missingSecondsStart, new Cesium.JulianDate());
+      const samplingStop = this.sampledPosition.interval.start;
+      this.addSamples(samplingStart, samplingStop, samplingInterval);
+    }
+    if (missingSecondsEnd > 0) {
+      const samplingStart = this.sampledPosition.interval.stop;
+      const samplingStop = Cesium.JulianDate.addSeconds(intersect.stop, missingSecondsEnd, new Cesium.JulianDate());
+      this.addSamples(samplingStart, samplingStop, samplingInterval);
+    }
+
+    this.sampledPosition.interval = request;
+    return currentTime;
+  }
+
+  initSampledPosition(currentTime) {
+    this.sampledPosition = {};
+    this.sampledPosition.interval = new Cesium.TimeInterval({
+      start: currentTime,
+      stop: currentTime,
+      isStartIncluded: false,
+      isStopIncluded: false,
+    });
+    this.sampledPosition.fixed = new Cesium.SampledPositionProperty();
+    this.sampledPosition.fixed.backwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
+    this.sampledPosition.fixed.forwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
+    this.sampledPosition.fixed.setInterpolationOptions({
+      interpolationDegree: 5,
+      interpolationAlgorithm: Cesium.LagrangePolynomialApproximation,
+    });
+    this.sampledPosition.inertial = new Cesium.SampledPositionProperty(Cesium.ReferenceFrame.INERTIAL);
+    this.sampledPosition.inertial.backwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
+    this.sampledPosition.inertial.forwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
+    this.sampledPosition.inertial.setInterpolationOptions({
+      interpolationDegree: 5,
+      interpolationAlgorithm: Cesium.LagrangePolynomialApproximation,
+    });
+    this.sampledPosition.valid = true;
+  }
+
+  addSamples(start, stop, samplingInterval) {
+    const times = [];
+    const positionsFixed = [];
+    const positionsInertial = [];
+    for (let time = start; Cesium.JulianDate.compare(stop, time) >= 0; time = Cesium.JulianDate.addSeconds(time, samplingInterval, new Cesium.JulianDate())) {
+      const { positionFixed, positionInertial } = this.computePosition(time);
+      times.push(time);
+      positionsFixed.push(positionFixed);
+      positionsInertial.push(positionInertial);
+    }
+    // Add all samples at once as adding a sorted array avoids searching for the correct position every time
+    this.sampledPosition.fixed.addSamples(times, positionsFixed);
+    this.sampledPosition.inertial.addSamples(times, positionsInertial);
+  }
+
+  computePositionInertialTEME(time) {
+    const eci = this.orbit.positionECI(Cesium.JulianDate.toDate(time));
+    if (this.orbit.error) {
+      this.sampledPosition.valid = false;
+      return Cesium.Cartesian3.ZERO;
+    }
+    return new Cesium.Cartesian3(eci.x * 1000, eci.y * 1000, eci.z * 1000);
+  }
+
+  computePosition(timestamp) {
+    const positionInertialTEME = this.computePositionInertialTEME(timestamp);
+
+    const temeToFixed = Cesium.Transforms.computeTemeToPseudoFixedMatrix(timestamp);
+    if (!Cesium.defined(temeToFixed)) {
+      console.error("Reference frame transformation data failed to load");
+    }
+    const positionFixed = Cesium.Matrix3.multiplyByVector(temeToFixed, positionInertialTEME, new Cesium.Cartesian3());
+
+    const fixedToIcrf = Cesium.Transforms.computeFixedToIcrfMatrix(timestamp);
+    if (!Cesium.defined(fixedToIcrf)) {
+      console.error("Reference frame transformation data failed to load");
+    }
+    const positionInertialICRF = Cesium.Matrix3.multiplyByVector(fixedToIcrf, positionFixed, new Cesium.Cartesian3());
+
+    // Show computed sampled position
+    // window.cc.viewer.entities.add({
+    //  //position: positionFixed,
+    //  position: new Cesium.ConstantPositionProperty(positionInertialICRF, Cesium.ReferenceFrame.INERTIAL),
+    //  point: {
+    //    pixelSize: 8,
+    //    color: Cesium.Color.TRANSPARENT,
+    //    outlineColor: Cesium.Color.YELLOW,
+    //    outlineWidth: 2,
+    //  }
+    // });
+
+    return { positionFixed, positionInertial: positionInertialICRF };
   }
 
   groundTrack(julianDate, samplesFwd = 0, samplesBwd = 120, interval = 30) {

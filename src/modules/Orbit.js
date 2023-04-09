@@ -15,6 +15,10 @@ export default class Orbit {
     return this.satrec.satnum;
   }
 
+  get error() {
+    return this.satrec.error;
+  }
+
   get orbitalPeriod() {
     const meanMotionRad = this.satrec.no;
     const period = (2 * Math.PI) / meanMotionRad;
