@@ -29,13 +29,50 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
       }
     }
 
+    super.enableComponent(name);
+
     if (name === "3D model") {
       // Adjust label offset to avoid overlap with model
       if (this.components.Label) {
         this.components.Label.label.pixelOffset = new Cesium.Cartesian2(20, 0);
       }
+    } else if (name === "Orbit" && this.components[name] instanceof Cesium.Primitive) {
+      // Update the model matrix periodically to keep the orbit in the inertial frame
+      if (!this.orbitPrimitiveUpdater) {
+        let lastUpdated = this.viewer.clock.currentTime;
+        const orbitRefreshRate = 0.5;
+        this.orbitPrimitiveUpdater = this.viewer.clock.onTick.addEventListener((onTickClock) => {
+          const dt = Math.abs(Cesium.JulianDate.secondsDifference(onTickClock.currentTime, lastUpdated));
+          if (dt >= orbitRefreshRate) {
+            if (!this.components.Orbit) {
+              this.orbitPrimitiveUpdater();
+              return;
+            }
+            lastUpdated = onTickClock.currentTime;
+            const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(onTickClock.currentTime);
+            if (Cesium.defined(icrfToFixed)) {
+              this.components.Orbit.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
+            }
+          }
+        });
+      }
+    } else if (name === "Orbit" && this.components[name] instanceof Cesium.GeometryInstance) {
+      // Update the model matrix of the primitive containing all orbit geometries periodically to keep the orbit in the inertial frame
+      if (!this.constructor.geometryPrimitiveUpdater) {
+        let lastUpdated = this.viewer.clock.currentTime;
+        const orbitRefreshRate = 0.5;
+        this.constructor.geometryPrimitiveUpdater = this.viewer.clock.onTick.addEventListener((onTickClock) => {
+          const dt = Math.abs(Cesium.JulianDate.secondsDifference(onTickClock.currentTime, lastUpdated));
+          if (dt >= orbitRefreshRate) {
+            lastUpdated = onTickClock.currentTime;
+            const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(onTickClock.currentTime);
+            if (Cesium.defined(icrfToFixed) && this.constructor.primitive) {
+              this.constructor.primitive.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
+            }
+          }
+        });
+      }
     }
-    super.enableComponent(name);
   }
 
   disableComponent(name) {
@@ -85,7 +122,7 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
     Object.entries(this.components).forEach(([type, component]) => {
       if (type === "Orbit") {
         component.position = inertial;
-        if (update && component instanceof Cesium.Primitive) {
+        if (update && (component instanceof Cesium.Primitive || component instanceof Cesium.GeometryInstance)) {
           // Primitives need to be recreated to update the geometry
           this.disableComponent("Orbit");
           this.enableComponent("Orbit");
@@ -205,7 +242,7 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
       // For all other satellites use a polyline geometry to visualize the orbit for significantly improved performance.
       // A polyline geometry is used instead of a polyline graphic as entities don't support adjusting the model matrix
       // in order to display the orbit in the inertial frame.
-      this.createOrbitPolyline();
+      this.createOrbitPolylinePrimitive();
     }
   }
 
@@ -224,7 +261,7 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
     this.createCesiumEntity("Orbit", "path", path, this.props.name, this.description, this.props.sampledPosition.inertial, true);
   }
 
-  createOrbitPolyline() {
+  createOrbitPolylinePrimitive() {
     const primitive = new Cesium.Primitive({
       geometryInstances: new Cesium.GeometryInstance({
         geometry: new Cesium.PolylineGeometry({
@@ -248,21 +285,24 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
       primitive.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
     }
     this.components.Orbit = primitive;
+  }
 
-    // Update the model matrix periodically to keep the orbit in the inertial frame
-    let lastUpdated = this.viewer.clock.currentTime;
-    const orbitRefreshRate = 0.5;
-    this.viewer.clock.onTick.addEventListener((onTickClock) => {
-      // TODO: Investigate recreation of the primitive
-      const dt = Math.abs(Cesium.JulianDate.secondsDifference(onTickClock.currentTime, lastUpdated));
-      if (dt >= orbitRefreshRate) {
-        lastUpdated = onTickClock.currentTime;
-        const icrfToFixed2 = Cesium.Transforms.computeIcrfToFixedMatrix(onTickClock.currentTime);
-        if (Cesium.defined(icrfToFixed2)) {
-          primitive.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed2);
-        }
-      }
+  createOrbitPolylineGeometry() {
+    // Currently unused
+    const geometryInstance = new Cesium.GeometryInstance({
+      geometry: new Cesium.PolylineGeometry({
+        positions: this.props.getSampledInertialPositionsForNextOrbit(this.viewer.clock.currentTime),
+        width: 2,
+        arcType: Cesium.ArcType.NONE,
+        // granularity: Cesium.Math.RADIANS_PER_DEGREE * 10,
+        vertexFormat: Cesium.PolylineColorAppearance.VERTEX_FORMAT,
+      }),
+      attributes: {
+        color: Cesium.ColorGeometryInstanceAttribute.fromColor(new Cesium.Color(1.0, 1.0, 1.0, 0.15)),
+      },
+      id: this.props.name,
     });
+    this.components.Orbit = geometryInstance;
   }
 
   createOrbitTrack(leadTime = this.props.orbit.orbitalPeriod * 60, trailTime = 0) {

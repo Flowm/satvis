@@ -10,6 +10,12 @@ import * as Cesium from "@cesium/engine";
 export class CesiumComponentCollection {
   #components = {};
 
+  static geometries = [];
+
+  static primitive = undefined;
+
+  static primitivePendingUpdate = false;
+
   constructor(viewer) {
     this.viewer = viewer;
   }
@@ -63,6 +69,9 @@ export class CesiumComponentCollection {
       this.viewer.entities.add(component);
     } else if (component instanceof Cesium.Primitive && !this.viewer.scene.primitives.contains(component)) {
       this.viewer.scene.primitives.add(component);
+    } else if (component instanceof Cesium.GeometryInstance) {
+      this.constructor.geometries.push(component);
+      this.recreateGeometryInstancePrimitive();
     }
   }
 
@@ -75,8 +84,66 @@ export class CesiumComponentCollection {
       this.viewer.entities.remove(component);
     } else if (component instanceof Cesium.Primitive) {
       this.viewer.scene.primitives.remove(component);
+    } else if (component instanceof Cesium.GeometryInstance) {
+      this.constructor.geometries = this.constructor.geometries.filter((geometry) => geometry !== component);
+      this.recreateGeometryInstancePrimitive();
     }
     delete this.#components[name];
+  }
+
+  recreateGeometryInstancePrimitive() {
+    this.constructor.primitivePendingUpdate = true;
+    const delayTicks = 60;
+    const now = this.viewer.clock.currentTime;
+    let ticks = 0;
+    const removeCallback = this.viewer.clock.onTick.addEventListener((onClockTick) => {
+      if (!this.constructor.primitivePendingUpdate || this.constructor.primitivePendingCreation) {
+        console.log("recreateGeometryInstancePrimitive SKIPPED");
+        removeCallback();
+        return;
+      }
+      if (ticks < delayTicks) {
+        console.log("recreateGeometryInstancePrimitive DELAYED");
+        ticks += 1;
+        return;
+      }
+      console.log("recreateGeometryInstancePrimitive ACTION", Cesium.JulianDate.secondsDifference(onClockTick.currentTime, now));
+      this.constructor.primitivePendingCreation = true;
+      this.constructor.primitivePendingUpdate = false;
+      const primitive = new Cesium.Primitive({
+        geometryInstances: this.constructor.geometries,
+        appearance: new Cesium.PolylineColorAppearance(),
+      });
+      const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(this.viewer.clock.currentTime);
+      if (Cesium.defined(icrfToFixed)) {
+        primitive.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
+      }
+      // Force asyncrounous primitve creation before adding to scene
+      let lastState = -1;
+      const readyCallback = this.viewer.clock.onTick.addEventListener(() => {
+        if (!primitive.ready) {
+          // eslint-disable-next-line no-underscore-dangle
+          const state = primitive._state;
+          if (state !== lastState) {
+            lastState = state;
+            // Trigger primitive update to progress through creation states
+            primitive.update(this.viewer.scene.frameState);
+            return;
+          }
+          return;
+        }
+        if (this.constructor.primitive) {
+          this.viewer.scene.primitives.remove(this.constructor.primitive);
+        }
+        this.viewer.scene.primitives.add(primitive);
+        this.constructor.primitive = primitive;
+        this.viewer.scene.requestRender();
+        this.constructor.primitivePendingCreation = false;
+        readyCallback();
+      });
+
+      removeCallback();
+    });
   }
 
   get isSelected() {
