@@ -232,7 +232,7 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
       // For all other satellites use a polyline geometry to visualize the orbit for significantly improved performance.
       // A polyline geometry is used instead of a polyline graphic as entities don't support adjusting the model matrix
       // in order to display the orbit in the inertial frame.
-      this.createOrbitPolylinePrimitive();
+      this.createOrbitPolylineGeometry();
     }
   }
 

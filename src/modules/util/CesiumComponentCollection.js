@@ -1,5 +1,7 @@
 import * as Cesium from "@cesium/engine";
 
+import { CesiumCallbackHelper } from "./CesiumCallbackHelper";
+
 /** CesiumComponentCollection
   *
   * A wrapper class for Cesium entities and primitives that all belong to a common object being represented.
@@ -15,6 +17,8 @@ export class CesiumComponentCollection {
   static primitive = undefined;
 
   static primitivePendingUpdate = false;
+
+  static primitivePendingCreation = false;
 
   constructor(viewer) {
     this.viewer = viewer;
@@ -92,32 +96,26 @@ export class CesiumComponentCollection {
   }
 
   recreateGeometryInstancePrimitive() {
+    if (this.constructor.primitivePendingUpdate) {
+      return;
+    }
     this.constructor.primitivePendingUpdate = true;
-    const delayTicks = 60;
-    const now = this.viewer.clock.currentTime;
-    let ticks = 0;
-    const removeCallback = this.viewer.clock.onTick.addEventListener((onClockTick) => {
-      if (!this.constructor.primitivePendingUpdate || this.constructor.primitivePendingCreation) {
-        console.log("recreateGeometryInstancePrimitive SKIPPED");
-        removeCallback();
+    const removeCallback = CesiumCallbackHelper.createPeriodicTickCallback(this.viewer, 30, () => {
+      if (this.constructor.primitivePendingCreation) {
         return;
       }
-      if (ticks < delayTicks) {
-        console.log("recreateGeometryInstancePrimitive DELAYED");
-        ticks += 1;
-        return;
-      }
-      console.log("recreateGeometryInstancePrimitive ACTION", Cesium.JulianDate.secondsDifference(onClockTick.currentTime, now));
-      this.constructor.primitivePendingCreation = true;
       this.constructor.primitivePendingUpdate = false;
+      if (this.constructor.geometries.length === 0) {
+        this.viewer.scene.primitives.remove(this.constructor.primitive);
+        this.constructor.primitive = undefined;
+        this.viewer.scene.requestRender();
+        return;
+      }
+      this.constructor.primitivePendingCreation = true;
       const primitive = new Cesium.Primitive({
         geometryInstances: this.constructor.geometries,
         appearance: new Cesium.PolylineColorAppearance(),
       });
-      const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(this.viewer.clock.currentTime);
-      if (Cesium.defined(icrfToFixed)) {
-        primitive.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
-      }
       // Force asyncrounous primitve creation before adding to scene
       let lastState = -1;
       const readyCallback = this.viewer.clock.onTick.addEventListener(() => {
@@ -132,6 +130,11 @@ export class CesiumComponentCollection {
           }
           return;
         }
+        // Update model matrix right before adding to scene
+        const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(this.viewer.clock.currentTime);
+        if (Cesium.defined(icrfToFixed)) {
+          primitive.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
+        }
         if (this.constructor.primitive) {
           this.viewer.scene.primitives.remove(this.constructor.primitive);
         }
@@ -141,7 +144,6 @@ export class CesiumComponentCollection {
         this.constructor.primitivePendingCreation = false;
         readyCallback();
       });
-
       removeCallback();
     });
   }
