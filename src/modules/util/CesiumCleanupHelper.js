@@ -1,13 +1,11 @@
+import { CesiumCallbackHelper } from "./CesiumCallbackHelper";
+
 export class CesiumCleanupHelper {
   // Cleanup leftover Cesium internal data after removing satellites
   // https://github.com/CesiumGS/cesium/issues/7184
   static cleanup(viewer) {
-    let ticks = 0;
-    const onTickEventRemovalCallback = viewer.clock.onTick.addEventListener(() => {
-      if (ticks === 0) {
-        ticks += 1;
-        return;
-      }
+    const onTickEventRemovalCallback = CesiumCallbackHelper.createPeriodicTickCallback(viewer, 1, () => {
+      console.log("Removing leftover Cesium internal data");
       onTickEventRemovalCallback();
       /* eslint-disable no-underscore-dangle */
       const labelCollection = viewer.scene.primitives?._primitives[0]?._primitives[0]._primitives[0]._labelCollection;

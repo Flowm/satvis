@@ -7,6 +7,7 @@ import { PushManager } from "./util/PushManager";
 import "./util/CesiumSampledPositionRawValueAccess";
 
 import satvisIcon from "../assets/android-chrome-192x192.png";
+import { CesiumCallbackHelper } from "./util/CesiumCallbackHelper";
 
 export class SatelliteProperties {
   constructor(tle, tags = []) {
@@ -46,21 +47,18 @@ export class SatelliteProperties {
     return [...positions, positions[0]];
   }
 
-  createSampledPosition(clock, callback) {
-    let lastUpdated = this.updateSampledPosition(clock.currentTime);
+  createSampledPosition(viewer, callback) {
+    this.updateSampledPosition(viewer.clock.currentTime);
     callback(this.sampledPosition);
 
     const samplingRefreshRate = (this.orbit.orbitalPeriod * 60) / 4;
-    clock.onTick.addEventListener((onTickClock) => {
-      const dt = Math.abs(Cesium.JulianDate.secondsDifference(onTickClock.currentTime, lastUpdated));
-      if (dt >= samplingRefreshRate) {
-        lastUpdated = this.updateSampledPosition(onTickClock.currentTime);
-        callback(this.sampledPosition);
-      }
+    CesiumCallbackHelper.createPeriodicTimeCallback(viewer, samplingRefreshRate, (time) => {
+      this.updateSampledPosition(time);
+      callback(this.sampledPosition);
     });
   }
 
-  updateSampledPosition(currentTime) {
+  updateSampledPosition(time) {
     // Determine sampling interval based on sampled positions per orbit and orbital period
     // 120 samples per orbit seems to be a good compromise between performance and accuracy
     const samplingPointsPerOrbit = 120;
@@ -69,12 +67,12 @@ export class SatelliteProperties {
     // console.log("updateSampledPosition", this.name, this.orbit.orbitalPeriod, samplingInterval.toFixed(2));
 
     // Always keep half an orbit backwards and a full orbit forwards in the sampled position
-    const start = Cesium.JulianDate.addSeconds(currentTime, -orbitalPeriod / 2, new Cesium.JulianDate());
-    const stop = Cesium.JulianDate.addSeconds(currentTime, orbitalPeriod * 1.5, new Cesium.JulianDate());
+    const start = Cesium.JulianDate.addSeconds(time, -orbitalPeriod / 2, new Cesium.JulianDate());
+    const stop = Cesium.JulianDate.addSeconds(time, orbitalPeriod * 1.5, new Cesium.JulianDate());
     const request = new Cesium.TimeInterval({ start, stop });
 
     // (Re)create sampled position if it does not exist or if it does not contain the current time
-    if (!this.sampledPosition || !Cesium.TimeInterval.contains(this.sampledPosition.interval, currentTime)) {
+    if (!this.sampledPosition || !Cesium.TimeInterval.contains(this.sampledPosition.interval, time)) {
       this.initSampledPosition(start);
     }
 
@@ -101,7 +99,6 @@ export class SatelliteProperties {
     }
 
     this.sampledPosition.interval = request;
-    return currentTime;
   }
 
   initSampledPosition(currentTime) {

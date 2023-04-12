@@ -5,6 +5,7 @@ import { SatelliteProperties } from "./SatelliteProperties";
 import { CesiumComponentCollection } from "./util/CesiumComponentCollection";
 import { CesiumTimelineHelper } from "./util/CesiumTimelineHelper";
 import { DescriptionHelper } from "./util/DescriptionHelper";
+import { CesiumCallbackHelper } from "./util/CesiumCallbackHelper";
 
 export class SatelliteComponentCollection extends CesiumComponentCollection {
   constructor(viewer, tle, tags) {
@@ -39,36 +40,25 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
     } else if (name === "Orbit" && this.components[name] instanceof Cesium.Primitive) {
       // Update the model matrix periodically to keep the orbit in the inertial frame
       if (!this.orbitPrimitiveUpdater) {
-        let lastUpdated = this.viewer.clock.currentTime;
-        const orbitRefreshRate = 0.5;
-        this.orbitPrimitiveUpdater = this.viewer.clock.onTick.addEventListener((onTickClock) => {
-          const dt = Math.abs(Cesium.JulianDate.secondsDifference(onTickClock.currentTime, lastUpdated));
-          if (dt >= orbitRefreshRate) {
-            if (!this.components.Orbit) {
-              this.orbitPrimitiveUpdater();
-              return;
-            }
-            lastUpdated = onTickClock.currentTime;
-            const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(onTickClock.currentTime);
-            if (Cesium.defined(icrfToFixed)) {
-              this.components.Orbit.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
-            }
+        this.orbitPrimitiveUpdater = CesiumCallbackHelper.createPeriodicTimeCallback(this.viewer, 0.5, (time) => {
+          if (!this.components.Orbit) {
+            // Remove callback if orbit is disabled
+            this.orbitPrimitiveUpdater();
+            return;
+          }
+          const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(time);
+          if (Cesium.defined(icrfToFixed)) {
+            this.components.Orbit.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
           }
         });
       }
     } else if (name === "Orbit" && this.components[name] instanceof Cesium.GeometryInstance) {
       // Update the model matrix of the primitive containing all orbit geometries periodically to keep the orbit in the inertial frame
       if (!this.constructor.geometryPrimitiveUpdater) {
-        let lastUpdated = this.viewer.clock.currentTime;
-        const orbitRefreshRate = 0.5;
-        this.constructor.geometryPrimitiveUpdater = this.viewer.clock.onTick.addEventListener((onTickClock) => {
-          const dt = Math.abs(Cesium.JulianDate.secondsDifference(onTickClock.currentTime, lastUpdated));
-          if (dt >= orbitRefreshRate) {
-            lastUpdated = onTickClock.currentTime;
-            const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(onTickClock.currentTime);
-            if (Cesium.defined(icrfToFixed) && this.constructor.primitive) {
-              this.constructor.primitive.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
-            }
+        this.constructor.geometryPrimitiveUpdater = CesiumCallbackHelper.createPeriodicTimeCallback(this.viewer, 0.5, (time) => {
+          const icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(time);
+          if (Cesium.defined(icrfToFixed) && this.constructor.primitive) {
+            this.constructor.primitive.modelMatrix = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
           }
         });
       }
@@ -88,7 +78,7 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
   create() {
     this.createDescription();
 
-    this.props.createSampledPosition(this.viewer.clock, () => {
+    this.props.createSampledPosition(this.viewer, () => {
       this.updatedSampledPositionForComponents(true);
     });
 
