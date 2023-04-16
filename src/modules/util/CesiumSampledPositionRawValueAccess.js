@@ -30,3 +30,12 @@ SampledPositionProperty.prototype.getRawValues = function (start, end) {
   }
   return result;
 };
+
+/**
+ * Gets the number of samples stored in the sampled property.
+ *
+ * @returns {number} The number of samples stored in the sampled property.
+ */
+SampledPositionProperty.prototype.length = function () {
+  return this._property._times.length;
+};

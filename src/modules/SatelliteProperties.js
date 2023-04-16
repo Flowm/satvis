@@ -66,14 +66,15 @@ export class SatelliteProperties {
     const samplingInterval = orbitalPeriod / samplingPointsPerOrbit;
     // console.log("updateSampledPosition", this.name, this.orbit.orbitalPeriod, samplingInterval.toFixed(2));
 
-    // Always keep half an orbit backwards and a full orbit forwards in the sampled position
-    const start = Cesium.JulianDate.addSeconds(time, -orbitalPeriod / 2, new Cesium.JulianDate());
-    const stop = Cesium.JulianDate.addSeconds(time, orbitalPeriod * 1.5, new Cesium.JulianDate());
-    const request = new Cesium.TimeInterval({ start, stop });
+    // Always keep half an orbit backwards and 1.5 full orbits forward in the sampled position
+    const request = new Cesium.TimeInterval({
+      start: Cesium.JulianDate.addSeconds(time, -orbitalPeriod / 2, new Cesium.JulianDate()),
+      stop: Cesium.JulianDate.addSeconds(time, orbitalPeriod * 1.5, new Cesium.JulianDate()),
+    });
 
     // (Re)create sampled position if it does not exist or if it does not contain the current time
     if (!this.sampledPosition || !Cesium.TimeInterval.contains(this.sampledPosition.interval, time)) {
-      this.initSampledPosition(start);
+      this.initSampledPosition(request.start);
     }
 
     // Determine which parts of the requested interval are missing
@@ -97,6 +98,24 @@ export class SatelliteProperties {
       const samplingStop = Cesium.JulianDate.addSeconds(intersect.stop, missingSecondsEnd, new Cesium.JulianDate());
       this.addSamples(samplingStart, samplingStop, samplingInterval);
     }
+
+    // Remove no longer needed samples
+    const removeBefore = new Cesium.TimeInterval({
+      start: Cesium.JulianDate.fromIso8601("1957"),
+      stop: request.start,
+      isStartIncluded: false,
+      isStopIncluded: false,
+    });
+    const removeAfter = new Cesium.TimeInterval({
+      start: request.stop,
+      stop: Cesium.JulianDate.fromIso8601("2100"),
+      isStartIncluded: false,
+      isStopIncluded: false,
+    });
+    this.sampledPosition.fixed.removeSamples(removeBefore);
+    this.sampledPosition.inertial.removeSamples(removeBefore);
+    this.sampledPosition.fixed.removeSamples(removeAfter);
+    this.sampledPosition.inertial.removeSamples(removeAfter);
 
     this.sampledPosition.interval = request;
   }
