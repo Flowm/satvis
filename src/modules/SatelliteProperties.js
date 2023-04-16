@@ -52,10 +52,14 @@ export class SatelliteProperties {
     callback(this.sampledPosition);
 
     const samplingRefreshRate = (this.orbit.orbitalPeriod * 60) / 4;
-    CesiumCallbackHelper.createPeriodicTimeCallback(viewer, samplingRefreshRate, (time) => {
+    const removeCallback = CesiumCallbackHelper.createPeriodicTimeCallback(viewer, samplingRefreshRate, (time) => {
       this.updateSampledPosition(time);
       callback(this.sampledPosition);
     });
+    return () => {
+      removeCallback();
+      this.sampledPosition = undefined;
+    };
   }
 
   updateSampledPosition(time) {

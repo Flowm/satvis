@@ -74,7 +74,7 @@ export class SatelliteManager {
     }
     this.satellites.push(newSat);
 
-    if (this.satIsEnabled(newSat)) {
+    if (this.satIsActive(newSat)) {
       newSat.show(this.#enabledComponents);
       if (this.pendingTrackedSatellite === newSat.props.name) {
         this.trackedSatellite = newSat.props.name;
@@ -133,21 +133,7 @@ export class SatelliteManager {
   }
 
   get visibleSatellites() {
-    return this.satellites.filter((sat) => sat.enabled);
-  }
-
-  get enabledSatellitesByName() {
-    return this.visibleSatellites.map((sat) => sat.props.name);
-  }
-
-  set enabledSatellitesByName(sats) {
-    this.satellites.forEach((sat) => {
-      if (sats.includes(sat.props.name)) {
-        sat.show(this.#enabledComponents);
-      } else {
-        sat.hide();
-      }
-    });
+    return this.satellites.filter((sat) => sat.created);
   }
 
   get monitoredSatellites() {
@@ -193,15 +179,24 @@ export class SatelliteManager {
     return this.satellites.filter((sat) => sat.props.hasTag(tag));
   }
 
-  satIsEnabled(sat) {
+  /**
+   * Returns true if the satellite is enabled by tag or name
+   * @param {SatelliteComponentCollection} sat
+   * @returns {boolean} true if the satellite is enabled
+   */
+  satIsActive(sat) {
     const enabledByTag = this.#enabledTags.some((tag) => sat.props.hasTag(tag));
     const enabledByName = this.#enabledSatellites.includes(sat.props.name);
     return enabledByTag || enabledByName;
   }
 
+  get activeSatellites() {
+    return this.satellites.filter((sat) => this.satIsActive(sat));
+  }
+
   showEnabledSatellites() {
     this.satellites.forEach((sat) => {
-      if (this.satIsEnabled(sat)) {
+      if (this.satIsActive(sat)) {
         sat.show(this.#enabledComponents);
       } else {
         sat.hide();
@@ -246,19 +241,19 @@ export class SatelliteManager {
   }
 
   enableComponent(componentName) {
-    const index = this.#enabledComponents.indexOf(componentName);
-    if (index === -1) this.#enabledComponents.push(componentName);
+    if (!this.#enabledComponents.includes(componentName)) {
+      this.#enabledComponents.push(componentName);
+    }
 
-    this.visibleSatellites.forEach((sat) => {
+    this.activeSatellites.forEach((sat) => {
       sat.enableComponent(componentName);
     });
   }
 
   disableComponent(componentName) {
-    const index = this.#enabledComponents.indexOf(componentName);
-    if (index !== -1) this.#enabledComponents.splice(index, 1);
+    this.#enabledComponents = this.#enabledComponents.filter((name) => name !== componentName);
 
-    this.visibleSatellites.forEach((sat) => {
+    this.activeSatellites.forEach((sat) => {
       sat.disableComponent(componentName);
     });
   }

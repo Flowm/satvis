@@ -5,7 +5,7 @@ export class CesiumCleanupHelper {
   // https://github.com/CesiumGS/cesium/issues/7184
   static cleanup(viewer) {
     const onTickEventRemovalCallback = CesiumCallbackHelper.createPeriodicTickCallback(viewer, 1, () => {
-      console.log("Removing leftover Cesium internal data");
+      console.info("Removing leftover Cesium internal data");
       onTickEventRemovalCallback();
       /* eslint-disable no-underscore-dangle */
       const labelCollection = viewer.scene.primitives?._primitives[0]?._primitives[0]._primitives[0]._labelCollection;

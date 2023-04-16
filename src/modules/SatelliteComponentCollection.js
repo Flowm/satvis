@@ -11,11 +11,12 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
   constructor(viewer, tle, tags) {
     super(viewer);
     this.props = new SatelliteProperties(tle, tags);
+    this.eventListeners = {};
   }
 
   enableComponent(name) {
     if (!this.created) {
-      this.create();
+      this.init();
     }
     if (!this.props.sampledPosition.valid) {
       console.error(`No valid position data available for ${this.props.name}`);
@@ -73,17 +74,22 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
       }
     }
     super.disableComponent(name);
+
+    if (this.componentNames.length === 0) {
+      // Remove event listeners when no components are enabled
+      this.deinit();
+    }
   }
 
-  create() {
+  init() {
     this.createDescription();
 
-    this.props.createSampledPosition(this.viewer, () => {
+    this.eventListeners.sampledPosition = this.props.createSampledPosition(this.viewer, () => {
       this.updatedSampledPositionForComponents(true);
     });
 
     // Set up event listeners
-    this.viewer.selectedEntityChanged.addEventListener((entity) => {
+    this.eventListeners.selectedEntity = this.viewer.selectedEntityChanged.addEventListener((entity) => {
       if (!entity || entity?.name === "Ground station") {
         CesiumTimelineHelper.clearHighlightRanges(this.viewer);
         return;
@@ -94,7 +100,7 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
       }
     });
 
-    this.viewer.trackedEntityChanged.addEventListener(() => {
+    this.eventListeners.trackedEntity = this.viewer.trackedEntityChanged.addEventListener(() => {
       if (this.isTracked) {
         this.artificiallyTrack();
       }
@@ -104,6 +110,13 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
         this.enableComponent("Orbit");
       }
     });
+  }
+
+  deinit() {
+    // Remove event listeners
+    this.eventListeners.sampledPosition();
+    this.eventListeners.selectedEntity();
+    this.eventListeners.trackedEntity();
   }
 
   updatedSampledPositionForComponents(update = false) {

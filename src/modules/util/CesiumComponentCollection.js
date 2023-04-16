@@ -5,9 +5,8 @@ import { CesiumCallbackHelper } from "./CesiumCallbackHelper";
 /** CesiumComponentCollection
   *
   * A wrapper class for Cesium entities and primitives that all belong to a common object being represented.
-  * The individual entities or primitives are created on demand and are added
-  * to a common entity collection or primitive collection shared between all
-  * ComponentCollections.
+  * The individual entities or primitives are created on demand by the inheriting child class and are added
+  * to a common entity collection or primitive collection shared between all ComponentCollections.
  */
 export class CesiumComponentCollection {
   #components = {};
@@ -20,8 +19,10 @@ export class CesiumComponentCollection {
 
   static primitivePendingCreation = false;
 
-  constructor(viewer) {
+  constructor(viewer, lazy = true) {
     this.viewer = viewer;
+    // Create entities only when needed and delete them on disable
+    this.lazy = lazy;
   }
 
   get components() {
@@ -29,27 +30,11 @@ export class CesiumComponentCollection {
   }
 
   get componentNames() {
-    return Object.keys(this.#components);
-  }
-
-  get enabledComponents() {
-    return Object.values(this.#components).filter((component) => {
-      if (component instanceof Cesium.Entity) {
-        return this.viewer.entities.contains(component);
-      }
-      if (component instanceof Cesium.Primitive) {
-        return this.viewer.scene.primitives.contains(component);
-      }
-      return false;
-    });
+    return Object.keys(this.components);
   }
 
   get created() {
     return this.componentNames.length > 0;
-  }
-
-  get enabled() {
-    return this.enabledComponents.length > 0;
   }
 
   show(componentNames = this.componentNames) {
@@ -65,10 +50,10 @@ export class CesiumComponentCollection {
   }
 
   enableComponent(name) {
-    if (!(name in this.#components)) {
+    if (!(name in this.components)) {
       return;
     }
-    const component = this.#components[name];
+    const component = this.components[name];
     if (component instanceof Cesium.Entity && !this.viewer.entities.contains(component)) {
       this.viewer.entities.add(component);
     } else if (component instanceof Cesium.Primitive && !this.viewer.scene.primitives.contains(component)) {
@@ -80,10 +65,10 @@ export class CesiumComponentCollection {
   }
 
   disableComponent(name) {
-    if (!(name in this.#components)) {
+    if (!(name in this.components)) {
       return;
     }
-    const component = this.#components[name];
+    const component = this.components[name];
     if (component instanceof Cesium.Entity) {
       this.viewer.entities.remove(component);
     } else if (component instanceof Cesium.Primitive) {
@@ -92,7 +77,9 @@ export class CesiumComponentCollection {
       this.constructor.geometries = this.constructor.geometries.filter((geometry) => geometry !== component);
       this.recreateGeometryInstancePrimitive();
     }
-    delete this.#components[name];
+    if (this.lazy) {
+      delete this.components[name];
+    }
   }
 
   recreateGeometryInstancePrimitive() {
@@ -148,12 +135,28 @@ export class CesiumComponentCollection {
     });
   }
 
+  /**
+   * Returns an array of all components that are added to the viewer.
+   * If component creation is
+   */
+  get visibleComponents() {
+    return Object.values(this.components).filter((component) => {
+      if (component instanceof Cesium.Entity) {
+        return this.viewer.entities.contains(component);
+      }
+      if (component instanceof Cesium.Primitive) {
+        return this.viewer.scene.primitives.contains(component);
+      }
+      return false;
+    });
+  }
+
   get isSelected() {
-    return Object.values(this.#components).some((entity) => this.viewer.selectedEntity === entity);
+    return Object.values(this.components).some((entity) => this.viewer.selectedEntity === entity);
   }
 
   get isTracked() {
-    return Object.values(this.#components).some((entity) => this.viewer.trackedEntity === entity);
+    return Object.values(this.components).some((entity) => this.viewer.trackedEntity === entity);
   }
 
   track(animate = false) {
@@ -230,6 +233,6 @@ export class CesiumComponentCollection {
     }
 
     entity[entityKey] = entityValue;
-    this.#components[componentName] = entity;
+    this.components[componentName] = entity;
   }
 }
