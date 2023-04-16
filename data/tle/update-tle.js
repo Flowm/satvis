@@ -48,7 +48,7 @@ const groups = [
   // "intelsat",
   // "ses",
   // "iridium",
-  // "iridium-NEXT",
+  "iridium-NEXT",
   "starlink",
   "oneweb",
   // "orbcomm",
