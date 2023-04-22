@@ -25,10 +25,6 @@ export class SatelliteComponentCollection extends CesiumComponentCollection {
     if (!(name in this.components)) {
       this.createComponent(name);
       this.updatedSampledPositionForComponents();
-
-      if (!this.defaultEntity) {
-        this.defaultEntity = this.components[name];
-      }
     }
 
     super.enableComponent(name);

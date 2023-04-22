@@ -62,6 +62,9 @@ export class CesiumComponentCollection {
       this.constructor.geometries.push(component);
       this.recreateGeometryInstancePrimitive();
     }
+    if (!this.defaultEntity) {
+      this.defaultEntity = component;
+    }
   }
 
   disableComponent(name) {

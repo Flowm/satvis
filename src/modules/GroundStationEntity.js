@@ -19,17 +19,6 @@ export class GroundStationEntity extends CesiumComponentCollection {
   createEntities() {
     this.createDescription();
     this.createGroundStation();
-
-    this.viewer.selectedEntityChanged.addEventListener(() => {
-      if (this.isSelected) {
-        this.setSelectedOnTickCallback((clock) => {
-          // TODO: Update passes less frequently
-          this.sats.visibleSatellites.forEach((sat) => {
-            sat.props.updatePasses(clock.currentTime);
-          });
-        });
-      }
-    });
   }
 
   createGroundStation() {
@@ -40,7 +29,6 @@ export class GroundStationEntity extends CesiumComponentCollection {
       scaleByDistance: new Cesium.NearFarScalar(1e2, 0.2, 4e7, 0.1),
     });
     this.createCesiumEntity("Groundstation", "billboard", billboard, this.name, this.description, this.position.cartesian, false);
-    this.defaultEntity = this.entities.Groundstation;
   }
 
   createDescription() {
@@ -55,6 +43,7 @@ export class GroundStationEntity extends CesiumComponentCollection {
     let passes = [];
     // Aggregate passes from all visible satellites
     this.sats.visibleSatellites.forEach((sat) => {
+      sat.props.updatePasses(this.viewer.clock.currentTime);
       passes.push(...sat.props.passes);
     });
 
