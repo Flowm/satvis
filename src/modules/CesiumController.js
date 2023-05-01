@@ -73,8 +73,9 @@ export class CesiumController {
 
     // Add privacy policy to credits when not running in iframe
     if (!DeviceDetect.inIframe()) {
-      this.viewer.scene.frameState.creditDisplay.addDefaultCredit(new Cesium.Credit("<a href=\"/privacy.html\" target=\"_blank\"><u>Privacy</u></a>"));
+      this.viewer.creditDisplay.addStaticCredit(new Cesium.Credit(`<a href="/privacy.html" target="_blank"><u>Privacy</u></a>`, true));
     }
+    this.viewer.creditDisplay.addStaticCredit(new Cesium.Credit(`Satellite TLE data provided by <a href="https://celestrak.org/NORAD/elements/" target="_blank"><u>Celestrak</u></a>`));
 
     // Fix Cesium logo in minimal ui mode
     if (this.minimalUI) {
