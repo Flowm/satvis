@@ -156,18 +156,6 @@ export class CesiumController {
         alpha: 0.5,
         base: false,
       },
-      Meteocool: {
-        create: () => new Cesium.UrlTemplateImageryProvider({
-          url: "https://{s}.tileserver.unimplemented.org/data/raa01-wx_10000-latest-dwd-wgs84_transformed/{z}/{x}/{y}.png",
-          rectangle: Cesium.Rectangle.fromDegrees(2.8125, 45, 19.6875, 56.25),
-          minimumLevel: 6,
-          maximumLevel: 10,
-          credit: "DE Radar data courtesy of meteocool.com",
-          subdomains: "ab",
-        }),
-        alpha: 0.5,
-        base: false,
-      },
     };
   }
 
@@ -252,7 +240,7 @@ export class CesiumController {
         break;
       case "Maptiler":
         this.viewer.terrainProvider = new Cesium.CesiumTerrainProvider({
-          url: "https://api.maptiler.com/tiles/terrain-quantized-mesh/?key=8urAyLJIrn6TeDtH0Ubh",
+          url: "https://api.maptiler.com/tiles/terrain-quantized-mesh/?key=tiHE8Ed08u6ZoFjbE32Z",
           credit: "<a href=\"https://www.maptiler.com/copyright/\" target=\"_blank\">© MapTiler</a> <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">© OpenStreetMap contributors</a>",
           requestVertexNormals: true,
         });
