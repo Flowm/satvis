@@ -8,6 +8,7 @@ import "./util/CesiumSampledPositionRawValueAccess";
 
 import satvisIcon from "../assets/android-chrome-192x192.png";
 import { CesiumCallbackHelper } from "./util/CesiumCallbackHelper";
+// import { CesiumTransformsCache } from "./util/CesiumTransformsCache";
 
 export class SatelliteProperties {
   constructor(tle, tags = []) {
@@ -177,12 +178,14 @@ export class SatelliteProperties {
     const positionInertialTEME = this.computePositionInertialTEME(timestamp);
 
     const temeToFixed = Cesium.Transforms.computeTemeToPseudoFixedMatrix(timestamp);
+    // const temeToFixed = CesiumTransformsCache.getTemeToPseudoFixedMatrix(timestamp);
     if (!Cesium.defined(temeToFixed)) {
       console.error("Reference frame transformation data failed to load");
     }
     const positionFixed = Cesium.Matrix3.multiplyByVector(temeToFixed, positionInertialTEME, new Cesium.Cartesian3());
 
     const fixedToIcrf = Cesium.Transforms.computeFixedToIcrfMatrix(timestamp);
+    // const fixedToIcrf = CesiumTransformsCache.getFixedToIcrfMatrix(timestamp);
     if (!Cesium.defined(fixedToIcrf)) {
       console.error("Reference frame transformation data failed to load");
     }
