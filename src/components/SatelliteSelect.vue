@@ -111,7 +111,7 @@ export default {
 </style>
 
 <style>
-@import "vue-multiselect/dist/vue3-multiselect.css";
+@import "vue-multiselect/dist/vue-multiselect.css";
 
 .multiselect__single {
   display: none;
