@@ -22,15 +22,15 @@ export class CesiumController {
 
     this.viewer = new Viewer("cesiumContainer", {
       animation: !this.minimalUI,
+      baseLayer: this.createImageryLayer("OfflineHighres"),
       baseLayerPicker: false,
       fullscreenButton: !this.minimalUI,
       fullscreenElement: document.body,
       geocoder: false,
       homeButton: false,
-      sceneModePicker: false,
-      baseLayer: this.createImageryLayer("OfflineHighres"),
       navigationHelpButton: false,
       navigationInstructionsInitiallyVisible: false,
+      sceneModePicker: false,
       selectionIndicator: false,
       timeline: !this.minimalUI,
       vrButton: !this.minimalUI,

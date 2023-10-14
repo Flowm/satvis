@@ -260,8 +260,11 @@ export default {
     cameraMode(newMode) {
       cc.cameraMode = newMode;
     },
-    qualityPreset(value) {
-      cc.qualityPreset = value;
+    qualityPreset: {
+      handler(value) {
+        cc.qualityPreset = value;
+      },
+      immediate: true,
     },
     showFps(value) {
       cc.showFps = value;
