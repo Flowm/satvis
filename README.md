@@ -2,6 +2,11 @@
 
 Satellite orbit visualization and pass prediction.
 
+> [!NOTE]
+> The `next` branch contains many improvements from a bigger refactoring and is the recommended branch currently.
+> This version is currently deployed to https://satvis.space/next.
+> Planning to merge this back to the ~~master~~ main in the next few months.
+
 ![Screenshot](https://user-images.githubusercontent.com/1117666/47623704-f0c3e900-db14-11e8-9cf9-7bf13acb267c.png)
 
 ## Features
