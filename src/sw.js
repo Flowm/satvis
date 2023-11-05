@@ -9,6 +9,11 @@ registerRoute(
   /cesium\/(Assets|Widgets|Workers)\/.*\.(css|js|json)$/,
   new CacheFirst({
     cacheName: "cesium-cache",
+    plugins: [
+      new ExpirationPlugin({
+        maxAgeSeconds: 7 * 24 * 60 * 60,
+      }),
+    ],
   }),
 );
 
