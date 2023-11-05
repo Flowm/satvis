@@ -112,6 +112,14 @@ export class CesiumController {
         alpha: 1,
         base: true,
       },
+      Topo: {
+        create: () => new Cesium.UrlTemplateImageryProvider({
+          url: "https://api.maptiler.com/maps/topo-v2/{z}/{x}/{y}@2x.png?key=tiHE8Ed08u6ZoFjbE32Z",
+          credit: `<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>`,
+        }),
+        alpha: 1,
+        base: true,
+      },
       BlackMarble: {
         create: () => new Cesium.WebMapServiceImageryProvider({
           url: "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi",
