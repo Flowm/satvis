@@ -1,4 +1,4 @@
-@import "./oruga.css";
+@import "./oruga.scss";
 @import "vue-toastification/dist/index.css";
 
 html, body, #cesiumContainer {

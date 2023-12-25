@@ -61,11 +61,12 @@ module.exports = {
         test: /\.vue$/,
         loader: "vue-loader",
       }, {
-        test: /\.css$/,
+        test: /\.(sa|sc|c)ss$/,
         use: [
           MiniCssExtractPlugin.loader,
           "css-loader",
           "postcss-loader",
+          "sass-loader",
         ],
       }, {
         test: /\.(png|gif|jpg|jpeg|svg|xml|json)$/,
