@@ -60,7 +60,6 @@ export class CesiumController {
     window.cc = this;
 
     // CesiumController config
-    this.terrainProviders = ["None", "Maptiler"];
     this.sceneModes = ["3D", "2D", "Columbus"];
     this.cameraModes = ["Fixed", "Inertial"];
 
@@ -166,6 +165,21 @@ export class CesiumController {
         base: false,
       },
     };
+    this.terrainProviders = {
+      None: {
+        create: () => new Cesium.EllipsoidTerrainProvider(),
+      },
+      Maptiler: {
+        create: () => Cesium.CesiumTerrainProvider.fromUrl("https://api.maptiler.com/tiles/terrain-quantized-mesh/?key=tiHE8Ed08u6ZoFjbE32Z", {
+          credit: "<a href=\"https://www.maptiler.com/copyright/\" target=\"_blank\">© MapTiler</a> <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">© OpenStreetMap contributors</a>",
+          requestVertexNormals: true,
+        }),
+      },
+      ArcGIS: {
+        create: () => Cesium.ArcGISTiledElevationTerrainProvider.fromUrl("https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer"),
+        visible: false,
+      },
+    };
   }
 
   preloadReferenceFrameData() {
@@ -222,6 +236,24 @@ export class CesiumController {
     return layer;
   }
 
+  get terrainProviderNames() {
+    return Object.entries(this.terrainProviders).filter(([, val]) => val.visible ?? true).map(([key]) => key);
+  }
+
+  set terrainProvider(terrainProviderName) {
+    this.updateTerrainProvider(terrainProviderName);
+  }
+
+  async updateTerrainProvider(terrainProviderName) {
+    if (!this.terrainProviderNames.includes(terrainProviderName)) {
+      console.error("Unknown terrain provider");
+      return;
+    }
+
+    const provider = await this.terrainProviders[terrainProviderName].create();
+    this.viewer.terrainProvider = provider;
+  }
+
   set sceneMode(sceneMode) {
     switch (sceneMode) {
       case "3D":
@@ -235,32 +267,6 @@ export class CesiumController {
         break;
       default:
         console.error("Unknown scene mode");
-    }
-  }
-
-  set terrainProvider(terrainProviderName) {
-    if (!this.terrainProviders.includes(terrainProviderName)) {
-      return;
-    }
-
-    switch (terrainProviderName) {
-      case "None":
-        this.viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
-        break;
-      case "Maptiler":
-        this.viewer.terrainProvider = new Cesium.CesiumTerrainProvider({
-          url: "https://api.maptiler.com/tiles/terrain-quantized-mesh/?key=tiHE8Ed08u6ZoFjbE32Z",
-          credit: "<a href=\"https://www.maptiler.com/copyright/\" target=\"_blank\">© MapTiler</a> <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">© OpenStreetMap contributors</a>",
-          requestVertexNormals: true,
-        });
-        break;
-      case "ArcGIS":
-        this.viewer.terrainProvider = new Cesium.ArcGISTiledElevationTerrainProvider({
-          url: "https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer",
-        });
-        break;
-      default:
-        console.error("Unknown terrain provider");
     }
   }
 

@@ -82,7 +82,7 @@
         <div class="toolbarTitle">
           Terrain
         </div>
-        <label v-for="name in cc.terrainProviders" :key="name" class="toolbarSwitch">
+        <label v-for="name in cc.terrainProviderNames" :key="name" class="toolbarSwitch">
           <input v-model="terrainProvider" type="radio" :value="name">
           <span class="slider"></span>
           {{ name }}
