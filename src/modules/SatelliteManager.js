@@ -66,6 +66,89 @@ export class SatelliteManager {
     }
   }
 
+  /**
+   * Add or update a satellite from TLE data
+   * If a satellite with the same name exists, it will be removed and re-added with updated TLE
+   * @param {string} tle - Three-line TLE string
+   * @param {string[]} tags - Array of tags for the satellite
+   * @param {boolean} updateStore - Whether to update the store after adding
+   * @param {boolean} autoEnable - Whether to automatically enable/show the satellite
+   * @returns {{added: boolean, updated: boolean, name: string}} Result of the operation
+   */
+  addOrUpdateFromTle(tle, tags, updateStore = true, autoEnable = true) {
+    // Extract satellite name from TLE
+    let name = tle.split("\n")[0].trim();
+    if (name.startsWith("0 ")) {
+      name = name.substring(2);
+    }
+
+    const existingSat = this.getSatellite(name);
+    const wasUpdated = !!existingSat;
+    const wasEnabled = existingSat ? this.#enabledSatellites.includes(name) || this.satIsActive(existingSat) : false;
+
+    if (existingSat) {
+      // Remove existing satellite to update with new TLE
+      this.removeSatellite(name, false);
+    }
+
+    // Add new satellite
+    this.addFromTle(tle, tags, updateStore);
+
+    // Auto-enable the satellite if requested or if it was previously enabled
+    if (autoEnable || wasEnabled) {
+      if (!this.#enabledSatellites.includes(name)) {
+        // Use the setter which properly triggers showEnabledSatellites
+        this.enabledSatellites = [...this.#enabledSatellites, name];
+      } else {
+        // Already in the list, just make sure it's visible
+        const sat = this.getSatellite(name);
+        if (sat) {
+          sat.show(this.#enabledComponents);
+        }
+      }
+    }
+
+    return {
+      added: !wasUpdated,
+      updated: wasUpdated,
+      name,
+    };
+  }
+
+  /**
+   * Remove a satellite by name
+   * @param {string} name - Name of the satellite to remove
+   * @param {boolean} updateStore - Whether to update the store after removal
+   * @returns {boolean} True if satellite was found and removed
+   */
+  removeSatellite(name, updateStore = true) {
+    const satIndex = this.satellites.findIndex((sat) => sat.props.name === name);
+    if (satIndex === -1) {
+      return false;
+    }
+
+    const sat = this.satellites[satIndex];
+
+    // Hide and cleanup satellite components
+    sat.hide();
+    sat.deinit();
+
+    // Remove from array
+    this.satellites.splice(satIndex, 1);
+
+    // Remove from enabled satellites if present
+    if (this.#enabledSatellites.includes(name)) {
+      this.#enabledSatellites = this.#enabledSatellites.filter((n) => n !== name);
+      useSatStore().enabledSatellites = this.#enabledSatellites;
+    }
+
+    if (updateStore) {
+      this.updateStore();
+    }
+
+    return true;
+  }
+
   #add(newSat) {
     const existingSat = this.satellites.find((sat) => sat.props.satnum === newSat.props.satnum && sat.props.name === newSat.props.name);
     if (existingSat) {

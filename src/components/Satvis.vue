@@ -22,7 +22,7 @@
         </button>
       </div>
       <div v-show="menu.cat" class="toolbarSwitches">
-        <satellite-select />
+        <satellite-select @open-menu="openSatelliteMenu" />
       </div>
       <div v-show="menu.sat" class="toolbarSwitches">
         <div class="toolbarTitle">Satellite elements</div>
@@ -180,6 +180,7 @@ import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 
 import { DeviceDetect } from "../modules/util/DeviceDetect";
+import { useCustomTle } from "../composables/useCustomTle";
 import SatelliteSelect from "./SatelliteSelect.vue";
 
 export default {
@@ -201,7 +202,7 @@ export default {
   },
   computed: {
     ...mapWritableState(useCesiumStore, ["layers", "terrainProvider", "sceneMode", "cameraMode", "qualityPreset", "showFps", "background", "pickMode"]),
-    ...mapWritableState(useSatStore, ["enabledComponents", "groundStations", "overpassMode"]),
+    ...mapWritableState(useSatStore, ["enabledComponents", "groundStations", "overpassMode", "customTles"]),
   },
   watch: {
     layers: {
@@ -260,6 +261,12 @@ export default {
       cc.setTime(this.$route.query.time);
     }
     this.showUI = !DeviceDetect.inIframe();
+
+    // Load custom TLEs from storage and URL on startup
+    // Use setTimeout to ensure this runs after Pinia URL sync has initialized
+    setTimeout(() => {
+      this.applyCustomTles();
+    }, 100);
   },
   methods: {
     toggleMenu(name) {
@@ -273,6 +280,54 @@ export default {
       this.showUI = !this.showUI;
       if (!cc.minimalUI) {
         cc.showUI = this.showUI;
+      }
+    },
+    openSatelliteMenu() {
+      // Open the satellite selection menu
+      Object.keys(this.menu).forEach((k) => {
+        this.menu[k] = false;
+      });
+      this.menu.cat = true;
+    },
+    applyCustomTles() {
+      const { loadFromStorage } = useCustomTle();
+      const savedTles = loadFromStorage();
+
+      console.log("applyCustomTles: savedTles", savedTles.length, "urlTles", this.customTles?.length || 0);
+
+      if (savedTles.length === 0 && (!this.customTles || this.customTles.length === 0)) {
+        return;
+      }
+
+      // Collect all satellite names to enable
+      const satelliteNames = [];
+
+      // Apply TLEs from storage
+      savedTles.forEach((entry) => {
+        const result = cc.sats.addOrUpdateFromTle(entry.tle, entry.tags, false, false);
+        console.log("Added from storage:", result.name);
+        satelliteNames.push(result.name);
+      });
+
+      // Apply TLEs from URL (customTles is synced from URL via pinia)
+      if (this.customTles && this.customTles.length > 0) {
+        this.customTles.forEach((entry) => {
+          const result = cc.sats.addOrUpdateFromTle(entry.tle, entry.tags, false, false);
+          console.log("Added from URL:", result.name);
+          satelliteNames.push(result.name);
+        });
+      }
+
+      // Update the store with new satellites
+      cc.sats.updateStore();
+
+      // Enable all custom satellites at once
+      if (satelliteNames.length > 0) {
+        console.log("Enabling satellites:", satelliteNames);
+        const currentEnabled = cc.sats.enabledSatellites;
+        const newEnabled = [...new Set([...currentEnabled, ...satelliteNames])];
+        console.log("New enabled list:", newEnabled);
+        cc.sats.enabledSatellites = newEnabled;
       }
     },
   },
