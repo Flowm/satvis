@@ -8,12 +8,19 @@ export class CesiumCleanupHelper {
       console.info("Removing leftover Cesium internal data");
       onTickEventRemovalCallback();
 
-      const labelCollection = viewer.scene.primitives?._primitives[0]?._primitives[0]._primitives[0]._labelCollection;
-      if (labelCollection) {
-        labelCollection._spareBillboards.forEach((billboard) => {
-          labelCollection._billboardCollection.remove(billboard);
-        });
-        labelCollection._spareBillboards.length = 0;
+      try {
+        const primitives = viewer.scene.primitives?._primitives;
+        const labelCollection = primitives?.[0]?._primitives?.[0]?._primitives?.[0]?._labelCollection;
+        if (labelCollection && labelCollection._spareBillboards && labelCollection._billboardCollection) {
+          labelCollection._spareBillboards.forEach((billboard) => {
+            if (billboard) {
+              labelCollection._billboardCollection.remove(billboard);
+            }
+          });
+          labelCollection._spareBillboards.length = 0;
+        }
+      } catch (e) {
+        console.warn("CesiumCleanupHelper: Could not clean up internal data", e);
       }
     });
   }
