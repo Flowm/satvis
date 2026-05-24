@@ -10,6 +10,7 @@ export const useSatStore = defineStore("sat", {
     groundStations: [],
     trackedSatellite: "",
     overpassMode: "elevation",
+    customTles: [], // Array of {tle: string, tags: string[]} for user-added TLE data
   }),
   urlsync: {
     enabled: true,
@@ -71,6 +72,30 @@ export const useSatStore = defineStore("sat", {
         name: "overpassMode",
         url: "overpass",
         default: "elevation",
+      },
+      {
+        name: "customTles",
+        url: "tle",
+        serialize: (v) => {
+          if (!v || v.length === 0) return "";
+          // Format: ["TLE","tag1","tag2"],["TLE2","tag"]
+          return v.map((entry) => JSON.stringify([entry.tle, ...entry.tags])).join(",");
+        },
+        deserialize: (v) => {
+          if (!v) return [];
+          try {
+            // Wrap with [] if not already wrapped (starts with [[ means already an array of arrays)
+            const json = v.startsWith("[[") ? v : `[${v}]`;
+            const parsed = JSON.parse(json);
+            return parsed.map((arr) => ({
+              tle: arr[0],
+              tags: arr.slice(1),
+            }));
+          } catch {
+            return [];
+          }
+        },
+        default: [],
       },
     ],
   },

@@ -7,7 +7,7 @@ import ToastService from "primevue/toastservice";
 
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { faLayerGroup, faGlobeAfrica, faMobileAlt, faHammer, faEye } from "@fortawesome/free-solid-svg-icons";
+import { faLayerGroup, faGlobeAfrica, faMobileAlt, faHammer, faEye, faTrash, faLink, faLinkSlash, faSave, faExclamationTriangle } from "@fortawesome/free-solid-svg-icons";
 import { faGithub } from "@fortawesome/free-brands-svg-icons";
 
 import App from "./App.vue";
@@ -47,7 +47,7 @@ app.use(PrimeVue, {
 // Setup directives and components
 app.directive("tooltip", Tooltip);
 app.use(ToastService);
-library.add(faLayerGroup, faGlobeAfrica, faMobileAlt, faHammer, faEye, faGithub);
+library.add(faLayerGroup, faGlobeAfrica, faMobileAlt, faHammer, faEye, faTrash, faLink, faLinkSlash, faSave, faExclamationTriangle, faGithub);
 app.component("FontAwesomeIcon", FontAwesomeIcon);
 
 // Mount the app

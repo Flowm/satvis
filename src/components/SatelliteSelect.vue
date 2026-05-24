@@ -22,6 +22,11 @@
         <template #noResult> No matching satellites </template>
       </vue-multiselect>
     </div>
+    <div class="toolbarTitle tleToggleTitle" @click="showCustomTle = !showCustomTle">
+      <span>Custom TLE</span>
+      <span class="tleToggleArrow">{{ showCustomTle ? "▲" : "▼" }}</span>
+    </div>
+    <CustomTlePanel v-show="showCustomTle" @open-menu="$emit('open-menu')" />
   </div>
 </template>
 
@@ -30,13 +35,18 @@ import VueMultiselect from "vue-multiselect";
 import { mapWritableState } from "pinia";
 
 import { useSatStore } from "../stores/sat";
+import CustomTlePanel from "./CustomTlePanel.vue";
 
 export default {
   components: {
     VueMultiselect,
+    CustomTlePanel,
   },
+  emits: ["open-menu"],
   data() {
-    return {};
+    return {
+      showCustomTle: false,
+    };
   },
   computed: {
     ...mapWritableState(useSatStore, ["availableSatellitesByTag", "availableTags", "enabledSatellites", "enabledTags", "trackedSatellite"]),
@@ -55,7 +65,9 @@ export default {
     },
     allEnabledSatellites: {
       get() {
-        return this.satellitesEnabledByTag.concat(this.enabledSatellites ?? []);
+        // Use Set to deduplicate satellites that might be enabled both by tag and individually
+        const allSats = new Set([...this.satellitesEnabledByTag, ...(this.enabledSatellites ?? [])]);
+        return [...allSats];
       },
       set(sats) {
         const enabledTags = this.availableTags.filter((tag) => !this.availableSatellitesByTag[tag].some((sat) => !sats.includes(sat)));
@@ -88,6 +100,23 @@ export default {
 <style scoped>
 .satellite-select {
   width: 300px;
+}
+
+.tleToggleTitle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tleToggleTitle:hover {
+  color: #fff;
+}
+
+.tleToggleArrow {
+  font-size: 10px;
+  padding: 0 5px;
 }
 </style>
 

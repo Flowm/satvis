@@ -153,3 +153,79 @@ a.cesium-toolbar-button {
   padding: 0px;
   margin: 0px 3px;
 }
+
+/* Custom TLE Input Styles */
+.toolbarTleInput {
+    display: flex;
+    flex-direction: column;
+    padding: 5px 10px;
+    gap: 5px;
+}
+
+.tleTextarea {
+    width: 100%;
+    min-width: 280px;
+    padding: 8px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background-color: #1a1a1a;
+    color: #edffff;
+    font-family: monospace;
+    font-size: 11px;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.tleTextarea::placeholder {
+    color: #888;
+}
+
+.tleTagInput {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background-color: #1a1a1a;
+    color: #edffff;
+    font-size: 12px;
+    box-sizing: border-box;
+}
+
+.tleTagInput::placeholder {
+    color: #888;
+}
+
+.tleButtons {
+    display: flex;
+    gap: 5px;
+}
+
+.tleButtons .cesium-button {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+.savedTleEntry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 10px;
+    background-color: #303336;
+    border-radius: 4px;
+    margin: 2px 5px;
+}
+
+.savedTleName {
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+}
+
+.tleRemoveBtn {
+    padding: 2px 6px;
+    font-size: 10px;
+    min-width: auto;
+}
