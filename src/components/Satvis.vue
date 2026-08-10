@@ -37,6 +37,11 @@
             <UIcon name="lucide:gauge" />
           </button>
         </UTooltip>
+        <UTooltip text="GraphQL data">
+          <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleMenu('gql')">
+            <UIcon name="lucide:database" />
+          </button>
+        </UTooltip>
       </div>
       <!-- v-if (not v-show like the other panels): the virtualized list inside
            measures its scroll element on mount, and mounting hidden (display:none)
@@ -268,6 +273,11 @@
           {{ rate === "off" ? "Off" : `${rate}x` }}
         </label>
       </div>
+      <!-- Satellite data through the GraphQL backend API, mounted on open like
+           the catalog list so its virtualized content measures correctly. -->
+      <div v-if="menu.gql" class="toolbarSwitches">
+        <satellite-graphql-panel />
+      </div>
     </div>
     <div id="toolbarRight">
       <about-dialog v-if="showUI" />
@@ -312,7 +322,11 @@ import GroundStationList from "./GroundStationList.vue";
 import SatelliteBrowser from "./SatelliteBrowser.vue";
 import SkyHud from "./SkyHud.vue";
 
-type MenuKey = "cat" | "sat" | "gs" | "map" | "view" | "ios" | "render";
+// GraphQL data panel (live /api/graphql worker, static snapshot fallback).
+// Async so it stays out of the normal visitor bundle until opened.
+const SatelliteGraphqlPanel = defineAsyncComponent(() => import("./SatelliteGraphqlPanel.vue"));
+
+type MenuKey = "cat" | "sat" | "gs" | "map" | "view" | "ios" | "render" | "gql";
 
 // The benchmarking framework. Async, so nothing about it — the sweep, the
 // report tables, the panel — is in the bundle a normal visitor downloads.
@@ -328,6 +342,7 @@ const menu = reactive<Record<MenuKey, boolean>>({
   view: false,
   ios: false,
   render: false,
+  gql: false,
 });
 const showUI = ref(true);
 

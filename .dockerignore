@@ -1,0 +1,8 @@
+.git
+node_modules
+dist
+worker/node_modules
+worker/.wrangler
+data/custom
+*.log
+.DS_Store
