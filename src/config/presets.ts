@@ -55,6 +55,7 @@ export const presets: Record<string, Preset> = {
       ["stations", ["Stations"]],
       ["weather", ["Weather"]],
       ["eutelsat", ["Eutelsat"]],
+      ["active", ["Active"]],
     ],
   },
   ot: {

@@ -36,6 +36,8 @@
 # that fits today drifts as operators add product lines (planet needed PELICAN,
 # TANAGER and EDDA appended to FLOCK/SKYSAT for exactly that reason).
 groups:
+  - name: active
+    sources: [{ celestrak: active }]
   - name: cubesat
     sources: [{ celestrak: cubesat }]
   - name: globalstar
