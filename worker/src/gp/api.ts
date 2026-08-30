@@ -3,6 +3,7 @@
 import { coerceIndex } from "./evaluate.ts";
 import { ingestAll, type IngestSource, refreshAll } from "./refresh.ts";
 import { GP_INDEX_KEY, GP_KEY_PREFIX, type GroupWriteMetadata } from "./store.ts";
+import { handleGraphql } from "./graphql.ts";
 
 const GROUP_NAME_RE = /^[a-zA-Z0-9_-]+$/;
 // Cooldown for POST /api/refresh: within this window of the last refresh (manual
@@ -253,6 +254,9 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
   }
   if (path === "/api/ingest") {
     return handleIngest(request, env);
+  }
+  if (path === "/api/graphql") {
+    return handleGraphql(request, env);
   }
   return notFound();
 }
