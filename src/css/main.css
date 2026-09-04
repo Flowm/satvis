@@ -277,6 +277,34 @@ body.clock-deck[data-clock-deck="beside"] {
   --credit-bottom: calc(51px + var(--clock-deck-safe));
 }
 
+/* In the row as the logo over the two links: 113 px wide where one line is 206, and
+   39 px tall, so 5 px lower to stay centred. Only where one line would have to move
+   above the deck (`useClockDeckChrome`); everywhere else the line is Cesium's own.
+   `!important` because Cesium sets the container's `display` inline. */
+body.clock-deck[data-clock-deck="stacked"] {
+  --credit-bottom: calc(46px + var(--clock-deck-safe));
+}
+
+body.clock-deck[data-clock-deck="stacked"] .cesium-widget-credits {
+  display: block;
+}
+
+body.clock-deck[data-clock-deck="stacked"] .cesium-credit-logoContainer {
+  display: block !important;
+  margin-bottom: 2px;
+}
+
+/* Block, so the line is the logo's 22 px and not that plus the baseline offset
+   Cesium writes on the element. */
+body.clock-deck[data-clock-deck="stacked"] .cesium-credit-logoContainer img {
+  display: block;
+}
+
+/* Cesium's indent kept the first link off the logo's left edge. */
+body.clock-deck[data-clock-deck="stacked"] .cesium-credit-textContainer .cesium-credit-wrapper:first-of-type {
+  padding-left: 0;
+}
+
 /* Folded, the reserved scale row is more room than the credit line needs, which
    leaves the rounded corner as the only thing to clear. */
 body.clock-deck[data-clock-deck="folded"] {
@@ -319,6 +347,7 @@ body.clock-deck .cesium-viewer-bottom {
   /* Cesium's own corner, for the two cases that hold the line above the deck: the
      deck caps and centres at this width and stops sharing the row. */
   body.clock-deck[data-clock-deck="clear"],
+  body.clock-deck[data-clock-deck="stacked"],
   body.clock-deck[data-clock-deck="beside"] {
     --credit-bottom: var(--credit-corner-bottom);
     --credit-left: var(--credit-corner-left);

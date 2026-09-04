@@ -6,8 +6,8 @@
      Tapping the clock folds the deck to the clock alone: the controls go with the
      scale row, or they hang off one side of it. -->
 <template>
-  <div class="deck" :class="{ 'deck--folded': !open }">
-    <div ref="cluster" class="cluster" :style="surfaceStyle">
+  <div class="deck" :class="{ 'deck--folded': !open }" :style="surfaceStyle">
+    <div ref="cluster" class="cluster">
       <button v-if="open" type="button" class="play" :aria-label="playing ? 'Pause' : 'Play'" @click="togglePlaying">
         <span class="play__circle">
           <UIcon :name="playing ? 'lucide:pause' : 'lucide:play'" />
@@ -184,6 +184,7 @@ function onLadderKey(event: KeyboardEvent): void {
 
 // The surface's insets from the row's edges. Measured, not derived: the reset comes
 // and goes for three reasons, so a `watch` over them is a list that will be wrong.
+// Set on the deck, not the cluster: the scale row's fillets are placed off them too.
 const cluster = ref<HTMLElement>();
 const surfaceLeft = ref(0);
 const surfaceRight = ref(0);
@@ -258,6 +259,8 @@ onUnmounted(() => {
      back in. */
   pointer-events: none;
   --safe: max(6px, var(--safe-bottom, 0px));
+  /* Shared by the clock's corners, the scale row's, and the fillets between them. */
+  --radius: 16px;
   color: #edffff;
   font-variant-numeric: tabular-nums;
   /* A phone's width, centred, on anything wider. main.css sets the cap and places
@@ -296,14 +299,14 @@ onUnmounted(() => {
   top: 0;
   bottom: 0;
   z-index: -1;
-  border-radius: 16px 16px 0 0;
+  border-radius: var(--radius) var(--radius) 0 0;
   background: #14181ceb;
   box-shadow: 0 -2px 20px #00000080;
 }
 
 /* Nothing below it, so it closes into a card. */
 .deck--folded .cluster::before {
-  border-radius: 16px;
+  border-radius: var(--radius);
   box-shadow: 0 4px 20px #000000a6;
 }
 
@@ -449,13 +452,39 @@ onUnmounted(() => {
   pointer-events: auto;
   height: calc(42px + var(--safe));
   padding-bottom: var(--safe);
+  border-radius: var(--radius) var(--radius) 0 0;
   background: #14181ceb;
+}
+
+/* Fillets where the clock's surface meets the row, so the two read as one shape.
+   Each is a square filled outside a quarter circle. They sit above the row, so the
+   row must not clip. The half-pixel stops anti-alias the curve. */
+.scale-row::before,
+.scale-row::after {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--radius));
+  height: var(--radius);
+  width: var(--radius);
+  pointer-events: none;
+}
+
+.scale-row::before {
+  left: calc(var(--surface-left, 0px) - var(--radius));
+  background: radial-gradient(circle at 0 0, transparent calc(var(--radius) - 0.5px), #14181ceb calc(var(--radius) + 0.5px));
+}
+
+.scale-row::after {
+  right: calc(var(--surface-right, 0px) - var(--radius));
+  background: radial-gradient(circle at 100% 0, transparent calc(var(--radius) - 0.5px), #14181ceb calc(var(--radius) + 0.5px));
 }
 
 .timeline {
   position: relative;
   height: 100%;
   overflow: hidden;
+  /* The row's corners again: a pass band reaching the edge would square them off. */
+  border-radius: var(--radius) var(--radius) 0 0;
   /* The whole surface is the control; the browser must not take the gesture. */
   touch-action: none;
   cursor: ew-resize;
