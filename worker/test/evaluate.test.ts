@@ -269,6 +269,54 @@ describe("evaluateGroups: include ordering (wfs-includes-ot)", () => {
   });
 });
 
+describe("evaluateGroups: exclude", () => {
+  const active = [omm("STARLINK-1", 1), omm("STARLINK-2", 2), omm("ONEWEB-1", 3), omm("ISS", 25544)];
+
+  it("removes the excluded groups' records by satnum, whatever the definition order", () => {
+    const records: RecordsBySource = new Map([["celestrak:active", active]]);
+    const defs: GroupDefinition[] = [
+      { name: "active-remainder", sources: [{ celestrak: "active" }], exclude: ["starlink", "oneweb"] },
+      { name: "starlink", sources: [{ celestrak: "active" }], select: { namePattern: "^STARLINK" } },
+      { name: "oneweb", sources: [{ celestrak: "active" }], select: { namePattern: "^ONEWEB" } },
+    ];
+    expect(names(evaluateGroups(defs, records).get("active-remainder"))).toEqual(["ISS"]);
+  });
+
+  it("applies to includes and extras, matching pseudo-TLE satnums too", () => {
+    const records: RecordsBySource = new Map([["celestrak:active", active]]);
+    const defs: GroupDefinition[] = [
+      {
+        name: "rest",
+        include: ["all"],
+        exclude: ["gone"],
+        extraRecords: [{ OBJECT_NAME: "PSEUDO", TLE_LINE1: "1 63351U ...", TLE_LINE2: "2 63351 ..." }],
+      },
+      { name: "all", sources: [{ celestrak: "active" }] },
+      {
+        name: "gone",
+        sources: [{ celestrak: "active" }],
+        select: { noradIds: [25544] },
+        extraRecords: [{ OBJECT_NAME: "PSEUDO-TOO", TLE_LINE1: "1 63351U ...", TLE_LINE2: "2 63351 ..." }],
+      },
+    ];
+    expect(names(evaluateGroups(defs, records).get("rest"))).toEqual(["STARLINK-1", "STARLINK-2", "ONEWEB-1"]);
+  });
+
+  it("fails when an excluded group failed, rather than serving the duplicates", () => {
+    const records: RecordsBySource = new Map<string, OmmRecord[] | Error>([
+      ["celestrak:active", active],
+      ["celestrak:oneweb", new Error("HTTP 503")],
+    ]);
+    const defs: GroupDefinition[] = [
+      { name: "active-remainder", sources: [{ celestrak: "active" }], exclude: ["oneweb"] },
+      { name: "oneweb", sources: [{ celestrak: "oneweb" }] },
+    ];
+    const result = evaluateGroups(defs, records).get("active-remainder");
+    expect(result).toBeInstanceOf(Error);
+    expect((result as Error).message).toContain("excluded group oneweb failed");
+  });
+});
+
 describe("evaluateGroups: extraRecords", () => {
   it("appends extraRecords for source-less groups", () => {
     const defs: GroupDefinition[] = [

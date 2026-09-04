@@ -421,9 +421,14 @@ function applyGroupRename(record: OmmRecord, rename: GroupDefinition["rename"]):
   return record;
 }
 
-// Topologically order group definitions by their `include` edges so that
-// included groups are always evaluated before their consumers. Assumes the
-// graph is acyclic and all include targets exist (the generator validates
+// The groups a definition needs evaluated before itself.
+function dependencies(def: GroupDefinition): string[] {
+  return [...(def.include ?? []), ...(def.exclude ?? [])];
+}
+
+// Topologically order group definitions by their `include` and `exclude` edges
+// so that referenced groups are always evaluated before their consumers.
+// Assumes the graph is acyclic and all targets exist (the generator validates
 // both), but is written to terminate even if that guarantee is somehow
 // violated.
 function topoOrder(defs: GroupDefinition[]): GroupDefinition[] {
@@ -436,7 +441,7 @@ function topoOrder(defs: GroupDefinition[]): GroupDefinition[] {
       return;
     }
     state.set(def.name, "visiting");
-    for (const dep of def.include ?? []) {
+    for (const dep of dependencies(def)) {
       const depDef = byName.get(dep);
       if (depDef) {
         visit(depDef);
@@ -500,7 +505,28 @@ export function evaluateGroups(defs: GroupDefinition[], recordsBySource: Records
 
       // Final order: includes, then this group's own records, then extras.
       const extras = def.extraRecords ?? [];
-      results.set(def.name, { records: [...included, ...selected.records, ...extras], warnings: selected.warnings });
+      let records: GpRecord[] = [...included, ...selected.records, ...extras];
+
+      // Subtract excluded groups' outputs last, so the exclusion applies to
+      // whatever the group ends up holding, not only to what it selected.
+      if (def.exclude && def.exclude.length > 0) {
+        const excluded = new Set<string>();
+        for (const dep of def.exclude) {
+          const depResult = results.get(dep);
+          if (depResult === undefined) {
+            throw new Error(`excluded group ${dep} was not evaluated`);
+          }
+          if (depResult instanceof Error) {
+            throw new Error(`excluded group ${dep} failed: ${depResult.message}`);
+          }
+          for (const record of depResult.records) {
+            excluded.add(enrichmentSatnum(record));
+          }
+        }
+        records = records.filter((record) => !excluded.has(enrichmentSatnum(record)));
+      }
+
+      results.set(def.name, { records, warnings: selected.warnings });
     } catch (err) {
       results.set(def.name, err instanceof Error ? err : new Error(String(err)));
     }

@@ -44,22 +44,29 @@ export const presets: Record<string, Preset> = {
       },
     },
     // Bare group names matching worker/src/config/satvis.core.yaml.
+    //
+    // `Active` is the whole CelesTrak active list, served in disjoint pieces:
+    // the seven groups the worker carves out of it by name, plus
+    // `active-remainder` for everything else. Tagging the pieces alike is what
+    // makes them one group here, and what keeps a search or an Active
+    // activation from downloading Starlink twice. A group added to the
+    // remainder's exclude list needs the tag here too (worker/test/config.test.ts).
     elements: [
       ["cubesat", ["Cubesat"]],
-      ["globalstar", ["Globalstar"]],
+      ["globalstar", ["Globalstar", "Active"]],
       ["gnss", ["GNSS"]],
-      ["iridium-NEXT", ["IridiumNEXT"]],
+      ["iridium-NEXT", ["IridiumNEXT", "Active"]],
       ["last-30-days", ["New"]],
-      ["oneweb", ["OneWeb"]],
-      ["planet", ["Planet"]],
+      ["oneweb", ["OneWeb", "Active"]],
+      ["planet", ["Planet", "Active"]],
       ["resource", ["Resource"]],
       ["science", ["Science"]],
-      ["spire", ["Spire"]],
-      ["starlink", ["Starlink"]],
+      ["spire", ["Spire", "Active"]],
+      ["starlink", ["Starlink", "Active"]],
       ["stations", ["Stations"]],
       ["weather", ["Weather"]],
-      ["eutelsat", ["Eutelsat"]],
-      ["active", ["Active"]],
+      ["eutelsat", ["Eutelsat", "Active"]],
+      ["active-remainder", ["Active"]],
     ],
   },
   ot: {

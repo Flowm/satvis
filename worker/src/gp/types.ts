@@ -84,6 +84,15 @@ export interface GroupDefinition {
   // concatenated ot.txt into wfs.txt BEFORE appending ot-add.txt extras; authors
   // who want that ordering should put extras in a separate included group.
   include?: string[];
+  // Names of other groups whose records are REMOVED from this group's final
+  // output — includes and extras too — matched by normalized satnum, so OMM and
+  // pseudo-TLE records both count. The complement of `include`: it is what lets
+  // a whole upstream list be served as disjoint pieces, so the frontend can tag
+  // the pieces alike and never download the same satellite twice. Like an
+  // include, a named group is evaluated first and its failure fails this group:
+  // a remainder served without its subtraction would duplicate whatever the
+  // failed group carries, which is the one thing it exists not to do.
+  exclude?: string[];
   // Inlined by the generator from extraRecordsFile; appended verbatim.
   extraRecords?: GpRecord[];
 }
