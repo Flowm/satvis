@@ -720,6 +720,20 @@ them in the row with 10.8 px of clearance and the Attribution link still hit-tes
 to itself, 1000 caps the deck at 560 and returns the credits to the corner 13.8 px
 clear of the scale row with the fullscreen button back and 191 px clear.
 
+**Between 448 and 623 px the credit line stacks rather than leaving the row.** As
+one line the box is 201 by 25, and below 624 px it had to move above the deck. Now
+the composable has a fourth case, `stacked`: the ion logo over `Privacy Attribution`,
+113 by 39, which fits beside the surface down to 448 px. Its offset is 46 px so the
+taller box stays centred on the controls. Only that case stacks — clear, folded and
+the desktop corner keep Cesium's single line, and so does `beside` from 624 up.
+
+**Result, 2026-09-05, Chrome, emulated 447 / 448 / 623 / 624 / 1000 px.** Clear at
+447, one line 4 px above the deck; stacked at 448, box 113.4 by 39 with 10.6 px of
+clearance to the surface and its centre 1.5 px above the clock's; still stacked at
+623; one line beside at 624, 201 by 25 with 10.8 px of clearance; one line in the
+corner at 1000. The emulated viewport does not fire `resize`, so each width was
+measured after dispatching one by hand.
+
 **Still needs a real device.** The gesture feel — flick inertia, the ladder's
 settle, and whether 1 hour per 150 px is the right scale for a thumb — was judged in
 the prototype this deck came from, but not on iOS. Nor is the notch itself tested:
