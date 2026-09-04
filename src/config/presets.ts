@@ -4,7 +4,11 @@
 // worker `/api/gp/<name>.json` or the static `data/gp/<name>.json` snapshot) or
 // an explicit URL/path (anything containing "/" or ".", incl. legacy .txt),
 // which passes through unchanged and is parsed via payload sniffing.
-export type ElementsEntry = [source: string, tags: string[]];
+//
+// A search-only source still fills the catalog, so its satellites can be found
+// and switched on one at a time, but its tags get no group row and no entry in
+// the group multiselect: the group is too large to be worth enabling whole.
+export type ElementsEntry = [source: string, tags: string[], options?: { searchOnly?: boolean }];
 
 export interface PresetConfig {
   sat?: {
@@ -73,6 +77,7 @@ export const presets: Record<string, Preset> = {
     elements: [
       ["ot", ["OT"]],
       ["wfs", ["WFS"]],
+      ["active", ["Active"], { searchOnly: true }],
     ],
   },
 };

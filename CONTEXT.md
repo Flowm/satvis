@@ -11,7 +11,11 @@ discussion; sharpen them here when they drift.
 - **Group**: a named, declaratively-configured list of element sets served as
   one unit (`/api/gp/<group>.json` or the static snapshot). A group decides what
   is served and under which name, never what is true of a satellite: per-satellite
-  facts live in the satellite table, which is independent of any group.
+  facts live in the satellite table, which is independent of any group. A
+  preset may register a group as **search-only**: its satellites are in the
+  catalog and can be found and enabled one by one, but its tags get no group row
+  and no place in the group multiselect, because enabling it whole is not a
+  choice worth offering (`ElementsEntry` in `src/config/presets.ts`).
 - **Satellite table**: the registry of static per-satellite facts, identified by
   NORAD id and independent of the groups that serve those satellites. One table,
   two contributors — the curated rows hand-written across every config that

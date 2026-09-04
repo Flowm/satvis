@@ -52,6 +52,11 @@ export class CatalogEntry {
   }
 }
 
+// What a preset says about one of its group sources; see ElementsEntry in
+// src/config/presets.ts. `searchOnly` is a presentation fact the browser reads
+// back through `groups`: it changes nothing about loading or activation.
+export type GroupRegistration = readonly [source: string, tags: string[], options?: { searchOnly?: boolean }];
+
 // A preset group source known to the catalog but fetched lazily: registered
 // up front (so the UI can list it), loaded only once one of its tags becomes
 // active, it is expanded/searched in the browser, or an unresolved satellite
@@ -59,6 +64,7 @@ export class CatalogEntry {
 interface RegisteredGroup {
   source: string;
   tags: string[];
+  searchOnly: boolean;
   loaded: boolean;
   // Memoized in-flight/completed load; cleared on failure so a later ensure
   // call retries.
@@ -99,14 +105,17 @@ export class SatelliteCatalog {
 
   // Register preset groups without fetching them. Repeated registration (e.g.
   // navigating between presets) merges tags; already-loaded groups stay loaded.
-  registerGroups(sourceTagList: ReadonlyArray<readonly [string, string[]]>): void {
-    for (const [source, tags] of sourceTagList) {
+  // A group is search-only until some preset registers it as a full group.
+  registerGroups(sourceTagList: ReadonlyArray<GroupRegistration>): void {
+    for (const [source, tags, options] of sourceTagList) {
+      const searchOnly = options?.searchOnly === true;
       const existing = this.#registry.get(source);
       if (existing) {
         existing.tags = mergeTags(existing.tags, tags);
+        existing.searchOnly = existing.searchOnly && searchOnly;
         continue;
       }
-      this.#registry.set(source, { source, tags: [...tags], loaded: false, load: undefined });
+      this.#registry.set(source, { source, tags: [...tags], searchOnly, loaded: false, load: undefined });
     }
   }
 
@@ -220,7 +229,11 @@ export class SatelliteCatalog {
   // but not-yet-loaded sources (estimated counts from the group index, 0 until
   // the index arrives). Estimates may double-count satellites shared with a
   // loaded group; they are replaced by exact counts once the group loads.
-  get groups(): { tag: string; count: number }[] {
+  //
+  // A tag is search-only when every registered source carrying it is, so a tag
+  // that one preset offers whole stays a group everywhere it appears. Tags with
+  // no registered source (custom records) are never search-only.
+  get groups(): { tag: string; count: number; searchOnly: boolean }[] {
     const counts = new Map<string, number>();
     for (const [tag, entries] of this.#byTag) {
       counts.set(tag, entries.size);
@@ -234,7 +247,21 @@ export class SatelliteCatalog {
         counts.set(tag, (counts.get(tag) ?? 0) + estimate);
       }
     }
-    return [...counts.entries()].map(([tag, count]) => ({ tag, count }));
+    return [...counts.entries()].map(([tag, count]) => ({ tag, count, searchOnly: this.#isTagSearchOnly(tag) }));
+  }
+
+  #isTagSearchOnly(tag: string): boolean {
+    let registered = false;
+    for (const group of this.#registry.values()) {
+      if (!group.tags.includes(tag)) {
+        continue;
+      }
+      if (!group.searchOnly) {
+        return false;
+      }
+      registered = true;
+    }
+    return registered;
   }
 
   entriesWithTag(tag: string): CatalogEntry[] {

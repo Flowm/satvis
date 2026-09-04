@@ -4,8 +4,8 @@
 // being remounted (Satvis mounts the panel with a v-if, so opening/closing the
 // catalog panel unmounts and remounts it; module scope keeps that transparent).
 //
-// The catalog itself is intentionally NOT reactive (it holds ~2k plain
-// entries). Instead the store exposes `catalogRevision`, bumped whenever the
+// The catalog itself is intentionally NOT reactive (it holds ~13k plain
+// entries once the whole active catalog is in). Instead the store exposes `catalogRevision`, bumped whenever the
 // catalog changes. Every computed here touches `catalogRevision.value` so it
 // recomputes as groups arrive, while reading the actual entries imperatively
 // from the catalog it is given.
@@ -54,6 +54,11 @@ const SEARCH_DEBOUNCE_MS = 150;
 
 const searchQuery = ref("");
 const debouncedQuery = ref("");
+// True while the full-catalog load a search triggers is still in flight, so
+// the panel can say so instead of showing "No matches" for a name that is
+// simply not here yet. The promise is kept so one load is not started twice.
+const searchLoading = ref(false);
+let searchLoad: Promise<void> | undefined;
 // Collapsed by default: an empty set means every group is collapsed.
 const expandedGroups = ref<Set<string>>(new Set());
 
@@ -73,19 +78,32 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
   const satStore = useSatStore();
   const { catalogRevision, enabledSatellites, enabledTags, disabledSatellites } = storeToRefs(satStore);
 
-  // Group list with counts, derived from the non-reactive catalog and kept
-  // fresh via catalogRevision (same { tag, count }[] shape the store held).
-  const availableGroups = computed(() => {
+  const allGroups = computed(() => {
     void catalogRevision.value;
     return catalog.groups;
   });
 
+  // The groups the panel offers whole: a row in the tree, an entry in the
+  // multiselect. Search-only groups are left out here but their satellites are
+  // still in the search index, which is the whole point of them.
+  const availableGroups = computed(() => allGroups.value.filter((group) => !group.searchOnly));
+
+  const searchOnlyTags = computed(() => new Set(allGroups.value.filter((group) => group.searchOnly).map((group) => group.tag)));
+
   function setSearchQuery(value: string): void {
     searchQuery.value = value;
     // Search spans every group, so make sure the lazily-loaded ones arrive.
-    // Memoized per group in the catalog — repeat keystrokes are no-ops.
-    if (value.trim() !== "") {
-      void catalog.ensureAll();
+    // Memoized per group in the catalog, so once everything is in this settles
+    // on the next microtask; a group that failed to load gets retried here.
+    if (value.trim() !== "" && searchLoad === undefined) {
+      searchLoading.value = true;
+      const load = catalog.ensureAll().finally(() => {
+        if (searchLoad === load) {
+          searchLoad = undefined;
+          searchLoading.value = false;
+        }
+      });
+      searchLoad = load;
     }
     scheduleDebounce();
   }
@@ -240,11 +258,18 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
         satnum: entry.satnum,
         checked: active.has(entry.name),
         orbitClass: entry.orbitClass,
-        groupsLabel: entry.tags.length > 0 ? entry.tags.join(", ") : undefined,
+        groupsLabel: groupsLabelOf(entry),
       });
     }
     return result;
   });
+
+  // The groups a search hit belongs to, as the row shows them. A search-only
+  // tag is left off: it names the catalog, not a group the user can pick.
+  function groupsLabelOf(entry: CatalogEntry): string | undefined {
+    const tags = entry.tags.filter((tag) => !searchOnlyTags.value.has(tag));
+    return tags.length > 0 ? tags.join(", ") : undefined;
+  }
 
   // Every action below writes a whole array to the store, never one element.
 
@@ -335,13 +360,11 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
 
   const hasActiveSelection = computed(() => enabledTags.value.length > 0 || enabledSatellites.value.length > 0);
   const groupCount = computed(() => enabledTags.value.length);
-  const isLoading = computed(() => {
-    void catalogRevision.value;
-    return availableGroups.value.length === 0;
-  });
+  const isLoading = computed(() => allGroups.value.length === 0);
 
   return {
     searchQuery,
+    searchLoading,
     setSearchQuery,
     clearSearch,
     availableGroups,
