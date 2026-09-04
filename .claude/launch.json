@@ -3,15 +3,15 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "mise",
+      "runtimeArgs": ["exec", "--", "pnpm", "run", "dev"],
       "port": 5187,
       "autoPort": true
     },
     {
       "name": "preview",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["run", "preview"],
+      "runtimeExecutable": "mise",
+      "runtimeArgs": ["exec", "--", "pnpm", "run", "preview"],
       "port": 5188,
       "autoPort": true
     },
@@ -20,8 +20,8 @@
       // Unlike `dev`/`preview` — whose /api proxy points at production — this
       // exercises the worker's own API, so run `pnpm build` first.
       "name": "worker",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["run", "dev:worker"],
+      "runtimeExecutable": "mise",
+      "runtimeArgs": ["exec", "--", "pnpm", "run", "dev:worker"],
       "port": 8080,
       "autoPort": false
     }
