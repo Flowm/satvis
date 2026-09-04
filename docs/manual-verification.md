@@ -734,6 +734,18 @@ clearance to the surface and its centre 1.5 px above the clock's; still stacked 
 corner at 1000. The emulated viewport does not fire `resize`, so each width was
 measured after dispatching one by hand.
 
+**The scale row and the clock's surface are one shape.** The row's top corners carry
+the surface's 16 px radius, and two fillets on the row (`::before` / `::after`, placed
+off the same `--surface-left` / `--surface-right` the surface is drawn from, which is
+why those now live on the deck rather than the cluster) join the two. Check the
+fillets by reading their computed `left` and `right`: each is the inset less 16.
+
+**Result, 2026-09-05, Chrome, emulated 800 and 1100 px.** Fillets at `left: 239px`
+against a surface at 255, row radius `16px 16px 0 0`, and the top-left pixel of the
+row hit-tests to the globe where 20 px lower hits the timeline. Folded, the card is
+`16px` all round and the row and its fillets are gone with it. At 1100 the capped row
+is a 560 px card with the same corners and the fillets follow the surface into it.
+
 **Still needs a real device.** The gesture feel — flick inertia, the ladder's
 settle, and whether 1 hour per 150 px is the right scale for a thumb — was judged in
 the prototype this deck came from, but not on iOS. Nor is the notch itself tested:
