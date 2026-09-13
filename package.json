@@ -29,35 +29,35 @@
     "deploy:preview": "pnpm build && pnpm --filter satvis-worker deploy:preview"
   },
   "dependencies": {
-    "@cesium/engine": "^26.2.0",
-    "@cesium/widgets": "^16.1.1",
-    "@nuxt/ui": "^4.10.0",
-    "@tanstack/vue-virtual": "^3.13.35",
-    "cesium": "^1.144.0",
+    "@cesium/engine": "^26.3.0",
+    "@cesium/widgets": "^16.2.0",
+    "@nuxt/ui": "^4.11.1",
+    "@tanstack/vue-virtual": "^3.13.38",
+    "cesium": "^1.145.0",
     "cesium-sensor-volumes": "github:Flowm/cesium-sensor-volumes#1.140.0",
     "dayjs": "^1.11.23",
     "pinia": "^4.0.3",
-    "posthog-js": "^1.417.4",
+    "posthog-js": "^1.430.2",
     "satellite.js": "^7.1.0",
-    "vue": "^3.5.41",
-    "vue-router": "^5.2.0"
+    "vue": "^3.5.42",
+    "vue-router": "^5.3.1"
   },
   "devDependencies": {
     "@iconify-json/fa6-brands": "^1.2.6",
-    "@iconify-json/lucide": "^1.2.123",
-    "@types/node": "^26.2.0",
-    "@vite-pwa/assets-generator": "^1.0.2",
+    "@iconify-json/lucide": "^1.2.131",
+    "@types/node": "^26.5.1",
+    "@vite-pwa/assets-generator": "^1.0.4",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/tsconfig": "^0.9.1",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "tailwindcss": "^4.3.3",
     "typescript": "catalog:",
-    "vite": "^8.2.1",
+    "vite": "^8.3.0",
     "vite-plugin-pwa": "^1.3.0",
     "vite-plugin-static-copy": "^4.1.1",
-    "vitest": "^4.1.10",
-    "vue-tsc": "^3.3.10"
+    "vitest": "^5.0.0",
+    "vue-tsc": "^3.3.11"
   },
   "packageManager": "pnpm@11.9.0"
 }
