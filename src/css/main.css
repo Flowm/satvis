@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
+/* data/ is copied verbatim, and its .glb models are 30 MB the scanner would read as text */
+@source not "../../data";
+
 html,
 body,
 #cesiumContainer {
