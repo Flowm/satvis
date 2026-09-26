@@ -5,6 +5,7 @@
 // This module must stay Cesium-free (node-env vitest exercises it).
 
 import type { OrbitClass } from "../config/orbitClass";
+import type { ElementsEntry } from "../config/presets";
 import type { SatelliteMetadata } from "../config/satelliteMetadata";
 import { orbitClassOf, parseGpPayload, recordName, recordSatnum, type GpRecord } from "./util/gp";
 import { fetchGpGroup, fetchGpIndex } from "./util/gpSource";
@@ -51,11 +52,6 @@ export class CatalogEntry {
     return this.metadata.orbitClass ?? orbitClassOf(this.record);
   }
 }
-
-// What a preset says about one of its group sources; see ElementsEntry in
-// src/config/presets.ts. `searchOnly` is a presentation fact the browser reads
-// back through `groups`: it changes nothing about loading or activation.
-export type GroupRegistration = readonly [source: string, tags: string[], options?: { searchOnly?: boolean }];
 
 // A preset group source known to the catalog but fetched lazily: registered
 // up front (so the UI can list it), loaded only once one of its tags becomes
@@ -106,7 +102,7 @@ export class SatelliteCatalog {
   // Register preset groups without fetching them. Repeated registration (e.g.
   // navigating between presets) merges tags; already-loaded groups stay loaded.
   // A group is search-only until some preset registers it as a full group.
-  registerGroups(sourceTagList: ReadonlyArray<GroupRegistration>): void {
+  registerGroups(sourceTagList: ReadonlyArray<ElementsEntry>): void {
     for (const [source, tags, options] of sourceTagList) {
       const searchOnly = options?.searchOnly === true;
       const existing = this.#registry.get(source);
@@ -229,39 +225,21 @@ export class SatelliteCatalog {
   // but not-yet-loaded sources (estimated counts from the group index, 0 until
   // the index arrives). Estimates may double-count satellites shared with a
   // loaded group; they are replaced by exact counts once the group loads.
-  //
-  // A tag is search-only when every registered source carrying it is, so a tag
-  // that one preset offers whole stays a group everywhere it appears. Tags with
-  // no registered source (custom records) are never search-only.
+  // A tag is search-only when every registered source carrying it is.
   get groups(): { tag: string; count: number; searchOnly: boolean }[] {
     const counts = new Map<string, number>();
+    const searchOnly = new Map<string, boolean>();
     for (const [tag, entries] of this.#byTag) {
       counts.set(tag, entries.size);
     }
     for (const group of this.#registry.values()) {
-      if (group.loaded) {
-        continue;
-      }
-      const estimate = this.#indexCounts.get(group.source) ?? 0;
+      const estimate = group.loaded ? 0 : (this.#indexCounts.get(group.source) ?? 0);
       for (const tag of group.tags) {
         counts.set(tag, (counts.get(tag) ?? 0) + estimate);
+        searchOnly.set(tag, (searchOnly.get(tag) ?? true) && group.searchOnly);
       }
     }
-    return [...counts.entries()].map(([tag, count]) => ({ tag, count, searchOnly: this.#isTagSearchOnly(tag) }));
-  }
-
-  #isTagSearchOnly(tag: string): boolean {
-    let registered = false;
-    for (const group of this.#registry.values()) {
-      if (!group.tags.includes(tag)) {
-        continue;
-      }
-      if (!group.searchOnly) {
-        return false;
-      }
-      registered = true;
-    }
-    return registered;
+    return [...counts.entries()].map(([tag, count]) => ({ tag, count, searchOnly: searchOnly.get(tag) ?? false }));
   }
 
   entriesWithTag(tag: string): CatalogEntry[] {

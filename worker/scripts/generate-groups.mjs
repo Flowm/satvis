@@ -269,6 +269,28 @@ function validate(groups) {
   }
 }
 
+const sourcesOf = (group) => JSON.stringify(group.sources ?? []);
+
+// A group with an `exclude` list serves the remainder of its sources, so every
+// sibling in the same config that selects from exactly those sources has to be
+// on the list — or the remainder serves those records a second time. Plugin
+// configs are checked on their own: their groups belong in a core remainder.
+function validateRemainders(groups, source) {
+  for (const remainder of groups) {
+    if (!remainder.exclude) {
+      continue;
+    }
+    for (const sibling of groups) {
+      if (sibling === remainder || sourcesOf(sibling) !== sourcesOf(remainder) || (!sibling.select && !sibling.satellites)) {
+        continue;
+      }
+      if (!remainder.exclude.includes(sibling.name)) {
+        throw new Error(`${source}: group ${JSON.stringify(remainder.name)} must exclude ${JSON.stringify(sibling.name)}, which selects from the same sources`);
+      }
+    }
+  }
+}
+
 // Accumulator for the merged satellite table, keyed by NORAD id. Contributions
 // arrive from two kinds of place — a config's top-level `satellites` table and a
 // group's `satellites[].metadata` rows — and are merged field-wise in arrival
@@ -333,6 +355,7 @@ function main() {
   const table = createSatelliteTable();
   for (const { path: configPath, config } of configs) {
     const source = path.relative(repoRoot, configPath);
+    validateRemainders(config.groups, source);
     validateSatelliteTable(config.satellites, source);
     for (const entry of config.satellites) {
       table.add(entry.noradId, { metadata: metadataFields(entry), name: entry.name, decayed: entry.decayed }, `${source} satellites`);

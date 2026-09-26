@@ -15,7 +15,9 @@ discussion; sharpen them here when they drift.
   preset may register a group as **search-only**: its satellites are in the
   catalog and can be found and enabled one by one, but its tags get no group row
   and no place in the group multiselect, because enabling it whole is not a
-  choice worth offering (`ElementsEntry` in `src/config/presets.ts`).
+  choice worth offering (`ElementsEntry` in `src/config/presets.ts`). A group may
+  also be the **remainder** of its sources after other groups are taken out
+  (`exclude`), which is how one upstream list is served in disjoint pieces.
 - **Satellite table**: the registry of static per-satellite facts, identified by
   NORAD id and independent of the groups that serve those satellites. One table,
   two contributors — the curated rows hand-written across every config that

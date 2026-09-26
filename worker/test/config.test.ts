@@ -1,11 +1,9 @@
-// The served config and the frontend presets have to agree on one thing: a group
-// that excludes others promises that, together, they make up the whole; the preset
-// keeps that promise by tagging the pieces alike. Checked here because the worker
-// is the package that can read the generated config.
+// A group that excludes others promises that together they make up the whole;
+// a preset keeps that promise by tagging the pieces alike.
 import { describe, expect, it } from "vitest";
 
 import { presets } from "../../src/config/presets.ts";
-import generated from "../src/config/satvis.generated.json";
+import generated from "../src/config/satvis.generated.json" with { type: "json" };
 import type { GroupDefinition } from "../src/gp/types.ts";
 
 const groups = generated.groups as GroupDefinition[];

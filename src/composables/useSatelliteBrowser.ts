@@ -20,7 +20,7 @@
 // directly is what keeps this file constructible without a viewer.
 
 import { storeToRefs } from "pinia";
-import { computed, ref } from "vue";
+import { computed, ref, shallowRef } from "vue";
 
 import type { OrbitClass } from "../config/orbitClass";
 import { isEnabledByTag } from "../modules/satelliteActivation";
@@ -54,11 +54,9 @@ const SEARCH_DEBOUNCE_MS = 150;
 
 const searchQuery = ref("");
 const debouncedQuery = ref("");
-// True while the full-catalog load a search triggers is still in flight, so
-// the panel can say so instead of showing "No matches" for a name that is
-// simply not here yet. The promise is kept so one load is not started twice.
-const searchLoading = ref(false);
-let searchLoad: Promise<void> | undefined;
+// The full-catalog load a search starts, while it is in flight.
+const searchLoad = shallowRef<Promise<void> | undefined>();
+const searchLoading = computed(() => searchLoad.value !== undefined);
 // Collapsed by default: an empty set means every group is collapsed.
 const expandedGroups = ref<Set<string>>(new Set());
 
@@ -83,27 +81,22 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     return catalog.groups;
   });
 
-  // The groups the panel offers whole: a row in the tree, an entry in the
-  // multiselect. Search-only groups are left out here but their satellites are
-  // still in the search index, which is the whole point of them.
+  // The groups offered whole: a row in the tree, an entry in the multiselect.
   const availableGroups = computed(() => allGroups.value.filter((group) => !group.searchOnly));
 
   const searchOnlyTags = computed(() => new Set(allGroups.value.filter((group) => group.searchOnly).map((group) => group.tag)));
 
   function setSearchQuery(value: string): void {
     searchQuery.value = value;
-    // Search spans every group, so make sure the lazily-loaded ones arrive.
-    // Memoized per group in the catalog, so once everything is in this settles
-    // on the next microtask; a group that failed to load gets retried here.
-    if (value.trim() !== "" && searchLoad === undefined) {
-      searchLoading.value = true;
+    // Search spans every group. Memoized per group in the catalog; a group
+    // that failed to load is retried here.
+    if (value.trim() !== "" && searchLoad.value === undefined) {
       const load = catalog.ensureAll().finally(() => {
-        if (searchLoad === load) {
-          searchLoad = undefined;
-          searchLoading.value = false;
+        if (searchLoad.value === load) {
+          searchLoad.value = undefined;
         }
       });
-      searchLoad = load;
+      searchLoad.value = load;
     }
     scheduleDebounce();
   }
@@ -264,8 +257,7 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     return result;
   });
 
-  // The groups a search hit belongs to, as the row shows them. A search-only
-  // tag is left off: it names the catalog, not a group the user can pick.
+  // The groups a search hit belongs to, minus search-only tags.
   function groupsLabelOf(entry: CatalogEntry): string | undefined {
     const tags = entry.tags.filter((tag) => !searchOnlyTags.value.has(tag));
     return tags.length > 0 ? tags.join(", ") : undefined;

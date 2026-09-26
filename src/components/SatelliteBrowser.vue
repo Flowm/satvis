@@ -33,13 +33,8 @@
       </UInput>
     </div>
 
-    <!-- A search pulls in every group, and the biggest takes seconds: say so
-         rather than report "No matches" for a satellite that has not arrived. -->
-    <div v-if="searchQuery && searchLoading" class="browser-empty">Loading all satellites…</div>
-
     <!-- Virtualized, and the only element here that scrolls. -->
     <div v-if="isLoading" class="browser-empty">Loading satellites…</div>
-    <div v-else-if="rows.length === 0 && !searchLoading" class="browser-empty">No matches</div>
     <div v-else-if="rows.length > 0" ref="scrollEl" class="browser-list" :style="{ height: listHeight }">
       <div class="browser-list-inner" :style="{ height: `${totalSize}px` }">
         <div v-for="virtualRow in virtualRows" :key="virtualRow.row.id" class="browser-list-row" :style="{ transform: `translateY(${virtualRow.start}px)` }">
@@ -47,6 +42,9 @@
         </div>
       </div>
     </div>
+    <!-- A search loads every group, and the biggest takes seconds. -->
+    <div v-else-if="searchLoading" class="browser-empty">Loading all satellites…</div>
+    <div v-else class="browser-empty">No matches</div>
 
     <div class="browser-summary">
       <span>{{ groupCount }} group{{ groupCount === 1 ? "" : "s" }} · {{ activeSatCount }} satellite{{ activeSatCount === 1 ? "" : "s" }} active</span>

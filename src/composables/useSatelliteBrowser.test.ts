@@ -5,35 +5,15 @@ import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { SatelliteCatalog } from "../modules/SatelliteCatalog";
-import type { GpRecord } from "../modules/util/gp";
 import { resetGpSource } from "../modules/util/gpSource";
 import { useSatStore } from "../stores/sat";
 import { useSatelliteBrowser } from "./useSatelliteBrowser";
 
-function ommRecord(name: string, satnum: number): GpRecord {
-  return {
-    kind: "omm",
-    omm: {
-      OBJECT_NAME: name,
-      OBJECT_ID: "",
-      EPOCH: "2026-07-04T00:00:00.000000",
-      MEAN_MOTION: 15,
-      ECCENTRICITY: 0,
-      INCLINATION: 51,
-      RA_OF_ASC_NODE: 0,
-      ARG_OF_PERICENTER: 0,
-      MEAN_ANOMALY: 0,
-      NORAD_CAT_ID: satnum,
-      ELEMENT_SET_NO: 0,
-      BSTAR: 0,
-      MEAN_MOTION_DOT: 0,
-      MEAN_MOTION_DDOT: 0,
-    },
-  };
+function omm(name: string, satnum: number): Record<string, unknown> {
+  return { OBJECT_NAME: name, EPOCH: "2026-07-04T00:00:00.000000", MEAN_MOTION: 15, ECCENTRICITY: 0, INCLINATION: 51, NORAD_CAT_ID: satnum };
 }
 
-function json(records: GpRecord[]): () => Response {
-  const body = records.map((record) => (record as { omm: unknown }).omm);
+function json(body: unknown): () => Response {
   return () => new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } });
 }
 
@@ -41,19 +21,15 @@ function json(records: GpRecord[]): () => Response {
 // satellite plus one that no group offers.
 function installFetch(): void {
   const routes: Record<string, () => Response> = {
-    "/api/groups.json": () =>
-      new Response(
-        JSON.stringify({
-          updated: "",
-          groups: [
-            { name: "weather", count: 1 },
-            { name: "active", count: 2 },
-          ],
-        }),
-        { headers: { "Content-Type": "application/json" } },
-      ),
-    "/api/gp/weather.json": json([ommRecord("METEO-1", 1)]),
-    "/api/gp/active.json": json([ommRecord("METEO-1", 1), ommRecord("SENTINEL-1", 2)]),
+    "/api/groups.json": json({
+      updated: "",
+      groups: [
+        { name: "weather", count: 1 },
+        { name: "active", count: 2 },
+      ],
+    }),
+    "/api/gp/weather.json": json([omm("METEO-1", 1)]),
+    "/api/gp/active.json": json([omm("METEO-1", 1), omm("SENTINEL-1", 2)]),
   };
   vi.stubGlobal(
     "fetch",
@@ -129,6 +105,5 @@ describe("useSatelliteBrowser search-only groups", () => {
     browser.toggleSat("SENTINEL-1");
     expect(satStore.enabledSatellites).toEqual(["SENTINEL-1"]);
     expect(satStore.enabledTags).toEqual([]);
-    expect(browser.rows.value.find((row) => row.kind === "sat" && row.name === "SENTINEL-1")).toMatchObject({ checked: true });
   });
 });

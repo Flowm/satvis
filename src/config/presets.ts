@@ -35,6 +35,11 @@ export interface Preset {
   elements: ElementsEntry[];
 }
 
+// The CelesTrak active list as the worker serves it: seven groups carved out by
+// name plus the remainder (worker/src/config/satvis.core.yaml). Registered under
+// one tag they load as a whole with no satellite arriving twice.
+const ACTIVE_PIECES = ["globalstar", "iridium-NEXT", "oneweb", "planet", "spire", "starlink", "eutelsat", "active-remainder"];
+
 export const presets: Record<string, Preset> = {
   default: {
     title: "Satvis - 3D Satellite Tracker & Sky View",
@@ -43,14 +48,8 @@ export const presets: Record<string, Preset> = {
         enabledTags: ["Weather"],
       },
     },
-    // Bare group names matching worker/src/config/satvis.core.yaml.
-    //
-    // `Active` is the whole CelesTrak active list, served in disjoint pieces:
-    // the seven groups the worker carves out of it by name, plus
-    // `active-remainder` for everything else. Tagging the pieces alike is what
-    // makes them one group here, and what keeps a search or an Active
-    // activation from downloading Starlink twice. A group added to the
-    // remainder's exclude list needs the tag here too (worker/test/config.test.ts).
+    // Bare group names matching worker/src/config/satvis.core.yaml. Every one
+    // of ACTIVE_PIECES carries `Active` (checked by worker/test/config.test.ts).
     elements: [
       ["cubesat", ["Cubesat"]],
       ["globalstar", ["Globalstar", "Active"]],
@@ -81,11 +80,8 @@ export const presets: Record<string, Preset> = {
         layers: ["VersaTiles"],
       },
     },
-    elements: [
-      ["ot", ["OT"]],
-      ["wfs", ["WFS"]],
-      ["active", ["Active"], { searchOnly: true }],
-    ],
+    // Active is searchable here but not offered whole.
+    elements: [["ot", ["OT"]], ["wfs", ["WFS"]], ...ACTIVE_PIECES.map((source): ElementsEntry => [source, ["Active"], { searchOnly: true }])],
   },
 };
 

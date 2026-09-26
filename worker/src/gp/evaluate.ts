@@ -456,6 +456,19 @@ function topoOrder(defs: GroupDefinition[]): GroupDefinition[] {
   return ordered;
 }
 
+// A group this one depends on, evaluated earlier by topo order. Its failure is
+// this group's failure: an include would serve a hole, an exclude a duplicate.
+function dependencyRecords(results: Map<string, GroupResult | Error>, dep: string, role: "included" | "excluded"): GpRecord[] {
+  const result = results.get(dep);
+  if (result === undefined) {
+    throw new Error(`${role} group ${dep} was not evaluated`);
+  }
+  if (result instanceof Error) {
+    throw new Error(`${role} group ${dep} failed: ${result.message}`);
+  }
+  return result.records;
+}
+
 // A successfully evaluated group: its final record list plus any non-fatal
 // validation warnings raised by its `satellites` rows. Warnings are per-group
 // (own rows only — a group does not inherit its includes' warnings; those
@@ -490,42 +503,12 @@ export function evaluateGroups(defs: GroupDefinition[], recordsBySource: Records
 
       const selected = applySelectAndRename(sourceRecords, def);
 
-      // Prepend included groups' outputs (evaluated first via topo order).
-      const included: GpRecord[] = [];
-      for (const dep of def.include ?? []) {
-        const depResult = results.get(dep);
-        if (depResult === undefined) {
-          throw new Error(`included group ${dep} was not evaluated`);
-        }
-        if (depResult instanceof Error) {
-          throw new Error(`included group ${dep} failed: ${depResult.message}`);
-        }
-        included.push(...depResult.records);
-      }
+      const included = (def.include ?? []).flatMap((dep) => dependencyRecords(results, dep, "included"));
+      const excluded = new Set((def.exclude ?? []).flatMap((dep) => dependencyRecords(results, dep, "excluded").map(enrichmentSatnum)));
 
-      // Final order: includes, then this group's own records, then extras.
-      const extras = def.extraRecords ?? [];
-      let records: GpRecord[] = [...included, ...selected.records, ...extras];
-
-      // Subtract excluded groups' outputs last, so the exclusion applies to
-      // whatever the group ends up holding, not only to what it selected.
-      if (def.exclude && def.exclude.length > 0) {
-        const excluded = new Set<string>();
-        for (const dep of def.exclude) {
-          const depResult = results.get(dep);
-          if (depResult === undefined) {
-            throw new Error(`excluded group ${dep} was not evaluated`);
-          }
-          if (depResult instanceof Error) {
-            throw new Error(`excluded group ${dep} failed: ${depResult.message}`);
-          }
-          for (const record of depResult.records) {
-            excluded.add(enrichmentSatnum(record));
-          }
-        }
-        records = records.filter((record) => !excluded.has(enrichmentSatnum(record)));
-      }
-
+      // Final order: includes, then this group's own records, then extras. The
+      // exclusion applies to all of it, not only to what this group selected.
+      const records = [...included, ...selected.records, ...(def.extraRecords ?? [])].filter((record) => !excluded.has(enrichmentSatnum(record)));
       results.set(def.name, { records, warnings: selected.warnings });
     } catch (err) {
       results.set(def.name, err instanceof Error ? err : new Error(String(err)));
