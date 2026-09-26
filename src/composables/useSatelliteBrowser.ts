@@ -86,6 +86,15 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
 
   const searchOnlyTags = computed(() => new Set(allGroups.value.filter((group) => group.searchOnly).map((group) => group.tag)));
 
+  const isSearchOnly = (entry: CatalogEntry): boolean => entry.tags.length > 0 && entry.tags.every((tag) => searchOnlyTags.value.has(tag));
+
+  // A group can rename a satellite a search-only group also carries, so the
+  // catalog holds it twice under two names.
+  const pickableSatnums = computed(() => {
+    void catalogRevision.value;
+    return new Set(catalog.entries.filter((entry) => !isSearchOnly(entry)).map((entry) => entry.satnum));
+  });
+
   function setSearchQuery(value: string): void {
     searchQuery.value = value;
     // Search spans every group. Memoized per group in the catalog; a group
@@ -240,7 +249,7 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     }
     const seen = new Set<string>();
     for (const { entry, key } of searchIndex.value) {
-      if (!key.includes(query) || seen.has(entry.name)) {
+      if (!key.includes(query) || seen.has(entry.name) || (isSearchOnly(entry) && pickableSatnums.value.has(entry.satnum))) {
         continue;
       }
       seen.add(entry.name);

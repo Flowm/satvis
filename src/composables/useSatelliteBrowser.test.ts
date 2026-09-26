@@ -28,7 +28,8 @@ function installFetch(): void {
       ],
     }),
     "/api/gp/weather.json": json([omm("METEO-1", 1)]),
-    "/api/gp/active.json": json([omm("METEO-1", 1), omm("SENTINEL-1", 2)]),
+    "/api/gp/custom.json": json([omm("SAT-B", 3)]),
+    "/api/gp/active.json": json([omm("METEO-1", 1), omm("SENTINEL-1", 2), omm("SAT-A", 3)]),
   };
   vi.stubGlobal(
     "fetch",
@@ -49,6 +50,7 @@ function setup() {
   });
   catalog.registerGroups([
     ["weather", ["Weather"]],
+    ["custom", ["Custom"]],
     ["active", ["Active"], { searchOnly: true }],
   ]);
   return { catalog, browser: useSatelliteBrowser(catalog) };
@@ -74,8 +76,8 @@ describe("useSatelliteBrowser search-only groups", () => {
   test("a search-only group gets no row and no multiselect entry", async () => {
     const { catalog, browser } = setup();
     await catalog.ensureAll();
-    expect(browser.availableGroups.value.map((group) => group.tag)).toEqual(["Weather"]);
-    expect(browser.rows.value.map((row) => row.id)).toEqual(["g:Weather"]);
+    expect(browser.availableGroups.value.map((group) => group.tag).toSorted()).toEqual(["Custom", "Weather"]);
+    expect(browser.rows.value.map((row) => row.id)).toEqual(["g:Custom", "g:Weather"]);
     expect(browser.isLoading.value).toBe(false);
   });
 
@@ -94,6 +96,17 @@ describe("useSatelliteBrowser search-only groups", () => {
     browser.setSearchQuery("active");
     await vi.advanceTimersByTimeAsync(200);
     expect(browser.rows.value.filter((row) => row.kind === "group")).toEqual([]);
+  });
+
+  test("a search-only copy of a satellite a group already offers stays hidden", async () => {
+    const { browser } = setup();
+    // Satnum 3 is SAT-B in Custom, renamed from SAT-A in Active.
+    browser.setSearchQuery("3");
+    await vi.advanceTimersByTimeAsync(200);
+    expect(browser.rows.value.filter((row) => row.kind === "sat").map((row) => row.name)).toEqual(["SAT-B"]);
+    browser.setSearchQuery("SAT-A");
+    await vi.advanceTimersByTimeAsync(200);
+    expect(browser.rows.value).toEqual([]);
   });
 
   test("a satellite found only through search is enabled by name", async () => {
