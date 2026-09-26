@@ -271,10 +271,10 @@ function validate(groups) {
 
 const sourcesOf = (group) => JSON.stringify(group.sources ?? []);
 
-// A group with an `exclude` list serves the remainder of its sources, so every
-// sibling in the same config that selects from exactly those sources has to be
-// on the list — or the remainder serves those records a second time. Plugin
-// configs are checked on their own: their groups belong in a core remainder.
+// A group with `exclude` serves the remainder of its sources, so every sibling
+// in the same config that selects from those sources must be on the list, or
+// the remainder serves those records twice. Plugin configs are checked on their
+// own: their groups belong in a core remainder.
 function validateRemainders(groups, source) {
   for (const remainder of groups) {
     if (!remainder.exclude) {

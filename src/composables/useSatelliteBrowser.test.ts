@@ -1,6 +1,5 @@
-// The row model and the search state, against a catalog fed by stubbed fetches.
-// The composable is Cesium-free by design: it takes the catalog as an argument
-// and writes only to the Pinia store, so it runs in the node-env vitest.
+// Row model and search state against a catalog fed by stubbed fetches. The
+// composable is Cesium-free, so this runs in the node-env vitest.
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -40,8 +39,8 @@ function installFetch(): void {
   );
 }
 
-// What the app wires up in SatelliteManager: the catalog's change callback
-// bumps the store revision the composable's computeds depend on.
+// As SatelliteManager wires it: a catalog change bumps the store revision the
+// composable's computeds depend on.
 function setup() {
   const catalog = new SatelliteCatalog();
   const satStore = useSatStore();

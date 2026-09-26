@@ -4,11 +4,11 @@
 // being remounted (Satvis mounts the panel with a v-if, so opening/closing the
 // catalog panel unmounts and remounts it; module scope keeps that transparent).
 //
-// The catalog itself is intentionally NOT reactive (it holds ~13k plain
-// entries once the whole active catalog is in). Instead the store exposes `catalogRevision`, bumped whenever the
-// catalog changes. Every computed here touches `catalogRevision.value` so it
-// recomputes as groups arrive, while reading the actual entries imperatively
-// from the catalog it is given.
+// The catalog itself is intentionally NOT reactive: it holds ~13k plain entries
+// once the whole active list is in. Instead the store exposes `catalogRevision`,
+// bumped whenever the catalog changes. Every computed here touches
+// `catalogRevision.value` so it recomputes as groups arrive, while reading the
+// actual entries imperatively from the catalog it is given.
 //
 // Writes only ever target the Pinia store, replacing the whole array (the
 // url-sync plugin's $subscribe requires a new array reference to detect the
@@ -257,7 +257,6 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     return result;
   });
 
-  // The groups a search hit belongs to, minus search-only tags.
   function groupsLabelOf(entry: CatalogEntry): string | undefined {
     const tags = entry.tags.filter((tag) => !searchOnlyTags.value.has(tag));
     return tags.length > 0 ? tags.join(", ") : undefined;

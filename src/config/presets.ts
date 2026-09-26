@@ -5,9 +5,8 @@
 // an explicit URL/path (anything containing "/" or ".", incl. legacy .txt),
 // which passes through unchanged and is parsed via payload sniffing.
 //
-// A search-only source still fills the catalog, so its satellites can be found
-// and switched on one at a time, but its tags get no group row and no entry in
-// the group multiselect: the group is too large to be worth enabling whole.
+// A search-only source fills the catalog like any other, but its tags get no
+// group row and no multiselect entry: the group is too large to enable whole.
 export type ElementsEntry = [source: string, tags: string[], options?: { searchOnly?: boolean }];
 
 export interface PresetConfig {
@@ -36,8 +35,8 @@ export interface Preset {
 }
 
 // The CelesTrak active list as the worker serves it: seven groups carved out by
-// name plus the remainder (worker/src/config/satvis.core.yaml). Registered under
-// one tag they load as a whole with no satellite arriving twice.
+// name plus the remainder (worker/src/config/satvis.core.yaml). Under one tag
+// they load as a whole, and no satellite arrives twice.
 const ACTIVE_PIECES = ["globalstar", "iridium-NEXT", "oneweb", "planet", "spire", "starlink", "eutelsat", "active-remainder"];
 
 export const presets: Record<string, Preset> = {
@@ -80,7 +79,6 @@ export const presets: Record<string, Preset> = {
         layers: ["VersaTiles"],
       },
     },
-    // Active is searchable here but not offered whole.
     elements: [["ot", ["OT"]], ["wfs", ["WFS"]], ...ACTIVE_PIECES.map((source): ElementsEntry => [source, ["Active"], { searchOnly: true }])],
   },
 };
