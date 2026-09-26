@@ -65,8 +65,8 @@ describe("SatelliteCatalog", () => {
     catalog.addRecords([ommRecord("C", 3)], ["G2"]);
     const groups = catalog.groups.toSorted((a, b) => a.tag.localeCompare(b.tag));
     expect(groups).toEqual([
-      { tag: "G1", count: 2 },
-      { tag: "G2", count: 1 },
+      { tag: "G1", count: 2, searchOnly: false },
+      { tag: "G2", count: 1, searchOnly: false },
     ]);
   });
 
@@ -150,16 +150,36 @@ describe("SatelliteCatalog lazy loading", () => {
       ["stations", ["Stations"]],
     ]);
     expect(catalog.groups.toSorted((a, b) => a.tag.localeCompare(b.tag))).toEqual([
-      { tag: "Stations", count: 0 },
-      { tag: "Weather", count: 0 },
+      { tag: "Stations", count: 0, searchOnly: false },
+      { tag: "Weather", count: 0, searchOnly: false },
     ]);
     await catalog.ensureIndex();
     expect(catalog.groups.toSorted((a, b) => a.tag.localeCompare(b.tag))).toEqual([
-      { tag: "Stations", count: 1 },
-      { tag: "Weather", count: 2 },
+      { tag: "Stations", count: 1, searchOnly: false },
+      { tag: "Weather", count: 2, searchOnly: false },
     ]);
     // Only the probe ran — no group payload was fetched.
     expect(requested.filter((url) => url.startsWith("/api/gp/"))).toEqual([]);
+  });
+
+  test("a tag is search-only until some registration offers it as a group", async () => {
+    installFetch({
+      ...PROBE_ROUTES,
+      "/api/gp/stations.json": json(JSON.parse(ommPayload(ommRecord("ISS", 25544)))),
+    });
+    const catalog = new SatelliteCatalog();
+    catalog.registerGroups([
+      ["weather", ["Weather"]],
+      ["stations", ["Stations"], { searchOnly: true }],
+    ]);
+    const searchOnly = () => Object.fromEntries(catalog.groups.map((group) => [group.tag, group.searchOnly]));
+    expect(searchOnly()).toEqual({ Weather: false, Stations: true });
+    // Loading changes nothing about it: the flag is about the group, not its entries.
+    await catalog.ensureTags(["Stations"]);
+    expect(searchOnly()).toEqual({ Weather: false, Stations: true });
+    // A second preset that offers the same source whole wins over the first.
+    catalog.registerGroups([["stations", ["Stations"]]]);
+    expect(searchOnly()).toEqual({ Weather: false, Stations: false });
   });
 
   test("ensureTags fetches only matching groups and memoizes", async () => {

@@ -29,6 +29,12 @@
 # or decay surfaces as a warning in /api/groups.json instead of silently shrinking
 # the group.
 #
+# `active-remainder` is `active` minus those seven. The presets tag all eight
+# `Active`, so the whole list loads as disjoint pieces and no satellite arrives
+# twice. A group carved from `active` must join the exclude list (the generator
+# checks) and carry the `Active` tag in src/config/presets.ts
+# (worker/test/config.test.ts checks).
+#
 # Still fetched as their own sources — editorial lists with no name pattern at all:
 # gnss, science, resource, weather, cubesat, stations, last-30-days.
 #
@@ -36,8 +42,9 @@
 # that fits today drifts as operators add product lines (planet needed PELICAN,
 # TANAGER and EDDA appended to FLOCK/SKYSAT for exactly that reason).
 groups:
-  - name: active
+  - name: active-remainder
     sources: [{ celestrak: active }]
+    exclude: [starlink, oneweb, globalstar, iridium-NEXT, planet, spire, eutelsat]
   - name: cubesat
     sources: [{ celestrak: cubesat }]
   - name: globalstar

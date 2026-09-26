@@ -137,7 +137,7 @@ contributes two independent sections: `groups` (what is served, as which unit) a
 - The core config lives in `worker/src/config/satvis.core.yaml` (CelesTrak
   pass-throughs, plus the satellite table).
 - Plugins add `data/custom/<plugin>/satvis.yaml` with
-  `sources` / `select` / `rename` / `include` / `extraRecordsFile`. Example
+  `sources` / `select` / `rename` / `include` / `exclude` / `extraRecordsFile`. Example
   (`data/custom/example/satvis.yaml`):
 
   ```yaml

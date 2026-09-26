@@ -4,11 +4,11 @@
 // being remounted (Satvis mounts the panel with a v-if, so opening/closing the
 // catalog panel unmounts and remounts it; module scope keeps that transparent).
 //
-// The catalog itself is intentionally NOT reactive (it holds ~2k plain
-// entries). Instead the store exposes `catalogRevision`, bumped whenever the
-// catalog changes. Every computed here touches `catalogRevision.value` so it
-// recomputes as groups arrive, while reading the actual entries imperatively
-// from the catalog it is given.
+// The catalog itself is intentionally NOT reactive: it holds ~13k plain entries
+// once the whole active list is in. Instead the store exposes `catalogRevision`,
+// bumped whenever the catalog changes. Every computed here touches
+// `catalogRevision.value` so it recomputes as groups arrive, while reading the
+// actual entries imperatively from the catalog it is given.
 //
 // Writes only ever target the Pinia store, replacing the whole array (the
 // url-sync plugin's $subscribe requires a new array reference to detect the
@@ -20,7 +20,7 @@
 // directly is what keeps this file constructible without a viewer.
 
 import { storeToRefs } from "pinia";
-import { computed, ref } from "vue";
+import { computed, ref, shallowRef } from "vue";
 
 import type { OrbitClass } from "../config/orbitClass";
 import { isEnabledByTag } from "../modules/satelliteActivation";
@@ -54,6 +54,9 @@ const SEARCH_DEBOUNCE_MS = 150;
 
 const searchQuery = ref("");
 const debouncedQuery = ref("");
+// The full-catalog load a search starts, while it is in flight.
+const searchLoad = shallowRef<Promise<void> | undefined>();
+const searchLoading = computed(() => searchLoad.value !== undefined);
 // Collapsed by default: an empty set means every group is collapsed.
 const expandedGroups = ref<Set<string>>(new Set());
 
@@ -73,19 +76,36 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
   const satStore = useSatStore();
   const { catalogRevision, enabledSatellites, enabledTags, disabledSatellites } = storeToRefs(satStore);
 
-  // Group list with counts, derived from the non-reactive catalog and kept
-  // fresh via catalogRevision (same { tag, count }[] shape the store held).
-  const availableGroups = computed(() => {
+  const allGroups = computed(() => {
     void catalogRevision.value;
     return catalog.groups;
   });
 
+  // The groups offered whole: a row in the tree, an entry in the multiselect.
+  const availableGroups = computed(() => allGroups.value.filter((group) => !group.searchOnly));
+
+  const searchOnlyTags = computed(() => new Set(allGroups.value.filter((group) => group.searchOnly).map((group) => group.tag)));
+
+  const isSearchOnly = (entry: CatalogEntry): boolean => entry.tags.length > 0 && entry.tags.every((tag) => searchOnlyTags.value.has(tag));
+
+  // A group can rename a satellite a search-only group also carries, so the
+  // catalog holds it twice under two names.
+  const pickableSatnums = computed(() => {
+    void catalogRevision.value;
+    return new Set(catalog.entries.filter((entry) => !isSearchOnly(entry)).map((entry) => entry.satnum));
+  });
+
   function setSearchQuery(value: string): void {
     searchQuery.value = value;
-    // Search spans every group, so make sure the lazily-loaded ones arrive.
-    // Memoized per group in the catalog — repeat keystrokes are no-ops.
-    if (value.trim() !== "") {
-      void catalog.ensureAll();
+    // Search spans every group. Memoized per group in the catalog; a group
+    // that failed to load is retried here.
+    if (value.trim() !== "" && searchLoad.value === undefined) {
+      const load = catalog.ensureAll().finally(() => {
+        if (searchLoad.value === load) {
+          searchLoad.value = undefined;
+        }
+      });
+      searchLoad.value = load;
     }
     scheduleDebounce();
   }
@@ -229,7 +249,7 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     }
     const seen = new Set<string>();
     for (const { entry, key } of searchIndex.value) {
-      if (!key.includes(query) || seen.has(entry.name)) {
+      if (!key.includes(query) || seen.has(entry.name) || (isSearchOnly(entry) && pickableSatnums.value.has(entry.satnum))) {
         continue;
       }
       seen.add(entry.name);
@@ -240,11 +260,16 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
         satnum: entry.satnum,
         checked: active.has(entry.name),
         orbitClass: entry.orbitClass,
-        groupsLabel: entry.tags.length > 0 ? entry.tags.join(", ") : undefined,
+        groupsLabel: groupsLabelOf(entry),
       });
     }
     return result;
   });
+
+  function groupsLabelOf(entry: CatalogEntry): string | undefined {
+    const tags = entry.tags.filter((tag) => !searchOnlyTags.value.has(tag));
+    return tags.length > 0 ? tags.join(", ") : undefined;
+  }
 
   // Every action below writes a whole array to the store, never one element.
 
@@ -335,13 +360,11 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
 
   const hasActiveSelection = computed(() => enabledTags.value.length > 0 || enabledSatellites.value.length > 0);
   const groupCount = computed(() => enabledTags.value.length);
-  const isLoading = computed(() => {
-    void catalogRevision.value;
-    return availableGroups.value.length === 0;
-  });
+  const isLoading = computed(() => allGroups.value.length === 0);
 
   return {
     searchQuery,
+    searchLoading,
     setSearchQuery,
     clearSearch,
     availableGroups,

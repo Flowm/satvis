@@ -227,15 +227,27 @@ function validate(groups) {
     names.add(group.name);
     validateSatellites(group);
   }
-  // include targets must exist.
+  // include / exclude targets must exist, and must be other groups.
   for (const group of groups) {
-    for (const dep of group.include ?? []) {
-      if (!names.has(dep)) {
-        throw new Error(`group ${JSON.stringify(group.name)} includes unknown group ${JSON.stringify(dep)}`);
+    for (const [field, verb] of [
+      ["include", "includes"],
+      ["exclude", "excludes"],
+    ]) {
+      const deps = group[field] ?? [];
+      if (!Array.isArray(deps) || deps.some((dep) => typeof dep !== "string")) {
+        throw new Error(`group ${JSON.stringify(group.name)}: "${field}" must be an array of group names`);
+      }
+      for (const dep of deps) {
+        if (!names.has(dep)) {
+          throw new Error(`group ${JSON.stringify(group.name)} ${verb} unknown group ${JSON.stringify(dep)}`);
+        }
+        if (dep === group.name) {
+          throw new Error(`group ${JSON.stringify(group.name)} ${verb} itself`);
+        }
       }
     }
   }
-  // no include cycles (DFS).
+  // no cycles through include or exclude edges (DFS).
   const byName = new Map(groups.map((g) => [g.name, g]));
   const state = new Map();
   const visit = (name, stack) => {
@@ -243,16 +255,39 @@ function validate(groups) {
       return;
     }
     if (state.get(name) === "visiting") {
-      throw new Error(`include cycle detected: ${[...stack, name].join(" -> ")}`);
+      throw new Error(`include/exclude cycle detected: ${[...stack, name].join(" -> ")}`);
     }
     state.set(name, "visiting");
-    for (const dep of byName.get(name)?.include ?? []) {
+    const group = byName.get(name);
+    for (const dep of [...(group?.include ?? []), ...(group?.exclude ?? [])]) {
       visit(dep, [...stack, name]);
     }
     state.set(name, "done");
   };
   for (const group of groups) {
     visit(group.name, []);
+  }
+}
+
+const sourcesOf = (group) => JSON.stringify(group.sources ?? []);
+
+// A group with `exclude` serves the remainder of its sources, so every sibling
+// in the same config that selects from those sources must be on the list, or
+// the remainder serves those records twice. Plugin configs are checked on their
+// own: their groups belong in a core remainder.
+function validateRemainders(groups, source) {
+  for (const remainder of groups) {
+    if (!remainder.exclude) {
+      continue;
+    }
+    for (const sibling of groups) {
+      if (sibling === remainder || sourcesOf(sibling) !== sourcesOf(remainder) || (!sibling.select && !sibling.satellites)) {
+        continue;
+      }
+      if (!remainder.exclude.includes(sibling.name)) {
+        throw new Error(`${source}: group ${JSON.stringify(remainder.name)} must exclude ${JSON.stringify(sibling.name)}, which selects from the same sources`);
+      }
+    }
   }
 }
 
@@ -320,6 +355,7 @@ function main() {
   const table = createSatelliteTable();
   for (const { path: configPath, config } of configs) {
     const source = path.relative(repoRoot, configPath);
+    validateRemainders(config.groups, source);
     validateSatelliteTable(config.satellites, source);
     for (const entry of config.satellites) {
       table.add(entry.noradId, { metadata: metadataFields(entry), name: entry.name, decayed: entry.decayed }, `${source} satellites`);

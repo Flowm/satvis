@@ -84,6 +84,10 @@ export interface GroupDefinition {
   // concatenated ot.txt into wfs.txt BEFORE appending ot-add.txt extras; authors
   // who want that ordering should put extras in a separate included group.
   include?: string[];
+  // Names of other groups whose records are removed from this group's final
+  // output, includes and extras too, matched by normalized satnum. Evaluated
+  // first like an include, and a failed one fails this group.
+  exclude?: string[];
   // Inlined by the generator from extraRecordsFile; appended verbatim.
   extraRecords?: GpRecord[];
 }

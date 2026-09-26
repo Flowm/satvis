@@ -5,6 +5,7 @@
 // This module must stay Cesium-free (node-env vitest exercises it).
 
 import type { OrbitClass } from "../config/orbitClass";
+import type { ElementsEntry } from "../config/presets";
 import type { SatelliteMetadata } from "../config/satelliteMetadata";
 import { orbitClassOf, parseGpPayload, recordName, recordSatnum, type GpRecord } from "./util/gp";
 import { fetchGpGroup, fetchGpIndex } from "./util/gpSource";
@@ -59,6 +60,7 @@ export class CatalogEntry {
 interface RegisteredGroup {
   source: string;
   tags: string[];
+  searchOnly: boolean;
   loaded: boolean;
   // Memoized in-flight/completed load; cleared on failure so a later ensure
   // call retries.
@@ -99,14 +101,17 @@ export class SatelliteCatalog {
 
   // Register preset groups without fetching them. Repeated registration (e.g.
   // navigating between presets) merges tags; already-loaded groups stay loaded.
-  registerGroups(sourceTagList: ReadonlyArray<readonly [string, string[]]>): void {
-    for (const [source, tags] of sourceTagList) {
+  // A group is search-only until some preset registers it as a full group.
+  registerGroups(sourceTagList: ReadonlyArray<ElementsEntry>): void {
+    for (const [source, tags, options] of sourceTagList) {
+      const searchOnly = options?.searchOnly === true;
       const existing = this.#registry.get(source);
       if (existing) {
         existing.tags = mergeTags(existing.tags, tags);
+        existing.searchOnly = existing.searchOnly && searchOnly;
         continue;
       }
-      this.#registry.set(source, { source, tags: [...tags], loaded: false, load: undefined });
+      this.#registry.set(source, { source, tags: [...tags], searchOnly, loaded: false, load: undefined });
     }
   }
 
@@ -220,21 +225,21 @@ export class SatelliteCatalog {
   // but not-yet-loaded sources (estimated counts from the group index, 0 until
   // the index arrives). Estimates may double-count satellites shared with a
   // loaded group; they are replaced by exact counts once the group loads.
-  get groups(): { tag: string; count: number }[] {
+  // A tag is search-only when every registered source carrying it is.
+  get groups(): { tag: string; count: number; searchOnly: boolean }[] {
     const counts = new Map<string, number>();
+    const searchOnly = new Map<string, boolean>();
     for (const [tag, entries] of this.#byTag) {
       counts.set(tag, entries.size);
     }
     for (const group of this.#registry.values()) {
-      if (group.loaded) {
-        continue;
-      }
-      const estimate = this.#indexCounts.get(group.source) ?? 0;
+      const estimate = group.loaded ? 0 : (this.#indexCounts.get(group.source) ?? 0);
       for (const tag of group.tags) {
         counts.set(tag, (counts.get(tag) ?? 0) + estimate);
+        searchOnly.set(tag, (searchOnly.get(tag) ?? true) && group.searchOnly);
       }
     }
-    return [...counts.entries()].map(([tag, count]) => ({ tag, count }));
+    return [...counts.entries()].map(([tag, count]) => ({ tag, count, searchOnly: searchOnly.get(tag) ?? false }));
   }
 
   entriesWithTag(tag: string): CatalogEntry[] {

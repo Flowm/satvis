@@ -35,14 +35,16 @@
 
     <!-- Virtualized, and the only element here that scrolls. -->
     <div v-if="isLoading" class="browser-empty">Loading satellites…</div>
-    <div v-else-if="rows.length === 0" class="browser-empty">No matches</div>
-    <div v-else ref="scrollEl" class="browser-list" :style="{ height: listHeight }">
+    <div v-else-if="rows.length > 0" ref="scrollEl" class="browser-list" :style="{ height: listHeight }">
       <div class="browser-list-inner" :style="{ height: `${totalSize}px` }">
         <div v-for="virtualRow in virtualRows" :key="virtualRow.row.id" class="browser-list-row" :style="{ transform: `translateY(${virtualRow.start}px)` }">
           <satellite-browser-row :row="virtualRow.row" @toggle-group="toggleGroup" @toggle-sat="toggleSat" @toggle-expand="toggleExpand" />
         </div>
       </div>
     </div>
+    <!-- A search loads every group, and the biggest takes seconds. -->
+    <div v-else-if="searchLoading" class="browser-empty">Loading all satellites…</div>
+    <div v-else class="browser-empty">No matches</div>
 
     <div class="browser-summary">
       <span>{{ groupCount }} group{{ groupCount === 1 ? "" : "s" }} · {{ activeSatCount }} satellite{{ activeSatCount === 1 ? "" : "s" }} active</span>
@@ -65,6 +67,7 @@ const { catalog } = useController().sats;
 
 const {
   searchQuery,
+  searchLoading,
   setSearchQuery,
   clearSearch,
   availableGroups,

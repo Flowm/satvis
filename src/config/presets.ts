@@ -4,7 +4,10 @@
 // worker `/api/gp/<name>.json` or the static `data/gp/<name>.json` snapshot) or
 // an explicit URL/path (anything containing "/" or ".", incl. legacy .txt),
 // which passes through unchanged and is parsed via payload sniffing.
-export type ElementsEntry = [source: string, tags: string[]];
+//
+// A search-only source fills the catalog like any other, but its tags get no
+// group row and no multiselect entry: the group is too large to enable whole.
+export type ElementsEntry = [source: string, tags: string[], options?: { searchOnly?: boolean }];
 
 export interface PresetConfig {
   sat?: {
@@ -31,6 +34,11 @@ export interface Preset {
   elements: ElementsEntry[];
 }
 
+// The CelesTrak active list as the worker serves it: seven groups carved out by
+// name plus the remainder (worker/src/config/satvis.core.yaml). Under one tag
+// they load as a whole, and no satellite arrives twice.
+const ACTIVE_PIECES = ["globalstar", "iridium-NEXT", "oneweb", "planet", "spire", "starlink", "eutelsat", "active-remainder"];
+
 export const presets: Record<string, Preset> = {
   default: {
     title: "Satvis - 3D Satellite Tracker & Sky View",
@@ -39,23 +47,24 @@ export const presets: Record<string, Preset> = {
         enabledTags: ["Weather"],
       },
     },
-    // Bare group names matching worker/src/config/satvis.core.yaml.
+    // Bare group names matching worker/src/config/satvis.core.yaml. Every one
+    // of ACTIVE_PIECES carries `Active` (checked by worker/test/config.test.ts).
     elements: [
       ["cubesat", ["Cubesat"]],
-      ["globalstar", ["Globalstar"]],
+      ["globalstar", ["Globalstar", "Active"]],
       ["gnss", ["GNSS"]],
-      ["iridium-NEXT", ["IridiumNEXT"]],
+      ["iridium-NEXT", ["IridiumNEXT", "Active"]],
       ["last-30-days", ["New"]],
-      ["oneweb", ["OneWeb"]],
-      ["planet", ["Planet"]],
+      ["oneweb", ["OneWeb", "Active"]],
+      ["planet", ["Planet", "Active"]],
       ["resource", ["Resource"]],
       ["science", ["Science"]],
-      ["spire", ["Spire"]],
-      ["starlink", ["Starlink"]],
+      ["spire", ["Spire", "Active"]],
+      ["starlink", ["Starlink", "Active"]],
       ["stations", ["Stations"]],
       ["weather", ["Weather"]],
-      ["eutelsat", ["Eutelsat"]],
-      ["active", ["Active"]],
+      ["eutelsat", ["Eutelsat", "Active"]],
+      ["active-remainder", ["Active"]],
     ],
   },
   ot: {
@@ -70,10 +79,7 @@ export const presets: Record<string, Preset> = {
         layers: ["VersaTiles"],
       },
     },
-    elements: [
-      ["ot", ["OT"]],
-      ["wfs", ["WFS"]],
-    ],
+    elements: [["ot", ["OT"]], ["wfs", ["WFS"]], ...ACTIVE_PIECES.map((source): ElementsEntry => [source, ["Active"], { searchOnly: true }])],
   },
 };
 

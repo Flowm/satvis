@@ -2,6 +2,7 @@ import { Cartesian3, JulianDate } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
 import { SATELLITE_COMPONENTS } from "../config/components";
+import type { ElementsEntry } from "../config/presets";
 import type { SerializedGroundStation } from "../stores/sat";
 import { GroundStationEntity, type GroundStationPositionData } from "./GroundStationEntity";
 import { activeTargetEntries, buildOrder } from "./satelliteActivation";
@@ -331,7 +332,7 @@ export class SatelliteManager {
   // fetched here — only the ones required by the current activation state
   // (enabled tags, URL-enabled/tracked names) load now; the rest load on
   // demand when their tag is enabled or the catalog browser needs them.
-  loadElementSets(sourceTagList: ReadonlyArray<readonly [string, string[]]>): Promise<void> {
+  loadElementSets(sourceTagList: ReadonlyArray<ElementsEntry>): Promise<void> {
     this.catalog.registerGroups(sourceTagList);
     // Registered groups become visible in the browser immediately; their
     // estimated counts follow once the group index arrives.
