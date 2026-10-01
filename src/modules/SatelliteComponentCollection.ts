@@ -836,8 +836,19 @@ export class SatelliteComponentCollection {
     if (this.isSelected || this.isTracked) {
       this.#highlightPasses();
     }
-    if (this.created) {
-      this.createGroundStationLink();
+    // Symmetric with every other component: route through enableComponent so
+    // the link actually reaches viewer.entities (it used to be created but
+    // never attached — GitHub #83 — and, called before anything else was
+    // shown, was sometimes never created at all, since the old `if
+    // (this.created)` guard depended on a component existing first).
+    // enableComponent initializes on its own, so this no longer needs that
+    // guard; drop the link the same way once no ground station is left to
+    // draw it to, rather than leaving a stale entity whose show() callback
+    // will never answer true again.
+    if (this.props.passPredictor.groundStationAvailable) {
+      this.enableComponent(GROUND_STATION_LINK);
+    } else if (GROUND_STATION_LINK in this.components) {
+      this.disableComponent(GROUND_STATION_LINK);
     }
   }
 }
