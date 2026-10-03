@@ -1,10 +1,13 @@
 import XCTest
 
-class satvisUITests: XCTestCase {
-    let app = XCUIApplication()
-
+nonisolated class satvisUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
+    }
+
+    @MainActor
+    func testBasicUI() {
+        let app = XCUIApplication()
         SpringboardHelper.deleteMyApp()
 
         setupSnapshot(app)
@@ -12,13 +15,7 @@ class satvisUITests: XCTestCase {
         app.launch()
 
         SpringboardHelper.allowSystemAlerts()
-    }
 
-    override func tearDown() {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-    }
-
-    func testBasicUI() {
         // Wait for map tiles to load
         sleep(60)
         snapshot("0Launch")
