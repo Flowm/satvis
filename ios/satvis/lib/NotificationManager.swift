@@ -1,7 +1,6 @@
 import UIKit
 import UserNotifications
 
-@MainActor
 class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     private let center = UNUserNotificationCenter.current()
     // Runs scheduling one request at a time, so sequential requests
