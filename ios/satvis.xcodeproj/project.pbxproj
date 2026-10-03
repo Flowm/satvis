@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		57A0C0DE0000000000000003 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 57A0C0DE0000000000000004 /* WebKit.framework */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		570DD92C22B5BA980078A4A1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -23,25 +19,11 @@
 /* Begin PBXFileReference section */
 		570DD92722B5BA980078A4A1 /* satvisUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = satvisUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		579DA870218C123A00B417CB /* satvis.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = satvis.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		57A0C0DE0000000000000004 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		57A0C0DE0000000000000008 /* Exceptions for "satvis" folder in "satvis" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 579DA86F218C123A00B417CB /* satvis */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		57A0C0DE0000000000000006 /* satvis */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				57A0C0DE0000000000000008 /* Exceptions for "satvis" folder in "satvis" target */,
-			);
 			path = satvis;
 			sourceTree = "<group>";
 		};
@@ -64,7 +46,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				57A0C0DE0000000000000003 /* WebKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -76,7 +57,6 @@
 			children = (
 				57A0C0DE0000000000000006 /* satvis */,
 				57A0C0DE0000000000000007 /* satvisUITests */,
-				57A0C0DE0000000000000005 /* Frameworks */,
 				579DA871218C123A00B417CB /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,14 +68,6 @@
 				570DD92722B5BA980078A4A1 /* satvisUITests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		57A0C0DE0000000000000005 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				57A0C0DE0000000000000004 /* WebKit.framework */,
-			);
-			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -397,14 +369,13 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = satvis/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SatVis;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Set ground station location from geolocation";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arm64;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -431,14 +402,13 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = satvis/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SatVis;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Set ground station location from geolocation";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arm64;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
