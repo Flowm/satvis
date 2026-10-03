@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import * as satellitejs from "satellite.js";
 import { describe, expect, test } from "vitest";
 
 import Orbit from "./Orbit";
@@ -43,6 +44,131 @@ describe("Orbit (TLE record)", () => {
   test("exposes tle lines and satnum", () => {
     expect(orbit.tle).toHaveLength(3);
     expect(orbit.satnum).toBe("25544");
+  });
+});
+
+// lastElevation starts without a real previous sample, and a pass still open
+// when the window ends is a different edge of the same problem: the scan's
+// first and last samples both need to behave like real data, not like the
+// absence of it.
+describe("Orbit elevation pass window edges", () => {
+  const orbit = new Orbit("ISS", parseGpPayload(TLE)[0] as GpRecord);
+  const gs = { latitude: 48.177, longitude: 11.7476, height: 0 };
+
+  test("a pass whose AOS is seconds after the window opens, with the satellite still below the horizon, is not skipped", () => {
+    // 2018-12-09T10:56:49Z is a real AOS over this station for this TLE
+    // (found once via a fine-grained scan); 10:55:12Z is ~90s earlier, where
+    // true elevation is already negative but rising toward it. A lastElevation
+    // initialised to 0 reads that first sample as declining (elevation < 0)
+    // and jumps half an orbit ahead, skipping the pass entirely.
+    const windowStart = dayjs("2018-12-09T10:55:12Z").toDate();
+    const windowEnd = dayjs("2018-12-09T11:05:00Z").toDate();
+    const passes = orbit.computePassesElevation(gs, windowStart, windowEnd, 5, 500);
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.start).toBeGreaterThanOrEqual(windowStart.getTime());
+    // AOS should land within a few seconds of the true crossing, not be
+    // missing nor artificially pinned to the window's own start.
+    expect(Math.abs(passes[0]!.start - dayjs("2018-12-09T10:56:49Z").valueOf())).toBeLessThan(5000);
+  });
+
+  test("a pass still above the horizon when the window ends is reported truncated, not dropped", () => {
+    // 2018-12-08T11:48:01Z–11:55:01Z is a real pass over this station for
+    // this TLE; cutting the window in the middle of it used to lose it
+    // entirely rather than reporting the truncated pass the loop already
+    // does when a window instead opens mid-pass.
+    const windowStart = dayjs("2018-12-08T11:40:00Z").toDate();
+    const windowEnd = dayjs("2018-12-08T11:51:30Z").toDate();
+    const passes = orbit.computePassesElevation(gs, windowStart, windowEnd, 5, 500);
+    expect(passes).toHaveLength(1);
+    expect(Math.abs(passes[0]!.start - dayjs("2018-12-08T11:48:01Z").valueOf())).toBeLessThan(5000);
+    expect(passes[0]!.end).toBe(windowEnd.getTime());
+    expect(passes[0]!.duration).toBe(passes[0]!.end - passes[0]!.start);
+  });
+
+  // The real pass this block uses throughout: 2018-12-08T11:48:01Z–11:55:01Z,
+  // azimuthEnd 81.29° at its natural LOS, found once via a wide scan. The next
+  // one after it, for the first-sample sentinel case below, is
+  // 13:23:27Z–13:31:47Z.
+
+  test("AOS exactly at the window's own start is reported there, not missed or misdated", () => {
+    const windowStart = dayjs("2018-12-08T11:48:01Z").toDate();
+    const windowEnd = dayjs("2018-12-08T12:00:00Z").toDate();
+    const passes = orbit.computePassesElevation(gs, windowStart, windowEnd, 5, 500);
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.start).toBe(windowStart.getTime());
+    expect(passes[0]!.end).toBeLessThan(windowEnd.getTime());
+  });
+
+  test("a pass already above the horizon at the window's start is truncated there, not given a false AOS", () => {
+    const windowStart = dayjs("2018-12-08T11:50:00Z").toDate();
+    const windowEnd = dayjs("2018-12-08T12:00:00Z").toDate();
+    const passes = orbit.computePassesElevation(gs, windowStart, windowEnd, 5, 500);
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.start).toBe(windowStart.getTime());
+    expect(Math.abs(passes[0]!.end - dayjs("2018-12-08T11:55:01Z").valueOf())).toBeLessThan(5000);
+  });
+
+  test("a pass spanning the entire window is reported bounded by the window on both ends", () => {
+    const windowStart = dayjs("2018-12-08T11:49:00Z").toDate();
+    const windowEnd = dayjs("2018-12-08T11:54:00Z").toDate();
+    const passes = orbit.computePassesElevation(gs, windowStart, windowEnd, 5, 500);
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.start).toBe(windowStart.getTime());
+    expect(passes[0]!.end).toBe(windowEnd.getTime());
+    expect(passes[0]!.duration).toBe(windowEnd.getTime() - windowStart.getTime());
+  });
+
+  test("a natural LOS landing on the loop's final iteration is reported once, not duplicated by the end-of-window truncation", () => {
+    // Window end is comfortably after the true LOS (11:55:01Z), so the loop's
+    // own exit branch — not the post-loop truncation — is what records this
+    // pass. ongoingPass must already be false by the time the loop ends, or
+    // the truncation would push a second, spurious entry for the same pass.
+    const windowStart = dayjs("2018-12-08T11:48:01Z").toDate();
+    const windowEnd = dayjs("2018-12-08T11:56:00Z").toDate();
+    const passes = orbit.computePassesElevation(gs, windowStart, windowEnd, 5, 500);
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.end).toBeLessThan(windowEnd.getTime());
+    expect(passes[0]!.end).toBeGreaterThan(passes[0]!.start);
+  });
+
+  test("a window cut moments after AOS reports a short but strictly positive duration, never zero or negative", () => {
+    const windowStart = dayjs("2018-12-08T11:48:01Z").toDate();
+    const windowEnd = dayjs("2018-12-08T11:48:03Z").toDate();
+    const passes = orbit.computePassesElevation(gs, windowStart, windowEnd, 5, 500);
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.start).toBe(windowStart.getTime());
+    expect(passes[0]!.end).toBe(windowEnd.getTime());
+    expect(passes[0]!.duration).toBeGreaterThan(0);
+  });
+
+  test("a truncated pass's azimuthEnd is the true azimuth at the window's own end, not the apex carried forward", () => {
+    const windowStart = dayjs("2018-12-08T11:48:01Z").toDate();
+    const windowEnd = dayjs("2018-12-08T11:50:00Z").toDate();
+    const passes = orbit.computePassesElevation(gs, windowStart, windowEnd, 5, 500);
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.azimuthEnd).not.toBe(passes[0]!.azimuthApex);
+
+    // Independently computed via the same primitives computePassesElevation
+    // itself uses, rather than re-asserting whatever the implementation did.
+    const groundStation = { latitude: gs.latitude * (Math.PI / 180), longitude: gs.longitude * (Math.PI / 180), height: gs.height / 1000 };
+    const positionEcf = orbit.positionECF(windowEnd)!;
+    const expectedAzimuthDeg = satellitejs.ecfToLookAngles(groundStation, positionEcf).azimuth * (180 / Math.PI);
+    expect(passes[0]!.azimuthEnd).toBeCloseTo(expectedAzimuthDeg, 3);
+  });
+
+  test("the first-sample sentinel does not suppress a legitimate coarse skip once a real previous sample exists", () => {
+    // Window opens 9 seconds after the known pass's true LOS (11:55:01Z), so
+    // elevation here is genuinely declining from the very first sample — the
+    // sentinel only changes how THAT one sample is classified, and must not
+    // stop the second sample onward from correctly recognising the decline
+    // and skipping ahead to the next real pass (13:23:27Z–13:31:47Z) rather
+    // than fine-stepping the whole gap between them.
+    const windowStart = dayjs("2018-12-08T11:55:10Z").toDate();
+    const windowEnd = dayjs("2018-12-08T14:00:00Z").toDate();
+    const passes = orbit.computePassesElevation(gs, windowStart, windowEnd, 5, 500);
+    expect(passes).toHaveLength(1);
+    expect(Math.abs(passes[0]!.start - dayjs("2018-12-08T13:23:27Z").valueOf())).toBeLessThan(5000);
+    expect(Math.abs(passes[0]!.end - dayjs("2018-12-08T13:31:47Z").valueOf())).toBeLessThan(5000);
   });
 });
 
