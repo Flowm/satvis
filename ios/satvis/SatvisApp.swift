@@ -3,7 +3,6 @@ import SwiftUI
 @main
 struct SatvisApp: App {
     @State private var notificationManager = NotificationManager()
-    @State private var locationManager = LocationManager()
 
     var body: some Scene {
         WindowGroup {

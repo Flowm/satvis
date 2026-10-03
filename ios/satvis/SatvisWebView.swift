@@ -51,7 +51,7 @@ struct SatvisWebView: UIViewRepresentable {
                 if await notificationManager.scheduleRequestChronological(request: request) {
                     NSLog("NOTIFY: \(date) \"\(body)\" in \(delay)s")
                 } else {
-                    NSLog("NOTIFY: \(date) \"\(body)\" in \(delay)s ignored due to notification limit")
+                    NSLog("NOTIFY: \(date) \"\(body)\" in \(delay)s not scheduled: no permission or notification limit reached")
                 }
             }
         }

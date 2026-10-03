@@ -9,21 +9,18 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
 
     override init() {
         super.init()
-        registerForPushNotifications()
+        center.delegate = self
     }
 
-    func registerForPushNotifications(remote: Bool = false) {
-        center.delegate = self
-        Task {
-            do {
-                let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-                NSLog("NotificationManager: Permission granted \(granted)")
-                if granted && remote {
-                    UIApplication.shared.registerForRemoteNotifications()
-                }
-            } catch {
-                NSLog("NotificationManager: ERROR \(error)")
-            }
+    // Asks on the first notification rather than at launch
+    private func requestAuthorization() async -> Bool {
+        do {
+            let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+            NSLog("NotificationManager: Permission granted \(granted)")
+            return granted
+        } catch {
+            NSLog("NotificationManager: ERROR \(error)")
+            return false
         }
     }
 
@@ -54,6 +51,9 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         let previous = lastSchedule
         let task = Task {
             _ = await previous?.value
+            guard await self.requestAuthorization() else {
+                return false
+            }
             return await self.insertChronologically(request: request)
         }
         lastSchedule = task
