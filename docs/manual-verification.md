@@ -615,6 +615,60 @@ removed all 11,152 link entities and dropped it from `elements`.
 off in one page, each after the scene settled: `dataSourceDisplay.update` 0.5 ms with
 the link off and 8 ms with it on, a frame 21 ms and 30 ms. 50 links drawn.
 
+## Satellite build: instantiation resumes without a frame
+
+**Why it matters.** `SatelliteManager.#build()` drains satellites whose opening
+window has arrived and, if any are still in flight, reschedules itself with
+`requestAnimationFrame`. Nothing in the opening-window request's own completion
+called `#build()` directly — so if that scheduled frame never arrived (any
+unfocused or backgrounded tab, not just this harness), satellites already
+sitting in `#ready` stayed uninstantiated indefinitely. A cold load of
+`?tags=Stations` opened in a background tab, or a tab the user switched away
+from mid-load, could leave the globe showing zero of the requested satellites
+with no error and no further progress — matching the behaviour that made
+toggling activation by hand appear necessary to "kick" the first reconcile:
+that toggle's own `reconcile()` call drove `#build()` directly, bypassing the
+stalled frame.
+
+**Why it cannot be a unit test.** `SatelliteManager` has no existing test
+fixture — building one would mean faking enough of `Viewer` and
+`SatelliteComponentCollection`'s entity/primitive surface to instantiate a real
+satellite, which is disproportionate to this fix. The defect is specifically
+about `requestAnimationFrame` never firing, which is exactly the condition
+several entries above already note jsdom cannot represent.
+
+**Procedure.** Dev server on `localhost:5222`. For each case, navigate fresh and
+read `window.cc.sats.activeSatellites.length` and `document.hidden` after a few
+seconds, with the automation tab persistently reported as `document.hidden:
+true` throughout (the same backgrounded condition noted elsewhere in this file)
+— i.e. every case below ran under the exact condition that triggered the bug,
+with no `requestAnimationFrame` override of any kind.
+
+- Cold load, one tag: `?tags=Stations`
+- Cold load, multiple tags: `?tags=Stations,Weather`
+- Cold load, excluded satellite: `?tags=Stations&xsats=KNACKSAT-2`
+- Reload of a previously working URL: `?tags=Stations` a second time
+- No URL tag state (control): `/`
+
+**Result, 2026-10-03, Chrome, before the fix.** Every tagged case stayed at
+`activeSats: 0` indefinitely — confirmed via source-level
+`performance.now()`-timestamped logging that the watcher, `reconcile()`, and
+`catalog.onChange` all fired correctly with the right data, and that
+`#reconcileActive()` computed the correct 23-entry target, but `#active.size`
+stayed 0 afterward. A manual second `reconcile()` call with the same state (no
+frames driven) also stayed at 0; only substituting a working
+`requestAnimationFrame`/`cancelAnimationFrame` pair (`setTimeout`-backed) let
+the existing retry loop complete and reach `activeSats: 23` — proving the
+build logic itself was correct and the only missing piece was a way to resume
+without that frame.
+
+**Result, 2026-10-03, Chrome, after the fix** (`.finally()` on each opening-window
+request now calls `#build()` directly instead of only `#resolveSettledIfDone()`).
+One tag: 23/23 within 3s. Multiple tags: 95/95. Excluded satellite: 22/23,
+confirmed `KNACKSAT-2` absent. Reload: 23/23. No-tag control: 72 active
+(the default preset), confirming the common path is unaffected. All five with
+`document.hidden: true` throughout — no tab-focus workaround needed.
+
 ## Clock deck: the replacement for the animation and timeline widgets
 
 **Why it cannot be a unit test.** Everything the deck is depends on layout. Its
