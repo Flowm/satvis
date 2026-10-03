@@ -9,5 +9,10 @@
 		<key>UIImageName</key>
 		<string>space-shuttle</string>
 	</dict>
+	<key>WKAppBoundDomains</key>
+	<array>
+		<string>satvis.space</string>
+		<string>localhost</string>
+	</array>
 </dict>
 </plist>

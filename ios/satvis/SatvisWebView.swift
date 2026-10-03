@@ -15,6 +15,10 @@ struct SatvisWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.mediaTypesRequiringUserActionForPlayback = []
+        // Service workers, and with them the page's offline cache, run only for the
+        // WKAppBoundDomains in Info.plist, and only in a web view limited to them.
+        // Other hosts, e.g. a deploy preview, load unlimited and without them.
+        configuration.limitsNavigationsToAppBoundDomains = Self.isAppBound(url)
         // Appended to WebKit's "Mobile/15E148", so the page and analytics can tell the app from Safari
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
         configuration.applicationNameForUserAgent = [configuration.applicationNameForUserAgent, "SatvisApp/\(version)"].compactMap { $0 }.joined(separator: " ")
@@ -35,6 +39,11 @@ struct SatvisWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {}
+
+    private static func isAppBound(_ url: URL) -> Bool {
+        let domains = Bundle.main.object(forInfoDictionaryKey: "WKAppBoundDomains") as? [String] ?? []
+        return url.host().map(domains.contains) ?? false
+    }
 
     class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
         let notificationManager: NotificationManager
