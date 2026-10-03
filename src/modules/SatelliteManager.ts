@@ -678,7 +678,14 @@ export class SatelliteManager {
         })
         .finally(() => {
           this.#opening -= 1;
-          this.#resolveSettledIfDone();
+          // #build()'s own retry is scheduled via requestAnimationFrame, which a
+          // backgrounded or unfocused tab can suspend indefinitely — leaving
+          // whatever just landed in #ready stranded until something unrelated
+          // happens to call #reconcileActive() again. Resuming here, from the
+          // actual event that makes progress possible, means a build never
+          // depends on a frame the browser might not grant. #build() already
+          // covers the done case (it calls #resolveSettledIfDone() itself).
+          this.#build();
         });
     }
   }
