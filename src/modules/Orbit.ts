@@ -58,6 +58,16 @@ const EARTH_RADIUS_KM = 6371;
 // are ~75 km apart in LEO and the bearing is not dominated by rounding.
 const BEARING_SAMPLE_MS = 10_000;
 
+/**
+ * An upper bound on ground-track speed (km/s) for any orbit this app
+ * predicts — ISS-class LEO runs under 7 km/s, and this stays safely above
+ * that down to the lowest altitudes satellite.js can propagate. Used only to
+ * prove a coarse step could not possibly have closed to within a swath's
+ * extent, never to size the step itself, so overestimating it costs a few
+ * needless minimisations rather than a missed pass.
+ */
+const MAX_GROUND_SPEED_KM_S = 8.5;
+
 /** Initial bearing from one geodetic point to another, all in radians. */
 function bearingRad(fromLat: number, fromLon: number, toLat: number, toLon: number): number {
   const deltaLon = toLon - fromLon;
@@ -258,6 +268,88 @@ export default class Orbit {
     return { side, distanceKm };
   }
 
+  /**
+   * The subpoint-to-station distance (km) at `date`, or `Infinity` where it
+   * cannot be propagated — a plain number so it can be minimized over, unlike
+   * `trackOffsets`'s `undefined` which a search has nothing to compare.
+   */
+  #trackDistanceKm(groundStationPosition: GroundStationPosition, date: Date): number {
+    return this.trackOffsets(groundStationPosition, date)?.distanceKm ?? Number.POSITIVE_INFINITY;
+  }
+
+  /**
+   * The time of closest approach inside `[lo, hi]`, by golden-section search.
+   *
+   * Assumes the distance is unimodal across the bracket — true for one orbit's
+   * single conjunction with a fixed point, which is what every bracket here
+   * spans. Shrinks to 10 ms: a kilometre-scale sensor's whole catchment window
+   * can be under a tenth of a second, so this has to resolve finer than the
+   * event it is looking for, not just finer than the coarse ladder around it.
+   */
+  #closestApproachInBracket(groundStationPosition: GroundStationPosition, lo: number, hi: number): { timeMs: number; distanceKm: number } {
+    const invphi = (Math.sqrt(5) - 1) / 2;
+    let a = lo;
+    let b = hi;
+    for (let i = 0; i < 100 && b - a > 10; i++) {
+      const c = b - (b - a) * invphi;
+      const d = a + (b - a) * invphi;
+      if (this.#trackDistanceKm(groundStationPosition, new Date(c)) < this.#trackDistanceKm(groundStationPosition, new Date(d))) {
+        b = d;
+      } else {
+        a = c;
+      }
+    }
+    const timeMs = (a + b) / 2;
+    return { timeMs, distanceKm: this.#trackDistanceKm(groundStationPosition, new Date(timeMs)) };
+  }
+
+  /**
+   * Where distance crosses `extentKm` inside `[outsideMs, insideMs]`, by
+   * bisection. `outsideMs`'s distance must exceed `extentKm` and `insideMs`'s
+   * must not — the two sides of one monotonic slope down to (or up from) the
+   * closest approach found by `#closestApproachInBracket`, which is what
+   * every call site here provides. Returns both bounds as bisection leaves
+   * them, each still on its own side, a sample apart: `insideMs` for a pass's
+   * start (the first moment it is, in fact, inside) and `outsideMs` for its
+   * end (the first moment it no longer is) — the same convention the coarse
+   * scan around this uses.
+   */
+  #crossingInBracket(groundStationPosition: GroundStationPosition, outsideMs: number, insideMs: number, extentKm: number): { outsideMs: number; insideMs: number } {
+    let lo = outsideMs;
+    let hi = insideMs;
+    for (let i = 0; i < 60 && Math.abs(hi - lo) > 10; i++) {
+      const mid = (lo + hi) / 2;
+      if (this.#trackDistanceKm(groundStationPosition, new Date(mid)) <= extentKm) {
+        hi = mid;
+      } else {
+        lo = mid;
+      }
+    }
+    return { outsideMs: lo, insideMs: hi };
+  }
+
+  /**
+   * The far side of the extent crossing after `fromMs` (itself inside), by
+   * doubling outward from `gapMs` — the entry's own distance from the closest
+   * approach, and so already the right order of magnitude for the exit's — until
+   * a sample lands outside, then bisecting. Bounded by `boundMs`; returns it
+   * outright if nothing outside is found by then (a pass still open at the
+   * window's own end, which the caller leaves for its normal "ongoing" branch
+   * to pick up and truncate the same way it already does).
+   */
+  #exitCrossingAfter(groundStationPosition: GroundStationPosition, fromMs: number, gapMs: number, extentKm: number, boundMs: number): number {
+    let step = Math.max(gapMs, 1000);
+    let probe = Math.min(fromMs + step, boundMs);
+    while (this.#trackDistanceKm(groundStationPosition, new Date(probe)) <= extentKm) {
+      if (probe >= boundMs) {
+        return boundMs;
+      }
+      step *= 2;
+      probe = Math.min(fromMs + step, boundMs);
+    }
+    return this.#crossingInBracket(groundStationPosition, probe, fromMs, extentKm).outsideMs;
+  }
+
   computePassesSwath(
     groundStationPosition: GroundStationPosition,
     swath: SwathExtents,
@@ -269,12 +361,12 @@ export default class Orbit {
     // The widest side bounds how far a station can be and still be served, so it
     // drives the coarse time-stepping below (which runs before the side is known).
     const maxExtent = Math.max(swath.starboardKm, swath.portKm);
+    const extentFor = (side: SwathSide): number => (side === "starboard" ? swath.starboardKm : swath.portKm);
 
     const date = new Date(startDate);
     const passes: SwathPass[] = [];
     let pass: Partial<SwathPass> | null = null;
     let ongoingPass = false;
-    let lastDistance = Number.MAX_VALUE;
 
     // eslint-disable-next-line no-unmodified-loop-condition -- date is mutated via setMinutes/setSeconds
     while (date < endDate) {
@@ -292,7 +384,7 @@ export default class Orbit {
       // the test used before (`distanceKm <= swathKm / 2`), so the 37 symmetric
       // satellites keep their pass windows exactly. An asymmetric sensor narrows
       // only the side that is actually narrower.
-      const extentKm = side === "starboard" ? swath.starboardKm : swath.portKm;
+      const extentKm = extentFor(side);
 
       if (distanceKm <= extentKm) {
         if (!ongoingPass) {
@@ -317,23 +409,81 @@ export default class Orbit {
           break;
         }
         ongoingPass = false;
-        lastDistance = Number.MAX_VALUE;
         // Skip ahead to avoid immediate re-entry
         date.setMinutes(date.getMinutes() + Math.max(5, this.orbitalPeriod * 0.1));
       } else {
-        // A ladder rather than one step size: coarse while the station is far
-        // and receding, fine as it closes. A step small enough never to miss a
-        // pass would otherwise walk the whole window at that resolution.
-        const deltaDistance = distanceKm - lastDistance;
-        lastDistance = distanceKm;
-
-        if (deltaDistance > 0 && distanceKm > maxExtent * 3) {
-          date.setMinutes(date.getMinutes() + Math.max(10, this.orbitalPeriod * 0.2));
+        // A ladder rather than one step size: coarse while the station is far,
+        // fine as it closes — the step about to be taken, not yet applied.
+        let stepMs: number;
+        if (distanceKm > maxExtent * 3) {
+          stepMs = Math.max(10, this.orbitalPeriod * 0.2) * 60_000;
         } else if (distanceKm > maxExtent * 2) {
-          date.setMinutes(date.getMinutes() + 5);
+          stepMs = 5 * 60_000;
         } else {
-          date.setMinutes(date.getMinutes() + 1);
+          stepMs = 1 * 60_000;
         }
+        const nextMs = Math.min(date.getTime() + stepMs, endDate.getTime());
+
+        // Whether a real conjunction is hiding inside the step about to be
+        // taken cannot be read off its two endpoints: comparing them against
+        // each other (or against the previous step) is exactly what let a
+        // narrow pass fall between two samples in the first place, because a
+        // step can still read as "closer than before" for one or more steps
+        // after its true closest approach already came and went, simply from
+        // the wider multi-step trend. So every step is minimised over its own
+        // interval before being taken, rather than only reacting to an
+        // apparent reversal between samples — coarse search with the
+        // refinement built into each step, rather than triggered by one.
+        //
+        // That minimisation is the one part of this fine enough to matter if
+        // it ran on every step of a multi-day scan, so it only runs where a
+        // conjunction is physically possible: no satellite this predicts
+        // closes distance faster than MAX_GROUND_SPEED_KM_S, so a step that
+        // could not reach the extent even at that speed is skipped outright.
+        // This is what keeps "coarse search, with refinement" coarse over the
+        // long stretch of a window nothing is happening in, rather than
+        // minimising every single step regardless.
+        if (distanceKm - MAX_GROUND_SPEED_KM_S * ((nextMs - date.getTime()) / 1000) > maxExtent) {
+          date.setTime(nextMs);
+          continue;
+        }
+
+        const closest = this.#closestApproachInBracket(groundStationPosition, date.getTime(), nextMs);
+        const atClosest = this.trackOffsets(groundStationPosition, new Date(closest.timeMs));
+        const closestExtent = atClosest ? extentFor(atClosest.side) : extentKm;
+
+        if (atClosest && closest.distanceKm <= closestExtent) {
+          // A real pass is hiding in this step. The branch above tracks an
+          // ongoing pass at a 30-second dwell step, which is coarse enough to
+          // miss the same way the outer ladder did — a grazing conjunction
+          // this close to the extent's edge can cross in and out well inside
+          // thirty seconds, on a swath of any width, not only a narrow one
+          // (see the 100 km case this was found against). So entry, the
+          // minimum, and exit are all resolved here, analytically, and the
+          // pass recorded directly — the dwell step is still what the branch
+          // above is for whenever a pass turns out to last longer than one of
+          // its own steps, which most do.
+          const entryMs = this.#crossingInBracket(groundStationPosition, date.getTime(), closest.timeMs, closestExtent).insideMs;
+          const exitMs = this.#exitCrossingAfter(groundStationPosition, closest.timeMs, closest.timeMs - entryMs, closestExtent, endDate.getTime());
+          passes.push({
+            name: this.name,
+            start: entryMs,
+            end: exitMs,
+            duration: exitMs - entryMs,
+            minDistance: closest.distanceKm,
+            minDistanceTime: closest.timeMs,
+            swathWidth,
+          });
+          if (passes.length >= maxPasses) {
+            break;
+          }
+          // Skip ahead to avoid immediately re-finding the same conjunction.
+          date.setTime(exitMs);
+          date.setMinutes(date.getMinutes() + Math.max(5, this.orbitalPeriod * 0.1));
+          continue;
+        }
+
+        date.setTime(nextMs);
       }
     }
 

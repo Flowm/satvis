@@ -153,6 +153,129 @@ describe("Orbit swath containment", () => {
     const passes = orbit.computePassesSwath(starboard, { starboardKm: 600, portKm: 200 }, AT, new Date(AT.getTime() + 30 * 60_000));
     expect(passes[0]!.swathWidth).toBe(800);
   });
+
+  // The coarse ladder steps at up to 5 minutes while still outside the swath,
+  // which can be wider than the whole window a narrow sensor serves a station
+  // for — ~8 s for a 30 km extent here. Without the refinement step a pass
+  // this narrow falls between two coarse samples and is never recorded at all.
+  test("a narrow swath's pass is not skipped between two coarse steps", () => {
+    // A phase deliberately not aligned with the coarse ladder's round-minute
+    // steps, so the closest approach does not land on a step boundary by luck.
+    const closest = new Date(AT.getTime() + 25_000);
+    const here = orbit.positionGeodetic(closest)!;
+    const bearing = flightBearing();
+    const station = destination(here.latitude, here.longitude, bearing + Math.PI / 2, 10);
+    const extentKm = 30;
+
+    const start = new Date(AT.getTime() - 7 * 60_000);
+    const end = new Date(AT.getTime() + 11 * 60_000);
+    const passes = orbit.computePassesSwath(station, { starboardKm: extentKm, portKm: extentKm }, start, end);
+
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.minDistance).toBeLessThanOrEqual(extentKm);
+    expect(passes[0]!.start).toBeGreaterThan(start.getTime());
+    expect(passes[0]!.end).toBeLessThan(end.getTime());
+  });
+
+  // A kilometre-scale swath's whole catchment window can be under half a
+  // second — far finer than the coarse ladder's steps, and finer than the
+  // 2-second-step version of this fix was ever checked against. Proves the
+  // numerical refinement resolves an event this narrow, not just one the
+  // earlier fix happened to land a sample inside of.
+  test("a 1 km swath's pass is detected, not just a tens-of-kilometres one", () => {
+    const closest = new Date(AT.getTime() + 25_000);
+    const here = orbit.positionGeodetic(closest)!;
+    const bearing = flightBearing();
+    const station = destination(here.latitude, here.longitude, bearing + Math.PI / 2, 0.5);
+
+    const start = new Date(AT.getTime() - 7 * 60_000);
+    const end = new Date(AT.getTime() + 11 * 60_000);
+    const passes = orbit.computePassesSwath(station, { starboardKm: 1, portKm: 1 }, start, end);
+
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.minDistance).toBeLessThanOrEqual(1);
+  });
+
+  // minDistance sitting just inside the extent, rather than comfortably
+  // inside it, is the case most likely to be lost to a search that converges
+  // to the wrong side of a shallow dip.
+  test("a near-edge pass (minimum distance just inside the extent) is detected", () => {
+    const closest = new Date(AT.getTime() + 25_000);
+    const here = orbit.positionGeodetic(closest)!;
+    const bearing = flightBearing();
+    const extentKm = 30;
+    const station = destination(here.latitude, here.longitude, bearing + Math.PI / 2, extentKm * 0.95);
+
+    const start = new Date(AT.getTime() - 7 * 60_000);
+    const end = new Date(AT.getTime() + 11 * 60_000);
+    const passes = orbit.computePassesSwath(station, { starboardKm: extentKm, portKm: extentKm }, start, end);
+
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.minDistance).toBeLessThanOrEqual(extentKm);
+    expect(passes[0]!.minDistance).toBeGreaterThan(extentKm * 0.9);
+  });
+
+  // A conjunction can be hiding not only in the coarse approach ladder's own
+  // step, but in the 30-second dwell step the "inside" branch uses to track
+  // an ongoing pass — a grazing crossing can be in and out of even a wide
+  // extent well inside thirty seconds. Both must be refined, not only the one
+  // that first flagged this issue.
+  test("a pass shorter than the inside dwell step still gets its true minimum, not the entry point", () => {
+    const closest = new Date(AT.getTime() + 25_000);
+    const here = orbit.positionGeodetic(closest)!;
+    const bearing = flightBearing();
+    const extentKm = 100;
+    const station = destination(here.latitude, here.longitude, bearing + Math.PI / 2, 50);
+
+    const start = new Date(AT.getTime() - 10 * 60_000);
+    const end = new Date(AT.getTime() + 10 * 60_000);
+    const passes = orbit.computePassesSwath(station, { starboardKm: extentKm, portKm: extentKm }, start, end);
+
+    expect(passes).toHaveLength(1);
+    // The true minimum is close to 50 km; a pass found only via its entry
+    // crossing would instead report something close to the 100 km extent.
+    expect(passes[0]!.minDistance).toBeLessThan(60);
+  });
+
+  // Mirrors the elevation-mode fix: a conjunction still open when the window
+  // ends must be reported truncated, not silently dropped.
+  test("a pass still open when the window ends is truncated, not dropped", () => {
+    const closest = new Date(AT.getTime() + 25_000);
+    const here = orbit.positionGeodetic(closest)!;
+    const bearing = flightBearing();
+    const extentKm = 10;
+    const station = destination(here.latitude, here.longitude, bearing + Math.PI / 2, 5);
+
+    const start = new Date(AT.getTime() - 10 * 60_000);
+    const end = closest; // cuts the window right at the true closest approach
+    const passes = orbit.computePassesSwath(station, { starboardKm: extentKm, portKm: extentKm }, start, end);
+
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.end).toBe(end.getTime());
+    expect(passes[0]!.duration).toBeGreaterThan(0);
+  });
+
+  test("an asymmetric swath's narrow side still finds its pass alongside the wide side's", () => {
+    const closest = new Date(AT.getTime() + 25_000);
+    const bearing = flightBearing();
+    const here = orbit.positionGeodetic(closest)!;
+    const starboardStation = destination(here.latitude, here.longitude, bearing + Math.PI / 2, 2.5);
+
+    const start = new Date(AT.getTime() - 7 * 60_000);
+    const end = new Date(AT.getTime() + 11 * 60_000);
+    const passes = orbit.computePassesSwath(starboardStation, { starboardKm: 5, portKm: 100 }, start, end);
+
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.minDistance).toBeLessThanOrEqual(5);
+  });
+
+  test("a wide swath's pass is still found (control)", () => {
+    const { starboard } = flankingStations(300);
+    const start = new Date(AT.getTime() - 5 * 60_000);
+    const end = new Date(AT.getTime() + 5 * 60_000);
+    const passes = orbit.computePassesSwath(starboard, { starboardKm: 600, portKm: 600 }, start, end);
+    expect(passes.length).toBeGreaterThan(0);
+  });
 });
 
 describe("Orbit (GpRecord path)", () => {
