@@ -38,13 +38,15 @@ struct SatvisWebView: UIViewRepresentable {
                 let dict = message.body as? [String: Any],
                 let body = dict["message"] as? String,
                 let delay = dict["delay"] as? Double,
-                let date = dict["date"] as? Int else {
+                let date = dict["date"] as? Int
+            else {
                 return
             }
-            let request = notificationManager.createNotificationRequest(title: "Satvis",
-                                                                        body: body,
-                                                                        timeInterval: delay,
-                                                                        identifier: "\(date) \(body)")
+            let request = notificationManager.createNotificationRequest(
+                title: "Satvis",
+                body: body,
+                timeInterval: delay,
+                identifier: "\(date) \(body)")
             Task {
                 if await notificationManager.scheduleRequestChronological(request: request) {
                     NSLog("NOTIFY: \(date) \"\(body)\" in \(delay)s")
@@ -62,7 +64,9 @@ struct SatvisWebView: UIViewRepresentable {
         }
 
         // Links that open a new window, e.g. via window.open
-        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures)
+            -> WKWebView?
+        {
             if let url = navigationAction.request.url {
                 _ = openExternally(url)
             }

@@ -1,5 +1,5 @@
-import UIKit
 import CoreLocation
+import UIKit
 
 class LocationManager: NSObject, CLLocationManagerDelegate {
     let locationManager: CLLocationManager

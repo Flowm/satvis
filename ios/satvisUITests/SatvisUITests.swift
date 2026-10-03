@@ -1,6 +1,6 @@
 import XCTest
 
-nonisolated class satvisUITests: XCTestCase {
+nonisolated class SatvisUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
     }

@@ -27,10 +27,12 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    func createNotificationRequest(title: String,
-                                   body: String,
-                                   timeInterval: Double,
-                                   identifier: String) -> UNNotificationRequest {
+    func createNotificationRequest(
+        title: String,
+        body: String,
+        timeInterval: Double,
+        identifier: String
+    ) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
@@ -61,7 +63,7 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     private func insertChronologically(request: UNNotificationRequest) async -> Bool {
         let pendingRequests = await center.pendingNotificationRequests()
 
-        if (pendingRequests.count < 60) {
+        if pendingRequests.count < 60 {
             NSLog("NotificationManager: Schedule \(request)")
             await self.scheduleRequest(request: request)
             return true
@@ -72,7 +74,8 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         }
         let sortedRequests = pendingRequests.sorted(by: {
             if let t0 = $0.trigger as? UNTimeIntervalNotificationTrigger,
-                let t1 = $1.trigger as? UNTimeIntervalNotificationTrigger {
+                let t1 = $1.trigger as? UNTimeIntervalNotificationTrigger
+            {
                 return t0.timeInterval < t1.timeInterval
             } else {
                 return true
@@ -92,8 +95,10 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         return false
     }
 
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                            willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
         return [.banner, .list, .sound]
     }
 
@@ -108,7 +113,7 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     func clearNotifications(clearPending: Bool = true) {
         center.setBadgeCount(0)
         center.removeAllDeliveredNotifications()
-        if (clearPending) {
+        if clearPending {
             center.removeAllPendingNotificationRequests()
         }
     }
