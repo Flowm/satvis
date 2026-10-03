@@ -182,7 +182,11 @@ export default class Orbit {
     const passes: ElevationPass[] = [];
     let pass: Partial<ElevationPass> | null = null;
     let ongoingPass = false;
-    let lastElevation = 0;
+    // undefined rather than 0: a real 0 would make the first sample read as
+    // declining whenever true elevation is negative, which skips an entire
+    // imminent pass (ahead by half an orbit) if the window happens to open
+    // while the satellite is still below the horizon but already rising.
+    let lastElevation: number | undefined;
     // eslint-disable-next-line no-unmodified-loop-condition -- date is mutated via setMinutes/setSeconds
     while (date < endDate) {
       const positionEcf = this.positionECF(date);
@@ -224,7 +228,9 @@ export default class Orbit {
         lastElevation = -180;
         date.setMinutes(date.getMinutes() + this.orbitalPeriod * 0.5);
       } else {
-        const deltaElevation = elevation - lastElevation;
+        // No real previous sample yet: nothing to call declining, so fall
+        // straight through to the elevation-banded ladder below.
+        const deltaElevation = lastElevation === undefined ? 0 : elevation - lastElevation;
         lastElevation = elevation;
         if (deltaElevation < 0) {
           date.setMinutes(date.getMinutes() + this.orbitalPeriod * 0.5);
@@ -239,6 +245,20 @@ export default class Orbit {
           date.setSeconds(date.getSeconds() + 2);
         }
       }
+    }
+    // A pass still open when the window ends is real, not a sample away from
+    // qualifying — dropping it here would be inconsistent with the pass this
+    // same loop already reports truncated when the window instead opens
+    // mid-pass. Truncate it at the window edge rather than losing it.
+    if (ongoingPass && pass) {
+      const positionEcf = this.positionECF(endDate);
+      const endAzimuth = positionEcf ? satellitejs.ecfToLookAngles(groundStation, positionEcf).azimuth : (pass.azimuthApex as number);
+      pass.end = endDate.getTime();
+      pass.duration = (pass.end as number) - (pass.start as number);
+      pass.azimuthEnd = endAzimuth / deg2rad;
+      pass.azimuthStart = (pass.azimuthStart as number) / deg2rad;
+      pass.azimuthApex = (pass.azimuthApex as number) / deg2rad;
+      passes.push(pass as ElevationPass);
     }
     return passes;
   }
