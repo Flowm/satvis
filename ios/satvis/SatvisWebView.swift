@@ -15,6 +15,9 @@ struct SatvisWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.mediaTypesRequiringUserActionForPlayback = []
+        // Appended to WebKit's "Mobile/15E148", so the page and analytics can tell the app from Safari
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+        configuration.applicationNameForUserAgent = [configuration.applicationNameForUserAgent, "SatvisApp/\(version)"].compactMap { $0 }.joined(separator: " ")
         configuration.userContentController.add(context.coordinator, name: "iosNotify")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
