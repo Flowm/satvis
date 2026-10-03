@@ -11,19 +11,7 @@ class satvisUITests: XCTestCase {
         app.launchEnvironment["URL"] = "https://satvis.space/?time=2019-07-15T15:52&layers=ArcGis&tags=Weather&elements=Point,Label,Orbit"
         app.launch()
 
-        addUIInterruptionMonitor(withDescription: "Alert") {
-            (alert) -> Bool in
-            let okButton = alert.buttons["OK"]
-            if okButton.exists {
-                okButton.tap()
-            }
-            let allowButton = alert.buttons["Allow"]
-            if allowButton.exists {
-                allowButton.tap()
-            }
-            return true
-        }
-        app.activate()
+        SpringboardHelper.allowSystemAlerts()
     }
 
     override func tearDown() {
@@ -31,9 +19,6 @@ class satvisUITests: XCTestCase {
     }
 
     func testBasicUI() {
-        // Interact with app to trigger alert handling
-        app.statusBars.firstMatch.tap()
-
         // Wait for map tiles to load
         sleep(60)
         snapshot("0Launch")

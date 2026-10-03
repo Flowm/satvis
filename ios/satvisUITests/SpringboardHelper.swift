@@ -8,18 +8,31 @@ class SpringboardHelper {
 
         // Force delete the app from the springboard
         let icon = springboard.icons["SatVis"]
-        if icon.exists {
-            let iconFrame = icon.frame
-            let springboardFrame = springboard.frame
-            icon.press(forDuration: 1.3)
+        if icon.waitForExistence(timeout: 5) {
+            icon.press(forDuration: 1.5)
 
-            // Tap the little "X" button at approximately where it is. The X is not exposed directly
-            springboard.coordinate(withNormalizedOffset: CGVector(dx: (iconFrame.minX + 3) / springboardFrame.maxX, dy: (iconFrame.minY + 3) / springboardFrame.maxY)).tap()
+            let removeButton = springboard.buttons["Remove App"]
+            XCTAssert(removeButton.waitForExistence(timeout: 10))
+            removeButton.tap()
+
+            let deleteAppButton = springboard.alerts.buttons["Delete App"]
+            XCTAssert(deleteAppButton.waitForExistence(timeout: 10))
+            deleteAppButton.tap()
 
             let deleteButton = springboard.alerts.buttons["Delete"]
-            let deleteButtonExists = deleteButton.waitForExistence(timeout: 10)
-            XCTAssert(deleteButtonExists)
+            XCTAssert(deleteButton.waitForExistence(timeout: 10))
             deleteButton.tap()
+        }
+    }
+
+    class func allowSystemAlerts() {
+        let alert = springboard.alerts.firstMatch
+        while alert.waitForExistence(timeout: 10) {
+            guard let allowButton = ["Allow While Using App", "Allow"].map({ alert.buttons[$0] }).first(where: { $0.exists }) else {
+                return
+            }
+            allowButton.tap()
+            _ = alert.waitForNonExistence(timeout: 5)
         }
     }
 }
