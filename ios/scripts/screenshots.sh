@@ -5,7 +5,8 @@
 set -eu
 cd "$(dirname "$0")/.."
 
-devices="iPhone 17 Pro Max
+runtime="iOS 27"
+devices="iPhone 18 Pro Max
 iPad Pro 13-inch (M5)"
 
 out=screenshots
@@ -14,9 +15,7 @@ rm -rf "$out" "$result"
 
 set --
 while read -r device; do
-  # The newest runtime that has the device is listed last
-  udid=$(xcrun simctl list devices available | grep -F "    $device (" | tail -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
-  [ -n "$udid" ] || { echo "No simulator named $device" >&2; exit 1; }
+  udid=$(scripts/simulator-udid.sh "$device" "$runtime")
   xcrun simctl shutdown "$udid" 2>/dev/null || true
   xcrun simctl erase "$udid"
   xcrun simctl boot "$udid"
