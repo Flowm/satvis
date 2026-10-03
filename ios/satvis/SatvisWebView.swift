@@ -21,6 +21,10 @@ struct SatvisWebView: UIViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.isOpaque = false
+        #if DEBUG
+            // Lets Safari's Web Inspector attach to the page
+            webView.isInspectable = true
+        #endif
         // The page lays itself out around the safe area (viewport-fit=cover)
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.load(URLRequest(url: url))
