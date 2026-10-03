@@ -19,6 +19,8 @@ workspace package). One `pnpm install` at the root covers both.
   field by field.
 - **`src/modules/benchmark/README.md`** — the benchmark framework, and how the
   frame cost scales.
+- **`ios/AGENTS.md`** — the iOS app: building, testing, screenshots, and its
+  contract with the web page.
 
 ## Architecture
 
