@@ -753,3 +753,78 @@ the offsets are written in terms of `env(safe-area-inset-bottom)` now rather tha
 around it, but no run has had a home indicator to prove it. The same goes for
 rotation, where the surface is re-measured from the `resize` listener rather than
 from the observer.
+
+## Track: animated tracking arrives continuously, and the Track button uses it
+
+**Why it cannot be a unit test.** The fix lives in how `track(true)`'s `flyTo`
+destination relates to wherever Cesium's `EntityView` snaps the camera the moment
+`trackedEntity` is actually assigned, and in how that interacts with a second,
+independent flight — `artificiallyTrack()`'s own fly-back-to-overview — that a
+switch between two tracked satellites can trigger. `EntityView`, `Camera.flyTo` and
+`Camera.cancelFlight` are real Cesium machinery (matrix transforms, a tween driven
+by `requestAnimationFrame`, a flight-ownership model), not something a fake viewer
+can stand in for without reimplementing the exact thing under test. The offset frame
+itself is also runtime-dependent: for a fast satellite Cesium picks a
+velocity-relative (approximate VVLH) frame over a simple east-north-up one, decided
+from the entity's own orbital speed and altitude at the moment, which is one more
+reason to make Cesium compute it rather than to assume a frame in a test fixture.
+
+**Procedure.** Load two satellites, pause the clock, and measure the camera's
+*world*-space pose (not `camera.position`, which is expressed in whatever
+`camera.transform` currently is, so comparing it directly across an engagement
+boundary mixes two different coordinate systems) across several transitions:
+
+```js
+function worldSnapshot() {
+  const c = viewer.camera;
+  const pos = Cesium.Matrix4.multiplyByPoint(c.transform, c.position, new Cesium.Cartesian3());
+  const dir = Cesium.Cartesian3.normalize(Cesium.Matrix4.multiplyByPointAsVector(c.transform, c.direction, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+  return { pos, dir };
+}
+```
+
+Snapshot immediately before `viewer.trackedEntity` is actually assigned (the instant
+the flight's `complete` callback fires) and again a few ticks later once
+`artificiallyTrack`'s own `EntityView` has settled; the two must coincide to within
+floating-point noise. Cases worth the full sequence: untracked → A, A → B, B → A,
+A → deliberate untrack, B interrupted by a third `track(true)` before its own flight
+resolves, and several A/B switches in a row. Instrument `viewer.flyTo` (the
+`CesiumWidget`-level one, not `camera.flyTo`) to count overview fly-backs across the
+whole sequence — it must fire for the deliberate untrack and nowhere else.
+
+**Result, 2026-10-02, Chrome, `ISS (ZARYA)` and `CSS (TIANHE)` from Celestrak,
+request-render mode, clock paused.** Untracked → ISS: handoff delta **0.0007–0.0009 m**
+across repeats, direction matching to 10 decimal places. ISS → CSS and CSS → ISS:
+same magnitude, and the switch itself no longer loses tracking — before the fix this
+case never engaged at all (`artificiallyTrack`'s stale fly-back cancelled the new
+flight via `cancelFlight`). A third `track(true)` interrupting a still-pending one
+resolved onto the latest call with no intermediate flicker and zero stray fly-backs.
+Four A/B/A/B switches in a row reproduced byte-identical poses for repeated visits to
+the same satellite. A deliberate `viewer.trackedEntity = undefined` after all of the
+above still fired exactly one overview fly-back — the existing behavior, preserved.
+Visually confirmed at 2 km and 15 km zoom that nothing visibly moves at the moment
+tracking engages, and confirmed through the real "Track entity" button
+(`aria-label="Track entity"`) rather than only through `SatelliteComponentCollection`
+directly.
+
+**Scene modes.** `track(true)` falls back to the same instant engagement as
+`track(false)` — rather than starting a flight that cannot complete — in 2D
+(confirmed `scene.mode === SCENE2D`, call returns in <1 ms), Columbus View
+(`scene.mode === COLUMBUS_VIEW`, <1 ms), and while the sky view holds the camera
+(`screenSpaceCameraController.enableInputs === false`, confirmed Cesium's own
+`scene.mode` stays `SCENE3D` throughout sky view — it is an app-level overlay, not a
+Cesium scene mode, so the mode check alone would have missed it). No error, no hang,
+in any of the three.
+
+**The throwaway `EntityView` probe's only lasting effect is the camera state the
+code already restores.** Read directly from Cesium's source rather than inferred
+from a noisy long-session measurement (the probe's own satellite is one of several
+things subscribed to the same position property, so a raw listener count drifts for
+unrelated reasons over a long test session): `VelocityVectorProperty`'s `position`
+setter unsubscribes from the old value's `definitionChanged` event before accepting a
+new one, so setting it to `undefined` right after reading the probe's result is a
+real, immediate unsubscribe, not a best-effort gesture — confirmed by reading
+`VelocityVectorProperty.js`'s `position` property setter directly.
+`_adjustOrthographicFrustum`, which `EntityView.update()` can reach through
+`camera.lookAtTransform`, is a no-op for anything but an `OrthographicFrustum`, and
+Satvis's 3D camera uses a perspective one — confirmed by reading `Camera.js`.
