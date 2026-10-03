@@ -1,5 +1,8 @@
 import UIKit
 import UserNotifications
+import os
+
+nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category: "notifications")
 
 class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     private let center = UNUserNotificationCenter.current()
@@ -16,10 +19,10 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     private func requestAuthorization() async -> Bool {
         do {
             let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-            NSLog("NotificationManager: Permission granted \(granted)")
+            log.debug("Permission granted: \(granted)")
             return granted
         } catch {
-            NSLog("NotificationManager: ERROR \(error)")
+            log.error("Permission request failed: \(error)")
             return false
         }
     }
@@ -43,7 +46,7 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         do {
             try await center.add(request)
         } catch {
-            NSLog("NotificationManager: ERROR \(error)")
+            log.error("Scheduling failed: \(error)")
         }
     }
 
@@ -64,7 +67,7 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         let pendingRequests = await center.pendingNotificationRequests()
 
         if pendingRequests.count < 60 {
-            NSLog("NotificationManager: Schedule \(request)")
+            log.notice("Schedule \(request.identifier, privacy: .public)")
             await self.scheduleRequest(request: request)
             return true
         }
@@ -88,7 +91,7 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             if trigger.timeInterval < pendingTrigger.timeInterval {
                 center.removePendingNotificationRequests(withIdentifiers: [pendingRequest.identifier])
                 await self.scheduleRequest(request: request)
-                NSLog("NotificationManager: Replace \(pendingTrigger.timeInterval) by \(trigger.timeInterval)")
+                log.notice("Replace \(pendingTrigger.timeInterval)s by \(trigger.timeInterval)s")
                 return true
             }
         }
@@ -105,7 +108,7 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     func printPendingNotifications() {
         center.getPendingNotificationRequests(completionHandler: { requests in
             for request in requests {
-                print(request)
+                log.debug("Pending \(request.identifier, privacy: .public)")
             }
         })
     }

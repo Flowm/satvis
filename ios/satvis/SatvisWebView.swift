@@ -1,5 +1,8 @@
 import SwiftUI
 import WebKit
+import os
+
+nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category: "webview")
 
 struct SatvisWebView: UIViewRepresentable {
     let url: URL
@@ -49,9 +52,9 @@ struct SatvisWebView: UIViewRepresentable {
                 identifier: "\(date) \(body)")
             Task {
                 if await notificationManager.scheduleRequestChronological(request: request) {
-                    NSLog("NOTIFY: \(date) \"\(body)\" in \(delay)s")
+                    log.notice("Notify \(date) \"\(body, privacy: .public)\" in \(delay, format: .fixed(precision: 1))s")
                 } else {
-                    NSLog("NOTIFY: \(date) \"\(body)\" in \(delay)s not scheduled: no permission or notification limit reached")
+                    log.notice("Notify \(date) \"\(body, privacy: .public)\" in \(delay, format: .fixed(precision: 1))s not scheduled: no permission or notification limit reached")
                 }
             }
         }
