@@ -27,7 +27,7 @@ done <<EOF
 $devices
 EOF
 
-xcodebuild test -project satvis.xcodeproj -scheme satvis -resultBundlePath "$result" "$@"
+TEST_RUNNER_SCREENSHOTS=1 xcodebuild test -project satvis.xcodeproj -scheme satvis -resultBundlePath "$result" "$@"
 
 xcrun xcresulttool export attachments --path "$result" --output-path "$out"
 

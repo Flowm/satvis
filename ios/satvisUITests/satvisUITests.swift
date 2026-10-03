@@ -17,7 +17,10 @@ nonisolated class satvisUITests: XCTestCase {
         let clock = app.buttons.matching(NSPredicate(format: "label ENDSWITH %@", "clock controls")).firstMatch
         XCTAssert(clock.waitForExistence(timeout: 60))
 
-        // Wait for map tiles to load
+        // Screenshots wait for the map tiles, so only scripts/screenshots.sh takes them
+        guard ProcessInfo.processInfo.environment["SCREENSHOTS"] != nil else {
+            return
+        }
         sleep(60)
         screenshot("0Launch")
     }
