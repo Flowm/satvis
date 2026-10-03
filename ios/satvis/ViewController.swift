@@ -9,9 +9,8 @@ class ViewController: UIViewController {
 
         let urlString = ProcessInfo.processInfo.environment["URL"] ?? "https://satvis.space/"
         if let url = URL(string: urlString) {
-            let request = URLRequest(url: url)
-            webView.load(request)
             webView.configuration.userContentController.add(self, name: "iosNotify")
+            webView.load(URLRequest(url: url))
         }
     }
 
@@ -37,12 +36,13 @@ extension ViewController: WKScriptMessageHandler {
             let request = notificationManager.createNotificationRequest(title: "Satvis",
                                                                         body: body,
                                                                         timeInterval: delay,
-                                                                        indentifier: "\(date) \(body)")
-            if (notificationManager.scheduleRequestChronological(request: request)) {
-                NSLog("NOTIFY: \(date) \"\(body)\" in \(delay)s")
-            } else {
-                NSLog("NOTIFY: \(date) \"\(body)\" in \(delay)s ignored due to notification limit")
-
+                                                                        identifier: "\(date) \(body)")
+            Task {
+                if await notificationManager.scheduleRequestChronological(request: request) {
+                    NSLog("NOTIFY: \(date) \"\(body)\" in \(delay)s")
+                } else {
+                    NSLog("NOTIFY: \(date) \"\(body)\" in \(delay)s ignored due to notification limit")
+                }
             }
         }
     }

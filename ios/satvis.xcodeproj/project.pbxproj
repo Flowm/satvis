@@ -10,6 +10,7 @@
 		570DD92A22B5BA980078A4A1 /* satvisUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 570DD92922B5BA980078A4A1 /* satvisUITests.swift */; };
 		570DD93722B5BB4E0078A4A1 /* SnapshotHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 570DD93622B5BB4E0078A4A1 /* SnapshotHelper.swift */; };
 		579DA874218C123A00B417CB /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 579DA873218C123A00B417CB /* AppDelegate.swift */; };
+		57A0C0DE0000000000000001 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57A0C0DE0000000000000002 /* SceneDelegate.swift */; };
 		579DA876218C123A00B417CB /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 579DA875218C123A00B417CB /* ViewController.swift */; };
 		579DA879218C123A00B417CB /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 579DA877218C123A00B417CB /* Main.storyboard */; };
 		579DA87B218C123C00B417CB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 579DA87A218C123C00B417CB /* Assets.xcassets */; };
@@ -36,6 +37,7 @@
 		570DD93622B5BB4E0078A4A1 /* SnapshotHelper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SnapshotHelper.swift; sourceTree = "<group>"; };
 		579DA870218C123A00B417CB /* satvis.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = satvis.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		579DA873218C123A00B417CB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		57A0C0DE0000000000000002 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		579DA875218C123A00B417CB /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
 		579DA878218C123A00B417CB /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		579DA87A218C123C00B417CB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -98,6 +100,7 @@
 			children = (
 				57D6E2B9219BC64200CBDB06 /* lib */,
 				579DA873218C123A00B417CB /* AppDelegate.swift */,
+				57A0C0DE0000000000000002 /* SceneDelegate.swift */,
 				579DA875218C123A00B417CB /* ViewController.swift */,
 				579DA877218C123A00B417CB /* Main.storyboard */,
 				579DA87A218C123C00B417CB /* Assets.xcassets */,
@@ -233,6 +236,7 @@
 				57D6E2BB219BC66D00CBDB06 /* NotificationManager.swift in Sources */,
 				579DA876218C123A00B417CB /* ViewController.swift in Sources */,
 				579DA874218C123A00B417CB /* AppDelegate.swift in Sources */,
+				57A0C0DE0000000000000001 /* SceneDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

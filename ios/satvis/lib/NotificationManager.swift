@@ -1,8 +1,12 @@
 import UIKit
 import UserNotifications
 
+@MainActor
 class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
-    var pendingRequests: [UNNotificationRequest] = []
+    private let center = UNUserNotificationCenter.current()
+    // Runs scheduling one request at a time, so sequential requests
+    // don't try to remove the same pending notification
+    private var lastSchedule: Task<Bool, Never>?
 
     override init() {
         super.init()
@@ -10,54 +14,57 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func registerForPushNotifications(remote: Bool = false) {
-        UNUserNotificationCenter.current().delegate = self
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) {
-            (granted, error) in
-            guard error == nil else {
-                NSLog("NotificationManager: ERROR \(String(describing: error))")
-                return
-            }
-            NSLog("NotificationManager: Permission granted \(granted)")
-            guard granted else {
-                return
-            }
-            if (remote) {
-                DispatchQueue.main.async {
+        center.delegate = self
+        Task {
+            do {
+                let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+                NSLog("NotificationManager: Permission granted \(granted)")
+                if granted && remote {
                     UIApplication.shared.registerForRemoteNotifications()
                 }
+            } catch {
+                NSLog("NotificationManager: ERROR \(error)")
             }
         }
     }
 
     func createNotificationRequest(title: String,
                                    body: String,
-                                   badge: Bool = false,
                                    timeInterval: Double,
-                                   indentifier: String) -> UNNotificationRequest {
+                                   identifier: String) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = UNNotificationSound.default
-        if (badge) {
-            content.badge = NSNumber(integerLiteral: UIApplication.shared.applicationIconBadgeNumber + 1)
-        }
         let trigger = UNTimeIntervalNotificationTrigger.init(timeInterval: timeInterval, repeats: false)
-        let request = UNNotificationRequest.init(identifier: indentifier, content: content, trigger: trigger)
+        let request = UNNotificationRequest.init(identifier: identifier, content: content, trigger: trigger)
         return request
     }
 
-    func scheduleRequest(request: UNNotificationRequest) {
-        UNUserNotificationCenter.current().add(request)
+    func scheduleRequest(request: UNNotificationRequest) async {
+        do {
+            try await center.add(request)
+        } catch {
+            NSLog("NotificationManager: ERROR \(error)")
+        }
     }
 
-    func scheduleRequestChronological(request: UNNotificationRequest) -> Bool {
-        // Retrive pending notifications synchronously to ensure multiple sequential
-        // notification requests don't try to remove the same notification
-        updatePendingNotificationRequests()
+    func scheduleRequestChronological(request: UNNotificationRequest) async -> Bool {
+        let previous = lastSchedule
+        let task = Task {
+            _ = await previous?.value
+            return await self.insertChronologically(request: request)
+        }
+        lastSchedule = task
+        return await task.value
+    }
+
+    private func insertChronologically(request: UNNotificationRequest) async -> Bool {
+        let pendingRequests = await center.pendingNotificationRequests()
 
         if (pendingRequests.count < 60) {
             NSLog("NotificationManager: Schedule \(request)")
-            self.scheduleRequest(request: request)
+            await self.scheduleRequest(request: request)
             return true
         }
 
@@ -77,8 +84,8 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
                 return false
             }
             if trigger.timeInterval < pendingTrigger.timeInterval {
-                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [pendingRequest.identifier])
-                self.scheduleRequest(request: request)
+                center.removePendingNotificationRequests(withIdentifiers: [pendingRequest.identifier])
+                await self.scheduleRequest(request: request)
                 NSLog("NotificationManager: Replace \(pendingTrigger.timeInterval) by \(trigger.timeInterval)")
                 return true
             }
@@ -86,24 +93,13 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         return false
     }
 
-    func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                willPresent notification: UNNotification,
-                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        completionHandler([.alert, .sound])
-    }
-
-    func updatePendingNotificationRequests() {
-        let semaphore = DispatchSemaphore(value: 0)
-        UNUserNotificationCenter.current().getPendingNotificationRequests(completionHandler: { requests in
-            self.pendingRequests = requests
-            semaphore.signal()
-            return
-        })
-        semaphore.wait()
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                            willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        return [.banner, .list, .sound]
     }
 
     func printPendingNotifications() {
-        UNUserNotificationCenter.current().getPendingNotificationRequests(completionHandler: { requests in
+        center.getPendingNotificationRequests(completionHandler: { requests in
             for request in requests {
                 print(request)
             }
@@ -111,10 +107,10 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func clearNotifications(clearPending: Bool = true) {
-        UIApplication.shared.applicationIconBadgeNumber = 0
-        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        center.setBadgeCount(0)
+        center.removeAllDeliveredNotifications()
         if (clearPending) {
-            UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+            center.removeAllPendingNotificationRequests()
         }
     }
 }

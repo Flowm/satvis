@@ -10,20 +10,18 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
 
         locationManager.delegate = self
         locationManager.requestWhenInUseAuthorization()
+    }
 
-        if CLLocationManager.locationServicesEnabled() {
-            switch CLLocationManager.authorizationStatus() {
-            case .notDetermined, .restricted, .denied:
-                NSLog("Location: No access")
-            case .authorizedWhenInUse:
-                NSLog("Location: WhenInUse")
-            case .authorizedAlways:
-                NSLog("Location: Always")
-            @unknown default:
-                NSLog("Location: Unknown")
-            }
-        } else {
-            NSLog("Location services are not enabled")
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        switch manager.authorizationStatus {
+        case .notDetermined, .restricted, .denied:
+            NSLog("Location: No access")
+        case .authorizedWhenInUse:
+            NSLog("Location: WhenInUse")
+        case .authorizedAlways:
+            NSLog("Location: Always")
+        @unknown default:
+            NSLog("Location: Unknown")
         }
     }
 }
