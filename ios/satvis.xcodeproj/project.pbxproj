@@ -3,21 +3,8 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 50;
+	objectVersion = 77;
 	objects = {
-
-/* Begin PBXBuildFile section */
-		570DD92A22B5BA980078A4A1 /* satvisUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 570DD92922B5BA980078A4A1 /* satvisUITests.swift */; };
-		570DD93722B5BB4E0078A4A1 /* SnapshotHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 570DD93622B5BB4E0078A4A1 /* SnapshotHelper.swift */; };
-		579DA874218C123A00B417CB /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 579DA873218C123A00B417CB /* AppDelegate.swift */; };
-		579DA876218C123A00B417CB /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 579DA875218C123A00B417CB /* ViewController.swift */; };
-		579DA879218C123A00B417CB /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 579DA877218C123A00B417CB /* Main.storyboard */; };
-		579DA87B218C123C00B417CB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 579DA87A218C123C00B417CB /* Assets.xcassets */; };
-		579DA87E218C123C00B417CB /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 579DA87C218C123C00B417CB /* LaunchScreen.storyboard */; };
-		57A34CF622C9727800D9862D /* SpringboardHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57A34CF522C9727800D9862D /* SpringboardHelper.swift */; };
-		57B39BE9219BDF1500782DCE /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57B39BE8219BDF1500782DCE /* LocationManager.swift */; };
-		57D6E2BB219BC66D00CBDB06 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D6E2BA219BC66D00CBDB06 /* NotificationManager.swift */; };
-/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 		570DD92C22B5BA980078A4A1 /* PBXContainerItemProxy */ = {
@@ -31,20 +18,34 @@
 
 /* Begin PBXFileReference section */
 		570DD92722B5BA980078A4A1 /* satvisUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = satvisUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		570DD92922B5BA980078A4A1 /* satvisUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = satvisUITests.swift; sourceTree = "<group>"; };
-		570DD92B22B5BA980078A4A1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		570DD93622B5BB4E0078A4A1 /* SnapshotHelper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SnapshotHelper.swift; sourceTree = "<group>"; };
 		579DA870218C123A00B417CB /* satvis.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = satvis.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		579DA873218C123A00B417CB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		579DA875218C123A00B417CB /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
-		579DA878218C123A00B417CB /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
-		579DA87A218C123C00B417CB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		579DA87D218C123C00B417CB /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		579DA87F218C123C00B417CB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		57A34CF522C9727800D9862D /* SpringboardHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpringboardHelper.swift; sourceTree = "<group>"; };
-		57B39BE8219BDF1500782DCE /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
-		57D6E2BA219BC66D00CBDB06 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		57A0C0DE0000000000000008 /* Exceptions for "satvis" folder in "satvis" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 579DA86F218C123A00B417CB /* satvis */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		57A0C0DE0000000000000006 /* satvis */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				57A0C0DE0000000000000008 /* Exceptions for "satvis" folder in "satvis" target */,
+			);
+			path = satvis;
+			sourceTree = "<group>";
+		};
+		57A0C0DE0000000000000007 /* satvisUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = satvisUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		570DD92422B5BA980078A4A1 /* Frameworks */ = {
@@ -64,22 +65,11 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		570DD92822B5BA980078A4A1 /* satvisUITests */ = {
-			isa = PBXGroup;
-			children = (
-				570DD93622B5BB4E0078A4A1 /* SnapshotHelper.swift */,
-				57A34CF522C9727800D9862D /* SpringboardHelper.swift */,
-				570DD92922B5BA980078A4A1 /* satvisUITests.swift */,
-				570DD92B22B5BA980078A4A1 /* Info.plist */,
-			);
-			path = satvisUITests;
-			sourceTree = "<group>";
-		};
 		579DA867218C123A00B417CB = {
 			isa = PBXGroup;
 			children = (
-				579DA872218C123A00B417CB /* satvis */,
-				570DD92822B5BA980078A4A1 /* satvisUITests */,
+				57A0C0DE0000000000000006 /* satvis */,
+				57A0C0DE0000000000000007 /* satvisUITests */,
 				579DA871218C123A00B417CB /* Products */,
 			);
 			sourceTree = "<group>";
@@ -91,29 +81,6 @@
 				570DD92722B5BA980078A4A1 /* satvisUITests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		579DA872218C123A00B417CB /* satvis */ = {
-			isa = PBXGroup;
-			children = (
-				57D6E2B9219BC64200CBDB06 /* lib */,
-				579DA873218C123A00B417CB /* AppDelegate.swift */,
-				579DA875218C123A00B417CB /* ViewController.swift */,
-				579DA877218C123A00B417CB /* Main.storyboard */,
-				579DA87A218C123C00B417CB /* Assets.xcassets */,
-				579DA87C218C123C00B417CB /* LaunchScreen.storyboard */,
-				579DA87F218C123C00B417CB /* Info.plist */,
-			);
-			path = satvis;
-			sourceTree = "<group>";
-		};
-		57D6E2B9219BC64200CBDB06 /* lib */ = {
-			isa = PBXGroup;
-			children = (
-				57D6E2BA219BC66D00CBDB06 /* NotificationManager.swift */,
-				57B39BE8219BDF1500782DCE /* LocationManager.swift */,
-			);
-			path = lib;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -132,6 +99,9 @@
 			dependencies = (
 				570DD92D22B5BA980078A4A1 /* PBXTargetDependency */,
 			);
+			fileSystemSynchronizedGroups = (
+				57A0C0DE0000000000000007 /* satvisUITests */,
+			);
 			name = satvisUITests;
 			productName = satvisUITests;
 			productReference = 570DD92722B5BA980078A4A1 /* satvisUITests.xctest */;
@@ -149,6 +119,9 @@
 			);
 			dependencies = (
 			);
+			fileSystemSynchronizedGroups = (
+				57A0C0DE0000000000000006 /* satvis */,
+			);
 			name = satvis;
 			productName = satvis;
 			productReference = 579DA870218C123A00B417CB /* satvis.app */;
@@ -160,9 +133,9 @@
 		579DA868218C123A00B417CB /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
+				BuildIndependentTargetsInParallel = YES;
 				LastSwiftUpdateCheck = 1020;
-				LastUpgradeCheck = 1010;
-				ORGANIZATIONNAME = "Florian Mauracher";
+				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					570DD92622B5BA980078A4A1 = {
 						CreatedOnToolsVersion = 10.2.1;
@@ -175,7 +148,6 @@
 				};
 			};
 			buildConfigurationList = 579DA86B218C123A00B417CB /* Build configuration list for PBXProject "satvis" */;
-			compatibilityVersion = "Xcode 9.3";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -183,6 +155,7 @@
 				Base,
 			);
 			mainGroup = 579DA867218C123A00B417CB;
+			preferredProjectObjectVersion = 77;
 			productRefGroup = 579DA871218C123A00B417CB /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -205,9 +178,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				579DA87E218C123C00B417CB /* LaunchScreen.storyboard in Resources */,
-				579DA87B218C123C00B417CB /* Assets.xcassets in Resources */,
-				579DA879218C123A00B417CB /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -218,9 +188,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				570DD92A22B5BA980078A4A1 /* satvisUITests.swift in Sources */,
-				57A34CF622C9727800D9862D /* SpringboardHelper.swift in Sources */,
-				570DD93722B5BB4E0078A4A1 /* SnapshotHelper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -228,10 +195,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				57B39BE9219BDF1500782DCE /* LocationManager.swift in Sources */,
-				57D6E2BB219BC66D00CBDB06 /* NotificationManager.swift in Sources */,
-				579DA876218C123A00B417CB /* ViewController.swift in Sources */,
-				579DA874218C123A00B417CB /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -245,33 +208,13 @@
 		};
 /* End PBXTargetDependency section */
 
-/* Begin PBXVariantGroup section */
-		579DA877218C123A00B417CB /* Main.storyboard */ = {
-			isa = PBXVariantGroup;
-			children = (
-				579DA878218C123A00B417CB /* Base */,
-			);
-			name = Main.storyboard;
-			sourceTree = "<group>";
-		};
-		579DA87C218C123C00B417CB /* LaunchScreen.storyboard */ = {
-			isa = PBXVariantGroup;
-			children = (
-				579DA87D218C123C00B417CB /* Base */,
-			);
-			name = LaunchScreen.storyboard;
-			sourceTree = "<group>";
-		};
-/* End PBXVariantGroup section */
-
 /* Begin XCBuildConfiguration section */
 		570DD92E22B5BA980078A4A1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 4L2672L4VX;
-				INFOPLIST_FILE = satvisUITests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 12.2;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -279,7 +222,10 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.frcy.app.satvisUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 5.0;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = satvis;
 			};
@@ -289,9 +235,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 4L2672L4VX;
-				INFOPLIST_FILE = satvisUITests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 12.2;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -299,7 +244,10 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.frcy.app.satvisUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 5.0;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = satvis;
 			};
@@ -309,10 +257,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -331,18 +279,21 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 4L2672L4VX;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -356,12 +307,13 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 12.1;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
@@ -370,10 +322,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -392,18 +344,21 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 4L2672L4VX;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -411,13 +366,12 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 12.1;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -427,17 +381,30 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4L2672L4VX;
+				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = satvis/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SatVis;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Set ground station location from geolocation";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arm64;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = org.frcy.app.satvis;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 5.0;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
 		};
@@ -447,17 +414,30 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4L2672L4VX;
+				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = satvis/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SatVis;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Set ground station location from geolocation";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arm64;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = org.frcy.app.satvis;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 5.0;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
 		};

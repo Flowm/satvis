@@ -34,8 +34,5 @@ playground.xcworkspace
 # Carthage/Checkouts
 Carthage/Build
 
-# Fastlane
-Gemfile.lock
-fastlane/README.md
-fastlane/report.xml
-fastlane/screenshots/
+# App Store screenshots (scripts/screenshots.sh)
+screenshots/
