@@ -8,6 +8,8 @@ class ViewController: UIViewController {
         super.viewDidLoad()
         webView.navigationDelegate = self
         webView.uiDelegate = self
+        // The page lays itself out around the safe area (viewport-fit=cover)
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
 
         let urlString = ProcessInfo.processInfo.environment["URL"] ?? "https://satvis.space/"
         if let url = URL(string: urlString) {
@@ -76,11 +78,5 @@ extension ViewController {
         }
         UIApplication.shared.open(url)
         return true
-    }
-}
-
-extension WKWebView {
-    override open var safeAreaInsets: UIEdgeInsets {
-        return UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
     }
 }

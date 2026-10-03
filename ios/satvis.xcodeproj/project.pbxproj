@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		57A0C0DE0000000000000003 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 57A0C0DE0000000000000004 /* WebKit.framework */; };
 		570DD92A22B5BA980078A4A1 /* satvisUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 570DD92922B5BA980078A4A1 /* satvisUITests.swift */; };
 		570DD93722B5BB4E0078A4A1 /* SnapshotHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 570DD93622B5BB4E0078A4A1 /* SnapshotHelper.swift */; };
 		579DA874218C123A00B417CB /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 579DA873218C123A00B417CB /* AppDelegate.swift */; };
@@ -31,6 +32,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		57A0C0DE0000000000000004 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		570DD92722B5BA980078A4A1 /* satvisUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = satvisUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		570DD92922B5BA980078A4A1 /* satvisUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = satvisUITests.swift; sourceTree = "<group>"; };
 		570DD92B22B5BA980078A4A1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -60,12 +62,21 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				57A0C0DE0000000000000003 /* WebKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		57A0C0DE0000000000000005 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				57A0C0DE0000000000000004 /* WebKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		570DD92822B5BA980078A4A1 /* satvisUITests */ = {
 			isa = PBXGroup;
 			children = (
@@ -83,6 +94,7 @@
 				579DA872218C123A00B417CB /* satvis */,
 				570DD92822B5BA980078A4A1 /* satvisUITests */,
 				579DA871218C123A00B417CB /* Products */,
+				57A0C0DE0000000000000005 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
