@@ -19,6 +19,7 @@ import {
   LabelGraphics,
   LabelStyle,
   Math as CesiumMath,
+  Matrix4,
   ModelGraphics,
   NearFarScalar,
   PathGraphics,
@@ -120,6 +121,40 @@ export class SatelliteComponentCollection {
     console.error("Cesium DataSourceDisplay has no getBoundingSphere; pacing ground tracks on a fixed schedule instead. Cesium internals have moved — see groundTrackSettled.");
   }
 
+  /**
+   * Bumped by every call to `track()`, animated or not, on any satellite. An
+   * animated flight reads this back when it resolves: if it is no longer the
+   * current generation, something else has already decided what is tracked —
+   * a second `track()` call, instant or animated — and this one lost the race,
+   * so it must not apply its result. Shared across instances rather than kept
+   * per-satellite because the race is between whichever satellite was tracked
+   * before and whichever is being tracked now, not within one of them.
+   */
+  static #trackGeneration = 0;
+
+  /**
+   * How many animated flights are currently between `track(true)` starting and
+   * resolving. `artificiallyTrack`'s teardown reads this to tell a transition's
+   * own intermediate `trackedEntity = undefined` apart from the user genuinely
+   * stopping tracking — see the comment there. It also delimits a *transition
+   * chain* — one call interrupting another before either lands is still one
+   * chain — which is what #preFlightClockRunning is captured and restored
+   * against: see track().
+   */
+  static #pendingAnimatedTracks = 0;
+
+  /**
+   * `clock.shouldAnimate` from just before the chain's first flight paused it.
+   * Captured once, by whichever call finds #pendingAnimatedTracks at zero —
+   * not by every call — so a track() that interrupts one already in flight
+   * reads the clock *as that first call left it* (paused) rather than
+   * mistaking the pause itself for the state to restore. Restored once, when
+   * the chain fully drains back to zero, regardless of which call's flight was
+   * the one that actually landed, completed late, or was cancelled: all of
+   * them owe the clock back, not only whichever one happened to win the track.
+   */
+  static #preFlightClockRunning = true;
+
   readonly viewer: Viewer;
 
   readonly props: SatelliteProperties;
@@ -199,24 +234,114 @@ export class SatelliteComponentCollection {
     componentNames.forEach((name) => this.disableComponent(name));
   }
 
+  /**
+   * `animate` only actually animates in 3D, with nothing else holding the
+   * camera. See #canAnimateTrack for which cases that excludes and why.
+   */
   track(animate = false): void {
     if (!this.defaultEntity) {
       return;
     }
-    if (!animate) {
+    // Supersede whatever the previous `track()` call on any satellite left
+    // in flight, instant or not: its completion must not land after this one's,
+    // and its own flight (if animated) must not keep fighting this call's for
+    // the camera. See #trackGeneration and #pendingAnimatedTracks.
+    const generation = ++SatelliteComponentCollection.#trackGeneration;
+    this.viewer.camera.cancelFlight();
+    if (!animate || !this.#canAnimateTrack()) {
       this.viewer.trackedEntity = this.defaultEntity;
       return;
     }
 
+    if (SatelliteComponentCollection.#pendingAnimatedTracks === 0) {
+      SatelliteComponentCollection.#preFlightClockRunning = this.viewer.clock.shouldAnimate;
+    }
+    SatelliteComponentCollection.#pendingAnimatedTracks += 1;
     this.viewer.trackedEntity = undefined;
-    const clockRunning = this.viewer.clock.shouldAnimate;
     this.viewer.clock.shouldAnimate = false;
-    void this.viewer.flyTo(this.defaultEntity, { offset: new HeadingPitchRange(0, -CesiumMath.PI_OVER_FOUR, 1580000) }).then((result: boolean) => {
-      if (result) {
+    const { destination, direction, up } = this.#trackedCameraPose(this.defaultEntity);
+    void new Promise<boolean>((resolve) => {
+      this.viewer.camera.flyTo({ destination, orientation: { direction, up }, complete: () => resolve(true), cancel: () => resolve(false) });
+    }).then((result) => {
+      SatelliteComponentCollection.#pendingAnimatedTracks -= 1;
+      if (result && SatelliteComponentCollection.#trackGeneration === generation) {
         this.viewer.trackedEntity = this.defaultEntity;
-        this.viewer.clock.shouldAnimate = clockRunning;
+      }
+      // Owed back whenever the chain itself is done, not only when this call's
+      // own flight was the one that landed: a cancelled or superseded flight
+      // still paused the clock on the chain's behalf and still owes it back,
+      // and the alternative — gating this on `result && isCurrent` the way
+      // engaging trackedEntity above is — leaves it paused forever the moment
+      // anything in the chain is merely cancelled rather than completed.
+      if (SatelliteComponentCollection.#pendingAnimatedTracks === 0) {
+        this.viewer.clock.shouldAnimate = SatelliteComponentCollection.#preFlightClockRunning;
       }
     });
+  }
+
+  /**
+   * Whether a flight makes sense right now, as opposed to the instant engagement
+   * every mode already falls back to for `animate: false`.
+   *
+   * False outside 3D: the EntityView probe below answers "where does tracking put
+   * the camera" in terms of a transform — inertial, velocity-relative or
+   * east-north-up — that 2D and Columbus View do not have, so there is nothing a
+   * flight could aim at there (and the same is true mid-morph, which reports
+   * neither mode).
+   *
+   * False while something else holds the camera, which today means the sky view:
+   * `screenSpaceCameraController.enableInputs` is the one flag `SkyView` is solely
+   * responsible for clearing (see its own entry/exit), so it doubles as "is the
+   * sky view active" without this class needing a reference to it. A tracking
+   * flight fighting that for the camera would make no more sense than it would in
+   * 2D — this is the existing "nothing is tracked while the sky view is up"
+   * invariant (see sceneSync's trackedSatellite watcher) extended to cover the
+   * flight itself, not just where trackedEntity ends up.
+   */
+  #canAnimateTrack(): boolean {
+    return this.viewer.scene.mode === SceneMode.SCENE3D && this.viewer.scene.screenSpaceCameraController.enableInputs;
+  }
+
+  /**
+   * Where engaging `trackedEntity` on this entity would put the camera, right now.
+   *
+   * Not computed by hand: for a satellite the default offset frame is
+   * velocity-relative (an approximation of VVLH), not the plain east-north-up a
+   * `viewFrom` offset might suggest, and Cesium picks between the two internally
+   * based on orbital speed and altitude. `EntityView` is the only thing that knows
+   * which one applies, and it only answers by moving the real camera as a side
+   * effect — so the camera is parked here and put back before anything draws.
+   *
+   * Letting `track(true)` fly anywhere else is the whole bug: the moment
+   * `trackedEntity` is actually assigned, `EntityView` snaps the camera to exactly
+   * this pose regardless of where a flight that guessed independently had arrived.
+   */
+  #trackedCameraPose(entity: Entity): { destination: Cartesian3; direction: Cartesian3; up: Cartesian3 } {
+    const { camera } = this.viewer;
+    const savedTransform = Matrix4.clone(camera.transform);
+    const savedPosition = Cartesian3.clone(camera.position);
+    const savedDirection = Cartesian3.clone(camera.direction);
+    const savedUp = Cartesian3.clone(camera.up);
+
+    const probe = new EntityView(entity, this.viewer.scene, this.viewer.scene.globe.ellipsoid);
+    probe.update(this.viewer.clock.currentTime);
+    const destination = Matrix4.multiplyByPoint(camera.transform, camera.position, new Cartesian3());
+    const direction = Cartesian3.normalize(Matrix4.multiplyByPointAsVector(camera.transform, camera.direction, new Cartesian3()), new Cartesian3());
+    const up = Cartesian3.normalize(Matrix4.multiplyByPointAsVector(camera.transform, camera.up, new Cartesian3()), new Cartesian3());
+
+    // EntityView has no destroy(): its VelocityVectorProperty subscribed to the
+    // entity's position the moment it was constructed, and nothing but clearing
+    // its own `position` unsubscribes it again — left alone, a throwaway probe
+    // built on every track(true) call leaks one listener each time.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- EntityView's velocity property is not in Cesium's public types.
+    (probe as any)._velocityProperty.position = undefined;
+
+    // A documented, public option of a documented, public method — setView's
+    // `endTransform` does the same `_setTransform` Cesium's own EntityView just
+    // did to us, but reached through the API surface meant for reaching it.
+    camera.setView({ endTransform: savedTransform, destination: savedPosition, orientation: { direction: savedDirection, up: savedUp } });
+
+    return { destination, direction, up };
   }
 
   /**
@@ -235,7 +360,13 @@ export class SatelliteComponentCollection {
     const removeTracked = this.viewer.trackedEntityChanged.addEventListener(() => {
       removeTick();
       removeTracked();
-      if (typeof this.viewer.trackedEntity === "undefined") {
+      // `trackedEntity` clearing means either the user genuinely stopped
+      // tracking, or a different satellite's animated track(true) is mid-flight
+      // and cleared it as its own opening move (see track()). Only the first one
+      // gets the fly-back: #pendingAnimatedTracks is nonzero for exactly the
+      // span of the second, since it is incremented before `trackedEntity` is
+      // touched and decremented only once that flight resolves.
+      if (typeof this.viewer.trackedEntity === "undefined" && SatelliteComponentCollection.#pendingAnimatedTracks === 0) {
         void this.viewer.flyTo(entity, { offset: new HeadingPitchRange(0, CesiumMath.toRadians(-90.0), 2000000) });
       }
     });
