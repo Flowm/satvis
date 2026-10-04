@@ -8,6 +8,7 @@ import { createMemoryHistory, createRouter, type Router } from "vue-router";
 
 import { useCesiumStore } from "../../stores/cesium";
 import { useSatStore } from "../../stores/sat";
+import type { Query } from "./urlCodec";
 import piniaUrlSync from "./urlSync";
 
 // Writes reach the url through router.push/replace, which are async.
@@ -16,12 +17,12 @@ const flush = async (): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
-async function mount(initial: string): Promise<{ router: Router }> {
+async function mount(initial: string, presetDefaults: Query = {}): Promise<{ router: Router }> {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: "/", component: {} }] });
   const pinia = createPinia();
   pinia.use(({ store }) => {
     store.router = markRaw(router);
-    store.customConfig = markRaw({});
+    store.presetDefaults = markRaw(Promise.resolve(presetDefaults));
   });
   pinia.use(piniaUrlSync);
   createApp({}).use(pinia);
@@ -60,6 +61,35 @@ describe("foreign parameters", () => {
     useSatStore().setActivation({ enabledTags: ["GNSS"] });
     await flush();
     expect(router.currentRoute.value.query.utm_source).toBe("x");
+  });
+});
+
+describe("preset defaults", () => {
+  test("apply when the url says nothing", async () => {
+    const { router } = await mount("/", { tags: "OT", elements: "Point,Orbit", overpass: "swath", layers: "VersaTiles" });
+    expect(useSatStore().enabledTags).toEqual(["OT"]);
+    expect(useSatStore().enabledComponents).toEqual(["Point", "Orbit"]);
+    expect(useSatStore().overpassMode).toBe("swath");
+    expect(useCesiumStore().layers).toEqual(["VersaTiles"]);
+    expect(router.currentRoute.value.query).toEqual({});
+  });
+
+  test("give way to the url, which then states only what differs from them", async () => {
+    const { router } = await mount("/?tags=GNSS&overpass=swath", { tags: "OT", overpass: "swath" });
+    expect(useSatStore().enabledTags).toEqual(["GNSS"]);
+    expect(router.currentRoute.value.query).toEqual({ tags: "GNSS" });
+
+    useSatStore().setActivation({ enabledTags: ["OT"] });
+    await flush();
+    expect(router.currentRoute.value.query).toEqual({});
+  });
+
+  // The defaults are shared with clients whose vocabularies differ.
+  test("that this client cannot use are ignored", async () => {
+    const { router } = await mount("/", { terrain: "Garbage", someday: "1", tags: "OT" });
+    expect(useCesiumStore().terrainProvider).toBe("None");
+    expect(useSatStore().enabledTags).toEqual(["OT"]);
+    expect(router.currentRoute.value.query).toEqual({});
   });
 });
 

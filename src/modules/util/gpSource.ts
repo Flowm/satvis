@@ -17,36 +17,90 @@ const STATIC_INDEX_URL = "data/gp/index.json";
 const PROBE_TIMEOUT_MS = 3000;
 
 // One entry of the group index (`/api/groups.json` or `data/gp/index.json`,
-// same shape): the group name plus its record count for UI display.
+// same shape): the group name, its record count for UI display, and the tags
+// it is enabled by.
 export interface GpIndexEntry {
   name: string;
   updated?: string;
   count?: number;
+  tags?: string[];
+}
+
+// A route's starting configuration as the worker config defines it
+// (worker/src/gp/types.ts PresetDefinition). `defaults` are url parameters.
+export interface GpPreset {
+  title?: string;
+  description?: string;
+  defaults?: Record<string, string>;
+  groups: { name: string; searchOnly?: boolean }[];
+}
+
+export interface GpIndex {
+  groups: GpIndexEntry[];
+  presets: Record<string, GpPreset>;
 }
 
 interface GpSourceInfo {
   base: string;
-  index: GpIndexEntry[];
+  index: GpIndex;
 }
+
+const EMPTY_INDEX: GpIndex = { groups: [], presets: {} };
 
 let infoPromise: Promise<GpSourceInfo> | undefined;
 
-function parseIndex(payload: unknown): GpIndexEntry[] {
-  if (typeof payload !== "object" || payload === null || !Array.isArray((payload as { groups?: unknown }).groups)) {
-    return [];
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+const isStringArray = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
+
+// Lenient: whatever does not have the expected shape is dropped, so an index
+// written before a field existed reads as one without it.
+function parsePreset(raw: unknown): GpPreset | undefined {
+  if (!isObject(raw) || !Array.isArray(raw.groups)) {
+    return undefined;
   }
-  return ((payload as { groups: unknown[] }).groups as GpIndexEntry[]).filter((group) => typeof group?.name === "string");
+  const groups = raw.groups.filter((group): group is GpPreset["groups"][number] => isObject(group) && typeof group.name === "string");
+  const defaults = isObject(raw.defaults) ? Object.fromEntries(Object.entries(raw.defaults).filter(([, value]) => typeof value === "string")) : undefined;
+  return {
+    groups,
+    ...(typeof raw.title === "string" && { title: raw.title }),
+    ...(typeof raw.description === "string" && { description: raw.description }),
+    ...(defaults && { defaults: defaults as Record<string, string> }),
+  };
 }
 
-async function fetchStaticIndex(): Promise<GpIndexEntry[]> {
+function parseIndex(payload: unknown): GpIndex {
+  if (!isObject(payload) || !Array.isArray(payload.groups)) {
+    return EMPTY_INDEX;
+  }
+  const groups: GpIndexEntry[] = [];
+  for (const raw of payload.groups) {
+    if (!isObject(raw) || typeof raw.name !== "string") {
+      continue;
+    }
+    const { tags, ...group } = raw as unknown as GpIndexEntry;
+    groups.push(isStringArray(tags) ? Object.assign(group, { tags }) : group);
+  }
+  const presets: Record<string, GpPreset> = {};
+  if (isObject(payload.presets)) {
+    for (const [name, raw] of Object.entries(payload.presets)) {
+      const preset = parsePreset(raw);
+      if (preset) {
+        presets[name] = preset;
+      }
+    }
+  }
+  return { groups, presets };
+}
+
+async function fetchStaticIndex(): Promise<GpIndex> {
   try {
     const response = await fetch(STATIC_INDEX_URL);
     if (!response.ok) {
-      return [];
+      return EMPTY_INDEX;
     }
     return parseIndex(await response.json());
   } catch {
-    return [];
+    return EMPTY_INDEX;
   }
 }
 
@@ -95,9 +149,10 @@ function staticGroupUrl(source: string): string | undefined {
   return undefined;
 }
 
-// The group index (names + counts) from the probe. Best-effort: empty when
-// neither the worker nor the static snapshot answers; never rejects.
-export async function fetchGpIndex(): Promise<GpIndexEntry[]> {
+// The group index (groups, their counts and tags, and the presets) from the
+// probe. Best-effort: empty when neither the worker nor the static snapshot
+// answers; never rejects.
+export async function fetchGpIndex(): Promise<GpIndex> {
   return (await resolveGpSource()).index;
 }
 

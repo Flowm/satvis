@@ -120,7 +120,7 @@ export class SatelliteCatalog {
   // the estimates at 0.
   ensureIndex(): Promise<void> {
     this.#indexLoad ??= fetchGpIndex().then((index) => {
-      for (const group of index) {
+      for (const group of index.groups) {
         if (typeof group.count === "number") {
           this.#indexCounts.set(group.name, group.count);
         }
