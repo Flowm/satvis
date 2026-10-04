@@ -66,6 +66,11 @@ const POINT_COLOR = Object.fromEntries(Object.entries(ORBIT_CLASS_COLOR).map(([o
  */
 const BOUNDING_SPHERE_PENDING = 1;
 
+// Where tracking starts, east-north-up from the satellite: far enough out to see
+// it in context, or, with its 3D model on, close enough to see the model.
+const VIEW_FROM = new Cartesian3(0, -3600000, 4200000);
+const VIEW_FROM_MODEL = new Cartesian3(9, -10, 5);
+
 /**
  * How each component is made. Keyed against the config list rather than written
  * out as a switch, so adding a component there without a creator here is a
@@ -239,7 +244,7 @@ export class SatelliteComponentCollection {
     const entity = new Entity({
       name,
       position,
-      viewFrom: new Cartesian3(0, -3600000, 4200000),
+      viewFrom: this.#viewFrom(),
     });
     if (moving) {
       entity.orientation = new VelocityOrientationProperty(position);
@@ -275,6 +280,7 @@ export class SatelliteComponentCollection {
     if (name === "3D model") {
       // So the model does not cover the label.
       this.#setLabelOffset(20);
+      this.#setViewFrom();
     }
   }
 
@@ -290,6 +296,9 @@ export class SatelliteComponentCollection {
       this.#batchFor(name).remove(component);
     }
     delete this.#components[name];
+    if (name === "3D model") {
+      this.#setViewFrom();
+    }
 
     if (this.defaultEntity === component) {
       // Hand the role to whatever is still drawn. It used to be kept pointing at
@@ -300,6 +309,19 @@ export class SatelliteComponentCollection {
 
     if (this.componentNames.length === 0) {
       this.deinit();
+    }
+  }
+
+  #viewFrom(): Cartesian3 {
+    return "3D model" in this.#components ? VIEW_FROM_MODEL : VIEW_FROM;
+  }
+
+  // Read when tracking starts, so a camera already following the satellite stays put.
+  #setViewFrom(): void {
+    for (const component of Object.values(this.#components)) {
+      if (component instanceof Entity) {
+        component.viewFrom = this.#viewFrom() as unknown as typeof component.viewFrom;
+      }
     }
   }
 
