@@ -490,6 +490,8 @@ export class SkyView {
     // A leftover reference frame — from `jumpTo`, or from tracking — would
     // reinterpret every vector assigned below.
     camera.lookAtTransform(Matrix4.IDENTITY);
+    // A tracking flight would land after this one and take the camera back.
+    camera.cancelFlight();
     // Off for the flight as well as for the view: the descent is not something
     // to wrestle with, and collision detection would fight it all the way down.
     controller.enableInputs = false;

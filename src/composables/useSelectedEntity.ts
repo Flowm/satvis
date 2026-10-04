@@ -267,23 +267,15 @@ export function useSelectedEntity(instance: CesiumController) {
   }
 
   function toggleTrack(): void {
-    const sel = selection.value;
-    const target = selectionTarget(sel);
-    if (!sel || !target) {
+    const target = selectionTarget(selection.value);
+    if (!target) {
       return;
     }
     if (target.isTracked) {
       cc().viewer.trackedEntity = undefined;
-      return;
-    }
-    // Animated for a satellite — see SatelliteComponentCollection#track for why
-    // that is now safe to turn on. A ground station never moves, so flying into
-    // place has no VVLH-vs-ENU ambiguity to get wrong in the first place, and
-    // GroundStationEntity#track has never taken the argument.
-    if (sel.kind === "satellite") {
-      sel.sat.track(true);
     } else {
-      sel.gs.track();
+      // Animated, but not while the sky view holds the camera: a flight would fight it.
+      target.track(!cc().skyView.active);
     }
   }
 

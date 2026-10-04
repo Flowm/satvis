@@ -255,6 +255,7 @@ describe("the scene state the view borrows", () => {
       right: new Cartesian3(1, 0, 0),
       frustum: new PerspectiveFrustum({ fov: CesiumMath.toRadians(60), aspectRatio: 16 / 9, near: 1, far: 1e9 }),
       lookAtTransform: () => {},
+      cancelFlight: () => {},
     },
     screenSpaceCameraController: { enableInputs: true, enableCollisionDetection: true },
     preRender: { addEventListener: () => () => {} },
