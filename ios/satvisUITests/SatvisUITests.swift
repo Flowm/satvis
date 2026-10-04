@@ -60,6 +60,44 @@ nonisolated class SatvisUITests: XCTestCase {
         return app
     }
 
+    // The App Store screenshots: the about page's views, by the same links
+    // (about.html) and in this order, so the web and every device show one set.
+    // The sky view's follows with the sky view (M6). Only scripts/screenshots.sh
+    // takes them, against BASE_URL.
+
+    @MainActor
+    func testScreenshot1Globe() throws {
+        try open("/?time=2026-10-04T08:52Z")
+        screenshot("1Globe")
+    }
+
+    @MainActor
+    func testScreenshot2ISS() throws {
+        try open("/?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model&layers=VersaTiles&time=2026-10-04T02:07Z")
+        screenshot("2ISS")
+    }
+
+    /// Launches on a link of BASE_URL's site, its clock stopped at the link's
+    /// minute so that every device shows the same moment, and waits for the tiles.
+    @MainActor
+    func open(_ path: String) throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["SCREENSHOTS"] != nil else {
+            throw XCTSkip("Taken by scripts/screenshots.sh")
+        }
+        let app = XCUIApplication()
+        if let site = environment["BASE_URL"] {
+            app.launchEnvironment["SATVIS_API"] = site
+        }
+        app.launchEnvironment["SATVIS_LINK"] = path
+        if let time = path.firstMatch(of: /time=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})Z/) {
+            app.launchEnvironment["SATVIS_TIME"] = "\(time.1):00Z"
+        }
+        app.launch()
+        XCTAssert(app.buttons["Satellites"].waitForExistence(timeout: 30))
+        sleep(20)
+    }
+
     @MainActor
     func screenshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
