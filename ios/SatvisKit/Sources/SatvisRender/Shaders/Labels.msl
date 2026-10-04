@@ -2,6 +2,11 @@
 // left-aligned 10 px to the right, shown from 2 km away, fading out between
 // 60,000 and 80,000 km. The text itself is drawn once per name by Core Text into
 // an atlas (LabelAtlas.swift).
+//
+// Over the globe, as Cesium draws them while it does not depth-test against the
+// terrain: a label goes whole with its satellite behind the Earth, and is not cut
+// off where it overhangs the globe. The sky view tests depth instead, so a
+// mountain hides what is behind it.
 
 // Mirrors LabelInstance in LabelAtlas.swift.
 struct LabelInstance {
@@ -16,9 +21,26 @@ struct LabelOut {
     float alpha;
 };
 
+/// Whether the Earth stands between the eye and a point `toPoint` away: the line
+/// meets the ellipsoid, scaled to a unit sphere, on the way there.
+inline bool isBehindEarth(float3 eye, float3 toPoint) {
+    float3 origin = eye / ellipsoidRadii;
+    float3 direction = toPoint / ellipsoidRadii;
+    float a = dot(direction, direction);
+    float b = 2.0 * dot(origin, direction);
+    float c = dot(origin, origin) - 1.0;
+    float det = b * b - 4.0 * a * c;
+    if (det < 0.0) {
+        return false;
+    }
+    float t = (-b - sqrt(det)) / (2.0 * a);
+    return t > 0.0 && t < 1.0;
+}
+
 vertex LabelOut labelVertex(uint vid [[vertex_id]], uint iid [[instance_id]], const device packed_float3 *samples [[buffer(0)]],
                             constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
-                            const device PointFrame *frames [[buffer(3)]], const device LabelInstance *labels [[buffer(4)]]) {
+                            const device PointFrame *frames [[buffer(3)]], const device LabelInstance *labels [[buffer(4)]],
+                            constant int &occludedByEarth [[buffer(5)]]) {
     LabelInstance label = labels[iid];
     LabelOut out;
     float3 position;
@@ -30,7 +52,7 @@ vertex LabelOut labelVertex(uint vid [[vertex_id]], uint iid [[instance_id]], co
     }
     float3 relative = (position - frame.cameraHigh) - frame.cameraLow;
     float distance = length(relative);
-    if (distance < 2000.0 || distance > 8e7) {
+    if (distance < 2000.0 || distance > 8e7 || (occludedByEarth != 0 && isBehindEarth(frame.cameraPosition, relative))) {
         return out;
     }
     float4 clip = frame.viewProjection * float4(relative, 1.0);

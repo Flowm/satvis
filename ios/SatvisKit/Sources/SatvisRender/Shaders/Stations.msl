@@ -1,5 +1,7 @@
-// Ground stations as pins standing on the globe, as the web app's billboards: 96 px
-// artwork scaled from 0.4 at 100 m to 0.22 at 40,000 km, its tip on the spot. And
+// Ground stations as pins standing on the globe, as the web app's billboards are:
+// scaled from 0.4 at 100 m to 0.22 at 40,000 km, its tip on the spot. From 56 pt
+// rather than the web's 96 px: the needle is all height, where the web's pin is a
+// broad head whose artwork fills the whole square. And
 // the ground station link: a line from a satellite to the station it is passing,
 // drawn while the pass lasts, five pixels wide in forest green with Cesium's
 // PolylineGlowMaterial at a glow power of 0.5.
@@ -27,7 +29,7 @@ vertex StationOut stationVertex(uint vid [[vertex_id]], uint iid [[instance_id]]
     StationOut out;
     float4 clip = frame.viewProjection * float4(float3(station.position), 1.0);
     float t = clamp((station.distance - 1e2) / (4e7 - 1e2), 0.0, 1.0);
-    float size = 96.0 * mix(0.4, 0.22, t) * frame.pixelScale;
+    float size = 56.0 * mix(0.4, 0.22, t) * frame.pixelScale;
     float2 corner = float2(vid & 1, vid >> 1);
     // The artwork's tip is at the bottom centre.
     float2 offset = float2((corner.x - 0.5) * size, (1.0 - corner.y) * size);
