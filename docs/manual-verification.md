@@ -861,3 +861,19 @@ catches up and then stays put.
 5 changes in 311 frames at 1×, 310 in 311 at 3600×. After: 5 changes at 1×, 60×,
 3600× and 86400×, none while paused. After the jump the panel had updated within
 200 ms and did not change again while paused.
+
+## Render on demand: a paused clock draws nothing
+
+**Why it cannot be a unit test.** Whether a frame is drawn is Cesium's decision in
+`Scene.render`, against a real clock and real entities.
+
+**Procedure.** Open
+`?elements=Point,Label,Orbit,Orbit+track,Ground+track,Sensor+cone,Ground+station+link&gs=48.1371,11.5754&framems=16`,
+wait for the globe's tiles to load, then count `scene.postRender` and `clock.onTick`
+events for 5 s running and 5 s paused. Not with `bench=true`: the benchmark panel
+turns `requestRenderMode` off.
+
+**Result, 2026-10-04, Chrome (in-app browser pane, frame pump on), 72 satellites.**
+Running: 113 renders in 309 ticks. Paused: 0 renders in 310 ticks, with the sensor cone
+and ground station link (the `CallbackProperty` users) on. Rerun with `?framems=16`
+and no panel: 115 and 0, `requestRenderMode` on throughout.
