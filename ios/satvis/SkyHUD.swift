@@ -57,7 +57,7 @@ private struct SkyInstruments: View {
             if let lock {
                 // Above the clock deck.
                 card(lock)
-                    .padding(.bottom, 124)
+                    .padding(.bottom, 136)
             }
         }
     }
