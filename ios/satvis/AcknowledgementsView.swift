@@ -1,0 +1,67 @@
+import SatvisRender
+import SwiftUI
+
+/// What the app is built from and owes credit for, beyond the map and satellite
+/// sources the attribution lists: the code it carries, under its licences, and
+/// the data it ships.
+struct AcknowledgementsView: View {
+    var body: some View {
+        List {
+            Section("Software") {
+                NavigationLink {
+                    LicenceText(title: "CesiumJS", text: Notices.cesium)
+                } label: {
+                    entry("CesiumJS", "The atmosphere, lighting and tone mapping, ported to Metal. Apache License 2.0, with its third-party notices.")
+                }
+                entry("SGP4", "David Vallado's reference implementation (AIAA 2006-6753), released without restriction.")
+                NavigationLink {
+                    LicenceText(title: "PostHog for iOS", text: Self.bundled("posthog-ios"))
+                } label: {
+                    entry("PostHog for iOS", "Usage analytics. MIT License.")
+                }
+            }
+            Section("Data") {
+                Link(destination: URL(string: "https://www.naturalearthdata.com")!) {
+                    entry("Natural Earth", "The base map shipped in the app. Public domain.")
+                }
+                Link(destination: URL(string: "https://svs.gsfc.nasa.gov/4851")!) {
+                    entry(
+                        "Deep Star Maps 2020",
+                        "The stars: NASA/Goddard Space Flight Center Scientific Visualization Studio, from Hipparcos-2, Tycho-2 and Gaia DR2.")
+                }
+            }
+        }
+        .navigationTitle("Acknowledgements")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func entry(_ title: String, _ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+            Text(detail).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    /// A licence kept in the app's Licences folder.
+    private static func bundled(_ name: String) -> String {
+        Bundle.main.url(forResource: name, withExtension: "txt").flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
+    }
+}
+
+/// A licence, as written.
+private struct LicenceText: View {
+    let title: String
+    let text: String
+
+    var body: some View {
+        ScrollView {
+            Text(text)
+                .font(.caption.monospaced())
+                .textSelection(.enabled)
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}

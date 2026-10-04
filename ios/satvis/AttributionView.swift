@@ -19,6 +19,7 @@ struct AttributionView: View {
                 }
                 Section {
                     Link("Privacy", destination: privacyPolicy)
+                    NavigationLink("Acknowledgements") { AcknowledgementsView() }
                 }
             }
             .navigationTitle("Attribution")

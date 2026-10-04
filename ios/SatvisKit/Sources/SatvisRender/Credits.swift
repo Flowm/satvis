@@ -36,3 +36,12 @@ public struct Credit: Hashable, Sendable {
     /// Where the satellites come from, as the web app credits it.
     public static let elementSets = Credit("Satellite TLE data provided by Celestrak", link: "https://celestrak.org/NORAD/elements/")
 }
+
+/// The licences of what the renderer carries.
+public enum Notices {
+    /// CesiumJS's Apache 2.0 licence with its third-party notices: the atmosphere,
+    /// lighting and tone mapping are ported from it.
+    public static var cesium: String {
+        Bundle.module.url(forResource: "LICENSE.CesiumJS", withExtension: "md", subdirectory: "Shaders").flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
+    }
+}
