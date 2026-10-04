@@ -43,6 +43,22 @@
   height: auto;
   border-radius: 6px;
 }
+.about-showcase {
+  display: grid;
+  gap: 1.25rem;
+  margin: 0 0 0.9rem;
+}
+.about-showcase figure {
+  margin: 0;
+}
+.about-showcase img {
+  display: block;
+}
+.about-showcase figcaption {
+  margin-top: 0.4rem;
+  font-size: 0.9rem;
+  color: #b8d6df;
+}
 .about .about-lede {
   font-size: 1.05rem;
 }
