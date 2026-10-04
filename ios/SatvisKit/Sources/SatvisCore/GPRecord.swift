@@ -31,7 +31,10 @@ public struct GPRecord: Sendable, Hashable {
     }
 
     public var name: String
+    /// The element set as it was served, for showing it as such.
     public var elements: Elements
+    /// The same elements in OMM keywords, which is what propagation reads.
+    public var meanElements: MeanElements
     /// Static facts attached by the worker. Absent fields fall back to app defaults.
     public var metadata: [String: JSONValue]
 
@@ -44,26 +47,14 @@ public struct GPRecord: Sendable, Hashable {
     }
 
     public var orbitClass: OrbitClass {
-        let (meanMotion, eccentricity) = classifyingElements
-        return OrbitClass(meanMotionRevPerDay: meanMotion, eccentricity: eccentricity)
+        OrbitClass(meanMotionRevPerDay: meanElements.meanMotion, eccentricity: meanElements.eccentricity)
     }
 
     /// The period of the element set's own (Kozai) mean motion. Within seconds of
     /// the SGP4-recovered one: fine for sizing a window, not for placing samples.
     public var approximatePeriodMinutes: Double {
-        let (meanMotion, _) = classifyingElements
+        let meanMotion = meanElements.meanMotion
         return meanMotion.isFinite && meanMotion > 0 ? minutesPerDay / meanMotion : 0
-    }
-
-    private var classifyingElements: (meanMotion: Double, eccentricity: Double) {
-        switch elements {
-        case .omm(let omm):
-            return (omm.meanMotion, omm.eccentricity)
-        case .tle(_, let line2):
-            let meanMotion = Double(column(line2, 52..<63).trimmingCharacters(in: .whitespaces)) ?? .nan
-            let eccentricity = Double("0." + column(line2, 26..<33).trimmingCharacters(in: .whitespaces)) ?? .nan
-            return (meanMotion, eccentricity)
-        }
     }
 }
 
@@ -142,7 +133,9 @@ private struct RawRecord: Decodable {
 
         if let line1 = try? container.decode(String.self, forKey: .tleLine1), let line2 = try? container.decode(String.self, forKey: .tleLine2) {
             let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            record = GPRecord(name: trimmed.isEmpty ? satnumField(line1) : trimmed, elements: .tle(line1: line1, line2: line2), metadata: metadata)
+            record = MeanElements(tleLine1: line1, line2: line2).map {
+                GPRecord(name: trimmed.isEmpty ? satnumField(line1) : trimmed, elements: .tle(line1: line1, line2: line2), meanElements: $0, metadata: metadata)
+            }
             return
         }
 
@@ -176,7 +169,9 @@ private struct RawRecord: Decodable {
             classificationType: try? container.decodeIfPresent(String.self, forKey: .classificationType),
             elementSetNo: container.flexibleDouble(.elementSetNo).map { Int($0) },
             revAtEpoch: container.flexibleDouble(.revAtEpoch).map { Int($0) })
-        record = GPRecord(name: (name ?? "").trimmingCharacters(in: .whitespacesAndNewlines), elements: .omm(omm), metadata: metadata)
+        record = MeanElements(omm).map {
+            GPRecord(name: (name ?? "").trimmingCharacters(in: .whitespacesAndNewlines), elements: .omm(omm), meanElements: $0, metadata: metadata)
+        }
     }
 }
 

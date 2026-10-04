@@ -12,11 +12,14 @@ let package = Package(
         .library(name: "SatvisData", targets: ["SatvisData"]),
     ],
     targets: [
+        // Vallado's SGP4 behind a C bridge, so Swift needs no C++ interoperability.
+        .target(name: "SGP4", exclude: ["vallado/SGP4.cpp", "vallado/VENDOR.md"]),
         // Element sets, the group index, and the arithmetic the web app does on them.
-        .target(name: "SatvisCore"),
+        .target(name: "SatvisCore", dependencies: ["SGP4"]),
         // The worker client, its disk cache, and the snapshot shipped in the app.
         .target(name: "SatvisData", dependencies: ["SatvisCore"], resources: [.copy("Snapshot")]),
         .testTarget(name: "SatvisCoreTests", dependencies: ["SatvisCore"], resources: [.copy("Fixtures")]),
         .testTarget(name: "SatvisDataTests", dependencies: ["SatvisData"]),
-    ]
+    ],
+    cxxLanguageStandard: .cxx17
 )

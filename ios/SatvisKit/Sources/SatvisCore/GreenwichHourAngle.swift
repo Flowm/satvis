@@ -36,7 +36,6 @@ private let wgs84RotationRatePrecessing = 7.2921158553e-5
 private let twoPi = Double.pi * 2
 private let secondsPerDay = 86400.0
 private let twoPiPerSecondsPerDay = twoPi / secondsPerDay
-private let msPerDay = 86_400_000.0
 private let j2000DayNumber = 2451545.0
 private let j2000Midnight = j2000DayNumber - 0.5
 private let unixEpochDayNumber = 2440587.0
