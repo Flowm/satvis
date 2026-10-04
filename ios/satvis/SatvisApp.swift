@@ -144,7 +144,7 @@ struct ContentView: View {
                 .padding(.bottom, 8)
         }
         .sheet(isPresented: $showsBrowser) {
-            BrowserView(catalog: catalog)
+            BrowserView(catalog: catalog) { selection = .satellite($0.id) }
         }
         .sheet(isPresented: $showsStations) {
             GroundStationsView(passes: passes, onPick: { isPicking = true }, onSelect: { selection = .station($0) })

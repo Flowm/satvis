@@ -4,10 +4,13 @@ import SwiftUI
 
 /// The satellite browser, as the web app's: a row per tag that switches the whole
 /// group, expanding to its satellites one by one, and a search across everything.
+/// A satellite's info button switches it on and opens its panel.
 struct BrowserView: View {
     let catalog: CatalogModel
+    let onShow: (CatalogEntry) -> Void
     @State private var query = ""
     @State private var results: [CatalogEntry]?
+    @State private var searching = false
     @State private var expanded: Set<String> = []
     @State private var members: [String: [CatalogEntry]] = [:]
     @Environment(\.dismiss) private var dismiss
@@ -15,19 +18,26 @@ struct BrowserView: View {
     var body: some View {
         NavigationStack {
             List {
-                if let results {
+                if searching, results == nil {
+                    // A search loads every group, and the biggest takes seconds.
+                    HStack {
+                        ProgressView()
+                        Text("Loading all satellites…")
+                            .foregroundStyle(.secondary)
+                    }
+                } else if let results {
                     if results.isEmpty {
                         ContentUnavailableView.search(text: query)
                     }
                     ForEach(results) { entry in
-                        SatelliteRow(entry: entry, catalog: catalog, showsTags: true)
+                        SatelliteRow(entry: entry, catalog: catalog, showsTags: true, onShow: show)
                     }
                 } else {
                     ForEach(catalog.tags, id: \.self) { tag in
                         DisclosureGroup(isExpanded: expansion(of: tag)) {
                             if let entries = members[tag] {
                                 ForEach(entries) { entry in
-                                    SatelliteRow(entry: entry, catalog: catalog, showsTags: false)
+                                    SatelliteRow(entry: entry, catalog: catalog, showsTags: false, onShow: show)
                                 }
                             } else {
                                 ProgressView()
@@ -45,7 +55,13 @@ struct BrowserView: View {
                 guard !Task.isCancelled else {
                     return
                 }
-                results = query.trimmingCharacters(in: .whitespaces).isEmpty ? nil : await catalog.search(query)
+                guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
+                    results = nil
+                    return
+                }
+                searching = true
+                defer { searching = false }
+                results = await catalog.search(query)
             }
             .navigationTitle("Satellites")
             .navigationBarTitleDisplayMode(.inline)
@@ -67,6 +83,14 @@ struct BrowserView: View {
                     .background(.bar)
             }
         }
+    }
+
+    private func show(_ entry: CatalogEntry) {
+        if !catalog.activation.isActive(entry) {
+            catalog.setSatellite(entry, enabled: true)
+        }
+        onShow(entry)
+        dismiss()
     }
 
     /// Expanding a tag loads its groups, once.
@@ -113,38 +137,54 @@ private struct TagRow: View {
 }
 
 /// One satellite: on or off, its orbit class in the colour its point is drawn in,
-/// so the list doubles as the legend.
+/// so the list doubles as the legend, and the way to its panel.
 private struct SatelliteRow: View {
     let entry: CatalogEntry
     let catalog: CatalogModel
     let showsTags: Bool
+    let onShow: (CatalogEntry) -> Void
 
     var body: some View {
         let active = catalog.activation.isActive(entry)
-        Button {
-            catalog.setSatellite(entry, enabled: !active)
-        } label: {
-            HStack {
-                Image(systemName: active ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(active ? Color.accentColor : .secondary)
-                VStack(alignment: .leading) {
-                    Text(entry.name)
-                    if showsTags {
-                        Text(entry.tags.sorted().joined(separator: ", "))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-                Text(entry.record.orbitClass.rawValue)
-                    .font(.caption.bold())
-                    .foregroundStyle(Color(orbitClass: entry.record.orbitClass))
-                Text(entry.satnum)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+        HStack {
+            Button {
+                catalog.setSatellite(entry, enabled: !active)
+            } label: {
+                row(active: active)
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(entry.name)
+            .accessibilityValue(active ? "Shown" : "Hidden")
+            .accessibilityHint(active ? "Hides it" : "Shows it")
+            Button("Details of \(entry.name)", systemImage: "info.circle") {
+                onShow(entry)
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
         }
-        .buttonStyle(.plain)
+    }
+
+    private func row(active: Bool) -> some View {
+        HStack {
+            Image(systemName: active ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(active ? Color.accentColor : .secondary)
+            VStack(alignment: .leading) {
+                Text(entry.name)
+                if showsTags {
+                    Text(entry.tags.sorted().joined(separator: ", "))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            Text(entry.record.orbitClass.rawValue)
+                .font(.caption.bold())
+                .foregroundStyle(Color(orbitClass: entry.record.orbitClass))
+            Text(entry.satnum)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
+        .contentShape(.rect)
     }
 }
 
