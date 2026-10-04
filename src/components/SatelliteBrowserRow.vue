@@ -23,6 +23,9 @@
     }}</span>
     <span class="browser-satnum">{{ row.satnum }}</span>
     <span v-if="row.groupsLabel" class="browser-groups">{{ row.groupsLabel }}</span>
+    <button type="button" class="browser-info" :aria-label="`Show info for ${row.name}`" :title="`Show info for ${row.name}`" @click="emit('show-info', row.name)">
+      <UIcon name="lucide:info" />
+    </button>
   </div>
 </template>
 
@@ -36,6 +39,7 @@ const props = defineProps<{ row: BrowserRow }>();
 const emit = defineEmits<{
   "toggle-group": [tag: string];
   "toggle-sat": [name: string];
+  "show-info": [name: string];
   "toggle-expand": [tag: string];
 }>();
 
@@ -136,6 +140,21 @@ watch(() => (props.row.kind === "group" ? props.row.state : undefined), syncInde
   font-size: 11px;
   color: #8a9797;
   font-variant-numeric: tabular-nums;
+}
+
+.browser-info {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0 2px;
+  cursor: pointer;
+  color: #8a9797;
+}
+
+.browser-info:hover {
+  color: #edffff;
 }
 
 .browser-groups {
