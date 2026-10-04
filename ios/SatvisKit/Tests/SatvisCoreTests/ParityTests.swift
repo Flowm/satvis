@@ -19,9 +19,17 @@ struct Parity: Decodable {
         let radians: Double
     }
 
+    struct Geodetic: Decodable {
+        let latitude: Double
+        let longitude: Double
+        let height: Double
+        let velocity: Double
+    }
+
     struct State: Decodable {
         let record: Int
         let instant: String
+        let geodetic: Geodetic
         let temePositionKm: [Double]
         let temeVelocityKmPerSecond: [Double]
         let fixedPositionMetres: [Double]
@@ -90,6 +98,13 @@ struct Parity: Decodable {
             #expect(errors.0 < 0.01, "\(record.name) at \(expected.instant): \(errors.0) m")
             #expect(errors.1 < 0.0001, "\(record.name) at \(expected.instant): \(errors.1) m/s")
             #expect(errors.2 < 0.01, "\(record.name) at \(expected.instant): \(errors.2) m in the fixed frame")
+
+            // The info panel's live strip.
+            let live = try SGP4Propagator(record.meanElements).livePosition(epochMilliseconds: instant)
+            #expect(abs(live.latitude - expected.geodetic.latitude) < 1e-7, "\(record.name)")
+            #expect(abs(live.longitude - expected.geodetic.longitude) < 1e-7, "\(record.name)")
+            #expect(abs(live.height - expected.geodetic.height) < 0.01, "\(record.name)")
+            #expect(abs(live.speed - expected.geodetic.velocity) < 1e-9, "\(record.name)")
         }
     }
 
