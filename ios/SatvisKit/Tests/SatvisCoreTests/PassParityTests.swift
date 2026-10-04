@@ -115,7 +115,7 @@ extension PassParity.ExpectedPass {
             } else {
                 .swath(minDistance: minDistance!, minDistanceTime: minDistanceTime!, swathWidth: swathWidth!)
             }
-        return Pass(satellite: "", satelliteName: "", station: station, start: start, end: end, measure: measure)
+        return Pass(satellite: "", satelliteName: "", station: station, stationID: UUID(), start: start, end: end, measure: measure)
     }
 }
 
@@ -196,7 +196,7 @@ extension PassParity.ExpectedPass {
         }
         for countdown in parity.countdowns {
             let pass = Pass(
-                satellite: "", satelliteName: "", station: "", start: countdown.untilMs, end: countdown.untilMs + 600_000,
+                satellite: "", satelliteName: "", station: "", stationID: UUID(), start: countdown.untilMs, end: countdown.untilMs + 600_000,
                 measure: .swath(minDistance: 0, minDistanceTime: 0, swathWidth: 0))
             #expect(pass.countdown(at: 0) == countdown.text, "\(countdown.untilMs)")
         }

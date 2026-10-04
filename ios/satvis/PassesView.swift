@@ -103,7 +103,7 @@ struct PassesSections: View {
     private var subjectID: String {
         switch subject {
         case .satellite(let entry): entry.id
-        case .station(let station, _): station.displayName
+        case .station(let station, _): station.id.uuidString
         }
     }
 

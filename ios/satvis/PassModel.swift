@@ -33,7 +33,9 @@ final class PassModel {
     private static let publishInterval = Duration.milliseconds(500)
 
     init() {
-        stations = storage.load()
+        let stations = storage.load()
+        storage.keepIDs(stations)
+        self.stations = stations
         mode = UserDefaults.standard.string(forKey: Self.modeKey).flatMap(OverpassMode.init(rawValue:)) ?? .elevation
         storage.onExternalChange = { [weak self] stations in
             self?.apply(stations, save: false)
@@ -54,8 +56,18 @@ final class PassModel {
         apply(GroundStations.normalized(stations), save: true)
     }
 
-    func add(latitude: Double, longitude: Double, name: String? = nil) {
-        setStations(stations + [GroundStation(latitude: latitude, longitude: longitude, name: name)])
+    /// Adds a station, and says which it became: the one already there when it
+    /// is in the same place under the same name.
+    @discardableResult
+    func add(latitude: Double, longitude: Double, name: String? = nil) -> UUID? {
+        let added = GroundStation(latitude: latitude, longitude: longitude, name: name)
+        setStations(stations + [added])
+        let place = GroundStations.Place(GroundStations.normalized([added])[0])
+        return stations.first { GroundStations.Place($0) == place }?.id
+    }
+
+    func station(_ id: UUID) -> GroundStation? {
+        stations.first { $0.id == id }
     }
 
     func setMode(_ mode: OverpassMode) {
@@ -118,9 +130,9 @@ final class PassModel {
     /// passes or the satellites change: it can run to hundreds of thousands.
     func passes(over station: GroundStation, of entries: [CatalogEntry], from now: Double) -> (passes: [Pass], settled: Bool) {
         let settled = entries.allSatisfy { windows[$0.id]?.covers(now) == true }
-        let key = StationKey(station: station.displayName, revision: revision, satellites: entries.map(\.id))
+        let key = StationKey(station: station.id, revision: revision, satellites: entries.map(\.id))
         if stationCache?.key != key {
-            let merged = entries.compactMap { passes[$0.id] }.flatMap(\.self).filter { $0.station == station.displayName }
+            let merged = entries.compactMap { passes[$0.id] }.flatMap(\.self).filter { $0.stationID == station.id }
             stationCache = (key, merged.sorted { $0.start < $1.start })
         }
         let all = stationCache?.passes ?? []
@@ -131,10 +143,10 @@ final class PassModel {
 
     /// Where the renderer draws the ground station links.
     func links(for entries: [CatalogEntry]) -> [StationLink] {
-        let byName = Dictionary(stations.map { ($0.displayName, $0) }, uniquingKeysWith: { first, _ in first })
+        let byID = Dictionary(stations.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return entries.flatMap { entry in
             (passes[entry.id] ?? []).compactMap { pass in
-                byName[pass.station].map { StationLink(satellite: entry.id, latitude: $0.latitude, longitude: $0.longitude, start: pass.start, end: pass.end) }
+                byID[pass.stationID].map { StationLink(satellite: entry.id, latitude: $0.latitude, longitude: $0.longitude, start: pass.start, end: pass.end) }
             }
         }
     }
@@ -154,14 +166,14 @@ final class PassModel {
     }
 
     var markers: [StationMarker] {
-        stations.enumerated().map { StationMarker(id: Self.markerID($0.offset), latitude: $0.element.latitude, longitude: $0.element.longitude) }
+        stations.map { StationMarker(id: Self.markerID($0.id), latitude: $0.latitude, longitude: $0.longitude) }
     }
 
-    /// The renderer's id for the station at a place in the list, and back.
-    static func markerID(_ index: Int) -> String { "station|\(index)" }
+    /// The renderer's id for a station, and back.
+    static func markerID(_ id: UUID) -> String { "station|\(id.uuidString)" }
 
-    static func stationIndex(_ id: String) -> Int? {
-        id.hasPrefix("station|") ? Int(id.dropFirst("station|".count)) : nil
+    static func stationID(_ markerID: String) -> UUID? {
+        markerID.hasPrefix("station|") ? UUID(uuidString: String(markerID.dropFirst("station|".count))) : nil
     }
 
     private func apply(_ stations: [GroundStation], save: Bool) {
@@ -178,7 +190,7 @@ final class PassModel {
 }
 
 private struct StationKey: Equatable {
-    var station: String
+    var station: UUID
     var revision: Int
     var satellites: [String]
 }
@@ -227,6 +239,15 @@ final class GroundStationStorage {
 
     func load() -> [GroundStation] {
         Self.stored()
+    }
+
+    /// Saves stations read without ids back with the ids they were given, so that
+    /// an id read once stays theirs.
+    func keepIDs(_ stations: [GroundStation]) {
+        guard let data = cloud.data(forKey: Self.key) ?? defaults.data(forKey: Self.key), !String(decoding: data, as: UTF8.self).contains("\"id\"") else {
+            return
+        }
+        save(stations)
     }
 
     static func stored() -> [GroundStation] {

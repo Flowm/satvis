@@ -40,8 +40,10 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   was made, as on the web.
 - Ground stations are kept in `UserDefaults` and mirrored to iCloud key-value
   storage (`satvis.entitlements`), so they follow the user to their other
-  devices. That needs the iCloud capability on the App ID. The renderer knows a
-  station by its place in the list (`station|<index>`), as the web app does. The globe's
+  devices. That needs the iCloud capability on the App ID. A station has an id
+  that syncs with it, and everything that refers to one holds the id, not its
+  place in the list or its name: the open panel, the renderer's marker
+  (`station|<id>`), each pass, and an alert, which is dropped with its station. The globe's
   gestures are SwiftUI's, not UIKit recognizers on the MTKView, so the controls laid
   over it take the touches that land on them.
 - Every element set reaches SGP4 as OMM keywords (`MeanElements`). The worker's

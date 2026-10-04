@@ -40,8 +40,8 @@ struct SatvisApp: App {
 enum Selection: Hashable {
     /// A catalog id.
     case satellite(String)
-    /// A place in the ground station list.
-    case station(Int)
+    /// A ground station, by its id.
+    case station(UUID)
 }
 
 /// The globe with the ground stations and satellites on it, the browser, the
@@ -177,6 +177,7 @@ struct ContentView: View {
             catalog.onChange = showActive
             passes.onStationsChange = {
                 showStations()
+                alerts.forgetStations(except: Set(passes.stations.map(\.id)))
                 Task { await alerts.reschedule() }
             }
             passes.onModeChange = { Task { await alerts.reschedule() } }
@@ -228,11 +229,11 @@ struct ContentView: View {
                     onTrack: { track(id, $0) }, onClose: { selection = nil }
                 )
             }
-        case .station(let index):
-            if passes.stations.indices.contains(index) {
-                let id = PassModel.markerID(index)
+        case .station(let stationID):
+            if let station = passes.station(stationID) {
+                let id = PassModel.markerID(stationID)
                 StationPanel(
-                    index: index, station: passes.stations[index], clock: clock, passes: passes, alerts: alerts, catalog: catalog, isTracked: tracked == id,
+                    station: station, clock: clock, passes: passes, alerts: alerts, catalog: catalog, isTracked: tracked == id,
                     onTrack: { track(id, $0) }, onClose: { selection = nil }
                 )
             }
@@ -256,15 +257,14 @@ struct ContentView: View {
             return
         }
         if isPicking {
-            if let place = renderer.groundPoint(at: point, viewSize: size) {
-                passes.add(latitude: place.latitude, longitude: place.longitude)
-                selection = .station(passes.stations.count - 1)
+            if let place = renderer.groundPoint(at: point, viewSize: size), let added = passes.add(latitude: place.latitude, longitude: place.longitude) {
+                selection = .station(added)
             }
             isPicking = false
             return
         }
         selection = renderer.entity(at: point, viewSize: size).map { id in
-            PassModel.stationIndex(id).map(Selection.station) ?? .satellite(id)
+            PassModel.stationID(id).map(Selection.station) ?? .satellite(id)
         }
     }
 
@@ -275,14 +275,13 @@ struct ContentView: View {
         Task { await satellites.show(entries, components: components, at: time) }
     }
 
-    /// Hands the renderer the stations, and lets go of one it may have been
-    /// following: the list positions it was known by may now be someone else's.
+    /// Hands the renderer the stations, and lets go of one that is gone.
     private func showStations() {
         renderer?.setStations(passes.markers)
-        if let tracked, PassModel.stationIndex(tracked) != nil {
+        if let tracked, let station = PassModel.stationID(tracked), passes.station(station) == nil {
             track(tracked, false)
         }
-        if case .station(let index) = selection, !passes.stations.indices.contains(index) {
+        if case .station(let station) = selection, passes.station(station) == nil {
             selection = nil
         }
     }
@@ -325,7 +324,7 @@ struct ContentView: View {
     /// Follows a satellite or a station, or lets it go. Tracking keeps a satellite
     /// active even when its group is switched off, as on the web.
     private func track(_ id: String, _ follow: Bool) {
-        let isStation = PassModel.stationIndex(id) != nil
+        let isStation = PassModel.stationID(id) != nil
         if follow {
             if !isStation {
                 catalog.setTracked(id)
@@ -333,7 +332,7 @@ struct ContentView: View {
                 catalog.setTracked(nil)
             }
             tracked = id
-            selection = PassModel.stationIndex(id).map(Selection.station) ?? .satellite(id)
+            selection = PassModel.stationID(id).map(Selection.station) ?? .satellite(id)
             renderer?.track(id)
         } else {
             renderer?.stopTracking()
