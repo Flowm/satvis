@@ -26,6 +26,7 @@ import type { DesiredScene } from "./SatelliteManager";
 import type { Observer } from "./SkyView";
 import { repositioned } from "./util/groundStationEdits";
 import { toMinuteIso } from "./util/urlCodec";
+import { adjustUrlDefault, arrivalParam } from "./util/urlSync";
 
 // Enough to keep a fast clock multiplier from hammering the history api.
 const MIN_CLOCK_WRITE_MS = 1000;
@@ -388,17 +389,30 @@ export function startSceneSync(cc: SceneTarget): void {
   // the crossing, so re-enabling survives every later change that leaves the
   // count above the budget, and only a drop back under and a fresh crossing
   // switches it off again.
+  //
+  // A link that names a component has made that call already, so the crossing its
+  // own activation causes leaves it on. Over its budget a component is not in the
+  // default, which is what keeps `elements` naming it in the url to be shared on.
   const overBudget = new Set<string>();
+  const withinBudget = (components: unknown): string[] => (components as string[]).filter((component) => !overBudget.has(component));
   watch(
     activeSatelliteCount,
     (count) => {
+      const named = arrivalParam("elements")?.split(",") ?? [];
+      let changed = false;
       for (const [component, budget] of Object.entries(COMPONENT_BUDGETS)) {
         if (count <= budget) {
-          overBudget.delete(component);
+          changed = overBudget.delete(component) || changed;
         } else if (!overBudget.has(component)) {
           overBudget.add(component);
-          satStore.enabledComponents = satStore.enabledComponents.filter((name) => name !== component);
+          changed = true;
+          if (!named.includes(component)) {
+            satStore.enabledComponents = satStore.enabledComponents.filter((name) => name !== component);
+          }
         }
+      }
+      if (changed) {
+        adjustUrlDefault("sat", "enabledComponents", overBudget.size > 0 ? withinBudget : undefined);
       }
     },
     { immediate: true },
