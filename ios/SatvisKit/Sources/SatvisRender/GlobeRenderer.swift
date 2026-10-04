@@ -51,16 +51,24 @@ public struct SatelliteComponents: OptionSet, Sendable, Hashable {
     ]
 }
 
+/// Which camera the view is seen through, and so what the gestures steer: the free
+/// camera over the globe, or one following a satellite or a ground station. The
+/// sky view (M6) is a third.
+public enum CameraMode: Sendable, Equatable {
+    case orbit
+    /// Following what has this id.
+    case tracking(String)
+}
+
 /// Draws the globe, the sky around it, the ground stations on it and the
 /// satellites over it, for one MTKView.
 @MainActor
 public final class GlobeRenderer: NSObject, MTKViewDelegate {
-    /// Nil until the view has a size, then the web app's home view.
-    public var camera: OrbitCamera?
-    /// The satellite or ground station the camera follows, by id. Nil for the free
-    /// camera.
-    public private(set) var tracked: String?
-    public var trackingCamera = TrackingCamera()
+    public private(set) var cameraMode = CameraMode.orbit
+    /// Nil until the view has a size, then the web app's home view. Kept while
+    /// tracking, for when what is followed cannot be placed.
+    private var orbitCamera: OrbitCamera?
+    private var trackingCamera = TrackingCamera()
     public var components: SatelliteComponents = [.point, .label]
     /// The instant to draw, in UTC milliseconds since 1970.
     public var clock: () -> Double = { (Date().timeIntervalSince1970 * 1000).rounded(.down) }
@@ -243,17 +251,42 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Follows a satellite or a ground station from where the web app's tracking
     /// view opens.
     public func track(_ id: String) {
-        tracked = id
+        cameraMode = .tracking(id)
         trackingCamera = TrackingCamera()
     }
 
     /// Lets go, and leaves the camera 2,000 km straight above what it followed, as
     /// the web app does.
     public func stopTracking() {
-        if let tracked, let lastFrame, let position = position(of: tracked, at: lastFrame.time) {
-            camera = .above(position, altitude: 2_000_000)
+        if case .tracking(let id) = cameraMode, let lastFrame, let position = position(of: id, at: lastFrame.time) {
+            orbitCamera = .above(position, altitude: 2_000_000)
         }
-        tracked = nil
+        cameraMode = .orbit
+    }
+
+    /// A drag of `points` on a view whose longer side is `longerSide` points: moves
+    /// the free camera over the globe, or circles what is followed.
+    public func drag(by points: SIMD2<Double>, longerSide: Double) {
+        switch cameraMode {
+        case .orbit: orbitCamera?.pan(by: points, longerSide: longerSide)
+        case .tracking: trackingCamera.orbit(by: points, longerSide: longerSide)
+        }
+    }
+
+    /// A pinch: nearer for a scale above 1.
+    public func zoom(by scale: Double) {
+        switch cameraMode {
+        case .orbit: orbitCamera?.zoom(by: scale)
+        case .tracking: trackingCamera.zoom(by: scale)
+        }
+    }
+
+    /// A twist, in radians.
+    public func rotate(by radians: Double) {
+        switch cameraMode {
+        case .orbit: orbitCamera?.rotate(by: radians)
+        case .tracking: trackingCamera.rotate(by: radians)
+        }
     }
 
     private func position(of id: String, at time: Double) -> SIMD3<Double>? {
@@ -349,8 +382,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         guard size.width > 0, size.height > 0 else {
             return
         }
-        if camera == nil {
-            camera = OrbitCamera.home(aspectRatio: size.width / size.height)
+        if orbitCamera == nil {
+            orbitCamera = OrbitCamera.home(aspectRatio: size.width / size.height)
         }
         func target(_ format: MTLPixelFormat) -> MTLTexture? {
             let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: Int(size.width), height: Int(size.height), mipmapped: false)
@@ -363,12 +396,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     public func draw(in view: MTKView) {
-        guard let camera, let hdr, let depth, let drawable = view.currentDrawable, let screen = view.currentRenderPassDescriptor else {
+        guard let orbitCamera, let hdr, let depth, let drawable = view.currentDrawable, let screen = view.currentRenderPassDescriptor else {
             return
         }
         let now = clock()
-        var pose = camera.pose()
-        if let tracked, let target = position(of: tracked, at: now) {
+        var pose = orbitCamera.pose()
+        if case .tracking(let id) = cameraMode, let target = position(of: id, at: now) {
             pose = trackingCamera.pose(target: target)
         }
         inFlight.wait()

@@ -5,25 +5,23 @@ import SwiftUI
 
 @main
 struct SatvisApp: App {
-    @State private var source: GPSource
-    @State private var alerts: PassAlerts
+    @State private var session: Session
 
     init() {
         let source = GPSource(repository: Self.repository())
-        _source = State(initialValue: source)
-        _alerts = State(initialValue: PassAlerts(source: source))
+        _session = State(initialValue: Session(source: source, alerts: PassAlerts(source: source)))
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView(source: source, alerts: alerts)
+            ContentView(session: session)
                 .preferredColorScheme(.dark)
         }
         // Element sets drift, and the four days ahead move on: predict the pass
         // notifications again from the newest, then ask to be woken again.
         .backgroundTask(.appRefresh(PassAlerts.refreshTaskID)) {
-            await alerts.reschedule()
-            await alerts.requestRefresh()
+            await session.alerts.reschedule()
+            await session.alerts.requestRefresh()
         }
     }
 
@@ -36,61 +34,21 @@ struct SatvisApp: App {
     }
 }
 
-/// What the info panel is about.
-enum Selection: Hashable {
-    /// A catalog id.
-    case satellite(String)
-    /// A ground station, by its id.
-    case station(UUID)
-}
-
 /// The globe with the ground stations and satellites on it, the browser, the
 /// stations and the components behind buttons, the info panel for what is
-/// selected, and the clock deck.
+/// selected, and the clock deck. Views only: what they do is the session's.
 struct ContentView: View {
-    let source: GPSource
-    let alerts: PassAlerts
-    @State private var clock = ViewerClock()
-    @State private var catalog: CatalogModel
-    @State private var satellites = SatelliteLayer()
-    @State private var passes = PassModel()
-    @State private var starMap = StarMap()
-    @State private var renderer: GlobeRenderer?
-    @State private var selection: Selection?
-    /// What the camera follows: a satellite's catalog id or a station's marker id.
-    @State private var tracked: String?
+    @Bindable var session: Session
     @State private var showsBrowser = false
     @State private var showsStations = false
-    @State private var isPicking = false
-    /// What the drawn links were built from.
-    @State private var linksKey: LinksKey?
-    /// When the data was last asked for again, so that the scene turning active
-    /// twice in a row does not ask twice.
-    @State private var revalidated = Date.distantPast
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
-    init(source: GPSource, alerts: PassAlerts) {
-        self.source = source
-        self.alerts = alerts
-        _catalog = State(initialValue: CatalogModel(source: source))
-    }
-
     var body: some View {
         GlobeView(
-            onRenderer: { renderer in
-                self.renderer = renderer
-                renderer.clock = { [clock] in clock.now() }
-                renderer.setStations(passes.markers)
-                satellites.attach(renderer)
-                starMap.attach(renderer)
-            },
-            onTap: tap,
-            onDoubleTap: { point, size in
-                if let id = renderer?.entity(at: point, viewSize: size) {
-                    track(id, true)
-                }
-            }
+            onRenderer: session.attach,
+            onTap: { session.tap(at: $0, viewSize: $1) },
+            onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) }
         )
         .ignoresSafeArea()
         .background(.black)
@@ -99,7 +57,7 @@ struct ContentView: View {
                 HStack {
                     Button("Satellites", systemImage: "list.bullet") { showsBrowser = true }
                     Button("Ground stations", systemImage: "mappin.and.ellipse") { showsStations = true }
-                    ComponentsMenu(catalog: catalog)
+                    ComponentsMenu(catalog: session.catalog)
                 }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.glass)
@@ -109,8 +67,8 @@ struct ContentView: View {
         }
         .overlay(alignment: .topTrailing) {
             // The way out of following something once its panel is closed.
-            if let tracked {
-                Button("Stop tracking", systemImage: "video.slash") { track(tracked, false) }
+            if let tracked = session.tracked {
+                Button("Stop tracking", systemImage: "video.slash") { session.track(tracked, false) }
                     .labelStyle(.iconOnly)
                     .buttonStyle(.glass)
                     .controlSize(.large)
@@ -118,7 +76,7 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .top) {
-            if let message = alerts.message {
+            if let message = session.alerts.message {
                 Text(message)
                     .font(.subheadline)
                     .padding(.horizontal, 16)
@@ -126,11 +84,11 @@ struct ContentView: View {
                     .glassEffect()
                     .padding(.top, 72)
                     .transition(.opacity)
-            } else if isPicking {
+            } else if session.isPicking {
                 HStack {
                     Text("Tap the globe to place a ground station")
                         .font(.subheadline)
-                    Button("Cancel") { isPicking = false }
+                    Button("Cancel") { session.isPicking = false }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
@@ -139,23 +97,23 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .bottom) {
-            ClockDeck(clock: clock, passes: passes, satellite: selectedSatellite)
+            ClockDeck(clock: session.clock, passes: session.passes, satellite: session.selectedSatellite)
                 .padding(.horizontal)
                 .padding(.bottom, 8)
         }
         .sheet(isPresented: $showsBrowser) {
-            BrowserView(catalog: catalog) { selection = .satellite($0.id) }
+            BrowserView(catalog: session.catalog) { session.selection = .satellite($0.id) }
         }
         .sheet(isPresented: $showsStations) {
-            GroundStationsView(passes: passes, onPick: { isPicking = true }, onSelect: { selection = .station($0) })
+            GroundStationsView(passes: session.passes, onPick: { session.isPicking = true }, onSelect: { session.selection = .station($0) })
         }
         // A column beside the globe where there is room for one, a sheet over the
         // lower half where there is not, leaving the globe to steer either way.
         .inspector(
             isPresented: Binding {
-                sizeClass == .regular && selection != nil
+                sizeClass == .regular && session.selection != nil
             } set: {
-                if !$0 { selection = nil }
+                if !$0 { session.selection = nil }
             }
         ) {
             infoPanel
@@ -164,9 +122,9 @@ struct ContentView: View {
         }
         .sheet(
             isPresented: Binding {
-                sizeClass != .regular && selection != nil
+                sizeClass != .regular && session.selection != nil
             } set: {
-                if !$0 { selection = nil }
+                if !$0 { session.selection = nil }
             }
         ) {
             infoPanel
@@ -174,179 +132,38 @@ struct ContentView: View {
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .task {
-            catalog.onChange = showActive
-            passes.onStationsChange = {
-                showStations()
-                alerts.forgetStations(except: Set(passes.stations.map(\.id)))
-                Task { await alerts.reschedule() }
-            }
-            passes.onModeChange = { Task { await alerts.reschedule() } }
-            // The kept copy first, so nothing waits on the network that a copy on
-            // disk can show; the worker's answers follow.
-            await source.loadKept()
-            if source.index == nil {
-                await source.refresh()
-            }
-            await catalog.start()
-            Task {
-                await source.refresh()
-                await catalog.revalidate(refetching: false)
-            }
-            await satellites.run(clock: clock)
-        }
-        .task {
-            await starMap.load(from: source)
-        }
-        .task {
-            await predictPasses()
+            await session.run()
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
-            case .active:
-                guard Date().timeIntervalSince(revalidated) > 60 else {
-                    break
-                }
-                revalidated = Date()
-                Task {
-                    await source.refresh()
-                    await catalog.revalidate()
-                    await alerts.reschedule()
-                }
-            case .background:
-                alerts.requestRefresh()
-            default:
-                break
+            case .active: session.becameActive()
+            case .background: session.enteredBackground()
+            default: break
             }
         }
     }
 
     @ViewBuilder private var infoPanel: some View {
-        switch selection {
+        switch session.selection {
         case .satellite(let id):
-            if let entry = catalog.catalog.entries[id] {
+            if let entry = session.catalog.catalog.entries[id] {
                 InfoPanel(
-                    entry: entry, clock: clock, passes: passes, alerts: alerts, isTracked: tracked == id,
-                    onTrack: { track(id, $0) }, onClose: { selection = nil }
+                    entry: entry, clock: session.clock, passes: session.passes, alerts: session.alerts, isTracked: session.tracked == id,
+                    onTrack: { session.track(id, $0) }, onClose: { session.selection = nil }
                 )
             }
         case .station(let stationID):
-            if let station = passes.station(stationID) {
+            if let station = session.passes.station(stationID) {
                 let id = PassModel.markerID(stationID)
                 StationPanel(
-                    station: station, clock: clock, passes: passes, alerts: alerts, catalog: catalog, isTracked: tracked == id,
-                    onTrack: { track(id, $0) }, onClose: { selection = nil }
+                    station: station, clock: session.clock, passes: session.passes, alerts: session.alerts, catalog: session.catalog,
+                    isTracked: session.tracked == id, onTrack: { session.track(id, $0) }, onClose: { session.selection = nil }
                 )
             }
         case nil:
             EmptyView()
         }
     }
-
-    /// The selected satellite, whose passes the clock deck marks.
-    private var selectedSatellite: String? {
-        if case .satellite(let id) = selection {
-            return id
-        }
-        return nil
-    }
-
-    /// A tap places a station while picking, and otherwise selects what it lands
-    /// on, or nothing.
-    private func tap(_ point: CGPoint, _ size: CGSize) {
-        guard let renderer else {
-            return
-        }
-        if isPicking {
-            if let place = renderer.groundPoint(at: point, viewSize: size), let added = passes.add(latitude: place.latitude, longitude: place.longitude) {
-                selection = .station(added)
-            }
-            isPicking = false
-            return
-        }
-        selection = renderer.entity(at: point, viewSize: size).map { id in
-            PassModel.stationID(id).map(Selection.station) ?? .satellite(id)
-        }
-    }
-
-    private func showActive() {
-        let entries = catalog.activeEntries
-        let components = catalog.components
-        let time = clock.now()
-        Task { await satellites.show(entries, components: components, at: time) }
-    }
-
-    /// Hands the renderer the stations, and lets go of one that is gone.
-    private func showStations() {
-        renderer?.setStations(passes.markers)
-        if let tracked, let station = PassModel.stationID(tracked), passes.station(station) == nil {
-            track(tracked, false)
-        }
-        if case .station(let station) = selection, passes.station(station) == nil {
-            selection = nil
-        }
-    }
-
-    /// Keeps the passes of what is shown predicted around the clock, once a second:
-    /// the selected satellite's, and every active one's while a station is selected
-    /// or their links are drawn.
-    private func predictPasses() async {
-        while !Task.isCancelled {
-            let active = catalog.activeEntries
-            let showsLinks = catalog.components.contains(.groundStationLink) && active.count <= SatelliteComponents.linkBudget
-            var wanted: [CatalogEntry] = []
-            var showsStation = false
-            switch selection {
-            case .satellite(let id):
-                wanted += catalog.catalog.entries[id].map { [$0] } ?? []
-            case .station:
-                showsStation = true
-            case nil:
-                break
-            }
-            if showsLinks || showsStation {
-                let selected = Set(wanted.map(\.id))
-                wanted += active.filter { !selected.contains($0.id) }
-            }
-            if passes.hasStations, !wanted.isEmpty {
-                await passes.refresh(wanted, at: clock.now())
-            }
-            await passes.keep(only: wanted)
-            // Rebuilt only when the passes or the satellites changed.
-            let links = LinksKey(revision: passes.revision, satellites: showsLinks ? active.map(\.id) : [])
-            if links != linksKey {
-                linksKey = links
-                renderer?.setLinks(showsLinks ? passes.links(for: active) : [])
-            }
-            try? await Task.sleep(for: .seconds(1))
-        }
-    }
-
-    /// Follows a satellite or a station, or lets it go. Tracking keeps a satellite
-    /// active even when its group is switched off, as on the web.
-    private func track(_ id: String, _ follow: Bool) {
-        let isStation = PassModel.stationID(id) != nil
-        if follow {
-            if !isStation {
-                catalog.setTracked(id)
-            } else if catalog.tracked != nil {
-                catalog.setTracked(nil)
-            }
-            tracked = id
-            selection = PassModel.stationID(id).map(Selection.station) ?? .satellite(id)
-            renderer?.track(id)
-        } else {
-            renderer?.stopTracking()
-            tracked = nil
-            if !isStation {
-                catalog.setTracked(nil)
-            }
-        }
-    }
-}
-
-private struct LinksKey: Equatable {
-    var revision: Int
-    var satellites: [String]
 }
 
 /// Which satellite components are drawn.

@@ -39,11 +39,7 @@ struct GlobeView: View {
                     .onChanged { value in
                         let delta = SIMD2(Double(value.translation.width - lastTranslation.width), Double(value.translation.height - lastTranslation.height))
                         lastTranslation = value.translation
-                        if renderer?.tracked != nil {
-                            renderer?.trackingCamera.orbit(by: delta, longerSide: longerSide)
-                        } else {
-                            renderer?.camera?.pan(by: delta, longerSide: longerSide)
-                        }
+                        renderer?.drag(by: delta, longerSide: longerSide)
                     }
                     .onEnded { _ in lastTranslation = .zero }
             )
@@ -52,11 +48,7 @@ struct GlobeView: View {
                     .onChanged { value in
                         let scale = value.magnification / lastMagnification
                         lastMagnification = value.magnification
-                        if renderer?.tracked != nil {
-                            renderer?.trackingCamera.zoom(by: scale)
-                        } else {
-                            renderer?.camera?.zoom(by: scale)
-                        }
+                        renderer?.zoom(by: scale)
                     }
                     .onEnded { _ in lastMagnification = 1 }
             )
@@ -65,11 +57,7 @@ struct GlobeView: View {
                     .onChanged { value in
                         let radians = (value.rotation - lastRotation).radians
                         lastRotation = value.rotation
-                        if renderer?.tracked != nil {
-                            renderer?.trackingCamera.rotate(by: radians)
-                        } else {
-                            renderer?.camera?.rotate(by: radians)
-                        }
+                        renderer?.rotate(by: radians)
                     }
                     .onEnded { _ in lastRotation = .zero }
             )
