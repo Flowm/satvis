@@ -1,0 +1,79 @@
+// Ported from CesiumJS (Shaders/GlobeVS.glsl, GlobeFS.glsl, GroundAtmosphere.glsl) with
+// Scene/Globe.js's defaults.
+// Copyright 2011-2024 CesiumJS Contributors. Licensed under the Apache License,
+// Version 2.0, with the third-party notices it carries: LICENSE.CesiumJS.md
+// beside this file. Changed for satvis: translated from GLSL to the Metal
+// Shading Language, reduced to the branches the web app's settings take, and fed
+// by FrameUniforms instead of Cesium's automatic uniforms.
+//
+// The globe: imagery lit by the Sun and seen through the ground atmosphere, as
+// CesiumJS draws it with lighting, HDR and the ground atmosphere on, which are the
+// web app's defaults.
+
+// Mirrors GlobeVertex in Meshes.swift.
+struct GlobeVertex {
+    float3 high;
+    float3 low;
+    float3 normal;
+    float2 uv;
+};
+
+struct GlobeOut {
+    float4 position [[position]];
+    float3 positionWC;
+    float3 normal;
+    float2 uv;
+    float3 rayleighColor;
+    float3 mieColor;
+    float opacity;
+};
+
+// Globe.js: lighting fades in between these camera distances, and the night side
+// of the ground atmosphere darkens between the other two.
+constant float minimumRadius = 6356752.3142451793;
+constant float lightingFadeOutDistance = M_PI_2_F * minimumRadius;
+constant float lightingFadeInDistance = M_PI_F * minimumRadius;
+constant float nightFadeOutDistance = M_PI_2_F * minimumRadius;
+constant float nightFadeInDistance = 5.0 * M_PI_2_F * minimumRadius;
+constant float groundAtmosphereLightIntensity = 10.0;
+
+vertex GlobeOut globeVertex(uint vid [[vertex_id]], const device GlobeVertex *vertices [[buffer(0)]], constant FrameUniforms &frame [[buffer(1)]]) {
+    GlobeVertex v = vertices[vid];
+    GlobeOut out;
+    out.position = frame.viewProjection * float4(relativeToEye(v.high, v.low, frame), 1.0);
+    out.positionWC = v.high + v.low;
+    out.normal = v.normal;
+    out.uv = v.uv;
+
+    // GroundAtmosphere.glsl, per vertex as Cesium does it below the night fade.
+    float3 cameraToPosition = out.positionWC - frame.cameraPosition;
+    float rayLength = length(cameraToPosition);
+    computeScattering(frame.cameraPosition, cameraToPosition / rayLength, rayLength, frame.sunDirection, length(out.positionWC), out.rayleighColor, out.mieColor,
+                      out.opacity);
+    return out;
+}
+
+fragment float4 globeFragment(GlobeOut in [[stage_in]], constant FrameUniforms &frame [[buffer(1)]], texture2d<float> imagery [[texture(0)]],
+                              sampler imagerySampler [[sampler(0)]]) {
+    float3 color = gammaCorrect(imagery.sample(imagerySampler, in.uv).rgb);
+    float3 normal = normalize(in.normal);
+    float3 light = frame.sunDirection;
+
+    float fade = clamp((frame.cameraDistance - lightingFadeOutDistance) / (lightingFadeInDistance - lightingFadeOutDistance), 0.0, 1.0);
+    float diffuseIntensity = clamp(max(dot(light, normal), 0.0) * 5.0 + 0.3, 0.0, 1.0);
+    diffuseIntensity = mix(1.0, diffuseIntensity, fade);
+    float3 finalColor = color * diffuseIntensity;
+
+    float3 viewDirection = normalize(in.positionWC - frame.cameraPosition);
+    float4 groundAtmosphereColor = computeAtmosphereColor(viewDirection, light, in.rayleighColor, in.mieColor, in.opacity, groundAtmosphereLightIntensity);
+    float transmittance = 0.5 + clamp(1.0 - groundAtmosphereColor.a, 0.0, 1.0);
+    float3 finalAtmosphereColor = finalColor + groundAtmosphereColor.rgb * transmittance;
+
+    float sunlitAtmosphereIntensity = clamp((frame.cameraDistance - nightFadeOutDistance) / (nightFadeInDistance - nightFadeOutDistance), 0.05, 1.0);
+    float darken = clamp(dot(normalize(in.positionWC), light), 0.0, 1.0);
+    float3 darkenedGroundAtmosphereColor = mix(groundAtmosphereColor.rgb, finalAtmosphereColor, darken);
+    finalAtmosphereColor = mix(darkenedGroundAtmosphereColor, finalAtmosphereColor, sunlitAtmosphereIntensity);
+    finalAtmosphereColor = saturation(finalAtmosphereColor, 1.6);
+
+    return float4(mix(finalColor, finalAtmosphereColor, fade), 1.0);
+}
