@@ -1,4 +1,4 @@
-import { Cartesian3, Math as CesiumMath, PerspectiveFrustum, type Scene, SceneMode } from "@cesium/engine";
+import { Cartesian3, Math as CesiumMath, type LabelCollection, PerspectiveFrustum, type Scene, SceneMode } from "@cesium/engine";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
@@ -294,5 +294,15 @@ describe("the scene state the view borrows", () => {
     cut();
     await roundTrip(false);
     await roundTrip(true);
+  });
+
+  test("lets the ground occlude labels while the view is up, and puts their distance back", async () => {
+    cut();
+    const labels = { coarseDepthTestDistance: 635_675, isDestroyed: () => false };
+    const view = new SkyView(stubScene(false) as unknown as Scene, () => labels as unknown as LabelCollection);
+    await view.enter({ lat: 47.3879, lon: 12.3077 });
+    expect(labels.coarseDepthTestDistance).toBe(Number.POSITIVE_INFINITY);
+    await view.exit();
+    expect(labels.coarseDepthTestDistance).toBe(635_675);
   });
 });

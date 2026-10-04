@@ -18,4 +18,10 @@ declare module "@cesium/engine" {
     /** Drives the component visibility updates. */
     frameState: unknown;
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface EntityCluster {
+    /** Created with the first label, then kept for the cluster's life. */
+    _labelCollection?: LabelCollection;
+  }
 }

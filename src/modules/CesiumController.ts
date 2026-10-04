@@ -197,7 +197,8 @@ export class CesiumController {
 
     this.sats = new SatelliteManager(this.viewer);
 
-    this.skyView = new SkyView(this.viewer.scene);
+    // The satellites' labels, which live in `viewer.entities`' cluster.
+    this.skyView = new SkyView(this.viewer.scene, () => this.viewer.dataSourceDisplay.defaultDataSource.clustering._labelCollection);
     this.skyInteraction = new SkyInteraction({
       scene: this.viewer.scene,
       skyView: this.skyView,
