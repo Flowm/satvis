@@ -274,7 +274,8 @@ export function useSelectedEntity(instance: CesiumController) {
     if (target.isTracked) {
       cc().viewer.trackedEntity = undefined;
     } else {
-      target.track();
+      // Animated, but not while the sky view holds the camera: a flight would fight it.
+      target.track(!cc().skyView.active);
     }
   }
 

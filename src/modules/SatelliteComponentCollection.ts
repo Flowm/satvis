@@ -2,6 +2,7 @@ import {
   ArcType,
   BoundingSphere,
   CallbackProperty,
+  Camera,
   Cartesian2,
   Cartesian3,
   Color,
@@ -12,13 +13,11 @@ import {
   Entity,
   EntityView,
   GeometryInstance,
-  HeadingPitchRange,
   HeightReference,
   HorizontalOrigin,
   JulianDate,
   LabelGraphics,
   LabelStyle,
-  Math as CesiumMath,
   ModelGraphics,
   NearFarScalar,
   PathGraphics,
@@ -27,6 +26,7 @@ import {
   PolylineGeometry,
   PolylineGlowMaterialProperty,
   PolylineGraphics,
+  type Scene,
   SceneMode,
   VelocityOrientationProperty,
 } from "@cesium/engine";
@@ -40,6 +40,7 @@ import type { GroundStation } from "./PassPredictor";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import { coneDescription, coneOrientation, groundTrackDescription, modelUri, orbitPathTimes, orbitTrackTimes, orbitUsesPathGraphic } from "./satelliteGraphics";
 import { SatelliteProperties } from "./SatelliteProperties";
+import { trackEntity, type CameraPose } from "./trackFlight";
 import { drawablePositions } from "./util/drawablePositions";
 import type { PassPredictorSource } from "./util/passSource";
 import type { PolylineBatch } from "./util/PolylineBatch";
@@ -94,6 +95,17 @@ const CREATORS: Record<(typeof SATELLITE_COMPONENTS)[number], (sat: SatelliteCom
  * `_useDefaultRenderLoop` off and stops the app for the rest of the session.
  */
 const MIN_POLYLINE_POSITIONS = 2;
+
+/**
+ * `EntityView` has no destroy(), and its velocity property stays subscribed to the
+ * entity's position until that is cleared. The field is private, hence optional.
+ */
+function releaseEntityView(view: EntityView): void {
+  const velocity = (view as unknown as { _velocityProperty?: { position: unknown } })._velocityProperty;
+  if (velocity) {
+    velocity.position = undefined;
+  }
+}
 
 /**
  * An Entity when the component is drawn on its own, a GeometryInstance when it is
@@ -197,29 +209,32 @@ export class SatelliteComponentCollection {
     componentNames.forEach((name) => this.disableComponent(name));
   }
 
+  /** `animate` flies to the tracked view first, in 3D. */
   track(animate = false): void {
     if (!this.defaultEntity) {
       return;
     }
-    if (!animate) {
-      this.viewer.trackedEntity = this.defaultEntity;
-      return;
-    }
-
-    this.viewer.trackedEntity = undefined;
-    const clockRunning = this.viewer.clock.shouldAnimate;
-    this.viewer.clock.shouldAnimate = false;
-    void this.viewer.flyTo(this.defaultEntity, { offset: new HeadingPitchRange(0, -CesiumMath.PI_OVER_FOUR, 1580000) }).then((result: boolean) => {
-      if (result) {
-        this.viewer.trackedEntity = this.defaultEntity;
-        this.viewer.clock.shouldAnimate = clockRunning;
-      }
-    });
+    const pose = animate && this.viewer.scene.mode === SceneMode.SCENE3D ? this.#trackedCameraPose(this.defaultEntity) : undefined;
+    trackEntity(this.viewer, () => this.defaultEntity, pose);
   }
 
   /**
-   * Drive the camera from the entity's own position while it is tracked, and put
-   * it back to a sensible angle when tracking stops.
+   * Where engaging `trackedEntity` would put the camera right now. A flight that
+   * lands anywhere else jumps on arrival, and only `EntityView` knows which frame
+   * Cesium tracks a satellite in. It answers by moving the camera it is given, so
+   * it gets one of its own.
+   */
+  #trackedCameraPose(entity: Entity): CameraPose {
+    const { scene } = this.viewer;
+    const camera = new Camera(scene);
+    const probe = new EntityView(entity, Object.create(scene, { camera: { value: camera } }) as Scene, scene.globe.ellipsoid);
+    probe.update(this.viewer.clock.currentTime);
+    releaseEntityView(probe);
+    return { destination: Cartesian3.clone(camera.positionWC), direction: Cartesian3.clone(camera.directionWC), up: Cartesian3.clone(camera.upWC) };
+  }
+
+  /**
+   * Drive the camera from the entity's own position while it is tracked.
    */
   artificiallyTrack(): void {
     const entity = this.defaultEntity;
@@ -233,9 +248,7 @@ export class SatelliteComponentCollection {
     const removeTracked = this.viewer.trackedEntityChanged.addEventListener(() => {
       removeTick();
       removeTracked();
-      if (typeof this.viewer.trackedEntity === "undefined") {
-        void this.viewer.flyTo(entity, { offset: new HeadingPitchRange(0, CesiumMath.toRadians(-90.0), 2000000) });
-      }
+      releaseEntityView(cameraTracker);
     });
   }
 

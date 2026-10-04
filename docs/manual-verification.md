@@ -785,3 +785,42 @@ the offsets are written in terms of `env(safe-area-inset-bottom)` now rather tha
 around it, but no run has had a home indicator to prove it. The same goes for
 rotation, where the surface is re-measured from the `resize` listener rather than
 from the observer.
+
+## Tracking: the flight lands where tracking puts the camera
+
+**Why it cannot be a unit test.** The pose comes from Cesium's `EntityView`, and
+whether the camera moves when `trackedEntity` engages is a property of the real
+camera, tweens and frames. The flight bookkeeping is unit-tested
+(`trackFlight.test.ts`); this is the part that is not.
+
+**Procedure.** Open `?sats=ISS+(ZARYA),CSS+(TIANHE)&bench=true&framepump=1`, pause the
+clock, and record the camera's world-space position (`camera.transform` applied to
+`camera.position`) when `trackedEntity` is assigned and 20 frames later, across
+untracked → ISS, ISS → CSS, and ISS → CSS → ISS interrupted mid-flight. Count calls
+to `viewer.flyTo`, the overview fly-back. Repeat with the clock running, in 2D, and
+enter the sky view mid-flight.
+
+**Result, 2026-10-04, Chrome (in-app browser pane, frame pump on).** Clock paused:
+handoffs moved the camera 1.3 mm and 8 mm with identical direction, the interrupted
+chain landed once on the last satellite, and only a deliberate untrack flew back.
+Clock running: paused for the flight, resumed on landing, and the camera's offset
+from the satellite changed as in steady tracking (3.3–3.5 km over 20 frames). 2D
+tracked instantly. Entering the sky view cancelled the flight, gave the clock back
+and tracked nothing. The Track button flew, landed and wrote `track` to the url.
+
+**Switching from a tracked satellite, 2026-10-04.** With ISS tracked among 653
+satellites, clicking another satellite on the globe opened its panel and left the
+camera still and ISS tracked. Its Track button then flew there. Probing the pose on
+the real camera and restoring it with `setView` had teleported the camera about
+11,000 km before the flight began, because `setView` reads the saved position as
+world coordinates and it was relative to the tracking transform. The probe runs on a
+camera of its own now: no move on the click, and none after landing across four
+switches.
+
+**Stopping, 2026-10-04.** Stopping used to fly to 2,000 km above the satellite, so a
+view from 13,017 km came back at 2,421 km over wherever the satellite had got to. It
+now flies back to the view tracking began from: 0 km off and the same direction after
+an animated track, after ISS then CSS, after an instant track and after tracking a
+ground station. Entering the sky view while tracking used to save the tracking-relative
+camera position as its way back, and leaving dropped the camera onto the surface; it
+now untracks first, and leaving lands 0 km from the tracked view.
