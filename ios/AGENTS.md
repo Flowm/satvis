@@ -29,7 +29,10 @@ on `RUNTIME="iOS 27"` or the newest runtime that has it (default `iPhone 17`);
   it needs the network.
 - **`run URL=…`** installs and launches with the page replaced.
 - **`screenshots`** erases one simulator per App Store size and writes
-  `screenshots/`. Upload them to App Store Connect by hand.
+  `screenshots/`: the about page's three demo views, from the
+  `testScreenshot*` tests. `BASE_URL=http://localhost:5187` takes them from
+  `pnpm dev` instead of satvis.space, for views that need undeployed changes.
+  Upload them to App Store Connect by hand.
 - **Inspect the page:** Debug builds are inspectable from Safari's Develop menu.
 
 ## The web page
