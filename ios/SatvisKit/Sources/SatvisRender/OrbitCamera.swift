@@ -91,7 +91,8 @@ public struct OrbitCamera: Sendable, Equatable {
         altitude = min(max(altitude / scale, Self.minimumAltitude), Self.maximumAltitude)
     }
 
+    /// A twist of `radians` clockwise on the screen turns the globe with the fingers.
     public mutating func rotate(by radians: Double) {
-        heading -= radians
+        heading += radians
     }
 }
