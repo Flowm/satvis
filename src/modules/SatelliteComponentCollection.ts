@@ -40,7 +40,7 @@ import type { GroundStation } from "./PassPredictor";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import { coneDescription, coneOrientation, groundTrackDescription, modelUri, orbitPathTimes, orbitTrackTimes, orbitUsesPathGraphic } from "./satelliteGraphics";
 import { SatelliteProperties } from "./SatelliteProperties";
-import { trackEntity, type CameraPose } from "./trackFlight";
+import { cancelPendingTrack, trackEntity, trackWhenReady, type CameraPose } from "./trackFlight";
 import { drawablePositions } from "./util/drawablePositions";
 import type { PassPredictorSource } from "./util/passSource";
 import type { PolylineBatch } from "./util/PolylineBatch";
@@ -66,11 +66,18 @@ const POINT_COLOR = Object.fromEntries(Object.entries(ORBIT_CLASS_COLOR).map(([o
  * groundTrackSettled.
  */
 const BOUNDING_SPHERE_PENDING = 1;
+const BOUNDING_SPHERE_DONE = 0;
 
 // Where tracking starts, east-north-up from the satellite: far enough out to see
 // it in context, or, with its 3D model on, close enough to see the model.
 const VIEW_FROM = new Cartesian3(0, -3600000, 4200000);
-const VIEW_FROM_MODEL = new Cartesian3(9, -10, 5);
+// South-east of and above the model, with the Earth's limb behind it, and as many
+// of its radii out as frame it: the models are drawn at their real size, so a
+// cubesat and the ISS are 300 times apart.
+const VIEW_FROM_MODEL_DIRECTION = Cartesian3.normalize(new Cartesian3(9, -10, 5), new Cartesian3());
+const VIEW_FROM_MODEL_RADII = 6;
+/** For a model not loaded yet: a small satellite's. */
+const FALLBACK_MODEL_RADIUS = 2.5;
 
 /**
  * How each component is made. Keyed against the config list rather than written
@@ -116,7 +123,7 @@ type Component = Entity | GeometryInstance;
 
 /** One satellite's Cesium objects, created on demand and dropped on disable. */
 export class SatelliteComponentCollection {
-  /** Written into by `getBoundingSphere` and never read. See groundTrackSettled. */
+  /** Written into by `getBoundingSphere`. See groundTrackSettled. */
   static readonly #sphereScratch = new BoundingSphere();
 
   /** So a broken assumption is reported once rather than on every tick. */
@@ -211,11 +218,20 @@ export class SatelliteComponentCollection {
 
   /** `animate` flies to the tracked view first, in 3D. */
   track(animate = false): void {
-    if (!this.defaultEntity) {
-      return;
-    }
-    const pose = animate && this.viewer.scene.mode === SceneMode.SCENE3D ? this.#trackedCameraPose(this.defaultEntity) : undefined;
-    trackEntity(this.viewer, () => this.defaultEntity, pose);
+    // The close-up distance is the model's size: tracked while loading, the ISS
+    // would be framed from inside.
+    trackWhenReady(
+      this.viewer,
+      this,
+      () => !this.#modelPending(),
+      () => {
+        if (!this.defaultEntity) {
+          return;
+        }
+        const pose = animate && this.viewer.scene.mode === SceneMode.SCENE3D ? this.#trackedCameraPose(this.defaultEntity) : undefined;
+        trackEntity(this.viewer, () => this.defaultEntity, pose);
+      },
+    );
   }
 
   /**
@@ -325,8 +341,41 @@ export class SatelliteComponentCollection {
     }
   }
 
-  #viewFrom(): Cartesian3 {
-    return "3D model" in this.#components ? VIEW_FROM_MODEL : VIEW_FROM;
+  #viewFrom(): Cartesian3 | CallbackProperty {
+    return "3D model" in this.#components ? this.#modelViewFrom : VIEW_FROM;
+  }
+
+  // A callback rather than a value because the model's size is known only once it
+  // has loaded, and EntityView reads this when tracking starts.
+  readonly #modelViewFrom = new CallbackProperty(
+    (_time, result?: Cartesian3) => Cartesian3.multiplyByScalar(VIEW_FROM_MODEL_DIRECTION, VIEW_FROM_MODEL_RADII * this.#modelRadius(), result ?? new Cartesian3()),
+    false,
+  );
+
+  #modelPending(): boolean {
+    return this.#modelState() === "loading";
+  }
+
+  #modelRadius(): number {
+    return this.#modelState() === "ready" ? SatelliteComponentCollection.#sphereScratch.radius : FALLBACK_MODEL_RADIUS;
+  }
+
+  /** "ready" leaves the model's bounding sphere in #sphereScratch. */
+  #modelState(): "none" | "loading" | "ready" | "failed" {
+    const model = this.#components["3D model"];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const display = this.viewer.dataSourceDisplay as any;
+    if (!(model instanceof Entity) || typeof display?.getBoundingSphere !== "function") {
+      return "none";
+    }
+    try {
+      const state = display.getBoundingSphere(model, false, SatelliteComponentCollection.#sphereScratch);
+      return state === BOUNDING_SPHERE_DONE ? "ready" : state === BOUNDING_SPHERE_PENDING ? "loading" : "failed";
+    } catch {
+      // An entity added since the display last updated is unknown to its geometry
+      // visualizer, which throws rather than answering PENDING.
+      return "loading";
+    }
   }
 
   // Read when tracking starts, so a camera already following the satellite stays put.
@@ -396,6 +445,7 @@ export class SatelliteComponentCollection {
     // more subscriber on the predictor's list every time round.
     Object.values(this.eventListeners).forEach((remove) => remove?.());
     this.eventListeners = {};
+    cancelPendingTrack(this.viewer, this);
   }
 
   /**

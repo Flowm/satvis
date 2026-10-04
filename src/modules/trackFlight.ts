@@ -13,6 +13,9 @@ const flights = new WeakMap<Viewer, { clockWasRunning: boolean }>();
 /** Where the camera was when tracking began, through any switches since. */
 const viewsBeforeTracking = new WeakMap<Viewer, CameraPose>();
 
+/** The one track waiting on a viewer, and who asked for it. */
+const pendingTracks = new WeakMap<Viewer, { owner: unknown; cancel: () => void }>();
+
 function currentView(camera: Camera): CameraPose {
   return { destination: Cartesian3.clone(camera.positionWC), direction: Cartesian3.clone(camera.directionWC), up: Cartesian3.clone(camera.upWC) };
 }
@@ -38,6 +41,42 @@ export function returnAfterTracking(viewer: Viewer): void {
       viewsBeforeTracking.delete(viewer);
       flyTo(viewer, view);
     }
+  });
+}
+
+/** Drop the viewer's waiting track; with `owner`, only if it asked for it. */
+export function cancelPendingTrack(viewer: Viewer, owner?: unknown): void {
+  const pending = pendingTracks.get(viewer);
+  if (pending && (owner === undefined || pending.owner === owner)) {
+    pendingTracks.delete(viewer);
+    pending.cancel();
+  }
+}
+
+/**
+ * Run `track` once `ready()` holds, checked after each render. A viewer waits on one
+ * track at a time: a newer request replaces it, and tracking changing some other way
+ * drops it.
+ */
+export function trackWhenReady(viewer: Viewer, owner: unknown, ready: () => boolean, track: () => void): void {
+  cancelPendingTrack(viewer);
+  if (ready()) {
+    track();
+    return;
+  }
+  const removeRender = viewer.scene.postRender.addEventListener(() => {
+    if (ready()) {
+      cancelPendingTrack(viewer);
+      track();
+    }
+  });
+  const removeTracked = viewer.trackedEntityChanged.addEventListener(() => cancelPendingTrack(viewer));
+  pendingTracks.set(viewer, {
+    owner,
+    cancel: () => {
+      removeRender();
+      removeTracked();
+    },
   });
 }
 
