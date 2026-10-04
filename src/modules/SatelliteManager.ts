@@ -703,11 +703,19 @@ export class SatelliteManager {
     );
     // Before show(), which is what reads the trajectory.
     sat.props.trajectory.adopt(chunk);
+    sat.props.passPredictor.mode = this.#desired.overpassMode;
+    sat.show(this.#effectiveComponents());
+    // After show(): `defaultEntity` is "the first Entity to be created"
+    // (SatelliteComponentCollection's own doc comment) and the ground-station
+    // link is now a real, scene-attached Entity like any other component —
+    // setting it before anything else would make the camera/selection default
+    // to a polyline that is invisible outside a pass, instead of to Point (or
+    // whatever the user actually chose). Harmless to set it after: the link
+    // only shows at all once drawn, and setting it right away costs nothing
+    // show() didn't already cost.
     if (this.groundStationAvailable) {
       sat.groundStations = this.#stations;
     }
-    sat.props.passPredictor.mode = this.#desired.overpassMode;
-    sat.show(this.#effectiveComponents());
     this.#active.set(key, sat);
   }
 
