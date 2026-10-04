@@ -126,18 +126,19 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: 4) {
+            // Flush with the bottom edge, as on the web.
+            ClockDeck(clock: session.clock, passes: session.passes, satellite: session.selectedSatellite) {
                 // Where the web app has its credit line: the map's sources are owed
                 // a link in sight of the map.
                 Button("Attribution") { showsAttribution = true }
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.8))
                     .shadow(color: .black, radius: 2)
-                    .padding(.leading, 12)
-                ClockDeck(clock: session.clock, passes: session.passes, satellite: session.selectedSatellite)
+                    .padding(.leading, 8)
+                    .lineLimit(1)
+                    .fixedSize()
             }
-            .padding(.horizontal)
-            .padding(.bottom, 8)
+            .frame(maxWidth: .infinity)
         }
         .sheet(isPresented: $showsBrowser) {
             BrowserView(catalog: session.catalog) { session.selection = .satellite($0.id) }

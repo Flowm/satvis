@@ -58,3 +58,21 @@ globe's limb swinging past and the globe camera. The compass answered "This devi
 no motion sensor to aim with": the simulator has none, so aiming itself, its drag
 hand-back and its levelling still need a device. The ground at night is lit as by
 day, as CesiumJS's lighting fades out near the ground and the web's does the same.
+
+## Native app: labels, pins, the twist and the clock deck
+
+**Procedure.** In the iPhone 17e simulator, on the default view with the stored
+station: compare the labels near the globe's limb with satvis.space at 390 × 844; twist
+clockwise with two fingers; open the clock deck, switch to the ladder, take a rung and
+come back.
+
+**Result, 2026-10-05.** Labels overhanging the globe draw whole over it, as on the web,
+and a satellite behind the Earth takes its label with it; METEOR-M2 and MAKERSAT no
+longer throw spikes off their M. The pin stands about 17 points tall at the default
+height. A clockwise twist turned north from the top of the screen to the right. The
+deck matches the web's: the clock on the amber needle, the white play disc to its left,
+the scale chip to its right and the amber reset after it, the tab widening to take it,
+over a full-width row running down to the bottom edge with the ticks rising from the
+bottom; the ladder settles on a rung with its rate under it. Folded, the clock stays
+where it was. "Attribution" stands at the left end of the control row, beside the tab
+open or folded, and opens its sheet.
