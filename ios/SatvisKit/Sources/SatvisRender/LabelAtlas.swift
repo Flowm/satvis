@@ -58,6 +58,10 @@ struct LabelAtlas {
         let bitmap = Bitmap(width: width, height: atlasHeight, alpha: true) { context in
             // Core Graphics counts rows from the bottom; the frames count from the top.
             context.textMatrix = .identity
+            // Round, as Cesium strokes its labels: a mitred outline throws spikes
+            // off the sharp corners of an M or a V, long enough to reach the next
+            // name in the atlas.
+            context.setLineJoin(.round)
             for (name, frame) in zip(names, frames) {
                 let baseline = CGFloat(atlasHeight) - frame.minY - outline - ascent
                 for stroke in [true, false] {

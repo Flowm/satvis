@@ -431,8 +431,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         var best: (id: String, distance: Double)?
         for station in stations where Self.isAboveHorizon(station.position, from: lastFrame.position) {
-            // The pin's head, half its height above the spot.
-            if let distance = screenDistance(station.position, lift: 14), distance < reach, distance < best?.distance ?? .infinity {
+            // The pin's head, near the top of the needle.
+            if let distance = screenDistance(station.position, lift: 12), distance < reach, distance < best?.distance ?? .infinity {
                 best = (station.id, distance)
             }
         }
@@ -638,6 +638,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                     encoder.setDepthStencilState(depthTest)
                 }
                 if components.contains(.label), let labels = points.prepared?.labels {
+                    // Over the globe, unless the eye is on the ground (Shaders/Labels.msl).
+                    var occludedByEarth = Int32(cameraMode == .sky ? 0 : 1)
+                    encoder.setDepthStencilState(cameraMode == .sky ? depthTest : noDepth)
+                    encoder.setVertexBytes(&occludedByEarth, length: MemoryLayout<Int32>.size, index: 5)
                     encoder.setRenderPipelineState(labelPipeline)
                     encoder.setVertexBuffer(labels.instances, offset: 0, index: 4)
                     encoder.setFragmentTexture(labels.atlas.texture, index: 0)
