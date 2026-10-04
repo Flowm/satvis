@@ -12,7 +12,7 @@ public enum RendererError: Error {
 /// Compiles Shaders/*.msl. At run time rather than at build time, so that neither
 /// the build nor CI needs Xcode's separately downloaded Metal toolchain.
 enum ShaderLibrary {
-    static let files = ["Common", "Sky", "Globe", "Points", "Lines", "Labels", "Stations", "Tonemap"]
+    static let files = ["Common", "Sky", "Globe", "Points", "Lines", "Labels", "Stations", "Footprints", "Tonemap"]
 
     static func make(device: MTLDevice) async throws -> MTLLibrary {
         let source = try files.map { name in
@@ -38,6 +38,8 @@ public struct SatelliteComponents: OptionSet, Sendable, Hashable {
     public static let label = SatelliteComponents(rawValue: 1 << 1)
     public static let orbit = SatelliteComponents(rawValue: 1 << 2)
     public static let orbitTrack = SatelliteComponents(rawValue: 1 << 3)
+    public static let groundTrack = SatelliteComponents(rawValue: 1 << 4)
+    public static let sensorCone = SatelliteComponents(rawValue: 1 << 5)
     public static let groundStationLink = SatelliteComponents(rawValue: 1 << 7)
 
     /// Past these many satellites a component is not drawn, as the web app
@@ -47,7 +49,8 @@ public struct SatelliteComponents: OptionSet, Sendable, Hashable {
 
     /// The web app's names, as its `elements` url parameter and presets use them.
     public static let named: [(String, SatelliteComponents)] = [
-        ("Point", .point), ("Label", .label), ("Orbit", .orbit), ("Orbit track", .orbitTrack), ("Ground station link", .groundStationLink),
+        ("Point", .point), ("Label", .label), ("Orbit", .orbit), ("Orbit track", .orbitTrack), ("Ground track", .groundTrack), ("Sensor cone", .sensorCone),
+        ("Ground station link", .groundStationLink),
     ]
 }
 
@@ -87,6 +90,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let labelPipeline: MTLRenderPipelineState
     private let stationPipeline: MTLRenderPipelineState
     private let linkPipeline: MTLRenderPipelineState
+    private let overlayPipeline: MTLRenderPipelineState
+    private let conePipeline: MTLRenderPipelineState
+    private let coneRimPipeline: MTLRenderPipelineState
+    private let overlay: GroundOverlay
     private let tonemapPipeline: MTLRenderPipelineState
     private let depthWrite: MTLDepthStencilState
     private let depthTest: MTLDepthStencilState
@@ -163,6 +170,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         labelPipeline = try pipeline("labelVertex", "labelFragment", blend: true, premultiplied: true)
         stationPipeline = try pipeline("stationVertex", "stationFragment", blend: true, premultiplied: true)
         linkPipeline = try pipeline("linkVertex", "linkFragment", blend: true)
+        overlayPipeline = try pipeline("overlayVertex", "overlayFragment", format: .r8Unorm, depth: false, blend: true, premultiplied: true)
+        conePipeline = try pipeline("coneVertex", "coneFragment", blend: true)
+        coneRimPipeline = try pipeline("coneRimVertex", "coneRimFragment", blend: true)
+        guard let overlay = GroundOverlay(device: device) else {
+            throw RendererError.noDevice
+        }
+        self.overlay = overlay
         tonemapPipeline = try pipeline("fullscreenVertex", "tonemapFragment", format: view.colorPixelFormat, depth: false)
 
         func depthState(compare: MTLCompareFunction, write: Bool) -> MTLDepthStencilState {
@@ -235,6 +249,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     public func setSatellites(_ prepared: PreparedSatellites) {
         points.install(prepared)
+        overlay.isStale = true
     }
 
     /// The ground stations to stand pins on.
@@ -414,6 +429,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         frameIndex = (frameIndex + 1) % Self.framesInFlight
 
         var frame = uniforms(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now)
+        overlay.encode(commands, pipeline: overlayPipeline, satellites: points.satellites, at: now, enabled: components.contains(.groundTrack), device: device)
 
         let scene = MTLRenderPassDescriptor()
         scene.colorAttachments[0].texture = hdr
@@ -450,6 +466,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 encoder.setCullMode(.back)
                 encoder.setVertexBuffer(globe.vertices, offset: 0, index: 0)
                 encoder.setFragmentTexture(imagery, index: 0)
+                encoder.setFragmentTexture(overlay.texture, index: 1)
                 encoder.setFragmentSamplerState(linearSampler, index: 0)
                 encoder.drawIndexedPrimitives(type: .triangle, indexCount: globe.count, indexType: .uint32, indexBuffer: globe.indices, indexBufferOffset: 0)
             }
@@ -469,6 +486,16 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 if components.contains(.point) {
                     encoder.setRenderPipelineState(pointPipeline)
                     encoder.drawPrimitives(type: .point, vertexStart: 0, vertexCount: points.count)
+                }
+                if components.contains(.sensorCone), let cones = points.prepared?.cones {
+                    // Each side of the translucent cone shows, as Cesium draws it.
+                    encoder.setVertexBuffer(cones.buffer, offset: 0, index: 4)
+                    encoder.setRenderPipelineState(conePipeline)
+                    encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3 * Self.coneSides, instanceCount: cones.count)
+                    encoder.setDepthStencilState(noDepth)
+                    encoder.setRenderPipelineState(coneRimPipeline)
+                    encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6 * Self.coneSides, instanceCount: cones.count)
+                    encoder.setDepthStencilState(depthTest)
                 }
                 if components.contains(.label), let labels = points.prepared?.labels {
                     encoder.setRenderPipelineState(labelPipeline)
@@ -522,6 +549,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: pins.count)
         }
     }
+
+    /// Mirrors `coneSides` in Shaders/Footprints.msl.
+    private static let coneSides = 48
 
     /// What `setVertexBytes` takes, 4 KB, in the larger of the two instances.
     private static let maximumInlineInstances = 4096 / MemoryLayout<LinkInstance>.stride

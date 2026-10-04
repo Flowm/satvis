@@ -49,9 +49,13 @@ SwiftUI draws all the controls over the `MTKView`.
   horizon and the eye height.
 
 **A ground-track swath is drawn into an overlay texture.** The globe shader samples
-an equirectangular texture of about 5 km per pixel, so the swath follows terrain
-at no extra cost, and the cost does not grow with the satellite count. Edges get
-soft when zoomed in close. That is acceptable for swaths 100 km wide or more.
+a cube map around the Earth's centre, six faces of 2048 texels, about 5 km per
+texel, so the swath follows terrain at no extra cost, and the cost does not grow
+with the satellite count. A cube rather than an equirectangular texture: that
+one would need its corridors split at the antimeridian and would pinch them at
+the poles, which every polar orbit crosses; a cube face keeps great circles
+straight. Edges get soft when zoomed in close. That is acceptable for swaths
+100 km wide or more.
 
 **Propagation reproduces the web's results.**
 

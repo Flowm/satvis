@@ -47,9 +47,20 @@ final class SatelliteLayer {
         }
         count = entries.count
         satellites = entries.map {
-            PointSatellite(id: "\($0.record.satnum)|\($0.record.name)", name: $0.record.name, trajectory: $0.trajectory, color: $0.record.orbitClass.color)
+            PointSatellite(
+                id: "\($0.record.satnum)|\($0.record.name)", name: $0.record.name, trajectory: $0.trajectory, color: $0.record.orbitClass.color,
+                footprint: Self.footprint($0.record))
         }
         await hand(satellites)
+    }
+
+    /// The web app's ground track and sensor cone, which it draws for low orbits
+    /// only: the record's swath or 200 km, and its field of view or 10°.
+    private static func footprint(_ record: GPRecord) -> Footprint? {
+        guard record.orbitClass == .leo else {
+            return nil
+        }
+        return Footprint(swathKm: (SwathExtents(metadata: record.metadata) ?? .default).widthKm, coneHalfAngleDegrees: record.metadata["coneFovDeg"]?.number ?? 10)
     }
 
     /// Packed off the main thread, then handed to the renderer.

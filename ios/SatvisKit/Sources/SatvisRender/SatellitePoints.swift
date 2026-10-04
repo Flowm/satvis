@@ -2,8 +2,8 @@ import Metal
 import SatvisCore
 import simd
 
-/// One satellite to draw: where it is over its window, what it is called, and its
-/// colour.
+/// One satellite to draw: where it is over its window, what it is called, its
+/// colour, and what its sensor covers.
 public struct PointSatellite: Sendable {
     /// The catalog entry's identity, which picking and tracking answer with.
     public var id: String
@@ -11,12 +11,28 @@ public struct PointSatellite: Sendable {
     public var trajectory: SampledTrajectory
     /// sRGB.
     public var color: SIMD4<Float>
+    /// Nil where the web app draws none: for every satellite not in a low orbit.
+    public var footprint: Footprint?
 
-    public init(id: String, name: String, trajectory: SampledTrajectory, color: SIMD4<Float>) {
+    public init(id: String, name: String, trajectory: SampledTrajectory, color: SIMD4<Float>, footprint: Footprint? = nil) {
         self.id = id
         self.name = name
         self.trajectory = trajectory
         self.color = color
+        self.footprint = footprint
+    }
+}
+
+/// What a satellite's sensor sees, for its ground track and its sensor cone.
+public struct Footprint: Sendable, Hashable {
+    /// The ground track's width: both sides of the swath together, in km.
+    public var swathKm: Double
+    /// The sensor cone's half angle, in degrees.
+    public var coneHalfAngleDegrees: Double
+
+    public init(swathKm: Double, coneHalfAngleDegrees: Double) {
+        self.swathKm = swathKm
+        self.coneHalfAngleDegrees = coneHalfAngleDegrees
     }
 }
 
@@ -54,6 +70,8 @@ public struct PreparedSatellites: @unchecked Sendable {
     let samples: MTLBuffer?
     let instances: MTLBuffer?
     let labels: (atlas: LabelAtlas, instances: MTLBuffer)?
+    /// The sensor cones, for the satellites that have one.
+    let cones: (buffer: MTLBuffer, count: Int)?
 
     init(_ satellites: [PointSatellite], device: MTLDevice, labelScale: Double) {
         self.satellites = satellites
@@ -65,6 +83,7 @@ public struct PreparedSatellites: @unchecked Sendable {
             self.samples = nil
             self.instances = nil
             labels = nil
+            cones = nil
             return
         }
         // Written in place: no intermediate array of the whole set.
@@ -85,6 +104,13 @@ public struct PreparedSatellites: @unchecked Sendable {
         }
         self.samples = samples
         self.instances = instances
+        let coneList = satellites.enumerated().compactMap { index, satellite in
+            satellite.footprint.map { ConeInstance(satellite: UInt32(index), halfAngle: Float($0.coneHalfAngleDegrees * .pi / 180)) }
+        }
+        cones =
+            coneList.isEmpty
+            ? nil
+            : coneList.withUnsafeBytes { bytes in device.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count).map { ($0, coneList.count) } }
         labels =
             satellites.count <= LabelAtlas.maximumLabels
             ? LabelAtlas(names: satellites.map(\.name), scale: labelScale, device: device).flatMap { atlas in
