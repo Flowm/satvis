@@ -18,8 +18,11 @@ struct SatvisApp: App {
                 .preferredColorScheme(.dark)
         }
         // Element sets drift, and the four days ahead move on: predict the pass
-        // notifications again from the newest, then ask to be woken again.
+        // notifications again from the newest. The next refresh is asked for
+        // first, so that one that runs out of time does not end the chain, and
+        // again once the new notifications say when they run out.
         .backgroundTask(.appRefresh(PassAlerts.refreshTaskID)) {
+            await session.alerts.requestRefresh()
             await session.alerts.reschedule()
             await session.alerts.requestRefresh()
         }

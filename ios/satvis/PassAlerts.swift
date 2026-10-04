@@ -33,10 +33,7 @@ final class PassAlerts {
     }
 
     static let refreshTaskID = "org.frcy.app.satvis.passes"
-    /// Notifications iOS keeps pending for an app.
-    private static let limit = 64
     private static let key = "passAlerts"
-    private static let leadMs = 5 * 60_000.0
     private static let identifierPrefix = "pass|"
 
     private(set) var alerts: [Alert]
@@ -45,7 +42,9 @@ final class PassAlerts {
     @ObservationIgnored private let source: GPSource
     @ObservationIgnored private let center = UNUserNotificationCenter.current()
     @ObservationIgnored private let presenter = Presenter()
-    @ObservationIgnored private var scheduling: Task<Int, Never>?
+    @ObservationIgnored private var scheduling: Task<PassNotificationPlan?, Never>?
+    /// When the last plan wanted to be woken to plan again.
+    @ObservationIgnored private var nextRefresh: Date?
     @ObservationIgnored private var clearing: Task<Void, Never>?
 
     init(source: GPSource) {
@@ -69,8 +68,10 @@ final class PassAlerts {
         alerts.removeAll { $0.subject == subject }
         alerts.append(Alert(subject: subject, satellites: satellites.map(\.id), groups: Array(Set(satellites.flatMap(\.groups))).sorted()))
         save()
-        let count = await reschedule()
-        show(count == 0 ? "No passes in the next four days" : "Notifying for \(count) \(count == 1 ? "pass" : "passes")")
+        guard let plan = await reschedule() else {
+            return
+        }
+        show(Self.describe(plan))
     }
 
     /// Drops the alerts of stations that are gone.
@@ -94,27 +95,33 @@ final class PassAlerts {
     }
 
     /// Predicts every alert's passes from now and replaces the pending
-    /// notifications with the earliest of them. One at a time.
+    /// notifications with the earliest of them. One at a time. Cancelled, as a
+    /// background refresh is when its time runs out, it leaves the pending ones
+    /// as they were. Nil when it did not finish.
     @discardableResult
-    func reschedule() async -> Int {
+    func reschedule() async -> PassNotificationPlan? {
         let previous = scheduling
         let task = Task {
             _ = await previous?.value
             return await self.schedule()
         }
         scheduling = task
-        return await task.value
+        return await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
     }
 
-    /// Asks iOS to wake the app in a few hours to predict again, while there is
-    /// anything to predict.
+    /// Asks iOS to wake the app to predict again before the pending notifications
+    /// run out, within four hours, while there is anything to predict.
     func requestRefresh() {
         guard !alerts.isEmpty else {
             BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.refreshTaskID)
             return
         }
         let request = BGAppRefreshTaskRequest(identifier: Self.refreshTaskID)
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 4 * 3600)
+        request.earliestBeginDate = nextRefresh.map { max($0, Date()) } ?? Date(timeIntervalSinceNow: 4 * 3600)
         do {
             try BGTaskScheduler.shared.submit(request)
         } catch {
@@ -122,11 +129,12 @@ final class PassAlerts {
         }
     }
 
-    private func schedule() async -> Int {
+    private func schedule() async -> PassNotificationPlan? {
         let settings = PassModel.storedSettings()
         guard !alerts.isEmpty, !settings.stations.isEmpty else {
             await removePending()
-            return 0
+            nextRefresh = nil
+            return PassNotificationPlan(passes: [], now: 0, predictedUntil: 0)
         }
         var catalog = Catalog()
         for group in Set(alerts.flatMap(\.groups)) {
@@ -137,7 +145,6 @@ final class PassAlerts {
             }
         }
         let now = Date().timeIntervalSince1970 * 1000
-        let lead = Self.leadMs
         let jobs = alerts.flatMap { alert in
             let stations: [GroundStation]
             switch alert.subject {
@@ -146,21 +153,54 @@ final class PassAlerts {
             }
             return alert.satellites.compactMap { Self.entry($0, in: catalog) }.map { ($0, PassStore.Settings(stations: stations, mode: settings.mode)) }
         }
-        let passes = await Task.detached(priority: .utility) {
-            let window = PassWindow(around: now)
-            return Set(jobs.flatMap { PassStore.predict($0.0, settings: $0.1, window: window) }).filter { $0.start - lead > now }
-        }.value
-        let upcoming = passes.sorted { $0.start < $1.start }.prefix(Self.limit / 2)
+        let window = PassWindow(around: now)
+        let prediction = Task.detached(priority: .utility) { await Self.predict(jobs, window: window) }
+        let passes = await withTaskCancellationHandler {
+            await prediction.value
+        } onCancel: {
+            prediction.cancel()
+        }
+        guard !Task.isCancelled else {
+            log.notice("Rescheduling cancelled; the pending notifications stay")
+            return nil
+        }
+        let plan = PassNotificationPlan(passes: passes, now: Date().timeIntervalSince1970 * 1000, predictedUntil: window.predictionEnd)
         // Only now, so that the ones pending keep firing while the groups load,
         // which on a slow network takes a while.
         await removePending()
-        for pass in upcoming {
-            for lead in [Self.leadMs, 0] {
-                await add(pass, lead: lead)
-            }
+        for notice in plan.notices {
+            await add(notice)
         }
-        log.notice("Scheduled \(upcoming.count) passes")
-        return upcoming.count
+        nextRefresh = Date(timeIntervalSince1970: plan.refresh(after: now) / 1000)
+        log.notice("Scheduled \(plan.notices.count) notifications for \(plan.passCount) passes")
+        return plan
+    }
+
+    /// Every pass of every job, side by side. Stops early when cancelled.
+    nonisolated private static func predict(_ jobs: [(CatalogEntry, PassStore.Settings)], window: PassWindow) async -> [Pass] {
+        await withTaskGroup(of: [Pass].self) { group in
+            for job in jobs {
+                group.addTask {
+                    Task.isCancelled ? [] : PassStore.predict(job.0, settings: job.1, window: window)
+                }
+            }
+            return await group.reduce(into: []) { $0 += $1 }
+        }
+    }
+
+    /// "Notifying for 12 passes", and until when, when that is short of the four
+    /// days predicted.
+    private static func describe(_ plan: PassNotificationPlan) -> String {
+        let count = plan.passCount
+        guard count > 0 else {
+            return "No passes in the next four days"
+        }
+        let passes = "Notifying for \(count) \(count == 1 ? "pass" : "passes")"
+        guard plan.isCutShort else {
+            return passes
+        }
+        let until = Date(timeIntervalSince1970: plan.coveredUntil / 1000)
+        return "\(passes) until \(until.formatted(.dateTime.weekday().hour().minute()))"
     }
 
     /// A satellite by its catalog id, or by its catalog number when it has been
@@ -178,7 +218,9 @@ final class PassAlerts {
         center.removePendingNotificationRequests(withIdentifiers: pending)
     }
 
-    private func add(_ pass: Pass, lead: Double) async {
+    private func add(_ notice: PassNotificationPlan.Notice) async {
+        let pass = notice.pass
+        let lead = notice.lead
         let content = UNMutableNotificationContent()
         content.title = lead > 0 ? "\(pass.satelliteName) pass in \(Int(lead / 60_000)) minutes" : "\(pass.satelliteName) pass starting now"
         // The title says when; a window in UTC would only make the reader convert it.
@@ -186,7 +228,7 @@ final class PassAlerts {
         content.sound = .default
         // An interval rather than calendar components, which iOS reads in the
         // device's time zone whatever zone they were taken in.
-        let interval = (pass.start - lead) / 1000 - Date().timeIntervalSince1970
+        let interval = notice.fire / 1000 - Date().timeIntervalSince1970
         guard interval > 0 else {
             return
         }
