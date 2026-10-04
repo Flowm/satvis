@@ -55,7 +55,9 @@ final class SatelliteLayer {
             return
         }
         count = entries.count
-        satellites = entries.map { PointSatellite(trajectory: $0.trajectory, color: $0.record.orbitClass.color) }
+        satellites = entries.map {
+            PointSatellite(id: "\($0.record.satnum)|\($0.record.name)", name: $0.record.name, trajectory: $0.trajectory, color: $0.record.orbitClass.color)
+        }
         renderer?.setSatellites(satellites)
     }
 }

@@ -1,0 +1,59 @@
+// Satellite names beside their points, as the web app's LabelGraphics draws them:
+// left-aligned 10 px to the right, shown from 2 km away, fading out between
+// 60,000 and 80,000 km. The text itself is drawn once per name by Core Text into
+// an atlas (LabelAtlas.swift).
+
+// Mirrors LabelInstance in LabelAtlas.swift.
+struct LabelInstance {
+    float4 uvRect;
+    float2 size;
+    uint satellite;
+};
+
+struct LabelOut {
+    float4 position [[position]];
+    float2 uv;
+    float alpha;
+};
+
+vertex LabelOut labelVertex(uint vid [[vertex_id]], uint iid [[instance_id]], const device packed_float3 *samples [[buffer(0)]],
+                            constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
+                            const device PointFrame *frames [[buffer(3)]], const device LabelInstance *labels [[buffer(4)]]) {
+    LabelInstance label = labels[iid];
+    LabelOut out;
+    float3 position;
+    out.position = float4(0.0, 0.0, -2.0, 1.0);
+    out.alpha = 0.0;
+    out.uv = float2(0.0);
+    if (!satellitePosition(label.satellite, samples, instances, frames, position)) {
+        return out;
+    }
+    float3 relative = (position - frame.cameraHigh) - frame.cameraLow;
+    float distance = length(relative);
+    if (distance < 2000.0 || distance > 8e7) {
+        return out;
+    }
+    float4 clip = frame.viewProjection * float4(relative, 1.0);
+    if (clip.w <= 0.0) {
+        return out;
+    }
+    float2 corner = float2(vid & 1, vid >> 1);
+    float2 offset = float2(10.0 * frame.pixelScale + corner.x * label.size.x, (0.5 - corner.y) * label.size.y);
+    clip.xy += offset * 2.0 / frame.viewportSize * clip.w;
+    out.position = clip;
+    out.uv = mix(label.uvRect.xy, label.uvRect.zw, corner);
+    out.alpha = 1.0 - clamp((distance - 6e7) / 2e7, 0.0, 1.0);
+    return out;
+}
+
+fragment float4 labelFragment(LabelOut in [[stage_in]], texture2d<float> atlas [[texture(0)]]) {
+    constexpr sampler linear(filter::linear);
+    float4 texel = atlas.sample(linear, in.uv);
+    if (texel.a <= 0.0) {
+        discard_fragment();
+    }
+    // Premultiplied by Core Graphics: undone to linearise, then done again.
+    float3 color = gammaCorrect(texel.rgb / texel.a);
+    float alpha = texel.a * in.alpha;
+    return float4(color * alpha, alpha);
+}

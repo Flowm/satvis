@@ -41,11 +41,11 @@ public struct OrbitCamera: Sendable, Equatable {
 
     public var position: SIMD3<Double> { up * radius }
 
-    /// Height above the WGS84 ellipsoid, near enough: CesiumJS's eye height.
-    var eyeHeight: Double {
-        let p = position
-        let ellipsoidRadius = 1 / sqrt((p.x * p.x + p.y * p.y) / (ellipsoidRadii.x * ellipsoidRadii.x) + p.z * p.z / (ellipsoidRadii.z * ellipsoidRadii.z))
-        return length(p) * (1 - ellipsoidRadius)
+    /// Straight down on a point from a height: where the web app leaves the camera
+    /// when it stops tracking a satellite (2,000 km above it).
+    public static func above(_ point: SIMD3<Double>, altitude: Double) -> OrbitCamera {
+        let unit = normalize(point)
+        return OrbitCamera(latitude: asin(unit.z), longitude: atan2(unit.y, unit.x), altitude: altitude)
     }
 
     /// The screen's up and right on the globe, as unit vectors in the fixed frame.
@@ -57,20 +57,16 @@ public struct OrbitCamera: Sendable, Equatable {
         return (screenUp, screenRight)
     }
 
-    /// A rotation from the fixed frame into the camera's, looking down -Z.
-    func view() -> simd_double4x4 {
+    func pose() -> CameraPose {
         let (screenUp, screenRight) = screenAxes
-        let back = up
-        return simd_double4x4(rows: [
-            SIMD4(screenRight, 0), SIMD4(screenUp, 0), SIMD4(back, 0), SIMD4(0, 0, 0, 1),
-        ])
+        return CameraPose(position: position, right: screenRight, up: screenUp, back: up)
     }
 
     /// Reversed-Z with no far plane: depth runs from 1 at the near plane to 0 at
     /// infinity, which a float spreads evenly enough to hold a metre at the near
     /// plane and the stars behind everything.
-    func projection(aspectRatio: Double, near: Double = 1) -> simd_double4x4 {
-        let verticalFieldOfView = aspectRatio > 1 ? 2 * atan(tan(Self.fieldOfView / 2) / aspectRatio) : Self.fieldOfView
+    static func projection(aspectRatio: Double, near: Double = 1) -> simd_double4x4 {
+        let verticalFieldOfView = aspectRatio > 1 ? 2 * atan(tan(fieldOfView / 2) / aspectRatio) : fieldOfView
         let f = 1 / tan(verticalFieldOfView / 2)
         return simd_double4x4(columns: (SIMD4(f / aspectRatio, 0, 0, 0), SIMD4(0, f, 0, 0), SIMD4(0, 0, 0, -1), SIMD4(0, 0, near, 0)))
     }
