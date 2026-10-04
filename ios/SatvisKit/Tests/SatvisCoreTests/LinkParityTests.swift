@@ -101,3 +101,25 @@ import Testing
         }
     }
 }
+
+@Suite struct LinkTests {
+    // As the web app's router reads a path: the last segment, less `.html`.
+    @Test func namesThePresetByThePath() {
+        #expect(Link("https://satvis.space/").preset == nil)
+        #expect(Link("https://satvis.space/ot?tags=OT").preset == "ot")
+        #expect(Link("https://satvis.space/ot.html").preset == "ot")
+        #expect(Link("/ot?tags=OT#x").query["tags"] == "OT")
+        #expect(Link("/?tags=&sats=ISS+(ZARYA)").query["sats"] == "ISS (ZARYA)")
+        #expect(Link("?time=2026-10-04T08:52Z").query["time"] == "2026-10-04T08:52Z")
+        #expect(Link("/default?tags=OT").preset == nil)
+    }
+
+    @Test func writesALinkOnTheSite() throws {
+        let site = try #require(URL(string: "https://satvis.space"))
+        #expect(Link().url(site: site).absoluteString == "https://satvis.space/")
+        let ot = Link(preset: "ot", query: LinkQuery(parsing: "sats=NOAA+19&gs=48.1351,11.5820"))
+        #expect(ot.url(site: site).absoluteString == "https://satvis.space/ot?sats=NOAA+19&gs=48.1351,11.5820")
+        let local = try #require(URL(string: "http://localhost:8080/"))
+        #expect(Link(query: LinkQuery(parsing: "tags=")).url(site: local).absoluteString == "http://localhost:8080/?tags=")
+    }
+}

@@ -71,14 +71,20 @@ struct ContentView: View {
             .padding()
         }
         .overlay(alignment: .topTrailing) {
-            // The way out of following something once its panel is closed.
-            if let tracked = session.tracked {
-                Button("Stop tracking", systemImage: "video.slash") { session.track(tracked, false) }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.glass)
-                    .controlSize(.large)
-                    .padding()
+            VStack {
+                // Made when tapped, so that a pinned clock gives its minute then.
+                Button("Share", systemImage: "square.and.arrow.up") {
+                    ShareSheet.present(session.link(sharing: true).url(site: session.source.site))
+                }
+                // The way out of following something once its panel is closed.
+                if let tracked = session.tracked {
+                    Button("Stop tracking", systemImage: "video.slash") { session.track(tracked, false) }
+                }
             }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.glass)
+            .controlSize(.large)
+            .padding()
         }
         .overlay(alignment: .top) {
             if let message = session.alerts.message {
@@ -152,6 +158,8 @@ struct ContentView: View {
         .task {
             await session.run()
         }
+        // A satvis.space link the system hands over, universal link or not.
+        .onOpenURL { session.open(Link($0.absoluteString)) }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active: session.becameActive()
@@ -220,5 +228,26 @@ private struct ComponentsMenu: View {
                 Text("Ground station links show for up to \(SatelliteComponents.linkBudget) satellites")
             }
         }
+    }
+}
+
+/// The system's share sheet, over whatever is presented, so that the info panel
+/// stays open beneath it; from the top-right corner, where the button is, as a
+/// popover on iPad.
+private enum ShareSheet {
+    static func present(_ url: URL) {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
+        guard var top = scene?.keyWindow?.rootViewController else {
+            return
+        }
+        while let presented = top.presentedViewController, !presented.isBeingDismissed {
+            top = presented
+        }
+        let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        if let popover = sheet.popoverPresentationController, let window = scene?.keyWindow {
+            popover.sourceView = window
+            popover.sourceRect = CGRect(x: window.bounds.maxX - window.safeAreaInsets.right - 44, y: window.safeAreaInsets.top + 44, width: 1, height: 1)
+        }
+        top.present(sheet, animated: true)
     }
 }

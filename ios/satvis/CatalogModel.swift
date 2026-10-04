@@ -23,6 +23,8 @@ final class CatalogModel {
     }
 
     private(set) var groups: [Group] = []
+    /// The preset the catalog is on, nil for the default one.
+    private(set) var presetName: String?
     private(set) var catalog = Catalog()
     private(set) var activation = Activation()
     private(set) var components: SatelliteComponents = [.point, .label]
@@ -41,20 +43,36 @@ final class CatalogModel {
         self.source = source
     }
 
-    /// The preset's groups and defaults: tags enabled, components drawn.
-    func start() async {
-        guard let index = source.index?.value, let preset = index.preset(named: nil) else {
-            return
+    /// The preset's defaults, in the url's vocabulary.
+    var presetDefaults: [String: String] {
+        source.index?.value.preset(named: presetName)?.defaults ?? [:]
+    }
+
+    /// Takes a preset's groups, with what is active and drawn over them, and loads
+    /// the groups that needs: the enabled tags', or every one where satellites are
+    /// named, since a name does not say which group it is in.
+    func open(preset: String?, activation: Activation, components: SatelliteComponents) async {
+        presetName = preset
+        if let index = source.index?.value {
+            apply(index)
         }
-        apply(index)
-        let defaults = preset.defaults
-        activation = Activation(enabledTags: Set(Self.list(defaults["tags"])))
-        if let elements = defaults["elements"] {
-            let names = Set(Self.list(elements))
-            components = SatelliteComponents(SatelliteComponents.named.filter { names.contains($0.0) }.map(\.1))
-        }
+        self.activation = activation
+        self.components = components
         changed()
-        await load(groups.filter { !$0.tags.isEmpty && !Set($0.tags).isDisjoint(with: activation.enabledTags) })
+        if !activation.enabledSatellites.isEmpty || !activation.disabledSatellites.isEmpty {
+            await load(groups)
+        } else {
+            await load(groups.filter { !$0.tags.isEmpty && !Set($0.tags).isDisjoint(with: activation.enabledTags) })
+        }
+    }
+
+    /// A satellite by name, among the groups loaded, loading every one first.
+    func entry(named name: String) async -> CatalogEntry? {
+        if let entry = catalog.entries.values.first(where: { $0.name == name }) {
+            return entry
+        }
+        await load(groups)
+        return catalog.entries.values.first { $0.name == name }
     }
 
     /// Takes up a newer index and, `refetching`, asks the worker about every group
@@ -133,7 +151,7 @@ final class CatalogModel {
 
     /// The preset's groups, as the index now describes them.
     private func apply(_ index: GroupIndex) {
-        guard let preset = index.preset(named: nil) else {
+        guard let preset = index.preset(named: presetName) else {
             return
         }
         let statuses = Dictionary(index.groups.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
@@ -195,10 +213,5 @@ final class CatalogModel {
         if active != activeEntries {
             activeEntries = active
         }
-    }
-
-    /// A url parameter's comma-separated list.
-    private static func list(_ value: String?) -> [String] {
-        (value ?? "").split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
     }
 }

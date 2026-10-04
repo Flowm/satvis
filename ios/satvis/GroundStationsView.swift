@@ -16,27 +16,54 @@ struct GroundStationsView: View {
         NavigationStack {
             List {
                 Section {
-                    if passes.stations.isEmpty {
+                    if passes.saved.isEmpty {
                         Text("None yet. Pick one on the globe, or use your own position.")
                             .foregroundStyle(.secondary)
                     }
-                    ForEach(passes.stations) { station in
+                    ForEach(passes.saved) { station in
                         StationRow(station: station) { edited in
-                            passes.setStations(passes.stations.map { $0.id == edited.id ? edited : $0 })
+                            passes.setStations(passes.saved.map { $0.id == edited.id ? edited : $0 })
                         } onShow: {
                             onSelect(station.id)
                             dismiss()
                         }
                     }
                     .onDelete { offsets in
-                        var stations = passes.stations
+                        var stations = passes.saved
                         stations.remove(atOffsets: offsets)
                         passes.setStations(stations)
                     }
                     .onMove { offsets, destination in
-                        var stations = passes.stations
+                        var stations = passes.saved
                         stations.move(fromOffsets: offsets, toOffset: destination)
                         passes.setStations(stations)
+                    }
+                }
+                // Stations a link brought: shown with its view, kept only when saved.
+                if !passes.visiting.isEmpty {
+                    Section("From the link") {
+                        ForEach(passes.visiting) { station in
+                            HStack {
+                                Button {
+                                    onSelect(station.id)
+                                    dismiss()
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(station.displayName)
+                                        // An unnamed one is shown by its coordinates already.
+                                        if station.name != nil {
+                                            Text("\(toFixed2(station.latitude))°, \(toFixed2(station.longitude))°")
+                                                .font(.caption.monospacedDigit())
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                Spacer()
+                                Button("Save") { passes.save(station.id) }
+                                    .buttonStyle(.borderless)
+                            }
+                        }
                     }
                 }
                 Section {
