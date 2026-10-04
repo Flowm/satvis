@@ -1,7 +1,7 @@
 // Pure, runtime-agnostic group evaluator. NO Cloudflare APIs here so it can be
 // unit-tested and reused by the static generator via node type stripping.
 
-import type { GpRecord, GroupDefinition, GroupsIndex, GroupStatus, OmmRecord, SatelliteEntry, SatelliteSpec, SourceSpec } from "./types.ts";
+import type { GpRecord, GroupDefinition, GroupsConfig, GroupsIndex, GroupStatus, OmmRecord, SatelliteEntry, SatelliteSpec, SourceSpec } from "./types.ts";
 
 const CELESTRAK_BASE = "https://celestrak.org/NORAD/elements/";
 const USER_AGENT = "satvis.space (https://github.com/Flowm/satvis)";
@@ -589,6 +589,20 @@ export function coerceIndex(raw: unknown): GroupsIndex {
     return raw as GroupsIndex;
   }
   return { updated: "", groups: [] };
+}
+
+// Lay the config's half of the index over a stored one: each group's tags, and
+// the presets. Applied when a refresh writes the index and again when the API
+// serves it, so a deploy that changes them is in force before the next refresh.
+// Groups follow the config, which is the order buildStatuses writes them in.
+export function withConfig(index: GroupsIndex, config: GroupsConfig): GroupsIndex {
+  const stored = new Map(index.groups.map((status) => [status.name, status]));
+  const groups = config.groups.map((def): GroupStatus => {
+    const { tags: _stale, ...status } = stored.get(def.name) ?? { name: def.name, updated: null, count: 0 };
+    return def.tags === undefined ? status : { ...status, tags: def.tags };
+  });
+  const presets = Object.fromEntries((config.presets ?? []).map(({ name, ...preset }) => [name, preset]));
+  return { ...index, groups, presets };
 }
 
 // Build the per-group status index for a refresh run. Failed groups keep the

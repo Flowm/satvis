@@ -16,12 +16,13 @@ import {
   type SourceProbe,
   toProbe,
   toRecordsBySource,
+  withConfig,
 } from "./evaluate.ts";
 import { fetchSatcat } from "./satcat.ts";
 import { kvGroupStore, type GroupStore } from "./store.ts";
 import type { GroupsConfig, GroupsIndex, SatcatSnapshot, SatcatStatus, SatelliteEntry } from "./types.ts";
 
-const groupsConfig = generatedConfig as GroupsConfig;
+export const groupsConfig = generatedConfig as GroupsConfig;
 
 // Result of one refresh run: the rebuilt index plus the per-source fetch
 // diagnostics and write tallies, so a manual trigger (POST /api/refresh) can
@@ -157,10 +158,13 @@ export async function refreshGroups(config: GroupsConfig, store: GroupStore, fet
     }
   }
 
-  const index: GroupsIndex = { updated: now, groups: statuses };
+  const refreshed: GroupsIndex = { updated: now, groups: statuses };
   if (satcat.status !== undefined) {
-    index.satcat = satcat.status;
+    refreshed.satcat = satcat.status;
   }
+  // Written with the config's half too, because the static snapshot is read
+  // straight from disk with nothing to lay it over.
+  const index = withConfig(refreshed, config);
   await store.writeIndex(index);
   const durationMs = Date.now() - startedMs;
   console.log(`gp refresh: done in ${durationMs}ms — ${written} groups written, ${skipped} skipped/failed, ${satcat.status?.count ?? 0} satcat rows`);

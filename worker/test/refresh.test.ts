@@ -78,6 +78,20 @@ describe("refreshGroups", () => {
     expect(report.index.groups).toEqual([expect.objectContaining({ name: "stations", count: 1, updated: report.index.updated })]);
   });
 
+  // The static snapshot is served straight from disk, so its index has to carry
+  // the config's half itself.
+  it("writes the config's tags and presets into the index", async () => {
+    const { store, index } = memoryStore();
+    const config: GroupsConfig = {
+      groups: [{ name: "stations", sources: [{ celestrak: "stations" }], tags: ["Stations"] }],
+      presets: [{ name: "default", defaults: { tags: "Stations" }, groups: [{ name: "stations" }] }],
+    };
+    await refreshGroups(config, store, okFetch([{ OBJECT_NAME: "ISS (ZARYA)", NORAD_CAT_ID: 25544 }]));
+
+    expect(index()!.groups[0]?.tags).toEqual(["Stations"]);
+    expect(index()!.presets).toEqual({ default: { defaults: { tags: "Stations" }, groups: [{ name: "stations" }] } });
+  });
+
   it("keeps last-known-good when a source fails: no write, index carries the old status", async () => {
     const previous: GroupsIndex = {
       updated: "2026-07-01T00:00:00.000Z",

@@ -44,7 +44,7 @@ describe("GpSource probe", () => {
       ...WORKER_ROUTES,
       "/api/gp/weather.json": () => new Response("[]"),
     });
-    expect(await fetchGpIndex()).toEqual([{ name: "weather", count: 2 }]);
+    expect((await fetchGpIndex()).groups).toEqual([{ name: "weather", count: 2 }]);
     await fetchGpGroup("weather");
     expect(requested).toContain("/api/gp/weather.json");
   });
@@ -54,7 +54,7 @@ describe("GpSource probe", () => {
       ...STATIC_ROUTES,
       "data/gp/weather.json": () => new Response("[]"),
     });
-    expect(await fetchGpIndex()).toEqual([{ name: "weather", count: 1 }]);
+    expect((await fetchGpIndex()).groups).toEqual([{ name: "weather", count: 1 }]);
     await fetchGpGroup("weather");
     expect(requested).toContain("data/gp/weather.json");
     expect(requested).not.toContain("/api/gp/weather.json");
@@ -65,7 +65,37 @@ describe("GpSource probe", () => {
       "/api/groups.json": () => new Response("<!doctype html><html></html>", { status: 200, headers: { "Content-Type": "text/html" } }),
       ...STATIC_ROUTES,
     });
-    expect(await fetchGpIndex()).toEqual([{ name: "weather", count: 1 }]);
+    expect((await fetchGpIndex()).groups).toEqual([{ name: "weather", count: 1 }]);
+  });
+
+  test("reads each group's tags and the presets", async () => {
+    installFetch({
+      "/api/groups.json": json({
+        updated: "",
+        groups: [{ name: "weather", count: 2, tags: ["Weather"] }],
+        presets: { default: { title: "Satvis", defaults: { tags: "Weather" }, groups: [{ name: "weather" }, { name: "starlink", searchOnly: true }] } },
+      }),
+    });
+    expect(await fetchGpIndex()).toEqual({
+      groups: [{ name: "weather", count: 2, tags: ["Weather"] }],
+      presets: { default: { title: "Satvis", defaults: { tags: "Weather" }, groups: [{ name: "weather" }, { name: "starlink", searchOnly: true }] } },
+    });
+  });
+
+  // An index from before tags and presets existed, or a malformed one, reads as
+  // one without them rather than failing the probe.
+  test("drops tags and presets of the wrong shape", async () => {
+    installFetch({
+      "/api/groups.json": json({
+        updated: "",
+        groups: [{ name: "weather", tags: "Weather" }],
+        presets: { default: { groups: "weather" }, ot: { defaults: { tags: "OT", fps: true }, groups: [{ name: "ot" }, { searchOnly: true }] } },
+      }),
+    });
+    expect(await fetchGpIndex()).toEqual({
+      groups: [{ name: "weather" }],
+      presets: { ot: { defaults: { tags: "OT" }, groups: [{ name: "ot" }] } },
+    });
   });
 
   test("probes only once per session", async () => {

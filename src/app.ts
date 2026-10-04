@@ -7,7 +7,7 @@ import App from "./App.vue";
 import { controllerKey } from "./composables/useController";
 import { usePWAUpdate } from "./composables/usePWAUpdate";
 import { ionAccessToken } from "./config/ion";
-import { getConfigPreset } from "./config/presets";
+import { resolvePreset } from "./config/presets";
 import { CesiumController } from "./modules/CesiumController";
 import { createViewer } from "./modules/createViewer";
 import { startSceneSync } from "./modules/sceneSync";
@@ -42,10 +42,14 @@ const cc = new CesiumController(viewer);
 app.provide(controllerKey, cc);
 window.cc = cc;
 
+// The url sync waits for this before it reads the url: the url only states what
+// differs from the preset.
+const presetDefaults = markRaw(resolvePreset().then((preset) => preset.defaults));
+
 const pinia = createPinia();
 pinia.use(({ store }) => {
   store.router = markRaw(router);
-  store.customConfig = markRaw(getConfigPreset().config);
+  store.presetDefaults = presetDefaults;
 });
 pinia.use(piniaUrlSync);
 app.use(pinia);

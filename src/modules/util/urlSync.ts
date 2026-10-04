@@ -34,7 +34,9 @@ declare module "pinia" {
 // Injected by the plugin registered ahead of this one in src/app.ts.
 interface ExtendedStore extends PiniaStore {
   router: Router;
-  customConfig: Record<string, Record<string, unknown>>;
+  // The route's preset, as url parameters. Shared by every store; each decodes
+  // the parameters it owns.
+  presetDefaults?: Promise<Query>;
   [key: string]: unknown;
 }
 
@@ -98,8 +100,10 @@ function commit(entry: Registration, patch: Record<string, unknown>): void {
   Object.assign(entry.store, patch);
 }
 
-function applyQuery(entry: Registration, query: Query): void {
-  const { patch, invalid } = decode(query, entry.qualified, entry.defaults ?? {});
+// Values missing from the query fall back to `defaults`, which are the
+// preset-merged ones once hydrated.
+function applyQuery(entry: Registration, query: Query, defaults: Record<string, unknown> = entry.defaults ?? {}, origin = "url parameter"): void {
+  const { patch, invalid } = decode(query, entry.qualified, defaults);
 
   // Back to unqualified store keys, and note whether anything actually moved:
   // decode hands back fresh arrays every time, so a blind apply would churn.
@@ -118,7 +122,7 @@ function applyQuery(entry: Registration, query: Query): void {
   }
 
   for (const param of invalid) {
-    console.warn(`Ignoring invalid url parameter: ${param}`);
+    console.warn(`Ignoring invalid ${origin}: ${param}`);
   }
 }
 
@@ -191,34 +195,23 @@ function watchQuery(router: Router): void {
   );
 }
 
-function hydrate(entry: Registration, router: Router): void {
-  const { store, specs } = entry;
-
-  // The preset supplies this route's defaults, so it is applied before the
-  // defaults are captured and before the url is read. It sets only some keys,
-  // so the rest are carried over to make a whole patch for commit().
-  const preset = store.customConfig[store.$id];
-  if (preset) {
-    const merged: Record<string, unknown> = {};
-    for (const spec of specs) {
-      merged[spec.name] = spec.name in preset ? preset[spec.name] : store[spec.name];
-    }
-    commit(entry, merged);
-    // Anything the preset sets that is not url-synced has no schema entry.
-    for (const [key, value] of Object.entries(preset)) {
-      if (!specs.some((spec) => spec.name === key)) {
-        store[key] = value;
-      }
-    }
+// The store's current values, keyed as the codec sees them.
+function snapshot(entry: Registration): Record<string, unknown> {
+  const values: Record<string, unknown> = {};
+  for (const [index, spec] of entry.specs.entries()) {
+    values[entry.qualified[index]!.name] = entry.store[spec.name];
   }
+  return values;
+}
 
-  const defaults: Record<string, unknown> = {};
-  for (const [index, spec] of specs.entries()) {
-    defaults[entry.qualified[index]!.name] = store[spec.name];
-  }
-  entry.defaults = defaults;
+function hydrate(entry: Registration, router: Router, presetDefaults: Query): void {
+  // The preset supplies this route's defaults. They are url parameters, so they
+  // are decoded like a url, over the store's own defaults — and before the
+  // defaults are captured and before the url itself is read.
+  applyQuery(entry, presetDefaults, snapshot(entry), "preset default");
+  entry.defaults = snapshot(entry);
 
-  applyQuery(entry, normalizeQuery(router.currentRoute.value.query, new Set(specs.map(paramOf))));
+  applyQuery(entry, normalizeQuery(router.currentRoute.value.query, new Set(entry.specs.map(paramOf))));
 
   // Normalise the url to what the state actually is — dropping anything
   // invalid and anything that turned out to equal a default. Replace rather
@@ -243,7 +236,7 @@ function createUrlSync({ options, store }: PiniaPluginContext): void {
   };
   registry.set(store.$id, entry);
 
-  void router.isReady().then(() => hydrate(entry, router));
+  void Promise.all([router.isReady(), extended.presetDefaults ?? {}]).then(([, presetDefaults]) => hydrate(entry, router, presetDefaults));
 
   // Watch the synced values rather than $subscribe: guarded keys are exposed
   // as computeds over private refs, and a private ref is not part of $state, so

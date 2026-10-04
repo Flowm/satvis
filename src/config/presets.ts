@@ -1,4 +1,11 @@
 // Which configuration each route opens with, and where its element sets come from.
+//
+// The presets and the tags of each group are defined in the worker's YAML config
+// and served with the group index, so every client starts from the same ones
+// (docs/adr/0007-native-ios-app.md).
+
+import { fetchGpIndex } from "../modules/util/gpSource";
+import type { Query } from "../modules/util/urlCodec";
 
 // A source is either a bare GP group name (resolved against the probed GP base,
 // worker `/api/gp/<name>.json` or the static `data/gp/<name>.json` snapshot) or
@@ -9,89 +16,50 @@
 // group row and no multiselect entry: the group is too large to enable whole.
 export type ElementsEntry = [source: string, tags: string[], options?: { searchOnly?: boolean }];
 
-export interface PresetConfig {
-  sat?: {
-    enabledTags?: string[];
-    enabledComponents?: string[];
-    overpassMode?: string;
-  };
-  cesium?: {
-    layers?: string[];
-    // One of SCENE_MODES. No preset sets it yet; it is here so that a route can
-    // open straight into the sky view without the type having to change first,
-    // which is the point of a preset supplying defaults.
-    sceneMode?: string;
-    // One of SURFACE_MODELS, and unset for the same reason: a route that opens on
-    // the sky view is the one that would want buildings with it.
-    surfaceModel?: string;
-  };
-}
-
 export interface Preset {
+  name: string;
   title: string;
   description?: string;
-  config: PresetConfig;
+  // Url parameters (docs/adr/0001-url-parameter-specification.md) that the url
+  // only has to state deviations from.
+  defaults: Query;
   elements: ElementsEntry[];
 }
 
-// The CelesTrak active list as the worker serves it: seven groups carved out by
-// name plus the remainder (worker/src/config/satvis.core.yaml). Under one tag
-// they load as a whole, and no satellite arrives twice.
-const ACTIVE_PIECES = ["globalstar", "iridium-NEXT", "oneweb", "planet", "spire", "starlink", "eutelsat", "active-remainder"];
+const DEFAULT_PRESET = "default";
 
-export const presets: Record<string, Preset> = {
-  default: {
-    title: "Satvis - 3D Satellite Tracker & Sky View",
-    config: {
-      sat: {
-        enabledTags: ["Weather"],
-      },
-    },
-    // Bare group names matching worker/src/config/satvis.core.yaml. Every one
-    // of ACTIVE_PIECES carries `Active` (checked by worker/test/config.test.ts).
-    elements: [
-      ["cubesat", ["Cubesat"]],
-      ["globalstar", ["Globalstar", "Active"]],
-      ["gnss", ["GNSS"]],
-      ["iridium-NEXT", ["IridiumNEXT", "Active"]],
-      ["last-30-days", ["New"]],
-      ["oneweb", ["OneWeb", "Active"]],
-      ["planet", ["Planet", "Active"]],
-      ["resource", ["Resource"]],
-      ["science", ["Science"]],
-      ["spire", ["Spire", "Active"]],
-      ["starlink", ["Starlink", "Active"]],
-      ["stations", ["Stations"]],
-      ["weather", ["Weather"]],
-      ["eutelsat", ["Eutelsat", "Active"]],
-      ["active-remainder", ["Active"]],
-    ],
-  },
-  ot: {
-    title: "OT Satvis - 3D Satellite Tracker & Sky View",
-    config: {
-      sat: {
-        enabledTags: ["OT"],
-        enabledComponents: ["Point", "Label", "Orbit", "Sensor cone", "Ground track"],
-        overpassMode: "swath",
-      },
-      cesium: {
-        layers: ["VersaTiles"],
-      },
-    },
-    elements: [["ot", ["OT"]], ["wfs", ["WFS"]], ...ACTIVE_PIECES.map((source): ElementsEntry => [source, ["Active"], { searchOnly: true }])],
-  },
-};
+// index.html carries the default preset's title, for crawlers that run no script.
+// Read on first use, before updateMetadata replaces it.
+let shellTitle: string | undefined;
 
-export function getConfigPreset(path: string = window.location.pathname): Preset {
-  const routeName = (path.split("/").pop() ?? "").replace(/\.html$/, "");
+// `/ot` and `/ot.html` open the `ot` preset; `/` and any path naming no preset
+// open the default one.
+export function presetNameOf(path: string): string {
+  return (path.split("/").pop() ?? "").replace(/\.html$/, "") || DEFAULT_PRESET;
+}
 
-  switch (routeName) {
-    case "ot":
-      return presets.ot as Preset;
-    default:
-      return presets.default as Preset;
+export async function resolvePreset(path: string = window.location.pathname): Promise<Preset> {
+  shellTitle ??= document.title;
+  const { groups, presets } = await fetchGpIndex();
+  const requested = presetNameOf(path);
+  const name = Object.hasOwn(presets, requested) ? requested : DEFAULT_PRESET;
+  const preset = presets[name];
+  if (preset === undefined) {
+    console.warn("The group index carries no presets, so no groups are registered");
+    return { name, title: shellTitle, defaults: {}, elements: [] };
   }
+
+  const tagsOf = new Map(groups.map((group) => [group.name, group.tags ?? []]));
+  return {
+    name,
+    title: preset.title ?? shellTitle,
+    description: preset.description,
+    defaults: preset.defaults ?? {},
+    elements: preset.groups.map(({ name: group, searchOnly }): ElementsEntry => {
+      const tags = tagsOf.get(group) ?? [];
+      return searchOnly ? [group, tags, { searchOnly }] : [group, tags];
+    }),
+  };
 }
 
 export function updateMetadata(preset: Preset): void {

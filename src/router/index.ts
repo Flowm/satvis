@@ -2,7 +2,7 @@ import { createRouter, createWebHistory, type Router, START_LOCATION } from "vue
 
 import Satvis from "../components/Satvis.vue";
 import { usePostHog } from "../composables/usePostHog";
-import { getConfigPreset, updateMetadata } from "../config/presets";
+import { resolvePreset, updateMetadata } from "../config/presets";
 import type { CesiumController } from "../modules/CesiumController";
 
 const base = document.location.pathname.match(".*/")?.[0] ?? "/";
@@ -16,7 +16,7 @@ export const router: Router = createRouter({
     { path: "/index.html", redirect: "/" },
     { path: "/ot.html", redirect: "/ot" },
     // Unknown paths (e.g. the retired /move route) render the default preset
-    // rather than an empty router-view; getConfigPreset falls back to `default`.
+    // rather than an empty router-view; resolvePreset falls back to `default`.
     { path: "/:pathMatch(.*)*", component: Satvis, name: "fallback" },
   ],
 });
@@ -33,13 +33,14 @@ export function setupRouterGuards(routerInstance: Router, cc: CesiumController):
     }
     console.log(`Navigating to ${to.path} from ${from.path}`);
 
-    const preset = getConfigPreset(to.path);
-
-    updateMetadata(preset);
-
     // Register the preset's element sets with the satellite catalog; only the
     // groups required by the current activation state are actually fetched.
-    cc.sats.loadElementSets(preset.elements);
+    // Not awaited: the preset arrives with the group index, and nothing about
+    // the navigation itself waits on it.
+    void resolvePreset(to.path).then((preset) => {
+      updateMetadata(preset);
+      void cc.sats.loadElementSets(preset.elements);
+    });
 
     return true;
   });

@@ -131,11 +131,13 @@ The same run also refreshes the SATCAT, reading the worker's stored `ETag` from
 only travels when it actually changed.
 
 Configuration is **declarative** YAML, not shell scripts. Each config file
-contributes two independent sections: `groups` (what is served, as which unit) and
-`satellites` (static per-satellite facts, keyed by NORAD id).
+contributes three independent sections: `groups` (what is served, as which unit,
+under which tags), `presets` (the starting configuration of a route) and
+`satellites` (static per-satellite facts, keyed by NORAD id). Tags and presets
+reach clients with the group index, `/api/groups.json`.
 
 - The core config lives in `worker/src/config/satvis.core.yaml` (CelesTrak
-  pass-throughs, plus the satellite table).
+  pass-throughs, the `default` preset, and the satellite table).
 - Plugins add `data/custom/<plugin>/satvis.yaml` with
   `sources` / `select` / `rename` / `include` / `exclude` / `extraRecordsFile`. Example
   (`data/custom/example/satvis.yaml`):
@@ -147,6 +149,10 @@ contributes two independent sections: `groups` (what is served, as which unit) a
       satellites:
         - { noradId: 25544, upstreamName: ISS (ZARYA), name: ISS }
   ```
+
+- A preset named `x` opens at `/x`. Its `defaults` are url parameters
+  (docs/adr/0001), and a route other than `/` and `/ot` also needs a rewrite in
+  `public/_redirects`.
 
 `pnpm --filter satvis-worker generate-groups` merges the core config with every
 `data/custom/*/satvis.yaml` (inlining `extraRecordsFile` element sets) into the
