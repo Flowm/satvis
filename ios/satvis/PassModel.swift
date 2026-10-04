@@ -30,7 +30,7 @@ final class PassModel {
     private static let chunk = 512
     /// How often a long prediction publishes what it has so far. Every
     /// publication redraws what reads the passes, so not per chunk.
-    private static let publishInterval = Duration.milliseconds(500)
+    private static let publishInterval: TimeInterval = 0.5
 
     init() {
         let stations = storage.load()
@@ -87,17 +87,17 @@ final class PassModel {
         await store.configure(PassStore.Settings(stations: stations, mode: mode))
         let settings = (stations, mode)
         var pending: [String: PassStore.Prediction] = [:]
-        var lastPublished = ContinuousClock.now
+        var lastPublished = Date()
         for offset in stride(from: 0, to: entries.count, by: Self.chunk) {
             pending.merge(await store.predict(Array(entries[offset..<min(offset + Self.chunk, entries.count)]), at: time)) { _, new in new }
             // Stations or mode changed while it ran.
             guard settings == (stations, mode) else {
                 return
             }
-            if !pending.isEmpty, ContinuousClock.now - lastPublished > Self.publishInterval {
+            if !pending.isEmpty, Date().timeIntervalSince(lastPublished) > Self.publishInterval {
                 publish(pending)
                 pending = [:]
-                lastPublished = .now
+                lastPublished = Date()
             }
         }
         if !pending.isEmpty {

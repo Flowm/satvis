@@ -51,6 +51,10 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   keywords at parse time, and Vallado's `twoline2rv` is never called.
 - `satvis/` and `satvisUITests/` are folder-synchronized: a file added on disk joins
   its target, with no `project.pbxproj` edit. A new package product does need one.
+- `satvis/PrivacyInfo.xcprivacy` is the privacy manifest App Store Connect
+  requires: no tracking, no data collected, and `UserDefaults` read by the app
+  alone. Add to it with every required-reason API and every data type collected;
+  PostHog (M5) brings both.
 - `Info.plist` is generated from `INFOPLIST_KEY_*` build settings. The file
   `satvis/Info.plist` holds only the keys that have no build setting:
   `UILaunchScreen`, `NSAppTransportSecurity` to allow a local worker, and the

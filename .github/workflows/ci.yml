@@ -104,3 +104,9 @@ jobs:
         run: pnpm update-parity-fixtures && git diff --exit-code -- ios/SatvisKit
       - name: Test SatvisKit
         run: swift test --package-path ios/SatvisKit
+      - name: Lint the Swift sources
+        run: make -C ios lint
+      # The app target and the UI tests compile only here: swift test builds the
+      # package alone. Xcode Cloud runs the UI tests on a simulator.
+      - name: Build the app and its UI tests
+        run: xcodebuild -project ios/satvis.xcodeproj -scheme satvis -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build/ci CODE_SIGNING_ALLOWED=NO build-for-testing

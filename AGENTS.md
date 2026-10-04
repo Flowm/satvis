@@ -56,6 +56,9 @@ workspace package). One `pnpm install` at the root covers both.
 
 - Worker scripts run through `pnpm --filter satvis-worker <script>`.
 - `pnpm lint` covers both packages, but `pnpm test` covers only the frontend —
+  the worker suite is `pnpm --filter satvis-worker test`. CI runs lint, both test
+  suites, then build, and on macOS the native app's package tests, its Swift lint
+  and a build of the app and its UI tests.
   the worker suite is `pnpm --filter satvis-worker test`, which also starts
   `wrangler dev` to check the asset routing (`worker/scripts/check-routes.mjs`).
   `pnpm test:build` checks `dist/sw.js` after a build. CI runs lint, both test
