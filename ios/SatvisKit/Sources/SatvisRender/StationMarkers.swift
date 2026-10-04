@@ -3,6 +3,12 @@ import Foundation
 import Metal
 import simd
 
+#if canImport(UIKit)
+    import UIKit
+#else
+    import AppKit
+#endif
+
 /// A ground station to draw: an id to pick and track it by, and where it stands.
 public struct StationMarker: Sendable, Hashable {
     public var id: String
@@ -51,30 +57,69 @@ struct LinkInstance {
 }
 
 enum StationPin {
-    /// The web app's pin (src/images/icons/pin.svg, Lucide's `map-pin`): a white
-    /// body with a dark outline and a dark dot, 96 px square.
+    static let symbol = "mappin"
+    private static let body = CGColor(srgbRed: 0xf8 / 255, green: 0xfa / 255, blue: 0xfc / 255, alpha: 1)
+    private static let outline = CGColor(srgbRed: 0x0f / 255, green: 0x17 / 255, blue: 0x2a / 255, alpha: 1)
+
+    /// SF Symbols' `mappin`, the pin the Ground stations button carries, so the
+    /// button and what it places are visibly the same object. White with a dark
+    /// outline, as the web app's pin is, to read over snow and sea alike; 96 px
+    /// square, its tip at the bottom centre.
     static func bitmap() -> Bitmap {
         let size = 96
-        return Bitmap(width: size, height: size, alpha: true) { context in
-            // The artwork is drawn on a 24-unit grid with y down.
-            context.translateBy(x: 0, y: CGFloat(size))
-            context.scaleBy(x: CGFloat(size) / 24, y: -CGFloat(size) / 24)
-            let body = CGMutablePath()
-            body.move(to: CGPoint(x: 20, y: 10))
-            body.addCurve(to: CGPoint(x: 12.601, y: 21.799), control1: CGPoint(x: 20, y: 14.993), control2: CGPoint(x: 14.461, y: 20.193))
-            body.addArc(tangent1End: CGPoint(x: 12, y: 22.2), tangent2End: CGPoint(x: 11.399, y: 21.799), radius: 1)
-            body.addCurve(to: CGPoint(x: 4, y: 10), control1: CGPoint(x: 9.539, y: 20.193), control2: CGPoint(x: 4, y: 14.993))
-            body.addArc(center: CGPoint(x: 12, y: 10), radius: 8, startAngle: .pi, endAngle: 0, clockwise: false)
-            body.closeSubpath()
-            context.addPath(body)
-            context.setFillColor(CGColor(srgbRed: 0xf8 / 255, green: 0xfa / 255, blue: 0xfc / 255, alpha: 1))
-            context.setStrokeColor(CGColor(srgbRed: 0x0f / 255, green: 0x17 / 255, blue: 0x2a / 255, alpha: 1))
-            context.setLineWidth(1.75)
-            context.setLineJoin(.round)
-            context.setLineCap(.round)
-            context.drawPath(using: .fillStroke)
-            context.fillEllipse(in: CGRect(x: 12 - 3.1, y: 10 - 3.1, width: 6.2, height: 6.2))
+        let rim = 4.0
+        guard let white = symbolImage(color: body), let dark = symbolImage(color: outline) else {
+            return Bitmap(width: size, height: size, alpha: true) { _ in }
         }
+        // The symbol's own image is padded; what is drawn is what is opaque.
+        let ink = opaqueBounds(of: white)
+        let scale = (Double(size) - 2 * rim) / ink.height
+        let placed = CGSize(width: Double(white.width) * scale, height: Double(white.height) * scale)
+        // The tip on the bottom edge, less the rim, and the stem on the centre line.
+        let origin = CGPoint(x: Double(size) / 2 - ink.midX * scale, y: rim - (Double(white.height) - ink.maxY) * scale)
+        return Bitmap(width: size, height: size, alpha: true) { context in
+            for step in 0..<16 {
+                let angle = Double(step) / 16 * 2 * .pi
+                context.draw(dark, in: CGRect(origin: CGPoint(x: origin.x + rim * cos(angle), y: origin.y + rim * sin(angle)), size: placed))
+            }
+            context.draw(white, in: CGRect(origin: origin, size: placed))
+        }
+    }
+
+    /// Where an image has ink, in pixels from its top-left corner.
+    private static func opaqueBounds(of image: CGImage) -> CGRect {
+        let bitmap = Bitmap(width: image.width, height: image.height, alpha: true) { context in
+            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        }
+        var (minX, minY, maxX, maxY) = (bitmap.width, bitmap.height, 0, 0)
+        for y in 0..<bitmap.height {
+            for x in 0..<bitmap.width where bitmap.bytes[(y * bitmap.width + x) * 4 + 3] > 0 {
+                (minX, minY, maxX, maxY) = (min(minX, x), min(minY, y), max(maxX, x + 1), max(maxY, y + 1))
+            }
+        }
+        return minX < maxX ? CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY) : CGRect(x: 0, y: 0, width: image.width, height: image.height)
+    }
+
+    /// The symbol in one colour, large enough to scale down cleanly.
+    private static func symbolImage(color: CGColor) -> CGImage? {
+        #if canImport(UIKit)
+            let configuration = UIImage.SymbolConfiguration(pointSize: 160, weight: .bold)
+                .applying(UIImage.SymbolConfiguration(paletteColors: [UIColor(cgColor: color)]))
+            guard let symbol = UIImage(systemName: symbol, withConfiguration: configuration) else {
+                return nil
+            }
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            return UIGraphicsImageRenderer(size: symbol.size, format: format).image { _ in symbol.draw(at: .zero) }.cgImage
+        #else
+            let configuration = NSImage.SymbolConfiguration(pointSize: 160, weight: .bold)
+                .applying(NSImage.SymbolConfiguration(paletteColors: [NSColor(cgColor: color) ?? .white]))
+            guard let symbol = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(configuration) else {
+                return nil
+            }
+            var rect = CGRect(origin: .zero, size: symbol.size)
+            return symbol.cgImage(forProposedRect: &rect, context: nil, hints: nil)
+        #endif
     }
 }
 
