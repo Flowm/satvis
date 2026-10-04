@@ -75,9 +75,9 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 `make run` opens no simulator window; follow the app with `make logs`.
 
 - **`test-kit`** runs the package tests on macOS, with no simulator. **`test`** runs
-  them, then the UI test, which needs no network: it points the app at a worker
-  that is not there, opens the satellite browser and finds a satellite in the kept
-  copy or the snapshot.
+  them, then the UI tests, which need no network: they point the app at a worker
+  that is not there, open the satellite browser, find a satellite in the kept copy
+  or the snapshot, and open its panel from there.
 - **`run API=…`** installs and launches against another worker, e.g. a local one
   at `http://localhost:8080` (`pnpm dev:worker` at the repository root).
 - **`snapshot`** refreshes the snapshot shipped in the app from satvis.space (or

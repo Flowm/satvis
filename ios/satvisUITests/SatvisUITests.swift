@@ -9,6 +9,26 @@ nonisolated class SatvisUITests: XCTestCase {
     // snapshot shipped in the app, so the test needs no network.
     @MainActor
     func testFindsASatelliteWithoutTheWorker() {
+        let app = search("METOP-C")
+
+        guard ProcessInfo.processInfo.environment["SCREENSHOTS"] != nil else {
+            return
+        }
+        screenshot("0Launch")
+    }
+
+    // A search result's info button switches it on and opens its panel.
+    @MainActor
+    func testOpensASatelliteFromTheBrowser() {
+        let app = search("METOP-C")
+        app.buttons["Details of METOP-C"].tap()
+        XCTAssert(app.navigationBars["METOP-C"].waitForExistence(timeout: 10))
+        XCTAssert(app.buttons["Track"].exists)
+    }
+
+    /// Launches with no worker to answer and searches the satellite browser.
+    @MainActor
+    private func search(_ name: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["SATVIS_API"] = "http://127.0.0.1:9"
         app.launch()
@@ -17,13 +37,9 @@ nonisolated class SatvisUITests: XCTestCase {
         let search = app.searchFields["Search satellites"]
         XCTAssert(search.waitForExistence(timeout: 10))
         search.tap()
-        search.typeText("METOP-C")
-        XCTAssert(app.staticTexts["METOP-C"].waitForExistence(timeout: 10))
-
-        guard ProcessInfo.processInfo.environment["SCREENSHOTS"] != nil else {
-            return
-        }
-        screenshot("0Launch")
+        search.typeText(name)
+        XCTAssert(app.buttons[name].waitForExistence(timeout: 10))
+        return app
     }
 
     @MainActor
