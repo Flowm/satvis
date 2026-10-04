@@ -257,6 +257,20 @@ final class Surface {
         return (nil, nil)
     }
 
+    /// The ground's height at a place, metres above the ellipsoid, from the finest
+    /// terrain tile loaded there; nil before any has.
+    func groundHeight(latitude: Double, longitude: Double) -> Double? {
+        for level in stride(from: Terrain.maximumLevel, through: 0, by: -1) {
+            let row = Int(Projection.geographic.row(latitude: latitude, level: level))
+            let column = Int(Projection.geographic.column(longitude: longitude, level: level))
+            let key = TileKey(level: level, x: min(column, Projection.geographic.columns(level) - 1), y: min(row, Projection.geographic.rows(level) - 1))
+            if case .ready(let source) = terrainTiles[key] {
+                return source.sample(latitude: latitude, longitude: longitude).height
+            }
+        }
+        return nil
+    }
+
     private func requestTerrain(_ key: TileKey, retry: Bool) {
         guard let loader, let url = Terrain.url(key) else {
             terrainTiles[key] = .failed(at: Date())

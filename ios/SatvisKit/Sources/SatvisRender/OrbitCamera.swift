@@ -70,8 +70,8 @@ public struct OrbitCamera: Sendable, Equatable {
     /// Reversed-Z with no far plane: depth runs from 1 at the near plane to 0 at
     /// infinity, which a float spreads evenly enough to hold a metre at the near
     /// plane and the stars behind everything.
-    static func projection(aspectRatio: Double, near: Double = 1) -> simd_double4x4 {
-        let f = 1 / tan(verticalFieldOfView(aspectRatio: aspectRatio) / 2)
+    static func projection(verticalFieldOfView: Double, aspectRatio: Double, near: Double = 1) -> simd_double4x4 {
+        let f = 1 / tan(verticalFieldOfView / 2)
         return simd_double4x4(columns: (SIMD4(f / aspectRatio, 0, 0, 0), SIMD4(0, f, 0, 0), SIMD4(0, 0, 0, -1), SIMD4(0, 0, near, 0)))
     }
 

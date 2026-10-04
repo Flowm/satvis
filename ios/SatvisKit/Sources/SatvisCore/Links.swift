@@ -113,17 +113,19 @@ public struct LinkState: Sendable, Hashable {
     public var overpass: String
     public var layers: [String]
     public var terrain: String
+    /// `3D`, or `Sky` for the sky view (ADR 0003).
+    public var scene: String
     /// The minute the clock is pinned at (`2026-10-04T20:46Z`), nil while live.
     public var time: String?
 
     /// The web app's defaults before any preset (src/stores).
     public static let global = LinkState(
         elements: ["Point", "Label"], sats: [], xsats: [], tags: [], gs: [], track: "", overpass: "elevation", layers: ["NaturalEarth"], terrain: "None",
-        time: nil)
+        scene: "3D", time: nil)
 
     public init(
         elements: [String], sats: [String], xsats: [String], tags: [String], gs: [LinkStation], track: String, overpass: String, layers: [String],
-        terrain: String, time: String?
+        terrain: String, scene: String = "3D", time: String?
     ) {
         self.elements = elements
         self.sats = sats
@@ -134,6 +136,7 @@ public struct LinkState: Sendable, Hashable {
         self.overpass = overpass
         self.layers = layers
         self.terrain = terrain
+        self.scene = scene
         self.time = time
     }
 }
@@ -147,6 +150,7 @@ public enum LinkCodec {
     public static let layers = ["NaturalEarth", "VersaTiles", "BlackMarble"]
     public static let terrains = ["None", "ReEarth"]
     public static let overpassModes = ["elevation", "swath"]
+    public static let scenes = ["3D", "Sky"]
 
     /// One parameter: how it reads into the state and writes out of it.
     struct Field: Sendable {
@@ -184,6 +188,7 @@ public enum LinkCodec {
         Field("overpass", \.overpass, .oneOf(overpassModes)),
         Field("layers", \.layers, .layerList(layers)),
         Field("terrain", \.terrain, .oneOf(terrains)),
+        Field("scene", \.scene, .oneOf(scenes)),
         Field("time", \.time, .timestamp),
     ]
 

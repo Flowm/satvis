@@ -61,6 +61,8 @@ public enum CameraMode: Sendable, Equatable {
     case orbit
     /// Following what has this id.
     case tracking(String)
+    /// On the ground, looking up (ADR 0003).
+    case sky
 }
 
 /// Draws the globe, the sky around it, the ground stations on it and the
@@ -72,6 +74,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// tracking, for when what is followed cannot be placed.
     private var orbitCamera: OrbitCamera?
     private var trackingCamera = TrackingCamera()
+    /// The sky view's camera, while it is on the ground.
+    public private(set) var skyCamera: SkyCamera?
+    /// The terrain as the Map menu has it; the sky view stands on it regardless.
+    private var terrainSetting = false
     public var components: SatelliteComponents = [.point, .label]
     /// The instant to draw, in UTC milliseconds since 1970.
     public var clock: () -> Double = { (Date().timeIntervalSince1970 * 1000).rounded(.down) }
@@ -99,20 +105,20 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let depthTest: MTLDepthStencilState
     private let noDepth: MTLDepthStencilState
     private let linearSampler: MTLSamplerState
-    private let surface: Surface
+    let surface: Surface
     private let tileSampler: MTLSamplerState
     private let skyShell: (vertices: MTLBuffer, indices: MTLBuffer, count: Int)
     private var imagery: MTLTexture?
     private var stars: MTLTexture?
     private var hdr: MTLTexture?
     private var depth: MTLTexture?
-    private let points = SatellitePoints()
+    let points = SatellitePoints()
     private var stations: [StationMarker] = []
     private var links: [StationLink] = []
     private var pin: MTLTexture?
     private nonisolated let pixelScale: Double
     /// What the last frame was drawn from, for picking.
-    private var lastFrame: (viewProjection: simd_double4x4, position: SIMD3<Double>, size: SIMD2<Double>, time: Double)?
+    private(set) var lastFrame: (viewProjection: simd_double4x4, position: SIMD3<Double>, size: SIMD2<Double>, time: Double)?
     private var pointFrameBuffers: [MTLBuffer?]
     private var frameIndex = 0
     private let inFlight = DispatchSemaphore(value: framesInFlight)
@@ -268,7 +274,41 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// Whether the globe follows Re:Earth's terrain. Off by default, as on the web.
     public func setTerrain(_ enabled: Bool) {
-        surface.setTerrain(enabled)
+        terrainSetting = enabled
+        surface.setTerrain(enabled || cameraMode == .sky)
+    }
+
+    /// Stands on the ground at the camera's observer and looks up from there,
+    /// over the terrain, which the horizon and the eye's height need.
+    public func enterSky(_ camera: SkyCamera) {
+        skyCamera = camera
+        cameraMode = .sky
+        surface.setTerrain(true)
+    }
+
+    /// Back to the globe, from straight above where the sky view stood.
+    public func leaveSky() {
+        if let skyCamera {
+            orbitCamera = .above(skyCamera.position, altitude: 2_000_000)
+        }
+        skyCamera = nil
+        cameraMode = .orbit
+        surface.setTerrain(terrainSetting)
+    }
+
+    /// The device's attitude, in the observer's east, north and up, while the
+    /// compass aims the sky view.
+    public func setSkyAttitude(_ attitude: simd_quatd) {
+        skyCamera?.attitude = attitude
+    }
+
+    /// Levels the sky view where it is looking, as handing the aim back to a
+    /// finger does (ADR 0004).
+    public func levelSky() {
+        guard let camera = skyCamera else {
+            return
+        }
+        skyCamera?.attitude = SkyCamera.attitude(azimuth: camera.azimuth, pitch: camera.pitch)
     }
 
     /// What fetches a map tile's bytes; tiles are not fetched without one.
@@ -304,12 +344,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         cameraMode = .orbit
     }
 
-    /// A drag of `points` on a view whose longer side is `longerSide` points: moves
-    /// the free camera over the globe, or circles what is followed.
-    public func drag(by points: SIMD2<Double>, longerSide: Double) {
+    /// A drag of `points` on a view of `size` points: moves the free camera over
+    /// the globe, circles what is followed, or turns the sky view.
+    public func drag(by points: SIMD2<Double>, viewSize size: CGSize) {
+        let longerSide = Double(max(size.width, size.height))
         switch cameraMode {
         case .orbit: orbitCamera?.pan(by: points, longerSide: longerSide)
         case .tracking: trackingCamera.orbit(by: points, longerSide: longerSide)
+        case .sky: skyCamera?.drag(by: points, height: Double(size.height))
         }
     }
 
@@ -318,6 +360,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         switch cameraMode {
         case .orbit: orbitCamera?.zoom(by: scale)
         case .tracking: trackingCamera.zoom(by: scale)
+        case .sky: skyCamera?.zoom(by: scale)
         }
     }
 
@@ -326,6 +369,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         switch cameraMode {
         case .orbit: orbitCamera?.rotate(by: radians)
         case .tracking: trackingCamera.rotate(by: radians)
+        // Only the device's attitude rolls the sky view.
+        case .sky: break
         }
     }
 
@@ -444,6 +489,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         if case .tracking(let id) = cameraMode, let target = position(of: id, at: now) {
             pose = trackingCamera.pose(target: target)
         }
+        if cameraMode == .sky, var camera = skyCamera {
+            // Up at once out of the ground; down gently onto finer terrain as it loads.
+            if let ground = surface.groundHeight(latitude: camera.latitude, longitude: camera.longitude) {
+                camera.groundHeight = ground > camera.groundHeight ? ground : camera.groundHeight + (ground - camera.groundHeight) * 0.1
+                skyCamera = camera
+            }
+            pose = camera.pose()
+        }
         inFlight.wait()
         guard let commands = queue.makeCommandBuffer() else {
             inFlight.signal()
@@ -459,7 +512,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         if let imagery, let lastFrame {
             let selection = surface.select(
                 eye: pose.position, viewProjection: lastFrame.viewProjection, viewportHeightPixels: Double(hdr.height),
-                verticalFieldOfView: OrbitCamera.verticalFieldOfView(aspectRatio: Double(hdr.width) / Double(hdr.height)), pixelsPerPoint: pixelScale)
+                verticalFieldOfView: pose.verticalFieldOfView(aspectRatio: Double(hdr.width) / Double(hdr.height)), pixelsPerPoint: pixelScale)
             // What is drawn now first, then the children waiting to replace it.
             let drawn = Set(selection.draw.map(\.key))
             let bakes = selection.bake.filter { drawn.contains($0.key) } + selection.bake.filter { !drawn.contains($0.key) }
@@ -611,7 +664,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     private func uniforms(pose: CameraPose, size: SIMD2<Double>, now: Double) -> FrameUniforms {
-        let viewProjection = OrbitCamera.projection(aspectRatio: size.x / size.y) * pose.view()
+        let viewProjection = pose.projection(aspectRatio: size.x / size.y) * pose.view()
         lastFrame = (viewProjection, pose.position, size, now)
         let angle = greenwichHourAngle(epochMilliseconds: now)
         let (c, s) = (Float(cos(angle)), Float(sin(angle)))

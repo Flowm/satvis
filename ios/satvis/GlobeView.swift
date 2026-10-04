@@ -24,7 +24,6 @@ struct GlobeView: View {
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            let longerSide = max(size.width, size.height)
             MetalView { renderer in
                 self.renderer = renderer
                 onRenderer(renderer)
@@ -39,7 +38,7 @@ struct GlobeView: View {
                     .onChanged { value in
                         let delta = SIMD2(Double(value.translation.width - lastTranslation.width), Double(value.translation.height - lastTranslation.height))
                         lastTranslation = value.translation
-                        renderer?.drag(by: delta, longerSide: longerSide)
+                        renderer?.drag(by: delta, viewSize: size)
                     }
                     .onEnded { _ in lastTranslation = .zero }
             )

@@ -28,13 +28,15 @@ final class Session {
     let passes = PassModel()
     @ObservationIgnored let satellites = SatelliteLayer()
     @ObservationIgnored private let starMap = StarMap()
-    @ObservationIgnored private var renderer: GlobeRenderer?
+    @ObservationIgnored private(set) var renderer: GlobeRenderer?
 
     var selection: Selection?
     /// What the camera follows: a satellite's catalog id or a station's marker id.
     private(set) var tracked: String?
     /// The next tap on the globe places a ground station.
     var isPicking = false
+    /// The station the sky view stands on, while it is open (ADR 0003).
+    private(set) var observer: UUID?
     /// The globe's base map, kept between launches.
     var baseLayer: BaseLayer = UserDefaults.standard.string(forKey: "baseLayer").flatMap(BaseLayer.init(rawValue:)) ?? .naturalEarth {
         didSet {
@@ -108,7 +110,10 @@ final class Session {
         }
         renderer.setImagery(baseLayer, site: source.site)
         renderer.setTerrain(terrain)
-        renderer.setStations(passes.markers)
+        renderer.setStations(shownMarkers)
+        if let observer, let station = passes.station(observer) {
+            renderer.enterSky(SkyCamera(latitude: station.latitude, longitude: station.longitude))
+        }
         satellites.attach(renderer)
         starMap.attach(renderer)
     }
@@ -191,6 +196,10 @@ final class Session {
         if sharing, case .station(let id) = selection, let station = passes.station(id), !stations.contains(where: { $0.id == id }) {
             stations.append(station)
         }
+        // The sky view stands on a link's first station.
+        if let observer, let station = passes.station(observer) {
+            stations = [station] + stations.filter { $0.id != observer }
+        }
         let activation = catalog.activation
         let state = LinkState(
             elements: SatelliteComponents.named.filter { catalog.components.contains($0.1) }.map(\.0),
@@ -202,6 +211,7 @@ final class Session {
             overpass: passes.mode.rawValue,
             layers: [baseLayer.rawValue],
             terrain: terrain ? "ReEarth" : "None",
+            scene: observer == nil ? "3D" : "Sky",
             time: withTime && clock.clock.isPinned ? minuteISO(Date(timeIntervalSince1970: clock.now() / 1000)) : nil)
         return Link(preset: catalog.presetName, query: LinkCodec.write(state, foreign: foreign, defaults: defaults))
     }
@@ -217,6 +227,9 @@ final class Session {
         foreign = read.foreign
         if let tracked {
             track(tracked, false)
+        }
+        if observer != nil {
+            leaveSky()
         }
         selection = nil
         if settings {
@@ -239,7 +252,14 @@ final class Session {
             preset: preset,
             activation: Activation(enabledTags: Set(state.tags), enabledSatellites: Set(state.sats), disabledSatellites: Set(state.xsats)),
             components: SatelliteComponents(SatelliteComponents.named.filter { state.elements.contains($0.0) }.map(\.1)))
-        if !state.track.isEmpty, let entry = await catalog.entry(named: state.track) {
+        if state.scene == "Sky" {
+            // On the link's first station, as it was listed, else the user's first.
+            let first = state.gs.first.map { GroundStations.Place(GroundStations.normalized([GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name)])[0]) }
+            let station = first.map { place in passes.stations.first { GroundStations.Place($0) == place } } ?? passes.saved.first
+            if let station {
+                enterSky(at: station.id)
+            }
+        } else if !state.track.isEmpty, let entry = await catalog.entry(named: state.track) {
             track(entry.id, true)
         }
     }
@@ -255,6 +275,35 @@ final class Session {
             counted = view
             analytics.pageview(link(sharing: false).url(site: source.site))
         }
+    }
+
+    // MARK: Sky view
+
+    /// Stands on a ground station and looks up. Nothing is followed from the
+    /// ground: a camera cannot both chase a satellite and stand still.
+    func enterSky(at id: UUID) {
+        guard let station = passes.station(id) else {
+            return
+        }
+        if let tracked {
+            track(tracked, false)
+        }
+        observer = id
+        // Without a renderer yet, `attach` stands it there.
+        renderer?.enterSky(SkyCamera(latitude: station.latitude, longitude: station.longitude))
+        renderer?.setStations(shownMarkers)
+    }
+
+    func leaveSky() {
+        renderer?.leaveSky()
+        observer = nil
+        renderer?.setStations(shownMarkers)
+    }
+
+    /// The stations' pins, but for the one the sky view stands on, which would be
+    /// underfoot.
+    private var shownMarkers: [StationMarker] {
+        passes.markers.filter { marker in observer.map { marker.id != PassModel.markerID($0) } ?? true }
     }
 
     /// A set in the order its defaults list it, the rest after in name order, so
@@ -276,6 +325,13 @@ final class Session {
             isPicking = false
             return
         }
+        // From the ground the crosshair chooses, not the finger (ADR 0003).
+        if observer != nil {
+            if let lock = renderer.skyLock(viewSize: size) {
+                selection = .satellite(lock.id)
+            }
+            return
+        }
         selection = renderer.entity(at: point, viewSize: size).map { id in
             PassModel.stationID(id).map(Selection.station) ?? .satellite(id)
         }
@@ -283,6 +339,9 @@ final class Session {
 
     /// A double tap follows what it lands on.
     func doubleTap(at point: CGPoint, viewSize size: CGSize) {
+        guard observer == nil else {
+            return
+        }
         if let id = renderer?.entity(at: point, viewSize: size) {
             track(id, true)
         }
@@ -292,6 +351,10 @@ final class Session {
     /// active even when its group is switched off, as on the web.
     func track(_ id: String, _ follow: Bool) {
         let isStation = PassModel.stationID(id) != nil
+        // Nothing is followed from the ground (ADR 0003).
+        if follow, observer != nil {
+            return
+        }
         if follow {
             if !isStation {
                 catalog.setTracked(id)
@@ -321,7 +384,7 @@ final class Session {
     /// alerts, and predicts the notifications again, whenever the list changes.
     private func watchStations() async {
         for await stations in Observations({ self.passes.stations }) {
-            renderer?.setStations(passes.markers)
+            renderer?.setStations(shownMarkers)
             let ids = Set(stations.map(\.id))
             if let tracked, let station = PassModel.stationID(tracked), !ids.contains(station) {
                 track(tracked, false)
