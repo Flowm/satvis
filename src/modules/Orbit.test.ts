@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import * as satellitejs from "satellite.js";
 import { describe, expect, test } from "vitest";
 
 import Orbit from "./Orbit";
@@ -43,6 +44,97 @@ describe("Orbit (TLE record)", () => {
   test("exposes tle lines and satnum", () => {
     expect(orbit.tle).toHaveLength(3);
     expect(orbit.satnum).toBe("25544");
+  });
+});
+
+describe("Orbit elevation passes", () => {
+  const orbit = new Orbit("ISS", parseGpPayload(TLE)[0] as GpRecord);
+  const gs = { latitude: 48.177, longitude: 11.7476, height: 0 };
+  const at = (iso: string) => dayjs(iso).toDate();
+
+  /** Passes above 5° by brute force, truncated at the window, to `stepMs`. */
+  function scan(o: Orbit, start: Date, end: Date, stepMs: number) {
+    const station = { latitude: gs.latitude * (Math.PI / 180), longitude: gs.longitude * (Math.PI / 180), height: 0 };
+    const isAbove = (t: number) => {
+      const ecf = o.positionECF(new Date(t));
+      return ecf !== null && satellitejs.ecfToLookAngles(station, ecf).elevation * (180 / Math.PI) > 5;
+    };
+    const passes: { start: number; end: number }[] = [];
+    let rise: number | undefined;
+    for (let t = start.getTime(); t <= end.getTime(); t += stepMs) {
+      const above = isAbove(t);
+      if (above && rise === undefined) {
+        rise = t;
+      } else if (!above && rise !== undefined) {
+        passes.push({ start: rise, end: t });
+        rise = undefined;
+      }
+    }
+    if (rise !== undefined) {
+      passes.push({ start: rise, end: end.getTime() });
+    }
+    return passes;
+  }
+
+  test.each([
+    ["rising just after the window opens", "2018-12-09T10:55:12Z", "2018-12-09T11:05:00Z"],
+    ["after one that set just before the window", "2018-12-08T11:55:10Z", "2018-12-08T14:00:00Z"],
+    ["already up when the window opens", "2018-12-08T11:50:00Z", "2018-12-08T12:00:00Z"],
+    ["still up when the window ends", "2018-12-08T11:40:00Z", "2018-12-08T11:51:30Z"],
+    ["up for the whole window", "2018-12-08T11:49:00Z", "2018-12-08T11:54:00Z"],
+  ])("finds a pass %s, edges to the window", (_, from, to) => {
+    const [want] = scan(orbit, at(from), at(to), 100);
+    const passes = orbit.computePassesElevation(gs, at(from), at(to));
+    expect(passes).toHaveLength(1);
+    expect(Math.abs(passes[0]!.start - want!.start)).toBeLessThanOrEqual(100);
+    expect(Math.abs(passes[0]!.end - want!.end)).toBeLessThanOrEqual(100);
+    expect(passes[0]!.duration).toBe(passes[0]!.end - passes[0]!.start);
+    expect(passes[0]!.apex).toBeGreaterThanOrEqual(passes[0]!.start);
+    expect(passes[0]!.apex).toBeLessThanOrEqual(passes[0]!.end);
+  });
+
+  test("gives a truncated pass the azimuth at the window's end", () => {
+    const end = at("2018-12-08T11:50:00Z");
+    const [pass] = orbit.computePassesElevation(gs, at("2018-12-08T11:40:00Z"), end);
+    const station = { latitude: gs.latitude * (Math.PI / 180), longitude: gs.longitude * (Math.PI / 180), height: 0 };
+    const azimuth = satellitejs.ecfToLookAngles(station, orbit.positionECF(end)!).azimuth * (180 / Math.PI);
+    expect(pass!.azimuthEnd).toBeCloseTo(azimuth, 3);
+  });
+
+  test("stops at maxPasses without repeating the last one", () => {
+    const passes = orbit.computePassesElevation(gs, at("2018-12-08T00:00:00Z"), at("2018-12-10T00:00:00Z"), 5, 2);
+    expect(passes).toHaveLength(2);
+    expect(passes[1]!.start).toBeGreaterThan(passes[0]!.end);
+    for (const pass of passes) {
+      expect(pass.azimuthStart).toBeLessThanOrEqual(360);
+    }
+  });
+
+  test("agrees with a brute-force scan for an eccentric orbit that sets and rises again within reach", () => {
+    const omm = JSON.stringify([
+      {
+        OBJECT_NAME: "MOLNIYA",
+        OBJECT_ID: "2000-005A",
+        EPOCH: "2026-07-04T00:00:00.000",
+        MEAN_MOTION: 2.006,
+        ECCENTRICITY: 0.72,
+        INCLINATION: 63.4,
+        RA_OF_ASC_NODE: 100,
+        ARG_OF_PERICENTER: 270,
+        MEAN_ANOMALY: 0,
+        NORAD_CAT_ID: 90005,
+        ELEMENT_SET_NO: 999,
+        BSTAR: 0,
+        MEAN_MOTION_DDOT: 0,
+        MEAN_MOTION_DOT: 0,
+      },
+    ]);
+    const molniya = new Orbit("MOLNIYA", parseGpPayload(omm)[0] as GpRecord);
+    const start = at("2026-07-04T00:00:00Z");
+    const end = at("2026-07-07T00:00:00Z");
+    const passes = molniya.computePassesElevation(gs, start, end);
+    expect(passes.length).toBe(scan(molniya, start, end, 10_000).length);
+    expect(passes.length).toBeGreaterThan(3);
   });
 });
 
