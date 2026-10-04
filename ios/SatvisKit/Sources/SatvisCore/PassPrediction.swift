@@ -47,14 +47,17 @@ public struct Pass: Sendable, Hashable {
     public var satelliteName: String
     /// The station's name as it is shown (`GroundStation.displayName`).
     public var station: String
+    /// Which station, whatever it is called.
+    public var stationID: UUID
     public var start: Double
     public var end: Double
     public var measure: Measure
 
-    public init(satellite: String, satelliteName: String, station: String, start: Double, end: Double, measure: Measure) {
+    public init(satellite: String, satelliteName: String, station: String, stationID: UUID, start: Double, end: Double, measure: Measure) {
         self.satellite = satellite
         self.satelliteName = satelliteName
         self.station = station
+        self.stationID = stationID
         self.start = start
         self.end = end
         self.measure = measure
@@ -96,7 +99,9 @@ public struct PassFinder: Sendable {
                 case .elevation: elevationPasses(over: station, from: start, to: end)
                 case .swath: swathPasses(over: station, swath: swath, from: start, to: end)
                 }
-            return found.map { Pass(satellite: satellite, satelliteName: name, station: station.displayName, start: $0.start, end: $0.end, measure: $0.measure) }
+            return found.map {
+                Pass(satellite: satellite, satelliteName: name, station: station.displayName, stationID: station.id, start: $0.start, end: $0.end, measure: $0.measure)
+            }
         }.sorted { $0.start < $1.start }
     }
 
@@ -135,7 +140,7 @@ public struct PassFinder: Sendable {
             } else if let ongoing = pass {
                 passes.append(
                     Pass(
-                        satellite: "", satelliteName: "", station: station.displayName, start: ongoing.start, end: date,
+                        satellite: "", satelliteName: "", station: station.displayName, stationID: station.id, start: ongoing.start, end: date,
                         measure: .elevation(
                             maxElevation: ongoing.maxElevation, azimuthStart: ongoing.azimuthStart / deg2rad, azimuthApex: ongoing.azimuthApex / deg2rad,
                             azimuthEnd: look.azimuth / deg2rad, apex: ongoing.apex)))
@@ -223,7 +228,7 @@ public struct PassFinder: Sendable {
                 let minimum = closestApproach(station, start, end, maxSpeed)!
                 passes.append(
                     Pass(
-                        satellite: "", satelliteName: "", station: station.displayName, start: start, end: end,
+                        satellite: "", satelliteName: "", station: station.displayName, stationID: station.id, start: start, end: end,
                         measure: .swath(minDistance: minimum.distanceKm, minDistanceTime: minimum.timeMs, swathWidth: swathWidth)))
                 if passes.count >= maxPasses {
                     break

@@ -97,7 +97,6 @@ enum InfoTab: String, CaseIterable {
 /// A ground station's panel: where it is, and every active satellite's passes over
 /// it. A station has no details, so it has no tabs.
 struct StationPanel: View {
-    let index: Int
     let station: GroundStation
     let clock: ViewerClock
     let passes: PassModel
@@ -128,7 +127,7 @@ struct StationPanel: View {
                         draftName = station.name ?? ""
                         renaming = true
                     }
-                    AlertButton(subject: .station(station), satellites: catalog.activeEntries, passes: passes, alerts: alerts)
+                    AlertButton(subject: .station(station.id), satellites: catalog.activeEntries, passes: passes, alerts: alerts)
                     Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
                         onTrack(!isTracked)
                     }
@@ -140,7 +139,7 @@ struct StationPanel: View {
                 Button("Cancel", role: .cancel) {}
                 Button("Rename") {
                     var stations = passes.stations
-                    guard stations.indices.contains(index) else {
+                    guard let index = stations.firstIndex(where: { $0.id == station.id }) else {
                         return
                     }
                     stations[index].name = draftName

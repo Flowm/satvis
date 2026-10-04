@@ -18,8 +18,11 @@ final class PassAlerts {
     /// passes over one station of the satellites active when it was asked.
     struct Alert: Codable, Hashable {
         enum Subject: Codable, Hashable {
+            /// A catalog id.
             case satellite(String)
-            case station(GroundStation)
+            /// A ground station's id: renamed or moved, it is still the one asked
+            /// about, and deleted, its alert goes with it.
+            case station(UUID)
         }
 
         var subject: Subject
@@ -47,7 +50,8 @@ final class PassAlerts {
 
     init(source: GPSource) {
         self.source = source
-        alerts = UserDefaults.standard.data(forKey: Self.key).flatMap { try? JSONDecoder().decode([Alert].self, from: $0) } ?? []
+        // One at a time, so an alert saved in an older shape drops alone.
+        alerts = (UserDefaults.standard.data(forKey: Self.key).flatMap { try? JSONDecoder().decode([MaybeAlert].self, from: $0) } ?? []).compactMap(\.value)
         center.delegate = presenter
     }
 
@@ -67,6 +71,20 @@ final class PassAlerts {
         save()
         let count = await reschedule()
         show(count == 0 ? "No passes in the next four days" : "Notifying for \(count) \(count == 1 ? "pass" : "passes")")
+    }
+
+    /// Drops the alerts of stations that are gone.
+    func forgetStations(except kept: Set<UUID>) {
+        let before = alerts.count
+        alerts.removeAll {
+            if case .station(let id) = $0.subject {
+                return !kept.contains(id)
+            }
+            return false
+        }
+        if alerts.count != before {
+            save()
+        }
     }
 
     func turnOff(_ subject: Alert.Subject) async {
@@ -124,9 +142,9 @@ final class PassAlerts {
             let stations: [GroundStation]
             switch alert.subject {
             case .satellite: stations = settings.stations
-            case .station(let station): stations = [station]
+            case .station(let id): stations = settings.stations.filter { $0.id == id }
             }
-            return alert.satellites.compactMap { catalog.entries[$0] }.map { ($0, PassStore.Settings(stations: stations, mode: settings.mode)) }
+            return alert.satellites.compactMap { Self.entry($0, in: catalog) }.map { ($0, PassStore.Settings(stations: stations, mode: settings.mode)) }
         }
         let passes = await Task.detached(priority: .utility) {
             let window = PassWindow(around: now)
@@ -143,6 +161,16 @@ final class PassAlerts {
         }
         log.notice("Scheduled \(upcoming.count) passes")
         return upcoming.count
+    }
+
+    /// A satellite by its catalog id, or by its catalog number when it has been
+    /// renamed since: CelesTrak names a new launch "OBJECT A" until it knows.
+    private static func entry(_ id: String, in catalog: Catalog) -> CatalogEntry? {
+        if let entry = catalog.entries[id] {
+            return entry
+        }
+        let satnum = id.split(separator: "|").first.map(String.init)
+        return catalog.entries.values.first { $0.satnum == satnum }
     }
 
     private func removePending() async {
@@ -163,7 +191,7 @@ final class PassAlerts {
             return
         }
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
-        let identifier = "\(Self.identifierPrefix)\(pass.satellite)|\(pass.station)|\(Int(pass.start))|\(Int(lead))"
+        let identifier = "\(Self.identifierPrefix)\(pass.satellite)|\(pass.stationID.uuidString)|\(Int(pass.start))|\(Int(lead))"
         do {
             try await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: trigger))
         } catch {
@@ -185,6 +213,15 @@ final class PassAlerts {
                 message = nil
             }
         }
+    }
+}
+
+/// An alert, or nil for one that no longer decodes.
+private struct MaybeAlert: Decodable {
+    let value: PassAlerts.Alert?
+
+    init(from decoder: Decoder) throws {
+        value = try? PassAlerts.Alert(from: decoder)
     }
 }
 

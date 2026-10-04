@@ -7,7 +7,7 @@ import SwiftUI
 struct GroundStationsView: View {
     let passes: PassModel
     let onPick: () -> Void
-    let onSelect: (Int) -> Void
+    let onSelect: (UUID) -> Void
     @State private var locating = false
     @State private var locationFailed = false
     @Environment(\.dismiss) private var dismiss
@@ -20,13 +20,11 @@ struct GroundStationsView: View {
                         Text("None yet. Pick one on the globe, or use your own position.")
                             .foregroundStyle(.secondary)
                     }
-                    ForEach(Array(passes.stations.enumerated()), id: \.offset) { index, station in
+                    ForEach(passes.stations) { station in
                         StationRow(station: station) { edited in
-                            var stations = passes.stations
-                            stations[index] = edited
-                            passes.setStations(stations)
+                            passes.setStations(passes.stations.map { $0.id == edited.id ? edited : $0 })
                         } onShow: {
-                            onSelect(index)
+                            onSelect(station.id)
                             dismiss()
                         }
                     }

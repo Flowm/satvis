@@ -117,8 +117,8 @@ extension [Pass] {
     }
 
     /// A station's list: the passes over it that start within two days, by start.
-    public func over(station: String, from now: Double, hours: Double = 48) -> [Pass] {
-        filter { $0.station == station && $0.start - now < hours * 3_600_000 }.sorted { $0.start < $1.start }
+    public func over(station: UUID, from now: Double, hours: Double = 48) -> [Pass] {
+        filter { $0.stationID == station && $0.start - now < hours * 3_600_000 }.sorted { $0.start < $1.start }
     }
 }
 
