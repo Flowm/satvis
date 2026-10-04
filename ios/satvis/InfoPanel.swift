@@ -123,11 +123,17 @@ struct StationPanel: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button("Rename", systemImage: "pencil") {
-                        draftName = station.name ?? ""
-                        renaming = true
+                    // A station a link brought is the link's until saved: alerts and
+                    // names are for the user's own, which persist.
+                    if passes.isVisiting(station.id) {
+                        Button("Save station", systemImage: "plus.circle") { passes.save(station.id) }
+                    } else {
+                        Button("Rename", systemImage: "pencil") {
+                            draftName = station.name ?? ""
+                            renaming = true
+                        }
+                        AlertButton(subject: .station(station.id), satellites: catalog.activeEntries, passes: passes, alerts: alerts)
                     }
-                    AlertButton(subject: .station(station.id), satellites: catalog.activeEntries, passes: passes, alerts: alerts)
                     Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
                         onTrack(!isTracked)
                     }
@@ -138,7 +144,7 @@ struct StationPanel: View {
                 TextField("unnamed", text: $draftName)
                 Button("Cancel", role: .cancel) {}
                 Button("Rename") {
-                    var stations = passes.stations
+                    var stations = passes.saved
                     guard let index = stations.firstIndex(where: { $0.id == station.id }) else {
                         return
                     }
@@ -172,7 +178,8 @@ private struct AlertButton: View {
     var body: some View {
         let isOn = alerts.isOn(subject)
         Button(isOn ? "Stop notifying" : "Notify for upcoming passes", systemImage: isOn ? "bell.fill" : "bell") {
-            guard passes.hasStations else {
+            // Notifications are predicted over the saved stations alone.
+            guard !passes.saved.isEmpty else {
                 needsStation = true
                 return
             }

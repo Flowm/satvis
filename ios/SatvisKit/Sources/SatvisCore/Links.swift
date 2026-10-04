@@ -467,3 +467,57 @@ public func minuteISO(_ date: Date) -> String {
     format = format.year().month().day().dateTimeSeparator(.standard).time(includingFractionalSeconds: false)
     return String(date.formatted(format).prefix(16)) + "Z"
 }
+
+/// A satvis link: the preset it opens on, by its path (`/ot`), and its query.
+public struct Link: Sendable, Hashable {
+    /// The preset the path names, nil for the default one.
+    public var preset: String?
+    public var query: LinkQuery
+
+    public init(preset: String? = nil, query: LinkQuery = LinkQuery()) {
+        self.preset = preset == Preset.defaultName ? nil : preset
+        self.query = query
+    }
+
+    /// From a whole link or a path with its query, as `/ot?tags=OT`: the path's
+    /// last segment names the preset, less any `.html`, as src/config/presets.ts
+    /// reads it.
+    public init(_ text: String) {
+        var rest = Substring(text)
+        if let fragment = rest.firstIndex(of: "#") {
+            rest = rest[..<fragment]
+        }
+        let question = rest.firstIndex(of: "?")
+        var path = question.map { rest[..<$0] } ?? rest
+        if let scheme = path.range(of: "://") {
+            path = path[scheme.upperBound...].drop { $0 != "/" }
+        }
+        var name = path.split(separator: "/", omittingEmptySubsequences: false).last.map(String.init) ?? ""
+        if name.hasSuffix(".html") {
+            name.removeLast(".html".count)
+        }
+        self.init(preset: name.isEmpty ? nil : name, query: LinkQuery(parsing: question.map { String(rest[rest.index(after: $0)...]) } ?? ""))
+    }
+
+    /// The link on a site, as the web app would show it in its address bar.
+    public func url(site: URL) -> URL {
+        let query = query.string
+        let path = "/" + (preset ?? "") + (query.isEmpty ? "" : "?" + query)
+        return URL(string: path, relativeTo: site)?.absoluteURL ?? site
+    }
+}
+
+extension LinkState {
+    /// The imagery providers `layers` names, in order, less their opacities.
+    public var layerProviders: [String] {
+        layers.compactMap { parseLayer($0)?.provider }
+    }
+}
+
+/// The instant a link's minute (`2026-10-04T20:46Z`) stands for.
+public func date(minuteISO: String) -> Date? {
+    guard minuteISO.hasSuffix("Z") else {
+        return nil
+    }
+    return try? Date(String(minuteISO.dropLast()) + ":00Z", strategy: .iso8601)
+}

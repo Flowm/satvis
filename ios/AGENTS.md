@@ -69,6 +69,17 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   for the selected satellite, and for every active one while a station is
   selected or the ground station links are drawn. Each prediction holds for a day
   either side of when it was made, as on the web.
+- A link is the view, as on the web (ADR 0001): `LinkCodec` reads one onto its
+  preset's defaults and `Session.open` applies it, replacing what is shown;
+  `Session.link` writes the view back. Parameters the app does not honour (`scene`,
+  `stars`, `bench`…) are kept as they came and written into every link it makes.
+  The view is kept as a link when the app goes to the background and reopened
+  from it, without its time, so the app reopens live. A link's ground stations
+  visit: they are shown and predicted for, but saved only on the user's word, and
+  have no alerts until then. A shared link carries the visiting stations and the
+  selected one, never the rest of the saved ones, which are often where the user
+  lives. Share makes the link when tapped, so a pinned clock gives its minute
+  then.
 - The globe's gestures are SwiftUI's, not UIKit recognizers on the MTKView, so the
   controls laid over it take the touches that land on them. They go to the
   renderer, which steers whichever camera its `CameraMode` says is in use: the free
@@ -135,7 +146,8 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 - `SATVIS_API` in the launch environment replaces satvis.space: `make run API=…`,
   or a scheme environment variable in Xcode. `SATVIS_TIME` (ISO 8601, UTC) pins
   the clock at that instant and pauses it, for screenshots and for checking the
-  lighting.
+  lighting. `SATVIS_LINK` opens on a link, a whole url or a path with its query
+  (`/ot?tags=OT`), ahead of the view a last run left; the UI tests open on `/`.
 - `GroupRepository` revalidates every payload with its ETag, keeps it in
   Application Support, and falls back to the kept copy, then the snapshot, when
   the worker cannot be asked. A 200 that is not JSON counts as no answer: a host

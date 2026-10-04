@@ -9,6 +9,12 @@ import SatvisRender
 /// station is selected or their links are drawn.
 @Observable
 final class PassModel {
+    /// The user's stations, kept and synced.
+    private(set) var saved: [GroundStation]
+    /// Stations a link brought, shown with this view until one is saved.
+    private(set) var visiting: [GroundStation] = []
+    /// Every station shown: the saved ones, then the visiting ones that are not
+    /// among them.
     private(set) var stations: [GroundStation]
     private(set) var mode: OverpassMode
     /// By catalog id. A satellite asked about but not answered yet is missing.
@@ -32,6 +38,7 @@ final class PassModel {
     init() {
         let stations = storage.load()
         storage.keepIDs(stations)
+        saved = stations
         self.stations = stations
         mode = UserDefaults.standard.string(forKey: Self.modeKey).flatMap(OverpassMode.init(rawValue:)) ?? .elevation
         storage.onExternalChange = { [weak self] stations in
@@ -49,6 +56,7 @@ final class PassModel {
             mode: UserDefaults.standard.string(forKey: modeKey).flatMap(OverpassMode.init(rawValue:)) ?? .elevation)
     }
 
+    /// Replaces the saved stations.
     func setStations(_ stations: [GroundStation]) {
         apply(GroundStations.normalized(stations), save: true)
     }
@@ -58,9 +66,29 @@ final class PassModel {
     @discardableResult
     func add(latitude: Double, longitude: Double, name: String? = nil) -> UUID? {
         let added = GroundStation(latitude: latitude, longitude: longitude, name: name)
-        setStations(stations + [added])
+        setStations(saved + [added])
         let place = GroundStations.Place(GroundStations.normalized([added])[0])
-        return stations.first { GroundStations.Place($0) == place }?.id
+        return saved.first { GroundStations.Place($0) == place }?.id
+    }
+
+    /// Shows a link's stations with this view, without saving them.
+    func setVisiting(_ stations: [GroundStation]) {
+        visiting = GroundStations.normalized(stations)
+        combine()
+    }
+
+    func isVisiting(_ id: UUID) -> Bool {
+        visiting.contains { $0.id == id } && !saved.contains { $0.id == id }
+    }
+
+    /// Keeps a visiting station among the user's own, under the same id, so what
+    /// refers to it carries on.
+    func save(_ id: UUID) {
+        guard let station = visiting.first(where: { $0.id == id }) else {
+            return
+        }
+        visiting.removeAll { $0.id == id }
+        setStations(saved + [station])
     }
 
     func station(_ id: UUID) -> GroundStation? {
@@ -173,14 +201,24 @@ final class PassModel {
     }
 
     private func apply(_ stations: [GroundStation], save: Bool) {
-        guard stations != self.stations else {
+        guard stations != saved else {
             return
         }
-        self.stations = stations
-        forget()
+        saved = stations
         if save {
             storage.save(stations)
         }
+        combine()
+    }
+
+    private func combine() {
+        let places = Set(saved.map(GroundStations.Place.init))
+        let shown = saved + visiting.filter { !places.contains(GroundStations.Place($0)) }
+        guard shown != stations else {
+            return
+        }
+        stations = shown
+        forget()
     }
 }
 

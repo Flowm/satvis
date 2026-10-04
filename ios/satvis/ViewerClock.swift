@@ -45,6 +45,11 @@ final class ViewerClock {
         clock.scrub(to: time, at: Self.real())
     }
 
+    /// Pinned at an instant, as a link with a time opens: it plays on from there.
+    func pin(at time: Double) {
+        clock.scrub(to: time, at: Self.real())
+    }
+
     func goLive() {
         clock.goLive(at: Self.real())
     }

@@ -98,7 +98,15 @@ the app.
 produces a satvis.space link, and a universal link with state opens in the app.
 `/ot` selects the OT preset; the app has no preset picker. A plain `satvis.space/`
 still opens the website. Ground stations are kept on the device and synced through
-iCloud key-value storage.
+iCloud key-value storage. That makes a link's stations different from the web's:
+
+- A link's stations are shown with its view and saved only when the user says so,
+  so that opening a link never edits the list that follows them to their other
+  devices.
+- A shared link carries the selected station and those a link brought, not every
+  saved one, which are often where the user lives.
+- The app keeps its view as a link and reopens on it, but live: a clock found
+  paused hours later reads as broken.
 
 ## What the native app leaves out
 

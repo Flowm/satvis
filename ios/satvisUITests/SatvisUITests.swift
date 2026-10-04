@@ -26,12 +26,30 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Track"].exists)
     }
 
-    /// Launches with no worker to answer and searches the satellite browser.
+    // A link opens on what it names, as on the web: the satellite enabled and
+    // tracked, its panel open.
     @MainActor
-    private func search(_ name: String) -> XCUIApplication {
+    func testOpensALink() {
+        let app = launch(link: "/?tags=&sats=METOP-B&track=METOP-B&elements=Point,Label,Orbit")
+        XCTAssert(app.navigationBars["METOP-B"].waitForExistence(timeout: 20))
+        XCTAssert(app.buttons["Stop tracking"].firstMatch.exists)
+    }
+
+    /// Launches with no worker to answer, on a link: by default the plain site,
+    /// rather than the view an earlier run left.
+    @MainActor
+    private func launch(link: String = "/") -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["SATVIS_API"] = "http://127.0.0.1:9"
+        app.launchEnvironment["SATVIS_LINK"] = link
         app.launch()
+        return app
+    }
+
+    /// Launches and searches the satellite browser.
+    @MainActor
+    private func search(_ name: String) -> XCUIApplication {
+        let app = launch()
 
         app.buttons["Satellites"].tap()
         let search = app.searchFields["Search satellites"]

@@ -62,6 +62,18 @@ final class Session {
     /// When the data was last asked for again, so that the scene turning active
     /// twice in a row does not ask twice.
     @ObservationIgnored private var revalidated = Date.distantPast
+    /// A link that came before there was a catalog to open it on.
+    @ObservationIgnored private var pendingLink: Link?
+    @ObservationIgnored private var started = false
+    /// What the last link carried that the app does not show (ADR 0001's foreign
+    /// parameters), written back into every link the app makes.
+    @ObservationIgnored private var foreign = LinkQuery()
+
+    /// The view as it was left, as a link.
+    private static let viewKey = "view"
+    /// `SATVIS_LINK` in the launch environment opens on that link, a whole url or
+    /// a path with its query (`/ot?tags=OT`): for screenshots and tests.
+    private static let launchLink = ProcessInfo.processInfo.environment["SATVIS_LINK"].map(Link.init)
 
     init(source: GPSource, alerts: PassAlerts) {
         self.source = source
@@ -116,7 +128,15 @@ final class Session {
             if source.index == nil {
                 await source.refresh()
             }
-            await catalog.start()
+            started = true
+            if let link = pendingLink ?? Self.launchLink ?? UserDefaults.standard.string(forKey: Self.viewKey).map(Link.init) {
+                pendingLink = nil
+                await apply(link, settings: true)
+            } else {
+                // The first launch: the default preset, and the map as the
+                // settings before links kept it.
+                await apply(Link(), settings: false)
+            }
             Task {
                 await source.refresh()
                 await catalog.revalidate(refetching: false)
@@ -145,6 +165,87 @@ final class Session {
 
     func enteredBackground() {
         alerts.requestRefresh()
+        // Kept without its time: the app reopens on the present.
+        UserDefaults.standard.set(link(sharing: false, withTime: false).url(site: source.site).absoluteString, forKey: Self.viewKey)
+    }
+
+    // MARK: Links
+
+    /// Opens a link: what it shows replaces what is shown, as on the web.
+    func open(_ link: Link) {
+        guard started else {
+            pendingLink = link
+            return
+        }
+        Task { await apply(link, settings: true) }
+    }
+
+    /// The view as a link, as the web app's address bar would hold it. Of the
+    /// saved stations only the selected one goes into a link, and only one that
+    /// is `sharing`: they are often where the user lives.
+    func link(sharing: Bool, withTime: Bool = true) -> Link {
+        let defaults = LinkCodec.defaults(preset: catalog.presetDefaults)
+        var stations = passes.visiting
+        if sharing, case .station(let id) = selection, let station = passes.station(id), !stations.contains(where: { $0.id == id }) {
+            stations.append(station)
+        }
+        let activation = catalog.activation
+        let state = LinkState(
+            elements: SatelliteComponents.named.filter { catalog.components.contains($0.1) }.map(\.0),
+            sats: Self.ordered(activation.enabledSatellites, like: defaults.sats),
+            xsats: Self.ordered(activation.disabledSatellites, like: defaults.xsats),
+            tags: Self.ordered(activation.enabledTags, like: defaults.tags),
+            gs: stations.map { LinkStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) },
+            track: catalog.tracked.flatMap { catalog.catalog.entries[$0]?.name } ?? "",
+            overpass: passes.mode.rawValue,
+            layers: [baseLayer.rawValue],
+            terrain: terrain ? "ReEarth" : "None",
+            time: withTime && clock.clock.isPinned ? minuteISO(Date(timeIntervalSince1970: clock.now() / 1000)) : nil)
+        return Link(preset: catalog.presetName, query: LinkCodec.write(state, foreign: foreign, defaults: defaults))
+    }
+
+    /// Shows what a link says, over its preset's defaults. `settings` false leaves
+    /// the map, the overpass mode and the clock as they are.
+    private func apply(_ link: Link, settings: Bool) async {
+        let index = source.index?.value
+        let preset = link.preset.flatMap { index?.presets[$0] != nil ? $0 : nil }
+        let defaults = LinkCodec.defaults(preset: index?.preset(named: preset)?.defaults ?? [:])
+        let read = LinkCodec.read(link.query, defaults: defaults)
+        let state = read.state
+        foreign = read.foreign
+        if let tracked {
+            track(tracked, false)
+        }
+        selection = nil
+        if settings {
+            if let base = state.layerProviders.compactMap(BaseLayer.init(rawValue:)).last {
+                baseLayer = base
+            }
+            terrain = state.terrain == "ReEarth"
+            passes.setMode(OverpassMode(rawValue: state.overpass) ?? .elevation)
+            // A clock pinned for a screenshot stays where it was put.
+            if ViewerClock.launchTime == nil {
+                if let time = state.time.flatMap(date(minuteISO:)) {
+                    clock.pin(at: (time.timeIntervalSince1970 * 1000).rounded(.down))
+                } else if clock.clock.isPinned {
+                    clock.goLive()
+                }
+            }
+        }
+        passes.setVisiting(state.gs.map { GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) })
+        await catalog.open(
+            preset: preset,
+            activation: Activation(enabledTags: Set(state.tags), enabledSatellites: Set(state.sats), disabledSatellites: Set(state.xsats)),
+            components: SatelliteComponents(SatelliteComponents.named.filter { state.elements.contains($0.0) }.map(\.1)))
+        if !state.track.isEmpty, let entry = await catalog.entry(named: state.track) {
+            track(entry.id, true)
+        }
+    }
+
+    /// A set in the order its defaults list it, the rest after in name order, so
+    /// that a view at its defaults writes none of them.
+    private static func ordered(_ names: Set<String>, like defaults: [String]) -> [String] {
+        defaults.filter(names.contains) + names.subtracting(defaults).sorted()
     }
 
     /// A tap places a station while picking, and otherwise selects what it lands
@@ -213,7 +314,8 @@ final class Session {
             if case .station(let station) = selection, !ids.contains(station) {
                 selection = nil
             }
-            alerts.forgetStations(except: ids)
+            // Alerts are for the saved stations only.
+            alerts.forgetStations(except: Set(passes.saved.map(\.id)))
             await alerts.reschedule()
         }
     }
