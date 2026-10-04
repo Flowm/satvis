@@ -28,12 +28,39 @@ import {
   type Label,
 } from "@cesium/engine";
 import { Viewer } from "@cesium/widgets";
+import YAML from "yaml";
 
 import { installFramePumpIfRequested } from "../modules/benchmark/framePump";
 import { glbStats, type GlbStats } from "./glbStats";
 
 // Only the keys: the importers are never called, so nothing is bundled or fetched.
 const MODEL_PATHS = Object.keys(import.meta.glob("/data/**/*.glb"));
+// The model manifests the worker maps NORAD ids from (ADR 0007).
+const MANIFESTS = import.meta.glob<string>(["/data/models/models.yaml", "/data/custom/*/models.yaml"], { query: "?raw", import: "default", eager: true });
+
+interface ManifestSatellite {
+  name?: string;
+  noradId: number;
+  decayed?: string | boolean;
+}
+
+/**
+ * The satellites a manifest gives the model at `path`, matched where the file is
+ * served: data/models for the submodule's, and for a plugin's where its sync
+ * script copies it, data/custom/dist/models. A plugin's own source folder is not
+ * matched; its copies elsewhere (Grafana variants) would be mistaken for it.
+ */
+function manifestSatellites(path: string): ManifestSatellite[] | undefined {
+  for (const [manifestPath, text] of Object.entries(MANIFESTS)) {
+    const servedFrom = manifestPath === "/data/models/models.yaml" ? "/data/models/" : "/data/custom/dist/models/";
+    for (const model of (YAML.parse(text) as { models?: Array<{ file: string; satellites?: ManifestSatellite[] }> }).models ?? []) {
+      if (path === `${servedFrom}${model.file}`) {
+        return model.satellites ?? [];
+      }
+    }
+  }
+  return undefined;
+}
 
 type ScaleMode = "fit" | "true";
 
@@ -57,6 +84,8 @@ interface Entry {
   center?: Cartesian3;
   /** Placed bounding sphere, in world coordinates. */
   sphere?: BoundingSphere;
+  /** From the model manifests; undefined for a file none of them lists. */
+  satellites?: ManifestSatellite[];
 }
 
 /** Where every model sits: 500 km above 0°N 0°E, out of the way of nothing. */
@@ -172,7 +201,7 @@ const entries: Entry[] = MODEL_PATHS.toSorted((a, b) => groupRank(a) - groupRank
   toggle.type = "checkbox";
   option.append(toggle, ` ${name}`);
   controls.pickerList.append(option);
-  const entry: Entry = { path, url: `.${path}`, name, group, card, visible: shown?.includes(name) ?? true, toggle };
+  const entry: Entry = { path, url: `.${path}`, name, group, card, visible: shown?.includes(name) ?? true, toggle, satellites: manifestSatellites(path) };
   toggle.checked = entry.visible;
   toggle.addEventListener("change", () => setVisible([entry], toggle.checked));
   card.hidden = !entry.visible;
@@ -435,6 +464,14 @@ function renderCard(entry: Entry): void {
   const { stats } = entry;
   const rows: Array<[string, string]> = [];
   if (stats) {
+    if (entry.satellites) {
+      rows.push([
+        "Satellites",
+        entry.satellites.length === 0
+          ? "none (generic)"
+          : entry.satellites.map(({ name, noradId, decayed }) => `${escape(name ?? "")} <span class="path">${noradId}${decayed ? ", decayed" : ""}</span>`).join("<br>"),
+      ]);
+    }
     rows.push(["File", `${megabytes(stats.fileBytes)} (textures ${megabytes(stats.imageBytes)})`]);
     rows.push(["Triangles", stats.triangles.toLocaleString("en")]);
     rows.push(["Vertices", stats.vertices.toLocaleString("en")]);

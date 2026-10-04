@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Merge the committed core config with every data/custom/*/satvis.yaml plugin
 // config, inline each group's extraRecordsFile TLE text into extraRecords,
-// validate, and write worker/src/config/satvis.generated.json.
+// give every satellite a model manifest lists its `modelFile`, validate, and
+// write worker/src/config/satvis.generated.json.
 //
 // A config contributes three independent sections: `groups` (what is served, as
 // which unit, under which tags), `presets` (the starting configuration of a
@@ -25,6 +26,11 @@ const customDir = path.join(repoRoot, "data", "custom");
 const outPath = path.join(workerDir, "src", "config", "satvis.generated.json");
 
 const PLUGIN_CONFIG_NAME = "satvis.yaml";
+// A model manifest: the models submodule's (data/models) and any plugin's that
+// ships models of its own. Each lists files under /data/models/ and the NORAD ids
+// they depict.
+const MODEL_MANIFEST_NAME = "models.yaml";
+const modelsManifestPath = path.join(repoRoot, "data", "models", MODEL_MANIFEST_NAME);
 // Pre-YAML plugin config name. Detected only to fail loudly: silently skipping
 // it would make a plugin's groups vanish from the build without a word.
 const LEGACY_PLUGIN_CONFIG_NAME = "groups.json";
@@ -111,6 +117,63 @@ function discoverPluginConfigs() {
     }
   }
   return configs;
+}
+
+// Every model manifest present. The submodule's is missing in a checkout that never
+// ran `git submodule update --init` (CI included); that is a warning, not a
+// failure, so lint and tests run anywhere — but such a build gives no satellite
+// one of its models, which the warning says.
+function discoverModelManifests() {
+  const manifests = [];
+  if (fs.existsSync(modelsManifestPath)) {
+    manifests.push(modelsManifestPath);
+  } else {
+    process.stderr.write(`warning: ${path.relative(repoRoot, modelsManifestPath)} not found, so no satellite gets one of its 3D models. Run \`git submodule update --init\`.\n`);
+  }
+  if (fs.existsSync(customDir)) {
+    for (const entry of fs.readdirSync(customDir, { withFileTypes: true }).toSorted((a, b) => a.name.localeCompare(b.name))) {
+      const candidate = path.join(customDir, entry.name, MODEL_MANIFEST_NAME);
+      if (entry.isDirectory() && fs.existsSync(candidate)) {
+        manifests.push(candidate);
+      }
+    }
+  }
+  return manifests;
+}
+
+// `{ noradId, modelFile }` for every satellite a manifest lists. A model's `file`
+// is its path under /data/models/, wherever it was copied from; the app adds the
+// prefix, so the bag carries no URL.
+function modelAssignments(manifestPath) {
+  const source = path.relative(repoRoot, manifestPath);
+  const dir = path.dirname(manifestPath);
+  const { models } = readYaml(manifestPath) ?? {};
+  if (!Array.isArray(models)) {
+    throw new Error(`${source}: expected a top-level "models" list`);
+  }
+  return models.flatMap((model, i) => {
+    if (typeof model?.file !== "string" || !model.file.endsWith(".glb") || model.file.startsWith("/") || model.file.includes("..")) {
+      throw new Error(`${source}: models[${i}].file must be a .glb path under /data/models/ (got ${JSON.stringify(model?.file)})`);
+    }
+    // A typo would only show as a failed request in the browser. A plugin's
+    // files are copied by its own sync script, so its layout is a guess: warn.
+    if (!fs.existsSync(path.join(dir, "public", model.file))) {
+      const message = `${source}: ${model.file} is not in ${path.relative(repoRoot, path.join(dir, "public"))}`;
+      if (manifestPath === modelsManifestPath) {
+        throw new Error(message);
+      }
+      process.stderr.write(`warning: ${message}\n`);
+    }
+    if (model.satellites !== undefined && !Array.isArray(model.satellites)) {
+      throw new Error(`${source}: ${model.file} has a "satellites" that is not a list`);
+    }
+    return (model.satellites ?? []).map((satellite) => {
+      if (!Number.isInteger(satellite?.noradId)) {
+        throw new Error(`${source}: ${model.file} lists a satellite without a numeric noradId`);
+      }
+      return { noradId: satellite.noradId, modelFile: model.file, origin: `${source} ${model.file}` };
+    });
+  });
 }
 
 // Validate a group's `satellites` rows (if any). Each row must select by
@@ -477,6 +540,13 @@ function main() {
       if (row.metadata !== undefined) {
         table.add(row.noradId, { metadata: row.metadata, name: row.name, decayed: row.decayed }, `group ${JSON.stringify(group.name)}`);
       }
+    }
+  }
+  // Models last, through the same table: a plugin giving a mapped satellite a
+  // different modelFile is a conflict like any other, not an override.
+  for (const manifestPath of discoverModelManifests()) {
+    for (const { noradId, modelFile, origin } of modelAssignments(manifestPath)) {
+      table.add(noradId, { metadata: { modelFile } }, origin);
     }
   }
   const satellites = table.entries();

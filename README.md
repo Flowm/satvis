@@ -55,7 +55,12 @@ the SPA and the `worker/` package.
   satellite data works without a local worker)
 - `pnpm dev:host` to expose the dev server on the local network
 - `/models.html` under `pnpm dev` shows every 3D model in `data/` side by side,
-  with its size, triangle count, textures and glTF problems (dev only, not built)
+  with its satellites, size, triangle count, textures and glTF problems (dev only,
+  not built)
+- The 3D models live in the `data/models` submodule, which builds them itself
+  (`pnpm build` there, from its `build.yaml`). Its `models.yaml` says which NORAD
+  ids use which model; a plugin with models of its own adds a `models.yaml` at its
+  root (`docs/adr/0007-model-manifest.md`)
 - `pnpm build` to build the application (output in `dist` folder)
 - `pnpm preview` to preview the production build locally
 - `pnpm update-gp` to refresh the static satellite-data snapshot (see below)

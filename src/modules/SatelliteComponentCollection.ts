@@ -38,7 +38,7 @@ import { SATELLITE_COMPONENTS } from "../config/components";
 import { ORBIT_CLASS_COLOR, type OrbitClass } from "../config/orbitClass";
 import type { GroundStation } from "./PassPredictor";
 import type { CatalogEntry } from "./SatelliteCatalog";
-import { coneDescription, coneOrientation, groundTrackDescription, modelUri, orbitPathTimes, orbitTrackTimes, orbitUsesPathGraphic } from "./satelliteGraphics";
+import { coneDescription, coneOrientation, groundTrackDescription, modelUrl, orbitPathTimes, orbitTrackTimes, orbitUsesPathGraphic } from "./satelliteGraphics";
 import { SatelliteProperties } from "./SatelliteProperties";
 import { cancelPendingTrack, trackEntity, trackWhenReady, type CameraPose } from "./trackFlight";
 import { drawablePositions } from "./util/drawablePositions";
@@ -306,7 +306,7 @@ export class SatelliteComponentCollection {
       this.#batchFor(name).add(component);
     }
 
-    if (name === "3D model") {
+    if (name === "3D model" && component) {
       // So the model does not cover the label.
       this.#setLabelOffset(20);
       this.#setViewFrom();
@@ -552,9 +552,15 @@ export class SatelliteComponentCollection {
     this.createCesiumSatelliteEntity("Point", "point", point);
   }
 
+  // Only a satellite a model manifest lists has a model (ADR 0007). Guessing a
+  // file from the name meant a failed request for every other satellite.
   createModel(): void {
+    const { modelFile } = this.props.entry.metadata;
+    if (!modelFile) {
+      return;
+    }
     const model = new ModelGraphics({
-      uri: modelUri(this.props.name, this.props.entry.metadata.modelUrl),
+      uri: modelUrl(modelFile),
       minimumPixelSize: 50,
       maximumScale: 10000,
     });

@@ -91,9 +91,9 @@ export function coneOrientation(position: Cartesian3 | undefined): Quaternion | 
   return Transforms.headingPitchRollQuaternion(position, CONE_HEADING_PITCH_ROLL);
 }
 
-/** Explicit model URL from catalog metadata wins; otherwise the name-convention path. */
-export function modelUri(name: string, modelUrl?: string): string {
-  return modelUrl ?? `./data/models/${name.split(" ").join("-")}.glb`;
+/** Where a model manifest's file is served, relative to the page. */
+export function modelUrl(modelFile: string): string {
+  return `./data/models/${modelFile}`;
 }
 
 /**

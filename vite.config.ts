@@ -88,7 +88,9 @@ export default defineConfig({
           rename: { stripBase: 4 },
         },
         { src: `${cesiumWidgetsSource}/Source`, dest: `${cesiumBaseUrl}/Widgets`, rename: { stripBase: 4 } },
-        { src: ["data/**", "!data/custom/**"], dest: "data", rename: { stripBase: 1 } },
+        { src: ["data/**", "!data/custom/**", "!data/models/**"], dest: "data", rename: { stripBase: 1 } },
+        // The models repo ships only public/, as a plugin's sync does (ADR 0007).
+        { src: "data/models/public/**", dest: "data/models", rename: { stripBase: 3 } },
         { src: ["data/custom/dist/**"], dest: "data", rename: { stripBase: 3 } },
       ],
     }),
@@ -169,7 +171,9 @@ export default defineConfig({
             urlPattern: /data\/models\/.*\.glb$/,
             handler: "CacheFirst",
             options: {
-              cacheName: "satellite-model-cache",
+              // Versioned because the models are replaced under the same names, which
+              // a cache-first route would otherwise keep serving for its whole lifetime.
+              cacheName: "satellite-model-cache-v2",
               expiration: {
                 maxAgeSeconds: 30 * 24 * 60 * 60,
                 maxEntries: 50,

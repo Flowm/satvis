@@ -60,9 +60,13 @@ function fakeViewer() {
   return { viewer: viewer as unknown as Viewer, entities, removed };
 }
 
-async function setup() {
+/** The ISS, with the model its manifest entry gives it unless `modelFile` is null. */
+async function setup({ modelFile = "ISS-(ZARYA).glb" }: { modelFile?: string | null } = {}) {
   const { viewer, entities, removed } = fakeViewer();
   const record = parseGpPayload(TLE)[0] as GpRecord;
+  if (modelFile !== null) {
+    record.metadata = { modelFile };
+  }
   const entry = new CatalogEntry({ key: "25544|ISS", name: "ISS", nameUpper: "ISS", satnum: "25544", tags: [], record });
   const sampler = new InlineSampleSource().samplerFor(entry.satnum, entry.record);
   const predictor = new InlinePassSource().predictorFor(entry.satnum, entry.record);
@@ -133,6 +137,23 @@ describe("SatelliteComponentCollection tracking offset", () => {
     expect(offset(sat, viewer)).toBeCloseTo(390);
     setModelRadius(0.2);
     expect(offset(sat, viewer)).toBeCloseTo(1.2);
+  });
+});
+
+describe("SatelliteComponentCollection 3D model", () => {
+  test("loads the model its metadata names", async () => {
+    const { sat } = await setup();
+    sat.show(["Point", "3D model"]);
+    expect((sat.components["3D model"] as Entity).model?.uri?.getValue(JulianDate.now())).toBe("./data/models/ISS-(ZARYA).glb");
+  });
+
+  test("is not drawn, and nothing is fetched, for a satellite without a model", async () => {
+    const { sat, viewer } = await setup({ modelFile: null });
+    sat.show(["Point", "3D model"]);
+    expect(sat.componentNames).toEqual(["Point"]);
+    // Tracking does not wait for a model that will never load.
+    sat.track();
+    expect(viewer.trackedEntity).toBe(sat.components.Point);
   });
 });
 
