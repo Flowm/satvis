@@ -79,7 +79,12 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   have no alerts until then. A shared link carries the visiting stations and the
   selected one, never the rest of the saved ones, which are often where the user
   lives. Share makes the link when tapped, so a pinned clock gives its minute
-  then.
+  then. satvis.space links open the app as universal links: the site's
+  `public/.well-known/apple-app-site-association` claims `/ot` and `/` with a
+  query, and `satvis.entitlements` the `applinks:satvis.space` domain, which
+  needs the Associated Domains capability on the App ID. The simulator builds
+  here are unsigned and carry no entitlements, so a universal link needs a signed
+  build on a device; `SATVIS_LINK` goes through the same `Session.open`.
 - The globe's gestures are SwiftUI's, not UIKit recognizers on the MTKView, so the
   controls laid over it take the touches that land on them. They go to the
   renderer, which steers whichever camera its `CameraMode` says is in use: the free
