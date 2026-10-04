@@ -7,8 +7,8 @@ import Testing
     private func catalog() throws -> Catalog {
         let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
         var catalog = Catalog()
-        catalog.add(Array(records[0..<2]), tags: ["Weather"])
-        catalog.add(Array(records[1..<4]), tags: ["Active"])
+        catalog.add(Array(records[0..<2]), tags: ["Weather"], group: "weather")
+        catalog.add(Array(records[1..<4]), tags: ["Active"], group: "active")
         return catalog
     }
 
@@ -16,6 +16,7 @@ import Testing
         let catalog = try catalog()
         #expect(catalog.entries.count == 4)
         #expect(catalog.entries.values.first { $0.name == "METOP-C" }?.tags == ["Weather", "Active"])
+        #expect(catalog.entries.values.first { $0.name == "METOP-C" }?.groups == ["weather", "active"])
         #expect(catalog.search("metop").map(\.name) == ["METOP-C"])
         #expect(catalog.search("25544").map(\.name) == ["ISS (ZARYA)"])
     }

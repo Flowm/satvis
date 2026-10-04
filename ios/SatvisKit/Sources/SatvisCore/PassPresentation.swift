@@ -39,12 +39,17 @@ extension Pass {
 
     /// The pass in one line: window, length, and what the mode measures.
     public var summary: String {
-        let window = "\(Self.hhmm(start))–\(Self.hhmm(end)) UTC · \(Int((duration / 60_000).rounded())) min"
+        "\(Self.hhmm(start))–\(Self.hhmm(end)) UTC · \(length)"
+    }
+
+    /// The summary without the window: how long, and what the mode measures.
+    public var length: String {
+        let minutes = "\(Int((duration / 60_000).rounded())) min"
         switch measure {
         case .elevation(let maxElevation, _, let azimuthApex, _, _):
-            return "\(window) · \(toFixed(maxElevation, 0))° max, apex \(compassPoint(azimuthApex))"
+            return "\(minutes) · \(toFixed(maxElevation, 0))° max, apex \(compassPoint(azimuthApex))"
         case .swath(let minDistance, _, let swathWidth):
-            return "\(window) · \(toFixed(minDistance, 0)) km off track, swath \(toFixed(swathWidth, 0)) km"
+            return "\(minutes) · \(toFixed(minDistance, 0)) km off track, swath \(toFixed(swathWidth, 0)) km"
         }
     }
 

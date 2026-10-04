@@ -7,6 +7,8 @@ public struct CatalogEntry: Sendable, Hashable, Identifiable {
     public let id: String
     public var record: GPRecord
     public var tags: Set<String>
+    /// The groups that serve it, to load it again by.
+    public var groups: Set<String> = []
 
     public var name: String { record.name }
     public var satnum: String { record.satnum }
@@ -19,10 +21,13 @@ public struct Catalog: Sendable {
 
     public init() {}
 
-    public mutating func add(_ records: [GPRecord], tags: [String]) {
+    public mutating func add(_ records: [GPRecord], tags: [String], group: String? = nil) {
         for record in records {
             let id = "\(record.satnum)|\(record.name)"
             entries[id, default: CatalogEntry(id: id, record: record, tags: [])].tags.formUnion(tags)
+            if let group {
+                entries[id]?.groups.insert(group)
+            }
         }
     }
 

@@ -7,6 +7,7 @@ struct InfoPanel: View {
     let entry: CatalogEntry
     let clock: ViewerClock
     let passes: PassModel
+    let alerts: PassAlerts
     let isTracked: Bool
     let onTrack: (Bool) -> Void
     let onClose: () -> Void
@@ -42,6 +43,7 @@ struct InfoPanel: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    AlertButton(subject: .satellite(entry.id), satellites: [entry], passes: passes, alerts: alerts)
                     Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
                         onTrack(!isTracked)
                     }
@@ -99,6 +101,7 @@ struct StationPanel: View {
     let station: GroundStation
     let clock: ViewerClock
     let passes: PassModel
+    let alerts: PassAlerts
     let catalog: CatalogModel
     let isTracked: Bool
     let onTrack: (Bool) -> Void
@@ -125,6 +128,7 @@ struct StationPanel: View {
                         draftName = station.name ?? ""
                         renaming = true
                     }
+                    AlertButton(subject: .station(station), satellites: catalog.activeEntries, passes: passes, alerts: alerts)
                     Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
                         onTrack(!isTracked)
                     }
@@ -155,6 +159,37 @@ struct StationPanel: View {
                 .font(.footnote.monospacedDigit())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Notifications for the passes the panel lists, on or off.
+private struct AlertButton: View {
+    let subject: PassAlerts.Alert.Subject
+    let satellites: [CatalogEntry]
+    let passes: PassModel
+    let alerts: PassAlerts
+    @State private var needsStation = false
+
+    var body: some View {
+        let isOn = alerts.isOn(subject)
+        Button(isOn ? "Stop notifying" : "Notify for upcoming passes", systemImage: isOn ? "bell.fill" : "bell") {
+            guard passes.hasStations else {
+                needsStation = true
+                return
+            }
+            Task {
+                if isOn {
+                    await alerts.turnOff(subject)
+                } else {
+                    await alerts.turnOn(subject, satellites: satellites)
+                }
+            }
+        }
+        .alert("Ground station required", isPresented: $needsStation) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Add a ground station to be notified of passes over it.")
+        }
     }
 }
 
