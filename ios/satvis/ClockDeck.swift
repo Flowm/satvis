@@ -7,7 +7,9 @@ import SwiftUI
 /// are marked on the timeline.
 struct ClockDeck: View {
     let clock: ViewerClock
-    var passes: [Pass] = []
+    let passes: PassModel
+    /// The selected satellite, by catalog id.
+    let satellite: String?
     @State private var isOpen = false
     @State private var onLadder = false
 
@@ -56,7 +58,7 @@ struct ClockDeck: View {
                     if onLadder {
                         Ladder(clock: clock)
                     } else {
-                        TimelineScale(clock: clock, passes: passes)
+                        TimelineScale(clock: clock, passes: passes, satellite: satellite)
                     }
                 }
                 .frame(height: 44)
@@ -104,7 +106,8 @@ private struct Stamp: View {
 /// labelled. Dragging scrubs, and a flick runs on and slows as on the web.
 private struct TimelineScale: View {
     let clock: ViewerClock
-    let passes: [Pass]
+    let passes: PassModel
+    let satellite: String?
     @State private var dragStart: Double?
     @State private var flick: Task<Void, Never>?
 
@@ -119,7 +122,8 @@ private struct TimelineScale: View {
                 let half = size.width / 2 * Self.msPerPoint
                 // Marks, not ranges: the scale moves under a fixed needle. In the
                 // passes table's blue, at a weight that reads as a region.
-                for pass in passes where pass.end >= centre - half && pass.start <= centre + half {
+                let marked = satellite.flatMap { passes.passes(of: $0, at: centre) } ?? []
+                for pass in marked where pass.end >= centre - half && pass.start <= centre + half {
                     let left = max(0, (pass.start - centre) / Self.msPerPoint + size.width / 2)
                     let right = min(size.width, (pass.end - centre) / Self.msPerPoint + size.width / 2)
                     let mark = CGRect(x: left, y: 0, width: max(1, right - left), height: size.height)

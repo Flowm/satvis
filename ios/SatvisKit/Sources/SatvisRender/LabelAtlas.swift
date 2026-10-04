@@ -15,7 +15,7 @@ struct LabelInstance {
 /// LabelGraphics has it.
 struct LabelAtlas {
     /// Past this many satellites the web app switches labels off, and so does this.
-    static let maximumLabels = 200
+    static let maximumLabels = SatelliteComponents.labelBudget
 
     let texture: MTLTexture
     let instances: [LabelInstance]

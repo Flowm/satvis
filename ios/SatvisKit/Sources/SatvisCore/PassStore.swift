@@ -39,11 +39,18 @@ public actor PassStore {
         generation += 1
     }
 
-    /// The passes of each satellite, by catalog id, from a window that covers
-    /// `time`; the satellites without one are predicted first. A satellite that
-    /// cannot be propagated, or circles too slowly for passes, has none. Empty
-    /// with no ground station.
-    public func passes(of satellites: [CatalogEntry], at time: Double) async -> [String: [Pass]] {
+    /// One satellite's passes, and the span they hold for.
+    public struct Prediction: Sendable, Equatable {
+        public var window: PassWindow
+        public var passes: [Pass]
+    }
+
+    /// Predicts the satellites whose passes no longer cover `time`, or whose
+    /// element set changed, in parallel, and returns only those, by catalog id: a
+    /// caller that keeps the rest has nothing to redo. A satellite that cannot be
+    /// propagated, or circles too slowly for passes, has none. Empty with no
+    /// ground station.
+    public func predict(_ satellites: [CatalogEntry], at time: Double) async -> [String: Prediction] {
         guard !settings.stations.isEmpty else {
             return [:]
         }
@@ -53,22 +60,31 @@ public actor PassStore {
             }
             return !known.window.covers(time) || known.record != entry.record
         }
-        if !stale.isEmpty {
-            let generation = generation
-            let settings = settings
-            let window = PassWindow(around: time)
-            let results = await withTaskGroup(of: (String, Predicted).self) { group in
-                for entry in stale {
-                    group.addTask {
-                        (entry.id, Predicted(record: entry.record, window: window, passes: Self.predict(entry, settings: settings, window: window)))
-                    }
-                }
-                return await group.reduce(into: [:]) { $0[$1.0] = $1.1 }
-            }
-            if generation == self.generation {
-                predicted.merge(results) { _, new in new }
-            }
+        guard !stale.isEmpty else {
+            return [:]
         }
+        let generation = generation
+        let settings = settings
+        let window = PassWindow(around: time)
+        let results = await withTaskGroup(of: (String, Predicted).self) { group in
+            for entry in stale {
+                group.addTask {
+                    (entry.id, Predicted(record: entry.record, window: window, passes: Self.predict(entry, settings: settings, window: window)))
+                }
+            }
+            return await group.reduce(into: [:]) { $0[$1.0] = $1.1 }
+        }
+        guard generation == self.generation else {
+            return [:]
+        }
+        predicted.merge(results) { _, new in new }
+        return results.mapValues { Prediction(window: $0.window, passes: $0.passes) }
+    }
+
+    /// The passes of each satellite whose window covers `time`, predicting first
+    /// where needed.
+    public func passes(of satellites: [CatalogEntry], at time: Double) async -> [String: [Pass]] {
+        _ = await predict(satellites, at: time)
         var answer: [String: [Pass]] = [:]
         for entry in satellites {
             if let known = predicted[entry.id], known.window.covers(time) {
@@ -76,6 +92,12 @@ public actor PassStore {
             }
         }
         return answer
+    }
+
+    /// Forgets the satellites not among these, so that browsing group after group
+    /// with a station selected does not keep every prediction ever made.
+    public func keep(only ids: Set<String>) {
+        predicted = predicted.filter { ids.contains($0.key) }
     }
 
     /// Every pass of one satellite over the stations inside the window.

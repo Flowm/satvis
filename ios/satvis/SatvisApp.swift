@@ -62,6 +62,11 @@ struct ContentView: View {
     @State private var showsBrowser = false
     @State private var showsStations = false
     @State private var isPicking = false
+    /// What the drawn links were built from.
+    @State private var linksKey: LinksKey?
+    /// When the data was last asked for again, so that the scene turning active
+    /// twice in a row does not ask twice.
+    @State private var revalidated = Date.distantPast
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -134,7 +139,7 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .bottom) {
-            ClockDeck(clock: clock, passes: highlightedPasses)
+            ClockDeck(clock: clock, passes: passes, satellite: selectedSatellite)
                 .padding(.horizontal)
                 .padding(.bottom, 8)
         }
@@ -175,8 +180,17 @@ struct ContentView: View {
                 Task { await alerts.reschedule() }
             }
             passes.onModeChange = { Task { await alerts.reschedule() } }
-            await source.refresh()
+            // The kept copy first, so nothing waits on the network that a copy on
+            // disk can show; the worker's answers follow.
+            await source.loadKept()
+            if source.index == nil {
+                await source.refresh()
+            }
             await catalog.start()
+            Task {
+                await source.refresh()
+                await catalog.revalidate(refetching: false)
+            }
             await satellites.run(clock: clock)
         }
         .task {
@@ -188,8 +202,13 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
+                guard Date().timeIntervalSince(revalidated) > 60 else {
+                    break
+                }
+                revalidated = Date()
                 Task {
                     await source.refresh()
+                    await catalog.revalidate()
                     await alerts.reschedule()
                 }
             case .background:
@@ -222,12 +241,12 @@ struct ContentView: View {
         }
     }
 
-    /// The selected satellite's passes, for the clock deck.
-    private var highlightedPasses: [Pass] {
-        guard case .satellite(let id) = selection else {
-            return []
+    /// The selected satellite, whose passes the clock deck marks.
+    private var selectedSatellite: String? {
+        if case .satellite(let id) = selection {
+            return id
         }
-        return passes.passes(of: id) ?? []
+        return nil
     }
 
     /// A tap places a station while picking, and otherwise selects what it lands
@@ -274,7 +293,7 @@ struct ContentView: View {
     private func predictPasses() async {
         while !Task.isCancelled {
             let active = catalog.activeEntries
-            let showsLinks = catalog.components.contains(.groundStationLink)
+            let showsLinks = catalog.components.contains(.groundStationLink) && active.count <= SatelliteComponents.linkBudget
             var wanted: [CatalogEntry] = []
             var showsStation = false
             switch selection {
@@ -292,7 +311,13 @@ struct ContentView: View {
             if passes.hasStations, !wanted.isEmpty {
                 await passes.refresh(wanted, at: clock.now())
             }
-            renderer?.setLinks(showsLinks ? passes.links(for: active) : [])
+            await passes.keep(only: wanted)
+            // Rebuilt only when the passes or the satellites changed.
+            let links = LinksKey(revision: passes.revision, satellites: showsLinks ? active.map(\.id) : [])
+            if links != linksKey {
+                linksKey = links
+                renderer?.setLinks(showsLinks ? passes.links(for: active) : [])
+            }
             try? await Task.sleep(for: .seconds(1))
         }
     }
@@ -320,6 +345,11 @@ struct ContentView: View {
     }
 }
 
+private struct LinksKey: Equatable {
+    var revision: Int
+    var satellites: [String]
+}
+
 /// Which satellite components are drawn.
 private struct ComponentsMenu: View {
     let catalog: CatalogModel
@@ -335,8 +365,11 @@ private struct ComponentsMenu: View {
                         catalog.setComponent(component, enabled: $0)
                     })
             }
-            if catalog.activeEntries.count > 200 {
-                Text("Labels show for up to 200 satellites")
+            if catalog.activeEntries.count > SatelliteComponents.labelBudget {
+                Text("Labels show for up to \(SatelliteComponents.labelBudget) satellites")
+            }
+            if catalog.activeEntries.count > SatelliteComponents.linkBudget {
+                Text("Ground station links show for up to \(SatelliteComponents.linkBudget) satellites")
             }
         }
     }

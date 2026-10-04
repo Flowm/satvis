@@ -17,6 +17,14 @@ final class GPSource {
         self.repository = repository
     }
 
+    /// The index as last kept, or as shipped, for a start that does not wait on the
+    /// network. `refresh` asks the worker.
+    func loadKept() async {
+        if index == nil {
+            index = await repository.keptIndex()
+        }
+    }
+
     /// Revalidates the index: a 304 when nothing changed.
     func refresh() async {
         do {
@@ -28,12 +36,22 @@ final class GPSource {
         }
     }
 
+    /// A group, revalidated with the worker.
     func records(of group: String) async throws -> GroupRepository.Loaded<[GPRecord]> {
         try await repository.records(of: group)
+    }
+
+    /// A group as last kept, or as shipped, without asking the worker.
+    func keptRecords(of group: String) async -> GroupRepository.Loaded<[GPRecord]>? {
+        await repository.keptRecords(of: group)
     }
 
     /// The star map's six faces, nil until it has been fetched once.
     func starMap() async -> [Data]? {
         await repository.starMap()
+    }
+
+    func keptStarMap() async -> [Data]? {
+        await repository.keptStarMap()
     }
 }
