@@ -17,12 +17,13 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(clockDeck(app).waitForExistence(timeout: 60))
     }
 
-    // The App Store screenshots: the about page's three views, in this order.
+    // The App Store screenshots: the about page's three views, at the same urls
+    // (about.html) and in this order, so the web and every device show one set.
     // Only scripts/screenshots.sh takes them, against BASE_URL.
 
     @MainActor
     func testScreenshot1Globe() throws {
-        _ = try open("/")
+        _ = try open("/?time=2026-10-04T08:52Z")
         screenshot("1Globe")
     }
 
@@ -32,31 +33,21 @@ nonisolated class SatvisUITests: XCTestCase {
         screenshot("2ISS")
     }
 
-    // Night in the Lauterbrunnen valley. Each device's frame gets its own time and
-    // satellites, chosen so that no two labels touch, none sits under the chrome,
-    // and nothing is close enough to the crosshair to open its card. Moving
-    // satellites keep that layout for 20 s from the pinned minute; the clock is
-    // paused well inside it.
+    // Night in the Lauterbrunnen valley. The satellites were chosen so that in the
+    // web, iPhone and iPad frames alike no two labels touch, none sits under the
+    // chrome or crosses a ridge, and nothing is close enough to the crosshair to
+    // open its card; the iPhone's narrow frame is what limits them to seven.
+    // Moving satellites keep that for 20 s from the pinned minute.
     @MainActor
     func testScreenshot3Sky() throws {
-        let sky = "/?scene=Sky&gs=46.5935,7.9091&terrain=ReEarth&layers=VersaTiles&stars=DeepStar2K&elements=Point,Label"
-        if UIDevice.current.userInterfaceIdiom == .pad {
-            _ = try open(
-                sky + "&time=2026-10-04T19:10Z&tags=GNSS,IridiumNEXT,Resource,Weather,OneWeb"
-                    + excluding([
-                        "METEOSAT-11 (MSG-4)", "METEOSAT-12 (MTG-I1)", "BEIDOU-3 M8 (C28)", "GPS BIIF-3  (PRN 24)", "LUCH 5B (SDCM/PRN 125)",
-                        "EUTELSAT 5 WEST B (EGNOS/PRN 121)", "SES-5 (EGNOS/PRN 136)", "DMSP 5D-3 F16 (USA 172)", "ONEWEB-0164",
-                    ]),
-                pausing: true)
-        } else {
-            _ = try open(
-                sky + "&time=2026-10-04T19:22Z&tags=GNSS,IridiumNEXT,Weather,OneWeb"
-                    + excluding([
-                        "METEOSAT-10 (MSG-3)", "METEOSAT-11 (MSG-4)", "METEOSAT-12 (MTG-I1)", "MTG-I2", "BEIDOU-3 M21 (C43)", "BEIDOU-3 M27 (C49)",
-                        "EUTELSAT 5 WEST B (EGNOS/PRN 121)", "SES-5 (EGNOS/PRN 136)", "GSAT0220 (GALILEO 24)", "IRIDIUM 117",
-                    ]),
-                pausing: true)
-        }
+        _ = try open(
+            "/?scene=Sky&gs=46.5935,7.9091&terrain=ReEarth&layers=VersaTiles&stars=DeepStar2K&time=2026-10-04T19:22Z&tags=GNSS,Weather,OneWeb&elements=Point,Label"
+                + excluding([
+                    "COSMOS 2500 (755)", "GSAT0220 (GALILEO 24)", "METEOSAT-11 (MSG-4)", "BEIDOU-3 M27 (C49)", "SES-5 (EGNOS/PRN 136)",
+                    "EUTELSAT 5 WEST B (EGNOS/PRN 121)", "BEIDOU-3 M21 (C43)", "METEOSAT-12 (MTG-I1)", "METEOSAT-10 (MSG-3)", "MTG-I2",
+                    "LUCH 5B (SDCM/PRN 125)", "BEIDOU-3 M8 (C28)", "ONEWEB-0169", "ONEWEB-0336", "BEIDOU-3 M11 (C25)", "ONEWEB-0112",
+                    "ONEWEB-0628", "GSAT-8 (GAGAN/PRN 127)", "BEIDOU-2 G5 (C05)", "TIANMU-1 10", "TIANMU-1 13",
+                ]))
         screenshot("3Sky")
     }
 
@@ -66,13 +57,13 @@ nonisolated class SatvisUITests: XCTestCase {
     }
 
     /// Launch on a path of BASE_URL and wait for the tiles, with the clock
-    /// stopped as soon as the page is up when `pausing`.
+    /// stopped as soon as the page is up so every device shows the same moment.
     ///
     /// Relaunches when the take is spoiled: a cold simulator can be slow enough
     /// that the clock runs past the window the sky layouts hold for, and its
     /// WebGL now and then fails a shader compile. A warm second launch is not.
     @MainActor
-    func open(_ path: String, pausing: Bool = false) throws -> XCUIApplication {
+    func open(_ path: String) throws -> XCUIApplication {
         let environment = ProcessInfo.processInfo.environment
         guard environment["SCREENSHOTS"] != nil else {
             throw XCTSkip("Taken by scripts/screenshots.sh")
@@ -83,12 +74,10 @@ nonisolated class SatvisUITests: XCTestCase {
             app.launch()
             SpringboardHelper.allowSystemAlerts()
             XCTAssert(clockDeck(app).waitForExistence(timeout: 60))
-            if pausing {
-                pauseClock(app)
-                guard let seconds = clockSeconds(app), seconds <= 20 else {
-                    print("Attempt \(attempt): the clock stopped too late")
-                    continue
-                }
+            pauseClock(app)
+            guard let seconds = clockSeconds(app), seconds <= 20 else {
+                print("Attempt \(attempt): the clock stopped too late")
+                continue
             }
             sleep(30)
             if app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "An error occurred while rendering")).firstMatch.exists {
