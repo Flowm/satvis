@@ -169,9 +169,8 @@ epoch from satellite.js's own `jday`. The rotation into the pseudo-fixed frame i
 Cesium's GMST polynomial, not satellite.js's `gstime`, and the port has to stay
 operation for operation (`GreenwichHourAngle.swift`). Pass prediction
 (`PassFinder`) is `Orbit.ts` step for step, down to JavaScript's Date: each instant
-is truncated to a whole millisecond before it is propagated, and `setMinutes`
-truncates the minutes it skips. Elevation passes then agree exactly; swath passes
-to the 10 ms their edges are bisected to.
+is truncated to a whole millisecond before it is propagated. Both overpass modes
+search for their edges and peaks to 10 ms, and agree to that.
 
 ## Gotchas
 
