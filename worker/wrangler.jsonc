@@ -26,8 +26,9 @@
     // public/404.html is load-bearing rather than decoration.
     //
     // The other half of the bargain is that every path which must serve the app
-    // has to be a real file: index.html, ot.html, embedded.html, test.html. What
-    // is left over is genuinely missing, and now says so.
+    // has to be a real file (index.html, about.html, embedded.html, test.html) or a
+    // rule in public/_redirects (/ot). What is left over is genuinely missing, and
+    // now says so.
     "not_found_handling": "404-page",
     // Route /api/* to the Worker before the asset router looks, so an api path can
     // never be shadowed by a file that happens to share its name.
