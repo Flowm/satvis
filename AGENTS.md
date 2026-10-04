@@ -24,8 +24,8 @@ workspace package). One `pnpm install` at the root covers both.
   schema, field by field.
 - **`src/modules/benchmark/README.md`** — the benchmark framework, and how the
   frame cost scales.
-- **`ios/AGENTS.md`** — the iOS app: building, testing, screenshots, and its
-  contract with the web page.
+- **`ios/AGENTS.md`** — the native iOS app: building, testing, its worker
+  client, and its parity with the web app.
 
 ## Architecture
 
@@ -59,7 +59,11 @@ workspace package). One `pnpm install` at the root covers both.
   the worker suite is `pnpm --filter satvis-worker test`, which also starts
   `wrangler dev` to check the asset routing (`worker/scripts/check-routes.mjs`).
   `pnpm test:build` checks `dist/sw.js` after a build. CI runs lint, both test
-  suites, the build with `test:build`, and `pnpm test:e2e`.
+  suites, the build with `test:build`, and `pnpm test:e2e`, and on macOS the
+  native app's package tests.
+- `pnpm update-parity-fixtures` reruns the web code the native app is held to
+  (`scripts/parity/`). Rerun it after changing propagation or element-set parsing;
+  CI fails while the committed fixtures are stale.
 - `pnpm test:e2e` renders with SwiftShader, as a GPU-less CI runner does;
   `pnpm test:e2e:gpu` runs the same specs about four times faster on a Mac.
 - The full e2e suite takes 10+ minutes even on the GPU, so run it only when
