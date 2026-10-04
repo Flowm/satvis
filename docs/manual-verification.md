@@ -824,3 +824,24 @@ an animated track, after ISS then CSS, after an instant track and after tracking
 ground station. Entering the sky view while tracking used to save the tracking-relative
 camera position as its way back, and leaving dropped the camera onto the surface; it
 now untracks first, and leaving lands 0 km from the tracked view.
+
+## Attribution lightbox: closable on a phone
+
+**Why it cannot be a unit test.** Whether the close button can be tapped depends on
+stacking and the safe-area insets, and jsdom has neither.
+
+**Procedure.** Run the iOS app against the change (`make run` in `ios/` loads
+satvis.space; see the note below for a local page), tap `Attribution`, then tap the
+close button. In a desktop browser, open the lightbox and click outside it.
+
+**Result, 2026-10-04, iPhone 18 Pro Max simulator, iOS 27.** Before: the full-screen
+lightbox sat below the toolbars and the clock deck, its title and close button under
+the Dynamic Island, and nothing closed it. After: it covers the app chrome, the
+title and close button start below the status bar, and the close button dismisses
+it. At 1024 px wide the windowed lightbox is unchanged, covers the toolbars, and a
+click outside still closes it.
+
+**Note: the simulator blanks a launch variable named `URL`.** `SIMCTL_CHILD_URL`
+arrives as `URL=` while the same value under another name arrives intact, so
+`make run URL=…` loads satvis.space. This run read a temporary `SATVIS_URL` instead,
+pointed at `http://[::1]:<port>/`: Vite listens on IPv6 loopback only.
