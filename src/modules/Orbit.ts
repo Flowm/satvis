@@ -58,15 +58,15 @@ const EARTH_RADIUS_KM = 6371;
 // are ~75 km apart in LEO and the bearing is not dominated by rounding.
 const BEARING_SAMPLE_MS = 10_000;
 
-/**
- * An upper bound on ground-track speed (km/s) for any orbit this app
- * predicts — ISS-class LEO runs under 7 km/s, and this stays safely above
- * that down to the lowest altitudes satellite.js can propagate. Used only to
- * prove a coarse step could not possibly have closed to within a swath's
- * extent, never to size the step itself, so overestimating it costs a few
- * needless minimisations rather than a missed pass.
- */
-const MAX_GROUND_SPEED_KM_S = 8.5;
+const MU_KM3_S2 = 398600.4418;
+const EARTH_ROTATION_RAD_S = 7.2921159e-5;
+const INV_PHI = (Math.sqrt(5) - 1) / 2;
+
+// Swath pass edges and minima are resolved to this. A kilometre-wide swath can
+// serve a station for well under a second.
+const SWATH_RESOLUTION_MS = 10;
+// How often an asymmetric swath re-reads which side of the track the station is on.
+const SIDE_SAMPLE_MS = 1000;
 
 /** Initial bearing from one geodetic point to another, all in radians. */
 function bearingRad(fromLat: number, fromLon: number, toLat: number, toLon: number): number {
@@ -82,6 +82,21 @@ function greatCircleKm(fromLat: number, fromLon: number, toLat: number, toLon: n
   const deltaLon = toLon - fromLon;
   const a = Math.sin(deltaLat / 2) ** 2 + Math.cos(fromLat) * Math.cos(toLat) * Math.sin(deltaLon / 2) ** 2;
   return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** Bisects to where `isInside` flips between `outsideMs` and `insideMs`, returning both bounds. */
+function crossing(isInside: (timeMs: number) => boolean, outsideMs: number, insideMs: number): { outsideMs: number; insideMs: number } {
+  let outside = outsideMs;
+  let inside = insideMs;
+  while (Math.abs(inside - outside) > SWATH_RESOLUTION_MS) {
+    const mid = (outside + inside) / 2;
+    if (isInside(mid)) {
+      inside = mid;
+    } else {
+      outside = mid;
+    }
+  }
+  return { outsideMs: outside, insideMs: inside };
 }
 
 export default class Orbit {
@@ -269,85 +284,100 @@ export default class Orbit {
   }
 
   /**
-   * The subpoint-to-station distance (km) at `date`, or `Infinity` where it
-   * cannot be propagated — a plain number so it can be minimized over, unlike
-   * `trackOffsets`'s `undefined` which a search has nothing to compare.
+   * An upper bound on the subpoint's speed over the ground (km/s), and so on how
+   * fast its distance to a station can change: the angular rate at perigee plus
+   * the Earth's rotation, with margin for the perturbations SGP4 adds.
    */
-  #trackDistanceKm(groundStationPosition: GroundStationPosition, date: Date): number {
-    return this.trackOffsets(groundStationPosition, date)?.distanceKm ?? Number.POSITIVE_INFINITY;
+  #maxGroundSpeedKmS(): number {
+    const eccentricity = this.satrec.ecco;
+    const meanMotionRadS = this.satrec.no / 60;
+    const perigeeKm = Math.cbrt(MU_KM3_S2 / meanMotionRadS ** 2) * (1 - eccentricity);
+    const perigeeRateRadS = Math.sqrt((MU_KM3_S2 * (1 + eccentricity)) / perigeeKm) / perigeeKm;
+    return 1.1 * EARTH_RADIUS_KM * (perigeeRateRadS + EARTH_ROTATION_RAD_S);
+  }
+
+  /** Great-circle distance (km) from the subpoint to the station, `Infinity` where it cannot be propagated. */
+  #subpointDistanceKm(groundStation: GroundStationPosition, timeMs: number): number {
+    const here = this.positionGeodetic(new Date(timeMs));
+    if (!here) {
+      return Number.POSITIVE_INFINITY;
+    }
+    return greatCircleKm(here.latitude * deg2rad, here.longitude * deg2rad, groundStation.latitude * deg2rad, groundStation.longitude * deg2rad);
   }
 
   /**
-   * The time of closest approach inside `[lo, hi]`, by golden-section search.
-   *
-   * Assumes the distance is unimodal across the bracket — true for one orbit's
-   * single conjunction with a fixed point, which is what every bracket here
-   * spans. Shrinks to 10 ms: a kilometre-scale sensor's whole catchment window
-   * can be under a tenth of a second, so this has to resolve finer than the
-   * event it is looking for, not just finer than the coarse ladder around it.
+   * The closest approach in `[lo, hi]` by golden-section search, which assumes a
+   * single minimum there. Returns `undefined` as soon as the speed bound proves
+   * nothing in the bracket comes within `abandonAboveKm`.
    */
-  #closestApproachInBracket(groundStationPosition: GroundStationPosition, lo: number, hi: number): { timeMs: number; distanceKm: number } {
-    const invphi = (Math.sqrt(5) - 1) / 2;
+  #closestApproach(
+    groundStation: GroundStationPosition,
+    lo: number,
+    hi: number,
+    maxSpeedKmS: number,
+    abandonAboveKm = Number.POSITIVE_INFINITY,
+  ): { timeMs: number; distanceKm: number } | undefined {
     let a = lo;
     let b = hi;
-    for (let i = 0; i < 100 && b - a > 10; i++) {
-      const c = b - (b - a) * invphi;
-      const d = a + (b - a) * invphi;
-      if (this.#trackDistanceKm(groundStationPosition, new Date(c)) < this.#trackDistanceKm(groundStationPosition, new Date(d))) {
+    let c = b - (b - a) * INV_PHI;
+    let d = a + (b - a) * INV_PHI;
+    let fc = this.#subpointDistanceKm(groundStation, c);
+    let fd = this.#subpointDistanceKm(groundStation, d);
+    while (b - a > SWATH_RESOLUTION_MS) {
+      if (Math.min(fc, fd) - (maxSpeedKmS * (b - a)) / 1000 > abandonAboveKm) {
+        return undefined;
+      }
+      if (fc < fd) {
         b = d;
+        d = c;
+        fd = fc;
+        c = b - (b - a) * INV_PHI;
+        fc = this.#subpointDistanceKm(groundStation, c);
       } else {
         a = c;
+        c = d;
+        fc = fd;
+        d = a + (b - a) * INV_PHI;
+        fd = this.#subpointDistanceKm(groundStation, d);
       }
     }
-    const timeMs = (a + b) / 2;
-    return { timeMs, distanceKm: this.#trackDistanceKm(groundStationPosition, new Date(timeMs)) };
+    return fc < fd ? { timeMs: c, distanceKm: fc } : { timeMs: d, distanceKm: fd };
   }
 
   /**
-   * Where distance crosses `extentKm` inside `[outsideMs, insideMs]`, by
-   * bisection. `outsideMs`'s distance must exceed `extentKm` and `insideMs`'s
-   * must not — the two sides of one monotonic slope down to (or up from) the
-   * closest approach found by `#closestApproachInBracket`, which is what
-   * every call site here provides. Returns both bounds as bisection leaves
-   * them, each still on its own side, a sample apart: `insideMs` for a pass's
-   * start (the first moment it is, in fact, inside) and `outsideMs` for its
-   * end (the first moment it no longer is) — the same convention the coarse
-   * scan around this uses.
+   * The parts of `[from, to]` an asymmetric swath serves the station in. The side
+   * it lies on usually holds for a whole pass, but not where the ground track
+   * curves or reverses, so it is sampled rather than assumed.
    */
-  #crossingInBracket(groundStationPosition: GroundStationPosition, outsideMs: number, insideMs: number, extentKm: number): { outsideMs: number; insideMs: number } {
-    let lo = outsideMs;
-    let hi = insideMs;
-    for (let i = 0; i < 60 && Math.abs(hi - lo) > 10; i++) {
-      const mid = (lo + hi) / 2;
-      if (this.#trackDistanceKm(groundStationPosition, new Date(mid)) <= extentKm) {
-        hi = mid;
-      } else {
-        lo = mid;
-      }
+  #servedIntervals(groundStation: GroundStationPosition, swath: SwathExtents, from: number, to: number, closestMs: number): [number, number][] {
+    const isServed = (timeMs: number) => {
+      const offsets = this.trackOffsets(groundStation, new Date(timeMs));
+      return offsets !== undefined && offsets.distanceKm <= (offsets.side === "port" ? swath.portKm : swath.starboardKm);
+    };
+    const times: number[] = [];
+    for (let time = from; time < to; time += SIDE_SAMPLE_MS) {
+      times.push(time);
     }
-    return { outsideMs: lo, insideMs: hi };
-  }
+    times.push(to, closestMs);
+    times.sort((a, b) => a - b);
 
-  /**
-   * The far side of the extent crossing after `fromMs` (itself inside), by
-   * doubling outward from `gapMs` — the entry's own distance from the closest
-   * approach, and so already the right order of magnitude for the exit's — until
-   * a sample lands outside, then bisecting. Bounded by `boundMs`; returns it
-   * outright if nothing outside is found by then (a pass still open at the
-   * window's own end, which the caller leaves for its normal "ongoing" branch
-   * to pick up and truncate the same way it already does).
-   */
-  #exitCrossingAfter(groundStationPosition: GroundStationPosition, fromMs: number, gapMs: number, extentKm: number, boundMs: number): number {
-    let step = Math.max(gapMs, 1000);
-    let probe = Math.min(fromMs + step, boundMs);
-    while (this.#trackDistanceKm(groundStationPosition, new Date(probe)) <= extentKm) {
-      if (probe >= boundMs) {
-        return boundMs;
+    const intervals: [number, number][] = [];
+    let start: number | undefined;
+    let previous = from;
+    for (const time of times) {
+      const served = isServed(time);
+      if (served && start === undefined) {
+        start = time === from ? from : crossing(isServed, previous, time).insideMs;
+      } else if (!served && start !== undefined) {
+        intervals.push([start, crossing(isServed, time, previous).outsideMs]);
+        start = undefined;
       }
-      step *= 2;
-      probe = Math.min(fromMs + step, boundMs);
+      previous = time;
     }
-    return this.#crossingInBracket(groundStationPosition, probe, fromMs, extentKm).outsideMs;
+    if (start !== undefined) {
+      intervals.push([start, to]);
+    }
+    return intervals;
   }
 
   computePassesSwath(
@@ -359,132 +389,75 @@ export default class Orbit {
   ): SwathPass[] {
     const swathWidth = swath.starboardKm + swath.portKm;
     // The widest side bounds how far a station can be and still be served, so it
-    // drives the coarse time-stepping below (which runs before the side is known).
+    // gates the search before the side is known.
     const maxExtent = Math.max(swath.starboardKm, swath.portKm);
-    const extentFor = (side: SwathSide): number => (side === "starboard" ? swath.starboardKm : swath.portKm);
+    const startMs = startDate.getTime();
+    const endMs = endDate.getTime();
+    const maxSpeedKmS = this.#maxGroundSpeedKmS();
+    // Short enough that the distance has at most one minimum per step.
+    const stepMs = this.orbitalPeriod * 0.1 * 60_000;
+    const distanceAt = (timeMs: number) => this.#subpointDistanceKm(groundStationPosition, timeMs);
 
-    const date = new Date(startDate);
     const passes: SwathPass[] = [];
-    let pass: Partial<SwathPass> | null = null;
-    let ongoingPass = false;
-
-    // eslint-disable-next-line no-unmodified-loop-condition -- date is mutated via setMinutes/setSeconds
-    while (date < endDate) {
-      const offsets = this.trackOffsets(groundStationPosition, date);
-      if (offsets === undefined) {
-        date.setMinutes(date.getMinutes() + 1);
+    let t = startMs;
+    let distanceT = distanceAt(t);
+    while (t < endMs && passes.length < maxPasses) {
+      const next = Math.min(t + stepMs, endMs);
+      const distanceNext = distanceAt(next);
+      // No point between the two samples can be closer than the speed bound allows.
+      if ((distanceT + distanceNext - (maxSpeedKmS * (next - t)) / 1000) / 2 > maxExtent) {
+        t = next;
+        distanceT = distanceNext;
         continue;
       }
-      const { side, distanceKm } = offsets;
+      let closest = this.#closestApproach(groundStationPosition, t, next, maxSpeedKmS, maxExtent) ?? { timeMs: next, distanceKm: distanceNext };
+      if (distanceNext < closest.distanceKm) {
+        closest = { timeMs: next, distanceKm: distanceNext };
+      }
+      if (distanceT < closest.distanceKm) {
+        closest = { timeMs: t, distanceKm: distanceT };
+      }
+      if (closest.distanceKm > maxExtent) {
+        t = next;
+        distanceT = distanceNext;
+        continue;
+      }
 
-      // The footprint is a half-disc per side: the station is served when its
-      // distance to the subpoint is within the extent of the side it lies on.
-      //
-      // For a symmetric swath both sides share one radius and this is byte-for-byte
-      // the test used before (`distanceKm <= swathKm / 2`), so the 37 symmetric
-      // satellites keep their pass windows exactly. An asymmetric sensor narrows
-      // only the side that is actually narrower.
-      const extentKm = extentFor(side);
-
-      if (distanceKm <= extentKm) {
-        if (!ongoingPass) {
-          pass = {
-            name: this.name,
-            start: date.getTime(),
-            minDistance: distanceKm,
-            minDistanceTime: date.getTime(),
-            swathWidth,
-          };
-          ongoingPass = true;
-        } else if (pass && distanceKm < (pass.minDistance ?? Infinity)) {
-          pass.minDistance = distanceKm;
-          pass.minDistanceTime = date.getTime();
+      // The stretch within the wider extent. Only the window's start can already
+      // be inside it; every other `t` is outside.
+      const withinReach = (timeMs: number) => distanceAt(timeMs) <= maxExtent;
+      const reachStart = distanceT <= maxExtent ? t : crossing(withinReach, t, closest.timeMs).insideMs;
+      let reachEnd = endMs;
+      for (let probe = closest.timeMs, gap = Math.max(closest.timeMs - reachStart, 1000); probe < endMs; gap *= 2) {
+        const ahead = Math.min(closest.timeMs + gap, endMs);
+        if (!withinReach(ahead)) {
+          reachEnd = crossing(withinReach, ahead, probe).outsideMs;
+          break;
         }
-        date.setSeconds(date.getSeconds() + 30); // 30 second steps during pass
-      } else if (ongoingPass && pass) {
-        pass.end = date.getTime();
-        pass.duration = (pass.end as number) - (pass.start as number);
-        passes.push(pass as SwathPass);
+        probe = ahead;
+      }
+
+      // The footprint is a half-disc per side (ADR-0002). A symmetric swath is a
+      // plain distance test, so the stretch within reach is the pass.
+      const served =
+        swath.starboardKm === swath.portKm ? [[reachStart, reachEnd] as const] : this.#servedIntervals(groundStationPosition, swath, reachStart, reachEnd, closest.timeMs);
+      for (const [start, end] of served) {
+        const minimum = this.#closestApproach(groundStationPosition, start, end, maxSpeedKmS)!;
+        passes.push({
+          name: this.name,
+          start,
+          end,
+          duration: end - start,
+          minDistance: minimum.distanceKm,
+          minDistanceTime: minimum.timeMs,
+          swathWidth,
+        });
         if (passes.length >= maxPasses) {
           break;
         }
-        ongoingPass = false;
-        // Skip ahead to avoid immediate re-entry
-        date.setMinutes(date.getMinutes() + Math.max(5, this.orbitalPeriod * 0.1));
-      } else {
-        // A ladder rather than one step size: coarse while the station is far,
-        // fine as it closes — the step about to be taken, not yet applied.
-        let stepMs: number;
-        if (distanceKm > maxExtent * 3) {
-          stepMs = Math.max(10, this.orbitalPeriod * 0.2) * 60_000;
-        } else if (distanceKm > maxExtent * 2) {
-          stepMs = 5 * 60_000;
-        } else {
-          stepMs = 1 * 60_000;
-        }
-        const nextMs = Math.min(date.getTime() + stepMs, endDate.getTime());
-
-        // Whether a real conjunction is hiding inside the step about to be
-        // taken cannot be read off its two endpoints: comparing them against
-        // each other (or against the previous step) is exactly what let a
-        // narrow pass fall between two samples in the first place, because a
-        // step can still read as "closer than before" for one or more steps
-        // after its true closest approach already came and went, simply from
-        // the wider multi-step trend. So every step is minimised over its own
-        // interval before being taken, rather than only reacting to an
-        // apparent reversal between samples — coarse search with the
-        // refinement built into each step, rather than triggered by one.
-        //
-        // That minimisation is the one part of this fine enough to matter if
-        // it ran on every step of a multi-day scan, so it only runs where a
-        // conjunction is physically possible: no satellite this predicts
-        // closes distance faster than MAX_GROUND_SPEED_KM_S, so a step that
-        // could not reach the extent even at that speed is skipped outright.
-        // This is what keeps "coarse search, with refinement" coarse over the
-        // long stretch of a window nothing is happening in, rather than
-        // minimising every single step regardless.
-        if (distanceKm - MAX_GROUND_SPEED_KM_S * ((nextMs - date.getTime()) / 1000) > maxExtent) {
-          date.setTime(nextMs);
-          continue;
-        }
-
-        const closest = this.#closestApproachInBracket(groundStationPosition, date.getTime(), nextMs);
-        const atClosest = this.trackOffsets(groundStationPosition, new Date(closest.timeMs));
-        const closestExtent = atClosest ? extentFor(atClosest.side) : extentKm;
-
-        if (atClosest && closest.distanceKm <= closestExtent) {
-          // A real pass is hiding in this step. The branch above tracks an
-          // ongoing pass at a 30-second dwell step, which is coarse enough to
-          // miss the same way the outer ladder did — a grazing conjunction
-          // this close to the extent's edge can cross in and out well inside
-          // thirty seconds, on a swath of any width, not only a narrow one
-          // (see the 100 km case this was found against). So entry, the
-          // minimum, and exit are all resolved here, analytically, and the
-          // pass recorded directly — the dwell step is still what the branch
-          // above is for whenever a pass turns out to last longer than one of
-          // its own steps, which most do.
-          const entryMs = this.#crossingInBracket(groundStationPosition, date.getTime(), closest.timeMs, closestExtent).insideMs;
-          const exitMs = this.#exitCrossingAfter(groundStationPosition, closest.timeMs, closest.timeMs - entryMs, closestExtent, endDate.getTime());
-          passes.push({
-            name: this.name,
-            start: entryMs,
-            end: exitMs,
-            duration: exitMs - entryMs,
-            minDistance: closest.distanceKm,
-            minDistanceTime: closest.timeMs,
-            swathWidth,
-          });
-          if (passes.length >= maxPasses) {
-            break;
-          }
-          // Skip ahead to avoid immediately re-finding the same conjunction.
-          date.setTime(exitMs);
-          date.setMinutes(date.getMinutes() + Math.max(5, this.orbitalPeriod * 0.1));
-          continue;
-        }
-
-        date.setTime(nextMs);
       }
+      t = reachEnd;
+      distanceT = distanceAt(t);
     }
 
     return passes;
