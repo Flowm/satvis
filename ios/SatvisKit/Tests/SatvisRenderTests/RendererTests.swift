@@ -24,7 +24,7 @@ import simd
     }
 
     @Test func takesSixSquareFacesForTheSky() throws {
-        let tiles = try #require(Bundle.module.url(forResource: "NaturalEarthII", withExtension: nil))
+        let tiles = try #require(Textures.naturalEarthTiles)
         let square = try Data(contentsOf: tiles.appending(path: "2/0/0.webp"))
         #expect(Textures.cubeFaces(Array(repeating: square, count: 6))?.count == 6)
         #expect(Textures.cubeFaces(Array(repeating: square, count: 5)) == nil)

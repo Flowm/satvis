@@ -23,7 +23,7 @@ let package = Package(
         .target(name: "SatvisRender", dependencies: ["SatvisCore"], resources: [.copy("Shaders")]),
         .testTarget(name: "SatvisCoreTests", dependencies: ["SatvisCore"], resources: [.copy("Fixtures")]),
         .testTarget(name: "SatvisDataTests", dependencies: ["SatvisData"]),
-        .testTarget(name: "SatvisRenderTests", dependencies: ["SatvisRender"]),
+        .testTarget(name: "SatvisRenderTests", dependencies: ["SatvisRender"], exclude: ["Fixtures/README.md"], resources: [.copy("Fixtures")]),
     ],
     cxxLanguageStandard: .cxx17
 )

@@ -179,6 +179,7 @@ private struct MapMenu: View {
             Picker("Base map", selection: $session.baseLayer) {
                 ForEach(BaseLayer.allCases, id: \.self) { Text($0.title) }
             }
+            Toggle("Terrain", isOn: $session.terrain)
         }
     }
 }

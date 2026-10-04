@@ -266,8 +266,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         surface.setLayer(layer, site: site)
     }
 
+    /// Whether the globe follows Re:Earth's terrain. Off by default, as on the web.
+    public func setTerrain(_ enabled: Bool) {
+        surface.setTerrain(enabled)
+    }
+
     /// What fetches a map tile's bytes; tiles are not fetched without one.
-    public var tileLoader: (@Sendable (URL, String) async -> Data?)? {
+    public var tileLoader: (@Sendable (TileRequest) async -> Data?)? {
         get { surface.loader }
         set { surface.loader = newValue }
     }
@@ -454,7 +459,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         if let imagery, let lastFrame {
             let selection = surface.select(
                 eye: pose.position, viewProjection: lastFrame.viewProjection, viewportHeightPixels: Double(hdr.height),
-                verticalFieldOfView: OrbitCamera.verticalFieldOfView(aspectRatio: Double(hdr.width) / Double(hdr.height)))
+                verticalFieldOfView: OrbitCamera.verticalFieldOfView(aspectRatio: Double(hdr.width) / Double(hdr.height)), pixelsPerPoint: pixelScale)
             // What is drawn now first, then the children waiting to replace it.
             let drawn = Set(selection.draw.map(\.key))
             let bakes = selection.bake.filter { drawn.contains($0.key) } + selection.bake.filter { !drawn.contains($0.key) }
@@ -498,10 +503,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 encoder.setFragmentTexture(overlay.texture, index: 1)
                 encoder.setFragmentSamplerState(tileSampler, index: 0)
                 for tile in surfaceTiles {
-                    encoder.setVertexBuffer(tile.vertices, offset: 0, index: 0)
+                    encoder.setVertexBuffer(surface.vertices(tile), offset: 0, index: 0)
                     encoder.setFragmentTexture(tile.texture, index: 0)
-                    encoder.drawIndexedPrimitives(
-                        type: .triangle, indexCount: surface.indexCount, indexType: .uint32, indexBuffer: surface.indexBuffer, indexBufferOffset: 0)
+                    encoder.drawIndexedPrimitives(type: .triangle, indexCount: surface.indexCount, indexType: .uint32, indexBuffer: surface.indexBuffer, indexBufferOffset: 0)
                 }
             }
 
