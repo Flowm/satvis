@@ -36,8 +36,6 @@ final class CatalogModel {
     /// One load per group at a time, which every caller asking for it awaits.
     @ObservationIgnored private var loading: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private let source: GPSource
-    /// Called whenever what is active changes.
-    @ObservationIgnored var onChange: () -> Void = {}
 
     init(source: GPSource) {
         self.source = source
@@ -126,7 +124,6 @@ final class CatalogModel {
         } else {
             components.remove(component)
         }
-        onChange()
     }
 
     func setTracked(_ id: String?) {
@@ -192,10 +189,12 @@ final class CatalogModel {
         }
     }
 
-    /// Works out what is drawn again, and tells the globe.
+    /// Works out what is drawn again.
     private func changed() {
-        activeEntries = activation.active(in: catalog, tracked: tracked.flatMap { catalog.entries[$0]?.name })
-        onChange()
+        let active = activation.active(in: catalog, tracked: tracked.flatMap { catalog.entries[$0]?.name })
+        if active != activeEntries {
+            activeEntries = active
+        }
     }
 
     /// A url parameter's comma-separated list.

@@ -21,9 +21,6 @@ final class PassModel {
     @ObservationIgnored private var stationCache: (key: StationKey, passes: [Pass])?
     @ObservationIgnored private let store = PassStore()
     @ObservationIgnored private let storage = GroundStationStorage()
-    /// Called when the stations change, from here or from another device.
-    @ObservationIgnored var onStationsChange: () -> Void = {}
-    @ObservationIgnored var onModeChange: () -> Void = {}
 
     private static let modeKey = "overpassMode"
     /// Satellites per message to the store: enough to keep every core busy.
@@ -77,7 +74,6 @@ final class PassModel {
         self.mode = mode
         UserDefaults.standard.set(mode.rawValue, forKey: Self.modeKey)
         forget()
-        onModeChange()
     }
 
     /// Predicts what is missing for these satellites around the instant. Changes
@@ -185,7 +181,6 @@ final class PassModel {
         if save {
             storage.save(stations)
         }
-        onStationsChange()
     }
 }
 

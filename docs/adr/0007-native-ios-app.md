@@ -119,7 +119,8 @@ earlier release would take the sky view away from them.
 
 ## Code and checks
 
-The app target contains only views. Everything else is in the local package
+The app target contains the views, their models, and the session that holds what
+is selected and ties them together. Everything else is in the local package
 `ios/SatvisKit`:
 
 - `SGP4`: the C++ code
