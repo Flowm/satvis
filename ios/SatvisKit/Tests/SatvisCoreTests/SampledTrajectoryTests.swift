@@ -85,3 +85,67 @@ import simd
         #expect(after[0].trajectory.positions == before[0].trajectory.positions)
     }
 }
+
+/// A low orbit with heavy drag, which SGP4 gives up on a few weeks after its epoch.
+@Suite struct DecayTests {
+    private let record: GPRecord
+    private let propagator: SGP4Propagator
+    private let epoch: Double
+    /// The first whole minute SGP4 refuses.
+    private let decay: Double
+
+    init() throws {
+        let json = """
+            [{"OBJECT_NAME": "DECAYING", "NORAD_CAT_ID": 99999, "EPOCH": "2026-10-01T00:00:00", "MEAN_MOTION": 16.2,
+              "ECCENTRICITY": 0.0005, "INCLINATION": 51.6, "RA_OF_ASC_NODE": 10, "ARG_OF_PERICENTER": 20, "MEAN_ANOMALY": 30,
+              "BSTAR": 0.0005, "MEAN_MOTION_DOT": 0.001, "MEAN_MOTION_DDOT": 0}]
+            """
+        record = try #require(try GPRecord.decodePayload(Data(json.utf8)).first)
+        propagator = try SGP4Propagator(record.meanElements)
+        epoch = try #require(utcMilliseconds(iso: "2026-10-01T00:00:00"))
+        var minute = 0.0
+        while (try? propagator.state(epochMilliseconds: epoch + minute * 60_000)) != nil {
+            minute += 1
+            try #require(minute < 200 * 1440, "never decays")
+        }
+        decay = epoch + minute * 60_000
+    }
+
+    // Hidden only where the interpolation needs a refused node, as the web app's
+    // sampler skips each refused instant on its own.
+    @Test func samplesUpToTheDecay() throws {
+        let trajectory = try #require(SampledTrajectory(propagator, around: decay - 600_000))
+        #expect(trajectory.positions.contains { $0.x.isNaN })
+        #expect(trajectory.position(at: decay - 1_200_000) != nil)
+        #expect(trajectory.position(at: decay + 60_000) == nil)
+        #expect(SampledTrajectory(propagator, around: decay + 7 * 86_400_000) == nil)
+    }
+
+    // Scrubbed past the decay and back, it is drawn again.
+    @Test func bringsItBackWhenTheClockReturns() async throws {
+        let store = TrajectoryStore()
+        await store.replace(with: [record])
+        #expect(await store.refresh(at: epoch)?.count == 1)
+        #expect(await store.refresh(at: decay + 7 * 86_400_000)?.count == 0)
+        #expect(await store.refresh(at: decay + 7 * 86_400_000 + 60_000) == nil)
+        #expect(await store.refresh(at: epoch)?.count == 1)
+        await store.replace(with: [record])
+        #expect(await store.refresh(at: epoch)?.count == 1)
+    }
+}
+
+@Suite struct MalformedRecordTests {
+    // A number no Int holds is dropped, not a crash: `Double("nan")` parses.
+    @Test func survivesNumbersNoIntegerHolds() throws {
+        let json = """
+            [{"OBJECT_NAME": "ODD", "NORAD_CAT_ID": 1e20, "EPOCH": "2026-10-01T00:00:00", "MEAN_MOTION": 15, "ECCENTRICITY": 0.001,
+              "INCLINATION": 51.6, "RA_OF_ASC_NODE": 10, "ARG_OF_PERICENTER": 20, "MEAN_ANOMALY": 30, "BSTAR": 0,
+              "MEAN_MOTION_DOT": 0, "MEAN_MOTION_DDOT": 0, "EPHEMERIS_TYPE": "nan", "ELEMENT_SET_NO": 1e300, "REV_AT_EPOCH": "inf"}]
+            """
+        let records = try GPRecord.decodePayload(Data(json.utf8))
+        #expect(records.count == 1)
+        if case .omm(let omm) = records.first?.elements {
+            #expect(omm.ephemerisType == nil && omm.elementSetNo == nil && omm.revAtEpoch == nil)
+        }
+    }
+}

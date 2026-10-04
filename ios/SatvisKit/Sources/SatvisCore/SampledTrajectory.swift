@@ -18,15 +18,17 @@ public struct SampledTrajectory: Sendable {
     public let stepMilliseconds: Double
     /// The grid index of `positions[0]`.
     public let firstIndex: Int
+    /// NaN where SGP4 refused the instant, e.g. once a satellite has decayed.
     public let positions: [SIMD3<Double>]
 
-    /// Samples the window around `epochMilliseconds`. Nil when SGP4 fails anywhere
-    /// in it, e.g. for a satellite that has decayed.
+    /// Samples the window around `epochMilliseconds`. A node SGP4 refuses is left
+    /// out on its own, as the web app's sampler skips it, so a satellite is hidden
+    /// only where its interpolation needs one. Nil when SGP4 refuses every node.
     public init?(_ propagator: SGP4Propagator, around epochMilliseconds: Double) {
         // As the web app's sgp4Worker grids it: one revolution of the mean motion
         // SGP4 recovered, over the sampling rate.
-        let periodMilliseconds = 2 * Double.pi / propagator.meanMotion * 60_000
-        guard periodMilliseconds.isFinite, periodMilliseconds > 0 else {
+        let periodMilliseconds = Self.periodMilliseconds(propagator)
+        guard periodMilliseconds.isFinite, periodMilliseconds > 0, epochMilliseconds.isFinite else {
             return nil
         }
         let anchor = (propagator.epochJulianDate - 2440587.5) * msPerDay
@@ -35,14 +37,20 @@ public struct SampledTrajectory: Sendable {
         let last = Int(((epochMilliseconds + Self.orbitsForward * periodMilliseconds - anchor) / step).rounded(.up)) + Self.stencil / 2
         var positions: [SIMD3<Double>] = []
         positions.reserveCapacity(last - first + 1)
+        var propagated = false
         for index in first...last {
             let instant = anchor + Double(index) * step
             // Propagated at the whole millisecond a JavaScript Date holds, and rotated
             // from the truncated anchor, both as the web app does.
             guard let state = try? propagator.state(epochMilliseconds: instant.rounded(.towardZero)) else {
-                return nil
+                positions.append(SIMD3(repeating: .nan))
+                continue
             }
+            propagated = true
             positions.append(temeToFixed(state.position * 1000, epochMilliseconds: anchor.rounded(.towardZero) + Double(index) * step))
+        }
+        guard propagated else {
+            return nil
         }
         self.anchorMilliseconds = anchor
         self.stepMilliseconds = step
@@ -52,12 +60,17 @@ public struct SampledTrajectory: Sendable {
 
     /// Where an interpolation at this instant starts in `positions`, and how far
     /// past that node it is, in steps (2 ≤ fraction < 3 for a centred stencil).
-    /// Nil outside the samples.
+    /// Nil outside the samples, and where one of its nodes was refused.
     public func stencil(at epochMilliseconds: Double) -> (start: Int, offset: Double)? {
         let u = (epochMilliseconds - anchorMilliseconds) / stepMilliseconds - Double(firstIndex)
-        let node = Int(u.rounded(.down))
-        let start = node - (Self.stencil / 2 - 1)
-        guard start >= 0, start + Self.stencil <= positions.count else {
+        // Checked before it becomes an Int, which traps on a NaN or a huge value.
+        guard u >= 0, u < Double(positions.count) else {
+            return nil
+        }
+        let start = Int(u.rounded(.down)) - (Self.stencil / 2 - 1)
+        guard start >= 0, start + Self.stencil <= positions.count,
+            positions[start..<start + Self.stencil].allSatisfy({ $0.x.isFinite })
+        else {
             return nil
         }
         return (start, u - Double(start))
@@ -82,6 +95,13 @@ public struct SampledTrajectory: Sendable {
         let start = anchorMilliseconds + Double(firstIndex) * stepMilliseconds
         let end = start + Double(positions.count - 1) * stepMilliseconds
         return epochMilliseconds >= start + 0.25 * period && epochMilliseconds <= end - period
+    }
+}
+
+extension SampledTrajectory {
+    /// One revolution of the mean motion SGP4 recovered.
+    static func periodMilliseconds(_ propagator: SGP4Propagator) -> Double {
+        2 * Double.pi / propagator.meanMotion * 60_000
     }
 }
 
