@@ -204,7 +204,6 @@ enum Terrain {
     static let maximumLevel = 14
     static let contentType = "application/vnd.quantized-mesh"
     static let headers = ["Accept": "application/vnd.quantized-mesh;extensions=octvertexnormals,application/octet-stream;q=0.9,*/*;q=0.01"]
-    static let credit = (text: "Re:Earth Terrain · Mapterhorn (CC BY 4.0)", link: URL(string: "https://terrain.reearth.land/"))
 
     static func url(_ key: TileKey) -> URL? {
         // A TMS pyramid: rows counted from the south.

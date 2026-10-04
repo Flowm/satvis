@@ -51,6 +51,12 @@ final class Session {
     }
     @ObservationIgnored private let tiles = TileFetcher.shared()
 
+    /// What the map is drawn from now, to credit.
+    var mapCredits: [Credit] { Credit.map(baseLayer: baseLayer, terrain: terrain) }
+
+    /// The site's privacy policy, which covers the app.
+    var privacyPolicy: URL { source.site.appending(path: "data/privacy.html") }
+
     /// What the drawn links were built from.
     @ObservationIgnored private var linksKey: LinksKey?
     /// When the data was last asked for again, so that the scene turning active

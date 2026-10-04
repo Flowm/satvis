@@ -28,3 +28,14 @@ bounding sphere, leaving a jagged black band along the bottom of the screen.
 
 VersaTiles answers 404 for a few level-13 tiles in the Alps (`13/4456/2896`–`2898`);
 their level-12 ancestor stands in.
+
+## Native app: the attribution follows the map
+
+**Procedure.** With VersaTiles and Terrain on, tap "Attribution" above the clock deck,
+read the list, and open Privacy.
+
+**Result, 2026-10-04, iPhone 17e simulator.** Map: Natural Earth, VersaTiles sources,
+Re:Earth Terrain · Mapterhorn (CC BY 4.0), then Mapterhorn, EGM2008 (NGA), Protomaps and
+OpenStreetMap, as Re:Earth's `layer.json` credits them that day. Satellites: "Satellite TLE
+data provided by Celestrak". Privacy opened `satvis.space/data/privacy.html` in Safari,
+which redirects to the Legal Notice & Privacy page.
