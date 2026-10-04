@@ -348,6 +348,15 @@ try {
     ["demo", "tags=Weather&overpass=elevation&layers=NaturalEarth"],
     ["demo", "elements=Point,Label"],
   ];
+  // What analytics may see of a link: ground stations to the whole degree.
+  const { sanitizePostHogUrl } = await runner.import("/src/modules/util/posthogPrivacy.ts");
+  const sanitized = [
+    "https://satvis.space/",
+    "https://satvis.space/?gs=48.1351,11.5820",
+    "https://satvis.space/ot?tags=OT&gs=-33.9249,-0.5,Cape+Town_46.5935,7.9091&time=2026-10-04T08:52Z",
+    "https://satvis.space/?sats=NOAA+19&gs=.5,1e1#gs=1.5,2.5",
+    "https://satvis.space/?xgs=48.1351,11.5820",
+  ].map((url) => ({ url, sanitized: sanitizePostHogUrl(url) }));
   const links = LINK_CASES.map(([preset, query]) => {
     const defaults = codec.decode(PRESETS[preset], schema, globalDefaults).patch;
     const parsedQuery = parseQuery(query);
@@ -381,7 +390,7 @@ try {
     countdowns,
     compassPoints,
     greenwichHourAngle: hourAngles,
-    links: { vocabulary, presets: PRESETS, defaults: globalDefaults, fieldKinds, cases: links },
+    links: { vocabulary, presets: PRESETS, defaults: globalDefaults, fieldKinds, cases: links, sanitized },
   };
   fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
 

@@ -102,6 +102,16 @@ import Testing
     }
 }
 
+extension LinkParityTests {
+    @Test func showsAnalyticsWhatTheWebAppShowsIt() throws {
+        let cases = try #require(Self.links()["sanitized"] as? [[String: String]])
+        #expect(!cases.isEmpty)
+        for test in cases {
+            #expect(sanitizedForAnalytics(test["url"]!) == test["sanitized"], "\(test["url"]!)")
+        }
+    }
+}
+
 @Suite struct LinkTests {
     // As the web app's router reads a path: the last segment, less `.html`.
     @Test func namesThePresetByThePath() {
