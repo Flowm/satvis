@@ -69,8 +69,12 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
 - Pass notifications (`PassAlerts`) are kept rather than sent once, as the web app
   sends them: the subjects are saved, and every launch, return to the foreground
   and background refresh predicts them again from the newest element sets and
-  replaces the pending ones, the earliest 32 passes, two notifications each, under
-  iOS's 64. A background refresh is only asked for while there are alerts. To run
+  replaces the pending ones with the earliest 64, iOS's limit, two a pass
+  (`PassNotificationPlan`). Over a busy station those can run out within hours, so
+  the app says until when they reach, and asks to be woken an hour before, within
+  four hours. A background refresh asks for the next one before it starts work,
+  so one that runs out of time does not end the chain, and leaves the pending
+  notifications as they were. It is only asked for while there are alerts. To run
   one, pause the app in the debugger and
   `e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"org.frcy.app.satvis.passes"]`.
 - The app icon (`AppIcon.icon`) and the launch image are cut from `public/logo.svg`:
