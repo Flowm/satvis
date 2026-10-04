@@ -1,14 +1,10 @@
 import Foundation
 import Observation
 import SatvisCore
-import SatvisData
 import SatvisRender
-import os
 
-private let log = Logger(subsystem: "org.frcy.app.satvis", category: "satellites")
-
-/// The satellites on the globe: for now, every group carrying a tag the default
-/// preset enables (Weather), at the live time.
+/// The active satellites on the globe, each with its window kept around the
+/// clock's instant.
 @Observable
 final class SatelliteLayer {
     private(set) var count = 0
@@ -16,42 +12,34 @@ final class SatelliteLayer {
     @ObservationIgnored private var renderer: GlobeRenderer?
     /// Kept for a renderer that arrives after them: it compiles its shaders first.
     @ObservationIgnored private var satellites: [PointSatellite] = []
+    @ObservationIgnored private var components: SatelliteComponents = [.point, .label]
 
     func attach(_ renderer: GlobeRenderer) {
         self.renderer = renderer
+        renderer.components = components
         renderer.setSatellites(satellites)
     }
 
-    /// The groups the default preset's `tags` default enables.
-    func load(from source: GPSource) async {
-        guard let index = source.index?.value, let preset = index.preset(named: nil) else {
-            return
-        }
-        let tags = Set((preset.defaults["tags"] ?? "").split(separator: ",").map(String.init))
-        let registered = Set(preset.groups.map(\.name))
-        var records: [GPRecord] = []
-        for group in index.groups where registered.contains(group.name) && !tags.isDisjoint(with: group.tags) {
-            do {
-                records += try await source.records(of: group.name).value
-            } catch {
-                log.error("Group \(group.name, privacy: .public) unavailable: \(error, privacy: .public)")
-            }
-        }
-        await store.replace(with: records)
-        await refresh()
+    /// The set to draw, and how.
+    func show(_ entries: [CatalogEntry], components: SatelliteComponents, at time: Double) async {
+        self.components = components
+        renderer?.components = components
+        await store.replace(with: entries.map(\.record))
+        await refresh(at: time)
     }
 
-    /// Keeps every window around the present. Runs until cancelled.
-    func run() async {
+    /// Keeps every window around the clock's instant. Runs until cancelled, more
+    /// often the faster the clock runs, so a window is refilled before it runs out.
+    func run(clock: ViewerClock) async {
         while !Task.isCancelled {
-            await refresh()
-            try? await Task.sleep(for: .seconds(1))
+            await refresh(at: clock.now())
+            let interval = min(max(60 / max(abs(clock.clock.multiplier), 1), 0.05), 1)
+            try? await Task.sleep(for: .seconds(interval))
         }
     }
 
-    private func refresh() async {
-        let now = ContentView.pinnedTime ?? (Date().timeIntervalSince1970 * 1000).rounded(.down)
-        guard let entries = await store.refresh(at: now) else {
+    private func refresh(at time: Double) async {
+        guard let entries = await store.refresh(at: time) else {
             return
         }
         count = entries.count
