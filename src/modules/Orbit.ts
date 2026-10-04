@@ -52,6 +52,7 @@ export interface TrackOffsets {
 }
 
 const EARTH_RADIUS_KM = 6371;
+const POLAR_RADIUS_KM = 6356.752;
 
 // Lookahead used to derive the ground-track bearing from two subpoints. Short
 // enough that the track is locally straight, long enough that the two subpoints
@@ -62,9 +63,9 @@ const MU_KM3_S2 = 398600.4418;
 const EARTH_ROTATION_RAD_S = 7.2921159e-5;
 const INV_PHI = (Math.sqrt(5) - 1) / 2;
 
-// Swath pass edges and minima are resolved to this. A kilometre-wide swath can
-// serve a station for well under a second.
-const SWATH_RESOLUTION_MS = 10;
+// Pass edges and peaks are resolved to this. A kilometre-wide swath can serve a
+// station for well under a second.
+const PASS_RESOLUTION_MS = 10;
 // How often an asymmetric swath re-reads which side of the track the station is on.
 const SIDE_SAMPLE_MS = 1000;
 
@@ -88,7 +89,7 @@ function greatCircleKm(fromLat: number, fromLon: number, toLat: number, toLon: n
 function crossing(isInside: (timeMs: number) => boolean, outsideMs: number, insideMs: number): { outsideMs: number; insideMs: number } {
   let outside = outsideMs;
   let inside = insideMs;
-  while (Math.abs(inside - outside) > SWATH_RESOLUTION_MS) {
+  while (Math.abs(inside - outside) > PASS_RESOLUTION_MS) {
     const mid = (outside + inside) / 2;
     if (isInside(mid)) {
       inside = mid;
@@ -97,6 +98,39 @@ function crossing(isInside: (timeMs: number) => boolean, outsideMs: number, insi
     }
   }
   return { outsideMs: outside, insideMs: inside };
+}
+
+/**
+ * The minimum of `cost` over `[lo, hi]` by golden-section search, which assumes a
+ * single minimum there. `giveUp` is asked as the bracket narrows and ends the
+ * search early, returning `undefined`.
+ */
+function minimum(cost: (timeMs: number) => number, lo: number, hi: number, giveUp?: (best: number, widthMs: number) => boolean): { timeMs: number; value: number } | undefined {
+  let a = lo;
+  let b = hi;
+  let c = b - (b - a) * INV_PHI;
+  let d = a + (b - a) * INV_PHI;
+  let fc = cost(c);
+  let fd = cost(d);
+  while (b - a > PASS_RESOLUTION_MS) {
+    if (giveUp?.(Math.min(fc, fd), b - a)) {
+      return undefined;
+    }
+    if (fc < fd) {
+      b = d;
+      d = c;
+      fd = fc;
+      c = b - (b - a) * INV_PHI;
+      fc = cost(c);
+    } else {
+      a = c;
+      c = d;
+      fc = fd;
+      d = a + (b - a) * INV_PHI;
+      fd = cost(d);
+    }
+  }
+  return fc < fd ? { timeMs: c, value: fc } : { timeMs: d, value: fd };
 }
 
 export default class Orbit {
@@ -171,94 +205,68 @@ export default class Orbit {
     startDate: Date = dayjs().toDate(),
     endDate: Date = dayjs(startDate).add(7, "day").toDate(),
     minElevation = 5,
-    maxPasses = 50,
+    maxPasses = Number.POSITIVE_INFINITY,
   ): ElevationPass[] {
-    const groundStation = { ...groundStationPosition };
-    groundStation.latitude *= deg2rad;
-    groundStation.longitude *= deg2rad;
-    groundStation.height /= 1000;
+    const station = {
+      latitude: groundStationPosition.latitude * deg2rad,
+      longitude: groundStationPosition.longitude * deg2rad,
+      height: groundStationPosition.height / 1000,
+    };
+    const lookAt = (timeMs: number) => {
+      const positionEcf = this.positionECF(new Date(timeMs));
+      return positionEcf ? satellitejs.ecfToLookAngles(station, positionEcf) : undefined;
+    };
+    const elevationAt = (timeMs: number) => (lookAt(timeMs)?.elevation ?? -Math.PI / 2) * rad2deg;
+    const azimuthAt = (timeMs: number) => (lookAt(timeMs)?.azimuth ?? 0) * rad2deg;
+    const isAbove = (timeMs: number) => elevationAt(timeMs) > minElevation;
 
-    const date = new Date(startDate);
+    const pass = (start: number, end: number, apex: { timeMs: number; elevation: number }): ElevationPass => ({
+      name: this.name,
+      start,
+      end,
+      duration: end - start,
+      azimuthStart: azimuthAt(start),
+      azimuthApex: azimuthAt(apex.timeMs),
+      azimuthEnd: azimuthAt(end),
+      maxElevation: apex.elevation,
+      apex: apex.timeMs,
+    });
+
     const passes: ElevationPass[] = [];
-    let pass: Partial<ElevationPass> | null = null;
-    let ongoingPass = false;
-    // undefined rather than 0: a real 0 would make the first sample read as
-    // declining whenever true elevation is negative, which skips an entire
-    // imminent pass (ahead by half an orbit) if the window happens to open
-    // while the satellite is still below the horizon but already rising.
-    let lastElevation: number | undefined;
-    // eslint-disable-next-line no-unmodified-loop-condition -- date is mutated via setMinutes/setSeconds
-    while (date < endDate) {
-      const positionEcf = this.positionECF(date);
-      if (!positionEcf) {
-        date.setMinutes(date.getMinutes() + 1);
-        continue;
-      }
-      const lookAngles = satellitejs.ecfToLookAngles(groundStation, positionEcf);
-      const elevation = lookAngles.elevation / deg2rad;
-
-      if (elevation > minElevation) {
-        if (!ongoingPass) {
-          pass = {
-            name: this.name,
-            start: date.getTime(),
-            azimuthStart: lookAngles.azimuth,
-            maxElevation: elevation,
-            azimuthApex: lookAngles.azimuth,
-          };
-          ongoingPass = true;
-        } else if (pass && elevation > (pass.maxElevation ?? -Infinity)) {
-          pass.maxElevation = elevation;
-          pass.apex = date.getTime();
-          pass.azimuthApex = lookAngles.azimuth;
+    // An eccentric orbit can stay within reach for hours, setting and rising again,
+    // so a reach is walked in steps short enough for one peak, and a pass running
+    // over a step is carried on into the next.
+    for (const reach of this.#reachIntervals(groundStationPosition, this.#visibilityRadiusKm(minElevation), startDate.getTime(), endDate.getTime())) {
+      let open: { start: number; apex: { timeMs: number; elevation: number } } | undefined;
+      for (let a = reach.start; a < reach.end; a += this.#scanStepMs) {
+        const b = Math.min(a + this.#scanStepMs, reach.end);
+        const atA = elevationAt(a);
+        const atB = elevationAt(b);
+        const inner = minimum((timeMs) => -elevationAt(timeMs), a, b)!;
+        let apex = { timeMs: inner.timeMs, elevation: -inner.value };
+        if (atA > apex.elevation) {
+          apex = { timeMs: a, elevation: atA };
         }
-        date.setSeconds(date.getSeconds() + 5);
-      } else if (ongoingPass && pass) {
-        pass.end = date.getTime();
-        pass.duration = (pass.end as number) - (pass.start as number);
-        pass.azimuthEnd = lookAngles.azimuth;
-        pass.azimuthStart = (pass.azimuthStart as number) / deg2rad;
-        pass.azimuthApex = (pass.azimuthApex as number) / deg2rad;
-        pass.azimuthEnd = (pass.azimuthEnd as number) / deg2rad;
-        passes.push(pass as ElevationPass);
+        if (atB > apex.elevation) {
+          apex = { timeMs: b, elevation: atB };
+        }
+        if (apex.elevation <= minElevation) {
+          continue;
+        }
+        // A step starts above the horizon only mid-pass, which `open` carries, or
+        // at the window's start.
+        const start = open?.start ?? (atA > minElevation ? a : crossing(isAbove, a, apex.timeMs).insideMs);
+        const peak = open && open.apex.elevation > apex.elevation ? open.apex : apex;
+        if (atB > minElevation && b < reach.end) {
+          open = { start, apex: peak };
+          continue;
+        }
+        open = undefined;
+        passes.push(pass(start, atB > minElevation ? b : crossing(isAbove, b, apex.timeMs).outsideMs, peak));
         if (passes.length >= maxPasses) {
-          break;
-        }
-        ongoingPass = false;
-        lastElevation = -180;
-        date.setMinutes(date.getMinutes() + this.orbitalPeriod * 0.5);
-      } else {
-        // No real previous sample yet: nothing to call declining, so fall
-        // straight through to the elevation-banded ladder below.
-        const deltaElevation = lastElevation === undefined ? 0 : elevation - lastElevation;
-        lastElevation = elevation;
-        if (deltaElevation < 0) {
-          date.setMinutes(date.getMinutes() + this.orbitalPeriod * 0.5);
-          lastElevation = -180;
-        } else if (elevation < -20) {
-          date.setMinutes(date.getMinutes() + 5);
-        } else if (elevation < -5) {
-          date.setMinutes(date.getMinutes() + 1);
-        } else if (elevation < -1) {
-          date.setSeconds(date.getSeconds() + 5);
-        } else {
-          date.setSeconds(date.getSeconds() + 2);
+          return passes;
         }
       }
-    }
-    // A pass still open when the window ends is real, not a sample away from
-    // qualifying — dropping it here would be inconsistent with the pass this
-    // same loop already reports truncated when the window instead opens
-    // mid-pass. Truncate it at the window edge rather than losing it.
-    if (ongoingPass && pass) {
-      const positionEcf = this.positionECF(endDate);
-      const endAzimuth = positionEcf ? satellitejs.ecfToLookAngles(groundStation, positionEcf).azimuth : (pass.azimuthApex as number);
-      pass.end = endDate.getTime();
-      pass.duration = (pass.end as number) - (pass.start as number);
-      pass.azimuthEnd = endAzimuth / deg2rad;
-      pass.azimuthStart = (pass.azimuthStart as number) / deg2rad;
-      pass.azimuthApex = (pass.azimuthApex as number) / deg2rad;
-      passes.push(pass as ElevationPass);
     }
     return passes;
   }
@@ -303,6 +311,15 @@ export default class Orbit {
     return { side, distanceKm };
   }
 
+  get #semiMajorAxisKm(): number {
+    return Math.cbrt(MU_KM3_S2 / (this.satrec.no / 60) ** 2);
+  }
+
+  /** Short enough that the distance to a station, and the elevation, peak at most once per step. */
+  get #scanStepMs(): number {
+    return this.orbitalPeriod * 0.1 * 60_000;
+  }
+
   /**
    * An upper bound on the subpoint's speed over the ground (km/s), and so on how
    * fast its distance to a station can change: the angular rate at perigee plus
@@ -310,8 +327,7 @@ export default class Orbit {
    */
   #maxGroundSpeedKmS(): number {
     const eccentricity = this.satrec.ecco;
-    const meanMotionRadS = this.satrec.no / 60;
-    const perigeeKm = Math.cbrt(MU_KM3_S2 / meanMotionRadS ** 2) * (1 - eccentricity);
+    const perigeeKm = this.#semiMajorAxisKm * (1 - eccentricity);
     const perigeeRateRadS = Math.sqrt((MU_KM3_S2 * (1 + eccentricity)) / perigeeKm) / perigeeKm;
     return 1.1 * EARTH_RADIUS_KM * (perigeeRateRadS + EARTH_ROTATION_RAD_S);
   }
@@ -323,45 +339,6 @@ export default class Orbit {
       return Number.POSITIVE_INFINITY;
     }
     return greatCircleKm(here.latitude * deg2rad, here.longitude * deg2rad, groundStation.latitude * deg2rad, groundStation.longitude * deg2rad);
-  }
-
-  /**
-   * The closest approach in `[lo, hi]` by golden-section search, which assumes a
-   * single minimum there. Returns `undefined` as soon as the speed bound proves
-   * nothing in the bracket comes within `abandonAboveKm`.
-   */
-  #closestApproach(
-    groundStation: GroundStationPosition,
-    lo: number,
-    hi: number,
-    maxSpeedKmS: number,
-    abandonAboveKm = Number.POSITIVE_INFINITY,
-  ): { timeMs: number; distanceKm: number } | undefined {
-    let a = lo;
-    let b = hi;
-    let c = b - (b - a) * INV_PHI;
-    let d = a + (b - a) * INV_PHI;
-    let fc = this.#subpointDistanceKm(groundStation, c);
-    let fd = this.#subpointDistanceKm(groundStation, d);
-    while (b - a > SWATH_RESOLUTION_MS) {
-      if (Math.min(fc, fd) - (maxSpeedKmS * (b - a)) / 1000 > abandonAboveKm) {
-        return undefined;
-      }
-      if (fc < fd) {
-        b = d;
-        d = c;
-        fd = fc;
-        c = b - (b - a) * INV_PHI;
-        fc = this.#subpointDistanceKm(groundStation, c);
-      } else {
-        a = c;
-        c = d;
-        fc = fd;
-        d = a + (b - a) * INV_PHI;
-        fd = this.#subpointDistanceKm(groundStation, d);
-      }
-    }
-    return fc < fd ? { timeMs: c, distanceKm: fc } : { timeMs: d, distanceKm: fd };
   }
 
   /**
@@ -400,86 +377,106 @@ export default class Orbit {
     return intervals;
   }
 
+  /**
+   * The furthest the subpoint can be from a station (km) while the satellite is
+   * above `minElevation`, at the highest the orbit gets.
+   */
+  #visibilityRadiusKm(minElevation: number): number {
+    // Erring wide: the osculating orbit rises above the mean apogee, and a station
+    // on the ellipsoid can sit as low as the polar radius.
+    const apogeeKm = this.#semiMajorAxisKm * (1 + this.satrec.ecco) + 30;
+    const elevation = minElevation * deg2rad;
+    return 1.02 * EARTH_RADIUS_KM * (Math.acos((POLAR_RADIUS_KM * Math.cos(elevation)) / apogeeKm) - elevation);
+  }
+
+  /**
+   * The stretches of `[startMs, endMs]` where the subpoint is within `radiusKm` of
+   * the station, each with its closest approach. The scan steps short enough for
+   * the distance to have one minimum per step, and skips a step the ground-speed
+   * bound proves cannot reach the radius.
+   */
+  *#reachIntervals(groundStation: GroundStationPosition, radiusKm: number, startMs: number, endMs: number): Generator<{ start: number; end: number; closestMs: number }> {
+    const maxSpeedKmS = this.#maxGroundSpeedKmS();
+    const distanceAt = (timeMs: number) => this.#subpointDistanceKm(groundStation, timeMs);
+    const unreachable = (best: number, widthMs: number) => best - (maxSpeedKmS * widthMs) / 1000 > radiusKm;
+
+    let t = startMs;
+    let distanceT = distanceAt(t);
+    while (t < endMs) {
+      const next = Math.min(t + this.#scanStepMs, endMs);
+      const distanceNext = distanceAt(next);
+      // No point between the two samples can be closer than the speed bound allows.
+      if ((distanceT + distanceNext - (maxSpeedKmS * (next - t)) / 1000) / 2 > radiusKm) {
+        t = next;
+        distanceT = distanceNext;
+        continue;
+      }
+      let closest = minimum(distanceAt, t, next, unreachable) ?? { timeMs: next, value: distanceNext };
+      if (distanceNext < closest.value) {
+        closest = { timeMs: next, value: distanceNext };
+      }
+      if (distanceT < closest.value) {
+        closest = { timeMs: t, value: distanceT };
+      }
+      if (closest.value > radiusKm) {
+        t = next;
+        distanceT = distanceNext;
+        continue;
+      }
+
+      // Only the window's start can already be within reach; every other `t` is outside.
+      const withinReach = (timeMs: number) => distanceAt(timeMs) <= radiusKm;
+      const start = distanceT <= radiusKm ? t : crossing(withinReach, t, closest.timeMs).insideMs;
+      let end = endMs;
+      for (let probe = closest.timeMs, gap = Math.max(closest.timeMs - start, 1000); probe < endMs; gap *= 2) {
+        const ahead = Math.min(closest.timeMs + gap, endMs);
+        if (!withinReach(ahead)) {
+          end = crossing(withinReach, ahead, probe).outsideMs;
+          break;
+        }
+        probe = ahead;
+      }
+      yield { start, end, closestMs: closest.timeMs };
+      t = end;
+      distanceT = distanceAt(t);
+    }
+  }
+
   computePassesSwath(
     groundStationPosition: GroundStationPosition,
     swath: SwathExtents,
     startDate: Date = dayjs().toDate(),
     endDate: Date = dayjs(startDate).add(7, "day").toDate(),
-    maxPasses = 50,
+    maxPasses = Number.POSITIVE_INFINITY,
   ): SwathPass[] {
     const swathWidth = swath.starboardKm + swath.portKm;
     // The widest side bounds how far a station can be and still be served, so it
     // gates the search before the side is known.
     const maxExtent = Math.max(swath.starboardKm, swath.portKm);
-    const startMs = startDate.getTime();
-    const endMs = endDate.getTime();
-    const maxSpeedKmS = this.#maxGroundSpeedKmS();
-    // Short enough that the distance has at most one minimum per step.
-    const stepMs = this.orbitalPeriod * 0.1 * 60_000;
     const distanceAt = (timeMs: number) => this.#subpointDistanceKm(groundStationPosition, timeMs);
 
     const passes: SwathPass[] = [];
-    let t = startMs;
-    let distanceT = distanceAt(t);
-    while (t < endMs && passes.length < maxPasses) {
-      const next = Math.min(t + stepMs, endMs);
-      const distanceNext = distanceAt(next);
-      // No point between the two samples can be closer than the speed bound allows.
-      if ((distanceT + distanceNext - (maxSpeedKmS * (next - t)) / 1000) / 2 > maxExtent) {
-        t = next;
-        distanceT = distanceNext;
-        continue;
-      }
-      let closest = this.#closestApproach(groundStationPosition, t, next, maxSpeedKmS, maxExtent) ?? { timeMs: next, distanceKm: distanceNext };
-      if (distanceNext < closest.distanceKm) {
-        closest = { timeMs: next, distanceKm: distanceNext };
-      }
-      if (distanceT < closest.distanceKm) {
-        closest = { timeMs: t, distanceKm: distanceT };
-      }
-      if (closest.distanceKm > maxExtent) {
-        t = next;
-        distanceT = distanceNext;
-        continue;
-      }
-
-      // The stretch within the wider extent. Only the window's start can already
-      // be inside it; every other `t` is outside.
-      const withinReach = (timeMs: number) => distanceAt(timeMs) <= maxExtent;
-      const reachStart = distanceT <= maxExtent ? t : crossing(withinReach, t, closest.timeMs).insideMs;
-      let reachEnd = endMs;
-      for (let probe = closest.timeMs, gap = Math.max(closest.timeMs - reachStart, 1000); probe < endMs; gap *= 2) {
-        const ahead = Math.min(closest.timeMs + gap, endMs);
-        if (!withinReach(ahead)) {
-          reachEnd = crossing(withinReach, ahead, probe).outsideMs;
-          break;
-        }
-        probe = ahead;
-      }
-
+    for (const reach of this.#reachIntervals(groundStationPosition, maxExtent, startDate.getTime(), endDate.getTime())) {
       // The footprint is a half-disc per side (ADR-0002). A symmetric swath is a
       // plain distance test, so the stretch within reach is the pass.
       const served =
-        swath.starboardKm === swath.portKm ? [[reachStart, reachEnd] as const] : this.#servedIntervals(groundStationPosition, swath, reachStart, reachEnd, closest.timeMs);
+        swath.starboardKm === swath.portKm ? [[reach.start, reach.end] as const] : this.#servedIntervals(groundStationPosition, swath, reach.start, reach.end, reach.closestMs);
       for (const [start, end] of served) {
-        const minimum = this.#closestApproach(groundStationPosition, start, end, maxSpeedKmS)!;
+        const closest = minimum(distanceAt, start, end)!;
         passes.push({
           name: this.name,
           start,
           end,
           duration: end - start,
-          minDistance: minimum.distanceKm,
-          minDistanceTime: minimum.timeMs,
+          minDistance: closest.value,
+          minDistanceTime: closest.timeMs,
           swathWidth,
         });
         if (passes.length >= maxPasses) {
-          break;
+          return passes;
         }
       }
-      t = reachEnd;
-      distanceT = distanceAt(t);
     }
-
     return passes;
   }
 }
