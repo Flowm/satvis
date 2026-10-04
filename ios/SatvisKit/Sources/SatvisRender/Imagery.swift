@@ -125,15 +125,6 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
         }
     }
 
-    /// The attribution the web app shows for it, as plain text and a link.
-    public var credit: (text: String, link: URL?) {
-        switch self {
-        case .naturalEarth: ("Imagery courtesy Natural Earth", URL(string: "https://www.naturalearthdata.com"))
-        case .versaTiles: ("VersaTiles sources", URL(string: "https://versatiles.org/sources/"))
-        case .blackMarble: ("NASA Global Imagery Browse Services for EOSDIS", URL(string: "https://earthdata.nasa.gov/gibs"))
-        }
-    }
-
     /// Where its tiles come from. Natural Earth is the site's own, levels 3 to 5:
     /// the app ships level 2 and draws everything over it.
     func source(site: URL) -> ImagerySource {

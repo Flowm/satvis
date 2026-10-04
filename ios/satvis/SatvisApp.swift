@@ -44,6 +44,7 @@ struct ContentView: View {
     @Bindable var session: Session
     @State private var showsBrowser = false
     @State private var showsStations = false
+    @State private var showsAttribution = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -101,12 +102,25 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .bottom) {
-            ClockDeck(clock: session.clock, passes: session.passes, satellite: session.selectedSatellite)
-                .padding(.horizontal)
-                .padding(.bottom, 8)
+            VStack(alignment: .leading, spacing: 4) {
+                // Where the web app has its credit line: the map's sources are owed
+                // a link in sight of the map.
+                Button("Attribution") { showsAttribution = true }
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.8))
+                    .shadow(color: .black, radius: 2)
+                    .padding(.leading, 12)
+                ClockDeck(clock: session.clock, passes: session.passes, satellite: session.selectedSatellite)
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 8)
         }
         .sheet(isPresented: $showsBrowser) {
             BrowserView(catalog: session.catalog) { session.selection = .satellite($0.id) }
+        }
+        .sheet(isPresented: $showsAttribution) {
+            AttributionView(map: session.mapCredits, privacyPolicy: session.privacyPolicy)
+                .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showsStations) {
             GroundStationsView(passes: session.passes, onPick: { session.isPicking = true }, onSelect: { session.selection = .station($0) })

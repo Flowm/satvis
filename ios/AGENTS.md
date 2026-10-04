@@ -40,6 +40,11 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   Re:Earth no more than the web app does. ADR 0007 has why. The texture budget
   is soft: a low, oblique view can use more tiles than it, and evicting tiles in
   use only starts the refinement over.
+- The attribution is the web app's credit display: an "Attribution" link above
+  the clock deck opens what the map is drawn from now (`Credit.map`), the
+  element sets' source, and the site's privacy policy. The terrain's sources are
+  copied from Re:Earth's `layer.json`, which CesiumJS reads at run time; check
+  them against it when the terrain changes. The licences the app owes are M6's.
 - The star map is the web app's `DeepStar1K`, fetched from the site
   (`data/starmap/`) and kept like the GP data, not shipped: it is generated with
   Docker by `pnpm update-starmap`, and committing it here would be a second copy.
