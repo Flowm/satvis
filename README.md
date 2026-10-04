@@ -54,6 +54,8 @@ the SPA and the `worker/` package.
 - `pnpm dev` for the dev server (proxies `/api` to <https://satvis.space>, so
   satellite data works without a local worker)
 - `pnpm dev:host` to expose the dev server on the local network
+- `/models.html` under `pnpm dev` shows every 3D model in `data/` side by side,
+  with its size, triangle count, textures and glTF problems (dev only, not built)
 - `pnpm build` to build the application (output in `dist` folder)
 - `pnpm preview` to preview the production build locally
 - `pnpm update-gp` to refresh the static satellite-data snapshot (see below)
