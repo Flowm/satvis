@@ -101,9 +101,20 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
 - `satvis/` and `satvisUITests/` are folder-synchronized: a file added on disk joins
   its target, with no `project.pbxproj` edit. A new package product does need one.
 - `satvis/PrivacyInfo.xcprivacy` is the privacy manifest App Store Connect
-  requires: no tracking, no data collected, and `UserDefaults` read by the app
-  alone. Add to it with every required-reason API and every data type collected;
-  PostHog (M5) brings both.
+  requires: no tracking, product interaction collected for analytics and linked
+  to no one, and `UserDefaults` read by the app alone. The PostHog package brings
+  its own manifest for the APIs it uses. Add to the app's with every
+  required-reason API and every data type collected, and keep the App Store
+  privacy label in step with it.
+- Analytics (`Analytics.swift`) is posthog-ios, set up from the app delegate as
+  its guide has it, reporting to the web app's project (ADR 0007): a `$pageview`
+  of the view's link whenever the view changes, the clock aside, its ground
+  stations cut to the whole degree as the web's `posthogPrivacy.ts` does
+  (`sanitizedForAnalytics`, held to it by the parity fixtures). It reports only
+  from a release build on satvis.space, so development, the UI tests and a local
+  worker count nothing; check a change with a Release build in the simulator,
+  whose events carry `$is_emulator`. The Map menu's "Share usage data" opts out,
+  and the SDK keeps that choice.
 - `Info.plist` is generated from `INFOPLIST_KEY_*` build settings. The file
   `satvis/Info.plist` holds only the keys that have no build setting:
   `UILaunchScreen`, `NSAppTransportSecurity` to allow a local worker, and the

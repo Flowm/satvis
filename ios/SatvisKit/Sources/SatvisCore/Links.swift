@@ -521,3 +521,14 @@ public func date(minuteISO: String) -> Date? {
     }
     return try? Date(String(minuteISO.dropLast()) + ":00Z", strategy: .iso8601)
 }
+
+/// What analytics may see of a link (src/modules/util/posthogPrivacy.ts): its
+/// ground stations cut to the whole degree, which is all a usage count needs.
+public func sanitizedForAnalytics(_ url: String) -> String {
+    url.replacing(/([?&]gs=)([^&#]*)/) { station in
+        station.output.1
+            + station.output.2.replacing(/([+-]?)(\d*)\.\d+/) { number in
+                number.output.1 + (number.output.2.isEmpty ? "0" : number.output.2)
+            }
+    }
+}

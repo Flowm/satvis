@@ -7798,6 +7798,28 @@
         "invalid": [],
         "written": "elements=Point,Label"
       }
+    ],
+    "sanitized": [
+      {
+        "url": "https://satvis.space/",
+        "sanitized": "https://satvis.space/"
+      },
+      {
+        "url": "https://satvis.space/?gs=48.1351,11.5820",
+        "sanitized": "https://satvis.space/?gs=48,11"
+      },
+      {
+        "url": "https://satvis.space/ot?tags=OT&gs=-33.9249,-0.5,Cape+Town_46.5935,7.9091&time=2026-10-04T08:52Z",
+        "sanitized": "https://satvis.space/ot?tags=OT&gs=-33,-0,Cape+Town_46,7&time=2026-10-04T08:52Z"
+      },
+      {
+        "url": "https://satvis.space/?sats=NOAA+19&gs=.5,1e1#gs=1.5,2.5",
+        "sanitized": "https://satvis.space/?sats=NOAA+19&gs=0,1e1#gs=1.5,2.5"
+      },
+      {
+        "url": "https://satvis.space/?xgs=48.1351,11.5820",
+        "sanitized": "https://satvis.space/?xgs=48.1351,11.5820"
+      }
     ]
   }
 }

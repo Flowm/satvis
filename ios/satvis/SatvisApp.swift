@@ -5,10 +5,15 @@ import SwiftUI
 
 @main
 struct SatvisApp: App {
+    @UIApplicationDelegateAdaptor private var delegate: AppDelegate
     @State private var session: Session
 
+    /// `SATVIS_API` in the launch environment replaces satvis.space, e.g. a local
+    /// worker at http://localhost:8080.
+    static let site = ProcessInfo.processInfo.environment["SATVIS_API"].flatMap(URL.init(string:)) ?? WorkerClient.production
+
     init() {
-        let site = ProcessInfo.processInfo.environment["SATVIS_API"].flatMap(URL.init(string:)) ?? WorkerClient.production
+        let site = Self.site
         let source = GPSource(repository: Self.repository(site: site), site: site)
         _session = State(initialValue: Session(source: source, alerts: PassAlerts(source: source)))
     }
@@ -29,8 +34,6 @@ struct SatvisApp: App {
         }
     }
 
-    /// `SATVIS_API` in the launch environment replaces satvis.space, e.g. a local
-    /// worker at http://localhost:8080.
     private static func repository(site: URL) -> GroupRepository {
         let store = (try? PayloadStore.applicationSupport()) ?? PayloadStore(directory: URL.temporaryDirectory.appending(path: "GP"))
         return GroupRepository(client: WorkerClient(baseURL: site), store: store, snapshot: PayloadStore.shipped)
@@ -202,6 +205,14 @@ private struct MapMenu: View {
                 ForEach(BaseLayer.allCases, id: \.self) { Text($0.title) }
             }
             Toggle("Terrain", isOn: $session.terrain)
+            Divider()
+            Toggle(
+                "Share usage data",
+                isOn: Binding {
+                    session.analytics.isSharing
+                } set: {
+                    session.analytics.setSharing($0)
+                })
         }
     }
 }

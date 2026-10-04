@@ -10,6 +10,7 @@
 		57A0C0DE000000000000000C /* SatvisCore in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE000000000000000A /* SatvisCore */; };
 		57A0C0DE000000000000000D /* SatvisData in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE000000000000000B /* SatvisData */; };
 		57A0C0DE000000000000000F /* SatvisRender in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE000000000000000E /* SatvisRender */; };
+		57A0C0DE0000000000000012 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE0000000000000011 /* PostHog */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,6 +69,7 @@
 				57A0C0DE000000000000000C /* SatvisCore in Frameworks */,
 				57A0C0DE000000000000000D /* SatvisData in Frameworks */,
 				57A0C0DE000000000000000F /* SatvisRender in Frameworks */,
+				57A0C0DE0000000000000012 /* PostHog in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -136,6 +138,7 @@
 				57A0C0DE000000000000000A /* SatvisCore */,
 				57A0C0DE000000000000000B /* SatvisData */,
 				57A0C0DE000000000000000E /* SatvisRender */,
+				57A0C0DE0000000000000011 /* PostHog */,
 			);
 			productName = satvis;
 			productReference = 579DA870218C123A00B417CB /* satvis.app */;
@@ -171,6 +174,7 @@
 			mainGroup = 579DA867218C123A00B417CB;
 			packageReferences = (
 				57A0C0DE0000000000000009 /* XCLocalSwiftPackageReference "SatvisKit" */,
+				57A0C0DE0000000000000010 /* XCRemoteSwiftPackageReference "posthog-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 579DA871218C123A00B417CB /* Products */;
@@ -499,6 +503,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		57A0C0DE0000000000000010 /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.56.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		57A0C0DE000000000000000A /* SatvisCore */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -511,6 +526,11 @@
 		57A0C0DE000000000000000E /* SatvisRender */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SatvisRender;
+		};
+		57A0C0DE0000000000000011 /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 57A0C0DE0000000000000010 /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

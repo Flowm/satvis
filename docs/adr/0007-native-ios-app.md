@@ -108,6 +108,16 @@ iCloud key-value storage. That makes a link's stations different from the web's:
 - The app keeps its view as a link and reopens on it, but live: a clock found
   paused hours later reads as broken.
 
+**Usage is counted in the web app's PostHog project**, as PostHog advises for
+one product on several platforms, told apart by `platform: ios` and PostHog's own
+`$lib`. A view is a `$pageview` of its link, so the insights that count users per
+url parameter count the app too. Project settings reach every platform, so the
+app turns off in its own code what it must not collect, whatever the project
+says: person profiles, screen and element autocapture, replay, surveys and push
+capture. Only a release build on satvis.space reports, as only satvis.space does
+on the web; a TestFlight build says so (`distribution`), and the user can switch
+it off.
+
 ## What the native app leaves out
 
 - Cesium World Terrain, MapTiler and ArcGIS terrain

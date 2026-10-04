@@ -50,6 +50,7 @@ final class Session {
         }
     }
     @ObservationIgnored private let tiles = TileFetcher.shared()
+    let analytics = Analytics()
 
     /// What the map is drawn from now, to credit.
     var mapCredits: [Credit] { Credit.map(baseLayer: baseLayer, terrain: terrain) }
@@ -120,6 +121,7 @@ final class Session {
             Task { await watchMode() },
             Task { await starMap.load(from: source) },
             Task { await predictPasses() },
+            Task { await countViews() },
         ]
         await withTaskCancellationHandler {
             // The kept copy first, so nothing waits on the network that a copy on
@@ -239,6 +241,19 @@ final class Session {
             components: SatelliteComponents(SatelliteComponents.named.filter { state.elements.contains($0.0) }.map(\.1)))
         if !state.track.isEmpty, let entry = await catalog.entry(named: state.track) {
             track(entry.id, true)
+        }
+    }
+
+    /// A page view whenever the view changes, as the web app's address bar makes
+    /// one, but not for the clock alone: a pinned clock moves on every minute.
+    private func countViews() async {
+        var counted: Link?
+        for await view in Observations({ self.link(sharing: false, withTime: false) }) {
+            guard started, view != counted else {
+                continue
+            }
+            counted = view
+            analytics.pageview(link(sharing: false).url(site: source.site))
         }
     }
 
