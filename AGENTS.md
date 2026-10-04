@@ -62,8 +62,10 @@ workspace package). One `pnpm install` at the root covers both.
   suites, the build with `test:build`, and `pnpm test:e2e`, and on macOS the
   native app's package tests.
 - `pnpm update-parity-fixtures` reruns the web code the native app is held to
-  (`scripts/parity/`). Rerun it after changing propagation or element-set parsing;
-  CI fails while the committed fixtures are stale.
+  (`scripts/parity/`), and writes the tables it reads from the web app as they are
+  (SATCAT labels, external links). Rerun it after changing propagation, element-set
+  parsing, the info panel's details or those tables; CI fails while the committed
+  output is stale.
 - `pnpm test:e2e` renders with SwiftShader, as a GPU-less CI runner does;
   `pnpm test:e2e:gpu` runs the same specs about four times faster on a Mac.
 - The full e2e suite takes 10+ minutes even on the GPU, so run it only when

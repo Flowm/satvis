@@ -78,8 +78,10 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 ## Parity with the web app
 
 `SatvisKit/Tests/SatvisCoreTests/Fixtures/parity.json` is what the web app's own
-code answers for the element sets in `parity-input.json`. Regenerate it with
-`pnpm update-parity-fixtures` at the repository root; never edit it by hand. CI
+code answers for the element sets in `parity-input.json`: positions, the sampling
+grid, and the info panel's details. `SatvisCore/Shared/web-tables.json` is the web
+app's SATCAT labels and external links, read as they are. Regenerate both with
+`pnpm update-parity-fixtures` at the repository root; never edit them by hand. CI
 fails while it is stale. SGP4 states agree with satellite.js to under a
 micrometre and are held to a centimetre. That depends on setting the satrec up as
 satellite.js does: the epoch as a year and fractional day, an OMM `EPOCH`

@@ -98,8 +98,9 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm ci
-      # A change to the web app's propagation must not break parity unnoticed.
-      - name: Check the parity fixtures are current
-        run: pnpm update-parity-fixtures && git diff --exit-code -- ios/SatvisKit/Tests
+      # A change to the web app's propagation, details or tables must not reach
+      # the native app unnoticed.
+      - name: Check the parity fixtures and shared tables are current
+        run: pnpm update-parity-fixtures && git diff --exit-code -- ios/SatvisKit
       - name: Test SatvisKit
         run: swift test --package-path ios/SatvisKit
