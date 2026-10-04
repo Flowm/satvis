@@ -816,3 +816,11 @@ the real camera and restoring it with `setView` had teleported the camera about
 world coordinates and it was relative to the tracking transform. The probe runs on a
 camera of its own now: no move on the click, and none after landing across four
 switches.
+
+**Stopping, 2026-10-04.** Stopping used to fly to 2,000 km above the satellite, so a
+view from 13,017 km came back at 2,421 km over wherever the satellite had got to. It
+now flies back to the view tracking began from: 0 km off and the same direction after
+an animated track, after ISS then CSS, after an instant track and after tracking a
+ground station. Entering the sky view while tracking used to save the tracking-relative
+camera position as its way back, and leaving dropped the camera onto the surface; it
+now untracks first, and leaving lands 0 km from the tracked view.

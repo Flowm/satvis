@@ -260,6 +260,12 @@ export function startSceneSync(cc: SceneTarget): void {
     // eyes on the ground, so there is nothing to come back to.
     cc.suppressCameraMode();
     satStore.trackedSatellite = "";
+    // Untracked before the sky view takes the camera, so it starts from a pose
+    // in world coordinates and cancels the flight back from tracking.
+    await nextTick();
+    if (generation !== viewModeGeneration) {
+      return;
+    }
     // Looking around waits for the descent to land. Both the drag and the device
     // sensor write the aim, and the aim is the flight's destination — a gesture
     // during the descent would steer it rather than move a view that has
