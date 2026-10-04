@@ -143,11 +143,16 @@ extension PassParity.ExpectedPass {
                 #expect(abs(pass.end - want.end) <= 10, "\(label): end \(pass.end - want.end) ms")
                 switch pass.measure {
                 case .elevation(let maxElevation, let azimuthStart, let azimuthApex, let azimuthEnd, let apex):
+                    // The peak and the edges are searched for to 10 ms, and the last bit
+                    // of a sine can steer the search either way: the azimuths agree to
+                    // what a low pass sweeps in that time. A slow orbit's peak is flat to
+                    // the last bit for tens of milliseconds, so its time agrees less
+                    // closely than its elevation.
                     #expect(abs(maxElevation - want.maxElevation!) < 1e-6, "\(label)")
-                    #expect(abs(azimuthStart - want.azimuthStart!) < 1e-6, "\(label)")
-                    #expect(abs(azimuthApex - want.azimuthApex!) < 1e-6, "\(label)")
-                    #expect(abs(azimuthEnd - want.azimuthEnd!) < 1e-6, "\(label)")
-                    #expect(apex == want.apex, "\(label)")
+                    #expect(abs(azimuthStart - want.azimuthStart!) < 0.01, "\(label)")
+                    #expect(abs(azimuthApex - want.azimuthApex!) < 0.01, "\(label)")
+                    #expect(abs(azimuthEnd - want.azimuthEnd!) < 0.01, "\(label)")
+                    #expect(abs(apex! - want.apex!) <= 100, "\(label)")
                 case .swath(let minDistance, let minDistanceTime, let swathWidth):
                     #expect(abs(minDistance - want.minDistance!) < 1e-3, "\(label)")
                     #expect(abs(minDistanceTime - want.minDistanceTime!) <= 10, "\(label)")

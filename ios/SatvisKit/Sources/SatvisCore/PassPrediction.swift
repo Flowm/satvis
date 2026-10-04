@@ -35,8 +35,7 @@ public struct SwathExtents: Sendable, Hashable {
 /// One pass of a satellite over a ground station, in UTC milliseconds since 1970.
 public struct Pass: Sendable, Hashable {
     public enum Measure: Sendable, Hashable {
-        /// Degrees. The apex is when the highest elevation was sampled, nil when
-        /// that was the first sample.
+        /// Degrees, and when the satellite stood highest.
         case elevation(maxElevation: Double, azimuthStart: Double, azimuthApex: Double, azimuthEnd: Double, apex: Double?)
         /// Kilometres from the ground track at closest approach, and when.
         case swath(minDistance: Double, minDistanceTime: Double, swathWidth: Double)
@@ -107,63 +106,58 @@ public struct PassFinder: Sendable {
 
     // MARK: Elevation
 
-    /// `Orbit.computePassesElevation`: coarse steps while the satellite is far
-    /// below the horizon, finer as it nears it, 5 s while it is up, then half an
-    /// orbit's skip after a pass.
-    public func elevationPasses(over station: GroundStation, from start: Double, to end: Double, minElevation: Double = 5, maxPasses: Int = 50) -> [Pass] {
+    /// `Orbit.computePassesElevation`: within each reach of the station, found as
+    /// the swath search finds them, steps of a tenth of an orbit; in each, the peak
+    /// by golden section and the rise and set by bisection, to 10 ms. A pass that
+    /// runs over a step is carried on into the next.
+    public func elevationPasses(over station: GroundStation, from start: Double, to end: Double, minElevation: Double = 5, maxPasses: Int = .max) -> [Pass] {
         let observer = (latitude: station.latitude * deg2rad, longitude: station.longitude * deg2rad, height: 0.0)
-        // `Date.setMinutes` truncates the minutes it is handed.
-        let halfOrbitMs = (orbitalPeriod * 0.5).rounded(.towardZero) * 60_000
-        var date = start
+        let lookAt = { (time: Double) -> (azimuth: Double, elevation: Double)? in
+            fixedPosition(at: time.rounded(.towardZero)).map { lookAngles(observer: observer, satellite: $0) }
+        }
+        let elevationAt = { (time: Double) in (lookAt(time)?.elevation ?? -Double.pi / 2) * rad2deg }
+        let azimuthAt = { (time: Double) in (lookAt(time)?.azimuth ?? 0) * rad2deg }
+        let isAbove = { (time: Double) in elevationAt(time) > minElevation }
+        let step = scanStepMs
+
         var passes: [Pass] = []
-        var pass: (start: Double, azimuthStart: Double, maxElevation: Double, azimuthApex: Double, apex: Double?)?
-        var lastElevation = 0.0
-        while date < end {
-            guard let fixed = fixedPosition(at: date) else {
-                date += 60_000
-                continue
-            }
-            let look = lookAngles(observer: observer, satellite: fixed)
-            let elevation = look.elevation / deg2rad
-            if elevation > minElevation {
-                if var ongoing = pass {
-                    if elevation > ongoing.maxElevation {
-                        ongoing.maxElevation = elevation
-                        ongoing.apex = date
-                        ongoing.azimuthApex = look.azimuth
-                        pass = ongoing
-                    }
-                } else {
-                    pass = (date, look.azimuth, elevation, look.azimuth, nil)
+        for reach in reachIntervals(station, radiusKm: visibilityRadiusKm(minElevation), from: start, to: end) {
+            var open: (start: Double, apex: (timeMs: Double, elevation: Double))?
+            var a = reach.start
+            while a < reach.end {
+                defer { a += step }
+                let b = min(a + step, reach.end)
+                let atA = elevationAt(a)
+                let atB = elevationAt(b)
+                let inner = minimum({ -elevationAt($0) }, a, b)!
+                var apex = (timeMs: inner.timeMs, elevation: -inner.value)
+                if atA > apex.elevation {
+                    apex = (a, atA)
                 }
-                date += 5000
-            } else if let ongoing = pass {
+                if atB > apex.elevation {
+                    apex = (b, atB)
+                }
+                if apex.elevation <= minElevation {
+                    continue
+                }
+                // A step starts above the horizon only mid-pass, which `open` carries,
+                // or at the window's start.
+                let passStart = open?.start ?? (atA > minElevation ? a : crossing(isAbove, outside: a, inside: apex.timeMs).inside)
+                let peak = open.map { $0.apex.elevation > apex.elevation ? $0.apex : apex } ?? apex
+                if atB > minElevation && b < reach.end {
+                    open = (passStart, peak)
+                    continue
+                }
+                open = nil
+                let passEnd = atB > minElevation ? b : crossing(isAbove, outside: b, inside: apex.timeMs).outside
                 passes.append(
                     Pass(
-                        satellite: "", satelliteName: "", station: station.displayName, stationID: station.id, start: ongoing.start, end: date,
+                        satellite: "", satelliteName: "", station: station.displayName, stationID: station.id, start: passStart, end: passEnd,
                         measure: .elevation(
-                            maxElevation: ongoing.maxElevation, azimuthStart: ongoing.azimuthStart / deg2rad, azimuthApex: ongoing.azimuthApex / deg2rad,
-                            azimuthEnd: look.azimuth / deg2rad, apex: ongoing.apex)))
+                            maxElevation: peak.elevation, azimuthStart: azimuthAt(passStart), azimuthApex: azimuthAt(peak.timeMs), azimuthEnd: azimuthAt(passEnd),
+                            apex: peak.timeMs)))
                 if passes.count >= maxPasses {
-                    break
-                }
-                pass = nil
-                lastElevation = -180
-                date += halfOrbitMs
-            } else {
-                let deltaElevation = elevation - lastElevation
-                lastElevation = elevation
-                if deltaElevation < 0 {
-                    date += halfOrbitMs
-                    lastElevation = -180
-                } else if elevation < -20 {
-                    date += 5 * 60_000
-                } else if elevation < -5 {
-                    date += 60_000
-                } else if elevation < -1 {
-                    date += 5000
-                } else {
-                    date += 2000
+                    return passes
                 }
             }
         }
@@ -172,82 +166,113 @@ public struct PassFinder: Sendable {
 
     // MARK: Swath
 
-    /// `Orbit.computePassesSwath`: steps of a tenth of an orbit, skipping every
-    /// step the ground speed bound proves stays out of reach, then a golden-section
-    /// search for the closest approach and bisection for the edges, to 10 ms.
-    public func swathPasses(over station: GroundStation, swath: SwathExtents, from startMs: Double, to endMs: Double, maxPasses: Int = 50) -> [Pass] {
+    /// `Orbit.computePassesSwath`: the reaches of the wider extent, each the pass
+    /// for a symmetric swath, cut to where the station's side is served for an
+    /// asymmetric one, with the closest approach by golden section.
+    public func swathPasses(over station: GroundStation, swath: SwathExtents, from startMs: Double, to endMs: Double, maxPasses: Int = .max) -> [Pass] {
         let swathWidth = swath.starboardKm + swath.portKm
         let maxExtent = max(swath.starboardKm, swath.portKm)
-        let maxSpeed = maxGroundSpeedKmS
-        let stepMs = orbitalPeriod * 0.1 * 60_000
         let distanceAt = { (time: Double) in self.subpointDistanceKm(station, time) }
 
         var passes: [Pass] = []
-        var t = startMs
-        var distanceT = distanceAt(t)
-        while t < endMs && passes.count < maxPasses {
-            let next = min(t + stepMs, endMs)
-            let distanceNext = distanceAt(next)
-            if (distanceT + distanceNext - (maxSpeed * (next - t)) / 1000) / 2 > maxExtent {
-                t = next
-                distanceT = distanceNext
-                continue
-            }
-            var closest = closestApproach(station, t, next, maxSpeed, abandonAboveKm: maxExtent) ?? (next, distanceNext)
-            if distanceNext < closest.distanceKm {
-                closest = (next, distanceNext)
-            }
-            if distanceT < closest.distanceKm {
-                closest = (t, distanceT)
-            }
-            if closest.distanceKm > maxExtent {
-                t = next
-                distanceT = distanceNext
-                continue
-            }
-
-            let withinReach = { (time: Double) in distanceAt(time) <= maxExtent }
-            let reachStart = distanceT <= maxExtent ? t : crossing(withinReach, outside: t, inside: closest.timeMs).inside
-            var reachEnd = endMs
-            var probe = closest.timeMs
-            var gap = max(closest.timeMs - reachStart, 1000)
-            while probe < endMs {
-                let ahead = min(closest.timeMs + gap, endMs)
-                if !withinReach(ahead) {
-                    reachEnd = crossing(withinReach, outside: ahead, inside: probe).outside
-                    break
-                }
-                probe = ahead
-                gap *= 2
-            }
-
+        for reach in reachIntervals(station, radiusKm: maxExtent, from: startMs, to: endMs) {
             let served =
                 swath.starboardKm == swath.portKm
-                ? [(reachStart, reachEnd)] : servedIntervals(station, swath, from: reachStart, to: reachEnd, closestMs: closest.timeMs)
+                ? [(reach.start, reach.end)] : servedIntervals(station, swath, from: reach.start, to: reach.end, closestMs: reach.closestMs)
             for (start, end) in served {
-                let minimum = closestApproach(station, start, end, maxSpeed)!
+                let closest = minimum(distanceAt, start, end)!
                 passes.append(
                     Pass(
                         satellite: "", satelliteName: "", station: station.displayName, stationID: station.id, start: start, end: end,
-                        measure: .swath(minDistance: minimum.distanceKm, minDistanceTime: minimum.timeMs, swathWidth: swathWidth)))
+                        measure: .swath(minDistance: closest.value, minDistanceTime: closest.timeMs, swathWidth: swathWidth)))
                 if passes.count >= maxPasses {
-                    break
+                    return passes
                 }
             }
-            t = reachEnd
-            distanceT = distanceAt(t)
         }
         return passes
     }
+
+    private var semiMajorAxisKm: Double {
+        let meanMotionRadS = propagator.meanMotion / 60
+        return cbrt(muKm3S2 / (meanMotionRadS * meanMotionRadS))
+    }
+
+    /// Short enough that the distance to a station, and the elevation, peak at most
+    /// once per step.
+    private var scanStepMs: Double { orbitalPeriod * 0.1 * 60_000 }
 
     /// An upper bound on the subpoint's speed over the ground, km/s: the angular
     /// rate at perigee plus the Earth's rotation, with a tenth to spare.
     var maxGroundSpeedKmS: Double {
         let eccentricity = propagator.elements.eccentricity
-        let meanMotionRadS = propagator.meanMotion / 60
-        let perigeeKm = cbrt(muKm3S2 / (meanMotionRadS * meanMotionRadS)) * (1 - eccentricity)
+        let perigeeKm = semiMajorAxisKm * (1 - eccentricity)
         let perigeeRateRadS = (muKm3S2 * (1 + eccentricity) / perigeeKm).squareRoot() / perigeeKm
         return 1.1 * earthRadiusKm * (perigeeRateRadS + earthRotationRadS)
+    }
+
+    /// The furthest the subpoint can be from a station while the satellite is above
+    /// `minElevation`, at the highest the orbit gets, erring wide: the osculating
+    /// orbit rises above the mean apogee, and a station can sit at the polar radius.
+    private func visibilityRadiusKm(_ minElevation: Double) -> Double {
+        let apogeeKm = semiMajorAxisKm * (1 + propagator.elements.eccentricity) + 30
+        let elevation = minElevation * deg2rad
+        return 1.02 * earthRadiusKm * (acos(polarRadiusKm * cos(elevation) / apogeeKm) - elevation)
+    }
+
+    /// The stretches of the window where the subpoint is within `radiusKm` of the
+    /// station, each with its closest approach: steps of a tenth of an orbit, each
+    /// skipped when the ground speed bound proves it stays out of reach.
+    private func reachIntervals(_ station: GroundStation, radiusKm: Double, from startMs: Double, to endMs: Double) -> [(start: Double, end: Double, closestMs: Double)] {
+        let maxSpeed = maxGroundSpeedKmS
+        let distanceAt = { (time: Double) in self.subpointDistanceKm(station, time) }
+        let unreachable = { (best: Double, width: Double) in best - (maxSpeed * width) / 1000 > radiusKm }
+        let step = scanStepMs
+
+        var reaches: [(start: Double, end: Double, closestMs: Double)] = []
+        var t = startMs
+        var distanceT = distanceAt(t)
+        while t < endMs {
+            let next = min(t + step, endMs)
+            let distanceNext = distanceAt(next)
+            if (distanceT + distanceNext - (maxSpeed * (next - t)) / 1000) / 2 > radiusKm {
+                t = next
+                distanceT = distanceNext
+                continue
+            }
+            var closest = minimum(distanceAt, t, next, giveUp: unreachable) ?? (next, distanceNext)
+            if distanceNext < closest.value {
+                closest = (next, distanceNext)
+            }
+            if distanceT < closest.value {
+                closest = (t, distanceT)
+            }
+            if closest.value > radiusKm {
+                t = next
+                distanceT = distanceNext
+                continue
+            }
+
+            // Only the window's start can already be within reach; every other `t` is outside.
+            let withinReach = { (time: Double) in distanceAt(time) <= radiusKm }
+            let start = distanceT <= radiusKm ? t : crossing(withinReach, outside: t, inside: closest.timeMs).inside
+            var end = endMs
+            var probe = closest.timeMs
+            var gap = max(closest.timeMs - start, 1000)
+            while probe < endMs {
+                let ahead = min(closest.timeMs + gap, endMs)
+                if !withinReach(ahead) {
+                    end = crossing(withinReach, outside: ahead, inside: probe).outside
+                    break
+                }
+                probe = ahead
+                gap *= 2
+            }
+            reaches.append((start, end, closest.timeMs))
+            t = end
+            distanceT = distanceAt(t)
+        }
+        return reaches
     }
 
     private func subpointDistanceKm(_ station: GroundStation, _ timeMs: Double) -> Double {
@@ -255,38 +280,6 @@ public struct PassFinder: Sendable {
             return .infinity
         }
         return greatCircleKm(here.latitude * deg2rad, here.longitude * deg2rad, station.latitude * deg2rad, station.longitude * deg2rad)
-    }
-
-    /// The closest approach in `[lo, hi]`, assuming one minimum there; nil as soon
-    /// as the speed bound proves nothing in the bracket comes within `abandonAboveKm`.
-    private func closestApproach(
-        _ station: GroundStation, _ lo: Double, _ hi: Double, _ maxSpeed: Double, abandonAboveKm: Double = .infinity
-    ) -> (timeMs: Double, distanceKm: Double)? {
-        var a = lo
-        var b = hi
-        var c = b - (b - a) * inversePhi
-        var d = a + (b - a) * inversePhi
-        var fc = subpointDistanceKm(station, c)
-        var fd = subpointDistanceKm(station, d)
-        while b - a > swathResolutionMs {
-            if min(fc, fd) - (maxSpeed * (b - a)) / 1000 > abandonAboveKm {
-                return nil
-            }
-            if fc < fd {
-                b = d
-                d = c
-                fd = fc
-                c = b - (b - a) * inversePhi
-                fc = subpointDistanceKm(station, c)
-            } else {
-                a = c
-                c = d
-                fc = fd
-                d = a + (b - a) * inversePhi
-                fd = subpointDistanceKm(station, d)
-            }
-        }
-        return fc < fd ? (c, fc) : (d, fd)
     }
 
     /// Where the station lies relative to the ground track: how far, and on which
@@ -413,11 +406,44 @@ private func greatCircleKm(_ fromLat: Double, _ fromLon: Double, _ toLat: Double
     return earthRadiusKm * 2 * atan2(a.squareRoot(), (1 - a).squareRoot())
 }
 
+/// The minimum of `cost` over `[lo, hi]` by golden-section search, to 10 ms,
+/// assuming one minimum there. `giveUp` is asked as the bracket narrows, and ends
+/// the search with nil.
+private func minimum(
+    _ cost: (Double) -> Double, _ lo: Double, _ hi: Double, giveUp: ((_ best: Double, _ width: Double) -> Bool)? = nil
+) -> (timeMs: Double, value: Double)? {
+    var a = lo
+    var b = hi
+    var c = b - (b - a) * inversePhi
+    var d = a + (b - a) * inversePhi
+    var fc = cost(c)
+    var fd = cost(d)
+    while b - a > passResolutionMs {
+        if let giveUp, giveUp(min(fc, fd), b - a) {
+            return nil
+        }
+        if fc < fd {
+            b = d
+            d = c
+            fd = fc
+            c = b - (b - a) * inversePhi
+            fc = cost(c)
+        } else {
+            a = c
+            c = d
+            fc = fd
+            d = a + (b - a) * inversePhi
+            fd = cost(d)
+        }
+    }
+    return fc < fd ? (c, fc) : (d, fd)
+}
+
 /// Bisects to where `isInside` flips, to 10 ms, returning both bounds.
 private func crossing(_ isInside: (Double) -> Bool, outside: Double, inside: Double) -> (outside: Double, inside: Double) {
     var outside = outside
     var inside = inside
-    while abs(inside - outside) > swathResolutionMs {
+    while abs(inside - outside) > passResolutionMs {
         let mid = (outside + inside) / 2
         if isInside(mid) {
             inside = mid
@@ -431,9 +457,11 @@ private func crossing(_ isInside: (Double) -> Bool, outside: Double, inside: Dou
 private let deg2rad = Double.pi / 180
 private let rad2deg = 180 / Double.pi
 private let earthRadiusKm = 6371.0
+private let polarRadiusKm = 6356.752
 private let muKm3S2 = 398600.4418
 private let earthRotationRadS = 7.2921159e-5
 private let inversePhi = (5.0.squareRoot() - 1) / 2
-private let swathResolutionMs = 10.0
+/// Pass edges and peaks are resolved to this.
+private let passResolutionMs = 10.0
 private let sideSampleMs = 1000.0
 private let bearingSampleMs = 10_000.0
