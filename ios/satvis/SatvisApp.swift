@@ -1,19 +1,22 @@
+import SatvisData
 import SwiftUI
 
 @main
 struct SatvisApp: App {
-    @State private var notificationManager = NotificationManager()
+    @State private var source = GPSource(repository: Self.repository())
 
     var body: some Scene {
         WindowGroup {
-            SatvisWebView(url: url, notificationManager: notificationManager)
-                .ignoresSafeArea()
-                .background(.black)
+            StatusView(source: source)
                 .preferredColorScheme(.dark)
         }
     }
 
-    private var url: URL {
-        ProcessInfo.processInfo.environment["URL"].flatMap(URL.init(string:)) ?? URL(string: "https://satvis.space/")!
+    /// `SATVIS_API` in the launch environment replaces satvis.space, e.g. a local
+    /// worker at http://localhost:8080.
+    private static func repository() -> GroupRepository {
+        let api = ProcessInfo.processInfo.environment["SATVIS_API"].flatMap(URL.init(string:))
+        let store = (try? PayloadStore.applicationSupport()) ?? PayloadStore(directory: URL.temporaryDirectory.appending(path: "GP"))
+        return GroupRepository(client: WorkerClient(baseURL: api ?? WorkerClient.production), store: store, snapshot: PayloadStore.shipped)
     }
 }

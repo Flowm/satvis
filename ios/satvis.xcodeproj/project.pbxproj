@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		57A0C0DE000000000000000C /* SatvisCore in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE000000000000000A /* SatvisCore */; };
+		57A0C0DE000000000000000D /* SatvisData in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE000000000000000B /* SatvisData */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		570DD92C22B5BA980078A4A1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -59,6 +64,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				57A0C0DE000000000000000C /* SatvisCore in Frameworks */,
+				57A0C0DE000000000000000D /* SatvisData in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -123,6 +130,10 @@
 				57A0C0DE0000000000000006 /* satvis */,
 			);
 			name = satvis;
+			packageProductDependencies = (
+				57A0C0DE000000000000000A /* SatvisCore */,
+				57A0C0DE000000000000000B /* SatvisData */,
+			);
 			productName = satvis;
 			productReference = 579DA870218C123A00B417CB /* satvis.app */;
 			productType = "com.apple.product-type.application";
@@ -155,6 +166,9 @@
 				Base,
 			);
 			mainGroup = 579DA867218C123A00B417CB;
+			packageReferences = (
+				57A0C0DE0000000000000009 /* XCLocalSwiftPackageReference "SatvisKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 579DA871218C123A00B417CB /* Products */;
 			projectDirPath = "";
@@ -214,7 +228,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -236,7 +250,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -392,7 +406,7 @@
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arm64;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -425,7 +439,7 @@
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arm64;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -472,6 +486,24 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		57A0C0DE0000000000000009 /* XCLocalSwiftPackageReference "SatvisKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = SatvisKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		57A0C0DE000000000000000A /* SatvisCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SatvisCore;
+		};
+		57A0C0DE000000000000000B /* SatvisData */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SatvisData;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 579DA868218C123A00B417CB /* Project object */;
 }
