@@ -69,3 +69,19 @@ import simd
         #expect(later.count == records.count)
     }
 }
+
+@Suite struct TrajectoryStoreReplaceTests {
+    @Test func keepsTheWindowsOfSatellitesThatStay() async throws {
+        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let store = TrajectoryStore()
+        await store.replace(with: Array(records[0..<2]))
+        let now = (try SGP4Propagator(records[0].meanElements).epochJulianDate - 2440587.5) * 86_400_000
+        let before = try #require(await store.refresh(at: now))
+
+        await store.replace(with: Array(records[0..<1]))
+        let after = try #require(await store.refresh(at: now))
+        #expect(after.map(\.record.name) == ["ISS (ZARYA)"])
+        #expect(after[0].trajectory.firstIndex == before[0].trajectory.firstIndex)
+        #expect(after[0].trajectory.positions == before[0].trajectory.positions)
+    }
+}

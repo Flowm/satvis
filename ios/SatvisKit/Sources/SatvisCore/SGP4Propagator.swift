@@ -40,6 +40,11 @@ public final class SGP4Propagator: Sendable {
     /// The mean motion SGP4 recovered, in radians per minute: satellite.js's
     /// `satrec.no` once initialised.
     public var meanMotion: Double { sgp4_mean_motion(satellite) }
+    /// satellite.js's `satrec.a`, `alta` and `altp`, in Earth radii.
+    public var shape: (semiMajorAxis: Double, apogeeAltitude: Double, perigeeAltitude: Double) {
+        let shape = sgp4_shape(satellite)
+        return (shape.semiMajorAxis, shape.apogeeAltitude, shape.perigeeAltitude)
+    }
     private nonisolated(unsafe) let satellite: OpaquePointer
 
     public init(_ elements: MeanElements) throws(SGP4Error) {

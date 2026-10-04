@@ -1230,6 +1230,363 @@
       ]
     }
   ],
+  "details": [
+    {
+      "facts": [
+        [
+          "Orbit",
+          "LEO"
+        ],
+        [
+          "Apogee / Perigee",
+          "426 / 416 km"
+        ],
+        [
+          "Owner",
+          "International Space Station"
+        ],
+        [
+          "Launched",
+          "1998-11-20 · Baikonur, Kazakhstan"
+        ],
+        [
+          "Status",
+          "Operational"
+        ]
+      ],
+      "elements": {
+        "kind": "omm",
+        "epoch": "2026-10-02 11:10:18",
+        "rows": [
+          [
+            "OBJECT_ID",
+            "1998-067A"
+          ],
+          [
+            "NORAD_CAT_ID",
+            "25544"
+          ],
+          [
+            "INCLINATION",
+            "51.6313"
+          ],
+          [
+            "RA_OF_ASC_NODE",
+            "129.1782"
+          ],
+          [
+            "ECCENTRICITY",
+            "0.00069284"
+          ],
+          [
+            "ARG_OF_PERICENTER",
+            "213.7086"
+          ],
+          [
+            "MEAN_ANOMALY",
+            "146.3462"
+          ],
+          [
+            "MEAN_MOTION",
+            "15.48710782"
+          ],
+          [
+            "BSTAR",
+            "0.000074913218"
+          ]
+        ]
+      }
+    },
+    {
+      "facts": [
+        [
+          "Orbit",
+          "LEO · Sun-synchronous"
+        ],
+        [
+          "Apogee / Perigee",
+          "818 / 817 km"
+        ],
+        [
+          "LTAN / LTDN",
+          "21:28 / 09:28"
+        ],
+        [
+          "Swath",
+          "2900 km"
+        ],
+        [
+          "Owner",
+          "EUMETSAT"
+        ],
+        [
+          "Launched",
+          "2018-11-07 · Kourou, French Guiana"
+        ],
+        [
+          "Status",
+          "Operational"
+        ]
+      ],
+      "elements": {
+        "kind": "omm",
+        "epoch": "2026-10-02 13:12:07",
+        "rows": [
+          [
+            "OBJECT_ID",
+            "2018-087A"
+          ],
+          [
+            "NORAD_CAT_ID",
+            "43689"
+          ],
+          [
+            "INCLINATION",
+            "98.7312"
+          ],
+          [
+            "RA_OF_ASC_NODE",
+            "333.3159"
+          ],
+          [
+            "ECCENTRICITY",
+            "0.00003476"
+          ],
+          [
+            "ARG_OF_PERICENTER",
+            "103.6359"
+          ],
+          [
+            "MEAN_ANOMALY",
+            "256.4857"
+          ],
+          [
+            "MEAN_MOTION",
+            "14.21475762"
+          ],
+          [
+            "BSTAR",
+            "0.000033860869"
+          ]
+        ]
+      }
+    },
+    {
+      "facts": [
+        [
+          "Orbit",
+          "MEO"
+        ],
+        [
+          "Apogee / Perigee",
+          "20494 / 19871 km"
+        ],
+        [
+          "Owner",
+          "United States"
+        ],
+        [
+          "Launched",
+          "2000-07-16 · Cape Canaveral, Florida"
+        ],
+        [
+          "Status",
+          "Operational"
+        ]
+      ],
+      "elements": {
+        "kind": "omm",
+        "epoch": "2026-10-02 05:51:49",
+        "rows": [
+          [
+            "OBJECT_ID",
+            "2000-040A"
+          ],
+          [
+            "NORAD_CAT_ID",
+            "26407"
+          ],
+          [
+            "INCLINATION",
+            "54.8346"
+          ],
+          [
+            "RA_OF_ASC_NODE",
+            "210.914"
+          ],
+          [
+            "ECCENTRICITY",
+            "0.01172968"
+          ],
+          [
+            "ARG_OF_PERICENTER",
+            "304.2036"
+          ],
+          [
+            "MEAN_ANOMALY",
+            "238.4415"
+          ],
+          [
+            "MEAN_MOTION",
+            "2.00558403"
+          ],
+          [
+            "BSTAR",
+            "0"
+          ]
+        ]
+      }
+    },
+    {
+      "facts": [
+        [
+          "Orbit",
+          "GEO"
+        ],
+        [
+          "Apogee / Perigee",
+          "35792 / 35784 km"
+        ],
+        [
+          "Owner",
+          "United States"
+        ],
+        [
+          "Launched",
+          "2024-06-25 · Cape Canaveral, Florida"
+        ],
+        [
+          "Status",
+          "Operational"
+        ]
+      ],
+      "elements": {
+        "kind": "omm",
+        "epoch": "2026-10-02 10:54:17",
+        "rows": [
+          [
+            "OBJECT_ID",
+            "2024-119A"
+          ],
+          [
+            "NORAD_CAT_ID",
+            "60133"
+          ],
+          [
+            "INCLINATION",
+            "0.044"
+          ],
+          [
+            "RA_OF_ASC_NODE",
+            "23.373"
+          ],
+          [
+            "ECCENTRICITY",
+            "0.00009121"
+          ],
+          [
+            "ARG_OF_PERICENTER",
+            "243.1282"
+          ],
+          [
+            "MEAN_ANOMALY",
+            "193.0816"
+          ],
+          [
+            "MEAN_MOTION",
+            "1.00270664"
+          ],
+          [
+            "BSTAR",
+            "0"
+          ]
+        ]
+      }
+    },
+    {
+      "facts": [
+        [
+          "Orbit",
+          "HEO"
+        ],
+        [
+          "Apogee / Perigee",
+          "52415 / 5808 km"
+        ],
+        [
+          "Owner",
+          "United States"
+        ],
+        [
+          "Launched",
+          "1996-02-24 · Vandenberg, California"
+        ],
+        [
+          "Status",
+          "Partially operational"
+        ]
+      ],
+      "elements": {
+        "kind": "omm",
+        "epoch": "2026-09-25 22:32:31",
+        "rows": [
+          [
+            "OBJECT_ID",
+            "1996-013A"
+          ],
+          [
+            "NORAD_CAT_ID",
+            "23802"
+          ],
+          [
+            "INCLINATION",
+            "80.0113"
+          ],
+          [
+            "RA_OF_ASC_NODE",
+            "225.8418"
+          ],
+          [
+            "ECCENTRICITY",
+            "0.65662335"
+          ],
+          [
+            "ARG_OF_PERICENTER",
+            "205.5949"
+          ],
+          [
+            "MEAN_ANOMALY",
+            "97.1375"
+          ],
+          [
+            "MEAN_MOTION",
+            "1.29845792"
+          ],
+          [
+            "BSTAR",
+            "0"
+          ]
+        ]
+      }
+    },
+    {
+      "facts": [
+        [
+          "Orbit",
+          "MEO"
+        ],
+        [
+          "Apogee / Perigee",
+          "3863 / 651 km"
+        ]
+      ],
+      "elements": {
+        "kind": "tle",
+        "epoch": "2000-06-27 18:50:19",
+        "lines": "1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  4753\n2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.82419157413667"
+      }
+    }
+  ],
   "greenwichHourAngle": [
     {
       "instant": "2000-01-01T12:00:00.000Z",

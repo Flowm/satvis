@@ -38,6 +38,16 @@ void sgp4_destroy(SGP4Satellite *_Nullable satellite);
 /// The mean motion SGP4 recovered from the Kozai one, in radians per minute.
 double sgp4_mean_motion(const SGP4Satellite *_Nonnull satellite);
 
+/// What sgp4init derived from the elements, in Earth radii: the semi-major axis,
+/// and the apogee and perigee as heights above the surface.
+typedef struct {
+    double semiMajorAxis;
+    double apogeeAltitude;
+    double perigeeAltitude;
+} SGP4Shape;
+
+SGP4Shape sgp4_shape(const SGP4Satellite *_Nonnull satellite);
+
 /// TEME position in km and velocity in km/s. Returns SGP4's error code, 0 when
 /// the state is valid.
 int sgp4_propagate(const SGP4Satellite *_Nonnull satellite, double minutesSinceEpoch, double position[_Nonnull 3], double velocity[_Nonnull 3]);

@@ -14,27 +14,51 @@ public actor TrajectoryStore {
     /// Satellites SGP4 failed for, e.g. decayed ones: not drawn, and not retried
     /// until the set is replaced.
     private var failed = Set<Int>()
+    /// A replacement that resampled nothing still changes what is drawn.
+    private var changedSinceRefresh = false
 
     public init() {}
 
     /// Replaces the set. A satellite carried by several groups is drawn once, as
-    /// the web app's catalog keeps it once.
+    /// the web app's catalog keeps it once, and one already in the set keeps its
+    /// window, so that switching a group on does not resample every other one.
     public func replace(with records: [GPRecord]) {
-        var seen = Set<String>()
-        propagators = records.compactMap { record in
-            guard seen.insert(record.satnum).inserted, let propagator = try? SGP4Propagator(record.meanElements) else {
-                return nil
-            }
-            return (record, propagator)
+        var kept: [String: (propagator: SGP4Propagator, trajectory: SampledTrajectory?, failed: Bool)] = [:]
+        for (index, entry) in propagators.enumerated() {
+            kept[Self.key(entry.record)] = (entry.propagator, trajectories[index], failed.contains(index))
         }
-        trajectories = Array(repeating: nil, count: propagators.count)
-        failed = []
+        var seen = Set<String>()
+        var nextPropagators: [(record: GPRecord, propagator: SGP4Propagator)] = []
+        var nextTrajectories: [SampledTrajectory?] = []
+        var nextFailed = Set<Int>()
+        for record in records where seen.insert(record.satnum).inserted {
+            if let old = kept[Self.key(record)] {
+                if old.failed {
+                    nextFailed.insert(nextPropagators.count)
+                }
+                nextPropagators.append((record, old.propagator))
+                nextTrajectories.append(old.trajectory)
+            } else if let propagator = try? SGP4Propagator(record.meanElements) {
+                nextPropagators.append((record, propagator))
+                nextTrajectories.append(nil)
+            }
+        }
+        propagators = nextPropagators
+        trajectories = nextTrajectories
+        failed = nextFailed
+        changedSinceRefresh = true
+    }
+
+    /// The same satellite with the same element set.
+    private static func key(_ record: GPRecord) -> String {
+        "\(record.satnum)|\(record.meanElements.epoch.year)|\(record.meanElements.epoch.dayOfYear)"
     }
 
     /// Resamples every window that no longer covers the instant. Returns the whole
     /// set when anything changed, nil when nothing did.
     public func refresh(at epochMilliseconds: Double) -> [Entry]? {
-        var changed = false
+        var changed = changedSinceRefresh
+        changedSinceRefresh = false
         for index in propagators.indices where !failed.contains(index) && !(trajectories[index]?.isFresh(at: epochMilliseconds) ?? false) {
             trajectories[index] = SampledTrajectory(propagators[index].propagator, around: epochMilliseconds)
             if trajectories[index] == nil {

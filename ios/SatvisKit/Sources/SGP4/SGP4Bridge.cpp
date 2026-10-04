@@ -36,6 +36,10 @@ double sgp4_mean_motion(const SGP4Satellite *satellite) {
     return satellite->record.no_unkozai;
 }
 
+SGP4Shape sgp4_shape(const SGP4Satellite *satellite) {
+    return SGP4Shape{satellite->record.a, satellite->record.alta, satellite->record.altp};
+}
+
 int sgp4_propagate(const SGP4Satellite *satellite, double minutesSinceEpoch, double position[3], double velocity[3]) {
     // sgp4 writes into the record as it goes (the deep-space integrator keeps its
     // last step there), so each call works on its own copy.

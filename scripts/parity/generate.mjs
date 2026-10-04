@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Write the parity fixtures the native app's tests are held to
 // (docs/adr/0007-native-ios-app.md): what the web app's own code answers for the
-// element sets in parity-input.json. Never edit the output by hand; CI checks that
-// rerunning this changes nothing.
+// element sets in parity-input.json. Also write the tables the native app reads
+// as they are rather than keeping a copy of its own: the SATCAT code labels and
+// the external links. Never edit either output by hand; CI checks that rerunning
+// this changes nothing.
 //
 // The web code is loaded through Vite's module runner, because its imports are
 // extensionless TypeScript that plain node cannot resolve.
@@ -18,6 +20,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 const fixtureDir = path.join(repoRoot, "ios/SatvisKit/Tests/SatvisCoreTests/Fixtures");
 const inputPath = path.join(fixtureDir, "parity-input.json");
 const outputPath = path.join(fixtureDir, "parity.json");
+const tablesPath = path.join(repoRoot, "ios/SatvisKit/Sources/SatvisCore/Shared/web-tables.json");
 
 const MS_PER_MINUTE = 60_000;
 // Around each element set's epoch: back a day, the epoch, half an orbit or so,
@@ -34,12 +37,25 @@ const HOUR_ANGLE_INSTANTS = [
   "2049-06-30T18:30:15.250Z",
 ];
 
-const server = await createServer({ root: repoRoot, configFile: false, appType: "custom", logLevel: "error", server: { middlewareMode: true, hmr: false } });
+// No dependency scan: nothing here is served to a browser, and on a cold cache the
+// scan reports errors for entry points this script never loads.
+const server = await createServer({
+  root: repoRoot,
+  configFile: false,
+  appType: "custom",
+  logLevel: "error",
+  optimizeDeps: { noDiscovery: true },
+  server: { middlewareMode: true, hmr: false },
+});
 try {
   const runner = createServerModuleRunner(server.environments.ssr, { hmr: false });
   const gp = await runner.import("/src/modules/util/gp.ts");
   const { greenwichHourAngle } = await runner.import("/src/modules/util/temeToFixed.ts");
   const { sampleInterval, gridAnchorEpochMs } = await runner.import("/src/modules/util/sgp4Worker.ts");
+  const { default: Orbit } = await runner.import("/src/modules/Orbit.ts");
+  const entityInfo = await runner.import("/src/modules/util/entityInfo.ts");
+  const satcatCodes = await runner.import("/src/config/satcatCodes.ts");
+  const { externalLinks } = await runner.import("/src/config/externalLinks.ts");
 
   const input = fs.readFileSync(inputPath, "utf8");
   const records = gp.parseGpPayload(input);
@@ -94,10 +110,31 @@ try {
     };
   });
 
+  // The info panel's Details tab: derived, curated and SATCAT facts, then the
+  // element set as the panel shows it.
+  const details = records.map((record, index) => {
+    const orbit = new Orbit(parsed[index].name, record);
+    return { facts: entityInfo.getSatelliteInfo(orbit, record.metadata.orbitClass, record.metadata), elements: entityInfo.getElementsInfo(orbit) };
+  });
+
   const hourAngles = HOUR_ANGLE_INSTANTS.map((instant) => ({ instant, radians: greenwichHourAngle(Date.parse(instant)) }));
 
-  const output = { generatedBy: "scripts/parity/generate.mjs", parsed, propagation, grids, greenwichHourAngle: hourAngles };
+  const output = { generatedBy: "scripts/parity/generate.mjs", parsed, propagation, grids, details, greenwichHourAngle: hourAngles };
   fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
+
+  const tables = {
+    generatedBy: "scripts/parity/generate.mjs",
+    satcat: {
+      owner: satcatCodes.SATCAT_OWNER,
+      launchSite: satcatCodes.SATCAT_LAUNCH_SITE,
+      opsStatus: satcatCodes.SATCAT_OPS_STATUS,
+      orbitType: satcatCodes.SATCAT_ORBIT_TYPE,
+    },
+    // `{satnum}` stands where the catalog number goes.
+    externalLinks: externalLinks("{satnum}"),
+  };
+  fs.mkdirSync(path.dirname(tablesPath), { recursive: true });
+  fs.writeFileSync(tablesPath, `${JSON.stringify(tables, null, 2)}\n`);
   process.stdout.write(`Wrote ${path.relative(repoRoot, outputPath)} (${records.length} records, ${propagation.length} states)\n`);
 } finally {
   await server.close();
