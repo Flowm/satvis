@@ -30,10 +30,13 @@ import { toMinuteIso } from "./util/urlCodec";
 // Enough to keep a fast clock multiplier from hammering the history api.
 const MIN_CLOCK_WRITE_MS = 1000;
 
-// Above this many active satellites the name labels are switched off for the
-// user (see the watcher that applies it). Roughly where they stop resolving
-// into readable text on a 1080p globe.
-const MAX_LABELLED_SATELLITES = 200;
+// Above these many active satellites a component is switched off for the user
+// (see the watcher that applies it). Labels stop resolving into readable text on
+// a 1080p globe; the ground station link costs about 8 µs per satellite a frame.
+const COMPONENT_BUDGETS: Record<string, number> = {
+  Label: 200,
+  "Ground station link": 500,
+};
 
 /**
  * Everything this file touches on the globe, and nothing else.
@@ -376,23 +379,27 @@ export function startSceneSync(cc: SceneTarget): void {
 
   // Labels stop being readable long before they stop being drawn: past a couple
   // of hundred they overlap into a mass that hides the globe and says nothing.
-  // Switch them off as the count crosses the threshold.
+  // The ground station link is an entity per satellite. Switch each off as the
+  // count crosses its budget.
   //
   // A real store write, not a suppression — the checkbox unticks, the url
-  // follows, and turning labels back on at 5,000 satellites is the user's call
+  // follows, and turning one back on at 5,000 satellites is the user's call
   // to make and it sticks. Edge-triggered for exactly that reason: it fires on
   // the crossing, so re-enabling survives every later change that leaves the
-  // count above the threshold, and only a drop back under and a fresh crossing
-  // switches them off again.
-  let overLabelBudget = false;
+  // count above the budget, and only a drop back under and a fresh crossing
+  // switches it off again.
+  const overBudget = new Set<string>();
   watch(
     activeSatelliteCount,
     (count) => {
-      const over = count > MAX_LABELLED_SATELLITES;
-      if (over && !overLabelBudget) {
-        satStore.enabledComponents = satStore.enabledComponents.filter((component) => component !== "Label");
+      for (const [component, budget] of Object.entries(COMPONENT_BUDGETS)) {
+        if (count <= budget) {
+          overBudget.delete(component);
+        } else if (!overBudget.has(component)) {
+          overBudget.add(component);
+          satStore.enabledComponents = satStore.enabledComponents.filter((name) => name !== component);
+        }
       }
-      overLabelBudget = over;
     },
     { immediate: true },
   );

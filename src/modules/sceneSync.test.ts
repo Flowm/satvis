@@ -423,7 +423,7 @@ describe("startSceneSync", () => {
     expect(last?.enabledTags).not.toBe(satStore.enabledTags);
   });
 
-  describe("the label budget", () => {
+  describe("the component budgets", () => {
     // Enabling a tag counts nothing until its group's entries land, so every
     // test here fills the catalog and bumps the revision the way a load does.
     function loadGroup(catalog: { entries: CatalogEntry[] }, tag: string, count: number): void {
@@ -494,6 +494,24 @@ describe("startSceneSync", () => {
       satStore.setActivation({ enabledTags: ["Starlink"] });
       await settle();
       expect(satStore.enabledComponents).not.toContain("Label");
+    });
+
+    test("switches the ground station link off past its own, higher budget", async () => {
+      const { target, catalog } = fakeTarget();
+      startSceneSync(target);
+      const satStore = useSatStore();
+      satStore.enabledComponents = [...satStore.enabledComponents, "Ground station link"];
+
+      satStore.setActivation({ enabledTags: ["Starlink"] });
+      loadGroup(catalog, "Starlink", 500);
+      await settle();
+      expect(satStore.enabledComponents).toContain("Ground station link");
+      expect(satStore.enabledComponents).not.toContain("Label");
+
+      loadGroup(catalog, "Starlink", 501);
+      await settle();
+      expect(satStore.enabledComponents).not.toContain("Ground station link");
+      expect(satStore.enabledComponents).toContain("Point");
     });
   });
 });
