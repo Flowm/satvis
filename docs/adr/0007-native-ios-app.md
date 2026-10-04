@@ -41,9 +41,14 @@ SwiftUI draws all the controls over the `MTKView`.
 
 **The globe has offline imagery, streamed imagery and terrain.**
 
-- Natural Earth ships in the app, so the first launch works with no network.
-- VersaTiles satellite and NASA Black Marble stream as the user zooms. Their Web
-  Mercator tiles are reprojected in the fragment shader.
+- Natural Earth ships in the app, so the first launch works with no network. Its
+  finer levels, 3 to 5, stream from the site as the web app's do.
+- VersaTiles satellite and NASA Black Marble stream as the user zooms. The surface
+  is a quadtree of geographic tiles, as CesiumJS's, and each tile's texture is
+  baked from the base map's tiles: VersaTiles's Web Mercator ones reprojected on
+  the way, Black Marble's (GIBS's geographic WMS, as the web app asks it) and
+  Natural Earth's copied. A tile still loading is stood in for by the nearest
+  ancestor that has loaded, so the globe never waits on the network.
 - Re:Earth terrain (quantized-mesh, geographic grid, levels 0–14, CC BY 4.0) is a
   toggle and is off by default, as on the web. The sky view turns it on, for the
   horizon and the eye height.

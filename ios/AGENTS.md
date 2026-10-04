@@ -24,6 +24,15 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   CesiumJS's, ported, with the web app's defaults: a ported file keeps Cesium's
   Apache 2.0 notice and says what changed, and `LICENSE.CesiumJS.md` stays beside
   them, verbatim.
+- The globe's surface is a quadtree of geographic tiles (`Surface`), refined by
+  screen-space error in the drawing's pixels as CesiumJS does, each with a
+  256-texel texture baked from the base map (`Imagery.swift`): the shipped
+  Natural Earth first, then the base map's tiles as they load, the nearest loaded
+  ancestor standing in. A Mercator tile's texture coordinates are worked out in
+  double precision on the CPU, a strip of rows at a time: a float cannot place a
+  pixel at level 19. Tiles come through `TileFetcher`, a URLSession with its own
+  500 MB cache in Caches, served from the cache whatever their age. The base map
+  is the Map menu's, kept between launches.
 - The star map is the web app's `DeepStar1K`, fetched from the site
   (`data/starmap/`) and kept like the GP data, not shipped: it is generated with
   Docker by `pnpm update-starmap`, and committing it here would be a second copy.

@@ -1,0 +1,33 @@
+// Baking a surface tile's texture (Surface.swift): each source tile of the base map
+// drawn over the tile as a strip whose texture coordinates were worked out in
+// double precision on the CPU, outside its own bounds left to what is under it.
+
+// Mirrors BakeVertex in Imagery.swift.
+struct BakeVertex {
+    float2 position;
+    float2 source;
+};
+
+struct BakeOut {
+    float4 position [[position]];
+    float2 source;
+};
+
+vertex BakeOut bakeVertex(uint vid [[vertex_id]], const device BakeVertex *vertices [[buffer(0)]]) {
+    BakeOut out;
+    out.position = float4(vertices[vid].position, 0.0, 1.0);
+    out.source = vertices[vid].source;
+    return out;
+}
+
+fragment float4 bakeFragment(BakeOut in [[stage_in]], texture2d<float> source [[texture(0)]], sampler sourceSampler [[sampler(0)]]) {
+    if (any(in.source < 0.0) || any(in.source > 1.0)) {
+        discard_fragment();
+    }
+    float4 texel = source.sample(sourceSampler, in.source);
+    // Decoded premultiplied; a transparent texel leaves what is under it.
+    if (texel.a < 0.5) {
+        discard_fragment();
+    }
+    return float4(texel.rgb / texel.a, 1.0);
+}

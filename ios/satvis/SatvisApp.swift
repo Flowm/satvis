@@ -8,7 +8,8 @@ struct SatvisApp: App {
     @State private var session: Session
 
     init() {
-        let source = GPSource(repository: Self.repository())
+        let site = ProcessInfo.processInfo.environment["SATVIS_API"].flatMap(URL.init(string:)) ?? WorkerClient.production
+        let source = GPSource(repository: Self.repository(site: site), site: site)
         _session = State(initialValue: Session(source: source, alerts: PassAlerts(source: source)))
     }
 
@@ -30,10 +31,9 @@ struct SatvisApp: App {
 
     /// `SATVIS_API` in the launch environment replaces satvis.space, e.g. a local
     /// worker at http://localhost:8080.
-    private static func repository() -> GroupRepository {
-        let api = ProcessInfo.processInfo.environment["SATVIS_API"].flatMap(URL.init(string:))
+    private static func repository(site: URL) -> GroupRepository {
         let store = (try? PayloadStore.applicationSupport()) ?? PayloadStore(directory: URL.temporaryDirectory.appending(path: "GP"))
-        return GroupRepository(client: WorkerClient(baseURL: api ?? WorkerClient.production), store: store, snapshot: PayloadStore.shipped)
+        return GroupRepository(client: WorkerClient(baseURL: site), store: store, snapshot: PayloadStore.shipped)
     }
 }
 
@@ -61,6 +61,7 @@ struct ContentView: View {
                     Button("Satellites", systemImage: "list.bullet") { showsBrowser = true }
                     Button("Ground stations", systemImage: "mappin.and.ellipse") { showsStations = true }
                     ComponentsMenu(catalog: session.catalog)
+                    MapMenu(session: session)
                 }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.glass)
@@ -165,6 +166,19 @@ struct ContentView: View {
             }
         case nil:
             EmptyView()
+        }
+    }
+}
+
+/// What the globe is covered with.
+private struct MapMenu: View {
+    @Bindable var session: Session
+
+    var body: some View {
+        Menu("Map", systemImage: "globe.europe.africa") {
+            Picker("Base map", selection: $session.baseLayer) {
+                ForEach(BaseLayer.allCases, id: \.self) { Text($0.title) }
+            }
         }
     }
 }

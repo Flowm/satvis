@@ -32,6 +32,14 @@ final class Session {
     private(set) var tracked: String?
     /// The next tap on the globe places a ground station.
     var isPicking = false
+    /// The globe's base map, kept between launches.
+    var baseLayer: BaseLayer = UserDefaults.standard.string(forKey: "baseLayer").flatMap(BaseLayer.init(rawValue:)) ?? .naturalEarth {
+        didSet {
+            UserDefaults.standard.set(baseLayer.rawValue, forKey: "baseLayer")
+            renderer?.setImagery(baseLayer, site: source.site)
+        }
+    }
+    @ObservationIgnored private let tiles = TileFetcher.shared()
 
     /// What the drawn links were built from.
     @ObservationIgnored private var linksKey: LinksKey?
@@ -57,6 +65,8 @@ final class Session {
     func attach(_ renderer: GlobeRenderer) {
         self.renderer = renderer
         renderer.clock = { [clock] in clock.now() }
+        renderer.tileLoader = { [tiles] url, contentType in try? await tiles.tile(url, contentType: contentType) }
+        renderer.setImagery(baseLayer, site: source.site)
         renderer.setStations(passes.markers)
         satellites.attach(renderer)
         starMap.attach(renderer)

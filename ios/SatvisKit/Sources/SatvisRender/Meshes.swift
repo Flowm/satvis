@@ -47,14 +47,6 @@ struct EllipsoidMesh<Vertex> {
 }
 
 enum Meshes {
-    /// The globe: 256 by 128 quads, about 0.7° each.
-    static func globe() -> EllipsoidMesh<GlobeVertex> {
-        EllipsoidMesh(radii: ellipsoidRadii, longitudes: 256, latitudes: 128) { position, normal, uv in
-            let (high, low) = encode(position)
-            return GlobeVertex(high: high, low: low, normal: SIMD3<Float>(normal), uv: SIMD2<Float>(uv))
-        }
-    }
-
     /// The sky atmosphere's shell, 2.5 % outside the ellipsoid (SkyAtmosphere.js).
     static func skyShell() -> EllipsoidMesh<SIMD4<Float>> {
         EllipsoidMesh(radii: ellipsoidRadii * 1.025, longitudes: 128, latitudes: 64) { position, _, _ in

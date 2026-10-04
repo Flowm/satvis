@@ -11,10 +11,14 @@ private let log = Logger(subsystem: "org.frcy.app.satvis", category: "data")
 final class GPSource {
     private(set) var index: GroupRepository.Loaded<GroupIndex>?
     private(set) var failure: String?
+    /// The site the worker answers at, whose static files (the finer Natural
+    /// Earth levels) the globe streams.
+    let site: URL
     private let repository: GroupRepository
 
-    init(repository: GroupRepository) {
+    init(repository: GroupRepository, site: URL) {
         self.repository = repository
+        self.site = site
     }
 
     /// The index as last kept, or as shipped, for a start that does not wait on the
