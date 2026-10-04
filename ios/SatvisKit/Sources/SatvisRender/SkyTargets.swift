@@ -24,7 +24,7 @@ extension GlobeRenderer {
 
     /// The satellites above the horizon and on screen, as the last frame drew them.
     public func skyTargets(viewSize: CGSize) -> [SkyTarget] {
-        guard cameraMode == .sky, let camera = skyCamera, let lastFrame else {
+        guard isSkySettled, let camera = skyCamera, let lastFrame else {
             return []
         }
         let eye = lastFrame.position

@@ -55,7 +55,8 @@ struct ContentView: View {
         GlobeView(
             onRenderer: session.attach,
             onTap: { session.tap(at: $0, viewSize: $1) },
-            onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) }
+            onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) },
+            mayDrag: session.mayDrag
         )
         .ignoresSafeArea()
         .background(.black)
@@ -88,6 +89,10 @@ struct ContentView: View {
                 }
                 if session.observer != nil {
                     Button("Leave the sky view", systemImage: "globe") { session.leaveSky() }
+                    Button(
+                        session.compass.isAiming ? "Stop aiming by compass" : "Aim by compass",
+                        systemImage: session.compass.isAiming ? "location.north.circle.fill" : "location.north.circle"
+                    ) { session.toggleCompass() }
                 }
                 // The way out of following something once its panel is closed.
                 if let tracked = session.tracked {
@@ -100,7 +105,7 @@ struct ContentView: View {
             .padding()
         }
         .overlay(alignment: .top) {
-            if let message = session.alerts.message {
+            if let message = session.notice ?? session.alerts.message {
                 Text(message)
                     .font(.subheadline)
                     .padding(.horizontal, 16)

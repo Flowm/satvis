@@ -53,4 +53,28 @@ import simd
         camera.zoom(by: 0.001)
         #expect(camera.verticalFieldOfView == SkyCamera.fieldOfViewRange.upperBound)
     }
+
+    // A phone held upright in portrait with its back to the north: in the
+    // reference frame (north, west, up) its right edge points east, its top up,
+    // and its screen south, at the user.
+    @Test func aimsWhereTheDeviceLooks() {
+        let upright = simd_double3x3(rows: [SIMD3(0, -1, 0), SIMD3(0, 0, 1), SIMD3(-1, 0, 0)])
+        var camera = SkyCamera(latitude: 0, longitude: 0)
+        camera.attitude = SkyCamera.attitude(device: upright, screen: .portrait)
+        #expect(abs(camera.azimuth) < 1e-9 && abs(camera.pitch) < 1e-9)
+        #expect(abs(camera.attitude.act(SIMD3(1, 0, 0)).z) < 1e-12, "level")
+
+        // Turned to landscape with its top to the left, the screen's right is
+        // still east and its up still up.
+        let landscape = simd_double3x3(rows: [SIMD3(0, 0, 1), SIMD3(0, 1, 0), SIMD3(-1, 0, 0)])
+        camera.attitude = SkyCamera.attitude(device: landscape, screen: .landscapeRight)
+        #expect(abs(camera.azimuth) < 1e-9 && abs(camera.pitch) < 1e-9)
+        #expect(simd.distance(camera.attitude.act(SIMD3(1, 0, 0)), SIMD3(1, 0, 0)) < 1e-12)
+
+        // Held overhead, its back to the zenith and its top to the north: its right
+        // edge then points west, as a hand does lying face up with the head north.
+        let up = simd_double3x3(rows: [SIMD3(0, 1, 0), SIMD3(1, 0, 0), SIMD3(0, 0, -1)])
+        camera.attitude = SkyCamera.attitude(device: up, screen: .portrait)
+        #expect(abs(camera.pitch - .pi / 2) < 1e-9)
+    }
 }

@@ -4,6 +4,7 @@ import Observation
 import SatvisCore
 import SatvisData
 import SatvisRender
+import UIKit
 
 nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category: "imagery")
 
@@ -37,6 +38,9 @@ final class Session {
     var isPicking = false
     /// The station the sky view stands on, while it is open (ADR 0003).
     private(set) var observer: UUID?
+    let compass = SkyCompass()
+    /// A word for the user that goes by itself: how switching the compass on went.
+    private(set) var notice: String?
     /// The globe's base map, kept between launches.
     var baseLayer: BaseLayer = UserDefaults.standard.string(forKey: "baseLayer").flatMap(BaseLayer.init(rawValue:)) ?? .naturalEarth {
         didSet {
@@ -111,8 +115,9 @@ final class Session {
         renderer.setImagery(baseLayer, site: source.site)
         renderer.setTerrain(terrain)
         renderer.setStations(shownMarkers)
+        // A link that opened on the sky view: there is no globe to fly from yet.
         if let observer, let station = passes.station(observer) {
-            renderer.enterSky(SkyCamera(latitude: station.latitude, longitude: station.longitude))
+            renderer.enterSky(SkyCamera(latitude: station.latitude, longitude: station.longitude), animated: false)
         }
         satellites.attach(renderer)
         starMap.attach(renderer)
@@ -289,15 +294,60 @@ final class Session {
             track(tracked, false)
         }
         observer = id
-        // Without a renderer yet, `attach` stands it there.
-        renderer?.enterSky(SkyCamera(latitude: station.latitude, longitude: station.longitude))
+        // Without a renderer yet, `attach` stands it there. Reduced motion cuts.
+        renderer?.enterSky(SkyCamera(latitude: station.latitude, longitude: station.longitude), animated: !UIAccessibility.isReduceMotionEnabled)
         renderer?.setStations(shownMarkers)
     }
 
     func leaveSky() {
-        renderer?.leaveSky()
+        compass.stop(renderer)
+        renderer?.leaveSky(animated: !UIAccessibility.isReduceMotionEnabled)
         observer = nil
         renderer?.setStations(shownMarkers)
+    }
+
+    /// Aims the sky view with the device, or hands the aim back.
+    func toggleCompass() {
+        guard let renderer else {
+            return
+        }
+        if compass.isAiming {
+            compass.stop(renderer)
+            return
+        }
+        Task {
+            switch await compass.start(renderer) {
+            case .aiming: show("Aiming by compass. Drag at any time to turn it off.")
+            case .unsupported: show("This device has no motion sensor to aim with.")
+            case .noHeading: show("This device cannot tell where north is, so it cannot aim by compass.")
+            case .silent: show("The motion sensor did not answer.")
+            case .takenBack: break
+            }
+        }
+    }
+
+    /// Whether a drag of `translation` so far may turn the view. While the compass
+    /// aims, a drag past a tap's slop takes the aim back (ADR 0004); within it, it
+    /// is a tap's tremor and the compass keeps the aim.
+    func mayDrag(_ translation: CGSize) -> Bool {
+        guard compass.isAiming else {
+            return true
+        }
+        guard hypot(translation.width, translation.height) > 8 else {
+            return false
+        }
+        compass.stop(renderer)
+        return true
+    }
+
+    private func show(_ text: String) {
+        notice = text
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            if notice == text {
+                notice = nil
+            }
+        }
     }
 
     /// The stations' pins, but for the one the sky view stands on, which would be

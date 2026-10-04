@@ -76,6 +76,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var trackingCamera = TrackingCamera()
     /// The sky view's camera, while it is on the ground.
     public private(set) var skyCamera: SkyCamera?
+    /// The flight to or from the sky view, while one is under way.
+    private var skyFlight: SkyFlight?
+    /// The pose of the last frame, which a flight sets off from.
+    private var lastPose: CameraPose?
     /// The terrain as the Map menu has it; the sky view stands on it regardless.
     private var terrainSetting = false
     public var components: SatelliteComponents = [.point, .label]
@@ -279,18 +283,47 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     /// Stands on the ground at the camera's observer and looks up from there,
-    /// over the terrain, which the horizon and the eye's height need.
-    public func enterSky(_ camera: SkyCamera) {
+    /// over the terrain, which the horizon and the eye's height need. `animated`
+    /// flies there; without it, as reduced motion asks, the camera cuts.
+    public func enterSky(_ camera: SkyCamera, animated: Bool = true) {
+        let now = ProcessInfo.processInfo.systemUptime
+        if var flight = skyFlight, !flight.entering {
+            // Turned around on the way out: carry on from where the camera is.
+            flight.reverse(at: now)
+            skyFlight = flight
+        } else if cameraMode != .sky, animated, var from = lastPose, let size = lastFrame?.size {
+            from.verticalFieldOfView = from.verticalFieldOfView(aspectRatio: size.x / size.y)
+            skyFlight = SkyFlight(globe: from, start: now, entering: true)
+        } else if cameraMode != .sky {
+            skyFlight = nil
+        }
         skyCamera = camera
         cameraMode = .sky
         surface.setTerrain(true)
     }
 
-    /// Back to the globe, from straight above where the sky view stood.
-    public func leaveSky() {
-        if let skyCamera {
-            orbitCamera = .above(skyCamera.position, altitude: 2_000_000)
+    /// Back to the globe camera, by the flight in played backwards.
+    public func leaveSky(animated: Bool = true) {
+        let now = ProcessInfo.processInfo.systemUptime
+        if var flight = skyFlight, flight.entering {
+            flight.reverse(at: now)
+            skyFlight = flight
+        } else if animated, skyFlight == nil, cameraMode == .sky, var globe = orbitCamera?.pose(), let size = lastFrame?.size {
+            globe.verticalFieldOfView = globe.verticalFieldOfView(aspectRatio: size.x / size.y)
+            skyFlight = SkyFlight(globe: globe, start: now, entering: false)
+        } else if skyFlight == nil {
+            landOnGlobe()
         }
+    }
+
+    /// Whether the sky view has landed, and what is on screen is what it aims at.
+    /// Its instruments and its gestures wait for this.
+    public var isSkySettled: Bool {
+        cameraMode == .sky && skyFlight == nil
+    }
+
+    private func landOnGlobe() {
+        skyFlight = nil
         skyCamera = nil
         cameraMode = .orbit
         surface.setTerrain(terrainSetting)
@@ -351,7 +384,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         switch cameraMode {
         case .orbit: orbitCamera?.pan(by: points, longerSide: longerSide)
         case .tracking: trackingCamera.orbit(by: points, longerSide: longerSide)
-        case .sky: skyCamera?.drag(by: points, height: Double(size.height))
+        case .sky where isSkySettled: skyCamera?.drag(by: points, height: Double(size.height))
+        case .sky: break
         }
     }
 
@@ -360,7 +394,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         switch cameraMode {
         case .orbit: orbitCamera?.zoom(by: scale)
         case .tracking: trackingCamera.zoom(by: scale)
-        case .sky: skyCamera?.zoom(by: scale)
+        case .sky where isSkySettled: skyCamera?.zoom(by: scale)
+        case .sky: break
         }
     }
 
@@ -496,7 +531,21 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 skyCamera = camera
             }
             pose = camera.pose()
+            if let flight = skyFlight {
+                let uptime = ProcessInfo.processInfo.systemUptime
+                var over = SkyCamera(latitude: camera.latitude, longitude: camera.longitude, azimuth: camera.azimuth, pitch: -.pi / 2)
+                over.groundHeight = camera.groundHeight
+                pose = SkyFlight.pose(from: flight.globe, to: pose, over: over.pose(), t: flight.progress(at: uptime))
+                if flight.isOver(at: uptime) {
+                    if flight.entering {
+                        skyFlight = nil
+                    } else {
+                        landOnGlobe()
+                    }
+                }
+            }
         }
+        lastPose = pose
         inFlight.wait()
         guard let commands = queue.makeCommandBuffer() else {
             inFlight.signal()
