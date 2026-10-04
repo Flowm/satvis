@@ -103,16 +103,16 @@ Each milestone ships to TestFlight. **The App Store release waits for the sky
 view.** The update replaces the WebView app for every current user, and an
 earlier release would take the sky view away from them.
 
-| Milestone | Contents |
-|---|---|
-| M0a | Shared config: tags and presets in YAML and in `/api/groups.json`, the web app reads them, an ETag on the index. Merged on its own. |
-| M0b | Foundation: tag and remove the WebView app, `ios/SatvisKit`, SGP4 and the parity fixtures, the data client and cache, the bundled snapshot, CI. |
-| M1 | First light: the globe, satellites as points, live time. |
-| M2 | Explore: browser and search, selection, info panel, labels, orbit and orbit track, tracked satellite, clock deck. |
-| M3 | Passes: ground stations, both overpass modes, the passes tab, notifications, the ground station link. |
-| M4 | Map: streamed imagery, terrain, ground track, sensor cone, attribution. |
-| M5 | Links: URL codec, share, universal links, `/ot`, state restoration, PostHog. |
-| M6 | Sky view, aimed with CoreMotion's attitude. Then the App Store release. |
+| Milestone | Contents                                                                                                                                        |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0a       | Shared config: tags and presets in YAML and in `/api/groups.json`, the web app reads them, an ETag on the index. Merged on its own.             |
+| M0b       | Foundation: tag and remove the WebView app, `ios/SatvisKit`, SGP4 and the parity fixtures, the data client and cache, the bundled snapshot, CI. |
+| M1        | First light: the globe, satellites as points, live time.                                                                                        |
+| M2        | Explore: browser and search, selection, info panel, labels, orbit and orbit track, tracked satellite, clock deck.                               |
+| M3        | Passes: ground stations, both overpass modes, the passes tab, notifications, the ground station link.                                           |
+| M4        | Map: streamed imagery, terrain, ground track, sensor cone, attribution.                                                                         |
+| M5        | Links: URL codec, share, universal links, `/ot`, state restoration, PostHog.                                                                    |
+| M6        | Sky view, aimed with CoreMotion's attitude. Then the App Store release.                                                                         |
 
 ## Code and checks
 
