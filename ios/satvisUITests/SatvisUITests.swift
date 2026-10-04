@@ -8,23 +8,17 @@ nonisolated class SatvisUITests: XCTestCase {
     // With no worker to answer, the groups come from the copy on disk or the
     // snapshot shipped in the app, so the test needs no network.
     @MainActor
-    func testShowsGroupsWithoutTheWorker() {
+    func testFindsASatelliteWithoutTheWorker() {
         let app = XCUIApplication()
         app.launchEnvironment["SATVIS_API"] = "http://127.0.0.1:9"
         app.launch()
 
-        app.buttons["Groups"].tap()
-        XCTAssert(app.staticTexts["cubesat"].waitForExistence(timeout: 10))
-        // The list builds rows as they scroll into view.
-        let weather = app.staticTexts["weather"]
-        for _ in 0..<5 where !weather.exists {
-            app.swipeUp()
-        }
-        weather.tap()
-        XCTAssert(app.navigationBars["weather"].waitForExistence(timeout: 10))
-        // A row reads as its satellite's name and orbit class.
-        let satellite = app.staticTexts.matching(NSPredicate(format: "label ENDSWITH %@", ", LEO")).firstMatch
-        XCTAssert(satellite.waitForExistence(timeout: 10))
+        app.buttons["Satellites"].tap()
+        let search = app.searchFields["Search satellites"]
+        XCTAssert(search.waitForExistence(timeout: 10))
+        search.tap()
+        search.typeText("METOP-C")
+        XCTAssert(app.staticTexts["METOP-C"].waitForExistence(timeout: 10))
 
         guard ProcessInfo.processInfo.environment["SCREENSHOTS"] != nil else {
             return

@@ -31,6 +31,10 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   (high/low float pairs, safe math), with reversed-Z depth and no far plane.
   Satellites are points the vertex shader interpolates from each one's sampled
   trajectory, with the web app's quintic; the CPU only finds each stencil.
+- The app's models (`ViewerClock`, `CatalogModel`, `SatelliteLayer`, `StarMap`) are
+  `@Observable` and owned by `ContentView`; the views read them. The globe's
+  gestures are SwiftUI's, not UIKit recognizers on the MTKView, so the controls laid
+  over it take the touches that land on them.
 - Every element set reaches SGP4 as OMM keywords (`MeanElements`). The worker's
   pseudo element sets still arrive as TLE lines; they are read into the same
   keywords at parse time, and Vallado's `twoline2rv` is never called.
@@ -55,7 +59,8 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 
 - **`test-kit`** runs the package tests on macOS, with no simulator. **`test`** runs
   them, then the UI test, which needs no network: it points the app at a worker
-  that is not there and reads the kept copy or the snapshot.
+  that is not there, opens the satellite browser and finds a satellite in the kept
+  copy or the snapshot.
 - **`run API=…`** installs and launches against another worker, e.g. a local one
   at `http://localhost:8080` (`pnpm dev:worker` at the repository root).
 - **`snapshot`** refreshes the snapshot shipped in the app from satvis.space (or
@@ -67,8 +72,9 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 ## The worker
 
 - `SATVIS_API` in the launch environment replaces satvis.space: `make run API=…`,
-  or a scheme environment variable in Xcode. `SATVIS_TIME` (ISO 8601, UTC) stops
-  the clock at that instant, for screenshots and for checking the lighting.
+  or a scheme environment variable in Xcode. `SATVIS_TIME` (ISO 8601, UTC) pins
+  the clock at that instant and pauses it, for screenshots and for checking the
+  lighting.
 - `GroupRepository` revalidates every payload with its ETag, keeps it in
   Application Support, and falls back to the kept copy, then the snapshot, when
   the worker cannot be asked. A 200 that is not JSON counts as no answer: a host
