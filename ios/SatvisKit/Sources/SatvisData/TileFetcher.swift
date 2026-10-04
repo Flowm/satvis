@@ -6,17 +6,22 @@ import Foundation
 /// meanwhile. A tile is served from the cache whatever its age, since imagery
 /// changes rarely and a stale tile beats a missing one offline. A few requests
 /// run at once, newest first, and a request nobody waits for any more is dropped
-/// before it is sent.
+/// before it is sent. A host that answers 429 or 503 is left alone for as long as
+/// it asks, 30 s when it does not say: the free tile servers rate-limit the
+/// clients that dominate their traffic.
 public actor TileFetcher {
     /// Sends one request. A seam for tests; the app uses its own URLSession.
     public typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
     public static let cacheBytes = 500 * 1024 * 1024
+    private static let defaultPause: TimeInterval = 30
     private let transport: Transport
     private let maximumRequests: Int
     private var running = 0
     /// Requests waiting their turn, newest last: taken from the end.
     private var waiting: [CheckedContinuation<Void, Never>] = []
+    /// Hosts that asked to be left alone, and until when.
+    private var paused: [String: Date] = [:]
 
     public init(transport: @escaping Transport, maximumRequests: Int = 8) {
         self.transport = transport
@@ -39,6 +44,10 @@ public actor TileFetcher {
         try await turn()
         defer { finished() }
         try Task.checkCancellation()
+        let host = url.host() ?? ""
+        if let until = paused[host], until > Date() {
+            throw WorkerError.status(429, url.path())
+        }
         var request = URLRequest(url: url)
         request.cachePolicy = .returnCacheDataElseLoad
         for (field, value) in headers {
@@ -49,6 +58,10 @@ public actor TileFetcher {
             throw WorkerError.notHTTP
         }
         guard http.statusCode == 200 else {
+            if http.statusCode == 429 || http.statusCode == 503 {
+                let wait = http.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init) ?? Self.defaultPause
+                paused[host] = max(paused[host] ?? .distantPast, Date() + min(max(wait, 1), 600))
+            }
             throw WorkerError.status(http.statusCode, url.path())
         }
         guard http.value(forHTTPHeaderField: "Content-Type")?.contains(contentType) == true else {
