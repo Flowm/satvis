@@ -10,9 +10,14 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
 ## Layout
 
 - `SatvisKit/` is a local Swift package holding everything that is not a view.
-  `SatvisCore` holds element sets, the group index, and the arithmetic the web app
+  `SGP4` is Vallado's reference C++, vendored unmodified (`vallado/VENDOR.md`)
+  behind a C bridge, so no Swift module needs C++ interoperability. `SatvisCore`
+  holds element sets, the group index, propagation, and the arithmetic the web app
   does on them. `SatvisData` holds the worker client, its disk cache, and the
   snapshot shipped in the app. The app target holds only views and their models.
+- Every element set reaches SGP4 as OMM keywords (`MeanElements`). The worker's
+  pseudo element sets still arrive as TLE lines; they are read into the same
+  keywords at parse time, and Vallado's `twoline2rv` is never called.
 - `satvis/` and `satvisUITests/` are folder-synchronized: a file added on disk joins
   its target, with no `project.pbxproj` edit. A new package product does need one.
 - `Info.plist` is generated from `INFOPLIST_KEY_*` build settings. The file
@@ -58,14 +63,21 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 `SatvisKit/Tests/SatvisCoreTests/Fixtures/parity.json` is what the web app's own
 code answers for the element sets in `parity-input.json`. Regenerate it with
 `pnpm update-parity-fixtures` at the repository root; never edit it by hand. CI
-fails while it is stale. The rotation into the pseudo-fixed frame is Cesium's
-GMST polynomial, not satellite.js's `gstime`, and the port has to stay operation
-for operation (`GreenwichHourAngle.swift`).
+fails while it is stale. SGP4 states agree with satellite.js to under a
+micrometre and are held to a centimetre. That depends on setting the satrec up as
+satellite.js does: the epoch as a year and fractional day, an OMM `EPOCH`
+truncated to the millisecond as a JavaScript Date keeps it, and the time since
+epoch from satellite.js's own `jday`. The rotation into the pseudo-fixed frame is
+Cesium's GMST polynomial, not satellite.js's `gstime`, and the port has to stay
+operation for operation (`GreenwichHourAngle.swift`).
 
 ## Gotchas
 
 - **`make test` never exits after a failed test**, nor does the `xcodebuild` under
-  it. Watch the output for `Test Suite 'All tests' failed` and stop it.
+  it. Watch the output for `** TEST FAILED **` and stop it. `Test Suite 'All tests'`
+  also appears once before that, from the package tests that run first.
+- **Keep the vendored SGP4 byte for byte.** It is excluded from the pre-commit
+  hooks and `.editorconfig`, which would otherwise strip its trailing spaces.
 - **A lazy `List` has no rows off screen**, so a UI test has to scroll a row into
   view before it can find it. `LabeledContent` reads as one element labelled
   `"<label>, <value>"`, not as two texts.
