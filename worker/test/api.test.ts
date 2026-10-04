@@ -106,15 +106,48 @@ describe("index route", () => {
     const res = await SELF.fetch("https://satvis.space/api/groups.json");
     expect(res.status).toBe(200);
     const body = (await res.json()) as GroupsIndex;
-    expect(body.groups[0]?.name).toBe("weather");
+    expect(body.updated).toBe(UPDATED);
+    expect(body.groups.find((group) => group.name === "weather")).toMatchObject({ updated: UPDATED, count: 2 });
   });
 
-  it("serves an empty index when none is stored", async () => {
+  // The config's half is the deployed one, whatever the last refresh wrote.
+  it("lays the deployed tags and presets over the stored index", async () => {
+    const index: GroupsIndex = { updated: UPDATED, groups: [{ name: "weather", updated: UPDATED, count: 2, tags: ["Stale"] }] };
+    await env.GP_KV.put("gp:index", JSON.stringify(index));
+    const body = (await (await SELF.fetch("https://satvis.space/api/groups.json")).json()) as GroupsIndex;
+    expect(body.groups.map((group) => group.name)).toEqual((generatedConfig as GroupsConfig).groups.map((group) => group.name));
+    expect(body.groups.find((group) => group.name === "weather")?.tags).toEqual(["Weather"]);
+    expect(body.groups.find((group) => group.name === "starlink")).toMatchObject({ updated: null, count: 0, tags: ["Starlink", "Active"] });
+    expect(body.presets?.default).toMatchObject({ defaults: { tags: "Weather" } });
+    expect(body.presets?.default?.groups).toContainEqual({ name: "weather" });
+  });
+
+  it("serves the config's half when no index is stored", async () => {
     await env.GP_KV.delete("gp:index");
     const res = await SELF.fetch("https://satvis.space/api/groups.json");
     expect(res.status).toBe(200);
     const body = (await res.json()) as GroupsIndex;
-    expect(body.groups).toEqual([]);
+    expect(body.updated).toBe("");
+    expect(body.groups.every((group) => group.updated === null && group.count === 0)).toBe(true);
+    expect(body.presets?.default).toBeDefined();
+  });
+
+  it("answers a matching If-None-Match with a 304, and a refresh changes the ETag", async () => {
+    await env.GP_KV.put("gp:index", JSON.stringify({ updated: UPDATED, groups: [] } satisfies GroupsIndex));
+    const first = await SELF.fetch("https://satvis.space/api/groups.json");
+    const etag = first.headers.get("ETag");
+    expect(etag).toMatch(/^W\/"groups-[0-9a-f]{8}"$/);
+    await first.arrayBuffer();
+
+    const again = await SELF.fetch("https://satvis.space/api/groups.json", { headers: { "If-None-Match": etag! } });
+    expect(again.status).toBe(304);
+    expect(await again.text()).toBe("");
+
+    await env.GP_KV.put("gp:index", JSON.stringify({ updated: "2026-07-05T00:00:00.000Z", groups: [] } satisfies GroupsIndex));
+    const refreshed = await SELF.fetch("https://satvis.space/api/groups.json", { headers: { "If-None-Match": etag! } });
+    expect(refreshed.status).toBe(200);
+    expect(refreshed.headers.get("ETag")).not.toBe(etag);
+    await refreshed.arrayBuffer();
   });
 
   // Metadata is no longer shipped as a separate rule set for the browser to

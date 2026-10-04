@@ -1,5 +1,6 @@
-# Core satvis configuration: the GP groups served by the worker, plus the
-# static per-satellite facts attached to their records at refresh time.
+# Core satvis configuration: the GP groups served by the worker and their tags,
+# the presets clients start from, and the static per-satellite facts attached to
+# records at refresh time.
 #
 # Merged with every data/custom/*/satvis.yaml plugin config into
 # satvis.generated.json by scripts/generate-groups.mjs at build time.
@@ -29,11 +30,10 @@
 # or decay surfaces as a warning in /api/groups.json instead of silently shrinking
 # the group.
 #
-# `active-remainder` is `active` minus those seven. The presets tag all eight
-# `Active`, so the whole list loads as disjoint pieces and no satellite arrives
-# twice. A group carved from `active` must join the exclude list (the generator
-# checks) and carry the `Active` tag in src/config/presets.ts
-# (worker/test/config.test.ts checks).
+# `active-remainder` is `active` minus those seven. All eight carry the `Active`
+# tag, so the whole list loads as disjoint pieces and no satellite arrives twice.
+# A group carved from `active` must join the exclude list and carry the `Active`
+# tag (the generator checks both).
 #
 # Still fetched as their own sources — editorial lists with no name pattern at all:
 # gnss, science, resource, weather, cubesat, stations, last-30-days.
@@ -43,33 +43,44 @@
 # TANAGER and EDDA appended to FLOCK/SKYSAT for exactly that reason).
 groups:
   - name: active-remainder
+    tags: [Active]
     sources: [{ celestrak: active }]
     exclude: [starlink, oneweb, globalstar, iridium-NEXT, planet, spire, eutelsat]
   - name: cubesat
+    tags: [Cubesat]
     sources: [{ celestrak: cubesat }]
   - name: globalstar
+    tags: [Globalstar, Active]
     sources: [{ celestrak: active }]
     select: { namePattern: "^GLOBALSTAR" }
   - name: gnss
+    tags: [GNSS]
     sources: [{ celestrak: gnss }]
   - name: iridium-NEXT
+    tags: [IridiumNEXT, Active]
     sources: [{ celestrak: active }]
     select: { namePattern: "^IRIDIUM" }
   - name: last-30-days
+    tags: [New]
     sources: [{ celestrak: last-30-days }]
   - name: oneweb
+    tags: [OneWeb, Active]
     sources: [{ celestrak: active }]
     select: { namePattern: "^ONEWEB" }
   - name: planet
+    tags: [Planet, Active]
     sources: [{ celestrak: active }]
     # FLOCK/SKYSAT are the original lines; PELICAN, TANAGER and EDDA are newer and
     # share no prefix with them.
     select: { namePattern: "^(FLOCK|SKYSAT|PELICAN|TANAGER|EDDA)" }
   - name: resource
+    tags: [Resource]
     sources: [{ celestrak: resource }]
   - name: science
+    tags: [Science]
     sources: [{ celestrak: science }]
   - name: spire
+    tags: [Spire, Active]
     sources: [{ celestrak: active }]
     select: { namePattern: "^LEMUR" }
     # Spire craft that are not LEMURs.
@@ -77,19 +88,52 @@ groups:
       - { noradId: 66678, upstreamName: OTTER SDM }
       - { noradId: 67364, upstreamName: TWILIGHT-1 OBJECT B }
   - name: starlink
+    tags: [Starlink, Active]
     sources: [{ celestrak: active }]
     select: { namePattern: "^STARLINK" }
   - name: stations
+    tags: [Stations]
     sources: [{ celestrak: stations }]
   - name: weather
+    tags: [Weather]
     sources: [{ celestrak: weather }]
   - name: eutelsat
+    tags: [Eutelsat, Active]
     sources: [{ celestrak: active }]
     select: { namePattern: "^EUTELSAT" }
     # Eutelsat-operated, but catalogued under their Express names.
     satellites:
       - { noradId: 39612, upstreamName: EXPRESS-AT1 }
       - { noradId: 39613, upstreamName: EXPRESS-AT2 }
+
+# The starting configuration of a route: `default` at /, any other at /<name>,
+# which also needs a rewrite in public/_redirects.
+# `defaults` are url parameters as a query string would carry them
+# (docs/adr/0001-url-parameter-specification.md), so the url only has to state
+# what differs from them. Every client decodes them with its own codec and drops
+# what it does not know, which is why they are not checked here beyond `tags`.
+# `groups` are the groups the route registers; `searchOnly: true` puts one in the
+# catalog without a group row.
+presets:
+  - name: default
+    title: Satvis - 3D Satellite Tracker & Sky View
+    defaults: { tags: Weather }
+    groups:
+      - cubesat
+      - globalstar
+      - gnss
+      - iridium-NEXT
+      - last-30-days
+      - oneweb
+      - planet
+      - resource
+      - science
+      - spire
+      - starlink
+      - stations
+      - weather
+      - eutelsat
+      - active-remainder
 
 # Static per-satellite facts, matched against a record's NORAD_CAT_ID alone.
 # `name` is documentation only — it never takes part in matching.

@@ -98,7 +98,7 @@ constraints, so they are dropped from emission and survive only as read shims:
 The `tags` row holds because no tag name contains a space, so the escape never fired.
 Tags reach the catalog only through `SatelliteCatalog.registerGroups`, whose sole
 production caller is `SatelliteManager.loadElementSets(preset.elements)`, and every tag in
-`src/config/presets.ts` is a single word. Adding a tag with a space is fine — it will
+the worker config (`worker/src/config/satvis.core.yaml`) is a single word. Adding a tag with a space is fine — it will
 encode as `+` — but it must never be escaped as `-`.
 
 `layers` items are validated against the leading segment before `_`. Base layers:

@@ -1,7 +1,7 @@
 // Fetch-handler routing for the GP data API.
 
-import { coerceIndex } from "./evaluate.ts";
-import { ingestAll, type IngestSource, refreshAll } from "./refresh.ts";
+import { coerceIndex, withConfig } from "./evaluate.ts";
+import { groupsConfig, ingestAll, type IngestSource, refreshAll } from "./refresh.ts";
 import { GP_INDEX_KEY, GP_KEY_PREFIX, type GroupWriteMetadata } from "./store.ts";
 
 const GROUP_NAME_RE = /^[a-zA-Z0-9_-]+$/;
@@ -70,14 +70,29 @@ async function handleGroup(name: string, request: Request, env: Env): Promise<Re
   return new Response(value, { headers });
 }
 
-async function handleIndex(env: Env): Promise<Response> {
-  const index = await env.GP_KV.get(GP_INDEX_KEY, "text");
-  if (index === null) {
-    return jsonResponse({ updated: "", groups: [] });
+// FNV-1a, 32 bit. Only an ETag: two bodies colliding would cost one client one
+// stale index for one max-age.
+function fnv1a(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
   }
-  return new Response(index, {
-    headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=300" },
-  });
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+// GET /api/groups.json — the stored index with the deployed config's tags and
+// presets laid over it. Its ETag hashes the body, because the body changes with
+// either a refresh or a deploy and no single timestamp covers both.
+async function handleIndex(request: Request, env: Env): Promise<Response> {
+  const index = withConfig(coerceIndex(await env.GP_KV.get(GP_INDEX_KEY, "json")), groupsConfig);
+  const body = JSON.stringify(index);
+  const etag = `W/"groups-${fnv1a(body)}"`;
+  const headers: Record<string, string> = { "Content-Type": "application/json", "Cache-Control": "public, max-age=300", ETag: etag };
+  if (request.headers.get("If-None-Match") === etag) {
+    return new Response(null, { status: 304, headers });
+  }
+  return new Response(body, { headers });
 }
 
 // POST /api/refresh — run the same refresh as the cron (fetch every source,
@@ -246,7 +261,7 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
     return handleGroup(name, request, env);
   }
   if (path === "/api/groups.json") {
-    return handleIndex(env);
+    return handleIndex(request, env);
   }
   if (path === "/api/refresh") {
     return handleRefresh(request, env);

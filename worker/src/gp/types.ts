@@ -90,6 +90,30 @@ export interface GroupDefinition {
   exclude?: string[];
   // Inlined by the generator from extraRecordsFile; appended verbatim.
   extraRecords?: GpRecord[];
+  // What the user enables to show this group's satellites ("enable Weather").
+  // Served in the index for clients to group and activate by. A group that
+  // excludes others must share every one of its tags with them (the generator
+  // checks), so that one tag loads the whole.
+  tags?: string[];
+}
+
+// One group a preset registers. A search-only group fills the catalog but gets
+// no group row: it is too large to be worth enabling whole.
+export interface PresetGroup {
+  name: string;
+  searchOnly?: boolean;
+}
+
+// A route's starting configuration, shared by every client. `defaults` are url
+// parameters in the vocabulary of docs/adr/0001-url-parameter-specification.md,
+// as they would appear in a query string. Each client decodes them with its own
+// codec and drops the values it does not know.
+export interface PresetDefinition {
+  name: string;
+  title?: string;
+  description?: string;
+  defaults?: Record<string, string>;
+  groups: PresetGroup[];
 }
 
 // One row of the satellite table: static facts about a satellite, matched
@@ -136,6 +160,7 @@ export interface SatcatStatus {
 export interface GroupsConfig {
   groups: GroupDefinition[];
   satellites?: SatelliteEntry[];
+  presets?: PresetDefinition[];
 }
 
 // Per-group status entry stored in the KV index (gp:index).
@@ -149,11 +174,15 @@ export interface GroupStatus {
   // whose id matched a record with an unexpected OBJECT_NAME, or whose id
   // matched no record at all). Present only when non-empty.
   warnings?: string[];
+  // From the config, not the refresh: see withConfig.
+  tags?: string[];
 }
 
 export interface GroupsIndex {
   updated: string;
   groups: GroupStatus[];
+  // From the config, not the refresh, keyed by preset name: see withConfig.
+  presets?: Record<string, Omit<PresetDefinition, "name">>;
   // Absent until the first successful SATCAT fetch, and left in place (with
   // lastError set) when a later one fails.
   satcat?: SatcatStatus;

@@ -1,8 +1,10 @@
 # Example plugin config. Every data/custom/*/satvis.yaml is merged into the core
 # config by worker/scripts/generate-groups.mjs at build time.
 #
-# A config contributes two independent sections, both optional:
-#   groups     — what is served, and as which unit
+# A config contributes three independent sections, all optional:
+#   groups     — what is served, as which unit, and under which tags
+#   presets    — the starting configuration of a route, /<name>, which needs
+#                a rewrite in public/_redirects (see satvis.core.yaml)
 #   satellites — static per-satellite facts, keyed by NORAD id, attached to
 #                matching records wherever they are served
 
