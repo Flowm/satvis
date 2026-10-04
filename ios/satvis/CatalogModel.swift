@@ -119,7 +119,7 @@ final class CatalogModel {
     private func load(_ wanted: [Group]) async {
         for group in wanted where loaded.insert(group.name).inserted {
             do {
-                catalog.add(try await source.records(of: group.name).value, tags: group.tags)
+                catalog.add(try await source.records(of: group.name).value, tags: group.tags, group: group.name)
             } catch {
                 loaded.remove(group.name)
                 log.error("Group \(group.name, privacy: .public) unavailable: \(error, privacy: .public)")

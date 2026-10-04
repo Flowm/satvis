@@ -51,9 +51,15 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   its target, with no `project.pbxproj` edit. A new package product does need one.
 - `Info.plist` is generated from `INFOPLIST_KEY_*` build settings. The file
   `satvis/Info.plist` holds only the keys that have no build setting:
-  `UILaunchScreen`, and `NSAppTransportSecurity` to allow a local worker.
-- `satvis/lib/NotificationManager.swift` is the WebView app's pass-notification
-  scheduler, unused until the passes milestone (M3).
+  `UILaunchScreen`, `NSAppTransportSecurity` to allow a local worker, and the
+  background refresh's `UIBackgroundModes` and `BGTaskSchedulerPermittedIdentifiers`.
+- Pass notifications (`PassAlerts`) are kept rather than sent once, as the web app
+  sends them: the subjects are saved, and every launch, return to the foreground
+  and background refresh predicts them again from the newest element sets and
+  replaces the pending ones, the earliest 32 passes, two notifications each, under
+  iOS's 64. A background refresh is only asked for while there are alerts. To run
+  one, pause the app in the debugger and
+  `e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"org.frcy.app.satvis.passes"]`.
 - The app icon (`AppIcon.icon`) and the launch image are cut from `public/logo.svg`:
   counting its `<path>`s from 0, 0 is the #0b222d background, 1–3 sky, 4–6 hills,
   7–49 shuttle and 50–51 exhaust. Cut them again when the logo changes.

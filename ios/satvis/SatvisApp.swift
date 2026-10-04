@@ -5,12 +5,25 @@ import SwiftUI
 
 @main
 struct SatvisApp: App {
-    @State private var source = GPSource(repository: Self.repository())
+    @State private var source: GPSource
+    @State private var alerts: PassAlerts
+
+    init() {
+        let source = GPSource(repository: Self.repository())
+        _source = State(initialValue: source)
+        _alerts = State(initialValue: PassAlerts(source: source))
+    }
 
     var body: some Scene {
         WindowGroup {
-            ContentView(source: source)
+            ContentView(source: source, alerts: alerts)
                 .preferredColorScheme(.dark)
+        }
+        // Element sets drift, and the four days ahead move on: predict the pass
+        // notifications again from the newest, then ask to be woken again.
+        .backgroundTask(.appRefresh(PassAlerts.refreshTaskID)) {
+            await alerts.reschedule()
+            await alerts.requestRefresh()
         }
     }
 
@@ -36,6 +49,7 @@ enum Selection: Hashable {
 /// selected, and the clock deck.
 struct ContentView: View {
     let source: GPSource
+    let alerts: PassAlerts
     @State private var clock = ViewerClock()
     @State private var catalog: CatalogModel
     @State private var satellites = SatelliteLayer()
@@ -51,8 +65,9 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
-    init(source: GPSource) {
+    init(source: GPSource, alerts: PassAlerts) {
         self.source = source
+        self.alerts = alerts
         _catalog = State(initialValue: CatalogModel(source: source))
     }
 
@@ -98,7 +113,15 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .top) {
-            if isPicking {
+            if let message = alerts.message {
+                Text(message)
+                    .font(.subheadline)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .glassEffect()
+                    .padding(.top, 72)
+                    .transition(.opacity)
+            } else if isPicking {
                 HStack {
                     Text("Tap the globe to place a ground station")
                         .font(.subheadline)
@@ -131,6 +154,8 @@ struct ContentView: View {
             }
         ) {
             infoPanel
+                // Wide enough for the live strip's four cells and the chips on one line.
+                .inspectorColumnWidth(min: 360, ideal: 420, max: 520)
         }
         .sheet(
             isPresented: Binding {
@@ -145,7 +170,11 @@ struct ContentView: View {
         }
         .task {
             catalog.onChange = showActive
-            passes.onStationsChange = showStations
+            passes.onStationsChange = {
+                showStations()
+                Task { await alerts.reschedule() }
+            }
+            passes.onModeChange = { Task { await alerts.reschedule() } }
             await source.refresh()
             await catalog.start()
             await satellites.run(clock: clock)
@@ -157,8 +186,16 @@ struct ContentView: View {
             await predictPasses()
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
-                Task { await source.refresh() }
+            switch phase {
+            case .active:
+                Task {
+                    await source.refresh()
+                    await alerts.reschedule()
+                }
+            case .background:
+                alerts.requestRefresh()
+            default:
+                break
             }
         }
     }
@@ -168,7 +205,7 @@ struct ContentView: View {
         case .satellite(let id):
             if let entry = catalog.catalog.entries[id] {
                 InfoPanel(
-                    entry: entry, clock: clock, passes: passes, isTracked: tracked == id,
+                    entry: entry, clock: clock, passes: passes, alerts: alerts, isTracked: tracked == id,
                     onTrack: { track(id, $0) }, onClose: { selection = nil }
                 )
             }
@@ -176,7 +213,7 @@ struct ContentView: View {
             if passes.stations.indices.contains(index) {
                 let id = PassModel.markerID(index)
                 StationPanel(
-                    index: index, station: passes.stations[index], clock: clock, passes: passes, catalog: catalog, isTracked: tracked == id,
+                    index: index, station: passes.stations[index], clock: clock, passes: passes, alerts: alerts, catalog: catalog, isTracked: tracked == id,
                     onTrack: { track(id, $0) }, onClose: { selection = nil }
                 )
             }

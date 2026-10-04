@@ -17,6 +17,7 @@ final class PassModel {
     @ObservationIgnored private let storage = GroundStationStorage()
     /// Called when the stations change, from here or from another device.
     @ObservationIgnored var onStationsChange: () -> Void = {}
+    @ObservationIgnored var onModeChange: () -> Void = {}
 
     private static let modeKey = "overpassMode"
     /// Predicted per message to the store, so a station's list over thousands of
@@ -33,6 +34,14 @@ final class PassModel {
 
     var hasStations: Bool { !stations.isEmpty }
 
+    /// The stations and mode as last saved, for predicting with no model about:
+    /// in a background refresh.
+    static func storedSettings() -> PassStore.Settings {
+        PassStore.Settings(
+            stations: GroundStationStorage.stored(),
+            mode: UserDefaults.standard.string(forKey: modeKey).flatMap(OverpassMode.init(rawValue:)) ?? .elevation)
+    }
+
     func setStations(_ stations: [GroundStation]) {
         apply(GroundStations.normalized(stations), save: true)
     }
@@ -48,6 +57,7 @@ final class PassModel {
         self.mode = mode
         UserDefaults.standard.set(mode.rawValue, forKey: Self.modeKey)
         passes = [:]
+        onModeChange()
     }
 
     /// Predicts what is missing for these satellites around the instant, publishing
@@ -136,7 +146,11 @@ final class GroundStationStorage {
     }
 
     func load() -> [GroundStation] {
-        (cloud.data(forKey: Self.key) ?? defaults.data(forKey: Self.key)).map(Self.decode) ?? []
+        Self.stored()
+    }
+
+    static func stored() -> [GroundStation] {
+        (NSUbiquitousKeyValueStore.default.data(forKey: key) ?? UserDefaults.standard.data(forKey: key)).map(decode) ?? []
     }
 
     func save(_ stations: [GroundStation]) {
