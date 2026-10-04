@@ -25,14 +25,21 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   Apache 2.0 notice and says what changed, and `LICENSE.CesiumJS.md` stays beside
   them, verbatim.
 - The globe's surface is a quadtree of geographic tiles (`Surface`), refined by
-  screen-space error in the drawing's pixels as CesiumJS does, each with a
-  256-texel texture baked from the base map (`Imagery.swift`): the shipped
-  Natural Earth first, then the base map's tiles as they load, the nearest loaded
-  ancestor standing in. A Mercator tile's texture coordinates are worked out in
-  double precision on the CPU, a strip of rows at a time: a float cannot place a
-  pixel at level 19. Tiles come through `TileFetcher`, a URLSession with its own
-  500 MB cache in Caches, served from the cache whatever their age. The base map
-  is the Map menu's, kept between launches.
+  screen-space error as CesiumJS's is, but in device pixels where CesiumJS counts
+  CSS pixels, each with a 256-texel texture baked from the base map
+  (`Imagery.swift`): the shipped Natural Earth first, then the base map's tiles
+  as they load, the nearest loaded ancestor standing in. A Mercator tile's
+  texture coordinates are worked out in double precision on the CPU, a strip of
+  rows at a time: a float cannot place a pixel at level 19. Tiles come through
+  `TileFetcher`, a URLSession with its own 500 MB cache in Caches, served from
+  the cache whatever their age, which leaves a host alone for as long as a 429
+  asks. The base map and the terrain are the Map menu's, kept between launches.
+- Terrain (`Terrain.swift`) is Re:Earth's quantized mesh, decoded and kept per
+  terrain tile; a surface tile's grid is laid over the terrain tile log₂(screen
+  scale) levels coarser, the level the web app would ask for, so the app asks
+  Re:Earth no more than the web app does. ADR 0007 has why. The texture budget
+  is soft: a low, oblique view can use more tiles than it, and evicting tiles in
+  use only starts the refinement over.
 - The star map is the web app's `DeepStar1K`, fetched from the site
   (`data/starmap/`) and kept like the GP data, not shipped: it is generated with
   Docker by `pnpm update-starmap`, and committing it here would be a second copy.

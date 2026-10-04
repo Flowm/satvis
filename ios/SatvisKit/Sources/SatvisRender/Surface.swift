@@ -22,6 +22,11 @@ final class Surface {
     /// Source tiles kept decoded for baking.
     private static let maximumSources = 64
     private static let bakesPerFrame = 12
+    /// Terrain tiles kept decoded: about 30 MB.
+    private static let maximumTerrainTiles = 96
+    /// Tiles laid over the terrain a frame, a few hundred lookups each.
+    private static let drapesPerFrame = 16
+    private static let retryInterval: TimeInterval = 60
     private static let maximumScreenSpaceError = 2.0
     /// CesiumJS's for an ellipsoid of 65-sample tiles, two at level 0.
     private static let levelZeroGeometricError = 6_378_137.0 * 2 * .pi * 0.25 / (65 * 2)
@@ -30,9 +35,10 @@ final class Surface {
         let key: TileKey
         let bounds: Bounds
         let vertices: MTLBuffer
-        /// The surface point nearest the tile's middle, and a sphere around it all.
+        /// The surface point nearest the tile's middle, and a sphere around it all,
+        /// grown to take in its terrain once laid over it.
         let centre: SIMD3<Double>
-        let radius: Double
+        var radius: Double
         /// Points on the tile for the horizon test: corners, edge middles, centre.
         let samples: [SIMD3<Double>]
         var texture: MTLTexture?
@@ -40,6 +46,9 @@ final class Surface {
         var isComplete = false
         var needsBake = true
         var lastUsed = 0
+        /// The tile's grid laid over the terrain, and the terrain tile it was laid
+        /// over: nil for the ellipsoid, where no terrain has loaded.
+        var draped: (vertices: MTLBuffer, over: TileKey?)?
 
         init(key: TileKey, bounds: Bounds, vertices: MTLBuffer, centre: SIMD3<Double>, radius: Double, samples: [SIMD3<Double>]) {
             self.key = key
@@ -51,6 +60,13 @@ final class Surface {
         }
     }
 
+    private enum TerrainTile {
+        /// Retrying one that failed, which stands in for it meanwhile as it did.
+        case loading(Task<TerrainSource?, Never>, retry: Bool)
+        case ready(TerrainSource)
+        case failed(at: Date)
+    }
+
     private enum Source {
         case loading
         case ready(MTLTexture, lastUsed: Int)
@@ -58,8 +74,10 @@ final class Surface {
     }
 
     /// Fetches a tile's bytes: the app's tile fetcher, nil when it has none.
-    var loader: (@Sendable (URL, String) async -> Data?)?
+    var loader: (@Sendable (TileRequest) async -> Data?)?
     private(set) var layer = BaseLayer.naturalEarth
+    /// Whether the surface follows Re:Earth's terrain or the ellipsoid.
+    private(set) var terrainEnabled = false
     private var source: ImagerySource
     private var site: URL
 
@@ -70,6 +88,11 @@ final class Surface {
     private let sampler: MTLSamplerState
     private var tiles: [TileKey: Tile] = [:]
     private var sources: [TileKey: Source] = [:]
+    private var terrainTiles: [TileKey: TerrainTile] = [:]
+    /// When each terrain tile was last wanted, by frame.
+    private var terrainUsed: [TileKey: Int] = [:]
+    private var terrainOffset = 0
+    private var drapes = 0
     private var frame = 0
 
     init(device: MTLDevice, library: MTLLibrary, site: URL) throws {
@@ -109,13 +132,28 @@ final class Surface {
         }
     }
 
+    /// Turns the terrain on or off. Loaded terrain is kept for turning it on again.
+    func setTerrain(_ enabled: Bool) {
+        terrainEnabled = enabled
+    }
+
+    /// What to draw a tile with: laid over the terrain where that is on, else on the
+    /// ellipsoid. Either way with `indexBuffer`.
+    func vertices(_ tile: Tile) -> MTLBuffer {
+        terrainEnabled ? tile.draped?.vertices ?? tile.vertices : tile.vertices
+    }
+
     /// The tiles to draw this frame, each with a texture. A tile is refined only
     /// once its four children have one, so the globe never shows a hole.
     /// The screen-space error is in the drawing's own pixels, as CesiumJS measures
     /// it: a tile's texels are about its geometric error apart, so in points a
     /// texel would cover several pixels on a 3× screen.
-    func select(eye: SIMD3<Double>, viewProjection: simd_double4x4, viewportHeightPixels: Double, verticalFieldOfView: Double) -> (draw: [Tile], bake: [Tile]) {
+    func select(eye: SIMD3<Double>, viewProjection: simd_double4x4, viewportHeightPixels: Double, verticalFieldOfView: Double, pixelsPerPoint: Double) -> (
+        draw: [Tile], bake: [Tile]
+    ) {
         frame += 1
+        drapes = 0
+        terrainOffset = Terrain.offset(pixelsPerPoint: pixelsPerPoint)
         let planes = Self.planes(viewProjection)
         let eyeLatLon = geodetic(eye)
         let maximumLevel = max(source.maximumLevel + (source.tileSize == 512 && source.projection == .geographic ? 1 : 0), 6)
@@ -137,12 +175,15 @@ final class Surface {
                 for child in children {
                     child.lastUsed = frame
                 }
-                if children.allSatisfy({ $0.texture != nil }) {
+                // Asked of each child, so each starts loading its terrain.
+                let ready = children.map(hasGeometry)
+                if zip(children, ready).allSatisfy({ $0.texture != nil && $1 }) {
                     key.children.forEach(visit)
                     return
                 }
                 bake += children.filter { $0.texture == nil }
             }
+            _ = hasGeometry(tile)
             draw.append(tile)
             if tile.needsBake || tile.texture == nil {
                 bake.append(tile)
@@ -152,6 +193,95 @@ final class Surface {
         visit(TileKey(level: 0, x: 1, y: 0))
         evict()
         return (draw, bake)
+    }
+
+    /// Whether a tile has what it needs to be drawn on the terrain, asking for it
+    /// when not. Once laid over the terrain, a tile keeps its grid until a better
+    /// terrain tile is in.
+    private func hasGeometry(_ tile: Tile) -> Bool {
+        guard terrainEnabled else {
+            return true
+        }
+        guard let terrain = terrain(under: tile.key) else {
+            return tile.draped != nil
+        }
+        if let draped = tile.draped, draped.over == terrain.key {
+            return true
+        }
+        guard drapes < Self.drapesPerFrame else {
+            return tile.draped != nil
+        }
+        drapes += 1
+        let mesh = SurfaceMesh(
+            bounds: tile.bounds, level: tile.key.level,
+            terrain: terrain.source.map { source in
+                (source.sample, Terrain.skirtHeight(level: terrain.key?.level ?? 0))
+            })
+        guard let vertices = mesh.vertices.withUnsafeBytes({ device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) }) else {
+            return tile.draped != nil
+        }
+        tile.draped = (vertices, terrain.key)
+        tile.radius = max(tile.radius, mesh.radius)
+        return true
+    }
+
+    /// The terrain to lay a surface tile over: its terrain tile, or while that is
+    /// failing the nearest ancestor that loaded, or the ellipsoid where none has.
+    /// Nil while the first try is under way.
+    private func terrain(under key: TileKey) -> (key: TileKey?, source: TerrainSource?)? {
+        let key = Terrain.key(forSurface: key, offset: terrainOffset)
+        terrainUsed[key] = frame
+        switch terrainTiles[key] {
+        case .ready(let source):
+            return (key, source)
+        case nil:
+            requestTerrain(key, retry: false)
+            return nil
+        case .loading(_, retry: false):
+            return nil
+        case .failed(let at):
+            if Date().timeIntervalSince(at) > Self.retryInterval {
+                requestTerrain(key, retry: true)
+            }
+        case .loading(_, retry: true):
+            break
+        }
+        var ancestor = key.parent
+        while let candidate = ancestor {
+            if case .ready(let source) = terrainTiles[candidate] {
+                terrainUsed[candidate] = frame
+                return (candidate, source)
+            }
+            ancestor = candidate.parent
+        }
+        return (nil, nil)
+    }
+
+    private func requestTerrain(_ key: TileKey, retry: Bool) {
+        guard let loader, let url = Terrain.url(key) else {
+            terrainTiles[key] = .failed(at: Date())
+            return
+        }
+        let work = Task.detached(priority: .utility) { () -> TerrainSource? in
+            guard let data = await loader(TileRequest(url: url, contentType: Terrain.contentType, headers: Terrain.headers)), let mesh = try? QuantizedMesh(data) else {
+                return nil
+            }
+            return TerrainSource(mesh: mesh, key: key)
+        }
+        terrainTiles[key] = .loading(work, retry: retry)
+        Task {
+            let source = await work.value
+            // Dropped meanwhile, or asked for again.
+            guard case .loading(let current, _) = terrainTiles[key], current == work else {
+                return
+            }
+            if let source {
+                terrainTiles[key] = .ready(source)
+            } else {
+                log.error("Terrain \(key, privacy: .public) unavailable")
+                terrainTiles[key] = .failed(at: Date())
+            }
+        }
     }
 
     /// Bakes the tiles that need it, the most urgent first, a few a frame.
@@ -240,7 +370,7 @@ final class Surface {
         let device = device
         Task {
             let texture = await Task.detached(priority: .utility) { () -> DecodedTile? in
-                guard let data = await loader(url, contentType) else {
+                guard let data = await loader(TileRequest(url: url, contentType: contentType, headers: [:])) else {
                     return nil
                 }
                 return Self.decode(data, device: device).map(DecodedTile.init)
@@ -309,14 +439,18 @@ final class Surface {
     }
 
     /// Drops the textures, then the tiles, used longest ago, past the budgets. The
-    /// roots stay.
+    /// roots stay, and so does whatever this frame uses.
     private func evict() {
         let textured = tiles.values.filter { $0.texture != nil && $0.key.level > 0 }
         if textured.count > Self.maximumTextures {
-            for tile in textured.sorted(by: { $0.lastUsed < $1.lastUsed }).prefix(textured.count - Self.maximumTextures) {
+            // Never one this frame uses: a view that needs more than the budget
+            // keeps them, rather than losing the tiles it refines into and starting over.
+            let unused = textured.filter { $0.lastUsed < frame }
+            for tile in unused.sorted(by: { $0.lastUsed < $1.lastUsed }).prefix(textured.count - Self.maximumTextures) {
                 tile.texture = nil
                 tile.needsBake = true
                 tile.isComplete = false
+                tile.draped = nil
             }
         }
         if tiles.count > 4 * Self.maximumTextures {
@@ -332,6 +466,34 @@ final class Surface {
                 sources[key] = nil
             }
         }
+        evictTerrain()
+    }
+
+    /// Drops the terrain tiles wanted longest ago past the budget, and cancels the
+    /// requests for those nothing has wanted for a second, so that a zoom does not
+    /// leave a queue of tiles flown past to be sent.
+    private func evictTerrain() {
+        guard frame % 30 == 0 else {
+            return
+        }
+        var ready: [TileKey] = []
+        for (key, state) in terrainTiles {
+            switch state {
+            case .loading(let work, _) where terrainUsed[key, default: 0] < frame - 60:
+                work.cancel()
+                terrainTiles[key] = nil
+            case .ready:
+                ready.append(key)
+            default:
+                break
+            }
+        }
+        if ready.count > Self.maximumTerrainTiles {
+            for key in ready.sorted(by: { terrainUsed[$0, default: 0] < terrainUsed[$1, default: 0] }).prefix(ready.count - Self.maximumTerrainTiles) {
+                terrainTiles[key] = nil
+            }
+        }
+        terrainUsed = terrainUsed.filter { terrainTiles[$0.key] != nil }
     }
 
     // MARK: Culling
@@ -362,6 +524,14 @@ final class Surface {
     }
 }
 
+/// One tile to fetch.
+public struct TileRequest: Sendable {
+    public var url: URL
+    /// What the answer's Content-Type must start with.
+    public var contentType: String
+    public var headers: [String: String]
+}
+
 /// A source tile decoded off the main thread: finished before it is handed over,
 /// and not written again.
 private struct DecodedTile: @unchecked Sendable {
@@ -378,24 +548,29 @@ struct SurfaceMesh {
     var radius: Double
     var samples: [SIMD3<Double>]
 
-    init(bounds: Bounds, level: Int) {
+    /// A terrain's height and normal at a latitude and longitude, and how deep a
+    /// skirt hides the cracks between tiles laid over it.
+    typealias Ground = (sample: (_ latitude: Double, _ longitude: Double) -> (height: Double, normal: SIMD3<Double>?), skirt: Double)
+
+    /// On the ellipsoid, or laid over `terrain`.
+    init(bounds: Bounds, level: Int, terrain: Ground? = nil) {
         let n = Self.size
         // Deep enough to cover the sag of a chord of a neighbour a level or two coarser.
         let segment = (bounds.east - bounds.west) * .pi / 180 * 6_371_000 / Double(n)
-        let skirt = 4 * segment * segment / (8 * 6_371_000) + 10
+        let skirt = max(4 * segment * segment / (8 * 6_371_000) + 10, terrain?.skirt ?? 0)
         centre = fixedPosition(latitude: (bounds.south + bounds.north) / 2, longitude: (bounds.west + bounds.east) / 2)
         var vertices: [GlobeVertex] = []
         var points: [SIMD3<Double>] = []
         for row in 0...n {
             for column in 0...n {
-                let (vertex, position) = Self.vertex(bounds, row: row, column: column, depth: 0)
+                let (vertex, position) = Self.vertex(bounds, row: row, column: column, depth: 0, terrain: terrain?.sample)
                 vertices.append(vertex)
                 points.append(position)
             }
         }
         // The skirt: the edge again, lowered, in order around the tile.
         for edge in Self.edge {
-            vertices.append(Self.vertex(bounds, row: edge.row, column: edge.column, depth: skirt).0)
+            vertices.append(Self.vertex(bounds, row: edge.row, column: edge.column, depth: skirt, terrain: terrain?.sample).0)
         }
         self.vertices = vertices
         let centre = centre
@@ -403,18 +578,21 @@ struct SurfaceMesh {
         samples = [(0, 0), (0, n / 2), (0, n), (n / 2, 0), (n / 2, n / 2), (n / 2, n), (n, 0), (n, n / 2), (n, n)].map { points[$0.0 * (n + 1) + $0.1] }
     }
 
-    /// A grid point of a tile, `depth` metres below the ellipsoid.
-    private static func vertex(_ bounds: Bounds, row: Int, column: Int, depth: Double) -> (GlobeVertex, SIMD3<Double>) {
+    /// A grid point of a tile, `depth` metres below the surface.
+    private static func vertex(_ bounds: Bounds, row: Int, column: Int, depth: Double, terrain: ((Double, Double) -> (height: Double, normal: SIMD3<Double>?))?) -> (
+        GlobeVertex, SIMD3<Double>
+    ) {
         let u = Double(column) / Double(size)
         let v = Double(row) / Double(size)
         let latitude = bounds.north - v * (bounds.north - bounds.south)
         let longitude = bounds.west + u * (bounds.east - bounds.west)
         let phi = latitude * .pi / 180
         let lambda = longitude * .pi / 180
-        let normal = SIMD3(cos(phi) * cos(lambda), cos(phi) * sin(lambda), sin(phi))
-        let position = fixedPosition(latitude: latitude, longitude: longitude) - depth * normal
+        let up = SIMD3(cos(phi) * cos(lambda), cos(phi) * sin(lambda), sin(phi))
+        let ground = terrain?(latitude, longitude)
+        let position = fixedPosition(latitude: latitude, longitude: longitude) + ((ground?.height ?? 0) - depth) * up
         let (high, low) = encode(position)
-        return (GlobeVertex(high: high, low: low, normal: SIMD3<Float>(normal), uv: SIMD2(Float(u), Float(v))), position)
+        return (GlobeVertex(high: high, low: low, normal: SIMD3<Float>(ground?.normal ?? up), uv: SIMD2(Float(u), Float(v))), position)
     }
 
     /// The edge vertices around a tile, starting at its north-west corner.

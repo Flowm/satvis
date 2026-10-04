@@ -51,7 +51,13 @@ SwiftUI draws all the controls over the `MTKView`.
   ancestor that has loaded, so the globe never waits on the network.
 - Re:Earth terrain (quantized-mesh, geographic grid, levels 0–14, CC BY 4.0) is a
   toggle and is off by default, as on the web. The sky view turns it on, for the
-  horizon and the eye height.
+  horizon and the eye height. The surface is refined by device pixels, for sharp
+  imagery, but each tile takes its heights from a terrain tile log₂(screen scale)
+  levels coarser: the one CesiumJS would pick, since it measures in CSS pixels.
+  Asking for terrain at the surface's own level was nine times the web app's
+  requests on a 3× screen, and Re:Earth, a free service, answered with 429s. A
+  terrain tile that fails is stood in for by its nearest loaded ancestor, and
+  tried again a minute later.
 
 **A ground-track swath is drawn into an overlay texture.** The globe shader samples
 a cube map around the Earth's centre, six faces of 2048 texels, about 5 km per

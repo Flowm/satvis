@@ -1,8 +1,11 @@
 import Foundation
+import OSLog
 import Observation
 import SatvisCore
 import SatvisData
 import SatvisRender
+
+nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category: "imagery")
 
 /// What the info panel is about.
 enum Selection: Hashable {
@@ -39,6 +42,13 @@ final class Session {
             renderer?.setImagery(baseLayer, site: source.site)
         }
     }
+    /// Whether the globe follows Re:Earth's terrain: off by default, as on the web.
+    var terrain = UserDefaults.standard.bool(forKey: "terrain") {
+        didSet {
+            UserDefaults.standard.set(terrain, forKey: "terrain")
+            renderer?.setTerrain(terrain)
+        }
+    }
     @ObservationIgnored private let tiles = TileFetcher.shared()
 
     /// What the drawn links were built from.
@@ -65,8 +75,20 @@ final class Session {
     func attach(_ renderer: GlobeRenderer) {
         self.renderer = renderer
         renderer.clock = { [clock] in clock.now() }
-        renderer.tileLoader = { [tiles] url, contentType in try? await tiles.tile(url, contentType: contentType) }
+        renderer.tileLoader = { [tiles] request in
+            do {
+                return try await tiles.tile(request.url, contentType: request.contentType, headers: request.headers)
+            } catch is CancellationError {
+                return nil
+            } catch let error as URLError where error.code == .cancelled {
+                return nil
+            } catch {
+                log.error("\(request.url, privacy: .public): \(error, privacy: .public)")
+                return nil
+            }
+        }
         renderer.setImagery(baseLayer, site: source.site)
+        renderer.setTerrain(terrain)
         renderer.setStations(passes.markers)
         satellites.attach(renderer)
         starMap.attach(renderer)
