@@ -153,6 +153,53 @@ describe("Orbit swath containment", () => {
     const passes = orbit.computePassesSwath(starboard, { starboardKm: 600, portKm: 200 }, AT, new Date(AT.getTime() + 30 * 60_000));
     expect(passes[0]!.swathWidth).toBe(800);
   });
+
+  // Closest approach 25 s after AT, off the round-minute grid a coarse scan steps on.
+  const CLOSEST = new Date(AT.getTime() + 25_000);
+
+  function stationAbeam(offsetKm: number) {
+    const here = orbit.positionGeodetic(CLOSEST)!;
+    return destination(here.latitude, here.longitude, flightBearing() + Math.PI / 2, offsetKm);
+  }
+
+  function passesAround(offsetKm: number, swath: { starboardKm: number; portKm: number }, beforeMin = 10, afterMin = 10) {
+    return orbit.computePassesSwath(stationAbeam(offsetKm), swath, new Date(AT.getTime() - beforeMin * 60_000), new Date(AT.getTime() + afterMin * 60_000));
+  }
+
+  test.each([
+    [10, 30],
+    [0.5, 1],
+    [28.5, 30],
+  ])("finds a pass %s km off a %s km extent that lasts only seconds", (offsetKm, extentKm) => {
+    const passes = passesAround(offsetKm, { starboardKm: extentKm, portKm: extentKm });
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.minDistance).toBeCloseTo(offsetKm, 0);
+    expect(passes[0]!.minDistanceTime).toBeCloseTo(CLOSEST.getTime(), -3);
+  });
+
+  test.each([100, 1450])("reports the closest approach, not the edge, on a %s km extent", (extentKm) => {
+    const passes = passesAround(50, { starboardKm: extentKm, portKm: extentKm }, 20, 20);
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.minDistance).toBeCloseTo(50, 0);
+  });
+
+  test("finds the narrow side's pass of an asymmetric swath", () => {
+    const passes = passesAround(2.5, { starboardKm: 5, portKm: 100 });
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.minDistance).toBeLessThanOrEqual(5);
+  });
+
+  test("truncates a pass still open when the window ends", () => {
+    const passes = orbit.computePassesSwath(stationAbeam(5), { starboardKm: 10, portKm: 10 }, new Date(AT.getTime() - 10 * 60_000), CLOSEST);
+    expect(passes).toHaveLength(1);
+    expect(passes[0]!.end).toBe(CLOSEST.getTime());
+    expect(passes[0]!.duration).toBeGreaterThan(0);
+  });
+
+  test("stops at maxPasses", () => {
+    const passes = orbit.computePassesSwath(stationAbeam(50), { starboardKm: 1450, portKm: 1450 }, AT, new Date(AT.getTime() + 2 * 86_400_000), 2);
+    expect(passes).toHaveLength(2);
+  });
 });
 
 describe("Orbit (GpRecord path)", () => {
