@@ -141,10 +141,10 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
   `API=…`): the group index and the groups the default preset enables. Run it
   before a release.
 - **`screenshots`** erases one simulator per App Store size and writes
-  `screenshots/`. Upload them to App Store Connect by hand. For now it takes only
-  the UI test's view of the browser: the about page's three demo views were the
-  WebView app's tests, opened by url, and come back natively with the links (M5).
-  `BASE_URL` does nothing until then.
+  `screenshots/`. Upload them to App Store Connect by hand. It takes the about
+  page's demo views by their links (`about.html`), each paused at its link's
+  minute, from the site `BASE_URL` names (satvis.space by default); the sky
+  view's comes back with the sky view (M6).
 
 ## The worker
 
