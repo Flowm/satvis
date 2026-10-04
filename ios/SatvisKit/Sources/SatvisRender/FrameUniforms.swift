@@ -14,6 +14,8 @@ struct FrameUniforms {
     var eyeHeight: Float
     var cameraDistance: Float
     var pointSize: Float
+    /// Pixels per point: what a CSS pixel on the web is here.
+    var pixelScale: Float
 }
 
 /// A double split into two floats whose sum keeps most of its precision: the high

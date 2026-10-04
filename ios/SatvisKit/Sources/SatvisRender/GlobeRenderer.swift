@@ -12,7 +12,7 @@ public enum RendererError: Error {
 /// Compiles Shaders/*.msl. At run time rather than at build time, so that neither
 /// the build nor CI needs Xcode's separately downloaded Metal toolchain.
 enum ShaderLibrary {
-    static let files = ["Common", "Sky", "Globe", "Points", "Tonemap"]
+    static let files = ["Common", "Sky", "Globe", "Points", "Lines", "Labels", "Tonemap"]
 
     static func make(device: MTLDevice) async throws -> MTLLibrary {
         let source = try files.map { name in
@@ -28,11 +28,30 @@ enum ShaderLibrary {
     }
 }
 
+/// What is drawn for each satellite: the web app's satellite components, those
+/// this milestone draws.
+public struct SatelliteComponents: OptionSet, Sendable, Hashable {
+    public let rawValue: Int
+    public init(rawValue: Int) { self.rawValue = rawValue }
+
+    public static let point = SatelliteComponents(rawValue: 1 << 0)
+    public static let label = SatelliteComponents(rawValue: 1 << 1)
+    public static let orbit = SatelliteComponents(rawValue: 1 << 2)
+    public static let orbitTrack = SatelliteComponents(rawValue: 1 << 3)
+
+    /// The web app's names, as its `elements` url parameter and presets use them.
+    public static let named: [(String, SatelliteComponents)] = [("Point", .point), ("Label", .label), ("Orbit", .orbit), ("Orbit track", .orbitTrack)]
+}
+
 /// Draws the globe, the sky around it and the satellites over it, for one MTKView.
 @MainActor
 public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Nil until the view has a size, then the web app's home view.
     public var camera: OrbitCamera?
+    /// The satellite the camera follows, by id. Nil for the free camera.
+    public private(set) var tracked: String?
+    public var trackingCamera = TrackingCamera()
+    public var components: SatelliteComponents = [.point, .label]
     /// The instant to draw, in UTC milliseconds since 1970.
     public var clock: () -> Double = { (Date().timeIntervalSince1970 * 1000).rounded(.down) }
 
@@ -46,6 +65,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let skyAtmospherePipeline: MTLRenderPipelineState
     private let globePipeline: MTLRenderPipelineState
     private let pointPipeline: MTLRenderPipelineState
+    private let linePipeline: MTLRenderPipelineState
+    private let labelPipeline: MTLRenderPipelineState
     private let tonemapPipeline: MTLRenderPipelineState
     private let depthWrite: MTLDepthStencilState
     private let depthTest: MTLDepthStencilState
@@ -58,6 +79,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var hdr: MTLTexture?
     private var depth: MTLTexture?
     private let points = SatellitePoints()
+    private var labels: (atlas: LabelAtlas, instances: MTLBuffer)?
+    private let pixelScale: Double
+    /// What the last frame was drawn from, for picking.
+    private var lastFrame: (viewProjection: simd_double4x4, position: SIMD3<Double>, size: SIMD2<Double>, time: Double)?
     private var pointFrameBuffers: [MTLBuffer?]
     private var frameIndex = 0
     private let inFlight = DispatchSemaphore(value: framesInFlight)
@@ -88,9 +113,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             }
             return function
         }
-        func pipeline(_ vertex: String, _ fragment: String, format: MTLPixelFormat = Self.hdrFormat, depth: Bool = true, blend: Bool = false) throws
-            -> MTLRenderPipelineState
-        {
+        func pipeline(
+            _ vertex: String, _ fragment: String, format: MTLPixelFormat = Self.hdrFormat, depth: Bool = true, blend: Bool = false, premultiplied: Bool = false
+        ) throws -> MTLRenderPipelineState {
             let descriptor = MTLRenderPipelineDescriptor()
             descriptor.vertexFunction = try function(vertex)
             descriptor.fragmentFunction = try function(fragment)
@@ -98,7 +123,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             if blend {
                 let attachment = descriptor.colorAttachments[0]!
                 attachment.isBlendingEnabled = true
-                attachment.sourceRGBBlendFactor = .sourceAlpha
+                attachment.sourceRGBBlendFactor = premultiplied ? .one : .sourceAlpha
                 attachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
                 attachment.sourceAlphaBlendFactor = .one
                 attachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
@@ -112,6 +137,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         skyAtmospherePipeline = try pipeline("skyAtmosphereVertex", "skyAtmosphereFragment", blend: true)
         globePipeline = try pipeline("globeVertex", "globeFragment")
         pointPipeline = try pipeline("pointVertex", "pointFragment")
+        linePipeline = try pipeline("lineVertex", "lineFragment", blend: true)
+        labelPipeline = try pipeline("labelVertex", "labelFragment", blend: true, premultiplied: true)
         tonemapPipeline = try pipeline("fullscreenVertex", "tonemapFragment", format: view.colorPixelFormat, depth: false)
 
         func depthState(compare: MTLCompareFunction, write: Bool) -> MTLDepthStencilState {
@@ -142,6 +169,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         globe = upload(Meshes.globe())
         skyShell = upload(Meshes.skyShell())
         pointFrameBuffers = Array(repeating: nil, count: Self.framesInFlight)
+        pixelScale = Double(view.contentScaleFactorForPoints)
         super.init()
         view.delegate = self
         mtkView(view, drawableSizeWillChange: view.drawableSize)
@@ -171,7 +199,70 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     public func setSatellites(_ satellites: [PointSatellite]) {
+        let names = points.satellites.map(\.name)
         points.update(satellites, device: device)
+        guard satellites.map(\.name) != names || labels == nil else {
+            return
+        }
+        labels = nil
+        if !satellites.isEmpty, satellites.count <= LabelAtlas.maximumLabels, let atlas = LabelAtlas(names: satellites.map(\.name), scale: pixelScale, device: device) {
+            labels = atlas.instances.withUnsafeBytes { bytes in
+                device.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count).map { (atlas, $0) }
+            }
+        }
+    }
+
+    /// Follows a satellite from where the web app's tracking view opens.
+    public func track(_ id: String) {
+        tracked = id
+        trackingCamera = TrackingCamera()
+    }
+
+    /// Lets go, and leaves the camera 2,000 km straight above the satellite, as the
+    /// web app does.
+    public func stopTracking() {
+        if let tracked, let lastFrame, let position = points.position(of: tracked, at: lastFrame.time) {
+            camera = .above(position, altitude: 2_000_000)
+        }
+        tracked = nil
+    }
+
+    /// The satellite drawn nearest a point on the view, within a fingertip of it
+    /// and not behind the Earth.
+    public func satellite(at point: CGPoint, viewSize: CGSize) -> String? {
+        guard let lastFrame, viewSize.width > 0, components.contains(.point) || components.contains(.label) else {
+            return nil
+        }
+        let reach = 24.0
+        var best: (id: String, distance: Double)?
+        for satellite in points.satellites {
+            guard let position = satellite.trajectory.position(at: lastFrame.time), !Self.isHiddenByEarth(position, from: lastFrame.position) else {
+                continue
+            }
+            let clip = lastFrame.viewProjection * SIMD4(position - lastFrame.position, 1)
+            guard clip.w > 0 else {
+                continue
+            }
+            let screen = SIMD2((clip.x / clip.w + 1) / 2 * viewSize.width, (1 - clip.y / clip.w) / 2 * viewSize.height)
+            let distance = simd.distance(screen, SIMD2(point.x, point.y))
+            if distance < reach, distance < best?.distance ?? .infinity {
+                best = (satellite.id, distance)
+            }
+        }
+        return best?.id
+    }
+
+    /// Whether the line of sight to a point passes through the Earth, taken as a
+    /// sphere of its polar radius.
+    private static func isHiddenByEarth(_ point: SIMD3<Double>, from eye: SIMD3<Double>) -> Bool {
+        let direction = point - eye
+        let length = simd.length(direction)
+        let unit = direction / length
+        let closest = -dot(eye, unit)
+        guard closest > 0, closest < length else {
+            return false
+        }
+        return simd.length(eye + closest * unit) < ellipsoidRadii.z
     }
 
     public func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
@@ -195,6 +286,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         guard let camera, let hdr, let depth, let drawable = view.currentDrawable, let screen = view.currentRenderPassDescriptor else {
             return
         }
+        let now = clock()
+        var pose = camera.pose()
+        if let tracked, let target = points.position(of: tracked, at: now) {
+            pose = trackingCamera.pose(target: target)
+        }
         inFlight.wait()
         guard let commands = queue.makeCommandBuffer() else {
             inFlight.signal()
@@ -204,8 +300,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         commands.addCompletedHandler { _ in semaphore.signal() }
         frameIndex = (frameIndex + 1) % Self.framesInFlight
 
-        let now = clock()
-        var frame = uniforms(camera: camera, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now, scale: Double(view.contentScaleFactorForPoints))
+        var frame = uniforms(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now)
 
         let scene = MTLRenderPassDescriptor()
         scene.colorAttachments[0].texture = hdr
@@ -247,13 +342,27 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             }
 
             if let samples = points.samples, let instances = points.instances, let states = pointFrames(at: now) {
-                encoder.setRenderPipelineState(pointPipeline)
                 encoder.setDepthStencilState(depthTest)
                 encoder.setCullMode(.none)
                 encoder.setVertexBuffer(samples, offset: 0, index: 0)
                 encoder.setVertexBuffer(instances, offset: 0, index: 2)
                 encoder.setVertexBuffer(states, offset: 0, index: 3)
-                encoder.drawPrimitives(type: .point, vertexStart: 0, vertexCount: points.count)
+                for (component, kind) in [(SatelliteComponents.orbit, 0), (.orbitTrack, 1)] where components.contains(component) {
+                    var kind = Int32(kind)
+                    encoder.setRenderPipelineState(linePipeline)
+                    encoder.setVertexBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
+                    encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 2 * 121, instanceCount: points.count)
+                }
+                if components.contains(.point) {
+                    encoder.setRenderPipelineState(pointPipeline)
+                    encoder.drawPrimitives(type: .point, vertexStart: 0, vertexCount: points.count)
+                }
+                if components.contains(.label), let labels {
+                    encoder.setRenderPipelineState(labelPipeline)
+                    encoder.setVertexBuffer(labels.instances, offset: 0, index: 4)
+                    encoder.setFragmentTexture(labels.atlas.texture, index: 0)
+                    encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: labels.atlas.instances.count)
+                }
             }
             encoder.endEncoding()
         }
@@ -285,11 +394,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         return buffer
     }
 
-    private func uniforms(camera: OrbitCamera, size: SIMD2<Double>, now: Double, scale: Double) -> FrameUniforms {
-        let viewProjection = camera.projection(aspectRatio: size.x / size.y) * camera.view()
+    private func uniforms(pose: CameraPose, size: SIMD2<Double>, now: Double) -> FrameUniforms {
+        let viewProjection = OrbitCamera.projection(aspectRatio: size.x / size.y) * pose.view()
+        lastFrame = (viewProjection, pose.position, size, now)
         let angle = greenwichHourAngle(epochMilliseconds: now)
         let (c, s) = (Float(cos(angle)), Float(sin(angle)))
-        let position = camera.position
+        let position = pose.position
         let (high, low) = encode(position)
         return FrameUniforms(
             viewProjection: float4x4(viewProjection),
@@ -300,9 +410,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             cameraPosition: SIMD3<Float>(position),
             sunDirection: SIMD3<Float>(Sun.directionFixed(epochMilliseconds: now)),
             viewportSize: SIMD2<Float>(size),
-            eyeHeight: Float(camera.eyeHeight),
+            eyeHeight: Float(pose.eyeHeight),
             cameraDistance: Float(length(position)),
-            pointSize: Float(7 * scale))
+            pointSize: Float(7 * pixelScale),
+            pixelScale: Float(pixelScale))
     }
 }
 

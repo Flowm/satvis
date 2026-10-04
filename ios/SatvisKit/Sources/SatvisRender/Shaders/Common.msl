@@ -27,6 +27,8 @@ struct FrameUniforms {
     float eyeHeight;
     float cameraDistance;
     float pointSize;
+    /// Pixels per point: what a CSS pixel on the web is here.
+    float pixelScale;
 };
 
 constant float3 ellipsoidRadii = float3(6378137.0, 6378137.0, 6356752.3142451793);

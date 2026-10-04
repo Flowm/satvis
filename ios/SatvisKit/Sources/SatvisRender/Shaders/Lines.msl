@@ -1,0 +1,62 @@
+// Each satellite's orbit and orbit track, drawn through its samples as a strip two
+// points wide in screen space, as the web app's PathGraphics and PolylineGeometry
+// draw them: the orbit white at 15 %, half a period either side and fixed in
+// inertial space; the track gold at 15 %, a period ahead over the turning Earth.
+
+struct LineOut {
+    float4 position [[position]];
+    float4 color;
+};
+
+constant float earthRotationRate = 7.2921158553e-5;
+constant int lineNodes = 121;
+
+/// Sample `node` of a satellite, for a line of the given kind: an orbit node is
+/// turned to where the Earth is now, so the line stays put in inertial space.
+inline float3 lineNode(int node, int kind, float nowNode, PointInstance instance, const device packed_float3 *samples) {
+    int k = clamp(node, 0, int(instance.sampleCount) - 1);
+    float3 p = float3(samples[instance.sampleStart + uint(k)]);
+    if (kind == 0) {
+        float angle = earthRotationRate * (float(k) - nowNode) * instance.stepSeconds;
+        float c = cos(angle), s = sin(angle);
+        p = float3(c * p.x - s * p.y, s * p.x + c * p.y, p.z);
+    }
+    return p;
+}
+
+vertex LineOut lineVertex(uint vid [[vertex_id]], uint satellite [[instance_id]], const device packed_float3 *samples [[buffer(0)]],
+                          constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
+                          const device PointFrame *frames [[buffer(3)]], constant int &kind [[buffer(5)]]) {
+    LineOut out;
+    out.color = kind == 0 ? float4(1.0, 1.0, 1.0, 0.15) : float4(1.0, 0.843, 0.0, 0.15);
+    PointFrame state = frames[satellite];
+    PointInstance instance = instances[satellite];
+    if (state.offset < 0.0) {
+        out.position = float4(0.0, 0.0, -2.0, 1.0);
+        return out;
+    }
+    // The stencil's third node is the one at or before the instant.
+    float nowNode = float(state.stencilStart) + state.offset;
+    int first = int(floor(nowNode)) - (kind == 0 ? (lineNodes - 1) / 2 : 0);
+    int node = first + int(vid / 2);
+    float side = (vid & 1) ? 1.0 : -1.0;
+
+    float4 clip = frame.viewProjection * float4((lineNode(node, kind, nowNode, instance, samples) - frame.cameraHigh) - frame.cameraLow, 1.0);
+    float4 previous = frame.viewProjection * float4((lineNode(node - 1, kind, nowNode, instance, samples) - frame.cameraHigh) - frame.cameraLow, 1.0);
+    float4 next = frame.viewProjection * float4((lineNode(node + 1, kind, nowNode, instance, samples) - frame.cameraHigh) - frame.cameraLow, 1.0);
+    if (clip.w <= 0.0 || previous.w <= 0.0 || next.w <= 0.0) {
+        out.position = float4(0.0, 0.0, -2.0, 1.0);
+        return out;
+    }
+    float2 toScreen = frame.viewportSize * 0.5;
+    float2 direction = (next.xy / next.w - previous.xy / previous.w) * toScreen;
+    direction = length(direction) > 0.0 ? normalize(direction) : float2(1.0, 0.0);
+    float2 normal = float2(-direction.y, direction.x);
+    clip.xy += normal * side * frame.pixelScale / toScreen * clip.w;
+    out.position = clip;
+    return out;
+}
+
+fragment float4 lineFragment(LineOut in [[stage_in]]) {
+    return float4(gammaCorrect(in.color.rgb), in.color.a);
+}

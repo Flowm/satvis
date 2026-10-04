@@ -9,14 +9,15 @@ struct Bitmap: Sendable {
     var height: Int
     var bytes: [UInt8]
 
-    init(width: Int, height: Int, draw: (CGContext) -> Void) {
+    /// `alpha` keeps a premultiplied alpha channel, for text drawn over nothing.
+    init(width: Int, height: Int, alpha: Bool = false, draw: (CGContext) -> Void) {
         self.width = width
         self.height = height
         var bytes = [UInt8](repeating: 0, count: width * height * 4)
         bytes.withUnsafeMutableBytes { buffer in
             let context = CGContext(
                 data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+                bitmapInfo: (alpha ? CGImageAlphaInfo.premultipliedLast : CGImageAlphaInfo.noneSkipLast).rawValue)!
             draw(context)
         }
         self.bytes = bytes

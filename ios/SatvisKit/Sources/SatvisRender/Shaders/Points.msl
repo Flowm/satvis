@@ -6,14 +6,38 @@
 struct PointInstance {
     float4 color;
     uint sampleStart;
+    uint sampleCount;
+    float stepSeconds;
 };
 
 // Mirrors PointFrame: where this frame's stencil starts, and how far into it the
-// instant is, in steps. A negative offset hides the point.
+// instant is, in steps. A negative offset hides the satellite.
 struct PointFrame {
     uint stencilStart;
     float offset;
 };
+
+/// Where a satellite is this frame, in the fixed frame. False when it is outside
+/// its window until the next refill.
+inline bool satellitePosition(uint index, const device packed_float3 *samples, const device PointInstance *instances, const device PointFrame *frames,
+                              thread float3 &position) {
+    PointFrame state = frames[index];
+    if (state.offset < 0.0) {
+        return false;
+    }
+    float u = state.offset;
+    float d0 = u, d1 = u - 1.0, d2 = u - 2.0, d3 = u - 3.0, d4 = u - 4.0, d5 = u - 5.0;
+    float b[6] = {
+        -(d1 * d2 * d3 * d4 * d5) / 120.0, (d0 * d2 * d3 * d4 * d5) / 24.0, -(d0 * d1 * d3 * d4 * d5) / 12.0,
+        (d0 * d1 * d2 * d4 * d5) / 12.0, -(d0 * d1 * d2 * d3 * d5) / 24.0, (d0 * d1 * d2 * d3 * d4) / 120.0,
+    };
+    uint start = instances[index].sampleStart + state.stencilStart;
+    position = float3(0.0);
+    for (int k = 0; k < 6; ++k) {
+        position += float3(samples[start + k]) * b[k];
+    }
+    return true;
+}
 
 struct PointOut {
     float4 position [[position]];
@@ -23,25 +47,14 @@ struct PointOut {
 
 vertex PointOut pointVertex(uint iid [[vertex_id]], const device packed_float3 *samples [[buffer(0)]], constant FrameUniforms &frame [[buffer(1)]],
                             const device PointInstance *instances [[buffer(2)]], const device PointFrame *frames [[buffer(3)]]) {
-    PointFrame state = frames[iid];
     PointOut out;
     out.color = instances[iid].color;
     out.size = frame.pointSize;
-    if (state.offset < 0.0) {
+    float3 position;
+    if (!satellitePosition(iid, samples, instances, frames, position)) {
         out.position = float4(0.0, 0.0, -2.0, 1.0);
         out.size = 0.0;
         return out;
-    }
-    float u = state.offset;
-    float d0 = u, d1 = u - 1.0, d2 = u - 2.0, d3 = u - 3.0, d4 = u - 4.0, d5 = u - 5.0;
-    float b[6] = {
-        -(d1 * d2 * d3 * d4 * d5) / 120.0, (d0 * d2 * d3 * d4 * d5) / 24.0, -(d0 * d1 * d3 * d4 * d5) / 12.0,
-        (d0 * d1 * d2 * d4 * d5) / 12.0, -(d0 * d1 * d2 * d3 * d5) / 24.0, (d0 * d1 * d2 * d3 * d4) / 120.0,
-    };
-    uint start = instances[iid].sampleStart + state.stencilStart;
-    float3 position = float3(0.0);
-    for (int k = 0; k < 6; ++k) {
-        position += float3(samples[start + k]) * b[k];
     }
     float3 relative = (position - frame.cameraHigh) - frame.cameraLow;
     out.position = frame.viewProjection * float4(relative, 1.0);
