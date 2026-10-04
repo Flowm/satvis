@@ -39,6 +39,7 @@ try {
   const runner = createServerModuleRunner(server.environments.ssr, { hmr: false });
   const gp = await runner.import("/src/modules/util/gp.ts");
   const { greenwichHourAngle } = await runner.import("/src/modules/util/temeToFixed.ts");
+  const { sampleInterval, gridAnchorEpochMs } = await runner.import("/src/modules/util/sgp4Worker.ts");
 
   const input = fs.readFileSync(inputPath, "utf8");
   const records = gp.parseGpPayload(input);
@@ -74,9 +75,28 @@ try {
     });
   });
 
+  // The grid the web app samples a window on, an hour past each epoch: half an
+  // orbit back and one and a half forward, as trajectoryWindow.ts asks for it.
+  const grids = records.map((record, index) => {
+    const satrec = gp.createSatrec(record);
+    const periodMs = ((2 * Math.PI) / satrec.no) * MS_PER_MINUTE;
+    const now = gridAnchorEpochMs(satrec) + 60 * MS_PER_MINUTE;
+    const chunk = sampleInterval(satrec, parsed[index].satnum, now - 0.5 * periodMs, now + 1.5 * periodMs);
+    const every = 20;
+    return {
+      record: index,
+      anchorEpochMs: chunk.anchorEpochMs,
+      stepSeconds: chunk.stepSeconds,
+      samples: Array.from({ length: Math.ceil(chunk.positionsFixed.length / 3 / every) }, (_, k) => ({
+        index: chunk.firstIndex + k * every,
+        fixedPositionMetres: Array.from(chunk.positionsFixed.subarray(k * every * 3, k * every * 3 + 3)),
+      })),
+    };
+  });
+
   const hourAngles = HOUR_ANGLE_INSTANTS.map((instant) => ({ instant, radians: greenwichHourAngle(Date.parse(instant)) }));
 
-  const output = { generatedBy: "scripts/parity/generate.mjs", parsed, propagation, greenwichHourAngle: hourAngles };
+  const output = { generatedBy: "scripts/parity/generate.mjs", parsed, propagation, grids, greenwichHourAngle: hourAngles };
   fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
   process.stdout.write(`Wrote ${path.relative(repoRoot, outputPath)} (${records.length} records, ${propagation.length} states)\n`);
 } finally {
