@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		57A0C0DE000000000000000C /* SatvisCore in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE000000000000000A /* SatvisCore */; };
 		57A0C0DE000000000000000D /* SatvisData in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE000000000000000B /* SatvisData */; };
+		57A0C0DE000000000000000F /* SatvisRender in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE000000000000000E /* SatvisRender */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,6 +67,7 @@
 			files = (
 				57A0C0DE000000000000000C /* SatvisCore in Frameworks */,
 				57A0C0DE000000000000000D /* SatvisData in Frameworks */,
+				57A0C0DE000000000000000F /* SatvisRender in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -133,6 +135,7 @@
 			packageProductDependencies = (
 				57A0C0DE000000000000000A /* SatvisCore */,
 				57A0C0DE000000000000000B /* SatvisData */,
+				57A0C0DE000000000000000E /* SatvisRender */,
 			);
 			productName = satvis;
 			productReference = 579DA870218C123A00B417CB /* satvis.app */;
@@ -502,6 +505,10 @@
 		57A0C0DE000000000000000B /* SatvisData */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SatvisData;
+		};
+		57A0C0DE000000000000000E /* SatvisRender */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SatvisRender;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

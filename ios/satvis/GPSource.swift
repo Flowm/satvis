@@ -31,4 +31,9 @@ final class GPSource {
     func records(of group: String) async throws -> GroupRepository.Loaded<[GPRecord]> {
         try await repository.records(of: group)
     }
+
+    /// The star map's six faces, nil until it has been fetched once.
+    func starMap() async -> [Data]? {
+        await repository.starMap()
+    }
 }

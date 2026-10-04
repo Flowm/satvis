@@ -12,9 +12,25 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
 - `SatvisKit/` is a local Swift package holding everything that is not a view.
   `SGP4` is Vallado's reference C++, vendored unmodified (`vallado/VENDOR.md`)
   behind a C bridge, so no Swift module needs C++ interoperability. `SatvisCore`
-  holds element sets, the group index, propagation, and the arithmetic the web app
-  does on them. `SatvisData` holds the worker client, its disk cache, and the
-  snapshot shipped in the app. The app target holds only views and their models.
+  holds element sets, the group index, propagation, sampled trajectories and the
+  Sun, and the arithmetic the web app does on them. `SatvisData` holds the worker
+  client, its disk cache, and the snapshot shipped in the app. `SatvisRender` is the
+  Metal globe. The app target holds only views and their models.
+- `SatvisRender`'s shaders are `Shaders/*.msl`, compiled at run time by
+  `ShaderLibrary` off the main thread, so neither the build nor CI needs Xcode's
+  separately downloaded Metal toolchain. `RendererTests` compiles them on macOS,
+  which is where a shader error shows. The atmosphere, lighting and tone mapping are
+  CesiumJS's, ported, with the web app's defaults: a ported file keeps Cesium's
+  Apache 2.0 notice and says what changed, and `LICENSE.CesiumJS.md` stays beside
+  them, verbatim.
+- The star map is the web app's `DeepStar1K`, fetched from the site
+  (`data/starmap/`) and kept like the GP data, not shipped: it is generated with
+  Docker by `pnpm update-starmap`, and committing it here would be a second copy.
+  The sky is black until the first fetch.
+- The renderer works in the Earth-fixed frame in metres, relative to the eye
+  (high/low float pairs, safe math), with reversed-Z depth and no far plane.
+  Satellites are points the vertex shader interpolates from each one's sampled
+  trajectory, with the web app's quintic; the CPU only finds each stencil.
 - Every element set reaches SGP4 as OMM keywords (`MeanElements`). The worker's
   pseudo element sets still arrive as TLE lines; they are read into the same
   keywords at parse time, and Vallado's `twoline2rv` is never called.
@@ -51,7 +67,8 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 ## The worker
 
 - `SATVIS_API` in the launch environment replaces satvis.space: `make run API=…`,
-  or a scheme environment variable in Xcode.
+  or a scheme environment variable in Xcode. `SATVIS_TIME` (ISO 8601, UTC) stops
+  the clock at that instant, for screenshots and for checking the lighting.
 - `GroupRepository` revalidates every payload with its ETag, keeps it in
   Application Support, and falls back to the kept copy, then the snapshot, when
   the worker cannot be asked. A 200 that is not JSON counts as no answer: a host
@@ -78,6 +95,9 @@ operation for operation (`GreenwichHourAngle.swift`).
   also appears once before that, from the package tests that run first.
 - **Keep the vendored SGP4 byte for byte.** It is excluded from the pre-commit
   hooks and `.editorconfig`, which would otherwise strip its trailing spaces.
+- **An edit made while `xcodebuild` is building can be left out of it**, and the UI
+  test then runs the previous build: its failures name lines of the old file, and
+  the log lacks steps the source has. `touch` the file and run again.
 - **A lazy `List` has no rows off screen**, so a UI test has to scroll a row into
   view before it can find it. `LabeledContent` reads as one element labelled
   `"<label>, <value>"`, not as two texts.
