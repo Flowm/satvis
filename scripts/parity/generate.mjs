@@ -81,9 +81,12 @@ try {
       // The same rotation the propagation worker applies (sgp4Worker), in metres.
       const angle = greenwichHourAngle(instantMs);
       const [c, s] = [Math.cos(angle), Math.sin(angle)];
+      // The info panel's live strip.
+      const { latitude, longitude, height, velocity } = new Orbit(parsed[index].name, record).positionGeodetic(new Date(instantMs), true);
       return {
         record: index,
         instant: new Date(instantMs).toISOString(),
+        geodetic: { latitude, longitude, height, velocity },
         temePositionKm: [x, y, z],
         temeVelocityKmPerSecond: [state.velocity.x, state.velocity.y, state.velocity.z],
         fixedPositionMetres: [(c * x + s * y) * 1000, (-s * x + c * y) * 1000, z * 1000],
