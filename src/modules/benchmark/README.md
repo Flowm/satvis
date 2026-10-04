@@ -481,10 +481,11 @@ browser in the loop:
 - `index.ts` — the console handle, `window.bench`.
 - `../../components/BenchmarkPanel.vue` — the in-browser half.
 
-Nothing here is in the bundle a normal visitor downloads: the panel is an async
-component, so the whole framework is a chunk that loads only when the switch goes
-on, and it is excluded from the PWA precache (`vite.config.ts`) so the glob does
-not pull it down anyway.
+Nothing here runs for a normal visitor: the panel is an async component, so the
+whole framework is a chunk that loads only when the switch goes on, and the frame
+pump is a chunk of its own that loads only with `?framems`. The PWA precache does
+fetch both in the background, about 36 KB of a 9.6 MB precache, which keeps the
+panel working offline.
 
 `CesiumPerformanceStats` (behind the `showFps` toggle) is separate and untouched.
 It is deliberately not replaced: Cesium's own FPS counter is an independent second
