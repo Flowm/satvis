@@ -42,6 +42,12 @@ const cc = new CesiumController(viewer);
 app.provide(controllerKey, cc);
 window.cc = cc;
 
+// Frames for a page the browser presents none in, such as an automated pane. See
+// modules/benchmark/framePump.
+if (new URLSearchParams(window.location.search).has("framems")) {
+  void import("./modules/benchmark/framePump").then(({ installFramePumpIfRequested }) => installFramePumpIfRequested(viewer, window.location.search));
+}
+
 // The url sync waits for this before it reads the url: the url only states what
 // differs from the preset.
 const presetDefaults = markRaw(resolvePreset().then((preset) => preset.defaults));

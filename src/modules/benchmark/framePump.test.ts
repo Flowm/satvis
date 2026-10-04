@@ -1,39 +1,27 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { frameQueue, framePumpFrameMs, framePumpRequested } from "./framePump";
+import { frameQueue, requestedFrameMs } from "./framePump";
 
-describe("framePumpRequested", () => {
+describe("requestedFrameMs", () => {
   it("is off without the parameter", () => {
-    expect(framePumpRequested("")).toBe(false);
-    expect(framePumpRequested("?bench=true")).toBe(false);
+    expect(requestedFrameMs("")).toBeUndefined();
+    expect(requestedFrameMs("?bench=true")).toBeUndefined();
   });
 
-  it("is on for a bare parameter or any ordinary value", () => {
-    expect(framePumpRequested("?framepump")).toBe(true);
-    expect(framePumpRequested("?framepump=1")).toBe(true);
-    expect(framePumpRequested("?framepump=true")).toBe(true);
-    expect(framePumpRequested("?bench=true&framepump=1")).toBe(true);
+  it("takes the interval it is given", () => {
+    expect(requestedFrameMs("?framems=16")).toBe(16);
+    expect(requestedFrameMs("?bench=true&framems=33")).toBe(33);
+  });
+
+  it("stands in for 60 Hz when bare, or given nonsense", () => {
+    expect(requestedFrameMs("?framems")).toBe(16);
+    expect(requestedFrameMs("?framems=-5")).toBe(16);
+    expect(requestedFrameMs("?framems=soon")).toBe(16);
   });
 
   it("can be turned off in a url being reused", () => {
-    expect(framePumpRequested("?framepump=false")).toBe(false);
-    expect(framePumpRequested("?framepump=0")).toBe(false);
-  });
-});
-
-describe("framePumpFrameMs", () => {
-  it("stands in for 60 Hz by default", () => {
-    expect(framePumpFrameMs("?framepump=1")).toBe(16);
-  });
-
-  it("takes an override", () => {
-    expect(framePumpFrameMs("?framems=8")).toBe(8);
-  });
-
-  it("falls back rather than pacing on a nonsense value", () => {
-    expect(framePumpFrameMs("?framems=0")).toBe(16);
-    expect(framePumpFrameMs("?framems=-5")).toBe(16);
-    expect(framePumpFrameMs("?framems=soon")).toBe(16);
+    expect(requestedFrameMs("?framems=0")).toBeUndefined();
+    expect(requestedFrameMs("?framems=false")).toBeUndefined();
   });
 });
 

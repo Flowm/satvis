@@ -258,18 +258,25 @@ with `cacheId`. Both would have to change in one release. PostHog under
   the sample size, rows under 20 frames are struck through in the panel,
   `logRun` warns before the tables, and the run's environment records
   `visibility`. Read `frames` before believing anything else on a row.
-- **`?framepump=1` is for a tab that cannot be made visible**, which in practice
-  means an automated browser pane. It replaces `requestAnimationFrame` with a
-  MessageChannel — the one scheduler a hidden page does not throttle, where
-  `setTimeout` is clamped to a second — and drives `resize`/`render` in place of
-  the viewer's own loop, which cannot be restarted once its callback has been
-  suspended. Add `?framems=` to pace it something other than 60 Hz.
+- **`?framems=16` is for a tab that cannot be made visible**, which in practice
+  means an automated browser pane. It replaces `requestAnimationFrame` with frames
+  every 16 ms from a MessageChannel — the one scheduler a hidden page does not
+  throttle, where `setTimeout` is clamped to a second and a worker's messages slow
+  to one every ~100 ms — and drives `resize`/`render` in place of the viewer's own
+  loop, which cannot be restarted once its callback has been suspended. The
+  channel keeps a core busy. Another value paces it off 60 Hz; `0` turns it off.
 
-  Pair it with `?bench=true`: this module is loaded by the panel, so without the
-  panel there is nothing to install it. The pane also has to have laid the tab
-  out, or Cesium's canvas is 0 px wide and draws nothing however many frames it
-  is given — the pump says so once when it sees that, rather than letting a sweep
-  return zeros that look like measurements.
+  A test that needs no smooth picture can pace it slower, such as `?framems=100`
+  (10 frames a second), and spend less of the main thread on rendering. The core
+  stays busy between frames, so this saves render work, not the core. And a build
+  of more than 250 satellites gets 16 ms per frame, so at 10 frames a second it
+  takes about six times as long.
+
+  It works without the panel: `app.ts` loads it whenever the parameter is there.
+  The pane does have to have laid the tab out, or Cesium's canvas is 0 px wide and
+  draws nothing however many frames it is given — the pump says so once when it
+  sees that, rather than letting a sweep return zeros that look like measurements.
+  `document.hidden` stays true, so anything that reads it still sees a hidden page.
 
   It buys a scene that builds and renders; it does **not** buy a frame rate.
   Frames arrive on a fixed interval of the pump's choosing, so `fps` and
@@ -470,14 +477,15 @@ browser in the loop:
 - `benchmarkRunner.ts` — the loop, over a `BenchmarkTarget` interface.
 - `cesiumBenchmarkTarget.ts` — the only file that knows what a viewer is.
 - `framePump.ts` — frames for a page the browser stopped presenting. Off unless
-  `?framepump` asks; the queue in it is pure and tested.
+  `?framems` asks; the queue in it is pure and tested.
 - `index.ts` — the console handle, `window.bench`.
 - `../../components/BenchmarkPanel.vue` — the in-browser half.
 
-Nothing here is in the bundle a normal visitor downloads: the panel is an async
-component, so the whole framework is a chunk that loads only when the switch goes
-on, and it is excluded from the PWA precache (`vite.config.ts`) so the glob does
-not pull it down anyway.
+Nothing here runs for a normal visitor: the panel is an async component, so the
+whole framework is a chunk that loads only when the switch goes on, and the frame
+pump is a chunk of its own that loads only with `?framems`. The PWA precache does
+fetch both in the background, about 36 KB of a 9.6 MB precache, which keeps the
+panel working offline.
 
 `CesiumPerformanceStats` (behind the `showFps` toggle) is separate and untouched.
 It is deliberately not replaced: Cesium's own FPS counter is an independent second

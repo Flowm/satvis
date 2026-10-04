@@ -14,7 +14,6 @@ import {
 } from "./benchmarkPlan";
 import { BenchmarkRunner, DEFAULT_OPTIONS, FOOTPRINT_CAPTURE_MS, type BenchmarkOptions, type BenchmarkRun, type RunnerHooks } from "./benchmarkRunner";
 import { CesiumBenchmarkTarget, canMeasureFootprint, type TargetOptions } from "./cesiumBenchmarkTarget";
-import { installFramePumpIfRequested } from "./framePump";
 import { logRun, toCsv, toJson, formatTable } from "./report";
 
 export * from "./benchmarkPlan";
@@ -76,10 +75,6 @@ export function installBenchmark(cc: CesiumController): BenchmarkHandle {
   if (handle) {
     return handle;
   }
-  // Here rather than at boot, so a page nobody is benchmarking never loads it.
-  // Being this late costs the frames already missed: a build that stalled for
-  // want of them resumes at the next reconcile, which every step performs anyway.
-  installFramePumpIfRequested(cc.viewer, window.location.search);
   const target = new CesiumBenchmarkTarget(cc);
   const runner = new BenchmarkRunner(target);
 

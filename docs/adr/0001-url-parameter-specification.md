@@ -152,6 +152,22 @@ overrides it, because it says what the user chose and what returns on deselectio
 `catalogRevision` and `pickMode` are store state that is deliberately **not** synced —
 the former is a cache-invalidation counter, the latter a transient UI mode.
 
+### Read once, outside the store
+
+`framems` changes how the app is driven, not what it shows, so it is not store state. It
+is read once at startup straight from the query string, and the writer preserves it like
+any other unlisted parameter.
+
+| Parameter | Wire form / accepted values                                                         | Default      |
+| --------- | ----------------------------------------------------------------------------------- | ------------ |
+| `framems` | milliseconds between frames; bare or not a positive number is `16`; `0`/`false` off | absent (off) |
+
+It supplies frames to a page that gets none from the browser, which in practice means an
+automated, hidden browser pane. A test that needs no smooth picture can pace it slower,
+such as `framems=100`: that saves render work, though a build of more than 250 satellites
+then takes longer, as it builds a fixed slice per frame. See
+`src/modules/benchmark/README.md`.
+
 ## Semantics
 
 ### Defaults
