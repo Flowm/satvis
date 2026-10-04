@@ -845,3 +845,19 @@ click outside still closes it.
 arrives as `URL=` while the same value under another name arrives intact, so
 `make run URL=…` loads satvis.space. This run read a temporary `SATVIS_URL` instead,
 pointed at `http://[::1]:<port>/`: Vite listens on IPv6 loopback only.
+
+## Entity info panel: once a second at any clock speed
+
+**Why it cannot be a unit test.** The helper's timing is unit-tested
+(`CesiumCallbackHelper.test.ts`); whether the panel follows it needs the real clock
+and the real panel.
+
+**Procedure.** `?framems=16`, select a LEO satellite with
+`cc.viewer.selectedEntity`, then for 5 s at each speed count the frames on which the
+panel's `innerText` changed. Pause, jump the clock 30 min, and check that the panel
+catches up and then stays put.
+
+**Result, 2026-10-04, Chrome (in-app browser pane, frame pump on), CYGFM04.** Before:
+5 changes in 311 frames at 1×, 310 in 311 at 3600×. After: 5 changes at 1×, 60×,
+3600× and 86400×, none while paused. After the jump the panel had updated within
+200 ms and did not change again while paused.
