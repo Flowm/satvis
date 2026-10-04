@@ -10,7 +10,8 @@ import simd
         let library = try await ShaderLibrary.make(device: try #require(MTLCreateSystemDefaultDevice()))
         for name in [
             "fullscreenVertex", "skyBoxFragment", "skyAtmosphereVertex", "skyAtmosphereFragment", "globeVertex", "globeFragment", "pointVertex", "pointFragment",
-            "lineVertex", "lineFragment", "labelVertex", "labelFragment", "stationVertex", "stationFragment", "linkVertex", "linkFragment",
+            "lineVertex", "lineFragment", "labelVertex", "labelFragment", "stationVertex", "stationFragment", "linkVertex", "linkFragment", "overlayVertex", "overlayFragment",
+            "coneVertex", "coneFragment", "coneRimVertex", "coneRimFragment",
             "tonemapFragment",
         ] {
             #expect(library.makeFunction(name: name) != nil, "\(name)")
@@ -91,5 +92,65 @@ import simd
         let camera = OrbitCamera.home(aspectRatio: 390.0 / 844.0)
         #expect(abs(camera.latitude * 180 / .pi - 25) < 1e-9)
         #expect((15_000_000...40_000_000).contains(camera.altitude))
+    }
+
+    // The overlay is drawn with clip coordinates worked out per cube face, and
+    // sampled by the globe with Metal's own cube lookup: the two have to agree on
+    // which way each face faces, or every ground track lands somewhere else.
+    @MainActor
+    @Test(
+        .enabled(if: MTLCreateSystemDefaultDevice() != nil),
+        arguments: [
+            SIMD3<Double>(1, 0.2, 0.1), SIMD3(-1, 0.3, -0.2), SIMD3(0.2, 1, 0.3), SIMD3(-0.1, -1, 0.2), SIMD3(0.3, -0.2, 1), SIMD3(0.1, 0.3, -1),
+            SIMD3(0.8, 0.7, 0.1),
+        ])
+    func drawsTheGroundOverlayWhereTheGlobeSamplesIt(direction: SIMD3<Double>) async throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let queue = try #require(device.makeCommandQueue())
+        let library = try await ShaderLibrary.make(device: device)
+        let descriptor = MTLRenderPipelineDescriptor()
+        descriptor.vertexFunction = library.makeFunction(name: "overlayVertex")
+        descriptor.fragmentFunction = library.makeFunction(name: "overlayFragment")
+        descriptor.colorAttachments[0].pixelFormat = .r8Unorm
+        let pipeline = try await device.makeRenderPipelineState(descriptor: descriptor)
+        let overlay = try #require(GroundOverlay(device: device))
+
+        // A corridor across `direction`, 200 km wide.
+        let centre = normalize(direction)
+        let along = normalize(cross(centre, SIMD3(0, 0, 1) + SIMD3(0.3, 0, 0)))
+        let vertices = GroundOverlay.corridor(from: centre - 0.01 * along, to: centre + 0.01 * along, widthKm: 200)
+        let buffer = try #require(vertices.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) })
+        let commands = try #require(queue.makeCommandBuffer())
+        overlay.drawForTest(commands, pipeline: pipeline, vertices: buffer, count: vertices.count)
+
+        // Sampled at the corridor and on the far side of the Earth.
+        let sampler = try await device.makeLibrary(
+            source: """
+                #include <metal_stdlib>
+                using namespace metal;
+                kernel void probe(texturecube<float> overlay [[texture(0)]], device float *out [[buffer(0)]], constant float3 *directions [[buffer(1)]],
+                                  uint i [[thread_position_in_grid]]) {
+                    constexpr sampler nearest(filter::nearest);
+                    out[i] = overlay.sample(nearest, directions[i]).r;
+                }
+                """, options: nil
+        ).makeFunction(name: "probe")
+        let probe = try await device.makeComputePipelineState(function: try #require(sampler))
+        let output = try #require(device.makeBuffer(length: 2 * MemoryLayout<Float>.stride, options: .storageModeShared))
+        var directions = [SIMD3<Float>(centre), SIMD3<Float>(-centre)]
+        let encoder = try #require(commands.makeComputeCommandEncoder())
+        encoder.setComputePipelineState(probe)
+        encoder.setTexture(overlay.texture, index: 0)
+        encoder.setBuffer(output, offset: 0, index: 0)
+        encoder.setBytes(&directions, length: MemoryLayout<SIMD3<Float>>.stride * 2, index: 1)
+        encoder.dispatchThreads(MTLSize(width: 2, height: 1, depth: 1), threadsPerThreadgroup: MTLSize(width: 2, height: 1, depth: 1))
+        encoder.endEncoding()
+        await withCheckedContinuation { finished in
+            commands.addCompletedHandler { _ in finished.resume() }
+            commands.commit()
+        }
+        let values = output.contents().bindMemory(to: Float.self, capacity: 2)
+        #expect(values[0] > 0.2, "nothing drawn where \(direction) samples")
+        #expect(values[1] == 0, "drawn on the far side of \(direction)")
     }
 }

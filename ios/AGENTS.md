@@ -32,6 +32,11 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   (high/low float pairs, safe math), with reversed-Z depth and no far plane.
   Satellites are points the vertex shader interpolates from each one's sampled
   trajectory, with the web app's quintic; the CPU only finds each stencil.
+  The ground tracks are drawn once a second into the ground overlay, a cube map
+  around the Earth's centre that the globe samples by direction, so they will
+  follow terrain; `RendererTests` holds its faces to Metal's own cube lookup. The
+  sensor cones are drawn per frame from the same interpolation, cut where they
+  meet the ground. Both are for low orbits only, as on the web.
 - `Session`, owned by `SatvisApp`, is one open globe: the models (`ViewerClock`,
   `CatalogModel`, `PassModel`, `SatelliteLayer`, `StarMap`, and `PassAlerts`, which
   the background refresh needs too), what is selected and followed, what a tap
