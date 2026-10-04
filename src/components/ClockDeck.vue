@@ -14,7 +14,7 @@
         </span>
       </button>
 
-      <button type="button" class="stamp" :aria-label="open ? 'Hide clock controls' : 'Show clock controls'" :aria-expanded="open" @click="toggle">
+      <button type="button" class="stamp" :aria-label="`${clockLabel(now)}, ${open ? 'Hide' : 'Show'} clock controls`" :aria-expanded="open" @click="toggle">
         <span class="stamp__time">{{ clockLabel(now) }}</span>
         <span class="stamp__date">{{ dateLabel(now) }} UTC</span>
         <span v-if="!offPresent" class="stamp__live" role="img" aria-label="Live"></span>
