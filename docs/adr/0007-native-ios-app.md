@@ -114,7 +114,7 @@ earlier release would take the sky view away from them.
 | M2        | Explore: browser and search, selection, info panel, labels, orbit and orbit track, tracked satellite, clock deck.                                                                                                                                                 |
 | M3        | Passes: ground stations, both overpass modes, the passes tab, notifications, the ground station link.                                                                                                                                                             |
 | M4        | Map: streamed imagery, terrain, ground track, sensor cone, attribution.                                                                                                                                                                                           |
-| M5        | Links: URL codec, share, universal links, `/ot`, state restoration, PostHog.                                                                                                                                                                                      |
+| M5        | Links: URL codec, share, universal links, `/ot`, state restoration, PostHog. The App Store screenshots of the about page's three demo views, taken natively by link (the WebView app's `testScreenshot*` tests, dropped with it).                                 |
 | M6        | Sky view, aimed with CoreMotion's attitude. An acknowledgements screen with the licences and credits the app owes: CesiumJS (Apache 2.0, with its third-party notices), Vallado's SGP4, Natural Earth, and NASA SVS for the star map. Then the App Store release. |
 
 ## Code and checks

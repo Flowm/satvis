@@ -67,7 +67,10 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
   `API=…`): the group index and the groups the default preset enables. Run it
   before a release.
 - **`screenshots`** erases one simulator per App Store size and writes
-  `screenshots/`. Upload them to App Store Connect by hand.
+  `screenshots/`. Upload them to App Store Connect by hand. For now it takes only
+  the UI test's view of the browser: the about page's three demo views were the
+  WebView app's tests, opened by url, and come back natively with the links (M5).
+  `BASE_URL` does nothing until then.
 
 ## The worker
 
