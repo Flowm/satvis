@@ -6709,5 +6709,1095 @@
       "instant": "2049-06-30T18:30:15.250Z",
       "radians": 9.718420233815436
     }
-  ]
+  ],
+  "links": {
+    "vocabulary": {
+      "components": [
+        "Point",
+        "Label",
+        "Orbit",
+        "Orbit track",
+        "Ground track",
+        "Sensor cone",
+        "Ground station link"
+      ],
+      "layers": [
+        "NaturalEarth",
+        "VersaTiles",
+        "BlackMarble"
+      ],
+      "terrain": [
+        "None",
+        "ReEarth"
+      ],
+      "overpass": [
+        "elevation",
+        "swath"
+      ]
+    },
+    "presets": {
+      "default": {
+        "tags": "Weather"
+      },
+      "ot": {
+        "tags": "OT",
+        "elements": "Point,Label,Orbit,Sensor cone,Ground track",
+        "overpass": "swath",
+        "layers": "VersaTiles"
+      }
+    },
+    "defaults": {
+      "elements": [
+        "Point",
+        "Label"
+      ],
+      "sats": [],
+      "xsats": [],
+      "tags": [],
+      "gs": [],
+      "track": "",
+      "overpass": "elevation",
+      "layers": [
+        "NaturalEarth"
+      ],
+      "terrain": "None",
+      "time": null
+    },
+    "fieldKinds": [
+      {
+        "kind": "plainString",
+        "parses": [
+          {
+            "raw": "",
+            "value": ""
+          },
+          {
+            "raw": "ISS (ZARYA)",
+            "value": "ISS (ZARYA)"
+          },
+          {
+            "raw": "a,b~c",
+            "value": "a,b~c"
+          }
+        ],
+        "formats": [
+          {
+            "input": "",
+            "value": ""
+          },
+          {
+            "input": "ISS (ZARYA)",
+            "value": "ISS (ZARYA)"
+          }
+        ]
+      },
+      {
+        "kind": "stringList",
+        "parses": [
+          {
+            "raw": "",
+            "value": []
+          },
+          {
+            "raw": ",",
+            "value": []
+          },
+          {
+            "raw": "Weather",
+            "value": [
+              "Weather"
+            ]
+          },
+          {
+            "raw": "GNSS,,Weather,",
+            "value": [
+              "GNSS",
+              "Weather"
+            ]
+          },
+          {
+            "raw": "Space Station,OT",
+            "value": [
+              "Space Station",
+              "OT"
+            ]
+          }
+        ],
+        "formats": [
+          {
+            "input": [],
+            "value": ""
+          },
+          {
+            "input": [
+              "Weather"
+            ],
+            "value": "Weather"
+          },
+          {
+            "input": [
+              "GNSS",
+              "Space Station"
+            ],
+            "value": "GNSS,Space Station"
+          },
+          {
+            "input": [
+              "a,b"
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "tildeEscapedStringList",
+        "parses": [
+          {
+            "raw": "",
+            "value": []
+          },
+          {
+            "raw": "NOAA~19",
+            "value": [
+              "NOAA 19"
+            ]
+          },
+          {
+            "raw": "ISS (ZARYA),NOAA 19",
+            "value": [
+              "ISS (ZARYA)",
+              "NOAA 19"
+            ]
+          },
+          {
+            "raw": "A~B~C,,D",
+            "value": [
+              "A B C",
+              "D"
+            ]
+          }
+        ],
+        "formats": [
+          {
+            "input": [],
+            "value": ""
+          },
+          {
+            "input": [
+              "NOAA 19"
+            ],
+            "value": "NOAA 19"
+          },
+          {
+            "input": [
+              "A~B"
+            ]
+          },
+          {
+            "input": [
+              "a,b"
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "components",
+        "parses": [
+          {
+            "raw": "",
+            "value": []
+          },
+          {
+            "raw": "Point",
+            "value": [
+              "Point"
+            ]
+          },
+          {
+            "raw": "Point,Label,Orbit",
+            "value": [
+              "Point",
+              "Label",
+              "Orbit"
+            ]
+          },
+          {
+            "raw": "Sensor-cone,Ground-track",
+            "value": [
+              "Sensor cone",
+              "Ground track"
+            ]
+          },
+          {
+            "raw": "Bogus"
+          },
+          {
+            "raw": "Point,Bogus",
+            "value": [
+              "Point"
+            ]
+          },
+          {
+            "raw": "Bogus,Nonsense"
+          },
+          {
+            "raw": "3D model,Label",
+            "value": [
+              "Label"
+            ]
+          },
+          {
+            "raw": "Orbit track",
+            "value": [
+              "Orbit track"
+            ]
+          }
+        ],
+        "formats": [
+          {
+            "input": [],
+            "value": ""
+          },
+          {
+            "input": [
+              "Point",
+              "Label"
+            ],
+            "value": "Point,Label"
+          },
+          {
+            "input": [
+              "Sensor cone"
+            ],
+            "value": "Sensor cone"
+          },
+          {
+            "input": [
+              "Bogus"
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "layers",
+        "parses": [
+          {
+            "raw": "",
+            "value": []
+          },
+          {
+            "raw": "VersaTiles",
+            "value": [
+              "VersaTiles"
+            ]
+          },
+          {
+            "raw": "NaturalEarth,VersaTiles",
+            "value": [
+              "NaturalEarth",
+              "VersaTiles"
+            ]
+          },
+          {
+            "raw": "VersaTiles_0.5",
+            "value": [
+              "VersaTiles_0.5"
+            ]
+          },
+          {
+            "raw": "VersaTiles_.50",
+            "value": [
+              "VersaTiles_0.5"
+            ]
+          },
+          {
+            "raw": "VersaTiles_1",
+            "value": [
+              "VersaTiles_1"
+            ]
+          },
+          {
+            "raw": "VersaTiles_1.0",
+            "value": [
+              "VersaTiles_1"
+            ]
+          },
+          {
+            "raw": "VersaTiles_0",
+            "value": [
+              "VersaTiles_0"
+            ]
+          },
+          {
+            "raw": "VersaTiles_2"
+          },
+          {
+            "raw": "VersaTiles_"
+          },
+          {
+            "raw": "_0.5"
+          },
+          {
+            "raw": "VersaTiles_abc"
+          },
+          {
+            "raw": "VersaTiles_0x1",
+            "value": [
+              "VersaTiles_1"
+            ]
+          },
+          {
+            "raw": "VersaTiles_1e-1",
+            "value": [
+              "VersaTiles_0.1"
+            ]
+          },
+          {
+            "raw": "VersaTiles_0.0000001",
+            "value": [
+              "VersaTiles_1e-7"
+            ]
+          },
+          {
+            "raw": "VersaTiles_0.000001",
+            "value": [
+              "VersaTiles_0.000001"
+            ]
+          },
+          {
+            "raw": "OSM"
+          },
+          {
+            "raw": "OSM,BlackMarble",
+            "value": [
+              "BlackMarble"
+            ]
+          },
+          {
+            "raw": "Offline"
+          },
+          {
+            "raw": "Tiles,NaturalEarth_0.3",
+            "value": [
+              "NaturalEarth_0.3"
+            ]
+          }
+        ],
+        "formats": [
+          {
+            "input": [
+              "NaturalEarth"
+            ],
+            "value": "NaturalEarth"
+          },
+          {
+            "input": [
+              "VersaTiles_0.5"
+            ],
+            "value": "VersaTiles_0.5"
+          },
+          {
+            "input": [
+              "OSM"
+            ]
+          },
+          {
+            "input": [
+              "VersaTiles_2"
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "groundStationList",
+        "parses": [
+          {
+            "raw": "",
+            "value": []
+          },
+          {
+            "raw": "48.1351,11.582",
+            "value": [
+              {
+                "lat": 48.1351,
+                "lon": 11.582
+              }
+            ]
+          },
+          {
+            "raw": "46.5935,7.9091",
+            "value": [
+              {
+                "lat": 46.5935,
+                "lon": 7.9091
+              }
+            ]
+          },
+          {
+            "raw": "0,11.5",
+            "value": [
+              {
+                "lat": 0,
+                "lon": 11.5
+              }
+            ]
+          },
+          {
+            "raw": "-33.9249,18.4241,Cape Town",
+            "value": [
+              {
+                "lat": -33.9249,
+                "lon": 18.4241,
+                "name": "Cape Town"
+              }
+            ]
+          },
+          {
+            "raw": "48.1,11.5,Munich_47,8",
+            "value": [
+              {
+                "lat": 48.1,
+                "lon": 11.5,
+                "name": "Munich"
+              },
+              {
+                "lat": 47,
+                "lon": 8
+              }
+            ]
+          },
+          {
+            "raw": "48.1,11.5,",
+            "value": [
+              {
+                "lat": 48.1,
+                "lon": 11.5
+              }
+            ]
+          },
+          {
+            "raw": "48.1",
+            "value": []
+          },
+          {
+            "raw": "1,2,3,4",
+            "value": []
+          },
+          {
+            "raw": "abc,11.5",
+            "value": []
+          },
+          {
+            "raw": "48.1abc,11.5",
+            "value": [
+              {
+                "lat": 48.1,
+                "lon": 11.5
+              }
+            ]
+          },
+          {
+            "raw": " 48.1,11.5",
+            "value": [
+              {
+                "lat": 48.1,
+                "lon": 11.5
+              }
+            ]
+          },
+          {
+            "raw": "1e1,-2.5e-1",
+            "value": [
+              {
+                "lat": 10,
+                "lon": -0.25
+              }
+            ]
+          },
+          {
+            "raw": "Infinity,1",
+            "value": []
+          },
+          {
+            "raw": "__48,11__",
+            "value": [
+              {
+                "lat": 48,
+                "lon": 11
+              }
+            ]
+          }
+        ],
+        "formats": [
+          {
+            "input": [],
+            "value": ""
+          },
+          {
+            "input": [
+              {
+                "lat": 48.1351,
+                "lon": 11.582
+              }
+            ],
+            "value": "48.1351,11.5820"
+          },
+          {
+            "input": [
+              {
+                "lat": 46.59354,
+                "lon": 7.90905,
+                "name": "Jungfraujoch"
+              }
+            ],
+            "value": "46.5935,7.9090,Jungfraujoch"
+          },
+          {
+            "input": [
+              {
+                "lat": 0,
+                "lon": -0.00005
+              }
+            ],
+            "value": "0.0000,-0.0001"
+          },
+          {
+            "input": [
+              {
+                "lat": 1.00005,
+                "lon": 2.00015
+              }
+            ],
+            "value": "1.0001,2.0002"
+          },
+          {
+            "input": [
+              {
+                "lat": 1,
+                "lon": 2,
+                "name": "a,b"
+              }
+            ]
+          },
+          {
+            "input": [
+              {
+                "lat": 1,
+                "lon": 2,
+                "name": "a_b"
+              }
+            ]
+          },
+          {
+            "input": [
+              {
+                "lat": 1,
+                "lon": 2,
+                "name": ""
+              },
+              {
+                "lat": 3,
+                "lon": 4,
+                "name": "Two"
+              }
+            ],
+            "value": "1.0000,2.0000_3.0000,4.0000,Two"
+          }
+        ]
+      },
+      {
+        "kind": "timestamp",
+        "parses": [
+          {
+            "raw": "2026-10-04T20:46Z",
+            "value": "2026-10-04T20:46Z"
+          },
+          {
+            "raw": "2026-10-04T20:46:59Z",
+            "value": "2026-10-04T20:46Z"
+          },
+          {
+            "raw": "2026-10-04T20:46:30.999Z",
+            "value": "2026-10-04T20:46Z"
+          },
+          {
+            "raw": "2026-10-04T20:46",
+            "value": "2026-10-04T20:46Z"
+          },
+          {
+            "raw": "2026-10-04",
+            "value": "2026-10-04T00:00Z"
+          },
+          {
+            "raw": "2019-07-15T15:52",
+            "value": "2019-07-15T15:52Z"
+          },
+          {
+            "raw": "2026-10-04T22:46+02:00",
+            "value": "2026-10-04T20:46Z"
+          },
+          {
+            "raw": "Point"
+          },
+          {
+            "raw": ""
+          }
+        ],
+        "formats": [
+          {
+            "input": null
+          },
+          {
+            "input": "2026-10-04T20:46:59.999Z",
+            "value": "2026-10-04T20:46Z"
+          },
+          {
+            "input": "2026-10-04T20:46Z",
+            "value": "2026-10-04T20:46Z"
+          }
+        ]
+      },
+      {
+        "kind": "overpass",
+        "parses": [
+          {
+            "raw": "elevation",
+            "value": "elevation"
+          },
+          {
+            "raw": "swath",
+            "value": "swath"
+          },
+          {
+            "raw": "Swath"
+          },
+          {
+            "raw": ""
+          }
+        ],
+        "formats": [
+          {
+            "input": "elevation",
+            "value": "elevation"
+          },
+          {
+            "input": "swath",
+            "value": "swath"
+          },
+          {
+            "input": "bogus"
+          }
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "preset": "default",
+        "query": "",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "time": null
+        },
+        "invalid": [],
+        "written": ""
+      },
+      {
+        "preset": "default",
+        "query": "tags=Weather",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "time": null
+        },
+        "invalid": [],
+        "written": ""
+      },
+      {
+        "preset": "default",
+        "query": "tags=",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "time": null
+        },
+        "invalid": [],
+        "written": "tags="
+      },
+      {
+        "preset": "default",
+        "query": "tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model&layers=VersaTiles",
+        "state": {
+          "elements": [
+            "Point",
+            "Label",
+            "Orbit"
+          ],
+          "sats": [
+            "ISS (ZARYA)"
+          ],
+          "xsats": [],
+          "tags": [],
+          "gs": [],
+          "track": "ISS (ZARYA)",
+          "overpass": "elevation",
+          "layers": [
+            "VersaTiles"
+          ],
+          "terrain": "None",
+          "time": null
+        },
+        "invalid": [],
+        "written": "elements=Point,Label,Orbit&sats=ISS+(ZARYA)&tags=&track=ISS+(ZARYA)&layers=VersaTiles"
+      },
+      {
+        "preset": "default",
+        "query": "scene=Sky&gs=46.5935,7.9091&terrain=ReEarth&layers=VersaTiles&stars=DeepStar2K&time=2026-10-04T19:22Z&tags=GNSS,Weather,OneWeb&elements=Point,Label",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "GNSS",
+            "Weather",
+            "OneWeb"
+          ],
+          "gs": [
+            {
+              "lat": 46.5935,
+              "lon": 7.9091
+            }
+          ],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "VersaTiles"
+          ],
+          "terrain": "ReEarth",
+          "time": "2026-10-04T19:22Z"
+        },
+        "invalid": [],
+        "written": "scene=Sky&stars=DeepStar2K&tags=GNSS,Weather,OneWeb&gs=46.5935,7.9091&layers=VersaTiles&terrain=ReEarth&time=2026-10-04T19:22Z"
+      },
+      {
+        "preset": "default",
+        "query": "sats=NOAA~19,METOP-B&elements=Point,Sensor-cone&xsats=A%2CB",
+        "state": {
+          "elements": [
+            "Point",
+            "Sensor cone"
+          ],
+          "sats": [
+            "NOAA 19",
+            "METOP-B"
+          ],
+          "xsats": [
+            "A",
+            "B"
+          ],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "time": null
+        },
+        "invalid": [],
+        "written": "elements=Point,Sensor+cone&sats=NOAA+19,METOP-B&xsats=A,B"
+      },
+      {
+        "preset": "default",
+        "query": "layers=Bogus&terrain=CesiumWorldTerrain&overpass=Swath&time=Point&gs=abc,1_2,3",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [
+            {
+              "lat": 2,
+              "lon": 3
+            }
+          ],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "time": null
+        },
+        "invalid": [
+          "overpass",
+          "layers",
+          "terrain",
+          "time"
+        ],
+        "written": "gs=2.0000,3.0000"
+      },
+      {
+        "preset": "default",
+        "query": "embed&tags=Weather&tags=GNSS&bench=true&utm_source=x+y",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "time": null
+        },
+        "invalid": [],
+        "written": "embed&bench=true&utm_source=x+y"
+      },
+      {
+        "preset": "default",
+        "query": "track=&gs=&elements=",
+        "state": {
+          "elements": [],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "time": null
+        },
+        "invalid": [],
+        "written": "elements="
+      },
+      {
+        "preset": "default",
+        "query": "layers=NaturalEarth,VersaTiles_0.50,BlackMarble",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth",
+            "VersaTiles_0.5",
+            "BlackMarble"
+          ],
+          "terrain": "None",
+          "time": null
+        },
+        "invalid": [],
+        "written": "layers=NaturalEarth,VersaTiles_0.5,BlackMarble"
+      },
+      {
+        "preset": "default",
+        "query": "sats=Caf%C3%A9+1,%E2%9C%93&track=a%26b%3Dc%23d",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [
+            "Café 1",
+            "✓"
+          ],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "a&b=c#d",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "time": null
+        },
+        "invalid": [],
+        "written": "sats=Caf%C3%A9+1,%E2%9C%93&track=a%26b=c%23d"
+      },
+      {
+        "preset": "ot",
+        "query": "",
+        "state": {
+          "elements": [
+            "Point",
+            "Label",
+            "Orbit",
+            "Sensor cone",
+            "Ground track"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "OT"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "swath",
+          "layers": [
+            "VersaTiles"
+          ],
+          "terrain": "None",
+          "time": null
+        },
+        "invalid": [],
+        "written": ""
+      },
+      {
+        "preset": "ot",
+        "query": "tags=OT",
+        "state": {
+          "elements": [
+            "Point",
+            "Label",
+            "Orbit",
+            "Sensor cone",
+            "Ground track"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "OT"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "swath",
+          "layers": [
+            "VersaTiles"
+          ],
+          "terrain": "None",
+          "time": null
+        },
+        "invalid": [],
+        "written": ""
+      },
+      {
+        "preset": "ot",
+        "query": "tags=Weather&overpass=elevation&layers=NaturalEarth",
+        "state": {
+          "elements": [
+            "Point",
+            "Label",
+            "Orbit",
+            "Sensor cone",
+            "Ground track"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "time": null
+        },
+        "invalid": [],
+        "written": "tags=Weather&overpass=elevation&layers=NaturalEarth"
+      },
+      {
+        "preset": "ot",
+        "query": "elements=Point,Label",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "OT"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "swath",
+          "layers": [
+            "VersaTiles"
+          ],
+          "terrain": "None",
+          "time": null
+        },
+        "invalid": [],
+        "written": "elements=Point,Label"
+      }
+    ]
+  }
 }

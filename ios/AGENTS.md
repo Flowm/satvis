@@ -158,7 +158,10 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 code answers for the element sets in `parity-input.json`: positions, the sampling
 grid, the info panel's details, and passes over three ground stations in both
 overpass modes, with the rows, headline and timeline strip the panel makes of
-them. `SatvisCore/Shared/web-tables.json` is the web
+them. It also holds the URL codec's answers (`urlCodec.ts`, with vue-router's
+query parser and serializer): each kind of parameter on awkward input, and whole
+links read onto a preset and written back, over the parameters and vocabularies
+the app honours (`LinkCodec`). `SatvisCore/Shared/web-tables.json` is the web
 app's SATCAT labels and external links, read as they are. Regenerate both with
 `pnpm update-parity-fixtures` at the repository root; never edit them by hand. CI
 fails while it is stale. SGP4 states agree with satellite.js to under a
