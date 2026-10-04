@@ -100,10 +100,32 @@ public enum GroundStations {
     }
 }
 
-/// JavaScript's `Number.prototype.toFixed`: a tie rounds away from zero.
+/// JavaScript's `Number.prototype.toFixed`: the double's exact decimal value
+/// rounded, a tie away from zero, so 7.90905, stored just below the tie, gives
+/// 7.9090. Rounding the scaled double instead would round the tie it makes.
 func toFixed(_ value: Double, _ digits: Int) -> String {
-    let scale = pow(10, Double(digits))
-    let scaled = (abs(value) * scale).rounded(.toNearestOrAwayFromZero)
     let sign = value < 0 ? "-" : ""
-    return sign + String(format: "%.\(digits)f", scaled / scale)
+    // Exact: a double's fraction has at most 52 binary digits above 1, and far
+    // more digits than this below it never decide a rounding.
+    let exact = String(format: "%.60f", abs(value))
+    let point = exact.firstIndex(of: ".")!
+    let fraction = exact[exact.index(after: point)...]
+    var kept = Array(exact[..<point] + fraction.prefix(digits))
+    if let next = fraction.dropFirst(digits).first, next >= "5" {
+        var index = kept.count - 1
+        while index >= 0 {
+            if kept[index] == "9" {
+                kept[index] = "0"
+                index -= 1
+            } else {
+                kept[index] = Character(String(kept[index].wholeNumberValue! + 1))
+                break
+            }
+        }
+        if index < 0 {
+            kept.insert("1", at: 0)
+        }
+    }
+    let integer = String(kept.dropLast(digits))
+    return sign + (digits == 0 ? integer : integer + "." + String(kept.suffix(digits)))
 }
