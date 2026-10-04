@@ -342,6 +342,13 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     }
   }
 
+  // Turn a satellite on without ever turning it off: opening its info needs it built.
+  function activateSat(name: string): void {
+    if (!activeSatNames.value.has(name)) {
+      toggleSat(name);
+    }
+  }
+
   function toggleExpand(tag: string): void {
     const next = new Set(expandedGroups.value);
     if (next.has(tag)) {
@@ -377,6 +384,7 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     isLoading,
     toggleGroup,
     toggleSat,
+    activateSat,
     toggleExpand,
     clearAll,
   };

@@ -38,7 +38,7 @@
     <div v-else-if="rows.length > 0" ref="scrollEl" class="browser-list" :style="{ height: listHeight }">
       <div class="browser-list-inner" :style="{ height: `${totalSize}px` }">
         <div v-for="virtualRow in virtualRows" :key="virtualRow.row.id" class="browser-list-row" :style="{ transform: `translateY(${virtualRow.start}px)` }">
-          <satellite-browser-row :row="virtualRow.row" @toggle-group="toggleGroup" @toggle-sat="toggleSat" @toggle-expand="toggleExpand" />
+          <satellite-browser-row :row="virtualRow.row" @toggle-group="toggleGroup" @toggle-sat="toggleSat" @show-info="showInfo" @toggle-expand="toggleExpand" />
         </div>
       </div>
     </div>
@@ -62,8 +62,7 @@ import { type BrowserRow, useSatelliteBrowser } from "../composables/useSatellit
 
 const ROW_HEIGHT = 28;
 
-// The catalog, not the controller: it is all this panel needs from the globe.
-const { catalog } = useController().sats;
+const { sats } = useController();
 
 const {
   searchQuery,
@@ -80,9 +79,15 @@ const {
   isLoading,
   toggleGroup,
   toggleSat,
+  activateSat,
   toggleExpand,
   clearAll,
-} = useSatelliteBrowser(catalog);
+} = useSatelliteBrowser(sats.catalog);
+
+function showInfo(name: string): void {
+  activateSat(name);
+  sats.select(name);
+}
 
 const groupItems = computed(() => availableGroups.value.toSorted((a, b) => a.tag.localeCompare(b.tag)).map((g) => ({ label: `${g.tag} (${g.count})`, value: g.tag })));
 

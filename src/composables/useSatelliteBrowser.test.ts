@@ -118,4 +118,16 @@ describe("useSatelliteBrowser search-only groups", () => {
     expect(satStore.enabledSatellites).toEqual(["SENTINEL-1"]);
     expect(satStore.enabledTags).toEqual([]);
   });
+
+  test("activating a satellite turns it on but never off", async () => {
+    const { catalog, browser } = setup();
+    const satStore = useSatStore();
+    await catalog.ensureAll();
+    browser.setEnabledTags(["Weather"]);
+    browser.activateSat("METEO-1");
+    expect(satStore.disabledSatellites).toEqual([]);
+    browser.activateSat("SENTINEL-1");
+    browser.activateSat("SENTINEL-1");
+    expect(satStore.enabledSatellites).toEqual(["SENTINEL-1"]);
+  });
 });

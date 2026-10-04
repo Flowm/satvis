@@ -140,6 +140,9 @@ export class SatelliteManager {
 
   pendingTrackedSatellite: string | undefined;
 
+  // Selected the moment it is built. See select().
+  #pendingSelection: string | undefined;
+
   /** Simulation time the batched orbit tracks were last re-cut at. See #refreshDerivedGeometry. */
   #tracksRefreshedAt: JulianDate;
 
@@ -220,6 +223,11 @@ export class SatelliteManager {
         this.getSatellite(this.trackedSatellite)?.show(this.#effectiveComponents());
       }
       this.#onTrackedChange?.(this.trackedSatellite);
+    });
+
+    // Any other selection, by click or by select(), supersedes a pending one.
+    this.viewer.selectedEntityChanged.addEventListener(() => {
+      this.#pendingSelection = undefined;
     });
 
     // New/changed catalog entries may fall into the current activation target
@@ -520,7 +528,7 @@ export class SatelliteManager {
 
   // Reconcile the live #active map against the activation target: dispose
   // collections that are no longer targeted, instantiate the ones that are
-  // newly targeted, and resolve a pending track once its satellite exists.
+  // newly targeted, and resolve a pending track or selection once its satellite exists.
   #reconcileActive(): void {
     const target = this.#activeTargetEntries();
 
@@ -543,7 +551,7 @@ export class SatelliteManager {
     // takes, tracked satellite first. See #build.
     this.#queue = buildOrder(
       [...target].filter(([key]) => !this.#active.has(key)),
-      this.pendingTrackedSatellite || this.trackedSatellite || undefined,
+      this.pendingTrackedSatellite || this.#pendingSelection || this.trackedSatellite || undefined,
     );
     // Small enough to build in one go, judged once. See #build.
     this.#unbudgetedBuild = this.#queue.length <= BUILD_SYNCHRONOUS_LIMIT;
@@ -621,6 +629,9 @@ export class SatelliteManager {
         sat.track();
         this.pendingTrackedSatellite = undefined;
       }
+    }
+    if (this.#pendingSelection) {
+      this.select(this.#pendingSelection);
     }
 
     if (this.#ready.length > 0 || this.#opening > 0) {
@@ -780,6 +791,18 @@ export class SatelliteManager {
       }
     }
     return undefined;
+  }
+
+  /**
+   * Select a satellite, which opens its info panel. One that is not built yet is
+   * selected once it is, so the caller only has to make sure it is activated.
+   */
+  select(name: string): void {
+    const entity = this.getSatellite(name)?.defaultEntity;
+    this.#pendingSelection = entity ? undefined : name;
+    if (entity) {
+      this.viewer.selectedEntity = entity;
+    }
   }
 
   get activeSatellites(): SatelliteComponentCollection[] {
