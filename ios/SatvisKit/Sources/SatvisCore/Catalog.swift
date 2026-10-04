@@ -21,14 +21,33 @@ public struct Catalog: Sendable {
 
     public init() {}
 
-    public mutating func add(_ records: [GPRecord], tags: [String], group: String? = nil) {
+    /// Adds a group's records, or newer element sets for satellites already known:
+    /// two groups serving one satellite may lag each other, and the newer epoch
+    /// wins. Whether anything changed.
+    @discardableResult
+    public mutating func add(_ records: [GPRecord], tags: [String], group: String? = nil) -> Bool {
+        var changed = false
         for record in records {
             let id = "\(record.satnum)|\(record.name)"
-            entries[id, default: CatalogEntry(id: id, record: record, tags: [])].tags.formUnion(tags)
+            guard var entry = entries[id] else {
+                entries[id] = CatalogEntry(id: id, record: record, tags: Set(tags), groups: group.map { [$0] } ?? [])
+                changed = true
+                continue
+            }
+            let before = entry
+            entry.tags.formUnion(tags)
             if let group {
-                entries[id]?.groups.insert(group)
+                entry.groups.insert(group)
+            }
+            if record != entry.record, record.meanElements.epoch.julianDate >= entry.record.meanElements.epoch.julianDate {
+                entry.record = record
+            }
+            if entry != before {
+                entries[id] = entry
+                changed = true
             }
         }
+        return changed
     }
 
     public func entries(tagged tag: String) -> [CatalogEntry] {

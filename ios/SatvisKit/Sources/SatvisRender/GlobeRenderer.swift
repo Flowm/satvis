@@ -40,6 +40,11 @@ public struct SatelliteComponents: OptionSet, Sendable, Hashable {
     public static let orbitTrack = SatelliteComponents(rawValue: 1 << 3)
     public static let groundStationLink = SatelliteComponents(rawValue: 1 << 7)
 
+    /// Past these many satellites a component is not drawn, as the web app
+    /// switches it off: labels stop being readable, and every link is a line.
+    public static let labelBudget = 200
+    public static let linkBudget = 500
+
     /// The web app's names, as its `elements` url parameter and presets use them.
     public static let named: [(String, SatelliteComponents)] = [
         ("Point", .point), ("Label", .label), ("Orbit", .orbit), ("Orbit track", .orbitTrack), ("Ground station link", .groundStationLink),
@@ -64,7 +69,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private static let depthFormat = MTLPixelFormat.depth32Float
     private static let framesInFlight = 3
 
-    private let device: MTLDevice
+    private nonisolated let device: MTLDevice
     private let queue: MTLCommandQueue
     private let skyBoxPipeline: MTLRenderPipelineState
     private let skyAtmospherePipeline: MTLRenderPipelineState
@@ -86,11 +91,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var hdr: MTLTexture?
     private var depth: MTLTexture?
     private let points = SatellitePoints()
-    private var labels: (atlas: LabelAtlas, instances: MTLBuffer)?
     private var stations: [StationMarker] = []
     private var links: [StationLink] = []
     private var pin: MTLTexture?
-    private let pixelScale: Double
+    private nonisolated let pixelScale: Double
     /// What the last frame was drawn from, for picking.
     private var lastFrame: (viewProjection: simd_double4x4, position: SIMD3<Double>, size: SIMD2<Double>, time: Double)?
     private var pointFrameBuffers: [MTLBuffer?]
@@ -211,18 +215,18 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
     }
 
-    public func setSatellites(_ satellites: [PointSatellite]) {
-        let names = points.satellites.map(\.name)
-        points.update(satellites, device: device)
-        guard satellites.map(\.name) != names || labels == nil else {
-            return
-        }
-        labels = nil
-        if !satellites.isEmpty, satellites.count <= LabelAtlas.maximumLabels, let atlas = LabelAtlas(names: satellites.map(\.name), scale: pixelScale, device: device) {
-            labels = atlas.instances.withUnsafeBytes { bytes in
-                device.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count).map { (atlas, $0) }
-            }
-        }
+    /// Packs satellites for drawing, off the main thread. Hand the result to
+    /// `setSatellites`.
+    public nonisolated func prepare(_ satellites: [PointSatellite]) async -> PreparedSatellites {
+        let device = device
+        let scale = pixelScale
+        return await Task.detached(priority: .userInitiated) {
+            PreparedSatellites(satellites, device: device, labelScale: scale)
+        }.value
+    }
+
+    public func setSatellites(_ prepared: PreparedSatellites) {
+        points.install(prepared)
     }
 
     /// The ground stations to stand pins on.
@@ -417,7 +421,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 encoder.drawIndexedPrimitives(type: .triangle, indexCount: globe.count, indexType: .uint32, indexBuffer: globe.indices, indexBufferOffset: 0)
             }
 
-            if let samples = points.samples, let instances = points.instances, let states = pointFrames(at: now) {
+            if let samples = points.prepared?.samples, let instances = points.prepared?.instances, let states = pointFrames(at: now) {
                 encoder.setDepthStencilState(depthTest)
                 encoder.setCullMode(.none)
                 encoder.setVertexBuffer(samples, offset: 0, index: 0)
@@ -433,7 +437,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                     encoder.setRenderPipelineState(pointPipeline)
                     encoder.drawPrimitives(type: .point, vertexStart: 0, vertexCount: points.count)
                 }
-                if components.contains(.label), let labels {
+                if components.contains(.label), let labels = points.prepared?.labels {
                     encoder.setRenderPipelineState(labelPipeline)
                     encoder.setVertexBuffer(labels.instances, offset: 0, index: 4)
                     encoder.setFragmentTexture(labels.atlas.texture, index: 0)
@@ -491,8 +495,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// This frame's stencils, in a buffer the GPU is not still reading.
     private func pointFrames(at now: Double) -> MTLBuffer? {
-        let frames = points.frames(at: now)
-        let length = frames.count * MemoryLayout<PointFrame>.stride
+        let length = points.count * MemoryLayout<PointFrame>.stride
         guard length > 0 else {
             return nil
         }
@@ -502,7 +505,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         guard let buffer = pointFrameBuffers[frameIndex] else {
             return nil
         }
-        frames.withUnsafeBytes { buffer.contents().copyMemory(from: $0.baseAddress!, byteCount: length) }
+        points.writeFrames(at: now, into: buffer)
         return buffer
     }
 

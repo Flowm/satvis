@@ -46,3 +46,29 @@ import Testing
         }
     }
 }
+
+@Suite struct PassStoreRepredictionTests {
+    private let munich = GroundStation(latitude: 48.1351, longitude: 11.582, name: "Munich")
+
+    // Only what has to be predicted again comes back, so a caller holding the
+    // rest has nothing to redo.
+    @Test func returnsOnlyWhatItPredictedAgain() async throws {
+        var catalog = Catalog()
+        catalog.add(try GPRecord.decodePayload(Parity.fixture("parity-input")), tags: ["parity"])
+        let entries = catalog.entries(tagged: "parity")
+        let time = try #require(utcMilliseconds(iso: "2026-10-02T12:00:00"))
+        let store = PassStore()
+        await store.configure(.init(stations: [munich], mode: .elevation))
+
+        #expect(await store.predict(entries, at: time).count == entries.count)
+        #expect(await store.predict(entries, at: time + 3_600_000).isEmpty)
+        // Out of the window: everything again.
+        #expect(await store.predict(entries, at: time + 2 * 86_400_000).count == entries.count)
+
+        // A newer element set for one satellite: that one again.
+        var newer = entries[0]
+        newer.record.meanElements.meanAnomaly += 1
+        let again = await store.predict([newer] + entries.dropFirst(), at: time + 2 * 86_400_000)
+        #expect(Array(again.keys) == [newer.id])
+    }
+}

@@ -40,3 +40,25 @@ import Testing
         #expect(!activation.enabledSatellites.contains("GOES 19"))
     }
 }
+
+@Suite struct CatalogRefreshTests {
+    // A group fetched again brings newer element sets; an older one never wins.
+    @Test func takesTheNewerElementSet() throws {
+        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        var catalog = Catalog()
+        var changed = catalog.add([records[0]], tags: ["Weather"], group: "weather")
+        #expect(changed)
+        changed = catalog.add([records[0]], tags: ["Weather"], group: "weather")
+        #expect(!changed)
+
+        var newer = records[0]
+        newer.meanElements.epoch.dayOfYear += 1
+        newer.meanElements.meanAnomaly += 1
+        changed = catalog.add([newer], tags: ["Weather"], group: "weather")
+        #expect(changed)
+        #expect(catalog.entries.values.first?.record == newer)
+        changed = catalog.add([records[0]], tags: ["Weather"], group: "weather")
+        #expect(!changed)
+        #expect(catalog.entries.values.first?.record == newer)
+    }
+}

@@ -96,7 +96,17 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 - `GroupRepository` revalidates every payload with its ETag, keeps it in
   Application Support, and falls back to the kept copy, then the snapshot, when
   the worker cannot be asked. A 200 that is not JSON counts as no answer: a host
-  without the worker serves its index.html for any path.
+  without the worker serves its index.html for any path. The app never waits on
+  the worker for what a copy can show: the index and each group come from the
+  kept copy or the snapshot first (`keptIndex`, `keptRecords`), the worker's
+  answer replaces them when it lands, and a return to the foreground asks again
+  for every group loaded. Requests time out after 15 s.
+- Work that grows with the number of satellites stays off the main thread, or is
+  done only when its input changes: the GPU buffers are packed by
+  `GlobeRenderer.prepare`, `CatalogModel.activeEntries` is kept rather than
+  worked out on every read, `PassModel` publishes only what was predicted again,
+  and the station links are rebuilt only when the passes change. Past 500 active
+  satellites the links are not drawn, as the web app switches them off.
 - Tags and presets come from the group index, not from the app.
 
 ## Parity with the web app

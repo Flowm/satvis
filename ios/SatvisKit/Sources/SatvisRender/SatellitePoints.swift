@@ -46,48 +46,78 @@ struct PointFrame {
     var offset: Float
 }
 
+/// The satellites ready to draw: their samples and instances in GPU buffers, and
+/// their labels. Packed off the main thread (`GlobeRenderer.prepare`), because the
+/// samples of ten thousand satellites run to tens of megabytes.
+public struct PreparedSatellites: @unchecked Sendable {
+    let satellites: [PointSatellite]
+    let samples: MTLBuffer?
+    let instances: MTLBuffer?
+    let labels: (atlas: LabelAtlas, instances: MTLBuffer)?
+
+    init(_ satellites: [PointSatellite], device: MTLDevice, labelScale: Double) {
+        self.satellites = satellites
+        let sampleCount = satellites.reduce(0) { $0 + $1.trajectory.positions.count }
+        guard sampleCount > 0,
+            let samples = device.makeBuffer(length: sampleCount * 3 * MemoryLayout<Float>.stride, options: .storageModeShared),
+            let instances = device.makeBuffer(length: satellites.count * MemoryLayout<PointInstance>.stride, options: .storageModeShared)
+        else {
+            self.samples = nil
+            self.instances = nil
+            labels = nil
+            return
+        }
+        // Written in place: no intermediate array of the whole set.
+        let floats = samples.contents().bindMemory(to: Float.self, capacity: sampleCount * 3)
+        let instanceList = instances.contents().bindMemory(to: PointInstance.self, capacity: satellites.count)
+        var next = 0
+        for (index, satellite) in satellites.enumerated() {
+            let trajectory = satellite.trajectory
+            instanceList[index] = PointInstance(
+                color: satellite.color, sampleStart: UInt32(next), sampleCount: UInt32(trajectory.positions.count),
+                stepSeconds: Float(trajectory.stepMilliseconds / 1000))
+            for position in trajectory.positions {
+                floats[3 * next] = Float(position.x)
+                floats[3 * next + 1] = Float(position.y)
+                floats[3 * next + 2] = Float(position.z)
+                next += 1
+            }
+        }
+        self.samples = samples
+        self.instances = instances
+        labels =
+            satellites.count <= LabelAtlas.maximumLabels
+            ? LabelAtlas(names: satellites.map(\.name), scale: labelScale, device: device).flatMap { atlas in
+                atlas.instances.withUnsafeBytes { bytes in device.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count).map { (atlas, $0) } }
+            } : nil
+    }
+}
+
 /// The satellites' samples on the GPU, and each frame's stencils for them.
 @MainActor
 final class SatellitePoints {
-    private(set) var samples: MTLBuffer?
-    private(set) var instances: MTLBuffer?
-    private(set) var satellites: [PointSatellite] = []
+    private(set) var prepared: PreparedSatellites?
     private var indexByID: [String: Int] = [:]
 
+    var satellites: [PointSatellite] { prepared?.satellites ?? [] }
     var count: Int { satellites.count }
 
-    func update(_ satellites: [PointSatellite], device: MTLDevice) {
-        self.satellites = satellites
-        indexByID = Dictionary(satellites.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
-        guard !satellites.isEmpty else {
-            samples = nil
-            instances = nil
-            return
-        }
-        var flat: [Float] = []
-        var instanceList: [PointInstance] = []
-        for satellite in satellites {
-            let trajectory = satellite.trajectory
-            instanceList.append(
-                PointInstance(
-                    color: satellite.color, sampleStart: UInt32(flat.count / 3), sampleCount: UInt32(trajectory.positions.count),
-                    stepSeconds: Float(trajectory.stepMilliseconds / 1000)))
-            for position in trajectory.positions {
-                flat += [Float(position.x), Float(position.y), Float(position.z)]
-            }
-        }
-        samples = device.makeBuffer(bytes: flat, length: flat.count * MemoryLayout<Float>.stride)
-        instances = device.makeBuffer(bytes: instanceList, length: instanceList.count * MemoryLayout<PointInstance>.stride)
+    func install(_ prepared: PreparedSatellites) {
+        self.prepared = prepared
+        indexByID = Dictionary(prepared.satellites.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
-    /// Where each satellite's stencil sits at this instant. A satellite outside its
-    /// window is hidden until the next refill brings it back.
-    func frames(at epochMilliseconds: Double) -> [PointFrame] {
-        satellites.map { satellite in
-            guard let (start, offset) = satellite.trajectory.stencil(at: epochMilliseconds) else {
-                return PointFrame(stencilStart: 0, offset: -1)
+    /// Where each satellite's stencil sits at this instant, written into `buffer`.
+    /// A satellite outside its window, or past a refused node, is hidden until
+    /// the next refill.
+    func writeFrames(at epochMilliseconds: Double, into buffer: MTLBuffer) {
+        let frames = buffer.contents().bindMemory(to: PointFrame.self, capacity: count)
+        for (index, satellite) in satellites.enumerated() {
+            if let (start, offset) = satellite.trajectory.stencil(at: epochMilliseconds) {
+                frames[index] = PointFrame(stencilStart: UInt32(start), offset: Float(offset))
+            } else {
+                frames[index] = PointFrame(stencilStart: 0, offset: -1)
             }
-            return PointFrame(stencilStart: UInt32(start), offset: Float(offset))
         }
     }
 

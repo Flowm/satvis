@@ -42,6 +42,24 @@ public actor GroupRepository {
         try await load(.group(group), fetch: { try await self.client.group(group, ifNoneMatch: $0) }, decode: GPRecord.decodePayload)
     }
 
+    /// The group index as last kept, or as shipped, without asking the worker: what
+    /// to show while it is asked.
+    public func keptIndex() -> Loaded<GroupIndex>? {
+        kept(.index) { try JSONDecoder().decode(GroupIndex.self, from: $0) }
+    }
+
+    /// A group as last kept, or as shipped, without asking the worker.
+    public func keptRecords(of group: String) -> Loaded<[GPRecord]>? {
+        kept(.group(group), decode: GPRecord.decodePayload)
+    }
+
+    /// The star map as last kept, without asking the worker. Nil while any face
+    /// is missing.
+    public func keptStarMap() -> [Data]? {
+        let faces = Self.starMapFaces.compactMap { store.read(.file($0))?.data }
+        return faces.count == Self.starMapFaces.count ? faces : nil
+    }
+
     /// An image the site serves. Never shipped, so absent until fetched once.
     public func image(_ path: String) async throws -> Loaded<Data> {
         try await load(.file(path), fetch: { try await self.client.image(path, ifNoneMatch: $0) }, decode: { $0 })
@@ -52,13 +70,25 @@ public actor GroupRepository {
     /// cube texture takes them: +X, −X, +Y, −Y, +Z, −Z. Nil while any is missing.
     public func starMap() async -> [Data]? {
         var faces: [Data] = []
-        for face in ["px", "mx", "py", "my", "pz", "mz"] {
-            guard let loaded = try? await image("data/starmap/deepstar_2020_1024_\(face).webp") else {
+        for path in Self.starMapFaces {
+            guard let loaded = try? await image(path) else {
                 return nil
             }
             faces.append(loaded.value)
         }
         return faces
+    }
+
+    private static let starMapFaces = ["px", "mx", "py", "my", "pz", "mz"].map { "data/starmap/deepstar_2020_1024_\($0).webp" }
+
+    private func kept<Value: Sendable>(_ key: PayloadStore.Key, decode: (Data) throws -> Value) -> Loaded<Value>? {
+        if let kept = store.read(key), let value = try? decode(kept.data) {
+            return Loaded(value: value, source: .cache, confirmed: kept.confirmed)
+        }
+        if let shipped = snapshot?.read(key), let value = try? decode(shipped.data) {
+            return Loaded(value: value, source: .snapshot, confirmed: nil)
+        }
+        return nil
     }
 
     private func load<Value: Sendable>(
@@ -79,16 +109,18 @@ public actor GroupRepository {
                 guard let kept else {
                     throw WorkerError.status(304, key.path)
                 }
+                // Another load of the same key may have written newer data while
+                // this one waited; its ETag must not be overwritten with ours.
+                if let current = store.read(key), current.etag != kept.etag {
+                    return Loaded(value: try decode(current.data), source: .worker, confirmed: current.confirmed)
+                }
                 let confirmed = now()
                 try? store.confirm(key, etag: kept.etag, at: confirmed)
                 return Loaded(value: try decode(kept.data), source: .worker, confirmed: confirmed)
             }
         } catch {
-            if let kept, let value = try? decode(kept.data) {
-                return Loaded(value: value, source: .cache, confirmed: kept.confirmed)
-            }
-            if let shipped = snapshot?.read(key), let value = try? decode(shipped.data) {
-                return Loaded(value: value, source: .snapshot, confirmed: nil)
+            if let fallback = self.kept(key, decode: decode) {
+                return fallback
             }
             throw error
         }

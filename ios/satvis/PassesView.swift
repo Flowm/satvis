@@ -91,7 +91,7 @@ struct PassesSections: View {
     private var list: (passes: [Pass], settled: Bool) {
         switch subject {
         case .satellite(let entry):
-            guard let passes = passes.passes(of: entry.id) else {
+            guard let passes = passes.passes(of: entry.id, at: now) else {
                 return ([], false)
             }
             return (passes, true)

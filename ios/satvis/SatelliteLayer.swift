@@ -14,10 +14,13 @@ final class SatelliteLayer {
     @ObservationIgnored private var satellites: [PointSatellite] = []
     @ObservationIgnored private var components: SatelliteComponents = [.point, .label]
 
+    /// Bumped by every set handed over, so a slow packing never replaces a newer one.
+    @ObservationIgnored private var generation = 0
+
     func attach(_ renderer: GlobeRenderer) {
         self.renderer = renderer
         renderer.components = components
-        renderer.setSatellites(satellites)
+        Task { await hand(satellites) }
     }
 
     /// The set to draw, and how.
@@ -46,6 +49,19 @@ final class SatelliteLayer {
         satellites = entries.map {
             PointSatellite(id: "\($0.record.satnum)|\($0.record.name)", name: $0.record.name, trajectory: $0.trajectory, color: $0.record.orbitClass.color)
         }
-        renderer?.setSatellites(satellites)
+        await hand(satellites)
+    }
+
+    /// Packed off the main thread, then handed to the renderer.
+    private func hand(_ satellites: [PointSatellite]) async {
+        guard let renderer else {
+            return
+        }
+        generation += 1
+        let mine = generation
+        let prepared = await renderer.prepare(satellites)
+        if mine == generation {
+            renderer.setSatellites(prepared)
+        }
     }
 }

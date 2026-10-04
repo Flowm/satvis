@@ -13,9 +13,16 @@ final class StarMap {
         apply()
     }
 
+    /// The kept faces at once, then the site's, if they came back.
     func load(from source: GPSource) async {
-        faces = await source.starMap()
-        apply()
+        if let kept = await source.keptStarMap() {
+            faces = kept
+            apply()
+        }
+        if let fetched = await source.starMap(), fetched != faces {
+            faces = fetched
+            apply()
+        }
     }
 
     private func apply() {

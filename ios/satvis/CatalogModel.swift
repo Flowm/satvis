@@ -9,7 +9,8 @@ private let log = Logger(subsystem: "org.frcy.app.satvis", category: "catalog")
 
 /// What can be shown and what is: the preset's groups, the catalog of what has
 /// loaded, the activation over it, the components drawn, and the tracked
-/// satellite. Groups load when something needs them, as on the web.
+/// satellite. Groups load when something needs them, as on the web: from the
+/// kept copy at once, then from the worker.
 @Observable
 final class CatalogModel {
     struct Group: Identifiable, Hashable {
@@ -27,7 +28,13 @@ final class CatalogModel {
     private(set) var components: SatelliteComponents = [.point, .label]
     /// The tracked satellite, by catalog id.
     private(set) var tracked: String?
+    /// The satellites drawn, by name. Kept rather than worked out on every read:
+    /// the catalog can hold tens of thousands.
+    private(set) var activeEntries: [CatalogEntry] = []
+    /// Groups whose records are in the catalog.
     @ObservationIgnored private var loaded: Set<String> = []
+    /// One load per group at a time, which every caller asking for it awaits.
+    @ObservationIgnored private var loading: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private let source: GPSource
     /// Called whenever what is active changes.
     @ObservationIgnored var onChange: () -> Void = {}
@@ -41,27 +48,38 @@ final class CatalogModel {
         guard let index = source.index?.value, let preset = index.preset(named: nil) else {
             return
         }
-        let statuses = Dictionary(index.groups.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
-        groups = preset.groups.compactMap { entry in
-            statuses[entry.name].map { Group(name: entry.name, tags: $0.tags, searchOnly: entry.searchOnly, count: $0.count) }
-        }
+        apply(index)
         let defaults = preset.defaults
         activation = Activation(enabledTags: Set(Self.list(defaults["tags"])))
         if let elements = defaults["elements"] {
             let names = Set(Self.list(elements))
             components = SatelliteComponents(SatelliteComponents.named.filter { names.contains($0.0) }.map(\.1))
         }
+        changed()
         await load(groups.filter { !$0.tags.isEmpty && !Set($0.tags).isDisjoint(with: activation.enabledTags) })
+    }
+
+    /// Takes up a newer index and, `refetching`, asks the worker about every group
+    /// loaded so far, which costs a 304 for each that has not changed. For a return to the
+    /// foreground: a suspended app can sit on old element sets for days.
+    func revalidate(refetching: Bool = true) async {
+        if let index = source.index?.value {
+            apply(index)
+        }
+        guard refetching else {
+            return
+        }
+        await withTaskGroup(of: Void.self) { tasks in
+            for group in groups where loaded.contains(group.name) {
+                tasks.addTask { await self.fetch(group) }
+            }
+        }
     }
 
     /// Every tag a browsable group carries, in the preset's order.
     var tags: [String] {
         var seen = Set<String>()
         return groups.filter { !$0.searchOnly }.flatMap(\.tags).filter { seen.insert($0).inserted }
-    }
-
-    var activeEntries: [CatalogEntry] {
-        activation.active(in: catalog, tracked: tracked.flatMap { catalog.entries[$0]?.name })
     }
 
     /// Satellites carrying a tag, loading its groups first.
@@ -89,17 +107,17 @@ final class CatalogModel {
     func setTag(_ tag: String, enabled: Bool) async {
         let members = await entries(tagged: tag)
         activation.setTag(tag, enabled: enabled, members: members)
-        onChange()
+        changed()
     }
 
     func setSatellite(_ entry: CatalogEntry, enabled: Bool) {
         activation.setSatellite(entry, enabled: enabled)
-        onChange()
+        changed()
     }
 
     func clearAll() {
         activation.clear()
-        onChange()
+        changed()
     }
 
     func setComponent(_ component: SatelliteComponents, enabled: Bool) {
@@ -113,18 +131,70 @@ final class CatalogModel {
 
     func setTracked(_ id: String?) {
         tracked = id
-        onChange()
+        changed()
     }
 
+    /// The preset's groups, as the index now describes them.
+    private func apply(_ index: GroupIndex) {
+        guard let preset = index.preset(named: nil) else {
+            return
+        }
+        let statuses = Dictionary(index.groups.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
+        let next = preset.groups.compactMap { entry in
+            statuses[entry.name].map { Group(name: entry.name, tags: $0.tags, searchOnly: entry.searchOnly, count: $0.count) }
+        }
+        if next != groups {
+            groups = next
+        }
+    }
+
+    /// Loads the groups not loaded yet, side by side. Returns once each is in the
+    /// catalog, from the kept copy where there is one; the worker's answer
+    /// follows by itself.
     private func load(_ wanted: [Group]) async {
-        for group in wanted where loaded.insert(group.name).inserted {
-            do {
-                catalog.add(try await source.records(of: group.name).value, tags: group.tags, group: group.name)
-            } catch {
-                loaded.remove(group.name)
-                log.error("Group \(group.name, privacy: .public) unavailable: \(error, privacy: .public)")
+        await withTaskGroup(of: Void.self) { tasks in
+            for group in wanted where !loaded.contains(group.name) {
+                tasks.addTask { await self.load(group) }
             }
         }
+    }
+
+    private func load(_ group: Group) async {
+        if let pending = loading[group.name] {
+            return await pending.value
+        }
+        let task = Task {
+            if let kept = await source.keptRecords(of: group.name) {
+                add(kept.value, to: group)
+                Task { await self.fetch(group) }
+            } else {
+                await fetch(group)
+            }
+        }
+        loading[group.name] = task
+        await task.value
+        loading[group.name] = nil
+    }
+
+    /// Asks the worker for a group and takes whatever is newer.
+    private func fetch(_ group: Group) async {
+        do {
+            add(try await source.records(of: group.name).value, to: group)
+        } catch {
+            log.error("Group \(group.name, privacy: .public) unavailable: \(error, privacy: .public)")
+        }
+    }
+
+    private func add(_ records: [GPRecord], to group: Group) {
+        let newcomer = loaded.insert(group.name).inserted
+        if catalog.add(records, tags: group.tags, group: group.name) || newcomer {
+            changed()
+        }
+    }
+
+    /// Works out what is drawn again, and tells the globe.
+    private func changed() {
+        activeEntries = activation.active(in: catalog, tracked: tracked.flatMap { catalog.entries[$0]?.name })
         onChange()
     }
 
