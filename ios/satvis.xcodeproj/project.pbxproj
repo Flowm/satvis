@@ -407,8 +407,9 @@
 				INFOPLIST_FILE = satvis/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SatVis;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Set ground station location from geolocation";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Your location lets Satvis tell you when satellites pass over you, and show what is in the sky above you.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arm64;
@@ -419,7 +420,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.frcy.app.satvis;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -441,8 +442,9 @@
 				INFOPLIST_FILE = satvis/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SatVis;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Set ground station location from geolocation";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Your location lets Satvis tell you when satellites pass over you, and show what is in the sky above you.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arm64;
@@ -453,7 +455,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.frcy.app.satvis;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
