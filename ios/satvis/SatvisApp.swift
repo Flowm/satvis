@@ -59,6 +59,13 @@ struct ContentView: View {
         )
         .ignoresSafeArea()
         .background(.black)
+        .overlay {
+            if session.observer != nil, let renderer = session.renderer {
+                // In the renderer's frame, the whole screen, since it projects into it.
+                SkyHUD(renderer: renderer, tapeTop: 132)
+                    .ignoresSafeArea()
+            }
+        }
         .overlay(alignment: .topLeading) {
             GlassEffectContainer {
                 HStack {
@@ -78,6 +85,9 @@ struct ContentView: View {
                 // Made when tapped, so that a pinned clock gives its minute then.
                 Button("Share", systemImage: "square.and.arrow.up") {
                     ShareSheet.present(session.link(sharing: true).url(site: session.source.site))
+                }
+                if session.observer != nil {
+                    Button("Leave the sky view", systemImage: "globe") { session.leaveSky() }
                 }
                 // The way out of following something once its panel is closed.
                 if let tracked = session.tracked {
@@ -186,7 +196,8 @@ struct ContentView: View {
                 let id = PassModel.markerID(stationID)
                 StationPanel(
                     station: station, clock: session.clock, passes: session.passes, alerts: session.alerts, catalog: session.catalog,
-                    isTracked: session.tracked == id, onTrack: { session.track(id, $0) }, onClose: { session.selection = nil }
+                    isTracked: session.tracked == id, onTrack: { session.track(id, $0) }, onSky: { session.enterSky(at: stationID) },
+                    onClose: { session.selection = nil }
                 )
             }
         case nil:

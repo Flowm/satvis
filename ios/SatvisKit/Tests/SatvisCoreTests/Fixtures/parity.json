@@ -6733,6 +6733,10 @@
       "overpass": [
         "elevation",
         "swath"
+      ],
+      "scenes": [
+        "3D",
+        "Sky"
       ]
     },
     "presets": {
@@ -6761,6 +6765,7 @@
         "NaturalEarth"
       ],
       "terrain": "None",
+      "scene": "3D",
       "time": null
     },
     "fieldKinds": [
@@ -7410,6 +7415,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "scene": "3D",
           "time": null
         },
         "invalid": [],
@@ -7435,6 +7441,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "scene": "3D",
           "time": null
         },
         "invalid": [],
@@ -7458,6 +7465,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "scene": "3D",
           "time": null
         },
         "invalid": [],
@@ -7484,6 +7492,7 @@
             "VersaTiles"
           ],
           "terrain": "None",
+          "scene": "3D",
           "time": null
         },
         "invalid": [],
@@ -7516,10 +7525,11 @@
             "VersaTiles"
           ],
           "terrain": "ReEarth",
+          "scene": "Sky",
           "time": "2026-10-04T19:22Z"
         },
         "invalid": [],
-        "written": "scene=Sky&stars=DeepStar2K&tags=GNSS,Weather,OneWeb&gs=46.5935,7.9091&layers=VersaTiles&terrain=ReEarth&time=2026-10-04T19:22Z"
+        "written": "stars=DeepStar2K&tags=GNSS,Weather,OneWeb&gs=46.5935,7.9091&layers=VersaTiles&terrain=ReEarth&scene=Sky&time=2026-10-04T19:22Z"
       },
       {
         "preset": "default",
@@ -7547,6 +7557,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "scene": "3D",
           "time": null
         },
         "invalid": [],
@@ -7577,6 +7588,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "scene": "3D",
           "time": null
         },
         "invalid": [
@@ -7607,6 +7619,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "scene": "3D",
           "time": null
         },
         "invalid": [],
@@ -7629,10 +7642,70 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "scene": "3D",
           "time": null
         },
         "invalid": [],
         "written": "elements="
+      },
+      {
+        "preset": "default",
+        "query": "scene=Columbus&gs=46.5935,7.9091",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [
+            {
+              "lat": 46.5935,
+              "lon": 7.9091
+            }
+          ],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "3D",
+          "time": null
+        },
+        "invalid": [
+          "scene"
+        ],
+        "written": "gs=46.5935,7.9091"
+      },
+      {
+        "preset": "default",
+        "query": "scene=Sky&track=ISS+(ZARYA)",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "ISS (ZARYA)",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "Sky",
+          "time": null
+        },
+        "invalid": [],
+        "written": "track=ISS+(ZARYA)&scene=Sky"
       },
       {
         "preset": "default",
@@ -7656,6 +7729,7 @@
             "BlackMarble"
           ],
           "terrain": "None",
+          "scene": "3D",
           "time": null
         },
         "invalid": [],
@@ -7684,6 +7758,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "scene": "3D",
           "time": null
         },
         "invalid": [],
@@ -7712,6 +7787,7 @@
             "VersaTiles"
           ],
           "terrain": "None",
+          "scene": "3D",
           "time": null
         },
         "invalid": [],
@@ -7740,6 +7816,7 @@
             "VersaTiles"
           ],
           "terrain": "None",
+          "scene": "3D",
           "time": null
         },
         "invalid": [],
@@ -7768,6 +7845,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "scene": "3D",
           "time": null
         },
         "invalid": [],
@@ -7793,6 +7871,7 @@
             "VersaTiles"
           ],
           "terrain": "None",
+          "scene": "3D",
           "time": null
         },
         "invalid": [],

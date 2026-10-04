@@ -104,6 +104,7 @@ struct StationPanel: View {
     let catalog: CatalogModel
     let isTracked: Bool
     let onTrack: (Bool) -> Void
+    let onSky: () -> Void
     let onClose: () -> Void
     @State private var renaming = false
     @State private var draftName = ""
@@ -134,6 +135,7 @@ struct StationPanel: View {
                         }
                         AlertButton(subject: .station(station.id), satellites: catalog.activeEntries, passes: passes, alerts: alerts)
                     }
+                    Button("View the sky from here", systemImage: "binoculars", action: onSky)
                     Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
                         onTrack(!isTracked)
                     }

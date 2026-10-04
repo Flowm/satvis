@@ -204,6 +204,7 @@ try {
     layers: ["NaturalEarth", "VersaTiles", "BlackMarble"],
     terrain: ["None", "ReEarth"],
     overpass: ["elevation", "swath"],
+    scenes: ["3D", "Sky"],
   };
   const kinds = {
     plainString: codec.plainString(),
@@ -312,6 +313,7 @@ try {
     { name: "overpass", kind: kinds.overpass },
     { name: "layers", kind: kinds.layers },
     { name: "terrain", kind: codec.enumString(vocabulary.terrain) },
+    { name: "scene", kind: codec.enumString(vocabulary.scenes) },
     { name: "time", kind: kinds.timestamp },
   ];
   const owned = new Set(schema.map((spec) => spec.name));
@@ -325,6 +327,7 @@ try {
     overpass: "elevation",
     layers: ["NaturalEarth"],
     terrain: "None",
+    scene: "3D",
     time: null,
   };
   const PRESETS = {
@@ -341,6 +344,8 @@ try {
     ["default", "layers=Bogus&terrain=CesiumWorldTerrain&overpass=Swath&time=Point&gs=abc,1_2,3"],
     ["default", "embed&tags=Weather&tags=GNSS&bench=true&utm_source=x+y"],
     ["default", "track=&gs=&elements="],
+    ["default", "scene=Columbus&gs=46.5935,7.9091"],
+    ["default", "scene=Sky&track=ISS+(ZARYA)"],
     ["default", "layers=NaturalEarth,VersaTiles_0.50,BlackMarble"],
     ["default", "sats=Caf%C3%A9+1,%E2%9C%93&track=a%26b%3Dc%23d"],
     ["ot", ""],

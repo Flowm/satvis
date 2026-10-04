@@ -9,6 +9,20 @@ struct CameraPose {
     var up: SIMD3<Double>
     /// Away from where the camera looks.
     var back: SIMD3<Double>
+    /// Radians up the screen; nil for CesiumJS's 60° across the longer side.
+    var verticalFieldOfView: Double? = nil
+    /// Metres to the near plane.
+    var near = 1.0
+
+    /// The projection for a viewport of this shape.
+    func projection(aspectRatio: Double) -> simd_double4x4 {
+        OrbitCamera.projection(
+            verticalFieldOfView: verticalFieldOfView ?? OrbitCamera.verticalFieldOfView(aspectRatio: aspectRatio), aspectRatio: aspectRatio, near: near)
+    }
+
+    func verticalFieldOfView(aspectRatio: Double) -> Double {
+        verticalFieldOfView ?? OrbitCamera.verticalFieldOfView(aspectRatio: aspectRatio)
+    }
 
     /// A rotation from the fixed frame into the camera's, looking down -Z.
     func view() -> simd_double4x4 {
