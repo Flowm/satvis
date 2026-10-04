@@ -609,7 +609,7 @@ reaches the scene is unit-tested (`SatelliteComponentCollection.test.ts`); the f
 cost and the picture are not.
 
 **Procedure.** `pnpm build && pnpm preview`, then open
-`?tags=Starlink&gs=48.1800,11.7500,Munich&elements=Point&bench=true&framepump=1` and,
+`?tags=Starlink&gs=48.1800,11.7500,Munich&elements=Point&framems=16` and,
 once every satellite is active and the scene has settled, time `clock.tick()` plus
 `scene.render()` from the console. Repeat with `elements=Point,Ground+station+link`,
 look at Munich, and untick the link in the satellite menu.
@@ -793,7 +793,7 @@ whether the camera moves when `trackedEntity` engages is a property of the real
 camera, tweens and frames. The flight bookkeeping is unit-tested
 (`trackFlight.test.ts`); this is the part that is not.
 
-**Procedure.** Open `?sats=ISS+(ZARYA),CSS+(TIANHE)&bench=true&framepump=1`, pause the
+**Procedure.** Open `?sats=ISS+(ZARYA),CSS+(TIANHE)&framems=16`, pause the
 clock, and record the camera's world-space position (`camera.transform` applied to
 `camera.position`) when `trackedEntity` is assigned and 20 frames later, across
 untracked → ISS, ISS → CSS, and ISS → CSS → ISS interrupted mid-flight. Count calls

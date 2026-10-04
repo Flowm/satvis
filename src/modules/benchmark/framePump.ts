@@ -6,9 +6,12 @@
 // re-arms itself through rAF between budgets. Measured: no rAF callback in 1.5 s,
 // and a scene stuck at zero satellites indefinitely.
 //
-// `?framepump=1` supplies the frames instead, from a MessageChannel — the one
-// scheduler a hidden page does not throttle, where `setTimeout` is clamped to a
-// second. `installBenchmark` loads it, so a normal visitor never fetches it.
+// `?framems=16` supplies the frames instead, one every 16 ms, from a MessageChannel
+// — the one scheduler a hidden page does not throttle, where `setTimeout` is
+// clamped to a second and a worker's messages slow to one every ~100 ms. It keeps
+// a core busy for that. app.ts loads this module only when the parameter is
+// there, so it never runs for a normal visitor. A test that needs no smooth picture
+// can pace it slower, e.g. `?framems=100`; the README says what that costs.
 //
 // It does not make this a normal page: frames come at a fixed interval of the
 // pump's choosing, so `fps` and `frameMs` measure the pump rather than a display.
@@ -21,21 +24,17 @@ import type { Viewer } from "@cesium/widgets";
 const DEFAULT_FRAME_MS = 16;
 
 /**
- * Presence is enough. The value is read only so that `?framepump=false` can turn
- * it off in a url being reused.
+ * The frame interval `?framems=` asks for, or `undefined` when it asks for none.
+ * A bare or nonsense value means 60 Hz; `0` and `false` turn it off in a url being
+ * reused.
  */
-export function framePumpRequested(search: string): boolean {
-  const value = new URLSearchParams(search).get("framepump");
-  if (value === null) {
-    return false;
+export function requestedFrameMs(search: string): number | undefined {
+  const value = new URLSearchParams(search).get("framems");
+  if (value === null || value === "0" || value === "false") {
+    return undefined;
   }
-  return value !== "false" && value !== "0";
-}
-
-/** `?framems=`, in milliseconds, for pacing a run off 60 Hz. */
-export function framePumpFrameMs(search: string): number {
-  const value = Number(new URLSearchParams(search).get("framems"));
-  return Number.isFinite(value) && value > 0 ? value : DEFAULT_FRAME_MS;
+  const frameMs = Number(value);
+  return Number.isFinite(frameMs) && frameMs > 0 ? frameMs : DEFAULT_FRAME_MS;
 }
 
 export interface FrameQueue {
@@ -106,11 +105,12 @@ let uninstall: (() => void) | undefined;
  * than cancelled never cleared that flag.
  */
 export function installFramePumpIfRequested(viewer: Viewer, search: string): (() => void) | undefined {
-  if (uninstall || !framePumpRequested(search)) {
+  const frameMs = requestedFrameMs(search);
+  if (uninstall || frameMs === undefined) {
     return undefined;
   }
 
-  const queue = frameQueue(framePumpFrameMs(search), () => performance.now());
+  const queue = frameQueue(frameMs, () => performance.now());
   const nativeRequest = window.requestAnimationFrame.bind(window);
   const nativeCancel = window.cancelAnimationFrame.bind(window);
   window.requestAnimationFrame = (callback) => queue.request(callback);
@@ -151,7 +151,7 @@ export function installFramePumpIfRequested(viewer: Viewer, search: string): (()
   channel.port1.start();
   channel.port2.postMessage(0);
 
-  console.log(`[framePump] driving frames every ${framePumpFrameMs(search)} ms — fps and frameMs are this pump, not a display`);
+  console.log(`[framePump] driving frames every ${frameMs} ms — fps and frameMs are this pump, not a display`);
 
   uninstall = () => {
     running = false;
