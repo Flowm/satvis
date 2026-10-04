@@ -306,6 +306,23 @@ final class Session {
         renderer?.setStations(shownMarkers)
     }
 
+    /// Looks up from the selected station, else the first saved one, else where
+    /// the device is, which becomes a station. Without one of those it does not
+    /// open: a sky at a place nobody chose looks like a working view and is not.
+    func viewTheSky() async {
+        if case .station(let id) = selection {
+            return enterSky(at: id)
+        }
+        if let first = passes.saved.first ?? passes.stations.first {
+            return enterSky(at: first.id)
+        }
+        guard let location = await currentLocation(), let id = passes.add(latitude: location.latitude, longitude: location.longitude, name: "Geolocation") else {
+            show("The sky view needs a place to stand: allow your location, or add a ground station.")
+            return
+        }
+        enterSky(at: id)
+    }
+
     /// Aims the sky view with the device, or hands the aim back.
     func toggleCompass() {
         guard let renderer else {

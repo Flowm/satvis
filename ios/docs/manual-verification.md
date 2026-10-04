@@ -39,3 +39,22 @@ Re:Earth Terrain · Mapterhorn (CC BY 4.0), then Mapterhorn, EGM2008 (NGA), Prot
 OpenStreetMap, as Re:Earth's `layer.json` credits them that day. Satellites: "Satellite TLE
 data provided by Celestrak". Privacy opened `satvis.space/data/privacy.html` in Safari,
 which redirects to the Legal Notice & Privacy page.
+
+## Native app: the sky view
+
+**Procedure.** In the iPhone 17e simulator, open the about page's sky link through
+`SATVIS_LINK` with `SATVIS_TIME=2026-10-04T19:22:00Z`; then, from the globe, open a
+station's panel and its binoculars, and leave by the globe button. Drag the view, pinch
+it, put a satellite under the crosshair and tap; switch on the compass.
+
+**Result, 2026-10-04.** The link stands in the Lauterbrunnen valley at night, the
+cliffs on either side and the geostationary belt to the south at about 33°, the tapes
+reading 165°–S–195° and 0° to 45°. The crosshair took METEOSAT-11 (MSG-4) 35 points
+off centre and its card read elevation 33.0°, azimuth 177.9° S, range 38,336 km and
+altitude 35,786 km; a geostationary satellite seen from 46.6° N. On the Zugspitze
+station the eye stood over the Zugspitzplatt with the ridges around it and never
+under the ground. The flight out showed, in order, the sky, the Alps from above, the
+globe's limb swinging past and the globe camera. The compass answered "This device has
+no motion sensor to aim with": the simulator has none, so aiming itself, its drag
+hand-back and its levelling still need a device. The ground at night is lit as by
+day, as CesiumJS's lighting fades out near the ground and the web's does the same.

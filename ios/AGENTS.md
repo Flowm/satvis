@@ -85,6 +85,19 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   needs the Associated Domains capability on the App ID. The simulator builds
   here are unsigned and carry no entitlements, so a universal link needs a signed
   build on a device; `SATVIS_LINK` goes through the same `Session.open`.
+- The sky view (ADR 0003) is the same renderer from the ground: `SkyCamera`
+  stands 2 m over the terrain at the observer, its attitude a quaternion in the
+  observer's east-north-up frame, so the zenith is an aim like any other. It
+  stands on Re:Earth's terrain whatever the Map menu says. `SkyFlight` is the
+  web's three-leg flight in and out; the instruments (`SkyHUD`) and the gestures
+  wait for it to land, and reduced motion cuts. The crosshair, the tapes, the
+  trace and the card read the renderer's last frame (`SkyTargets.swift`), and
+  the lock is the tap: from the ground a tap opens what the crosshair holds.
+  Compass aiming (`SkyCompass`) is CoreMotion's attitude against true north, or
+  magnetic north without a location, so it needs no calibration step; it can
+  only be tried on a device, the simulator having no motion sensor. The
+  observer is a link's first station, and the station whose panel opened it,
+  and its own pin is hidden underfoot.
 - The globe's gestures are SwiftUI's, not UIKit recognizers on the MTKView, so the
   controls laid over it take the touches that land on them. They go to the
   renderer, which steers whichever camera its `CameraMode` says is in use: the free
@@ -154,8 +167,8 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 - **`screenshots`** erases one simulator per App Store size and writes
   `screenshots/`. Upload them to App Store Connect by hand. It takes the about
   page's demo views by their links (`about.html`), each paused at its link's
-  minute, from the site `BASE_URL` names (satvis.space by default); the sky
-  view's comes back with the sky view (M6).
+  minute, from the site `BASE_URL` names (satvis.space by default). Labels stop
+  at 200 active satellites, so the sky view's has none where the web's does.
 
 ## The worker
 
