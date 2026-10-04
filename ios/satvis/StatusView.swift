@@ -2,11 +2,10 @@ import SatvisCore
 import SatvisData
 import SwiftUI
 
-/// What the app knows before it can draw it: the groups, where they came from,
-/// and their satellites. Stands in until the globe arrives (M1).
+/// The groups, where they came from, and their satellites. Stands in until the
+/// satellite browser arrives (M2).
 struct StatusView: View {
     let source: GPSource
-    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
@@ -33,12 +32,6 @@ struct StatusView: View {
                 GroupView(name: name, source: source)
             }
             .refreshable { await source.refresh() }
-        }
-        .task { await source.refresh() }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
-                Task { await source.refresh() }
-            }
         }
     }
 }

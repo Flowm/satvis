@@ -13,6 +13,7 @@ nonisolated class SatvisUITests: XCTestCase {
         app.launchEnvironment["SATVIS_API"] = "http://127.0.0.1:9"
         app.launch()
 
+        app.buttons["Groups"].tap()
         XCTAssert(app.staticTexts["cubesat"].waitForExistence(timeout: 10))
         // The list builds rows as they scroll into view.
         let weather = app.staticTexts["weather"]
