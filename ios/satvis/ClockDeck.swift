@@ -3,9 +3,11 @@ import SwiftUI
 
 /// The bottom controls, as the web app's clock deck: a control row over a scale
 /// row that is either the timeline or the speed ladder (CONTEXT.md, Clock deck).
-/// Tapping the time folds it to the control row.
+/// Tapping the time folds it to the control row. The selected satellite's passes
+/// are marked on the timeline.
 struct ClockDeck: View {
     let clock: ViewerClock
+    var passes: [Pass] = []
     @State private var isOpen = false
     @State private var onLadder = false
 
@@ -54,7 +56,7 @@ struct ClockDeck: View {
                     if onLadder {
                         Ladder(clock: clock)
                     } else {
-                        TimelineScale(clock: clock)
+                        TimelineScale(clock: clock, passes: passes)
                     }
                 }
                 .frame(height: 44)
@@ -102,6 +104,7 @@ private struct Stamp: View {
 /// labelled. Dragging scrubs, and a flick runs on and slows as on the web.
 private struct TimelineScale: View {
     let clock: ViewerClock
+    let passes: [Pass]
     @State private var dragStart: Double?
     @State private var flick: Task<Void, Never>?
 
@@ -114,6 +117,16 @@ private struct TimelineScale: View {
             Canvas { context, size in
                 let centre = clock.now()
                 let half = size.width / 2 * Self.msPerPoint
+                // Marks, not ranges: the scale moves under a fixed needle. In the
+                // passes table's blue, at a weight that reads as a region.
+                for pass in passes where pass.end >= centre - half && pass.start <= centre + half {
+                    let left = max(0, (pass.start - centre) / Self.msPerPoint + size.width / 2)
+                    let right = min(size.width, (pass.end - centre) / Self.msPerPoint + size.width / 2)
+                    let mark = CGRect(x: left, y: 0, width: max(1, right - left), height: size.height)
+                    context.fill(Path(mark), with: .color(.timelineHigh.opacity(0.15)))
+                    context.fill(Path(CGRect(x: mark.minX, y: 0, width: 1, height: size.height)), with: .color(.timelineHigh.opacity(0.4)))
+                    context.fill(Path(CGRect(x: mark.maxX - 1, y: 0, width: 1, height: size.height)), with: .color(.timelineHigh.opacity(0.4)))
+                }
                 var at = ((centre - half) / Self.minor).rounded(.down) * Self.minor
                 while at <= centre + half {
                     let x = (at - centre) / Self.msPerPoint + size.width / 2

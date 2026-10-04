@@ -23,17 +23,31 @@ struct SatvisApp: App {
     }
 }
 
-/// The globe with the satellites on it, the browser and components behind
-/// buttons, the info panel for the selected satellite, and the clock deck.
+/// What the info panel is about.
+enum Selection: Hashable {
+    /// A catalog id.
+    case satellite(String)
+    /// A place in the ground station list.
+    case station(Int)
+}
+
+/// The globe with the ground stations and satellites on it, the browser, the
+/// stations and the components behind buttons, the info panel for what is
+/// selected, and the clock deck.
 struct ContentView: View {
     let source: GPSource
     @State private var clock = ViewerClock()
     @State private var catalog: CatalogModel
     @State private var satellites = SatelliteLayer()
+    @State private var passes = PassModel()
     @State private var starMap = StarMap()
     @State private var renderer: GlobeRenderer?
-    @State private var selected: String?
+    @State private var selection: Selection?
+    /// What the camera follows: a satellite's catalog id or a station's marker id.
+    @State private var tracked: String?
     @State private var showsBrowser = false
+    @State private var showsStations = false
+    @State private var isPicking = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -47,11 +61,16 @@ struct ContentView: View {
             onRenderer: { renderer in
                 self.renderer = renderer
                 renderer.clock = { [clock] in clock.now() }
+                renderer.setStations(passes.markers)
                 satellites.attach(renderer)
                 starMap.attach(renderer)
             },
-            onSelect: { selected = $0 },
-            onTrack: track
+            onTap: tap,
+            onDoubleTap: { point, size in
+                if let id = renderer?.entity(at: point, viewSize: size) {
+                    track(id, true)
+                }
+            }
         )
         .ignoresSafeArea()
         .background(.black)
@@ -59,6 +78,7 @@ struct ContentView: View {
             GlassEffectContainer {
                 HStack {
                     Button("Satellites", systemImage: "list.bullet") { showsBrowser = true }
+                    Button("Ground stations", systemImage: "mappin.and.ellipse") { showsStations = true }
                     ComponentsMenu(catalog: catalog)
                 }
                 .labelStyle(.iconOnly)
@@ -68,8 +88,8 @@ struct ContentView: View {
             .padding()
         }
         .overlay(alignment: .topTrailing) {
-            // The way out of following a satellite once its panel is closed.
-            if let tracked = catalog.tracked {
+            // The way out of following something once its panel is closed.
+            if let tracked {
                 Button("Stop tracking", systemImage: "video.slash") { track(tracked, false) }
                     .labelStyle(.iconOnly)
                     .buttonStyle(.glass)
@@ -77,30 +97,46 @@ struct ContentView: View {
                     .padding()
             }
         }
+        .overlay(alignment: .top) {
+            if isPicking {
+                HStack {
+                    Text("Tap the globe to place a ground station")
+                        .font(.subheadline)
+                    Button("Cancel") { isPicking = false }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .glassEffect()
+                .padding(.top, 72)
+            }
+        }
         .overlay(alignment: .bottom) {
-            ClockDeck(clock: clock)
+            ClockDeck(clock: clock, passes: highlightedPasses)
                 .padding(.horizontal)
                 .padding(.bottom, 8)
         }
         .sheet(isPresented: $showsBrowser) {
             BrowserView(catalog: catalog)
         }
+        .sheet(isPresented: $showsStations) {
+            GroundStationsView(passes: passes, onPick: { isPicking = true }, onSelect: { selection = .station($0) })
+        }
         // A column beside the globe where there is room for one, a sheet over the
         // lower half where there is not, leaving the globe to steer either way.
         .inspector(
             isPresented: Binding {
-                sizeClass == .regular && selected != nil
+                sizeClass == .regular && selection != nil
             } set: {
-                if !$0 { selected = nil }
+                if !$0 { selection = nil }
             }
         ) {
             infoPanel
         }
         .sheet(
             isPresented: Binding {
-                sizeClass != .regular && selected != nil
+                sizeClass != .regular && selection != nil
             } set: {
-                if !$0 { selected = nil }
+                if !$0 { selection = nil }
             }
         ) {
             infoPanel
@@ -109,12 +145,16 @@ struct ContentView: View {
         }
         .task {
             catalog.onChange = showActive
+            passes.onStationsChange = showStations
             await source.refresh()
             await catalog.start()
             await satellites.run(clock: clock)
         }
         .task {
             await starMap.load(from: source)
+        }
+        .task {
+            await predictPasses()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
@@ -124,11 +164,51 @@ struct ContentView: View {
     }
 
     @ViewBuilder private var infoPanel: some View {
-        if let selected, let entry = catalog.catalog.entries[selected] {
-            InfoPanel(
-                entry: entry, clock: clock, isTracked: catalog.tracked == selected,
-                onTrack: { track(selected, $0) }, onClose: { self.selected = nil }
-            )
+        switch selection {
+        case .satellite(let id):
+            if let entry = catalog.catalog.entries[id] {
+                InfoPanel(
+                    entry: entry, clock: clock, passes: passes, isTracked: tracked == id,
+                    onTrack: { track(id, $0) }, onClose: { selection = nil }
+                )
+            }
+        case .station(let index):
+            if passes.stations.indices.contains(index) {
+                let id = PassModel.markerID(index)
+                StationPanel(
+                    index: index, station: passes.stations[index], clock: clock, passes: passes, catalog: catalog, isTracked: tracked == id,
+                    onTrack: { track(id, $0) }, onClose: { selection = nil }
+                )
+            }
+        case nil:
+            EmptyView()
+        }
+    }
+
+    /// The selected satellite's passes, for the clock deck.
+    private var highlightedPasses: [Pass] {
+        guard case .satellite(let id) = selection else {
+            return []
+        }
+        return passes.passes(of: id) ?? []
+    }
+
+    /// A tap places a station while picking, and otherwise selects what it lands
+    /// on, or nothing.
+    private func tap(_ point: CGPoint, _ size: CGSize) {
+        guard let renderer else {
+            return
+        }
+        if isPicking {
+            if let place = renderer.groundPoint(at: point, viewSize: size) {
+                passes.add(latitude: place.latitude, longitude: place.longitude)
+                selection = .station(passes.stations.count - 1)
+            }
+            isPicking = false
+            return
+        }
+        selection = renderer.entity(at: point, viewSize: size).map { id in
+            PassModel.stationIndex(id).map(Selection.station) ?? .satellite(id)
         }
     }
 
@@ -139,16 +219,66 @@ struct ContentView: View {
         Task { await satellites.show(entries, components: components, at: time) }
     }
 
-    /// Follows a satellite, or lets it go. Tracking keeps it active even when its
-    /// group is switched off, as on the web.
+    /// Hands the renderer the stations, and lets go of one it may have been
+    /// following: the list positions it was known by may now be someone else's.
+    private func showStations() {
+        renderer?.setStations(passes.markers)
+        if let tracked, PassModel.stationIndex(tracked) != nil {
+            track(tracked, false)
+        }
+        if case .station(let index) = selection, !passes.stations.indices.contains(index) {
+            selection = nil
+        }
+    }
+
+    /// Keeps the passes of what is shown predicted around the clock, once a second:
+    /// the selected satellite's, and every active one's while a station is selected
+    /// or their links are drawn.
+    private func predictPasses() async {
+        while !Task.isCancelled {
+            let active = catalog.activeEntries
+            let showsLinks = catalog.components.contains(.groundStationLink)
+            var wanted: [CatalogEntry] = []
+            var showsStation = false
+            switch selection {
+            case .satellite(let id):
+                wanted += catalog.catalog.entries[id].map { [$0] } ?? []
+            case .station:
+                showsStation = true
+            case nil:
+                break
+            }
+            if showsLinks || showsStation {
+                let selected = Set(wanted.map(\.id))
+                wanted += active.filter { !selected.contains($0.id) }
+            }
+            if passes.hasStations, !wanted.isEmpty {
+                await passes.refresh(wanted, at: clock.now())
+            }
+            renderer?.setLinks(showsLinks ? passes.links(for: active) : [])
+            try? await Task.sleep(for: .seconds(1))
+        }
+    }
+
+    /// Follows a satellite or a station, or lets it go. Tracking keeps a satellite
+    /// active even when its group is switched off, as on the web.
     private func track(_ id: String, _ follow: Bool) {
+        let isStation = PassModel.stationIndex(id) != nil
         if follow {
-            catalog.setTracked(id)
-            selected = id
+            if !isStation {
+                catalog.setTracked(id)
+            } else if catalog.tracked != nil {
+                catalog.setTracked(nil)
+            }
+            tracked = id
+            selection = PassModel.stationIndex(id).map(Selection.station) ?? .satellite(id)
             renderer?.track(id)
         } else {
             renderer?.stopTracking()
-            catalog.setTracked(nil)
+            tracked = nil
+            if !isStation {
+                catalog.setTracked(nil)
+            }
         }
     }
 }

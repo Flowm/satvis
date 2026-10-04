@@ -1,14 +1,17 @@
 import SatvisCore
 import SwiftUI
 
-/// What the web app's EntityInfoPanel shows for a satellite: who it is, where it is
-/// now, and the Details tab. The Passes tab arrives with ground stations (M3).
+/// What the web app's EntityInfoPanel shows for a satellite: who it is and where it
+/// is now, then its passes or its details, a tab each.
 struct InfoPanel: View {
     let entry: CatalogEntry
     let clock: ViewerClock
+    let passes: PassModel
     let isTracked: Bool
     let onTrack: (Bool) -> Void
     let onClose: () -> Void
+    /// The tab chosen last, kept across selections, as on the web.
+    @AppStorage("infoPanelTab") private var tab = InfoTab.details
 
     private var propagator: SGP4Propagator? { try? SGP4Propagator(entry.record.meanElements) }
 
@@ -21,23 +24,17 @@ struct InfoPanel: View {
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         LiveStrip(position: try? propagator?.livePosition(epochMilliseconds: clock.now()))
                     }
-                }
-                Section("Details") {
-                    ForEach(Array(SatelliteDetails.facts(entry.record, propagator: propagator).enumerated()), id: \.offset) { _, row in
-                        LabeledContent(row.0, value: row.1)
+                    Picker("Tab", selection: $tab) {
+                        ForEach(InfoTab.allCases, id: \.self) { Text($0.rawValue.capitalized) }
                     }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
                 }
-                Section("Elsewhere") {
-                    ForEach(WebTables.shared.externalLinks, id: \.self) { link in
-                        if let url = link.url(satnum: entry.satnum) {
-                            Link(destination: url) {
-                                LabeledContent(link.label, value: link.title)
-                            }
-                        }
-                    }
-                }
-                if let propagator {
-                    ElementSetSection(elements: SatelliteDetails.elements(entry.record, epochJulianDate: propagator.epochJulianDate))
+                switch tab {
+                case .passes:
+                    PassesSections(subject: .satellite(entry), clock: clock, passes: passes)
+                case .details:
+                    details(propagator)
                 }
             }
             .navigationTitle(entry.name)
@@ -51,6 +48,26 @@ struct InfoPanel: View {
                     Button("Close", systemImage: "xmark", action: onClose)
                 }
             }
+        }
+    }
+
+    @ViewBuilder private func details(_ propagator: SGP4Propagator?) -> some View {
+        Section("Details") {
+            ForEach(Array(SatelliteDetails.facts(entry.record, propagator: propagator).enumerated()), id: \.offset) { _, row in
+                LabeledContent(row.0, value: row.1)
+            }
+        }
+        Section("Elsewhere") {
+            ForEach(WebTables.shared.externalLinks, id: \.self) { link in
+                if let url = link.url(satnum: entry.satnum) {
+                    Link(destination: url) {
+                        LabeledContent(link.label, value: link.title)
+                    }
+                }
+            }
+        }
+        if let propagator {
+            ElementSetSection(elements: SatelliteDetails.elements(entry.record, epochJulianDate: propagator.epochJulianDate))
         }
     }
 
@@ -69,6 +86,82 @@ struct InfoPanel: View {
             }
         }
     }
+}
+
+enum InfoTab: String, CaseIterable {
+    case passes, details
+}
+
+/// A ground station's panel: where it is, and every active satellite's passes over
+/// it. A station has no details, so it has no tabs.
+struct StationPanel: View {
+    let index: Int
+    let station: GroundStation
+    let clock: ViewerClock
+    let passes: PassModel
+    let catalog: CatalogModel
+    let isTracked: Bool
+    let onTrack: (Bool) -> Void
+    let onClose: () -> Void
+    @State private var renaming = false
+    @State private var draftName = ""
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    HStack {
+                        value("Latitude", "\(toFixed2(station.latitude))°")
+                        value("Longitude", "\(toFixed2(station.longitude))°")
+                    }
+                }
+                PassesSections(subject: .station(station, catalog.activeEntries), clock: clock, passes: passes)
+            }
+            .navigationTitle(station.displayName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button("Rename", systemImage: "pencil") {
+                        draftName = station.name ?? ""
+                        renaming = true
+                    }
+                    Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
+                        onTrack(!isTracked)
+                    }
+                    Button("Close", systemImage: "xmark", action: onClose)
+                }
+            }
+            .alert("Rename station", isPresented: $renaming) {
+                TextField("unnamed", text: $draftName)
+                Button("Cancel", role: .cancel) {}
+                Button("Rename") {
+                    var stations = passes.stations
+                    guard stations.indices.contains(index) else {
+                        return
+                    }
+                    stations[index].name = draftName
+                    passes.setStations(stations)
+                }
+            }
+        }
+    }
+
+    private func value(_ label: String, _ text: String) -> some View {
+        VStack(alignment: .leading) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(text)
+                .font(.footnote.monospacedDigit())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Two decimals with a point, as the web app writes them, and as an unnamed
+/// station's name has them.
+func toFixed2(_ value: Double) -> String {
+    String(format: "%.2f", value)
 }
 
 private struct Chip: View {
@@ -91,10 +184,10 @@ private struct LiveStrip: View {
 
     var body: some View {
         HStack {
-            value("Latitude", position.map { "\($0.latitude.formatted(.number.precision(.fractionLength(2))))°" })
-            value("Longitude", position.map { "\($0.longitude.formatted(.number.precision(.fractionLength(2))))°" })
-            value("Altitude", position.map { "\(($0.height / 1000).formatted(.number.precision(.fractionLength(2)))) km" })
-            value("Velocity", position.map { "\($0.speed.formatted(.number.precision(.fractionLength(2)))) km/s" })
+            value("Latitude", position.map { "\(toFixed2($0.latitude))°" })
+            value("Longitude", position.map { "\(toFixed2($0.longitude))°" })
+            value("Altitude", position.map { "\(toFixed2($0.height / 1000)) km" })
+            value("Velocity", position.map { "\(toFixed2($0.speed)) km/s" })
         }
     }
 
