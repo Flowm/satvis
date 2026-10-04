@@ -464,6 +464,15 @@ Two things worth knowing about the frame this replaces, both established by disa
 
 So the missing occlusion was relief specifically, which is why the report named terrain.
 
+**Labels, 2026-10-04, Chrome.** The depth test above hid the points and not their
+labels: beyond the label collection's `coarseDepthTestDistance` (~636 km) Cesium's
+billboard shader tests against the ellipsoid only and writes its depth in front of the
+globe. At `?scene=Sky&gs=46.5935,7.9091&terrain=ReEarth&time=2026-10-04T20:00Z`, the
+Lauterbrunnen valley looking south, five of the 72 weather-satellite labels (METEOSAT-9,
+CYGFM07, CYGFM02, FENGYUN 3F, ELEKTRO-L 2) were drawn on the cliff faces with no point
+beside them. With `SkyView` raising the distance to infinity all five went and the five
+above the skyline stayed. Leaving the view put the distance back to 635,675 m.
+
 ## Sky view: the crosshair agrees with the picture
 
 **Why it cannot be a unit test.** `groundHides` casts a ray at the tiles the globe

@@ -20,6 +20,13 @@ import type { DesiredScene } from "./SatelliteManager";
 import { type SceneTarget, startSceneSync } from "./sceneSync";
 import type { Observer } from "./SkyView";
 
+// The url the page was opened on, which these tests set rather than route.
+const url = vi.hoisted(() => ({ elements: undefined as string | undefined, adjustUrlDefault: vi.fn() }));
+vi.mock("./util/urlSync", () => ({
+  arrivalParam: (param: string) => (param === "elements" ? url.elements : undefined),
+  adjustUrlDefault: url.adjustUrlDefault,
+}));
+
 /** Everything sceneSync writes to, recorded rather than enacted. */
 function fakeTarget() {
   const calls = {
@@ -133,6 +140,8 @@ async function settle(): Promise<void> {
 describe("startSceneSync", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    url.elements = undefined;
+    url.adjustUrlDefault.mockClear();
   });
 
   test("plain settings travel from the store to the globe", async () => {
@@ -475,6 +484,50 @@ describe("startSceneSync", () => {
       await settle();
 
       expect(satStore.enabledComponents).toContain("Label");
+    });
+
+    test("leaves labels on when the link opened with names them", async () => {
+      url.elements = "Point,Label";
+      const { target, catalog } = fakeTarget();
+      startSceneSync(target);
+      const satStore = useSatStore();
+
+      satStore.setActivation({ enabledTags: ["Weather", "GNSS"] });
+      loadGroup(catalog, "Weather", 267);
+      await settle();
+
+      expect(satStore.enabledComponents).toContain("Label");
+    });
+
+    test("keeps only the components the link names", async () => {
+      url.elements = "Point,Ground station link";
+      const { target, catalog } = fakeTarget();
+      startSceneSync(target);
+      const satStore = useSatStore();
+      satStore.enabledComponents = ["Point", "Label", "Ground station link"];
+
+      satStore.setActivation({ enabledTags: ["Starlink"] });
+      loadGroup(catalog, "Starlink", 501);
+      await settle();
+
+      expect(satStore.enabledComponents).toEqual(["Point", "Ground station link"]);
+    });
+
+    test("drops Label from the url default while over, and restores it under", async () => {
+      const { target, catalog } = fakeTarget();
+      startSceneSync(target);
+      const satStore = useSatStore();
+
+      satStore.setActivation({ enabledTags: ["Starlink"] });
+      loadGroup(catalog, "Starlink", 201);
+      await settle();
+      const [storeId, key, adjust] = url.adjustUrlDefault.mock.lastCall ?? [];
+      expect([storeId, key]).toEqual(["sat", "enabledComponents"]);
+      expect(adjust(["Point", "Label", "Orbit"])).toEqual(["Point", "Orbit"]);
+
+      satStore.setActivation({ enabledTags: [] });
+      await settle();
+      expect(url.adjustUrlDefault).toHaveBeenLastCalledWith("sat", "enabledComponents", undefined);
     });
 
     test("fires again after the count drops back under and crosses anew", async () => {

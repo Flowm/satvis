@@ -50,6 +50,12 @@ interface Registration {
   // Preset-merged values, captured at hydration. Undefined until then, which
   // is also how we know this store's parameters must not be rewritten yet.
   defaults?: Record<string, unknown>;
+  // Applied over `defaults`, keyed by qualified name, for a baseline that
+  // depends on more than the route (`adjustUrlDefault`).
+  adjust: Map<string, (baseline: unknown) => unknown>;
+  // This store's parameters as the opening link spelled them, before
+  // hydration normalised them. Cleared by the first pushed change.
+  arrival?: Query;
 }
 
 // Every synced store, so one write can rebuild the whole query. Without this
@@ -60,6 +66,9 @@ let watching = false;
 
 // The one parameter that changes without anyone asking it to.
 const CLOCK_PARAM = "time";
+
+// The query hydration normalised the opening link to, less the clock.
+let arrivedAt: string | undefined;
 
 const qualify = (storeId: string, specs: FieldSpec[]): FieldSpec[] => specs.map((spec) => ({ ...spec, name: `${storeId}.${spec.name}` }));
 const hydratedEntries = () => [...registry.values()].filter((entry) => entry.defaults !== undefined);
@@ -89,6 +98,11 @@ const stableQuery = (query: LocationQuery): string =>
       .map((key) => [key, query[key]]),
   );
 
+const withoutClock = (query: LocationQuery): string => {
+  const { [CLOCK_PARAM]: _clock, ...rest } = query;
+  return stableQuery(rest);
+};
+
 // Guarded keys are read-only computeds, so a store that has any must route
 // writes through its actions. Assigning them directly would silently do
 // nothing beyond a Vue warning.
@@ -100,9 +114,19 @@ function commit(entry: Registration, patch: Record<string, unknown>): void {
   Object.assign(entry.store, patch);
 }
 
+function baseline(entry: Registration): Record<string, unknown> {
+  const defaults = { ...entry.defaults };
+  for (const [name, adjust] of entry.adjust) {
+    if (name in defaults) {
+      defaults[name] = adjust(defaults[name]);
+    }
+  }
+  return defaults;
+}
+
 // Values missing from the query fall back to `defaults`, which are the
 // preset-merged ones once hydrated.
-function applyQuery(entry: Registration, query: Query, defaults: Record<string, unknown> = entry.defaults ?? {}, origin = "url parameter"): void {
+function applyQuery(entry: Registration, query: Query, defaults: Record<string, unknown> = baseline(entry), origin = "url parameter"): void {
   const { patch, invalid } = decode(query, entry.qualified, defaults);
 
   // Back to unqualified store keys, and note whether anything actually moved:
@@ -129,12 +153,7 @@ function applyQuery(entry: Registration, query: Query, defaults: Record<string, 
 // Rebuild the entire query from every hydrated store. Parameters belonging to
 // stores that have not hydrated yet are treated as foreign and preserved, so a
 // store created late cannot have its url read out from under it.
-function writeQuery(router: Router, mode: "push" | "replace"): void {
-  const hydrated = hydratedEntries();
-  if (hydrated.length === 0) {
-    return;
-  }
-
+function buildQuery(router: Router, hydrated: Registration[]): LocationQuery {
   const current = router.currentRoute.value.query;
   const owned = new Set(hydrated.flatMap((entry) => entry.specs.map(paramOf)));
 
@@ -147,7 +166,7 @@ function writeQuery(router: Router, mode: "push" | "replace"): void {
       state[qualified.name] = entry.store[spec.name];
       schema.push(qualified);
     }
-    Object.assign(defaults, entry.defaults);
+    Object.assign(defaults, baseline(entry));
   }
 
   // Parameters this codec does not own pass through with the value the router
@@ -159,6 +178,17 @@ function writeQuery(router: Router, mode: "push" | "replace"): void {
     }
   }
   Object.assign(next, encode(state, defaults, schema));
+  return next;
+}
+
+function writeQuery(router: Router, mode: "push" | "replace"): void {
+  const hydrated = hydratedEntries();
+  if (hydrated.length === 0) {
+    return;
+  }
+
+  const current = router.currentRoute.value.query;
+  const next = buildQuery(router, hydrated);
 
   // A write that changes nothing is not a state change and must not become a
   // history entry. This is also what stops a push from echoing back through
@@ -172,6 +202,13 @@ function writeQuery(router: Router, mode: "push" | "replace"): void {
   // moves nothing else replaces rather than pushes. The cost is that pinning by
   // scrubbing is not separately undoable, which beats a history full of ticks.
   const clockOnly = moved.every((param) => param === CLOCK_PARAM);
+  // Judged against where the link landed rather than against `current`:
+  // hydration's own store writes push the url it is still replacing to.
+  if (!clockOnly && mode === "push" && withoutClock(next) !== arrivedAt) {
+    for (const entry of registry.values()) {
+      entry.arrival = undefined;
+    }
+  }
   void router[clockOnly ? "replace" : mode]({ query: next }).catch(() => {
     // A redundant navigation is not an error worth surfacing.
   });
@@ -211,7 +248,9 @@ function hydrate(entry: Registration, router: Router, presetDefaults: Query): vo
   applyQuery(entry, presetDefaults, snapshot(entry), "preset default");
   entry.defaults = snapshot(entry);
 
-  applyQuery(entry, normalizeQuery(router.currentRoute.value.query, new Set(entry.specs.map(paramOf))));
+  entry.arrival = normalizeQuery(router.currentRoute.value.query, new Set(entry.specs.map(paramOf)));
+  applyQuery(entry, entry.arrival);
+  arrivedAt = withoutClock(buildQuery(router, hydratedEntries()));
 
   // Normalise the url to what the state actually is — dropping anything
   // invalid and anything that turned out to equal a default. Replace rather
@@ -233,6 +272,7 @@ function createUrlSync({ options, store }: PiniaPluginContext): void {
     specs: urlsync.config,
     apply: urlsync.apply,
     qualified: qualify(store.$id, urlsync.config),
+    adjust: new Map(),
   };
   registry.set(store.$id, entry);
 
@@ -253,6 +293,39 @@ function createUrlSync({ options, store }: PiniaPluginContext): void {
     },
     { deep: true },
   );
+}
+
+/**
+ * What the link the page was opened on said for `param`, as it spelled it.
+ * Hydration drops a value equal to its default from the url, so this is the
+ * only place left to ask whether the link named it. Undefined if it did not,
+ * and for everything once a change has been pushed.
+ */
+export function arrivalParam(param: string): string | undefined {
+  for (const entry of registry.values()) {
+    if (entry.specs.some((spec) => paramOf(spec) === param)) {
+      return entry.arrival?.[param];
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Derive one parameter's default from its route default, or pass `undefined`
+ * to go back to the route default. The url is rewritten against the result.
+ */
+export function adjustUrlDefault(storeId: string, key: string, adjust: ((baseline: unknown) => unknown) | undefined): void {
+  const entry = registry.get(storeId);
+  if (!entry) {
+    return;
+  }
+  const name = `${storeId}.${key}`;
+  if (adjust) {
+    entry.adjust.set(name, adjust);
+  } else {
+    entry.adjust.delete(name);
+  }
+  writeQuery(entry.store.router, "replace");
 }
 
 export default createUrlSync;

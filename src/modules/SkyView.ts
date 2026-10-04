@@ -23,7 +23,7 @@
 //     `adjustHeightForTerrain` free to lift the camera off the observer on any
 //     frame it thinks it moved. Both flags come off.
 
-import { Cartesian3, Cartographic, Math as CesiumMath, Matrix3, Matrix4, PerspectiveFrustum, type Scene, SceneMode, Transforms } from "@cesium/engine";
+import { Cartesian3, Cartographic, Math as CesiumMath, type LabelCollection, Matrix3, Matrix4, PerspectiveFrustum, type Scene, SceneMode, Transforms } from "@cesium/engine";
 
 import { flightDuration, type FlightPath, flightPose, newPose, type Pose } from "./skyFlight";
 import { type Aim, enuDirection, type Observer, type ObserverFrame, observerFrame, rollBasis } from "./skyGeometry";
@@ -94,6 +94,12 @@ export const isPlausibleGroundHeight = (height: number | undefined): height is n
  * what the sky view does.
  */
 export type GroundHeightSource = (observer: Observer) => Promise<number | undefined>;
+
+/**
+ * The labels the terrain should hide. A function, because the collection only
+ * exists once the first label does.
+ */
+export type LabelSource = () => LabelCollection | undefined;
 
 /**
  * Defaults chosen so the first frame is legible rather than empty sky. The
@@ -277,8 +283,14 @@ export class SkyView {
 
   #removePreRender: (() => void) | undefined;
 
-  constructor(scene: Scene) {
+  #labels: LabelSource | undefined;
+
+  /** Each label collection taken while the view is up, with the distance to put back. */
+  #borrowedLabels = new Map<LabelCollection, number>();
+
+  constructor(scene: Scene, labels?: LabelSource) {
     this.#scene = scene;
+    this.#labels = labels;
   }
 
   /** Whether the sky view owns the camera — true throughout both flights. */
@@ -638,6 +650,12 @@ export class SkyView {
     this.#observer = undefined;
     this.#frame = undefined;
     this.#phase = "off";
+    for (const [labels, distance] of this.#borrowedLabels) {
+      if (!labels.isDestroyed()) {
+        labels.coarseDepthTestDistance = distance;
+      }
+    }
+    this.#borrowedLabels.clear();
     if (!saved) {
       return;
     }
@@ -746,6 +764,7 @@ export class SkyView {
     if (!observer || this.#phase === "off") {
       return;
     }
+    this.#borrowLabels();
 
     // Computed even while leaving, and even though the camera is elsewhere: it
     // is what keeps `frame` answerable for as long as the view is active.
@@ -762,6 +781,22 @@ export class SkyView {
     this.#assign(flightPose(flight.path, flight.reverse ? 1 - progress : progress, this.#blended));
     if (progress >= 1) {
       this.#land();
+    }
+  }
+
+  /**
+   * Let the terrain hide labels too. Beyond `coarseDepthTestDistance` (~636 km)
+   * Cesium tests a label against the ellipsoid alone and draws it in front of
+   * the globe, so `depthTestAgainstTerrain` hides a satellite's point behind a
+   * ridge and not its name. Every satellite is that far from the ground.
+   *
+   * Checked every frame because labels switched on mid-view create the collection.
+   */
+  #borrowLabels(): void {
+    const labels = this.#labels?.();
+    if (labels && !this.#borrowedLabels.has(labels)) {
+      this.#borrowedLabels.set(labels, labels.coarseDepthTestDistance);
+      labels.coarseDepthTestDistance = Number.POSITIVE_INFINITY;
     }
   }
 }

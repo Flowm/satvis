@@ -1,7 +1,8 @@
 #!/bin/sh
 # Takes the App Store screenshots: runs the UI test on a freshly erased
 # simulator per App Store size, with a clean status bar, and exports the
-# screenshots it attaches to ios/screenshots/.
+# screenshots it attaches to ios/screenshots/. BASE_URL replaces
+# https://satvis.space as the page the views are opened on.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -26,7 +27,7 @@ done <<EOF
 $devices
 EOF
 
-TEST_RUNNER_SCREENSHOTS=1 xcodebuild test -project satvis.xcodeproj -scheme satvis -resultBundlePath "$result" "$@"
+TEST_RUNNER_SCREENSHOTS=1 TEST_RUNNER_BASE_URL="${BASE_URL:-https://satvis.space}" xcodebuild test -project satvis.xcodeproj -scheme satvis -resultBundlePath "$result" "$@"
 
 xcrun xcresulttool export attachments --path "$result" --output-path "$out"
 

@@ -9,7 +9,7 @@ import { createMemoryHistory, createRouter, type Router } from "vue-router";
 import { useCesiumStore } from "../../stores/cesium";
 import { useSatStore } from "../../stores/sat";
 import type { Query } from "./urlCodec";
-import piniaUrlSync from "./urlSync";
+import piniaUrlSync, { adjustUrlDefault, arrivalParam } from "./urlSync";
 
 // Writes reach the url through router.push/replace, which are async.
 const flush = async (): Promise<void> => {
@@ -121,5 +121,43 @@ describe("owned parameters", () => {
     useSatStore().catalogRevision += 1;
     await flush();
     expect(router.currentRoute.value.fullPath).toBe(before);
+  });
+});
+
+describe("the link the page was opened on", () => {
+  test("still says what hydration dropped as a default", async () => {
+    const { router } = await mount("/?elements=Point,Label");
+    expect(router.currentRoute.value.query.elements).toBeUndefined();
+    expect(arrivalParam("elements")).toBe("Point,Label");
+    expect(arrivalParam("tags")).toBeUndefined();
+  });
+
+  // The store writes hydration makes push the url it is still replacing to,
+  // which is not a change.
+  test("survives the link's own hydration", async () => {
+    await mount("/?elements=Point,Label&tags=Starlink&gs=48.1,11.6");
+    expect(arrivalParam("elements")).toBe("Point,Label");
+  });
+
+  test("is forgotten once a change is pushed", async () => {
+    await mount("/?elements=Point,Label");
+    useSatStore().enabledComponents = ["Point"];
+    await flush();
+    expect(arrivalParam("elements")).toBeUndefined();
+  });
+});
+
+describe("an adjusted default", () => {
+  const withoutLabel = (components: unknown): unknown => (components as string[]).filter((component) => component !== "Label");
+
+  test("puts a value equal to the route default into the url, and takes it out again", async () => {
+    const { router } = await mount("/");
+    adjustUrlDefault("sat", "enabledComponents", withoutLabel);
+    await flush();
+    expect(router.currentRoute.value.query.elements).toBe("Point,Label");
+
+    adjustUrlDefault("sat", "enabledComponents", undefined);
+    await flush();
+    expect(router.currentRoute.value.query.elements).toBeUndefined();
   });
 });
