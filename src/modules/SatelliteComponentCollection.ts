@@ -13,13 +13,11 @@ import {
   Entity,
   EntityView,
   GeometryInstance,
-  HeadingPitchRange,
   HeightReference,
   HorizontalOrigin,
   JulianDate,
   LabelGraphics,
   LabelStyle,
-  Math as CesiumMath,
   ModelGraphics,
   NearFarScalar,
   PathGraphics,
@@ -42,7 +40,7 @@ import type { GroundStation } from "./PassPredictor";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import { coneDescription, coneOrientation, groundTrackDescription, modelUri, orbitPathTimes, orbitTrackTimes, orbitUsesPathGraphic } from "./satelliteGraphics";
 import { SatelliteProperties } from "./SatelliteProperties";
-import { trackEntity, trackFlightPending, type CameraPose } from "./trackFlight";
+import { trackEntity, type CameraPose } from "./trackFlight";
 import { drawablePositions } from "./util/drawablePositions";
 import type { PassPredictorSource } from "./util/passSource";
 import type { PolylineBatch } from "./util/PolylineBatch";
@@ -236,8 +234,7 @@ export class SatelliteComponentCollection {
   }
 
   /**
-   * Drive the camera from the entity's own position while it is tracked, and put
-   * it back to a sensible angle when tracking stops.
+   * Drive the camera from the entity's own position while it is tracked.
    */
   artificiallyTrack(): void {
     const entity = this.defaultEntity;
@@ -252,10 +249,6 @@ export class SatelliteComponentCollection {
       removeTick();
       removeTracked();
       releaseEntityView(cameraTracker);
-      // Not when another satellite's tracking flight cleared it on the way.
-      if (typeof this.viewer.trackedEntity === "undefined" && !trackFlightPending(this.viewer)) {
-        void this.viewer.flyTo(entity, { offset: new HeadingPitchRange(0, CesiumMath.toRadians(-90.0), 2000000) });
-      }
     });
   }
 

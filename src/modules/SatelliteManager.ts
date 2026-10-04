@@ -9,6 +9,7 @@ import { activeTargetEntries, buildOrder } from "./satelliteActivation";
 import { type CatalogEntry, SatelliteCatalog } from "./SatelliteCatalog";
 import { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { geometryRefreshSeconds } from "./satelliteGraphics";
+import { returnAfterTracking } from "./trackFlight";
 import { CesiumCleanupHelper } from "./util/CesiumCleanupHelper";
 import { sameValue } from "./util/equality";
 import { approximatePeriodMinutes, type GpRecord } from "./util/gp";
@@ -224,6 +225,8 @@ export class SatelliteManager {
       }
       this.#onTrackedChange?.(this.trackedSatellite);
     });
+
+    returnAfterTracking(this.viewer);
 
     // Any other selection, by click or by select(), supersedes a pending one.
     this.viewer.selectedEntityChanged.addEventListener(() => {

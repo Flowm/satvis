@@ -2,19 +2,25 @@ import { Cartesian3, Entity } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { describe, expect, test } from "vitest";
 
-import { trackEntity, trackFlightPending, type CameraPose } from "./trackFlight";
+import { returnAfterTracking, trackEntity, type CameraPose } from "./trackFlight";
 
 const POSE: CameraPose = { destination: new Cartesian3(1, 0, 0), direction: Cartesian3.UNIT_X, up: Cartesian3.UNIT_Z };
 
 /** A viewer whose camera flights finish when told to, and are cancelled the way Cesium cancels them. */
 function fakeViewer() {
-  type Flight = { complete: () => void; cancel: () => void };
+  type Flight = { destination: Cartesian3; complete?: () => void; cancel?: () => void };
   let flight: Flight | undefined;
   let tracked: Entity | undefined;
+  let at = new Cartesian3(9, 9, 9);
   const listeners = new Set<() => void>();
   const viewer = {
     clock: { shouldAnimate: true },
     camera: {
+      get positionWC() {
+        return at;
+      },
+      directionWC: Cartesian3.UNIT_X,
+      upWC: Cartesian3.UNIT_Z,
       flyTo(options: Flight) {
         this.cancelFlight();
         flight = options;
@@ -22,7 +28,7 @@ function fakeViewer() {
       cancelFlight() {
         const current = flight;
         flight = undefined;
-        current?.cancel();
+        current?.cancel?.();
       },
     },
     get trackedEntity() {
@@ -44,9 +50,15 @@ function fakeViewer() {
   const land = () => {
     const current = flight;
     flight = undefined;
-    current?.complete();
+    if (current) {
+      at = current.destination;
+      current.complete?.();
+    }
   };
-  return { viewer: viewer as unknown as Viewer, land, flying: () => flight !== undefined };
+  const moveTo = (position: Cartesian3) => {
+    at = position;
+  };
+  return { viewer: viewer as unknown as Viewer, land, moveTo, flying: () => flight !== undefined, destination: () => flight?.destination };
 }
 
 describe("trackEntity", () => {
@@ -57,12 +69,10 @@ describe("trackEntity", () => {
     trackEntity(viewer, () => a, POSE);
     expect(viewer.trackedEntity).toBeUndefined();
     expect(viewer.clock.shouldAnimate).toBe(false);
-    expect(trackFlightPending(viewer)).toBe(true);
 
     land();
     expect(viewer.trackedEntity).toBe(a);
     expect(viewer.clock.shouldAnimate).toBe(true);
-    expect(trackFlightPending(viewer)).toBe(false);
   });
 
   test("a second track supersedes the first, and the clock comes back as the first found it", () => {
@@ -103,7 +113,6 @@ describe("trackEntity", () => {
     expect(flying()).toBe(false);
     expect(viewer.trackedEntity).toBe(station);
     expect(viewer.clock.shouldAnimate).toBe(true);
-    expect(trackFlightPending(viewer)).toBe(false);
   });
 
   test("a cancelled flight gives the clock back without tracking", () => {
@@ -126,5 +135,54 @@ describe("trackEntity", () => {
     land();
 
     expect(viewer.trackedEntity).toBeUndefined();
+  });
+});
+
+describe("returnAfterTracking", () => {
+  const before = new Cartesian3(1, 2, 3);
+
+  function setup() {
+    const fake = fakeViewer();
+    fake.moveTo(before);
+    returnAfterTracking(fake.viewer);
+    return fake;
+  }
+
+  test("flies back to the view tracking began from", () => {
+    const { viewer, moveTo, destination } = setup();
+
+    trackEntity(viewer, () => new Entity());
+    moveTo(new Cartesian3(7, 7, 7));
+    viewer.trackedEntity = undefined;
+
+    expect(destination()).toEqual(before);
+  });
+
+  test("returns to the view before the first of several tracks, and not between them", () => {
+    const { viewer, land, destination, flying } = setup();
+
+    trackEntity(viewer, () => new Entity(), POSE);
+    land();
+    trackEntity(viewer, () => new Entity(), { ...POSE, destination: new Cartesian3(5, 0, 0) });
+    expect(destination()).toEqual(new Cartesian3(5, 0, 0));
+    land();
+    expect(flying()).toBe(false);
+
+    viewer.trackedEntity = undefined;
+    expect(destination()).toEqual(before);
+  });
+
+  test("forgets the view when a flight is cancelled with nothing tracked", () => {
+    const { viewer, moveTo, destination } = setup();
+
+    trackEntity(viewer, () => new Entity(), POSE);
+    viewer.camera.cancelFlight();
+    // Whatever cancelled it took the camera elsewhere.
+    const elsewhere = new Cartesian3(4, 4, 4);
+    moveTo(elsewhere);
+    trackEntity(viewer, () => new Entity());
+    viewer.trackedEntity = undefined;
+
+    expect(destination()).toEqual(elsewhere);
   });
 });

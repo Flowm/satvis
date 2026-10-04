@@ -1,4 +1,4 @@
-import type { Cartesian3, Entity } from "@cesium/engine";
+import { Cartesian3, type Camera, type Entity } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
 export interface CameraPose {
@@ -10,9 +10,35 @@ export interface CameraPose {
 /** The tracking flight under way on a viewer, and the clock state it owes back. */
 const flights = new WeakMap<Viewer, { clockWasRunning: boolean }>();
 
-/** Whether `trackedEntity` is clear only because a tracking flight is under way. */
-export function trackFlightPending(viewer: Viewer): boolean {
-  return flights.has(viewer);
+/** Where the camera was when tracking began, through any switches since. */
+const viewsBeforeTracking = new WeakMap<Viewer, CameraPose>();
+
+function currentView(camera: Camera): CameraPose {
+  return { destination: Cartesian3.clone(camera.positionWC), direction: Cartesian3.clone(camera.directionWC), up: Cartesian3.clone(camera.upWC) };
+}
+
+function flyTo(viewer: Viewer, pose: CameraPose, callbacks?: { complete: () => void; cancel: () => void }): void {
+  viewer.camera.flyTo({ destination: pose.destination, orientation: { direction: pose.direction, up: pose.up }, ...callbacks });
+}
+
+/**
+ * Fly back to the view tracking began from once it stops, however it began. Not
+ * when a tracking flight clears `trackedEntity` on its way to the next one.
+ */
+export function returnAfterTracking(viewer: Viewer): void {
+  viewer.trackedEntityChanged.addEventListener(() => {
+    if (viewer.trackedEntity) {
+      if (!viewsBeforeTracking.has(viewer)) {
+        viewsBeforeTracking.set(viewer, currentView(viewer.camera));
+      }
+      return;
+    }
+    const view = viewsBeforeTracking.get(viewer);
+    if (view && !flights.has(viewer)) {
+      viewsBeforeTracking.delete(viewer);
+      flyTo(viewer, view);
+    }
+  });
 }
 
 /**
@@ -35,6 +61,9 @@ export function trackEntity(viewer: Viewer, target: () => Entity | undefined, po
     return;
   }
 
+  if (!viewsBeforeTracking.has(viewer)) {
+    viewsBeforeTracking.set(viewer, currentView(viewer.camera));
+  }
   const flight = { clockWasRunning };
   flights.set(viewer, flight);
   viewer.trackedEntity = undefined;
@@ -49,7 +78,10 @@ export function trackEntity(viewer: Viewer, target: () => Entity | undefined, po
     viewer.clock.shouldAnimate = flight.clockWasRunning;
     if (landed) {
       viewer.trackedEntity = target();
+    } else if (!viewer.trackedEntity) {
+      // Cancelled with nothing tracked, so whatever cancelled it has the camera.
+      viewsBeforeTracking.delete(viewer);
     }
   };
-  viewer.camera.flyTo({ destination: pose.destination, orientation: { direction: pose.direction, up: pose.up }, complete: () => finish(true), cancel: () => finish(false) });
+  flyTo(viewer, pose, { complete: () => finish(true), cancel: () => finish(false) });
 }
