@@ -55,13 +55,6 @@ export interface SatelliteBatches {
   tracks: PolylineBatch;
 }
 
-/**
- * The link drawn to a ground station during a pass. Not in SATELLITE_COMPONENTS
- * and not switchable: the ground-station setter makes it when there is a station
- * to draw to, so it is a component this class creates for itself.
- */
-const GROUND_STATION_LINK = "Ground station link";
-
 // The palette converted once, not per satellite: with ~10,000 points on screen
 // these are shared instances, the same way Cesium shares its own Color constants.
 const POINT_COLOR = Object.fromEntries(Object.entries(ORBIT_CLASS_COLOR).map(([orbitClass, hex]) => [orbitClass, Color.fromCssColorString(hex)])) as Record<OrbitClass, Color>;
@@ -78,7 +71,7 @@ const BOUNDING_SPHERE_PENDING = 1;
  * out as a switch, so adding a component there without a creator here is a
  * compile error instead of a "Unknown component" at runtime.
  */
-const CREATORS: Record<(typeof SATELLITE_COMPONENTS)[number] | typeof GROUND_STATION_LINK, (sat: SatelliteComponentCollection) => void> = {
+const CREATORS: Record<(typeof SATELLITE_COMPONENTS)[number], (sat: SatelliteComponentCollection) => void> = {
   Point: (sat) => sat.createPoint(),
   Label: (sat) => sat.createLabel(),
   Orbit: (sat) => sat.createOrbit(),
@@ -86,7 +79,7 @@ const CREATORS: Record<(typeof SATELLITE_COMPONENTS)[number] | typeof GROUND_STA
   "Ground track": (sat) => sat.createGroundTrack(),
   "Sensor cone": (sat) => sat.createCone(),
   "3D model": (sat) => sat.createModel(),
-  [GROUND_STATION_LINK]: (sat) => sat.createGroundStationLink(),
+  "Ground station link": (sat) => sat.createGroundStationLink(),
 };
 
 /**
@@ -782,9 +775,6 @@ export class SatelliteComponentCollection {
   }
 
   createGroundStationLink(): void {
-    if (!this.props.passPredictor.groundStationAvailable) {
-      return;
-    }
     const polyline = new PolylineGraphics({
       material: new PolylineGlowMaterialProperty({
         glowPower: 0.5,
@@ -795,7 +785,12 @@ export class SatelliteComponentCollection {
         const groundPosition = this.activeGroundStationCartesian(time as JulianDate);
         return [satPosition, groundPosition];
       }, false),
-      show: new CallbackProperty((time?: JulianDate) => this.props.passPredictor.passIntervals.contains(time as JulianDate), false),
+      // Reading the passes keeps their window around the clock; nothing else asks
+      // for an unselected satellite's.
+      show: new CallbackProperty((time?: JulianDate) => {
+        this.props.passPredictor.passes(time as JulianDate);
+        return this.props.passPredictor.passIntervals.contains(time as JulianDate);
+      }, false),
       width: 5,
     });
     this.createCesiumSatelliteEntity("Ground station link", "polyline", polyline);
@@ -835,20 +830,6 @@ export class SatelliteComponentCollection {
     this.props.passPredictor.groundStations = groundStations;
     if (this.isSelected || this.isTracked) {
       this.#highlightPasses();
-    }
-    // Symmetric with every other component: route through enableComponent so
-    // the link actually reaches viewer.entities (it used to be created but
-    // never attached — GitHub #83 — and, called before anything else was
-    // shown, was sometimes never created at all, since the old `if
-    // (this.created)` guard depended on a component existing first).
-    // enableComponent initializes on its own, so this no longer needs that
-    // guard; drop the link the same way once no ground station is left to
-    // draw it to, rather than leaving a stale entity whose show() callback
-    // will never answer true again.
-    if (this.props.passPredictor.groundStationAvailable) {
-      this.enableComponent(GROUND_STATION_LINK);
-    } else if (GROUND_STATION_LINK in this.components) {
-      this.disableComponent(GROUND_STATION_LINK);
     }
   }
 }

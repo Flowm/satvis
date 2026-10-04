@@ -592,6 +592,29 @@ untested heading source is required to either work or decline.
     layer, so that list is one shorter now. What was being checked — that the radios bind
     by provider, so an `_0.5` token still reads as the layer it is — is unaffected.
 
+## Ground station link: drawn when switched on, free when not
+
+**Why it cannot be a unit test.** The link is one dynamic polyline Entity per
+satellite, and what it costs is Cesium's per-entity update each frame. Whether it
+reaches the scene is unit-tested (`SatelliteComponentCollection.test.ts`); the frame
+cost and the picture are not.
+
+**Procedure.** `pnpm build && pnpm preview`, then open
+`?tags=Starlink&gs=48.1800,11.7500,Munich&elements=Point&bench=true&framepump=1` and,
+once every satellite is active and the scene has settled, time `clock.tick()` plus
+`scene.render()` from the console. Repeat with `elements=Point,Ground+station+link`,
+look at Munich, and untick the link in the satellite menu.
+
+**Result, 2026-10-04, Chrome (in-app browser pane, hidden, frame pump on), 11,152
+Starlink satellites.** Link off: 18 ms a frame and no link entities, the same as
+before the link was a component. Link on: 109 ms a frame, about 8 µs per satellite,
+and activation about 4x slower; 281 links drawn from Munich at once. Unticking it
+removed all 11,152 link entities and dropped it from `elements`.
+
+**Result, 2026-10-04, same setup, the first 1,000 catalog names.** Measured off, on,
+off in one page, each after the scene settled: `dataSourceDisplay.update` 0.5 ms with
+the link off and 8 ms with it on, a frame 21 ms and 30 ms. 50 links drawn.
+
 ## Clock deck: the replacement for the animation and timeline widgets
 
 **Why it cannot be a unit test.** Everything the deck is depends on layout. Its
