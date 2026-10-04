@@ -37,6 +37,9 @@ public final class SGP4Propagator: Sendable {
     public let elements: MeanElements
     /// The epoch's Julian date, which the minutes since epoch count from.
     public let epochJulianDate: Double
+    /// The mean motion SGP4 recovered, in radians per minute: satellite.js's
+    /// `satrec.no` once initialised.
+    public var meanMotion: Double { sgp4_mean_motion(satellite) }
     private nonisolated(unsafe) let satellite: OpaquePointer
 
     public init(_ elements: MeanElements) throws(SGP4Error) {
@@ -83,7 +86,8 @@ public final class SGP4Propagator: Sendable {
     }
 
     /// The state at a UTC instant, counted from the epoch as satellite.js's
-    /// `propagate` counts it.
+    /// `propagate` counts it. A JavaScript Date holds whole milliseconds, so the
+    /// instant should be one.
     public func state(epochMilliseconds: Double) throws(SGP4Error) -> TEMEState {
         let utc = civilDate(epochMilliseconds: epochMilliseconds)
         let julianDate = jday(

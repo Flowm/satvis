@@ -32,6 +32,10 @@ void sgp4_destroy(SGP4Satellite *satellite) {
     delete satellite;
 }
 
+double sgp4_mean_motion(const SGP4Satellite *satellite) {
+    return satellite->record.no_unkozai;
+}
+
 int sgp4_propagate(const SGP4Satellite *satellite, double minutesSinceEpoch, double position[3], double velocity[3]) {
     // sgp4 writes into the record as it goes (the deep-space integrator keeps its
     // last step there), so each call works on its own copy.

@@ -27,8 +27,21 @@ struct Parity: Decodable {
         let fixedPositionMetres: [Double]
     }
 
+    struct Grid: Decodable {
+        struct Sample: Decodable {
+            let index: Int
+            let fixedPositionMetres: [Double]
+        }
+
+        let record: Int
+        let anchorEpochMs: Double
+        let stepSeconds: Double
+        let samples: [Sample]
+    }
+
     let parsed: [Parsed]
     let propagation: [State]
+    let grids: [Grid]
     let greenwichHourAngle: [HourAngle]
 
     static func fixture(_ name: String) throws -> Data {
@@ -77,6 +90,25 @@ struct Parity: Decodable {
             #expect(errors.0 < 0.01, "\(record.name) at \(expected.instant): \(errors.0) m")
             #expect(errors.1 < 0.0001, "\(record.name) at \(expected.instant): \(errors.1) m/s")
             #expect(errors.2 < 0.01, "\(record.name) at \(expected.instant): \(errors.2) m in the fixed frame")
+        }
+    }
+
+    // The same grid as the web app's sampler, sample for sample, so the two
+    // interpolate the same nodes with the same basis.
+    @Test func samplesTheWebAppsGrid() throws {
+        let parity = try Parity.load()
+        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        for grid in parity.grids {
+            let record = records[grid.record]
+            let propagator = try SGP4Propagator(record.meanElements)
+            let trajectory = try #require(SampledTrajectory(propagator, around: grid.anchorEpochMs + 3_600_000))
+            #expect(abs(trajectory.anchorMilliseconds - grid.anchorEpochMs) < 1e-3, "\(record.name)")
+            #expect(abs(trajectory.stepMilliseconds - grid.stepSeconds * 1000) < 1e-6, "\(record.name)")
+            for sample in grid.samples {
+                let position = trajectory.positions[sample.index - trajectory.firstIndex]
+                let expected = SIMD3(sample.fixedPositionMetres[0], sample.fixedPositionMetres[1], sample.fixedPositionMetres[2])
+                #expect(distance(position, expected) < 0.01, "\(record.name) sample \(sample.index)")
+            }
         }
     }
 
