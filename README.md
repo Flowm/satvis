@@ -244,6 +244,17 @@ a simple app wraps the webview and handles the scheduling of
 
 <p align="center"><a href="https://apps.apple.com/app/satvis/id1441084766"><img src="src/assets/app-store-badge.svg" width="250" /></a></p>
 
+### Universal links
+
+`public/.well-known/apple-app-site-association` sends `/ot` and any `/` with a query to
+the app; a bare `satvis.space/` stays on the website. It has no extension, so
+`public/_headers` gives it the JSON content type Apple requires. Apple serves it from
+a CDN cache: after a deploy, check
+<https://app-site-association.cdn-apple.com/a/v1/satvis.space>.
+
+The app side is the `applinks:satvis.space` entitlement. Before the CDN updates, test
+with `applinks:satvis.space?mode=developer` and Developer Mode on the device.
+
 ## License
 
 This project is licensed under the MIT License - see `LICENSE` file for details.

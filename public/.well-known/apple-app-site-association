@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["4L2672L4VX.org.frcy.app.satvis"],
+        "components": [
+          { "/": "/ot", "comment": "The OT preset, with or without a query" },
+          { "/": "/", "?": "?*", "comment": "The default preset only with a query; a bare / stays on the website" }
+        ]
+      }
+    ]
+  }
+}

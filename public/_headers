@@ -18,3 +18,8 @@
 
 /embedded
   X-Robots-Tag: noindex
+
+# No extension, so wrangler uploads it without a content type, and Apple wants
+# JSON (README, "Universal links").
+/.well-known/apple-app-site-association
+  Content-Type: application/json
