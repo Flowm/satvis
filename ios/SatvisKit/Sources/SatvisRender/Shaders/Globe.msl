@@ -69,7 +69,10 @@ fragment float4 globeFragment(GlobeOut in [[stage_in]], constant FrameUniforms &
     float transmittance = 0.5 + clamp(1.0 - groundAtmosphereColor.a, 0.0, 1.0);
     float3 finalAtmosphereColor = finalColor + groundAtmosphereColor.rgb * transmittance;
 
-    float sunlitAtmosphereIntensity = clamp((frame.cameraDistance - nightFadeOutDistance) / (nightFadeInDistance - nightFadeOutDistance), 0.05, 1.0);
+    // As GlobeFS.glsl computes it, where `fadeInDist` reads the out distance and
+    // `fadeOutDist` the in distance (GlobeSurfaceTileProvider's u_nightFadeDistance):
+    // fully sunlit up close, fading to dark by 5π/2 Earth radii.
+    float sunlitAtmosphereIntensity = clamp((frame.cameraDistance - nightFadeInDistance) / (nightFadeOutDistance - nightFadeInDistance), 0.05, 1.0);
     float darken = clamp(dot(normalize(in.positionWC), light), 0.0, 1.0);
     float3 darkenedGroundAtmosphereColor = mix(groundAtmosphereColor.rgb, finalAtmosphereColor, darken);
     finalAtmosphereColor = mix(darkenedGroundAtmosphereColor, finalAtmosphereColor, sunlitAtmosphereIntensity);
