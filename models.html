@@ -90,6 +90,38 @@
         margin-bottom: 4px;
         border-bottom: 1px solid var(--line);
       }
+      #picker-list button.group {
+        display: block;
+        width: 100%;
+        margin-top: 6px;
+        padding: 2px 4px;
+        border: 0;
+        background: none;
+        color: var(--muted);
+        font: inherit;
+        font-size: 11px;
+        text-align: left;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+      }
+      #picker-list button.group:hover {
+        color: var(--text);
+      }
+      #panel h3.group {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        margin: 0;
+        padding: 6px 12px;
+        background: var(--bg);
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
       #picker-list label {
         display: flex;
         padding: 3px 4px;
@@ -190,6 +222,16 @@
           <div id="picker-list"></div>
         </div>
       </details>
+      <label title="Where the camera looks from, in the satellite's frame"
+        ><select id="view">
+          <option value="starboard">From starboard</option>
+          <option value="port">From port</option>
+          <option value="front">From ahead</option>
+          <option value="rear">From behind</option>
+          <option value="top">From above</option>
+          <option value="bottom">From Earth</option>
+        </select></label
+      >
       <label><input type="checkbox" id="axes" checked /> Axes</label>
       <label><input type="checkbox" id="wireframe" /> Wireframe</label>
       <label><input type="checkbox" id="bounds" /> Bounds</label>

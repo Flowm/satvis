@@ -41,6 +41,8 @@ interface Entry {
   path: string;
   url: string;
   name: string;
+  /** Its folder under data/, e.g. `models` or `custom/nasa`. */
+  group: string;
   card: HTMLElement;
   /** Picked in the model dropdown. */
   visible: boolean;
@@ -61,11 +63,21 @@ interface Entry {
 const ANCHOR = Transforms.eastNorthUpToFixedFrame(Cartesian3.fromDegrees(0, 0, 500_000));
 const FIT_RADIUS = 1;
 const CELL_PADDING = 1.4;
-const VIEW_PITCH = -0.3;
+// Heading and pitch of the camera in the satellite frame (east is the velocity,
+// north is port): heading 0 looks north, so it sees the starboard side.
+const VIEWS: Record<string, [number, number]> = {
+  starboard: [0, -0.3],
+  port: [Math.PI, -0.3],
+  front: [-Math.PI / 2, -0.2],
+  rear: [Math.PI / 2, -0.2],
+  top: [0, -Math.PI / 2 + 0.001],
+  bottom: [0, Math.PI / 2 - 0.001],
+};
 
 const params = new URLSearchParams(location.search);
 const controls = {
   scale: document.querySelector<HTMLSelectElement>("#scale")!,
+  view: document.querySelector<HTMLSelectElement>("#view")!,
   axes: document.querySelector<HTMLInputElement>("#axes")!,
   wireframe: document.querySelector<HTMLInputElement>("#wireframe")!,
   bounds: document.querySelector<HTMLInputElement>("#bounds")!,
@@ -75,6 +87,10 @@ const controls = {
   pickerList: document.querySelector<HTMLElement>("#picker-list")!,
 };
 controls.scale.value = params.get("scale") === "true" ? "true" : "fit";
+controls.view.value = params.get("view") ?? "starboard";
+if (!controls.view.value) {
+  controls.view.value = "starboard";
+}
 
 const viewer = new Viewer("viewer", {
   animation: false,
@@ -120,11 +136,34 @@ const panel = document.querySelector<HTMLElement>("#panel")!;
 // `?show=` lists the picked models by name; absent means all of them.
 const shown = params.get("show")?.split(",");
 
-const entries: Entry[] = MODEL_PATHS.toSorted((a, b) => a.localeCompare(b)).map((path) => {
+const groupOf = (path: string): string => path.replace(/^\/data\//, "").replace(/\/[^/]+$/, "");
+// The models the app ships come first; any other folder is something to compare them with.
+const groupRank = (path: string): number => (path.startsWith("/data/models/") ? 0 : 1);
+const groupHeadings = new Map<string, HTMLElement>();
+
+const entries: Entry[] = MODEL_PATHS.toSorted((a, b) => groupRank(a) - groupRank(b) || a.localeCompare(b)).map((path) => {
   const name = path
     .split("/")
     .pop()!
     .replace(/\.glb$/, "");
+  const group = groupOf(path);
+  if (!groupHeadings.has(group)) {
+    const heading = document.createElement("h3");
+    heading.className = "group";
+    heading.textContent = group;
+    panel.append(heading);
+    groupHeadings.set(group, heading);
+    const header = document.createElement("button");
+    header.type = "button";
+    header.className = "group";
+    header.textContent = group;
+    header.title = "Show or hide this folder";
+    header.addEventListener("click", () => {
+      const members = entries.filter((entry) => entry.group === group);
+      setVisible(members, !members.every((entry) => entry.visible));
+    });
+    controls.pickerList.append(header);
+  }
   const card = document.createElement("div");
   card.className = "card";
   panel.append(card);
@@ -133,7 +172,7 @@ const entries: Entry[] = MODEL_PATHS.toSorted((a, b) => a.localeCompare(b)).map(
   toggle.type = "checkbox";
   option.append(toggle, ` ${name}`);
   controls.pickerList.append(option);
-  const entry: Entry = { path, url: `.${path}`, name, card, visible: shown?.includes(name) ?? true, toggle };
+  const entry: Entry = { path, url: `.${path}`, name, group, card, visible: shown?.includes(name) ?? true, toggle };
   toggle.checked = entry.visible;
   toggle.addEventListener("change", () => setVisible([entry], toggle.checked));
   card.hidden = !entry.visible;
@@ -179,6 +218,7 @@ async function load(entry: Entry): Promise<void> {
       entry.center = Matrix4.multiplyByPoint(Matrix4.inverseTransformation(ANCHOR, new Matrix4()), sphere.center, new Cartesian3());
       entry.label = labels.add({
         position: Matrix4.getTranslation(ANCHOR, new Cartesian3()),
+        show: false,
         text: entry.name,
         font: "13px system-ui, sans-serif",
         fillColor: Color.WHITE,
@@ -191,7 +231,10 @@ async function load(entry: Entry): Promise<void> {
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       });
       renderCard(entry);
-      layout();
+      // A hidden model changes nothing on screen, so it must not reframe the camera.
+      if (entry.visible) {
+        layout();
+      }
     });
     model.errorEvent.addEventListener((error: Error) => fail(entry, error));
   } catch (error) {
@@ -239,9 +282,13 @@ function layout(): void {
   }
   const mode = controls.scale.value as ScaleMode;
   const columns = Math.max(1, Math.ceil(Math.sqrt(ready.length * 1.6)));
+  // Each folder starts a row of its own, so the sets being compared stay apart.
   const rows: Entry[][] = [];
-  for (let i = 0; i < ready.length; i += columns) {
-    rows.push(ready.slice(i, i + columns));
+  for (const group of new Set(ready.map((entry) => entry.group))) {
+    const members = ready.filter((entry) => entry.group === group);
+    for (let i = 0; i < members.length; i += columns) {
+      rows.push(members.slice(i, i + columns));
+    }
   }
 
   const scaleOf = (entry: Entry): number => (mode === "fit" ? FIT_RADIUS / entry.radius! : 1);
@@ -279,7 +326,7 @@ function layout(): void {
   });
 
   applyToggles();
-  if (entries.every((entry) => entry.error || entry.radius !== undefined)) {
+  if (entries.every((entry) => !entry.visible || entry.error || entry.radius !== undefined)) {
     const sphere = selected?.sphere ?? allSpheres();
     if (sphere.radius > 0) {
       frame(sphere);
@@ -330,6 +377,9 @@ function setVisible(changed: Entry[], visible: boolean): void {
 }
 
 function updatePickerSummary(): void {
+  for (const [group, heading] of groupHeadings) {
+    heading.hidden = !entries.some((entry) => entry.group === group && entry.visible);
+  }
   const count = entries.filter((entry) => entry.visible).length;
   controls.picker.querySelector("summary")!.textContent = `Models ${count}/${entries.length}`;
 }
@@ -344,7 +394,8 @@ function frame(sphere: BoundingSphere): void {
   const fovy = frustum.fovy ?? Math.PI / 3;
   const fovx = 2 * Math.atan(Math.tan(fovy / 2) * (frustum.aspectRatio || 1));
   const range = (sphere.radius / Math.sin(Math.min(fovx, fovy) / 2)) * 1.05;
-  camera.lookAtTransform(Transforms.eastNorthUpToFixedFrame(sphere.center), new HeadingPitchRange(0, VIEW_PITCH, range));
+  const [heading, pitch] = VIEWS[controls.view.value] ?? VIEWS.starboard!;
+  camera.lookAtTransform(Transforms.eastNorthUpToFixedFrame(sphere.center), new HeadingPitchRange(heading, pitch, range));
 }
 
 function select(entry: Entry | undefined): void {
@@ -366,6 +417,7 @@ function select(entry: Entry | undefined): void {
 function writeUrl(): void {
   const url = new URL(location.href);
   url.searchParams.set("scale", controls.scale.value);
+  url.searchParams.set("view", controls.view.value);
   if (selected) {
     url.searchParams.set("model", selected.name);
   } else {
@@ -389,7 +441,9 @@ function renderCard(entry: Entry): void {
     rows.push(["Meshes / nodes", `${stats.meshes} / ${stats.nodes}`]);
     rows.push(["Materials", String(stats.materials)]);
     if (stats.size) {
-      rows.push(["Extent", `${stats.size.map(metres).join(" × ")} <span class="path">glTF X×Y×Z</span>`]);
+      // glTF Z, X and Y are what Cesium turns into the velocity, port and zenith.
+      const [x, y, z] = stats.size;
+      rows.push(["Extent", `${[z, x, y].map(metres).join(" × ")} <span class="path">along × across × radial</span>`]);
     }
     rows.push([
       "Textures",
@@ -440,6 +494,13 @@ viewer.screenSpaceEventHandler.setInputAction((click: { position: Cartesian2 }) 
   }
 }, ScreenSpaceEventType.LEFT_CLICK);
 
+controls.view.addEventListener("change", () => {
+  const sphere = selected?.sphere ?? allSpheres();
+  if (sphere.radius > 0) {
+    frame(sphere);
+  }
+  writeUrl();
+});
 controls.scale.addEventListener("change", () => {
   layout();
   writeUrl();
