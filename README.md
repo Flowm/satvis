@@ -21,7 +21,8 @@ The sky view trades the globe for a ground-level camera aimed by your phone's co
 - Install it as a Progressive Web App and keep using it offline, from a cached element-set snapshot and base map
 - Deploy it serverless: static files on a CDN, with an optional Cloudflare Worker serving fresh satellite data
 
-Every parameter in that url is specified in `docs/adr/0001-url-parameter-specification.md`.
+Every parameter in that url, with its accepted values and default, is listed in the [url parameter specification](docs/adr/0001-url-parameter-specification.md#parameters).
+For example, `?tags=&sats=NOAA+20+(JPSS-1),METEOR-M2+3&elements=Point,Label,Orbit&gs=48.1371,11.5754` shows only those two satellites, with their orbits and their passes over Munich.
 
 ## Built With
 

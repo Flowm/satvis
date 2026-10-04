@@ -824,3 +824,56 @@ an animated track, after ISS then CSS, after an instant track and after tracking
 ground station. Entering the sky view while tracking used to save the tracking-relative
 camera position as its way back, and leaving dropped the camera onto the surface; it
 now untracks first, and leaving lands 0 km from the tracked view.
+
+## Attribution lightbox: closable on a phone
+
+**Why it cannot be a unit test.** Whether the close button can be tapped depends on
+stacking and the safe-area insets, and jsdom has neither.
+
+**Procedure.** Run the iOS app against the change (`make run` in `ios/` loads
+satvis.space; see the note below for a local page), tap `Attribution`, then tap the
+close button. In a desktop browser, open the lightbox and click outside it.
+
+**Result, 2026-10-04, iPhone 18 Pro Max simulator, iOS 27.** Before: the full-screen
+lightbox sat below the toolbars and the clock deck, its title and close button under
+the Dynamic Island, and nothing closed it. After: it covers the app chrome, the
+title and close button start below the status bar, and the close button dismisses
+it. At 1024 px wide the windowed lightbox is unchanged, covers the toolbars, and a
+click outside still closes it.
+
+**Note: the simulator blanks a launch variable named `URL`.** `SIMCTL_CHILD_URL`
+arrives as `URL=` while the same value under another name arrives intact, so
+`make run URL=…` loads satvis.space. This run read a temporary `SATVIS_URL` instead,
+pointed at `http://[::1]:<port>/`: Vite listens on IPv6 loopback only.
+
+## Entity info panel: once a second at any clock speed
+
+**Why it cannot be a unit test.** The helper's timing is unit-tested
+(`CesiumCallbackHelper.test.ts`); whether the panel follows it needs the real clock
+and the real panel.
+
+**Procedure.** `?framems=16`, select a LEO satellite with
+`cc.viewer.selectedEntity`, then for 5 s at each speed count the frames on which the
+panel's `innerText` changed. Pause, jump the clock 30 min, and check that the panel
+catches up and then stays put.
+
+**Result, 2026-10-04, Chrome (in-app browser pane, frame pump on), CYGFM04.** Before:
+5 changes in 311 frames at 1×, 310 in 311 at 3600×. After: 5 changes at 1×, 60×,
+3600× and 86400×, none while paused. After the jump the panel had updated within
+200 ms and did not change again while paused.
+
+## Render on demand: a paused clock draws nothing
+
+**Why it cannot be a unit test.** Whether a frame is drawn is Cesium's decision in
+`Scene.render`, against a real clock and real entities.
+
+**Procedure.** Open
+`?elements=Point,Label,Orbit,Orbit+track,Ground+track,Sensor+cone,Ground+station+link&gs=48.1371,11.5754&framems=16`,
+wait for the globe's tiles to load, then count `scene.postRender` and `clock.onTick`
+events for 5 s running and 5 s paused. Not with `bench=true`: the benchmark panel
+turns `requestRenderMode` off.
+
+**Result, 2026-10-04, Chrome (in-app browser pane, frame pump on), 72 satellites.**
+Running: 113 renders in 309 ticks. Paused: 0 renders in 310 ticks, with the sensor cone
+and ground station link (the `CallbackProperty` users) on. Rerun with `?framems=16`
+and no panel: 115 and 0, `requestRenderMode` on throughout.

@@ -322,6 +322,18 @@ body.clock-deck[data-clock-deck="folded"] {
   left: var(--credit-left) !important;
 }
 
+/* Below 576 px Cesium makes the attribution lightbox full screen, close button in
+   the top corner, which is under the status bar where the page reaches behind it. */
+.cesium-credit-lightbox.cesium-credit-lightbox-mobile {
+  box-sizing: border-box;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}
+
+.cesium-credit-lightbox-mobile .cesium-credit-lightbox-close {
+  top: var(--safe-top);
+  right: calc(6px + var(--safe-right));
+}
+
 /* The width cap stops its full-row container swallowing taps meant for the deck. */
 body.clock-deck .cesium-viewer-bottom {
   right: auto !important;

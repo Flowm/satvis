@@ -28,6 +28,8 @@ export function createViewer(container: string | Element, options: { minimalUI: 
     // as well meant two defaults that could drift.
     baseLayer: false,
     baseLayerPicker: false,
+    // Outside #cesiumContainer's stacking context, so the lightbox covers the app's toolbars and clock deck
+    creditViewport: document.body,
     fullscreenButton: !minimalUI,
     fullscreenElement: document.body,
     geocoder: false,

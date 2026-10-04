@@ -14,6 +14,10 @@
 # router handles it, so it costs no Worker invocation.
 /ot / 200
 
+# /ot used to be served from an ot.html. Without this, old links get the 404 page:
+# no such file exists, and src/router/index.ts never runs for them.
+/ot.html /ot 301
+
 # 301 and not the default 302. The branch this url was named for is deployed at the
 # apex now, so the move is permanent and the redirect should say so — a 302 asks
 # every crawler to keep checking and passes no signal to the target.

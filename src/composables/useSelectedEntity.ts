@@ -10,9 +10,9 @@
 // While something is selected, a 1 s periodic clock callback refreshes the
 // time-dependent data (position, pass countdowns) and re-resolves the selection
 // so a satellite disposed mid-selection (e.g. its tag toggled off) hides the
-// panel within a second. The callback is gated on *simulation* time, so the
-// countdown freezes while the clock is paused — the same behavior the old
-// InfoBox had with its 1 s-cached description CallbackProperty.
+// panel within a second. The callback waits for a second of both *simulation*
+// and real time: the countdown freezes while the clock is paused, as the old
+// InfoBox's did, and a fast clock refreshes once a second rather than every frame.
 //
 // Cesium objects are held via shallowRef/markRaw only: a deep reactive proxy
 // would break the `viewer.selectedEntity === entity` identity checks inside
@@ -199,7 +199,7 @@ function update(time?: JulianDate): void {
     // A pass picked on one entity's timeline means nothing on the next one's.
     pickedPassMs.value = null;
     if (next && !removeTickCallback) {
-      removeTickCallback = CesiumCallbackHelper.createPeriodicTimeCallback(viewer, 1, (tickTime) => update(tickTime));
+      removeTickCallback = CesiumCallbackHelper.createThrottledTimeCallback(viewer, 1, (tickTime) => update(tickTime));
     } else if (!next && removeTickCallback) {
       removeTickCallback();
       removeTickCallback = undefined;

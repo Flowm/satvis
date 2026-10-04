@@ -39,4 +39,25 @@ export class CesiumCallbackHelper {
       lastUpdated = time;
     });
   }
+
+  /**
+   * Fire once `refreshRate` seconds have passed in both *simulation* and real
+   * time: as often as the periodic time callback at 1×, but no more than once per
+   * `refreshRate` real seconds at a faster clock, and not at all while it is paused.
+   * @returns the unsubscribe
+   */
+  static createThrottledTimeCallback(viewer: Viewer, refreshRate: number, callback: (time: JulianDate) => void, event: CesiumEvent = viewer.clock.onTick): () => void {
+    let lastUpdated = viewer.clock.currentTime;
+    let lastUpdatedMs = performance.now();
+    return event.addEventListener(() => {
+      const time = viewer.clock.currentTime;
+      const nowMs = performance.now();
+      if (Math.abs(JulianDate.secondsDifference(time, lastUpdated)) < refreshRate || nowMs - lastUpdatedMs < refreshRate * 1000) {
+        return;
+      }
+      callback(time);
+      lastUpdated = time;
+      lastUpdatedMs = nowMs;
+    });
+  }
 }
