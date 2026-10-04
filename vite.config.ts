@@ -79,6 +79,8 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         { src: `${cesiumEngineSource}/Build/ThirdParty`, dest: cesiumBaseUrl, rename: { stripBase: 4 } },
+        // Cesium's on-demand decoders (Draco, KTX2) are only in Source/ThirdParty.
+        { src: `${cesiumEngineSource}/Source/ThirdParty/*.wasm`, dest: cesiumBaseUrl, rename: { stripBase: 4 } },
         { src: `${cesiumEngineSource}/Build/Workers`, dest: cesiumBaseUrl, rename: { stripBase: 4 } },
         {
           src: [`${cesiumEngineSource}/Source/Assets/**`, `!${cesiumEngineSource}/Source/Assets/Textures/NaturalEarthII/**`],
