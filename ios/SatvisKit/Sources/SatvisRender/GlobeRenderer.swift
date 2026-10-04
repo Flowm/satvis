@@ -12,7 +12,7 @@ public enum RendererError: Error {
 /// Compiles Shaders/*.msl. At run time rather than at build time, so that neither
 /// the build nor CI needs Xcode's separately downloaded Metal toolchain.
 enum ShaderLibrary {
-    static let files = ["Common", "Sky", "Globe", "Points", "Lines", "Labels", "Stations", "Footprints", "Tonemap"]
+    static let files = ["Common", "Sky", "Globe", "Surface", "Points", "Lines", "Labels", "Stations", "Footprints", "Tonemap"]
 
     static func make(device: MTLDevice) async throws -> MTLLibrary {
         let source = try files.map { name in
@@ -99,7 +99,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let depthTest: MTLDepthStencilState
     private let noDepth: MTLDepthStencilState
     private let linearSampler: MTLSamplerState
-    private let globe: (vertices: MTLBuffer, indices: MTLBuffer, count: Int)
+    private let surface: Surface
+    private let tileSampler: MTLSamplerState
     private let skyShell: (vertices: MTLBuffer, indices: MTLBuffer, count: Int)
     private var imagery: MTLTexture?
     private var stars: MTLTexture?
@@ -204,7 +205,15 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             let indices = mesh.indices.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count)! }
             return (vertices, indices, mesh.indices.count)
         }
-        globe = upload(Meshes.globe())
+        surface = try Surface(device: device, library: library, site: URL(string: "https://satvis.space/")!)
+        let tileSamplerDescriptor = MTLSamplerDescriptor()
+        tileSamplerDescriptor.minFilter = .linear
+        tileSamplerDescriptor.magFilter = .linear
+        tileSamplerDescriptor.mipFilter = .linear
+        tileSamplerDescriptor.maxAnisotropy = 8
+        tileSamplerDescriptor.sAddressMode = .clampToEdge
+        tileSamplerDescriptor.tAddressMode = .clampToEdge
+        tileSampler = device.makeSamplerState(descriptor: tileSamplerDescriptor)!
         skyShell = upload(Meshes.skyShell())
         pointFrameBuffers = Array(repeating: nil, count: Self.framesInFlight)
         pixelScale = Double(view.contentScaleFactorForPoints)
@@ -250,6 +259,17 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     public func setSatellites(_ prepared: PreparedSatellites) {
         points.install(prepared)
         overlay.isStale = true
+    }
+
+    /// The base map, and the site the shipped one's finer levels come from.
+    public func setImagery(_ layer: BaseLayer, site: URL) {
+        surface.setLayer(layer, site: site)
+    }
+
+    /// What fetches a map tile's bytes; tiles are not fetched without one.
+    public var tileLoader: (@Sendable (URL, String) async -> Data?)? {
+        get { surface.loader }
+        set { surface.loader = newValue }
     }
 
     /// The ground stations to stand pins on.
@@ -430,6 +450,17 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
         var frame = uniforms(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now)
         overlay.encode(commands, pipeline: overlayPipeline, satellites: points.satellites, at: now, enabled: components.contains(.groundTrack), device: device)
+        var surfaceTiles: [Surface.Tile] = []
+        if let imagery, let lastFrame {
+            let selection = surface.select(
+                eye: pose.position, viewProjection: lastFrame.viewProjection, viewportHeightPixels: Double(hdr.height),
+                verticalFieldOfView: OrbitCamera.verticalFieldOfView(aspectRatio: Double(hdr.width) / Double(hdr.height)))
+            // What is drawn now first, then the children waiting to replace it.
+            let drawn = Set(selection.draw.map(\.key))
+            let bakes = selection.bake.filter { drawn.contains($0.key) } + selection.bake.filter { !drawn.contains($0.key) }
+            surface.encodeBakes(bakes, base: imagery, commands: commands)
+            surfaceTiles = selection.draw.filter { $0.texture != nil }
+        }
 
         let scene = MTLRenderPassDescriptor()
         scene.colorAttachments[0].texture = hdr
@@ -460,15 +491,18 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             encoder.setVertexBuffer(skyShell.vertices, offset: 0, index: 0)
             encoder.drawIndexedPrimitives(type: .triangle, indexCount: skyShell.count, indexType: .uint32, indexBuffer: skyShell.indices, indexBufferOffset: 0)
 
-            if let imagery {
+            if !surfaceTiles.isEmpty {
                 encoder.setRenderPipelineState(globePipeline)
                 encoder.setDepthStencilState(depthWrite)
                 encoder.setCullMode(.back)
-                encoder.setVertexBuffer(globe.vertices, offset: 0, index: 0)
-                encoder.setFragmentTexture(imagery, index: 0)
                 encoder.setFragmentTexture(overlay.texture, index: 1)
-                encoder.setFragmentSamplerState(linearSampler, index: 0)
-                encoder.drawIndexedPrimitives(type: .triangle, indexCount: globe.count, indexType: .uint32, indexBuffer: globe.indices, indexBufferOffset: 0)
+                encoder.setFragmentSamplerState(tileSampler, index: 0)
+                for tile in surfaceTiles {
+                    encoder.setVertexBuffer(tile.vertices, offset: 0, index: 0)
+                    encoder.setFragmentTexture(tile.texture, index: 0)
+                    encoder.drawIndexedPrimitives(
+                        type: .triangle, indexCount: surface.indexCount, indexType: .uint32, indexBuffer: surface.indexBuffer, indexBufferOffset: 0)
+                }
             }
 
             if let samples = points.prepared?.samples, let instances = points.prepared?.instances, let states = pointFrames(at: now) {
