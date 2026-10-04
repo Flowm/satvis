@@ -26,13 +26,16 @@ above terrain out past GEO, against a star background:
 
 - Positions are relative to the eye (Cesium's high/low split). Float32 resolves
   about 0.5 m at the Earth's radius, which jitters visibly near the ground.
-- Depth is logarithmic, so that a 2 m near plane and stars at infinity share one
-  depth buffer.
+- Depth is reversed-Z in a float buffer with no far plane, so that a 1 m near
+  plane and stars at infinity share one depth buffer. It does what a logarithmic
+  depth would, without writing depth from the fragment shader.
 - Satellites are instanced points. Orbits are screen-space polylines. Labels are
   rendered once per name with CoreText and drawn as billboards.
-- The atmosphere is Cesium's ground and sky atmosphere, ported from GLSL to Metal
-  (Apache 2.0). The sun lights the day side; the star background is the Tycho
-  skybox.
+- The atmosphere is Cesium's ground and sky atmosphere, ported from GLSL to Metal.
+  The ported files carry Cesium's Apache 2.0 notice, with its licence beside them.
+  The sun lights the day side; the star background is satvis's own DeepStar1K sky
+  box (NASA SVS Deep Star Maps 2020), fetched from satvis.space and kept on disk
+  rather than copied into the repository a second time.
 
 SwiftUI draws all the controls over the `MTKView`.
 
@@ -94,7 +97,7 @@ iCloud key-value storage.
 - The benchmark panel, the render-quality menu, WebVR and the embed mode
 
 These come later: the 2D view mode, the inertial camera mode, 3D models (loaded
-with GLTFKit2), the DeepStar star maps, a camera passthrough in the sky view, and
+with GLTFKit2), the DeepStar2K star map, a camera passthrough in the sky view, and
 a Live Activity for a pass.
 
 ## Release
@@ -103,16 +106,16 @@ Each milestone ships to TestFlight. **The App Store release waits for the sky
 view.** The update replaces the WebView app for every current user, and an
 earlier release would take the sky view away from them.
 
-| Milestone | Contents                                                                                                                                        |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| M0a       | Shared config: tags and presets in YAML and in `/api/groups.json`, the web app reads them, an ETag on the index. Merged on its own.             |
-| M0b       | Foundation: tag and remove the WebView app, `ios/SatvisKit`, SGP4 and the parity fixtures, the data client and cache, the bundled snapshot, CI. |
-| M1        | First light: the globe, satellites as points, live time.                                                                                        |
-| M2        | Explore: browser and search, selection, info panel, labels, orbit and orbit track, tracked satellite, clock deck.                               |
-| M3        | Passes: ground stations, both overpass modes, the passes tab, notifications, the ground station link.                                           |
-| M4        | Map: streamed imagery, terrain, ground track, sensor cone, attribution.                                                                         |
-| M5        | Links: URL codec, share, universal links, `/ot`, state restoration, PostHog.                                                                    |
-| M6        | Sky view, aimed with CoreMotion's attitude. Then the App Store release.                                                                         |
+| Milestone | Contents                                                                                                                                                                                                                                                          |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0a       | Shared config: tags and presets in YAML and in `/api/groups.json`, the web app reads them, an ETag on the index. Merged on its own.                                                                                                                               |
+| M0b       | Foundation: tag and remove the WebView app, `ios/SatvisKit`, SGP4 and the parity fixtures, the data client and cache, the bundled snapshot, CI.                                                                                                                   |
+| M1        | First light: the globe, satellites as points, live time.                                                                                                                                                                                                          |
+| M2        | Explore: browser and search, selection, info panel, labels, orbit and orbit track, tracked satellite, clock deck.                                                                                                                                                 |
+| M3        | Passes: ground stations, both overpass modes, the passes tab, notifications, the ground station link.                                                                                                                                                             |
+| M4        | Map: streamed imagery, terrain, ground track, sensor cone, attribution.                                                                                                                                                                                           |
+| M5        | Links: URL codec, share, universal links, `/ot`, state restoration, PostHog.                                                                                                                                                                                      |
+| M6        | Sky view, aimed with CoreMotion's attitude. An acknowledgements screen with the licences and credits the app owes: CesiumJS (Apache 2.0, with its third-party notices), Vallado's SGP4, Natural Earth, and NASA SVS for the star map. Then the App Store release. |
 
 ## Code and checks
 

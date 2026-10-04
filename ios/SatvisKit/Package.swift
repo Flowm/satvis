@@ -10,6 +10,7 @@ let package = Package(
     products: [
         .library(name: "SatvisCore", targets: ["SatvisCore"]),
         .library(name: "SatvisData", targets: ["SatvisData"]),
+        .library(name: "SatvisRender", targets: ["SatvisRender"]),
     ],
     targets: [
         // Vallado's SGP4 behind a C bridge, so Swift needs no C++ interoperability.
@@ -18,8 +19,11 @@ let package = Package(
         .target(name: "SatvisCore", dependencies: ["SGP4"]),
         // The worker client, its disk cache, and the snapshot shipped in the app.
         .target(name: "SatvisData", dependencies: ["SatvisCore"], resources: [.copy("Snapshot")]),
+        // The Metal globe. Its shaders compile at run time from Shaders/*.msl.
+        .target(name: "SatvisRender", dependencies: ["SatvisCore"], resources: [.copy("Shaders"), .copy("NaturalEarthII")]),
         .testTarget(name: "SatvisCoreTests", dependencies: ["SatvisCore"], resources: [.copy("Fixtures")]),
         .testTarget(name: "SatvisDataTests", dependencies: ["SatvisData"]),
+        .testTarget(name: "SatvisRenderTests", dependencies: ["SatvisRender"]),
     ],
     cxxLanguageStandard: .cxx17
 )
