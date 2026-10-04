@@ -108,6 +108,15 @@ iCloud key-value storage. That makes a link's stations different from the web's:
 - The app keeps its view as a link and reopens on it, but live: a clock found
   paused hours later reads as broken.
 
+**The sky view is the web's (ADR 0003, 0004), with three native differences.**
+Compass aiming reads CoreMotion's attitude, referenced to true north where the
+location is known and to magnetic north where it is not: either way a measured
+heading, so the web's "hold the phone flat to set north" step has no
+counterpart. The sky view stands on Re:Earth's terrain whatever the Map menu
+says, because the eye's height and the horizon need it. And `scene` names only
+the two views the app has, `3D` and `Sky`: a `2D` or `Columbus` link opens on
+the globe and drops the parameter, as a link naming a layer the app lacks does.
+
 **Usage is counted in the web app's PostHog project**, as PostHog advises for
 one product on several platforms, told apart by `platform: ios` and PostHog's own
 `$lib`. A view is a `$pageview` of its link, so the insights that count users per

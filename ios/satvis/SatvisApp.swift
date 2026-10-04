@@ -223,6 +223,18 @@ private struct MapMenu: View {
             Toggle("Terrain", isOn: $session.terrain)
             Divider()
             Toggle(
+                "View the sky",
+                isOn: Binding {
+                    session.observer != nil
+                } set: { on in
+                    if on {
+                        Task { await session.viewTheSky() }
+                    } else {
+                        session.leaveSky()
+                    }
+                })
+            Divider()
+            Toggle(
                 "Share usage data",
                 isOn: Binding {
                     session.analytics.isSharing
