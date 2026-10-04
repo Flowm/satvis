@@ -12,8 +12,9 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
 - `SatvisKit/` is a local Swift package holding everything that is not a view.
   `SGP4` is Vallado's reference C++, vendored unmodified (`vallado/VENDOR.md`)
   behind a C bridge, so no Swift module needs C++ interoperability. `SatvisCore`
-  holds element sets, the group index, propagation, sampled trajectories and the
-  Sun, and the arithmetic the web app does on them. `SatvisData` holds the worker
+  holds element sets, the group index, propagation, sampled trajectories, the Sun,
+  ground stations and pass prediction, and the arithmetic the web app does on
+  them. `SatvisData` holds the worker
   client, its disk cache, and the snapshot shipped in the app. `SatvisRender` is the
   Metal globe. The app target holds only views and their models.
 - `SatvisRender`'s shaders are `Shaders/*.msl`, compiled at run time by
@@ -31,8 +32,16 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   (high/low float pairs, safe math), with reversed-Z depth and no far plane.
   Satellites are points the vertex shader interpolates from each one's sampled
   trajectory, with the web app's quintic; the CPU only finds each stencil.
-- The app's models (`ViewerClock`, `CatalogModel`, `SatelliteLayer`, `StarMap`) are
-  `@Observable` and owned by `ContentView`; the views read them. The globe's
+- The app's models (`ViewerClock`, `CatalogModel`, `SatelliteLayer`, `PassModel`,
+  `StarMap`) are `@Observable` and owned by `ContentView`; the views read them.
+  Passes are predicted on demand, once a second, by `PassStore`: for the selected
+  satellite, and for every active one while a station is selected or the ground
+  station links are drawn. Each prediction holds for a day either side of when it
+  was made, as on the web.
+- Ground stations are kept in `UserDefaults` and mirrored to iCloud key-value
+  storage (`satvis.entitlements`), so they follow the user to their other
+  devices. That needs the iCloud capability on the App ID. The renderer knows a
+  station by its place in the list (`station|<index>`), as the web app does. The globe's
   gestures are SwiftUI's, not UIKit recognizers on the MTKView, so the controls laid
   over it take the touches that land on them.
 - Every element set reaches SGP4 as OMM keywords (`MeanElements`). The worker's

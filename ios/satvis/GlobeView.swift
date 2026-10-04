@@ -5,15 +5,16 @@ import os
 
 private let log = Logger(subsystem: "org.frcy.app.satvis", category: "globe")
 
-/// The Metal globe, steered by drag, pinch and twist; a tap selects a satellite
-/// and a double tap tracks it. The gestures are SwiftUI's, so that the controls
-/// laid over the globe, the clock deck's timeline among them, take the touches
-/// that land on them first.
+/// The Metal globe, steered by drag, pinch and twist; what a tap or a double tap
+/// means is the caller's. The gestures are SwiftUI's, so that the controls laid
+/// over the globe, the clock deck's timeline among them, take the touches that
+/// land on them first.
 struct GlobeView: View {
     /// Called once the renderer exists, so the satellites can be handed to it.
     let onRenderer: (GlobeRenderer) -> Void
-    let onSelect: (String?) -> Void
-    let onTrack: (String, Bool) -> Void
+    /// Where on the view, and the view's size.
+    let onTap: (CGPoint, CGSize) -> Void
+    let onDoubleTap: (CGPoint, CGSize) -> Void
 
     @State private var renderer: GlobeRenderer?
     @State private var lastTranslation = CGSize.zero
@@ -30,15 +31,8 @@ struct GlobeView: View {
             }
             .gesture(
                 SpatialTapGesture(count: 2)
-                    .onEnded { value in
-                        if let id = renderer?.satellite(at: value.location, viewSize: size) {
-                            onTrack(id, true)
-                        }
-                    }
-                    .exclusively(
-                        before: SpatialTapGesture().onEnded { value in
-                            onSelect(renderer?.satellite(at: value.location, viewSize: size))
-                        })
+                    .onEnded { onDoubleTap($0.location, size) }
+                    .exclusively(before: SpatialTapGesture().onEnded { onTap($0.location, size) })
             )
             .simultaneousGesture(
                 DragGesture(minimumDistance: 1)

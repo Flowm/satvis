@@ -12,7 +12,7 @@ public enum RendererError: Error {
 /// Compiles Shaders/*.msl. At run time rather than at build time, so that neither
 /// the build nor CI needs Xcode's separately downloaded Metal toolchain.
 enum ShaderLibrary {
-    static let files = ["Common", "Sky", "Globe", "Points", "Lines", "Labels", "Tonemap"]
+    static let files = ["Common", "Sky", "Globe", "Points", "Lines", "Labels", "Stations", "Tonemap"]
 
     static func make(device: MTLDevice) async throws -> MTLLibrary {
         let source = try files.map { name in
@@ -38,17 +38,22 @@ public struct SatelliteComponents: OptionSet, Sendable, Hashable {
     public static let label = SatelliteComponents(rawValue: 1 << 1)
     public static let orbit = SatelliteComponents(rawValue: 1 << 2)
     public static let orbitTrack = SatelliteComponents(rawValue: 1 << 3)
+    public static let groundStationLink = SatelliteComponents(rawValue: 1 << 7)
 
     /// The web app's names, as its `elements` url parameter and presets use them.
-    public static let named: [(String, SatelliteComponents)] = [("Point", .point), ("Label", .label), ("Orbit", .orbit), ("Orbit track", .orbitTrack)]
+    public static let named: [(String, SatelliteComponents)] = [
+        ("Point", .point), ("Label", .label), ("Orbit", .orbit), ("Orbit track", .orbitTrack), ("Ground station link", .groundStationLink),
+    ]
 }
 
-/// Draws the globe, the sky around it and the satellites over it, for one MTKView.
+/// Draws the globe, the sky around it, the ground stations on it and the
+/// satellites over it, for one MTKView.
 @MainActor
 public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Nil until the view has a size, then the web app's home view.
     public var camera: OrbitCamera?
-    /// The satellite the camera follows, by id. Nil for the free camera.
+    /// The satellite or ground station the camera follows, by id. Nil for the free
+    /// camera.
     public private(set) var tracked: String?
     public var trackingCamera = TrackingCamera()
     public var components: SatelliteComponents = [.point, .label]
@@ -67,6 +72,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let pointPipeline: MTLRenderPipelineState
     private let linePipeline: MTLRenderPipelineState
     private let labelPipeline: MTLRenderPipelineState
+    private let stationPipeline: MTLRenderPipelineState
+    private let linkPipeline: MTLRenderPipelineState
     private let tonemapPipeline: MTLRenderPipelineState
     private let depthWrite: MTLDepthStencilState
     private let depthTest: MTLDepthStencilState
@@ -80,6 +87,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var depth: MTLTexture?
     private let points = SatellitePoints()
     private var labels: (atlas: LabelAtlas, instances: MTLBuffer)?
+    private var stations: [StationMarker] = []
+    private var links: [StationLink] = []
+    private var pin: MTLTexture?
     private let pixelScale: Double
     /// What the last frame was drawn from, for picking.
     private var lastFrame: (viewProjection: simd_double4x4, position: SIMD3<Double>, size: SIMD2<Double>, time: Double)?
@@ -139,6 +149,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         pointPipeline = try pipeline("pointVertex", "pointFragment")
         linePipeline = try pipeline("lineVertex", "lineFragment", blend: true)
         labelPipeline = try pipeline("labelVertex", "labelFragment", blend: true, premultiplied: true)
+        stationPipeline = try pipeline("stationVertex", "stationFragment", blend: true, premultiplied: true)
+        linkPipeline = try pipeline("linkVertex", "linkFragment", blend: true)
         tonemapPipeline = try pipeline("fullscreenVertex", "tonemapFragment", format: view.colorPixelFormat, depth: false)
 
         func depthState(compare: MTLCompareFunction, write: Bool) -> MTLDepthStencilState {
@@ -170,6 +182,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         skyShell = upload(Meshes.skyShell())
         pointFrameBuffers = Array(repeating: nil, count: Self.framesInFlight)
         pixelScale = Double(view.contentScaleFactorForPoints)
+        pin = Textures.texture2D(StationPin.bitmap(), device: device, queue: queue)
         super.init()
         view.delegate = self
         mtkView(view, drawableSizeWillChange: view.drawableSize)
@@ -212,44 +225,107 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
     }
 
-    /// Follows a satellite from where the web app's tracking view opens.
+    /// The ground stations to stand pins on.
+    public func setStations(_ stations: [StationMarker]) {
+        self.stations = stations
+    }
+
+    /// The ground station links, each drawn while its pass lasts and the component
+    /// is on.
+    public func setLinks(_ links: [StationLink]) {
+        self.links = links
+    }
+
+    /// Follows a satellite or a ground station from where the web app's tracking
+    /// view opens.
     public func track(_ id: String) {
         tracked = id
         trackingCamera = TrackingCamera()
     }
 
-    /// Lets go, and leaves the camera 2,000 km straight above the satellite, as the
-    /// web app does.
+    /// Lets go, and leaves the camera 2,000 km straight above what it followed, as
+    /// the web app does.
     public func stopTracking() {
-        if let tracked, let lastFrame, let position = points.position(of: tracked, at: lastFrame.time) {
+        if let tracked, let lastFrame, let position = position(of: tracked, at: lastFrame.time) {
             camera = .above(position, altitude: 2_000_000)
         }
         tracked = nil
     }
 
-    /// The satellite drawn nearest a point on the view, within a fingertip of it
-    /// and not behind the Earth.
-    public func satellite(at point: CGPoint, viewSize: CGSize) -> String? {
-        guard let lastFrame, viewSize.width > 0, components.contains(.point) || components.contains(.label) else {
+    private func position(of id: String, at time: Double) -> SIMD3<Double>? {
+        points.position(of: id, at: time) ?? stations.first { $0.id == id }?.position
+    }
+
+    /// The ground station or satellite drawn nearest a point on the view, within a
+    /// fingertip of it and not behind the Earth. A station's pin wins: it is
+    /// drawn over the satellites.
+    public func entity(at point: CGPoint, viewSize: CGSize) -> String? {
+        guard let lastFrame, viewSize.width > 0 else {
             return nil
         }
         let reach = 24.0
+        func screenDistance(_ position: SIMD3<Double>, lift: Double = 0) -> Double? {
+            let clip = lastFrame.viewProjection * SIMD4(position - lastFrame.position, 1)
+            guard clip.w > 0 else {
+                return nil
+            }
+            let screen = SIMD2((clip.x / clip.w + 1) / 2 * viewSize.width, (1 - clip.y / clip.w) / 2 * viewSize.height - lift)
+            return simd.distance(screen, SIMD2(point.x, point.y))
+        }
         var best: (id: String, distance: Double)?
+        for station in stations where Self.isAboveHorizon(station.position, from: lastFrame.position) {
+            // The pin's head, half its height above the spot.
+            if let distance = screenDistance(station.position, lift: 14), distance < reach, distance < best?.distance ?? .infinity {
+                best = (station.id, distance)
+            }
+        }
+        if best != nil {
+            return best?.id
+        }
+        guard components.contains(.point) || components.contains(.label) else {
+            return nil
+        }
         for satellite in points.satellites {
             guard let position = satellite.trajectory.position(at: lastFrame.time), !Self.isHiddenByEarth(position, from: lastFrame.position) else {
                 continue
             }
-            let clip = lastFrame.viewProjection * SIMD4(position - lastFrame.position, 1)
-            guard clip.w > 0 else {
-                continue
-            }
-            let screen = SIMD2((clip.x / clip.w + 1) / 2 * viewSize.width, (1 - clip.y / clip.w) / 2 * viewSize.height)
-            let distance = simd.distance(screen, SIMD2(point.x, point.y))
-            if distance < reach, distance < best?.distance ?? .infinity {
+            if let distance = screenDistance(position), distance < reach, distance < best?.distance ?? .infinity {
                 best = (satellite.id, distance)
             }
         }
         return best?.id
+    }
+
+    /// Where on the ellipsoid a point on the view lands, in degrees; nil off the
+    /// globe.
+    public func groundPoint(at point: CGPoint, viewSize: CGSize) -> (latitude: Double, longitude: Double)? {
+        guard let lastFrame, viewSize.width > 0, viewSize.height > 0 else {
+            return nil
+        }
+        let ndc = SIMD2(2 * point.x / viewSize.width - 1, 1 - 2 * point.y / viewSize.height)
+        let inverse = lastFrame.viewProjection.inverse
+        let far = inverse * SIMD4(ndc.x, ndc.y, 0.5, 1)
+        let direction = normalize(SIMD3(far.x, far.y, far.z) / far.w)
+        // In a frame where the ellipsoid is the unit sphere.
+        let origin = lastFrame.position / ellipsoidRadii
+        let scaled = direction / ellipsoidRadii
+        let a = dot(scaled, scaled)
+        let b = 2 * dot(origin, scaled)
+        let c = dot(origin, origin) - 1
+        let discriminant = b * b - 4 * a * c
+        guard discriminant >= 0 else {
+            return nil
+        }
+        let t = (-b - discriminant.squareRoot()) / (2 * a)
+        guard t > 0 else {
+            return nil
+        }
+        return geodetic(lastFrame.position + t * direction)
+    }
+
+    /// Whether a point on the surface faces the eye.
+    private static func isAboveHorizon(_ point: SIMD3<Double>, from eye: SIMD3<Double>) -> Bool {
+        dot(point / (ellipsoidRadii * ellipsoidRadii), eye - point) > 0
     }
 
     /// Whether the line of sight to a point passes through the Earth, taken as a
@@ -288,7 +364,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         let now = clock()
         var pose = camera.pose()
-        if let tracked, let target = points.position(of: tracked, at: now) {
+        if let tracked, let target = position(of: tracked, at: now) {
             pose = trackingCamera.pose(target: target)
         }
         inFlight.wait()
@@ -364,6 +440,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                     encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: labels.atlas.instances.count)
                 }
             }
+            drawStations(encoder, eye: pose.position, now: now)
             encoder.endEncoding()
         }
 
@@ -376,6 +453,41 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         commands.present(drawable)
         commands.commit()
     }
+
+    /// The links of the passes under way, then the pins of the stations facing
+    /// the eye. Few enough to go in with the draw call.
+    private func drawStations(_ encoder: MTLRenderCommandEncoder, eye: SIMD3<Double>, now: Double) {
+        func relative(_ position: SIMD3<Double>) -> (Float, Float, Float) {
+            let offset = position - eye
+            return (Float(offset.x), Float(offset.y), Float(offset.z))
+        }
+        if components.contains(.groundStationLink) {
+            let instances = links.filter { $0.start <= now && now <= $0.end }.compactMap { link in
+                points.position(of: link.satellite, at: now).map { LinkInstance(satellite: relative($0), station: relative(link.station)) }
+            }.prefix(Self.maximumInlineInstances)
+            if !instances.isEmpty {
+                encoder.setRenderPipelineState(linkPipeline)
+                encoder.setDepthStencilState(depthTest)
+                encoder.setCullMode(.none)
+                Array(instances).withUnsafeBytes { encoder.setVertexBytes($0.baseAddress!, length: $0.count, index: 2) }
+                encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: instances.count)
+            }
+        }
+        let pins = stations.filter { Self.isAboveHorizon($0.position, from: eye) }.prefix(Self.maximumInlineInstances).map {
+            StationInstance(position: relative($0.position), distance: Float(simd.distance($0.position, eye)))
+        }
+        if let pin, !pins.isEmpty {
+            encoder.setRenderPipelineState(stationPipeline)
+            encoder.setDepthStencilState(noDepth)
+            encoder.setCullMode(.none)
+            pins.withUnsafeBytes { encoder.setVertexBytes($0.baseAddress!, length: $0.count, index: 2) }
+            encoder.setFragmentTexture(pin, index: 0)
+            encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: pins.count)
+        }
+    }
+
+    /// What `setVertexBytes` takes, 4 KB, in the larger of the two instances.
+    private static let maximumInlineInstances = 4096 / MemoryLayout<LinkInstance>.stride
 
     /// This frame's stencils, in a buffer the GPU is not still reading.
     private func pointFrames(at now: Double) -> MTLBuffer? {

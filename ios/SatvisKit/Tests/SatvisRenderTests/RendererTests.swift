@@ -10,7 +10,8 @@ import simd
         let library = try await ShaderLibrary.make(device: try #require(MTLCreateSystemDefaultDevice()))
         for name in [
             "fullscreenVertex", "skyBoxFragment", "skyAtmosphereVertex", "skyAtmosphereFragment", "globeVertex", "globeFragment", "pointVertex", "pointFragment",
-            "lineVertex", "lineFragment", "labelVertex", "labelFragment", "tonemapFragment",
+            "lineVertex", "lineFragment", "labelVertex", "labelFragment", "stationVertex", "stationFragment", "linkVertex", "linkFragment",
+            "tonemapFragment",
         ] {
             #expect(library.makeFunction(name: name) != nil, "\(name)")
         }
@@ -36,6 +37,27 @@ import simd
         #expect(MemoryLayout<PointInstance>.stride == 32)
         #expect(MemoryLayout<PointFrame>.stride == 8)
         #expect(MemoryLayout<LabelInstance>.stride == 32)
+        #expect(MemoryLayout<StationInstance>.stride == 16)
+        #expect(MemoryLayout<LinkInstance>.stride == 24)
+    }
+
+    // The way back from a tap on the globe to the place it touched.
+    @Test func turnsAPointOnTheSurfaceBackIntoItsPlace() {
+        for (latitude, longitude) in [(48.1351, 11.582), (-33.9249, 18.4241), (78.2232, -15.6267), (0.0, 180.0)] {
+            let place = geodetic(fixedPosition(latitude: latitude, longitude: longitude))
+            #expect(abs(place.latitude - latitude) < 1e-9)
+            #expect(abs(place.longitude - longitude) < 1e-9 || abs(abs(place.longitude) - 180) < 1e-9)
+        }
+    }
+
+    @Test func drawsThePin() {
+        let pin = StationPin.bitmap()
+        func alpha(_ x: Int, _ y: Int) -> UInt8 { pin.bytes[(y * pin.width + x) * 4 + 3] }
+        // Opaque in its head, clear in the corners, its tip at the bottom centre.
+        #expect(alpha(48, 40) == 255)
+        #expect(alpha(2, 2) == 0)
+        #expect(alpha(48, 86) > 0)
+        #expect(alpha(20, 86) == 0)
     }
 
     @Test func keepsPrecisionInTheHighLowSplit() {
