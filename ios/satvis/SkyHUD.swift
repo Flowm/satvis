@@ -11,11 +11,17 @@ struct SkyHUD: View {
     let renderer: GlobeRenderer
     /// Where the compass tape sits, below the controls along the top.
     let tapeTop: CGFloat
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         TimelineView(.animation) { context in
             GeometryReader { proxy in
+                let settled = renderer.isSkySettled
+                // Up as the ground arrives: projected against a camera still in
+                // flight, the tapes would swim across the screen.
                 SkyInstruments(renderer: renderer, tapeTop: tapeTop, size: proxy.size, date: context.date)
+                    .opacity(settled ? 1 : 0)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: settled)
             }
         }
         .allowsHitTesting(false)

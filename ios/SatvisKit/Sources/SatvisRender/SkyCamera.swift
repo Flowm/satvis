@@ -43,6 +43,34 @@ public struct SkyCamera: Sendable, Equatable {
         return (turn * tilt * level).normalized
     }
 
+    /// How the interface is turned on the device, as UIKit's
+    /// UIInterfaceOrientation names it.
+    public enum ScreenOrientation: Sendable {
+        case portrait, portraitUpsideDown, landscapeLeft, landscapeRight
+    }
+
+    /// The attitude a device held this way gives the camera, which looks out of
+    /// its back with the screen's right and up. `device` holds the device's axes
+    /// in the reference frame (north, west, up) as its rows: CoreMotion's
+    /// rotation matrix, which takes that frame into the device's.
+    public static func attitude(device: simd_double3x3, screen: ScreenOrientation) -> simd_quatd {
+        // A row of `device`, from north, west, up into east, north, up.
+        let axis = { (row: Int) in
+            let r = SIMD3(device[0][row], device[1][row], device[2][row])
+            return SIMD3(-r.y, r.x, r.z)
+        }
+        let (x, y, z) = (axis(0), axis(1), axis(2))
+        let (right, up): (SIMD3<Double>, SIMD3<Double>) =
+            switch screen {
+            case .portrait: (x, y)
+            case .portraitUpsideDown: (-x, -y)
+            // The device's top to the left: the screen's up is its right edge.
+            case .landscapeRight: (-y, x)
+            case .landscapeLeft: (y, -x)
+            }
+        return simd_quatd(simd_double3x3(columns: (right, up, z))).normalized
+    }
+
     /// Where the camera looks, in east, north, up.
     public var look: SIMD3<Double> { attitude.act(SIMD3(0, 0, -1)) }
 

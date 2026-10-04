@@ -15,6 +15,8 @@ struct GlobeView: View {
     /// Where on the view, and the view's size.
     let onTap: (CGPoint, CGSize) -> Void
     let onDoubleTap: (CGPoint, CGSize) -> Void
+    /// Asked with a drag's translation so far whether it may move the view.
+    var mayDrag: (CGSize) -> Bool = { _ in true }
 
     @State private var renderer: GlobeRenderer?
     @State private var lastTranslation = CGSize.zero
@@ -38,7 +40,9 @@ struct GlobeView: View {
                     .onChanged { value in
                         let delta = SIMD2(Double(value.translation.width - lastTranslation.width), Double(value.translation.height - lastTranslation.height))
                         lastTranslation = value.translation
-                        renderer?.drag(by: delta, viewSize: size)
+                        if mayDrag(value.translation) {
+                            renderer?.drag(by: delta, viewSize: size)
+                        }
                     }
                     .onEnded { _ in lastTranslation = .zero }
             )
