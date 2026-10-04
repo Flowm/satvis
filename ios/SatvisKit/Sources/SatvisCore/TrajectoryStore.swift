@@ -11,9 +11,10 @@ public actor TrajectoryStore {
 
     private var propagators: [(record: GPRecord, propagator: SGP4Propagator)] = []
     private var trajectories: [SampledTrajectory?] = []
-    /// Satellites SGP4 failed for, e.g. decayed ones: not drawn, and not retried
-    /// until the set is replaced.
-    private var failed = Set<Int>()
+    /// When SGP4 refused a satellite's whole window, e.g. long after it decayed.
+    /// Not drawn, and sampled again only once the clock is an orbit away from
+    /// there, so a clock scrubbed past a decay and back brings it back.
+    private var failedAt: [Int: Double] = [:]
     /// A replacement that resampled nothing still changes what is drawn.
     private var changedSinceRefresh = false
 
@@ -23,18 +24,18 @@ public actor TrajectoryStore {
     /// the web app's catalog keeps it once, and one already in the set keeps its
     /// window, so that switching a group on does not resample every other one.
     public func replace(with records: [GPRecord]) {
-        var kept: [String: (propagator: SGP4Propagator, trajectory: SampledTrajectory?, failed: Bool)] = [:]
+        var kept: [String: (propagator: SGP4Propagator, trajectory: SampledTrajectory?, failedAt: Double?)] = [:]
         for (index, entry) in propagators.enumerated() {
-            kept[Self.key(entry.record)] = (entry.propagator, trajectories[index], failed.contains(index))
+            kept[Self.key(entry.record)] = (entry.propagator, trajectories[index], failedAt[index])
         }
         var seen = Set<String>()
         var nextPropagators: [(record: GPRecord, propagator: SGP4Propagator)] = []
         var nextTrajectories: [SampledTrajectory?] = []
-        var nextFailed = Set<Int>()
+        var nextFailedAt: [Int: Double] = [:]
         for record in records where seen.insert(record.satnum).inserted {
             if let old = kept[Self.key(record)] {
-                if old.failed {
-                    nextFailed.insert(nextPropagators.count)
+                if let failed = old.failedAt {
+                    nextFailedAt[nextPropagators.count] = failed
                 }
                 nextPropagators.append((record, old.propagator))
                 nextTrajectories.append(old.trajectory)
@@ -45,7 +46,7 @@ public actor TrajectoryStore {
         }
         propagators = nextPropagators
         trajectories = nextTrajectories
-        failed = nextFailed
+        failedAt = nextFailedAt
         changedSinceRefresh = true
     }
 
@@ -59,12 +60,18 @@ public actor TrajectoryStore {
     public func refresh(at epochMilliseconds: Double) -> [Entry]? {
         var changed = changedSinceRefresh
         changedSinceRefresh = false
-        for index in propagators.indices where !failed.contains(index) && !(trajectories[index]?.isFresh(at: epochMilliseconds) ?? false) {
-            trajectories[index] = SampledTrajectory(propagators[index].propagator, around: epochMilliseconds)
-            if trajectories[index] == nil {
-                failed.insert(index)
+        for index in propagators.indices where !(trajectories[index]?.isFresh(at: epochMilliseconds) ?? false) {
+            let propagator = propagators[index].propagator
+            if let failed = failedAt[index], abs(epochMilliseconds - failed) < SampledTrajectory.periodMilliseconds(propagator) {
+                continue
             }
-            changed = true
+            let trajectory = SampledTrajectory(propagator, around: epochMilliseconds)
+            failedAt[index] = trajectory == nil ? epochMilliseconds : nil
+            // A satellite that stays refused changes nothing that is drawn.
+            if trajectory != nil || trajectories[index] != nil {
+                changed = true
+            }
+            trajectories[index] = trajectory
         }
         guard changed else {
             return nil

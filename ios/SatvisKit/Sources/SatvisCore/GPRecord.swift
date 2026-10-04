@@ -165,10 +165,10 @@ private struct RawRecord: Decodable {
             meanMotionDot: container.flexibleDouble(.meanMotionDot) ?? 0,
             meanMotionDDot: container.flexibleDouble(.meanMotionDdot) ?? 0,
             noradCatID: noradCatID,
-            ephemerisType: container.flexibleDouble(.ephemerisType).map { Int($0) },
+            ephemerisType: container.flexibleDouble(.ephemerisType).flatMap(wholeNumber),
             classificationType: try? container.decodeIfPresent(String.self, forKey: .classificationType),
-            elementSetNo: container.flexibleDouble(.elementSetNo).map { Int($0) },
-            revAtEpoch: container.flexibleDouble(.revAtEpoch).map { Int($0) })
+            elementSetNo: container.flexibleDouble(.elementSetNo).flatMap(wholeNumber),
+            revAtEpoch: container.flexibleDouble(.revAtEpoch).flatMap(wholeNumber))
         record = MeanElements(omm).map {
             GPRecord(name: (name ?? "").trimmingCharacters(in: .whitespacesAndNewlines), elements: .omm(omm), meanElements: $0, metadata: metadata)
         }
@@ -188,6 +188,13 @@ extension KeyedDecodingContainer {
         if let value = try? decode(String.self, forKey: key) {
             return value
         }
-        return (try? decode(Double.self, forKey: key)).map { $0.rounded() == $0 ? String(Int($0)) : String($0) }
+        return (try? decode(Double.self, forKey: key)).map { value in wholeNumber(value).map(String.init) ?? String(value) }
     }
+}
+
+/// An integer that a JSON number holds exactly, or nil. Never `Int(_:)`, which
+/// traps on a NaN or an out-of-range value that a lenient decode cannot catch:
+/// `Double("nan")` parses.
+private func wholeNumber(_ value: Double) -> Int? {
+    Int(exactly: value)
 }

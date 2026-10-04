@@ -44,7 +44,8 @@ vertex LineOut lineVertex(uint vid [[vertex_id]], uint satellite [[instance_id]]
     float4 clip = frame.viewProjection * float4((lineNode(node, kind, nowNode, instance, samples) - frame.cameraHigh) - frame.cameraLow, 1.0);
     float4 previous = frame.viewProjection * float4((lineNode(node - 1, kind, nowNode, instance, samples) - frame.cameraHigh) - frame.cameraLow, 1.0);
     float4 next = frame.viewProjection * float4((lineNode(node + 1, kind, nowNode, instance, samples) - frame.cameraHigh) - frame.cameraLow, 1.0);
-    if (clip.w <= 0.0 || previous.w <= 0.0 || next.w <= 0.0) {
+    // NaN is a node SGP4 refused (SampledTrajectory): the line stops there.
+    if (clip.w <= 0.0 || previous.w <= 0.0 || next.w <= 0.0 || any(isnan(clip)) || any(isnan(previous)) || any(isnan(next))) {
         out.position = float4(0.0, 0.0, -2.0, 1.0);
         return out;
     }
