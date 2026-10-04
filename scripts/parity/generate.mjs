@@ -9,6 +9,9 @@
 // The web code is loaded through Vite's module runner, because its imports are
 // extensionless TypeScript that plain node cannot resolve.
 
+// `Orbit` steps its pass search with Date.setMinutes, which works in local time.
+process.env.TZ = "UTC";
+
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,6 +39,16 @@ const HOUR_ANGLE_INSTANTS = [
   "2026-10-04T12:00:00.000Z",
   "2049-06-30T18:30:15.250Z",
 ];
+// Pass prediction: a mid-latitude station with a name, a southern one known by its
+// coordinates, and one far enough north to see every polar orbit.
+const STATIONS = [
+  { name: "Munich", latitude: 48.1351, longitude: 11.582 },
+  { name: "", latitude: -33.9249, longitude: 18.4241 },
+  { name: "Svalbard", latitude: 78.2232, longitude: 15.6267 },
+];
+const PASS_WINDOW_DAYS = 2;
+// One footprint wider to starboard, so the side a station lies on decides.
+const ASYMMETRIC_SWATH = { starboardKm: 900, portKm: 250 };
 
 // No dependency scan: nothing here is served to a browser, and on a cold cache the
 // scan reports errors for entry points this script never loads.
@@ -120,9 +133,81 @@ try {
     return { facts: entityInfo.getSatelliteInfo(orbit, record.metadata.orbitClass, record.metadata), elements: entityInfo.getElementsInfo(orbit) };
   });
 
+  // Passes over each station from the minute after the epoch, in both modes: the
+  // record's own swath (or the default), and an asymmetric one for the satellites
+  // that carry a swath at all.
+  const { DEFAULT_SWATH_KM, swathExtentsOf } = await runner.import("/src/config/satelliteMetadata.ts");
+  const passes = records.flatMap((record, index) => {
+    const orbit = new Orbit("", record);
+    const startMs = Math.ceil((orbit.julianDate - 2440587.5) * 1440) * MS_PER_MINUTE;
+    const start = new Date(startMs);
+    const end = new Date(startMs + PASS_WINDOW_DAYS * 1440 * MS_PER_MINUTE);
+    const own = swathExtentsOf(record.metadata);
+    const swaths = own ? [own, ASYMMETRIC_SWATH] : [{ starboardKm: DEFAULT_SWATH_KM / 2, portKm: DEFAULT_SWATH_KM / 2 }];
+    return STATIONS.flatMap((station, stationIndex) => {
+      const position = { latitude: station.latitude, longitude: station.longitude, height: 0 };
+      const strip = ({ name: _name, ...pass }) => pass;
+      return [
+        { record: index, station: stationIndex, startMs, endMs: end.getTime(), mode: "elevation", passes: orbit.computePassesElevation(position, start, end).map(strip) },
+        ...swaths.map((swath) => ({
+          record: index,
+          station: stationIndex,
+          startMs,
+          endMs: end.getTime(),
+          mode: "swath",
+          swath,
+          passes: orbit.computePassesSwath(position, swath, start, end).map(strip),
+        })),
+      ];
+    });
+  });
+
+  // How the info panel presents a pass list: the table's rows, the headline's
+  // summary, the countdown, and the timeline strip, an hour into the window.
+  const { JulianDate } = await runner.import("@cesium/engine");
+  const passPredictor = await runner.import("/src/modules/PassPredictor.ts");
+  const { passTimelineLayout } = await runner.import("/src/modules/util/passTimeline.ts");
+  const presentation = passes
+    .filter((entry) => entry.passes.length > 0)
+    .map((entry) => {
+      const nowMs = entry.startMs + 60 * MS_PER_MINUTE;
+      const named = entry.passes.map((pass) => ({ ...pass, name: parsed[entry.record].name, groundStationName: STATIONS[entry.station].name || "station" }));
+      const now = JulianDate.fromDate(new Date(nowMs));
+      return {
+        nowMs,
+        rows: passPredictor.toPassRows(named, now, "groundStationName", entry.mode).map(({ countdown, startLabel, endLabel, primary, secondary }) => ({
+          countdown,
+          startLabel,
+          endLabel,
+          primary,
+          secondary,
+        })),
+        summaries: named.map((pass) => passPredictor.passSummary(pass)),
+        visible: passPredictor.filterPasses(named, now, false).length,
+        layout: passTimelineLayout(named, nowMs),
+      };
+    });
+  const countdowns = [-1, 0, 999, 1000, 59_999, 60_000, 3_599_999, 3_600_000, 86_399_999, 86_400_000, 200_000_000].map((untilMs) => ({
+    untilMs,
+    text: passPredictor.formatCountdown(0, { start: untilMs, end: untilMs + 600_000 }),
+  }));
+  const compassPoints = [-11.25, 0, 11.24, 11.25, 33.75, 180, 348.75, 359.99, 371.25].map((azimuth) => ({ azimuth, point: passPredictor.compassPoint(azimuth) }));
+
   const hourAngles = HOUR_ANGLE_INSTANTS.map((instant) => ({ instant, radians: greenwichHourAngle(Date.parse(instant)) }));
 
-  const output = { generatedBy: "scripts/parity/generate.mjs", parsed, propagation, grids, details, greenwichHourAngle: hourAngles };
+  const output = {
+    generatedBy: "scripts/parity/generate.mjs",
+    parsed,
+    propagation,
+    grids,
+    details,
+    stations: STATIONS,
+    passes,
+    presentation,
+    countdowns,
+    compassPoints,
+    greenwichHourAngle: hourAngles,
+  };
   fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
 
   const tables = {

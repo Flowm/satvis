@@ -88,7 +88,9 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 
 `SatvisKit/Tests/SatvisCoreTests/Fixtures/parity.json` is what the web app's own
 code answers for the element sets in `parity-input.json`: positions, the sampling
-grid, and the info panel's details. `SatvisCore/Shared/web-tables.json` is the web
+grid, the info panel's details, and passes over three ground stations in both
+overpass modes, with the rows, headline and timeline strip the panel makes of
+them. `SatvisCore/Shared/web-tables.json` is the web
 app's SATCAT labels and external links, read as they are. Regenerate both with
 `pnpm update-parity-fixtures` at the repository root; never edit them by hand. CI
 fails while it is stale. SGP4 states agree with satellite.js to under a
@@ -97,7 +99,11 @@ satellite.js does: the epoch as a year and fractional day, an OMM `EPOCH`
 truncated to the millisecond as a JavaScript Date keeps it, and the time since
 epoch from satellite.js's own `jday`. The rotation into the pseudo-fixed frame is
 Cesium's GMST polynomial, not satellite.js's `gstime`, and the port has to stay
-operation for operation (`GreenwichHourAngle.swift`).
+operation for operation (`GreenwichHourAngle.swift`). Pass prediction
+(`PassFinder`) is `Orbit.ts` step for step, down to JavaScript's Date: each instant
+is truncated to a whole millisecond before it is propagated, and `setMinutes`
+truncates the minutes it skips. Elevation passes then agree exactly; swath passes
+to the 10 ms their edges are bisected to.
 
 ## Gotchas
 

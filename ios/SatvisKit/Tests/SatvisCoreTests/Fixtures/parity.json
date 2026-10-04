@@ -1767,6 +1767,4787 @@
       }
     }
   ],
+  "stations": [
+    {
+      "name": "Munich",
+      "latitude": 48.1351,
+      "longitude": 11.582
+    },
+    {
+      "name": "",
+      "latitude": -33.9249,
+      "longitude": 18.4241
+    },
+    {
+      "name": "Svalbard",
+      "latitude": 78.2232,
+      "longitude": 15.6267
+    }
+  ],
+  "passes": [
+    {
+      "record": 0,
+      "station": 0,
+      "startMs": 1790939460000,
+      "endMs": 1791112260000,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790946143000,
+          "azimuthStart": 282.6272432302199,
+          "maxElevation": 43.79097266281867,
+          "azimuthApex": 358.42028518169167,
+          "apex": 1790946393000,
+          "end": 1790946648000,
+          "duration": 505000,
+          "azimuthEnd": 78.58300700478331
+        },
+        {
+          "start": 1790951964000,
+          "azimuthStart": 292.30216787833086,
+          "maxElevation": 78.05611491570598,
+          "azimuthApex": 9.662333098385215,
+          "apex": 1790952219000,
+          "end": 1790952479000,
+          "duration": 515000,
+          "azimuthEnd": 108.70134325034586
+        },
+        {
+          "start": 1790957786000,
+          "azimuthStart": 282.3707887983041,
+          "maxElevation": 23.997181736061542,
+          "azimuthApex": 218.8209640937223,
+          "apex": 1790958016000,
+          "end": 1790958246000,
+          "duration": 460000,
+          "azimuthEnd": 155.14479419619363
+        },
+        {
+          "start": 1791018139000,
+          "azimuthStart": 193.61830850691408,
+          "maxElevation": 17.94455508634635,
+          "azimuthApex": 138.29905375342253,
+          "apex": 1791018349000,
+          "end": 1791018564000,
+          "duration": 425000,
+          "azimuthEnd": 82.0131434783984
+        },
+        {
+          "start": 1791023880000,
+          "azimuthStart": 243.77302829158236,
+          "maxElevation": 83.75447126687477,
+          "azimuthApex": 171.16704478873447,
+          "apex": 1791024135000,
+          "end": 1791024400000,
+          "duration": 520000,
+          "azimuthEnd": 68.03289237037728
+        },
+        {
+          "start": 1791029705000,
+          "azimuthStart": 277.113794924993,
+          "maxElevation": 44.93329805049898,
+          "azimuthApex": 356.7178528873628,
+          "apex": 1791029960000,
+          "end": 1791030215000,
+          "duration": 510000,
+          "azimuthEnd": 74.21192137019372
+        },
+        {
+          "start": 1791035531000,
+          "azimuthStart": 291.7069766924703,
+          "maxElevation": 61.227876928363436,
+          "azimuthApex": 11.27714241660575,
+          "apex": 1791035786000,
+          "end": 1791036046000,
+          "duration": 515000,
+          "azimuthEnd": 99.71279768618055
+        },
+        {
+          "start": 1791041348000,
+          "azimuthStart": 286.8048922483309,
+          "maxElevation": 35.49532247135782,
+          "azimuthApex": 214.4172265255972,
+          "apex": 1791041593000,
+          "end": 1791041838000,
+          "duration": 490000,
+          "azimuthEnd": 142.08996240311598
+        },
+        {
+          "start": 1791047294000,
+          "azimuthStart": 244.80311936142212,
+          "maxElevation": 5.5497556002611255,
+          "azimuthApex": 231.12429254923833,
+          "apex": 1791047354000,
+          "end": 1791047414000,
+          "duration": 120000,
+          "azimuthEnd": 217.44558450048135
+        },
+        {
+          "start": 1791101756000,
+          "azimuthStart": 177.1023714119372,
+          "maxElevation": 11.744291293829894,
+          "azimuthApex": 133.97925495981886,
+          "apex": 1791101931000,
+          "end": 1791102111000,
+          "duration": 355000,
+          "azimuthEnd": 90.0427226290821
+        },
+        {
+          "start": 1791107452000,
+          "azimuthStart": 233.13232722640157,
+          "maxElevation": 59.45199331245452,
+          "azimuthApex": 151.4258916883808,
+          "apex": 1791107707000,
+          "end": 1791107967000,
+          "duration": 515000,
+          "azimuthEnd": 69.37000624950915
+        }
+      ]
+    },
+    {
+      "record": 0,
+      "station": 0,
+      "startMs": 1790939460000,
+      "endMs": 1791112260000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": [
+        {
+          "start": 1790952213227.9194,
+          "end": 1790952229449.6519,
+          "duration": 16221.732421875,
+          "minDistance": 83.04861573204478,
+          "minDistanceTime": 1790952221335.6467,
+          "swathWidth": 200
+        },
+        {
+          "start": 1791024123526.5417,
+          "end": 1791024149878.225,
+          "duration": 26351.683349609375,
+          "minDistance": 42.44763510846048,
+          "minDistanceTime": 1791024136697.2842,
+          "swathWidth": 200
+        }
+      ]
+    },
+    {
+      "record": 0,
+      "station": 1,
+      "startMs": 1790939460000,
+      "endMs": 1791112260000,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790970449000,
+          "azimuthStart": 345.5235864020999,
+          "maxElevation": 25.17608506642483,
+          "azimuthApex": 50.97578080083707,
+          "apex": 1790970679000,
+          "end": 1790970914000,
+          "duration": 465000,
+          "azimuthEnd": 115.42356192072634
+        },
+        {
+          "start": 1790976248000,
+          "azimuthStart": 282.26275352834614,
+          "maxElevation": 25.957469750989823,
+          "azimuthApex": 215.91538733353312,
+          "apex": 1790976483000,
+          "end": 1790976723000,
+          "duration": 475000,
+          "azimuthEnd": 148.77228683716922
+        },
+        {
+          "start": 1790982278000,
+          "azimuthStart": 214.00774709232428,
+          "maxElevation": 5.872025468175689,
+          "azimuthApex": 197.04467482386525,
+          "apex": 1790982353000,
+          "end": 1790982433000,
+          "duration": 155000,
+          "azimuthEnd": 179.04673681878532
+        },
+        {
+          "start": 1790994089000,
+          "azimuthStart": 176.52048644739006,
+          "maxElevation": 10.15643376425593,
+          "azimuthApex": 154.9954643293304,
+          "apex": 1790994169000,
+          "end": 1790994334000,
+          "duration": 245000,
+          "azimuthEnd": 115.52237042651763
+        },
+        {
+          "start": 1790999755000,
+          "azimuthStart": 222.4449303584416,
+          "maxElevation": 63.033637306619134,
+          "azimuthApex": 134.46132562355018,
+          "apex": 1791000015000,
+          "end": 1791000275000,
+          "duration": 520000,
+          "azimuthEnd": 53.85924077713055
+        },
+        {
+          "start": 1791005642000,
+          "azimuthStart": 267.99282783204046,
+          "maxElevation": 9.699283369866015,
+          "azimuthApex": 305.03784281887397,
+          "apex": 1791005797000,
+          "end": 1791005952000,
+          "duration": 310000,
+          "azimuthEnd": 342.2361920445911
+        },
+        {
+          "start": 1791054066000,
+          "azimuthStart": 4.600691479168377,
+          "maxElevation": 13.903186635498031,
+          "azimuthApex": 53.14035765101027,
+          "apex": 1791054256000,
+          "end": 1791054451000,
+          "duration": 385000,
+          "azimuthEnd": 102.33793983049107
+        },
+        {
+          "start": 1791059799000,
+          "azimuthStart": 297.0876799890731,
+          "maxElevation": 43.38722350516175,
+          "azimuthApex": 218.5338351215344,
+          "apex": 1791060049000,
+          "end": 1791060304000,
+          "duration": 505000,
+          "azimuthEnd": 141.75439241323306
+        },
+        {
+          "start": 1791065768000,
+          "azimuthStart": 233.45070474600303,
+          "maxElevation": 8.198573748069272,
+          "azimuthApex": 201.6603344799737,
+          "apex": 1791065903000,
+          "end": 1791066043000,
+          "duration": 275000,
+          "azimuthEnd": 169.17114173625882
+        },
+        {
+          "start": 1791077632000,
+          "azimuthStart": 180.53669804554502,
+          "maxElevation": 7.206402264195375,
+          "azimuthApex": 160.47034655334784,
+          "apex": 1791077717000,
+          "end": 1791077837000,
+          "duration": 205000,
+          "azimuthEnd": 132.88442358263663
+        },
+        {
+          "start": 1791083330000,
+          "azimuthStart": 215.23260017619936,
+          "maxElevation": 34.81096434345483,
+          "azimuthApex": 141.6175491424777,
+          "apex": 1791083580000,
+          "end": 1791083830000,
+          "duration": 500000,
+          "azimuthEnd": 68.61783086879669
+        },
+        {
+          "start": 1791089163000,
+          "azimuthStart": 251.90814787151263,
+          "maxElevation": 18.052412643656087,
+          "azimuthApex": 308.3065407506076,
+          "apex": 1791089378000,
+          "end": 1791089593000,
+          "duration": 430000,
+          "azimuthEnd": 4.475562875186142
+        }
+      ]
+    },
+    {
+      "record": 0,
+      "station": 1,
+      "startMs": 1790939460000,
+      "endMs": 1791112260000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": []
+    },
+    {
+      "record": 0,
+      "station": 2,
+      "startMs": 1790939460000,
+      "endMs": 1791112260000,
+      "mode": "elevation",
+      "passes": []
+    },
+    {
+      "record": 0,
+      "station": 2,
+      "startMs": 1790939460000,
+      "endMs": 1791112260000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": []
+    },
+    {
+      "record": 1,
+      "station": 0,
+      "startMs": 1790946780000,
+      "endMs": 1791119580000,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790965597000,
+          "azimuthStart": 109.75358583362791,
+          "maxElevation": 19.303857740038985,
+          "azimuthApex": 56.50564496911959,
+          "apex": 1790965902000,
+          "end": 1790966212000,
+          "duration": 615000,
+          "azimuthEnd": 3.351867369365447
+        },
+        {
+          "start": 1790971487000,
+          "azimuthStart": 168.12702189149607,
+          "maxElevation": 77.91783062983068,
+          "azimuthApex": 260.0472160385011,
+          "apex": 1790971872000,
+          "end": 1790972262000,
+          "duration": 775000,
+          "azimuthEnd": 343.98430338470973
+        },
+        {
+          "start": 1790977683000,
+          "azimuthStart": 234.28815887686653,
+          "maxElevation": 11.725587355835714,
+          "azimuthApex": 274.56923555601185,
+          "apex": 1790977928000,
+          "end": 1790978178000,
+          "duration": 495000,
+          "azimuthEnd": 315.4055983903358
+        },
+        {
+          "start": 1791015510000,
+          "azimuthStart": 26.794145055395916,
+          "maxElevation": 31.929074080744467,
+          "azimuthApex": 95.52310517300816,
+          "apex": 1791015870000,
+          "end": 1791016230000,
+          "duration": 720000,
+          "azimuthEnd": 163.82740083024345
+        },
+        {
+          "start": 1791021513000,
+          "azimuthStart": 5.960592768840455,
+          "maxElevation": 41.62678601579512,
+          "azimuthApex": 294.96117623986277,
+          "apex": 1791021878000,
+          "end": 1791022248000,
+          "duration": 735000,
+          "azimuthEnd": 221.46134864547068
+        },
+        {
+          "start": 1791027640000,
+          "azimuthStart": 339.8454710387321,
+          "maxElevation": 7.800746447980955,
+          "azimuthApex": 314.0143936405547,
+          "apex": 1791027805000,
+          "end": 1791027970000,
+          "duration": 330000,
+          "azimuthEnd": 288.18894194026683
+        },
+        {
+          "start": 1791050815000,
+          "azimuthStart": 96.23001864437244,
+          "maxElevation": 13.862517496847259,
+          "azimuthApex": 52.061867226015735,
+          "apex": 1791051080000,
+          "end": 1791051345000,
+          "duration": 530000,
+          "azimuthEnd": 8.487457095105253
+        },
+        {
+          "start": 1791056647000,
+          "azimuthStart": 156.35956979451956,
+          "maxElevation": 73.26086504307084,
+          "azimuthApex": 75.73131312266258,
+          "apex": 1791057027000,
+          "end": 1791057417000,
+          "duration": 770000,
+          "azimuthEnd": 347.97278277437425
+        },
+        {
+          "start": 1791062764000,
+          "azimuthStart": 217.70516785657725,
+          "maxElevation": 17.925517304909665,
+          "azimuthApex": 270.87586326123096,
+          "apex": 1791063069000,
+          "end": 1791063379000,
+          "duration": 615000,
+          "azimuthEnd": 324.1902690767691
+        },
+        {
+          "start": 1791100687000,
+          "azimuthStart": 32.67078543182725,
+          "maxElevation": 21.940196908396388,
+          "azimuthApex": 91.82411346430825,
+          "apex": 1791101017000,
+          "end": 1791101342000,
+          "duration": 655000,
+          "azimuthEnd": 150.03662338962974
+        },
+        {
+          "start": 1791106664000,
+          "azimuthStart": 9.914364689943145,
+          "maxElevation": 60.21948900584643,
+          "azimuthApex": 290.5296752322382,
+          "apex": 1791107044000,
+          "end": 1791107424000,
+          "duration": 760000,
+          "azimuthEnd": 209.75284023474282
+        },
+        {
+          "start": 1791112751000,
+          "azimuthStart": 347.9351968590454,
+          "maxElevation": 11.534229375772462,
+          "azimuthApex": 309.8429069923491,
+          "apex": 1791112986000,
+          "end": 1791113226000,
+          "duration": 475000,
+          "azimuthEnd": 270.9512987425687
+        }
+      ]
+    },
+    {
+      "record": 1,
+      "station": 0,
+      "startMs": 1790946780000,
+      "endMs": 1791119580000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 1450,
+        "portKm": 1450
+      },
+      "passes": [
+        {
+          "start": 1790971654042.4478,
+          "end": 1790972087251.1548,
+          "duration": 433208.70703125,
+          "minDistance": 155.60344989713437,
+          "minDistanceTime": 1790971870320.35,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791015715768.2441,
+          "end": 1791016022597.8965,
+          "duration": 306829.65234375,
+          "minDistance": 1040.5813804336651,
+          "minDistanceTime": 1791015869398.7915,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791021696724.33,
+          "end": 1791022063825.3877,
+          "duration": 367101.0576171875,
+          "minDistance": 771.9339374153017,
+          "minDistanceTime": 1791021880427.9658,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791056814546.6228,
+          "end": 1791057244133.1265,
+          "duration": 429586.5036621094,
+          "minDistance": 218.26805985108086,
+          "minDistanceTime": 1791057029062.103,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791100977872.8242,
+          "end": 1791101053428.8564,
+          "duration": 75556.0322265625,
+          "minDistance": 1428.8261712483584,
+          "minDistanceTime": 1791101015662.3733,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791106836320.7139,
+          "end": 1791107252627.4497,
+          "duration": 416306.73583984375,
+          "minDistance": 410.9597025660113,
+          "minDistanceTime": 1791107044706.7678,
+          "swathWidth": 2900
+        }
+      ]
+    },
+    {
+      "record": 1,
+      "station": 0,
+      "startMs": 1790946780000,
+      "endMs": 1791119580000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 900,
+        "portKm": 250
+      },
+      "passes": [
+        {
+          "start": 1790971737261.3313,
+          "end": 1790972003631.8633,
+          "duration": 266370.5319824219,
+          "minDistance": 155.60344989713437,
+          "minDistanceTime": 1790971870320.4624,
+          "swathWidth": 1150
+        },
+        {
+          "start": 1791057010806.9822,
+          "end": 1791057047330.4197,
+          "duration": 36523.4375,
+          "minDistance": 218.26805977095907,
+          "minDistanceTime": 1791057029063.126,
+          "swathWidth": 1150
+        }
+      ]
+    },
+    {
+      "record": 1,
+      "station": 1,
+      "startMs": 1790946780000,
+      "endMs": 1791119580000,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790970154000,
+          "azimuthStart": 148.98437194450662,
+          "maxElevation": 29.263088327002848,
+          "azimuthApex": 82.51065224122173,
+          "apex": 1790970509000,
+          "end": 1790970859000,
+          "duration": 705000,
+          "azimuthEnd": 17.205502276886495
+        },
+        {
+          "start": 1790976154000,
+          "azimuthStart": 184.5557584261959,
+          "maxElevation": 29.609376101798752,
+          "azimuthApex": 248.76807631396062,
+          "apex": 1790976504000,
+          "end": 1790976854000,
+          "duration": 700000,
+          "azimuthEnd": 313.6669493329722
+        },
+        {
+          "start": 1791010849000,
+          "azimuthStart": 42.41497516683669,
+          "maxElevation": 33.74543538335678,
+          "azimuthApex": 109.96585499830238,
+          "apex": 1791011204000,
+          "end": 1791011569000,
+          "duration": 720000,
+          "azimuthEnd": 177.9499576675108
+        },
+        {
+          "start": 1791016868000,
+          "azimuthStart": 338.2629897796814,
+          "maxElevation": 25.48028627650706,
+          "azimuthApex": 275.72168676997467,
+          "apex": 1791017208000,
+          "end": 1791017553000,
+          "duration": 685000,
+          "azimuthEnd": 213.41836601663456
+        },
+        {
+          "start": 1791055347000,
+          "azimuthStart": 139.40109420243678,
+          "maxElevation": 18.33049699011343,
+          "azimuthApex": 85.94404337764855,
+          "apex": 1791055657000,
+          "end": 1791055967000,
+          "duration": 620000,
+          "azimuthEnd": 32.28893531386565
+        },
+        {
+          "start": 1791061296000,
+          "azimuthStart": 177.32936931207067,
+          "maxElevation": 46.297804244840165,
+          "azimuthApex": 251.66875716447123,
+          "apex": 1791061671000,
+          "end": 1791062046000,
+          "duration": 750000,
+          "azimuthEnd": 327.0262831907015
+        },
+        {
+          "start": 1791096055000,
+          "azimuthStart": 56.62617359789061,
+          "maxElevation": 21.91345827352472,
+          "azimuthApex": 113.48376476562693,
+          "apex": 1791096375000,
+          "end": 1791096700000,
+          "duration": 645000,
+          "azimuthEnd": 170.10352173096985
+        },
+        {
+          "start": 1791101991000,
+          "azimuthStart": 352.3835361153925,
+          "maxElevation": 40.56284428562754,
+          "azimuthApex": 278.0026170604035,
+          "apex": 1791102361000,
+          "end": 1791102736000,
+          "duration": 745000,
+          "azimuthEnd": 204.9683890809201
+        }
+      ]
+    },
+    {
+      "record": 1,
+      "station": 1,
+      "startMs": 1790946780000,
+      "endMs": 1791119580000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 1450,
+        "portKm": 1450
+      },
+      "passes": [
+        {
+          "start": 1790970370849.4058,
+          "end": 1790970643757.543,
+          "duration": 272908.13720703125,
+          "minDistance": 1137.1596456168866,
+          "minDistanceTime": 1790970507509.1284,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1790976368402.2617,
+          "end": 1790976641591.0532,
+          "duration": 273188.79150390625,
+          "minDistance": 1127.205602862596,
+          "minDistanceTime": 1790976505077.1116,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791011045653.0664,
+          "end": 1791011362516.7776,
+          "duration": 316863.7111816406,
+          "minDistance": 991.2211231111914,
+          "minDistanceTime": 1791011203960.7683,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791017103525.407,
+          "end": 1791017309867.8057,
+          "duration": 206342.39868164062,
+          "minDistance": 1281.3469004973874,
+          "minDistanceTime": 1791017206566.405,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791061479254.3125,
+          "end": 1791061864002.392,
+          "duration": 384748.07958984375,
+          "minDistance": 671.0979034679162,
+          "minDistanceTime": 1791061671835.9773,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791096349193.2104,
+          "end": 1791096397541.6807,
+          "duration": 48348.47021484375,
+          "minDistance": 1441.0098885485165,
+          "minDistanceTime": 1791096373358.09,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791102176979.3125,
+          "end": 1791102541790.6445,
+          "duration": 364811.33203125,
+          "minDistance": 801.9641960778464,
+          "minDistanceTime": 1791102359043.4126,
+          "swathWidth": 2900
+        }
+      ]
+    },
+    {
+      "record": 1,
+      "station": 1,
+      "startMs": 1790946780000,
+      "endMs": 1791119580000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 900,
+        "portKm": 250
+      },
+      "passes": [
+        {
+          "start": 1791061582045.754,
+          "end": 1791061761540.1777,
+          "duration": 179494.423828125,
+          "minDistance": 671.0979033938164,
+          "minDistanceTime": 1791061671836.7625,
+          "swathWidth": 1150
+        }
+      ]
+    },
+    {
+      "record": 1,
+      "station": 2,
+      "startMs": 1790946780000,
+      "endMs": 1791119580000,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790953899000,
+          "azimuthStart": 94.64751413966259,
+          "maxElevation": 66.88781870946437,
+          "azimuthApex": 11.529685394910489,
+          "apex": 1790954284000,
+          "end": 1790954669000,
+          "duration": 770000,
+          "azimuthEnd": 290.8851094766563
+        },
+        {
+          "start": 1790959901000,
+          "azimuthStart": 124.07048792450163,
+          "maxElevation": 84.56989065485466,
+          "azimuthApex": 41.55472675861106,
+          "apex": 1790960286000,
+          "end": 1790960676000,
+          "duration": 775000,
+          "azimuthEnd": 310.17043205773194
+        },
+        {
+          "start": 1790965928000,
+          "azimuthStart": 157.56027805832937,
+          "maxElevation": 63.38279074491485,
+          "azimuthApex": 242.38244901715615,
+          "apex": 1790966313000,
+          "end": 1790966703000,
+          "duration": 775000,
+          "azimuthEnd": 325.4488783719002
+        },
+        {
+          "start": 1790972003000,
+          "azimuthStart": 194.16441158773458,
+          "maxElevation": 36.40345935167245,
+          "azimuthApex": 265.4666961467392,
+          "apex": 1790972368000,
+          "end": 1790972738000,
+          "duration": 735000,
+          "azimuthEnd": 337.78891821045863
+        },
+        {
+          "start": 1790978138000,
+          "azimuthStart": 233.10023954184206,
+          "maxElevation": 21.098874683143727,
+          "azimuthApex": 290.7550719093549,
+          "apex": 1790978463000,
+          "end": 1790978793000,
+          "duration": 655000,
+          "azimuthEnd": 349.1150325905423
+        },
+        {
+          "start": 1790984335000,
+          "azimuthStart": 273.6200449711631,
+          "maxElevation": 12.878073503384757,
+          "azimuthApex": 316.56389173216246,
+          "apex": 1790984595000,
+          "end": 1790984865000,
+          "duration": 530000,
+          "azimuthEnd": 1.0219491816903408
+        },
+        {
+          "start": 1790990558000,
+          "azimuthStart": 311.70301459657014,
+          "maxElevation": 9.058420721617916,
+          "azimuthApex": 344.257700585101,
+          "apex": 1790990763000,
+          "end": 1790990968000,
+          "duration": 410000,
+          "azimuthEnd": 16.70974813413875
+        },
+        {
+          "start": 1790996741000,
+          "azimuthStart": 340.14430898078,
+          "maxElevation": 8.786371277255165,
+          "azimuthApex": 11.779827465312232,
+          "apex": 1790996941000,
+          "end": 1790997141000,
+          "duration": 400000,
+          "azimuthEnd": 43.334419688762594
+        },
+        {
+          "start": 1791002855000,
+          "azimuthStart": 357.3441748042369,
+          "maxElevation": 12.01410831173761,
+          "azimuthApex": 39.137893502463335,
+          "apex": 1791003110000,
+          "end": 1791003365000,
+          "duration": 510000,
+          "azimuthEnd": 80.66930131952994
+        },
+        {
+          "start": 1791008929000,
+          "azimuthStart": 9.324878101002414,
+          "maxElevation": 19.421788335719338,
+          "azimuthApex": 65.42251987711887,
+          "apex": 1791009249000,
+          "end": 1791009569000,
+          "duration": 640000,
+          "azimuthEnd": 120.99354051078834
+        },
+        {
+          "start": 1791014986000,
+          "azimuthStart": 20.510418503798203,
+          "maxElevation": 33.303073454252235,
+          "azimuthApex": 89.33545124068944,
+          "apex": 1791015346000,
+          "end": 1791015711000,
+          "duration": 725000,
+          "azimuthEnd": 159.89388043688552
+        },
+        {
+          "start": 1791021027000,
+          "azimuthStart": 32.58258650733425,
+          "maxElevation": 58.28248848007975,
+          "azimuthApex": 115.69049160281084,
+          "apex": 1791021412000,
+          "end": 1791021797000,
+          "duration": 770000,
+          "azimuthEnd": 196.92898966348133
+        },
+        {
+          "start": 1791027052000,
+          "azimuthStart": 47.18202770726217,
+          "maxElevation": 88.8015018226591,
+          "azimuthApex": 280.97660317227366,
+          "apex": 1791027442000,
+          "end": 1791027832000,
+          "duration": 780000,
+          "azimuthEnd": 230.8742027189854
+        },
+        {
+          "start": 1791033062000,
+          "azimuthStart": 65.71501231941531,
+          "maxElevation": 68.48197749919999,
+          "azimuthApex": 343.3145800029657,
+          "apex": 1791033447000,
+          "end": 1791033832000,
+          "duration": 770000,
+          "azimuthEnd": 260.9858597935868
+        },
+        {
+          "start": 1791039061000,
+          "azimuthStart": 89.13315772650344,
+          "maxElevation": 65.44460222211313,
+          "azimuthApex": 10.263674355472604,
+          "apex": 1791039441000,
+          "end": 1791039831000,
+          "duration": 770000,
+          "azimuthEnd": 286.2525437040973
+        },
+        {
+          "start": 1791045058000,
+          "azimuthStart": 117.61690525292302,
+          "maxElevation": 79.38846024301614,
+          "azimuthApex": 35.46349780241221,
+          "apex": 1791045443000,
+          "end": 1791045833000,
+          "duration": 775000,
+          "azimuthEnd": 306.5569430037198
+        },
+        {
+          "start": 1791051079000,
+          "azimuthStart": 150.3578000666338,
+          "maxElevation": 70.29901891471303,
+          "azimuthApex": 236.26698836794083,
+          "apex": 1791051464000,
+          "end": 1791051854000,
+          "duration": 775000,
+          "azimuthEnd": 322.510544177189
+        },
+        {
+          "start": 1791057142000,
+          "azimuthStart": 186.35633894692842,
+          "maxElevation": 40.90712875999883,
+          "azimuthApex": 259.92095318968853,
+          "apex": 1791057512000,
+          "end": 1791057892000,
+          "duration": 750000,
+          "azimuthEnd": 335.5576520481981
+        },
+        {
+          "start": 1791063265000,
+          "azimuthStart": 224.94014474056968,
+          "maxElevation": 23.54332807688541,
+          "azimuthApex": 285.56698680632155,
+          "apex": 1791063600000,
+          "end": 1791063940000,
+          "duration": 675000,
+          "azimuthEnd": 346.79463239671804
+        },
+        {
+          "start": 1791069449000,
+          "azimuthStart": 265.1382893913096,
+          "maxElevation": 14.16595033363503,
+          "azimuthApex": 311.0700069179205,
+          "apex": 1791069724000,
+          "end": 1791070009000,
+          "duration": 560000,
+          "azimuthEnd": 358.5232000754338
+        },
+        {
+          "start": 1791075673000,
+          "azimuthStart": 304.453310137054,
+          "maxElevation": 9.544597239583723,
+          "azimuthApex": 338.83621235711774,
+          "apex": 1791075888000,
+          "end": 1791076103000,
+          "duration": 430000,
+          "azimuthEnd": 12.979124983620558
+        },
+        {
+          "start": 1791081870000,
+          "azimuthStart": 335.48621200215786,
+          "maxElevation": 8.561794711396125,
+          "azimuthApex": 6.29779058822914,
+          "apex": 1791082065000,
+          "end": 1791082260000,
+          "duration": 390000,
+          "azimuthEnd": 36.94038172060896
+        },
+        {
+          "start": 1791087995000,
+          "azimuthStart": 354.37865170680436,
+          "maxElevation": 11.041465045614869,
+          "azimuthApex": 33.265192851555895,
+          "apex": 1791088235000,
+          "end": 1791088475000,
+          "duration": 480000,
+          "azimuthEnd": 72.12920242176244
+        },
+        {
+          "start": 1791094076000,
+          "azimuthStart": 7.099511369646397,
+          "maxElevation": 17.47115278126402,
+          "azimuthApex": 59.6596883217904,
+          "apex": 1791094381000,
+          "end": 1791094691000,
+          "duration": 615000,
+          "azimuthEnd": 112.72864509472043
+        },
+        {
+          "start": 1791100135000,
+          "azimuthStart": 18.174371324291563,
+          "maxElevation": 29.695376486008776,
+          "azimuthApex": 85.00038699700342,
+          "apex": 1791100490000,
+          "end": 1791100850000,
+          "duration": 715000,
+          "azimuthEnd": 152.24325795996637
+        },
+        {
+          "start": 1791106179000,
+          "azimuthStart": 29.915973585927027,
+          "maxElevation": 52.03797309139996,
+          "azimuthApex": 108.71784000072503,
+          "apex": 1791106559000,
+          "end": 1791106944000,
+          "duration": 765000,
+          "azimuthEnd": 189.5196311047022
+        },
+        {
+          "start": 1791112208000,
+          "azimuthStart": 43.88300304901566,
+          "maxElevation": 84.4987704472927,
+          "azimuthApex": 143.4130977889815,
+          "apex": 1791112598000,
+          "end": 1791112988000,
+          "duration": 780000,
+          "azimuthEnd": 224.14363397546546
+        },
+        {
+          "start": 1791118222000,
+          "azimuthStart": 61.48756905544302,
+          "maxElevation": 71.22277419903814,
+          "azimuthApex": 337.5460207312132,
+          "apex": 1791118607000,
+          "end": 1791118992000,
+          "duration": 770000,
+          "azimuthEnd": 255.1247232306685
+        }
+      ]
+    },
+    {
+      "record": 1,
+      "station": 2,
+      "startMs": 1790946780000,
+      "endMs": 1791119580000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 1450,
+        "portKm": 1450
+      },
+      "passes": [
+        {
+          "start": 1790948074094.305,
+          "end": 1790948499846.1914,
+          "duration": 425751.8864746094,
+          "minDistance": 316.0986345594184,
+          "minDistanceTime": 1790948286992.2341,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1790954069930.7231,
+          "end": 1790954496087.9688,
+          "duration": 426157.24560546875,
+          "minDistance": 310.25105356741875,
+          "minDistanceTime": 1790954282983.229,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1790960068576.9395,
+          "end": 1790960505217.4507,
+          "duration": 436640.51123046875,
+          "minDistance": 69.54726550705196,
+          "minDistanceTime": 1790960286816.9172,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1790966099519.6147,
+          "end": 1790966524846.2405,
+          "duration": 425326.6257324219,
+          "minDistance": 362.80781825587275,
+          "minDistanceTime": 1790966312059.2356,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1790972196613.0435,
+          "end": 1790972541543.0398,
+          "duration": 344929.9963378906,
+          "minDistance": 910.3024247031252,
+          "minDistanceTime": 1790972368971.0767,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791015187669.0007,
+          "end": 1791015508693.503,
+          "duration": 321024.5021972656,
+          "minDistance": 1001.4845399352903,
+          "minDistanceTime": 1791015348269.6013,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791021201453.6145,
+          "end": 1791021620081.5432,
+          "duration": 418627.9287109375,
+          "minDistance": 444.3407189611056,
+          "minDistanceTime": 1791021410889.3228,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791027221800.4956,
+          "end": 1791027659175.1128,
+          "duration": 437374.6171875,
+          "minDistance": 12.08957619052956,
+          "minDistanceTime": 1791027440572.4355,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791033233086.2615,
+          "end": 1791033660786.046,
+          "duration": 427699.7844238281,
+          "minDistance": 287.0865358617874,
+          "minDistanceTime": 1791033446966.4902,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791039230907.1318,
+          "end": 1791039655548.6606,
+          "duration": 424641.52880859375,
+          "minDistance": 331.4198438201544,
+          "minDistanceTime": 1791039443208.4993,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791045226838.8374,
+          "end": 1791045661754.229,
+          "duration": 434915.3916015625,
+          "minDistance": 137.0580490375197,
+          "minDistanceTime": 1791045444223.3596,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791051248407.9614,
+          "end": 1791051679965.9834,
+          "duration": 431558.02197265625,
+          "minDistance": 261.00074438672397,
+          "minDistanceTime": 1791051464068.203,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791057328712.7393,
+          "end": 1791057699083.8276,
+          "duration": 370371.08837890625,
+          "minDistance": 792.1824463533926,
+          "minDistanceTime": 1791057513781.2212,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791063523662.19,
+          "end": 1791063677237.7827,
+          "duration": 153575.5927734375,
+          "minDistance": 1361.8787906989962,
+          "minDistanceTime": 1791063600426.5442,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791100348842.6016,
+          "end": 1791100631339.5083,
+          "duration": 282496.90673828125,
+          "minDistance": 1120.311069693927,
+          "minDistanceTime": 1791100490159.9844,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791106356796.0054,
+          "end": 1791106763813.9668,
+          "duration": 407017.96142578125,
+          "minDistance": 554.4332090666211,
+          "minDistanceTime": 1791106560427.2795,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791112377540.2197,
+          "end": 1791112814794.753,
+          "duration": 437254.533203125,
+          "minDistance": 69.72410055987007,
+          "minDistanceTime": 1791112596260.5288,
+          "swathWidth": 2900
+        },
+        {
+          "start": 1791118391433.1943,
+          "end": 1791118821471.63,
+          "duration": 430038.435546875,
+          "minDistance": 248.05828479946027,
+          "minDistanceTime": 1791118606493.7732,
+          "swathWidth": 2900
+        }
+      ]
+    },
+    {
+      "record": 1,
+      "station": 2,
+      "startMs": 1790946780000,
+      "endMs": 1791119580000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 900,
+        "portKm": 250
+      },
+      "passes": [
+        {
+          "start": 1790960250615.5693,
+          "end": 1790960323029.6318,
+          "duration": 72414.0625,
+          "minDistance": 69.54726550705196,
+          "minDistanceTime": 1790960286816.3342,
+          "swathWidth": 1150
+        },
+        {
+          "start": 1790966187323.8765,
+          "end": 1790966436884.1963,
+          "duration": 249560.31982421875,
+          "minDistance": 362.80781825587275,
+          "minDistanceTime": 1790966312059.6416,
+          "swathWidth": 1150
+        },
+        {
+          "start": 1791021292150.544,
+          "end": 1791021529554.514,
+          "duration": 237403.96997070312,
+          "minDistance": 444.34071903863054,
+          "minDistanceTime": 1791021410888.7668,
+          "swathWidth": 1150
+        },
+        {
+          "start": 1791027402904.2275,
+          "end": 1791027478240.165,
+          "duration": 75335.9375,
+          "minDistance": 12.089579347320708,
+          "minDistanceTime": 1791027440570.6575,
+          "swathWidth": 1150
+        },
+        {
+          "start": 1791045412725.3142,
+          "end": 1791045475733.1267,
+          "duration": 63007.8125,
+          "minDistance": 137.0580490375197,
+          "minDistanceTime": 1791045444223.768,
+          "swathWidth": 1150
+        },
+        {
+          "start": 1791051333794.8447,
+          "end": 1791051594435.5215,
+          "duration": 260640.6767578125,
+          "minDistance": 261.00074438672397,
+          "minDistanceTime": 1791051464068.8171,
+          "swathWidth": 1150
+        },
+        {
+          "start": 1791057448661.8418,
+          "end": 1791057578937.8254,
+          "duration": 130275.98364257812,
+          "minDistance": 792.182446247677,
+          "minDistanceTime": 1791057513779.948,
+          "swathWidth": 1150
+        },
+        {
+          "start": 1791106452698.338,
+          "end": 1791106668089.688,
+          "duration": 215391.35009765625,
+          "minDistance": 554.4332090432894,
+          "minDistanceTime": 1791106560426.8906,
+          "swathWidth": 1150
+        },
+        {
+          "start": 1791112460760.0083,
+          "end": 1791112731687.2083,
+          "duration": 270927.1999511719,
+          "minDistance": 69.72410055987007,
+          "minDistanceTime": 1791112596260.7354,
+          "swathWidth": 1150
+        },
+        {
+          "start": 1791118601819.9941,
+          "end": 1791118611179.3691,
+          "duration": 9359.375,
+          "minDistance": 248.05828466373248,
+          "minDistanceTime": 1791118606494.631,
+          "swathWidth": 1150
+        }
+      ]
+    },
+    {
+      "record": 2,
+      "station": 0,
+      "startMs": 1790920320000,
+      "endMs": 1791093120000,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790941800000,
+          "azimuthStart": 162.61638715054846,
+          "maxElevation": 66.4930186701777,
+          "azimuthApex": 104.09388521002607,
+          "apex": 1790947780000,
+          "end": 1790958480000,
+          "duration": 16680000,
+          "azimuthEnd": 64.34198952877945
+        },
+        {
+          "start": 1790994069000,
+          "azimuthStart": 333.66464245557137,
+          "maxElevation": 17.009641765993557,
+          "azimuthApex": 306.4633008370528,
+          "apex": 1790998809000,
+          "end": 1791003754000,
+          "duration": 9685000,
+          "azimuthEnd": 274.691868883964
+        },
+        {
+          "start": 1791025234000,
+          "azimuthStart": 169.0421144462973,
+          "maxElevation": 66.49714679699927,
+          "azimuthApex": 104.04674094259092,
+          "apex": 1791033939000,
+          "end": 1791044639000,
+          "duration": 19405000,
+          "azimuthEnd": 64.35551879952224
+        },
+        {
+          "start": 1791080227000,
+          "azimuthStart": 333.65974339230513,
+          "maxElevation": 17.005464432613113,
+          "azimuthApex": 306.452702166313,
+          "apex": 1791084967000,
+          "end": 1791089912000,
+          "duration": 9685000,
+          "azimuthEnd": 274.6855018832131
+        }
+      ]
+    },
+    {
+      "record": 2,
+      "station": 0,
+      "startMs": 1790920320000,
+      "endMs": 1791093120000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": []
+    },
+    {
+      "record": 2,
+      "station": 1,
+      "startMs": 1790920320000,
+      "endMs": 1791093120000,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790941800000,
+          "azimuthStart": 9.489795518778873,
+          "maxElevation": 42.73705297672436,
+          "azimuthApex": 9.489795518778873,
+          "end": 1790946905000,
+          "duration": 5105000,
+          "azimuthEnd": 11.420907111007262
+        },
+        {
+          "start": 1791009815000,
+          "azimuthStart": 253.64734197818854,
+          "maxElevation": 88.2549281289949,
+          "azimuthApex": 290.2387792930982,
+          "apex": 1791022585000,
+          "end": 1791033060000,
+          "duration": 23245000,
+          "azimuthEnd": 11.41458934691028
+        }
+      ]
+    },
+    {
+      "record": 2,
+      "station": 1,
+      "startMs": 1790920320000,
+      "endMs": 1791093120000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": []
+    },
+    {
+      "record": 2,
+      "station": 2,
+      "startMs": 1790920320000,
+      "endMs": 1791093120000,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790942450000,
+          "azimuthStart": 170.58410343468296,
+          "maxElevation": 53.49699582833758,
+          "azimuthApex": 122.74758758818942,
+          "apex": 1790951170000,
+          "end": 1790960180000,
+          "duration": 17730000,
+          "azimuthEnd": 81.01092483060162
+        },
+        {
+          "start": 1790989005000,
+          "azimuthStart": 347.6389125127918,
+          "maxElevation": 36.56057722927348,
+          "azimuthApex": 309.55624675844547,
+          "apex": 1790996250000,
+          "end": 1791003580000,
+          "duration": 14575000,
+          "azimuthEnd": 268.7270896071135
+        },
+        {
+          "start": 1791028607000,
+          "azimuthStart": 170.5901079502518,
+          "maxElevation": 53.496838126026006,
+          "azimuthApex": 122.74513629858293,
+          "apex": 1791037327000,
+          "end": 1791046337000,
+          "duration": 17730000,
+          "azimuthEnd": 81.01762662697185
+        },
+        {
+          "start": 1791075162000,
+          "azimuthStart": 347.6427351247887,
+          "maxElevation": 36.55854214615435,
+          "azimuthApex": 309.55321471237824,
+          "apex": 1791082407000,
+          "end": 1791089737000,
+          "duration": 14575000,
+          "azimuthEnd": 268.73079799519724
+        }
+      ]
+    },
+    {
+      "record": 2,
+      "station": 2,
+      "startMs": 1790920320000,
+      "endMs": 1791093120000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": []
+    },
+    {
+      "record": 3,
+      "station": 0,
+      "startMs": 1790938500000,
+      "endMs": 1791111300000,
+      "mode": "elevation",
+      "passes": []
+    },
+    {
+      "record": 3,
+      "station": 0,
+      "startMs": 1790938500000,
+      "endMs": 1791111300000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": []
+    },
+    {
+      "record": 3,
+      "station": 1,
+      "startMs": 1790938500000,
+      "endMs": 1791111300000,
+      "mode": "elevation",
+      "passes": []
+    },
+    {
+      "record": 3,
+      "station": 1,
+      "startMs": 1790938500000,
+      "endMs": 1791111300000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": []
+    },
+    {
+      "record": 3,
+      "station": 2,
+      "startMs": 1790938500000,
+      "endMs": 1791111300000,
+      "mode": "elevation",
+      "passes": []
+    },
+    {
+      "record": 3,
+      "station": 2,
+      "startMs": 1790938500000,
+      "endMs": 1791111300000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": []
+    },
+    {
+      "record": 4,
+      "station": 0,
+      "startMs": 1790375580000,
+      "endMs": 1790548380000,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790408820000,
+          "azimuthStart": 38.354011266515485,
+          "maxElevation": 33.1866595586756,
+          "azimuthApex": 23.011009388576497,
+          "apex": 1790414705000,
+          "end": 1790420225000,
+          "duration": 11405000,
+          "azimuthEnd": 348.4653628443707
+        },
+        {
+          "start": 1790453465000,
+          "azimuthStart": 283.6221413953895,
+          "maxElevation": 7.624220399371757,
+          "azimuthApex": 283.6221413953895,
+          "end": 1790455370000,
+          "duration": 1905000,
+          "azimuthEnd": 290.77482338707017
+        },
+        {
+          "start": 1790488610000,
+          "azimuthStart": 280.24626394373337,
+          "maxElevation": 14.817291702421807,
+          "azimuthApex": 280.24626394373337,
+          "end": 1790489090000,
+          "duration": 480000,
+          "azimuthEnd": 269.3761144198776
+        }
+      ]
+    },
+    {
+      "record": 4,
+      "station": 0,
+      "startMs": 1790375580000,
+      "endMs": 1790548380000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": []
+    },
+    {
+      "record": 4,
+      "station": 1,
+      "startMs": 1790375580000,
+      "endMs": 1790548380000,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790444460000,
+          "azimuthStart": 290.03549862750657,
+          "maxElevation": 12.829099340239075,
+          "azimuthApex": 290.03549862750657,
+          "end": 1790446380000,
+          "duration": 1920000,
+          "azimuthEnd": 288.1530678972728
+        },
+        {
+          "start": 1790491115000,
+          "azimuthStart": 240.7471274843713,
+          "maxElevation": 42.17648005980973,
+          "azimuthApex": 29.864419466997962,
+          "apex": 1790510910000,
+          "end": 1790528135000,
+          "duration": 37020000,
+          "azimuthEnd": 320.4939348460809
+        }
+      ]
+    },
+    {
+      "record": 4,
+      "station": 1,
+      "startMs": 1790375580000,
+      "endMs": 1790548380000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": []
+    },
+    {
+      "record": 4,
+      "station": 2,
+      "startMs": 1790375580000,
+      "endMs": 1790548380000,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790408820000,
+          "azimuthStart": 61.56790571948699,
+          "maxElevation": 65.31337308599467,
+          "azimuthApex": 33.84120122393117,
+          "apex": 1790416330000,
+          "end": 1790421810000,
+          "duration": 12990000,
+          "azimuthEnd": 337.4383951411212
+        },
+        {
+          "start": 1790455050000,
+          "azimuthStart": 285.09626335874174,
+          "maxElevation": 65.21905473712434,
+          "azimuthApex": 325.6387852238648,
+          "apex": 1790484740000,
+          "end": 1790488885000,
+          "duration": 33835000,
+          "azimuthEnd": 257.8577273934987
+        }
+      ]
+    },
+    {
+      "record": 4,
+      "station": 2,
+      "startMs": 1790375580000,
+      "endMs": 1790548380000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": []
+    },
+    {
+      "record": 5,
+      "station": 0,
+      "startMs": 962131860000,
+      "endMs": 962304660000,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 962173380000,
+          "azimuthStart": 90.8449132076535,
+          "maxElevation": 5.331407636130527,
+          "azimuthApex": 90.8449132076535,
+          "end": 962173395000,
+          "duration": 15000,
+          "azimuthEnd": 90.32476037420872
+        },
+        {
+          "start": 962181615000,
+          "azimuthStart": 112.76248775531968,
+          "maxElevation": 26.39248950950141,
+          "azimuthApex": 112.76248775531968,
+          "end": 962182285000,
+          "duration": 670000,
+          "azimuthEnd": 95.83760222236542
+        },
+        {
+          "start": 962188803000,
+          "azimuthStart": 256.0159537836082,
+          "maxElevation": 48.851721605283196,
+          "azimuthApex": 184.61617977739954,
+          "apex": 962189668000,
+          "end": 962191078000,
+          "duration": 2275000,
+          "azimuthEnd": 117.14922065368822
+        },
+        {
+          "start": 962197273000,
+          "azimuthStart": 268.9521062586581,
+          "maxElevation": 36.52744076909106,
+          "azimuthApex": 206.86548192669798,
+          "apex": 962198308000,
+          "end": 962199673000,
+          "duration": 2400000,
+          "azimuthEnd": 146.92749479349405
+        },
+        {
+          "start": 962206000000,
+          "azimuthStart": 266.87710564628935,
+          "maxElevation": 16.12908004688883,
+          "azimuthApex": 227.27606260960985,
+          "apex": 962206890000,
+          "end": 962207860000,
+          "duration": 1860000,
+          "azimuthEnd": 187.33792854754302
+        },
+        {
+          "start": 962260950000,
+          "azimuthStart": 104.6080506225493,
+          "maxElevation": 15.250626271258978,
+          "azimuthApex": 104.6080506225493,
+          "end": 962261325000,
+          "duration": 375000,
+          "azimuthEnd": 90.01370406939195
+        },
+        {
+          "start": 962269545000,
+          "azimuthStart": 114.4584181321482,
+          "maxElevation": 25.317081709896645,
+          "azimuthApex": 114.4584181321482,
+          "end": 962270175000,
+          "duration": 630000,
+          "azimuthEnd": 100.89396450053523
+        },
+        {
+          "start": 962276655000,
+          "azimuthStart": 260.39237863220535,
+          "maxElevation": 46.133308520746176,
+          "azimuthApex": 190.18753727333177,
+          "apex": 962277540000,
+          "end": 962278940000,
+          "duration": 2285000,
+          "azimuthEnd": 124.69120323270043
+        },
+        {
+          "start": 962285157000,
+          "azimuthStart": 269.43693404950085,
+          "maxElevation": 30.680544506419697,
+          "azimuthApex": 212.0230948938607,
+          "apex": 962286167000,
+          "end": 962287457000,
+          "duration": 2300000,
+          "azimuthEnd": 156.52211171963805
+        },
+        {
+          "start": 962294054000,
+          "azimuthStart": 259.56126282850204,
+          "maxElevation": 10.17360668349777,
+          "azimuthApex": 231.6491902471037,
+          "apex": 962294719000,
+          "end": 962295429000,
+          "duration": 1375000,
+          "azimuthEnd": 203.37722543405988
+        }
+      ]
+    },
+    {
+      "record": 5,
+      "station": 0,
+      "startMs": 962131860000,
+      "endMs": 962304660000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": []
+    },
+    {
+      "record": 5,
+      "station": 1,
+      "startMs": 962131860000,
+      "endMs": 962304660000,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 962137182000,
+          "azimuthStart": 281.626584824027,
+          "maxElevation": 87.84551795970603,
+          "azimuthApex": 19.634444249241767,
+          "apex": 962138162000,
+          "end": 962138652000,
+          "duration": 1470000,
+          "azimuthEnd": 96.8071363365137
+        },
+        {
+          "start": 962146019000,
+          "azimuthStart": 261.12305573786153,
+          "maxElevation": 80.4769189219048,
+          "azimuthApex": 352.37509157492485,
+          "apex": 962146659000,
+          "end": 962147024000,
+          "duration": 1005000,
+          "azimuthEnd": 73.7086936112875
+        },
+        {
+          "start": 962154699000,
+          "azimuthStart": 266.721370821037,
+          "maxElevation": 21.833938614156683,
+          "azimuthApex": 325.49606908193743,
+          "apex": 962155049000,
+          "end": 962155329000,
+          "duration": 630000,
+          "azimuthEnd": 25.954766173442316
+        },
+        {
+          "start": 962199494000,
+          "azimuthStart": 17.707318256859583,
+          "maxElevation": 10.606312457761755,
+          "azimuthApex": 42.048645999558225,
+          "apex": 962200079000,
+          "end": 962200724000,
+          "duration": 1230000,
+          "azimuthEnd": 72.40010225736671
+        },
+        {
+          "start": 962207507000,
+          "azimuthStart": 332.031501736041,
+          "maxElevation": 35.59361531468274,
+          "azimuthApex": 32.447230731475265,
+          "apex": 962208802000,
+          "end": 962209637000,
+          "duration": 2130000,
+          "azimuthEnd": 96.35198781803315
+        },
+        {
+          "start": 962216205000,
+          "azimuthStart": 301.8977990682694,
+          "maxElevation": 67.4931266342535,
+          "azimuthApex": 20.090282184309956,
+          "apex": 962217465000,
+          "end": 962218120000,
+          "duration": 1915000,
+          "azimuthEnd": 101.5029281309025
+        },
+        {
+          "start": 962225108000,
+          "azimuthStart": 274.5055378181105,
+          "maxElevation": 87.92089475645126,
+          "azimuthApex": 183.94128232350997,
+          "apex": 962226038000,
+          "end": 962226508000,
+          "duration": 1400000,
+          "azimuthEnd": 92.43911277281411
+        },
+        {
+          "start": 962233923000,
+          "azimuthStart": 258.75593309076487,
+          "maxElevation": 65.10440674655158,
+          "azimuthApex": 340.1313555521392,
+          "apex": 962234518000,
+          "end": 962234873000,
+          "duration": 950000,
+          "azimuthEnd": 62.753258393132
+        },
+        {
+          "start": 962242626000,
+          "azimuthStart": 277.20175275263523,
+          "maxElevation": 12.497497149344516,
+          "azimuthApex": 320.7187896303821,
+          "apex": 962242886000,
+          "end": 962243111000,
+          "duration": 485000,
+          "azimuthEnd": 5.442504090719135
+        },
+        {
+          "start": 962287406000,
+          "azimuthStart": 13.876305086491008,
+          "maxElevation": 17.505271773574318,
+          "azimuthApex": 40.71540517607521,
+          "apex": 962287981000,
+          "end": 962288816000,
+          "duration": 1410000,
+          "azimuthEnd": 84.36987253329103
+        },
+        {
+          "start": 962295328000,
+          "azimuthStart": 323.23564607746647,
+          "maxElevation": 44.92583183408812,
+          "azimuthApex": 29.454849435369173,
+          "apex": 962296693000,
+          "end": 962297533000,
+          "duration": 2205000,
+          "azimuthEnd": 99.9377163864754
+        }
+      ]
+    },
+    {
+      "record": 5,
+      "station": 1,
+      "startMs": 962131860000,
+      "endMs": 962304660000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": [
+        {
+          "start": 962138144067.6633,
+          "end": 962138176637.7778,
+          "duration": 32570.114501953125,
+          "minDistance": 46.526143377240835,
+          "minDistanceTime": 962138160392.022,
+          "swathWidth": 200
+        },
+        {
+          "start": 962226021949.0984,
+          "end": 962226054292.1912,
+          "duration": 32343.0927734375,
+          "minDistance": 43.58909051422563,
+          "minDistanceTime": 962226038159.6722,
+          "swathWidth": 200
+        }
+      ]
+    },
+    {
+      "record": 5,
+      "station": 2,
+      "startMs": 962131860000,
+      "endMs": 962304660000,
+      "mode": "elevation",
+      "passes": []
+    },
+    {
+      "record": 5,
+      "station": 2,
+      "startMs": 962131860000,
+      "endMs": 962304660000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 100,
+        "portKm": 100
+      },
+      "passes": []
+    }
+  ],
+  "presentation": [
+    {
+      "nowMs": 1790943060000,
+      "rows": [
+        {
+          "countdown": "51 m 23 s",
+          "startLabel": "02.10 13:02:23",
+          "endLabel": "13:10:48",
+          "primary": "44°",
+          "secondary": "358.42°"
+        },
+        {
+          "countdown": "2 h 28 m",
+          "startLabel": "02.10 14:39:24",
+          "endLabel": "14:47:59",
+          "primary": "78°",
+          "secondary": "9.66°"
+        },
+        {
+          "countdown": "4 h 5 m",
+          "startLabel": "02.10 16:16:26",
+          "endLabel": "16:24:06",
+          "primary": "24°",
+          "secondary": "218.82°"
+        },
+        {
+          "countdown": "20 h 51 m",
+          "startLabel": "03.10 09:02:19",
+          "endLabel": "09:09:24",
+          "primary": "18°",
+          "secondary": "138.30°"
+        },
+        {
+          "countdown": "22 h 27 m",
+          "startLabel": "03.10 10:38:00",
+          "endLabel": "10:46:40",
+          "primary": "84°",
+          "secondary": "171.17°"
+        },
+        {
+          "countdown": "1 d 0 h",
+          "startLabel": "03.10 12:15:05",
+          "endLabel": "12:23:35",
+          "primary": "45°",
+          "secondary": "356.72°"
+        },
+        {
+          "countdown": "1 d 1 h",
+          "startLabel": "03.10 13:52:11",
+          "endLabel": "14:00:46",
+          "primary": "61°",
+          "secondary": "11.28°"
+        },
+        {
+          "countdown": "1 d 3 h",
+          "startLabel": "03.10 15:29:08",
+          "endLabel": "15:37:18",
+          "primary": "35°",
+          "secondary": "214.42°"
+        },
+        {
+          "countdown": "1 d 4 h",
+          "startLabel": "03.10 17:08:14",
+          "endLabel": "17:10:14",
+          "primary": "6°",
+          "secondary": "231.12°"
+        },
+        {
+          "countdown": "1 d 20 h",
+          "startLabel": "04.10 08:15:56",
+          "endLabel": "08:21:51",
+          "primary": "12°",
+          "secondary": "133.98°"
+        },
+        {
+          "countdown": "1 d 21 h",
+          "startLabel": "04.10 09:50:52",
+          "endLabel": "09:59:27",
+          "primary": "59°",
+          "secondary": "151.43°"
+        }
+      ],
+      "summaries": [
+        "13:02–13:10 UTC · 8 min · 44° max, apex N",
+        "14:39–14:47 UTC · 9 min · 78° max, apex N",
+        "16:16–16:24 UTC · 8 min · 24° max, apex SW",
+        "09:02–09:09 UTC · 7 min · 18° max, apex SE",
+        "10:38–10:46 UTC · 9 min · 84° max, apex S",
+        "12:15–12:23 UTC · 9 min · 45° max, apex N",
+        "13:52–14:00 UTC · 9 min · 61° max, apex NNE",
+        "15:29–15:37 UTC · 8 min · 35° max, apex SW",
+        "17:08–17:10 UTC · 2 min · 6° max, apex SW",
+        "08:15–08:21 UTC · 6 min · 12° max, apex SE",
+        "09:50–09:59 UTC · 9 min · 59° max, apex SSE"
+      ],
+      "visible": 11,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790946143000",
+            "startMs": 1790946143000,
+            "leftPct": 4.999462478435146,
+            "widthPct": 1.2,
+            "heightPct": 61.492477219015555,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790951964000",
+            "startMs": 1790951964000,
+            "leftPct": 10.95929681940811,
+            "widthPct": 1.2,
+            "heightPct": 90.04676242975498,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790957786000",
+            "startMs": 1790957786000,
+            "leftPct": 16.920155010980796,
+            "widthPct": 1.2,
+            "heightPct": 44.99765144671795,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791018139000",
+            "startMs": 1791018139000,
+            "leftPct": 78.71261025591144,
+            "widthPct": 1.2,
+            "heightPct": 39.95379590528863,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791023880000",
+            "startMs": 1791023880000,
+            "leftPct": 84.59053654890677,
+            "widthPct": 1.2,
+            "heightPct": 94.79539272239565,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791029705000",
+            "startMs": 1791029705000,
+            "leftPct": 90.55446629227862,
+            "widthPct": 1.2,
+            "heightPct": 62.44441504208248,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791035531000",
+            "startMs": 1791035531000,
+            "leftPct": 96.51941988625018,
+            "widthPct": 1.2,
+            "heightPct": 76.0232307736362,
+            "band": "high",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+6h",
+            "pct": 23.958104033459435
+          },
+          {
+            "label": "+12h",
+            "pct": 46.07327698742199
+          },
+          {
+            "label": "+18h",
+            "pct": 68.18844994138455
+          }
+        ],
+        "nowPct": 1.8429310794968796,
+        "horizonLabel": "1.1 d",
+        "beyond": 4
+      }
+    },
+    {
+      "nowMs": 1790943060000,
+      "rows": [
+        {
+          "countdown": "2 h 32 m",
+          "startLabel": "02.10 14:43:33",
+          "endLabel": "14:43:49",
+          "primary": "83.0km",
+          "secondary": "200km"
+        },
+        {
+          "countdown": "22 h 31 m",
+          "startLabel": "03.10 10:42:03",
+          "endLabel": "10:42:29",
+          "primary": "42.4km",
+          "secondary": "200km"
+        }
+      ],
+      "summaries": [
+        "14:43–14:43 UTC · 0 min · 83 km off track, swath 200 km",
+        "10:42–10:42 UTC · 0 min · 42 km off track, swath 200 km"
+      ],
+      "visible": 2,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790952213227.9194",
+            "startMs": 1790952213227.9194,
+            "leftPct": 12.036664186236395,
+            "widthPct": 1.2,
+            "heightPct": 37.71353820096641,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791024123526.5417",
+            "startMs": 1791024123526.5417,
+            "leftPct": 91.05995507504099,
+            "widthPct": 1.2,
+            "heightPct": 68.16427366865463,
+            "band": "high",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+6h",
+            "pct": 25.714606144386394
+          },
+          {
+            "label": "+12h",
+            "pct": 49.45116566228152
+          },
+          {
+            "label": "+18h",
+            "pct": 73.18772518017666
+          }
+        ],
+        "nowPct": 1.9780466264912608,
+        "horizonLabel": "1.0 d",
+        "beyond": 0
+      }
+    },
+    {
+      "nowMs": 1790943060000,
+      "rows": [
+        {
+          "countdown": "7 h 36 m",
+          "startLabel": "02.10 19:47:29",
+          "endLabel": "19:55:14",
+          "primary": "25°",
+          "secondary": "50.98°"
+        },
+        {
+          "countdown": "9 h 13 m",
+          "startLabel": "02.10 21:24:08",
+          "endLabel": "21:32:03",
+          "primary": "26°",
+          "secondary": "215.92°"
+        },
+        {
+          "countdown": "10 h 53 m",
+          "startLabel": "02.10 23:04:38",
+          "endLabel": "23:07:13",
+          "primary": "6°",
+          "secondary": "197.04°"
+        },
+        {
+          "countdown": "14 h 10 m",
+          "startLabel": "03.10 02:21:29",
+          "endLabel": "02:25:34",
+          "primary": "10°",
+          "secondary": "155.00°"
+        },
+        {
+          "countdown": "15 h 44 m",
+          "startLabel": "03.10 03:55:55",
+          "endLabel": "04:04:35",
+          "primary": "63°",
+          "secondary": "134.46°"
+        },
+        {
+          "countdown": "17 h 23 m",
+          "startLabel": "03.10 05:34:02",
+          "endLabel": "05:39:12",
+          "primary": "10°",
+          "secondary": "305.04°"
+        },
+        {
+          "countdown": "1 d 6 h",
+          "startLabel": "03.10 19:01:06",
+          "endLabel": "19:07:31",
+          "primary": "14°",
+          "secondary": "53.14°"
+        },
+        {
+          "countdown": "1 d 8 h",
+          "startLabel": "03.10 20:36:39",
+          "endLabel": "20:45:04",
+          "primary": "43°",
+          "secondary": "218.53°"
+        },
+        {
+          "countdown": "1 d 10 h",
+          "startLabel": "03.10 22:16:08",
+          "endLabel": "22:20:43",
+          "primary": "8°",
+          "secondary": "201.66°"
+        },
+        {
+          "countdown": "1 d 13 h",
+          "startLabel": "04.10 01:33:52",
+          "endLabel": "01:37:17",
+          "primary": "7°",
+          "secondary": "160.47°"
+        },
+        {
+          "countdown": "1 d 14 h",
+          "startLabel": "04.10 03:08:50",
+          "endLabel": "03:17:10",
+          "primary": "35°",
+          "secondary": "141.62°"
+        },
+        {
+          "countdown": "1 d 16 h",
+          "startLabel": "04.10 04:46:03",
+          "endLabel": "04:53:13",
+          "primary": "18°",
+          "secondary": "308.31°"
+        }
+      ],
+      "summaries": [
+        "19:47–19:55 UTC · 8 min · 25° max, apex NE",
+        "21:24–21:32 UTC · 8 min · 26° max, apex SW",
+        "23:04–23:07 UTC · 3 min · 6° max, apex SSW",
+        "02:21–02:25 UTC · 4 min · 10° max, apex SSE",
+        "03:55–04:04 UTC · 9 min · 63° max, apex SE",
+        "05:34–05:39 UTC · 5 min · 10° max, apex NW",
+        "19:01–19:07 UTC · 6 min · 14° max, apex NE",
+        "20:36–20:45 UTC · 8 min · 43° max, apex SW",
+        "22:16–22:20 UTC · 5 min · 8° max, apex SSW",
+        "01:33–01:37 UTC · 3 min · 7° max, apex SSE",
+        "03:08–03:17 UTC · 8 min · 35° max, apex SE",
+        "04:46–04:53 UTC · 7 min · 18° max, apex NW"
+      ],
+      "visible": 12,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790970449000",
+            "startMs": 1790970449000,
+            "leftPct": 41.12215628927096,
+            "widthPct": 1.2,
+            "heightPct": 45.98007088868736,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790976248000",
+            "startMs": 1790976248000,
+            "leftPct": 49.29192518582386,
+            "widthPct": 1.2,
+            "heightPct": 46.63122479249152,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790982278000",
+            "startMs": 1790982278000,
+            "leftPct": 57.787132367443775,
+            "widthPct": 1.2,
+            "heightPct": 29.893354556813073,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790994089000",
+            "startMs": 1790994089000,
+            "leftPct": 74.42674961820876,
+            "widthPct": 1.2,
+            "heightPct": 33.46369480354661,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790999755000",
+            "startMs": 1790999755000,
+            "leftPct": 82.40914495669276,
+            "widthPct": 1.2,
+            "heightPct": 77.52803108884927,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791005642000",
+            "startMs": 1791005642000,
+            "leftPct": 90.702890342795,
+            "widthPct": 1.2,
+            "heightPct": 33.08273614155501,
+            "band": "low",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+6h",
+            "pct": 32.96647563016686
+          },
+          {
+            "label": "+12h",
+            "pct": 63.39706851955166
+          }
+        ],
+        "nowPct": 2.5358827407820663,
+        "horizonLabel": "19 h",
+        "beyond": 6
+      }
+    },
+    {
+      "nowMs": 1790950380000,
+      "rows": [
+        {
+          "countdown": "4 h 13 m",
+          "startLabel": "02.10 18:26:37",
+          "endLabel": "18:36:52",
+          "primary": "19°",
+          "secondary": "56.51°"
+        },
+        {
+          "countdown": "5 h 51 m",
+          "startLabel": "02.10 20:04:47",
+          "endLabel": "20:17:42",
+          "primary": "78°",
+          "secondary": "260.05°"
+        },
+        {
+          "countdown": "7 h 35 m",
+          "startLabel": "02.10 21:48:03",
+          "endLabel": "21:56:18",
+          "primary": "12°",
+          "secondary": "274.57°"
+        },
+        {
+          "countdown": "18 h 5 m",
+          "startLabel": "03.10 08:18:30",
+          "endLabel": "08:30:30",
+          "primary": "32°",
+          "secondary": "95.52°"
+        },
+        {
+          "countdown": "19 h 45 m",
+          "startLabel": "03.10 09:58:33",
+          "endLabel": "10:10:48",
+          "primary": "42°",
+          "secondary": "294.96°"
+        },
+        {
+          "countdown": "21 h 27 m",
+          "startLabel": "03.10 11:40:40",
+          "endLabel": "11:46:10",
+          "primary": "8°",
+          "secondary": "314.01°"
+        },
+        {
+          "countdown": "1 d 3 h",
+          "startLabel": "03.10 18:06:55",
+          "endLabel": "18:15:45",
+          "primary": "14°",
+          "secondary": "52.06°"
+        },
+        {
+          "countdown": "1 d 5 h",
+          "startLabel": "03.10 19:44:07",
+          "endLabel": "19:56:57",
+          "primary": "73°",
+          "secondary": "75.73°"
+        },
+        {
+          "countdown": "1 d 7 h",
+          "startLabel": "03.10 21:26:04",
+          "endLabel": "21:36:19",
+          "primary": "18°",
+          "secondary": "270.88°"
+        },
+        {
+          "countdown": "1 d 17 h",
+          "startLabel": "04.10 07:58:07",
+          "endLabel": "08:09:02",
+          "primary": "22°",
+          "secondary": "91.82°"
+        },
+        {
+          "countdown": "1 d 19 h",
+          "startLabel": "04.10 09:37:44",
+          "endLabel": "09:50:24",
+          "primary": "60°",
+          "secondary": "290.53°"
+        },
+        {
+          "countdown": "1 d 21 h",
+          "startLabel": "04.10 11:19:11",
+          "endLabel": "11:27:06",
+          "primary": "12°",
+          "secondary": "309.84°"
+        }
+      ],
+      "summaries": [
+        "18:26–18:36 UTC · 10 min · 19° max, apex ENE",
+        "20:04–20:17 UTC · 13 min · 78° max, apex W",
+        "21:48–21:56 UTC · 8 min · 12° max, apex W",
+        "08:18–08:30 UTC · 12 min · 32° max, apex E",
+        "09:58–10:10 UTC · 12 min · 42° max, apex WNW",
+        "11:40–11:46 UTC · 6 min · 8° max, apex NW",
+        "18:06–18:15 UTC · 9 min · 14° max, apex NE",
+        "19:44–19:56 UTC · 13 min · 73° max, apex ENE",
+        "21:26–21:36 UTC · 10 min · 18° max, apex W",
+        "07:58–08:09 UTC · 11 min · 22° max, apex E",
+        "09:37–09:50 UTC · 13 min · 60° max, apex WNW",
+        "11:19–11:27 UTC · 8 min · 12° max, apex NW"
+      ],
+      "visible": 12,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790965597000",
+            "startMs": 1790965597000,
+            "leftPct": 19.52632847192739,
+            "widthPct": 1.2,
+            "heightPct": 41.08654811669915,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790971487000",
+            "startMs": 1790971487000,
+            "leftPct": 26.28486844369987,
+            "widthPct": 1.2,
+            "heightPct": 89.9315255248589,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790977683000",
+            "startMs": 1790977683000,
+            "leftPct": 33.394531205177344,
+            "widthPct": 1.2,
+            "heightPct": 34.77132279652976,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791015510000",
+            "startMs": 1791015510000,
+            "leftPct": 76.79950429723806,
+            "widthPct": 1.2,
+            "heightPct": 51.60756173395372,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791021513000",
+            "startMs": 1791021513000,
+            "leftPct": 83.68770725998004,
+            "widthPct": 1.2,
+            "heightPct": 59.68898834649593,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791027640000",
+            "startMs": 1791027640000,
+            "leftPct": 90.71819527475931,
+            "widthPct": 1.2,
+            "heightPct": 31.50062203998413,
+            "band": "low",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+6h",
+            "pct": 26.85056627155791
+          },
+          {
+            "label": "+12h",
+            "pct": 51.63570436838059
+          },
+          {
+            "label": "+18h",
+            "pct": 76.42084246520328
+          }
+        ],
+        "nowPct": 2.0654281747352234,
+        "horizonLabel": "24 h",
+        "beyond": 6
+      }
+    },
+    {
+      "nowMs": 1790950380000,
+      "rows": [
+        {
+          "countdown": "5 h 54 m",
+          "startLabel": "02.10 20:07:34",
+          "endLabel": "20:14:47",
+          "primary": "155.6km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "18 h 8 m",
+          "startLabel": "03.10 08:21:55",
+          "endLabel": "08:27:02",
+          "primary": "1040.6km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "19 h 48 m",
+          "startLabel": "03.10 10:01:36",
+          "endLabel": "10:07:43",
+          "primary": "771.9km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 5 h",
+          "startLabel": "03.10 19:46:54",
+          "endLabel": "19:54:04",
+          "primary": "218.3km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 17 h",
+          "startLabel": "04.10 08:02:57",
+          "endLabel": "08:04:13",
+          "primary": "1428.8km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 19 h",
+          "startLabel": "04.10 09:40:36",
+          "endLabel": "09:47:32",
+          "primary": "411.0km",
+          "secondary": "2900km"
+        }
+      ],
+      "summaries": [
+        "20:07–20:14 UTC · 7 min · 156 km off track, swath 2900 km",
+        "08:21–08:27 UTC · 5 min · 1041 km off track, swath 2900 km",
+        "10:01–10:07 UTC · 6 min · 772 km off track, swath 2900 km",
+        "19:46–19:54 UTC · 7 min · 218 km off track, swath 2900 km",
+        "08:02–08:04 UTC · 1 min · 1429 km off track, swath 2900 km",
+        "09:40–09:47 UTC · 7 min · 411 km off track, swath 2900 km"
+      ],
+      "visible": 6,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790971654042.4478",
+            "startMs": 1790971654042.4478,
+            "leftPct": 13.233572481601751,
+            "widthPct": 1.2,
+            "heightPct": 91.9515456949758,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791015715768.2441",
+            "startMs": 1791015715768.2441,
+            "leftPct": 38.50413542310772,
+            "widthPct": 1.2,
+            "heightPct": 46.17682514998284,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791021696724.33",
+            "startMs": 1791021696724.33,
+            "leftPct": 41.93437163125145,
+            "widthPct": 1.2,
+            "heightPct": 60.072382547484395,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791056814546.6228",
+            "startMs": 1791056814546.6228,
+            "leftPct": 62.07536980090765,
+            "widthPct": 1.2,
+            "heightPct": 88.71027276632341,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791100977872.8242",
+            "startMs": 1791100977872.8242,
+            "leftPct": 87.40420325687417,
+            "widthPct": 1.2,
+            "heightPct": 26.095198038878017,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791106836320.7139",
+            "startMs": 1791106836320.7139,
+            "leftPct": 90.76417778031951,
+            "widthPct": 1.2,
+            "heightPct": 78.74346366037872,
+            "band": "high",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+12h",
+            "pct": 25.8086879670297
+          },
+          {
+            "label": "+24h",
+            "pct": 50.58502841537822
+          },
+          {
+            "label": "+36h",
+            "pct": 75.36136886372674
+          }
+        ],
+        "nowPct": 1.0323475186811881,
+        "horizonLabel": "2.0 d",
+        "beyond": 0
+      }
+    },
+    {
+      "nowMs": 1790950380000,
+      "rows": [
+        {
+          "countdown": "5 h 55 m",
+          "startLabel": "02.10 20:08:57",
+          "endLabel": "20:13:23",
+          "primary": "155.6km",
+          "secondary": "1150km"
+        },
+        {
+          "countdown": "1 d 5 h",
+          "startLabel": "03.10 19:50:10",
+          "endLabel": "19:50:47",
+          "primary": "218.3km",
+          "secondary": "1150km"
+        }
+      ],
+      "summaries": [
+        "20:08–20:13 UTC · 4 min · 156 km off track, swath 1150 km",
+        "19:50–19:50 UTC · 1 min · 218 km off track, swath 1150 km"
+      ],
+      "visible": 2,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790971737261.3313",
+            "startMs": 1790971737261.3313,
+            "leftPct": 19.437984954449377,
+            "widthPct": 1.2,
+            "heightPct": 79.70389783950421,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791057010806.9822",
+            "startMs": 1791057010806.9822,
+            "leftPct": 91.01578829054746,
+            "widthPct": 1.2,
+            "heightPct": 71.53025307335315,
+            "band": "high",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+12h",
+            "pct": 37.77257208597395
+          },
+          {
+            "label": "+24h",
+            "pct": 74.03424128850894
+          }
+        ],
+        "nowPct": 1.5109028834389577,
+        "horizonLabel": "1.4 d",
+        "beyond": 0
+      }
+    },
+    {
+      "nowMs": 1790950380000,
+      "rows": [
+        {
+          "countdown": "5 h 29 m",
+          "startLabel": "02.10 19:42:34",
+          "endLabel": "19:54:19",
+          "primary": "29°",
+          "secondary": "82.51°"
+        },
+        {
+          "countdown": "7 h 9 m",
+          "startLabel": "02.10 21:22:34",
+          "endLabel": "21:34:14",
+          "primary": "30°",
+          "secondary": "248.77°"
+        },
+        {
+          "countdown": "16 h 47 m",
+          "startLabel": "03.10 07:00:49",
+          "endLabel": "07:12:49",
+          "primary": "34°",
+          "secondary": "109.97°"
+        },
+        {
+          "countdown": "18 h 28 m",
+          "startLabel": "03.10 08:41:08",
+          "endLabel": "08:52:33",
+          "primary": "25°",
+          "secondary": "275.72°"
+        },
+        {
+          "countdown": "1 d 5 h",
+          "startLabel": "03.10 19:22:27",
+          "endLabel": "19:32:47",
+          "primary": "18°",
+          "secondary": "85.94°"
+        },
+        {
+          "countdown": "1 d 6 h",
+          "startLabel": "03.10 21:01:36",
+          "endLabel": "21:14:06",
+          "primary": "46°",
+          "secondary": "251.67°"
+        },
+        {
+          "countdown": "1 d 16 h",
+          "startLabel": "04.10 06:40:55",
+          "endLabel": "06:51:40",
+          "primary": "22°",
+          "secondary": "113.48°"
+        },
+        {
+          "countdown": "1 d 18 h",
+          "startLabel": "04.10 08:19:51",
+          "endLabel": "08:32:16",
+          "primary": "41°",
+          "secondary": "278.00°"
+        }
+      ],
+      "summaries": [
+        "19:42–19:54 UTC · 12 min · 29° max, apex E",
+        "21:22–21:34 UTC · 12 min · 30° max, apex WSW",
+        "07:00–07:12 UTC · 12 min · 34° max, apex ESE",
+        "08:41–08:52 UTC · 11 min · 25° max, apex W",
+        "19:22–19:32 UTC · 10 min · 18° max, apex E",
+        "21:01–21:14 UTC · 13 min · 46° max, apex WSW",
+        "06:40–06:51 UTC · 11 min · 22° max, apex ESE",
+        "08:19–08:32 UTC · 12 min · 41° max, apex W"
+      ],
+      "visible": 8,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790970154000",
+            "startMs": 1790970154000,
+            "leftPct": 17.310077780612776,
+            "widthPct": 1.2,
+            "heightPct": 49.38590693916904,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790976154000",
+            "startMs": 1790976154000,
+            "leftPct": 22.124227529554865,
+            "widthPct": 1.2,
+            "heightPct": 49.67448008483229,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791010849000",
+            "startMs": 1791010849000,
+            "leftPct": 49.9620484528125,
+            "widthPct": 1.2,
+            "heightPct": 53.12119615279732,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791016868000",
+            "startMs": 1791016868000,
+            "leftPct": 54.791443009292905,
+            "widthPct": 1.2,
+            "heightPct": 46.23357189708922,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791055347000",
+            "startMs": 1791055347000,
+            "leftPct": 85.66538770755002,
+            "widthPct": 1.2,
+            "heightPct": 40.27541415842786,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791061296000",
+            "startMs": 1791061296000,
+            "leftPct": 90.4386171836261,
+            "widthPct": 1.2,
+            "heightPct": 63.58150353736681,
+            "band": "high",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+12h",
+            "pct": 36.10612311706568
+          },
+          {
+            "label": "+24h",
+            "pct": 70.76800130944872
+          }
+        ],
+        "nowPct": 1.444244924682627,
+        "horizonLabel": "1.4 d",
+        "beyond": 2
+      }
+    },
+    {
+      "nowMs": 1790950380000,
+      "rows": [
+        {
+          "countdown": "5 h 33 m",
+          "startLabel": "02.10 19:46:10",
+          "endLabel": "19:50:43",
+          "primary": "1137.2km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "7 h 13 m",
+          "startLabel": "02.10 21:26:08",
+          "endLabel": "21:30:41",
+          "primary": "1127.2km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "16 h 51 m",
+          "startLabel": "03.10 07:04:05",
+          "endLabel": "07:09:22",
+          "primary": "991.2km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "18 h 32 m",
+          "startLabel": "03.10 08:45:03",
+          "endLabel": "08:48:29",
+          "primary": "1281.3km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 6 h",
+          "startLabel": "03.10 21:04:39",
+          "endLabel": "21:11:04",
+          "primary": "671.1km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 16 h",
+          "startLabel": "04.10 06:45:49",
+          "endLabel": "06:46:37",
+          "primary": "1441.0km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 18 h",
+          "startLabel": "04.10 08:22:56",
+          "endLabel": "08:29:01",
+          "primary": "802.0km",
+          "secondary": "2900km"
+        }
+      ],
+      "summaries": [
+        "19:46–19:50 UTC · 5 min · 1137 km off track, swath 2900 km",
+        "21:26–21:30 UTC · 5 min · 1127 km off track, swath 2900 km",
+        "07:04–07:09 UTC · 5 min · 991 km off track, swath 2900 km",
+        "08:45–08:48 UTC · 3 min · 1281 km off track, swath 2900 km",
+        "21:04–21:11 UTC · 6 min · 671 km off track, swath 2900 km",
+        "06:45–06:46 UTC · 1 min · 1441 km off track, swath 2900 km",
+        "08:22–08:29 UTC · 6 min · 802 km off track, swath 2900 km"
+      ],
+      "visible": 7,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790970370849.4058",
+            "startMs": 1790970370849.4058,
+            "leftPct": 13.416416622109153,
+            "widthPct": 1.2,
+            "heightPct": 41.18139764050587,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790976368402.2617",
+            "startMs": 1790976368402.2617,
+            "leftPct": 17.109052293638516,
+            "widthPct": 1.2,
+            "heightPct": 41.69626192090021,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791011045653.0664",
+            "startMs": 1791011045653.0664,
+            "leftPct": 38.4595024501176,
+            "widthPct": 1.2,
+            "heightPct": 48.72994190804182,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791017103525.407",
+            "startMs": 1791017103525.407,
+            "leftPct": 42.18927624880355,
+            "widthPct": 1.2,
+            "heightPct": 33.72343618116962,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791061479254.3125",
+            "startMs": 1791061479254.3125,
+            "leftPct": 69.51098619319772,
+            "widthPct": 1.2,
+            "heightPct": 65.28803947579743,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791096349193.2104",
+            "startMs": 1791096349193.2104,
+            "leftPct": 90.98007255743453,
+            "widthPct": 1.2,
+            "heightPct": 25.465005764731906,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791102176979.3125",
+            "startMs": 1791102176979.3125,
+            "leftPct": 94.56818446962906,
+            "widthPct": 1.2,
+            "heightPct": 58.51909330631829,
+            "band": "mid",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+12h",
+            "pct": 27.70606765954141
+          },
+          {
+            "label": "+24h",
+            "pct": 54.30389261270116
+          },
+          {
+            "label": "+36h",
+            "pct": 80.90171756586092
+          }
+        ],
+        "nowPct": 1.1082427063816565,
+        "horizonLabel": "1.9 d",
+        "beyond": 0
+      }
+    },
+    {
+      "nowMs": 1790950380000,
+      "rows": [
+        {
+          "countdown": "1 d 6 h",
+          "startLabel": "03.10 21:06:22",
+          "endLabel": "21:09:21",
+          "primary": "671.1km",
+          "secondary": "1150km"
+        }
+      ],
+      "summaries": [
+        "21:06–21:09 UTC · 3 min · 671 km off track, swath 1150 km"
+      ],
+      "visible": 1,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1791061582045.754",
+            "startMs": 1791061582045.754,
+            "leftPct": 90.8963350377912,
+            "widthPct": 1.2,
+            "heightPct": 25,
+            "band": "low",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+12h",
+            "pct": 36.19700023492017
+          },
+          {
+            "label": "+24h",
+            "pct": 70.94612046044352
+          }
+        ],
+        "nowPct": 1.4478800093968065,
+        "horizonLabel": "1.4 d",
+        "beyond": 0
+      }
+    },
+    {
+      "nowMs": 1790950380000,
+      "rows": [
+        {
+          "countdown": "58 m 39 s",
+          "startLabel": "02.10 15:11:39",
+          "endLabel": "15:24:29",
+          "primary": "67°",
+          "secondary": "11.53°"
+        },
+        {
+          "countdown": "2 h 38 m",
+          "startLabel": "02.10 16:51:41",
+          "endLabel": "17:04:36",
+          "primary": "85°",
+          "secondary": "41.55°"
+        },
+        {
+          "countdown": "4 h 19 m",
+          "startLabel": "02.10 18:32:08",
+          "endLabel": "18:45:03",
+          "primary": "63°",
+          "secondary": "242.38°"
+        },
+        {
+          "countdown": "6 h 0 m",
+          "startLabel": "02.10 20:13:23",
+          "endLabel": "20:25:38",
+          "primary": "36°",
+          "secondary": "265.47°"
+        },
+        {
+          "countdown": "7 h 42 m",
+          "startLabel": "02.10 21:55:38",
+          "endLabel": "22:06:33",
+          "primary": "21°",
+          "secondary": "290.76°"
+        },
+        {
+          "countdown": "9 h 25 m",
+          "startLabel": "02.10 23:38:55",
+          "endLabel": "23:47:45",
+          "primary": "13°",
+          "secondary": "316.56°"
+        },
+        {
+          "countdown": "11 h 9 m",
+          "startLabel": "03.10 01:22:38",
+          "endLabel": "01:29:28",
+          "primary": "9°",
+          "secondary": "344.26°"
+        },
+        {
+          "countdown": "12 h 52 m",
+          "startLabel": "03.10 03:05:41",
+          "endLabel": "03:12:21",
+          "primary": "9°",
+          "secondary": "11.78°"
+        },
+        {
+          "countdown": "14 h 34 m",
+          "startLabel": "03.10 04:47:35",
+          "endLabel": "04:56:05",
+          "primary": "12°",
+          "secondary": "39.14°"
+        },
+        {
+          "countdown": "16 h 15 m",
+          "startLabel": "03.10 06:28:49",
+          "endLabel": "06:39:29",
+          "primary": "19°",
+          "secondary": "65.42°"
+        },
+        {
+          "countdown": "17 h 56 m",
+          "startLabel": "03.10 08:09:46",
+          "endLabel": "08:21:51",
+          "primary": "33°",
+          "secondary": "89.34°"
+        },
+        {
+          "countdown": "19 h 37 m",
+          "startLabel": "03.10 09:50:27",
+          "endLabel": "10:03:17",
+          "primary": "58°",
+          "secondary": "115.69°"
+        },
+        {
+          "countdown": "21 h 17 m",
+          "startLabel": "03.10 11:30:52",
+          "endLabel": "11:43:52",
+          "primary": "89°",
+          "secondary": "280.98°"
+        },
+        {
+          "countdown": "22 h 58 m",
+          "startLabel": "03.10 13:11:02",
+          "endLabel": "13:23:52",
+          "primary": "68°",
+          "secondary": "343.31°"
+        },
+        {
+          "countdown": "1 d 0 h",
+          "startLabel": "03.10 14:51:01",
+          "endLabel": "15:03:51",
+          "primary": "65°",
+          "secondary": "10.26°"
+        },
+        {
+          "countdown": "1 d 2 h",
+          "startLabel": "03.10 16:30:58",
+          "endLabel": "16:43:53",
+          "primary": "79°",
+          "secondary": "35.46°"
+        },
+        {
+          "countdown": "1 d 3 h",
+          "startLabel": "03.10 18:11:19",
+          "endLabel": "18:24:14",
+          "primary": "70°",
+          "secondary": "236.27°"
+        },
+        {
+          "countdown": "1 d 5 h",
+          "startLabel": "03.10 19:52:22",
+          "endLabel": "20:04:52",
+          "primary": "41°",
+          "secondary": "259.92°"
+        },
+        {
+          "countdown": "1 d 7 h",
+          "startLabel": "03.10 21:34:25",
+          "endLabel": "21:45:40",
+          "primary": "24°",
+          "secondary": "285.57°"
+        },
+        {
+          "countdown": "1 d 9 h",
+          "startLabel": "03.10 23:17:29",
+          "endLabel": "23:26:49",
+          "primary": "14°",
+          "secondary": "311.07°"
+        },
+        {
+          "countdown": "1 d 10 h",
+          "startLabel": "04.10 01:01:13",
+          "endLabel": "01:08:23",
+          "primary": "10°",
+          "secondary": "338.84°"
+        },
+        {
+          "countdown": "1 d 12 h",
+          "startLabel": "04.10 02:44:30",
+          "endLabel": "02:51:00",
+          "primary": "9°",
+          "secondary": "6.30°"
+        },
+        {
+          "countdown": "1 d 14 h",
+          "startLabel": "04.10 04:26:35",
+          "endLabel": "04:34:35",
+          "primary": "11°",
+          "secondary": "33.27°"
+        },
+        {
+          "countdown": "1 d 15 h",
+          "startLabel": "04.10 06:07:56",
+          "endLabel": "06:18:11",
+          "primary": "17°",
+          "secondary": "59.66°"
+        },
+        {
+          "countdown": "1 d 17 h",
+          "startLabel": "04.10 07:48:55",
+          "endLabel": "08:00:50",
+          "primary": "30°",
+          "secondary": "85.00°"
+        },
+        {
+          "countdown": "1 d 19 h",
+          "startLabel": "04.10 09:29:39",
+          "endLabel": "09:42:24",
+          "primary": "52°",
+          "secondary": "108.72°"
+        },
+        {
+          "countdown": "1 d 20 h",
+          "startLabel": "04.10 11:10:08",
+          "endLabel": "11:23:08",
+          "primary": "84°",
+          "secondary": "143.41°"
+        },
+        {
+          "countdown": "1 d 22 h",
+          "startLabel": "04.10 12:50:22",
+          "endLabel": "13:03:12",
+          "primary": "71°",
+          "secondary": "337.55°"
+        }
+      ],
+      "summaries": [
+        "15:11–15:24 UTC · 13 min · 67° max, apex NNE",
+        "16:51–17:04 UTC · 13 min · 85° max, apex NE",
+        "18:32–18:45 UTC · 13 min · 63° max, apex WSW",
+        "20:13–20:25 UTC · 12 min · 36° max, apex W",
+        "21:55–22:06 UTC · 11 min · 21° max, apex WNW",
+        "23:38–23:47 UTC · 9 min · 13° max, apex NW",
+        "01:22–01:29 UTC · 7 min · 9° max, apex NNW",
+        "03:05–03:12 UTC · 7 min · 9° max, apex NNE",
+        "04:47–04:56 UTC · 9 min · 12° max, apex NE",
+        "06:28–06:39 UTC · 11 min · 19° max, apex ENE",
+        "08:09–08:21 UTC · 12 min · 33° max, apex E",
+        "09:50–10:03 UTC · 13 min · 58° max, apex ESE",
+        "11:30–11:43 UTC · 13 min · 89° max, apex W",
+        "13:11–13:23 UTC · 13 min · 68° max, apex NNW",
+        "14:51–15:03 UTC · 13 min · 65° max, apex N",
+        "16:30–16:43 UTC · 13 min · 79° max, apex NE",
+        "18:11–18:24 UTC · 13 min · 70° max, apex WSW",
+        "19:52–20:04 UTC · 13 min · 41° max, apex W",
+        "21:34–21:45 UTC · 11 min · 24° max, apex WNW",
+        "23:17–23:26 UTC · 9 min · 14° max, apex NW",
+        "01:01–01:08 UTC · 7 min · 10° max, apex NNW",
+        "02:44–02:51 UTC · 7 min · 9° max, apex N",
+        "04:26–04:34 UTC · 8 min · 11° max, apex NNE",
+        "06:07–06:18 UTC · 10 min · 17° max, apex ENE",
+        "07:48–08:00 UTC · 12 min · 30° max, apex E",
+        "09:29–09:42 UTC · 13 min · 52° max, apex ESE",
+        "11:10–11:23 UTC · 13 min · 84° max, apex SE",
+        "12:50–13:03 UTC · 13 min · 71° max, apex NNW"
+      ],
+      "visible": 28,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790953899000",
+            "startMs": 1790953899000,
+            "leftPct": 13.386688814224772,
+            "widthPct": 1.9379113342645375,
+            "heightPct": 80.73984892455366,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790959901000",
+            "startMs": 1790959901000,
+            "leftPct": 28.492330149621854,
+            "widthPct": 1.9504951740974263,
+            "heightPct": 95.47490887904556,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790965928000",
+            "startMs": 1790965928000,
+            "leftPct": 43.66089068418337,
+            "widthPct": 1.9504951740974263,
+            "heightPct": 77.81899228742904,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790972003000",
+            "startMs": 1790972003000,
+            "leftPct": 58.950256081140594,
+            "widthPct": 1.8498244554343373,
+            "heightPct": 55.33621612639371,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790978138000",
+            "startMs": 1790978138000,
+            "leftPct": 74.39062755609247,
+            "widthPct": 1.6484830181081378,
+            "heightPct": 42.58239556928644,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790984335000",
+            "startMs": 1790984335000,
+            "leftPct": 89.98703864497213,
+            "widthPct": 1.3338870222859782,
+            "heightPct": 35.7317279194873,
+            "band": "low",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+3h",
+            "pct": 31.71127637887425
+          },
+          {
+            "label": "+6h",
+            "pct": 58.892370417909326
+          },
+          {
+            "label": "+9h",
+            "pct": 86.0734644569444
+          }
+        ],
+        "nowPct": 4.530182339839178,
+        "horizonLabel": "11 h",
+        "beyond": 22
+      }
+    },
+    {
+      "nowMs": 1790950380000,
+      "rows": [
+        {
+          "countdown": "ended",
+          "startLabel": "02.10 13:34:34",
+          "endLabel": "13:41:39",
+          "primary": "316.1km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 h 1 m",
+          "startLabel": "02.10 15:14:29",
+          "endLabel": "15:21:36",
+          "primary": "310.3km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "2 h 41 m",
+          "startLabel": "02.10 16:54:28",
+          "endLabel": "17:01:45",
+          "primary": "69.5km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "4 h 21 m",
+          "startLabel": "02.10 18:34:59",
+          "endLabel": "18:42:04",
+          "primary": "362.8km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "6 h 3 m",
+          "startLabel": "02.10 20:16:36",
+          "endLabel": "20:22:21",
+          "primary": "910.3km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "18 h 0 m",
+          "startLabel": "03.10 08:13:07",
+          "endLabel": "08:18:28",
+          "primary": "1001.5km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "19 h 40 m",
+          "startLabel": "03.10 09:53:21",
+          "endLabel": "10:00:20",
+          "primary": "444.3km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "21 h 20 m",
+          "startLabel": "03.10 11:33:41",
+          "endLabel": "11:40:59",
+          "primary": "12.1km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "23 h 0 m",
+          "startLabel": "03.10 13:13:53",
+          "endLabel": "13:21:00",
+          "primary": "287.1km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 0 h",
+          "startLabel": "03.10 14:53:50",
+          "endLabel": "15:00:55",
+          "primary": "331.4km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 2 h",
+          "startLabel": "03.10 16:33:46",
+          "endLabel": "16:41:01",
+          "primary": "137.1km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 4 h",
+          "startLabel": "03.10 18:14:08",
+          "endLabel": "18:21:19",
+          "primary": "261.0km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 5 h",
+          "startLabel": "03.10 19:55:28",
+          "endLabel": "20:01:39",
+          "primary": "792.2km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 7 h",
+          "startLabel": "03.10 21:38:43",
+          "endLabel": "21:41:17",
+          "primary": "1361.9km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 17 h",
+          "startLabel": "04.10 07:52:28",
+          "endLabel": "07:57:11",
+          "primary": "1120.3km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 19 h",
+          "startLabel": "04.10 09:32:36",
+          "endLabel": "09:39:23",
+          "primary": "554.4km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 20 h",
+          "startLabel": "04.10 11:12:57",
+          "endLabel": "11:20:14",
+          "primary": "69.7km",
+          "secondary": "2900km"
+        },
+        {
+          "countdown": "1 d 22 h",
+          "startLabel": "04.10 12:53:11",
+          "endLabel": "13:00:21",
+          "primary": "248.1km",
+          "secondary": "2900km"
+        }
+      ],
+      "summaries": [
+        "13:34–13:41 UTC · 7 min · 316 km off track, swath 2900 km",
+        "15:14–15:21 UTC · 7 min · 310 km off track, swath 2900 km",
+        "16:54–17:01 UTC · 7 min · 70 km off track, swath 2900 km",
+        "18:34–18:42 UTC · 7 min · 363 km off track, swath 2900 km",
+        "20:16–20:22 UTC · 6 min · 910 km off track, swath 2900 km",
+        "08:13–08:18 UTC · 5 min · 1001 km off track, swath 2900 km",
+        "09:53–10:00 UTC · 7 min · 444 km off track, swath 2900 km",
+        "11:33–11:40 UTC · 7 min · 12 km off track, swath 2900 km",
+        "13:13–13:21 UTC · 7 min · 287 km off track, swath 2900 km",
+        "14:53–15:00 UTC · 7 min · 331 km off track, swath 2900 km",
+        "16:33–16:41 UTC · 7 min · 137 km off track, swath 2900 km",
+        "18:14–18:21 UTC · 7 min · 261 km off track, swath 2900 km",
+        "19:55–20:01 UTC · 6 min · 792 km off track, swath 2900 km",
+        "21:38–21:41 UTC · 3 min · 1362 km off track, swath 2900 km",
+        "07:52–07:57 UTC · 5 min · 1120 km off track, swath 2900 km",
+        "09:32–09:39 UTC · 7 min · 554 km off track, swath 2900 km",
+        "11:12–11:20 UTC · 7 min · 70 km off track, swath 2900 km",
+        "12:53–13:00 UTC · 7 min · 248 km off track, swath 2900 km"
+      ],
+      "visible": 17,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790954069930.7231",
+            "startMs": 1790954069930.7231,
+            "leftPct": 6.848366573934163,
+            "widthPct": 1.2,
+            "heightPct": 83.95253171203007,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790960068576.9395",
+            "startMs": 1790960068576.9395,
+            "leftPct": 14.331325887689223,
+            "widthPct": 1.2,
+            "heightPct": 96.40272764618696,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790966099519.6147",
+            "startMs": 1790966099519.6147,
+            "leftPct": 21.854573139729656,
+            "widthPct": 1.2,
+            "heightPct": 81.23407836607555,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790972196613.0435",
+            "startMs": 1790972196613.0435,
+            "leftPct": 29.460339576691368,
+            "widthPct": 1.2,
+            "heightPct": 52.91539182570042,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791015187669.0007",
+            "startMs": 1791015187669.0007,
+            "leftPct": 83.08916031111777,
+            "widthPct": 1.2,
+            "heightPct": 48.19907552058844,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791021201453.6145",
+            "startMs": 1791021201453.6145,
+            "leftPct": 90.59100388778663,
+            "widthPct": 1.2,
+            "heightPct": 77.01685936408074,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791027221800.4956",
+            "startMs": 1791027221800.4956,
+            "leftPct": 98.10103350805524,
+            "widthPct": 1.2,
+            "heightPct": 99.37467709359329,
+            "band": "high",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+6h",
+            "pct": 29.190127510073594
+          },
+          {
+            "label": "+12h",
+            "pct": 56.134860596295376
+          },
+          {
+            "label": "+18h",
+            "pct": 83.07959368251716
+          }
+        ],
+        "nowPct": 2.245394423851815,
+        "horizonLabel": "22 h",
+        "beyond": 10
+      }
+    },
+    {
+      "nowMs": 1790950380000,
+      "rows": [
+        {
+          "countdown": "2 h 44 m",
+          "startLabel": "02.10 16:57:30",
+          "endLabel": "16:58:43",
+          "primary": "69.5km",
+          "secondary": "1150km"
+        },
+        {
+          "countdown": "4 h 23 m",
+          "startLabel": "02.10 18:36:27",
+          "endLabel": "18:40:36",
+          "primary": "362.8km",
+          "secondary": "1150km"
+        },
+        {
+          "countdown": "19 h 41 m",
+          "startLabel": "03.10 09:54:52",
+          "endLabel": "09:58:49",
+          "primary": "444.3km",
+          "secondary": "1150km"
+        },
+        {
+          "countdown": "21 h 23 m",
+          "startLabel": "03.10 11:36:42",
+          "endLabel": "11:37:58",
+          "primary": "12.1km",
+          "secondary": "1150km"
+        },
+        {
+          "countdown": "1 d 2 h",
+          "startLabel": "03.10 16:36:52",
+          "endLabel": "16:37:55",
+          "primary": "137.1km",
+          "secondary": "1150km"
+        },
+        {
+          "countdown": "1 d 4 h",
+          "startLabel": "03.10 18:15:33",
+          "endLabel": "18:19:54",
+          "primary": "261.0km",
+          "secondary": "1150km"
+        },
+        {
+          "countdown": "1 d 5 h",
+          "startLabel": "03.10 19:57:28",
+          "endLabel": "19:59:38",
+          "primary": "792.2km",
+          "secondary": "1150km"
+        },
+        {
+          "countdown": "1 d 19 h",
+          "startLabel": "04.10 09:34:12",
+          "endLabel": "09:37:48",
+          "primary": "554.4km",
+          "secondary": "1150km"
+        },
+        {
+          "countdown": "1 d 21 h",
+          "startLabel": "04.10 11:14:20",
+          "endLabel": "11:18:51",
+          "primary": "69.7km",
+          "secondary": "1150km"
+        },
+        {
+          "countdown": "1 d 22 h",
+          "startLabel": "04.10 12:56:41",
+          "endLabel": "12:56:51",
+          "primary": "248.1km",
+          "secondary": "1150km"
+        }
+      ],
+      "summaries": [
+        "16:57–16:58 UTC · 1 min · 70 km off track, swath 1150 km",
+        "18:36–18:40 UTC · 4 min · 363 km off track, swath 1150 km",
+        "09:54–09:58 UTC · 4 min · 444 km off track, swath 1150 km",
+        "11:36–11:37 UTC · 1 min · 12 km off track, swath 1150 km",
+        "16:36–16:37 UTC · 1 min · 137 km off track, swath 1150 km",
+        "18:15–18:19 UTC · 4 min · 261 km off track, swath 1150 km",
+        "19:57–19:59 UTC · 2 min · 792 km off track, swath 1150 km",
+        "09:34–09:37 UTC · 4 min · 554 km off track, swath 1150 km",
+        "11:14–11:18 UTC · 5 min · 70 km off track, swath 1150 km",
+        "12:56–12:56 UTC · 0 min · 248 km off track, swath 1150 km"
+      ],
+      "visible": 10,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790960250615.5693",
+            "startMs": 1790960250615.5693,
+            "leftPct": 10.31557421473721,
+            "widthPct": 1.2,
+            "heightPct": 90.92861754255844,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790966187323.8765",
+            "startMs": 1790966187323.8765,
+            "leftPct": 15.562988523742655,
+            "widthPct": 1.2,
+            "heightPct": 52.677241097060076,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791021292150.544",
+            "startMs": 1791021292150.544,
+            "leftPct": 64.26975344985092,
+            "widthPct": 1.2,
+            "heightPct": 42.04251490800471,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791027402904.2275",
+            "startMs": 1791027402904.2275,
+            "leftPct": 69.67100523100929,
+            "widthPct": 1.2,
+            "heightPct": 98.42309834600164,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791045412725.3142",
+            "startMs": 1791045412725.3142,
+            "leftPct": 85.58975818023815,
+            "widthPct": 1.2,
+            "heightPct": 82.12286316901917,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791051333794.8447",
+            "startMs": 1791051333794.8447,
+            "leftPct": 90.8233494856665,
+            "widthPct": 1.2,
+            "heightPct": 65.95642464520992,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791057448661.8418",
+            "startMs": 1791057448661.8418,
+            "leftPct": 96.22823699539322,
+            "widthPct": 1.2,
+            "heightPct": 25,
+            "band": "low",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+12h",
+            "pct": 39.7751804011815
+          },
+          {
+            "label": "+24h",
+            "pct": 77.95935358631574
+          }
+        ],
+        "nowPct": 1.5910072160472597,
+        "horizonLabel": "1.3 d",
+        "beyond": 3
+      }
+    },
+    {
+      "nowMs": 1790923920000,
+      "rows": [
+        {
+          "countdown": "4 h 58 m",
+          "startLabel": "02.10 11:50:00",
+          "endLabel": "16:28:00",
+          "primary": "66°",
+          "secondary": "104.09°"
+        },
+        {
+          "countdown": "19 h 29 m",
+          "startLabel": "03.10 02:21:09",
+          "endLabel": "05:02:34",
+          "primary": "17°",
+          "secondary": "306.46°"
+        },
+        {
+          "countdown": "1 d 4 h",
+          "startLabel": "03.10 11:00:34",
+          "endLabel": "16:23:59",
+          "primary": "66°",
+          "secondary": "104.05°"
+        },
+        {
+          "countdown": "1 d 19 h",
+          "startLabel": "04.10 02:17:07",
+          "endLabel": "04:58:32",
+          "primary": "17°",
+          "secondary": "306.45°"
+        }
+      ],
+      "summaries": [
+        "11:50–16:28 UTC · 278 min · 66° max, apex ESE",
+        "02:21–05:02 UTC · 161 min · 17° max, apex NW",
+        "11:00–16:23 UTC · 323 min · 66° max, apex ESE",
+        "02:17–04:58 UTC · 161 min · 17° max, apex NW"
+      ],
+      "visible": 4,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790941800000",
+            "startMs": 1790941800000,
+            "leftPct": 11.271477663230241,
+            "widthPct": 9.553264604810996,
+            "heightPct": 80.41084889181475,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790994069000",
+            "startMs": 1790994069000,
+            "leftPct": 41.207903780068726,
+            "widthPct": 5.546964490263463,
+            "heightPct": 39.174701471661294,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791025234000",
+            "startMs": 1791025234000,
+            "leftPct": 59.057273768613975,
+            "widthPct": 11.113974799541815,
+            "heightPct": 80.4142889974994,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791080227000",
+            "startMs": 1791080227000,
+            "leftPct": 90.55383734249713,
+            "widthPct": 5.546964490263463,
+            "heightPct": 39.17122036051093,
+            "band": "low",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+12h",
+            "pct": 25.773195876288657
+          },
+          {
+            "label": "+24h",
+            "pct": 50.51546391752577
+          },
+          {
+            "label": "+36h",
+            "pct": 75.25773195876289
+          }
+        ],
+        "nowPct": 1.0309278350515463,
+        "horizonLabel": "2 d",
+        "beyond": 0
+      }
+    },
+    {
+      "nowMs": 1790923920000,
+      "rows": [
+        {
+          "countdown": "4 h 58 m",
+          "startLabel": "02.10 11:50:00",
+          "endLabel": "13:15:05",
+          "primary": "43°",
+          "secondary": "9.49°"
+        },
+        {
+          "countdown": "23 h 51 m",
+          "startLabel": "03.10 06:43:35",
+          "endLabel": "13:11:00",
+          "primary": "88°",
+          "secondary": "290.24°"
+        }
+      ],
+      "summaries": [
+        "11:50–13:15 UTC · 85 min · 43° max, apex N",
+        "06:43–13:11 UTC · 387 min · 88° max, apex WNW"
+      ],
+      "visible": 2,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790941800000",
+            "startMs": 1790941800000,
+            "leftPct": 16.15047515879659,
+            "widthPct": 4.189439821425644,
+            "heightPct": 60.614210813936964,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791009815000",
+            "startMs": 1791009815000,
+            "leftPct": 71.96727230948511,
+            "widthPct": 19.076107472877382,
+            "heightPct": 98.54577344082908,
+            "band": "high",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+12h",
+            "pct": 36.92944014968732
+          },
+          {
+            "label": "+24h",
+            "pct": 72.38170269338717
+          }
+        ],
+        "nowPct": 1.477177605987493,
+        "horizonLabel": "1.4 d",
+        "beyond": 0
+      }
+    },
+    {
+      "nowMs": 1790923920000,
+      "rows": [
+        {
+          "countdown": "5 h 8 m",
+          "startLabel": "02.10 12:00:50",
+          "endLabel": "16:56:20",
+          "primary": "53°",
+          "secondary": "122.75°"
+        },
+        {
+          "countdown": "18 h 4 m",
+          "startLabel": "03.10 00:56:45",
+          "endLabel": "04:59:40",
+          "primary": "37°",
+          "secondary": "309.56°"
+        },
+        {
+          "countdown": "1 d 5 h",
+          "startLabel": "03.10 11:56:47",
+          "endLabel": "16:52:17",
+          "primary": "53°",
+          "secondary": "122.75°"
+        },
+        {
+          "countdown": "1 d 18 h",
+          "startLabel": "04.10 00:52:42",
+          "endLabel": "04:55:37",
+          "primary": "37°",
+          "secondary": "309.55°"
+        }
+      ],
+      "summaries": [
+        "12:00–16:56 UTC · 296 min · 53° max, apex ESE",
+        "00:56–04:59 UTC · 243 min · 37° max, apex NW",
+        "11:56–16:52 UTC · 296 min · 53° max, apex ESE",
+        "00:52–04:55 UTC · 243 min · 37° max, apex NW"
+      ],
+      "visible": 4,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790942450000",
+            "startMs": 1790942450000,
+            "leftPct": 11.643757159221076,
+            "widthPct": 10.154639175257733,
+            "heightPct": 69.58082985694799,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790989005000",
+            "startMs": 1790989005000,
+            "leftPct": 38.307560137457045,
+            "widthPct": 8.347651775486824,
+            "heightPct": 55.46714769106123,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791028607000",
+            "startMs": 1791028607000,
+            "leftPct": 60.98911798396335,
+            "widthPct": 10.154639175257735,
+            "heightPct": 69.580698438355,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1791075162000",
+            "startMs": 1791075162000,
+            "leftPct": 87.6529209621993,
+            "widthPct": 8.347651775486838,
+            "heightPct": 55.46545178846196,
+            "band": "mid",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+12h",
+            "pct": 25.773195876288657
+          },
+          {
+            "label": "+24h",
+            "pct": 50.51546391752577
+          },
+          {
+            "label": "+36h",
+            "pct": 75.25773195876289
+          }
+        ],
+        "nowPct": 1.0309278350515463,
+        "horizonLabel": "2 d",
+        "beyond": 0
+      }
+    },
+    {
+      "nowMs": 1790379180000,
+      "rows": [
+        {
+          "countdown": "8 h 14 m",
+          "startLabel": "26.09 07:47:00",
+          "endLabel": "10:57:05",
+          "primary": "33°",
+          "secondary": "23.01°"
+        },
+        {
+          "countdown": "20 h 38 m",
+          "startLabel": "26.09 20:11:05",
+          "endLabel": "20:42:50",
+          "primary": "8°",
+          "secondary": "283.62°"
+        },
+        {
+          "countdown": "1 d 6 h",
+          "startLabel": "27.09 05:56:50",
+          "endLabel": "06:04:50",
+          "primary": "15°",
+          "secondary": "280.25°"
+        }
+      ],
+      "summaries": [
+        "07:47–10:57 UTC · 190 min · 33° max, apex NNE",
+        "20:11–20:42 UTC · 32 min · 8° max, apex WNW",
+        "05:56–06:04 UTC · 8 min · 15° max, apex W"
+      ],
+      "visible": 3,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790408820000",
+            "startMs": 1790408820000,
+            "leftPct": 25.623263054090835,
+            "widthPct": 9.294952771371058,
+            "heightPct": 52.655549632229665,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790453465000",
+            "startMs": 1790453465000,
+            "leftPct": 62.0084595887564,
+            "widthPct": 1.5525545839072166,
+            "heightPct": 31.353516999476465,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790488610000",
+            "startMs": 1790488610000,
+            "leftPct": 90.65125793595813,
+            "widthPct": 1.2,
+            "heightPct": 37.3477430853515,
+            "band": "low",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+12h",
+            "pct": 36.67451773009184
+          },
+          {
+            "label": "+24h",
+            "pct": 71.88205475098002
+          }
+        ],
+        "nowPct": 1.4669807092036737,
+        "horizonLabel": "1.4 d",
+        "beyond": 0
+      }
+    },
+    {
+      "nowMs": 1790379180000,
+      "rows": [
+        {
+          "countdown": "18 h 8 m",
+          "startLabel": "26.09 17:41:00",
+          "endLabel": "18:13:00",
+          "primary": "13°",
+          "secondary": "290.04°"
+        },
+        {
+          "countdown": "1 d 7 h",
+          "startLabel": "27.09 06:38:35",
+          "endLabel": "16:55:35",
+          "primary": "42°",
+          "secondary": "29.86°"
+        }
+      ],
+      "summaries": [
+        "17:41–18:13 UTC · 32 min · 13° max, apex WNW",
+        "06:38–16:55 UTC · 617 min · 42° max, apex NNE"
+      ],
+      "visible": 2,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790444460000",
+            "startMs": 1790444460000,
+            "leftPct": 40.49489738938307,
+            "widthPct": 1.2,
+            "heightPct": 35.69091611686589,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790491115000",
+            "startMs": 1790491115000,
+            "leftPct": 68.65961768905014,
+            "widthPct": 22.34825732490998,
+            "heightPct": 60.14706671650811,
+            "band": "mid",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+12h",
+            "pct": 27.165628839031577
+          },
+          {
+            "label": "+24h",
+            "pct": 53.24463252450189
+          },
+          {
+            "label": "+36h",
+            "pct": 79.32363620997221
+          }
+        ],
+        "nowPct": 1.086625153561263,
+        "horizonLabel": "1.9 d",
+        "beyond": 0
+      }
+    },
+    {
+      "nowMs": 1790379180000,
+      "rows": [
+        {
+          "countdown": "8 h 14 m",
+          "startLabel": "26.09 07:47:00",
+          "endLabel": "11:23:30",
+          "primary": "65°",
+          "secondary": "33.84°"
+        },
+        {
+          "countdown": "21 h 4 m",
+          "startLabel": "26.09 20:37:30",
+          "endLabel": "06:01:25",
+          "primary": "65°",
+          "secondary": "325.64°"
+        }
+      ],
+      "summaries": [
+        "07:47–11:23 UTC · 217 min · 65° max, apex NE",
+        "20:37–06:01 UTC · 564 min · 65° max, apex NW"
+      ],
+      "visible": 2,
+      "layout": {
+        "blocks": [
+          {
+            "key": "1790408820000",
+            "startMs": 1790408820000,
+            "leftPct": 25.670440210491073,
+            "widthPct": 10.606202873227708,
+            "heightPct": 79.42781090499557,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "1790455050000",
+            "startMs": 1790455050000,
+            "leftPct": 63.41676498565019,
+            "widthPct": 27.62593334993528,
+            "heightPct": 79.34921228093694,
+            "band": "high",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+12h",
+            "pct": 36.74204228600822
+          },
+          {
+            "label": "+24h",
+            "pct": 72.01440288057611
+          }
+        ],
+        "nowPct": 1.4696816914403288,
+        "horizonLabel": "1.4 d",
+        "beyond": 0
+      }
+    },
+    {
+      "nowMs": 962135460000,
+      "rows": [
+        {
+          "countdown": "10 h 32 m",
+          "startLabel": "28.06 06:23:00",
+          "endLabel": "06:23:15",
+          "primary": "5°",
+          "secondary": "90.84°"
+        },
+        {
+          "countdown": "12 h 49 m",
+          "startLabel": "28.06 08:40:15",
+          "endLabel": "08:51:25",
+          "primary": "26°",
+          "secondary": "112.76°"
+        },
+        {
+          "countdown": "14 h 49 m",
+          "startLabel": "28.06 10:40:03",
+          "endLabel": "11:17:58",
+          "primary": "49°",
+          "secondary": "184.62°"
+        },
+        {
+          "countdown": "17 h 10 m",
+          "startLabel": "28.06 13:01:13",
+          "endLabel": "13:41:13",
+          "primary": "37°",
+          "secondary": "206.87°"
+        },
+        {
+          "countdown": "19 h 35 m",
+          "startLabel": "28.06 15:26:40",
+          "endLabel": "15:57:40",
+          "primary": "16°",
+          "secondary": "227.28°"
+        },
+        {
+          "countdown": "1 d 10 h",
+          "startLabel": "29.06 06:42:30",
+          "endLabel": "06:48:45",
+          "primary": "15°",
+          "secondary": "104.61°"
+        },
+        {
+          "countdown": "1 d 13 h",
+          "startLabel": "29.06 09:05:45",
+          "endLabel": "09:16:15",
+          "primary": "25°",
+          "secondary": "114.46°"
+        },
+        {
+          "countdown": "1 d 15 h",
+          "startLabel": "29.06 11:04:15",
+          "endLabel": "11:42:20",
+          "primary": "46°",
+          "secondary": "190.19°"
+        },
+        {
+          "countdown": "1 d 17 h",
+          "startLabel": "29.06 13:25:57",
+          "endLabel": "14:04:17",
+          "primary": "31°",
+          "secondary": "212.02°"
+        },
+        {
+          "countdown": "1 d 20 h",
+          "startLabel": "29.06 15:54:14",
+          "endLabel": "16:17:09",
+          "primary": "10°",
+          "secondary": "231.65°"
+        }
+      ],
+      "summaries": [
+        "06:23–06:23 UTC · 0 min · 5° max, apex E",
+        "08:40–08:51 UTC · 11 min · 26° max, apex ESE",
+        "10:40–11:17 UTC · 38 min · 49° max, apex S",
+        "13:01–13:41 UTC · 40 min · 37° max, apex SSW",
+        "15:26–15:57 UTC · 31 min · 16° max, apex SW",
+        "06:42–06:48 UTC · 6 min · 15° max, apex ESE",
+        "09:05–09:16 UTC · 11 min · 25° max, apex ESE",
+        "11:04–11:42 UTC · 38 min · 46° max, apex S",
+        "13:25–14:04 UTC · 38 min · 31° max, apex SSW",
+        "15:54–16:17 UTC · 23 min · 10° max, apex SW"
+      ],
+      "visible": 10,
+      "layout": {
+        "blocks": [
+          {
+            "key": "962173380000",
+            "startMs": 962173380000,
+            "leftPct": 28.32055272136127,
+            "widthPct": 1.2,
+            "heightPct": 29.44283969677544,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "962181615000",
+            "startMs": 962181615000,
+            "leftPct": 34.19214767756495,
+            "widthPct": 1.2,
+            "heightPct": 46.99374125791785,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "962188803000",
+            "startMs": 962188803000,
+            "leftPct": 39.3172265537267,
+            "widthPct": 1.6220860382954854,
+            "heightPct": 65.70976800440266,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "962197273000",
+            "startMs": 962197273000,
+            "leftPct": 45.35637765014991,
+            "widthPct": 1.7112116447952417,
+            "heightPct": 55.43953397424255,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "962206000000",
+            "startMs": 962206000000,
+            "leftPct": 51.578770993536615,
+            "widthPct": 1.3261890247163066,
+            "heightPct": 38.44090003907402,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "962260950000",
+            "startMs": 962260950000,
+            "leftPct": 90.7583876108277,
+            "widthPct": 1.2,
+            "heightPct": 37.70885522604915,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "962269545000",
+            "startMs": 962269545000,
+            "leftPct": 96.88666431375066,
+            "widthPct": 1.2,
+            "heightPct": 46.09756809158054,
+            "band": "mid",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+12h",
+            "pct": 32.0852183399108
+          },
+          {
+            "label": "+24h",
+            "pct": 62.887027946225174
+          }
+        ],
+        "nowPct": 1.2834087335964321,
+        "horizonLabel": "1.6 d",
+        "beyond": 3
+      }
+    },
+    {
+      "nowMs": 962135460000,
+      "rows": [
+        {
+          "countdown": "28 m 42 s",
+          "startLabel": "27.06 20:19:42",
+          "endLabel": "20:44:12",
+          "primary": "88°",
+          "secondary": "19.63°"
+        },
+        {
+          "countdown": "2 h 55 m",
+          "startLabel": "27.06 22:46:59",
+          "endLabel": "23:03:44",
+          "primary": "80°",
+          "secondary": "352.38°"
+        },
+        {
+          "countdown": "5 h 20 m",
+          "startLabel": "28.06 01:11:39",
+          "endLabel": "01:22:09",
+          "primary": "22°",
+          "secondary": "325.50°"
+        },
+        {
+          "countdown": "17 h 47 m",
+          "startLabel": "28.06 13:38:14",
+          "endLabel": "13:58:44",
+          "primary": "11°",
+          "secondary": "42.05°"
+        },
+        {
+          "countdown": "20 h 0 m",
+          "startLabel": "28.06 15:51:47",
+          "endLabel": "16:27:17",
+          "primary": "36°",
+          "secondary": "32.45°"
+        },
+        {
+          "countdown": "22 h 25 m",
+          "startLabel": "28.06 18:16:45",
+          "endLabel": "18:48:40",
+          "primary": "67°",
+          "secondary": "20.09°"
+        },
+        {
+          "countdown": "1 d 0 h",
+          "startLabel": "28.06 20:45:08",
+          "endLabel": "21:08:28",
+          "primary": "88°",
+          "secondary": "183.94°"
+        },
+        {
+          "countdown": "1 d 3 h",
+          "startLabel": "28.06 23:12:03",
+          "endLabel": "23:27:53",
+          "primary": "65°",
+          "secondary": "340.13°"
+        },
+        {
+          "countdown": "1 d 5 h",
+          "startLabel": "29.06 01:37:06",
+          "endLabel": "01:45:11",
+          "primary": "12°",
+          "secondary": "320.72°"
+        },
+        {
+          "countdown": "1 d 18 h",
+          "startLabel": "29.06 14:03:26",
+          "endLabel": "14:26:56",
+          "primary": "18°",
+          "secondary": "40.72°"
+        },
+        {
+          "countdown": "1 d 20 h",
+          "startLabel": "29.06 16:15:28",
+          "endLabel": "16:52:13",
+          "primary": "45°",
+          "secondary": "29.45°"
+        }
+      ],
+      "summaries": [
+        "20:19–20:44 UTC · 25 min · 88° max, apex NNE",
+        "22:46–23:03 UTC · 17 min · 80° max, apex N",
+        "01:11–01:22 UTC · 11 min · 22° max, apex NW",
+        "13:38–13:58 UTC · 21 min · 11° max, apex NE",
+        "15:51–16:27 UTC · 36 min · 36° max, apex NNE",
+        "18:16–18:48 UTC · 32 min · 67° max, apex NNE",
+        "20:45–21:08 UTC · 23 min · 88° max, apex S",
+        "23:12–23:27 UTC · 16 min · 65° max, apex NNW",
+        "01:37–01:45 UTC · 8 min · 12° max, apex NW",
+        "14:03–14:26 UTC · 24 min · 18° max, apex NE",
+        "16:15–16:52 UTC · 37 min · 45° max, apex NNE"
+      ],
+      "visible": 11,
+      "layout": {
+        "blocks": [
+          {
+            "key": "962137182000",
+            "startMs": 962137182000,
+            "leftPct": 3.798287427474495,
+            "widthPct": 1.585315876884584,
+            "heightPct": 98.20459829975502,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "962146019000",
+            "startMs": 962146019000,
+            "leftPct": 13.328516273752777,
+            "widthPct": 1.2,
+            "heightPct": 92.06409910158733,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "962154699000",
+            "startMs": 962154699000,
+            "leftPct": 22.68942907059509,
+            "widthPct": 1.2,
+            "heightPct": 43.19494884513057,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "962199494000",
+            "startMs": 962199494000,
+            "leftPct": 70.99842546858486,
+            "widthPct": 1.3264887949442539,
+            "heightPct": 33.83859371480146,
+            "band": "low",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "962207507000",
+            "startMs": 962207507000,
+            "leftPct": 79.64001466686797,
+            "widthPct": 2.297090352220522,
+            "heightPct": 54.661346095568945,
+            "band": "mid",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "962216205000",
+            "startMs": 962216205000,
+            "leftPct": 89.02033949485582,
+            "widthPct": 2.06522442464896,
+            "heightPct": 81.24427219521124,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "962225108000",
+            "startMs": 962225108000,
+            "leftPct": 98.6217457886677,
+            "widthPct": 1.3782542113323046,
+            "heightPct": 98.26741229704272,
+            "band": "high",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+6h",
+            "pct": 25.235640489183186
+          },
+          {
+            "label": "+12h",
+            "pct": 48.53007786381382
+          },
+          {
+            "label": "+18h",
+            "pct": 71.82451523844445
+          }
+        ],
+        "nowPct": 1.9412031145525526,
+        "horizonLabel": "1.1 d",
+        "beyond": 4
+      }
+    },
+    {
+      "nowMs": 962135460000,
+      "rows": [
+        {
+          "countdown": "44 m 44 s",
+          "startLabel": "27.06 20:35:44",
+          "endLabel": "20:36:16",
+          "primary": "46.5km",
+          "secondary": "200km"
+        },
+        {
+          "countdown": "1 d 1 h",
+          "startLabel": "28.06 21:00:21",
+          "endLabel": "21:00:54",
+          "primary": "43.6km",
+          "secondary": "200km"
+        }
+      ],
+      "summaries": [
+        "20:35–20:36 UTC · 1 min · 47 km off track, swath 200 km",
+        "21:00–21:00 UTC · 1 min · 44 km off track, swath 200 km"
+      ],
+      "visible": 2,
+      "layout": {
+        "blocks": [
+          {
+            "key": "962138144067.6633",
+            "startMs": 962138144067.6633,
+            "leftPct": 4.419815853966097,
+            "widthPct": 1.2,
+            "heightPct": 65.10539246706938,
+            "band": "high",
+            "live": false,
+            "past": false
+          },
+          {
+            "key": "962226021949.0984",
+            "startMs": 962226021949.0984,
+            "leftPct": 91.03850289027588,
+            "widthPct": 1.2,
+            "heightPct": 67.30818211433078,
+            "band": "high",
+            "live": false,
+            "past": false
+          }
+        ],
+        "ticks": [
+          {
+            "label": "+6h",
+            "pct": 23.064703467476093
+          },
+          {
+            "label": "+12h",
+            "pct": 44.35519897591556
+          },
+          {
+            "label": "+18h",
+            "pct": 65.64569448435502
+          },
+          {
+            "label": "+24h",
+            "pct": 86.9361899927945
+          }
+        ],
+        "nowPct": 1.7742079590366222,
+        "horizonLabel": "1.2 d",
+        "beyond": 0
+      }
+    }
+  ],
+  "countdowns": [
+    {
+      "untilMs": -1,
+      "text": "ongoing"
+    },
+    {
+      "untilMs": 0,
+      "text": "ongoing"
+    },
+    {
+      "untilMs": 999,
+      "text": "0 s"
+    },
+    {
+      "untilMs": 1000,
+      "text": "1 s"
+    },
+    {
+      "untilMs": 59999,
+      "text": "59 s"
+    },
+    {
+      "untilMs": 60000,
+      "text": "1 m 0 s"
+    },
+    {
+      "untilMs": 3599999,
+      "text": "59 m 59 s"
+    },
+    {
+      "untilMs": 3600000,
+      "text": "1 h 0 m"
+    },
+    {
+      "untilMs": 86399999,
+      "text": "23 h 59 m"
+    },
+    {
+      "untilMs": 86400000,
+      "text": "1 d 0 h"
+    },
+    {
+      "untilMs": 200000000,
+      "text": "2 d 7 h"
+    }
+  ],
+  "compassPoints": [
+    {
+      "azimuth": -11.25,
+      "point": "N"
+    },
+    {
+      "azimuth": 0,
+      "point": "N"
+    },
+    {
+      "azimuth": 11.24,
+      "point": "N"
+    },
+    {
+      "azimuth": 11.25,
+      "point": "NNE"
+    },
+    {
+      "azimuth": 33.75,
+      "point": "NE"
+    },
+    {
+      "azimuth": 180,
+      "point": "S"
+    },
+    {
+      "azimuth": 348.75,
+      "point": "N"
+    },
+    {
+      "azimuth": 359.99,
+      "point": "N"
+    },
+    {
+      "azimuth": 371.25,
+      "point": "NNE"
+    }
+  ],
   "greenwichHourAngle": [
     {
       "instant": "2000-01-01T12:00:00.000Z",
