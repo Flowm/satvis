@@ -35,6 +35,18 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Stop tracking"].firstMatch.exists)
     }
 
+    // The tools unfold from the menu button, and the menus among them open.
+    @MainActor
+    func testOpensTheToolsFromTheMenu() {
+        let app = launch()
+        XCTAssert(app.buttons["Menu"].waitForExistence(timeout: 30))
+        XCTAssertFalse(app.buttons["Map"].exists)
+        app.buttons["Menu"].tap()
+        XCTAssert(app.buttons["Map"].waitForExistence(timeout: 5))
+        app.buttons["Satellite components"].tap()
+        XCTAssert(app.descendants(matching: .any)["Orbit track"].waitForExistence(timeout: 5))
+    }
+
     /// Launches with no worker to answer, on a link: by default the plain site,
     /// rather than the view an earlier run left.
     @MainActor
@@ -51,6 +63,7 @@ nonisolated class SatvisUITests: XCTestCase {
     private func search(_ name: String) -> XCUIApplication {
         let app = launch()
 
+        app.buttons["Menu"].tap()
         app.buttons["Satellites"].tap()
         let search = app.searchFields["Search satellites"]
         XCTAssert(search.waitForExistence(timeout: 10))
@@ -112,7 +125,7 @@ nonisolated class SatvisUITests: XCTestCase {
             app.launchEnvironment["SATVIS_TIME"] = "\(time.1):00Z"
         }
         app.launch()
-        XCTAssert(app.buttons["Satellites"].waitForExistence(timeout: 30))
+        XCTAssert(app.buttons["Menu"].waitForExistence(timeout: 30))
         sleep(20)
     }
 

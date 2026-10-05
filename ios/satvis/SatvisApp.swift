@@ -48,13 +48,18 @@ struct ContentView: View {
     @State private var showsBrowser = false
     @State private var showsStations = false
     @State private var showsAttribution = false
+    @State private var showsTools = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         GlobeView(
             onRenderer: session.attach,
-            onTap: { session.tap(at: $0, viewSize: $1) },
+            onTap: {
+                // A tap on the globe is done with the menu, whatever else it does.
+                showsTools = false
+                session.tap(at: $0, viewSize: $1)
+            },
             onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) },
             mayDrag: session.mayDrag
         )
@@ -68,17 +73,22 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .topLeading) {
-            GlassEffectContainer {
+            ToolMenu(isOpen: $showsTools) {
                 // The web app's toolbar, its icons and its order.
-                HStack {
-                    Button("Satellites", image: .lucideSatellite) { showsBrowser = true }
-                    ComponentsMenu(catalog: session.catalog)
-                    Button("Ground stations", image: .lucideMapPin) { showsStations = true }
-                    MapMenu(session: session)
+                ToolRow("Satellites") {
+                    Button("Satellites", image: .lucideSatellite) {
+                        showsTools = false
+                        showsBrowser = true
+                    }
                 }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.glass)
-                .controlSize(.large)
+                ToolRow("Components") { ComponentsMenu(catalog: session.catalog) }
+                ToolRow("Ground stations") {
+                    Button("Ground stations", image: .lucideMapPin) {
+                        showsTools = false
+                        showsStations = true
+                    }
+                }
+                ToolRow("Map") { MapMenu(session: session) }
             }
             .padding()
         }
@@ -209,6 +219,81 @@ struct ContentView: View {
             }
         case nil:
             EmptyView()
+        }
+    }
+}
+
+/// The tools behind one button: a column of the same glass buttons unfolding
+/// under it, each named beside it, so that a phone's width is left to the globe.
+private struct ToolMenu<Tools: View>: View {
+    @Binding var isOpen: Bool
+    @ViewBuilder let tools: Tools
+
+    var body: some View {
+        // Spacing under the row's 10 pt gap, so a name's glass stays apart from
+        // its button's rather than melting into it.
+        GlassEffectContainer(spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
+                Button(isOpen ? "Close menu" : "Menu", image: isOpen ? .lucideX : .lucideMenu) {
+                    isOpen.toggle()
+                }
+                // Swapped, not faded: a crossfade shows both at once.
+                .contentTransition(.identity)
+                .toolGlass()
+                if isOpen {
+                    tools
+                }
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(ToolButtonStyle())
+            .menuStyle(.button)
+        }
+        .animation(.snappy, value: isOpen)
+    }
+}
+
+/// The size of a large `.glass` button, with no glass of its own: that goes on
+/// around the whole control (`toolGlass`), where a menu's label shows it too.
+private struct ToolButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .frame(width: 62, height: 52)
+            .contentShape(.capsule)
+    }
+}
+
+extension View {
+    /// The glass of a large `.glass` button, drawn by SwiftUI around a control
+    /// rather than by the system inside it: a menu's system glass arrives a beat
+    /// after a button's, so the column would unfold in two steps.
+    fileprivate func toolGlass() -> some View {
+        glassEffect(.regular.interactive(), in: .capsule)
+    }
+}
+
+/// A tool and its name, small beside it on a glass of its own, which keeps it
+/// legible over bright ground and dark space alike. The name is a caption: the
+/// button carries the same one for VoiceOver, and a tap on it reaches the globe.
+private struct ToolRow<Tool: View>: View {
+    let title: LocalizedStringKey
+    @ViewBuilder let tool: Tool
+
+    init(_ title: LocalizedStringKey, @ViewBuilder tool: () -> Tool) {
+        self.title = title
+        self.tool = tool()
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            tool
+                .toolGlass()
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .glassEffect(in: .capsule)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
     }
 }
