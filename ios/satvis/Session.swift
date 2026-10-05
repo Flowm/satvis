@@ -71,6 +71,9 @@ final class Session {
     @ObservationIgnored private var revalidated = Date.distantPast
     /// A link that came before there was a catalog to open it on.
     @ObservationIgnored private var pendingLink: Link?
+    /// Counts the links applied, so that one superseded while it waited stops
+    /// there rather than finish over the newer one.
+    @ObservationIgnored private var linkGeneration = 0
     @ObservationIgnored private var started = false
     /// What the last link carried that the app does not show (ADR 0001's foreign
     /// parameters), written back into every link the app makes.
@@ -224,11 +227,16 @@ final class Session {
     /// Shows what a link says, over its preset's defaults. `settings` false leaves
     /// the map, the overpass mode and the clock as they are.
     private func apply(_ link: Link, settings: Bool) async {
+        linkGeneration += 1
+        let generation = linkGeneration
         // A preset the kept index does not know, as the index shipped in the app
         // knows only the default: the worker's may, and the link is read against
         // that preset's defaults, so it waits for it.
         if let named = link.preset, source.index?.value.presets[named] == nil {
             await source.refresh()
+            guard generation == linkGeneration else {
+                return
+            }
         }
         let index = source.index?.value
         let preset = link.preset.flatMap { index?.presets[$0] != nil ? $0 : nil }
@@ -263,6 +271,9 @@ final class Session {
             preset: preset,
             activation: Activation(enabledTags: Set(state.tags), enabledSatellites: Set(state.sats), disabledSatellites: Set(state.xsats)),
             components: SatelliteComponents(SatelliteComponents.named.filter { state.elements.contains($0.0) }.map(\.1)))
+        guard generation == linkGeneration else {
+            return
+        }
         if state.scene == "Sky" {
             // On the link's first station, as it was listed, else the user's first.
             let first = state.gs.first.map { GroundStations.Place(GroundStations.normalized([GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name)])[0]) }
@@ -270,7 +281,7 @@ final class Session {
             if let station {
                 enterSky(at: station.id)
             }
-        } else if !state.track.isEmpty, let entry = await catalog.entry(named: state.track) {
+        } else if !state.track.isEmpty, let entry = await catalog.entry(named: state.track), generation == linkGeneration {
             track(entry.id, true)
         }
     }
