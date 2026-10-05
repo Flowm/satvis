@@ -15,6 +15,11 @@ struct AcknowledgementsView: View {
                 }
                 entry("SGP4", "David Vallado's reference implementation (AIAA 2006-6753), released without restriction.")
                 NavigationLink {
+                    LicenceText(title: "Lucide", text: Self.bundled("lucide"))
+                } label: {
+                    entry("Lucide", "The toolbar's icons, the web app's own. ISC License.")
+                }
+                NavigationLink {
                     LicenceText(title: "PostHog for iOS", text: Self.bundled("posthog-ios"))
                 } label: {
                     entry("PostHog for iOS", "Usage analytics. MIT License.")

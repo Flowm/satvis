@@ -69,10 +69,11 @@ struct ContentView: View {
         }
         .overlay(alignment: .topLeading) {
             GlassEffectContainer {
+                // The web app's toolbar, its icons and its order.
                 HStack {
-                    Button("Satellites", systemImage: "list.bullet") { showsBrowser = true }
-                    Button("Ground stations", systemImage: "mappin.and.ellipse") { showsStations = true }
+                    Button("Satellites", image: .lucideSatellite) { showsBrowser = true }
                     ComponentsMenu(catalog: session.catalog)
+                    Button("Ground stations", image: .lucideMapPin) { showsStations = true }
                     MapMenu(session: session)
                 }
                 .labelStyle(.iconOnly)
@@ -217,7 +218,7 @@ private struct MapMenu: View {
     @Bindable var session: Session
 
     var body: some View {
-        Menu("Map", systemImage: "globe.europe.africa") {
+        Menu("Map", image: .lucideLayers) {
             Picker("Base map", selection: $session.baseLayer) {
                 ForEach(BaseLayer.allCases, id: \.self) { Text($0.title) }
             }
@@ -251,7 +252,7 @@ private struct ComponentsMenu: View {
     let catalog: CatalogModel
 
     var body: some View {
-        Menu("Satellite components", systemImage: "circle.dotted.circle") {
+        Menu("Satellite components", image: .lucideOrbit) {
             ForEach(SatelliteComponents.named, id: \.0) { name, component in
                 Toggle(
                     name,
