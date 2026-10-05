@@ -276,7 +276,10 @@ final class Session {
         }
         if state.scene == "Sky" {
             // On the link's first station, as it was listed, else the user's first.
-            let first = state.gs.first.map { GroundStations.Place(GroundStations.normalized([GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name)])[0]) }
+            // Nil where the link's station is not on the globe, and was refused.
+            let first = state.gs.first.flatMap {
+                GroundStations.normalized([GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name)]).first.map(GroundStations.Place.init)
+            }
             let station = first.map { place in passes.stations.first { GroundStations.Place($0) == place } } ?? passes.saved.first
             if let station {
                 enterSky(at: station.id)

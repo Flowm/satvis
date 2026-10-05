@@ -63,8 +63,10 @@ final class PassModel {
     @discardableResult
     func add(latitude: Double, longitude: Double, name: String? = nil) -> UUID? {
         let added = GroundStation(latitude: latitude, longitude: longitude, name: name)
+        guard let place = GroundStations.normalized([added]).first.map(GroundStations.Place.init) else {
+            return nil
+        }
         setStations(saved + [added])
-        let place = GroundStations.Place(GroundStations.normalized([added])[0])
         return saved.first { GroundStations.Place($0) == place }?.id
     }
 

@@ -52,11 +52,14 @@ public enum GroundStations {
     public static func normalized(_ stations: [GroundStation]) -> [GroundStation] {
         var seen = Set<Place>()
         return stations.compactMap { station in
-            guard station.latitude.isFinite, station.longitude.isFinite else {
+            // A link's coordinates are only known to be numbers: none past a
+            // pole, and a longitude however many turns around brought back.
+            guard station.latitude.isFinite, station.longitude.isFinite, abs(station.latitude) <= 90 else {
                 return nil
             }
             let normalized = GroundStation(
-                latitude: rounded(station.latitude), longitude: rounded(station.longitude), name: wireSafe(station.name), id: station.id)
+                latitude: rounded(station.latitude), longitude: rounded(wrappedLongitude(station.longitude)), name: wireSafe(station.name),
+                id: station.id)
             return seen.insert(Place(normalized)).inserted ? normalized : nil
         }
     }
@@ -128,4 +131,9 @@ func toFixed(_ value: Double, _ digits: Int) -> String {
     }
     let integer = String(kept.dropLast(digits))
     return sign + (digits == 0 ? integer : integer + "." + String(kept.suffix(digits)))
+}
+
+/// A longitude brought into -180° to 180°, however many turns around it was.
+public func wrappedLongitude(_ longitude: Double) -> Double {
+    remainder(longitude, 360)
 }
