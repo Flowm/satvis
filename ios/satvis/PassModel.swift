@@ -34,6 +34,8 @@ final class PassModel {
     /// How often a long prediction publishes what it has so far. Every
     /// publication redraws what reads the passes, so not per chunk.
     private static let publishInterval: TimeInterval = 0.5
+    /// Set when the passes are forgotten, for the next refresh to reset the store.
+    @ObservationIgnored private var storeIsStale = false
 
     init() {
         let stations = storage.load()
@@ -107,6 +109,10 @@ final class PassModel {
     /// nothing when nothing had to be predicted; publishes a long prediction as it
     /// goes, twice a second.
     func refresh(_ entries: [CatalogEntry], at time: Double) async {
+        if storeIsStale {
+            storeIsStale = false
+            await store.reset()
+        }
         await store.configure(PassStore.Settings(stations: stations, mode: mode))
         let settings = (stations, mode)
         var pending: [String: PassStore.Prediction] = [:]
@@ -186,6 +192,11 @@ final class PassModel {
         passes = [:]
         windows = [:]
         revision += 1
+        // The store's own go too. It drops them when the settings it is handed
+        // differ, but a mode or a station changed and changed back before the
+        // next refresh hands it what it had: it would answer that nothing is
+        // missing, and what was forgotten here would never come back.
+        storeIsStale = true
     }
 
     var markers: [StationMarker] {
