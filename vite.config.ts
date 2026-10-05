@@ -37,6 +37,9 @@ const generatedImagery = existsSync(fileURLToPath(new URL("data/imagery/NaturalE
 const COMMITTED_MAX_LEVEL = 2;
 const GENERATED_MAX_LEVEL = 5;
 
+// Absent until `git submodule update --init`.
+const modelsCheckedOut = existsSync(fileURLToPath(new URL("data/models/public", import.meta.url)));
+
 export default defineConfig({
   base: "",
   build: {
@@ -90,7 +93,7 @@ export default defineConfig({
         { src: `${cesiumWidgetsSource}/Source`, dest: `${cesiumBaseUrl}/Widgets`, rename: { stripBase: 4 } },
         { src: ["data/**", "!data/custom/**", "!data/models/**"], dest: "data", rename: { stripBase: 1 } },
         // The models repo ships only public/, as a plugin's sync does (ADR 0007).
-        { src: "data/models/public/**", dest: "data/models", rename: { stripBase: 3 } },
+        ...(modelsCheckedOut ? [{ src: "data/models/public/**", dest: "data/models", rename: { stripBase: 3 } }] : []),
         { src: ["data/custom/dist/**"], dest: "data", rename: { stripBase: 3 } },
       ],
     }),
