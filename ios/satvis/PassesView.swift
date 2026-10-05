@@ -21,7 +21,7 @@ struct PassesSections: View {
     @State private var picked: Double?
 
     var body: some View {
-        let (all, settled) = list
+        let (all, settled, progress) = list
         let visible = all.visible(at: now, past: showsPast)
         let next = visible.first { $0.end >= now }
         let subjects = Set(visible.map(subjectName))
@@ -61,15 +61,21 @@ struct PassesSections: View {
         }
         Section {
             if !settled {
-                Label("Computing passes…", systemImage: "hourglass")
-                    .foregroundStyle(.secondary)
+                // With thousands of satellites this takes a while: what is found so
+                // far is listed below as it comes, and here how far it has got.
+                Label(
+                    progress.map { "Computing passes… \($0.done.formatted()) of \($0.total.formatted()) satellites" } ?? "Computing passes…",
+                    systemImage: "hourglass"
+                )
+                .foregroundStyle(.secondary)
             } else if all.isEmpty {
                 Text(passes.hasStations ? "No passes in the prediction window" : "No ground station set")
                     .foregroundStyle(.secondary)
             } else if visible.isEmpty {
                 Text("No upcoming passes")
                     .foregroundStyle(.secondary)
-            } else {
+            }
+            if !visible.isEmpty {
                 ForEach(visible, id: \.self) { pass in
                     PassRow(
                         pass: pass, now: now, subject: subjects.count > 1 ? subjectName(pass) : nil, isNext: pass == next, isPicked: pass.start == picked
@@ -79,7 +85,7 @@ struct PassesSections: View {
                 }
             }
         } header: {
-            if settled, !visible.isEmpty {
+            if !visible.isEmpty {
                 Text(passes.mode == .swath ? "Start · end · off track · swath" : "Start · end · max elevation · azimuth at apex")
                     .font(.caption)
                     .textCase(nil)
@@ -88,15 +94,18 @@ struct PassesSections: View {
         .onChange(of: subjectID) { picked = nil }
     }
 
-    private var list: (passes: [Pass], settled: Bool) {
+    /// The passes so far, whether that is all of them, and for a station, how
+    /// many of its satellites are done.
+    private var list: (passes: [Pass], settled: Bool, progress: (done: Int, total: Int)?) {
         switch subject {
         case .satellite(let entry):
             guard let passes = passes.passes(of: entry.id, at: now) else {
-                return ([], false)
+                return ([], false, nil)
             }
-            return (passes, true)
+            return (passes, true, nil)
         case .station(let station, let entries):
-            return passes.passes(over: station, of: entries, from: now)
+            let answer = passes.passes(over: station, of: entries, from: now)
+            return (answer.passes, answer.settled, (answer.predicted, entries.count))
         }
     }
 

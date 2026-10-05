@@ -162,8 +162,9 @@ final class PassModel {
     /// A station's passes over the given satellites within two days, and whether
     /// every one of them has answered for `now`. The merged list is kept until the
     /// passes or the satellites change: it can run to hundreds of thousands.
-    func passes(over station: GroundStation, of entries: [CatalogEntry], from now: Double) -> (passes: [Pass], settled: Bool) {
-        let settled = entries.allSatisfy { isPredicted($0.id, over: [station], at: now) }
+    func passes(over station: GroundStation, of entries: [CatalogEntry], from now: Double) -> (passes: [Pass], settled: Bool, predicted: Int) {
+        let predicted = entries.count { isPredicted($0.id, over: [station], at: now) }
+        let settled = predicted == entries.count
         let key = StationKey(station: station.id, revision: revision, satellites: entries.map(\.id))
         if stationCache?.key != key {
             let merged = entries.compactMap { passes[$0.id] }.flatMap(\.self).filter { $0.stationID == station.id }
@@ -172,7 +173,7 @@ final class PassModel {
         let all = stationCache?.passes ?? []
         // Sorted by start, so the two days ahead are a prefix.
         let horizon = all.partitioningIndex { $0.start - now >= 48 * 3_600_000 }
-        return (Array(all[..<horizon]), settled)
+        return (Array(all[..<horizon]), settled, predicted)
     }
 
     /// Whether a satellite's passes over these stations are the answer for now.
