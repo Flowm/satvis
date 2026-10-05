@@ -209,7 +209,7 @@ describe("refreshGroups + satcat", () => {
 
   it("keeps enriching from the stored catalog when the fetch fails, and reports the error", async () => {
     const stored: SatcatSnapshot = { updated: "2026-07-01T00:00:00.000Z", rows: { "25544": { owner: "ISS" } } };
-    const fetchImpl: FetchImpl = async (url) => (url === SATCAT_URL ? { status: 503, text: async () => "" } : { status: 200, text: async () => JSON.stringify(RECORDS) });
+    const fetchImpl = routedFetch(RECORDS, { status: 503, text: async () => "" });
 
     const { store, groups, index } = memoryStore({ updated: "", groups: [] }, stored);
     const report = await refreshGroups(CONFIG, store, fetchImpl);
@@ -244,7 +244,7 @@ describe("refreshGroups + satcat", () => {
   });
 
   it("enriches nothing rather than failing when there is no catalog at all", async () => {
-    const fetchImpl: FetchImpl = async (url) => (url === SATCAT_URL ? { status: 503, text: async () => "" } : { status: 200, text: async () => JSON.stringify(RECORDS) });
+    const fetchImpl = routedFetch(RECORDS, { status: 503, text: async () => "" });
     const { store, groups, index } = memoryStore();
     const report = await refreshGroups(CONFIG, store, fetchImpl);
 

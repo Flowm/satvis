@@ -123,12 +123,12 @@ describe("fetchSatcat", () => {
   });
 
   it("keeps the ETag so the next fetch can be conditional", async () => {
-    const fetchImpl: FetchImpl = async () => ({
+    const result = await fetchSatcat(async () => ({
       status: 200,
       headers: { get: (name: string) => (name.toLowerCase() === "etag" ? '"abc123"' : null) },
       text: async () => rowsBody,
-    });
-    expect((await fetchSatcat(fetchImpl)).validator).toBe('"abc123"');
+    }));
+    expect(result.validator).toBe('"abc123"');
   });
 
   it("reports every failure mode instead of throwing", async () => {
