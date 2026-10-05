@@ -39,6 +39,13 @@ public actor PassStore {
         generation += 1
     }
 
+    /// Forgets every prediction, whatever the settings: for a caller that
+    /// dropped its own while the settings went away and came back.
+    public func reset() {
+        predicted = [:]
+        generation += 1
+    }
+
     /// One satellite's passes, and the span they hold for.
     public struct Prediction: Sendable, Equatable {
         public var window: PassWindow
