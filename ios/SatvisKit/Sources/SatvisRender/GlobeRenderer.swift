@@ -415,7 +415,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// The ground station or satellite drawn nearest a point on the view, within a
     /// fingertip of it and not behind the Earth. A station's pin wins: it is
-    /// drawn over the satellites.
+    /// the larger target, and one the user put there.
     public func entity(at point: CGPoint, viewSize: CGSize) -> String? {
         guard let lastFrame, viewSize.width > 0 else {
             return nil
@@ -611,6 +611,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 }
             }
 
+            // Under the satellites and their names: a pin marks the ground.
+            drawStations(encoder, eye: pose.position, now: now)
+
             if let samples = points.prepared?.samples, let instances = points.prepared?.instances, let states = pointFrames(at: now) {
                 encoder.setDepthStencilState(depthTest)
                 encoder.setCullMode(.none)
@@ -648,7 +651,6 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                     encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: labels.atlas.instances.count)
                 }
             }
-            drawStations(encoder, eye: pose.position, now: now)
             encoder.endEncoding()
         }
 
