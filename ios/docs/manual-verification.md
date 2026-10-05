@@ -76,3 +76,14 @@ over a full-width row running down to the bottom edge with the ticks rising from
 bottom; the ladder settles on a rung with its rate under it. Folded, the clock stays
 where it was. "Attribution" stands at the left end of the control row, beside the tab
 open or folded, and opens its sheet.
+
+## Native app: the tool menu
+
+**Procedure.** In the iPhone 17e simulator, record the screen while
+`testOpensTheToolsFromTheMenu` taps the burger, and step through the frames.
+
+**Result, 2026-10-05.** The burger turns to the close cross from one frame to the next,
+never both at once. Satellites, Components, Ground stations and Map materialise in the
+same frames, each a 62 × 52 pt glass button like the burger's with its name on a glass
+capsule beside it, legible over the globe and over space; the two menus' glass is
+drawn with the buttons', where the system's arrived a beat later.
