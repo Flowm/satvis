@@ -781,8 +781,9 @@ component at a time (`cc.sats.suppressComponent`, `releaseComponent`), then read
 label's `pixelOffset` and point's `show` at 1, 2 and 4 times the default view's
 distance.
 
-**Result, 2026-10-05, Chrome (in-app browser pane, frame pump on), 800×600 at ratio 2.** Before, the label sat a fixed 20 px right of centre, over the ISS (72 px) and
-Landsat (55 px), and the point sat on the model's centre. After, labels start 40, 31
+**Result, 2026-10-05, Chrome (in-app browser pane, frame pump on), ratio 2,
+800×600.** Before, the label sat a fixed 20 px right of centre, over the ISS (72 px)
+and Landsat (55 px), and the point sat on the model's centre. After, labels start 40, 31
 and 13 px out for the ISS, Landsat and FOREST-3 at the default view, and 15, 12 and
 10 px at four times its distance. The point is hidden while the model is 10 px or
 more across, which by their 20, 55 and 72 px minimums brings it back at about 2, 5.5
@@ -790,3 +791,28 @@ and 7 times the default distance for FOREST-3, Landsat and the ISS (computed, no
 re-measured). Orbits, tracks and the ground station link run through or under the
 model; the sensor cone, drawn at real size, shows as a stub beside it from afar.
 Paused, the scene drew 0 frames in 230 ticks with every component on.
+
+## FXAA: what it smooths and what it costs
+
+**Why it cannot be a unit test.** Both questions are about pixels and GPU time on a
+real context.
+
+**Procedure.** `pnpm build && pnpm preview`. For quality, open
+`?elements=Orbit&framems=16`, hide the globe, sky box, atmosphere, sun and moon,
+pause the clock, and compare no antialiasing, MSAA 4x and FXAA against the same frame
+rendered at `resolutionScale` 3 and box-filtered down. For cost, open
+`?bench=true&framems=1` and count `postRender` events in alternating blocks of FXAA
+off and on, pairing each on block with the off block before it.
+
+**Result, 2026-10-06, Chrome 152 (in-app browser pane, frame pump on), Apple M4 Pro,
+ANGLE Metal, ratio 2.** Orbit RMSE against the reference, in 8-bit levels: 17.9
+without antialiasing and with MSAA 4x (the same pixels), 10.1 with FXAA; 18.5 and
+10.2 at twice the default distance. FXAA changed 27% of label pixels by a mean of
+1.3%, invisible at four times magnification, and 1.6% of a frame without orbits.
+
+Cost at 2800×1800 with the default 72 satellites, ms per frame of throughput under
+the pump: HDR on, FXAA off 11.8 and on 10.5; HDR off, 8.6 and 11.0. Under HDR FXAA
+makes the frame faster, because the texture handed on is its 8-bit output rather than
+the tonemapper's float one; every one of eight paired blocks was 2.2–2.9 ms faster.
+`gpuMs` stays blank, since the benchmark distrusts this driver's timer queries. Not
+measured on another GPU or at ratio 1.

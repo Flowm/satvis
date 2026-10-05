@@ -23,6 +23,8 @@ export const HIDPI_THRESHOLD = 2;
  * of 30.4 ms (74 satellites); at ratio 1, 2x costs 1.1 ms. Keep `pixelRatio` at
  * `native` and let MSAA give way: `1.5x + 4x` costs 18.8 ms against 17.1 ms for
  * `native + off`, and blurs labels.
+ *
+ * Polylines have no antialiasing of their own, so FXAA covers them (createViewer.ts).
  */
 export function defaultMsaaRate(devicePixelRatio: number): MsaaRate {
   return devicePixelRatio >= HIDPI_THRESHOLD ? "off" : "2";
