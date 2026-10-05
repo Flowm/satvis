@@ -3,12 +3,6 @@ import Foundation
 import Metal
 import simd
 
-#if canImport(UIKit)
-    import UIKit
-#else
-    import AppKit
-#endif
-
 /// A ground station to draw: an id to pick and track it by, and where it stands.
 public struct StationMarker: Sendable, Hashable {
     public var id: String
@@ -56,70 +50,51 @@ struct LinkInstance {
     var station: (Float, Float, Float)
 }
 
+/// The web app's ground station marker (src/images/icons/pin.svg): Lucide's
+/// `map-pin`, the icon on the Ground stations button, filled white with a dark
+/// outline and a dark dot, to read over snow and sea alike. Drawn from the same
+/// path data, on the same 24-unit grid, into 96 px.
 enum StationPin {
-    static let symbol = "mappin"
     private static let body = CGColor(srgbRed: 0xf8 / 255, green: 0xfa / 255, blue: 0xfc / 255, alpha: 1)
     private static let outline = CGColor(srgbRed: 0x0f / 255, green: 0x17 / 255, blue: 0x2a / 255, alpha: 1)
 
-    /// SF Symbols' `mappin`, the pin the Ground stations button carries, so the
-    /// button and what it places are visibly the same object. White with a dark
-    /// outline, as the web app's pin is, to read over snow and sea alike; 96 px
-    /// square, its tip at the bottom centre.
+    /// 96 px square, its tip at the bottom centre.
     static func bitmap() -> Bitmap {
         let size = 96
-        let rim = 4.0
-        guard let white = symbolImage(color: body), let dark = symbolImage(color: outline) else {
-            return Bitmap(width: size, height: size, alpha: true) { _ in }
-        }
-        // The symbol's own image is padded; what is drawn is what is opaque.
-        let ink = opaqueBounds(of: white)
-        let scale = (Double(size) - 2 * rim) / ink.height
-        let placed = CGSize(width: Double(white.width) * scale, height: Double(white.height) * scale)
-        // The tip on the bottom edge, less the rim, and the stem on the centre line.
-        let origin = CGPoint(x: Double(size) / 2 - ink.midX * scale, y: rim - (Double(white.height) - ink.maxY) * scale)
+        let unit = Double(size) / 24
         return Bitmap(width: size, height: size, alpha: true) { context in
-            for step in 0..<16 {
-                let angle = Double(step) / 16 * 2 * .pi
-                context.draw(dark, in: CGRect(origin: CGPoint(x: origin.x + rim * cos(angle), y: origin.y + rim * sin(angle)), size: placed))
-            }
-            context.draw(white, in: CGRect(origin: origin, size: placed))
+            // Onto the svg's grid, y down, lowered so the tip's outline, at 22
+            // plus half the stroke, meets the bottom edge: the tip is the spot.
+            context.translateBy(x: 0, y: Double(size))
+            context.scaleBy(x: unit, y: -unit)
+            context.translateBy(x: 0, y: 24 - 22 - 0.875)
+            context.addPath(outlinePath)
+            context.setFillColor(body)
+            context.setStrokeColor(outline)
+            context.setLineWidth(1.75)
+            context.setLineCap(.round)
+            context.setLineJoin(.round)
+            context.drawPath(using: .fillStroke)
+            context.setFillColor(outline)
+            context.fillEllipse(in: CGRect(x: 12 - 3.1, y: 10 - 3.1, width: 6.2, height: 6.2))
         }
     }
 
-    /// Where an image has ink, in pixels from its top-left corner.
-    private static func opaqueBounds(of image: CGImage) -> CGRect {
-        let bitmap = Bitmap(width: image.width, height: image.height, alpha: true) { context in
-            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
-        }
-        var (minX, minY, maxX, maxY) = (bitmap.width, bitmap.height, 0, 0)
-        for y in 0..<bitmap.height {
-            for x in 0..<bitmap.width where bitmap.bytes[(y * bitmap.width + x) * 4 + 3] > 0 {
-                (minX, minY, maxX, maxY) = (min(minX, x), min(minY, y), max(maxX, x + 1), max(maxY, y + 1))
-            }
-        }
-        return minX < maxX ? CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY) : CGRect(x: 0, y: 0, width: image.width, height: image.height)
-    }
-
-    /// The symbol in one colour, large enough to scale down cleanly.
-    private static func symbolImage(color: CGColor) -> CGImage? {
-        #if canImport(UIKit)
-            let configuration = UIImage.SymbolConfiguration(pointSize: 160, weight: .bold)
-                .applying(UIImage.SymbolConfiguration(paletteColors: [UIColor(cgColor: color)]))
-            guard let symbol = UIImage(systemName: symbol, withConfiguration: configuration) else {
-                return nil
-            }
-            let format = UIGraphicsImageRendererFormat()
-            format.scale = 1
-            return UIGraphicsImageRenderer(size: symbol.size, format: format).image { _ in symbol.draw(at: .zero) }.cgImage
-        #else
-            let configuration = NSImage.SymbolConfiguration(pointSize: 160, weight: .bold)
-                .applying(NSImage.SymbolConfiguration(paletteColors: [NSColor(cgColor: color) ?? .white]))
-            guard let symbol = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(configuration) else {
-                return nil
-            }
-            var rect = CGRect(origin: .zero, size: symbol.size)
-            return symbol.cgImage(forProposedRect: &rect, context: nil, hints: nil)
-        #endif
+    /// `M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0
+    /// C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0`, in absolute terms. Both arcs
+    /// sweep towards increasing angle on the y-down grid.
+    private static var outlinePath: CGPath {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 20, y: 10))
+        path.addCurve(to: CGPoint(x: 12.601, y: 21.799), control1: CGPoint(x: 20, y: 14.993), control2: CGPoint(x: 14.461, y: 20.193))
+        // The rounded tip: radius 1 about (12, 21), from one flank to the other.
+        let flank = atan2(0.799, 0.601)
+        path.addRelativeArc(center: CGPoint(x: 12, y: 21), radius: 1, startAngle: flank, delta: .pi - 2 * flank)
+        path.addCurve(to: CGPoint(x: 4, y: 10), control1: CGPoint(x: 9.539, y: 20.193), control2: CGPoint(x: 4, y: 14.993))
+        // The head: radius 8 about (12, 10), over the top.
+        path.addRelativeArc(center: CGPoint(x: 12, y: 10), radius: 8, startAngle: .pi, delta: .pi)
+        path.closeSubpath()
+        return path
     }
 }
 

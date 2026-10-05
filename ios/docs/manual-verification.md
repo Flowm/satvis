@@ -68,8 +68,8 @@ come back.
 
 **Result, 2026-10-05.** Labels overhanging the globe draw whole over it, as on the web,
 and a satellite behind the Earth takes its label with it; METEOR-M2 and MAKERSAT no
-longer throw spikes off their M. The pin stands about 17 points tall at the default
-height. A clockwise twist turned north from the top of the screen to the right. The
+longer throw spikes off their M. The pin, the web's own, stands about 15 points tall at the
+default height, its tip on the station; the toolbar carries the web's Lucide icons. A clockwise twist turned north from the top of the screen to the right. The
 deck matches the web's: the clock on the amber needle, the white play disc to its left,
 the scale chip to its right and the amber reset after it, the tab widening to take it,
 over a full-width row running down to the bottom edge with the ticks rising from the

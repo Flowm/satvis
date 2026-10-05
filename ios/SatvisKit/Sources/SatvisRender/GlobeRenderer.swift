@@ -431,8 +431,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         var best: (id: String, distance: Double)?
         for station in stations where Self.isAboveHorizon(station.position, from: lastFrame.position) {
-            // The pin's head, near the top of the needle.
-            if let distance = screenDistance(station.position, lift: 12), distance < reach, distance < best?.distance ?? .infinity {
+            // The pin's head, a little over half its height above the spot.
+            if let distance = screenDistance(station.position, lift: 10), distance < reach, distance < best?.distance ?? .infinity {
                 best = (station.id, distance)
             }
         }
