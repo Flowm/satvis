@@ -2,7 +2,7 @@
 
 import PackageDescription
 
-// Everything the native app does that is not a view (docs/adr/0007-native-ios-app.md).
+// Everything the native app does that is not a view (docs/adr/0008-native-ios-app.md).
 // `swift test` runs it on macOS, without a simulator.
 let package = Package(
     name: "SatvisKit",
