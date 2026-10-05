@@ -1,46 +1,31 @@
-# Core satvis configuration: the GP groups served by the worker and their tags,
-# the presets clients start from, and the static per-satellite facts attached to
-# records at refresh time.
-#
-# Merged with every data/custom/*/satvis.yaml plugin config into
-# satvis.generated.json by scripts/generate-groups.mjs at build time.
+# Core config: the GP groups and their tags, the presets, and the static
+# per-satellite facts. scripts/generate-groups.mjs merges it with every
+# data/custom/*/satvis.yaml into satvis.generated.json.
 
-# The seven groups below are carved out of `active` by name instead of being
-# fetched as their own CelesTrak group. `active` is already pulled for the plugin
-# groups, and sources are deduped, so they cost nothing extra — dropping their own
-# fetches took a refresh from ~12.2 MB to ~7.2 MB, against CelesTrak's 250 MB/day
-# per-IP budget, and 15 sources down to 8.
+# Seven groups are carved out of `active` by name rather than fetched as their own
+# CelesTrak group. Sources are deduped, so this cut a refresh from ~12.2 MB to
+# ~7.2 MB (CelesTrak allows 250 MB/day per IP).
 #
-# Verified against a same-cycle `active` snapshot on 2026-07-29. Every derivation
-# below is a superset of the CelesTrak group — nothing upstream serves is lost:
-#
+# Each derivation is a superset of the CelesTrak group (checked 2026-07-29):
 #   oneweb, globalstar, iridium-NEXT   exact, record for record
 #   starlink    +2  STARLINK-2401/47818, STARLINK-34343/64157
 #   planet      +1  PELICAN-11/69871
 #   eutelsat    +1  EUTELSAT 53A/40277
 #   spire      +12  recent LEMUR-2s (66680, 67366, 68471-68493)
+# The extras are in `active` but not in the curated group; we serve them.
 #
-# The extras are objects CelesTrak keeps in `active` but not in the curated group.
-# Most carry high (recent) NORAD ids, so they read as launches not yet folded into
-# the group rather than deliberate exclusions — but EUTELSAT 53A is a 2014 craft,
-# so some are genuine editorial drops. We serve them either way.
+# Members without a matching prefix are `satellites` rows, not select.noradIds: a
+# row's upstreamName is checked, so a rename or decay warns in /api/groups.json.
 #
-# `satellites` rows rather than plain select.noradIds for the members that carry no
-# matching prefix: a row's upstreamName is checked against the record, so a rename
-# or decay surfaces as a warning in /api/groups.json instead of silently shrinking
-# the group.
+# `active-remainder` is `active` minus the seven. A group carved from `active` must
+# join its exclude list and carry the `Active` tag (the generator checks both), so
+# the pieces are disjoint and no satellite arrives twice.
 #
-# `active-remainder` is `active` minus those seven. All eight carry the `Active`
-# tag, so the whole list loads as disjoint pieces and no satellite arrives twice.
-# A group carved from `active` must join the exclude list and carry the `Active`
-# tag (the generator checks both).
+# gnss, science, resource, weather, cubesat, stations and last-30-days have no name
+# pattern and stay their own sources.
 #
-# Still fetched as their own sources — editorial lists with no name pattern at all:
-# gnss, science, resource, weather, cubesat, stations, last-30-days.
-#
-# Re-check a derivation before widening it. These are curated lists, and a pattern
-# that fits today drifts as operators add product lines (planet needed PELICAN,
-# TANAGER and EDDA appended to FLOCK/SKYSAT for exactly that reason).
+# Re-check a derivation before widening it: patterns drift as operators add
+# product lines (planet needed PELICAN, TANAGER and EDDA).
 groups:
   - name: active-remainder
     tags: [Active]
@@ -70,8 +55,6 @@ groups:
   - name: planet
     tags: [Planet, Active]
     sources: [{ celestrak: active }]
-    # FLOCK/SKYSAT are the original lines; PELICAN, TANAGER and EDDA are newer and
-    # share no prefix with them.
     select: { namePattern: "^(FLOCK|SKYSAT|PELICAN|TANAGER|EDDA)" }
   - name: resource
     tags: [Resource]
@@ -106,12 +89,10 @@ groups:
       - { noradId: 39612, upstreamName: EXPRESS-AT1 }
       - { noradId: 39613, upstreamName: EXPRESS-AT2 }
 
-# The starting configuration of a route: `default` at /, any other at /<name>,
-# which also needs a rewrite in public/_redirects.
-# `defaults` are url parameters as a query string would carry them
-# (docs/adr/0001-url-parameter-specification.md), so the url only has to state
-# what differs from them. Every client decodes them with its own codec and drops
-# what it does not know, which is why they are not checked here beyond `tags`.
+# A route's starting configuration: `default` at /, any other at /<name>, which
+# also needs a rewrite in public/_redirects.
+# `defaults` are url parameters in query-string form (ADR 0001); the url states
+# only what differs. Clients drop what they do not know, so only `tags` is checked.
 # `groups` are the groups the route registers; `searchOnly: true` puts one in the
 # catalog without a group row.
 presets:
@@ -135,22 +116,16 @@ presets:
       - eutelsat
       - active-remainder
 
-# Static per-satellite facts, matched against a record's NORAD_CAT_ID alone.
-# `name` is documentation only — it never takes part in matching.
+# Static per-satellite facts, matched by NORAD_CAT_ID alone; `name` is documentation
+# only. Absent satellites get the defaults in src/config/satelliteMetadata.ts.
 #
-# Swath extents are PER-SIDE cross-track distances (km) from the ground track to
-# the swath edge, relative to flight direction (starboard = velocity bearing +
-# 90°). They are NOT halves of a full swath width. Sides can differ: Sentinel-3's
-# sensor is tilted to avoid sunglint (starboard-heavy in flight).
+# Swath extents are per-side cross-track distances (km) from the ground track to the
+# swath edge (starboard = velocity bearing + 90°). They are not half a swath width,
+# and the sides can differ.
 #
-# Provenance: transcribed from an upstream prediction table whose extents were
-# cross-checked against published sensor swaths and, where noted, calibrated against
-# real product footprints. Entry order and grouping mirror that table, so a re-sync
-# stays a readable diff. Only LEO imagers appear here — geostationary weather
-# platforms have no moving ground-track swath.
-#
-# Satellites absent from this table fall back to the app defaults (see
-# src/config/satelliteMetadata.ts).
+# Order and grouping mirror the upstream prediction table they come from, so a
+# re-sync stays a readable diff. Only LEO imagers: geostationary platforms have no
+# moving swath.
 satellites:
   # MODIS (Terra/Aqua) — 2330 km nominal; footprints reach ~1170/side.
   - { noradId: 25994, name: TERRA, swathStarboardKm: 1175, swathPortKm: 1175 }
@@ -166,15 +141,12 @@ satellites:
   - { noradId: 42063, name: SENTINEL-2B, swathStarboardKm: 150, swathPortKm: 150 }
   - { noradId: 60989, name: SENTINEL-2C, swathStarboardKm: 150, swathPortKm: 150 }
 
-  # SLSTR (Sentinel-3) — tilted against sunglint, so the sides differ.
-  # Side assignment verified empirically against real SLSTR granule footprints:
-  # the tilt points the sensor WEST on the descending day pass, i.e. starboard.
-  # Observed reach 995-998 / 499-502 km.
+  # SLSTR (Sentinel-3) — tilted against sunglint, west on the descending day pass,
+  # i.e. starboard (checked against granule footprints: 995-998 / 499-502 km).
   - { noradId: 41335, name: SENTINEL-3A, swathStarboardKm: 1000, swathPortKm: 500 }
   - { noradId: 43437, name: SENTINEL-3B, swathStarboardKm: 1000, swathPortKm: 500 }
 
-  # TROPOMI (Sentinel-5P) — 2600 km nominal, nadir-pointing (no tilt, unlike
-  # Sentinel-3); NRTI footprints reach ~1366 both sides.
+  # TROPOMI (Sentinel-5P) — 2600 km nominal, nadir-pointing; NRTI footprints reach ~1366/side.
   - { noradId: 42969, name: SENTINEL-5P, swathStarboardKm: 1375, swathPortKm: 1375 }
 
   # OLI (Landsat) — 185 km total.
@@ -186,8 +158,7 @@ satellites:
   - { noradId: 43689, name: METOP-C, swathStarboardKm: 1450, swathPortKm: 1450 }
 
   # MERSI (Fengyun-3) — 2900 km total.
-  # Only the satellites carrying a confirmed MERSI variant are listed; the older
-  # Fengyun 3A/3B/3C and the newer 3G/3H are deliberately absent (see ADR-0002).
+  # Only satellites with a confirmed MERSI variant; 3A/3B/3C and 3G/3H are left out (ADR 0002).
   - { noradId: 43010, name: FENGYUN 3D, swathStarboardKm: 1450, swathPortKm: 1450 }
   - { noradId: 49008, name: FENGYUN 3E, swathStarboardKm: 1450, swathPortKm: 1450 }
   - { noradId: 57490, name: FENGYUN 3F, swathStarboardKm: 1450, swathPortKm: 1450 }

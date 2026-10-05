@@ -1,12 +1,5 @@
-<!-- The pass list as a strip: when the passes are, and which of them is worth going
-     outside for, without reading a column of thirty elevations.
-
-     Satellite selections only. A ground station's list is every satellite that
-     crosses it — around 500 passes in the Munich test case — and the strip becomes
-     a forest with no individually hittable bar, so the panel does not render this.
-
-     All the arithmetic is in modules/util/passTimeline.ts, so this file only turns
-     percentages into styles. -->
+<!-- Satellite selections only: a ground station has about 500 passes (Munich test case),
+     too many to hit one bar. The arithmetic lives in modules/util/passTimeline.ts. -->
 <template>
   <div class="timeline">
     <div class="timeline__track">
@@ -44,9 +37,9 @@ const props = defineProps<{
   /** The same passes the table shows, in the same order. */
   passes: readonly Pass[];
   nowMs: number;
-  /** `elevation` or `swath` — only the legend's wording depends on it. */
+  /** `elevation` or `swath`; only the legend's wording depends on it. */
   mode: string;
-  /** Start time of the pass currently picked, if any. */
+  /** Start time of the picked pass, in ms. */
   picked: number | null;
 }>();
 
@@ -54,10 +47,6 @@ const emit = defineEmits<{ pick: [startMs: number] }>();
 
 const layout = computed(() => passTimelineLayout(props.passes, props.nowMs));
 
-/**
- * The bands, worded for what the current mode actually measures. Elevation degrees
- * beside a swath-mode strip would be labelling the colours with the wrong quantity.
- */
 const BANDS = computed(() =>
   props.mode === "swath"
     ? ([
@@ -74,7 +63,6 @@ const BANDS = computed(() =>
 
 const byStart = computed(() => new Map(props.passes.map((pass) => [pass.start, pass])));
 
-/** Everything the block cannot say in its height: who, when, how long, how good. */
 function titleOf(startMs: number): string {
   const pass = byStart.value.get(startMs);
   if (!pass) {
@@ -128,9 +116,7 @@ function titleOf(startMs: number): string {
   cursor: pointer;
 }
 
-/* Okabe-Ito blue for the passes worth the trip, and two neutrals below it — the
-   same reasoning as ORBIT_CLASS_COLOR, where the common case takes the quiet
-   colour so the rare one can carry the emphasis. */
+/* Okabe-Ito blue for the best passes, neutrals below, as in ORBIT_CLASS_COLOR. */
 .timeline__pass--high {
   background: #56b4e9;
 }
@@ -157,9 +143,7 @@ function titleOf(startMs: number): string {
   opacity: 0.35;
 }
 
-/* The picked pass, at both ends of the link: a ring here, a wash and a right edge
-   on its row. Deliberately not the green the next-pass marker uses — the two are
-   different facts and a pass can be both. */
+/* Not the next-pass green: a pass can be both picked and next. */
 .timeline__pass.is-picked {
   opacity: 1;
   outline: 2px solid #edffff;

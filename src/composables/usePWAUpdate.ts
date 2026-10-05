@@ -2,20 +2,13 @@ import { registerSW } from "virtual:pwa-register";
 import { ref } from "vue";
 
 interface UsePWAUpdateOptions {
-  /**
-   * Whether to automatically reload the app when a new version is detected.
-   * @default false
-   */
+  /** Reload as soon as a new version is detected. Defaults to false. */
   autoUpdate?: boolean;
-  /**
-   * Interval in seconds to check for updates.
-   * Set to 0 to disable periodic checks.
-   * @default 86400 (24 hours)
-   */
+  /** Seconds between update checks; 0 disables them. Defaults to 86400. */
   updateInterval?: number;
 }
 
-// Runtime caches renamed in vite.config.ts; Workbox deletes only outdated precaches.
+/** Runtime caches renamed in vite.config.ts; Workbox deletes only outdated precaches. */
 const RETIRED_CACHES = ["satellite-model-cache"];
 
 const needRefresh = ref(false);
@@ -24,23 +17,7 @@ let updateSW: ((reloadPage?: boolean) => Promise<void>) | undefined;
 let registered = false;
 let intervalId: ReturnType<typeof setInterval> | undefined;
 
-/**
- * Registers the service worker on the first call. State is shared across all
- * callers.
- *
- * @example
- * // Automatic updates
- * const { needRefresh } = usePWAUpdate({ autoUpdate: true });
- *
- * @example
- * // Manual updates with UI notification
- * const { needRefresh, updateApp } = usePWAUpdate();
- * watch(needRefresh, (value) => {
- *   if (value) {
- *     updateApp(); // once the user confirms the prompt
- *   }
- * });
- */
+/** Registers the service worker on the first call; later calls share its state and ignore their options. */
 export function usePWAUpdate(options: UsePWAUpdateOptions = {}) {
   const { autoUpdate = false, updateInterval = 60 * 60 * 24 } = options;
 

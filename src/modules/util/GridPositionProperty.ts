@@ -1,62 +1,21 @@
-// A position property that interpolates over a uniform grid held in a flat
-// typed array.
+// A position property that interpolates over a uniform grid in a flat Float64Array.
+// Cesium's SampledPositionProperty pays a bracket search, JulianDate arithmetic and an
+// allocation on every read; on a grid anchored to the element-set epoch (see
+// sgp4Worker) the bracket is one Math.floor.
 //
-// It exists because evaluating a position is the single largest per-frame cost in
-// a large scene, and almost none of that cost is the interpolation itself.
-// Cesium's `SampledPositionProperty` supports irregular sample times, so every
-// read does a bracket search, JulianDate arithmetic, a copy into interpolation
-// scratch tables and a Cartesian3 allocation. Our samples are not irregular —
-// they sit on a grid anchored to the element set's epoch (see sgp4Worker) — so
-// finding the bracket is one `Math.floor` and the rest is arithmetic on a
-// Float64Array.
+// Measured A/B/A at 5,000 satellites (this / Cesium / this): dataSourceDisplay.update
+// 6.10 / 12.02 / 5.03 ms, fps 99.9 / 71.1 / 96.8. tickMs went 11.08 -> 4.91 ms across
+// matched sweeps, and memory 38.7 -> 25.7 KB a satellite, since no JulianDate is kept
+// per sample.
 //
-// Measured at 5,000 satellites drawing points, swapping only `entity.position` on
-// one live scene and putting it back again — an A/B/A, because a whole benchmark
-// sweep could not resolve this: its own drift check fired at ±23-49% on `cpuMs`,
-// and build times for identical work varied by 3x between runs.
-//
-//                                this   Cesium   this again
-//     dataSourceDisplay.update   6.10     12.02   5.03 ms
-//     fps                        99.9      71.1   96.8
-//
-// Across separate matched sweeps the propagation-and-update half of the frame,
-// `tickMs` at 5,000, went 11.08 -> 4.91 ms; that one is worth quoting because it
-// reproduced (11.08/11.44/9.31 before, 4.91/4.63 after) far outside the noise the
-// other columns carry.
-//
-// It also *saves* memory, which was not the point but is the larger effect: 25.7
-// against 38.7 KB a satellite for everything a satellite owns, some 74 MB less at
-// 5,000. A `SampledPositionProperty` keeps a `JulianDate` object per sample and
-// there are 241 of them per satellite; deriving the times from the anchor instead
-// means the samples are three doubles each and nothing else. See SampledTrajectory,
-// which now builds the irregular-capable properties on demand from this one.
-//
-// Accuracy is checked against an independent SGP4 — python-sgp4, Vallado's
-// reference implementation — given the same element sets and the same instants,
-// comparing the two quantities a rotation about the Earth's axis leaves alone
-// (radius and the axial component), so no frame code of the checker's own enters
-// the comparison. Worst case over the regimes in the catalog, against what Cesium's
-// own degree-5 interpolation produces from the same samples:
-//
-//     Starlink       94 min        4.7 m   (Cesium: 4.3 m)
-//     Meteosat     1436 min        0.1 m   (Cesium: 0.0 m)
-//     MMS 1        5114 min       37.9 m   (Cesium: 38.5 m)
-//
-// The stencil is six for that last row and no other reason; see STENCIL, which
-// also says why re-checking this has to reach past the head of the catalog.
-//
-// Note what this is *not* an optimisation of. Lowering Cesium's
-// `interpolationDegree` from 5 to 1 saves 0.88 ms of 12 (7%) and costs 2.5 km of
-// accuracy; degree 3 costs 1 m and saves 0.4 ms. The degree was never the
-// problem, which is why this replaces the machinery rather than tuning it.
+// Worst error against python-sgp4 (radius and axial component), Cesium's degree-5
+// interpolation in brackets: Starlink 4.7 m (4.3), Meteosat 0.1 m (0.0), MMS 1 37.9 m
+// (38.5). Lowering Cesium's interpolationDegree instead saves under 1 ms of 12 and
+// costs up to 2.5 km.
 
 import { Cartesian3, Event, JulianDate, PositionProperty, ReferenceFrame } from "@cesium/engine";
 
-/**
- * `PositionProperty.convertToReferenceFrame` is a real static on the runtime class
- * but is missing from the published typings, so it is reached through a cast in
- * one place rather than with an `any` at the call site.
- */
+/** Present at runtime but missing from the published typings. */
 const convertToReferenceFrame = (
   PositionProperty as unknown as {
     convertToReferenceFrame(time: JulianDate, value: Cartesian3, inputFrame: ReferenceFrame, outputFrame: ReferenceFrame, result: Cartesian3): Cartesian3 | undefined;
@@ -64,44 +23,24 @@ const convertToReferenceFrame = (
 ).convertToReferenceFrame;
 
 /**
- * Samples the interpolation reads. Six gives a quintic, matching the degree Cesium's
- * `SampledPositionProperty` was configured with.
- *
- * Four — a cubic — was enough for every orbit anyone had looked at, and wrong for
- * the ones nobody had. Truncation error goes as `h^(n+1)`, so dropping from degree 5
- * to 3 costs a factor of `h^2`, and `h` here is a fixed fraction of the *period*:
- * 120 samples an orbit is 45 s for the ISS and 43 minutes for a magnetospheric
- * orbit. Checked against the reference SGP4 on MMS 1 (period 3.5 days, highly
- * eccentric), a cubic was 3.7 km out where the quintic is 13 m — the error is almost
- * entirely radial, which is what a low-order fit through a fast-changing radius
- * looks like. LEO was unaffected either way, which is why sampling only Starlink
- * missed it.
+ * Six samples give a quintic, matching Cesium's degree 5. The step is a fixed
+ * fraction of the period, so a cubic was 3.7 km out on MMS 1 (period 3.5 days)
+ * where the quintic is 13 m. LEO does not show the difference.
  */
 const STENCIL = 6;
 
-/** Spare capacity a grow leaves behind. See `#ensure`. */
 const GROWTH_HEADROOM = 1.25;
 
 /**
- * Positions on a uniform time grid, readable as a Cesium position property.
- *
- * The grid is defined by an anchor and a step, and a sample's index is its
- * position on that grid — so two batches of samples computed at different times
- * describe the same instants as long as they agree on the anchor, which is what
- * makes appending safe without any matching of times.
+ * A sample's index is its position on the grid, so batches that share the anchor
+ * and step append without matching times.
  */
 export class GridPositionProperty {
   readonly #frame: ReferenceFrame;
 
   /**
-   * Underscore-prefixed, and public, because Cesium reads it that way.
-   *
-   * `VelocityVectorProperty`'s position setter subscribes via
-   * `value._definitionChanged.addEventListener` rather than through the
-   * `definitionChanged` getter its own interface documents, so a property that
-   * only has the getter throws the moment an entity is given a
-   * `VelocityOrientationProperty` over it. Every Cesium property happens to keep
-   * the event in a field of this name, which is why nothing upstream notices.
+   * Public and underscored because Cesium's `VelocityVectorProperty` subscribes via
+   * `value._definitionChanged`, not the `definitionChanged` getter.
    */
   readonly _definitionChanged = new Event();
 
@@ -114,10 +53,9 @@ export class GridPositionProperty {
 
   #count = 0;
 
-  /** x, y, z per sample, in `#frame`. Grown as needed, never shrunk. */
+  /** x, y, z per sample, in `#frame`. */
   #positions = new Float64Array(0);
 
-  /** The anchor as a JulianDate, made once: every read would otherwise rebuild it. */
   #anchor = new JulianDate();
 
   constructor(referenceFrame: ReferenceFrame = ReferenceFrame.FIXED) {
@@ -144,20 +82,15 @@ export class GridPositionProperty {
     return this.#stepSeconds;
   }
 
-  /** Grid index of the first and last samples held, for the caller's own bookkeeping. */
   get firstIndex(): number {
     return this.#firstIndex;
   }
 
-  /** The instant of a grid index. Derived from the anchor, never from a stored time. */
   timeAt(gridIndex: number, result?: JulianDate): JulianDate {
     return JulianDate.addSeconds(this.#anchor, gridIndex * this.#stepSeconds, result ?? new JulianDate());
   }
 
-  /**
-   * Adopt a grid. Discards anything held, because a different anchor or step means
-   * the indices no longer mean the same instants.
-   */
+  /** Discards every sample: another anchor or step changes what the indices mean. */
   reset(anchorEpochMs: number, stepSeconds: number): void {
     this.#anchorEpochMs = anchorEpochMs;
     this.#stepSeconds = stepSeconds;
@@ -167,7 +100,7 @@ export class GridPositionProperty {
     this._definitionChanged.raiseEvent(this);
   }
 
-  /** Drop everything and release the buffer, for a grid that is being abandoned. */
+  /** Empties the grid and releases its buffer. */
   clear(): void {
     this.#firstIndex = 0;
     this.#count = 0;
@@ -180,14 +113,7 @@ export class GridPositionProperty {
     return this.#count > 0 && this.#anchorEpochMs === anchorEpochMs && this.#stepSeconds === stepSeconds;
   }
 
-  /**
-   * Add samples starting at `gridIndex`.
-   *
-   * Contiguity is the one requirement, and it is checked rather than assumed: a
-   * uniform grid is the whole basis of the fast read, so a batch that would leave
-   * a hole is rejected instead of silently shifting every sample after it. The
-   * caller — which knows what it asked for — treats that as a failed fill.
-   */
+  /** Returns false, and adds nothing, for a batch that would leave a hole in the grid. */
   add(gridIndex: number, xyz: Float64Array): boolean {
     const incoming = Math.floor(xyz.length / 3);
     if (incoming === 0) {
@@ -203,19 +129,15 @@ export class GridPositionProperty {
     }
     const end = this.#firstIndex + this.#count;
     if (gridIndex > end || gridIndex + incoming < this.#firstIndex) {
-      // Disjoint from what is held; nothing sensible to splice.
       return false;
     }
     if (gridIndex >= this.#firstIndex && gridIndex + incoming <= end) {
-      // Wholly inside: an overlap, which is legitimate — the caller may re-ask for
-      // an interval it already has. Overwrite in place.
+      // Wholly inside: the caller re-asked for held samples. Overwrite in place.
       this.#positions.set(xyz.subarray(0, incoming * 3), (gridIndex - this.#firstIndex) * 3);
       return true;
     }
     if (gridIndex < this.#firstIndex) {
-      // Extends the front. Shift what is held up rather than reallocate, then write
-      // the batch whole — where it overlaps, it overwrites with the same values,
-      // which is cheaper than working out where the overlap starts.
+      // Extends the front. The overlap is rewritten with the same values.
       const prepend = this.#firstIndex - gridIndex;
       const total = Math.max(end, gridIndex + incoming) - gridIndex;
       this.#ensure(total);
@@ -234,7 +156,6 @@ export class GridPositionProperty {
     return true;
   }
 
-  /** How the window slides. */
   dropBefore(gridIndex: number): void {
     const drop = gridIndex - this.#firstIndex;
     if (drop <= 0 || this.#count === 0) {
@@ -265,38 +186,29 @@ export class GridPositionProperty {
     if (this.#positions.length >= samples * 3) {
       return;
     }
-    // Headroom, so a window that slides for hours stops reallocating after the
-    // first top-up: a refresh appends before the eviction that makes room for it,
-    // so the peak is a window plus one refresh's worth and the buffer settles
-    // there. Not doubling — that would settle at twice a window and the whole
-    // point of the flat array is that it is small.
+    // A refresh appends before the eviction that makes room for it, so 25% headroom
+    // settles at a window plus one refresh. Doubling would settle at two windows.
     const grown = new Float64Array(Math.max(Math.ceil(samples * GROWTH_HEADROOM), STENCIL) * 3);
     grown.set(this.#positions.subarray(0, this.#count * 3));
     this.#positions = grown;
   }
 
   /**
-   * A six-point quintic through the samples bracketing `time`.
-   *
-   * Outside the window it holds the end sample rather than extrapolating, matching
-   * the HOLD the sampled property is configured with. That matters for one case:
-   * the clock scrubbed clear of the window, where for the frame or two before the
-   * refill lands a free-running polynomial half an orbit past its last node does not
-   * return a slightly stale position but a meaningless one.
+   * Outside the window it holds the end sample, matching the sampled property's
+   * HOLD: a polynomial extrapolated past its last node returns nonsense.
    */
   #interpolate(time: JulianDate, result: Cartesian3): Cartesian3 | undefined {
     if (this.#count === 0 || this.#stepSeconds <= 0) {
       return undefined;
     }
     if (this.#count < STENCIL) {
-      // Too few to fit the stencil through: hold the nearest.
+      // Too few samples for the stencil: hold the nearest.
       const nearest = Math.min(this.#count - 1, Math.max(0, Math.round(JulianDate.secondsDifference(time, this.#anchor) / this.#stepSeconds) - this.#firstIndex));
       const at = nearest * 3;
       return Cartesian3.fromElements(this.#positions[at] as number, this.#positions[at + 1] as number, this.#positions[at + 2] as number, result);
     }
     const gridPosition = JulianDate.secondsDifference(time, this.#anchor) / this.#stepSeconds - this.#firstIndex;
-    // Centred: two nodes behind the interval for a stencil of six, so the requested
-    // instant sits between nodes 2 and 3 wherever the window allows it.
+    // Centred: the instant sits between nodes 2 and 3 wherever the window allows.
     let base = Math.floor(gridPosition) - 2;
     if (base < 0) {
       base = 0;
@@ -304,9 +216,7 @@ export class GridPositionProperty {
     if (base > this.#count - STENCIL) {
       base = this.#count - STENCIL;
     }
-    // Clamped to the stencil's own span, which is what makes the ends HOLD: at
-    // u = 0 the basis is (1,0,0,0) and at u = 3 it is (0,0,0,1), so reading outside
-    // the window returns the edge sample exactly.
+    // Clamping u to [0, 5] makes the ends HOLD: there the basis picks the edge sample exactly.
     let u = gridPosition - base;
     if (u < 0) {
       u = 0;
@@ -314,8 +224,7 @@ export class GridPositionProperty {
     if (u > STENCIL - 1) {
       u = STENCIL - 1;
     }
-    // Lagrange basis for nodes 0..5 at u, expanded rather than looped. The
-    // denominators are the products of node separations and so are constants.
+    // Lagrange basis for nodes 0..5, expanded; the denominators are constants.
     const d0 = u;
     const d1 = u - 1;
     const d2 = u - 2;
@@ -353,7 +262,6 @@ export class GridPositionProperty {
     return convertToReferenceFrame(time, target, this.#frame, referenceFrame, target);
   }
 
-  /** For the callers that draw a line through the samples rather than reading one. */
   rawPositions(fromGridIndex = this.#firstIndex, toGridIndex = this.#firstIndex + this.#count - 1): Cartesian3[] {
     const from = Math.max(fromGridIndex, this.#firstIndex);
     const to = Math.min(toGridIndex, this.#firstIndex + this.#count - 1);
@@ -365,20 +273,11 @@ export class GridPositionProperty {
     return out;
   }
 
-  /** The grid index at or after `time`, for turning an instant into a range. */
   indexAtOrAfter(time: JulianDate): number {
     return Math.ceil(JulianDate.secondsDifference(time, this.#anchor) / this.#stepSeconds);
   }
 
-  /**
-   * Every sample held between two instants, with the times they sit at.
-   *
-   * The times are derived from the anchor rather than stored, which is the point:
-   * a caller that needs `(time, position)` pairs — drawing a track, transforming a
-   * window into another frame — can have them without this keeping a JulianDate
-   * per sample, and a JulianDate per sample is most of what a
-   * `SampledPositionProperty` costs.
-   */
+  /** The times are derived from the anchor, so no JulianDate is kept per sample. */
   samplesBetween(from: JulianDate, to: JulianDate): { times: JulianDate[]; positions: Cartesian3[] } {
     const times: JulianDate[] = [];
     const positions: Cartesian3[] = [];

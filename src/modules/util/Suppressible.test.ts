@@ -1,10 +1,3 @@
-// The suppression rule, pinned once.
-//
-// It was written three times — the terrain a surface model imposes, the camera
-// mode the sky view takes over, and the components a morph hides — and tested
-// none of them, because all three lived on classes that needed a live Viewer.
-// Nothing here does.
-
 import { describe, expect, test } from "vitest";
 
 import { Suppressible, SuppressibleSet } from "./Suppressible";
@@ -41,7 +34,6 @@ describe("Suppressible", () => {
 
     setting.suppress("CesiumWorldTerrain");
 
-    // What the toolbar says, and what is drawn.
     expect(setting.chosen).toBe("Maptiler");
     expect(setting.inForce).toBe("CesiumWorldTerrain");
     expect(setting.suppressed).toBe(true);
@@ -57,7 +49,6 @@ describe("Suppressible", () => {
 
     expect(setting.chosen).toBe("ReEarth");
     expect(setting.inForce).toBe("CesiumWorldTerrain");
-    // No fetch for a provider nothing is going to show.
     expect(applied).toEqual(["CesiumWorldTerrain"]);
   });
 
@@ -85,8 +76,7 @@ describe("Suppressible", () => {
     const { applied, apply } = recorder();
     const setting = new Suppressible<string>("None", apply);
 
-    // The override equals the choice, so nothing on screen changes — but the
-    // setting is suppressed, and a later choose must not take effect.
+    // Nothing on screen changes, but a later choose must not take effect.
     expect(setting.suppress("None")).toBe(false);
     expect(setting.suppressed).toBe(true);
     expect(setting.choose("Maptiler")).toBe(false);
@@ -110,8 +100,7 @@ describe("Suppressible", () => {
     setting.choose("Maptiler");
     setting.choose("ReEarth");
 
-    // The first apply resolves last — the out-of-order case that selecting a
-    // surface model creates, since it overrides the terrain in the same tick.
+    // The first apply resolves last, as when a surface model overrides the terrain in the same tick.
     gates[1]?.();
     gates[0]?.();
     await Promise.resolve();
@@ -127,7 +116,6 @@ describe("Suppressible", () => {
 
     camera.suppress("Fixed");
     expect(camera.inForce).toBe("Fixed");
-    // `?camera=Inertial` has to survive the round trip.
     expect(camera.chosen).toBe("Inertial");
 
     camera.release();
@@ -160,7 +148,6 @@ describe("SuppressibleSet", () => {
     shown.length = 0;
     components.choose(["Point", "Orbit"]);
 
-    // Point was already on and is left alone; only the difference is enacted.
     expect(shown).toEqual(["Orbit"]);
     expect(hidden).toEqual(["Label"]);
   });
@@ -174,7 +161,6 @@ describe("SuppressibleSet", () => {
 
     expect(hidden).toEqual(["Orbit"]);
     expect(components.inForce).toEqual(["Point"]);
-    // The toolbar still shows Orbit switched on.
     expect(components.chosen).toEqual(["Point", "Orbit"]);
   });
 
@@ -183,8 +169,7 @@ describe("SuppressibleSet", () => {
     const components = new SuppressibleSet(apply);
     components.choose(["Point"]);
 
-    // The morph asks whether it actually suppressed anything, and only waits for
-    // the batch if it did.
+    // The morph waits for the batch only if something was suppressed.
     expect(components.suppress("Orbit")).toBe(false);
     expect(hidden).toEqual([]);
   });

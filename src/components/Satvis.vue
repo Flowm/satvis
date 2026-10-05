@@ -38,46 +38,27 @@
           </button>
         </UTooltip>
       </div>
-      <!-- v-if (not v-show like the other panels): the virtualized list inside
-           measures its scroll element on mount, and mounting hidden (display:none)
-           yields a 0-height measurement that only a later ResizeObserver tick would
-           fix. Mounting on open guarantees a correct first paint; browser state
-           (search, expansion) is module-scoped in useSatelliteBrowser and survives
-           remounts. -->
+      <!-- v-if, not v-show: the virtualized list measures its scroll element on mount,
+           and a hidden mount measures 0. Search and expansion state survive remounts in useSatelliteBrowser. -->
       <div v-if="menu.cat" class="toolbarSwitches toolbarSwitches--catalog">
         <satellite-browser />
       </div>
       <div v-show="menu.sat" class="toolbarSwitches">
-        <!-- "Components", not "elements": an element set is the GP data a
-             satellite is built from, and this panel is about what is drawn. -->
+        <!-- "Components", not "elements": an element set is the GP data. -->
         <div class="toolbarTitle">Satellite components</div>
         <label v-for="componentName in cc.sats.availableComponents" :key="componentName" class="toolbarSwitch">
           <input v-model="enabledComponents" type="checkbox" :value="componentName" />
           <span class="slider"></span>
           {{ componentName }}
         </label>
-        <!--
-        <label class="toolbarSwitch">
-          <input type="button" @click="cc.viewer.trackedEntity = undefined">
-          Untrack Entity
-        </label>
-        -->
       </div>
       <div v-show="menu.gs" class="toolbarSwitches">
         <div class="toolbarTitle">Ground station</div>
         <ground-station-list />
       </div>
       <div v-show="menu.map" class="toolbarSwitches">
-        <!-- The imagery is two groups rather than one list, each with the control
-             its invariant deserves: at most one basemap, so radios, and any number
-             of overlays, so checkboxes. Both bind by *provider* rather than by
-             token, so a layer carrying an opacity (`ArcGis_0.5`, which only a url
-             can set) still shows as the layer it is.
-
-             Either group goes inert when a surface model has taken over what it
-             describes. Dimmed, and still live: the selection is still the user's,
-             it simply is not being drawn while the globe is hidden. The Terrain
-             group below is the one exception, and says why. -->
+        <!-- Both groups bind by provider, not token, so a url layer with an opacity
+             (`ArcGis_0.5`) still matches. An inert group is dimmed but stays live. -->
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('layers') }">Basemap</div>
         <label v-for="name in cc.baseLayers" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('layers') }">
           <input type="radio" name="basemap" :value="name" :checked="baseLayer === name" @change="setBaseLayer(name)" />
@@ -92,20 +73,13 @@
         </label>
         <div v-if="inertReason('layers')" class="toolbarNote">{{ inertReason("layers") }}</div>
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('terrain') }">Terrain</div>
-        <!-- `:checked` against what the globe is using rather than `v-model` against
-             the store: while a surface model imposes a terrain, the stored choice is
-             not the terrain being drawn, and a radio's dot is the app saying what
-             is. Disabled only when imposed — the choice is genuinely not the user's
-             then, and a control that accepts a click and shows nothing is worse than
-             one that declines it. The store still remembers, and still comes back. -->
+        <!-- `:checked` shows the terrain in force, not the stored choice, which an
+             imposing surface model overrides; disabled while imposed. -->
         <label v-for="name in cc.terrainProviderNames" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('terrain') }">
           <input type="radio" name="terrain" :value="name" :checked="activeTerrain === name" :disabled="terrainImposed" @change="terrainProvider = name" />
           <span class="slider"></span>
           {{ name }}
         </label>
-        <!-- Dimming says a group is not describing the picture; this says what is.
-             Without it the Terrain group is the confusing case: the selected row is
-             not what is in force, and nothing on screen names what is. -->
         <div v-if="inertReason('terrain')" class="toolbarNote">{{ inertReason("terrain") }}</div>
         <div class="toolbarTitle">Surface</div>
         <label v-for="name in SURFACE_MODELS" :key="name" class="toolbarSwitch">
@@ -113,18 +87,8 @@
           <span class="slider"></span>
           {{ name }}
         </label>
-        <!-- Only for the model actually selected: the note explains why nothing
-             happened, and is noise against a model nobody asked for. -->
         <div v-if="surfaceUnavailable" class="toolbarNote">{{ surfaceUnavailable }}</div>
-        <!-- Last, because it is the only group here that is about what is *behind*
-             the globe rather than on it. See src/config/starMaps.ts for what each
-             one is and what it costs.
-
-             Narrowed to the maps actually on the server, the same way the pixel
-             ratio ladder is narrowed to the rungs below this display: the
-             non-builtin ones are optional assets, and a radio that selects a sky
-             nobody can load is worse than one that is absent. The url vocabulary
-             is not narrowed with it — `?stars=` still accepts every name. -->
+        <!-- Narrowed to the maps on the server (see src/config/starMaps.ts); `?stars=` still accepts every name. -->
         <div class="toolbarTitle">Star map</div>
         <label v-for="name in starMapOptions" :key="name" class="toolbarSwitch">
           <input v-model="starMap" type="radio" :value="name" />
@@ -132,8 +96,6 @@
           {{ name }}
         </label>
       </div>
-      <!-- Where you look from and with what, as against the Map panel's what you
-           are looking at. -->
       <div v-show="menu.view" class="toolbarSwitches">
         <div class="toolbarTitle">View</div>
         <label v-for="name in cc.sceneModes" :key="name" class="toolbarSwitch">
@@ -141,11 +103,7 @@
           <span class="slider"></span>
           {{ name }}
         </label>
-        <!-- Under the mode it belongs to, the same way the map panel's notes sit
-             under the selection they explain: the keys work whether or not this
-             says so, but nothing else in the app would say it. Hidden in
-             minimalUI — the iOS and iframe case — where there is no keyboard to
-             press and the panel is the smaller for it. -->
+        <!-- Hidden in minimalUI (iOS, iframe), where there is no keyboard. -->
         <div v-if="inSkyView && !cc.minimalUI" class="toolbarNote">WASD walks the observer, Q and E change height.</div>
         <div class="toolbarTitle">Camera</div>
         <label v-for="name in cc.cameraModes" :key="name" class="toolbarSwitch">
@@ -153,15 +111,11 @@
           <span class="slider"></span>
           {{ name }}
         </label>
-        <!-- Only in the sky view, which is the only place an aim exists to hand
-             over, and only where the sensor could work at all. -->
         <template v-if="inSkyView && compassOffered">
           <div class="toolbarTitle">Aiming</div>
           <label class="toolbarSwitch">
             <input type="checkbox" :checked="compassActive" :disabled="compassPending" @change="onCompassToggle" />
-            <!-- The spinner stands in for the slider rather than joining it: both
-                 occupy the row's left gutter, and one of the two is always the
-                 answer to "what is this control doing". -->
+            <!-- The spinner replaces the slider: both occupy the row's left gutter. -->
             <span v-if="compassPending" class="toolbarSpinner"></span>
             <span v-else class="slider"></span>
             Use compass
@@ -193,10 +147,6 @@
           Reload
         </label>
       </div>
-      <!-- Everything about how the globe is drawn, and what that costs. Four
-           sections: what reports the cost, then the three kinds of thing that
-           decide it — what is in the scene, how many pixels it is drawn into,
-           and what each edge pixel costs. -->
       <div v-show="menu.render" class="toolbarSwitches">
         <div class="toolbarTitle">Measurement</div>
         <label class="toolbarSwitch">
@@ -204,17 +154,12 @@
           <span class="slider"></span>
           FPS
         </label>
-        <!-- The benchmarking framework (src/modules/benchmark). Beneath FPS because it is the same
-             question asked in more depth, and url-synced like the rest of this
-             menu, so a benchmarking session is a link. -->
         <label class="toolbarSwitch">
           <input v-model="showBenchmark" type="checkbox" />
           <span class="slider"></span>
           Benchmark
         </label>
-        <!-- Not a measurement itself, but the setting that decides whether there
-             is one to be had: with render-on-demand on, the gap between frames
-             measures how idle the loop is rather than what a scene costs. -->
+        <!-- Under Measurement: with render-on-demand on, frame gaps measure idleness, not scene cost. -->
         <label class="toolbarSwitch">
           <input v-model="requestRenderMode" type="checkbox" />
           <span class="slider"></span>
@@ -241,9 +186,7 @@
           <span class="slider"></span>
           Atmosphere
         </label>
-        <!-- The two halves of the same trade, in the order they multiply. Both
-             are ladders rather than switches because both costs are smooth —
-             see src/config/rendering.ts. -->
+        <!-- Ladders rather than switches; see src/config/rendering.ts. -->
         <div class="toolbarTitle">Pixel ratio</div>
         <label v-for="ratio in pixelRatioOptions" :key="ratio" class="toolbarSwitch">
           <input v-model="pixelRatio" type="radio" :value="ratio" />
@@ -271,14 +214,11 @@
         </button>
       </UTooltip>
     </div>
-    <!-- Deliberately outside the showUI toggle: the entity info replaces the
-         Cesium InfoBox, which was visible with hidden UI and in minimalUI. -->
+    <!-- Outside showUI: it stays visible with hidden UI and in minimalUI. -->
     <entity-info-panel />
     <sky-hud />
     <!-- Pause, speed and scrubbing; `createViewer` builds no Cesium clock widgets. -->
     <clock-deck v-if="showUI" />
-    <!-- Async, so nothing about it is in the
-         bundle a normal visitor downloads. -->
     <benchmark-panel v-if="showBenchmark" @close="showBenchmark = false" />
   </div>
 </template>
@@ -306,8 +246,7 @@ import SkyHud from "./SkyHud.vue";
 
 type MenuKey = "cat" | "sat" | "gs" | "map" | "view" | "ios" | "render";
 
-// The benchmarking framework. Async, so nothing about it — the sweep, the
-// report tables, the panel — is in the bundle a normal visitor downloads.
+/** Async, so the benchmark stays out of the main bundle. */
 const BenchmarkPanel = defineAsyncComponent(() => import("./BenchmarkPanel.vue"));
 
 const cc = useController();
@@ -326,39 +265,25 @@ const showUI = ref(true);
 const cesiumStore = useCesiumStore();
 const { layers, terrainProvider, surfaceModel, starMap, sceneMode, cameraMode, pixelRatio, msaa, showFps, showBenchmark, requestRenderMode } = storeToRefs(cesiumStore);
 
-// Which star maps the Map menu offers. Starts at the one that cannot be missing
-// so the group is never empty, and widens once the probes answer — a one-byte
-// ranged GET each (never a HEAD; see `starMapAvailable`), resolved once per page
-// rather than per menu open, so the list is settled long before anyone opens the
-// panel.
+/** Starts with the builtin map, and widens once per page when the probes answer. */
 const starMapOptions = ref<StarMapName[]>([BUILTIN_STAR_MAP]);
 void availableStarMaps().then((names) => {
   starMapOptions.value = names;
 });
 
-// This display's own ratio: it names the `native` option and decides which of
-// the fixed rungs are below it and so worth offering at all.
 const devicePixelRatio = window.devicePixelRatio;
 const pixelRatioOptions = pixelRatiosFor(devicePixelRatio);
 
-// What the selection means here and now, from the one function the globe reads
-// too — so a dimmed group and an unlit tileset cannot disagree.
+/** The same function the globe reads, so the menu and the globe cannot disagree. */
 const effects = computed(() => surfaceEffects(surfaceModel.value, sceneMode.value));
 const inert = computed(() => effects.value.inert);
 
-// The terrain the globe is actually using, and whether the user still owns the
-// choice. A surface model that imposes one takes it over completely; a hidden
-// globe does not — that choice is still theirs, it just is not being drawn yet.
 const activeTerrain = computed(() => effects.value.terrain ?? terrainProvider.value);
 const terrainImposed = computed(() => effects.value.terrain !== undefined);
 
-// Why a group stopped describing the picture. Two different answers, and the
-// distinction matters: an overridden terrain is still being drawn, just not the
-// one the radio says, while a hidden globe is drawing neither.
-//
-// The imposed case also names the terrain that comes back, because the radio is
-// showing what is in force rather than what the user picked — so without this
-// their own choice would be stated nowhere at all.
+/**
+ * The imposed-terrain case names the user's choice, because the radio shows the terrain in force.
+ */
 function inertReason(group: MapGroup): string {
   if (!inert.value.includes(group)) {
     return "";
@@ -370,10 +295,7 @@ function inertReason(group: MapGroup): string {
   return `Hidden by ${surfaceModel.value}`;
 }
 
-// Named rather than merely flagged: "nothing happened" is the question this
-// answers, and which view modes would have worked is the answer — derived from
-// the rules themselves, never written out here, so widening one cannot leave this
-// sentence asserting a restriction that is gone.
+/** `viewModeNote` derives the text from the rules; do not write the view modes out here. */
 const surfaceUnavailable = computed(() => {
   if (surfaceModel.value === "None" || !effects.value.unavailable.includes(surfaceModel.value as SurfaceModelName)) {
     return "";
@@ -381,10 +303,10 @@ const surfaceUnavailable = computed(() => {
   return viewModeNote(surfaceModel.value);
 });
 
-// The imagery stack, read and written a group at a time. `layers` is read-only
-// because "at most one base layer" is an invariant of the list rather than of any
-// one entry, so every write goes through the action that enforces it — and list
-// order is z-order, which is why a basemap goes under and an overlay goes on top.
+/**
+ * Write `layers` only through `setLayers`, which enforces at most one base layer.
+ * List order is z-order: the basemap goes first, overlays last.
+ */
 const isBaseToken = (token: string): boolean => {
   const provider = layerProvider(token);
   return provider !== undefined && cc.baseLayers.includes(provider);
@@ -414,19 +336,14 @@ const compassOffered = compassAvailable();
 const { active: compassActive, pending: compassPending, toggle: toggleCompass } = useSkyCompass(cc);
 const inSkyView = computed(() => sceneMode.value === SKY_MODE);
 
-// Handing the aim to a sensor is an action with an outcome, and the outcome may be
-// "no". The browser's own flip on click is the feedback that something was
-// attempted — and iOS's permission prompt has to be raised from inside the click —
-// so the switch moves first and is corrected afterwards.
-//
-// The correction has to be made by hand. Vue re-syncs a checkbox only when the value
-// bound to it changes, and a refused sensor leaves `compassActive` exactly where it
-// was, so the box would sit there checked and contradicting it.
+/**
+ * iOS raises the permission prompt only from inside the click, so the box flips first and is corrected
+ * by hand: Vue re-syncs a checkbox only when its bound value changes, and a refusal leaves it unchanged.
+ */
 async function onCompassToggle(event: Event): Promise<void> {
   await toggleCompass();
   (event.target as HTMLInputElement).checked = compassActive.value;
-  // Success closes the panel, which was covering the sky it was just asked to aim
-  // at — so the revert above is only ever seen when it means something.
+  // On success, close the panel so it does not cover the sky.
   if (compassActive.value) {
     menu.view = false;
   }
@@ -446,8 +363,7 @@ function toggleMenu(name: MenuKey) {
 
 function toggleUI() {
   showUI.value = !showUI.value;
-  // The controller knows whether there is a fullscreen button to hide; the deck
-  // follows the same flag through its own `v-if`.
+  // cc owns the Cesium fullscreen button, which showUI also hides.
   cc.showUI = showUI.value;
 }
 

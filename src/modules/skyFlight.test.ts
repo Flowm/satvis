@@ -16,7 +16,7 @@ const pose = (position: Cartesian3, direction: Cartesian3, up: Cartesian3, fovy 
 
 const angleDegrees = (a: Cartesian3, b: Cartesian3): number => CesiumMath.toDegrees(Cartesian3.angleBetween(a, b));
 
-/** How far one attitude has to turn to become another, the short way round. */
+/** In degrees, the short way round. */
 function turnBetween(a: Pose, b: Pose): number {
   const from = poseRotation(a, new Quaternion());
   const to = poseRotation(b, new Quaternion());
@@ -27,23 +27,17 @@ function turnBetween(a: Pose, b: Pose): number {
 /** A camera in orbit over the Gulf of Guinea, looking straight down with north up. */
 const orbit = pose(at(1, 0, 0, EARTH_RADIUS + 20_000_000), new Cartesian3(-1, 0, 0), new Cartesian3(0, 0, 1), 36);
 
-// The destination is on the equator a quarter turn east, where the local east,
-// north and up axes are these. Written out because every attitude below is one
-// of them or a combination, and the tests are unreadable in raw components.
+/** The destination is on the equator a quarter turn east, with these local axes. */
 const destination = at(0, 1, 0, EARTH_RADIUS + 2);
 const EAST = new Cartesian3(-1, 0, 0);
 const NORTH = new Cartesian3(0, 0, 1);
 const UP = new Cartesian3(0, 1, 0);
 
-/** Standing there, facing north, 45° above the horizon — the aim the flight ends on. */
+/** Facing north, 45° above the horizon: the aim the flight ends on. */
 const ground = pose(destination, new Cartesian3(0, 1, 1), new Cartesian3(0, 1, -1), 75);
 
 /**
- * The same spot and the same facing, tipped all the way down.
- *
- * `up` is north because that is the continuous limit of tipping the aim above
- * down toward the horizon — the relationship `skyBasis` gives between a -90° aim
- * and every aim above it, and what makes the last leg a pure change of pitch.
+ * `ground` tipped to -90°. `up` is north, the limit `skyBasis` gives, so the rise is pure pitch.
  */
 const overGround = pose(destination, Cartesian3.negate(UP, new Cartesian3()), NORTH);
 
@@ -65,8 +59,7 @@ describe("flightPosition", () => {
   });
 
   test("comes down where it is told to, independently of how far round it has come", () => {
-    // The two fractions are what let the flight stop over the destination and
-    // then land on it, so neither may leak into the other.
+    // The two fractions must not leak into each other.
     const overhead = between(orbit.position, destination, 1, 0.4);
     expect(angleDegrees(overhead, destination)).toBeCloseTo(0, 9);
     const radii = [Cartesian3.magnitude(orbit.position), Cartesian3.magnitude(destination)];
@@ -74,8 +67,6 @@ describe("flightPosition", () => {
   });
 
   test("never dips below either end, so no arc height is needed to clear the ground", () => {
-    // The distance from the geocentre is interpolated on its own, so it stays
-    // inside the interval the two endpoints bound — and both are above ground.
     const low = Math.min(Cartesian3.magnitude(orbit.position), Cartesian3.magnitude(destination));
     for (let t = 0; t <= 1; t += 0.02) {
       expect(Cartesian3.magnitude(between(orbit.position, destination, Math.min(1, t * 1.4), t))).toBeGreaterThanOrEqual(low - 1e-6);
@@ -83,8 +74,7 @@ describe("flightPosition", () => {
   });
 
   test("crosses the planet from the antipode without going through it", () => {
-    // The one input with no unique great circle: the cross product vanishes, and
-    // taking it as the rotation axis would give a zero-length axis and NaN.
+    // Antipodal: the cross product vanishes, which would give a NaN axis.
     const from = at(1, 0, 0, EARTH_RADIUS + 1_000_000);
     const to = at(-1, 0, 0, EARTH_RADIUS + 2);
     for (const t of [0, 0.25, 0.5, 0.75, 1]) {
@@ -103,7 +93,7 @@ describe("flightPosition", () => {
 describe("flightPose", () => {
   const step = (t: number): Pose => flightPose(path, t, newPose());
 
-  /** How far off the centre of the screen the destination sits, in degrees. */
+  // In degrees.
   const offCentre = (here: Pose): number => angleDegrees(here.direction, Cartesian3.subtract(destination, here.position, new Cartesian3()));
 
   test("starts and ends on the poses it was given", () => {
@@ -121,25 +111,19 @@ describe("flightPose", () => {
   });
 
   test("holds the destination at the centre of the screen for the whole descent", () => {
-    // The point of the three legs. Between the swing finishing and the rise
-    // starting, the place being flown to is the thing on screen — which is the
-    // only way the flight can say where it is going while it is still going.
     for (let t = LOCK_ON; t <= 1 - TIP_UP; t += 0.02) {
       expect(offCentre(step(t)), `t=${t.toFixed(2)}`).toBeLessThan(1e-4);
     }
   });
 
   test("brings the destination in without overshooting it", () => {
-    // Monotone through the swing: the view converges on the destination rather
-    // than sweeping past it and coming back. It starts well off centre — only
-    // 13° here, because a quarter of the globe away subtends little from 20,000
-    // km up, and that is exactly the confusion the swing exists to clear up.
+    // Monotone through the swing, with no overshoot. It starts only 13° off: a
+    // quarter of the globe subtends little from 20,000 km up.
     let previous = offCentre(step(0));
     expect(previous).toBeGreaterThan(10);
     for (let t = 0.01; t <= LOCK_ON; t += 0.01) {
       const off = offCentre(step(t));
-      // To within a tenth of a degree: the destination is a moving target while
-      // the camera is travelling, so the swing trails it by a hair as it closes.
+      // A tenth of a degree of slack: the camera moves, so the swing trails the destination slightly.
       expect(off, `t=${t.toFixed(2)}`).toBeLessThanOrEqual(previous + 0.1);
       previous = Math.min(previous, off);
     }
@@ -147,24 +131,19 @@ describe("flightPose", () => {
   });
 
   test("comes to rest directly over the destination as the rise begins", () => {
-    // Arriving vertically rather than along the swoop's own tangent. Without it
-    // the camera reaches the ground travelling sideways and the aim following it
-    // whips through the last few metres.
+    // Arriving vertically, not along the swoop's tangent, so the aim does not whip at the end.
     const overhead = step(1 - TIP_UP);
     expect(angleDegrees(overhead.position, destination)).toBeCloseTo(0, 9);
     expect(Cartesian3.magnitude(overhead.position)).toBeGreaterThan(Cartesian3.magnitude(destination));
   });
 
   test("is standing on the destination before the rise finishes", () => {
-    // Land, then look up — two movements rather than one blurred diagonal.
     expect(Cartesian3.distance(step(TOUCHDOWN).position, destination)).toBeLessThan(1e-6);
     expect(angleDegrees(step(TOUCHDOWN).direction, ground.direction)).toBeGreaterThan(30);
   });
 
   test("rises through the horizon rather than around it", () => {
-    // The last leg is a change of pitch and nothing else, so the view axis stays
-    // in the vertical plane it spent the descent facing: no drift in azimuth, and
-    // no roll. East is the normal of that plane for this destination.
+    // A pure pitch change: the view stays in the vertical plane whose normal is east here.
     for (let t = 1 - TIP_UP; t <= 1; t += 0.02) {
       const here = step(t);
       expect(Cartesian3.dot(here.direction, EAST), `t=${t.toFixed(2)}`).toBeCloseTo(0, 6);
@@ -173,9 +152,7 @@ describe("flightPose", () => {
   });
 
   test("hands the camera an orthonormal right-handed basis at every step", () => {
-    // The whole reason the blend goes through a quaternion. Three separately
-    // interpolated vectors are not orthonormal in between, and Cesium's camera
-    // takes what it is given: a sheared basis is a sheared picture.
+    // Separately interpolated vectors are not orthonormal in between, and Cesium shears the picture.
     for (let t = 0; t <= 1; t += 0.02) {
       const { direction, up, right } = step(t);
       const label = `t=${t.toFixed(2)}`;
@@ -194,10 +171,7 @@ describe("flightPose", () => {
 
   test("takes the short way round rather than spinning to the same attitude", () => {
     // `Quaternion.slerp` negates one end when the two point away from each other.
-    // Without that the blend arrives at the right attitude by turning most of a
-    // revolution to get there — which a smoothness check cannot catch, because a
-    // long way round is perfectly smooth. Adding up how far the view actually
-    // turns can: a spin would cost another 180° at least.
+    // A long way round is smooth, so only the total turn catches it.
     let travelled = 0;
     let previous = step(0);
     for (let t = 0.005; t <= 1; t += 0.005) {
@@ -205,8 +179,7 @@ describe("flightPose", () => {
       travelled += turnBetween(previous, next);
       previous = next;
     }
-    // 90° from the globe attitude to straight down at the destination, then 135°
-    // of rise, plus the slack the descent's own tracking adds on top.
+    // 90° to straight down, 135° of rise, plus slack for the descent's tracking.
     expect(travelled).toBeLessThan(turnBetween(orbit, overGround) + turnBetween(overGround, ground) + 45);
   });
 
@@ -216,10 +189,7 @@ describe("flightPose", () => {
     for (let t = dt; t <= 1; t += dt) {
       const next = step(t);
       const label = `t=${t.toFixed(3)}`;
-      // Three degrees per two thousandths is roughly triple the fastest the view
-      // legitimately turns — which is mid-descent, where the camera really is
-      // racing a quarter of the way round the planet with the destination pinned.
-      // A join that failed to meet would show up here as tens of degrees.
+      // About triple the fastest legitimate turn (mid-descent); a broken join shows as tens of degrees.
       expect(angleDegrees(previous.direction, next.direction), label).toBeLessThan(3);
       expect(angleDegrees(previous.up, next.up), label).toBeLessThan(3);
       previous = next;
@@ -229,14 +199,12 @@ describe("flightPose", () => {
   test("widens the field of view on the way in, and has finished by the landing", () => {
     expect(step(0.4).fovy).toBeGreaterThan(orbit.fovy);
     expect(step(0.4).fovy).toBeLessThan(ground.fovy);
-    // Steady through the rise: a zoom laid over the sweep would read as a second,
-    // unrelated movement.
+    // Steady through the rise.
     expect(step(TOUCHDOWN).fovy).toBeCloseTo(ground.fovy, 9);
   });
 
   test("stays defined once the camera is standing on the point it is aiming at", () => {
-    // Past touchdown there is no line of sight left to aim along — a look-at
-    // built from a cross product would be dividing by zero here every frame.
+    // Past touchdown there is no line of sight left; a cross-product look-at would divide by zero.
     for (let t = TOUCHDOWN; t <= 1; t += 0.01) {
       const { direction, up, right } = step(t);
       const finite = (v: Cartesian3): boolean => Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z);

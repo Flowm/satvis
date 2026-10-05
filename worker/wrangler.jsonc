@@ -13,35 +13,18 @@
   ],
   "assets": {
     "directory": "../dist",
-    // "404-page", not "single-page-application": the latter answered *every*
-    // unmatched path with index.html and a 200, which made `response.ok`
-    // meaningless — the offline-imagery probe read a missing tile set as present
-    // and left a blank globe — and let the service worker cache the app shell
-    // under tile urls for thirty days.
-    //
-    // This costs nothing. Measured against `wrangler dev` with a log in the fetch
-    // handler: with a 404.html present the asset router answers and the Worker is
-    // never invoked, exactly as with the SPA setting. *Without* 404.html it falls
-    // through to the Worker and every missing file becomes a billed request, so
-    // public/404.html is load-bearing rather than decoration.
-    //
-    // The other half of the bargain is that every path which must serve the app
-    // has to be a real file (index.html, about.html, embedded.html, test.html) or a
-    // rule in public/_redirects (/ot). What is left over is genuinely missing, and
-    // now says so.
+    // Not "single-page-application", which answers every missing file with index.html
+    // and a 200. Without public/404.html a missing file becomes a billed Worker call.
+    // Every app path must be a real html file or a public/_redirects rule (/ot).
     "not_found_handling": "404-page",
-    // Route /api/* to the Worker before the asset router looks, so an api path can
-    // never be shadowed by a file that happens to share its name.
-    // /__scheduled is the wrangler-dev cron test endpoint (--test-scheduled).
+    // No file can shadow an api path. /__scheduled is wrangler dev's --test-scheduled endpoint.
     "run_worker_first": ["/api/*", "/__scheduled"],
   },
   "kv_namespaces": [{ "binding": "GP_KV", "id": "26a7848ab641416fa518a3df4790a968" }],
   "triggers": {
-    // Every 6 h at :23 (>= CelesTrak's ~2 h refresh guidance, off-hour minute).
-    // 6 rather than 3 to halve our share of CelesTrak's 250 MB/day per-IP budget,
-    // which a Worker shares with every other Cloudflare tenant on the same egress
-    // IP. With ~7 MB per run that is ~29 MB/day. Costs a few hundred metres of
-    // SGP4 drift at most.
+    // At :23, off the hour, as CelesTrak asks. 6 h rather than 3 halves our share of
+    // CelesTrak's 250 MB/day per-IP budget, which Cloudflare tenants share: ~7 MB a run
+    // is ~29 MB/day, for a few hundred metres of SGP4 drift.
     "crons": ["23 */6 * * *"],
   },
   "observability": {

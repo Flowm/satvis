@@ -3,21 +3,21 @@
 3D satellite tracker and pass predictor.
 
 Satvis is a free, open-source satellite tracker that runs in the browser.
-It draws more than 12,000 satellites on a 3D globe in real time and works out when each one passes over a ground station you set.
-The sky view trades the globe for a ground-level camera aimed by your phone's compass and gyroscope, so you look for the satellite in the sky rather than on a map of it.
+It draws more than 12,000 satellites on a 3D globe in real time and predicts when each one passes over your ground stations.
+The sky view replaces the globe with a ground-level camera aimed by your phone's compass and gyroscope, so you find the satellite in the sky.
 
 ![Screenshot](https://user-images.githubusercontent.com/1117666/47623704-f0c3e900-db14-11e8-9cf9-7bf13acb267c.png)
 
 ## Features
 
 - Visualize more than 12,000 satellites on a 3D globe in real time, propagated in the browser with SGP4 from CelesTrak GP element sets (OMM/TLE)
-- Draw points, labels, orbits, orbit tracks, ground tracks, sensor cones and 3D models per satellite, coloured by orbit class (LEO, MEO, GEO, HEO)
-- Switch any of the 14 catalog groups on and off (Starlink, GNSS, weather, Earth observation, crewed stations), or search out a single satellite
+- Draw points, labels, orbits, orbit tracks, ground tracks, sensor cones, 3D models and ground station links per satellite, coloured by orbit class (LEO, MEO, GEO, HEO)
+- Switch catalog groups on and off (Starlink, GNSS, weather, Earth observation, crewed stations), or search for a single satellite
 - Set ground stations from geolocation or a point you pick on the map, then list their upcoming passes and get a local browser notification before one starts
 - Show the globe in 3D, flattened to 2D or in Columbus view, over a base map, star field and terrain you choose
-- Find a satellite in the sky overhead rather than on a map, in a ground-level sky view aimed by your phone's compass and gyroscope and walked with the movement keys
+- Find a satellite in the sky overhead in a ground-level sky view, aimed by your phone's compass and gyroscope and moved with the movement keys
 - Add OpenStreetMap buildings to the globe, or Google's photorealistic tiles under the sky view
-- Share the exact view you are looking at as a link: the url carries the satellites, the components, the ground station and the map layers
+- Share the current view as a link: the url carries the satellites, the components, the ground stations and the map layers
 - Install it as a Progressive Web App and keep using it offline, from a cached element-set snapshot and base map
 - Deploy it serverless: static files on a CDN, with an optional Cloudflare Worker serving fresh satellite data
 
@@ -37,47 +37,43 @@ For example, `?tags=&sats=NOAA+20+(JPSS-1),METEOR-M2+3&elements=Point,Label,Orbi
 
 ### Setup
 
-Initialize submodules and install build dependencies:
-
 ```
-git submodule update --init
-mise trust && mise install   # toolchain (Node 24, pnpm 11, prek; see mise.toml)
-mise setup                   # install the pre-commit hooks
-pnpm install
+git submodule update --init  # the 3D models in data/models
+mise trust && mise install   # toolchain from mise.toml
+mise setup                   # pre-commit hooks
+pnpm install                 # the SPA and the worker/ package
 ```
-
-A single `pnpm install` at the repository root installs dependencies for both
-the SPA and the `worker/` package.
 
 ### Run
 
-- `pnpm dev` for the dev server (proxies `/api` to <https://satvis.space>, so
-  satellite data works without a local worker)
-- `pnpm dev:host` to expose the dev server on the local network
-- `/models.html` under `pnpm dev` shows the 3D models side by side, with their
-  satellites, size, triangle count, textures and glTF problems: first those the
-  model manifests map, then any other GLB under `data/` for comparison (dev only,
-  not built)
-- The 3D models live in the `data/models` submodule, which builds them itself
-  (`pnpm build` there, from its `build.yaml`). Its `models.yaml` says which NORAD
-  ids use which model; a plugin with models of its own adds a `models.yaml` at its
-  root (`docs/adr/0007-model-manifest.md`)
-- `pnpm build` to build the application (output in `dist` folder)
-- `pnpm preview` to preview the production build locally
-- `pnpm update-gp` to refresh the static satellite-data snapshot (see below)
-- `pnpm update-imagery` to build the offline base map (needs docker; see below)
+- `pnpm dev` starts the dev server. It proxies `/api` to <https://satvis.space>,
+  so satellite data works without a local worker. `pnpm dev:host` also exposes it
+  on the local network.
+- `pnpm build` builds into `dist/`; `pnpm preview` serves that build.
+- `pnpm update-gp` refreshes the static satellite-data snapshot
+  ([Worker-less deployments](#worker-less-deployments)).
+- `pnpm update-imagery` builds the offline base map; it needs docker
+  ([Offline base map](#offline-base-map)).
+- `/models.html` (dev server only, not built) shows the 3D models side by side
+  with their satellites, size, triangle count, textures and glTF problems: first
+  the models the manifests map, then every other GLB under `data/`.
+
+The 3D models live in the `data/models` submodule, which builds them itself
+(`pnpm build` there, from its `build.yaml`). Its `models.yaml` maps NORAD ids to
+models; a plugin with its own models adds a `models.yaml` at its root
+([ADR 0007](docs/adr/0007-model-manifest.md)).
 
 ### Full-stack dev (with the worker)
 
-To run the frontend against a local worker instead of the deployed API:
+To run the frontend against a local worker:
 
 ```
 pnpm dev:worker                                     # wrangler dev on :8080
 SATVIS_API_PROXY=http://localhost:8080 pnpm dev     # frontend proxies /api → local worker
 ```
 
-The worker's cron trigger fills Workers KV. To run it once locally (wrangler
-dev is started with `--test-scheduled`), hit the scheduled endpoint:
+The cron trigger fills Workers KV. `pnpm dev:worker` starts wrangler with
+`--test-scheduled`, so you can run the cron once:
 
 ```
 curl "http://localhost:8080/__scheduled?cron=23+*%2F6+*+*+*"
@@ -87,20 +83,34 @@ Then `GET /api/groups.json` lists the refreshed groups and
 `GET /api/gp/starlink.json` returns an OMM element-set array.
 
 `POST /api/refresh` runs the same refresh on demand and reports per-source
-diagnostics. It needs a bearer token, since one run pulls ~7 MB from CelesTrak
+diagnostics. It needs a bearer token, because one run pulls ~7 MB from CelesTrak
 against a 250 MB/day per-IP cap:
 
 ```
 curl -X POST -H "Authorization: Bearer $REFRESH_TOKEN" http://localhost:8080/api/refresh
 ```
 
-Locally the token comes from `worker/.dev.vars` (copy `worker/.dev.vars.example`);
-deployed it is a Worker secret, set with `wrangler secret put REFRESH_TOKEN`.
-With no secret set the endpoint returns 503 rather than running unauthenticated.
+Locally the token comes from `worker/.dev.vars` (copy `worker/.dev.vars.example`).
+Deployed, it is a Worker secret: `wrangler secret put REFRESH_TOKEN`. With no
+secret set, the endpoint returns 503.
 
-`POST /api/ingest` takes the same token and does the same work on payloads the
-caller already downloaded, for when CelesTrak is refusing Cloudflare's egress
-(see [Downloading off-Worker](#downloading-off-worker)).
+`POST /api/ingest` takes the same token and runs the same pass on payloads the
+caller already downloaded ([Downloading off-Worker](#downloading-off-worker)).
+
+### Deploy
+
+`pnpm deploy` builds the frontend and deploys the worker. The worker needs a KV
+namespace bound as `GP_KV` (`worker/wrangler.jsonc`). Run `pnpm update-imagery`
+first ([Offline base map](#offline-base-map)).
+
+After the first deploy, KV is empty until the cron runs (at most 6 h). To fill
+the deployed KV now:
+
+```sh
+cd worker
+wrangler dev --remote --test-scheduled
+curl "http://localhost:8080/__scheduled?cron=23+*%2F6+*+*+*"
+```
 
 ## Satellite data
 
@@ -108,48 +118,49 @@ Element sets come from [CelesTrak](https://celestrak.org) as OMM JSON
 (CelesTrak is phasing out TLE for new objects). The Cloudflare Worker in
 `worker/` fetches and serves them:
 
-- A cron trigger (every 6 h) refreshes each group into Workers KV; failed
-  sources keep the last-known-good copy.
-- `GET /api/gp/<group>.json` — one group's element sets (OMM array, with
-  per-satellite metadata attached; see below).
-- `GET /api/groups.json` — the group index (also the frontend's worker probe).
+- A cron trigger (every 6 h) refreshes each group into Workers KV. A failed
+  source keeps its last-known-good copy.
+- `GET /api/gp/<group>.json`: one group's element sets, as an OMM array with
+  per-satellite metadata attached ([Satellite metadata](#satellite-metadata)).
+- `GET /api/groups.json`: the group index. The frontend also uses it to probe
+  for the worker.
 
 ### Downloading off-Worker
 
 CelesTrak firewalls by IP, and Cloudflare's Worker egress addresses are shared
-across tenants — so the cron's own fetches can start coming back as `HTTP 522`
-on every source while the same URLs answer fine from anywhere else. When that
-happens, groups keep serving their last-known-good copy and go stale.
+across tenants. So the cron can get `HTTP 522` on every source while the same
+URLs work from anywhere else. Groups then keep their last-known-good copy and go
+stale.
 
-`pnpm --filter satvis-worker push-gp` is the way out. It runs the worker's own
-download logic from wherever you run it (a CI runner, a VPS, a laptop) and POSTs
-the payloads to `POST /api/ingest`, which runs the unchanged evaluate/enrich/store
-pass on them. Only the download moves; the worker still owns the config, the
-evaluation and KV.
+`pnpm --filter satvis-worker push-gp` runs the worker's download logic on your
+machine (a CI runner, a VPS, a laptop) and POSTs the payloads to
+`POST /api/ingest`, which runs the normal evaluate/enrich/store pass. Only the
+download moves; the worker still owns the config, the evaluation and KV.
 
 ```
 SATVIS_REFRESH_TOKEN=<token> pnpm --filter satvis-worker push-gp
 ```
 
 `SATVIS_INGEST_URL` overrides the target (default `https://satvis.space/api/ingest`).
-Keep the cadence at or above the cron's 6 h — a run still costs ~7 MB of element
-sets, just from a different IP, and CelesTrak asks for one download per update.
+Run it at most every 6 h, like the cron: a run still costs ~7 MB, only from a
+different IP, and CelesTrak asks for one download per update.
 
-The same run also refreshes the SATCAT, reading the worker's stored `ETag` from
-`/api/groups.json` first so its own download is conditional; the catalog's 6.7 MB
-only travels when it actually changed.
+The same run refreshes the SATCAT. It reads the worker's stored `ETag` from
+`/api/groups.json` first, so the 6.7 MB catalog only downloads when it changed.
 
-Configuration is **declarative** YAML, not shell scripts. Each config file
-contributes three independent sections: `groups` (what is served, as which unit,
-under which tags), `presets` (the starting configuration of a route) and
-`satellites` (static per-satellite facts, keyed by NORAD id). Tags and presets
-reach clients with the group index, `/api/groups.json`.
+### Configuration
 
-- The core config lives in `worker/src/config/satvis.core.yaml` (CelesTrak
-  pass-throughs, the `default` preset, and the satellite table).
-- Plugins add `data/custom/<plugin>/satvis.yaml` with
-  `sources` / `select` / `rename` / `include` / `exclude` / `extraRecordsFile`. Example
-  (`data/custom/example/satvis.yaml`):
+Configuration is declarative YAML. Each config file has three independent
+sections: `groups` (what is served, as which unit, under which tags), `presets`
+(the starting configuration of a route) and `satellites` (static per-satellite
+facts, keyed by NORAD id). Tags and presets reach clients with the group index,
+`/api/groups.json`. `worker/src/gp/types.ts` documents every field.
+
+- The core config is `worker/src/config/satvis.core.yaml`: the CelesTrak groups,
+  the `default` preset, and the curated satellite table.
+- A plugin adds `data/custom/<plugin>/satvis.yaml`. Groups take `sources`,
+  `select`, `satellites`, `rename`, `include`, `exclude` and `extraRecordsFile`.
+  Example (`data/custom/example/satvis.yaml`):
 
   ```yaml
   groups:
@@ -160,33 +171,33 @@ reach clients with the group index, `/api/groups.json`.
   ```
 
 - A preset named `x` opens at `/x`. Its `defaults` are url parameters
-  (docs/adr/0001), and a route other than `/` and `/ot` also needs a rewrite in
-  `public/_redirects`.
+  ([ADR 0001](docs/adr/0001-url-parameter-specification.md)). Every route except
+  `/` also needs a rewrite in `public/_redirects`, like the one for `/ot`.
 
-`pnpm --filter satvis-worker generate-groups` merges the core config with every
-`data/custom/*/satvis.yaml` (inlining `extraRecordsFile` element sets) into the
-gitignored `worker/src/config/satvis.generated.json` used by the worker.
+`pnpm --filter satvis-worker generate-groups` merges the core config, every
+`data/custom/*/satvis.yaml` (with `extraRecordsFile` element sets inlined) and the
+model manifests into the gitignored `worker/src/config/satvis.generated.json`.
+The worker scripts run it themselves.
 
-A plugin may also ship files: `pnpm update-custom-data` runs each
-`data/custom/<plugin>/sync.sh` and collects the output into `data/custom/dist/`,
-which the build copies into `data/`. The privacy policy behind the credits' link is
-one of them.
+A plugin can also ship files: `pnpm update-custom-data` runs each
+`data/custom/<plugin>/sync.sh` and collects the output in `data/custom/dist/`,
+which the build copies into `data/`. The privacy policy linked from the credits
+ships this way.
 
 ### Worker-less deployments
 
-For plain static hosting (or forks without a worker), run
-`pnpm update-gp` before `pnpm build`. It runs the same refresh pipeline as the
-cron — including metadata enrichment — and writes a static snapshot into
-`data/gp/` (`<group>.json`, `index.json`; gitignored). At runtime the app probes
-`/api/groups.json`; if that fails it falls back to the static `data/gp/`
-snapshot, so all presets keep working without the worker.
+For static hosting without a worker, run `pnpm update-gp` before `pnpm build`.
+It runs the cron's refresh pipeline, metadata enrichment included, and writes a
+static snapshot to `data/gp/` (`<group>.json`, `index.json`; gitignored). At
+runtime the app probes `/api/groups.json` and, if that fails, uses the snapshot,
+so all presets work without the worker.
 
 ### Self-hosting with Docker
 
 The `Dockerfile` serves the app and the worker from one container. The worker
-runs on workerd through wrangler's local runtime. KV lives as SQLite in `/data`,
-and the cron fires on its normal schedule. A fresh volume refreshes once at
-startup.
+runs on workerd through wrangler's local runtime (`worker/scripts/serve.mjs`). KV
+is stored as SQLite in `/data`, and the cron runs on its normal schedule. A fresh
+volume refreshes once at startup.
 
 ```sh
 docker build --build-arg BUILD_SHA=$(git rev-parse --short HEAD) -t satvis .
@@ -194,92 +205,83 @@ docker run -p 8080:8080 -v satvis-data:/data -e REFRESH_TOKEN=... satvis
 ```
 
 `compose.yaml` does the same with `docker compose up --build`. It reads
-`REFRESH_TOKEN`, `BUILD_SHA`, `VITE_CESIUM_ION_TOKEN` and `PORT` from the shell
-or a `.env` file.
+`REFRESH_TOKEN`, `BUILD_SHA`, `VITE_CESIUM_ION_TOKEN`, `VITE_POSTHOG_KEY` and
+`PORT` from the shell or a `.env` file.
 
 Run `git submodule update --init` and `pnpm update-imagery` before you build, or
-the image ships without 3D models and with base-map levels 0–2 only. Pass
-`--build-arg VITE_CESIUM_ION_TOKEN=...` for terrain, because the committed token
-only works on satvis.space. Keep the image private if `data/custom/` holds private
-plugins.
+the image has no 3D models and only base-map levels 0–2. Pass
+`--build-arg VITE_CESIUM_ION_TOKEN=...` for terrain and the surface models: the
+committed token only works on satvis.space. Keep the image private if
+`data/custom/` holds private plugins.
 
 ### Offline base map
 
-The `NaturalEarth` layer — the default base map, and the one that keeps the globe
-usable with no network — is **part committed, part generated**. Levels 0–2 are in the
-repository (42 WebP tiles, 0.35 MB), so a fresh clone already renders a correct globe.
-The sharp levels are built on demand:
+The `NaturalEarth` layer is the default base map and the one that works with no
+network. Levels 0–2 are committed (42 WebP tiles, 0.35 MB), so a fresh clone renders
+a correct globe. Levels 3–5 are generated:
 
 ```
 pnpm update-imagery
 ```
 
-That runs a container (`scripts/imagery/`) which fetches [Natural Earth
+This runs a container (`scripts/imagery/`) that fetches [Natural Earth
 II](https://www.naturalearthdata.com/downloads/10m-raster-data/) at 10m, applies the
-colour grade the original Cesium tileset was cut with, and writes levels 3–5 into the
-gitignored part of `data/imagery/` — about 17.2 MB more, and a minute on a warm cache.
-Docker is the only host requirement; GDAL runs inside.
+colour grade of the original Cesium tileset, and writes levels 3–5 to the gitignored
+part of `data/imagery/`: about 17.2 MB, a minute on a warm cache. The host needs only
+docker; GDAL runs in the container.
 
-The build raises the zoom ceiling when it sees those levels, so skipping the generator
-costs sharpness and nothing else: the globe still works, capped at level 2, and goes
-soft when you zoom in. **Run it before `pnpm deploy`, though** — the build only warns,
-so a deploy without it ships that cap. Running it during a `pnpm dev` session needs a
-restart to take effect.
+The build raises the zoom ceiling when it finds those levels. Without them the globe
+still works, capped at level 2, and goes soft when you zoom in. The build only warns,
+so run the generator before `pnpm deploy`. A running `pnpm dev` needs a restart to
+pick up the new levels.
 
-Levels 0–3 (1.4 MB) are precached by the service worker, so the globe is complete
-offline wherever it is turned; 4 and 5 are cached as they are requested, and anywhere
-you have not been shows level 3 magnified rather than nothing at all.
-`pnpm update-starmap` does the same job for the optional star maps.
+The service worker precaches levels 0–3 (1.4 MB), so the whole globe works offline.
+Levels 4 and 5 are cached as they are requested; where you have not been, level 3 is
+magnified. `pnpm update-starmap` does the same for the optional star maps.
 
 ### Satellite metadata
 
-Static per-satellite facts are keyed by NORAD id in one satellite table with two
-contributors:
+Static per-satellite facts are keyed by NORAD id in one satellite table
+([CONTEXT.md](CONTEXT.md#catalog-and-data)). It has three contributors:
 
-- **Curated** — per-side swath extents, sensor cone FOV, model URL, operator —
-  hand-written in the `satellites` table of `satvis.core.yaml` (and of any plugin
-  config), for the couple of dozen satellites worth saying something specific about.
-- **Upstream** — owner, launch date, launch site, operational status, orbit type
-  and centre — from the CelesTrak [SATCAT](https://celestrak.org/satcat/), which
-  covers every satellite served. Raw SATCAT codes travel on the wire and are
-  resolved to labels in `src/config/satcatCodes.ts`.
+- **Curated**: per-side swath extents, sensor cone FOV, operator, mission type.
+  Hand-written in the `satellites` table of `satvis.core.yaml` and of any plugin
+  config, for the few dozen satellites that need them
+  ([ADR 0002](docs/adr/0002-static-satellite-metadata.md)).
+- **Model manifests**: each listed satellite's `modelFile`
+  ([ADR 0007](docs/adr/0007-model-manifest.md)).
+- **Upstream**: owner, launch date and site, operational status, orbit type and
+  centre, from the CelesTrak [SATCAT](https://celestrak.org/satcat/) for every
+  served satellite. Raw SATCAT codes go over the wire; `src/config/satcatCodes.ts`
+  turns them into labels.
 
-A curated value wins field by field, so a hand-written row extends its upstream
-row rather than replacing it. The refresh attaches the merged facts to each served
-record under a lowercase `metadata` key, so metadata travels with the element set
-instead of being matched against a separate rule list in the browser. Satellites
-in neither table carry no metadata and fall back to the defaults in
+A curated value wins field by field. The refresh attaches the merged facts to each
+served record under a lowercase `metadata` key, so there is no rule matching in the
+browser. A satellite in no table carries no metadata and gets the defaults in
 `src/config/satelliteMetadata.ts`.
 
-The SATCAT fetch is **conditional**: the stored snapshot keeps the `ETag` it came
-with and the next fetch sends it as `If-None-Match`, so the usual refresh costs a
-304 with no body. CelesTrak asks for one download per update and the catalog only
-changes once or twice a day, against a 6 h cron. `pnpm update-gp` caches its copy
-in `worker/.cache/satcat.json` — outside `data/`, because everything there is
-copied into the build and this is never served. Deleting it costs one full 6.7 MB
-download. A SATCAT failure leaves every group untouched; it only costs enrichment
-freshness. See `docs/adr/0006-satcat-enrichment.md`.
-
-Swath extents are **per-side** cross-track distances from the ground track,
-relative to flight direction — not halves of a total width, because a tilted sensor
-reaches further one way than the other. See
-`docs/adr/0002-static-satellite-metadata.md`.
+The SATCAT fetch is conditional: the stored snapshot keeps its `ETag` and the next
+fetch sends it as `If-None-Match`, so a usual refresh gets a 304 with no body.
+`pnpm update-gp` caches its copy in `worker/.cache/satcat.json`, outside `data/`
+because everything in `data/` ships. Deleting the cache costs one full 6.7 MB
+download. A SATCAT failure leaves every group untouched
+([ADR 0006](docs/adr/0006-satcat-enrichment.md)).
 
 ## iOS App
 
-To provide pass notifications on iOS where local browser notifications are [not
-supported](https://developer.mozilla.org/en-US/docs/Web/API/Notifications_API#Browser_compatibility)
-a simple app wraps the webview and handles the scheduling of
-[UserNotifications](https://developer.apple.com/documentation/usernotifications).
+iOS does not [support](https://developer.mozilla.org/en-US/docs/Web/API/Notifications_API#Browser_compatibility)
+local browser notifications, so a small app wraps the web view and schedules pass
+notifications as [UserNotifications](https://developer.apple.com/documentation/usernotifications).
+`ios/AGENTS.md` covers building and testing it.
 
 <p align="center"><a href="https://apps.apple.com/app/satvis/id1441084766"><img src="src/assets/app-store-badge.svg" width="250" /></a></p>
 
 ### Universal links
 
 `public/.well-known/apple-app-site-association` sends `/ot` and any `/` with a query to
-the app; a bare `satvis.space/` stays on the website. It has no extension, so
+the app; a bare `satvis.space/` stays on the website. The file has no extension, so
 `public/_headers` gives it the JSON content type Apple requires. Apple serves it from
-a CDN cache: after a deploy, check
+a CDN cache; after a deploy, check
 <https://app-site-association.cdn-apple.com/a/v1/satvis.space>.
 
 The app side is the `applinks:satvis.space` entitlement. Before the CDN updates, test
@@ -287,7 +289,7 @@ with `applinks:satvis.space?mode=developer` and Developer Mode on the device.
 
 ## License
 
-This project is licensed under the MIT License - see `LICENSE` file for details.
+MIT License, see `LICENSE`.
 
 ## Acknowledgements
 

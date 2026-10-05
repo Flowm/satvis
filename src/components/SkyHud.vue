@@ -1,13 +1,10 @@
 <template>
-  <!-- Mounted the moment the sky becomes the view mode, but held at zero opacity
-       until the camera has flown in: the instruments are meaningless over a
-       globe, and they fade up as the ground arrives under them. -->
+  <!-- Held at zero opacity until the camera has flown in. -->
   <div v-if="visible" class="sky-hud" :class="{ 'sky-hud--settled': settled }">
     <svg class="sky-hud__svg">
       <path v-if="trace" class="sky-hud__trace" :d="trace" />
 
-      <!-- Compass tape. The band sits at a fixed height, but each tick's
-           horizontal position is projected, not derived from the heading. -->
+      <!-- Each tick's x is projected, not derived from the heading. -->
       <g class="sky-hud__tape">
         <line :x1="0" :y1="COMPASS_Y + TAPE_LENGTH" :x2="'100%'" :y2="COMPASS_Y + TAPE_LENGTH" class="sky-hud__tape-rule" />
         <g v-for="tick in compass" :key="`az${tick.value}`">
@@ -17,14 +14,8 @@
       </g>
     </svg>
 
-    <!-- Elevation tape, projected the same way, along the current azimuth.
-         Its own right-anchored svg rather than a group in the one above: the
-         menu panels are left-anchored and were covering this tape completely,
-         and a tape whose ticks are projected in y can move freely in x without
-         lying about where the sky is. A separate element is what makes "against
-         the right edge" expressible at all — the parent svg has no viewBox, so
-         its user units are absolute and there is no live viewport width here to
-         subtract from. -->
+    <!-- Elevation tape, projected along the current azimuth. A separate svg so it can be
+         pinned right, clear of the left-anchored menus: the svgs have no viewBox, so x is absolute. -->
     <svg class="sky-hud__svg sky-hud__side">
       <g class="sky-hud__tape">
         <line :x1="ELEVATION_RULE_X" :y1="0" :x2="ELEVATION_RULE_X" :y2="'100%'" class="sky-hud__tape-rule" />
@@ -35,10 +26,7 @@
       </g>
     </svg>
 
-    <!-- The compass tape's centre pointer. A positioned element rather than an
-         SVG polygon, because the svg has no viewBox and its user units are
-         absolute — a polygon at x=0 sits at the left edge, not the middle, and
-         centring it would mean threading the live viewport width through. -->
+    <!-- A positioned element, not a polygon: without a viewBox, centring in the svg needs the viewport width. -->
     <div class="sky-hud__pointer"></div>
 
     <div class="sky-hud__reticle" :class="{ 'sky-hud__reticle--locked': locked }">
@@ -51,9 +39,7 @@
       </svg>
     </div>
 
-    <!-- North is not known until the phone has been flat once, and until then the
-         sky is aimed from an arbitrary zero. The toast that says so on enabling is
-         dismissable; this is not, and it goes the instant calibration latches. -->
+    <!-- North is unknown until the phone has been flat once. Unlike the toast, this cannot be dismissed. -->
     <div v-if="compassActive && !calibrated" class="sky-hud__warn">Hold the phone flat to set north</div>
 
     <div v-if="locked" class="sky-hud__card">
@@ -80,18 +66,12 @@ import { SKY_MODE } from "../config/viewModes";
 import { compassPoint } from "../modules/SkyTargets";
 import { useCesiumStore } from "../stores/cesium";
 
-// Geometry that the template needs as numbers. It cannot go through Tailwind:
-// classes are extracted by scanning source text, so a class built at runtime
-// (`bottom-[${x}px]`) never has any CSS emitted for it.
-//
-// The compass band clears the toolbars. `.cesium-toolbar-button` is 32px square
-// and both #toolbarLeft and #toolbarRight start at top: 5px, so the button rows
-// occupy y 5-37 on both sides — and the tick labels, drawn 4px above the band,
-// used to land at y 42 with their glyph tops around 34, i.e. inside the buttons.
-// That is what put N and S behind the menu on a phone.
+/**
+ * Not Tailwind: it emits no CSS for a class built at runtime.
+ * The toolbar buttons occupy y 5-37, and the tick labels sit 4 px above COMPASS_Y.
+ */
 const COMPASS_Y = 62;
-// Measured inside the side svg, not the viewport: the rule sits this far from
-// that box's left edge, and the box is pinned to the right.
+/** From the left edge of the right-pinned side svg. */
 const ELEVATION_RULE_X = 46;
 const TAPE_LENGTH = 12;
 
@@ -125,9 +105,7 @@ watch(
       return;
     }
     stop();
-    // Leaving the view stops the interaction, which drops the sensor subscription
-    // with it. The control follows on its own: dropping it is reported, so there
-    // is nothing to tell it here.
+    // Also drops the sensor subscription; the compass control learns of it on its own.
     cc.skyInteraction.disableDeviceOrientation();
   },
   { immediate: true },
@@ -139,12 +117,8 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* z-4 with no pointer events anywhere, and nothing interactive left inside it
-   now the compass control has moved to the View menu: Cesium's clock, timeline
-   and credits sit in a sibling container before #app, and #app isolates its
-   stacking context, so nothing here can ever be raised above them — a surface
-   that swallowed clicks would have no z-index fix. Look-around listens on the
-   Cesium canvas instead. */
+/* No pointer events: #app isolates its stacking context, so nothing here can rise above
+   Cesium's credits. Look-around listens on the Cesium canvas instead. */
 .sky-hud {
   position: absolute;
   inset: 0;
@@ -160,8 +134,7 @@ onUnmounted(() => {
   opacity: 1;
 }
 
-/* The flight is a cut for anyone who asked for less motion, so the overlay it
-   uncovers must not then fade in over it. */
+/* The flight is a cut under reduced motion, so the overlay must not fade either. */
 @media (prefers-reduced-motion: reduce) {
   .sky-hud {
     transition: none;
@@ -176,8 +149,7 @@ onUnmounted(() => {
   overflow: visible;
 }
 
-/* Full height and top-aligned, so a tick's projected window y is still its y in
-   here. Only the width is constrained, which is the whole point. */
+/* Full height and top-aligned, so a tick's projected window y is its y here. */
 .sky-hud__side {
   inset: 0 var(--safe-right, 0px) 0 auto;
   width: 64px;
@@ -217,8 +189,7 @@ onUnmounted(() => {
   stroke-width: 2.5px;
 }
 
-/* A triangle pointing up at the tape band the ticks hang from, so it tracks
-   COMPASS_Y + TAPE_LENGTH. */
+/* `top` must equal COMPASS_Y + TAPE_LENGTH. */
 .sky-hud__pointer {
   position: absolute;
   top: 74px;
@@ -257,9 +228,7 @@ onUnmounted(() => {
 .sky-hud__warn {
   position: absolute;
   right: calc(8px + var(--safe-right, 0px));
-  /* Clear of the clock deck when there is one; 64 px is what the sky view alone
-     needs (`main.css`, `--clock-deck-height`). The deck's height already carries the
-     home indicator, so only the deckless term adds it. */
+  /* Clears the clock deck (`--clock-deck-height`, which includes the home indicator). */
   bottom: max(calc(64px + var(--safe-bottom, 0px)), calc(var(--clock-deck-height, 0px) + 8px));
   max-width: 200px;
   padding: 6px 8px;
@@ -272,9 +241,6 @@ onUnmounted(() => {
 .sky-hud__card {
   position: absolute;
   left: 50%;
-  /* Clear of the clock deck when there is one; 64 px is what the sky view alone
-     needs (`main.css`, `--clock-deck-height`). The deck's height already carries the
-     home indicator, so only the deckless term adds it. */
   bottom: max(calc(64px + var(--safe-bottom, 0px)), calc(var(--clock-deck-height, 0px) + 8px));
   transform: translateX(-50%);
   min-width: 220px;

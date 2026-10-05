@@ -1,52 +1,31 @@
-// The shape of a satellite's sampled-position window, as arithmetic on plain
-// numbers.
-//
-// It lives here rather than inside SampledTrajectory because two things have to
-// agree on it exactly: the trajectory, which fills the window, and the
-// propagation prefetch, which computes the same samples ahead of time in a
-// worker. A prefetch whose sample times are half a step out of phase with the
-// window is not a cache, it is dead weight — so there is one function and both
-// callers use it.
+// The extent of a satellite's sampled-position window. SampledTrajectory fills it
+// and SatelliteManager prefetches it, so both take the bounds from here.
 
-/**
- * Samples per revolution. 120 is a compromise between accuracy and both of the
- * costs it drives: propagation time, and the memory the samples occupy (see
- * SampledTrajectory).
- */
+/** Trades accuracy against propagation time and sample memory (see SampledTrajectory). */
 export const SAMPLES_PER_ORBIT = 120;
 
-/** Kept behind the satellite, as a fraction of one revolution. */
+/** Kept behind the satellite, in revolutions. */
 export const WINDOW_ORBITS_BACK = 0.5;
 
-/** Kept ahead of it. The Orbit component needs a full revolution of it. */
+/** Kept ahead, in revolutions. The Orbit component needs a full one. */
 export const WINDOW_ORBITS_FORWARD = 1.5;
 
 export interface TrajectoryWindow {
   /** Seconds from the reference time to the first sample. Negative. */
   offsetSeconds: number;
   stepSeconds: number;
-  /** How many samples span the whole window, first and last inclusive. */
+  /** First and last inclusive. */
   sampleCount: number;
-  /** For the caller that wants an interval rather than a count. */
   spanSeconds: number;
 }
 
 /**
- * The window for one satellite, from its orbital period in minutes.
- *
- * `sampleCount` is deliberately derived the way the filling loop counts rather
- * than by dividing the span: the loop steps from the start while
- * `stop >= time`, so it lands on the stop boundary and takes it, giving one more
- * sample than the number of steps. At 120 samples an orbit over two orbits that
- * is 241, not 240 — measured against the running app, which reported exactly 241
- * samples per satellite.
+ * `sampleCount` includes the closing boundary: 241, not 240, for two orbits at 120
+ * samples an orbit.
  */
 export function trajectoryWindow(orbitalPeriodMinutes: number): TrajectoryWindow {
-  // A satrec that failed to parse reports no mean motion, and the period derived
-  // from it is zero or infinite. Left alone that divides to NaN and reaches the
-  // worker as a NaN-sized buffer, so it is answered with an empty window instead:
-  // no samples to prefetch, and the caller propagates for itself as it would for
-  // any other miss.
+  // A satrec that failed to parse has no mean motion, so the period is zero or
+  // infinite. An empty window keeps NaN out of the worker's buffer sizes.
   if (!Number.isFinite(orbitalPeriodMinutes) || orbitalPeriodMinutes <= 0) {
     return { offsetSeconds: 0, stepSeconds: 0, sampleCount: 0, spanSeconds: 0 };
   }

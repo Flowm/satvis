@@ -1,5 +1,4 @@
-// Toasting from outside a Vue component, for CesiumController and the other
-// plain classes that have no `useToast` to reach for.
+// Toasts for plain classes such as CesiumController, which have no `useToast`.
 
 import type { useToast } from "@nuxt/ui/composables/useToast";
 
@@ -10,7 +9,5 @@ let toast: ToastApi | null = null;
 
 export const initToastProxy = (t: ToastApi): ToastApi => (toast = t);
 
-// Returns a real toast service when initialized, or a no-op fallback that warns once.
-// Everything that toasts does so in response to a user action, well after App.vue
-// has mounted, so the fallback is a bug report rather than a path to design for.
+/** The fallback only warns: every toast follows a user action, long after App.vue mounts. */
 export const useToastProxy = (): ToastApi | { add: (message: ToastMessage) => void } => toast ?? { add: () => console.warn("Toast not initialized") };

@@ -4,7 +4,9 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { CesiumCallbackHelper } from "./CesiumCallbackHelper";
 
-/** A clock advanced by hand: `frame` moves real time by `ms` and simulation time by `ms × multiplier`. */
+/**
+ * A clock advanced by hand: `frame` moves real time by `ms` and simulation time by `ms × multiplier`.
+ */
 function fakeClock() {
   const listeners = new Set<() => void>();
   let realMs = 0;

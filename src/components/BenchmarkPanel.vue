@@ -1,21 +1,6 @@
 <!--
-  The in-browser half of the benchmarking framework (see
-  src/modules/benchmark/README.md): a live readout of what the globe is costing
-  right now, and a sweep over satellite counts × component sets × clock rates.
-
-  Plain CSS rather than Nuxt UI, and a dense monospace layout: this is an
-  instrument, and it has to fit a dozen numbers where a card would fit two.
-
-  The title bar and the live readout are pinned and only the rest scrolls — the
-  same frame-and-scrolling-body shape the entity info panel uses. Watching a
-  figure while scrolling to the control that changes it is the whole job.
-
-  Opening it switches render-on-demand off, because with it on the gap between
-  frames measures how idle the loop is and every figure here would be meaningless.
-  Closing it puts that back.
-
-  Every number here comes from the same handle the console uses
-  (`window.bench`), so the panel and `bench.log()` cannot disagree.
+  The benchmark panel (see src/modules/benchmark/README.md). Plain CSS, not Nuxt
+  UI, to fit a dozen numbers densely. It shares `window.bench` with the console.
 -->
 <template>
   <div class="bench" :class="{ 'bench--below-fps': showFps }">
@@ -24,10 +9,7 @@
       <button type="button" class="bench__x" title="Close" @click="emit('close')">×</button>
     </div>
 
-    <!-- Pinned with the readout it invalidates rather than filed away in the
-         body: opening the panel switches render-on-demand off, so seeing this at
-         all means something switched it back on, and every figure below is the
-         gap between requested frames instead of a frame rate. -->
+    <!-- The panel turns render-on-demand off on open; this shows if something turned it back on. -->
     <div v-if="renderOnDemand" class="bench__alert">
       render-on-demand is on — these are gaps between requested frames, not a frame rate.
       <button type="button" @click="disableRenderOnDemand()">turn off</button>
@@ -53,8 +35,7 @@
         </template>
       </div>
       <div class="bench__row bench__dim">
-        <!-- The window's low-water mark, and raw: a live instrument, not a report
-             row. The fit is what turns heap into something comparable. -->
+        <!-- The raw heap floor; only the memory fit makes it comparable. -->
         p95 {{ live.p95Ms.toFixed(2) }} · worst {{ live.worstMs.toFixed(2) }} · jank {{ live.jankPct.toFixed(0) }}% · heap
         {{ live.heapMb === undefined ? "n/a" : `${live.heapMb.toFixed(0)} MB` }}
       </div>
@@ -65,12 +46,7 @@
 
     <div class="bench__body">
       <div class="bench__block">
-        <!-- Collapsible, because the settings are touched once and the results
-             are read many times. Run, Cancel and the status line stay out of the
-             fold: they are what the panel is doing rather than how it was asked
-             to do it, and hiding a running sweep's Cancel button would be a trap.
-             The summary keeps the collapsed settings legible, so folding them
-             away never means forgetting what is about to run. -->
+        <!-- Run, Cancel and the status stay outside the fold, so a running sweep's Cancel is never hidden. -->
         <button type="button" class="bench__fold" :aria-expanded="settingsOpen" @click="settingsOpen = !settingsOpen">
           <span class="bench__chevron">{{ settingsOpen ? "▾" : "▸" }}</span>
           settings
@@ -90,9 +66,7 @@
               </label>
             </div>
           </div>
-          <!-- The propagation axis. Drawing does not care what the clock is doing;
-               the sampled trajectory refreshes on a simulation-time schedule, so a
-               faster clock re-propagates the same satellites more often. -->
+          <!-- The propagation axis; see DEFAULT_CLOCK_MULTIPLIERS. -->
           <label class="bench__field">
             <span>clock</span>
             <input v-model="clocksText" type="text" spellcheck="false" :disabled="running" />
@@ -110,9 +84,7 @@
             <span>extras</span>
             <div class="bench__inline">
               <label><input v-model="withGroundStation" type="checkbox" :disabled="running" /> ground station (pass prediction)</label>
-              <!-- The expensive one. Disabled rather than hidden when it cannot
-                   work, because "not cross-origin isolated" is a fact about how the
-                   page was served that nothing else in the app ever surfaces. -->
+              <!-- Disabled, not hidden, so its tooltip can say the page is not cross-origin isolated. -->
               <label :title="footprintHint">
                 <input v-model="withFootprint" type="checkbox" :disabled="running || !footprintAvailable" />
                 accurate memory footprint (measureUAM, ~17 s/step)
@@ -128,9 +100,7 @@
         <div class="bench__row bench__dim">{{ status }}</div>
       </div>
 
-      <!-- Above the tables, not beside the rows: the fits and the propagation
-         deltas are built out of these rows, so a thin sample makes every table
-         below noise and each one would otherwise read as a result. -->
+      <!-- Above the tables: every derived table inherits a thin row's noise. -->
       <div v-if="thin > 0" class="bench__block bench__warn">
         {{ thin }}/{{ rows.length }} steps sampled under {{ MIN_TRUSTWORTHY_FRAMES }} frames — those rows, and everything derived from them, are noise. Keep the tab in front.
       </div>
@@ -153,9 +123,7 @@
             </tr>
           </thead>
           <tbody>
-            <!-- A row averaged over a handful of frames is struck through rather
-               than dropped: that it was attempted and came back worthless is
-               itself the finding. -->
+            <!-- Thin rows are struck through, not dropped. -->
             <tr v-for="(row, index) in rows" :key="index" :class="{ bench__thin: row.frames < MIN_TRUSTWORTHY_FRAMES }">
               <td class="bench__num">{{ row.sats }}</td>
               <td class="bench__num">{{ row.visible }}</td>
@@ -203,10 +171,7 @@
         </table>
       </div>
 
-      <!-- Slopes only, and captioned as relative on purpose. The heap floor these
-         are fitted through includes uncollected garbage, so the intercept is not a
-         footprint and an absolute figure printed here would invite exactly the
-         misreading that sent someone after a leak that did not exist. -->
+      <!-- Slopes only: the heap floor includes garbage, so an intercept here would read as a footprint. -->
       <div v-if="memory.length > 0" class="bench__block bench__block--table">
         <div class="bench__caption">memory (heap growth per 1,000 satellites — relative; within 2% of a forced GC when r² holds)</div>
         <table class="bench__table">
@@ -224,9 +189,7 @@
           <tbody>
             <tr v-for="fit in memory" :key="fit.series">
               <td>{{ fit.series }}</td>
-              <!-- Em dash rather than 0: a series with one count, or a browser with no
-                   heap reading, has no derived slope — but may still have an absolute
-                   one beside it. -->
+              <!-- A series without a floor fit may still have an absolute one. -->
               <td class="bench__num">{{ fit.mbPer1000Sats?.toFixed(1) ?? "—" }}</td>
               <td class="bench__num">{{ fit.kbPerSatellite?.toFixed(1) ?? "—" }}</td>
               <td v-if="footprintColumn" :class="['bench__num', fit.absoluteKbPerSatellite === undefined ? '' : absoluteFitTrustworthy(fit) ? 'bench__good' : 'bench__bad']">
@@ -236,20 +199,14 @@
             </tr>
           </tbody>
         </table>
-        <!-- Not a footnote: a collection landing mid-series makes the slope
-             meaningless rather than merely noisy, and a negative one reads as an
-             answer. Measured, a broken series fitted r² 0.002 against 0.999 for a
-             good one. The numbers still render — striking them out would hide the
-             negative slope that is the tell — so the r² cell turns red and this
-             line says what it means. -->
+        <!-- Not struck through: the negative slope is the tell of a mid-series GC. -->
         <div v-if="memory.some((fit) => fit.r2 !== undefined && !memoryFitTrustworthy(fit))" class="bench__row bench__bad">
           that slope cannot be read — it needs {{ MIN_MEMORY_FIT_POINTS }}+ counts and r² {{ MIN_TRUSTWORTHY_MEMORY_R2 }}, or a garbage collection landed inside the series and its
           offset is not common to the rows. Sweep more counts, or re-run.
         </div>
       </div>
 
-      <!-- Only when the clock was swept: an empty table here would read as
-         "propagation is free" rather than "nobody asked". -->
+      <!-- An empty table would read as "propagation is free". -->
       <div v-if="propagation.length > 0" class="bench__block bench__block--table">
         <div class="bench__caption">propagation (clock-tick ms over the same scene at ×1)</div>
         <table class="bench__table">
@@ -278,10 +235,7 @@
         </table>
       </div>
 
-      <!-- The first step, re-run once the sweep is over. Its own table because it
-         says something about the run rather than about a scene: if this scene
-         measured differently the second time, the app moved under the sweep and
-         every trend above is partly that. -->
+      <!-- Drift: if the re-run differs, the app moved under the sweep. -->
       <div v-if="repeats.length > 0" class="bench__block bench__block--table">
         <div class="bench__caption">first step re-run at the end (drift)</div>
         <table class="bench__table">
@@ -370,18 +324,11 @@ const emit = defineEmits<{ close: [] }>();
 const cc = useController();
 const cesiumStore = useCesiumStore();
 const satStore = useSatStore();
-// Both reactive now that the store owns them, which is what lets the warning
-// appear the moment someone switches render-on-demand back on, and the panel
-// step aside only for an FPS counter that is actually drawn.
 const { showFps, requestRenderMode: renderOnDemand } = storeToRefs(cesiumStore);
-// Opening the panel is what installs the framework, which is also what puts
-// `window.bench` there. Idempotent, so a second open reuses the same handle and
-// the console and the panel are never measuring different things.
+/** Also installs `window.bench`. */
 const bench = installBenchmark(cc);
 
-// `current` first and selected: the everyday question is how the components the
-// user actually has switched on scale, and it is also the only choice that costs
-// one pass rather than seven or eight.
+/** `current` is the default: one pass rather than seven or eight. */
 const MODES = [
   { value: "current", label: "current", hint: "Only the components currently switched on" },
   { value: "isolated", label: "isolated", hint: "Point, plus each other component on its own" },
@@ -390,22 +337,16 @@ const MODES = [
 type Mode = (typeof MODES)[number]["value"];
 
 const countsText = ref(DEFAULT_SATELLITE_COUNTS.join(", "));
-// Real time only by default: the clock axis multiplies the step count, and most
-// sessions are asking about drawing rather than about propagation.
+/** The clock axis multiplies the step count. */
 const clocksText = ref("1");
 const mode = ref<Mode>("current");
 const warmupMs = ref(DEFAULT_OPTIONS.warmupMs);
 const sampleMs = ref(DEFAULT_OPTIONS.sampleMs);
-/** Below this a row is red; below FPS_WARN it is yellow. 60 is the budget the scaling table extrapolates to. */
+/** Below FPS_BAD a row is red, below FPS_WARN yellow. */
 const FPS_BAD = 30;
 const FPS_WARN = 60;
 
 const withGroundStation = ref(false);
-/**
- * Off by default, and the estimate is what keeps that honest: a capture waits
- * about 17 s for a collection, so on the default sweep this is four minutes
- * against fourteen.
- */
 const withFootprint = ref(false);
 const footprintAvailable = canMeasureFootprint();
 const footprintHint = footprintAvailable
@@ -414,11 +355,11 @@ const footprintHint = footprintAvailable
 const running = ref(false);
 const status = ref("idle");
 const copied = ref("");
-// Open to begin with: the settings are the first thing anyone touches, and a
-// panel that opens showing nothing but a Run button hides what it would run.
 const settingsOpen = ref(true);
-// Bumped as each row lands so the tables recompute off the live run object,
-// which the runner mutates in place rather than replacing.
+/**
+ * The runner mutates its run in place, so a computed over `run` never
+ * invalidates. Every derived view reads this counter instead.
+ */
 const revision = ref(0);
 const finished = ref<BenchmarkRun | undefined>(undefined);
 
@@ -455,14 +396,7 @@ const estimateText = computed(() => {
   return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
 });
 
-/**
- * Point the controls at what a run is actually doing.
- *
- * `mode` is reverse-mapped rather than stored: the spec carries component sets, and
- * whether they came from a preset is only recoverable by comparing against the
- * presets. Anything unrecognised is "current", which is what a hand-passed
- * `componentSets` most resembles.
- */
+/** `mode` is recovered by comparing against the presets; anything else is "current". */
 function adoptRunSettings(): void {
   const current = run();
   if (!current) {
@@ -480,7 +414,6 @@ function adoptRunSettings(): void {
   withGroundStation.value = bench.target.options.groundStation !== undefined;
 }
 
-/** What the folded settings say, so collapsing them is not the same as losing them. */
 const settingsSummary = computed(() => {
   const parts = [`${counts.value.length} counts`, mode.value];
   if (clocks.value.length > 1 || (clocks.value[0] ?? 1) !== 1) {
@@ -490,8 +423,6 @@ const settingsSummary = computed(() => {
     parts.push("ground station");
   }
   if (withFootprint.value) {
-    // Named in the collapsed summary because it is the setting that turns a
-    // four-minute sweep into a fourteen-minute one.
     parts.push("footprint");
   }
   return `· ${parts.join(" · ")}`;
@@ -499,11 +430,6 @@ const settingsSummary = computed(() => {
 
 const run = (): BenchmarkRun | undefined => bench.runner.run ?? finished.value;
 
-// The runner mutates one run object in place rather than replacing it, so a
-// computed over `run` would settle on the same reference and never invalidate —
-// which is exactly what kept the results table empty. Every derived view reads
-// the revision counter directly instead, and `run` stays a plain function so
-// there is no second, staler copy of it to depend on by accident.
 const rows = computed<ReportRow[]>(() => {
   void revision.value;
   const current = run();
@@ -532,28 +458,14 @@ const repeats = computed<RepeatCheck[]>(() => {
 
 const signed = (percent: number): string => `${percent > 0 ? "+" : ""}${percent.toFixed(1)}%`;
 
-/**
- * Whether the clock column earns its width — asked of the rows on screen, not of
- * the form. Reading the form instead hid the column on a sweep started from the
- * console, which left three rows differing only in a value that was not shown.
- */
+/** From the rows, not the form, so a console-started sweep shows it too. */
 const clockSwept = computed(() => new Set(rows.value.map((row) => row.clock)).size > 1 || rows.value.some((row) => row.clock !== 1));
 
-/** Any row too thin to mean anything taints the derived tables built on top of it. */
 const thin = computed(() => rows.value.filter((row) => row.frames < MIN_TRUSTWORTHY_FRAMES).length);
 
-/**
- * Only give the column its width when some row actually carries a figure — the
- * report blanks every one of them together when the driver's clock cannot be
- * believed, and a column of dashes says nothing a missing column does not.
- */
+/** The report blanks the whole column when the driver's clock is not believable. */
 const gpuColumn = computed(() => rows.value.some((row) => row.gpuMs !== ""));
 
-/**
- * Same rule as gpuColumn: shown only where a run actually captured footprints. Via
- * the shared predicate, so this and `logRun` cannot disagree about whether a run
- * has any.
- */
 const footprintColumn = computed(() => {
   void revision.value;
   const current = run();
@@ -566,10 +478,10 @@ interface Live {
   p95Ms: number;
   worstMs: number;
   cpuMs: number;
-  /** Undefined where there is no GPU clock, or one that contradicts the frame rate. */
+  /** Undefined without a GPU clock, or with one that contradicts the frame rate. */
   gpuMs: number | undefined;
   jankPct: number;
-  /** The window's low-water mark — the live-set estimate. Undefined outside Chrome. */
+  /** The window's heap floor, not the live set. Undefined outside Chrome. */
   heapMb: number | undefined;
   satellites: number;
   components: string;
@@ -599,7 +511,6 @@ const fpsClass = computed(() => (live.value.fps < FPS_BAD ? "bench__bad" : live.
 const gpuOrUndefined = (gpuMs: number | undefined, wallP50: number | undefined): number | undefined =>
   gpuMs !== undefined && wallP50 !== undefined && wallP50 > 0 && gpuMs <= wallP50 * GPU_TIMER_TRUST_FACTOR ? gpuMs : undefined;
 
-/** The warning's own way out, so the fix is where the complaint is. */
 function disableRenderOnDemand(): void {
   cesiumStore.requestRenderMode = false;
 }
@@ -607,21 +518,13 @@ function disableRenderOnDemand(): void {
 let timer: ReturnType<typeof setInterval> | undefined;
 
 function refresh(): void {
-  // Read from the shared runner rather than tracking it locally, so a sweep
-  // started from the console fills this table too and cannot leave the panel
-  // offering a Run button that would throw. Bumping the revision here is what
-  // makes the tables follow a run nobody in this component started.
+  // Read from the shared runner, so a console-started sweep fills the tables too.
   const wasRunning = running.value;
   running.value = bench.runner.running;
   if (!startedHere) {
-    // A console-driven run has no hooks into this component, so its start *and*
-    // its end have to be noticed here — otherwise the panel goes on saying
-    // "running" over a finished run's results.
+    // A console run has no hooks here, so poll for its start and end.
     if (running.value) {
       status.value = "running — started from the console";
-      // A console run bypasses these controls, so they would otherwise go on
-      // describing whatever was last typed while a different sweep ran. Adopting
-      // the run's own spec keeps the panel an honest account of what is happening.
       adoptRunSettings();
     } else if (wasRunning) {
       const finishedRun = bench.runner.run;
@@ -636,9 +539,7 @@ function refresh(): void {
     p95Ms: snapshot.frames.wall?.p95 ?? 0,
     worstMs: snapshot.frames.wall?.max ?? 0,
     cpuMs: snapshot.frames.cpu?.mean ?? 0,
-    // The same invariant the report applies per run, applied here per snapshot:
-    // a frame that presented every N ms cannot have cost the GPU much more than
-    // N, so a timer claiming otherwise is measuring something else.
+    // The report's per-run GPU gate, applied per snapshot.
     gpuMs: gpuOrUndefined(snapshot.frames.gpu?.mean, snapshot.frames.wall?.p50),
     jankPct: snapshot.frames.jankRatio * 100,
     heapMb: snapshot.frames.heap?.min,
@@ -650,28 +551,17 @@ function refresh(): void {
   };
 }
 
-// What render-on-demand was before the panel took it away, so closing gives it
-// back. Held here rather than in the target: this is the panel's doing, and the
-// target's own save/restore is scoped to a run.
+/** Restored on close. Not the target's job: its save/restore is scoped to a run. */
 let savedRequestRenderMode: boolean | undefined;
 
 onMounted(() => {
-  // Render-on-demand skips frames whenever nothing moved, which makes the gap
-  // between frames a measure of how idle the loop is rather than of what a scene
-  // costs — so every figure in this panel would be meaningless while it is on.
-  // Switched off on open rather than offered as a button: there is no reading to
-  // be had with it on, so there was nothing for the button to be a choice
-  // between.
-  //
-  // Through the store, not `scene.requestRenderMode`. Writing the scene left the
-  // Render menu's own RequestRender switch showing the old value — a plain scene
-  // property is not reactive — so the first time the panel was opened it looked
-  // as though nothing had happened.
+  // Render-on-demand skips idle frames, so every figure would measure idleness.
+  // Set through the store, not `scene.requestRenderMode`, so the Render menu's
+  // switch follows.
   savedRequestRenderMode = cesiumStore.requestRenderMode;
   cesiumStore.requestRenderMode = false;
   refresh();
-  // Twice a second: often enough to read as live, rarely enough that reading it
-  // is not itself part of what is being measured.
+  // Rarely enough that reading it is not part of what is measured.
   timer = setInterval(refresh, 500);
 });
 onUnmounted(() => {
@@ -683,8 +573,6 @@ onUnmounted(() => {
   }
 });
 
-// Whether this panel is the one driving, which is the difference between a
-// step-by-step status line and merely saying that something is under way.
 let startedHere = false;
 
 async function start(): Promise<void> {
@@ -749,15 +637,11 @@ async function copy(format: "csv" | "json" | "text"): Promise<void> {
   }, 2000);
 }
 
-// The ground station lives on the shared target rather than being passed per
-// run: it is a property of the scene being measured, not of the sweep. Munich,
-// because the observer only has to be somewhere for passes to be computed.
+// On the shared target, because it belongs to the scene, not the sweep. Any location works.
 watch(
   withGroundStation,
   (enabled) => {
-    // Merged, not replaced: a console run may have set `tag` to pin the population,
-    // and replacing the object would silently drop it — including when the panel
-    // adopts a console run's settings and this watcher fires as a side effect.
+    // Merged, so a console run's `tag` survives.
     bench.target.options = { ...bench.target.options, groundStation: enabled ? { lat: 48.1772, lon: 11.7476 } : undefined };
   },
   { immediate: true },
@@ -765,8 +649,7 @@ watch(
 </script>
 
 <style scoped>
-/* Top right, on the entity info panel's own coordinates so the two read as one
-   slot. */
+/* The entity info panel's coordinates, so the two share one slot. */
 .bench {
   position: fixed;
   top: 50px;
@@ -786,20 +669,14 @@ watch(
   line-height: 1.5;
 }
 
-/* Cesium draws its FPS counter at top 50px / right 10px — exactly here — and it
-   is the independent second opinion this panel's headline figure gets checked
-   against, computed by code the framework does not own. So step below it, but
-   only while it is actually on screen: giving up 60px to a counter nobody
-   switched on would be paying for it twice. */
+/* Cesium's FPS counter sits at top 50px / right 10px; step below it while it is shown. */
 .bench--below-fps {
   top: 110px;
   max-height: calc(100dvh - 120px);
 }
 
-/* The frame: bar, alert and live readout pinned, body scrolls. `min-height: 0`
-   is what makes the body shrink instead of pushing the panel past its
-   max-height — a flex item defaults to its content's size and would otherwise
-   scroll the whole panel, taking the readout with it. */
+/* Bar, alert and readout pinned; the body scrolls. The body needs `min-height: 0`
+   to shrink, or the whole panel scrolls. */
 .bench__bar,
 .bench__alert,
 .bench__live {
@@ -840,11 +717,7 @@ watch(
   border-bottom: 1px solid #2a2f3a;
 }
 
-/* `.bench .bench__x`, not `.bench__x`: the generic `.bench button` rule below is
-   more specific than a bare class and was winning, so the close button was
-   painted with the dark button background on top of the orange bar and all but
-   vanished. Dark ink on the bar's own orange instead, which is the same contrast
-   the title beside it has. */
+/* `.bench .bench__x` to outrank the generic `.bench button` rule below. */
 .bench .bench__x {
   margin-left: auto;
   padding: 0 2px;
@@ -994,9 +867,7 @@ watch(
   text-decoration: line-through;
 }
 
-/* Beats `.bench__table th`, which sets text-align: left and outranks a bare
-   `.bench__num` on specificity — that is what left a numeric header sitting over a
-   right-aligned column. */
+/* Outranks `.bench__table th`, which sets text-align: left. */
 .bench__table th.bench__num {
   text-align: right;
 }
@@ -1010,9 +881,7 @@ watch(
   margin-bottom: 2px;
 }
 
-/* Full width and left-aligned so the whole header row is the hit target, rather
-   than a chevron nobody can hit. Beats `.bench button` on specificity for the
-   same reason the close button has to. */
+/* The whole header row is the hit target. Outranks `.bench button`. */
 .bench .bench__fold {
   display: flex;
   align-items: center;

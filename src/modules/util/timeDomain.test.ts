@@ -6,7 +6,7 @@ const at = (iso: string) => Date.parse(iso);
 const TEN_MINUTES = 10 * 60 * 1000;
 const DAY = 24 * 60 * 60 * 1000;
 
-// Two runs of 10-minute frames with a gap, as GIBS publishes GOES-East.
+/** Two runs of 10-minute frames with a gap, as GIBS publishes GOES-East. */
 const GOES = parseDomain("2026-10-04T20:00:00Z/2026-10-04T23:50:00Z/PT10M,2026-10-05T01:00:00Z/2026-10-05T11:20:00Z/PT10M");
 
 describe("parseDomain", () => {
@@ -55,8 +55,7 @@ describe("frameWindow", () => {
     ]);
   });
 
-  // Every step after the latest frame shows it, so the live clock does not cause a
-  // reload every ten minutes while GIBS has nothing newer.
+  // So the live clock does not reload every ten minutes while GIBS has nothing newer.
   test("merges the steps that show the same frame", () => {
     const steps = frameWindow(GOES, at("2026-10-05T11:40:00Z"), TEN_MINUTES, 3);
     expect(steps.map((step) => formatFrame(step.frame, false))).toEqual(["2026-10-05T11:10:00Z", "2026-10-05T11:20:00Z"]);

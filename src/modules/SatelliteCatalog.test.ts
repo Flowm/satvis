@@ -4,8 +4,7 @@ import { SatelliteCatalog } from "./SatelliteCatalog";
 import { parseGpPayload, type GpRecord } from "./util/gp";
 import { resetGpSource } from "./util/gpSource";
 
-// Two OMM records; ALPHA appears in both groups (same satnum + name) to
-// exercise cross-group dedup and tag union.
+/** ALPHA appears in both groups (same satnum + name) to exercise dedup and tag union. */
 function ommRecord(name: string, satnum: number): GpRecord {
   return {
     kind: "omm",
@@ -74,8 +73,7 @@ describe("SatelliteCatalog", () => {
     const catalog = new SatelliteCatalog();
     const batches: number[] = [];
     catalog.onChange((entries) => batches.push(entries.length));
-    // addRecords does not fire onChange directly; only #loadGroupWithBase
-    // (via loadGroups) does. Emulate by checking the returned changed set instead.
+    // addRecords does not fire onChange; only a group load does. Check the returned changed set instead.
     const changed1 = catalog.addRecords([ommRecord("A", 1)], ["G1"]);
     expect(changed1).toHaveLength(1);
     // Re-adding with a new tag returns the merged entry.
@@ -95,9 +93,6 @@ describe("SatelliteCatalog", () => {
     expect(catalog.getByName("ISS (ZARYA)")?.satnum).toBe("25544");
   });
 });
-
-// Lazy group loading: registered groups fetch only on demand (ensureTags /
-// ensureAll), with per-request fallback to the static snapshot.
 
 function ommPayload(...records: GpRecord[]): string {
   return JSON.stringify(records.map((record) => (record as { omm: unknown }).omm));
@@ -174,7 +169,7 @@ describe("SatelliteCatalog lazy loading", () => {
     ]);
     const searchOnly = () => Object.fromEntries(catalog.groups.map((group) => [group.tag, group.searchOnly]));
     expect(searchOnly()).toEqual({ Weather: false, Stations: true });
-    // Loading changes nothing about it: the flag is about the group, not its entries.
+    // The flag is about the group, not its entries.
     await catalog.ensureTags(["Stations"]);
     expect(searchOnly()).toEqual({ Weather: false, Stations: true });
     // A second preset that offers the same source whole wins over the first.

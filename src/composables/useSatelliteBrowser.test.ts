@@ -1,5 +1,4 @@
-// Row model and search state against a catalog fed by stubbed fetches. The
-// composable is Cesium-free, so this runs in the node-env vitest.
+// The row model and search state, against a catalog fed by stubbed fetches.
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -16,8 +15,10 @@ function json(body: unknown): () => Response {
   return () => new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } });
 }
 
-// Weather is a full group; active is search-only and holds Weather's one
-// satellite plus one that no group offers.
+/**
+ * Weather is a full group; active is search-only and holds Weather's one
+ * satellite plus one that no group offers.
+ */
 function installFetch(): void {
   const routes: Record<string, () => Response> = {
     "/api/groups.json": json({
@@ -40,8 +41,7 @@ function installFetch(): void {
   );
 }
 
-// As SatelliteManager wires it: a catalog change bumps the store revision the
-// composable's computeds depend on.
+/** Wired as SatelliteManager does it. */
 function setup() {
   const catalog = new SatelliteCatalog();
   const satStore = useSatStore();

@@ -1,10 +1,5 @@
-<!-- Pause, playback speed and scrubbing, in place of Cesium's animation and timeline
-     widgets. See CONTEXT.md: clock deck, scale row, rung.
-
-     A control row over a scale row, and the scale row is the timeline or the ladder,
-     never both — which is what keeps the deck's height fixed and the clock still.
-     Tapping the clock folds the deck to the clock alone: the controls go with the
-     scale row, or they hang off one side of it. -->
+<!-- Replaces Cesium's animation and timeline widgets. See CONTEXT.md: clock deck, scale row, rung.
+     The scale row shows the timeline or the ladder, never both, so the deck height stays fixed. -->
 <template>
   <div class="deck" :class="{ 'deck--folded': !open }" :style="surfaceStyle">
     <div ref="cluster" class="cluster">
@@ -41,8 +36,7 @@
     <!-- Height fixed here, not by the scale inside it, so switching moves nothing. -->
     <div v-if="open" class="scale-row">
       <template v-if="onLadder">
-        <!-- Roving tabindex: focusing a rung scrolls it into view, and that sets the
-             speed, so 36 tab stops would drag the clock across the whole ladder. -->
+        <!-- Roving tabindex: focusing a rung scrolls it into view, which sets the speed. -->
         <div
           ref="ladder"
           class="ladder"
@@ -74,8 +68,7 @@
       </template>
 
       <template v-else>
-        <!-- A group, not a `slider`: a slider must say what its bounds are, and a
-             relative drag on an unbounded scale has none. -->
+        <!-- A group, not a `slider`: the scale is unbounded, and a slider must declare bounds. -->
         <div
           ref="timeline"
           class="timeline"
@@ -117,28 +110,23 @@ const { now, playing, multiplier, rung, offPresent, togglePlaying, goLive } = cl
 const timeline = ref<HTMLElement>();
 const { ticks, width: timelineWidth, onDown: onTimelineDown, onMove: onTimelineMove, onUp: onTimelineUp, onKey: onTimelineKey, measure } = useTimeline(clock, timeline);
 
-// Marks, not ranges: the timeline moves under a fixed needle, so a pass only has a
-// position relative to this frame.
+/** The timeline moves under a fixed needle, so marks are recomputed relative to `now`. */
 const { passes } = usePassHighlights();
 const marks = computed(() => passMarks(passes.value, now.value.getTime(), timelineWidth.value));
 
 const ladder = ref<HTMLElement>();
 const { onScroll: onLadderScroll, onDown: onLadderDown, onMove: onLadderMove, onUp: onLadderUp, pick: pickRung, showRung, step } = useLadder(clock, ladder);
 
-// The timeline by default: it is what the deck is for.
 const scale = ref<Scale>(Scale.Timeline);
 const onLadder = computed(() => scale.value === Scale.Ladder);
-// Folded wherever the pointer is coarse — a tablet as much as a phone, which is the
-// intent: the clock alone is what most touch sessions need. Open under a mouse.
+/** Folded on every touch device, tablets included. */
 const open = ref(!DeviceDetect.hasTouch());
 
-/** Whether the scale showing is away from where it rests. */
 const resettable = computed(() => (onLadder.value ? multiplier.value !== 1 : offPresent.value));
 
-/** Undo the deviation on whichever scale is showing. */
 function reset(): void {
   if (onLadder.value) {
-    // Through the ladder, or the rung it rests on and the rate in force disagree.
+    // Through the ladder, or the shown rung and the rate in force disagree.
     showRung(REAL_TIME_RUNG, { animate: true });
     return;
   }
@@ -160,7 +148,7 @@ function toggleScale(): void {
 function toggle(): void {
   open.value = !open.value;
   if (!open.value) {
-    // Coming back to the ladder is coming back to the wrong instrument.
+    // Reopen on the timeline, not the ladder.
     scale.value = Scale.Timeline;
   }
   chrome.setFolded(!open.value);
@@ -170,7 +158,6 @@ function toggle(): void {
   void nextTick(measure);
 }
 
-/** Arrow keys walk the ladder, and take focus with them. */
 function onLadderKey(event: KeyboardEvent): void {
   const direction = arrowStep(event.key);
   if (direction === 0) {
@@ -182,18 +169,17 @@ function onLadderKey(event: KeyboardEvent): void {
   void nextTick(() => ladder.value?.querySelector<HTMLElement>(".rung--on")?.focus());
 }
 
-// The surface's insets from the row's edges. Measured, not derived: the reset comes
-// and goes for three reasons, so a `watch` over them is a list that will be wrong.
-// Set on the deck, not the cluster: the scale row's fillets are placed off them too.
+/**
+ * Measured, not derived: the reset button appears for several reasons, and a `watch` list would drift.
+ * Set on the deck, not the cluster, because the scale row's fillets use them too.
+ */
 const cluster = ref<HTMLElement>();
 const surfaceLeft = ref(0);
 const surfaceRight = ref(0);
 const surfaceStyle = computed(() => ({ "--surface-left": `${surfaceLeft.value}px`, "--surface-right": `${surfaceRight.value}px` }));
 
 const SURFACE_PAD = 8;
-// `.play__circle` and not `.play`: the button's box carries 5 px of transparent
-// slack on each side of the circle, which would land as 13 px of padding on the left
-// against 8 on the right.
+/** `.play__circle`, not `.play`: the button box has 5 px of transparent slack on each side. */
 const SURFACE_PARTS = ".play__circle, .stamp, .mode, .reset";
 
 function measureSurface(): void {
@@ -213,9 +199,10 @@ function measureSurface(): void {
   surfaceRight.value = Math.max(0, box.right - right);
 }
 
-// The observer answers the row's contents changing, between layout and paint. The
-// listener answers the viewport changing, and covers the backgrounded tab where the
-// observer's callbacks do not run.
+/**
+ * The observer catches content changes; the resize listener catches viewport changes,
+ * including in a background tab, where observer callbacks do not run.
+ */
 let rowSize: ResizeObserver | undefined;
 const onResize = (): void => measureSurface();
 
@@ -248,23 +235,17 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  /* Above the sky view's HUD (z-4) and the entity info panel (z-5), and level with
-     the toolbars (z-6): the clock is chrome, not content. */
+  /* Above the sky HUD (z-4) and the entity info panel (z-5), level with the toolbars. */
   z-index: 6;
-  /* The deck is a box the width of the screen, and it would cover whatever shares
-     its rows — Cesium's credit line sits in them at some widths and under them
-     when this is folded. Lifting the credits instead is not possible: they are in
-     Cesium's own stacking root and this is in the app's, so no z-index reaches
-     across. The deck therefore hits nothing, and the things that are controls opt
-     back in. */
+  /* The full-width deck would cover Cesium's credits, which sit in another stacking
+     root that no z-index reaches. The controls opt back in. */
   pointer-events: none;
   --safe: max(6px, var(--safe-bottom, 0px));
   /* Shared by the clock's corners, the scale row's, and the fillets between them. */
   --radius: 16px;
   color: #edffff;
   font-variant-numeric: tabular-nums;
-  /* A phone's width, centred, on anything wider. main.css sets the cap and places
-     the credit line at the same breakpoint. */
+  /* main.css sets the cap, and places the credits at the same breakpoint. */
   margin: 0 auto;
   max-width: var(--clock-deck-max, 100%);
 }
@@ -279,18 +260,16 @@ onUnmounted(() => {
   /* Or `::before` falls behind the deck too. */
   isolation: isolate;
   display: grid;
-  /* `minmax(0, 1fr)`: a bare `1fr` will not shrink below its content, and the heavier
-     right side would push the clock off the needle. */
+  /* A bare `1fr` does not shrink below its content, and the heavier right side would push the clock off the needle. */
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 6px;
-  /* Sideways the notch is beside this row, not above it. */
+  /* In landscape the notch is beside this row. */
   padding: 2px calc(8px + var(--safe-right, 0px)) 0 calc(8px + var(--safe-left, 0px));
 }
 
-/* Covers the controls, not the row: two thirds of the row is empty. Insets from
-   `measureSurface`; flush along the bottom, and the shadow goes up only, or it draws
-   the join with the scale row. */
+/* Covers the controls, not the row; insets from `measureSurface`. The shadow goes up only,
+   or it draws the join with the scale row. */
 .cluster::before {
   content: "";
   position: absolute;
@@ -304,19 +283,16 @@ onUnmounted(() => {
   box-shadow: 0 -2px 20px #00000080;
 }
 
-/* Nothing below it, so it closes into a card. */
 .deck--folded .cluster::before {
   border-radius: var(--radius);
   box-shadow: 0 4px 20px #000000a6;
 }
 
-/* Only the controls, not the row. See the deck. */
 .cluster > * {
   pointer-events: auto;
 }
 
-/* Below 370 px nothing both centres the clock and fits, so the group centres as a
-   whole and the clock leaves the needle. */
+/* Below 370 px the grid does not fit, so the group centres as a whole and the clock leaves the needle. */
 @media (max-width: 369px) {
   .cluster {
     display: flex;
@@ -332,8 +308,7 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* A circle that shrinks is an ellipse, and a row too wide for its viewport takes
-     it out of the roundest thing in it. */
+  /* A shrinking circle becomes an ellipse. */
   flex: none;
   height: 44px;
   width: 44px;
@@ -342,8 +317,7 @@ onUnmounted(() => {
   font-size: 17px;
 }
 
-/* 34, not 44: a disc that size beside 30 px ones reads as another kind of object.
-   The box stays 44 for the touch target. */
+/* A 34 px disc in the 44 px touch target. */
 .play__circle {
   display: inline-flex;
   align-items: center;
@@ -354,18 +328,16 @@ onUnmounted(() => {
   background: #edffff;
 }
 
-/* Fixed: the side tracks derive from it, so a clock that changed width would move its neighbours. */
+/* Fixed width: the side tracks derive from it. */
 .stamp {
   position: relative;
-  /* Placed, not auto-flowed: the play button goes when folded, and the clock would
-     take the column it left. */
+  /* Placed, not auto-flowed: the play button goes when folded. */
   grid-column: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  /* Held here, not by the play button, which goes when folded: or the clock drops as
-     the deck closes. */
+  /* Held here, not by the play button, or the clock drops as the deck folds. */
   min-height: 44px;
   width: 84px;
   line-height: 1.15;
@@ -383,9 +355,7 @@ onUnmounted(() => {
   opacity: 0.55;
 }
 
-/* At the present, as a dot: a chip saying so cost 44 px of a 137 px track. Placed
-   against the 84 px column and not the 82 px of digits, so it stays inside the
-   surface, which is measured to the column's edge plus 8. */
+/* Placed against the 84 px column, not the digits, so it stays inside the measured surface. */
 .stamp__live {
   position: absolute;
   top: 0;
@@ -406,13 +376,12 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-/* Gone, not just empty: under the flex fallback an empty item still takes its gap,
-   and that pushes the clock off centre. */
+/* Not just empty: under the flex fallback an empty item still takes its gap. */
 .deck--folded .right {
   display: none;
 }
 
-/* A 30 px disc in a 44 px box: chip-sized to look at, thumb-sized to hit. */
+/* A 30 px disc in a 44 px tall touch target. */
 .mode,
 .reset {
   display: inline-flex;
@@ -439,14 +408,13 @@ onUnmounted(() => {
   background: #ffffff2e;
 }
 
-/* Amber: the app's colour for "not where it rests". */
+/* Amber: the app colour for "away from rest". */
 .reset__circle {
   background: #ffd4791f;
   color: #ffd479;
 }
 
-/* The ticks are hairlines over the globe and need a surface. The safe area is inside
-   its height, not under it, or a strip of globe shows below the ticks. */
+/* The safe area is inside the height, or a strip of globe shows below the ticks. */
 .scale-row {
   position: relative;
   pointer-events: auto;
@@ -456,9 +424,8 @@ onUnmounted(() => {
   background: #14181ceb;
 }
 
-/* Fillets where the clock's surface meets the row, so the two read as one shape.
-   Each is a square filled outside a quarter circle. They sit above the row, so the
-   row must not clip. The half-pixel stops anti-alias the curve. */
+/* Fillets where the clock's surface meets the row. They sit above the row, so the row
+   must not clip. The half-pixel stops anti-alias the curve. */
 .scale-row::before,
 .scale-row::after {
   content: "";
@@ -483,14 +450,12 @@ onUnmounted(() => {
   position: relative;
   height: 100%;
   overflow: hidden;
-  /* The row's corners again: a pass band reaching the edge would square them off. */
+  /* Or a pass band at the edge squares off the row's corners. */
   border-radius: var(--radius) var(--radius) 0 0;
-  /* The whole surface is the control; the browser must not take the gesture. */
   touch-action: none;
   cursor: ew-resize;
 }
 
-/* The passes table's blue, at a weight that reads as a region and not a control. */
 .pass {
   position: absolute;
   top: 0;
@@ -537,22 +502,17 @@ onUnmounted(() => {
 
 .ladder {
   display: flex;
-  /* The row's height, not its own, so swapping the scales moves nothing. */
   align-items: center;
   height: 100%;
   overflow-x: auto;
   scrollbar-width: none;
-  /* Half a rung either side, so the first and last rung can reach the middle. Both
-     widths come from `CHIP_PX`: the half is passed in rather than divided here,
-     because `calc(50% - var(--rung-width) / 2)` resolved to nothing and cost the
-     the ladder its padding, which put every rung half a rung off the needle. */
+  /* Lets the end rungs reach the middle. The half is passed in, because
+     `calc(50% - var(--rung-width) / 2)` resolved to nothing. */
   padding-inline: calc(50% - var(--rung-inset));
-  /* Dragged, not scrolled — see useClockScales. `scroll-snap-type` is deliberately
-     absent: mandatory snapping re-snaps every programmatic write, so the ladder
-     notches under the finger instead of following it. */
+  /* Dragged, not scrolled; see useClockScales. No `scroll-snap-type`: mandatory snapping
+     re-snaps every programmatic write, so the ladder notches under the finger. */
   touch-action: none;
   cursor: ew-resize;
-  /* Rungs clipped mid-glyph at both ends read as damage rather than as more ladder. */
   mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent);
 }
 
@@ -560,18 +520,14 @@ onUnmounted(() => {
   display: none;
 }
 
-/* Multipliers lead because `300× 600× 900×` reads as a scale where `5 min/s
-   10 min/s` is ragged; the rate underneath says why you would pick one. */
 .rung {
-  /* `CHIP_PX`, which is also the scroll maths: a rung of another width selects the
-     wrong one. */
+  /* Must equal `CHIP_PX`, which the scroll maths uses. */
   flex: 0 0 var(--rung-width);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   line-height: 1.2;
-  /* Dimmed but readable: that is how you know what picking it would do. */
   opacity: 0.55;
 }
 
@@ -585,7 +541,6 @@ onUnmounted(() => {
   opacity: 0.75;
 }
 
-/* Brightness alone carries the selection. Not amber: that is the needle and the reset. */
 .rung--on {
   opacity: 1;
 }

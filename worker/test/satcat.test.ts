@@ -3,16 +3,14 @@ import { describe, expect, it } from "vitest";
 import type { FetchImpl } from "../src/gp/evaluate.ts";
 import { fetchSatcat, parseSatcatCsv, SATCAT_URL } from "../src/gp/satcat.ts";
 
-// CelesTrak's real column order. Kept whole rather than trimmed to the columns
-// we read, because the parser resolves columns by name and the point is that it
-// keeps working when the ones we ignore move.
+/** CelesTrak's real header, kept whole: the parser must survive ignored columns moving. */
 const HEADER =
   "OBJECT_NAME,OBJECT_ID,NORAD_CAT_ID,OBJECT_TYPE,OPS_STATUS_CODE,OWNER,LAUNCH_DATE,LAUNCH_SITE,DECAY_DATE,PERIOD,INCLINATION,APOGEE,PERIGEE,RCS,DATA_STATUS_CODE,ORBIT_CENTER,ORBIT_TYPE";
 
 const ISS = "ISS (ZARYA),1998-067A,25544,PAY,+,ISS,1998-11-20,TYMSC,,92.94,51.63,424,414,399.0524,,EA,ORB";
 const NAUKA = "ISS (NAUKA),2021-066A,49044,PAY,+,CIS,2021-07-21,TYMSC,,92.94,51.63,424,414,,,25544,DOC";
 
-// CRLF, as served.
+/** CRLF, as served. */
 function csv(...rows: string[]): string {
   return [HEADER, ...rows].join("\r\n");
 }
@@ -40,14 +38,12 @@ describe("parseSatcatCsv", () => {
 
   it("omits empty cells instead of storing them as empty strings", () => {
     const bag = parseSatcatCsv(csv(ISS))["25544"]!;
-    // DECAY_DATE is empty for everything still in orbit, so this is the common
-    // case rather than an edge one.
+    // DECAY_DATE is empty for everything still in orbit, so this is the common case.
     expect(bag).not.toHaveProperty("decayDate");
   });
 
   it("reads the last column despite CRLF line endings", () => {
-    // Splitting on \n alone leaves a trailing \r on ORBIT_TYPE, which silently
-    // turns "ORB" into "ORB\r" and blanks the docked/impacted signal.
+    // Splitting on \n alone would leave "ORB\r" in ORBIT_TYPE.
     expect(parseSatcatCsv(csv(ISS, NAUKA))["49044"]).toMatchObject({ orbitType: "DOC", orbitCenter: "25544" });
     expect(parseSatcatCsv(csv(ISS).replace(/\r\n/g, "\n"))["25544"]).toMatchObject({ orbitType: "ORB" });
   });
@@ -61,8 +57,7 @@ describe("parseSatcatCsv", () => {
   });
 
   it("normalizes the satnum key the way enrichment looks it up", () => {
-    // enrichmentSatnum strips leading zeros, so the table must key the same way
-    // or the join comes back silently empty.
+    // enrichmentSatnum strips leading zeros, so the table must too.
     const rows = parseSatcatCsv(csv(ISS.replace(",25544,", ",025544,")));
     expect(Object.keys(rows)).toEqual(["25544"]);
   });
@@ -77,8 +72,7 @@ describe("parseSatcatCsv", () => {
   });
 
   it("throws rather than returning a plausible-looking empty table", () => {
-    // Each of these would otherwise enrich nothing and read as "SATCAT has no
-    // data", when the truth is that we were served something else entirely.
+    // Otherwise each would enrich nothing and read as "SATCAT has no data".
     expect(() => parseSatcatCsv("")).toThrow(/empty body/);
     expect(() => parseSatcatCsv("<!DOCTYPE html><html><body>403</body></html>")).toThrow(/NORAD_CAT_ID/);
     expect(() => parseSatcatCsv(HEADER)).toThrow(/no records/);
@@ -132,7 +126,7 @@ describe("fetchSatcat", () => {
   });
 
   it("reports every failure mode instead of throwing", async () => {
-    // The caller has to be able to keep going, so no path here may throw.
+    // No path may throw.
     expect(await fetchSatcat(badStatus)).toMatchObject({ status: 522, error: "HTTP 522" });
     expect((await fetchSatcat(garbageBody)).error).toMatch(/NORAD_CAT_ID/);
     expect(await fetchSatcat(connectionReset)).toMatchObject({ error: "connection reset" });

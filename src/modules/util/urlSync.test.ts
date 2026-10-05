@@ -1,6 +1,5 @@
-// The adapter's own seam: what reaches the router's query, given store state.
-// Foreign-parameter handling lives here rather than in the codec because only
-// the router's LocationQuery can express a valueless or repeated parameter.
+// What reaches the router's query, given store state. Foreign parameters are
+// tested here because only LocationQuery can express a valueless or repeated one.
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, test } from "vitest";
 import { createApp, markRaw } from "vue";
@@ -11,7 +10,7 @@ import { useSatStore } from "../../stores/sat";
 import type { Query } from "./urlCodec";
 import piniaUrlSync, { adjustUrlDefault, arrivalParam } from "./urlSync";
 
-// Writes reach the url through router.push/replace, which are async.
+/** Writes reach the url through router.push/replace, which are async. */
 const flush = async (): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, 0));
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -100,8 +99,7 @@ describe("owned parameters", () => {
     expect("terrain" in router.currentRoute.value.query).toBe(false);
   });
 
-  // The one selection that can be armed for a view mode the url is not also
-  // asking for, so it has to survive being currently inapplicable.
+  // It can be armed for a view mode the url is not asking for.
   test("a surface model that cannot apply here is still carried", async () => {
     const { router } = await mount("/?surface=GooglePhotorealistic");
     expect(useCesiumStore().surfaceModel).toBe("GooglePhotorealistic");
@@ -132,8 +130,7 @@ describe("the link the page was opened on", () => {
     expect(arrivalParam("tags")).toBeUndefined();
   });
 
-  // The store writes hydration makes push the url it is still replacing to,
-  // which is not a change.
+  // Hydration's own store writes push the url it is still replacing to.
   test("survives the link's own hydration", async () => {
     await mount("/?elements=Point,Label&tags=Starlink&gs=48.1,11.6");
     expect(arrivalParam("elements")).toBe("Point,Label");

@@ -11,7 +11,7 @@ export interface CesiumPerformanceStatsResult {
   worstFrameTime: number;
 }
 
-// Mean and worst frame time over a sample period.
+/** Mean and worst frame time over a sample period. */
 export class CesiumPerformanceStats {
   scene: Scene;
 
@@ -32,9 +32,8 @@ export class CesiumPerformanceStats {
   constructor(scene: Scene, logContinuously = false) {
     this.scene = scene;
 
-    // Render-on-demand skips frames when nothing moved, which would make the gap
-    // between postRender events a measure of how idle the loop is rather than of
-    // what a frame costs.
+    // Render-on-demand skips idle frames, so the gap between postRender events would
+    // measure idleness rather than frame cost.
     this.scene.requestRenderMode = false;
 
     this.scene.preUpdate.addEventListener(() => {

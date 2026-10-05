@@ -1,12 +1,7 @@
 <template>
   <UModal v-model:open="open" title="About Satvis" :ui="{ content: 'bg-[#303336]/95 text-[#edffff] divide-neutral-600 max-w-2xl', header: 'p-2 sm:px-3', body: 'p-3 sm:p-3' }">
     <UTooltip text="About">
-      <!-- A real link that the dialog intercepts, rather than a button. Opening the
-           dialog is what a click does, but /about is the same content as a page, so
-           the href is honest — and it is the only thing in the rendered document
-           that points there. Without it the page is reachable only by typing the
-           url, which for anything crawling the app means not at all. Middle-click
-           and "open in new tab" get the page, as they should. -->
+      <!-- A link, not a button: it is the only reference crawlers find to /about, and middle-click opens the page. -->
       <a class="cesium-button cesium-toolbar-button" href="/about" aria-label="About Satvis" @click.prevent>
         <UIcon name="lucide:info" />
       </a>
@@ -31,22 +26,9 @@ const open = ref(false);
 const content = ref("");
 const failed = ref(false);
 
-/**
- * The about page is the one copy of this content, so the dialog reads it rather
- * than holding its own — a page that grows screenshots and interactive pieces can
- * do that without a second surface having to be taught about any of it.
- *
- * Only `#about-content` is lifted, which is what leaves the page free to carry
- * chrome (its back link, later a header) that has no business in a modal. Any
- * script the page picks up will not run here: `v-html` does not execute one, and
- * that is the deliberate limit of this arrangement — the dialog shows the page's
- * content, not the page.
- *
- * Fetched on first open rather than on mount, so nothing about drawing the globe
- * waits on it. `about.html` and not `/about`: that is the url workbox precached
- * (vite.config.ts globPatterns), so the request is answered from the cache and
- * works offline, where `/about` would miss the precache and 307 on the network.
- */
+// The about page is the only copy of the content; the dialog lifts its `#about-content`.
+// `v-html` runs no scripts from it. Fetches `about.html`, not `/about`: only that url
+// is precached (vite.config.ts globPatterns), and `/about` 307s on the network.
 watch(open, async (isOpen) => {
   if (!isOpen || content.value || failed.value) {
     return;

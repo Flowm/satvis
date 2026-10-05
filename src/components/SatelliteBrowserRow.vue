@@ -43,10 +43,10 @@ const emit = defineEmits<{
   "toggle-expand": [tag: string];
 }>();
 
-// Native checkboxes expose `indeterminate` only via the DOM property, not an
-// attribute — set it imperatively for the tri-state "some members active" case.
-// (UCheckbox exists but renders a light-theme surface here; a native input with
-// accent-color reads consistently in the dark panel.)
+/**
+ * `indeterminate` is a DOM property only, never an attribute, so it is set imperatively.
+ * Not UCheckbox: it renders a light-theme surface in this panel.
+ */
 const groupCheckbox = ref<HTMLInputElement | null>(null);
 function syncIndeterminate() {
   if (props.row.kind === "group" && groupCheckbox.value) {
@@ -125,8 +125,7 @@ watch(() => (props.row.kind === "group" ? props.row.state : undefined), syncInde
   font-variant-numeric: tabular-nums;
 }
 
-/* Colour comes from the orbit-class palette, inline — the same value the point
-   on the globe is drawn in. Fixed width so the satnums stay in one column. */
+/* Fixed width keeps the satnums in one column; the colour is set inline. */
 .browser-orbit {
   flex: 0 0 auto;
   width: 26px;

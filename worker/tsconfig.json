@@ -3,7 +3,6 @@
     "target": "ES2023",
     "module": "ESNext",
 
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
@@ -13,14 +12,12 @@
     "noEmit": true,
     "skipLibCheck": true,
 
-    /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
 
-    /* Worker */
     "types": ["./src/worker-configuration.d.ts", "@cloudflare/vitest-pool-workers/types"]
   }
 }

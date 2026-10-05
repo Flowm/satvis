@@ -4,26 +4,20 @@ status: accepted
 
 # URL parameter specification
 
-The query string is a public contract: links are shared, bookmarked, and embedded in
-third-party iframes (`embedded.html`) whose URLs we cannot audit. It had never been
-written down, so its conventions had drifted into fourteen hand-written
-serialize/deserialize closures with two different space escapes, two boolean
-implementations (one wrong), and a declared `default` field that nothing read. This
-ADR is the specification.
+The query string is a public contract. Links are shared, bookmarked, and embedded
+in third-party iframes (`embedded.html`) whose URLs we cannot audit. Before this ADR
+it was not written down, and it had drifted into fourteen hand-written
+serialize/deserialize closures with two space escapes, two boolean implementations
+(one wrong), and a `default` field that nothing read. This ADR is the specification.
 
-The contract is **read-compatible**, not byte-frozen: every URL that works today keeps
-working, but emitted output is allowed to differ where the old form bought nothing. The
-one place that applies is space escaping — see [String lists](#string-lists).
+The contract is **read-compatible**, not byte-frozen: every URL that works today
+keeps working, but emitted output may differ where the old form bought nothing. That
+applies only to space escaping (see [String lists](#string-lists)).
 
-The implementation is `src/modules/util/urlCodec.ts` (the pure part) behind
-`src/modules/util/urlSync.ts` (the adapter), with the per-parameter schema declared in the
-`urlsync` blocks of `src/stores/*.ts`. Invariants belong to the store actions the adapter
-writes through, and `src/modules/sceneSync.ts` carries state on to the globe.
-
-One rule is worth stating here because it is not obvious from the parameter table: while
-the clock is pinned it rewrites `time` every minute, so **a change that moves only `time`
-replaces rather than pushes**. The trade is that pinning by scrubbing is not separately
-undoable, which is better than a history made of clock ticks.
+The pure codec is `src/modules/util/urlCodec.ts`, behind the adapter
+`src/modules/util/urlSync.ts`. Each store declares its parameters in its `urlsync`
+block (`src/stores/*.ts`). Invariants belong to the store actions the adapter writes
+through. `src/modules/sceneSync.ts` carries state on to the globe.
 
 ## Parameters
 
@@ -53,52 +47,47 @@ Every parameter is optional. An absent parameter means "use the default" (see
 | `time`       | clock time               | timestamp           | emitted as ISO-8601 at minute precision (`2026-07-26T20:46Z`); any `dayjs`-parseable value accepted                                      | absent (live)     |
 
 [^1]:
-    `msaa` is the one parameter whose default depends on the machine rather than on
-    the route: `off` at a device pixel ratio of 2 or more, `2` below it
-    (`defaultMsaaRate`). It is the same rule as every other default — the baseline is
-    whatever the store holds after hydration — but it is worth naming, because it means
-    a link with no `msaa` can render differently on a laptop and a desktop. That is the
-    intent: the parameter is absent because nobody chose, and what nobody chose should
-    suit the display. A link that must pin the rate says so explicitly.
+    `msaa` is the one default that depends on the machine, not the route: `off` at a
+    device pixel ratio of 2 or more, `2` below it (`defaultMsaaRate`). The rule is
+    the same as for every other default (the baseline is the store after hydration),
+    so a link with no `msaa` can render differently on two displays. That is the
+    intent: nobody chose, so the display decides. A link that must pin the rate
+    states it.
 
 [^2]:
-    The two `DeepStar` cuts are optional assets, built together by
-    `pnpm update-starmap`, so a deployment may have neither. They stay in the
-    accepted vocabulary regardless, for the same reason `?pixelratio=1.5` is accepted on
-    a display that cannot benefit from it: the parameter says what was asked for, not
-    what this machine can serve. The Map menu offers the maps it can find — erring
-    toward offering, since a probe that goes unanswered is treated as a yes rather than
-    read as absence, which is the right guess for a PWA whose faces may be in the
-    runtime cache while the network is not there. A link naming one that turns out to be
-    missing falls back to `Tycho1K` with the url rewritten to match, so the radio, the
-    address bar and the sky agree.
+    The two `DeepStar` cuts are optional assets, built by `pnpm update-starmap`, so a
+    deployment may have neither. They stay in the accepted vocabulary anyway, as
+    `?pixelratio=1.5` is accepted on a display that cannot use it: the parameter
+    says what was asked for, not what this machine can serve. The Map menu offers the
+    maps it can find, and treats an unanswered probe as present, which suits a PWA
+    whose faces may be cached while the network is down. A link naming a missing map
+    falls back to `Tycho1K` and the url is rewritten to match.
 
 [^3]:
     Above a component's budget the default loses it: `Label` past 200 active
-    satellites, `Ground station link` past 500. Crossing a budget switches the
-    component off in the store (`src/modules/sceneSync.ts`), and the baseline follows
-    so that a bare `?tags=Starlink` stays a bare url. The other half is what makes the
-    choice shareable: `elements=Point,Label` is no longer the default up there, so it
-    is emitted, and a link that names a component keeps it through the crossing its own
-    activation causes. That needs the link as it arrived, because hydration drops
-    `elements=Point,Label` as a default before the catalog has loaded enough to count;
-    `arrivalParam` in `urlSync.ts` keeps it until the first change is pushed.
+    satellites, `Ground station link` past 500 (`COMPONENT_BUDGETS` in
+    `src/modules/sceneSync.ts`). Crossing a budget switches the component off in the
+    store, and the baseline follows, so a bare `?tags=Starlink` stays bare. Above the
+    budget `elements=Point,Label` is not the default, so it is emitted, and a link
+    that names a component keeps it through the crossing its own activation causes.
+    Hydration drops `elements=Point,Label` as a default before the catalog can count,
+    so `arrivalParam` in `urlSync.ts` keeps the link as it arrived until the first
+    push.
 
-`scene=Sky` is the odd one out: the other three name a Cesium `SceneMode` and it does
-not — it is the ground-level sky view, which renders in 3D. It shares the parameter
-because a projection and a vantage point cannot be chosen independently, so one closed
-enum cannot express the illegal combinations two parameters would have allowed. See
-`docs/adr/0003-sky-view.md`.
+`scene=Sky` is not a Cesium `SceneMode`. It is the ground-level sky view, which
+renders in 3D. It shares the parameter because a projection and a vantage point
+cannot be chosen independently, and one closed enum cannot express the illegal
+combinations two parameters would allow. See ADR 0003.
 
 ### String lists
 
-There is **one** string-list kind and it takes no options: join and split on `,`. Spaces
-need no escaping — `URLSearchParams` and vue-router's query parser both encode a space as
-`+` and decode it back identically, so spaces already round-trip losslessly.
+There is **one** string-list kind, with no options: join and split on `,`. Spaces
+need no escaping. `URLSearchParams` and vue-router's query parser both encode a
+space as `+` and decode it back, so spaces round-trip.
 
-The two historic escapes (space → `-` for `elements`/`tags`, space → `~` for
-`sats`/`xsats`) were pure decoration. They bought URL cosmetics and cost two naming
-constraints, so they are dropped from emission and survive only as read shims:
+The two old escapes (space → `-` for `elements`/`tags`, space → `~` for
+`sats`/`xsats`) bought only URL cosmetics and cost two naming constraints. They are
+not emitted. They survive as read shims:
 
 | Parameter        | Legacy read shim                                                        | Why                                                              |
 | ---------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------- |
@@ -106,154 +95,137 @@ constraints, so they are dropped from emission and survive only as read shims:
 | `sats` / `xsats` | `~` → space, unconditionally                                            | open vocabulary; nothing to resolve an ambiguity against         |
 | `tags`           | none                                                                    | no `tags` URL has ever carried an escape                         |
 
-The `tags` row holds because no tag name contains a space, so the escape never fired.
-Tags reach the catalog only through `SatelliteCatalog.registerGroups`, whose sole
-production caller is `SatelliteManager.loadElementSets(preset.elements)`, and every tag in
-the worker config (`worker/src/config/satvis.core.yaml`) is a single word. Adding a tag with a space is fine — it will
-encode as `+` — but it must never be escaped as `-`.
+The `tags` row holds because no tag name contains a space. Tags reach the catalog
+only through `SatelliteCatalog.registerGroups`, whose only production caller is
+`SatelliteManager.loadElementSets(preset.elements)`, and every tag in
+`worker/src/config/satvis.core.yaml` is one word. A tag with a space is allowed; it
+encodes as `+`, and must never be escaped as `-`.
 
-`layers` items are validated against the leading segment before `_`. Base layers:
+`layers` items are validated against the segment before `_`. Base layers:
 `NaturalEarth`, `ArcGis`, `VersaTiles`, `OSM`, `BlackMarble`, `VIIRS`. Overlays: `Tiles`,
 `GOES-IR`, `Nextrad`. `VIIRS` and `GOES-IR` show the frame for `time` (`GibsTimeLayer`).
-The split is also how the Map menu presents them — one basemap on radios, any number of
-overlays on checkboxes — and `base` on the registry entry is the one
-place it is decided. The optional `_<alpha>` suffix sets that layer's opacity and has no
-UI control. The accepted set is derived from the imagery-provider registry
-(`imageryProviderNames`), not restated, so it cannot drift.
+The Map menu shows one basemap on radios and any number of overlays on checkboxes;
+`base` on the registry entry (`src/modules/CesiumLayerProviders.ts`) decides which is
+which. The optional `_<alpha>` suffix sets the layer's opacity and has no UI control.
+The accepted set comes from the registry (`imageryProviderNames`), so it cannot drift.
 
-Retiring a provider is the one way this contract is not read-compatible: `?layers=Topo`
-worked until the MapTiler-keyed `Topo` basemap was removed, and now names an unknown member
-of a closed vocabulary, so it is dropped and the basemap falls back to the default. That is
-the documented rule doing its job rather than an exception to it — but it does mean a link
-older than the registry can open on a different map, which is the price of retiring one.
+Retiring a provider is the one way this contract is not read-compatible. `?layers=Topo`
+names a removed member of a closed vocabulary, so it is dropped and the basemap falls
+back to the default. A link older than the registry can therefore open on a
+different map. `Offline` and `OfflineHighres` were retired when they merged into
+`NaturalEarth`; both resolve to the default, which is that layer, so those links
+land on the map they meant.
 
-`Offline` and `OfflineHighres` were retired together the same way, when the two collapsed into
-the single `NaturalEarth` layer. Both old names now resolve to the default — which _is_ that
-layer — so unlike `Topo` those links land on the map they always meant, and only an explicit
-`?layers=Offline` asking for the deliberately-blurry one loses anything.
+At most one base layer is active. When a URL supplies several, the **last in list
+order wins** and earlier base layers are dropped; all overlays are kept. Last-wins
+matches what toggling a base layer means to a user. The rule lives in the store's
+`setLayers` action, not in the codec, because it constrains the whole list whatever
+the source.
 
-At most one base layer may be active. When a URL supplies several, the **last in list
-order wins** and earlier base layers are dropped; all overlays are preserved regardless.
-Last-wins matches what toggling a base layer means to a user. The rule belongs to the
-store's `setLayers` action rather than to this codec, because it constrains the list as a
-whole and has to hold whatever the source.
+`ArcGis` (imagery) and `ArcGIS` (terrain) are different things. The terrain provider
+is registered `visible: false`, so `?terrain=ArcGIS` is not accepted. Do not
+"correct" either spelling.
 
-Note `ArcGis` (imagery) and `ArcGIS` (terrain) differ only in capitalisation and are
-different things. The terrain provider is registered `visible: false`, so `?terrain=ArcGIS`
-is not accepted. Do not "correct" either spelling.
+`surface` is carried even when its model cannot apply in the current `scene`
+(`GooglePhotorealistic` is sky view only, and neither model applies in 2D or
+Columbus). The selection is suppressed, not invalid, so
+`?surface=GooglePhotorealistic&scene=Sky` works and a model can be armed before
+entering its view. `terrain` is likewise emitted while a surface model overrides it,
+because it is what the user chose and what returns on deselection. See ADR 0005.
 
-`surface` is carried even when the model it names cannot apply in the current `scene` —
-`GooglePhotorealistic` is the sky view only, and neither model applies in 2D or Columbus.
-That is deliberate rather than an oversight in validation: the selection is suppressed, not
-invalid, so `?surface=GooglePhotorealistic&scene=Sky` works and a model can be armed before
-entering the view that uses it. `terrain` is likewise still emitted while a surface model
-overrides it, because it says what the user chose and what returns on deselection. See
-`docs/adr/0005-surface-models.md`.
-
-`catalogRevision` and `pickMode` are store state that is deliberately **not** synced —
-the former is a cache-invalidation counter, the latter a transient UI mode.
+`catalogRevision` (a cache-invalidation counter) and `pickMode` (a transient UI
+mode) are store state that is deliberately **not** synced.
 
 ### Read once, outside the store
 
-`framems` changes how the app is driven, not what it shows, so it is not store state. It
-is read once at startup straight from the query string, and the writer preserves it like
-any other unlisted parameter.
+`framems` changes how the app is driven, not what it shows, so it is not store
+state. It is read once at startup from the query string, and the writer preserves it
+like any other unlisted parameter.
 
 | Parameter | Wire form / accepted values                                                         | Default      |
 | --------- | ----------------------------------------------------------------------------------- | ------------ |
 | `framems` | milliseconds between frames; bare or not a positive number is `16`; `0`/`false` off | absent (off) |
 
-It supplies frames to a page that gets none from the browser, which in practice means an
-automated, hidden browser pane. A test that needs no smooth picture can pace it slower,
-such as `framems=100`: that saves render work, though a build of more than 250 satellites
-then takes longer, as it builds a fixed slice per frame. See
-`src/modules/benchmark/README.md`.
+It supplies frames to a page that gets none from the browser, such as a hidden,
+automated browser pane. See `src/modules/benchmark/README.md`.
 
 ## Semantics
 
 ### Defaults
 
 A preset supplies defaults, not initial state. The baseline for each parameter is the
-preset-merged store value for the current route, so the same query string means
-different things on different routes — on `/ot` the OT tag is the default and so is
-absent from the URL. A parameter is emitted only when its value differs from that
-baseline. Deviating from a preset therefore always produces a parameter, so no value is
-unpersistable.
+preset-merged store value for the current route, so one query string can mean
+different things on different routes: on `/ot` the OT tag is the default and is
+absent from the URL. A parameter is emitted only when its value differs from the
+baseline, so any deviation from a preset produces a parameter and every value can be
+persisted.
 
-Defaults are computed at runtime from preset-merged state. The schema does not declare
-them.
+Defaults are computed at runtime from preset-merged state. The schema does not
+declare them.
 
 ### Reading
 
-An absent parameter resets its state to the default. Nothing invalid is ever stored, so
-the store, the URL and the rendered scene cannot disagree. What "invalid" costs depends on
-how it fails:
+An absent parameter resets its state to the default. Nothing invalid is stored, so
+the store, the URL and the scene cannot disagree. Invalid input is handled by kind:
 
-- **Malformed parameter** — the whole parameter is rejected, the state keeps its default,
-  and the parameter is dropped from the URL. If the shape is wrong, none of it is
-  trustworthy.
-- **Unknown member of a closed vocabulary** (`elements`, `layers`, and the enums) — the
-  offending element is dropped and the rest of the list is kept. A link written against a
-  different build referencing a component that no longer exists should not wipe the whole
-  selection. For a scalar enum there is no "rest", so this collapses to the malformed case.
-  For `elements` the legacy shim runs **before** this rule: an element is dropped only if
-  neither the literal form nor the `-` → space form names a known component. There is one
-  limit on the rule: if the value names members and **none** of them survives, there is no
-  rest to keep, so the whole parameter is rejected and the default stands. A misspelling
-  like `?layers=Bogus` used to open a globe with no imagery on it at all. A literally empty
-  `?layers=` or `?elements=` names no member and still means none.
-- **Malformed element of `gs`** — that station is dropped, the remaining stations are
-  kept.
-- **Open vocabularies** (`tags`, `sats`, `xsats`, `track`) — **not membership-validated at
-  all**, only format-validated. Group data loads lazily, so at parse time the catalog
-  usually cannot say whether a name exists. Unknown names are retained and resolve if and
-  when their group loads; this is already how `pendingTrackedSatellite` and
-  `#ensureCatalogCoverage` are designed to behave.
+- **Malformed parameter:** the whole parameter is rejected, the state keeps its
+  default, and the parameter is dropped from the URL.
+- **Unknown member of a closed vocabulary** (`elements`, `layers`, the enums): that
+  element is dropped and the rest of the list is kept, so a link from another build
+  does not lose its whole selection. A scalar enum has no rest, so this is the
+  malformed case. For `elements` the legacy shim runs **first**: an element is
+  dropped only if neither its literal nor its `-` → space form is a known component.
+  If the value names members and **none** survives, the whole parameter is rejected
+  and the default stands (so `?layers=Bogus` does not open a globe with no imagery).
+  A literally empty `?layers=` or `?elements=` still means none.
+- **Malformed `gs` element:** that station is dropped and the rest are kept.
+- **Open vocabularies** (`tags`, `sats`, `xsats`, `track`): format-validated only,
+  **not membership-validated**. Group data loads lazily, so at parse time the
+  catalog usually cannot say whether a name exists. Unknown names are kept and
+  resolve when their group loads, as `pendingTrackedSatellite` and
+  `#ensureCatalogCoverage` expect.
 
-`bg=false` is the one place the agreement is deliberately not enforced. It takes the
-whole background away — sky box, sun, moon, atmosphere — so `stars` no longer describes
-anything on screen, and `applyStarMap` returns without installing a sky box rather than
-putting stars behind a scene that asked to be transparent. The store and the URL keep
-saying which map was chosen, because that is still the answer to "what should be behind
-the globe" and it is what a link with `bg` removed would render. Nothing is drawn from
-it while the background is off.
+`bg=false` is the one place where the agreement is deliberately not enforced. It
+removes the whole background (sky box, sun, moon, atmosphere), so `stars` describes
+nothing on screen, and `applyStarMap` installs no sky box. The store and the URL
+still record the chosen map, because that is what a link with `bg` removed would
+render.
 
 ### Writing
 
 The whole query string is rebuilt from state on every change. Parameters not listed
-above are preserved verbatim — this is not the codec's namespace.
+above are preserved verbatim. A write that produces an identical query string is
+skipped.
 
-A write that produces an identical query string is skipped entirely.
-
-History entries represent user intent. User-initiated changes use `pushState`, so the
-back button undoes them. Clock-driven changes to `time` use `replaceState`, because a
-minute elapsing is not an intent; those writes are additionally throttled so a high
-`clock.multiplier` cannot flood the history API. All history writes go through
-vue-router so that `currentRoute` never goes stale, and back/forward re-apply state from
-the query.
+History entries represent user intent. User changes use `pushState`, so the back
+button undoes them. Clock-driven changes to `time` use `replaceState`, and are
+throttled so a high `clock.multiplier` cannot flood the history API. While the clock
+is pinned it rewrites `time` every minute, so **any change that moves only `time`
+replaces instead of pushing**. The cost is that pinning by scrubbing is not
+separately undoable, which is better than a history of clock ticks. All history
+writes go through vue-router so `currentRoute` stays current, and back/forward
+re-apply state from the query.
 
 ### Time
 
-The clock is **live** by default and `time` is absent. It becomes **pinned** only by a
-deliberate act: a `time` parameter in the incoming URL, or the user scrubbing the
-timeline (Cesium's `Timeline` `settime` event). While pinned, `time` follows the clock at
-minute granularity so a shared link reproduces the moment the sharer was looking at. A
-link without `time` opens at the recipient's present, which is the behaviour that
-predates this ADR.
+The clock is **live** by default and `time` is absent. It becomes **pinned** only by
+a deliberate act: a `time` parameter in the incoming URL, or the user scrubbing the
+clock deck's timeline (`src/composables/useViewerClock.ts`). While pinned, `time`
+follows the clock at minute granularity, so a shared link reproduces the moment the
+sharer saw. A link without `time` opens at the recipient's present.
 
 ## Naming constraints
 
-The delimiters are in-band and cannot be escaped: `URLSearchParams` percent-decodes a
-value before we split it, so `%2C` and a literal `,` are indistinguishable, and `~` is an
-unreserved character for which `%7E` and `~` decode identically. Escaping is therefore
-impossible without hand-rolling the query parse.
+The delimiters are in-band and cannot be escaped. `URLSearchParams` percent-decodes a
+value before we split it, so `%2C` and `,` are the same, and `~` is unreserved, so
+`%7E` and `~` decode the same. Escaping would need a hand-rolled query parser.
 
-Instead, the affected vocabularies are constrained, and **the codec validates on
-serialize as well as on parse** — an unrepresentable value is refused at the boundary
-rather than silently corrupted.
+Instead the affected vocabularies are constrained, and **the codec validates on
+serialize as well as on parse**: an unrepresentable value is refused at the boundary
+instead of being corrupted.
 
-There is one real rule — **no comma in a list member** — plus one carve-out per parameter
-that owns a second delimiter:
+The rule is **no comma in a list member**, plus one carve-out per parameter that
+owns a second delimiter:
 
 | Vocabulary           | Constraint     | Source of the carve-out        |
 | -------------------- | -------------- | ------------------------------ |
@@ -264,62 +236,57 @@ that owns a second delimiter:
 | imagery layer names  | no `,`, no `_` | the `layers` alpha suffix      |
 
 No existing name violates these. Component and layer names are closed, compile-time
-vocabularies, so those rows hold by construction. The satellite-name row is inherited from
-`sats`/`xsats`; `track` is a bare string with no delimiter and could carry a comma on its
-own, but the same name must be representable everywhere it appears.
+vocabularies, so those rows hold by construction. `track` has no delimiter of its
+own, but it carries the same satellite names as `sats`/`xsats`, which must be
+representable everywhere.
 
 Hyphens are legal everywhere. The `~` carve-out exists only to keep the legacy shim
-unambiguous and would disappear if `sats`/`xsats`/`track` ever stopped carrying names.
+unambiguous, and would go if `sats`/`xsats`/`track` stopped carrying names.
 
-Keying those three on NORAD ids was considered for exactly that reason and **deferred**.
-It is not a wire-format change: a NORAD id is not an identity in the current catalog
-model, where the dedup key is `satnum|name`, names are unique (`#byName`, first-wins) and
-satnums are modelled one-to-many because renames can fork one object into several entries.
-Adopting ids means first deciding whether a rename replaces or forks, which is a catalog
-decision with its own migration. Nothing in this specification forecloses it: an id form
-would arrive as another read shim alongside the ones above.
+Keying those three on NORAD ids was considered and **deferred**. A NORAD id is not an
+identity in the current catalog model: the dedup key is `satnum|name`, names are
+unique (`#byName`, first wins), and satnums are one-to-many because a rename can fork
+one object into several entries. Adopting ids first needs a catalog decision on
+whether a rename replaces or forks, with its own migration. This specification does
+not block it: an id form would arrive as another read shim.
 
-Ground-station coordinates are stored at 4 decimal places (~11 m). This is a deliberate
-size/precision trade, not a defect.
+Ground-station coordinates are stored at 4 decimal places (~11 m), a deliberate
+size/precision trade.
 
 ## Considered options
 
-**Keeping the two space escapes** and freezing emission byte-for-byte was the first
-position. Rejected once it became clear the escapes are decoration: both readers already
-round-trip spaces through `+`, so the escapes bought nothing and cost a hyphen ban on
-tags and components. Dropping them from emission costs a legacy read shim per parameter
-and breaks no existing link.
+**Keeping the two space escapes** and freezing emission byte for byte. Rejected:
+both readers already round-trip spaces through `+`, so the escapes bought nothing and
+cost a hyphen ban on tags and components. Dropping them costs one legacy read shim
+per parameter and breaks no link.
 
 **A raw-first reader** that splits the un-decoded query before percent-decoding each
-element would make `,` escapable inside satellite and station names. Rejected: it means
-hand-rolling `+` → space and percent-decoding, and every trap it closes is latent rather
-than reachable — there is no ground-station name input in the UI today, and CelesTrak
-`OBJECT_NAME` values contain no commas. Validating on serialize gets the safety without
-the parser.
+element, which would make `,` escapable in satellite and station names. Rejected: it
+means hand-rolling `+` → space and percent-decoding, and every trap it closes is
+latent. The UI has no ground-station name input, and CelesTrak `OBJECT_NAME` values
+contain no commas. Validating on serialize gives the safety without the parser.
 
 ## Consequences
 
-`?fps=false` changed meaning. It used to deserialize to the truthy string `"false"` and
-switch the counter **on**; the boolean kind makes the link do what it says. This is the
-one place an existing link changes behaviour rather than merely continuing to work.
+`?fps=false` changed meaning. It used to deserialize to the truthy string `"false"`
+and switch the counter **on**; now it does what it says. This is the one place an
+existing link changes behaviour.
 
-`?terrain=Garbage` and its siblings stopped diverging. The store used to accept the
-value, Cesium logged `Unknown terrain provider` and no-opped, and the store, URL and radio
-buttons all reported a terrain that was never applied. Validation now rejects it on the
-way in.
+`?terrain=Garbage` and similar no longer diverge. The store used to accept the value
+while Cesium logged `Unknown terrain provider` and did nothing, so the store, URL and
+radio buttons reported a terrain that was never applied. Validation now rejects it.
 
-Ground stations are no longer stored as `NaN`; malformed ones are dropped at parse time.
-That retired `CesiumController.setGroundStations` and its `gs.lat && gs.lon` filter, which
-discarded any station on the equator or the Greenwich meridian because `0` is falsy —
-`?gs=0,11.5` used to round trip to an empty store and now renders.
+Malformed ground stations are dropped at parse time, not stored as `NaN`. This
+retired `CesiumController.setGroundStations` and its `gs.lat && gs.lon` filter, which
+dropped any station on the equator or the Greenwich meridian (`0` is falsy).
+`?gs=0,11.5` now renders.
 
 Emitted URLs change shape for `elements`, `sats` and `xsats`: `Sensor-cone` becomes
-`Sensor+cone`, `NOAA~19` becomes `NOAA+19`. Existing links keep working through the read
-shims, so the two forms coexist in the wild indefinitely. Both must stay covered by
-tests — the legacy form has no other way to be exercised once nothing emits it.
+`Sensor+cone`, `NOAA~19` becomes `NOAA+19`. Old links work through the read shims, so
+both forms exist in the wild indefinitely. Tests must cover both, because nothing
+emits the legacy form any more.
 
-Adding a component or tag whose name contains a hyphen is now an ordinary change. For
-components it also exercises the `elements` shim's membership resolution, so a name that
-collides with an escaped form of another component — a literal `Sensor-cone` alongside
-`Sensor cone` — would be ambiguous. That is worth an assertion over the component list
-rather than a constraint.
+A component or tag name with a hyphen is now an ordinary change. For components it
+goes through the `elements` shim's membership resolution, so a literal `Sensor-cone`
+beside `Sensor cone` would be ambiguous. Guard that with an assertion over the
+component list, not a naming constraint.

@@ -6,8 +6,7 @@ import { SATCAT_URL } from "../src/gp/satcat.ts";
 import type { GroupStore, GroupWriteMetadata } from "../src/gp/store.ts";
 import type { GpRecord, GroupsConfig, GroupsIndex, OmmRecord, SatcatSnapshot } from "../src/gp/types.ts";
 
-// The refresh pipeline against an in-memory GroupStore adapter — the same
-// contract the KV and disk adapters implement, without either runtime.
+/** The GroupStore contract of the KV and disk adapters, in memory. */
 function memoryStore(previous: GroupsIndex = { updated: "", groups: [] }, storedSatcat?: SatcatSnapshot) {
   const groups = new Map<string, { records: GpRecord[]; metadata: GroupWriteMetadata }>();
   let index: GroupsIndex | undefined;
@@ -37,17 +36,20 @@ const CONFIG: GroupsConfig = { groups: [{ name: "stations", sources: [{ celestra
 const SATCAT_HEADER =
   "OBJECT_NAME,OBJECT_ID,NORAD_CAT_ID,OBJECT_TYPE,OPS_STATUS_CODE,OWNER,LAUNCH_DATE,LAUNCH_SITE,DECAY_DATE,PERIOD,INCLINATION,APOGEE,PERIGEE,RCS,DATA_STATUS_CODE,ORBIT_CENTER,ORBIT_TYPE";
 
-// Two rows in CelesTrak's real column order and CRLF line endings: ISS, and the
-// Nauka module docked to it.
+/**
+ * Two rows in CelesTrak's real column order and CRLF line endings: ISS, and the
+ * Nauka module docked to it.
+ */
 const SATCAT_CSV = [
   SATCAT_HEADER,
   "ISS (ZARYA),1998-067A,25544,PAY,+,ISS,1998-11-20,TYMSC,,92.94,51.63,424,414,399.0524,,EA,ORB",
   "ISS (NAUKA),2021-066A,49044,PAY,+,CIS,2021-07-21,TYMSC,,92.94,51.63,424,414,,,25544,DOC",
 ].join("\r\n");
 
-// Route by URL so the SATCAT fetch is never accidentally served a group payload.
-// Unless a test says otherwise the catalog answers 304, which is the steady
-// state in production and keeps these cases about the groups.
+/**
+ * Routed by URL, so the SATCAT fetch never gets a group payload. The catalog answers
+ * 304 by default, the production steady state.
+ */
 function routedFetch(records: unknown[], satcat: Awaited<ReturnType<FetchImpl>>): FetchImpl {
   return async (url) => (url === SATCAT_URL ? satcat : { status: 200, text: async () => JSON.stringify(records) });
 }
@@ -78,8 +80,7 @@ describe("refreshGroups", () => {
     expect(report.index.groups).toEqual([expect.objectContaining({ name: "stations", count: 1, updated: report.index.updated })]);
   });
 
-  // The static snapshot is served straight from disk, so its index has to carry
-  // the config's half itself.
+  // The static snapshot is served straight from disk, so its index carries the config's half.
   it("writes the config's tags and presets into the index", async () => {
     const { store, index } = memoryStore();
     const config: GroupsConfig = {
@@ -128,8 +129,7 @@ describe("refreshGroups", () => {
 
     const written = groups.get("stations")!.records as OmmRecord[];
     expect(written[0]!.metadata).toEqual({ swathStarboardKm: 205, swathPortKm: 205 });
-    // Unlisted satellites carry no metadata key at all — the frontend defaults
-    // them, so a default bag on every record would be pure payload weight.
+    // The frontend defaults unlisted satellites.
     expect(written[1]).not.toHaveProperty("metadata");
   });
 
@@ -152,9 +152,7 @@ describe("refreshGroups", () => {
   });
 });
 
-// The SATCAT is the satellite table's second contributor. These cover the seam
-// itself — what enrichment reads, and what survives an unchanged or broken
-// catalog — rather than the CSV parsing, which satcat.test.ts owns.
+// What enrichment reads and what survives an unchanged or broken catalog; satcat.test.ts covers parsing.
 describe("refreshGroups + satcat", () => {
   const RECORDS = [
     { OBJECT_NAME: "ISS (ZARYA)", NORAD_CAT_ID: 25544 },
@@ -202,8 +200,7 @@ describe("refreshGroups + satcat", () => {
     expect(seen).toEqual(['"abc123"']);
     const written = groups.get("stations")!.records as OmmRecord[];
     expect(written[0]!.metadata).toEqual({ owner: "ISS", launchDate: "1998-11-20" });
-    // A 304 is not a new fetch: `updated` must keep saying when the rows we are
-    // actually serving were downloaded.
+    // A 304 keeps `updated` at when the served rows were downloaded.
     expect(index()!.satcat).toMatchObject({ count: 1, updated: "2026-07-01T00:00:00.000Z" });
   });
 
@@ -214,8 +211,7 @@ describe("refreshGroups + satcat", () => {
     const { store, groups, index } = memoryStore({ updated: "", groups: [] }, stored);
     const report = await refreshGroups(CONFIG, store, fetchImpl);
 
-    // The groups are untouched by a SATCAT outage — that is the whole point of
-    // fetching it separately from the sources.
+    // A SATCAT outage leaves the groups untouched.
     expect(report.written).toBe(1);
     expect(report.skipped).toBe(0);
     expect((groups.get("stations")!.records as OmmRecord[])[0]!.metadata).toEqual({ owner: "ISS" });

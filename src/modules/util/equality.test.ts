@@ -11,8 +11,6 @@ describe("sameValue", () => {
     expect(sameValue(null, "")).toBe(false);
   });
 
-  // The case every caller actually has: a freshly decoded array that happens to
-  // hold the same names as the one already in the store.
   test("equal lists that are not the same array", () => {
     expect(sameValue(["Weather", "GNSS"], ["Weather", "GNSS"])).toBe(true);
     expect(sameValue(["Weather", "GNSS"], ["GNSS", "Weather"])).toBe(false);
@@ -25,8 +23,6 @@ describe("sameValue", () => {
     expect(sameValue([{ lat: 48.1, lon: 11.5 }], [{ lat: 48.1, lon: 11.6 }])).toBe(false);
   });
 
-  // A named and an unnamed station are different stations, and JSON key order
-  // is not what decides it.
   test("a missing key is not the same as an extra one", () => {
     expect(sameValue([{ lat: 1, lon: 2 }], [{ lat: 1, lon: 2, name: "x" }])).toBe(false);
     expect(sameValue({ lat: 1, lon: 2 }, { lon: 2, lat: 1 })).toBe(true);

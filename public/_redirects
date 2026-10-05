@@ -1,28 +1,17 @@
-# Serve the app itself at /ot rather than shipping a copy of its shell. A 200 is a
-# rewrite and not a redirect: the url stays /ot, which is what matters, because the
-# route resolves its preset from the path (src/config/presets.ts).
+# A 200 rewrite, so the url stays /ot: the route takes its preset from the path
+# (src/config/presets.ts). This replaces a second html shell, which lets
+# `not_found_handling` be "404-page" (worker/wrangler.jsonc) at no Worker cost.
 #
-# The target is "/" and not "/index.html". Asked for by name, the asset router's
-# `html_handling` strips the extension and answers with a 307 to "/", and handing
-# that redirect back would send /ot to the default preset.
+# Target "/", not "/index.html": `html_handling` answers "/index.html" with a 307 to "/",
+# which would lose the preset.
 #
-# Above the splat rule on wrangler's own advice: rules are evaluated in order, and it
-# warns that a static rule placed after a dynamic one cannot be matched as cheaply.
-#
-# This is what lets `not_found_handling` be "404-page" (worker/wrangler.jsonc) without
-# index.html needing a near-identical twin to drift out of sync with, and the asset
-# router handles it, so it costs no Worker invocation.
+# Static rules go above the splat rule: rules match in order, and wrangler warns that
+# a static rule after a dynamic one cannot be matched as cheaply.
 /ot / 200
 
-# /ot used to be served from an ot.html. Without this, old links get the 404 page:
-# no such file exists, and src/router/index.ts never runs for them.
+# Old links to ot.html would get the 404 page, because src/router/index.ts never runs for them.
 /ot.html /ot 301
 
-# 301 and not the default 302. The branch this url was named for is deployed at the
-# apex now, so the move is permanent and the redirect should say so — a 302 asks
-# every crawler to keep checking and passes no signal to the target.
-#
-# Permanent is what browsers hear too: a 301 is cached hard, so anyone who follows
-# this once will not ask for /next again. If /next is ever wanted back as a preview,
-# that cache is the thing that will make it look broken.
+# 301, not 302: /next is permanently at the apex. Browsers cache a 301 hard, so a
+# revived /next preview will look broken to anyone who followed this once.
 /next* /:splat 301

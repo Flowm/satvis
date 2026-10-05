@@ -6,7 +6,9 @@ import { cancelPendingTrack, returnAfterTracking, trackEntity, trackWhenReady, t
 
 const POSE: CameraPose = { destination: new Cartesian3(1, 0, 0), direction: Cartesian3.UNIT_X, up: Cartesian3.UNIT_Z };
 
-/** A viewer whose camera flights finish when told to, and are cancelled the way Cesium cancels them. */
+/**
+ * A viewer whose camera flights finish when told to, and are cancelled the way Cesium cancels them.
+ */
 function fakeViewer() {
   type Flight = { destination: Cartesian3; complete?: () => void; cancel?: () => void };
   let flight: Flight | undefined;

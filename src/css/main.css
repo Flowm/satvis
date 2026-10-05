@@ -23,37 +23,31 @@ body {
   user-select: none;
 }
 
-/* Hides #app until Vue mounts. The `dark` class index.html sets alongside it forces
-   Nuxt UI onto its dark palette, since Vue mode has no color-mode switch and
-   defaults to light while this app is a dark globe ui throughout. */
+/* Hides #app until Vue mounts. index.html also sets `dark`, because Nuxt UI's Vue mode
+   has no color-mode switch and defaults to light. */
 [v-cloak] {
   display: none;
 }
 
-/* The safe area, named once. `viewport-fit=cover` in index.html is what makes these
-   report anything: without it iOS keeps them 0 even where the page already reaches
-   under the home indicator. The top is 0 on every iOS layout, and is carried for an
-   Android install, which is edge to edge. */
+/* These are non-zero only with `viewport-fit=cover` (index.html). The top is 0 on every
+   iOS layout and exists for edge-to-edge Android installs. */
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
 
-  /* Cesium's credit line in the bottom-left corner: the inset lifts it off the home
-     indicator, and the screen's rounded corner then cuts into the left. The same inset
-     scales how much of 12px that costs, so a square screen keeps Cesium's own 5/3. */
+  /* The bottom inset also scales up to 12px of left offset for the rounded corner, so a
+     square screen keeps Cesium's own 5/3. */
   --credit-corner-bottom: calc(3px + var(--safe-bottom));
   --credit-corner-left: calc(5px + var(--safe-left) + min(12px, var(--safe-bottom)));
 
-  /* With no deck to clear, the corner. `body.clock-deck` moves the line up. */
+  /* `body.clock-deck` moves the line up. */
   --credit-bottom: var(--credit-corner-bottom);
   --credit-left: var(--credit-corner-left);
 }
 
-/* Above the sky view's HUD (z-4) and the entity info panel (z-5), so the control
-   that leaves the sky view stays reachable while it is up. Sideways the notch is
-   beside these rows, and without the inset they slide under it. */
+/* Above the sky HUD (z-4) and the entity info panel (z-5), so the sky view's exit stays reachable. */
 #toolbarLeft {
   position: absolute;
   top: calc(5px + var(--safe-top));
@@ -68,16 +62,13 @@ body {
   z-index: 6;
 }
 
-/* Cesium styles these buttons for a mouse, and on iOS a tap leaves `:hover` and
-   `:focus` behind on whatever it touched last. The lit state is bound to `menu` in
-   Satvis.vue instead; these put the pointer states back to base. */
+/* On iOS a tap leaves `:hover` and `:focus` on the last button touched. The lit state
+   comes from `menu` in Satvis.vue instead. */
 #toolbarLeft .cesium-button:not(.toolbarButton--open):focus,
 #toolbarRight .cesium-button:not(.toolbarButton--open):focus {
   border-color: #444;
 }
 
-/* Only where a pointer can actually rest on a button. Elsewhere :hover is whatever
-   was tapped last. */
 @media (hover: none) {
   #toolbarLeft .cesium-button:not(.toolbarButton--open):hover,
   #toolbarRight .cesium-button:not(.toolbarButton--open):hover {
@@ -96,8 +87,7 @@ body {
   outline-offset: 2px;
 }
 
-/* The button whose panel is open. The shadow is cleared so it looks the same whether
-   or not a pointer also happens to be resting on it. */
+/* The shadow is cleared so hover does not change an open button. */
 #toolbarLeft .toolbarButton--open,
 #toolbarRight .toolbarButton--open {
   background: #3d4348;
@@ -111,14 +101,11 @@ body {
   display: flex;
   flex-direction: column;
   margin: 2px 3px;
-  /* Carries the group titles, which have no surface of their own — the rows do,
-     so the panel is what has to hold them legible against a bright globe. */
   background-color: #303336d9;
   border-radius: 8px;
 }
 
-/* The satellite catalog panel is a dense text list; a more opaque surface
-   keeps globe labels from bleeding through the rows. */
+/* More opaque, so globe labels do not bleed through the dense list. */
 .toolbarSwitches--catalog {
   background-color: #303336e6;
 }
@@ -134,13 +121,7 @@ body {
   margin: 5px;
 }
 
-/* A control whose selection a surface model has taken over, so it is no longer
-   describing what is on screen. Dimming says only that; whether the row is still
-   the user's to change is a separate question the markup answers per group (a
-   hidden globe leaves the choice theirs, an imposed terrain does not).
-   Opacity only, deliberately. A `grayscale` filter here read as a broken panel
-   rather than an inert one: the red/green dot is the only state a row carries,
-   and draining its colour left a column of switches saying nothing at all. */
+/* Opacity only: `grayscale` drains the red/green dot, the only state a row shows. */
 .toolbarSwitch--inert {
   opacity: 0.3;
 }
@@ -149,10 +130,7 @@ body {
   opacity: 0.5;
 }
 
-/* Why nothing happened, for a surface model that cannot apply in this view mode.
-   Zero width with a full-width minimum so the sentence wraps inside the panel
-   instead of widening it: these panels are sized by their content, and the
-   longest row is what should set that width. */
+/* Zero width with a full minimum, so the note wraps instead of widening the panel. */
 .toolbarNote {
   width: 0;
   min-width: 100%;
@@ -164,10 +142,7 @@ body {
 }
 
 .toolbarSwitch {
-  /* Lighter than the panel it sits on, not the same colour. These were both
-     #303336, which was invisible while the panel was translucent enough to show
-     the globe through the gaps — and once the panel was made opaque, the rows and
-     their surface merged into one flat slab with no edges at all. */
+  /* Lighter than the panel, or the rows merge into it. */
   background-color: #464b50;
   border-radius: 8px;
   cursor: pointer;
@@ -184,17 +159,12 @@ body {
   display: none;
 }
 
-/* Waiting on the device — a location fix, or the orientation sensor answering a
-   probe. Not clickable, so a second tap cannot queue a second request while the
-   first is still out. */
+/* Waiting on a location fix or sensor probe; a second tap must not queue a second request. */
 .toolbarSwitch:has(input:disabled) {
   cursor: default;
 }
 
-/* Sits exactly where the slider's dot does, and is positioned rather than inline
-   so that showing it costs no width: these panels are sized by their content, so
-   anything that grows a row reflows the whole menu. That is why the wait is not
-   said in the label. */
+/* Positioned over the slider's dot so it costs no width; a wider row reflows the menu. */
 .toolbarSpinner {
   position: absolute;
   left: 4px;
@@ -214,7 +184,6 @@ body {
   }
 }
 
-/* Still a ring rather than a dot, so it reads as busy without moving. */
 @media (prefers-reduced-motion: reduce) {
   .toolbarSpinner {
     animation: none;
@@ -243,9 +212,7 @@ input:checked + .slider::before {
   color: #ffffff;
 }
 
-/* Center the Nuxt UI <svg> in every app toolbar button. Applies to both <a> and
-   <button>; without flex the block-level Iconify SVGs hug the button's left
-   edge. */
+/* Without flex the block-level Iconify SVGs hug the button's left edge. */
 #toolbarLeft .cesium-toolbar-button,
 #toolbarRight .cesium-toolbar-button {
   align-items: center;
@@ -253,24 +220,20 @@ input:checked + .slider::before {
   display: inline-flex;
 }
 
-/* Cesium's ion logo at 80%. Its guide allows placement and presentation to be
-   adjusted while the logo stays prominent, and the line's width is what the deck's
-   breakpoints are measured against.
-   https://cesium.com/learn/ion/content-usage-and-attribution-guide/ */
+/* 80%, which the guide allows while the logo stays prominent. The deck's breakpoints
+   assume this width. https://cesium.com/learn/ion/content-usage-and-attribution-guide/ */
 .cesium-credit-logoContainer img {
   height: 22px;
   width: auto;
 }
 
-/* The clock deck shares the bottom of the screen with Cesium's credit line: how much
-   room the deck claims, and where the credits go around it. */
+/* The clock deck shares the bottom edge with Cesium's credit line. */
 body.clock-deck {
-  /* Every offset below is in terms of this, or a notch grows the deck past the line. */
+  /* Every offset below uses this, or a notch grows the deck past the line. */
   --clock-deck-safe: max(6px, var(--safe-bottom));
-  /* What the deck occupies, for the sky view's cards. Constant across the fold. */
+  /* For the sky view's cards. Constant across the fold. */
   --clock-deck-height: calc(88px + var(--clock-deck-safe));
-  /* Clear of the deck: the default, and where a phone puts them. Far enough up that
-     the corner is no concern, so the left goes back to Cesium's own. */
+  /* Above the deck, clear of the rounded corner, so the left is Cesium's own. */
   --credit-bottom: calc(var(--clock-deck-height) + 4px);
   --credit-left: calc(5px + var(--safe-left));
 }
@@ -280,10 +243,8 @@ body.clock-deck[data-clock-deck="beside"] {
   --credit-bottom: calc(51px + var(--clock-deck-safe));
 }
 
-/* In the row as the logo over the two links: 113 px wide where one line is 206, and
-   39 px tall, so 5 px lower to stay centred. Only where one line would have to move
-   above the deck (`useClockDeckChrome`); everywhere else the line is Cesium's own.
-   `!important` because Cesium sets the container's `display` inline. */
+/* The logo over the two links: 113 px wide instead of 206, 39 px tall, so 5 px lower to
+   stay centred (`useClockDeckChrome`). `!important` because Cesium sets `display` inline. */
 body.clock-deck[data-clock-deck="stacked"] {
   --credit-bottom: calc(46px + var(--clock-deck-safe));
 }
@@ -297,8 +258,7 @@ body.clock-deck[data-clock-deck="stacked"] .cesium-credit-logoContainer {
   margin-bottom: 2px;
 }
 
-/* Block, so the line is the logo's 22 px and not that plus the baseline offset
-   Cesium writes on the element. */
+/* Block, so the line is 22 px without Cesium's baseline offset. */
 body.clock-deck[data-clock-deck="stacked"] .cesium-credit-logoContainer img {
   display: block;
 }
@@ -308,22 +268,19 @@ body.clock-deck[data-clock-deck="stacked"] .cesium-credit-textContainer .cesium-
   padding-left: 0;
 }
 
-/* Folded, the reserved scale row is more room than the credit line needs, which
-   leaves the rounded corner as the only thing to clear. */
+/* Folded, the reserved scale row leaves only the rounded corner to clear. */
 body.clock-deck[data-clock-deck="folded"] {
   --credit-bottom: var(--credit-corner-bottom);
   --credit-left: var(--credit-corner-left);
 }
 
-/* `!important` because Cesium rewrites this element's `bottom` inline on every
-   resize. Unscoped: the corner is the viewport's, deck or no deck. */
+/* `!important` because Cesium rewrites `bottom` inline on every resize. */
 .cesium-viewer-bottom {
   bottom: var(--credit-bottom) !important;
   left: var(--credit-left) !important;
 }
 
-/* Below 576 px Cesium makes the attribution lightbox full screen, close button in
-   the top corner, which is under the status bar where the page reaches behind it. */
+/* Below 576 px the lightbox is full screen, its close button under the status bar. */
 .cesium-credit-lightbox.cesium-credit-lightbox-mobile {
   box-sizing: border-box;
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
@@ -340,27 +297,21 @@ body.clock-deck .cesium-viewer-bottom {
   width: max-content !important;
 }
 
-/* Below the cap the scale row covers the corner Cesium puts the fullscreen button in.
-   Hidden, not unbuilt, so it returns with the gutter. `!important` for the reason
-   above. */
+/* Below the cap the scale row covers the fullscreen button. Hidden, not unbuilt, so it returns. */
 @media (max-width: 999px) {
   body.clock-deck .cesium-viewer-fullscreenContainer {
     display: none !important;
   }
 }
 
-/* Room for a phone-width deck and the line side by side: 560 plus twice the 206 px
-   box it ends at, plus air. The box, not its 196 px of content. Both with the logo at
-   22 px; 236 and 226 at Cesium's own 28. */
+/* A 560 px deck plus twice the 206 px credit box, plus air (236 px at Cesium's 28 px logo). */
 @media (min-width: 1000px) {
-  /* On `:root`, not `body.clock-deck`: the class arrives in the deck's `onMounted`,
-     and the timeline measures its own width in that same tick. */
+  /* On `:root`: the class arrives in the deck's `onMounted`, the tick the timeline measures in. */
   :root {
     --clock-deck-max: 560px;
   }
 
-  /* Cesium's own corner, for the two cases that hold the line above the deck: the
-     deck caps and centres at this width and stops sharing the row. */
+  /* The deck caps and centres here, so the line goes back to Cesium's corner. */
   body.clock-deck[data-clock-deck="clear"],
   body.clock-deck[data-clock-deck="stacked"],
   body.clock-deck[data-clock-deck="beside"] {

@@ -14,22 +14,9 @@ dayjs.extend(utc);
 export type ElementsInfo = { kind: "tle"; epoch: string; lines: string } | { kind: "omm"; epoch: string; rows: [string, string][] };
 
 /**
- * Label/value rows describing the satellite itself, as opposed to its orbit
- * elements or current position: what follows from the element set, plus whatever
- * static facts its record carries.
- *
- * Two provenances, in that order. The derived rows come first: orbit regime, then
- * the apsides and node times from ./orbitFacts.ts. They are true of every satellite,
- * and are what the served fields are read against. Every served row
- * appears only when the record actually carries the field: a satellite absent from
- * the satellite table shows nothing rather than the fallback values the renderer
- * happens to use, which would read as data about the satellite when it is really a
- * default.
- *
- * Takes the class rather than reading it off the metadata bag, so the caller
- * resolves the one cache miss (`CatalogEntry.orbitClass`) instead of this
- * function needing a second opinion about how to derive it. Takes the orbit as
- * well, because the apsides and the node times need the satrec the class does not.
+ * Derived rows first, then served rows only for fields the record carries: the
+ * renderer's fallback values are defaults, not data about the satellite.
+ * `orbitClass` comes from the caller (`CatalogEntry.orbitClass`), not the bag.
  */
 export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata: SatelliteMetadata): [string, string][] {
   const rows: [string, string][] = [["Orbit", orbitRegimeLabel(orbitClass, orbit)], ...derivedOrbitRows(orbit)];
@@ -39,7 +26,6 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
   if (extents !== undefined) {
     const { starboardKm, portKm } = extents;
     const total = starboardKm + portKm;
-    // Spell out the sides only when they differ — otherwise the total says it all.
     rows.push(["Swath", starboardKm === portKm ? `${total} km` : `${total} km (${starboardKm} stbd / ${portKm} port)`]);
   }
   if (coneFovDeg !== undefined) {
@@ -55,16 +41,12 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
     rows.push(["Owner", satcatLabel(SATCAT_OWNER, owner)]);
   }
   if (launchDate !== undefined) {
-    // One row, not two: the site alone reads as a fact about a place rather than
-    // about this satellite, and the pair is how anyone actually reads it.
     rows.push(["Launched", launchSite === undefined ? launchDate : `${launchDate} · ${satcatLabel(SATCAT_LAUNCH_SITE, launchSite)}`]);
   }
   if (opsStatus !== undefined) {
     rows.push(["Status", satcatLabel(SATCAT_OPS_STATUS, opsStatus)]);
   }
-  // "Orbiting" is true of all but a handful of the satellites served, so stating
-  // it would cost a row on every panel to say nothing. Docked, impacted and
-  // landed are the cases worth a line.
+  // Nearly every served satellite is "ORB", so only the exceptions get a row.
   if (orbitType !== undefined && orbitType !== "ORB") {
     rows.push(["Orbit type", satcatLabel(SATCAT_ORBIT_TYPE, orbitType)]);
   }
@@ -77,11 +59,9 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
 export function getElementsInfo(orbit: Orbit): ElementsInfo {
   const epoch = formatEpoch(orbit.julianDate);
   if (orbit.record.kind === "tle") {
-    // TLE-sourced: the two element-set lines.
     const tle = orbit.tle ?? recordTleLines(orbit.record)!;
     return { kind: "tle", epoch, lines: tle.slice(1, 3).join("\n") };
   }
-  // OMM-sourced: a compact element table.
   const { omm } = orbit.record;
   const rows: [string, unknown][] = [
     ["OBJECT_ID", omm.OBJECT_ID],

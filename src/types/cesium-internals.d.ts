@@ -1,13 +1,11 @@
-// Augmentations for Cesium widget internals that are used at runtime but not
-// exposed in the published `.d.ts`. Restricting these to a single declaration
-// file keeps the rest of the codebase honest about what's "real" Cesium API.
+// Cesium internals used at runtime but missing from the published `.d.ts`, kept in one file.
 
 declare module "@cesium/widgets" {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Viewer {
     /** Absent under `minimalUI`, which is why the accessor guards it. */
     _fullscreenButton?: { _container: HTMLElement };
-    /** Container holding the Cesium credit and bottom UI. */
+    /** Holds the credit line and the bottom UI. */
     _bottomContainer: HTMLElement;
   }
 }

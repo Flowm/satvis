@@ -19,9 +19,6 @@ allowBuilds:
   vue-demi: true
   workerd: true
 
-# Hoist a few transitive packages to the root node_modules so they resolve
-# under pnpm's strict (non-flat) layout, matching npm's old flat layout:
-#   - workbox-window : the virtual:pwa-register module from vite-plugin-pwa
-#                      re-exports workbox-window, resolved from the project root.
+# vite-plugin-pwa's virtual:pwa-register re-exports workbox-window, resolved from the project root.
 publicHoistPattern:
   - "workbox-window"

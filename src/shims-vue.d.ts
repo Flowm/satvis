@@ -1,6 +1,4 @@
-// Ambient shim so the plain TypeScript language server can resolve `*.vue`
-// imports. vue-tsc derives precise component types directly from the SFCs, but
-// the editor's TS server relies on this fallback declaration.
+/** For the editor's TS server; vue-tsc reads the SFCs themselves. */
 declare module "*.vue" {
   const component: import("vue").DefineComponent<Record<string, never>, Record<string, never>, unknown>;
   export default component;

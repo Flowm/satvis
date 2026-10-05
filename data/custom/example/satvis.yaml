@@ -12,16 +12,13 @@ groups:
   - name: iss
     sources: [{ celestrak: stations }]
     satellites:
-      # A group row selects and renames. It may also carry `metadata`, which is
-      # lifted into the merged satellite table under its noradId — so it applies
-      # wherever the record is served, not only in this group. Use it when the
-      # row already exists; use the top-level `satellites` table below otherwise.
+      # A group row selects and renames. Its optional `metadata` goes into the merged
+      # satellite table under its noradId, so it applies wherever the record is served.
+      # Without a row, use the top-level `satellites` table below.
       - { noradId: 25544, upstreamName: ISS (ZARYA), name: ISS }
 
-# Static facts for satellites this plugin knows about, keyed by NORAD id alone
-# (`name` is documentation only). Left empty on purpose: this example IS discovered
-# by the generator and merged into the served config, so a value here would change
-# what every build renders. Uncomment to attach facts of your own.
+# Static facts keyed by NORAD id alone (`name` is documentation only). Empty on
+# purpose: the generator merges this example into every build. Uncomment to try it.
 #
 # Swath extents are PER-SIDE cross-track distances (km) from the ground track,
 # relative to flight direction (starboard = velocity bearing + 90°) — not halves of

@@ -27,8 +27,8 @@ ARG VITE_POSTHOG_KEY=""
 ARG BUILD_SHA=""
 RUN pnpm --filter satvis-worker generate-groups && pnpm build
 
-# Only wrangler, at the locked version. A filtered pnpm install would drag in the
-# frontend's dependencies too, and wrangler pins miniflare and workerd exactly.
+# Only wrangler, at the locked version, which pins miniflare and workerd exactly.
+# A filtered pnpm install would also pull in the frontend's dependencies.
 FROM node:24-bookworm-slim AS runtime-deps
 WORKDIR /app
 COPY --from=deps /app/worker/node_modules/wrangler/package.json /tmp/wrangler.json

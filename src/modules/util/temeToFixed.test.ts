@@ -3,15 +3,11 @@ import { describe, expect, test } from "vitest";
 
 import { fixedRotationAt, greenwichHourAngle } from "./temeToFixed";
 
-// The whole point of this module is that it reproduces Cesium's
-// `computeTemeToPseudoFixedMatrix` rather than approximating it, so every test here
-// is a comparison against Cesium itself. Tolerances are in metres at orbital radius,
-// which is the only unit in which "close enough" means anything.
+// Every test compares against Cesium itself, in metres at orbital radius.
 
 const LEO_RADIUS = 6_871_000;
 const GEO_RADIUS = 42_164_000;
 
-/** Cesium's own answer for the same instant, as a fixed-frame position. */
 function cesiumRotate(epochMs: number, teme: Cartesian3): Cartesian3 {
   const matrix = Transforms.computeTemeToPseudoFixedMatrix(JulianDate.fromDate(new Date(epochMs)), new Matrix3());
   return Matrix3.multiplyByVector(matrix, teme, new Cartesian3());
@@ -28,9 +24,7 @@ function deviationMetres(epochMs: number, teme: Cartesian3): number {
 
 describe("greenwichHourAngle", () => {
   test("agrees with Cesium's transform to well under a millimetre, across three years", () => {
-    // A fixed pseudo-random spread rather than a handful of round numbers: the
-    // failure this guards against is a branch or a rounding term that only bites at
-    // particular times of day.
+    // Pseudo-random, to catch a branch or rounding term that bites only at some times of day.
     let seed = 1_234_567;
     const next = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
     const teme = new Cartesian3(LEO_RADIUS * 0.7, LEO_RADIUS * 0.5, LEO_RADIUS * 0.51);
@@ -54,8 +48,7 @@ describe("greenwichHourAngle", () => {
   });
 
   test("is continuous across those boundaries", () => {
-    // A branch that picked the wrong tabulation would show up as a step here rather
-    // than as an outright wrong answer.
+    // A wrong tabulation branch shows as a step here.
     const midnight = Date.UTC(2026, 5, 17, 0, 0, 0);
     const before = greenwichHourAngle(midnight - 1);
     const after = greenwichHourAngle(midnight + 1);
@@ -71,9 +64,8 @@ describe("greenwichHourAngle", () => {
   });
 
   test("keeps full resolution rather than losing it to a large julian float", () => {
-    // The naive `2440587.5 + ms / 86400000` loses about 47 us of Earth rotation to
-    // the ulp of a ~2.4e6 double, which measured as a 9.5 mm error. One millisecond
-    // apart must therefore still be distinguishable, and by the right amount.
+    // The naive `2440587.5 + ms / 86400000` measured 9.5 mm out. One millisecond apart
+    // must still differ, and by the right amount.
     const t0 = Date.UTC(2026, 8, 21, 18, 42, 11);
     const delta = greenwichHourAngle(t0 + 1) - greenwichHourAngle(t0);
     expect(delta).toBeGreaterThan(7.2e-8);
@@ -87,13 +79,8 @@ describe("greenwichHourAngle", () => {
 });
 
 describe("leap seconds", () => {
-  // This module reads UTC epoch milliseconds directly; Cesium carries TAI and
-  // subtracts taiMinusUtc. The two agree exactly while no leap second falls in
-  // between, which has been the case since 2017 and is expected to remain so - the
-  // IERS has resolved to stop inserting them. This test exists to pin what happens
-  // if that changes rather than to assert it never will: the failure mode is a
-  // one-second rotation offset, and it is worth knowing that it stays bounded to
-  // that instead of corrupting the whole window.
+  // This module reads UTC directly; Cesium carries TAI and subtracts taiMinusUtc.
+  // They agree while no leap second falls in between, as none has since 2017.
   test("agrees on both sides of a historical leap second", () => {
     const teme = new Cartesian3(LEO_RADIUS, 0, 0);
     // 2016-12-31T23:59:60Z was the most recent insertion.

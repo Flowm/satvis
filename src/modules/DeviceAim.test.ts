@@ -9,9 +9,7 @@ const sample = (alpha: number, beta: number, gamma: number, screenAngle = 0): De
 const azimuthError = (actual: number, expected: number): number => Math.abs(((((actual - expected) % 360) + 540) % 360) - 180);
 
 /**
- * The device's own axes in east-north-up, built here from the `deviceorientation`
- * Euler order rather than borrowed from the module, so the round-trip test below
- * checks the implementation against the specification and not against itself.
+ * Built from the `deviceorientation` Euler order, not the module, so the round trip checks against the spec.
  */
 function deviceRotationForTest({ alpha, beta, gamma, screenAngle }: DeviceOrientationSample): { backCamera: Cartesian3; screenUp: Cartesian3 } {
   const radians = (degrees: number) => (degrees * Math.PI) / 180;
@@ -60,9 +58,8 @@ describe("aimFromDeviceOrientation", () => {
   });
 
   test("swings the azimuth, not the roll, when an upright phone tips sideways", () => {
-    // Gamma turns the device about its own top-to-bottom axis. Held upright
-    // that axis is vertical, so tipping sideways points the camera somewhere
-    // else along the horizon and leaves the horizon level on screen.
+    // Held upright, gamma's axis is vertical: tipping sideways turns the camera
+    // along the horizon and keeps the horizon level.
     const aim = aimFromDeviceOrientation(sample(0, 90, 30));
     expect(aim.pitch).toBeCloseTo(0, 6);
     expect(azimuthError(aim.azimuth, -30)).toBeLessThan(1e-6);
@@ -79,12 +76,8 @@ describe("aimFromDeviceOrientation", () => {
   });
 
   test("hands the camera back the orientation the device reported", () => {
-    // The end-to-end invariant: decomposing a device orientation into an aim and
-    // recomposing that aim into a camera basis must reproduce the device's own
-    // axes. Roll used to come back negated here — the decomposition and the
-    // composition were written separately from the same formula and disagreed in
-    // sign, which mirrored the sky about the view axis. Nothing caught it because
-    // the tests only asserted the magnitude of the roll.
+    // Decomposing into an aim and recomposing into a camera basis must give back
+    // the device's axes; a roll sign mismatch mirrors the sky.
     for (const posture of [sample(0, 90, 0, 90), sample(40, 120, 20, 0), sample(200, 150, -35, 270)]) {
       const basis = skyBasis(aimFromDeviceOrientation(posture));
       const rotation = deviceRotationForTest(posture);
@@ -96,8 +89,7 @@ describe("aimFromDeviceOrientation", () => {
   });
 
   test("stays finite and level-consistent pointing at the zenith", () => {
-    // Where `setView` would have mirrored the sky, and where an Euler-derived
-    // roll is undefined.
+    // An Euler-derived roll is undefined here.
     const aim = aimFromDeviceOrientation(sample(217, 180, 0));
     expect(aim.pitch).toBeCloseTo(90, 9);
     expect(Number.isFinite(aim.azimuth)).toBe(true);

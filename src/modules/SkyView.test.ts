@@ -22,8 +22,7 @@ const aim = (azimuth: number, pitch: number, roll = 0): Aim => ({ azimuth, pitch
 const angleBetween = (a: Cartesian3, b: Cartesian3): number => CesiumMath.toDegrees(Cartesian3.angleBetween(a, b));
 
 describe("skyBasis", () => {
-  // Every case the camera has to survive, including the one `camera.setView`
-  // cannot express: straight up, where its heading formula switches branch.
+  // Includes straight up, which `camera.setView` cannot express.
   const aims = [aim(0, 0), aim(90, 45), aim(180, -30), aim(270, 87.3), aim(0, 87.5), aim(45, 90), aim(300, 60, 35), aim(0, 90, 180)];
 
   test("is orthonormal and right-handed at every aim", () => {
@@ -46,7 +45,6 @@ describe("skyBasis", () => {
   });
 
   test("points where the azimuth and pitch say", () => {
-    // East-north-up components, azimuth clockwise from north.
     expect(skyBasis(aim(0, 0)).direction).toMatchObject({ x: expect.closeTo(0, 12), y: expect.closeTo(1, 12), z: expect.closeTo(0, 12) });
     expect(skyBasis(aim(90, 0)).direction).toMatchObject({ x: expect.closeTo(1, 12), y: expect.closeTo(0, 12), z: expect.closeTo(0, 12) });
     expect(skyBasis(aim(0, 90)).direction).toMatchObject({ x: expect.closeTo(0, 12), y: expect.closeTo(0, 12), z: expect.closeTo(1, 12) });
@@ -54,7 +52,6 @@ describe("skyBasis", () => {
   });
 
   test("keeps the horizon level when there is no roll", () => {
-    // `right` has no vertical component, so the horizon is horizontal on screen.
     for (const pitch of [-90, -45, 0, 45, 87.5, 90]) {
       const { right } = skyBasis(aim(210, pitch));
       expect(right.z, `pitch=${pitch}`).toBeCloseTo(0, 12);
@@ -70,11 +67,8 @@ describe("skyBasis", () => {
     expect(angleBetween(level.right, rolled.right)).toBeCloseTo(30, 9);
   });
 
-  // The failure this whole approach exists to avoid: `setView` derives the roll
-  // from direction/up and switches formula within EPSILON3 of straight up, so it
-  // reports 175° of roll error at 87.5° and 180° at 90° — the sky mirrors. A
-  // basis built from the angles has no such branch, so a quarter-degree step
-  // across the zenith moves it a quarter of a degree.
+  // `setView` switches its roll formula within EPSILON3 of straight up: 175° of
+  // roll error at 87.5°, 180° at 90°. A quarter-degree step must move a quarter degree.
   test("is continuous through the zenith", () => {
     const step = 0.25;
     for (let pitch = 85; pitch < 90; pitch += step) {
@@ -89,8 +83,8 @@ describe("skyBasis", () => {
   });
 
   test("has no roll at the zenith itself", () => {
-    // Facing north at the zenith, the top of the screen is due south — the
-    // continuous limit of tipping the view up, not its mirror image.
+    // Facing north at the zenith, the top of the screen is due south: the limit
+    // of tipping the view up, not its mirror image.
     const { up } = skyBasis(aim(0, 90));
     expect(up.x).toBeCloseTo(0, 12);
     expect(up.y).toBeCloseTo(-1, 12);
@@ -99,8 +93,7 @@ describe("skyBasis", () => {
 });
 
 describe("fovFromFovy", () => {
-  // Cesium derives fovy back out as `aspect <= 1 ? fov : 2*atan(tan(fov/2)/aspect)`,
-  // so this has to be its exact inverse or the vertical framing is not what was asked for.
+  // Cesium derives fovy as `aspect <= 1 ? fov : 2*atan(tan(fov/2)/aspect)`; this must be its exact inverse.
   const cesiumFovy = (fov: number, aspectRatio: number): number => (aspectRatio <= 1 ? fov : 2 * Math.atan(Math.tan(fov * 0.5) / aspectRatio));
 
   test("round-trips through Cesium's own derivation", () => {
@@ -125,8 +118,6 @@ describe("fovFromFovy", () => {
 });
 
 describe("fovyFromFov", () => {
-  // The way in: a flight from the globe starts at whatever the globe camera's
-  // frustum held, and everything the sky view interpolates is vertical.
   test("undoes fovFromFovy at every aspect ratio", () => {
     for (const fovyDegrees of [36, 45, 60, 75, 100]) {
       for (const aspectRatio of [0.46, 1, 16 / 9, 21 / 9, Number.NaN]) {
@@ -137,8 +128,7 @@ describe("fovyFromFov", () => {
   });
 
   test("reads Cesium's default 60° fov as a narrower vertical angle on a wide window", () => {
-    // Which is why entering widens as well as descends: the globe is seen
-    // through about 36° of vertical angle on a 16:9 window, the sky through 75°.
+    // So entering widens as well as descends: about 36° on 16:9, the sky 75°.
     expect(CesiumMath.toDegrees(fovyFromFov(CesiumMath.toRadians(60), 16 / 9))).toBeCloseTo(36, 1);
   });
 });
@@ -153,9 +143,7 @@ describe("isPlausibleGroundHeight", () => {
 
   test("rejects a missing tile reporting itself as a number", () => {
     // Observed from `globe.getHeight` at 48.14N 11.58E under the default
-    // EllipsoidTerrainProvider, where the true answer is 0. Believing it put the
-    // camera 37 km down, which stopped the tiles under the observer rendering,
-    // which kept the answer wrong.
+    // EllipsoidTerrainProvider, where the true answer is 0.
     expect(isPlausibleGroundHeight(-36990.17462565757)).toBe(false);
   });
 
@@ -175,8 +163,7 @@ describe("defaultAzimuth", () => {
 });
 
 describe("eyeHeight", () => {
-  // Same bare scene as the fovy clamp below, and for the same reason: with no
-  // observer the camera work short-circuits and what is left is the clamp.
+  // With no observer the camera work short-circuits, leaving only the clamp.
   const view = (): SkyView => new SkyView({} as Scene);
 
   test("starts standing on the ground", () => {
@@ -199,16 +186,14 @@ describe("eyeHeight", () => {
     const lifted = view();
     lifted.eyeHeight = 500;
     expect(lifted.eyeHeight).toBe(500);
-    // The keys move it by adding to it, so a rise from a rise has to accumulate
-    // rather than reset.
+    // The keys add to it, so rises accumulate.
     lifted.eyeHeight += 250;
     expect(lifted.eyeHeight).toBe(750);
   });
 });
 
 describe("fovy", () => {
-  // A bare scene is enough: with no observer the camera work short-circuits, and
-  // what is under test is the clamp on the way in.
+  // With no observer the camera work short-circuits, leaving only the clamp.
   const view = (): SkyView => new SkyView({} as Scene);
 
   test("starts at the default", () => {
@@ -228,21 +213,18 @@ describe("fovy", () => {
   });
 
   test("the default zoom keeps the horizon on screen at the default pitch", () => {
-    // `pitch < fovy/2` on entry — the guarantee the defaults exist to provide.
     expect(DEFAULT_PITCH).toBeLessThan(DEFAULT_FOVY / 2);
   });
 
   test("zooming in is allowed to take the horizon off screen", () => {
-    // Deliberate: at maximum zoom the invariant above cannot hold at any useful
-    // pitch, and clamping pitch to preserve it would silently tilt the view down.
+    // Clamping pitch to keep the horizon on screen at maximum zoom would tilt the view down.
     expect(DEFAULT_PITCH).toBeGreaterThan(MIN_FOVY / 2);
   });
 });
 
 describe("the scene state the view borrows", () => {
-  // Enough scene for `enter` and `exit` to run. Real Cartesian3s and a real
-  // PerspectiveFrustum, because the poses are cloned into them and the `fov` is
-  // only saved when the frustum is one.
+  // Real Cartesian3s and a real PerspectiveFrustum: the poses are cloned into them,
+  // and `fov` is saved only from a PerspectiveFrustum.
   const stubScene = (depthTestAgainstTerrain: boolean) => ({
     mode: SceneMode.SCENE3D,
     requestRenderMode: true,
@@ -262,8 +244,7 @@ describe("the scene state the view borrows", () => {
     requestRender: () => {},
   });
 
-  // Reduced motion, so both flights are cuts and the borrow-and-return happens in
-  // the two calls rather than over 1.5 s of frames.
+  // Reduced motion, so both flights are cuts and finish within the calls.
   const cut = (): void => void vi.stubGlobal("matchMedia", () => ({ matches: true }));
 
   afterEach(() => {
@@ -277,7 +258,7 @@ describe("the scene state the view borrows", () => {
     expect(scene.globe.depthTestAgainstTerrain).toBe(true);
   });
 
-  // Run for both starting states: "put back" and "clear" only differ on one.
+  // Run for both starting states: "put back" and "clear" differ only on one.
   const roundTrip = async (found: boolean): Promise<void> => {
     const scene = stubScene(found);
     const view = new SkyView(scene as unknown as Scene);

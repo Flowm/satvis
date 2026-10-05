@@ -1,15 +1,5 @@
-// Where a satellite's passes come from.
-//
-// The same shape as sampleSource, and for the same reasons: one interface, two
-// implementations chosen once, so PassPredictor never handles a transport and the
-// tests never need a worker. The differences are all consequences of pass
-// prediction being a slow batch job rather than a fast stream.
-//
-// There is no inline fallback for a dead worker. A failed sample request stops
-// satellites moving, which is worth degrading for; a failed pass request costs a
-// table that stays empty, and running 40 s of prediction on the main thread to
-// avoid an empty table is a worse outcome than the empty table. So a broken
-// worker is reported once and every request resolves to nothing.
+// Where a satellite's passes come from; shaped like sampleSource. No inline fallback
+// for a dead worker: 40 s of prediction on the main thread is worse than an empty table.
 
 import type { SwathExtents } from "../../config/satelliteMetadata";
 import type { GpRecord } from "./gp";
@@ -25,10 +15,6 @@ export interface PassQuery {
   swath: SwathExtents;
 }
 
-/**
- * One satellite's pass prediction, bound to its satnum and element set — so
- * PassPredictor asks about a window and gets passes.
- */
 export interface PassPredictorSource {
   passes(query: PassQuery): Promise<WorkerPass[] | undefined>;
 }
@@ -37,17 +23,10 @@ export interface PassSource {
   predictorFor(satnum: string, record: GpRecord): PassPredictorSource;
 }
 
-/**
- * Commands per message.
- *
- * Small, unlike the sampling source's sixty-four. Each command is milliseconds of
- * propagation rather than microseconds, so a big batch would hold every result
- * back until the slowest one finished. Eight is about 64 ms a reply, which is what
- * makes a station's table fill in progressively instead of arriving whole.
- */
+/** Eight commands is about 64 ms a reply, so a station's table fills in progressively. */
 const MAX_COMMANDS_PER_MESSAGE = 8;
 
-/** Predicts on the calling thread. The tests' implementation. */
+/** Predicts on the calling thread, for tests. */
 export class InlinePassSource implements PassSource {
   readonly #cache = new OrbitCache();
 
@@ -75,7 +54,6 @@ interface Pending {
 export class WorkerPassSource implements PassSource {
   #worker: Worker | undefined;
 
-  /** Set once the worker is given up on; every request resolves to nothing after. */
   #broken = false;
 
   #nextBatchId = 1;
@@ -86,7 +64,6 @@ export class WorkerPassSource implements PassSource {
 
   #inFlight = new Map<number, Pending[]>();
 
-  /** Satnums whose record has been sent at least once. */
   #recordSent = new Set<string>();
 
   constructor() {
@@ -120,12 +97,7 @@ export class WorkerPassSource implements PassSource {
   }
 
   /**
-   * Coalesce onto messages once per turn.
-   *
-   * No deadline timer, unlike the sampling source. A batch here legitimately
-   * takes a second, and there is no answer to "it is taking too long" that beats
-   * waiting — the fallback would be to do the same work on the thread this exists
-   * to keep free.
+   * No deadline timer, unlike sampleSource: a batch can take a second, and nothing beats waiting.
    */
   #schedule(): void {
     if (this.#flushScheduled) {
@@ -173,8 +145,7 @@ export class WorkerPassSource implements PassSource {
         return;
       }
       if (reply.kind === "unknown") {
-        // The orbit was evicted, or a batch raced ahead of the one that would
-        // have created it. Re-queue with the record attached this time.
+        // Evicted, or this batch raced ahead of the one carrying the record.
         this.#recordSent.delete(reply.satnum);
         this.#queued.push({ ...item, sendRecord: true });
         this.#schedule();
@@ -184,11 +155,7 @@ export class WorkerPassSource implements PassSource {
     });
   }
 
-  /**
-   * Stop using the worker. Loud, and once — a worker that fails to construct or
-   * throws on load would otherwise look like a ground station with nothing
-   * overhead, which is a plausible enough answer to go unnoticed.
-   */
+  /** Loud, and once: a dead worker otherwise looks like a station with nothing overhead. */
   #giveUp(reason: string): void {
     if (this.#broken) {
       return;

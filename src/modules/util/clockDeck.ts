@@ -1,21 +1,19 @@
-// The clock deck's two scales, as arithmetic. No viewer and no DOM, so the geometry
-// is testable on its own.
+// The clock deck's two scales as arithmetic, with no viewer or DOM, so tests can reach them.
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 dayjs.extend(utc);
 
-/** What the deck's scale row is showing. An enum, not the app's usual `const` array: nothing iterates it. */
+/** An enum, not the app's usual `const` array: nothing iterates it. */
 export enum Scale {
   Timeline = "timeline",
   Ladder = "ladder",
 }
 
 /**
- * Cesium's `AnimationViewModel.defaultTicks`, from 1× up. Slower than real time is
- * left out on purpose: a swipe pays for every rung it crosses, and the shuttle ring's
- * 0.001× to 0.5× are thirteen rungs in front of the ones people reach for.
+ * Cesium's `AnimationViewModel.defaultTicks` from 1× up. The thirteen rungs below 1×
+ * are left out because a swipe has to cross every rung.
  */
 export const SPEED_TICKS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 21600, 43200, 86400] as const;
 
@@ -106,13 +104,11 @@ export function passMarks(spans: readonly TimeSpan[], centreMs: number, widthPx:
   return marks;
 }
 
-/** Clamped to the ladder's ends. */
 export const nearestRung = (scrollLeft: number, chipPx: number = CHIP_PX): number => Math.min(LADDER.length - 1, Math.max(0, Math.round(scrollLeft / chipPx)));
 
-/** Which way an arrow key walks a scale, or 0 for a key that is not one. */
 export const arrowStep = (key: string): number => (key === "ArrowRight" ? 1 : key === "ArrowLeft" ? -1 : 0);
 
-/** The rung nearest a multiplier, so a url-set speed still steps sensibly. */
+/** The rung nearest `multiplier`, so a url-set speed off the ladder still steps sensibly. */
 export function rungFor(multiplier: number): number {
   return LADDER.reduce((best, value, at) => (Math.abs(value - multiplier) < Math.abs(LADDER[best]! - multiplier) ? at : best), 0);
 }
@@ -120,7 +116,7 @@ export function rungFor(multiplier: number): number {
 /** `60×`. */
 export const multiplierLabel = (multiplier: number): string => `${multiplier < 0 ? "−" : ""}${Math.abs(multiplier)}×`;
 
-/** `1 min/s`: what the multiplier means, which reads better at speed. */
+/** `1 min/s`. */
 export function rateLabel(multiplier: number): string {
   const abs = Math.abs(multiplier);
   const sign = multiplier < 0 ? "−" : "";

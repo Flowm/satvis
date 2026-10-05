@@ -1,15 +1,5 @@
-<!-- What is selected, in four species of data: identity, live position, the pass
-     list, and the reference material.
-     Only two of those are permanent. The header says what this is, and the strip
-     under it says where it is — the two facts worth having on screen whatever else
-     you are reading. The rest is two tabs, because stacking all four produced a
-     1384 px scroll inside a 500 px window, two thirds of it below the fold, with
-     the element table under thirty rows of the same station name.
-
-     `Passes` is the default tab and leads with the countdown, which is the reason
-     the panel is usually open at all — then the timeline, which says which of the
-     next several are worth going outside for, then the list. `Details` is what you
-     go looking for rather than glance at. -->
+<!-- The header and the position strip are always visible; passes and details are
+     tabs, because stacking all four overflowed a 500 px window by almost 900 px. -->
 <template>
   <div v-if="selection" class="entity-info-panel">
     <UCard :ui="{ root: 'bg-[#303336]/95 text-[#edffff] divide-neutral-600', header: 'p-2 sm:px-3', body: 'p-0 sm:p-0' }">
@@ -31,8 +21,7 @@
             />
             <span v-else class="head__name">{{ name }}</span>
             <UTooltip v-if="canRename" :text="renaming ? 'Done' : 'Rename'">
-              <!-- Keeps focus in the input, so pressing it commits once through
-                   the click rather than once through the blur and then reopening. -->
+              <!-- mousedown.prevent keeps focus in the input, so a press commits once via the click, not also via the blur. -->
               <UButton
                 :icon="renaming ? 'i-lucide-check' : 'i-lucide-pencil'"
                 variant="ghost"
@@ -50,9 +39,7 @@
             <UTooltip v-if="canEnterSkyView" text="View the sky from here">
               <UButton icon="i-lucide-telescope" variant="ghost" color="neutral" size="xs" aria-label="View the sky from this ground station" @click="enterSkyView" />
             </UTooltip>
-            <!-- Hidden rather than disabled in the sky view, which owns the camera:
-                 tracking there has no meaning to convey, and a button that silently
-                 did nothing would read as broken. -->
+            <!-- Hidden, not disabled, in the sky view: that view owns the camera. -->
             <UTooltip v-if="!inSkyView" :text="isTracked ? 'Stop tracking' : 'Track entity'">
               <UButton icon="i-lucide-video" variant="ghost" :color="isTracked ? 'primary' : 'neutral'" size="xs" aria-label="Track entity" @click="toggleTrack" />
             </UTooltip>
@@ -64,8 +51,6 @@
         </div>
       </template>
 
-      <!-- Where it is. Four cells and three-letter labels, because nobody reads a
-           longitude to two decimals — they check it has not gone somewhere absurd. -->
       <div v-if="liveRows.length > 0" class="strip">
         <span v-for="row in liveRows" :key="row.label" class="strip__cell">
           <span class="strip__label">{{ row.label.slice(0, 3) }}</span>
@@ -73,14 +58,8 @@
         </span>
       </div>
 
-      <!-- The row shows even when there is one tab, which a ground station has: it is
-           the handle the fold hangs off, so a lone tab switches to nothing but still
-           does something.
-
-           `min-h-8` is the height a trigger takes once it carries a badge. Reserved
-           always, because the badge appears only once the pass count is known: the
-           row grew by 4 px the moment prediction landed, and everything under it
-           dropped with it. -->
+      <!-- The tab row shows even with one tab: pressing it folds the body.
+           `min-h-8` reserves the height of a badged trigger, so the row does not grow when the pass count arrives. -->
       <UTabs
         v-model="activeTab"
         :items="tabs"
@@ -94,13 +73,7 @@
         }"
       >
         <template #passes>
-          <!-- Restores the top padding the scroll container gave up so that the
-               table header below can pin flush with its top edge. With the padding
-               on the container, rows scrolled through the gap above the pinned
-               header and stayed visible there. -->
           <div class="tab-body__pad">
-            <!-- No empty state for the hero: when there is no upcoming pass the
-                 message below says so once. -->
             <template v-if="!passesPending && hasAnyPasses">
               <div v-if="nextPass" class="hero" :class="{ 'hero--live': isOngoing }">
                 <div class="hero__label">
@@ -115,11 +88,7 @@
               <pass-timeline v-if="showTimeline" :passes="passes" :now-ms="nowMs" :mode="overpassMode" :picked="pickedPassMs" @pick="pickPass" />
             </template>
 
-            <!-- Outside every empty branch on purpose. The mode decides what the two
-                 right-hand columns and the strip mean, and it can produce a list
-                 with nothing in it — swath mode over a station the ground track
-                 misses — so a control that appears only when there are passes is one
-                 you cannot use to undo the switch that emptied the tab. -->
+            <!-- Outside the empty branches: swath mode can empty the list, and the switch back must stay reachable. -->
             <div class="passes__bar">
               <div class="modes" role="group" aria-label="Overpass calculation">
                 <button
@@ -263,23 +232,19 @@ const OVERPASS_MODES = [
   { value: "swath", label: "Swath" },
 ] as const;
 
-/** Asks whether a station exists, not what kind of thing is selected: a satellite
- *  with a station set and an empty window has a different problem. */
 const emptyPassText = computed(() => (groundStationAvailable.value ? "No passes in the prediction window" : "No ground station set"));
 
 const satnum = computed(() => (selection.value?.kind === "satellite" ? selection.value.sat.props.satnum : undefined));
 const links = computed(() => (satnum.value ? externalLinks(satnum.value) : []));
 
-// The derived facts lead `satelliteInfo`, so the orbit class is its first row.
+/** The derived facts lead `satelliteInfo`, so the orbit class is its first row. */
 const facts = computed(() => new Map(satelliteInfo.value));
 const orbitClass = computed(() => facts.value.get("Orbit")?.split(" · ")[0] as OrbitClass | undefined);
 const orbitColor = computed(() => (orbitClass.value ? ORBIT_CLASS_COLOR[orbitClass.value] : "transparent"));
 
-// The three facts worth carrying in the header rather than leaving in Details:
-// what regime it flies in, whose it is, whether it still works.
 const chips = computed(() => ["Orbit", "Owner", "Status"].map((key) => facts.value.get(key)).filter((value): value is string => value !== undefined));
 
-// The card title already carries the name.
+/** The card title already carries the name. */
 const liveRows = computed(() => position.value.filter((row) => row.label !== "Name"));
 
 const isOngoing = computed(() => !!nextPass.value && nextPass.value.start <= nowMs.value);
@@ -292,8 +257,7 @@ const ongoingFraction = computed(() => {
 });
 const nextPassSubject = computed(() => (nextPass.value ? (nextPass.value.groundStationName ?? nextPass.value.name) : ""));
 
-// A station's list is every satellite that crosses it, which is too dense to draw
-// as a strip — see PassTimeline.vue.
+/** A station's passes are too dense for a timeline; see PassTimeline.vue. */
 const showTimeline = computed(() => selection.value?.kind === "satellite");
 
 const tabs = computed(() => {
@@ -306,24 +270,15 @@ const tabs = computed(() => {
 });
 
 /**
- * The active tab: whichever of the remembered choice and the available set can be
- * satisfied.
- *
- * Controlled rather than left to UTabs. The tab set depends on what is selected: a
- * ground station has no Details. This component is not remounted across a selection
- * change. So an uncontrolled UTabs kept pointing at a tab that had gone, and
- * rendered an empty body. What is remembered, and why, is `preferredTab`.
+ * Controlled, not left to UTabs: the component is not remounted across selections,
+ * and an uncontrolled UTabs keeps a tab the new selection lacks (a ground station has no Details).
  */
 const resolvedTab = computed(() => (tabs.value.some((item) => item.value === preferredTab.value) ? preferredTab.value : (tabs.value[0]?.value ?? "passes")));
 
-// Tapping the tab you are already on folds the body away. On a phone the panel is
-// most of the screen, and what it covers — the globe, and the passes the clock deck
-// marks on its ruler — is often what you opened it to look at. The selection stays,
-// so the marks stay with it.
+/** Pressing the active tab folds the body away; the selection stays. */
 const collapsed = ref(false);
 
-// A new selection is a request to see it, so it arrives unfolded. Watched rather than
-// cleared on close, because the panel is not remounted between entities.
+// The panel is not remounted between entities, so a new selection unfolds it here.
 watch(selection, () => {
   collapsed.value = false;
 });
@@ -331,8 +286,7 @@ watch(selection, () => {
 const activeTab = computed({
   get: () => resolvedTab.value,
   set: (value: string) => {
-    // Reka's trigger sets the model on every press, unchanged value included, so the
-    // second press on the tab you are on arrives here as the value it already had.
+    // Reka's trigger sets the model on every press, so a press on the active tab arrives as its own value.
     if (value === resolvedTab.value) {
       collapsed.value = !collapsed.value;
       return;
@@ -342,36 +296,27 @@ const activeTab = computed({
   },
 });
 
-// Bring the picked row into view. A block on the strip says when and how good and
-// nothing else. The useful destination is the row, where the azimuth and the exact
-// times are.
 const tableEl = useTemplateRef<HTMLTableElement>("tableEl");
 watch(pickedPassMs, (startMs) => {
   if (startMs === null) {
     return;
   }
-  // After the row has its class, so `nearest` measures the right element.
+  // Wait for the row's class, so `nearest` measures the right element.
   nextTick(() => {
     tableEl.value?.querySelector(`tr[data-start-ms="${startMs}"]`)?.scrollIntoView({ block: "nearest" });
   });
 });
 
-// Only a ground station has a name of its own to change; a satellite's comes from
-// the catalog.
 const canRename = computed(() => selection.value?.kind === "groundstation");
 const renaming = ref(false);
 const renameEl = useTemplateRef<HTMLInputElement>("renameEl");
 /**
- * What is being typed, held locally rather than bound to the station.
- *
- * Vue patches a `:value` against the *live* DOM value, so a bound input loses what
- * was typed on every one-second refresh. Seeded from `givenName`, not the displayed
- * name: an unnamed station displays its coordinates, and that is a name with a
- * comma in it, which `wireSafeName` in the store refuses.
+ * Local, not bound to the station: Vue patches `:value` against the live DOM value,
+ * so a bound input loses the typing on every one-second refresh. Seeded from
+ * `givenName`, because the displayed fallback (coordinates) has a comma that `wireSafeName` refuses.
  */
 const draftName = ref("");
 
-// A rename in progress belongs to the station it started on.
 watch(selection, () => {
   renaming.value = false;
 });
@@ -381,12 +326,9 @@ function toggleRename(): void {
     commitRename();
     return;
   }
-  // The name it actually has, which is empty when it has none — not the coordinates
-  // it falls back to displaying.
   draftName.value = selection.value?.kind === "groundstation" ? selection.value.gs.givenName : "";
   renaming.value = true;
-  // Focus after the input exists, and select the text so a replacement is one
-  // keystroke rather than a clear-then-type.
+  // Select after the input mounts, so typing replaces the name.
   nextTick(() => renameEl.value?.select());
 }
 
@@ -395,15 +337,8 @@ function cancelRename(): void {
 }
 
 /**
- * Write the typed name through, then leave edit mode.
- *
- * Blur commits as well as Enter, because leaving the field is how most edits end.
- * Escape gets there first by clearing `renaming`, which is what the guard below
- * reads: the input unmounting fires one last blur, and without it Escape would
- * commit the very text it was pressed to abandon.
- *
- * Matched on the station's position in the list rather than on its old name, which
- * is the thing being changed.
+ * Blur commits as well as Enter. The `renaming` guard stops the blur that fires when
+ * Escape unmounts the input from committing. Matched by list position, not by the old name.
  */
 function commitRename(): void {
   if (!renaming.value) {
@@ -419,9 +354,7 @@ function commitRename(): void {
     return;
   }
   satStore.setGroundStations(renamed(satStore.groundStations, index, draftName.value));
-  // The write rebuilds every station entity, which drops the selection and closes
-  // the panel — on the station you were in the middle of editing. Re-select the
-  // replacement, which is the same list position, once it exists.
+  // The write rebuilds every station entity and drops the selection; re-select the replacement.
   nextTick(() => cc.sats.groundStations[index]?.select());
 }
 
@@ -467,8 +400,7 @@ function notifyPasses(): void {
 </script>
 
 <style scoped>
-/* Below the toolbars and inside the same insets: sideways the notch is beside this
-   panel, and the width has to lose both sides or the card overflows. */
+/* The width loses both side insets, or the card overflows beside a landscape notch. */
 .entity-info-panel {
   position: absolute;
   top: calc(50px + var(--safe-top, 0px));
@@ -479,13 +411,7 @@ function notifyPasses(): void {
   font-size: 14px;
 }
 
-/*
- * The strip and the header are permanent, and the hero lives inside the body. The
- * cap is what is left of a reasonable card height. The dvh term keeps the whole
- * thing on screen on a short window, where the card has no cap of its own. It has to
- * be dvh: an installed iOS app reports vh as the full screen, taller than the
- * viewport it can paint.
- */
+/* dvh, not vh: an installed iOS app reports vh as the full screen, taller than the viewport it paints. */
 .entity-info-panel :deep(.info-body) {
   max-height: min(520px, 58dvh);
   overflow-y: auto;
@@ -512,8 +438,7 @@ function notifyPasses(): void {
   white-space: nowrap;
 }
 
-/* Sized and weighted like the name it replaces, so switching into edit mode moves
-   nothing but the caret. */
+/* Matches .head__name, so entering edit mode moves nothing. */
 .head__rename {
   min-width: 0;
   flex: 1;
@@ -526,7 +451,7 @@ function notifyPasses(): void {
   font-weight: 600;
 }
 
-/* Takes the slack whether or not there is a catalog number to show. */
+/* Takes the slack even when there is no catalog number. */
 .head__id {
   flex-grow: 1;
   color: #edffff70;
@@ -556,8 +481,6 @@ function notifyPasses(): void {
   content: "·";
 }
 
-/* Edge to edge, with hairline gaps: a band across the card rather than a card
-   within it, which is what keeps it reading as chrome and not as content. */
 .strip {
   display: flex;
   gap: 1px;
@@ -633,15 +556,12 @@ function notifyPasses(): void {
   background: #56b4e9;
 }
 
-/* The padding the scroll container gives up so its sticky table header can pin
-   flush with the top edge. */
+/* Here, not on the scroll container, so the sticky table header pins flush and rows do not show above it. */
 .tab-body__pad {
   padding-top: 12px;
 }
 
-/* Two states of one setting, so a pair rather than a switch: a switch would have
-   to label itself with the state it is in, and "Swath: off" is not what the other
-   mode is called. */
+/* A pair rather than a switch: "Swath: off" is not what the other mode is called. */
 .modes {
   display: flex;
   overflow: hidden;
@@ -686,8 +606,6 @@ function notifyPasses(): void {
   text-transform: uppercase;
 }
 
-/* Zebra rather than a border grid, and no coloured header bar: the bars carried no
-   information, and four of them stacked is what made the panel loud. */
 .info-table {
   width: 100%;
   border-collapse: collapse;
@@ -709,7 +627,6 @@ function notifyPasses(): void {
   font-weight: 400;
 }
 
-/* Sticky, so the columns stay named while thirty passes scroll under them. */
 .info-table thead th {
   position: sticky;
   top: 0;

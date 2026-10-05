@@ -82,8 +82,7 @@ describe("GpSource probe", () => {
     });
   });
 
-  // An index from before tags and presets existed, or a malformed one, reads as
-  // one without them rather than failing the probe.
+  // An old or malformed index reads as one without tags and presets, rather than failing the probe.
   test("drops tags and presets of the wrong shape", async () => {
     installFetch({
       "/api/groups.json": json({

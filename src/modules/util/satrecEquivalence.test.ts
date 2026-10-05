@@ -4,9 +4,10 @@ import { fileURLToPath } from "node:url";
 import { json2satrec, propagate, twoline2satrec, type OMMJsonObject } from "satellite.js";
 import { describe, expect, test } from "vitest";
 
-// ISS fixtures fetched once from CelesTrak (FORMAT=2LE + FORMAT=JSON) and
-// committed under ./fixtures/. We assert that satrecs built from each
-// format propagate to the same ECI position (< 1 km per axis).
+/**
+ * ISS fixtures from CelesTrak (FORMAT=2LE and FORMAT=JSON): satrecs from both formats
+ * must propagate to the same ECI position.
+ */
 const twoLe = readFileSync(fileURLToPath(new URL("./fixtures/iss.2le.txt", import.meta.url)), "utf8")
   .trim()
   .split(/\r?\n/);
@@ -15,7 +16,7 @@ const ommArray = JSON.parse(readFileSync(fileURLToPath(new URL("./fixtures/iss.o
 const satrecTle = twoline2satrec(twoLe[0] as string, twoLe[1] as string);
 const satrecOmm = json2satrec(ommArray[0] as OMMJsonObject);
 
-// satrec.jdsatepoch is a full Julian Date in satellite.js 7.x.
+/** satrec.jdsatepoch is a full Julian Date in satellite.js 7.x. */
 function jdToDate(jd: number): Date {
   return new Date((jd - 2440587.5) * 86400000);
 }

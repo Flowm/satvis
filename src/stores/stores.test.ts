@@ -1,6 +1,4 @@
-// The store is the owner of the state and its invariants, so this is the
-// interface those invariants are asserted through. Pinia needs no DOM, so this
-// runs in the same node-env vitest as everything else.
+// The store owns the invariants, so they are asserted here. Pinia needs no DOM.
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -27,8 +25,6 @@ describe("setActivation", () => {
     expect(sat.enabledSatellites).toEqual(["ISS"]);
   });
 
-  // The two lists mean opposite things, so a name in both is nonsense however
-  // it got there — a hand-written url, or a stale exclusion plus a new enable.
   test("keeps the enabled and excluded lists disjoint, enable winning", () => {
     const sat = useSatStore();
     sat.setActivation({ enabledSatellites: ["ISS", "NOAA 19"], disabledSatellites: ["ISS"] });
@@ -78,8 +74,7 @@ describe("setGroundStations", () => {
     ]);
   });
 
-  // A name carrying `,` or `_` used to delete the station on the next url round
-  // trip, from any name input — see `wireSafeName`.
+  // A `,` or `_` in a name would drop the station on the url round trip (`wireSafeName`).
   test("replaces characters a name cannot carry through the url", () => {
     const sat = useSatStore();
     sat.setGroundStations([
@@ -109,8 +104,7 @@ describe("setGroundStations", () => {
     expect(sat.groundStations).toEqual([{ lat: 48.1, lon: 11.5 }]);
   });
 
-  // ~11 m. The url emits 4 dp either way, so without rounding here the store
-  // and the url disagreed about a station's position.
+  // The url emits 4 dp, so the store must round to agree with it.
   test("rounds coordinates to 4 decimal places", () => {
     const sat = useSatStore();
     sat.setGroundStations([{ lat: 48.123456, lon: 11.987654, name: "P" }]);
@@ -151,8 +145,6 @@ describe("setLayers", () => {
     expect(cesium.layers).toEqual(["NaturalEarth", "Nextrad"]);
   });
 
-  // Reproduced before this action existed: the rule lived in a Vue watcher
-  // that wrote back the base layers and discarded every overlay.
   test("the last base layer wins and overlays survive", () => {
     const cesium = useCesiumStore();
     cesium.setLayers(["NaturalEarth", "Nextrad", "ArcGis"]);

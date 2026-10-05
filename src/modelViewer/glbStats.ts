@@ -1,5 +1,4 @@
-// What a GLB costs and what it is made of, read from its JSON chunk without
-// rendering it.
+// What a GLB costs and contains, read from its JSON chunk without rendering it.
 
 const GLB_MAGIC = 0x46546c67; // "glTF"
 const CHUNK_JSON = 0x4e4f534a;
@@ -195,7 +194,7 @@ function walkScene(json: Gltf, visit: (node: GltfNode, world: Mat4) => void): vo
   }
 }
 
-// Column-major, as glTF stores them.
+/** Column-major, as glTF stores them. */
 const IDENTITY: Mat4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
 function localMatrix(node: GltfNode): Mat4 {

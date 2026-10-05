@@ -7,8 +7,7 @@ import { InlinePassSource } from "../modules/util/passSource";
 import { InlineSampleSource } from "../modules/util/sampleSource";
 import type { SatelliteMetadata } from "./satelliteMetadata";
 
-// Minimal OMM record. Metadata rides alongside the element set, attached by the
-// worker at refresh time — so a test builds a record the same way the wire does.
+/** Minimal OMM record, with metadata attached as the worker does it. */
 function ommRecord(name: string, satnum: number, metadata?: SatelliteMetadata): GpRecord {
   return {
     kind: "omm",
@@ -55,8 +54,7 @@ describe("record-carried satellite metadata", () => {
 
 describe("swath resolution", () => {
   test("the total is the sum of the two sides, not a doubled half", () => {
-    // Sentinel-3's tilt makes this the case that a single-number model cannot
-    // express: 1000 + 500 is neither 2x1000 nor 2x500.
+    // Sentinel-3's tilted swath: 1000 + 500 is neither 2x1000 nor 2x500.
     expect(propertiesFor({ swathStarboardKm: 1000, swathPortKm: 500 }).swath).toBe(1500);
   });
 

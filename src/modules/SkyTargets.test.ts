@@ -6,11 +6,7 @@ import { compassPoint, directionToWorld, lookAngles, nearestTarget, observerFram
 const MUNICH = { lat: 48.14, lon: 11.58 };
 const frameAt = (lat: number, lon: number, height = 2) => observerFrame(Cartesian3.fromDegrees(lon, lat, height));
 
-/**
- * Signed difference between two azimuths, in (-180, 180]. Azimuths have to be
- * compared modulo a full turn: due north comes back as either 0 or 359.999…
- * depending on which side of it the rounding fell, and both are north.
- */
+/** Signed, in (-180, 180]: due north can come back as 0 or 359.999…. */
 const azimuthError = (actual: number, expected: number): number => Math.abs(((((actual - expected) % 360) + 540) % 360) - 180);
 
 describe("lookAngles", () => {
@@ -27,8 +23,7 @@ describe("lookAngles", () => {
   });
 
   test("reads the cardinal directions off the horizon", () => {
-    // A point far enough along each bearing that the geodesic still reads as
-    // that bearing, at an altitude keeping it near the horizon.
+    // Far enough along each bearing to read as it, low enough to stay near the horizon.
     const cases: [number, number, number][] = [
       [MUNICH.lat + 1, MUNICH.lon, 0],
       [MUNICH.lat, MUNICH.lon + 1, 90],
@@ -87,7 +82,7 @@ describe("nearestTarget", () => {
   });
 
   test("drops what the Earth is in front of", () => {
-    // Below the horizon, so occluded — the test that replaces depth picking.
+    // Below the horizon, so occluded.
     expect(nearestTarget([target("underfoot", 641, 360, -5)], center, 60)).toBeUndefined();
     expect(nearestTarget([target("grazing", 641, 360, 0)], center, 60)).toBeUndefined();
   });

@@ -7,10 +7,7 @@ import { parseGpPayload, type GpRecord } from "./util/gp";
 
 const TLE = "ISS (ZARYA)\n1 25544U 98067A   18342.69352573  .00002284  00000-0  41838-4 0  9992\n2 25544  51.6407 229.0798 0005166 124.8351 329.3296 15.54069892145658";
 
-// Physical invariants — orbital radius, altitude band, a non-empty pass list —
-// rather than exact decimals: the values SGP4 produces for a given element set
-// shift between satellite.js releases, so pinned decimals fail on upgrade
-// without anything being wrong.
+// Physical invariants, not exact decimals: SGP4 output shifts between satellite.js releases.
 describe("Orbit (TLE record)", () => {
   const orbit = new Orbit("ISS", parseGpPayload(TLE)[0] as GpRecord);
 
@@ -138,9 +135,7 @@ describe("Orbit elevation passes", () => {
   });
 });
 
-// Swath containment is tested against ground stations placed at a known offset
-// from the ground track, so the assertions are about geometry rather than about
-// whichever passes SGP4 happens to produce over a real city.
+// Ground stations at a known offset from the ground track, not over a real city.
 describe("Orbit swath containment", () => {
   const orbit = new Orbit("ISS", parseGpPayload(TLE)[0] as GpRecord);
   const EARTH_RADIUS_KM = 6371;
@@ -193,8 +188,7 @@ describe("Orbit swath containment", () => {
   });
 
   test("bounds a station straight ahead by distance, so it is not served", () => {
-    // A per-side test keyed on cross-track offset alone would place this station at
-    // zero offset and serve it for the whole orbit; distance bounds it.
+    // Cross-track offset alone would put this station at zero and serve it all orbit.
     const here = orbit.positionGeodetic(AT)!;
     const ahead = destination(here.latitude, here.longitude, flightBearing(), 1200);
     expect(orbit.trackOffsets(ahead, AT)!.distanceKm).toBeCloseTo(1200, -1);
@@ -211,16 +205,14 @@ describe("Orbit swath containment", () => {
     expect(orbit.computePassesSwath(starboard, swath, start, end).length).toBeGreaterThan(0);
     expect(orbit.computePassesSwath(port, swath, start, end)).toHaveLength(0);
 
-    // Mirroring the extents flips which station is served — the sides are not
-    // interchangeable, which a single total width could never express.
+    // Mirroring the extents flips which station is served.
     const mirrored = { starboardKm: 200, portKm: 600 };
     expect(orbit.computePassesSwath(starboard, mirrored, start, end)).toHaveLength(0);
     expect(orbit.computePassesSwath(port, mirrored, start, end).length).toBeGreaterThan(0);
   });
 
   test("a symmetric swath is the plain distance test the old single-width model used", () => {
-    // Pins the ADR-0002 claim that symmetric satellites keep their windows exactly:
-    // containment must be `distance <= total / 2`, side-independent.
+    // ADR 0002: symmetric containment is `distance <= total / 2`, side-independent.
     const { starboard, port } = flankingStations(400);
     const start = AT;
     const end = new Date(AT.getTime() + 30 * 60_000);

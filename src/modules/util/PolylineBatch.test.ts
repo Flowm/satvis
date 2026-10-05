@@ -1,15 +1,5 @@
-// The shared orbit primitive's bookkeeping.
-//
-// Real GeometryInstance objects — a plain Cesium class that constructs fine in
-// the node env. What is faked is the viewer: a clock whose ticks this test drives
-// by hand, which is the only way to observe the coalescing window and the
-// settled() promise deterministically.
-//
-// What is not covered is the build itself. Driving a Primitive through its
-// creation states calls into Cesium's renderer, which needs a real WebGL context,
-// so the cases here stop at the point a build starts and pick up again on the
-// paths that never reach one. That still leaves the scheduling, the coalescing,
-// the empty-batch teardown and settled().
+// The viewer is faked with a hand-cranked clock. The build itself is not covered:
+// driving a Primitive through its creation states needs a real WebGL context.
 
 import { ArcType, Cartesian3, Color, ColorGeometryInstanceAttribute, GeometryInstance, JulianDate, PolylineColorAppearance, PolylineGeometry, SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
@@ -30,7 +20,6 @@ function orbitGeometry(id: string): GeometryInstance {
   });
 }
 
-/** A viewer with a hand-cranked clock and a primitive collection that records. */
 function fakeViewer() {
   const listeners = new Set<() => void>();
   const primitives = {
@@ -83,7 +72,7 @@ function fakeViewer() {
   };
 }
 
-// Mirrors PolylineBatch's own window; the callback fires on the tick after it.
+/** Mirrors PolylineBatch's own window; the callback fires on the tick after it. */
 const COALESCE_TICKS = 30;
 const PAST_WINDOW = COALESCE_TICKS + 2;
 
@@ -103,7 +92,6 @@ describe("PolylineBatch", () => {
     batch.add(orbitGeometry("ISS"));
 
     expect(batch.pending).toBe(true);
-    // Ticking short of the window must not start the build.
     host.tick(COALESCE_TICKS - 1);
     expect(host.primitives.added).toHaveLength(0);
     expect(batch.pending).toBe(true);
@@ -118,8 +106,6 @@ describe("PolylineBatch", () => {
       batch.add(orbitGeometry(`SAT-${i}`));
     }
 
-    // One scheduled rebuild, not fifty: the second add sees `#scheduled` and
-    // returns rather than registering another tick callback.
     expect(host.listenerCount).toBe(before + 1);
   });
 
@@ -141,7 +127,7 @@ describe("PolylineBatch", () => {
   test("the empty rebuild stops its own tick callback", () => {
     const host = fakeViewer();
     const batch = new PolylineBatch(host.viewer);
-    // The permanent inertial-frame updater registered by the constructor.
+    // The constructor's permanent inertial-frame updater.
     const permanent = host.listenerCount;
 
     const geometry = orbitGeometry("ISS");
@@ -149,9 +135,6 @@ describe("PolylineBatch", () => {
     batch.remove(geometry);
     host.tick(PAST_WINDOW);
 
-    // The rebuild callback used to `return` out of the empty branch without
-    // removing itself, leaving a listener requesting a render every 30 ticks for
-    // the rest of the session — and another one on every subsequent empty pass.
     expect(host.listenerCount).toBe(permanent);
   });
 
@@ -165,7 +148,6 @@ describe("PolylineBatch", () => {
     host.tick(PAST_WINDOW);
     await batch.settled();
 
-    // Resolves without anything having to tick again.
     await expect(batch.settled()).resolves.toBeUndefined();
   });
 
@@ -177,7 +159,6 @@ describe("PolylineBatch", () => {
 
     batch.add(first);
     expect(batch.replace(first, second)).toBe(true);
-    // A swap is not a membership change: the batch is still one geometry long.
     expect(batch.size).toBe(1);
     expect(batch.pending).toBe(true);
   });
@@ -187,9 +168,7 @@ describe("PolylineBatch", () => {
     const batch = new PolylineBatch(host.viewer, "fixed");
     const stale = orbitGeometry("ISS");
 
-    // The satellite disabled its track between the refresh being scheduled and
-    // it running: the caller has to be told, or the batch grows a line for a
-    // component nobody is drawing.
+    // The satellite disabled its track between the refresh being scheduled and running.
     expect(batch.replace(stale, orbitGeometry("ISS"))).toBe(false);
     expect(batch.size).toBe(0);
   });
@@ -198,13 +177,10 @@ describe("PolylineBatch", () => {
     const host = fakeViewer();
     const before = host.listenerCount;
 
-    // The inertial batch keeps a permanent listener to spin its model matrix.
     const inertial = new PolylineBatch(host.viewer, "inertial");
     expect(inertial.size).toBe(0);
     expect(host.listenerCount).toBe(before + 1);
 
-    // An Earth-relative one is already in the frame it is drawn in, so there is
-    // no matrix for a listener to maintain.
     const fixed = new PolylineBatch(host.viewer, "fixed");
     expect(fixed.size).toBe(0);
     expect(host.listenerCount).toBe(before + 1);

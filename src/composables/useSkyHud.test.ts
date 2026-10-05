@@ -4,7 +4,6 @@ import { describe, expect, test } from "vitest";
 import { fovxFromFovy, MAX_FOVY, MIN_FOVY } from "../modules/SkyView";
 import { headingOffset, majorStep, stepFor, TICKS_WANTED } from "./useSkyHud";
 
-/** The horizontal angle a viewport of this shape spans at this zoom. */
 const span = (fovy: number, width: number, height: number): number => CesiumMath.toDegrees(fovxFromFovy(CesiumMath.toRadians(fovy), width / height));
 
 const PHONE = [390, 844] as const;
@@ -17,15 +16,12 @@ describe("stepFor", () => {
   });
 
   test("goes finer on a portrait phone, whose span is a third of that", () => {
-    // ~39° across, where a 15° step yields two or three marks and the 45°-spaced
-    // cardinal label is often off screen entirely.
     expect(Math.round(span(75, ...PHONE))).toBe(39);
     expect(stepFor(span(75, ...PHONE))).toBe(5);
   });
 
   test("keeps the tape populated at maximum zoom, which is what fixed steps did not", () => {
-    // ~4.6° across on a phone: every rung but the finest leaves the nearest mark
-    // off screen, which is how the tape used to go blank.
+    // ~4.6° across on a phone.
     expect(stepFor(span(MIN_FOVY, ...PHONE))).toBe(1);
     expect(stepFor(span(MIN_FOVY, ...DESKTOP))).toBe(5);
   });
@@ -40,9 +36,7 @@ describe("stepFor", () => {
   });
 
   test("and no more than ten on any viewport it will meet", () => {
-    // Not a property of the ladder's spacing: 15° is the coarsest rung, so above a
-    // 45° span the count simply grows with the span and the ceiling is whatever the
-    // widest reachable view produces. At fovy 100 on 21:9 that is 141°/15 = 9.4.
+    // Above a 45° span the count grows with the span: fovy 100 on 21:9 gives 141°/15 = 9.4.
     for (const [width, height] of [PHONE, DESKTOP, WIDE, [1000, 1000] as const]) {
       for (let fovy = MIN_FOVY; fovy <= MAX_FOVY; fovy += 0.5) {
         const across = span(fovy, width, height);
@@ -52,11 +46,7 @@ describe("stepFor", () => {
   });
 });
 
-/**
- * Where the projection of a horizon bearing actually lands, built from the camera
- * basis rather than borrowed from the module, so the comparisons below check the tape
- * against the geometry and not against itself.
- */
+/** Built from the camera basis, not the module, so the tape is checked against geometry. */
 function projectedHorizonOffset(deltaAzimuth: number, pitch: number, halfWidth: number, tanHalfSpan: number): number {
   const rad = (degrees: number) => (degrees * Math.PI) / 180;
   // In the observer's east-north-up frame, with the view azimuth taken as north.
@@ -87,10 +77,7 @@ describe("headingOffset", () => {
   });
 
   test("holds its scale where the projection would grow by 1/cos(pitch)", () => {
-    // The behaviour this replaced, and the size of what was given up with it: at 60°
-    // of pitch the horizon's projection spreads to twice this scale and at 85° to
-    // eleven times, which zoomed the tape until nothing was left on screen. The
-    // readout takes no pitch at all, so the divergence is exactly that factor.
+    // The readout takes no pitch, so it diverges from the projection by exactly 1/cos(pitch).
     const stable = headingOffset(10, HALF_WIDTH, tanHalfSpan) - HALF_WIDTH;
     for (const pitch of [0, 30, 60, 85]) {
       const projected = projectedHorizonOffset(10, pitch, HALF_WIDTH, tanHalfSpan) - HALF_WIDTH;
@@ -101,8 +88,6 @@ describe("headingOffset", () => {
 
 describe("majorStep", () => {
   test("keeps the compass points among the majors at every rung", () => {
-    // The label rule depends on this: a major spacing that did not divide 45 would
-    // drop N/E/S/W off the tape.
     for (const step of [15, 5, 3, 1]) {
       expect(45 % majorStep(step), `step ${step}`).toBe(0);
     }

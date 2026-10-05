@@ -19,15 +19,11 @@ import {
 import { DeviceDetect } from "../modules/util/DeviceDetect";
 import type { ViewerClock } from "./useViewerClock";
 
-/** Reduced motion still settles; it just arrives at once. */
 const scrollBehavior = (): ScrollBehavior => (DeviceDetect.prefersReducedMotion() ? "auto" : "smooth");
 
 /**
- * Move with the finger, coast on release, settle when the coast runs out.
- *
- * Works in the caller's units — sim ms for the timeline, scroll px for the ladder — so
- * velocities are those units per real ms. `advance` answers whether the move landed,
- * which is how the coast knows it has hit the end of the ladder.
+ * Move with the finger, coast on release, then settle. Velocities are the caller's units
+ * per real ms. `advance` returns false when the move did not land, which ends the coast.
  */
 function useFlickDrag(options: {
   unitsPerPixel: number;
@@ -68,8 +64,7 @@ function useFlickDrag(options: {
       return;
     }
     moved = true;
-    // Floored at 1 ms, hence the clamp: two events in one millisecond would hand the
-    // coast a speed that runs for days.
+    // Floored at 1 ms and clamped: two events in one millisecond would give an absurd speed.
     const dt = Math.max(1, event.timeStamp - lastAt);
     lastX = event.clientX;
     lastAt = event.timeStamp;
@@ -83,8 +78,7 @@ function useFlickDrag(options: {
       return;
     }
     dragging = false;
-    // Nothing to carry, and a coast would leave the settle waiting on a frame that
-    // never comes in a hidden tab.
+    // A coast would wait on a frame that never comes in a hidden tab.
     if (!moved || DeviceDetect.prefersReducedMotion() || Math.abs(velocity) < options.minVelocity) {
       options.onSettle(moved);
       return;
@@ -126,8 +120,7 @@ export function useTimeline(clock: ViewerClock, timeline: Ref<HTMLElement | unde
       clock.scrubTo(new Date(clock.now.value.getTime() + delta));
       return true;
     },
-    // `endScrub` writes the store, so a stray tap would pin the clock at a time it
-    // never left.
+    // `endScrub` writes the store, so a stray tap would pin the clock.
     onSettle: (moved) => (moved ? clock.endScrub() : clock.cancelScrub()),
   });
 
@@ -169,9 +162,9 @@ export function useLadder(clock: ViewerClock, ladder: Ref<HTMLElement | undefine
   let settleTimer: ReturnType<typeof setTimeout> | undefined;
   let rest: ReturnType<typeof setTimeout> | undefined;
 
-  /** A backstop only: the window normally closes when the scroll arrives, because no flat number fits every distance. */
+  // A backstop: the window normally closes when the scroll arrives.
   const SETTLE_BACKSTOP_MS = 2000;
-  /** How long a wheel has to stop before the ladder straightens itself. */
+  // How long a wheel must stop before the ladder settles.
   const REST_MS = 120;
 
   function scrollToRung(at: number, behavior: ScrollBehavior): void {
@@ -218,7 +211,6 @@ export function useLadder(clock: ViewerClock, ladder: Ref<HTMLElement | undefine
     onStart: () => {
       clearTimeout(settleTimer);
       clearTimeout(rest);
-      // From here the scroll is a finger's, and each rung it passes sets the speed.
       settling = false;
     },
     advance: (delta) => {
@@ -237,7 +229,6 @@ export function useLadder(clock: ViewerClock, ladder: Ref<HTMLElement | undefine
     },
   });
 
-  /** Rest on a rung, never between two. */
   function settle(): void {
     const rung = restingRung();
     // Animating from a rung to itself is how this loops.
@@ -247,10 +238,7 @@ export function useLadder(clock: ViewerClock, ladder: Ref<HTMLElement | undefine
     scrollToRung(rung, scrollBehavior());
   }
 
-  /**
-   * A rung's own tap. Ignored after a swipe: the pointer is captured by the rung it
-   * went down on, so the browser fires a click there whatever the finger did next.
-   */
+  /** Ignored after a swipe: pointer capture makes the browser click the rung it went down on. */
   function pick(rung: number): void {
     if (drag.moved()) {
       return;
@@ -258,10 +246,8 @@ export function useLadder(clock: ViewerClock, ladder: Ref<HTMLElement | undefine
     scrollToRung(rung, scrollBehavior());
   }
 
-  /** Put the ladder on a rung. Animated where a tap would animate; instant when arriving on the rung already in force. */
   const showRung = (rung: number, { animate }: { animate: boolean }): void => scrollToRung(rung, animate ? scrollBehavior() : "auto");
 
-  /** Arrow keys, a rung at a time. */
   function step(direction: number, from: number): number {
     const next = Math.min(LADDER.length - 1, Math.max(0, from + direction));
     if (next !== from) {

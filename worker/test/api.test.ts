@@ -7,17 +7,16 @@ import { SATCAT_URL } from "../src/gp/satcat.ts";
 import type { GroupsConfig, GroupsIndex, OmmRecord } from "../src/gp/types.ts";
 import worker from "../src/index.ts";
 
-// Number of distinct upstream requests one refresh makes (sources deduped
-// across all generated groups). Asserted against the fetch spy after each
-// refresh test so no upstream request goes missing or leaks between tests.
+/** Distinct upstream requests per refresh, asserted against the fetch spy after each test. */
 const SOURCE_COUNT = collectSources((generatedConfig as GroupsConfig).groups).length;
 
 const UPDATED = "2026-07-04T00:00:00.000Z";
 const UPDATED_MS = Date.parse(UPDATED);
 
-// Matches the REFRESH_TOKEN binding in vitest.config.ts. That binding stands in
-// for a Worker secret, which lives outside wrangler.jsonc and so is absent from
-// the generated Env type — hence the local view, mirroring api.ts.
+/**
+ * Matches the REFRESH_TOKEN binding in vitest.config.ts. Secrets are absent from the
+ * generated Env type, hence the local view, as in api.ts.
+ */
 const AUTH = { Authorization: "Bearer test-refresh-token" };
 const secretEnv = env as typeof env & { REFRESH_TOKEN?: string };
 
@@ -33,9 +32,7 @@ async function idsOf(group: string): Promise<unknown[]> {
   return ((await env.GP_KV.get(`gp:${group}`, "json")) as OmmRecord[]).map((r) => r.NORAD_CAT_ID);
 }
 
-// An ingest bundle covering every source the generated config collects, built
-// the way scripts/push-gp.mjs builds it: the url is what sourceUrl() produces,
-// since that is the key bundleFetch matches on.
+/** Built like scripts/push-gp.mjs builds it: bundleFetch matches on the sourceUrl() url. */
 function ingestBundle(reply: (source: string) => unknown, opts?: { status?: number }): string {
   const specs = collectSources((generatedConfig as GroupsConfig).groups);
   return JSON.stringify({
@@ -150,8 +147,7 @@ describe("index route", () => {
     await refreshed.arrayBuffer();
   });
 
-  // Metadata is no longer shipped as a separate rule set for the browser to
-  // match: records carry it, attached at refresh time.
+  // Records carry their metadata; there is no metadata endpoint.
   it("404s the retired /api/metadata.json", async () => {
     const res = await SELF.fetch("https://satvis.space/api/metadata.json");
     expect(res.status).toBe(404);
@@ -165,10 +161,8 @@ describe("index route", () => {
 });
 
 describe("scheduled() refresh", () => {
-  // The refresh reaches upstream through the global fetch (see refreshAll), so
-  // stubbing globalThis.fetch intercepts it. The default stub rejects every
-  // request (the old disableNetConnect); interceptCelestrak() swaps in the
-  // celestrak reply and sets the number of upstream calls the test must make.
+  // refreshAll uses the global fetch. The default stub rejects every request;
+  // interceptCelestrak() swaps in a reply and sets the expected call count.
   let fetchSpy: MockInstance<typeof fetch>;
   let expectedFetches = 0;
 
@@ -178,22 +172,16 @@ describe("scheduled() refresh", () => {
       throw new Error(`unmocked fetch: ${new Request(input, init).url}`);
     });
   });
-  // Assert the exact upstream request count, so a missing or extra fetch fails
-  // the test that caused it instead of leaking into the next one.
+  // An exact count makes a missing or extra fetch fail the test that caused it.
   afterEach(() => {
     expect(fetchSpy).toHaveBeenCalledTimes(expectedFetches);
     vi.restoreAllMocks();
   });
 
-  // Reply to every celestrak request (regular gp.php GROUP=<g> and supplemental
-  // sup-gp.php FILE=<f>) — one per distinct source — with a synthetic response,
-  // so the refresh never hits the network. Anything else stays rejected.
-  //
-  // The SATCAT is one more request on top of the sources (see satcat.ts), and it
-  // answers 304: that is the steady state in production, where the stored ETag
-  // makes the fetch conditional. These tests are about the groups, and a 304
-  // leaves enrichment exactly as it was before SATCAT existed — curated table
-  // entries still apply, because they are merged in regardless.
+  /**
+   * Answers gp.php and sup-gp.php requests synthetically. The SATCAT is one more
+   * request and answers 304, the production steady state; curated entries still apply.
+   */
   function interceptCelestrak(reply: (group: string) => unknown, opts?: { status?: number }): void {
     expectedFetches = SOURCE_COUNT + 1;
     fetchSpy.mockImplementation(async (input, init) => {
@@ -226,11 +214,8 @@ describe("scheduled() refresh", () => {
     const weatherStatus = index.groups.find((g) => g.name === "weather");
     expect(weatherStatus?.count).toBeGreaterThan(0);
     expect(weatherStatus?.lastError).toBeUndefined();
-    // The example `iss` plugin group documents ISS (ZARYA) as a satellites row
-    // with noradId 25544; our synthetic STATIONS-1 record (id 10008) matches
-    // neither the id nor the upstreamName, so the row raises a matched-no-record
-    // warning that must surface in the index. This exercises the warning path
-    // end-to-end through the real generated config.
+    // The example `iss` group's row (noradId 25544) matches no synthetic record, so
+    // its warning must surface in the index.
     const issStatus = index.groups.find((g) => g.name === "iss");
     expect(issStatus).toBeDefined();
     expect(issStatus?.lastError).toBeUndefined();
@@ -238,12 +223,8 @@ describe("scheduled() refresh", () => {
   });
 
   it("carves the derived groups out of the shared active source", async () => {
-    // Seven groups are no longer fetched as their own CelesTrak group — they are
-    // selected by name out of the single `active` download. Each record must land
-    // in exactly one group; the anchored patterns must not pick up a name that
-    // merely contains the prefix; and the `satellites` rows must pull in the
-    // members whose names carry no matching prefix (real ids, since those rows
-    // match on NORAD id).
+    // Each record lands in exactly one group, the anchored patterns skip names that
+    // merely contain a prefix, and `satellites` rows (real ids) pull in the unprefixed members.
     interceptCelestrak((source) =>
       source === "active"
         ? [
@@ -278,14 +259,12 @@ describe("scheduled() refresh", () => {
   });
 
   it("preserves last-known-good on failure", async () => {
-    // Seed a good weather value and index first.
     await seedGroup("weather", ommArray(["GOOD SAT", 1]), "2026-01-01T00:00:00.000Z");
     await env.GP_KV.put(
       "gp:index",
       JSON.stringify({ updated: "2026-01-01T00:00:00.000Z", groups: [{ name: "weather", updated: "2026-01-01T00:00:00.000Z", count: 1 }] } satisfies GroupsIndex),
     );
 
-    // All upstream requests now fail (HTTP 503).
     interceptCelestrak(() => [], { status: 503 });
 
     const ctx = createExecutionContext();
@@ -293,11 +272,9 @@ describe("scheduled() refresh", () => {
     await worker.scheduled(controller, env, ctx);
     await waitOnExecutionContext(ctx);
 
-    // Last-known-good value stays in KV.
     const weather = (await env.GP_KV.get("gp:weather", "json")) as OmmRecord[];
     expect(weather.map((r) => r.OBJECT_NAME)).toEqual(["GOOD SAT"]);
 
-    // Index keeps the old `updated` and records lastError.
     const index = (await env.GP_KV.get("gp:index", "json")) as GroupsIndex;
     const weatherStatus = index.groups.find((g) => g.name === "weather");
     expect(weatherStatus?.updated).toBe("2026-01-01T00:00:00.000Z");
@@ -306,7 +283,7 @@ describe("scheduled() refresh", () => {
   });
 
   it("runs the refresh and reports per-source diagnostics on POST /api/refresh", async () => {
-    // An old index means we are past the cooldown, so the refresh runs.
+    // An old index is past the cooldown.
     await env.GP_KV.put("gp:index", JSON.stringify({ updated: "2020-01-01T00:00:00.000Z", groups: [] } satisfies GroupsIndex));
     interceptCelestrak((group) => [{ OBJECT_NAME: `${group.toUpperCase()}-1`, NORAD_CAT_ID: 42 }]);
 
@@ -324,13 +301,11 @@ describe("scheduled() refresh", () => {
     expect(body.written).toBeGreaterThan(0);
     expect(body.sources).toHaveLength(SOURCE_COUNT);
     expect(body.sources.every((s) => s.ok && s.status === 200 && (s.records ?? 0) > 0)).toBe(true);
-    // Whatever it fetched was persisted (unlike a read-only probe).
     expect(Array.isArray(await env.GP_KV.get("gp:weather", "json"))).toBe(true);
   });
 
   it("rate-limits POST /api/refresh within the cooldown and returns the cached index", async () => {
-    // A very recent index puts us inside the cooldown window. interceptCelestrak()
-    // is not called, so the afterEach assertion proves no upstream fetch was made.
+    // Without interceptCelestrak(), the afterEach count proves no upstream fetch was made.
     const recent = new Date().toISOString();
     await env.GP_KV.put(
       "gp:index",
@@ -344,7 +319,6 @@ describe("scheduled() refresh", () => {
     expect(body.refreshed).toBe(false);
     expect(body.reason).toBe("cooldown");
     expect(body.retryAfterMs).toBeGreaterThan(0);
-    // The cached index (with its errors) is still returned for visibility.
     expect(body.groups.find((g) => g.name === "weather")?.lastError).toContain("HTTP 522");
   });
 
@@ -354,9 +328,7 @@ describe("scheduled() refresh", () => {
     expect(res.headers.get("Allow")).toBe("POST");
   });
 
-  // Both rejections must land before any upstream request — the afterEach fetch
-  // count (expectedFetches stays 0) is what proves the token actually protects
-  // CelesTrak's per-IP budget rather than just the response.
+  // The afterEach count (0) proves the token protects CelesTrak, not just the response.
   it.each([
     ["no Authorization header", {}],
     ["a wrong token", { Authorization: "Bearer not-the-token" }],
@@ -366,8 +338,6 @@ describe("scheduled() refresh", () => {
   });
 
   it("fails closed with 503 when REFRESH_TOKEN is not configured", async () => {
-    // A deploy that predates `wrangler secret put` (or follows a secret delete)
-    // must disable the endpoint, never fall back to an open trigger.
     const configured = secretEnv.REFRESH_TOKEN;
     delete secretEnv.REFRESH_TOKEN;
     try {
@@ -380,8 +350,7 @@ describe("scheduled() refresh", () => {
 });
 
 describe("POST /api/ingest", () => {
-  // Every test here asserts the Worker made no upstream request: the whole point
-  // of ingest is that the download already happened somewhere CelesTrak answers.
+  // Every test asserts the Worker made no upstream request.
   let fetchSpy: MockInstance<typeof fetch>;
 
   beforeEach(() => {
@@ -411,8 +380,7 @@ describe("POST /api/ingest", () => {
   });
 
   it("carves the derived groups out of the ingested active source", async () => {
-    // The selection logic must be the cron's, not a second implementation — so
-    // the same carve-out assertions as the scheduled() test have to hold here.
+    // The same carve-out assertions as the scheduled() test.
     await postIngest(
       ingestBundle((source) =>
         source === "active"
@@ -486,9 +454,6 @@ describe("POST /api/ingest", () => {
     expect(body.groups.find((g) => g.name === "weather")?.lastError).toContain("absent from the ingest bundle");
   });
 
-  // The SATCAT travels in the same bundle as the sources, because the Worker
-  // cannot reach CelesTrak at all — so the downloader owns the conditional
-  // request and the Worker only replays its outcome.
   it("stores a posted SATCAT with the downloader's ETag, and enriches from it", async () => {
     const satcat = ["OBJECT_NAME,NORAD_CAT_ID,OWNER,LAUNCH_DATE,ORBIT_TYPE", "WEATHER-1,10007,US,2019-11-11,ORB"].join("\r\n");
     const bundle = JSON.parse(ingestBundle((source) => [{ OBJECT_NAME: `${source.toUpperCase()}-1`, NORAD_CAT_ID: 10000 + source.length }]));
@@ -540,8 +505,7 @@ describe("POST /api/ingest", () => {
     expect(res.headers.get("Allow")).toBe("POST");
   });
 
-  // The token must gate the write before the body is even parsed — an open
-  // ingest would let anyone replace every group's records with anything.
+  // The token gates the write before the body is parsed.
   it.each([
     ["no Authorization header", {}],
     ["a wrong token", { Authorization: "Bearer not-the-token" }],
