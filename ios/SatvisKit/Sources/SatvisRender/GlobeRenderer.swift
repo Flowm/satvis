@@ -364,6 +364,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Follows a satellite or a ground station from where the web app's tracking
     /// view opens.
     public func track(_ id: String) {
+        // From the flight out of the sky view too, which lands only while the
+        // camera is the sky's: the ground's camera and its forced terrain go.
+        if skyFlight != nil || skyCamera != nil {
+            skyFlight = nil
+            skyCamera = nil
+            surface.setTerrain(terrainSetting)
+        }
         cameraMode = .tracking(id)
         trackingCamera = TrackingCamera()
     }
