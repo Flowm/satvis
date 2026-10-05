@@ -767,3 +767,26 @@ each frame to the same globe size. Without `maximumScale` the minimum held every
 model at 20–72 px however small the globe got: at 10× the ISS and Landsat covered the
 disc. With the cap, 1× matched the uncapped frames, and further out every model kept
 its default-view share of the globe, the ISS about a tenth of its diameter.
+
+## 3D models beside the other components
+
+**Why it cannot be a unit test.** The label offset and the point's visibility are
+unit-tested against a stubbed camera; whether a label clears its model, and which
+component hides which, is a picture.
+
+**Procedure.**
+`?tags=&elements=Point,Label,Orbit,Orbit+track,Ground+track,Sensor+cone,3D+model,Ground+station+link&gs=48.1371,11.5754,Munich&sats=ISS+(ZARYA),LANDSAT+8,ICESAT-2,GRACE-FO+1,GRACE-FO+2,FOREST-3&framems=16`,
+paused. Look at each model from 16,000 and 3,000 km at a 1:1 css crop with one other
+component at a time (`cc.sats.suppressComponent`, `releaseComponent`), then read each
+label's `pixelOffset` and point's `show` at 1, 2 and 4 times the default view's
+distance.
+
+**Result, 2026-10-05, Chrome (in-app browser pane, frame pump on), 800×600 at ratio 2.** Before, the label sat a fixed 20 px right of centre, over the ISS (72 px) and
+Landsat (55 px), and the point sat on the model's centre. After, labels start 40, 31
+and 13 px out for the ISS, Landsat and FOREST-3 at the default view, and 15, 12 and
+10 px at four times its distance. The point is hidden while the model is 10 px or
+more across, which by their 20, 55 and 72 px minimums brings it back at about 2, 5.5
+and 7 times the default distance for FOREST-3, Landsat and the ISS (computed, not
+re-measured). Orbits, tracks and the ground station link run through or under the
+model; the sensor cone, drawn at real size, shows as a stub beside it from afar.
+Paused, the scene drew 0 frames in 230 ticks with every component on.
