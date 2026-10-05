@@ -82,6 +82,12 @@ export function modelMinimumPixelSize(diameter: number): number {
   return Math.min(72, Math.max(20, 23 * Math.cbrt(diameter)));
 }
 
+/**
+ * CSS pixels, the orbit's and the orbit track's. At 2 px the orbits bunched around a
+ * zoomed-out globe read as bold; 1 px draws two thirds of their light.
+ */
+const ORBIT_WIDTH = 1;
+
 // CSS pixels.
 const LABEL_OFFSET = 10;
 const LABEL_MODEL_GAP = 4;
@@ -579,7 +585,7 @@ export class SatelliteComponentCollection {
       ...orbitPathTimes(this.props.orbit.orbitalPeriod),
       material: Color.WHITE.withAlpha(0.15),
       resolution: 600,
-      width: 2,
+      width: ORBIT_WIDTH,
     });
     this.createCesiumEntity("Orbit", "path", path, this.props.name, this.props.trajectory.inertial, true);
   }
@@ -593,7 +599,7 @@ export class SatelliteComponentCollection {
     const geometryInstance = new GeometryInstance({
       geometry: new PolylineGeometry({
         positions,
-        width: 2,
+        width: ORBIT_WIDTH,
         arcType: ArcType.NONE,
         vertexFormat: PolylineColorAppearance.VERTEX_FORMAT,
       }),
@@ -627,7 +633,7 @@ export class SatelliteComponentCollection {
       ...orbitTrackTimes(this.props.orbit.orbitalPeriod),
       material: Color.GOLD.withAlpha(0.15),
       resolution: 600,
-      width: 2,
+      width: ORBIT_WIDTH,
     });
     // The sampled property, so PathVisualizer sub-samples at the stored sample
     // times rather than at `resolution`.
@@ -652,7 +658,7 @@ export class SatelliteComponentCollection {
       geometry: new PolylineGeometry({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         positions: positions as any,
-        width: 2,
+        width: ORBIT_WIDTH,
         arcType: ArcType.NONE,
         vertexFormat: PolylineColorAppearance.VERTEX_FORMAT,
       }),
