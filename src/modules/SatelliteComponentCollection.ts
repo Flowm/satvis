@@ -71,9 +71,7 @@ const BOUNDING_SPHERE_DONE = 0;
 // Where tracking starts, east-north-up from the satellite: far enough out to see
 // it in context, or, with its 3D model on, close enough to see the model.
 const VIEW_FROM = new Cartesian3(0, -3600000, 4200000);
-// South-east of and above the model, with the Earth's limb behind it, and as many
-// of its radii out as frame it: the models are drawn at their real size, so a
-// cubesat and the ISS are 300 times apart.
+// South-east of and above the model, in model radii: a cubesat and the ISS differ 300-fold.
 const VIEW_FROM_MODEL_DIRECTION = Cartesian3.normalize(new Cartesian3(9, -10, 5), new Cartesian3());
 const VIEW_FROM_MODEL_RADII = 6;
 /** For a model not loaded yet: a small satellite's. */
@@ -218,8 +216,7 @@ export class SatelliteComponentCollection {
 
   /** `animate` flies to the tracked view first, in 3D. */
   track(animate = false): void {
-    // The close-up distance is the model's size: tracked while loading, the ISS
-    // would be framed from inside.
+    // The distance is the model's size: tracked while loading, the ISS is framed from inside.
     trackWhenReady(
       this.viewer,
       this,
@@ -345,8 +342,7 @@ export class SatelliteComponentCollection {
     return "3D model" in this.#components ? this.#modelViewFrom : VIEW_FROM;
   }
 
-  // A callback rather than a value because the model's size is known only once it
-  // has loaded, and EntityView reads this when tracking starts.
+  // A callback: the model's size is known only once loaded, and EntityView reads it when tracking starts.
   readonly #modelViewFrom = new CallbackProperty(
     (_time, result?: Cartesian3) => Cartesian3.multiplyByScalar(VIEW_FROM_MODEL_DIRECTION, VIEW_FROM_MODEL_RADII * this.#modelRadius(), result ?? new Cartesian3()),
     false,
@@ -372,8 +368,7 @@ export class SatelliteComponentCollection {
       const state = display.getBoundingSphere(model, false, SatelliteComponentCollection.#sphereScratch);
       return state === BOUNDING_SPHERE_DONE ? "ready" : state === BOUNDING_SPHERE_PENDING ? "loading" : "failed";
     } catch {
-      // An entity added since the display last updated is unknown to its geometry
-      // visualizer, which throws rather than answering PENDING.
+      // Cesium throws, rather than answering PENDING, for an entity added since its last update.
       return "loading";
     }
   }
@@ -552,8 +547,7 @@ export class SatelliteComponentCollection {
     this.createCesiumSatelliteEntity("Point", "point", point);
   }
 
-  // Only a satellite a model manifest lists has a model (ADR 0007). Guessing a
-  // file from the name meant a failed request for every other satellite.
+  // Only satellites a model manifest lists have one (ADR 0007).
   createModel(): void {
     const { modelFile } = this.props.entry.metadata;
     if (!modelFile) {

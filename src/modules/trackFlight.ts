@@ -53,11 +53,7 @@ export function cancelPendingTrack(viewer: Viewer, owner?: unknown): void {
   }
 }
 
-/**
- * Run `track` once `ready()` holds, checked after each render. A viewer waits on one
- * track at a time: a newer request replaces it, and tracking changing some other way
- * drops it.
- */
+/** Run `track` once `ready()` holds after a render. A newer request or a tracking change drops it. */
 export function trackWhenReady(viewer: Viewer, owner: unknown, ready: () => boolean, track: () => void): void {
   cancelPendingTrack(viewer);
   if (ready()) {

@@ -1,13 +1,5 @@
-// The 3D models side by side, in one scene, rendered by the same Cesium Model
-// pipeline the app uses. Dev-only: open /models.html under `pnpm dev`.
-//
-// The model manifests decide what is listed first: every file they map, from where
-// it is served. Any other GLB under data/ follows as a comparison set (a folder of
-// candidates such as data/custom/nasa), minus the plugin copies a manifest covers.
-//
-// Models sit in the frame the app gives a satellite (VelocityOrientationProperty):
-// X along the velocity, Z at the zenith. Here that frame is the local
-// east-north-up frame of a point in orbit, so X is east and Z is up.
+// Dev-only (/models.html): the 3D models through the app's Cesium pipeline. The scene's
+// east-north-up frame stands for the satellite's: X velocity, Y port, Z zenith.
 
 import "@cesium/widgets/Source/widgets.css";
 import {
@@ -56,19 +48,14 @@ interface Manifest {
 interface Listing {
   /** Where the file is served in dev. */
   path: string;
-  /** Picker folder: the manifest's repository, or the folder of an unlisted file. */
+  /** The manifest's repository, or an unlisted file's folder. */
   folder: string;
   satellites?: ManifestSatellite[];
   /** Why a listed file cannot be shown here. */
   missing?: string;
 }
 
-/**
- * Every file a manifest maps, then every other GLB under data/. A submodule file is
- * in data/models/public; a plugin's in data/custom/dist/models, where its sync
- * script copies it — its source folder and that copy are therefore not listed
- * again, nor are its unlisted files (Grafana variants and the like).
- */
+/** Mapped files (a plugin's from its synced copy), then other GLBs under data/ outside plugin folders. */
 function listModels(): Listing[] {
   const present = new Set(MODEL_PATHS);
   const listed: Listing[] = [];
@@ -121,12 +108,11 @@ interface Entry {
   satellites?: ManifestSatellite[];
 }
 
-/** Where every model sits: 500 km above 0°N 0°E, out of the way of nothing. */
+/** Where every model sits: 500 km above 0°N 0°E. */
 const ANCHOR = Transforms.eastNorthUpToFixedFrame(Cartesian3.fromDegrees(0, 0, 500_000));
 const FIT_RADIUS = 1;
 const CELL_PADDING = 1.4;
-// Heading and pitch of the camera in the satellite frame (east is the velocity,
-// north is port): heading 0 looks north, so it sees the starboard side.
+// [heading, pitch] of the camera; heading 0 looks north (port), so sees the starboard side.
 const VIEWS: Record<string, [number, number]> = {
   starboard: [0, -0.3],
   port: [Math.PI, -0.3],
@@ -327,11 +313,7 @@ async function measureImages(entry: Entry): Promise<void> {
   renderCard(entry);
 }
 
-/**
- * Rows of bounding spheres, left to right and top to bottom, each centred in a
- * cell sized to it. Origins are wherever they fall: an off-centre origin shows as
- * axes away from the middle of the model, which is what the app would orbit.
- */
+/** Rows of bounding spheres in cells sized to them; an off-centre origin shows as off-centre axes. */
 function layout(): void {
   const ready = entries.filter((entry) => entry.visible && entry.model && entry.radius !== undefined);
   for (const entry of entries) {
@@ -341,7 +323,7 @@ function layout(): void {
   }
   const mode = controls.scale.value as ScaleMode;
   const columns = Math.max(1, Math.ceil(Math.sqrt(ready.length * 1.6)));
-  // Each folder starts a row of its own, so the sets being compared stay apart.
+  // One row per folder, so compared sets stay apart.
   const rows: Entry[][] = [];
   for (const folder of new Set(ready.map((entry) => entry.folder))) {
     const members = ready.filter((entry) => entry.folder === folder);
@@ -375,7 +357,7 @@ function layout(): void {
         scene.primitives.remove(entry.axes);
       }
       entry.axes = scene.primitives.add(new DebugModelMatrixPrimitive({ modelMatrix, length: entry.radius! * scale * 1.2, width: 2 })) as DebugModelMatrixPrimitive;
-      // Hidden until its model is big enough to be told apart; true scale otherwise stacks the cubesats' labels.
+      // Hidden until the model is big enough, or true scale stacks the cubesats' labels.
       entry.label!.distanceDisplayCondition = new DistanceDisplayCondition(0, entry.radius! * scale * 300);
       entry.label!.show = true;
       entry.label!.position = Matrix4.multiplyByPoint(ANCHOR, new Cartesian3(middle.x, 0, middle.z - entry.radius! * scale), new Cartesian3());
@@ -491,7 +473,7 @@ function writeUrl(): void {
 function renderCard(entry: Entry): void {
   const { stats } = entry;
   const rows: Array<[string, string]> = [];
-  // Before the stats: the mapping is worth showing even when the file is missing.
+  // Shown even when the file is missing.
   if (entry.satellites) {
     rows.push([
       "Satellites",

@@ -26,9 +26,7 @@ const customDir = path.join(repoRoot, "data", "custom");
 const outPath = path.join(workerDir, "src", "config", "satvis.generated.json");
 
 const PLUGIN_CONFIG_NAME = "satvis.yaml";
-// A model manifest: the models submodule's (data/models) and any plugin's that
-// ships models of its own. Each lists files under /data/models/ and the NORAD ids
-// they depict.
+// The submodule's and any plugin's list of files under /data/models/ by NORAD id (ADR 0007).
 const MODEL_MANIFEST_NAME = "models.yaml";
 const modelsManifestPath = path.join(repoRoot, "data", "models", MODEL_MANIFEST_NAME);
 // Pre-YAML plugin config name. Detected only to fail loudly: silently skipping
@@ -119,10 +117,7 @@ function discoverPluginConfigs() {
   return configs;
 }
 
-// Every model manifest present. The submodule's is missing in a checkout that never
-// ran `git submodule update --init` (CI included); that is a warning, not a
-// failure, so lint and tests run anywhere — but such a build gives no satellite
-// one of its models, which the warning says.
+// Without `git submodule update --init` (CI too) the submodule's is missing: warn, so lint and tests still run.
 function discoverModelManifests() {
   const manifests = [];
   if (fs.existsSync(modelsManifestPath)) {
@@ -141,9 +136,7 @@ function discoverModelManifests() {
   return manifests;
 }
 
-// `{ noradId, modelFile }` for every satellite a manifest lists. A model's `file`
-// is its path under /data/models/, wherever it was copied from; the app adds the
-// prefix, so the bag carries no URL.
+// A model's `file` is its path under /data/models/; the app adds the prefix.
 function modelAssignments(manifestPath) {
   const source = path.relative(repoRoot, manifestPath);
   const dir = path.dirname(manifestPath);
@@ -155,8 +148,7 @@ function modelAssignments(manifestPath) {
     if (typeof model?.file !== "string" || !model.file.endsWith(".glb") || model.file.startsWith("/") || model.file.includes("..")) {
       throw new Error(`${source}: models[${i}].file must be a .glb path under /data/models/ (got ${JSON.stringify(model?.file)})`);
     }
-    // A typo would only show as a failed request in the browser. A plugin's
-    // files are copied by its own sync script, so its layout is a guess: warn.
+    // A plugin's sync script decides its layout, so public/ is only a guess there: warn.
     if (!fs.existsSync(path.join(dir, "public", model.file))) {
       const message = `${source}: ${model.file} is not in ${path.relative(repoRoot, path.join(dir, "public"))}`;
       if (manifestPath === modelsManifestPath) {
@@ -542,8 +534,7 @@ function main() {
       }
     }
   }
-  // Models last, through the same table: a plugin giving a mapped satellite a
-  // different modelFile is a conflict like any other, not an override.
+  // Through the same table, so a plugin's different modelFile is a conflict, not an override.
   for (const manifestPath of discoverModelManifests()) {
     for (const { noradId, modelFile, origin } of modelAssignments(manifestPath)) {
       table.add(noradId, { metadata: { modelFile } }, origin);

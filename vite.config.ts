@@ -171,8 +171,7 @@ export default defineConfig({
             urlPattern: /data\/models\/.*\.glb$/,
             handler: "CacheFirst",
             options: {
-              // Versioned because the models are replaced under the same names, which
-              // a cache-first route would otherwise keep serving for its whole lifetime.
+              // Versioned: cache-first would keep serving the models replaced under the same names.
               cacheName: "satellite-model-cache-v2",
               expiration: {
                 maxAgeSeconds: 30 * 24 * 60 * 60,
