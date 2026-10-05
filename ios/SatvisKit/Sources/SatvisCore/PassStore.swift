@@ -63,6 +63,9 @@ public actor PassStore {
     public struct Prediction: Sendable, Equatable {
         public var window: PassWindow
         public var passes: [Pass]
+        /// The stations the passes are over: all of them, or as many as were
+        /// asked for so far.
+        public var stations: Set<GroundStation> = []
     }
 
     /// Predicts what is missing for these satellites at `time`, in parallel, and
@@ -72,8 +75,9 @@ public actor PassStore {
     /// one only missing a station, over that one. A satellite that cannot be
     /// propagated, or circles too slowly for passes, has none. Empty with no
     /// ground station.
-    public func predict(_ satellites: [CatalogEntry], at time: Double) async -> [String: Prediction] {
-        let stations = settings.stations
+    /// `over` narrows it to some of the stations, as one station's panel needs.
+    public func predict(_ satellites: [CatalogEntry], at time: Double, over subset: [GroundStation]? = nil) async -> [String: Prediction] {
+        let stations = subset.map { asked in settings.stations.filter(asked.contains) } ?? settings.stations
         guard !stations.isEmpty else {
             return [:]
         }
@@ -113,7 +117,7 @@ public actor PassStore {
                 predicted[id]?.passes.merge(passes) { _, new in new }
             }
             if let known = predicted[id] {
-                answer[id] = Prediction(window: known.window, passes: Self.merged(known.passes, in: stations))
+                answer[id] = Prediction(window: known.window, passes: Self.merged(known.passes, in: settings.stations), stations: Set(known.passes.keys))
             }
         }
         return answer

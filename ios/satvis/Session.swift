@@ -555,24 +555,29 @@ final class Session {
         while !Task.isCancelled {
             let active = catalog.activeEntries
             let showsLinks = catalog.components.contains(.groundStationLink) && active.count <= SatelliteComponents.linkBudget
-            var wanted: [CatalogEntry] = []
-            var showsStation = false
-            switch selection {
-            case .satellite(let id):
-                wanted += catalog.catalog.entries[id].map { [$0] } ?? []
-            case .station:
-                showsStation = true
-            case nil:
-                break
+            // A satellite's panel and the links are over every station; a
+            // station's panel over its own alone, which with thousands of
+            // satellites and several stations is most of the work saved.
+            var wanted: [String: CatalogEntry] = [:]
+            if passes.hasStations {
+                if case .satellite(let id) = selection, let entry = catalog.catalog.entries[id] {
+                    wanted[id] = entry
+                    await passes.refresh([entry], at: clock.now())
+                }
+                if case .station(let id) = selection, let station = passes.station(id) {
+                    for entry in active {
+                        wanted[entry.id] = entry
+                    }
+                    await passes.refresh(active, at: clock.now(), over: [station])
+                }
+                if showsLinks {
+                    for entry in active {
+                        wanted[entry.id] = entry
+                    }
+                    await passes.refresh(active, at: clock.now())
+                }
             }
-            if showsLinks || showsStation {
-                let selected = Set(wanted.map(\.id))
-                wanted += active.filter { !selected.contains($0.id) }
-            }
-            if passes.hasStations, !wanted.isEmpty {
-                await passes.refresh(wanted, at: clock.now())
-            }
-            await passes.keep(only: wanted)
+            await passes.keep(only: Array(wanted.values))
             // Rebuilt only when the passes or the satellites changed.
             let links = LinksKey(revision: passes.revision, satellites: showsLinks ? active.map(\.id) : [])
             if links != linksKey {
