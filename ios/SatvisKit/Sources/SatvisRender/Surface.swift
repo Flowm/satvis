@@ -30,6 +30,9 @@ final class Surface {
     /// Seconds before a failed imagery or terrain tile is asked for again.
     private static let retryInterval: TimeInterval = 60
     private static let maximumScreenSpaceError = 2.0
+    /// Counts the terrain tiles that came in, for what is worked out from the
+    /// ground to know it is out of date.
+    private(set) var terrainRevision = 0
     /// CesiumJS's for an ellipsoid of 65-sample tiles, two at level 0.
     private static let levelZeroGeometricError = 6_378_137.0 * 2 * .pi * 0.25 / (65 * 2)
 
@@ -300,6 +303,7 @@ final class Surface {
             }
             if let source {
                 terrainTiles[key] = .ready(source)
+                terrainRevision += 1
             } else {
                 log.error("Terrain \(key, privacy: .public) unavailable")
                 terrainTiles[key] = .failed(at: Date())

@@ -123,6 +123,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private nonisolated let pixelScale: Double
     /// What the last frame was drawn from, for picking.
     private(set) var lastFrame: (viewProjection: simd_double4x4, position: SIMD3<Double>, size: SIMD2<Double>, time: Double)?
+    /// What the sky view's instruments worked out, kept between frames.
+    var skyCache = SkyCache()
     private var pointFrameBuffers: [MTLBuffer?]
     private var frameIndex = 0
     private let inFlight = DispatchSemaphore(value: framesInFlight)

@@ -53,16 +53,31 @@ extension GlobeRenderer {
 
     /// What the crosshair holds: the satellite nearest the middle of the screen,
     /// within reach, that the ground does not hide. The ground is asked nearest
-    /// first, and only until one is in sight.
+    /// first, and only until one is in sight. Worked out fifteen times a second,
+    /// not every frame: it places every satellite drawn, which with thousands of
+    /// them cost the main thread more than drawing the frame did.
     public func skyLock(viewSize: CGSize) -> SkyTarget? {
+        guard isSkySettled else {
+            skyCache.lock = nil
+            skyCache.lockAt = -.infinity
+            return nil
+        }
+        let now = ProcessInfo.processInfo.systemUptime
+        if now - skyCache.lockAt < SkyCache.lockInterval, skyCache.lockSize == viewSize {
+            return skyCache.lock
+        }
         let centre = CGPoint(x: viewSize.width / 2, y: viewSize.height / 2)
         let reachable = skyTargets(viewSize: viewSize)
             .map { (target: $0, distance: hypot($0.screen.x - centre.x, $0.screen.y - centre.y)) }
             .filter { $0.distance <= Self.captureRadius }
             .sorted { $0.distance < $1.distance }
-        return reachable.first { candidate in
-            points.satellites.first { $0.id == candidate.target.id }?.trajectory.position(at: lastFrame?.time ?? 0).map { !groundHides($0) } ?? false
+        let lock = reachable.first { candidate in
+            points.position(of: candidate.target.id, at: lastFrame?.time ?? 0).map { !groundHides(candidate.target.id, at: $0) } ?? false
         }?.target
+        skyCache.lock = lock
+        skyCache.lockAt = now
+        skyCache.lockSize = viewSize
+        return lock
     }
 
     /// Where a direction in the sky is drawn, in points; nil behind the camera.
@@ -79,17 +94,31 @@ extension GlobeRenderer {
 
     /// A satellite's path across the sky from four minutes back to eight ahead,
     /// every 30 s, in the runs that are above the horizon and not behind the
-    /// ground (useSkyHud.ts).
+    /// ground (useSkyHud.ts). On a 30 s grid of the clock, so that where it runs
+    /// and what hides it is worked out once a step rather than every frame, and
+    /// only placed on the screen anew as the view turns.
     public func skyTrace(of id: String, viewSize: CGSize) -> [[CGPoint]] {
-        guard let camera = skyCamera, let lastFrame, let satellite = points.satellites.first(where: { $0.id == id }) else {
+        guard let camera = skyCamera, let lastFrame else {
             return []
         }
-        let up = camera.frame.up
+        let step = 30_000.0
+        let grid = (lastFrame.time / step).rounded(.down) * step
+        let key = SkyCache.TraceKey(id: id, grid: grid, eye: lastFrame.position, terrain: surface.terrainRevision)
+        if skyCache.trace?.key != key {
+            let up = camera.frame.up
+            let samples = (-8...16).map { index -> SIMD3<Double>? in
+                guard let position = points.position(of: id, at: grid + Double(index) * step), dot(position - lastFrame.position, up) > 0,
+                    !groundHides(position)
+                else {
+                    return nil
+                }
+                return position
+            }
+            skyCache.trace = (key, samples)
+        }
         var runs: [[CGPoint]] = [[]]
-        for step in -8...16 {
-            guard let position = satellite.trajectory.position(at: lastFrame.time + Double(step) * 30_000),
-                dot(position - lastFrame.position, up) > 0, !groundHides(position), let screen = screenPoint(position, viewSize: viewSize)
-            else {
+        for sample in skyCache.trace?.samples ?? [] {
+            guard let sample, let screen = screenPoint(sample, viewSize: viewSize) else {
                 if !(runs.last?.isEmpty ?? true) {
                     runs.append([])
                 }
@@ -98,6 +127,25 @@ extension GlobeRenderer {
             runs[runs.count - 1].append(screen)
         }
         return runs.filter { $0.count > 1 }
+    }
+
+    /// `groundHides`, kept for a satellite until the eye moves, the clock moves
+    /// on a second or more terrain comes in.
+    private func groundHides(_ id: String, at position: SIMD3<Double>) -> Bool {
+        guard let lastFrame else {
+            return groundHides(position)
+        }
+        let key = SkyCache.HiddenKey(eye: lastFrame.position, second: (lastFrame.time / 1000).rounded(.down), terrain: surface.terrainRevision)
+        if skyCache.hiddenKey != key {
+            skyCache.hiddenKey = key
+            skyCache.hidden = [:]
+        }
+        if let known = skyCache.hidden[id] {
+            return known
+        }
+        let hidden = groundHides(position)
+        skyCache.hidden[id] = hidden
+        return hidden
     }
 
     /// Whether the terrain stands between the eye and a point: the line of sight
@@ -143,4 +191,32 @@ extension GlobeRenderer {
 func heightAboveEllipsoid(_ p: SIMD3<Double>) -> Double {
     let ellipsoid = 1 / sqrt((p.x * p.x + p.y * p.y) / (ellipsoidRadii.x * ellipsoidRadii.x) + p.z * p.z / (ellipsoidRadii.z * ellipsoidRadii.z))
     return length(p) * (1 - ellipsoid)
+}
+
+/// What the sky view's instruments worked out, kept between frames
+/// (`GlobeRenderer.skyCache`).
+struct SkyCache {
+    /// How often the lock is worked out again.
+    static let lockInterval = 1.0 / 15
+
+    var lock: SkyTarget?
+    var lockAt = -Double.infinity
+    var lockSize = CGSize.zero
+
+    struct HiddenKey: Equatable {
+        var eye: SIMD3<Double>
+        var second: Double
+        var terrain: Int
+    }
+    var hiddenKey: HiddenKey?
+    var hidden: [String: Bool] = [:]
+
+    struct TraceKey: Equatable {
+        var id: String
+        var grid: Double
+        var eye: SIMD3<Double>
+        var terrain: Int
+    }
+    /// The locked satellite's path, where it is in sight, on the grid.
+    var trace: (key: TraceKey, samples: [SIMD3<Double>?])?
 }
