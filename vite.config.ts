@@ -79,6 +79,8 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         { src: `${cesiumEngineSource}/Build/ThirdParty`, dest: cesiumBaseUrl, rename: { stripBase: 4 } },
+        // Cesium's on-demand decoders (Draco, KTX2) are only in Source/ThirdParty.
+        { src: `${cesiumEngineSource}/Source/ThirdParty/*.wasm`, dest: cesiumBaseUrl, rename: { stripBase: 4 } },
         { src: `${cesiumEngineSource}/Build/Workers`, dest: cesiumBaseUrl, rename: { stripBase: 4 } },
         {
           src: [`${cesiumEngineSource}/Source/Assets/**`, `!${cesiumEngineSource}/Source/Assets/Textures/NaturalEarthII/**`],
@@ -86,7 +88,9 @@ export default defineConfig({
           rename: { stripBase: 4 },
         },
         { src: `${cesiumWidgetsSource}/Source`, dest: `${cesiumBaseUrl}/Widgets`, rename: { stripBase: 4 } },
-        { src: ["data/**", "!data/custom/**"], dest: "data", rename: { stripBase: 1 } },
+        { src: ["data/**", "!data/custom/**", "!data/models/**"], dest: "data", rename: { stripBase: 1 } },
+        // The models repo ships only public/, as a plugin's sync does (ADR 0007).
+        { src: "data/models/public/**", dest: "data/models", rename: { stripBase: 3 } },
         { src: ["data/custom/dist/**"], dest: "data", rename: { stripBase: 3 } },
       ],
     }),
@@ -167,7 +171,8 @@ export default defineConfig({
             urlPattern: /data\/models\/.*\.glb$/,
             handler: "CacheFirst",
             options: {
-              cacheName: "satellite-model-cache",
+              // Versioned: cache-first would keep serving the models replaced under the same names.
+              cacheName: "satellite-model-cache-v2",
               expiration: {
                 maxAgeSeconds: 30 * 24 * 60 * 60,
                 maxEntries: 50,

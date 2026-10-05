@@ -58,6 +58,11 @@ discussion; sharpen them here when they drift.
   the config, not to a preset or a client, so it means the same everywhere. One
   satellite may carry tags from several groups. Tag names must not contain a
   comma.
+- **Model manifest**: a `models.yaml` listing 3D model files and the satellites
+  each depicts, by NORAD id — the `data/models` submodule's, written by its build,
+  and any plugin's with models of its own. The worker generator turns it into each
+  listed satellite's `modelFile`; a satellite no manifest lists has no model, and is
+  never looked up by name (`docs/adr/0007-model-manifest.md`).
 - **Component**: one visual representation of a satellite that can be switched
   on independently — point, label, orbit, orbit track, ground track, sensor
   cone, 3D model. Component names must not contain a comma.

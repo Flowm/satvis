@@ -2,7 +2,7 @@ import { Cartesian3, Entity } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { describe, expect, test } from "vitest";
 
-import { returnAfterTracking, trackEntity, type CameraPose } from "./trackFlight";
+import { cancelPendingTrack, returnAfterTracking, trackEntity, trackWhenReady, type CameraPose } from "./trackFlight";
 
 const POSE: CameraPose = { destination: new Cartesian3(1, 0, 0), direction: Cartesian3.UNIT_X, up: Cartesian3.UNIT_Z };
 
@@ -13,8 +13,17 @@ function fakeViewer() {
   let tracked: Entity | undefined;
   let at = new Cartesian3(9, 9, 9);
   const listeners = new Set<() => void>();
+  const postRender = new Set<() => void>();
   const viewer = {
     clock: { shouldAnimate: true },
+    scene: {
+      postRender: {
+        addEventListener(listener: () => void) {
+          postRender.add(listener);
+          return () => postRender.delete(listener);
+        },
+      },
+    },
     camera: {
       get positionWC() {
         return at;
@@ -58,7 +67,8 @@ function fakeViewer() {
   const moveTo = (position: Cartesian3) => {
     at = position;
   };
-  return { viewer: viewer as unknown as Viewer, land, moveTo, flying: () => flight !== undefined, destination: () => flight?.destination };
+  const render = () => [...postRender].forEach((listener) => listener());
+  return { viewer: viewer as unknown as Viewer, land, moveTo, render, flying: () => flight !== undefined, destination: () => flight?.destination };
 }
 
 describe("trackEntity", () => {
@@ -184,5 +194,83 @@ describe("returnAfterTracking", () => {
     viewer.trackedEntity = undefined;
 
     expect(destination()).toEqual(elsewhere);
+  });
+});
+
+describe("trackWhenReady", () => {
+  test("tracks once ready, after a render", () => {
+    const { viewer, render } = fakeViewer();
+    const a = new Entity();
+    let ready = false;
+    trackWhenReady(
+      viewer,
+      "a",
+      () => ready,
+      () => (viewer.trackedEntity = a),
+    );
+    render();
+    expect(viewer.trackedEntity).toBeUndefined();
+    ready = true;
+    render();
+    expect(viewer.trackedEntity).toBe(a);
+  });
+
+  test("lets the latest request win when both are waiting", () => {
+    const { viewer, render } = fakeViewer();
+    const a = new Entity();
+    const b = new Entity();
+    const ready = { a: false, b: false };
+    trackWhenReady(
+      viewer,
+      "a",
+      () => ready.a,
+      () => (viewer.trackedEntity = a),
+    );
+    trackWhenReady(
+      viewer,
+      "b",
+      () => ready.b,
+      () => (viewer.trackedEntity = b),
+    );
+
+    ready.b = true;
+    render();
+    expect(viewer.trackedEntity).toBe(b);
+    ready.a = true;
+    render();
+    expect(viewer.trackedEntity).toBe(b);
+  });
+
+  test("is dropped when tracking changes some other way", () => {
+    const { viewer, render } = fakeViewer();
+    const a = new Entity();
+    const other = new Entity();
+    let ready = false;
+    trackWhenReady(
+      viewer,
+      "a",
+      () => ready,
+      () => (viewer.trackedEntity = a),
+    );
+    viewer.trackedEntity = other;
+    ready = true;
+    render();
+    expect(viewer.trackedEntity).toBe(other);
+  });
+
+  test("is dropped only by its owner", () => {
+    const { viewer, render } = fakeViewer();
+    const a = new Entity();
+    let ready = false;
+    trackWhenReady(
+      viewer,
+      "a",
+      () => ready,
+      () => (viewer.trackedEntity = a),
+    );
+    cancelPendingTrack(viewer, "b");
+    ready = true;
+    render();
+    expect(viewer.trackedEntity).toBe(a);
   });
 });

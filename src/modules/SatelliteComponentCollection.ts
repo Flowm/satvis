@@ -38,9 +38,9 @@ import { SATELLITE_COMPONENTS } from "../config/components";
 import { ORBIT_CLASS_COLOR, type OrbitClass } from "../config/orbitClass";
 import type { GroundStation } from "./PassPredictor";
 import type { CatalogEntry } from "./SatelliteCatalog";
-import { coneDescription, coneOrientation, groundTrackDescription, modelUri, orbitPathTimes, orbitTrackTimes, orbitUsesPathGraphic } from "./satelliteGraphics";
+import { coneDescription, coneOrientation, groundTrackDescription, modelUrl, orbitPathTimes, orbitTrackTimes, orbitUsesPathGraphic } from "./satelliteGraphics";
 import { SatelliteProperties } from "./SatelliteProperties";
-import { trackEntity, type CameraPose } from "./trackFlight";
+import { cancelPendingTrack, trackEntity, trackWhenReady, type CameraPose } from "./trackFlight";
 import { drawablePositions } from "./util/drawablePositions";
 import type { PassPredictorSource } from "./util/passSource";
 import type { PolylineBatch } from "./util/PolylineBatch";
@@ -66,11 +66,16 @@ const POINT_COLOR = Object.fromEntries(Object.entries(ORBIT_CLASS_COLOR).map(([o
  * groundTrackSettled.
  */
 const BOUNDING_SPHERE_PENDING = 1;
+const BOUNDING_SPHERE_DONE = 0;
 
 // Where tracking starts, east-north-up from the satellite: far enough out to see
 // it in context, or, with its 3D model on, close enough to see the model.
 const VIEW_FROM = new Cartesian3(0, -3600000, 4200000);
-const VIEW_FROM_MODEL = new Cartesian3(9, -10, 5);
+// South-east of and above the model, in model radii: a cubesat and the ISS differ 300-fold.
+const VIEW_FROM_MODEL_DIRECTION = Cartesian3.normalize(new Cartesian3(9, -10, 5), new Cartesian3());
+const VIEW_FROM_MODEL_RADII = 6;
+/** For a model not loaded yet: a small satellite's. */
+const FALLBACK_MODEL_RADIUS = 2.5;
 
 /**
  * How each component is made. Keyed against the config list rather than written
@@ -116,7 +121,7 @@ type Component = Entity | GeometryInstance;
 
 /** One satellite's Cesium objects, created on demand and dropped on disable. */
 export class SatelliteComponentCollection {
-  /** Written into by `getBoundingSphere` and never read. See groundTrackSettled. */
+  /** Written into by `getBoundingSphere`. See groundTrackSettled. */
   static readonly #sphereScratch = new BoundingSphere();
 
   /** So a broken assumption is reported once rather than on every tick. */
@@ -211,11 +216,19 @@ export class SatelliteComponentCollection {
 
   /** `animate` flies to the tracked view first, in 3D. */
   track(animate = false): void {
-    if (!this.defaultEntity) {
-      return;
-    }
-    const pose = animate && this.viewer.scene.mode === SceneMode.SCENE3D ? this.#trackedCameraPose(this.defaultEntity) : undefined;
-    trackEntity(this.viewer, () => this.defaultEntity, pose);
+    // The distance is the model's size: tracked while loading, the ISS is framed from inside.
+    trackWhenReady(
+      this.viewer,
+      this,
+      () => !this.#modelPending(),
+      () => {
+        if (!this.defaultEntity) {
+          return;
+        }
+        const pose = animate && this.viewer.scene.mode === SceneMode.SCENE3D ? this.#trackedCameraPose(this.defaultEntity) : undefined;
+        trackEntity(this.viewer, () => this.defaultEntity, pose);
+      },
+    );
   }
 
   /**
@@ -290,7 +303,7 @@ export class SatelliteComponentCollection {
       this.#batchFor(name).add(component);
     }
 
-    if (name === "3D model") {
+    if (name === "3D model" && component) {
       // So the model does not cover the label.
       this.#setLabelOffset(20);
       this.#setViewFrom();
@@ -325,8 +338,39 @@ export class SatelliteComponentCollection {
     }
   }
 
-  #viewFrom(): Cartesian3 {
-    return "3D model" in this.#components ? VIEW_FROM_MODEL : VIEW_FROM;
+  #viewFrom(): Cartesian3 | CallbackProperty {
+    return "3D model" in this.#components ? this.#modelViewFrom : VIEW_FROM;
+  }
+
+  // A callback: the model's size is known only once loaded, and EntityView reads it when tracking starts.
+  readonly #modelViewFrom = new CallbackProperty(
+    (_time, result?: Cartesian3) => Cartesian3.multiplyByScalar(VIEW_FROM_MODEL_DIRECTION, VIEW_FROM_MODEL_RADII * this.#modelRadius(), result ?? new Cartesian3()),
+    false,
+  );
+
+  #modelPending(): boolean {
+    return this.#modelState() === "loading";
+  }
+
+  #modelRadius(): number {
+    return this.#modelState() === "ready" ? SatelliteComponentCollection.#sphereScratch.radius : FALLBACK_MODEL_RADIUS;
+  }
+
+  /** "ready" leaves the model's bounding sphere in #sphereScratch. */
+  #modelState(): "none" | "loading" | "ready" | "failed" {
+    const model = this.#components["3D model"];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const display = this.viewer.dataSourceDisplay as any;
+    if (!(model instanceof Entity) || typeof display?.getBoundingSphere !== "function") {
+      return "none";
+    }
+    try {
+      const state = display.getBoundingSphere(model, false, SatelliteComponentCollection.#sphereScratch);
+      return state === BOUNDING_SPHERE_DONE ? "ready" : state === BOUNDING_SPHERE_PENDING ? "loading" : "failed";
+    } catch {
+      // Cesium throws, rather than answering PENDING, for an entity added since its last update.
+      return "loading";
+    }
   }
 
   // Read when tracking starts, so a camera already following the satellite stays put.
@@ -396,6 +440,7 @@ export class SatelliteComponentCollection {
     // more subscriber on the predictor's list every time round.
     Object.values(this.eventListeners).forEach((remove) => remove?.());
     this.eventListeners = {};
+    cancelPendingTrack(this.viewer, this);
   }
 
   /**
@@ -502,9 +547,14 @@ export class SatelliteComponentCollection {
     this.createCesiumSatelliteEntity("Point", "point", point);
   }
 
+  // Only satellites a model manifest lists have one (ADR 0007).
   createModel(): void {
+    const { modelFile } = this.props.entry.metadata;
+    if (!modelFile) {
+      return;
+    }
     const model = new ModelGraphics({
-      uri: modelUri(this.props.name, this.props.entry.metadata.modelUrl),
+      uri: modelUrl(modelFile),
       minimumPixelSize: 50,
       maximumScale: 10000,
     });

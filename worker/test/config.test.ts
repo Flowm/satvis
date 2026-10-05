@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import generated from "../src/config/satvis.generated.json" with { type: "json" };
 import type { GroupsConfig } from "../src/gp/types.ts";
 
-const { groups, presets = [] } = generated as GroupsConfig;
+const { groups, presets = [], satellites = [] } = generated as GroupsConfig;
 const byName = new Map(groups.map((group) => [group.name, group]));
 
 describe("the generated config", () => {
@@ -17,6 +17,15 @@ describe("the generated config", () => {
     for (const remainder of remainders) {
       for (const excluded of remainder.exclude ?? []) {
         expect(byName.get(excluded)?.tags, `${excluded} must carry the tags of ${remainder.name}`).toEqual(expect.arrayContaining(remainder.tags ?? []));
+      }
+    }
+  });
+
+  // The app puts it under ./data/models/, so it must not climb out of there.
+  it("names every modelFile as a .glb path under /data/models/", () => {
+    for (const { noradId, metadata } of satellites) {
+      if (metadata.modelFile !== undefined) {
+        expect(metadata.modelFile, `noradId ${noradId}`).toMatch(/^(?!\/)(?!.*\.\.).*\.glb$/);
       }
     }
   });

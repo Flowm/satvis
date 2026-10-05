@@ -8,7 +8,7 @@ import {
   coneOrientation,
   groundTrackDescription,
   isLeo,
-  modelUri,
+  modelUrl,
   orbitPathTimes,
   orbitTrackTimes,
   orbitUsesPathGraphic,
@@ -95,13 +95,10 @@ describe("coneOrientation", () => {
   });
 });
 
-describe("modelUri", () => {
-  test("prefers the explicit metadata model URL", () => {
-    expect(modelUri("FOREST-2", "./data/models/custom.glb")).toBe("./data/models/custom.glb");
-  });
-
-  test("falls back to the name-convention path with spaces dashed", () => {
-    expect(modelUri("ISS (ZARYA)")).toBe("./data/models/ISS-(ZARYA).glb");
+describe("modelUrl", () => {
+  test("serves a manifest's file from data/models, subfolders included", () => {
+    expect(modelUrl("ISS-(ZARYA).glb")).toBe("./data/models/ISS-(ZARYA).glb");
+    expect(modelUrl("generic/CUBESAT-1U.glb")).toBe("./data/models/generic/CUBESAT-1U.glb");
   });
 });
 

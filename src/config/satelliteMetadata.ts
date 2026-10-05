@@ -36,7 +36,8 @@ export interface SatelliteMetadata {
   swathStarboardKm?: number;
   swathPortKm?: number;
   coneFovDeg?: number;
-  modelUrl?: string;
+  // The 3D model's path under /data/models/, from a model manifest (ADR 0007).
+  modelFile?: string;
   // Display-only, free text, shown verbatim in the entity info panel.
   operator?: string;
   missionType?: string;

@@ -15,6 +15,9 @@ interface UsePWAUpdateOptions {
   updateInterval?: number;
 }
 
+// Runtime caches renamed in vite.config.ts; Workbox deletes only outdated precaches.
+const RETIRED_CACHES = ["satellite-model-cache"];
+
 const needRefresh = ref(false);
 const offlineReady = ref(false);
 let updateSW: ((reloadPage?: boolean) => Promise<void>) | undefined;
@@ -72,6 +75,7 @@ export function usePWAUpdate(options: UsePWAUpdateOptions = {}) {
       },
       onRegistered(registration: ServiceWorkerRegistration | undefined) {
         console.log("PWA: Service worker registered successfully");
+        RETIRED_CACHES.forEach((name) => void caches.delete(name).catch(() => {}));
 
         if (registration && updateInterval > 0 && !intervalId) {
           intervalId = setInterval(() => {

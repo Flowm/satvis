@@ -102,6 +102,9 @@ importers:
       vue-tsc:
         specifier: ^3.3.11
         version: 3.3.11(typescript@6.0.3)
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
 
   worker:
     devDependencies:

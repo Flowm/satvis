@@ -12,7 +12,8 @@ workspace package). One `pnpm install` at the root covers both.
   pipeline, plugin config, the offline base map, worker-less deploys.
 - **`docs/adr/`** — decisions and the alternatives they beat: url parameters
   (0001), satellite metadata and swath extents (0002), the sky view (0003),
-  compass aiming (0004), surface models (0005).
+  compass aiming (0004), surface models (0005), SATCAT enrichment (0006), model
+  manifests (0007).
 - **`docs/manual-verification.md`** — the checks jsdom cannot run. Rerun the ones
   covering code you change, and record what they returned.
 - **`worker/src/gp/types.ts`** — the group, preset and satellite-table config
@@ -35,8 +36,10 @@ workspace package). One `pnpm install` at the root covers both.
 - Per-satellite metadata is attached to records **at refresh time**. There is no
   metadata endpoint and no browser-side rule matching: a record either carries
   the bag or the frontend applies its defaults (`src/config/satelliteMetadata.ts`).
-- `data/` also holds the generated Cesium assets and the 3D-model plugins, copied
-  into `dist/` at build time. Entrypoints are the MPA inputs in `vite.config.ts`.
+- `data/` also holds the generated Cesium assets and the 3D models, copied into
+  `dist/` at build time. A satellite's model is the `modelFile` its model manifest
+  gives it (`data/models/models.yaml`, `data/custom/*/models.yaml`), never its name.
+  Entrypoints are the MPA inputs in `vite.config.ts`.
 
 ## Commands
 
@@ -50,7 +53,9 @@ workspace package). One `pnpm install` at the root covers both.
   `SATVIS_API_PROXY=http://localhost:8080 pnpm dev`. Plain `pnpm dev` proxies
   `/api` to <https://satvis.space>.
 - A fresh `git worktree` has no submodules. Run `git submodule update --init`, or
-  `data/models` stays empty and the 3D models have no fallback for that yet.
+  `data/models` stays empty and `generate-groups` warns that no satellite gets a
+  public model. `data/models` is its own package: `pnpm build` there rebuilds the
+  models from `build.yaml` (see its README).
 
 ## Conventions
 
@@ -101,8 +106,9 @@ workspace package). One `pnpm install` at the root covers both.
 - **Run `pnpm update-imagery` before `pnpm deploy`.** `data/imagery/` levels 0–2
   are committed and 3–5 are generated, and the build only warns about their
   absence — so a forgotten run ships a globe capped at level 2.
-- **Everything under `data/` ships.** The static-copy glob takes it wholesale,
-  which is why the generators live under `scripts/`.
+- **Everything under `data/` ships,** except `data/custom/` (only its synced
+  `dist/`) and the models repo (only `data/models/public/`). The static-copy glob
+  takes the rest wholesale, which is why the generators live under `scripts/`.
 
 ## Deployment
 

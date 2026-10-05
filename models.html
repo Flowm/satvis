@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SatVis Model Viewer</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #15171c;
+        --panel: #1d2027;
+        --line: #2c313b;
+        --text: #e6e8ec;
+        --muted: #9aa1ad;
+        --accent: #f5c542;
+        --warn: #f08a5d;
+        font:
+          13px/1.4 system-ui,
+          sans-serif;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+      }
+      body {
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        grid-template-rows: auto 1fr;
+        grid-template-areas: "toolbar panel" "viewer panel";
+      }
+      #toolbar {
+        grid-area: toolbar;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 16px;
+        align-items: center;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      #toolbar label {
+        display: inline-flex;
+        gap: 4px;
+        align-items: center;
+        cursor: pointer;
+      }
+      #toolbar button {
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 3px 10px;
+        cursor: pointer;
+      }
+      #picker {
+        position: relative;
+      }
+      #picker summary {
+        cursor: pointer;
+        padding: 3px 10px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: var(--panel);
+        list-style: none;
+      }
+      #picker summary::after {
+        content: " ▾";
+        color: var(--muted);
+      }
+      #picker .menu {
+        position: absolute;
+        z-index: 10;
+        top: calc(100% + 4px);
+        left: 0;
+        min-width: 220px;
+        max-height: 60vh;
+        overflow-y: auto;
+        padding: 6px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        box-shadow: 0 6px 20px #0008;
+      }
+      #picker .menu-actions {
+        display: flex;
+        gap: 6px;
+        padding-bottom: 6px;
+        margin-bottom: 4px;
+        border-bottom: 1px solid var(--line);
+      }
+      #picker-list button.folder {
+        display: block;
+        width: 100%;
+        margin-top: 6px;
+        padding: 2px 4px;
+        border: 0;
+        background: none;
+        color: var(--muted);
+        font: inherit;
+        font-size: 11px;
+        text-align: left;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+      }
+      #picker-list button.folder:hover {
+        color: var(--text);
+      }
+      #panel h3.folder {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        margin: 0;
+        padding: 6px 12px;
+        background: var(--bg);
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      #picker-list label {
+        display: flex;
+        padding: 3px 4px;
+        border-radius: 3px;
+      }
+      #picker-list label:hover {
+        background: #242833;
+      }
+      .legend {
+        color: var(--muted);
+        margin-left: auto;
+      }
+      .legend b:nth-of-type(1) {
+        color: #ff5555;
+      }
+      .legend b:nth-of-type(2) {
+        color: #55dd55;
+      }
+      .legend b:nth-of-type(3) {
+        color: #6699ff;
+      }
+      #viewer {
+        grid-area: viewer;
+        position: relative;
+        min-height: 0;
+      }
+      #viewer .cesium-viewer-bottom {
+        display: none;
+      }
+      #panel {
+        grid-area: panel;
+        overflow-y: auto;
+        background: var(--panel);
+        border-left: 1px solid var(--line);
+      }
+      .card {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        cursor: pointer;
+      }
+      .card:hover {
+        background: #242833;
+      }
+      .card.selected {
+        box-shadow: inset 3px 0 0 var(--accent);
+        background: #262a35;
+      }
+      .card h2 {
+        margin: 0;
+        font-size: 14px;
+      }
+      .card .path {
+        color: var(--muted);
+        font-size: 11px;
+        word-break: break-all;
+      }
+      .card dl {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 1px 10px;
+        margin: 6px 0 0;
+      }
+      .card dt {
+        color: var(--muted);
+      }
+      .card dd {
+        margin: 0;
+        font-variant-numeric: tabular-nums;
+      }
+      .card .error {
+        color: var(--warn);
+      }
+      @media (max-width: 800px) {
+        body {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto 55vh 1fr;
+          grid-template-areas: "toolbar" "viewer" "panel";
+        }
+        #panel {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="toolbar">
+      <label title="Scale every model to the same size, or show them at the size the app draws them"
+        ><select id="scale">
+          <option value="fit">Same size</option>
+          <option value="true">True scale</option>
+        </select></label
+      >
+      <details id="picker">
+        <summary></summary>
+        <div class="menu">
+          <div class="menu-actions"><button type="button" data-pick="all">All</button><button type="button" data-pick="none">None</button></div>
+          <div id="picker-list"></div>
+        </div>
+      </details>
+      <label title="Where the camera looks from, in the satellite's frame"
+        ><select id="view">
+          <option value="starboard">From starboard</option>
+          <option value="port">From port</option>
+          <option value="front">From ahead</option>
+          <option value="rear">From behind</option>
+          <option value="top">From above</option>
+          <option value="bottom">From Earth</option>
+        </select></label
+      >
+      <label><input type="checkbox" id="axes" checked /> Axes</label>
+      <label><input type="checkbox" id="wireframe" /> Wireframe</label>
+      <label><input type="checkbox" id="bounds" /> Bounds</label>
+      <label><input type="checkbox" id="headlight" checked /> Headlight</label>
+      <button id="all">Show all</button>
+      <span class="legend" title="The frame the app draws a satellite in (VelocityOrientationProperty)"><b>X</b> velocity · <b>Y</b> port · <b>Z</b> zenith (−Z faces Earth)</span>
+    </div>
+    <div id="viewer"></div>
+    <div id="panel"></div>
+    <script type="module" src="/src/modelViewer/main.ts"></script>
+  </body>
+</html>
