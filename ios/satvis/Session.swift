@@ -60,8 +60,9 @@ final class Session {
     @ObservationIgnored private let tiles = TileFetcher.shared()
     let analytics = Analytics()
 
-    /// What the map is drawn from now, to credit.
-    var mapCredits: [Credit] { Credit.map(baseLayer: baseLayer, terrain: terrain) }
+    /// What the map is drawn from now, to credit: with the terrain the sky view
+    /// always stands on, whatever the Map menu says.
+    var mapCredits: [Credit] { Credit.map(baseLayer: baseLayer, terrain: terrain || observer != nil) }
 
     /// The site's privacy policy, which covers the app.
     var privacyPolicy: URL { source.site.appending(path: "data/privacy.html") }
