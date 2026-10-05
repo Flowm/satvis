@@ -27,8 +27,16 @@ final class Analytics {
     /// that development, tests and a local worker count nothing.
     private(set) static var isSetUp = false
 
-    /// Whether the user lets usage be counted.
-    private(set) var isSharing = !PostHogSDK.shared.isOptOut()
+    /// Changed by `setSharing`, so that views reading `isSharing` are told.
+    private var changes = 0
+
+    /// Whether the user lets usage be counted. Asked of PostHog when read, not
+    /// kept: this is made with the session, before the app delegate sets PostHog
+    /// up, and until then it answers that the user opted out.
+    var isSharing: Bool {
+        _ = changes
+        return Self.isSetUp && !PostHogSDK.shared.isOptOut()
+    }
 
     static func setup(site: URL) {
         #if DEBUG
@@ -62,7 +70,7 @@ final class Analytics {
         } else {
             PostHogSDK.shared.optOut()
         }
-        isSharing = !PostHogSDK.shared.isOptOut()
+        changes += 1
     }
 
     /// A view, as the web app counts one: its link, by `$current_url`.
