@@ -153,4 +153,17 @@ import simd
         #expect(values[0] > 0.2, "nothing drawn where \(direction) samples")
         #expect(values[1] == 0, "drawn on the far side of \(direction)")
     }
+
+    // A satellite is its point and its name: a tap on the name, far from the
+    // point, picks it, and a tap on a point beats a neighbour's name over it.
+    @Test func picksASatelliteByItsLabel() throws {
+        let point = CGPoint(x: 100, y: 100)
+        let label = CGRect(x: 110, y: 92, width: 120, height: 16)
+        #expect(Picking.score(of: CGPoint(x: 200, y: 101), point: point, label: label) != nil)
+        #expect(Picking.score(of: CGPoint(x: 200, y: 101), point: point, label: nil) == nil)
+        #expect(Picking.score(of: CGPoint(x: 200, y: 130), point: point, label: label) == nil)
+        let onPoint = try #require(Picking.score(of: CGPoint(x: 150, y: 101), point: CGPoint(x: 150, y: 100), label: nil))
+        let onLabel = try #require(Picking.score(of: CGPoint(x: 150, y: 101), point: point, label: label))
+        #expect(onPoint < onLabel)
+    }
 }
