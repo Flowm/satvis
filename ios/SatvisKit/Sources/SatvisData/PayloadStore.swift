@@ -40,9 +40,17 @@ public struct PayloadStore: Sendable {
 
     /// Kept in Application Support rather than Caches: offline launches and pass
     /// notifications depend on it, and the system purges Caches when it likes.
+    /// But out of the user's backups, as Apple's storage guidelines ask of what
+    /// can be downloaded again: megabytes of element sets, stale by any restore.
     public static func applicationSupport() throws -> PayloadStore {
         let base = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        return PayloadStore(directory: base.appending(path: "GP", directoryHint: .isDirectory))
+        var directory = base.appending(path: "GP", directoryHint: .isDirectory)
+        // Best effort: a copy backed up is better than none kept.
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? directory.setResourceValues(values)
+        return PayloadStore(directory: directory)
     }
 
     /// The snapshot shipped in the app (ios/scripts/snapshot.sh).
