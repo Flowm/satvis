@@ -181,6 +181,28 @@ cron — including metadata enrichment — and writes a static snapshot into
 `/api/groups.json`; if that fails it falls back to the static `data/gp/`
 snapshot, so all presets keep working without the worker.
 
+### Self-hosting with Docker
+
+The `Dockerfile` serves the app and the worker from one container. The worker
+runs on workerd through wrangler's local runtime. KV lives as SQLite in `/data`,
+and the cron fires on its normal schedule. A fresh volume refreshes once at
+startup.
+
+```sh
+docker build --build-arg BUILD_SHA=$(git rev-parse --short HEAD) -t satvis .
+docker run -p 8080:8080 -v satvis-data:/data -e REFRESH_TOKEN=... satvis
+```
+
+`compose.yaml` does the same with `docker compose up --build`. It reads
+`REFRESH_TOKEN`, `BUILD_SHA`, `VITE_CESIUM_ION_TOKEN` and `PORT` from the shell
+or a `.env` file.
+
+Run `git submodule update --init` and `pnpm update-imagery` before you build, or
+the image ships without 3D models and with base-map levels 0–2 only. Pass
+`--build-arg VITE_CESIUM_ION_TOKEN=...` for terrain, because the committed token
+only works on satvis.space. Keep the image private if `data/custom/` holds private
+plugins.
+
 ### Offline base map
 
 The `NaturalEarth` layer — the default base map, and the one that keeps the globe

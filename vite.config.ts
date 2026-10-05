@@ -16,11 +16,11 @@ const cesiumWidgetsSource = "node_modules/@cesium/widgets";
 const cesiumBaseUrl = "cesium";
 
 const buildDate = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-let buildSha = "dev";
+let buildSha = process.env.BUILD_SHA || "dev";
 try {
-  buildSha = execSync("git rev-parse --short HEAD").toString().trim();
+  buildSha = process.env.BUILD_SHA || execSync("git rev-parse --short HEAD").toString().trim();
 } catch {
-  // not a git checkout (e.g. tarball build)
+  // not a git checkout (e.g. tarball or docker build)
 }
 
 const port = process.env.PORT ? Number(process.env.PORT) : undefined;

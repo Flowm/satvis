@@ -1,0 +1,14 @@
+**/node_modules
+**/.wrangler
+**/.dev.vars
+.env
+.env.*
+.git
+.claude
+dist
+dev-dist
+report
+ios
+worker/.cache
+scripts/**/.cache
+scripts/.reference
