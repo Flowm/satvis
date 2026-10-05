@@ -54,8 +54,9 @@ the SPA and the `worker/` package.
 - `pnpm dev` for the dev server (proxies `/api` to <https://satvis.space>, so
   satellite data works without a local worker)
 - `pnpm dev:host` to expose the dev server on the local network
-- `/models.html` under `pnpm dev` shows every 3D model in `data/` side by side,
-  with its satellites, size, triangle count, textures and glTF problems (dev only,
+- `/models.html` under `pnpm dev` shows the 3D models side by side, with their
+  satellites, size, triangle count, textures and glTF problems: first those the
+  model manifests map, then any other GLB under `data/` for comparison (dev only,
   not built)
 - The 3D models live in the `data/models` submodule, which builds them itself
   (`pnpm build` there, from its `build.yaml`). Its `models.yaml` says which NORAD

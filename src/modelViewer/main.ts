@@ -1,5 +1,9 @@
-// Every GLB under data/ side by side, in one scene, rendered by the same Cesium
-// Model pipeline the app uses. Dev-only: open /models.html under `pnpm dev`.
+// The 3D models side by side, in one scene, rendered by the same Cesium Model
+// pipeline the app uses. Dev-only: open /models.html under `pnpm dev`.
+//
+// The model manifests decide what is listed first: every file they map, from where
+// it is served. Any other GLB under data/ follows as a comparison set (a folder of
+// candidates such as data/custom/nasa), minus the plugin copies a manifest covers.
 //
 // Models sit in the frame the app gives a satellite (VelocityOrientationProperty):
 // X along the velocity, Z at the zenith. Here that frame is the local
@@ -44,22 +48,51 @@ interface ManifestSatellite {
   decayed?: string | boolean;
 }
 
+/** A models.yaml, as the models repo's build and a plugin write it. */
+interface Manifest {
+  models?: Array<{ file: string; satellites?: ManifestSatellite[] }>;
+}
+
+interface Listing {
+  /** Where the file is served in dev. */
+  path: string;
+  /** Picker folder: the manifest's repository, or the folder of an unlisted file. */
+  folder: string;
+  satellites?: ManifestSatellite[];
+  /** Why a listed file cannot be shown here. */
+  missing?: string;
+}
+
 /**
- * The satellites a manifest gives the model at `path`, matched where the file is
- * served: data/models for the submodule's, and for a plugin's where its sync
- * script copies it, data/custom/dist/models. A plugin's own source folder is not
- * matched; its copies elsewhere (Grafana variants) would be mistaken for it.
+ * Every file a manifest maps, then every other GLB under data/. A submodule file is
+ * in data/models/public; a plugin's in data/custom/dist/models, where its sync
+ * script copies it — its source folder and that copy are therefore not listed
+ * again, nor are its unlisted files (Grafana variants and the like).
  */
-function manifestSatellites(path: string): ManifestSatellite[] | undefined {
-  for (const [manifestPath, text] of Object.entries(MANIFESTS)) {
-    const servedFrom = manifestPath === "/data/models/models.yaml" ? "/data/models/" : "/data/custom/dist/models/";
-    for (const model of (YAML.parse(text) as { models?: Array<{ file: string; satellites?: ManifestSatellite[] }> }).models ?? []) {
-      if (path === `${servedFrom}${model.file}`) {
-        return model.satellites ?? [];
-      }
+function listModels(): Listing[] {
+  const present = new Set(MODEL_PATHS);
+  const listed: Listing[] = [];
+  const pluginDirs: string[] = [];
+  for (const [manifestPath, text] of Object.entries(MANIFESTS).toSorted(([a], [b]) =>
+    a.startsWith("/data/models/") ? -1 : b.startsWith("/data/models/") ? 1 : a.localeCompare(b),
+  )) {
+    const submodule = manifestPath === "/data/models/models.yaml";
+    const dir = manifestPath.replace(/\/models\.yaml$/, "");
+    if (!submodule) {
+      pluginDirs.push(`${dir}/`);
+    }
+    const folder = submodule ? "models" : dir.replace(/^\/data\/custom\//, "");
+    for (const { file, satellites = [] } of (YAML.parse(text) as Manifest).models ?? []) {
+      const path = `${submodule ? "/data/models/public/" : "/data/custom/dist/models/"}${file}`;
+      const missing = present.has(path) ? undefined : submodule ? "missing from data/models/public" : "not synced: run `pnpm update-custom-data`";
+      listed.push({ path, folder, satellites, missing });
     }
   }
-  return undefined;
+  const listedPaths = new Set(listed.map((listing) => listing.path));
+  const others = MODEL_PATHS.filter((path) => !listedPaths.has(path) && !path.startsWith("/data/custom/dist/") && !pluginDirs.some((dir) => path.startsWith(dir)))
+    .toSorted((a, b) => a.localeCompare(b))
+    .map((path) => ({ path, folder: path.replace(/^\/data\//, "").replace(/\/[^/]+$/, "") }));
+  return [...listed, ...others];
 }
 
 type ScaleMode = "fit" | "true";
@@ -69,7 +102,7 @@ interface Entry {
   url: string;
   name: string;
   /** Its folder under data/, e.g. `models` or `custom/nasa`. */
-  group: string;
+  folder: string;
   card: HTMLElement;
   /** Picked in the model dropdown. */
   visible: boolean;
@@ -116,10 +149,9 @@ const controls = {
   pickerList: document.querySelector<HTMLElement>("#picker-list")!,
 };
 controls.scale.value = params.get("scale") === "true" ? "true" : "fit";
-controls.view.value = params.get("view") ?? "starboard";
-if (!controls.view.value) {
-  controls.view.value = "starboard";
-}
+// A select set to a value it has no option for goes blank.
+controls.view.value = params.get("view") ?? "";
+controls.view.value ||= "starboard";
 
 const viewer = new Viewer("viewer", {
   animation: false,
@@ -165,30 +197,26 @@ const panel = document.querySelector<HTMLElement>("#panel")!;
 // `?show=` lists the picked models by name; absent means all of them.
 const shown = params.get("show")?.split(",");
 
-const groupOf = (path: string): string => path.replace(/^\/data\//, "").replace(/\/[^/]+$/, "");
-// The models the app ships come first; any other folder is something to compare them with.
-const groupRank = (path: string): number => (path.startsWith("/data/models/") ? 0 : 1);
-const groupHeadings = new Map<string, HTMLElement>();
+const folderHeadings = new Map<string, HTMLElement>();
 
-const entries: Entry[] = MODEL_PATHS.toSorted((a, b) => groupRank(a) - groupRank(b) || a.localeCompare(b)).map((path) => {
+const entries: Entry[] = listModels().map(({ path, folder, satellites, missing }) => {
   const name = path
     .split("/")
     .pop()!
     .replace(/\.glb$/, "");
-  const group = groupOf(path);
-  if (!groupHeadings.has(group)) {
+  if (!folderHeadings.has(folder)) {
     const heading = document.createElement("h3");
-    heading.className = "group";
-    heading.textContent = group;
+    heading.className = "folder";
+    heading.textContent = folder;
     panel.append(heading);
-    groupHeadings.set(group, heading);
+    folderHeadings.set(folder, heading);
     const header = document.createElement("button");
     header.type = "button";
-    header.className = "group";
-    header.textContent = group;
+    header.className = "folder";
+    header.textContent = folder;
     header.title = "Show or hide this folder";
     header.addEventListener("click", () => {
-      const members = entries.filter((entry) => entry.group === group);
+      const members = entries.filter((entry) => entry.folder === folder);
       setVisible(members, !members.every((entry) => entry.visible));
     });
     controls.pickerList.append(header);
@@ -201,7 +229,7 @@ const entries: Entry[] = MODEL_PATHS.toSorted((a, b) => groupRank(a) - groupRank
   toggle.type = "checkbox";
   option.append(toggle, ` ${name}`);
   controls.pickerList.append(option);
-  const entry: Entry = { path, url: `.${path}`, name, group, card, visible: shown?.includes(name) ?? true, toggle, satellites: manifestSatellites(path) };
+  const entry: Entry = { path, url: `.${path}`, name, folder, card, visible: shown?.includes(name) ?? true, toggle, satellites, error: missing };
   toggle.checked = entry.visible;
   toggle.addEventListener("change", () => setVisible([entry], toggle.checked));
   card.hidden = !entry.visible;
@@ -213,12 +241,14 @@ let selected: Entry | undefined;
 updatePickerSummary();
 
 if (entries.length === 0) {
-  panel.innerHTML = `<div class="card error">No GLB files under data/. A fresh worktree needs <code>git submodule update --init</code>.</div>`;
+  panel.innerHTML = `<div class="card error">No models: data/models/models.yaml and every GLB under data/ are missing. A fresh worktree needs <code>git submodule update --init</code>.</div>`;
 }
 
 for (const entry of entries) {
   renderCard(entry);
-  void load(entry);
+  if (!entry.error) {
+    void load(entry);
+  }
 }
 
 async function load(entry: Entry): Promise<void> {
@@ -313,8 +343,8 @@ function layout(): void {
   const columns = Math.max(1, Math.ceil(Math.sqrt(ready.length * 1.6)));
   // Each folder starts a row of its own, so the sets being compared stay apart.
   const rows: Entry[][] = [];
-  for (const group of new Set(ready.map((entry) => entry.group))) {
-    const members = ready.filter((entry) => entry.group === group);
+  for (const folder of new Set(ready.map((entry) => entry.folder))) {
+    const members = ready.filter((entry) => entry.folder === folder);
     for (let i = 0; i < members.length; i += columns) {
       rows.push(members.slice(i, i + columns));
     }
@@ -356,10 +386,7 @@ function layout(): void {
 
   applyToggles();
   if (entries.every((entry) => !entry.visible || entry.error || entry.radius !== undefined)) {
-    const sphere = selected?.sphere ?? allSpheres();
-    if (sphere.radius > 0) {
-      frame(sphere);
-    }
+    reframe();
   }
 }
 
@@ -406,15 +433,19 @@ function setVisible(changed: Entry[], visible: boolean): void {
 }
 
 function updatePickerSummary(): void {
-  for (const [group, heading] of groupHeadings) {
-    heading.hidden = !entries.some((entry) => entry.group === group && entry.visible);
+  for (const [folder, heading] of folderHeadings) {
+    heading.hidden = !entries.some((entry) => entry.folder === folder && entry.visible);
   }
   const count = entries.filter((entry) => entry.visible).length;
   controls.picker.querySelector("summary")!.textContent = `Models ${count}/${entries.length}`;
 }
 
-function allSpheres(): BoundingSphere {
-  return BoundingSphere.fromBoundingSpheres(entries.flatMap((entry) => (entry.sphere ? [entry.sphere] : [])));
+/** The selected model, or every shown one. */
+function reframe(): void {
+  const sphere = selected?.sphere ?? BoundingSphere.fromBoundingSpheres(entries.flatMap((entry) => (entry.sphere ? [entry.sphere] : [])));
+  if (sphere.radius > 0) {
+    frame(sphere);
+  }
 }
 
 /** Orbit the sphere: the camera's transform is pinned to it, so dragging turns around it. */
@@ -436,10 +467,7 @@ function select(entry: Entry | undefined): void {
     selected.card.scrollIntoView({ block: "nearest" });
   }
   applyToggles();
-  const sphere = selected?.sphere ?? allSpheres();
-  if (sphere.radius > 0) {
-    frame(sphere);
-  }
+  reframe();
   writeUrl();
 }
 
@@ -463,15 +491,16 @@ function writeUrl(): void {
 function renderCard(entry: Entry): void {
   const { stats } = entry;
   const rows: Array<[string, string]> = [];
+  // Before the stats: the mapping is worth showing even when the file is missing.
+  if (entry.satellites) {
+    rows.push([
+      "Satellites",
+      entry.satellites.length === 0
+        ? "none (generic)"
+        : entry.satellites.map(({ name, noradId, decayed }) => `${escape(name ?? "")} <span class="path">${noradId}${decayed ? ", decayed" : ""}</span>`).join("<br>"),
+    ]);
+  }
   if (stats) {
-    if (entry.satellites) {
-      rows.push([
-        "Satellites",
-        entry.satellites.length === 0
-          ? "none (generic)"
-          : entry.satellites.map(({ name, noradId, decayed }) => `${escape(name ?? "")} <span class="path">${noradId}${decayed ? ", decayed" : ""}</span>`).join("<br>"),
-      ]);
-    }
     rows.push(["File", `${megabytes(stats.fileBytes)} (textures ${megabytes(stats.imageBytes)})`]);
     rows.push(["Triangles", stats.triangles.toLocaleString("en")]);
     rows.push(["Vertices", stats.vertices.toLocaleString("en")]);
@@ -532,10 +561,7 @@ viewer.screenSpaceEventHandler.setInputAction((click: { position: Cartesian2 }) 
 }, ScreenSpaceEventType.LEFT_CLICK);
 
 controls.view.addEventListener("change", () => {
-  const sphere = selected?.sphere ?? allSpheres();
-  if (sphere.radius > 0) {
-    frame(sphere);
-  }
+  reframe();
   writeUrl();
 });
 controls.scale.addEventListener("change", () => {
