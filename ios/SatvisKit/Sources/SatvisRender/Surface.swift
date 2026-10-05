@@ -2,6 +2,7 @@ import CoreGraphics
 import Foundation
 import ImageIO
 import Metal
+import SatvisCore
 import os
 import simd
 
@@ -271,6 +272,12 @@ final class Surface {
     /// The ground's height at a place, metres above the ellipsoid, from the finest
     /// terrain tile loaded there; nil before any has.
     func groundHeight(latitude: Double, longitude: Double) -> Double? {
+        // Rows and columns become integers below, which traps on a coordinate far
+        // out of range: nothing past the poles, and longitudes wrapped.
+        guard latitude.isFinite, longitude.isFinite, abs(latitude) <= 90 else {
+            return nil
+        }
+        let longitude = wrappedLongitude(longitude)
         for level in stride(from: Terrain.maximumLevel, through: 0, by: -1) {
             let row = Int(Projection.geographic.row(latitude: latitude, level: level))
             let column = Int(Projection.geographic.column(longitude: longitude, level: level))

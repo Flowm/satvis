@@ -23,6 +23,22 @@ import Testing
                 == [GroundStation(latitude: 48.1351, longitude: 11.582, name: "Munich DE"), GroundStation(latitude: 0, longitude: 0)].map(GroundStations.Place.init))
     }
 
+    // A link's coordinates are only known to be numbers, and `gs=1e300,0` once
+    // trapped in the sky view, converting a row to an integer.
+    @Test func keepsALinksStationsOnTheGlobe() {
+        let stations = GroundStations.normalized([
+            GroundStation(latitude: 1e300, longitude: 0),
+            GroundStation(latitude: -90.5, longitude: 0),
+            GroundStation(latitude: 10, longitude: 190),
+            GroundStation(latitude: 20, longitude: -540),
+            GroundStation(latitude: 30, longitude: 1e300),
+        ])
+        #expect(stations.map(\.latitude) == [10, 20, 30])
+        #expect(stations[0].longitude == -170)
+        #expect(stations[1].longitude == 180 || stations[1].longitude == -180)
+        #expect(abs(stations[2].longitude) <= 180)
+    }
+
     @Test func refusesWhatIsNotACoordinate() {
         #expect(GroundStations.coordinate(" 48.5 ", limit: 90) == 48.5)
         #expect(GroundStations.coordinate("-", limit: 90) == nil)
