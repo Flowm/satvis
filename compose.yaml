@@ -1,0 +1,24 @@
+# docker compose up --build
+#
+# Values come from the shell or a .env file next to this one.
+# BUILD_SHA has no default here: `BUILD_SHA=$(git rev-parse --short HEAD) docker compose build`.
+
+services:
+  satvis:
+    build:
+      context: .
+      args:
+        BUILD_SHA: ${BUILD_SHA:-}
+        VITE_CESIUM_ION_TOKEN: ${VITE_CESIUM_ION_TOKEN:-}
+        VITE_POSTHOG_KEY: ${VITE_POSTHOG_KEY:-}
+    image: satvis
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      REFRESH_TOKEN: ${REFRESH_TOKEN:-}
+    volumes:
+      - satvis-data:/data
+    restart: unless-stopped
+
+volumes:
+  satvis-data:
