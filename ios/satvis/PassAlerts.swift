@@ -6,7 +6,7 @@ import SatvisData
 import UserNotifications
 import os
 
-private let log = Logger(subsystem: "org.frcy.app.satvis", category: "notifications")
+nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category: "notifications")
 
 /// Notifications for the passes of what the user asked about: five minutes before
 /// each pass and as it starts, as the web app sends them. Unlike the web app's,
@@ -116,7 +116,8 @@ final class PassAlerts {
     /// Asks iOS to wake the app to predict again before the pending notifications
     /// run out, within four hours, while there is anything to predict.
     func requestRefresh() {
-        guard !alerts.isEmpty else {
+        // Nothing to predict without a saved station either, as `schedule` finds.
+        guard !alerts.isEmpty, !PassModel.storedSettings().stations.isEmpty else {
             BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.refreshTaskID)
             return
         }
@@ -136,13 +137,32 @@ final class PassAlerts {
             nextRefresh = nil
             return PassNotificationPlan(passes: [], now: 0, predictedUntil: 0)
         }
-        var catalog = Catalog()
-        for group in Set(alerts.flatMap(\.groups)) {
-            do {
-                catalog.add(try await source.records(of: group).value, tags: [], group: group)
-            } catch {
-                log.error("Group \(group, privacy: .public) unavailable: \(error, privacy: .public)")
+        // All at once: one after another, each with the worker's 15 s timeout, a
+        // network that hangs rather than fails would outlast the 30 s or so iOS
+        // gives a background refresh, every time.
+        let source = source
+        let loaded = await withTaskGroup(of: (String, [GPRecord]?).self) { tasks in
+            for group in Set(alerts.flatMap(\.groups)) {
+                tasks.addTask {
+                    do {
+                        return (group, try await source.records(of: group).value)
+                    } catch {
+                        log.error("Group \(group, privacy: .public) unavailable: \(error, privacy: .public)")
+                        return (group, nil)
+                    }
+                }
             }
+            var loaded: [(group: String, records: [GPRecord])] = []
+            for await (group, records) in tasks {
+                if let records {
+                    loaded.append((group, records))
+                }
+            }
+            return loaded
+        }
+        var catalog = Catalog()
+        for (group, records) in loaded.sorted(by: { $0.group < $1.group }) {
+            catalog.add(records, tags: [], group: group)
         }
         let now = Date().timeIntervalSince1970 * 1000
         let jobs = alerts.flatMap { alert in
