@@ -20,6 +20,15 @@ struct ClockDeck<Accessory: View>: View {
     @State private var onLadder = false
 
     var body: some View {
+        // Once a second, for what follows the wall clock rather than the deck's
+        // own state: a paused clock falls behind the present, and "Back to now"
+        // has to come up, and the tab widen to take it.
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            deck
+        }
+    }
+
+    private var deck: some View {
         VStack(spacing: 0) {
             controlRow
             if isOpen {
@@ -229,7 +238,10 @@ private struct TimelineScale: View {
     private static let major = 3_600_000.0
 
     var body: some View {
-        TimelineView(.animation) { _ in
+        // Read here, so that a scrub, a flick, a pause or a new rate redraws the
+        // scale at once; between those, it moves only as fast as the clock does.
+        let state = clock.clock
+        TimelineView(.animation(minimumInterval: Self.redrawInterval(multiplier: state.multiplier), paused: !state.isPlaying)) { _ in
             Canvas { context, size in
                 let centre = clock.now()
                 let half = size.width / 2 * Self.msPerPoint
@@ -293,6 +305,14 @@ private struct TimelineScale: View {
         .accessibilityAdjustableAction { direction in
             clock.scrub(to: clock.now() + (direction == .increment ? 1 : -1) * Self.minor)
         }
+    }
+
+    /// Seconds between redraws: as long as the scale takes to move a third of a
+    /// point, a pixel, and no longer than a second. At real time that is a
+    /// redraw a second rather than one every frame.
+    private static func redrawInterval(multiplier: Double) -> Double {
+        let pointsPerSecond = abs(multiplier) * 1000 / msPerPoint
+        return min(max(1 / (3 * max(pointsPerSecond, 1e-9)), 1.0 / 60), 1)
     }
 
     /// The web app's flick: the velocity decays by 0.94 every 16.7 ms.

@@ -47,6 +47,21 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.descendants(matching: .any)["Orbit track"].waitForExistence(timeout: 5))
     }
 
+    // Paused, the clock falls behind the present, and the deck offers the way back
+    // without anything else being touched.
+    @MainActor
+    func testOffersBackToNowOncePaused() {
+        let app = launch()
+        let stamp = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UTC'")).firstMatch
+        XCTAssert(stamp.waitForExistence(timeout: 30))
+        stamp.tap()
+        XCTAssert(app.buttons["Pause"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Back to now"].exists)
+        app.buttons["Pause"].tap()
+        // A minute off the present (`SimulationClock.presentTolerance`) and a tick.
+        XCTAssert(app.buttons["Back to now"].waitForExistence(timeout: 75))
+    }
+
     /// Launches with no worker to answer, on a link: by default the plain site,
     /// rather than the view an earlier run left.
     @MainActor
