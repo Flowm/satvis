@@ -329,9 +329,9 @@ private struct MapMenu: View {
                     session.analytics.setSharing($0)
                 }
             )
-            // Nothing is counted where PostHog is not set up: not a debug build,
+            // Nothing is counted where usage may not be at all: not a debug build,
             // and not another site than satvis.space.
-            .disabled(!Analytics.isSetUp)
+            .disabled(!Analytics.isAvailable)
         }
     }
 }
