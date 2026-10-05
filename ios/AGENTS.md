@@ -128,10 +128,11 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   (`sanitizedForAnalytics`, held to it by the parity fixtures). It reports only
   from a release build on satvis.space, so development, the UI tests and a local
   worker count nothing; check a change with a Release build in the simulator,
-  whose events carry `$is_emulator`. The Map menu's "Share usage data" opts out,
-  and the SDK keeps that choice. Read it from PostHog when shown, never at
-  launch: the session is made before the app delegate sets PostHog up, and until
-  then the SDK answers that the user opted out.
+  whose events carry `$is_emulator`. The Map menu's "Share usage data" opts out.
+  The app keeps that choice (`shareUsageData` in `UserDefaults`), not PostHog:
+  opted out, PostHog is not set up at all, so nothing is sent, not even its
+  remote config. PostHog's defaults that send more than the privacy policy says
+  are off by name: feature flags, default person properties, rage clicks.
 - `Info.plist` is generated from `INFOPLIST_KEY_*` build settings. The file
   `satvis/Info.plist` holds only the keys that have no build setting:
   `UILaunchScreen`, `NSAppTransportSecurity` to allow a local worker, and the
