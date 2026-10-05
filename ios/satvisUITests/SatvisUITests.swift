@@ -57,6 +57,20 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Back to now"].waitForExistence(timeout: 75))
     }
 
+    // UTC on a 24-hour clock, in a locale whose own clock has 12 hours.
+    @MainActor
+    func testReadsUTCOnA24HourClock() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-AppleLocale", "en_US", "-AppleLanguages", "(en)"]
+        app.launchEnvironment["SATVIS_API"] = "http://127.0.0.1:9"
+        app.launchEnvironment["SATVIS_LINK"] = "/"
+        app.launchEnvironment["SATVIS_TIME"] = "2026-10-04T19:22:00Z"
+        app.launch()
+        let stamp = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UTC'")).firstMatch
+        XCTAssert(stamp.waitForExistence(timeout: 30))
+        XCTAssert(stamp.label.contains("19:22"), "The clock read \(stamp.label)")
+    }
+
     /// Launches with no worker to answer, on a link: by default the plain site,
     /// rather than the view an earlier run left.
     @MainActor
