@@ -208,7 +208,12 @@ final class PassModel {
 
     private func combine() {
         let places = Set(saved.map(GroundStations.Place.init))
-        let shown = saved + visiting.filter { !places.contains(GroundStations.Place($0)) }
+        // A link's station in the place of a saved one is that one, not a visit:
+        // kept as a visit, it would ride along in every link from then on, the
+        // view kept at a background included, which is how a sky view on a saved
+        // station would come back on the next launch.
+        visiting.removeAll { places.contains(GroundStations.Place($0)) }
+        let shown = saved + visiting
         guard shown != stations else {
             return
         }
