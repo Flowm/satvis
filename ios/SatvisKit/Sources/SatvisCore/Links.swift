@@ -6,6 +6,11 @@ public struct LinkQuery: Sendable, Hashable {
     public struct Item: Sendable, Hashable {
         public var key: String
         public var values: [String?]
+
+        public init(key: String, values: [String?]) {
+            self.key = key
+            self.values = values
+        }
     }
 
     public var items: [Item]

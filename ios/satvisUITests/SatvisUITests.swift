@@ -71,6 +71,19 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(stamp.label.contains("19:22"), "The clock read \(stamp.label)")
     }
 
+    // The web app's `fps=true` shows the performance overlay; the Map menu
+    // switches it off.
+    @MainActor
+    func testShowsPerformanceFromALink() {
+        let app = launch(link: "/?fps=true")
+        let overlay = app.descendants(matching: .any)["Performance"]
+        XCTAssert(overlay.waitForExistence(timeout: 30))
+        app.buttons["Menu"].tap()
+        app.buttons["Map"].tap()
+        app.descendants(matching: .any)["Show performance"].firstMatch.tap()
+        XCTAssert(overlay.waitForNonExistence(timeout: 5))
+    }
+
     /// Launches with no worker to answer, on a link: by default the plain site,
     /// rather than the view an earlier run left.
     @MainActor

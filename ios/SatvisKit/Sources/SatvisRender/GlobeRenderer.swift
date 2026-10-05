@@ -125,6 +125,20 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private(set) var lastFrame: (viewProjection: simd_double4x4, position: SIMD3<Double>, size: SIMD2<Double>, time: Double)?
     /// What the sky view's instruments worked out, kept between frames.
     var skyCache = SkyCache()
+    private let meter = FrameMeter()
+
+    /// Whether frames are measured, for the performance overlay; nothing is
+    /// timed while it is off.
+    public var measuresFrames = false {
+        didSet {
+            if measuresFrames != oldValue {
+                meter.reset()
+            }
+        }
+    }
+
+    /// The frames' averages over the last half second, while measured.
+    public var frameStats: FrameStats? { measuresFrames ? meter.stats : nil }
     private var pointFrameBuffers: [MTLBuffer?]
     private var frameIndex = 0
     private let inFlight = DispatchSemaphore(value: framesInFlight)
@@ -528,6 +542,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         guard let orbitCamera, let hdr, let depth, let drawable = view.currentDrawable, let screen = view.currentRenderPassDescriptor else {
             return
         }
+        let measuring = measuresFrames
+        let started = measuring ? ProcessInfo.processInfo.systemUptime : 0
         let now = clock()
         var pose = orbitCamera.pose()
         if case .tracking(let id) = cameraMode, let target = position(of: id, at: now) {
@@ -555,13 +571,19 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             }
         }
         lastPose = pose
+        let waitStarted = measuring ? ProcessInfo.processInfo.systemUptime : 0
         inFlight.wait()
+        let waited = measuring ? ProcessInfo.processInfo.systemUptime - waitStarted : 0
         guard let commands = queue.makeCommandBuffer() else {
             inFlight.signal()
             return
         }
         let semaphore = inFlight
         commands.addCompletedHandler { _ in semaphore.signal() }
+        if measuring {
+            let meter = meter
+            commands.addCompletedHandler { buffer in meter.gpu(seconds: buffer.gpuEndTime - buffer.gpuStartTime) }
+        }
         frameIndex = (frameIndex + 1) % Self.framesInFlight
 
         var frame = uniforms(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now)
@@ -671,6 +693,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         commands.present(drawable)
         commands.commit()
+        if measuring {
+            let ended = ProcessInfo.processInfo.systemUptime
+            meter.frame(cpuSeconds: ended - started - waited, at: ended, satellites: points.count)
+        }
     }
 
     /// The links of the passes under way, then the pins of the stations facing

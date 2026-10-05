@@ -121,6 +121,18 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   its own manifest for the APIs it uses. Add to the app's with every
   required-reason API and every data type collected, and keep the App Store
   privacy label in step with it.
+- The Map menu's "Show performance" is the web app's FPS switch, kept in links as
+  `fps=true` as the web keeps it (`PerformanceOverlay.swift`, `FrameStats`):
+  frames per second, the renderer's CPU and the GPU's milliseconds a frame,
+  satellites drawn and the memory footprint iOS counts. Nothing is timed while it
+  is off. The instruments over the sky view are SwiftUI's, outside the
+  renderer's CPU figure; a slow frame shows in the frame rate. Read it on a
+  device: the simulator runs on the Mac's CPU and GPU. For where the time goes,
+  profile a Release build with Instruments' Time Profiler (`xcrun xctrace record
+  --template "Time Profiler" --attach <pid>`). A Release build sends usage to
+  PostHog only for the site `https://satvis.space/` exactly, so pointing
+  `SATVIS_API` at `https://satvis.space` measures the real data and counts
+  nothing.
 - Analytics (`Analytics.swift`) is posthog-ios, set up from the app delegate as
   its guide has it, reporting to the web app's project (ADR 0008): a `$pageview`
   of the view's link whenever the view changes, the clock aside, its ground
