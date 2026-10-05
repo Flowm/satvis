@@ -44,6 +44,9 @@ export function createViewer(container: string | Element, options: { minimalUI: 
   viewer.clock.shouldAnimate = true;
   viewer.scene.globe.enableLighting = true;
   viewer.scene.highDynamicRange = true;
+  // Cesium's polylines have no antialiasing and MSAA misses the translucent orbits.
+  // Free under HDR: FXAA's 8-bit output is cheaper to hand on than the float frame.
+  viewer.scene.postProcessStages.fxaa.enabled = true;
   viewer.scene.maximumRenderTimeChange = 1 / 30;
   viewer.scene.requestRenderMode = true;
   // Not Cesium's PBR_NEUTRAL default: its black-point term subtracts min(r,g,b)

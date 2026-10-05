@@ -1,4 +1,4 @@
-import { type BoundingSphere, Cartesian3, Entity, JulianDate, Math as CesiumMath, PerspectiveFrustum, type Property } from "@cesium/engine";
+import { type BoundingSphere, type Cartesian2, Cartesian3, Entity, JulianDate, Math as CesiumMath, PerspectiveFrustum, type Property } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { describe, expect, test } from "vitest";
 
@@ -32,7 +32,10 @@ function fakeViewer() {
       primitives: { add: () => {}, remove: () => true },
       mode: 3,
       // A desktop window: Cesium's 60° is then the horizontal angle.
-      camera: { frustum: new PerspectiveFrustum({ fov: CesiumMath.toRadians(60), aspectRatio: 1400 / 900 }) },
+      camera: {
+        frustum: new PerspectiveFrustum({ fov: CesiumMath.toRadians(60), aspectRatio: 1400 / 900 }),
+        getPixelSize: () => viewer.metresPerPixel,
+      },
       canvas: { clientWidth: 1400, clientHeight: 900 },
       globe: { ellipsoid: { maximumRadius: 6378137 } },
       frameState: {},
@@ -51,6 +54,8 @@ function fakeViewer() {
     trackedEntityChanged: { addEventListener: () => () => {} },
     // A model measures `modelRadius` once loaded; until then Cesium reports PENDING (1).
     modelRadius: undefined as number | undefined,
+    // Metres per CSS pixel at the satellite; the default view's is 18.3 km on this canvas.
+    metresPerPixel: 1000,
     dataSourceDisplay: {
       getBoundingSphere(_entity: Entity, _partial: boolean, result: BoundingSphere): number {
         if (viewer.modelRadius === undefined) {
@@ -79,7 +84,14 @@ async function setup({ modelFile = "ISS-(ZARYA).glb" }: { modelFile?: string | n
   const nowMs = JulianDate.toDate(viewer.clock.currentTime).getTime();
   const chunk = await sampler.samples(nowMs - 3600_000, nowMs + 3600_000);
   if (chunk) sat.props.trajectory.adopt(chunk);
-  return { sat, viewer, entities, removed, setModelRadius: (radius: number) => ((viewer as unknown as { modelRadius?: number }).modelRadius = radius) };
+  return {
+    sat,
+    viewer,
+    entities,
+    removed,
+    setModelRadius: (radius: number) => ((viewer as unknown as { modelRadius?: number }).modelRadius = radius),
+    setMetresPerPixel: (metres: number) => ((viewer as unknown as { metresPerPixel: number }).metresPerPixel = metres),
+  };
 }
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -196,6 +208,57 @@ describe("modelMinimumPixelSize", () => {
 
   test("keeps Landsat well above a cubesat, whatever its sphere leaves empty", () => {
     expect(modelMinimumPixelSize(13.4) / modelMinimumPixelSize(0.64)).toBeGreaterThan(2.5);
+  });
+});
+
+describe("SatelliteComponentCollection beside its model", () => {
+  const ALL = ["Point", "Label", "3D model"];
+  const labelOffset = (sat: SatelliteComponentCollection, viewer: Viewer) =>
+    ((sat.components.Label as Entity).label!.pixelOffset!.getValue(viewer.clock.currentTime) as Cartesian2).x;
+  const pointShown = (sat: SatelliteComponentCollection, viewer: Viewer) => (sat.components.Point as Entity).point!.show!.getValue(viewer.clock.currentTime);
+
+  test("starts the label past the model's edge, and hides the point the model stands in for", async () => {
+    const { sat, viewer, setModelRadius } = await setup();
+    sat.show(ALL);
+    setModelRadius(65);
+
+    // The ISS at its 72 px minimum.
+    expect(labelOffset(sat, viewer)).toBeCloseTo(40);
+    expect(pointShown(sat, viewer)).toBe(false);
+  });
+
+  test("follows the model's real size up close", async () => {
+    const { sat, viewer, setModelRadius, setMetresPerPixel } = await setup();
+    sat.show(ALL);
+    setModelRadius(65);
+    setMetresPerPixel(0.5);
+
+    expect(labelOffset(sat, viewer)).toBeCloseTo(130 / 0.5 / 2 + 4);
+  });
+
+  test("gives the point back once zooming out has shrunk the model", async () => {
+    const { sat, viewer, setModelRadius, setMetresPerPixel } = await setup();
+    sat.show(ALL);
+    setModelRadius(65);
+    // Five times the default view's distance: the ISS is a fifth of its 72 px, still a marker.
+    setMetresPerPixel(5 * 18_270);
+    expect(pointShown(sat, viewer)).toBe(false);
+    expect(labelOffset(sat, viewer)).toBeCloseTo(72 / 5 / 2 + 4, 1);
+
+    // Ten times: 7 px.
+    setMetresPerPixel(10 * 18_270);
+    expect(pointShown(sat, viewer)).toBe(true);
+  });
+
+  test("keeps the point and the usual offset while the model is off or loading", async () => {
+    const { sat, viewer } = await setup();
+    sat.show(["Point", "Label"]);
+    expect(labelOffset(sat, viewer)).toBe(10);
+    expect(pointShown(sat, viewer)).toBe(true);
+
+    sat.show(ALL);
+    expect(labelOffset(sat, viewer)).toBe(10);
+    expect(pointShown(sat, viewer)).toBe(true);
   });
 });
 

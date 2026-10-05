@@ -82,6 +82,18 @@ export function modelMinimumPixelSize(diameter: number): number {
   return Math.min(72, Math.max(20, 23 * Math.cbrt(diameter)));
 }
 
+/**
+ * CSS pixels, the orbit's and the orbit track's. At 2 px the orbits bunched around a
+ * zoomed-out globe read as bold; 1 px draws two thirds of their light.
+ */
+const ORBIT_WIDTH = 1;
+
+// CSS pixels.
+const LABEL_OFFSET = 10;
+const LABEL_MODEL_GAP = 4;
+/** Below this across, a model is too small to stand in for its point. */
+const MODEL_MARKER_PIXELS = 10;
+
 /** Keyed by the config list, so a component without a creator is a compile error. */
 const CREATORS: Record<(typeof SATELLITE_COMPONENTS)[number], (sat: SatelliteComponentCollection) => void> = {
   Point: (sat) => sat.createPoint(),
@@ -283,17 +295,11 @@ export class SatelliteComponentCollection {
     }
 
     if (name === "3D model" && component) {
-      // So the model does not cover the label.
-      this.#setLabelOffset(20);
       this.#setViewFrom();
     }
   }
 
   disableComponent(name: SatelliteComponentName): void {
-    if (name === "3D model") {
-      this.#setLabelOffset(10);
-    }
-
     const component = this.#components[name];
     if (component instanceof Entity) {
       this.viewer.entities.remove(component);
@@ -342,6 +348,19 @@ export class SatelliteComponentCollection {
     return (modelMinimumPixelSize(diameter) * Math.max(pixel.x, pixel.y)) / diameter;
   }
 
+  /** How wide Cesium draws the model's bounding sphere, in CSS pixels; undefined while it is not drawn. */
+  #modelPixelDiameter(): number | undefined {
+    if (this.#modelState() !== "ready") {
+      return undefined;
+    }
+    const sphere = SatelliteComponentCollection.#sphereScratch;
+    const diameter = 2 * sphere.radius;
+    const { scene } = this.viewer;
+    const metresPerPixel = scene.camera.getPixelSize(sphere, scene.drawingBufferWidth, scene.drawingBufferHeight);
+    const scale = Math.min(Math.max(1, (modelMinimumPixelSize(diameter) * metresPerPixel) / diameter), this.#modelMaximumScale() ?? Infinity);
+    return (scale * diameter) / metresPerPixel;
+  }
+
   #modelPending(): boolean {
     return this.#modelState() === "loading";
   }
@@ -373,13 +392,6 @@ export class SatelliteComponentCollection {
       if (component instanceof Entity) {
         component.viewFrom = this.#viewFrom() as unknown as typeof component.viewFrom;
       }
-    }
-  }
-
-  #setLabelOffset(x: number): void {
-    const labelEntity = this.#components.Label as Entity | undefined;
-    if (labelEntity?.label) {
-      labelEntity.label.pixelOffset = new Cartesian2(x, 0) as unknown as typeof labelEntity.label.pixelOffset;
     }
   }
 
@@ -507,6 +519,9 @@ export class SatelliteComponentCollection {
       color: POINT_COLOR[this.props.orbitClass],
       outlineColor: Color.DIMGREY,
       outlineWidth: 1,
+      ...(this.props.entry.metadata.modelFile && {
+        show: new CallbackProperty(() => (this.#modelPixelDiameter() ?? 0) < MODEL_MARKER_PIXELS, false),
+      }),
     });
     this.createCesiumSatelliteEntity("Point", "point", point);
   }
@@ -535,7 +550,12 @@ export class SatelliteComponentCollection {
       outlineColor: Color.DIMGREY,
       outlineWidth: 2,
       horizontalOrigin: HorizontalOrigin.LEFT,
-      pixelOffset: new Cartesian2(10, 0),
+      pixelOffset: this.props.entry.metadata.modelFile
+        ? new CallbackProperty(
+            (_time, result?: Cartesian2) => Cartesian2.fromElements(Math.max(LABEL_OFFSET, (this.#modelPixelDiameter() ?? 0) / 2 + LABEL_MODEL_GAP), 0, result),
+            false,
+          )
+        : new Cartesian2(LABEL_OFFSET, 0),
       distanceDisplayCondition: new DistanceDisplayCondition(2000, 8e7),
       translucencyByDistance: new NearFarScalar(6e7, 1.0, 8e7, 0.0),
     });
@@ -565,7 +585,7 @@ export class SatelliteComponentCollection {
       ...orbitPathTimes(this.props.orbit.orbitalPeriod),
       material: Color.WHITE.withAlpha(0.15),
       resolution: 600,
-      width: 2,
+      width: ORBIT_WIDTH,
     });
     this.createCesiumEntity("Orbit", "path", path, this.props.name, this.props.trajectory.inertial, true);
   }
@@ -579,7 +599,7 @@ export class SatelliteComponentCollection {
     const geometryInstance = new GeometryInstance({
       geometry: new PolylineGeometry({
         positions,
-        width: 2,
+        width: ORBIT_WIDTH,
         arcType: ArcType.NONE,
         vertexFormat: PolylineColorAppearance.VERTEX_FORMAT,
       }),
@@ -613,7 +633,7 @@ export class SatelliteComponentCollection {
       ...orbitTrackTimes(this.props.orbit.orbitalPeriod),
       material: Color.GOLD.withAlpha(0.15),
       resolution: 600,
-      width: 2,
+      width: ORBIT_WIDTH,
     });
     // The sampled property, so PathVisualizer sub-samples at the stored sample
     // times rather than at `resolution`.
@@ -638,7 +658,7 @@ export class SatelliteComponentCollection {
       geometry: new PolylineGeometry({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         positions: positions as any,
-        width: 2,
+        width: ORBIT_WIDTH,
         arcType: ArcType.NONE,
         vertexFormat: PolylineColorAppearance.VERTEX_FORMAT,
       }),
