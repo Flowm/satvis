@@ -437,26 +437,28 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     /// The ground station or satellite drawn nearest a point on the view, within a
-    /// fingertip of it and not behind the Earth. A station's pin wins: it is
-    /// the larger target, and one the user put there.
+    /// fingertip of it and not behind the Earth. A satellite is its point and its
+    /// label (`Picking`). A station's pin wins: it is the larger target, and one
+    /// the user put there.
     public func entity(at point: CGPoint, viewSize: CGSize) -> String? {
         guard let lastFrame, viewSize.width > 0 else {
             return nil
         }
-        let reach = 24.0
-        func screenDistance(_ position: SIMD3<Double>, lift: Double = 0) -> Double? {
+        func screenPoint(_ position: SIMD3<Double>) -> CGPoint? {
             let clip = lastFrame.viewProjection * SIMD4(position - lastFrame.position, 1)
             guard clip.w > 0 else {
                 return nil
             }
-            let screen = SIMD2((clip.x / clip.w + 1) / 2 * viewSize.width, (1 - clip.y / clip.w) / 2 * viewSize.height - lift)
-            return simd.distance(screen, SIMD2(point.x, point.y))
+            return CGPoint(x: (clip.x / clip.w + 1) / 2 * viewSize.width, y: (1 - clip.y / clip.w) / 2 * viewSize.height)
         }
-        var best: (id: String, distance: Double)?
+        var best: (id: String, score: Double)?
         for station in stations where Self.isAboveHorizon(station.position, from: lastFrame.position) {
             // The pin's head, a little over half its height above the spot.
-            if let distance = screenDistance(station.position, lift: 10), distance < reach, distance < best?.distance ?? .infinity {
-                best = (station.id, distance)
+            if let spot = screenPoint(station.position) {
+                let distance = hypot(spot.x - point.x, spot.y - 10 - point.y)
+                if distance < Picking.pointReach, distance < best?.score ?? .infinity {
+                    best = (station.id, distance)
+                }
             }
         }
         if best != nil {
@@ -465,12 +467,24 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         guard components.contains(.point) || components.contains(.label) else {
             return nil
         }
-        for satellite in points.satellites {
-            guard let position = satellite.trajectory.position(at: lastFrame.time), !Self.isHiddenByEarth(position, from: lastFrame.position) else {
+        // As Labels.msl places them, in points.
+        let labels = components.contains(.label) ? points.prepared?.labels?.atlas.instances : nil
+        for (index, satellite) in points.satellites.enumerated() {
+            guard let position = satellite.trajectory.position(at: lastFrame.time), !Self.isHiddenByEarth(position, from: lastFrame.position),
+                let spot = screenPoint(position)
+            else {
                 continue
             }
-            if let distance = screenDistance(position), distance < reach, distance < best?.distance ?? .infinity {
-                best = (satellite.id, distance)
+            var label: CGRect?
+            let distance = simd.distance(position, lastFrame.position)
+            if let labels, index < labels.count, distance > 2000, distance < 8e7 {
+                let size = labels[index].size
+                let width = Double(size.x) / pixelScale
+                let height = Double(size.y) / pixelScale
+                label = CGRect(x: spot.x + 10, y: spot.y - height / 2, width: width, height: height)
+            }
+            if let score = Picking.score(of: point, point: spot, label: label), score < best?.score ?? .infinity {
+                best = (satellite.id, score)
             }
         }
         return best?.id
