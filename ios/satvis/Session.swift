@@ -350,6 +350,18 @@ final class Session {
         renderer?.setStations(shownMarkers)
     }
 
+    /// The globe button: out of the sky view onto the globe, and from anywhere on
+    /// the globe back to where the app opens, letting go of what is followed.
+    func goHome() {
+        if observer != nil {
+            return leaveSky()
+        }
+        if let tracked {
+            track(tracked, false)
+        }
+        renderer?.flyHome(animated: !UIAccessibility.isReduceMotionEnabled)
+    }
+
     /// Looks up from the selected station, else the first saved one, else where
     /// the device is, which becomes a station. Without one of those it does not
     /// open: a sky at a place nobody chose looks like a working view and is not.

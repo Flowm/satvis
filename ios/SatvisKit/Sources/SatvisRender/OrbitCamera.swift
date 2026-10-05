@@ -48,6 +48,27 @@ public struct OrbitCamera: Sendable, Equatable {
         return OrbitCamera(latitude: asin(unit.z), longitude: atan2(unit.y, unit.x), altitude: altitude)
     }
 
+    /// The camera `t` of the way from one to another, eased: along the great
+    /// circle between the points below them, the height evenly in its logarithm,
+    /// the heading the shorter way round.
+    public static func between(_ from: OrbitCamera, _ to: OrbitCamera, t: Double) -> OrbitCamera {
+        let eased = SkyFlight.ease(t)
+        let a = from.up
+        let b = to.up
+        let angle = acos(min(max(dot(a, b), -1), 1))
+        var unit = b
+        if angle > 1e-9, eased < 1 {
+            var axis = cross(a, b)
+            if length(axis) < 1e-12 {
+                axis = abs(a.x) < 0.9 ? cross(a, SIMD3(1, 0, 0)) : cross(a, SIMD3(0, 1, 0))
+            }
+            unit = simd_quatd(angle: angle * eased, axis: normalize(axis)).act(a)
+        }
+        let altitude = exp(log(from.altitude) + (log(to.altitude) - log(from.altitude)) * eased)
+        let turn = remainder(to.heading - from.heading, 2 * .pi)
+        return OrbitCamera(latitude: asin(min(max(unit.z, -1), 1)), longitude: atan2(unit.y, unit.x), altitude: altitude, heading: from.heading + turn * eased)
+    }
+
     /// The screen's up and right on the globe, as unit vectors in the fixed frame.
     private var screenAxes: (up: SIMD3<Double>, right: SIMD3<Double>) {
         let north = SIMD3(-sin(latitude) * cos(longitude), -sin(latitude) * sin(longitude), cos(latitude))

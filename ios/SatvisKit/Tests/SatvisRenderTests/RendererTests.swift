@@ -153,7 +153,6 @@ import simd
         #expect(values[0] > 0.2, "nothing drawn where \(direction) samples")
         #expect(values[1] == 0, "drawn on the far side of \(direction)")
     }
-
     // A satellite is its point and its name: a tap on the name, far from the
     // point, picks it, and a tap on a point beats a neighbour's name over it.
     @Test func picksASatelliteByItsLabel() throws {
@@ -165,5 +164,19 @@ import simd
         let onPoint = try #require(Picking.score(of: CGPoint(x: 150, y: 101), point: CGPoint(x: 150, y: 100), label: nil))
         let onLabel = try #require(Picking.score(of: CGPoint(x: 150, y: 101), point: point, label: label))
         #expect(onPoint < onLabel)
+    }
+
+    // The flight home ends where it is going, the shorter way round.
+    @Test func fliesHomeTheShorterWay() {
+        let from = OrbitCamera(latitude: 0.2, longitude: 3.0, altitude: 2_000_000, heading: 6.0)
+        let home = OrbitCamera.home(aspectRatio: 0.5)
+        let start = OrbitCamera.between(from, home, t: 0)
+        let end = OrbitCamera.between(from, home, t: 1)
+        #expect(abs(start.longitude - from.longitude) < 1e-9 && abs(start.altitude - from.altitude) < 1e-3)
+        #expect(abs(end.latitude - home.latitude) < 1e-9 && abs(end.longitude - home.longitude) < 1e-9)
+        #expect(abs(end.altitude - home.altitude) < 1e-3)
+        #expect(abs(remainder(end.heading - home.heading, 2 * .pi)) < 1e-9)
+        // From 6 rad to 0 is a quarter turn on, not most of one back.
+        #expect(OrbitCamera.between(from, home, t: 0.5).heading > from.heading)
     }
 }
