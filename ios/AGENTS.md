@@ -121,7 +121,7 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   its own manifest for the APIs it uses. Add to the app's with every
   required-reason API and every data type collected, and keep the App Store
   privacy label in step with it.
-- The Map menu's "Show performance" is the web app's FPS switch, kept in links as
+- The Settings menu's "Show performance" is the web app's FPS switch, kept in links as
   `fps=true` as the web keeps it (`PerformanceOverlay.swift`, `FrameStats`):
   frames per second, the renderer's CPU and the GPU's milliseconds a frame,
   satellites drawn and the memory footprint iOS counts. Nothing is timed while it
@@ -140,7 +140,7 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   (`sanitizedForAnalytics`, held to it by the parity fixtures). It reports only
   from a release build on satvis.space, so development, the UI tests and a local
   worker count nothing; check a change with a Release build in the simulator,
-  whose events carry `$is_emulator`. The Map menu's "Share usage data" opts out.
+  whose events carry `$is_emulator`. The Settings menu's "Share usage data" opts out.
   The app keeps that choice (`shareUsageData` in `UserDefaults`), not PostHog:
   opted out, PostHog is not set up at all, so nothing is sent, not even its
   remote config. PostHog's defaults that send more than the privacy policy says

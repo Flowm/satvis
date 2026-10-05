@@ -89,6 +89,7 @@ struct ContentView: View {
                     }
                 }
                 ToolRow("Map") { MapMenu(session: session) }
+                ToolRow("Settings") { SettingsMenu(session: session) }
             }
             .padding()
         }
@@ -334,7 +335,16 @@ private struct MapMenu: View {
                         session.leaveSky()
                     }
                 })
-            Divider()
+        }
+    }
+}
+
+/// What concerns the app rather than the view: measuring it, and what it counts.
+private struct SettingsMenu: View {
+    let session: Session
+
+    var body: some View {
+        Menu("Settings", image: .lucideSettings) {
             Toggle(
                 "Show performance",
                 isOn: Binding {

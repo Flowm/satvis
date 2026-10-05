@@ -71,7 +71,7 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(stamp.label.contains("19:22"), "The clock read \(stamp.label)")
     }
 
-    // The web app's `fps=true` shows the performance overlay; the Map menu
+    // The web app's `fps=true` shows the performance overlay; the Settings menu
     // switches it off.
     @MainActor
     func testShowsPerformanceFromALink() {
@@ -79,7 +79,7 @@ nonisolated class SatvisUITests: XCTestCase {
         let overlay = app.descendants(matching: .any)["Performance"]
         XCTAssert(overlay.waitForExistence(timeout: 30))
         app.buttons["Menu"].tap()
-        app.buttons["Map"].tap()
+        app.buttons["Settings"].tap()
         app.descendants(matching: .any)["Show performance"].firstMatch.tap()
         XCTAssert(overlay.waitForNonExistence(timeout: 5))
     }
