@@ -60,8 +60,7 @@ struct ClockDeck<Accessory: View>: View {
     private var controlRow: some View {
         HStack(spacing: Metrics.gap) {
             HStack(spacing: 0) {
-                accessory
-                Spacer(minLength: Metrics.gap)
+                Spacer(minLength: 0)
                 if isOpen {
                     Button {
                         clock.togglePlaying()
@@ -78,6 +77,14 @@ struct ClockDeck<Accessory: View>: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
+            // Over the column rather than in it, so that however wide it grows it
+            // cannot widen the column, push the clock off the needle and out of
+            // its tab; it has the room the play button leaves.
+            .overlay(alignment: .leading) {
+                accessory
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.trailing, isOpen ? Metrics.playBox + Metrics.gap : Metrics.gap)
+            }
 
             Button {
                 withAnimation(.snappy) {
@@ -173,14 +180,19 @@ nonisolated private struct DeckShape: Shape {
         guard isOpen else {
             return Path(roundedRect: tab, cornerRadius: radius)
         }
+        // On a screen too narrow for the tab and its fillets, the tab keeps clear
+        // of the row's own rounded corners rather than run its curves into them.
+        let tabMinX = max(tab.minX, rect.minX + 2 * radius)
+        let tabMaxX = min(tab.maxX, rect.maxX - 2 * radius)
+        let clear = CGRect(x: tabMinX, y: tab.minY, width: max(tabMaxX - tabMinX, 2 * radius), height: tab.height)
         let top = rect.minY + tabHeight
         var path = Path()
         path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
         // Corner by corner, clockwise from the bottom left; each arc is tangent to
         // the edges either side, which makes the two under the tab concave.
         let corners = [
-            CGPoint(x: rect.minX, y: top), CGPoint(x: tab.minX, y: top), CGPoint(x: tab.minX, y: tab.minY),
-            CGPoint(x: tab.maxX, y: tab.minY), CGPoint(x: tab.maxX, y: top), CGPoint(x: rect.maxX, y: top),
+            CGPoint(x: rect.minX, y: top), CGPoint(x: clear.minX, y: top), CGPoint(x: clear.minX, y: clear.minY),
+            CGPoint(x: clear.maxX, y: clear.minY), CGPoint(x: clear.maxX, y: top), CGPoint(x: rect.maxX, y: top),
         ]
         for (corner, next) in zip(corners, corners.dropFirst() + [CGPoint(x: rect.maxX, y: rect.maxY)]) {
             path.addArc(tangent1End: corner, tangent2End: next, radius: radius)

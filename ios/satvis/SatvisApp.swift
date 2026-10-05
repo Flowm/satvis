@@ -147,7 +147,9 @@ struct ContentView: View {
                     .shadow(color: .black, radius: 2)
                     .padding(.leading, 8)
                     .lineLimit(1)
-                    .fixedSize()
+                    // Larger text, up to the room left of the play button.
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    .minimumScaleFactor(0.6)
             }
             .frame(maxWidth: .infinity)
         }
