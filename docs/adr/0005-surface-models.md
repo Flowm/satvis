@@ -4,16 +4,15 @@ status: accepted
 
 # Surface models are one selection with two shapes
 
-The sky view stands on the ground and looks up. What is missing there is the ground
-itself: the buildings around you are what tells you where you are standing, and what a
-satellite low in the sky is actually behind. So the Map menu gains a third group beside
-Layers and Terrain — `None`, `OsmBuildings`, `GooglePhotorealistic`, at most one, none by
-default.
+The sky view stands on the ground and looks up. What it lacks is the ground: the
+buildings around you tell you where you stand, and what a low satellite is behind.
+So the Map menu has a third group beside Layers and Terrain: `None`, `OsmBuildings`,
+`GooglePhotorealistic`, at most one, none by default.
 
-The name is **surface model**, not "buildings", because only one of the two is buildings.
-Cesium OSM Buildings is extruded footprints and nothing else. Google Photorealistic 3D
-Tiles is a photogrammetry mesh of ground, vegetation and buildings together — it does not
-sit on the globe, it _replaces_ the part of it you can see.
+The name is **surface model**, not "buildings", because only one of the two is
+buildings. Cesium OSM Buildings is extruded footprints only. Google Photorealistic 3D
+Tiles is a photogrammetry mesh of ground, vegetation and buildings together: it does
+not sit on the globe, it _replaces_ the visible part of it.
 
 That asymmetry is most of this design.
 
@@ -21,251 +20,238 @@ That asymmetry is most of this design.
 
 ### Picking Google hides the globe, and suppresses rather than overwrites
 
-Cesium's own guidance is `globe.show = false` with the photorealistic mesh; leaving the
-globe up means the ellipsoid and its imagery z-fighting the mesh, and terrain spiking
-through rooftops. Hiding it makes two other Map-menu groups describe nothing.
+Cesium's guidance is `globe.show = false` with the photorealistic mesh. With the globe
+up, the ellipsoid and its imagery z-fight the mesh and terrain spikes through roofs.
+Hiding it makes two other Map-menu groups describe nothing.
 
-Those selections are **suppressed, not rewritten** — the same trade `suppressCameraMode`
-makes for `?camera=Inertial` and `suppressComponent("Orbit")` makes across a morph. The
-store and the URL keep what the user chose, deselecting gives back exactly what was there,
-and no history entry is pushed for a change nobody asked for. The menu dims the inert
-groups instead, so it never claims to describe a picture it is not describing.
+Those selections are **suppressed, not rewritten**, the same trade
+`suppressCameraMode` makes for `?camera=Inertial` and `suppressComponent` makes for
+the orbit components across a morph. The store and the URL keep the user's choice,
+deselecting gives back exactly what was there, and no history entry is pushed for a
+change nobody asked for. The menu dims the inert groups, so it never claims to
+describe a picture it is not describing.
 
 ### An inert control shows what is in force, and an imposed one declines the click
 
-Dimming alone turned out not to be enough for terrain, and the difference is worth
-recording because it looks like an inconsistency.
+For terrain, dimming was not enough, and the difference looks like an
+inconsistency.
 
-A hidden globe leaves the imagery and terrain choices **still the user's** — they simply
-are not being drawn — so those controls stay live and only dim. An **imposed** terrain is
-different in kind: the radio was still reporting the stored choice, so selecting OSM
-Buildings left a green dot on `None` while World Terrain was what the globe was drawing.
-That is not a stale label, it is a control stating something untrue. So while a terrain is
-imposed, the dot follows the terrain **in force** and the rows are disabled: a control that
-accepts a click and changes nothing visible is worse than one that declines it. The note
-beneath then names both the imposition and the terrain that returns, because the stored
-choice is no longer shown by the radio and would otherwise be stated nowhere.
+A hidden globe leaves the imagery and terrain choices **still the user's**; they are
+just not drawn. So those controls stay live and only dim. An **imposed** terrain is
+different: the radio kept reporting the stored choice, so selecting OSM Buildings left
+the dot on `None` while World Terrain was drawn. That is a control stating something
+untrue. So while a terrain is imposed, the dot follows the terrain **in force** and
+the rows are disabled; a control that accepts a click and changes nothing visible is
+worse than one that declines it. The note beneath names the imposition and the
+terrain that returns, because the radio no longer shows the stored choice.
 
-The terrain provider is deliberately left assigned while the globe is hidden, which looks
-like an omission and is not: a hidden globe short-circuits `Globe.update`, `beginFrame`,
-`render` and `endFrame`, so not one terrain tile is selected, requested or drawn. There is
-nothing left to switch off, and dropping the provider would only cost a re-fetch on the way
-back.
+The terrain provider stays assigned while the globe is hidden. A hidden globe
+short-circuits `Globe.update`, `beginFrame`, `render` and `endFrame`, so no terrain
+tile is selected, requested or drawn. There is nothing to switch off, and dropping
+the provider would only cost a re-fetch on the way back.
 
 ### OSM Buildings forces Cesium World Terrain
 
-Its heights assume that terrain, and Cesium has no ground-clamping for tilesets. Paired
-with anything else the buildings float or sink by the difference — metres in flat country,
-far more in the mountains, and worst of all directly under a sky-view observer. So
-selecting it imposes `CesiumWorldTerrain` for as long as it is up, through the same
-suppression path. World Terrain is also offered as an ordinary terrain option, which is
-what makes the imposition legible rather than mysterious.
+Its heights assume that terrain, and Cesium has no ground clamping for tilesets. On
+any other terrain the buildings float or sink by the difference: metres in flat
+country, more in the mountains, and worst directly under a sky-view observer. So
+selecting it imposes `CesiumWorldTerrain` while it is up, through the same
+suppression path. World Terrain is also an ordinary terrain option, which makes the
+imposition legible.
 
-The imposition survived being questioned, and the answer is measured rather than assumed.
-Sampling both terrains at ten cities, Re:Earth's ground sits consistently _lower_ than
-World Terrain's — Denver −0.1 m, San Francisco +0.1 m, Zurich −2.5 m, Innsbruck −2.8 m,
-Tokyo −4.3 m, Cape Town −5.4 m, Munich −9.0 m, Grindelwald −9.5 m, La Paz −10.1 m, Berlin
-−12.9 m. Since the buildings' feet are baked at World Terrain height, pairing them with
-Re:Earth leaves them hovering by that amount: about four storeys in Berlin, at eye level,
-in the one view this feature exists for. The gap could be corrected by shifting the tileset
-by the difference sampled at the observer, and that was considered and declined — it would
-fetch World Terrain even for someone who chose Re:Earth to stay off ion, and it would only
-hold near the observer.
+The imposition was questioned and measured. Sampling both terrains at ten cities,
+Re:Earth's ground sits consistently _lower_ than World Terrain's: Denver −0.1 m, San
+Francisco +0.1 m, Zurich −2.5 m, Innsbruck −2.8 m, Tokyo −4.3 m, Cape Town −5.4 m,
+Munich −9.0 m, Grindelwald −9.5 m, La Paz −10.1 m, Berlin −12.9 m. The buildings' feet
+are baked at World Terrain height, so on Re:Earth they hover by that amount: about
+four storeys in Berlin, at eye level, in the one view this feature is for. Shifting
+the tileset by the difference sampled at the observer was considered and declined: it
+would fetch World Terrain for someone who chose Re:Earth to stay off ion, and it would
+hold only near the observer.
 
 ### Where each model applies is data, and one of the two rules is about money
 
-Neither model applies in 2D or Columbus. Cesium does not refuse a tileset there —
-`Cesium3DTile` carries a 2D screen-space-error branch — so this is a choice: paying full
-tile bandwidth for geometry that reads as broken is worse than drawing nothing.
+Neither model applies in 2D or Columbus. Cesium does not refuse a tileset there
+(`Cesium3DTile` has a 2D screen-space-error branch), so this is a choice: full tile
+bandwidth for geometry that looks broken is worse than nothing.
 
-`GooglePhotorealistic` is the **sky view only**, and that is a cost decision rather than a
-technical one. It bills through Google's Map Tiles API per request against our ion account,
-and satvis.space is public with the token committed. From a fixed viewpoint looking up,
-tile loading is bounded by where the observer stands; on the globe it is bounded only by how
-far someone cares to fly. OSM Buildings is a standard ion asset serving small tiles, so it
-applies in 3D as well.
+`GooglePhotorealistic` is **sky view only**, for cost, not for a technical reason. It
+bills through Google's Map Tiles API per request against our ion account, and
+satvis.space is public with the token committed. From a fixed viewpoint looking up,
+tile loading is bounded by where the observer stands; on the globe it is bounded only
+by how far someone flies. OSM Buildings is a standard ion asset with small tiles, so it
+applies in 3D too.
 
-Both rules live as `viewModes` on the registry entry, so widening either is one line — which
-is the point: this can be relaxed once real usage is known.
+Both rules are `viewModes` on the registry entry, so widening either is one line. They
+can be relaxed once real usage is known.
 
 ### The sky view needed a new source for the ground under it
 
-`SkyView` read `globe.getHeight` every frame, which is free and correct while the globe is
-being drawn. With the globe hidden the honest answer becomes `undefined`, and the fallback
-left the eye at ellipsoid height — some 560 m _inside_ the mesh in Munich, looking at the
-underside of the ground, a view that never recovers on its own.
+`SkyView` read `globe.getHeight` every frame, which is free and correct while the
+globe is drawn. With the globe hidden it returns `undefined`, and the fallback left
+the eye at ellipsoid height: about 560 m _inside_ the mesh in Munich, looking at the
+underside of the ground, a view that never recovers.
 
-So `SkyView` takes an optional `GroundHeightSource`, asked once per observer rather than
-per frame, and the surface model answers it with `clampToHeightMostDetailed`. Two
-consequences worth stating:
+So `SkyView` takes a `GroundHeightSource`, asked once per observer, not per frame,
+and the surface model answers it with `clampToHeightMostDetailed`. Two consequences:
 
-- It clamps to the **top** of whatever is there, so standing where a building stands puts
-  the eye on its roof. That is also the only outcome that never buries the view, which is
-  why it was preferred to sampling the ground beneath.
-- The plausibility guard that existed for `getHeight` now earns its keep twice: the clamp
-  answers against any scene geometry above the point, and a satellite's own 3D model
-  passing overhead is scene geometry.
+- It clamps to the **top** of whatever is there, so standing where a building stands
+  puts the eye on its roof. That is the only outcome that never buries the view, which
+  is why it was preferred to sampling the ground beneath.
+- The plausibility guard written for `getHeight` matters twice now: the clamp answers
+  against any scene geometry above the point, and a satellite's 3D model passing
+  overhead is scene geometry.
 
-That source is now permanent and covers every case — surface model, terrain, bare
-ellipsoid — rather than being installed only while a model is up, and it is asked again
-whenever what the observer stands on changes. The per-frame `globe.getHeight` is a fallback
-of last resort, because _following_ it is what made enabling OSM Buildings in the sky view
-lurch: it answers from whichever tile is loaded, so the eye rose in steps as terrain
-refined, once per better answer.
+The source is permanent and covers every case (surface model, terrain, bare
+ellipsoid), and it is asked again whenever what the observer stands on changes. The
+per-frame `globe.getHeight` is a fallback of last resort, because _following_ it made
+enabling OSM Buildings in the sky view lurch: it answers from whichever tile is
+loaded, so the eye rose in steps as terrain refined.
 
-The flip was worse and had a different cause. Imposing World Terrain replaces the ground
-under the observer, and a height that arrives a beat after the terrain does leaves the eye
-_under_ the new surface for that beat — 570 m under it in Munich, coming from the
-ellipsoid. Inside the terrain you are looking at its underside, which does not read as a
-lag but as the world turning inside out. So the terrain swap now measures the new provider
-at the observer _before_ handing it to the viewer, and sets the height in the same breath.
-Traced across the change: two eye heights, 2 m then 572.8 m, one transition, in the same
-frame the provider changes.
+The flip had a different cause. Imposing World Terrain replaces the ground under the
+observer, and a height that arrives a beat after the terrain leaves the eye _under_
+the new surface for that beat (570 m under it in Munich). From inside the terrain you
+see its underside, which reads as the world turning inside out. So the terrain swap
+measures the new provider at the observer _before_ handing it to the viewer, and sets
+the height at the same time. Traced: two eye heights, 2 m then 572.8 m, one
+transition, in the frame the provider changes.
 
 ### On the ground, buildings are only worth loading as far as you can see
 
-Cesium rolls a tileset's screen-space error off with camera distance —
-`dynamicScreenSpaceError`, on by default in 1.143 — but its defaults are sized for looking
-_down_ at a city. From a fixed point two metres above the pavement they keep refining
-buildings out to some 5.2 km, which buys tiles behind buildings you cannot see past.
+Cesium rolls a tileset's screen-space error off with camera distance
+(`dynamicScreenSpaceError`, on by default), but its defaults are sized for looking
+_down_ at a city. From two metres above the pavement they refine buildings out to
+about 5.2 km, which buys tiles behind buildings you cannot see past.
 
-In the sky view, and only there, OSM Buildings gets a sharper roll-off: density 8.0e-4 and
-factor 48 instead of 2.0e-4 and 24. The numbers are derived, not chosen — the reduction at
-distance `d` is `factor * (1 - exp(-(d * density)^2))` and refinement stops once that
-reaches the 16-pixel maximum error, which puts the edge at about 800 m.
+In the sky view only, OSM Buildings gets a sharper roll-off: density 8.0e-4 and factor
+48 instead of 2.0e-4 and 24. The numbers are derived: the reduction at distance `d` is
+`factor * (1 - exp(-(d * density)^2))`, and refinement stops once that reaches the
+16-pixel maximum error, which puts the edge at about 800 m.
 
-Measured on the same camera at Marienplatz, both settled: 34.38 MB of geometry across 34
-tiles capped, against 39.73 MB across 40 tiles at the defaults. **A 13% saving, not a
-transformation** — worth having, and worth stating plainly, because the remaining 34 MB is
-the neighbourhood you are standing in and there is no way to cut that without deleting
-buildings you can see.
+Measured on one camera at Marienplatz, settled: 34.38 MB across 34 tiles capped,
+against 39.73 MB across 40 tiles at the defaults. **A 13% saving, not a
+transformation.** The remaining 34 MB is the neighbourhood you stand in, and it cannot
+be cut without deleting buildings you can see.
 
-The cost is real and was accepted knowingly: OSM Buildings refines _additively_, so beyond
-the edge distant buildings are absent rather than coarse. It is invisible at street level
-because the near buildings occlude that distance anyway, and it would not be invisible from
-a rooftop.
+The cost was accepted knowingly: OSM Buildings refines _additively_, so beyond the
+edge distant buildings are absent, not coarse. At street level the near buildings hide
+that distance anyway. From a rooftop it would show.
 
-Not applied to the photorealistic mesh, which _is_ the ground — capping its radius would
-delete the horizon rather than some buildings behind other buildings.
+The photorealistic mesh does not get this roll-off. It _is_ the ground, and capping
+its radius would delete the horizon, not just buildings behind other buildings.
 
-On the globe the roll-off stays at Cesium's defaults, and a **hard ceiling** does the
-withholding instead: above 2 km the OSM Buildings tileset is simply hidden. That is a
-different mechanism on purpose. `show = false` is the one setting Cesium treats as nothing
-to do — it skips the whole of `Cesium3DTileset.updateForPass`, and `preloadWhenHidden` is
-off by default — so a hidden tileset issues _no_ requests, where turning the error screw
-can only ever issue fewer. 2 km is roughly where a five-storey block stops being legible
-looking down, at about ten pixels tall.
+On the globe the roll-off stays at Cesium's defaults, and a **hard ceiling** withholds
+the tileset instead: above the ceiling the OSM Buildings tileset is hidden. This is a
+different mechanism on purpose. `show = false` is the one setting Cesium treats as
+nothing to do: it skips all of `Cesium3DTileset.updateForPass`, and
+`preloadWhenHidden` is off by default, so a hidden tileset makes _no_ requests, where
+tuning the error can only make fewer.
 
-Verified at three altitudes, same city: 9,261 km hidden with 0 tiles visited and 0 MB;
-2,500 m hidden, 0 and 0; 1,400 m shown, 35 tiles, 44 MB. Below the ceiling buildings fill
-in at the usual radius, which is what keeps an ordinary 3D city view worth having, and the
-ceiling is lifted entirely in the sky view rather than merely satisfied by standing on the
-ground.
+The ceiling was first 2 km, roughly where a five-storey block stops being legible
+looking down (about ten pixels tall). Measured then at three altitudes over one city:
+9,261 km hidden, 0 tiles, 0 MB; 2,500 m hidden, 0 and 0; 1,400 m shown, 35 tiles,
+44 MB. Below the ceiling buildings fill in at the usual radius, which keeps an
+ordinary 3D city view worth having. In the sky view the ceiling is lifted entirely,
+not just satisfied by standing on the ground.
+
+The ceiling is now **1 km above the _ground_** (`GLOBE_BUILDING_CEILING` in
+`src/modules/SurfaceModel.ts`). Measured from the ellipsoid, a 1 km ceiling would put
+La Paz 2.6 km over it with its buildings permanently absent. The last believable
+ground height is kept, as the sky view keeps its own, because while terrain arrives
+`getHeight` answers nothing or nonsense (a coarse tile has returned −76594), and
+reading that as sea level would make the gate strictest while it knows least.
 
 ### What else the bandwidth went on
 
-Four further savings, in descending order of what they are worth.
+Four more savings, most valuable first.
 
-**The mesh waits for the descent to land.** Entering the sky view is a flight from
-wherever the camera was down to the pavement, and the photorealistic mesh was added the
-moment the view mode changed — so it streamed a corridor of photogrammetry for altitudes
-the camera passes through in two seconds. It is now withheld until `SkyView.settled`, and
-the globe stands in until then, which is why `#syncGlobe` asks whether the tileset is
-_shown_ rather than whether it exists. Measured: 0 MB of mesh during the descent, requests
-starting on landing.
+**The mesh waits for the descent to land.** Entering the sky view is a flight down to
+the pavement, and the mesh used to be added the moment the view mode changed, so it
+streamed photogrammetry for altitudes the camera passes in two seconds. It is now
+withheld until `SkyView.settled`, with the globe standing in until then. That is why
+`#syncGlobe` asks whether the tileset is _shown_, not whether it exists. Measured: 0 MB
+of mesh during the descent, requests starting on landing.
 
-**The mesh skips intermediate levels of detail.** `skipLevelOfDetail` with
-`immediatelyLoadDesiredLevelOfDetail` — "only tiles that meet the maximum screen space
-error will ever be downloaded" — so the chain of coarser tiles that would be fetched and
-then discarded is never fetched. On a tileset some twenty levels deep that should be most
-of the bytes, though the saving is reasoned rather than measured: a clean before-and-after
-needs an uncached city and Google quota. The cost is that a view resolves out of nothing
-rather than out of a blurry stand-in.
+**The mesh skips intermediate levels of detail.** With `skipLevelOfDetail` and
+`immediatelyLoadDesiredLevelOfDetail`, "only tiles that meet the maximum screen space
+error will ever be downloaded", so the chain of coarser tiles is never fetched. On a
+tileset about twenty levels deep that should be most of the bytes. This is reasoned,
+not measured: a clean before-and-after needs an uncached city and Google quota. The
+cost is that a view resolves out of nothing, not out of a blurry stand-in.
 
 **The mesh's error tolerance is 24 everywhere**, up from Cesium's 16, on phones and
-desktops alike. This is the one saving here that costs picture quality rather than only
-patience, and it is acceptable only because the mesh degrades — blurrier, never absent —
-where the same change to OSM Buildings would delete buildings outright.
+desktops alike. This is the one saving that costs picture quality, not only patience.
+It is acceptable because the mesh degrades (blurrier, never absent), where the same
+change to OSM Buildings would delete buildings.
 
-**Neither ion assets nor Google's tiles are cached by the service worker.** Cesium allows
-caching only as "a general caching mechanism for performance that caches other internet
-traffic as well, and not just Cesium Data Output", and Google's Map Tiles policies restrict
-caching `tile.googleapis.com`. So a second sky-view session over the same city pays for its
-tiles again, beyond what ion's own `public, max-age=86400` covers in the browser's cache.
-This is the boundary a runtime rule must not cross.
-
-The OSM ceiling is 1 km rather than 2, and it is measured above the _ground_. That is not
-pedantry: from the ellipsoid, a ceiling of one kilometre puts La Paz permanently 2.6 km
-over it and its buildings permanently absent. The last believable ground height is kept,
-the way the sky view keeps its own, because while terrain is still arriving `getHeight`
-answers either nothing or nonsense — a coarse tile under the camera has been observed
-returning -76594 — and treating that as sea level would make the gate strictest exactly
-while it is least informed.
+**The service worker caches neither ion assets nor Google's tiles.** Cesium allows
+caching only as "a general caching mechanism for performance that caches other
+internet traffic as well, and not just Cesium Data Output", and Google's Map Tiles
+policies restrict caching `tile.googleapis.com`. So a second sky-view session over the
+same city pays for its tiles again, beyond ion's own `public, max-age=86400` in the
+browser cache. A runtime caching rule must not cross this boundary.
 
 ### The matrix is Cesium-free and tested
 
-Everything above is one pure function, `surfaceEffects(surfaceModel, viewMode)`, in
-`src/config/surfaceModels.ts`. The menu's dimming and the scene's contents are derived from
-the same call, so a rule cannot hold in the renderer and quietly not in the UI.
-`src/modules/SurfaceModel.ts` is then a thin executor: create, add, hide, measure, destroy.
+The rules above are one pure function, `surfaceEffects(surfaceModel, viewMode)`, in
+`src/config/surfaceModels.ts`. The menu's dimming and the scene's contents come from
+the same call, so a rule cannot hold in the renderer and not in the UI.
+`src/modules/SurfaceModel.ts` is a thin executor: create, add, hide, measure, destroy.
 
-The menu's _sentences_ are derived as well, by `viewModeNote`, and that is not fussiness.
-The note explaining why a model did not apply was first written out by hand in the
-template — which made "widening `viewModes` is one line" false, since the second line was
-a sentence elsewhere that would then assert a restriction no longer in force. A rule stated
-twice is a rule that will disagree with itself.
+The menu's sentences are derived too, by `viewModeNote`. The note was first written by
+hand in the template, which made "widening `viewModes` is one line" false: the second
+line was a sentence elsewhere that would then state a restriction no longer in force.
 
 ### An ion token is committed
 
-`src/config/ion.ts` carries a token restricted at ion to satvis.space, so production works
-from a clean checkout and the token is useless to anyone who lifts it out of the repository
-— the same trade the MapTiler key beside it already makes. `.env.production` could not
-serve this purpose: it is gitignored, so a CI build would silently ship no token at all.
+`src/config/ion.ts` carries a token restricted at ion to satvis.space, so production
+works from a clean checkout and the token is useless to anyone who copies it out of
+the repository. The MapTiler key makes the same trade. `.env.production` could not do
+this: it is gitignored, so a CI build would ship no token.
 
-That restriction is also why `VITE_CESIUM_ION_TOKEN` exists: ion rejects the committed
-token on localhost, on `deploy:preview` origins, and in iframes on foreign domains. It is
-set globally as `Ion.defaultAccessToken` because `createGooglePhotorealistic3DTileset`
-resolves its ion asset through `IonResource.fromAssetId` internally, with no way in for a
-token of ours.
+That restriction is why `VITE_CESIUM_ION_TOKEN` exists: ion rejects the committed
+token on localhost, on `deploy:preview` origins, and in iframes on foreign domains. It
+is set globally as `Ion.defaultAccessToken`, because
+`createGooglePhotorealistic3DTileset` resolves its ion asset through
+`IonResource.fromAssetId` internally, with no way to pass a token.
 
 ### A failure reverts the selection
 
-Unlike the offline-imagery fallback there is no equivalent asset to swap in, so a tileset
-that fails to create puts the selection back to `None` and says why in a toast. The
-commonest cause is a token this origin is not allowed to use, and nothing else in the UI
-would explain that.
+There is no equivalent asset to swap in, so a tileset that fails to create puts the
+selection back to `None` and says why in a toast. The commonest cause is a token this
+origin may not use, and nothing else in the UI would explain that.
 
-Per-tile failures only warn — one 403 tile is not grounds for tearing the whole surface
-down — and only once per tileset. The causes that produce one failed tile produce hundreds,
-and a console flooded with them says no more than a console with a single line in it.
+Per-tile failures only warn, once per tileset. One 403 tile is no reason to tear down
+the surface, and the causes that fail one tile fail hundreds; a flooded console says
+no more than one line.
 
 ## Consequences
 
-- **The photorealistic mesh is tuned down from Cesium's defaults** — 1.5 GB of tile cache
-  plus a 1 GB overflow is sized for a desktop flying the globe, not a phone standing still.
-  It also runs with `dynamicScreenSpaceError`, which Cesium recommends for photogrammetry,
-  and `showCreditsOnScreen: true`, following Google's Map Tiles policies rather than
-  Cesium's reading of them. "Constrained" is iOS **or a coarse pointer** — the pointer test
-  is what catches Android, which an iOS check alone silently gave the desktop budget to —
-  and it is not an iframe test, because an embed on a desktop has a desktop's memory. The
-  screen-space error is relaxed on those devices only; the desktop keeps Cesium's default,
-  so the desktop is not asked to give up any detail. `enableCollision` stays at Cesium's default `true`: with the
-  globe hidden, the mesh is the only thing stopping the camera dropping through the ground.
-- **Ground-clamped overlays still work under the mesh.** Verified rather than assumed: the
-  ground-track corridor's `classificationType` defaults to `BOTH`, and with no globe depth
-  to classify against it drapes onto the tileset instead — running down the street and
-  correctly occluded by the buildings either side. Where the mesh has no coverage there is
-  nothing to drape on, but there is no globe there either.
-- **A ground-station pin was buried and now is not.** Stations are placed at height 0, so
-  the pin sat below any real surface. It was already wrong under terrain; the mesh made it
-  obvious. Now clamped.
+- **The photorealistic mesh's cache is reduced** from Cesium's defaults for this
+  tileset (1.5 GB plus a 1 GB overflow, sized for a desktop flying the globe, not a
+  phone standing still), and more so on constrained devices. "Constrained" is iOS **or
+  a device that cannot hover** (`hover: none`), which catches Android where an iOS
+  check alone gave it the desktop budget. It is not an iframe test, because an embed
+  on a desktop has a desktop's memory. The mesh also runs with
+  `dynamicScreenSpaceError`, which Cesium recommends for photogrammetry, and
+  `showCreditsOnScreen: true`, following Google's Map Tiles policies, not Cesium's
+  reading of them. `enableCollision` stays at Cesium's default `true`: with the globe
+  hidden, the mesh is the only thing that stops the camera dropping through the
+  ground.
+- **Ground-clamped overlays still work under the mesh.** Verified: the ground-track
+  corridor's `classificationType` defaults to `BOTH`, and with no globe depth it drapes
+  onto the tileset, following the street and occluded by the buildings. Where the mesh
+  has no coverage there is nothing to drape on, and no globe either.
+- **Ground-station pins are clamped.** Stations are placed at height 0, so the pin sat
+  below any real surface. That was already wrong under terrain; the mesh made it
+  obvious.
 - **Every visitor can spend our ion quota**, bounded by the sky-view restriction and
-  observable through a PostHog event on **selection**, carrying the view mode. On selection
-  rather than on load, because a choice that failed, or one armed in a view mode that
-  cannot honour it, is exactly the kind of thing worth seeing — and a load-time event both
-  missed those and fired again on every re-entry to the sky view. If the quota proves too
-  generous the restriction tightens in `surfaceModels.ts`; if it proves cheap, 3D opens up
-  the same way.
-- **`?surface=` is carried even where it cannot apply**, so a model can be armed before
-  entering the sky view and `?surface=GooglePhotorealistic&scene=Sky` is a working link.
-  The menu annotates the selected-but-inactive case rather than disabling the control.
+  observed through the PostHog event `surface_model_selected`, which carries the view
+  mode. It fires on **selection**, not on load: a failed choice, or one armed in a
+  view mode that cannot honour it, is worth seeing, and a load-time event missed those
+  and fired again on every sky-view entry. If the quota proves too generous, the
+  restriction tightens in `surfaceModels.ts`; if it proves cheap, 3D opens the same
+  way.
+- **`?surface=` is carried where it cannot apply**, so a model can be armed before
+  entering the sky view, and `?surface=GooglePhotorealistic&scene=Sky` works. The menu
+  annotates the selected-but-inactive case and does not disable the control.
