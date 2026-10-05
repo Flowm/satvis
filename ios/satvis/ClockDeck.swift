@@ -199,7 +199,7 @@ private struct Stamp: View {
         let date = Date(timeIntervalSince1970: time / 1000)
         let utc = Date.FormatStyle(timeZone: .gmt)
         VStack(spacing: 0) {
-            Text(date.formatted(utc.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).second(.twoDigits)))
+            Text(UTCClock.time(date))
                 .font(.system(size: 20, weight: .semibold).monospacedDigit())
             Text("\(date.formatted(utc.weekday(.abbreviated).day(.twoDigits).month(.abbreviated))) UTC")
                 .font(.system(size: 11).monospacedDigit())
@@ -266,9 +266,10 @@ private struct TimelineScale: View {
                     if isMajor {
                         let date = Date(timeIntervalSince1970: at / 1000)
                         let isMidnight = at.truncatingRemainder(dividingBy: 86_400_000) == 0
-                        let utc = Date.FormatStyle(timeZone: .gmt)
-                        let label = date.formatted(
-                            isMidnight ? utc.weekday(.abbreviated).day(.twoDigits).month(.abbreviated) : utc.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits))
+                        let label =
+                            isMidnight
+                            ? date.formatted(Date.FormatStyle(timeZone: .gmt).weekday(.abbreviated).day(.twoDigits).month(.abbreviated))
+                            : UTCClock.hourMinute(date)
                         context.draw(
                             Text(label).font(.system(size: 10)).foregroundStyle(Color.deckInk.opacity(0.6)),
                             at: CGPoint(x: x, y: size.height - 19), anchor: .bottom)
@@ -413,4 +414,23 @@ private enum Metrics {
     static let chipDisc = 30.0
     /// The surface's margin around the controls.
     static let pad = 8.0
+}
+
+/// UTC on a 24-hour clock whatever the locale's: asked of the locale with its
+/// AM and PM left out, a 12-hour one reads 19:00 as 07:00.
+private enum UTCClock {
+    private static let calendar = Calendar(identifier: .gregorian)
+
+    static func time(_ date: Date) -> String {
+        date.formatted(
+            Date.VerbatimFormatStyle(
+                format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits):\(second: .twoDigits)", timeZone: .gmt,
+                calendar: calendar))
+    }
+
+    static func hourMinute(_ date: Date) -> String {
+        date.formatted(
+            Date.VerbatimFormatStyle(
+                format: "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)", timeZone: .gmt, calendar: calendar))
+    }
 }
