@@ -90,9 +90,8 @@ interface WorkerLane {
  * The build drains at the speed of SGP4, which a pool splits. Bounded because the
  * main thread and the pass predictor's worker need cores too.
  *
- * `buildMs` medians against no pool: 27 → 19 at 100, 131 → 60 at 1,000, 562 → 321 at
- * 5,000, 1,508 → 993 at 10,000. Past about 5,000 the main thread's entity creation
- * dominates, so do not read this as a slope.
+ * `buildMs` 562 → 321 ms at 5,000 satellites; past that, entity creation on the main
+ * thread dominates.
  *
  * Only worth it with the rotation in the worker (see sgp4Worker): with the rotation on
  * the main thread, a pool is worse than none at 10,000 (1,295 ms against 988). Four

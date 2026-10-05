@@ -1,4 +1,4 @@
-// Against a catalog fed by stubbed fetches.
+// The row model and search state, against a catalog fed by stubbed fetches.
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 

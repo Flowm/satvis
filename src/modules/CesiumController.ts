@@ -308,8 +308,8 @@ export class CesiumController {
   }
 
   /**
-   * No "already applied" short-circuit: one set before the await made a terrain
-   * host that hangs unselectable for good.
+   * No "already applied" short-circuit. One that marked the name before the await
+   * made a terrain host that hangs impossible to select again.
    */
   async #applyTerrain(name: string, isCurrent: () => boolean): Promise<void> {
     try {
@@ -559,7 +559,7 @@ export class CesiumController {
     this.viewer.resolutionScale = resolutionScaleFor(ratio, window.devicePixelRatio);
   }
 
-  /** `MSAA_RATES`. Setting the sample count requests no frame by itself. */
+  /** One of `MSAA_RATES`. Changing the sample count requests no frame, hence the explicit render. */
   set msaa(rate: string) {
     if (!(MSAA_RATES as readonly string[]).includes(rate)) {
       console.error("Unknown MSAA rate");

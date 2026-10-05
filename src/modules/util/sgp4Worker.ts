@@ -110,8 +110,8 @@ export function sampleInterval(satrec: satellitejs.SatRec, satnum: string, fromE
     return { satnum, anchorEpochMs: anchor, firstIndex, startEpochMs, stepSeconds, positionsFixed: new Float64Array(0), refusedIndices: [] };
   }
 
-  // Rotate at `trunc(anchor)`, where the consumer files sample i: the anchor reaches a
-  // JulianDate only through `Date`. The untruncated instant is up to 4.3 cm off.
+  // Rotate at `trunc(anchor)`: the consumer turns the anchor into a JulianDate through
+  // `Date`, which drops sub-millisecond digits. The untruncated instant is up to 4.3 cm off.
   const rotationAnchorMs = Math.trunc(anchor);
   const rotation: FixedRotation = { cos: 1, sin: 0 };
   const positionsFixed = new Float64Array(sampleCount * 3);

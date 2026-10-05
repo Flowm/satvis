@@ -119,7 +119,6 @@ export function nearestTarget(targets: readonly SkyTarget[], center: Cartesian2,
   return inReach.toSorted((a, b) => a.distance - b.distance).find(({ target }) => !hidden(target))?.target;
 }
 
-/** For the detail card. */
 export function compassPoint(azimuth: number): string {
   const points = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
   const index = Math.round(normalizeAzimuth(azimuth) / 22.5) % points.length;

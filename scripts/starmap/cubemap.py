@@ -45,7 +45,8 @@ FACES: dict[str, Callable[[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray
 
 FACE_ORDER = ["px", "mx", "py", "my", "pz", "mz"]
 
-# The luminance percentile that auto exposure puts at the tone curve's knee.
+# Where auto exposure puts the tone curve's knee: high enough that only stars sit
+# above it, low enough that the Milky Way is not crushed against it.
 EXPOSURE_PERCENTILE = 99.99
 
 # A face's median level is 13, so JPEG's dark blocking and star ringing dominate.
@@ -481,7 +482,8 @@ def build(src: np.ndarray, size: int, ss: int, exposure: float, feather: int, ou
     mean, p99 = edge_step(faces, pairs, exposure)
     print(f"  edge step before: mean {mean:.2f}, p99 {p99:.2f} levels", flush=True)
     if feather:
-        # A texel count, not an angle: both sides of the trade it was tuned on are counted in texels.
+        # A texel count, not an angle: a ramp steep enough to read as a line and a
+        # correction reaching far enough are both measured in texels.
         match_edges(faces, pairs, feather)
         mean, p99 = edge_step(faces, pairs, exposure)
         print(f"  edge step after:  mean {mean:.2f}, p99 {p99:.2f} levels ({feather}-texel feather)", flush=True)

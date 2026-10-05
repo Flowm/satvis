@@ -100,7 +100,7 @@ export class GridPositionProperty {
     this._definitionChanged.raiseEvent(this);
   }
 
-  /** Also releases the buffer. */
+  /** Empties the grid and releases its buffer. */
   clear(): void {
     this.#firstIndex = 0;
     this.#count = 0;

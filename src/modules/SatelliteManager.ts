@@ -46,7 +46,6 @@ const BUILD_BUDGET_MS = 16;
 /** Below this a build runs synchronously; the default 74-satellite scene fits in one budget anyway. */
 const BUILD_SYNCHRONOUS_LIMIT = 250;
 
-/** Everything the globe should show, as decided by the store. */
 export interface DesiredScene {
   enabledTags: string[];
   enabledSatellites: string[];
@@ -323,8 +322,8 @@ export class SatelliteManager {
       this.#tracksRefreshedAt = time;
     }
     const tracksDue = !this.tracks.pending && stale(this.#tracksRefreshedAt);
-    // Asked before `stale`: the rebuild is timed by when it is seen to land, and a
-    // late first look doubles the interval.
+    // Called every frame, not only once stale: it records the frame the rebuild landed
+    // on, and a late first look would overstate the rebuild and stretch the wait.
     const groundTracksRested = this.#groundTracksRested();
     const groundTracksDue = groundTracksRested && stale(this.#groundTracksRefreshedAt);
     if (!tracksDue && !groundTracksDue) {
@@ -428,7 +427,8 @@ export class SatelliteManager {
    * 5,000 satellites froze one frame for 908 ms (points) to 1,617 ms (orbits).
    */
   #build(): void {
-    // A mid-build reconcile calls straight in; the booked frame would spend a second budget.
+    // A reconcile mid-build calls #build directly; cancel the frame already booked,
+    // or this frame spends two budgets.
     if (this.#buildHandle !== undefined) {
       cancelAnimationFrame(this.#buildHandle);
       this.#buildHandle = undefined;

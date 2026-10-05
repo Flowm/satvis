@@ -12,7 +12,7 @@ export default defineConfig({
       wrangler: { configPath: "./wrangler.jsonc" },
       miniflare: {
         kvNamespaces: ["GP_KV"],
-        // Secrets are not in wrangler.jsonc.
+        // Stands in for the REFRESH_TOKEN secret, which wrangler.jsonc does not carry.
         bindings: { REFRESH_TOKEN: "test-refresh-token" },
         // ../dist may hold local-only models over the Workers asset size limit.
         assets: { directory: emptyAssets },

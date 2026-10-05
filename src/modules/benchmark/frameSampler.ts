@@ -67,8 +67,6 @@ export interface FrameSample {
    *   the offset to about 1%.
    * - `max - min` is the allocation rate, and repeats: 13 MB at 0 satellites,
    *   24 MB at 1,000, 31 MB at 5,000.
-   *
-   * An absolute figure needs a forced GC (DevTools, or `HeapProfiler.collectGarbage` over CDP).
    */
   heap: SeriesStats | undefined;
   jankFrames: number;

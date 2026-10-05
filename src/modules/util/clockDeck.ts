@@ -108,7 +108,7 @@ export const nearestRung = (scrollLeft: number, chipPx: number = CHIP_PX): numbe
 
 export const arrowStep = (key: string): number => (key === "ArrowRight" ? 1 : key === "ArrowLeft" ? -1 : 0);
 
-/** So a url-set speed off the ladder still steps sensibly. */
+/** The rung nearest `multiplier`, so a url-set speed off the ladder still steps sensibly. */
 export function rungFor(multiplier: number): number {
   return LADDER.reduce((best, value, at) => (Math.abs(value - multiplier) < Math.abs(LADDER[best]! - multiplier) ? at : best), 0);
 }

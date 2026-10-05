@@ -67,7 +67,8 @@ export function starMapRecovery(name: string): string | undefined {
 const probes = new Map<string, Promise<boolean>>();
 
 /**
- * Narrows the menu only; the url vocabulary stays wide and sceneSync falls back.
+ * Narrows the menu only; the url vocabulary stays wide and sceneSync falls back to
+ * BUILTIN_STAR_MAP.
  *
  * A ranged `GET`, not a `HEAD`: the Cache API ignores non-GET requests, and a cache
  * hit returns the whole stored face, which keeps the offline case working. The

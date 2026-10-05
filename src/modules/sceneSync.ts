@@ -178,7 +178,8 @@ export function startSceneSync(cc: SceneTarget): void {
       return;
     }
 
-    // Inertial is suppressed, tracking cleared (docs/adr/0003-sky-view.md).
+    // Inertial is suppressed, not cleared, so ?camera=Inertial survives. Tracking is
+    // cleared: there is nothing to come back to (docs/adr/0003-sky-view.md).
     cc.suppressCameraMode();
     satStore.trackedSatellite = "";
     // Untrack first, so the sky view starts from a pose in world coordinates.

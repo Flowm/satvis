@@ -129,7 +129,7 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
 
   #preUpdateAt = 0;
 
-  /** The clock tick that preceded the frame being rendered. */
+  /** Duration of the clock tick that preceded this frame; see #instrumentClockTick. */
   #tickMs = 0;
 
   /** `EXT_disjoint_timer_query_webgl2`. */
@@ -337,6 +337,7 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     // Real time during the build, or `buildMs` would carry propagation at ×1000.
     clock.multiplier = 1;
 
+    // Clear first, or `buildMs` measures the diff from the previous scene.
     const clearStart = performance.now();
     this.#cc.sats.reconcile(this.#scene([], []));
     const clearMs = performance.now() - clearStart;
@@ -403,8 +404,6 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     //
     //     clock running   1044 MB total (worker 557)   then 1295 MB (window 1106)
     //     clock stopped    550 MB total (worker  51)   then  544 MB (window  357)
-    //
-    // Safe only here, after the sample window has closed.
     const clock = this.#cc.viewer.clock;
     const wasAnimating = clock.shouldAnimate;
     clock.shouldAnimate = false;

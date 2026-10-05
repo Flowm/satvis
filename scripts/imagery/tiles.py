@@ -53,10 +53,11 @@ REF_EXT = "jpg"
 # interpolated, clamped outside. `fit_recolor` takes the conditional median over all
 # 2048 base-level tiles; the spread around it is 1-10 levels.
 #
-# Knots every 16 levels are at most 4 levels off the full curve, and 0.03 in the
-# weighted mean, under the ~2 levels of JPEG noise. No gamma fits: `black + (white-black)*x**g` is 7 levels
-# out at the red quarter tone. The leading flat runs are extrapolated: the source has
-# no red below 53, nor green or blue below ~85.
+# Knots every 16 levels are at most 4 levels off the full curve, under the ~2 levels
+# of JPEG noise in the weighted mean (0.03).
+# No gamma fits: `black + (white-black)*x**g` is 7 levels out at the red quarter tone.
+# The leading flat runs are extrapolated: the source has no red below 53, nor green
+# or blue below ~85.
 #
 # A refit matches these only on the pinned GDAL; 3.14 shifts blue by up to 3 levels.
 RECOLOR = (
@@ -183,8 +184,10 @@ def recolored(tif: str, vrt_path: str) -> str:
 def write_manifest(out_dir: str) -> None:
     """Rewrite the manifest to declare only the committed levels.
 
-    The tracked copy stays byte-identical, and a checkout without the generated
-    levels serves it. `__IMAGERY_MAX_LEVEL__` overrides the depth at build time.
+    gdal2tiles declares every level it built. Trimming to `COMMITTED_ZOOM` keeps the
+    tracked copy byte-identical and true for a checkout without the generated levels.
+    `__IMAGERY_MAX_LEVEL__` raises the depth at build time. Under-promising is
+    deliberate: it costs a soft globe, where promising absent levels would 404 them.
     """
     upp = [f"{0.703125 / 2**z:.14f}" for z in range(COMMITTED_ZOOM + 1)]
     tilesets = "\n".join(f'        <TileSet href="{z}" units-per-pixel="{upp[z]}" order="{z}"/>' for z in range(COMMITTED_ZOOM + 1))

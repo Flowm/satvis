@@ -320,7 +320,8 @@ function applySelectAndRename(records: OmmRecord[], def: GroupDefinition): Selec
     }
   }
 
-  // An unmatched row warns, except a `decayed` one, where only a match warns.
+  // A row warns when it matches no record. A `decayed` row is the reverse: it warns
+  // only when it does match.
   for (let r = 0; r < rows.length; r++) {
     const row = rows[r]!;
     if (row.noradId === undefined) {

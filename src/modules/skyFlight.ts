@@ -55,7 +55,7 @@ export const TOUCHDOWN = 0.8;
 /** Cesium's flight default. Every leg starts and ends at zero rate, which hides the joins. */
 const EASING = EasingFunction.QUINTIC_IN_OUT;
 
-/** Clamped, which is also how a leg is scheduled. */
+/** Eased progress, clamped to [0, 1]; the clamp holds a leg at its ends. */
 export const easeFlight = (t: number): number => EASING(CesiumMath.clamp(t, 0, 1));
 
 /** Zero under reduced motion: a cut, not a shorter flight. */

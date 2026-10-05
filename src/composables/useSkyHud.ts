@@ -27,8 +27,9 @@ export interface TapeTick {
 const STEP_LADDER = [15, 5, 3, 1];
 
 /**
- * Keeps 15° on a landscape desktop at the default zoom and about 3-10 marks elsewhere.
- * Four is worse: at a 17° span it skips 5° and lands on 1°, which gives seventeen marks.
+ * Marks a span must hold before a finer step is chosen. Three keeps 15° on a landscape
+ * desktop at the default zoom and about 3-10 marks elsewhere. Four skips 5° at a 17°
+ * span and lands on 1°, which gives seventeen marks.
  */
 export const TICKS_WANTED = 3;
 

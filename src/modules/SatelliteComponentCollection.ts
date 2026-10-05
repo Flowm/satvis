@@ -306,7 +306,6 @@ export class SatelliteComponentCollection {
     }
 
     if (this.defaultEntity === component) {
-      // Hand the role to whatever is still drawn.
       this.defaultEntity = Object.values(this.#components).find((remaining) => remaining instanceof Entity);
     }
 
@@ -522,7 +521,7 @@ export class SatelliteComponentCollection {
     this.createCesiumSatelliteEntity("3D model", "model", model);
   }
 
-  // The LEO neutral, not white, which outshouted the points.
+  // The LEO point's grey, not white: white labels outshouted the points they named.
   createLabel(): void {
     const label = new LabelGraphics({
       text: this.props.name,
@@ -786,7 +785,7 @@ export class SatelliteComponentCollection {
   }
 
   set groundStations(groundStations: GroundStation[]) {
-    // No pass prediction above a 12 h period.
+    // GEO and above never pass over a station.
     if (this.props.orbit.orbitalPeriod > 60 * 12) {
       return;
     }

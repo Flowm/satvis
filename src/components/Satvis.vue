@@ -357,7 +357,7 @@ function toggleMenu(name: MenuKey) {
 
 function toggleUI() {
   showUI.value = !showUI.value;
-  // The controller hides the fullscreen button.
+  // cc owns the Cesium fullscreen button, which showUI also hides.
   cc.showUI = showUI.value;
 }
 

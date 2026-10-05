@@ -13,8 +13,9 @@ const MINUTES_PER_DAY = 1440;
 const SUN_DEG_PER_DAY = 360 / 365.2422;
 
 /**
- * °/day, about 12 min of local-time drift per month and a ±0.5° inclination window.
- * It still admits TERRA, no longer station-kept, at ~0.014°/day off.
+ * How far the node's precession may miss the sun's, in °/day: about 12 min of
+ * local-time drift per month, or a ±0.5° inclination window. It still admits TERRA,
+ * no longer station-kept, at ~0.014°/day off.
  */
 const SUN_SYNC_TOLERANCE_DEG_PER_DAY = 0.05;
 

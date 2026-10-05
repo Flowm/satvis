@@ -55,6 +55,7 @@ let watching = false;
 
 const CLOCK_PARAM = "time";
 
+// The query hydration normalised the opening link to, minus `time`.
 let arrivedAt: string | undefined;
 
 const qualify = (storeId: string, specs: FieldSpec[]): FieldSpec[] => specs.map((spec) => ({ ...spec, name: `${storeId}.${spec.name}` }));

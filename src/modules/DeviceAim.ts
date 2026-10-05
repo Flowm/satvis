@@ -87,7 +87,7 @@ export interface HeadingReading {
   absolute?: boolean;
 }
 
-/** Whatever the current posture. */
+/** Whether a reading can establish north, in any posture. */
 export const hasHeadingSource = (reading: HeadingReading): boolean => reading.absolute === true || reading.compassHeading !== undefined;
 
 /** Refreshes the yaw offset only from readings that justify it. */

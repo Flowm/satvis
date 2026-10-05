@@ -124,6 +124,9 @@ export class SurfaceModel {
   }
 
   /**
+   * How far OSM Buildings refine around the observer. The photorealistic mesh is the
+   * ground itself, so it is only gated, never capped.
+   *
    * The reduction at distance d is `factor * (1 - exp(-(d * density)^2))`, and refinement
    * stops at `maximumScreenSpaceError` (16). Cesium's defaults (2.0e-4, 24) refine to
    * 5.2 km; the sky view's (8.0e-4, 48) to about 800 m. OSM Buildings refines

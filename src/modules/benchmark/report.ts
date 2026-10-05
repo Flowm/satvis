@@ -220,7 +220,7 @@ export interface MemoryFit {
   kbPerSatellite: number | undefined;
   /** Not a footprint: baseline plus standing garbage. Kept only to expose a wild fit. */
   baseMb: number | undefined;
-  /** Read it before the slope. */
+  /** Check it before trusting `kbPerSatellite`. */
   r2: number | undefined;
   /**
    * The slope from captured footprints, an independent check on `kbPerSatellite`
