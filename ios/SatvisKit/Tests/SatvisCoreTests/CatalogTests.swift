@@ -61,4 +61,27 @@ import Testing
         #expect(!changed)
         #expect(catalog.entries.values.first?.record == newer)
     }
+
+    // A group's newer copy is the whole group: what it no longer serves, renamed
+    // or decayed since the copy kept on disk, leaves it.
+    @Test func dropsWhatAGroupNoLongerServes() throws {
+        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        var catalog = Catalog()
+        catalog.add(Array(records[0..<2]), tags: ["Weather"], group: "weather")
+        catalog.add(Array(records[1..<4]), tags: ["Active"], group: "active")
+        var changed = catalog.add([records[2], records[3]], tags: ["Active"], group: "active")
+        #expect(changed)
+
+        // METOP-C, still served by Weather, keeps only Weather's tag.
+        let metop = try #require(catalog.entries.values.first { $0.name == records[1].name })
+        #expect(metop.groups == ["weather"])
+        #expect(metop.tags == ["Weather"])
+        #expect(catalog.entries.count == 4)
+
+        // Served by no group, it goes.
+        changed = catalog.add([records[0]], tags: ["Weather"], group: "weather")
+        #expect(changed)
+        #expect(!catalog.entries.values.contains { $0.name == records[1].name })
+        #expect(catalog.entries.count == 3)
+    }
 }
