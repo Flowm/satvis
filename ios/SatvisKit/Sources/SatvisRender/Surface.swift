@@ -48,8 +48,6 @@ final class Surface {
         /// failed.
         var isComplete = false
         var needsBake = true
-        /// When it was last baked, so that one still missing a source asks again.
-        var bakedAt: Date?
         var lastUsed = 0
         /// The tile's grid laid over the terrain, and the terrain tile it was laid
         /// over: nil for the ellipsoid, where no terrain has loaded.
@@ -165,7 +163,6 @@ final class Surface {
         let sseFactor = viewportHeightPixels / (2 * tan(verticalFieldOfView / 2))
         var draw: [Tile] = []
         var bake: [Tile] = []
-        let now = Date()
 
         func visit(_ key: TileKey) {
             let tile = self.tile(key)
@@ -191,12 +188,6 @@ final class Surface {
             }
             _ = hasGeometry(tile)
             draw.append(tile)
-            // Still missing a source tile once the retry interval is up: a failed
-            // request leaves nothing else to bake it again, and it would keep its
-            // stand-in after the network came back.
-            if !tile.isComplete, let baked = tile.bakedAt, now.timeIntervalSince(baked) >= Self.retryInterval {
-                tile.needsBake = true
-            }
             if tile.needsBake || tile.texture == nil {
                 bake.append(tile)
             }
@@ -373,6 +364,9 @@ final class Surface {
                 var ancestor = key.parent
                 while let candidate = ancestor {
                     if case .ready(let texture, _) = sources[candidate] {
+                        // In use, as a stand-in: evicted, the tile baked again
+                        // while its own source is still missing would have none.
+                        sources[candidate] = .ready(texture, lastUsed: frame)
                         draw(texture, bounds: source.projection.bounds(candidate), projection: source.projection)
                         break
                     }
@@ -383,7 +377,6 @@ final class Surface {
         encoder.endEncoding()
         tile.needsBake = false
         tile.isComplete = complete
-        tile.bakedAt = Date()
     }
 
     /// Starts loading a source tile, unless it is loading, loaded, or failed in the
@@ -419,6 +412,17 @@ final class Surface {
             sources[key] = texture.map { .ready($0, lastUsed: frame) } ?? .failed(at: Date())
             if texture != nil {
                 markForBake(covering: key)
+            } else {
+                // Asked for again once the retry interval is up, by baking again
+                // the tiles still missing it: nothing else would, and they would
+                // keep their stand-ins after the network came back.
+                Task {
+                    try? await Task.sleep(for: .seconds(Self.retryInterval))
+                    guard layer == self.layer, case .failed = sources[key] else {
+                        return
+                    }
+                    markForBake(covering: key)
+                }
             }
         }
     }
