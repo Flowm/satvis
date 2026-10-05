@@ -160,7 +160,7 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /(\/api\/(gp\/[^/]+|groups|metadata)|data\/gp\/[^/]+)\.json$/,
+            urlPattern: /(\/api\/(gp\/[^/]+|groups)|data\/gp\/[^/]+)\.json$/,
             handler: "NetworkFirst",
             options: {
               cacheName: "satellite-data-cache",

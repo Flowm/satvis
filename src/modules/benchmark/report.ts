@@ -224,7 +224,7 @@ export interface MemoryFit {
   r2: number | undefined;
   /**
    * The slope from captured footprints, an independent check on `kbPerSatellite`
-   * (52.6 vs 52.7 KB measured). Its own points and r², because a refused capture
+   * (one run: 54.0 vs 54.4 KB). Its own points and r², because a refused capture
    * shrinks only this fit.
    */
   absoluteKbPerSatellite: number | undefined;

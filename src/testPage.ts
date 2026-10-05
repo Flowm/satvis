@@ -20,7 +20,4 @@ const gs: GroundStationPosition = {
 
 console.log("Passes");
 const passes = orbit.computePassesElevation(gs, start.toDate());
-// passes.forEach((pass, i) => {
-//  console.log(`Pass ${i} start ${dayjs(pass.start).format()} maxElevation ${pass.maxElevation.toFixed(2)}`);
-// });
 console.log(passes);

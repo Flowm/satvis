@@ -61,7 +61,7 @@ describe("GridPositionProperty", () => {
     expect((property.getValue(at(-40 * STEP)) as Cartesian3).x).toBeCloseTo(0, 6);
   });
 
-  test("holds the nearest sample when there are too few for a cubic", () => {
+  test("holds the nearest sample when there are too few for a quintic", () => {
     const property = new GridPositionProperty();
     property.reset(ANCHOR_MS, STEP);
     property.add(4, ramp(4, 2));

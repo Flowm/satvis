@@ -51,12 +51,6 @@
           <span class="slider"></span>
           {{ componentName }}
         </label>
-        <!--
-        <label class="toolbarSwitch">
-          <input type="button" @click="cc.viewer.trackedEntity = undefined">
-          Untrack Entity
-        </label>
-        -->
       </div>
       <div v-show="menu.gs" class="toolbarSwitches">
         <div class="toolbarTitle">Ground station</div>

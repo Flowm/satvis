@@ -1,8 +1,7 @@
 // Which configuration each route opens with, and where its element sets come from.
 //
 // The presets and the tags of each group are defined in the worker's YAML config
-// and served with the group index, so every client starts from the same ones
-// (docs/adr/0007-native-ios-app.md).
+// and served with the group index, so every client starts from the same ones.
 
 import { fetchGpIndex } from "../modules/util/gpSource";
 import type { Query } from "../modules/util/urlCodec";
