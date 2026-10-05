@@ -224,6 +224,12 @@ final class Session {
     /// Shows what a link says, over its preset's defaults. `settings` false leaves
     /// the map, the overpass mode and the clock as they are.
     private func apply(_ link: Link, settings: Bool) async {
+        // A preset the kept index does not know, as the index shipped in the app
+        // knows only the default: the worker's may, and the link is read against
+        // that preset's defaults, so it waits for it.
+        if let named = link.preset, source.index?.value.presets[named] == nil {
+            await source.refresh()
+        }
         let index = source.index?.value
         let preset = link.preset.flatMap { index?.presets[$0] != nil ? $0 : nil }
         let defaults = LinkCodec.defaults(preset: index?.preset(named: preset)?.defaults ?? [:])
