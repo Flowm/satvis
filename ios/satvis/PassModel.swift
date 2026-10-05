@@ -22,6 +22,9 @@ final class PassModel {
     /// The span each satellite's passes hold for: outside it they are an old
     /// answer, not the answer.
     @ObservationIgnored private var windows: [String: PassWindow] = [:]
+    /// The stations each satellite's passes are over: a station added is missing
+    /// from them until predicted, and the others' passes stay meanwhile.
+    @ObservationIgnored private var covered: [String: Set<GroundStation>] = [:]
     /// Bumped with every change to `passes`, for what is worked out from them.
     @ObservationIgnored private(set) var revision = 0
     @ObservationIgnored private var stationCache: (key: StationKey, passes: [Pass])?
@@ -115,6 +118,7 @@ final class PassModel {
         }
         await store.configure(PassStore.Settings(stations: stations, mode: mode))
         let settings = (stations, mode)
+        let predictedOver = Set(stations)
         var pending: [String: PassStore.Prediction] = [:]
         var lastPublished = Date()
         for offset in stride(from: 0, to: entries.count, by: Self.chunk) {
@@ -124,13 +128,13 @@ final class PassModel {
                 return
             }
             if !pending.isEmpty, Date().timeIntervalSince(lastPublished) > Self.publishInterval {
-                publish(pending)
+                publish(pending, over: predictedOver)
                 pending = [:]
                 lastPublished = Date()
             }
         }
         if !pending.isEmpty {
-            publish(pending)
+            publish(pending, over: predictedOver)
         }
     }
 
@@ -142,6 +146,7 @@ final class PassModel {
         }
         passes = passes.filter { ids.contains($0.key) }
         windows = windows.filter { ids.contains($0.key) }
+        covered = covered.filter { ids.contains($0.key) }
         revision += 1
         await store.keep(only: ids)
     }
@@ -151,14 +156,14 @@ final class PassModel {
         guard hasStations else {
             return []
         }
-        return windows[id]?.covers(now) == true ? passes[id] : nil
+        return isPredicted(id, over: stations, at: now) ? passes[id] : nil
     }
 
     /// A station's passes over the given satellites within two days, and whether
     /// every one of them has answered for `now`. The merged list is kept until the
     /// passes or the satellites change: it can run to hundreds of thousands.
     func passes(over station: GroundStation, of entries: [CatalogEntry], from now: Double) -> (passes: [Pass], settled: Bool) {
-        let settled = entries.allSatisfy { windows[$0.id]?.covers(now) == true }
+        let settled = entries.allSatisfy { isPredicted($0.id, over: [station], at: now) }
         let key = StationKey(station: station.id, revision: revision, satellites: entries.map(\.id))
         if stationCache?.key != key {
             let merged = entries.compactMap { passes[$0.id] }.flatMap(\.self).filter { $0.stationID == station.id }
@@ -168,6 +173,11 @@ final class PassModel {
         // Sorted by start, so the two days ahead are a prefix.
         let horizon = all.partitioningIndex { $0.start - now >= 48 * 3_600_000 }
         return (Array(all[..<horizon]), settled)
+    }
+
+    /// Whether a satellite's passes over these stations are the answer for now.
+    private func isPredicted(_ id: String, over stations: [GroundStation], at now: Double) -> Bool {
+        windows[id]?.covers(now) == true && (covered[id].map { stations.allSatisfy($0.contains) } ?? false)
     }
 
     /// Where the renderer draws the ground station links.
@@ -180,10 +190,27 @@ final class PassModel {
         }
     }
 
-    private func publish(_ predictions: [String: PassStore.Prediction]) {
+    private func publish(_ predictions: [String: PassStore.Prediction], over stations: Set<GroundStation>) {
         for (id, prediction) in predictions {
             passes[id] = prediction.passes
             windows[id] = prediction.window
+            covered[id] = stations
+        }
+        revision += 1
+    }
+
+    /// Keeps the passes over the stations still there, as they were: a station
+    /// added is predicted alone, and until then its own panel says so.
+    private func keepStations() {
+        let current = Set(stations)
+        for (id, over) in covered {
+            let kept = over.intersection(current)
+            guard kept != over else {
+                continue
+            }
+            covered[id] = kept
+            let ids = Set(kept.map(\.id))
+            passes[id] = passes[id]?.filter { ids.contains($0.stationID) }
         }
         revision += 1
     }
@@ -191,11 +218,12 @@ final class PassModel {
     private func forget() {
         passes = [:]
         windows = [:]
+        covered = [:]
         revision += 1
-        // The store's own go too. It drops them when the settings it is handed
-        // differ, but a mode or a station changed and changed back before the
-        // next refresh hands it what it had: it would answer that nothing is
-        // missing, and what was forgotten here would never come back.
+        // The store's own go too. It drops them when the mode it is handed
+        // differs, but a mode changed and changed back before the next refresh
+        // hands it what it had: it would answer that nothing is missing, and
+        // what was forgotten here would never come back.
         storeIsStale = true
     }
 
@@ -231,7 +259,7 @@ final class PassModel {
             return
         }
         stations = shown
-        forget()
+        keepStations()
     }
 }
 

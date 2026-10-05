@@ -46,6 +46,33 @@ import Testing
         #expect(await store.predict(entries, at: time).count == 1)
     }
 
+    // A station added is predicted alone, keeping the others' passes, and comes
+    // out as a prediction over every station from scratch would; one removed
+    // leaves nothing to predict.
+    @Test func predictsAnAddedStationAlone() async throws {
+        let entries = try entries()
+        let time = try #require(utcMilliseconds(iso: "2026-10-02T12:00:00"))
+        let berlin = GroundStation(latitude: 52.52, longitude: 13.405, name: "Berlin")
+        let store = PassStore()
+        await store.configure(.init(stations: [munich], mode: .elevation))
+        let alone = await store.predict(entries, at: time)
+
+        await store.configure(.init(stations: [munich, berlin], mode: .elevation))
+        let added = await store.predict(entries, at: time)
+        let fresh = PassStore()
+        await fresh.configure(.init(stations: [munich, berlin], mode: .elevation))
+        let both = await fresh.predict(entries, at: time)
+        #expect(added.mapValues(\.passes) == both.mapValues(\.passes))
+        for (id, prediction) in added {
+            #expect(prediction.passes.filter { $0.stationID == munich.id } == alone[id]?.passes)
+            #expect(prediction.window == alone[id]?.window)
+        }
+
+        await store.configure(.init(stations: [munich], mode: .elevation))
+        #expect(await store.predict(entries, at: time).isEmpty)
+        #expect(await store.passes(of: entries, at: time) == alone.mapValues(\.passes))
+    }
+
     @Test func forgetsPredictionsWhenTheModeChanges() async throws {
         let entries = try entries().filter { $0.name == "METOP-C" }
         let time = try #require(utcMilliseconds(iso: "2026-10-02T12:00:00"))
