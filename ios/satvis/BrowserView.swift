@@ -57,11 +57,18 @@ struct BrowserView: View {
                 }
                 guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
                     results = nil
+                    searching = false
                     return
                 }
                 searching = true
-                defer { searching = false }
-                results = await catalog.search(query)
+                let found = await catalog.search(query)
+                // A newer query took over while this one waited for the groups:
+                // its results and its spinner are that one's to set.
+                guard !Task.isCancelled else {
+                    return
+                }
+                results = found
+                searching = false
             }
             .navigationTitle("Satellites")
             .navigationBarTitleDisplayMode(.inline)
