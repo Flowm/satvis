@@ -141,12 +141,16 @@ export class SkyView {
 
   #flight: Flight | undefined;
 
-  // Present exactly while the view is active. It holds only what `enter` changed,
-  // so a restore cannot revive the sky objects `?bg=false` destroyed.
+  /**
+   * Present exactly while the view is active. It holds only what `enter` changed,
+   * so a restore cannot revive the sky objects `?bg=false` destroyed.
+   */
   #saved: SavedState | undefined;
 
-  // The aimed pose, the same aim pitched to -90°, and the pose given to the
-  // camera. They differ during a flight; the first two are rewritten each frame.
+  /**
+   * The aimed pose, the same aim pitched to -90°, and the pose given to the
+   * camera. They differ during a flight; the first two are rewritten each frame.
+   */
   #sky: Pose = newPose();
 
   #over: Pose = newPose();
@@ -155,13 +159,15 @@ export class SkyView {
 
   #observer: Observer | undefined;
 
-  // In the form `globe.getHeight` wants, so the per-frame lookup allocates nothing.
+  /** In the form `globe.getHeight` wants, so the per-frame lookup allocates nothing. */
   #observerCartographic = new Cartographic();
 
   #groundHeight = 0;
 
-  // Once a surface model answers, `#groundMeasured` stops the globe being read
-  // too: under OSM Buildings the two would fight every frame.
+  /**
+   * Once a surface model answers, `#groundMeasured` stops the globe being read
+   * too: under OSM Buildings the two would fight every frame.
+   */
   #groundSource: GroundHeightSource | undefined;
 
   #groundMeasured = false;
@@ -177,7 +183,7 @@ export class SkyView {
 
   #fovy: number = DEFAULT_FOVY;
 
-  // Rebuilt lazily after the observer, the ground or the eye height changes.
+  /** Rebuilt lazily after the observer, the ground or the eye height changes. */
   #frame: ObserverFrame | undefined;
 
   #removePreRender: (() => void) | undefined;

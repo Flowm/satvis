@@ -7,7 +7,7 @@ const PROBE_URL = "/api/groups.json";
 const STATIC_INDEX_URL = "data/gp/index.json";
 const PROBE_TIMEOUT_MS = 3000;
 
-// `/api/groups.json` and `data/gp/index.json` share this shape.
+/** `/api/groups.json` and `data/gp/index.json` share this shape. */
 export interface GpIndexEntry {
   name: string;
   updated?: string;
@@ -15,7 +15,7 @@ export interface GpIndexEntry {
   tags?: string[];
 }
 
-// worker/src/gp/types.ts PresetDefinition. `defaults` are url parameters.
+/** worker/src/gp/types.ts PresetDefinition. `defaults` are url parameters. */
 export interface GpPreset {
   title?: string;
   description?: string;
@@ -40,7 +40,7 @@ let infoPromise: Promise<GpSourceInfo> | undefined;
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const isStringArray = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
 
-// Lenient: a field of the wrong shape is dropped, so an older index still reads.
+/** Lenient: a field of the wrong shape is dropped, so an older index still reads. */
 function parsePreset(raw: unknown): GpPreset | undefined {
   if (!isObject(raw) || !Array.isArray(raw.groups)) {
     return undefined;
@@ -114,8 +114,10 @@ function resolveGpSource(): Promise<GpSourceInfo> {
   return infoPromise;
 }
 
-// A bare group name resolves against the probed base; any other source (a legacy
-// .txt URL, a path) passes through unchanged and is sniffed by parseGpPayload.
+/**
+ * A bare group name resolves against the probed base; any other source (a legacy
+ * .txt URL, a path) passes through unchanged and is sniffed by parseGpPayload.
+ */
 function resolveGroupUrl(source: string, base: string): string {
   if (/^[a-zA-Z0-9_-]+$/.test(source)) {
     return `${base}${source}.json`;
@@ -123,7 +125,7 @@ function resolveGroupUrl(source: string, base: string): string {
   return source;
 }
 
-// Undefined for an explicit URL source, which has no static counterpart.
+/** Undefined for an explicit URL source, which has no static counterpart. */
 function staticGroupUrl(source: string): string | undefined {
   if (/^[a-zA-Z0-9_-]+$/.test(source)) {
     return `${STATIC_BASE}${source}.json`;
@@ -131,13 +133,15 @@ function staticGroupUrl(source: string): string | undefined {
   return undefined;
 }
 
-// Never rejects: empty when neither the worker nor the static snapshot answers.
+/** Never rejects: empty when neither the worker nor the static snapshot answers. */
 export async function fetchGpIndex(): Promise<GpIndex> {
   return (await resolveGpSource()).index;
 }
 
-// A bare group name that fails against the worker is retried once against the
-// static snapshot. An explicit URL source has no fallback.
+/**
+ * A bare group name that fails against the worker is retried once against the
+ * static snapshot. An explicit URL source has no fallback.
+ */
 export async function fetchGpGroup(source: string): Promise<string> {
   const { base } = await resolveGpSource();
   const url = resolveGroupUrl(source, base);
@@ -162,7 +166,7 @@ export async function fetchGpGroup(source: string): Promise<string> {
   }
 }
 
-// Test seam: the probe is otherwise memoized for the life of the module.
+/** Test seam: the probe is otherwise memoized for the life of the module. */
 export function resetGpSource(): void {
   infoPromise = undefined;
 }

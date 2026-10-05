@@ -6,28 +6,34 @@
 import { fetchGpIndex } from "../modules/util/gpSource";
 import type { Query } from "../modules/util/urlCodec";
 
-// A source is a GP group name, resolved against the probed GP base, or a URL/path (any "/"
-// or ".", including legacy .txt), passed through and parsed by sniffing. A search-only
-// source gets no group row or multiselect entry: it is too large to enable whole.
+/**
+ * A source is a GP group name, resolved against the probed GP base, or a URL/path (any "/"
+ * or ".", including legacy .txt), passed through and parsed by sniffing. A search-only
+ * source gets no group row or multiselect entry: it is too large to enable whole.
+ */
 export type ElementsEntry = [source: string, tags: string[], options?: { searchOnly?: boolean }];
 
 export interface Preset {
   name: string;
   title: string;
   description?: string;
-  // Url parameters (ADR 0001); the url states only deviations.
+  /** Url parameters (ADR 0001); the url states only deviations. */
   defaults: Query;
   elements: ElementsEntry[];
 }
 
 const DEFAULT_PRESET = "default";
 
-// index.html carries the default preset's title, for crawlers that run no script.
-// Read on first use, before updateMetadata replaces it.
+/**
+ * index.html carries the default preset's title, for crawlers that run no script.
+ * Read on first use, before updateMetadata replaces it.
+ */
 let shellTitle: string | undefined;
 
-// `/ot` and `/ot.html` open the `ot` preset; `/` and any path naming no preset
-// open the default one.
+/**
+ * `/ot` and `/ot.html` open the `ot` preset; `/` and any path naming no preset
+ * open the default one.
+ */
 export function presetNameOf(path: string): string {
   return (path.split("/").pop() ?? "").replace(/\.html$/, "") || DEFAULT_PRESET;
 }

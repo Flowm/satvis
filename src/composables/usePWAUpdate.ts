@@ -2,13 +2,13 @@ import { registerSW } from "virtual:pwa-register";
 import { ref } from "vue";
 
 interface UsePWAUpdateOptions {
-  /** Reload as soon as a new version is detected. @default false */
+  /** Reload as soon as a new version is detected. Defaults to false. */
   autoUpdate?: boolean;
-  /** Seconds between update checks; 0 disables them. @default 86400 */
+  /** Seconds between update checks; 0 disables them. Defaults to 86400. */
   updateInterval?: number;
 }
 
-// Runtime caches renamed in vite.config.ts; Workbox deletes only outdated precaches.
+/** Runtime caches renamed in vite.config.ts; Workbox deletes only outdated precaches. */
 const RETIRED_CACHES = ["satellite-model-cache"];
 
 const needRefresh = ref(false);

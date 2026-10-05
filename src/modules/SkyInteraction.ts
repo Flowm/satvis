@@ -13,7 +13,7 @@ import { SkyMovement } from "./SkyMovement";
 import { groundHides, nearestTarget, type SkyTarget, skyTargets } from "./SkyTargets";
 import type { Observer, SkyView } from "./SkyView";
 
-// iOS gates the sensor behind a call from a user gesture, over https only. Not in lib.dom.
+/** iOS gates the sensor behind a call from a user gesture, over https only. Not in lib.dom. */
 interface DeviceOrientationPermission {
   requestPermission?: () => Promise<"granted" | "denied" | "prompt">;
 }
@@ -23,18 +23,21 @@ interface CompassEvent extends DeviceOrientationEvent {
   webkitCompassHeading?: number;
 }
 
-/** A laptop, a declined permission and a missing magnetometer each need different words. See docs/adr/0004-compass-aiming.md. */
+/**
+ * A laptop, a declined permission and a missing magnetometer each need different words.
+ * See docs/adr/0004-compass-aiming.md.
+ */
 export type CompassOutcome =
   | "aiming"
-  /** Aiming, but north waits on the phone being held flat once. */
+  // Aiming, but north waits on the phone being held flat once.
   | "aiming-uncalibrated"
   | "unsupported"
   | "denied"
-  /** Granted, but never fired. Desktop browsers do this. */
+  // Granted, but never fired. Desktop browsers do this.
   | "silent"
-  /** Orientation works, but nothing on this device knows north. */
+  // Orientation works, but nothing on this device knows north.
   | "no-heading"
-  /** The user took the aim back by hand during the probe. Nothing to report, but the control must hear it. */
+  // The user took the aim back by hand during the probe. Nothing to report, but the control must hear it.
   | "taken-back";
 
 /** In CSS pixels. */

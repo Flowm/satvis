@@ -7,14 +7,16 @@ import { SATCAT_URL } from "../src/gp/satcat.ts";
 import type { GroupsConfig, GroupsIndex, OmmRecord } from "../src/gp/types.ts";
 import worker from "../src/index.ts";
 
-// Distinct upstream requests per refresh, asserted against the fetch spy after each test.
+/** Distinct upstream requests per refresh, asserted against the fetch spy after each test. */
 const SOURCE_COUNT = collectSources((generatedConfig as GroupsConfig).groups).length;
 
 const UPDATED = "2026-07-04T00:00:00.000Z";
 const UPDATED_MS = Date.parse(UPDATED);
 
-// Matches the REFRESH_TOKEN binding in vitest.config.ts. Secrets are absent from the
-// generated Env type, hence the local view, as in api.ts.
+/**
+ * Matches the REFRESH_TOKEN binding in vitest.config.ts. Secrets are absent from the
+ * generated Env type, hence the local view, as in api.ts.
+ */
 const AUTH = { Authorization: "Bearer test-refresh-token" };
 const secretEnv = env as typeof env & { REFRESH_TOKEN?: string };
 
@@ -30,7 +32,7 @@ async function idsOf(group: string): Promise<unknown[]> {
   return ((await env.GP_KV.get(`gp:${group}`, "json")) as OmmRecord[]).map((r) => r.NORAD_CAT_ID);
 }
 
-// Built like scripts/push-gp.mjs builds it: bundleFetch matches on the sourceUrl() url.
+/** Built like scripts/push-gp.mjs builds it: bundleFetch matches on the sourceUrl() url. */
 function ingestBundle(reply: (source: string) => unknown, opts?: { status?: number }): string {
   const specs = collectSources((generatedConfig as GroupsConfig).groups);
   return JSON.stringify({
@@ -176,8 +178,10 @@ describe("scheduled() refresh", () => {
     vi.restoreAllMocks();
   });
 
-  // Answers gp.php and sup-gp.php requests synthetically. The SATCAT is one more
-  // request and answers 304, the production steady state; curated entries still apply.
+  /**
+   * Answers gp.php and sup-gp.php requests synthetically. The SATCAT is one more
+   * request and answers 304, the production steady state; curated entries still apply.
+   */
   function interceptCelestrak(reply: (group: string) => unknown, opts?: { status?: number }): void {
     expectedFetches = SOURCE_COUNT + 1;
     fetchSpy.mockImplementation(async (input, init) => {

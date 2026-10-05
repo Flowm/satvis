@@ -4,8 +4,10 @@ import Orbit from "../Orbit";
 import { formatEpoch, getSatelliteInfo } from "./entityInfo";
 import { parseGpPayload, type GpRecord } from "./gp";
 
-// Not sun-synchronous, so the only derived row after the class is the apsides.
-// orbitFacts.test.ts covers the derivation.
+/**
+ * Not sun-synchronous, so the only derived row after the class is the apsides.
+ * orbitFacts.test.ts covers the derivation.
+ */
 const ISS = new Orbit(
   "ISS (ZARYA)",
   parseGpPayload(

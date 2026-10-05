@@ -72,7 +72,7 @@ function fakeViewer() {
   };
 }
 
-// Mirrors PolylineBatch's own window; the callback fires on the tick after it.
+/** Mirrors PolylineBatch's own window; the callback fires on the tick after it. */
 const COALESCE_TICKS = 30;
 const PAST_WINDOW = COALESCE_TICKS + 2;
 

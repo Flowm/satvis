@@ -11,7 +11,7 @@ export interface CesiumPerformanceStatsResult {
   worstFrameTime: number;
 }
 
-// Mean and worst frame time over a sample period.
+/** Mean and worst frame time over a sample period. */
 export class CesiumPerformanceStats {
   scene: Scene;
 

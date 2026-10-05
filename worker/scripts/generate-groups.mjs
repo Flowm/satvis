@@ -18,14 +18,14 @@ const customDir = path.join(repoRoot, "data", "custom");
 const outPath = path.join(workerDir, "src", "config", "satvis.generated.json");
 
 const PLUGIN_CONFIG_NAME = "satvis.yaml";
-// The submodule's and any plugin's list of files under /data/models/ by NORAD id (ADR 0007).
+/** The submodule's and any plugin's list of files under /data/models/ by NORAD id (ADR 0007). */
 const MODEL_MANIFEST_NAME = "models.yaml";
 const modelsManifestPath = path.join(repoRoot, "data", "models", MODEL_MANIFEST_NAME);
-// Pre-YAML plugin config name, detected only to fail loudly instead of dropping the plugin.
+/** Pre-YAML plugin config name, detected only to fail loudly instead of dropping the plugin. */
 const LEGACY_PLUGIN_CONFIG_NAME = "groups.json";
 
 const GROUP_NAME_RE = /^[a-zA-Z0-9_-]+$/;
-// A preset is reached at /<name>, so its name is a path segment.
+/** A preset is reached at /<name>, so its name is a path segment. */
 const PRESET_NAME_RE = /^[a-z0-9-]+$/;
 const DEFAULT_PRESET = "default";
 
@@ -33,8 +33,10 @@ function readYaml(file) {
   return YAML.parse(fs.readFileSync(file, "utf8"));
 }
 
-// Near-duplicate of parseTleText in src/modules/util/gp.ts with the opposite error
-// policy: this one throws so bad input never ships, the browser warns and skips. Do not unify them.
+/**
+ * Near-duplicate of parseTleText in src/modules/util/gp.ts with the opposite error
+ * policy: this one throws so bad input never ships, the browser warns and skips. Do not unify them.
+ */
 function parseTleText(text) {
   const lines = text
     .split(/\r?\n/)
@@ -58,7 +60,7 @@ function parseTleText(text) {
   return records;
 }
 
-// `extraRecordsFile` resolves relative to the config's directory.
+/** `extraRecordsFile` resolves relative to the config's directory. */
 function loadConfig(configPath) {
   const config = readYaml(configPath);
   const dir = path.dirname(configPath);
@@ -99,7 +101,10 @@ function discoverPluginConfigs() {
   return configs;
 }
 
-// Without `git submodule update --init` (CI too) the submodule's manifest is missing: warn, so lint and tests still run.
+/**
+ * Without `git submodule update --init` (CI too) the submodule's manifest is missing:
+ * warn, so lint and tests still run.
+ */
 function discoverModelManifests() {
   const manifests = [];
   if (fs.existsSync(modelsManifestPath)) {
@@ -118,7 +123,7 @@ function discoverModelManifests() {
   return manifests;
 }
 
-// A model's `file` is its path under /data/models/; the app adds the prefix.
+/** A model's `file` is its path under /data/models/; the app adds the prefix. */
 function modelAssignments(manifestPath) {
   const source = path.relative(repoRoot, manifestPath);
   const dir = path.dirname(manifestPath);
@@ -190,8 +195,10 @@ function validateSatellites(group) {
   });
 }
 
-// Only the swath extents are checked: swathExtentsOf in src/config/satelliteMetadata.ts
-// reads them as a pair and treats a half-specified swath as absent.
+/**
+ * Only the swath extents are checked: swathExtentsOf in src/config/satelliteMetadata.ts
+ * reads them as a pair and treats a half-specified swath as absent.
+ */
 function validateMetadata(metadata, where) {
   if (metadata === null || typeof metadata !== "object" || Array.isArray(metadata)) {
     throw new Error(`${where}: "metadata" must be an object`);
@@ -209,7 +216,7 @@ function validateMetadata(metadata, where) {
   }
 }
 
-// Every other key of a table entry is metadata, so a new field needs no code change.
+/** Every other key of a table entry is metadata, so a new field needs no code change. */
 const TABLE_ENTRY_KEYS = new Set(["noradId", "name", "decayed"]);
 
 function metadataFields(entry) {
@@ -242,7 +249,7 @@ function validateSatelliteTable(entries, source) {
   });
 }
 
-// Tags travel comma-joined in the `tags` url parameter, hence no commas.
+/** Tags travel comma-joined in the `tags` url parameter, hence no commas. */
 function validateTags(group) {
   if (group.tags === undefined) {
     return;
@@ -313,8 +320,10 @@ function validate(groups) {
 
 const sourcesOf = (group) => JSON.stringify(group.sources ?? []);
 
-// A remainder must exclude every sibling in its config that selects from the same
-// sources, or it serves their records twice. Each config is checked on its own.
+/**
+ * A remainder must exclude every sibling in its config that selects from the same
+ * sources, or it serves their records twice. Each config is checked on its own.
+ */
 function validateRemainders(groups, source) {
   for (const remainder of groups) {
     if (!remainder.exclude) {
@@ -331,7 +340,7 @@ function validateRemainders(groups, source) {
   }
 }
 
-// Enabling a tag of a remainder must load the whole, so excluded groups carry all its tags.
+/** Enabling a tag of a remainder must load the whole, so excluded groups carry all its tags. */
 function validateRemainderTags(groups) {
   const byName = new Map(groups.map((group) => [group.name, group]));
   for (const remainder of groups) {
@@ -346,7 +355,7 @@ function validateRemainderTags(groups) {
   }
 }
 
-// A preset group entry is a bare name or { name, searchOnly }; it comes out as the object.
+/** A preset group entry is a bare name or { name, searchOnly }; it comes out as the object. */
 function validatePresets(presets, groups) {
   const byName = new Map(groups.map((group) => [group.name, group]));
   const seen = new Set();
@@ -409,8 +418,10 @@ function validatePresets(presets, groups) {
   return normalized;
 }
 
-// Merges contributions field by field. Two different values for one field fail the
-// build, because the winner would depend on discovery order; identical values merge.
+/**
+ * Merges contributions field by field. Two different values for one field fail the
+ * build, because the winner would depend on discovery order; identical values merge.
+ */
 function createSatelliteTable() {
   const byNoradId = new Map();
   return {

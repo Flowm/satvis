@@ -58,16 +58,16 @@ export interface SatelliteBatches {
   tracks: PolylineBatch;
 }
 
-// Converted once and shared by every point, like Cesium's own Color constants.
+/** Converted once and shared by every point, like Cesium's own Color constants. */
 const POINT_COLOR = Object.fromEntries(Object.entries(ORBIT_CLASS_COLOR).map(([orbitClass, hex]) => [orbitClass, Color.fromCssColorString(hex)])) as Record<OrbitClass, Color>;
 
 /** `BoundingSphereState.PENDING`, which the engine's type declarations do not export. */
 const BOUNDING_SPHERE_PENDING = 1;
 const BOUNDING_SPHERE_DONE = 0;
 
-// Where tracking starts, east-north-up from the satellite.
+/** Where tracking starts, east-north-up from the satellite. */
 const VIEW_FROM = new Cartesian3(0, -3600000, 4200000);
-// South-east of and above the model, in model radii: a cubesat and the ISS differ 300-fold.
+/** South-east of and above the model, in model radii: a cubesat and the ISS differ 300-fold. */
 const VIEW_FROM_MODEL_DIRECTION = Cartesian3.normalize(new Cartesian3(9, -10, 5), new Cartesian3());
 const VIEW_FROM_MODEL_RADII = 6;
 /** For a model not loaded yet: a small satellite's. */
@@ -318,7 +318,9 @@ export class SatelliteComponentCollection {
     return "3D model" in this.#components ? this.#modelViewFrom : VIEW_FROM;
   }
 
-  // A callback: the model's size is known only once loaded, and EntityView reads it when tracking starts.
+  /**
+   * A callback: the model's size is known only once loaded, and EntityView reads it when tracking starts.
+   */
   readonly #modelViewFrom = new CallbackProperty(
     (_time, result?: Cartesian3) => Cartesian3.multiplyByScalar(VIEW_FROM_MODEL_DIRECTION, VIEW_FROM_MODEL_RADII * this.#modelRadius(), result ?? new Cartesian3()),
     false,
@@ -365,7 +367,7 @@ export class SatelliteComponentCollection {
     }
   }
 
-  // Read when tracking starts, so a camera already following the satellite stays put.
+  /** Read when tracking starts, so a camera already following the satellite stays put. */
   #setViewFrom(): void {
     for (const component of Object.values(this.#components)) {
       if (component instanceof Entity) {
@@ -495,8 +497,10 @@ export class SatelliteComponentCollection {
     this.createCesiumEntity(entityName, entityKey, entityValue, this.props.name, this.props.trajectory.entityPosition, true);
   }
 
-  // Coloured like the satellite browser's orbit badge. At 6 px a full Starlink
-  // activation hides the globe; the outline keeps points visible on bright imagery.
+  /**
+   * Coloured like the satellite browser's orbit badge. At 6 px a full Starlink
+   * activation hides the globe; the outline keeps points visible on bright imagery.
+   */
   createPoint(): void {
     const point = new PointGraphics({
       pixelSize: 5,
@@ -507,7 +511,7 @@ export class SatelliteComponentCollection {
     this.createCesiumSatelliteEntity("Point", "point", point);
   }
 
-  // Only satellites a model manifest lists have one (ADR 0007).
+  /** Only satellites a model manifest lists have one (ADR 0007). */
   createModel(): void {
     const { modelFile } = this.props.entry.metadata;
     if (!modelFile) {
@@ -521,7 +525,7 @@ export class SatelliteComponentCollection {
     this.createCesiumSatelliteEntity("3D model", "model", model);
   }
 
-  // The LEO point's grey, not white: white labels outshouted the points they named.
+  /** The LEO point's grey, not white: white labels outshouted the points they named. */
   createLabel(): void {
     const label = new LabelGraphics({
       text: this.props.name,

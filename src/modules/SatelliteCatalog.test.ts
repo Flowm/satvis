@@ -4,7 +4,7 @@ import { SatelliteCatalog } from "./SatelliteCatalog";
 import { parseGpPayload, type GpRecord } from "./util/gp";
 import { resetGpSource } from "./util/gpSource";
 
-// ALPHA appears in both groups (same satnum + name) to exercise dedup and tag union.
+/** ALPHA appears in both groups (same satnum + name) to exercise dedup and tag union. */
 function ommRecord(name: string, satnum: number): GpRecord {
   return {
     kind: "omm",

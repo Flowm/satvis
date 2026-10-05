@@ -96,7 +96,9 @@ export class WorkerPassSource implements PassSource {
     };
   }
 
-  /** No deadline timer, unlike sampleSource: a batch can take a second, and nothing beats waiting. */
+  /**
+   * No deadline timer, unlike sampleSource: a batch can take a second, and nothing beats waiting.
+   */
   #schedule(): void {
     if (this.#flushScheduled) {
       return;

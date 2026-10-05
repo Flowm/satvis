@@ -9,13 +9,13 @@ export interface ActivationState {
   entries: Iterable<CatalogEntry>;
   enabledTags: readonly string[];
   enabledSatellites: readonly string[];
-  // Names opted out of tag activation.
+  /** Names opted out of tag activation. */
   disabledSatellites?: readonly string[];
   trackedName?: string;
   pendingTrackedName?: string;
 }
 
-// Shared with the SatelliteBrowser row model, so the UI and the manager cannot diverge.
+/** Shared with the SatelliteBrowser row model, so the UI and the manager cannot diverge. */
 export function isEnabledByTag(entry: CatalogEntry, tagSet: ReadonlySet<string>): boolean {
   return entry.tags.some((tag) => tagSet.has(tag));
 }

@@ -33,7 +33,7 @@ declare module "@cesium/engine" {
   return result;
 };
 
-/** Each value with its own time, so a caller can transform it into another frame (see SampledTrajectory). */
+// Each value with its own time, so a caller can transform it into another frame (see SampledTrajectory).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (SampledPositionProperty.prototype as any).getRawSamples = function (this: any): { times: JulianDate[]; values: unknown[] } {
   const times: JulianDate[] = this._property._times;

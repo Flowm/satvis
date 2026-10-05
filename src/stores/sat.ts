@@ -19,7 +19,7 @@ export interface ActivationPatch {
 }
 
 const unique = (names: readonly string[]): string[] => [...new Set(names)];
-// Decimal places, ~11 m.
+/** Decimal places, ~11 m. */
 const COORDINATE_PRECISION = 4;
 const roundCoordinate = (value: number): number => Number(value.toFixed(COORDINATE_PRECISION));
 
@@ -27,7 +27,7 @@ export const useSatStore = defineStore(
   "sat",
   () => {
     const enabledComponents = ref<string[]>(["Point", "Label"]);
-    // Bumped on every catalog change, so the entries stay out of Pinia. Not URL-synced.
+    /** Bumped on every catalog change, so the entries stay out of Pinia. Not URL-synced. */
     const catalogRevision = ref(0);
     const trackedSatellite = ref("");
     const overpassMode = ref("elevation");
@@ -62,10 +62,8 @@ export const useSatStore = defineStore(
       }
     }
 
-    /**
-     * The sky view's ground station, by index. Not url-synced, so a link's observer is
-     * always the first station; a parameter would extend ADR 0001.
-     */
+    // The sky view's ground station, by index. Not url-synced, so a link's observer is
+    // always the first station; a parameter would extend ADR 0001.
     const observer = ref(0);
     const observerStation = computed(() => Math.min(observer.value, Math.max(0, stations.value.length - 1)));
 

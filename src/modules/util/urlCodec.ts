@@ -10,24 +10,26 @@ import type { SerializedGroundStation } from "../../stores/sat";
 
 dayjs.extend(utc);
 
-// `ok: false` means unrepresentable; the caller decides whether that costs an
-// element or the whole parameter.
+/**
+ * `ok: false` means unrepresentable; the caller decides whether that costs an
+ * element or the whole parameter.
+ */
 export type Result<T> = { ok: true; value: T } | { ok: false };
 
 const ok = <T>(value: T): Result<T> => ({ ok: true, value });
 const FAIL: Result<never> = { ok: false };
 
 export interface FieldKind<T> {
-  // `raw` is already percent-decoded and "+"-expanded.
+  /** `raw` is already percent-decoded and "+"-expanded. */
   parse(raw: string): Result<T>;
   format(value: T): Result<string>;
 }
 
 export interface FieldSpec {
   name: string;
-  // Defaults to `name`.
+  /** Defaults to `name`. */
   url?: string;
-  // Method-syntax members are bivariant, so any FieldKind<T> lands here.
+  /** Method-syntax members are bivariant, so any FieldKind<T> lands here. */
   kind: FieldKind<unknown>;
 }
 
@@ -244,9 +246,9 @@ export function timestamp(): FieldKind<string | null> {
 export type Query = Readonly<Record<string, string | undefined>>;
 
 export interface DecodeResult {
-  // Every schema key, so an absent parameter resets its state to the default.
+  /** Every schema key, so an absent parameter resets its state to the default. */
   patch: Record<string, unknown>;
-  // Parameters that were present but unusable; the caller drops them from the url.
+  /** Parameters that were present but unusable; the caller drops them from the url. */
   invalid: string[];
 }
 

@@ -10,7 +10,7 @@ function stubFetch(answer: (url: string) => Response | Promise<Response>) {
   return spy;
 }
 
-// 206, because the probe asks for one byte; `response.ok` has to accept it.
+/** 206, because the probe asks for one byte; `response.ok` has to accept it. */
 const imagePart = () => new Response(null, { status: 206, headers: { "content-type": "image/jpeg" } });
 const imageWhole = () => new Response(null, { status: 200, headers: { "content-type": "image/jpeg" } });
 const missing = () => new Response(null, { status: 404 });

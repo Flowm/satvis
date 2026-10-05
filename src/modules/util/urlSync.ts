@@ -14,7 +14,7 @@ export type { FieldKind, FieldSpec } from "./urlCodec";
 interface UrlSyncConfig {
   enabled?: boolean;
   config: FieldSpec[];
-  // Stores with guarded keys supply this so the url goes through their actions.
+  /** Stores with guarded keys supply this so the url goes through their actions. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   apply?: (store: any, patch: Record<string, unknown>) => void;
 }
@@ -26,10 +26,10 @@ declare module "pinia" {
   }
 }
 
-// Injected by the plugin registered ahead of this one in src/app.ts.
+/** Injected by the plugin registered ahead of this one in src/app.ts. */
 interface ExtendedStore extends PiniaStore {
   router: Router;
-  // The route's preset, as url parameters.
+  /** The route's preset, as url parameters. */
   presetDefaults?: Promise<Query>;
   [key: string]: unknown;
 }
@@ -38,31 +38,35 @@ interface Registration {
   store: ExtendedStore;
   specs: FieldSpec[];
   apply: UrlSyncConfig["apply"];
-  // Qualified with the store id, so two stores can share a key name.
+  /** Qualified with the store id, so two stores can share a key name. */
   qualified: FieldSpec[];
-  // Preset-merged values captured at hydration. Undefined until then, which
-  // keeps this store's parameters from being rewritten.
+  /**
+   * Preset-merged values captured at hydration. Undefined until then, which
+   * keeps this store's parameters from being rewritten.
+   */
   defaults?: Record<string, unknown>;
-  // Keyed by qualified name; see `adjustUrlDefault`.
+  /** Keyed by qualified name; see `adjustUrlDefault`. */
   adjust: Map<string, (baseline: unknown) => unknown>;
-  // The opening link's spelling, before normalisation. Cleared by the first push.
+  /** The opening link's spelling, before normalisation. Cleared by the first push. */
   arrival?: Query;
 }
 
-// Every synced store, so one write can rebuild the whole query.
+/** Every synced store, so one write can rebuild the whole query. */
 const registry = new Map<string, Registration>();
 let watching = false;
 
 const CLOCK_PARAM = "time";
 
-// The query hydration normalised the opening link to, minus `time`.
+/** The query hydration normalised the opening link to, minus `time`. */
 let arrivedAt: string | undefined;
 
 const qualify = (storeId: string, specs: FieldSpec[]): FieldSpec[] => specs.map((spec) => ({ ...spec, name: `${storeId}.${spec.name}` }));
 const hydratedEntries = () => [...registry.values()].filter((entry) => entry.defaults !== undefined);
 
-// Lossy on purpose; apply it only to owned parameters, so a valueless `?embed`
-// or a repeated foreign parameter survives.
+/**
+ * Lossy on purpose; apply it only to owned parameters, so a valueless `?embed`
+ * or a repeated foreign parameter survives.
+ */
 function normalizeQuery(query: LocationQuery, owned?: ReadonlySet<string>): Query {
   const normalized: Record<string, string> = {};
   for (const [key, value] of Object.entries(query)) {
@@ -89,7 +93,7 @@ const withoutClock = (query: LocationQuery): string => {
   return stableQuery(rest);
 };
 
-// Guarded keys are read-only computeds: assigning one does nothing but warn.
+/** Guarded keys are read-only computeds: assigning one does nothing but warn. */
 function commit(entry: Registration, patch: Record<string, unknown>): void {
   if (entry.apply) {
     entry.apply(entry.store, patch);
@@ -131,8 +135,10 @@ function applyQuery(entry: Registration, query: Query, defaults: Record<string, 
   }
 }
 
-// Parameters of stores not yet hydrated count as foreign and are preserved, so a
-// late store still reads its url.
+/**
+ * Parameters of stores not yet hydrated count as foreign and are preserved, so a
+ * late store still reads its url.
+ */
 function buildQuery(router: Router, hydrated: Registration[]): LocationQuery {
   const current = router.currentRoute.value.query;
   const owned = new Set(hydrated.flatMap((entry) => entry.specs.map(paramOf)));
@@ -188,7 +194,7 @@ function writeQuery(router: Router, mode: "push" | "replace"): void {
   });
 }
 
-// Back and forward change the query without touching the stores.
+/** Back and forward change the query without touching the stores. */
 function watchQuery(router: Router): void {
   if (watching) {
     return;

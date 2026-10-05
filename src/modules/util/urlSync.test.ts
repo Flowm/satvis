@@ -10,7 +10,7 @@ import { useSatStore } from "../../stores/sat";
 import type { Query } from "./urlCodec";
 import piniaUrlSync, { adjustUrlDefault, arrivalParam } from "./urlSync";
 
-// Writes reach the url through router.push/replace, which are async.
+/** Writes reach the url through router.push/replace, which are async. */
 const flush = async (): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, 0));
   await new Promise((resolve) => setTimeout(resolve, 0));

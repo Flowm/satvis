@@ -14,21 +14,25 @@ export const useCesiumStore = defineStore(
   "cesium",
   () => {
     const terrainProvider = ref("None");
-    // What a selection implies is derived in surfaceEffects, not stored.
+    /** What a selection implies is derived in surfaceEffects, not stored. */
     const surfaceModel = ref("None");
     const starMap = ref<string>(BUILTIN_STAR_MAP);
     const sceneMode = ref("3D");
     const cameraMode = ref("Fixed");
-    // `native` is the display's own ratio.
+    /** `native` is the display's own ratio. */
     const pixelRatio = ref<string>("native");
-    // The default is read once, so moving to another monitor cannot overwrite the user's choice.
+    /**
+     * The default is read once, so moving to another monitor cannot overwrite the user's choice.
+     */
     const msaa = ref<string>(defaultMsaaRate(currentDevicePixelRatio()));
     const background = ref(true);
     const showFps = ref(false);
     const pickMode = ref(false);
-    // Matches createViewer. Held here because the scene property is not reactive. Not URL-synced.
+    /**
+     * Matches createViewer. Held here because the scene property is not reactive. Not URL-synced.
+     */
     const requestRenderMode = ref(true);
-    // The benchmark panel (src/modules/benchmark).
+    /** The benchmark panel (src/modules/benchmark). */
     const showBenchmark = ref(false);
 
     // Read-only, so setLayers enforces "at most one base layer".

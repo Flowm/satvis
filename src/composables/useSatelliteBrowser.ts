@@ -28,9 +28,9 @@ export type BrowserRow =
       name: string;
       satnum: string;
       checked: boolean;
-      // Coloured like the satellite's point, so the list is the globe's legend.
+      /** Coloured like the satellite's point, so the list is the globe's legend. */
       orbitClass: OrbitClass;
-      // Search mode only.
+      /** Search mode only. */
       groupsLabel?: string;
     };
 
@@ -38,7 +38,7 @@ const SEARCH_DEBOUNCE_MS = 150;
 
 const searchQuery = ref("");
 const debouncedQuery = ref("");
-// The full-catalog load a search starts, while in flight.
+/** The full-catalog load a search starts, while in flight. */
 const searchLoad = shallowRef<Promise<void> | undefined>();
 const searchLoading = computed(() => searchLoad.value !== undefined);
 const expandedGroups = ref<Set<string>>(new Set());
@@ -150,7 +150,7 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     return stats;
   });
 
-  // Count-based, so an enabled group with opted-out members shows "some".
+  /** Count-based, so an enabled group with opted-out members shows "some". */
   function groupState(count: number, activeCount: number): "all" | "some" | "none" {
     if (count > 0 && activeCount === count) {
       return "all";
@@ -158,8 +158,10 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     return activeCount > 0 ? "some" : "none";
   }
 
-  // Without a query: group rows, each expanded one followed by its members. With one:
-  // matching groups, then deduplicated matching satellites with their group labels.
+  /**
+   * Without a query: group rows, each expanded one followed by its members. With one:
+   * matching groups, then deduplicated matching satellites with their group labels.
+   */
   const rows = computed<BrowserRow[]>(() => {
     void catalogRevision.value;
     const stats = groupStats.value;
@@ -238,8 +240,10 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     return tags.length > 0 ? tags.join(", ") : undefined;
   }
 
-  // Drops exclusions no enabled group covers, so re-enabling a group starts full. Names
-  // unknown to the catalog are kept: their group may not have loaded yet.
+  /**
+   * Drops exclusions no enabled group covers, so re-enabling a group starts full. Names
+   * unknown to the catalog are kept: their group may not have loaded yet.
+   */
   function prunedExclusions(remainingTags: string[]): string[] {
     if (disabledSatellites.value.length === 0) {
       return [];
@@ -251,13 +255,15 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     });
   }
 
-  // Prunes here, so the multiselect and the group rows cannot disagree.
+  /** Prunes here, so the multiselect and the group rows cannot disagree. */
   function setEnabledTags(next: string[]): void {
     satStore.setActivation({ enabledTags: next, disabledSatellites: prunedExclusions(next) });
   }
 
-  // off -> all; some -> all (clears exclusions); all -> off. Never writes enabledSatellites,
-  // so `sats=` cannot explode.
+  /**
+   * off -> all; some -> all (clears exclusions); all -> off. Never writes enabledSatellites,
+   * so `sats=` cannot explode.
+   */
   function toggleGroup(tag: string): void {
     if (!enabledTagSet.value.has(tag)) {
       satStore.setActivation({ enabledTags: [...enabledTags.value, tag] });
@@ -272,7 +278,9 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     setEnabledTags(enabledTags.value.filter((t) => t !== tag));
   }
 
-  // A satellite in an enabled group toggles `xsats=`; any other toggles `sats=`. The two stay disjoint.
+  /**
+   * A satellite in an enabled group toggles `xsats=`; any other toggles `sats=`. The two stay disjoint.
+   */
   function toggleSat(name: string): void {
     const entry = catalog.getByName(name);
     if (entry && isEnabledByTag(entry, enabledTagSet.value)) {
@@ -298,7 +306,7 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     }
   }
 
-  // Never turns a satellite off: opening its info needs it built.
+  /** Never turns a satellite off: opening its info needs it built. */
   function activateSat(name: string): void {
     if (!activeSatNames.value.has(name)) {
       toggleSat(name);

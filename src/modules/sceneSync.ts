@@ -18,11 +18,13 @@ import { repositioned } from "./util/groundStationEdits";
 import { toMinuteIso } from "./util/urlCodec";
 import { adjustUrlDefault, arrivalParam } from "./util/urlSync";
 
-// Enough to keep a fast clock multiplier from hammering the history api.
+/** Enough to keep a fast clock multiplier from hammering the history api. */
 const MIN_CLOCK_WRITE_MS = 1000;
 
-// Active satellites above which a component is switched off. Labels become unreadable
-// on a 1080p globe; the ground station link costs about 8 µs per satellite a frame.
+/**
+ * Active satellites above which a component is switched off. Labels become unreadable
+ * on a 1080p globe; the ground station link costs about 8 µs per satellite a frame.
+ */
 const COMPONENT_BUDGETS: Record<string, number> = {
   Label: 200,
   "Ground station link": 500,

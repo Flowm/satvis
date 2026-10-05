@@ -246,7 +246,7 @@ import SkyHud from "./SkyHud.vue";
 
 type MenuKey = "cat" | "sat" | "gs" | "map" | "view" | "ios" | "render";
 
-// Async, so the benchmark stays out of the main bundle.
+/** Async, so the benchmark stays out of the main bundle. */
 const BenchmarkPanel = defineAsyncComponent(() => import("./BenchmarkPanel.vue"));
 
 const cc = useController();
@@ -265,7 +265,7 @@ const showUI = ref(true);
 const cesiumStore = useCesiumStore();
 const { layers, terrainProvider, surfaceModel, starMap, sceneMode, cameraMode, pixelRatio, msaa, showFps, showBenchmark, requestRenderMode } = storeToRefs(cesiumStore);
 
-// Starts with the builtin map, and widens once per page when the probes answer.
+/** Starts with the builtin map, and widens once per page when the probes answer. */
 const starMapOptions = ref<StarMapName[]>([BUILTIN_STAR_MAP]);
 void availableStarMaps().then((names) => {
   starMapOptions.value = names;
@@ -274,14 +274,16 @@ void availableStarMaps().then((names) => {
 const devicePixelRatio = window.devicePixelRatio;
 const pixelRatioOptions = pixelRatiosFor(devicePixelRatio);
 
-// The same function the globe reads, so the menu and the globe cannot disagree.
+/** The same function the globe reads, so the menu and the globe cannot disagree. */
 const effects = computed(() => surfaceEffects(surfaceModel.value, sceneMode.value));
 const inert = computed(() => effects.value.inert);
 
 const activeTerrain = computed(() => effects.value.terrain ?? terrainProvider.value);
 const terrainImposed = computed(() => effects.value.terrain !== undefined);
 
-// The imposed-terrain case names the user's choice, because the radio shows the terrain in force.
+/**
+ * The imposed-terrain case names the user's choice, because the radio shows the terrain in force.
+ */
 function inertReason(group: MapGroup): string {
   if (!inert.value.includes(group)) {
     return "";
@@ -293,7 +295,7 @@ function inertReason(group: MapGroup): string {
   return `Hidden by ${surfaceModel.value}`;
 }
 
-// `viewModeNote` derives the text from the rules; do not write the view modes out here.
+/** `viewModeNote` derives the text from the rules; do not write the view modes out here. */
 const surfaceUnavailable = computed(() => {
   if (surfaceModel.value === "None" || !effects.value.unavailable.includes(surfaceModel.value as SurfaceModelName)) {
     return "";
@@ -301,8 +303,10 @@ const surfaceUnavailable = computed(() => {
   return viewModeNote(surfaceModel.value);
 });
 
-// Write `layers` only through `setLayers`, which enforces at most one base layer.
-// List order is z-order: the basemap goes first, overlays last.
+/**
+ * Write `layers` only through `setLayers`, which enforces at most one base layer.
+ * List order is z-order: the basemap goes first, overlays last.
+ */
 const isBaseToken = (token: string): boolean => {
   const provider = layerProvider(token);
   return provider !== undefined && cc.baseLayers.includes(provider);
@@ -332,8 +336,10 @@ const compassOffered = compassAvailable();
 const { active: compassActive, pending: compassPending, toggle: toggleCompass } = useSkyCompass(cc);
 const inSkyView = computed(() => sceneMode.value === SKY_MODE);
 
-// iOS raises the permission prompt only from inside the click, so the box flips first and is corrected
-// by hand: Vue re-syncs a checkbox only when its bound value changes, and a refusal leaves it unchanged.
+/**
+ * iOS raises the permission prompt only from inside the click, so the box flips first and is corrected
+ * by hand: Vue re-syncs a checkbox only when its bound value changes, and a refusal leaves it unchanged.
+ */
 async function onCompassToggle(event: Event): Promise<void> {
   await toggleCompass();
   (event.target as HTMLInputElement).checked = compassActive.value;

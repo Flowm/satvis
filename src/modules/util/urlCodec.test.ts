@@ -18,7 +18,7 @@ import {
 
 const components = () => SATELLITE_COMPONENTS as readonly string[];
 
-// The wire form the ADR pins; vue-router's serializer matches it.
+/** The wire form the ADR pins; vue-router's serializer matches it. */
 const queryString = (params: Readonly<Record<string, string>>): string => {
   const query = new URLSearchParams(params).toString().replaceAll("%2C", ",");
   return query === "" ? "" : `?${query}`;

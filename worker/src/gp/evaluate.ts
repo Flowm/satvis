@@ -4,10 +4,12 @@ import type { GpRecord, GroupDefinition, GroupsConfig, GroupsIndex, GroupStatus,
 
 const CELESTRAK_BASE = "https://celestrak.org/NORAD/elements/";
 const USER_AGENT = "satvis.space (https://github.com/Flowm/satvis)";
-// CelesTrak asks clients to space out requests.
+/** CelesTrak asks clients to space out requests. */
 const REQUEST_SPACING_MS = 250;
-// Aborts a stalled source, so one hung upstream cannot push the sequential refresh
-// past the cron / 120 s /__scheduled limit. CelesTrak's largest groups need far less.
+/**
+ * Aborts a stalled source, so one hung upstream cannot push the sequential refresh
+ * past the cron / 120 s /__scheduled limit. CelesTrak's largest groups need far less.
+ */
 const REQUEST_TIMEOUT_MS = 30_000;
 
 export function sourceKey(spec: SourceSpec): string {
@@ -30,7 +32,7 @@ export function sourceUrl(spec: SourceSpec): string {
   return spec.url;
 }
 
-// Deduped by sourceKey, so two groups naming one source fetch it once.
+/** Deduped by sourceKey, so two groups naming one source fetch it once. */
 export function collectSources(defs: GroupDefinition[]): SourceSpec[] {
   const seen = new Map<string, SourceSpec>();
   for (const def of defs) {
@@ -44,7 +46,7 @@ export function collectSources(defs: GroupDefinition[]): SourceSpec[] {
   return [...seen.values()];
 }
 
-// A failed source maps to an Error, so it breaks only the groups that use it.
+/** A failed source maps to an Error, so it breaks only the groups that use it. */
 export type RecordsBySource = Map<string, OmmRecord[] | Error>;
 
 export type FetchImpl = (
@@ -52,7 +54,9 @@ export type FetchImpl = (
   init?: { headers?: Record<string, string>; signal?: AbortSignal },
 ) => Promise<{
   status: number;
-  // Optional, so a replayed bundle (bundleFetch) can omit it. Only the SATCAT fetch reads it, for the ETag.
+  /**
+   * Optional, so a replayed bundle (bundleFetch) can omit it. Only the SATCAT fetch reads it, for the ETag.
+   */
   headers?: { get: (name: string) => string | null };
   text: () => Promise<string>;
 }>;
@@ -63,7 +67,7 @@ function delay(ms: number): Promise<void> {
   });
 }
 
-// CelesTrak serves HTML error pages with HTTP 200, so check the body shape too.
+/** CelesTrak serves HTML error pages with HTTP 200, so check the body shape too. */
 function parseOmmArray(status: number, body: string): OmmRecord[] {
   if (status !== 200) {
     throw new Error(`HTTP ${status}`);
@@ -87,8 +91,10 @@ function parseOmmArray(status: number, body: string): OmmRecord[] {
   return parsed as OmmRecord[];
 }
 
-// `records` on success, else `error`. `status` / `bytes` / `bodySample` are set when
-// the fetch got that far, which tells a bad body from a dead connection.
+/**
+ * `records` on success, else `error`. `status` / `bytes` / `bodySample` are set when
+ * the fetch got that far, which tells a bad body from a dead connection.
+ */
 export interface SourceFetch {
   key: string;
   url: string;
@@ -100,7 +106,7 @@ export interface SourceFetch {
   bodySample?: string;
 }
 
-// Never throws.
+/** Never throws. */
 async function fetchSource(spec: SourceSpec, fetchImpl: FetchImpl): Promise<SourceFetch> {
   const key = sourceKey(spec);
   const url = sourceUrl(spec);
@@ -125,7 +131,7 @@ async function fetchSource(spec: SourceSpec, fetchImpl: FetchImpl): Promise<Sour
   }
 }
 
-// Never throws. It logs before each fetch, so the last line printed names a stalled source.
+/** Never throws. It logs before each fetch, so the last line printed names a stalled source. */
 export async function fetchSources(defs: GroupDefinition[], fetchImpl: FetchImpl): Promise<SourceFetch[]> {
   const specs = collectSources(defs);
   const results: SourceFetch[] = [];
@@ -159,8 +165,10 @@ export function toRecordsBySource(fetched: SourceFetch[]): RecordsBySource {
   return map;
 }
 
-// JSON-safe fetch diagnostics for the /api/refresh report. Failures such as 522s
-// reproduce only from the Worker's egress, so the caller must see what came back.
+/**
+ * JSON-safe fetch diagnostics for the /api/refresh report. Failures such as 522s
+ * reproduce only from the Worker's egress, so the caller must see what came back.
+ */
 export interface SourceProbe {
   key: string;
   url: string;
@@ -193,8 +201,10 @@ function recordName(record: GpRecord): string {
   return record.OBJECT_NAME ?? "";
 }
 
-// The raw NORAD_CAT_ID of an OMM record. Unlike enrichmentSatnum it does not normalize
-// or read TLEs: selection semantics are frozen, so do not unify the two.
+/**
+ * The raw NORAD_CAT_ID of an OMM record. Unlike enrichmentSatnum it does not normalize
+ * or read TLEs: selection semantics are frozen, so do not unify the two.
+ */
 function recordSatnum(record: GpRecord): string | undefined {
   const id = (record as OmmRecord).NORAD_CAT_ID;
   return id === undefined || id === null ? undefined : String(id);
@@ -234,14 +244,16 @@ function selectMatches(record: OmmRecord, select: CompiledSelect | undefined): b
   return select.pattern !== undefined && select.pattern.test(name);
 }
 
-// A row matches by noradId, or else by exact upstreamName; the generator rejects a
-// row with neither. Each map holds ascending row indices per key.
+/**
+ * A row matches by noradId, or else by exact upstreamName; the generator rejects a
+ * row with neither. Each map holds ascending row indices per key.
+ */
 interface CompiledRows {
   bySatnum: Map<string, number[]>;
   byName: Map<string, number[]>;
 }
 
-// Buckets stay ascending because compileRows appends by increasing index.
+/** Buckets stay ascending because compileRows appends by increasing index. */
 function indexRow(map: Map<string, number[]>, key: string, index: number): void {
   const existing = map.get(key);
   if (existing) {
@@ -265,7 +277,7 @@ function compileRows(rows: SatelliteSpec[]): CompiledRows {
   return { bySatnum, byName };
 }
 
-// Ascending, so the lowest row index wins the rename.
+/** Ascending, so the lowest row index wins the rename. */
 function matchingRowIndices(record: OmmRecord, compiled: CompiledRows): number[] {
   const satnum = recordSatnum(record);
   const bySatnum = satnum !== undefined ? compiled.bySatnum.get(satnum) : undefined;
@@ -284,8 +296,10 @@ interface SelectResult {
   warnings: string[];
 }
 
-// Selects by the union of `satellites` rows and `select`. A row's `name` beats the
-// group `rename` map, which renames whatever no row did.
+/**
+ * Selects by the union of `satellites` rows and `select`. A row's `name` beats the
+ * group `rename` map, which renames whatever no row did.
+ */
 function applySelectAndRename(records: OmmRecord[], def: GroupDefinition): SelectResult {
   const rows = def.satellites ?? [];
   const warnings: string[] = [];
@@ -353,7 +367,7 @@ function dependencies(def: GroupDefinition): string[] {
   return [...(def.include ?? []), ...(def.exclude ?? [])];
 }
 
-// The generator rejects cycles and missing targets; this still terminates if one slips through.
+/** The generator rejects cycles and missing targets; this still terminates if one slips through. */
 function topoOrder(defs: GroupDefinition[]): GroupDefinition[] {
   const byName = new Map(defs.map((def) => [def.name, def]));
   const ordered: GroupDefinition[] = [];
@@ -379,8 +393,10 @@ function topoOrder(defs: GroupDefinition[]): GroupDefinition[] {
   return ordered;
 }
 
-// A group this one depends on, evaluated earlier by topo order. Its failure is
-// this group's failure: an include would serve a hole, an exclude a duplicate.
+/**
+ * A group this one depends on, evaluated earlier by topo order. Its failure is
+ * this group's failure: an include would serve a hole, an exclude a duplicate.
+ */
 function dependencyRecords(results: Map<string, GroupResult | Error>, dep: string, role: "included" | "excluded"): GpRecord[] {
   const result = results.get(dep);
   if (result === undefined) {
@@ -392,13 +408,13 @@ function dependencyRecords(results: Map<string, GroupResult | Error>, dep: strin
   return result.records;
 }
 
-// `warnings` cover the group's own rows only, not those of its includes.
+/** `warnings` cover the group's own rows only, not those of its includes. */
 export interface GroupResult {
   records: GpRecord[];
   warnings: string[];
 }
 
-// A group whose source or dependency failed maps to an Error.
+/** A group whose source or dependency failed maps to an Error. */
 export function evaluateGroups(defs: GroupDefinition[], recordsBySource: RecordsBySource): Map<string, GroupResult | Error> {
   const results = new Map<string, GroupResult | Error>();
   for (const def of topoOrder(defs)) {
@@ -432,9 +448,11 @@ export function evaluateGroups(defs: GroupDefinition[], recordsBySource: Records
   return results;
 }
 
-// Normalized, so key 5 matches a NORAD_CAT_ID of 5, "5" or "00005". TleRecords are
-// read from columns 3-7 of line 1, because pseudo element sets in `extraRecords`
-// have no NORAD_CAT_ID. Alpha-5 ids ("E8493") never match a numeric table key.
+/**
+ * Normalized, so key 5 matches a NORAD_CAT_ID of 5, "5" or "00005". TleRecords are
+ * read from columns 3-7 of line 1, because pseudo element sets in `extraRecords`
+ * have no NORAD_CAT_ID. Alpha-5 ids ("E8493") never match a numeric table key.
+ */
 function enrichmentSatnum(record: GpRecord): string {
   // `"TLE_LINE1" in record` cannot narrow: OmmRecord's index signature admits the key.
   const line1 = (record as { TLE_LINE1?: unknown }).TLE_LINE1;
@@ -442,27 +460,33 @@ function enrichmentSatnum(record: GpRecord): string {
   return normalizeSatnumKey(raw);
 }
 
-// Both sides of the satellite-table join use this, so the SATCAT parser keys rows
-// exactly as enrichmentSatnum looks them up.
+/**
+ * Both sides of the satellite-table join use this, so the SATCAT parser keys rows
+ * exactly as enrichmentSatnum looks them up.
+ */
 export function normalizeSatnumKey(raw: string): string {
   const trimmed = raw.trim();
   return /^\d+$/.test(trimmed) ? String(parseInt(trimmed, 10)) : trimmed;
 }
 
-// Entry ids are numeric, so only the record side needs normalizing.
+/** Entry ids are numeric, so only the record side needs normalizing. */
 export function indexSatellitesByNoradId(entries: SatelliteEntry[]): Map<string, SatelliteEntry> {
   return new Map(entries.map((entry) => [String(entry.noradId), entry]));
 }
 
-// Narrower than SatelliteEntry: SATCAT-only rows in the merged table have no
-// curated `noradId`/`name`.
+/**
+ * Narrower than SatelliteEntry: SATCAT-only rows in the merged table have no
+ * curated `noradId`/`name`.
+ */
 export interface SatelliteFacts {
   metadata: Record<string, unknown>;
 }
 
-// Lowercase `metadata` cannot collide with a CelesTrak field, which are all upper
-// case. Unmatched records get no key at all: the frontend applies its defaults.
-// `matched` lets the caller report table entries that matched nothing.
+/**
+ * Lowercase `metadata` cannot collide with a CelesTrak field, which are all upper
+ * case. Unmatched records get no key at all: the frontend applies its defaults.
+ * `matched` lets the caller report table entries that matched nothing.
+ */
 export function enrichRecords(records: GpRecord[], table: Map<string, SatelliteFacts>): { records: GpRecord[]; matched: Set<string> } {
   const matched = new Set<string>();
   if (table.size === 0) {
@@ -487,8 +511,10 @@ export function coerceIndex(raw: unknown): GroupsIndex {
   return { updated: "", groups: [] };
 }
 
-// Lays the config's tags and presets over a stored index. The API applies it too,
-// so a deploy that changes them takes effect before the next refresh.
+/**
+ * Lays the config's tags and presets over a stored index. The API applies it too,
+ * so a deploy that changes them takes effect before the next refresh.
+ */
 export function withConfig(index: GroupsIndex, config: GroupsConfig): GroupsIndex {
   const stored = new Map(index.groups.map((status) => [status.name, status]));
   const groups = config.groups.map((def): GroupStatus => {
@@ -499,8 +525,10 @@ export function withConfig(index: GroupsIndex, config: GroupsConfig): GroupsInde
   return { ...index, groups, presets };
 }
 
-// A failed group keeps the previous `updated`/`count`, because its last-known-good
-// data still serves. The static generator shares this, so the two cannot diverge.
+/**
+ * A failed group keeps the previous `updated`/`count`, because its last-known-good
+ * data still serves. The static generator shares this, so the two cannot diverge.
+ */
 export function buildStatuses(defs: GroupDefinition[], evaluated: Map<string, GroupResult | Error>, previousIndex: GroupsIndex, now: string): GroupStatus[] {
   const previousByName = new Map(previousIndex.groups.map((status) => [status.name, status]));
   return defs.map((def) => {

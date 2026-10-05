@@ -8,7 +8,9 @@ const sample = (alpha: number, beta: number, gamma: number, screenAngle = 0): De
 
 const azimuthError = (actual: number, expected: number): number => Math.abs(((((actual - expected) % 360) + 540) % 360) - 180);
 
-/** Built from the `deviceorientation` Euler order, not the module, so the round trip checks against the spec. */
+/**
+ * Built from the `deviceorientation` Euler order, not the module, so the round trip checks against the spec.
+ */
 function deviceRotationForTest({ alpha, beta, gamma, screenAngle }: DeviceOrientationSample): { backCamera: Cartesian3; screenUp: Cartesian3 } {
   const radians = (degrees: number) => (degrees * Math.PI) / 180;
   const rotation = [

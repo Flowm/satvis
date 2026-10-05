@@ -45,18 +45,18 @@ export class SatelliteProperties {
     return this.entry.orbitClass;
   }
 
-  // Per-side cross-track swath extents (km). Defaults to a symmetric split of DEFAULT_SWATH_KM.
+  /** Per-side cross-track swath extents (km). Defaults to a symmetric split of DEFAULT_SWATH_KM. */
   get swathExtents(): SwathExtents {
     return swathExtentsOf(this.metadata) ?? { starboardKm: DEFAULT_SWATH_KM / 2, portKm: DEFAULT_SWATH_KM / 2 };
   }
 
-  // Total swath width (km). Pass containment uses the sides individually.
+  /** Total swath width (km). Pass containment uses the sides individually. */
   get swath(): number {
     const { starboardKm, portKm } = this.swathExtents;
     return starboardKm + portKm;
   }
 
-  // Half-angle, degrees.
+  /** Half-angle, degrees. */
   get coneFovDeg(): number {
     return this.metadata.coneFovDeg ?? DEFAULT_CONE_FOV_DEG;
   }

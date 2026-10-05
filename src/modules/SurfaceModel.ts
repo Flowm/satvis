@@ -46,10 +46,12 @@ const GLOBE_BUILDING_CEILING = 1000;
 
 /** Not beside the layer providers: a surface model is not one (see CONTEXT.md). */
 const SURFACE_TILESETS: Record<SurfaceTileset, () => Promise<Cesium3DTileset>> = {
-  // The default style colours each building from its `cesium#color` property.
+  /** The default style colours each building from its `cesium#color` property. */
   OsmBuildings: () => createOsmBuildingsAsync(),
-  // Ion asset 2275207 via `Ion.defaultAccessToken`. `onlyUsingWithGoogleGeocoder` only
-  // silences a console warning; this app has no geocoder.
+  /**
+   * Ion asset 2275207 via `Ion.defaultAccessToken`. `onlyUsingWithGoogleGeocoder` only
+   * silences a console warning; this app has no geocoder.
+   */
   GooglePhotorealistic: () => createGooglePhotorealistic3DTileset({ onlyUsingWithGoogleGeocoder: true }, googleTilesetOptions()),
 };
 
@@ -150,7 +152,9 @@ export class SurfaceModel {
     this.#setGate(onTheGround ? undefined : () => this.#heightAboveGround() < GLOBE_BUILDING_CEILING);
   }
 
-  /** While terrain streams, `getHeight` can return nothing or nonsense (-76594 seen), so keep the last plausible one. */
+  /**
+   * While terrain streams, `getHeight` can return nothing or nonsense (-76594 seen), so keep the last plausible one.
+   */
   #heightAboveGround(): number {
     const cartographic = this.#deps.scene.camera.positionCartographic;
     const measured = this.#deps.scene.globe.getHeight(cartographic);
@@ -245,7 +249,9 @@ export class SurfaceModel {
     }
   }
 
-  /** Asks the tileset, not the selection, so a failed, pending or withheld model leaves the globe up. */
+  /**
+   * Asks the tileset, not the selection, so a failed, pending or withheld model leaves the globe up.
+   */
   #syncGlobe(): void {
     const standingIn = this.#hideGlobe && this.#tileset !== undefined && this.#tileset.show;
     const { globe } = this.#deps.scene;

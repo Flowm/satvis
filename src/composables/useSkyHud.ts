@@ -62,11 +62,17 @@ export interface SkyHudState {
   trace: ShallowRef<string>;
   /** Whether the compass knows where north is. Polled, because it latches inside the sensor callback. */
   calibrated: ShallowRef<boolean>;
-  /** Whether the camera has finished flying in. During the flight the aim is the destination, so the overlay stays hidden. */
+  /**
+   * Whether the camera has finished flying in. During the flight the aim is the
+   * destination, so the overlay stays hidden.
+   */
   settled: ShallowRef<boolean>;
 }
 
-/** Drops ticks that would overprint their neighbours. Majors win, and the first of a cluster wins, so survivors do not flicker. */
+/**
+ * Drops ticks that would overprint their neighbours. Majors win, and the first of a
+ * cluster wins, so survivors do not flicker.
+ */
 function thin(ticks: TapeTick[]): TapeTick[] {
   const kept: TapeTick[] = [];
   for (const tick of ticks.toSorted((a, b) => Number(b.major) - Number(a.major))) {

@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { CesiumCleanupHelper, collectLabelCollections } from "./CesiumCleanupHelper";
 
-// A Set, because the real `remove` is indexed off `_index`; a scan made this file
-// quadratic at 68,000 billboards.
+/**
+ * A Set, because the real `remove` is indexed off `_index`; a scan made this file
+ * quadratic at 68,000 billboards.
+ */
 const billboardCollection = (count: number) => {
   const held = new Set(Array.from({ length: count }, (_, index) => ({ id: index })));
   return {

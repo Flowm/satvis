@@ -21,7 +21,7 @@ import {
   toCsv,
 } from "./report";
 
-// A result carrying only what the report reads.
+/** A result carrying only what the report reads. */
 function result(options: {
   sats: number;
   components: string[];

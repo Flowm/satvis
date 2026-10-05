@@ -36,7 +36,10 @@ export function dropIndex(from: number, deltaY: number, rowHeight: number, count
   return Math.min(Math.max(target, 0), count - 1);
 }
 
-/** How far row `index` moves, in pixels, to open a gap where the dragged row lands. The dragged row returns 0: it follows the pointer. */
+/**
+ * How far row `index` moves, in pixels, to open a gap where the dragged row lands. The
+ * dragged row returns 0: it follows the pointer.
+ */
 export function dragShift(index: number, from: number, to: number, rowHeight: number): number {
   if (index === from) {
     return 0;

@@ -27,7 +27,7 @@ function turnBetween(a: Pose, b: Pose): number {
 /** A camera in orbit over the Gulf of Guinea, looking straight down with north up. */
 const orbit = pose(at(1, 0, 0, EARTH_RADIUS + 20_000_000), new Cartesian3(-1, 0, 0), new Cartesian3(0, 0, 1), 36);
 
-// The destination is on the equator a quarter turn east, with these local axes.
+/** The destination is on the equator a quarter turn east, with these local axes. */
 const destination = at(0, 1, 0, EARTH_RADIUS + 2);
 const EAST = new Cartesian3(-1, 0, 0);
 const NORTH = new Cartesian3(0, 0, 1);
@@ -36,7 +36,9 @@ const UP = new Cartesian3(0, 1, 0);
 /** Facing north, 45° above the horizon: the aim the flight ends on. */
 const ground = pose(destination, new Cartesian3(0, 1, 1), new Cartesian3(0, 1, -1), 75);
 
-/** `ground` tipped to -90°. `up` is north, the limit `skyBasis` gives, so the rise is pure pitch. */
+/**
+ * `ground` tipped to -90°. `up` is north, the limit `skyBasis` gives, so the rise is pure pitch.
+ */
 const overGround = pose(destination, Cartesian3.negate(UP, new Cartesian3()), NORTH);
 
 const path: FlightPath = { from: orbit, to: ground, over: overGround };
@@ -91,7 +93,7 @@ describe("flightPosition", () => {
 describe("flightPose", () => {
   const step = (t: number): Pose => flightPose(path, t, newPose());
 
-  /** In degrees. */
+  // In degrees.
   const offCentre = (here: Pose): number => angleDegrees(here.direction, Cartesian3.subtract(destination, here.position, new Cartesian3()));
 
   test("starts and ends on the poses it was given", () => {

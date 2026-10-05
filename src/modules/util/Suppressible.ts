@@ -38,8 +38,7 @@ export class Suppressible<T> {
 
   /**
    * Applied only if it is in force; a choice made under a suppression waits for release.
-   *
-   * @returns whether this changed what is in force.
+   * Returns whether this changed what is in force.
    */
   choose(value: T): boolean {
     if (Object.is(value, this.#chosen)) {
@@ -50,7 +49,7 @@ export class Suppressible<T> {
     return this.#reapply(before);
   }
 
-  /** @returns whether this changed what is in force. */
+  /** Returns whether this changed what is in force. */
   suppress(value: T): boolean {
     if (Object.is(value, this.#override)) {
       return false;
@@ -60,7 +59,7 @@ export class Suppressible<T> {
     return this.#reapply(before);
   }
 
-  /** @returns whether this changed what is in force. */
+  /** Returns whether this changed what is in force. */
   release(): boolean {
     if (this.#override === undefined) {
       return false;
@@ -120,7 +119,7 @@ export class SuppressibleSet {
     this.#settle();
   }
 
-  /** @returns false when `name` is already suppressed or not chosen. */
+  /** Returns false when `name` is already suppressed or not chosen. */
   suppress(name: string): boolean {
     if (this.#suppressed.has(name) || !this.#chosen.includes(name)) {
       return false;
@@ -130,7 +129,7 @@ export class SuppressibleSet {
     return true;
   }
 
-  /** @returns whether this brought anything back. */
+  /** Returns whether this brought anything back. */
   release(name: string): boolean {
     if (!this.#suppressed.delete(name)) {
       return false;

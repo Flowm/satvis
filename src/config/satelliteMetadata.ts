@@ -6,41 +6,45 @@
 
 import type { OrbitClass } from "./orbitClass";
 
-// Every field is optional; a consumer applies its default (DEFAULT_*, SatelliteProperties).
+/** Every field is optional; a consumer applies its default (DEFAULT_*, SatelliteProperties). */
 export interface SatelliteMetadata {
-  // Km from the ground track to each swath edge (starboard = velocity bearing + 90°). Not
-  // halves of a width: the sides can differ (Sentinel-3 SLSTR). Both or neither.
+  /**
+   * Km from the ground track to each swath edge (starboard = velocity bearing + 90°). Not
+   * halves of a width: the sides can differ (Sentinel-3 SLSTR). Both or neither.
+   */
   swathStarboardKm?: number;
   swathPortKm?: number;
   coneFovDeg?: number;
-  // Path under /data/models/, from a model manifest (ADR 0007).
+  /** Path under /data/models/, from a model manifest (ADR 0007). */
   modelFile?: string;
-  // Display-only free text.
+  /** Display-only free text. */
   operator?: string;
   missionType?: string;
 
   // Raw SATCAT codes, labelled by satcatCodes.ts; absent when upstream's cell is empty.
 
-  // Registration code, e.g. "US", "ESA", "PRC"; `operator` is curated free text.
+  /** Registration code, e.g. "US", "ESA", "PRC"; `operator` is curated free text. */
   owner?: string;
-  // ISO date, e.g. "1998-11-20".
+  /** ISO date, e.g. "1998-11-20". */
   launchDate?: string;
   launchSite?: string;
-  // Operational status, e.g. "+" (operational) or "P" (partially operational).
+  /** Operational status, e.g. "+" (operational) or "P" (partially operational). */
   opsStatus?: string;
-  // "ORB", "DOC" (docked), "IMP", "LAN", "R/T". Not the orbit regime: that is `orbitClass`.
+  /** "ORB", "DOC" (docked), "IMP", "LAN", "R/T". Not the orbit regime: that is `orbitClass`. */
   orbitType?: string;
-  // "EA" for the Earth, otherwise the host's NORAD id (a module docked to the ISS).
+  /** "EA" for the Earth, otherwise the host's NORAD id (a module docked to the ISS). */
   orbitCenter?: string;
-  // ISO date; present only once the object has re-entered.
+  /** ISO date; present only once the object has re-entered. */
   decayDate?: string;
 
-  // Cached by `parseGpPayload`; read through `CatalogEntry.orbitClass`.
-  // `cacheOrbitClass` overwrites it, so no served field may use the name.
+  /**
+   * Cached by `parseGpPayload`; read through `CatalogEntry.orbitClass`.
+   * `cacheOrbitClass` overwrites it, so no served field may use the name.
+   */
   orbitClass?: OrbitClass;
 }
 
-// Total width, not per side.
+/** Total width, not per side. */
 export const DEFAULT_SWATH_KM = 200;
 
 export const DEFAULT_CONE_FOV_DEG = 10;

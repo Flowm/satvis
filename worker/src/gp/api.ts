@@ -3,7 +3,9 @@ import { groupsConfig, ingestAll, type IngestSource, refreshAll } from "./refres
 import { GP_INDEX_KEY, GP_KEY_PREFIX, type GroupWriteMetadata } from "./store.ts";
 
 const GROUP_NAME_RE = /^[a-zA-Z0-9_-]+$/;
-// POST /api/refresh does not re-hit CelesTrak within this window of the last refresh, cron included.
+/**
+ * POST /api/refresh does not re-hit CelesTrak within this window of the last refresh, cron included.
+ */
 const REFRESH_COOLDOWN_MS = 60_000;
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
@@ -21,7 +23,7 @@ function badRequest(reason: string): Response {
   return jsonResponse({ error: reason }, { status: 400, headers: { "Cache-Control": "no-store" } });
 }
 
-// Null when the caller is authorized.
+/** Null when the caller is authorized. */
 function rejectUnauthorized(request: Request, env: Env): Response | null {
   // `wrangler types` cannot see secrets. An unset secret disables the endpoint rather than leaving it open.
   const expected = (env as Env & { REFRESH_TOKEN?: string }).REFRESH_TOKEN;
@@ -62,8 +64,10 @@ async function handleGroup(name: string, request: Request, env: Env): Promise<Re
   return new Response(value, { headers });
 }
 
-// FNV-1a, 32 bit. Only an ETag: two bodies colliding would cost one client one
-// stale index for one max-age.
+/**
+ * FNV-1a, 32 bit. Only an ETag: two bodies colliding would cost one client one
+ * stale index for one max-age.
+ */
 function fnv1a(text: string): string {
   let hash = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
@@ -73,7 +77,9 @@ function fnv1a(text: string): string {
   return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
-// The ETag hashes the body: a refresh or a deploy changes it, and no single timestamp covers both.
+/**
+ * The ETag hashes the body: a refresh or a deploy changes it, and no single timestamp covers both.
+ */
 async function handleIndex(request: Request, env: Env): Promise<Response> {
   const index = withConfig(coerceIndex(await env.GP_KV.get(GP_INDEX_KEY, "json")), groupsConfig);
   const body = JSON.stringify(index);
@@ -85,9 +91,11 @@ async function handleIndex(request: Request, env: Env): Promise<Response> {
   return new Response(body, { headers });
 }
 
-// The cron's refresh plus a per-source report. One run pulls ~7 MB from CelesTrak,
-// which firewalls by IP (250 MB/day) across Cloudflare's shared egress, hence the
-// token and the cooldown. Within the cooldown it answers 429 with the stored index.
+/**
+ * The cron's refresh plus a per-source report. One run pulls ~7 MB from CelesTrak,
+ * which firewalls by IP (250 MB/day) across Cloudflare's shared egress, hence the
+ * token and the cooldown. Within the cooldown it answers 429 with the stored index.
+ */
 async function handleRefresh(request: Request, env: Env): Promise<Response> {
   if (request.method !== "POST") {
     return jsonResponse({ error: "Method Not Allowed" }, { status: 405, headers: { Allow: "POST" } });
@@ -124,8 +132,10 @@ async function handleRefresh(request: Request, env: Env): Promise<Response> {
   );
 }
 
-// Returns the first problem as a string. Strict, because a malformed bundle would
-// otherwise read as an upstream outage.
+/**
+ * Returns the first problem as a string. Strict, because a malformed bundle would
+ * otherwise read as an upstream outage.
+ */
 function parseIngestBundle(raw: unknown): IngestSource[] | string {
   if (raw === null || typeof raw !== "object") {
     return "body must be a JSON object";
@@ -168,8 +178,10 @@ function parseIngestBundle(raw: unknown): IngestSource[] | string {
   return parsed;
 }
 
-// The cron's refresh over payloads downloaded off-Worker (scripts/push-gp.mjs), for
-// when CelesTrak firewalls Cloudflare's egress. No cooldown: it spends no CelesTrak budget.
+/**
+ * The cron's refresh over payloads downloaded off-Worker (scripts/push-gp.mjs), for
+ * when CelesTrak firewalls Cloudflare's egress. No cooldown: it spends no CelesTrak budget.
+ */
 async function handleIngest(request: Request, env: Env): Promise<Response> {
   if (request.method !== "POST") {
     return jsonResponse({ error: "Method Not Allowed" }, { status: 405, headers: { Allow: "POST" } });
@@ -208,7 +220,7 @@ async function handleIngest(request: Request, env: Env): Promise<Response> {
   );
 }
 
-// Null for non-api paths, which fall through to static assets.
+/** Null for non-api paths, which fall through to static assets. */
 export async function handleApi(request: Request, env: Env): Promise<Response | null> {
   const url = new URL(request.url);
   const path = url.pathname;

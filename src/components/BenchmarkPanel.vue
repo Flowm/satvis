@@ -325,10 +325,10 @@ const cc = useController();
 const cesiumStore = useCesiumStore();
 const satStore = useSatStore();
 const { showFps, requestRenderMode: renderOnDemand } = storeToRefs(cesiumStore);
-// Also installs `window.bench`.
+/** Also installs `window.bench`. */
 const bench = installBenchmark(cc);
 
-// `current` is the default: one pass rather than seven or eight.
+/** `current` is the default: one pass rather than seven or eight. */
 const MODES = [
   { value: "current", label: "current", hint: "Only the components currently switched on" },
   { value: "isolated", label: "isolated", hint: "Point, plus each other component on its own" },
@@ -337,7 +337,7 @@ const MODES = [
 type Mode = (typeof MODES)[number]["value"];
 
 const countsText = ref(DEFAULT_SATELLITE_COUNTS.join(", "));
-// The clock axis multiplies the step count.
+/** The clock axis multiplies the step count. */
 const clocksText = ref("1");
 const mode = ref<Mode>("current");
 const warmupMs = ref(DEFAULT_OPTIONS.warmupMs);
@@ -356,8 +356,10 @@ const running = ref(false);
 const status = ref("idle");
 const copied = ref("");
 const settingsOpen = ref(true);
-// The runner mutates its run in place, so a computed over `run` never
-// invalidates. Every derived view reads this counter instead.
+/**
+ * The runner mutates its run in place, so a computed over `run` never
+ * invalidates. Every derived view reads this counter instead.
+ */
 const revision = ref(0);
 const finished = ref<BenchmarkRun | undefined>(undefined);
 
@@ -549,7 +551,7 @@ function refresh(): void {
   };
 }
 
-// Restored on close. Not the target's job: its save/restore is scoped to a run.
+/** Restored on close. Not the target's job: its save/restore is scoped to a run. */
 let savedRequestRenderMode: boolean | undefined;
 
 onMounted(() => {

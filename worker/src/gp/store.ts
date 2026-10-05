@@ -7,7 +7,7 @@ export const GP_KEY_PREFIX = "gp:";
 export const GP_INDEX_KEY = "gp:index";
 export const SATCAT_KEY = "gp:satcat";
 
-// The API builds ETag and Last-Modified from it.
+/** The API builds ETag and Last-Modified from it. */
 export interface GroupWriteMetadata {
   updated: string;
   count: number;
@@ -23,7 +23,7 @@ export interface GroupStore {
   writeSatcat(snapshot: SatcatSnapshot): Promise<void>;
 }
 
-// A corrupt key means no SATCAT this run, not a throw mid-refresh.
+/** A corrupt key means no SATCAT this run, not a throw mid-refresh. */
 function coerceSatcat(raw: unknown): SatcatSnapshot | undefined {
   if (raw === null || typeof raw !== "object") {
     return undefined;

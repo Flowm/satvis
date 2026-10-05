@@ -5,7 +5,7 @@
 import { SKY_MODE } from "./viewModes";
 
 export const SURFACE_MODELS = ["None", "OsmBuildings", "GooglePhotorealistic"] as const;
-// Not `SurfaceModel`: that is the class in src/modules/SurfaceModel.ts.
+/** Not `SurfaceModel`: that is the class in src/modules/SurfaceModel.ts. */
 export type SurfaceModelName = (typeof SURFACE_MODELS)[number];
 
 export type SurfaceTileset = Exclude<SurfaceModelName, "None">;

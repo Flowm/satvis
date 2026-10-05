@@ -26,11 +26,9 @@ const open = ref(false);
 const content = ref("");
 const failed = ref(false);
 
-/**
- * The about page is the only copy of the content; the dialog lifts its `#about-content`.
- * `v-html` runs no scripts from it. Fetches `about.html`, not `/about`: only that url
- * is precached (vite.config.ts globPatterns), and `/about` 307s on the network.
- */
+// The about page is the only copy of the content; the dialog lifts its `#about-content`.
+// `v-html` runs no scripts from it. Fetches `about.html`, not `/about`: only that url
+// is precached (vite.config.ts globPatterns), and `/about` 307s on the network.
 watch(open, async (isOpen) => {
   if (!isOpen || content.value || failed.value) {
     return;

@@ -6,13 +6,15 @@ import { json2satrec, twoline2satrec, type OMMJsonObject, type SatRec } from "sa
 import type { OrbitClass } from "../../config/orbitClass";
 import type { SatelliteMetadata } from "../../config/satelliteMetadata";
 
-// `metadata` is optional for hand-built records; every record from parseGpPayload
-// carries at least the derived `orbitClass`.
+/**
+ * `metadata` is optional for hand-built records; every record from parseGpPayload
+ * carries at least the derived `orbitClass`.
+ */
 export type GpRecord = ({ kind: "omm"; omm: OMMJsonObject } | { kind: "tle"; name: string; line1: string; line2: string }) & {
   metadata?: SatelliteMetadata;
 };
 
-// Worker `TleRecord` (worker/src/gp/types.ts).
+/** Worker `TleRecord` (worker/src/gp/types.ts). */
 interface WorkerTleRecord {
   OBJECT_NAME?: string;
   TLE_LINE1: string;
@@ -25,17 +27,17 @@ function isWorkerTleRecord(obj: unknown): obj is WorkerTleRecord {
   );
 }
 
-// Satnum is in columns 3-7 (1-indexed) of a TLE line.
+/** Satnum is in columns 3-7 (1-indexed) of a TLE line. */
 function satnumFromTleLine(line: string): string {
   return line.substring(2, 7).trim();
 }
 
-// Strip a leading "0 " name prefix used by some 3-line TLE feeds.
+/** Strip a leading "0 " name prefix used by some 3-line TLE feeds. */
 function stripNamePrefix(name: string): string {
   return name.startsWith("0 ") ? name.substring(2) : name;
 }
 
-// "00005" -> "5"; alpha-5 designators ("E8493") stay as they are.
+/** "00005" -> "5"; alpha-5 designators ("E8493") stay as they are. */
 function normalizeSatnum(raw: string): string {
   const trimmed = raw.trim();
   if (/^\d+$/.test(trimmed)) {
@@ -46,8 +48,10 @@ function normalizeSatnum(raw: string): string {
 
 const MINUTES_PER_DAY = 1440;
 
-// TLE line 2 columns (1-indexed): eccentricity in 27-33 with an assumed leading
-// decimal point, mean motion (rev/day) in 53-63.
+/**
+ * TLE line 2 columns (1-indexed): eccentricity in 27-33 with an assumed leading
+ * decimal point, mean motion (rev/day) in 53-63.
+ */
 function classifyingElements(r: GpRecord): { meanMotionRevPerDay: number; eccentricity: number } {
   if (r.kind === "omm") {
     return { meanMotionRevPerDay: Number(r.omm.MEAN_MOTION), eccentricity: Number(r.omm.ECCENTRICITY) };
@@ -89,8 +93,10 @@ export function orbitClassOf(r: GpRecord): OrbitClass {
   return "MEO";
 }
 
-// Derived at load rather than served, so it cannot go stale against the element
-// set (docs/adr/0002-static-satellite-metadata.md).
+/**
+ * Derived at load rather than served, so it cannot go stale against the element
+ * set (docs/adr/0002-static-satellite-metadata.md).
+ */
 function cacheOrbitClass(records: GpRecord[]): GpRecord[] {
   for (const record of records) {
     record.metadata = { ...record.metadata, orbitClass: orbitClassOf(record) };
@@ -98,7 +104,7 @@ function cacheOrbitClass(records: GpRecord[]): GpRecord[] {
   return records;
 }
 
-// Never throws: malformed input is skipped with a warning.
+/** Never throws: malformed input is skipped with a warning. */
 export function parseGpPayload(text: string): GpRecord[] {
   const trimmed = text.trimStart();
   const firstChar = trimmed[0];
@@ -138,7 +144,7 @@ function parseJsonPayload(text: string): GpRecord[] {
   return records;
 }
 
-// Omits the key when absent, rather than spreading an explicit undefined.
+/** Omits the key when absent, rather than spreading an explicit undefined. */
 function metadataOf(item: unknown): { metadata?: SatelliteMetadata } {
   const metadata = (item as { metadata?: unknown }).metadata;
   if (typeof metadata !== "object" || metadata === null || Array.isArray(metadata)) {
@@ -147,8 +153,10 @@ function metadataOf(item: unknown): { metadata?: SatelliteMetadata } {
   return { metadata: metadata as SatelliteMetadata };
 }
 
-// Near-duplicate of parseTleText in worker/scripts/generate-groups.mjs with the
-// opposite error policy (this one warns and skips, that one throws). Do not unify them.
+/**
+ * Near-duplicate of parseTleText in worker/scripts/generate-groups.mjs with the
+ * opposite error policy (this one warns and skips, that one throws). Do not unify them.
+ */
 function parseTleText(text: string): GpRecord[] {
   const lines = text.split(/\r?\n/).map((line) => line.trimEnd());
   const records: GpRecord[] = [];
@@ -200,7 +208,7 @@ export function recordSatnum(r: GpRecord): string {
   return normalizeSatnum(satnumFromTleLine(r.line1));
 }
 
-// The only satrec creation point in the frontend.
+/** The only satrec creation point in the frontend. */
 export function createSatrec(r: GpRecord): SatRec {
   if (r.kind === "omm") {
     return json2satrec(r.omm);

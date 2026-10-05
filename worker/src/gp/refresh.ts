@@ -42,8 +42,10 @@ export function mergeSatelliteTables(satcat: SatcatSnapshot | undefined, entries
   return merged;
 }
 
-// A 304 and a failure both fall back to the stored snapshot: a SATCAT outage costs
-// enrichment freshness and nothing else.
+/**
+ * A 304 and a failure both fall back to the stored snapshot: a SATCAT outage costs
+ * enrichment freshness and nothing else.
+ */
 async function resolveSatcat(
   store: GroupStore,
   fetchImpl: FetchImpl,
@@ -75,7 +77,7 @@ async function resolveSatcat(
   };
 }
 
-// Failed groups get no write, so their last-known-good value stays in the store.
+/** Failed groups get no write, so their last-known-good value stays in the store. */
 export async function refreshGroups(config: GroupsConfig, store: GroupStore, fetchImpl: FetchImpl): Promise<RefreshReport> {
   const defs = config.groups;
   const startedMs = Date.now();
@@ -140,20 +142,26 @@ export async function refreshAll(env: Env): Promise<RefreshReport> {
   return refreshGroups(groupsConfig, kvGroupStore(env.GP_KV), (url, init) => fetch(url, init));
 }
 
-// One source downloaded off-Worker. `body` is set on success and `error` on failure;
-// a 304 carries neither.
+/**
+ * One source downloaded off-Worker. `body` is set on success and `error` on failure;
+ * a 304 carries neither.
+ */
 export interface IngestSource {
   key: string;
   url: string;
   status?: number;
   body?: string;
   error?: string;
-  // The ETag the downloader saw, replayed as a header for the SATCAT fetch. GP sources leave it unset.
+  /**
+   * The ETag the downloader saw, replayed as a header for the SATCAT fetch. GP sources leave it unset.
+   */
   validator?: string;
 }
 
-// Replays a downloaded bundle, so an ingest runs the cron's exact path. `url` is only
-// a Map key: a posted bundle cannot make the Worker fetch anything.
+/**
+ * Replays a downloaded bundle, so an ingest runs the cron's exact path. `url` is only
+ * a Map key: a posted bundle cannot make the Worker fetch anything.
+ */
 export function bundleFetch(sources: IngestSource[]): FetchImpl {
   const byUrl = new Map(sources.map((source) => [source.url, source]));
   return async (url) => {

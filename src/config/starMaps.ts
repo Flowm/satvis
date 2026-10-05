@@ -25,8 +25,10 @@ interface StarMapAsset {
 
 const GENERATOR = "pnpm update-starmap";
 
-// `Tycho1K` is absent: Cesium resolves its faces through `buildModuleUrl`, and the path moves
-// with the Cesium version. The others can be missing, so `CesiumController.applyStarMap` fetches them itself.
+/**
+ * `Tycho1K` is absent: Cesium resolves its faces through `buildModuleUrl`, and the path moves
+ * with the Cesium version. The others can be missing, so `CesiumController.applyStarMap` fetches them itself.
+ */
 const ASSETS: Partial<Record<StarMapName, StarMapAsset>> = {
   DeepStar1K: { prefix: "data/starmap/deepstar_2020_1024", recovery: GENERATOR },
   DeepStar2K: { prefix: "data/starmap/deepstar_2020_2048", recovery: GENERATOR },
@@ -63,7 +65,7 @@ export function starMapRecovery(name: string): string | undefined {
   return ASSETS[name as StarMapName]?.recovery;
 }
 
-// One probe per map for the life of the page; the menu asks on every render.
+/** One probe per map for the life of the page; the menu asks on every render. */
 const probes = new Map<string, Promise<boolean>>();
 
 /**

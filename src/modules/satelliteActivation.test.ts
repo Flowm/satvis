@@ -4,7 +4,7 @@ import { activeTargetEntries, buildOrder, isEnabledByTag } from "./satelliteActi
 import { CatalogEntry } from "./SatelliteCatalog";
 import type { GpRecord } from "./util/gp";
 
-// Minimal CatalogEntry factory — activeTargetEntries only reads key/name/tags.
+/** Minimal CatalogEntry factory — activeTargetEntries only reads key/name/tags. */
 function entry(name: string, satnum: string, tags: string[]): CatalogEntry {
   const record: GpRecord = { kind: "tle", name, line1: "", line2: "" };
   return new CatalogEntry({ key: `${satnum}|${name}`, name, nameUpper: name.toUpperCase(), satnum, tags, record });

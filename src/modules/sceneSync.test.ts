@@ -14,7 +14,7 @@ import type { DesiredScene } from "./SatelliteManager";
 import { type SceneTarget, startSceneSync } from "./sceneSync";
 import type { Observer } from "./SkyView";
 
-// The url the page was opened on.
+/** The url the page was opened on. */
 const url = vi.hoisted(() => ({ elements: undefined as string | undefined, adjustUrlDefault: vi.fn() }));
 vi.mock("./util/urlSync", () => ({
   arrivalParam: (param: string) => (param === "elements" ? url.elements : undefined),
@@ -29,7 +29,7 @@ function fakeTarget() {
     exits: 0,
     interactionStarts: 0,
     interactionStops: 0,
-    /** A test calls it to simulate a walk. */
+    // A test calls it to simulate a walk.
     observerMoved: undefined as ((observer: Observer) => void) | undefined,
     suppressCamera: 0,
     releaseCamera: 0,
@@ -405,7 +405,7 @@ describe("startSceneSync", () => {
   });
 
   describe("the component budgets", () => {
-    // A tag counts nothing until its group's entries land.
+    /** A tag counts nothing until its group's entries land. */
     function loadGroup(catalog: { entries: CatalogEntry[] }, tag: string, count: number): void {
       catalog.entries = entriesWithTag(tag, count);
       useSatStore().catalogRevision += 1;

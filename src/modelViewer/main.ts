@@ -29,9 +29,9 @@ import YAML from "yaml";
 import { installFramePumpIfRequested } from "../modules/benchmark/framePump";
 import { glbStats, type GlbStats } from "./glbStats";
 
-// Only the keys: the importers are never called, so nothing is bundled or fetched.
+/** Only the keys: the importers are never called, so nothing is bundled or fetched. */
 const MODEL_PATHS = Object.keys(import.meta.glob("/data/**/*.glb"));
-// The model manifests the worker maps NORAD ids from (ADR 0007).
+/** The model manifests the worker maps NORAD ids from (ADR 0007). */
 const MANIFESTS = import.meta.glob<string>(["/data/models/models.yaml", "/data/custom/*/models.yaml"], { query: "?raw", import: "default", eager: true });
 
 interface ManifestSatellite {
@@ -55,7 +55,9 @@ interface Listing {
   missing?: string;
 }
 
-/** Mapped files (a plugin's from its synced copy), then other GLBs under data/ outside plugin folders. */
+/**
+ * Mapped files (a plugin's from its synced copy), then other GLBs under data/ outside plugin folders.
+ */
 function listModels(): Listing[] {
   const present = new Set(MODEL_PATHS);
   const listed: Listing[] = [];
@@ -112,7 +114,7 @@ interface Entry {
 const ANCHOR = Transforms.eastNorthUpToFixedFrame(Cartesian3.fromDegrees(0, 0, 500_000));
 const FIT_RADIUS = 1;
 const CELL_PADDING = 1.4;
-// [heading, pitch] of the camera; heading 0 looks north (port), so sees the starboard side.
+/** [heading, pitch] of the camera; heading 0 looks north (port), so sees the starboard side. */
 const VIEWS: Record<string, [number, number]> = {
   starboard: [0, -0.3],
   port: [Math.PI, -0.3],
@@ -180,7 +182,7 @@ scene.preRender.addEventListener(() => {
 const labels = scene.primitives.add(new LabelCollection()) as LabelCollection;
 const panel = document.querySelector<HTMLElement>("#panel")!;
 
-// `?show=` lists the picked models by name; absent means all of them.
+/** `?show=` lists the picked models by name; absent means all of them. */
 const shown = params.get("show")?.split(",");
 
 const folderHeadings = new Map<string, HTMLElement>();
@@ -313,7 +315,9 @@ async function measureImages(entry: Entry): Promise<void> {
   renderCard(entry);
 }
 
-/** Rows of bounding spheres in cells sized to them; an off-centre origin shows as off-centre axes. */
+/**
+ * Rows of bounding spheres in cells sized to them; an off-centre origin shows as off-centre axes.
+ */
 function layout(): void {
   const ready = entries.filter((entry) => entry.visible && entry.model && entry.radius !== undefined);
   for (const entry of entries) {

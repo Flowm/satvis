@@ -22,7 +22,7 @@ export function requestedFrameMs(search: string): number | undefined {
 export interface FrameQueue {
   request(callback: FrameRequestCallback): number;
   cancel(handle: number): void;
-  /** @returns whether a frame was due and ran. */
+  /** Returns whether a frame was due and ran. */
   runDue(): boolean;
 }
 
@@ -69,7 +69,7 @@ export function frameQueue(frameMs: number, now: () => number): FrameQueue {
 let uninstall: (() => void) | undefined;
 
 /**
- * @returns the undo, or undefined when not requested or already running.
+ * Returns the undo, or undefined when not requested or already running.
  *
  * Calls `resize` and `render` itself (Cesium's manual-loop mode). Toggling
  * `useDefaultRenderLoop` alone is a no-op: a suspended loop never cleared its

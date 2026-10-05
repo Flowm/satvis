@@ -63,6 +63,14 @@ workspace package). One `pnpm install` at the root covers both.
   variable with `_`.
 - Component names in templates are kebab-case.
 - `pnpm lint:fix` formats (`oxfmt`) and sorts imports.
+- Comments say only what the code cannot: a constraint, a library quirk, a unit, a
+  measured number, a rejected alternative.
+- A doc on a declaration is `/** */`, exported or private: module-level declarations,
+  class and interface members (`#private` ones too), entries of module-level objects,
+  every function, and what a store or composable returns. Everything inside a
+  function body is `//`, as are notes on a group of declarations and file headers
+  (the split of Google's TypeScript guide: readers of the code versus its internals).
+  Prose only, no JSDoc tags.
 - Keep private plugins in `data/custom/` out of commits; only
   `example/satvis.yaml` and the sync script there are tracked.
 

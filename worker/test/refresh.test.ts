@@ -6,7 +6,7 @@ import { SATCAT_URL } from "../src/gp/satcat.ts";
 import type { GroupStore, GroupWriteMetadata } from "../src/gp/store.ts";
 import type { GpRecord, GroupsConfig, GroupsIndex, OmmRecord, SatcatSnapshot } from "../src/gp/types.ts";
 
-// The GroupStore contract of the KV and disk adapters, in memory.
+/** The GroupStore contract of the KV and disk adapters, in memory. */
 function memoryStore(previous: GroupsIndex = { updated: "", groups: [] }, storedSatcat?: SatcatSnapshot) {
   const groups = new Map<string, { records: GpRecord[]; metadata: GroupWriteMetadata }>();
   let index: GroupsIndex | undefined;
@@ -36,16 +36,20 @@ const CONFIG: GroupsConfig = { groups: [{ name: "stations", sources: [{ celestra
 const SATCAT_HEADER =
   "OBJECT_NAME,OBJECT_ID,NORAD_CAT_ID,OBJECT_TYPE,OPS_STATUS_CODE,OWNER,LAUNCH_DATE,LAUNCH_SITE,DECAY_DATE,PERIOD,INCLINATION,APOGEE,PERIGEE,RCS,DATA_STATUS_CODE,ORBIT_CENTER,ORBIT_TYPE";
 
-// Two rows in CelesTrak's real column order and CRLF line endings: ISS, and the
-// Nauka module docked to it.
+/**
+ * Two rows in CelesTrak's real column order and CRLF line endings: ISS, and the
+ * Nauka module docked to it.
+ */
 const SATCAT_CSV = [
   SATCAT_HEADER,
   "ISS (ZARYA),1998-067A,25544,PAY,+,ISS,1998-11-20,TYMSC,,92.94,51.63,424,414,399.0524,,EA,ORB",
   "ISS (NAUKA),2021-066A,49044,PAY,+,CIS,2021-07-21,TYMSC,,92.94,51.63,424,414,,,25544,DOC",
 ].join("\r\n");
 
-// Routed by URL, so the SATCAT fetch never gets a group payload. The catalog answers
-// 304 by default, the production steady state.
+/**
+ * Routed by URL, so the SATCAT fetch never gets a group payload. The catalog answers
+ * 304 by default, the production steady state.
+ */
 function routedFetch(records: unknown[], satcat: Awaited<ReturnType<FetchImpl>>): FetchImpl {
   return async (url) => (url === SATCAT_URL ? satcat : { status: 200, text: async () => JSON.stringify(records) });
 }

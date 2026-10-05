@@ -10,7 +10,7 @@ interface TimerEntry {
   message: string;
 }
 
-// Non-standard webkit message-handler bridge used by the iOS wrapper app
+/** Non-standard webkit message-handler bridge used by the iOS wrapper app */
 interface WebkitWindow {
   webkit?: {
     messageHandlers: {

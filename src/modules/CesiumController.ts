@@ -60,7 +60,9 @@ dayjs.extend(utc);
 /** Drawn into shared polyline primitives, so a scene morph must suppress them (see `morphTo`). */
 const BATCHED_COMPONENTS = ["Orbit", "Orbit track"] as const;
 
-/** Degrees. A little north, so Europe clears the limb without cutting off the southern hemisphere. */
+/**
+ * Degrees. A little north, so Europe clears the limb without cutting off the southern hemisphere.
+ */
 const DEFAULT_VIEW_LON = 15;
 const DEFAULT_VIEW_LAT = 25;
 
@@ -120,7 +122,7 @@ export class CesiumController {
 
   #removeCameraTrackEci: (() => void) | undefined;
 
-  // Aborted when the imagery layers are replaced, detaching any that follow the clock.
+  /** Aborted when the imagery layers are replaced, detaching any that follow the clock. */
   #imageryLifetime = new AbortController();
 
   /** "Fixed" or "Inertial". The sky view suppresses it with "Fixed". */
@@ -129,10 +131,10 @@ export class CesiumController {
   /** A surface model can suppress it (ADR 0005). */
   readonly terrain: Suppressible<string>;
 
-  // Reports a selection once, not on every view-mode re-apply.
+  /** Reports a selection once, not on every view-mode re-apply. */
   #selectedSurfaceModel: string | undefined;
 
-  // The `applyStarMap` call that started last wins, not the one whose faces arrive last.
+  /** The `applyStarMap` call that started last wins, not the one whose faces arrive last. */
   #starMapGeneration = 0;
 
   constructor(viewer: Viewer) {
@@ -517,7 +519,9 @@ export class CesiumController {
     this.addGroundStation(lat, lon);
   }
 
-  // sceneSync turns the store's ground stations into entities. Do not truth-test: 0 is a valid coordinate.
+  /**
+   * sceneSync turns the store's ground stations into entities. Do not truth-test: 0 is a valid coordinate.
+   */
   private addGroundStation(lat: number, lon: number, name = ""): void {
     const satStore = useSatStore();
     satStore.setGroundStations([...satStore.groundStations, { lat, lon, ...(name ? { name } : {}) }]);
@@ -569,7 +573,10 @@ export class CesiumController {
     this.viewer.scene.requestRender();
   }
 
-  /** Owned by the store: the Render menu and the benchmark panel both write it, and the scene property is not reactive. */
+  /**
+   * Owned by the store: the Render menu and the benchmark panel both write it, and the
+   * scene property is not reactive.
+   */
   set requestRenderMode(value: boolean) {
     this.viewer.scene.requestRenderMode = value;
     // Switching it on otherwise looks like a freeze.

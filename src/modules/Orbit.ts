@@ -8,16 +8,23 @@ const deg2rad = Math.PI / 180;
 const rad2deg = 180 / Math.PI;
 
 export interface GeodeticPosition {
-  longitude: number; // degrees
-  latitude: number; // degrees
-  height: number; // meters
-  velocity?: number; // km/s, present when calculateVelocity = true
+  /** Degrees. */
+  longitude: number;
+  /** Degrees. */
+  latitude: number;
+  /** Metres. */
+  height: number;
+  /** km/s, present when `calculateVelocity` is true. */
+  velocity?: number;
 }
 
 export interface GroundStationPosition {
-  longitude: number; // degrees
-  latitude: number; // degrees
-  height: number; // meters (converted to km internally before passing to satellite.js)
+  /** Degrees. */
+  longitude: number;
+  /** Degrees. */
+  latitude: number;
+  /** Metres; converted to km before it reaches satellite.js. */
+  height: number;
 }
 
 export interface ElevationPass {
@@ -54,17 +61,19 @@ export interface TrackOffsets {
 const EARTH_RADIUS_KM = 6371;
 const POLAR_RADIUS_KM = 6356.752;
 
-// Lookahead for the ground-track bearing: the track is locally straight, and the
-// subpoints are ~75 km apart in LEO, so rounding does not dominate.
+/**
+ * Lookahead for the ground-track bearing: the track is locally straight, and the
+ * subpoints are ~75 km apart in LEO, so rounding does not dominate.
+ */
 const BEARING_SAMPLE_MS = 10_000;
 
 const MU_KM3_S2 = 398600.4418;
 const EARTH_ROTATION_RAD_S = 7.2921159e-5;
 const INV_PHI = (Math.sqrt(5) - 1) / 2;
 
-// Pass edge and peak resolution. A kilometre-wide swath can serve a station for under a second.
+/** Pass edge and peak resolution. A kilometre-wide swath can serve a station for under a second. */
 const PASS_RESOLUTION_MS = 10;
-// How often an asymmetric swath re-reads which side of the track the station is on.
+/** How often an asymmetric swath re-reads which side of the track the station is on. */
 const SIDE_SAMPLE_MS = 1000;
 
 /** Initial bearing from one geodetic point to another, all in radians. */
@@ -136,7 +145,7 @@ export default class Orbit {
 
   record: GpRecord;
 
-  // Only for kind:"tle" records, for the info panel. Undefined for OMM.
+  /** Only for kind:"tle" records, for the info panel. Undefined for OMM. */
   tle?: string[];
 
   satrec: satellitejs.SatRec;
@@ -315,7 +324,9 @@ export default class Orbit {
     return 1.1 * EARTH_RADIUS_KM * (perigeeRateRadS + EARTH_ROTATION_RAD_S);
   }
 
-  /** Great-circle distance (km) from the subpoint to the station, `Infinity` where it cannot be propagated. */
+  /**
+   * Great-circle distance (km) from the subpoint to the station, `Infinity` where it cannot be propagated.
+   */
   #subpointDistanceKm(groundStation: GroundStationPosition, timeMs: number): number {
     const here = this.positionGeodetic(new Date(timeMs));
     if (!here) {

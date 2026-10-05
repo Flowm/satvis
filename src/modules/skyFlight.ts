@@ -152,7 +152,10 @@ function aimedRotation(over: Pose, target: Cartesian3, eye: Cartesian3, result: 
   return Quaternion.multiply(turn, nadir, result);
 }
 
-/** `t` is raw progress, unclamped and uneased: each leg schedules itself off it. `result` must not be a member of `path`. */
+/**
+ * `t` is raw progress, unclamped and uneased: each leg schedules itself off it. `result`
+ * must not be a member of `path`.
+ */
 export function flightPose(path: FlightPath, t: number, result: Pose): Pose {
   const { from, to, over } = path;
 

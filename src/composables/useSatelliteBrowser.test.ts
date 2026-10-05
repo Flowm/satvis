@@ -15,8 +15,10 @@ function json(body: unknown): () => Response {
   return () => new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } });
 }
 
-// Weather is a full group; active is search-only and holds Weather's one
-// satellite plus one that no group offers.
+/**
+ * Weather is a full group; active is search-only and holds Weather's one
+ * satellite plus one that no group offers.
+ */
 function installFetch(): void {
   const routes: Record<string, () => Response> = {
     "/api/groups.json": json({
@@ -39,7 +41,7 @@ function installFetch(): void {
   );
 }
 
-// Wired as SatelliteManager does it.
+/** Wired as SatelliteManager does it. */
 function setup() {
   const catalog = new SatelliteCatalog();
   const satStore = useSatStore();

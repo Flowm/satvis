@@ -34,9 +34,9 @@ export interface PassCommand {
 
 export type PassReply =
   | { kind: "passes"; satnum: string; passes: WorkerPass[] }
-  /** Retry with `record` attached. */
+  // Retry with `record` attached.
   | { kind: "unknown"; satnum: string }
-  /** No retry will help. */
+  // No retry will help.
   | { kind: "unopenable"; satnum: string; reason: string };
 
 export interface PassRequest {
@@ -109,7 +109,7 @@ export function runPassCommand(cache: OrbitCache, command: PassCommand): PassRep
   return { kind: "passes", satnum: command.satnum, passes };
 }
 
-// Guarded on the absence of `window`, not on `self` existing — see sgp4Worker.
+/** Guarded on the absence of `window`, not on `self` existing — see sgp4Worker. */
 const inWorkerScope = typeof (globalThis as { window?: unknown }).window === "undefined" && typeof (globalThis as { postMessage?: unknown }).postMessage === "function";
 
 if (inWorkerScope) {

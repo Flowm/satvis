@@ -10,7 +10,9 @@
 //
 // This module must stay Cesium-free (node-env vitest exercises it).
 
-// SATCAT `OWNER`. CelesTrak's names verbatim: ownership is contested, so this is not an editorial table.
+/**
+ * SATCAT `OWNER`. CelesTrak's names verbatim: ownership is contested, so this is not an editorial table.
+ */
 export const SATCAT_OWNER: Record<string, string> = {
   AB: "Arab Satellite Communications Organization",
   ABS: "Asia Broadcast Satellite",
@@ -146,7 +148,7 @@ export const SATCAT_OWNER: Record<string, string> = {
   ZWE: "Zimbabwe",
 };
 
-// SATCAT `LAUNCH_SITE`, without upstream's country suffix, which overflows the info panel.
+/** SATCAT `LAUNCH_SITE`, without upstream's country suffix, which overflows the info panel. */
 export const SATCAT_LAUNCH_SITE: Record<string, string> = {
   AFETR: "Cape Canaveral, Florida",
   AFWTR: "Vandenberg, California",
@@ -191,7 +193,9 @@ export const SATCAT_LAUNCH_SITE: Record<string, string> = {
   YUN: "Yunsong, North Korea",
 };
 
-// SATCAT `OPS_STATUS_CODE`. CelesTrak counts +, P, B, S and X as active, which does not imply powered.
+/**
+ * SATCAT `OPS_STATUS_CODE`. CelesTrak counts +, P, B, S and X as active, which does not imply powered.
+ */
 export const SATCAT_OPS_STATUS: Record<string, string> = {
   "+": "Operational",
   "-": "Nonoperational",
@@ -203,7 +207,7 @@ export const SATCAT_OPS_STATUS: Record<string, string> = {
   "?": "Unknown",
 };
 
-// SATCAT `ORBIT_TYPE`. getSatelliteInfo hides the common `ORB`.
+/** SATCAT `ORBIT_TYPE`. getSatelliteInfo hides the common `ORB`. */
 export const SATCAT_ORBIT_TYPE: Record<string, string> = {
   ORB: "Orbiting",
   LAN: "Landed",

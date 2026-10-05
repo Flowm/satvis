@@ -2,17 +2,15 @@ import type { Viewer } from "@cesium/widgets";
 
 import { CesiumCallbackHelper } from "./CesiumCallbackHelper";
 
-/**
- * Cesium keeps a label's glyph billboards after the label is gone. `EntityCluster`
- * parks a removed label's slot with `text = ""`, and unbinding pushes each glyph
- * billboard onto `_spareBillboards` without removing it from
- * `_glyphBillboardCollection`, which then updates every glyph the scene ever drew.
- *
- * Measured: going from 5,000 labelled satellites to 74 left 67,952 spares in a
- * collection of 68,703 and a 250 ms frame; draining brought it back to 8.4 ms.
- *
- * Upstream: https://github.com/CesiumGS/cesium/issues/7184
- */
+// Cesium keeps a label's glyph billboards after the label is gone. `EntityCluster`
+// parks a removed label's slot with `text = ""`, and unbinding pushes each glyph
+// billboard onto `_spareBillboards` without removing it from
+// `_glyphBillboardCollection`, which then updates every glyph the scene ever drew.
+//
+// Measured: going from 5,000 labelled satellites to 74 left 67,952 spares in a
+// collection of 68,703 and a 250 ms frame; draining brought it back to 8.4 ms.
+//
+// Upstream: https://github.com/CesiumGS/cesium/issues/7184
 
 /** Draining rebuilds the glyph collection's vertex arrays, so a few spares are left alone. */
 const SPARE_BILLBOARD_THRESHOLD = 100;

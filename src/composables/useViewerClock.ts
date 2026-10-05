@@ -8,7 +8,7 @@ import { rungFor, LADDER } from "../modules/util/clockDeck";
 import { useCesiumStore } from "../stores/cesium";
 import { useController } from "./useController";
 
-// Every write here re-renders the deck, and the tick listener runs at render rate.
+/** Every write here re-renders the deck, and the tick listener runs at render rate. */
 const READOUT_MS = 100;
 
 /** The granularity the url records anyway. See CONTEXT.md, live vs pinned time. */

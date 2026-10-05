@@ -64,9 +64,9 @@ export interface Sgp4Chunk {
 
 export type Sgp4Reply =
   | { kind: "chunk"; chunk: Sgp4Chunk }
-  /** No satrec held for this satellite. Retry with `record` attached. */
+  // No satrec held for this satellite. Retry with `record` attached.
   | { kind: "unknown"; satnum: string }
-  /** The element set cannot be propagated at all; no retry will help. */
+  // The element set cannot be propagated at all; no retry will help.
   | { kind: "unopenable"; satnum: string; reason: string };
 
 export interface Sgp4Response {
@@ -185,8 +185,10 @@ export function runCommand(cache: SatrecCache, command: Sgp4Command): Sgp4Reply 
   return chunk ? { kind: "chunk", chunk } : { kind: "unopenable", satnum: command.satnum, reason: "no usable mean motion" };
 }
 
-// Checks for no `window`, not for `self`: on the main thread `self` is the window,
-// and the tests and the inline source import this module there.
+/**
+ * Checks for no `window`, not for `self`: on the main thread `self` is the window,
+ * and the tests and the inline source import this module there.
+ */
 const inWorkerScope = typeof (globalThis as { window?: unknown }).window === "undefined" && typeof (globalThis as { postMessage?: unknown }).postMessage === "function";
 
 if (inWorkerScope) {

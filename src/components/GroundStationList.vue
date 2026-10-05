@@ -130,7 +130,9 @@ function abandon(event: KeyboardEvent, stored: string): void {
   input.blur();
 }
 
-/** On `change`, not `input`: each commit writes the store and the url, and recomputes every satellite's passes. */
+/**
+ * On `change`, not `input`: each commit writes the store and the url, and recomputes every satellite's passes.
+ */
 function commitName(index: number, event: Event): void {
   const input = event.target as HTMLInputElement;
   satStore.setGroundStations(renamed(stations.value, index, input.value));
@@ -153,8 +155,10 @@ function removeAt(index: number): void {
   satStore.setGroundStations(without(stations.value, index));
 }
 
-// Pointer events, not HTML5 drag-and-drop, which does not work on touch. The row
-// height is measured per drag, so the arithmetic cannot drift from the stylesheet.
+/**
+ * Pointer events, not HTML5 drag-and-drop, which does not work on touch. The row
+ * height is measured per drag, so the arithmetic cannot drift from the stylesheet.
+ */
 const drag = ref<{ from: number; to: number; offset: number; rowHeight: number } | undefined>();
 
 /**

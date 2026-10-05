@@ -18,8 +18,10 @@ declare global {
 
   interface Performance {
     measureUserAgentSpecificMemory?: () => Promise<MemoryMeasurement>;
-    // Chrome only. Not bucketed: eight consecutive reads gave eight distinct
-    // values, with or without --enable-precise-memory-info. See FrameSample.heap.
+    /**
+     * Chrome only. Not bucketed: eight consecutive reads gave eight distinct
+     * values, with or without --enable-precise-memory-info. See FrameSample.heap.
+     */
     memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number };
   }
 }
@@ -142,7 +144,9 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
 
   options: TargetOptions = {};
 
-  /** State before the first prepare(), held until restore() so a run that throws still restores it. */
+  /**
+   * State before the first prepare(), held until restore() so a run that throws still restores it.
+   */
   #saved: { requestRenderMode: boolean; shouldAnimate: boolean; multiplier: number; scene: DesiredScene } | undefined;
 
   constructor(cc: CesiumController) {
@@ -441,7 +445,9 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     await nextFrames(1);
   }
 
-  /** Sorted, so "the first 500" is stable across runs; deduplicated because activation matches by name. */
+  /**
+   * Sorted, so "the first 500" is stable across runs; deduplicated because activation matches by name.
+   */
   #names(): string[] {
     const entries = this.options.tag ? this.#cc.sats.catalog.entriesWithTag(this.options.tag) : this.#cc.sats.catalog.entries;
     // eslint-disable-next-line unicorn/no-array-sort -- already a fresh array

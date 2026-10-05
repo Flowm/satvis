@@ -79,7 +79,7 @@ export function skyTargets(scene: Scene, frame: ObserverFrame, satellites: reado
   return targets;
 }
 
-// Reused: the ray is cast per candidate per frame.
+/** Reused: the ray is cast per candidate per frame. */
 const occlusionRay = new Ray();
 const occlusionHit = new Cartesian3();
 

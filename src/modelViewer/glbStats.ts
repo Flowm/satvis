@@ -194,7 +194,7 @@ function walkScene(json: Gltf, visit: (node: GltfNode, world: Mat4) => void): vo
   }
 }
 
-// Column-major, as glTF stores them.
+/** Column-major, as glTF stores them. */
 const IDENTITY: Mat4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
 function localMatrix(node: GltfNode): Mat4 {

@@ -8,7 +8,7 @@ import { orbitClassOf, parseGpPayload, recordName, recordSatnum, type GpRecord }
 import { fetchGpGroup, fetchGpIndex } from "./util/gpSource";
 
 export class CatalogEntry {
-  // satnum + "|" + name.
+  /** satnum + "|" + name. */
   readonly key: string;
 
   readonly name: string;
@@ -17,7 +17,7 @@ export class CatalogEntry {
 
   readonly satnum: string;
 
-  // addRecords reassigns it when merging tags across groups.
+  /** addRecords reassigns it when merging tags across groups. */
   tags: string[];
 
   readonly record: GpRecord;
@@ -31,25 +31,27 @@ export class CatalogEntry {
     this.record = fields.record;
   }
 
-  // Attached by the worker at refresh time. Empty for a hand-built record, where
-  // consumers apply their own defaults.
+  /**
+   * Attached by the worker at refresh time. Empty for a hand-built record, where
+   * consumers apply their own defaults.
+   */
   get metadata(): SatelliteMetadata {
     return this.record.metadata ?? {};
   }
 
-  // parseGpPayload caches the class; this falls back only for hand-built records.
+  /** parseGpPayload caches the class; this falls back only for hand-built records. */
   get orbitClass(): OrbitClass {
     return this.metadata.orbitClass ?? orbitClassOf(this.record);
   }
 }
 
-// Registered up front so the UI can list it; fetched only on demand.
+/** Registered up front so the UI can list it; fetched only on demand. */
 interface RegisteredGroup {
   source: string;
   tags: string[];
   searchOnly: boolean;
   loaded: boolean;
-  // Cleared on failure so a later ensure call retries.
+  /** Cleared on failure so a later ensure call retries. */
   load: Promise<void> | undefined;
 }
 
@@ -83,8 +85,10 @@ export class SatelliteCatalog {
 
   #indexLoad: Promise<void> | undefined;
 
-  // Repeated registration merges tags. A group is search-only until some preset
-  // registers it as a full group.
+  /**
+   * Repeated registration merges tags. A group is search-only until some preset
+   * registers it as a full group.
+   */
   registerGroups(sourceTagList: ReadonlyArray<ElementsEntry>): void {
     for (const [source, tags, options] of sourceTagList) {
       const searchOnly = options?.searchOnly === true;
@@ -98,7 +102,7 @@ export class SatelliteCatalog {
     }
   }
 
-  // Best-effort: an unavailable index leaves the estimated counts at 0.
+  /** Best-effort: an unavailable index leaves the estimated counts at 0. */
   ensureIndex(): Promise<void> {
     this.#indexLoad ??= fetchGpIndex().then((index) => {
       for (const group of index.groups) {
@@ -110,7 +114,7 @@ export class SatelliteCatalog {
     return this.#indexLoad;
   }
 
-  // Per-group errors are logged and skipped.
+  /** Per-group errors are logged and skipped. */
   ensureTags(tags: readonly string[]): Promise<void> {
     const wanted = new Set(tags);
     const loads = [...this.#registry.values()].filter((group) => group.tags.some((tag) => wanted.has(tag))).map((group) => this.#ensureGroup(group));
@@ -122,7 +126,7 @@ export class SatelliteCatalog {
     return Promise.all(loads).then(() => undefined);
   }
 
-  // True for tags without a registered source, e.g. custom records.
+  /** True for tags without a registered source, e.g. custom records. */
   isTagLoaded(tag: string): boolean {
     for (const group of this.#registry.values()) {
       if (!group.loaded && group.tags.includes(tag)) {
@@ -150,7 +154,7 @@ export class SatelliteCatalog {
     }
   }
 
-  // Returns the entries that were added or whose tags changed.
+  /** Returns the entries that were added or whose tags changed. */
   addRecords(records: GpRecord[], tags: string[]): CatalogEntry[] {
     const changed: CatalogEntry[] = [];
     for (const record of records) {
@@ -197,9 +201,11 @@ export class SatelliteCatalog {
     }
   }
 
-  // Unloaded groups add an estimate from the group index, which may double-count
-  // satellites shared with a loaded group. A tag is search-only when every
-  // registered source carrying it is.
+  /**
+   * Unloaded groups add an estimate from the group index, which may double-count
+   * satellites shared with a loaded group. A tag is search-only when every
+   * registered source carrying it is.
+   */
   get groups(): { tag: string; count: number; searchOnly: boolean }[] {
     const counts = new Map<string, number>();
     const searchOnly = new Map<string, boolean>();

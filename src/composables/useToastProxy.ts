@@ -9,5 +9,5 @@ let toast: ToastApi | null = null;
 
 export const initToastProxy = (t: ToastApi): ToastApi => (toast = t);
 
-// The fallback only warns: every toast follows a user action, long after App.vue mounts.
+/** The fallback only warns: every toast follows a user action, long after App.vue mounts. */
 export const useToastProxy = (): ToastApi | { add: (message: ToastMessage) => void } => toast ?? { add: () => console.warn("Toast not initialized") };

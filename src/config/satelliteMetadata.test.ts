@@ -7,7 +7,7 @@ import { InlinePassSource } from "../modules/util/passSource";
 import { InlineSampleSource } from "../modules/util/sampleSource";
 import type { SatelliteMetadata } from "./satelliteMetadata";
 
-// Minimal OMM record, with metadata attached as the worker does it.
+/** Minimal OMM record, with metadata attached as the worker does it. */
 function ommRecord(name: string, satnum: number, metadata?: SatelliteMetadata): GpRecord {
   return {
     kind: "omm",

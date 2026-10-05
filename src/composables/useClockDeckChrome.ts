@@ -7,9 +7,11 @@ const BODY_CLASS = "clock-deck";
 
 type CreditPlace = "clear" | "stacked" | "beside" | "folded";
 
-// The credit box (206 px, or 113 px stacked) plus 10 px of air, against a surface at
-// `50% − 95`. Not measured at runtime: the line is a fifth of its width until the ion logo
-// loads. Above 1000 px main.css overrides the result.
+/**
+ * The credit box (206 px, or 113 px stacked) plus 10 px of air, against a surface at
+ * `50% − 95`. Not measured at runtime: the line is a fifth of its width until the ion logo
+ * loads. Above 1000 px main.css overrides the result.
+ */
 const CREDIT_BESIDE_MIN_PX = 624;
 const CREDIT_STACKED_MIN_PX = 448;
 

@@ -17,8 +17,10 @@ const configPath = path.join(workerDir, "src", "config", "satvis.generated.json"
 const outDir = path.join(repoRoot, "data", "gp");
 const satcatPath = path.join(workerDir, ".cache", "satcat.json");
 
-// The SATCAT cache lives outside data/, because everything under data/ ships.
-// Deleting it costs one full 6.7 MB download.
+/**
+ * The SATCAT cache lives outside data/, because everything under data/ ships.
+ * Deleting it costs one full 6.7 MB download.
+ */
 function diskGroupStore(dir, cachePath) {
   const indexPath = path.join(dir, "index.json");
   return {

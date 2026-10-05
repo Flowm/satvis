@@ -46,7 +46,7 @@ interface PassWindow {
 export class PassPredictor {
   #orbit: Orbit;
 
-  // Read per recompute, so a record that arrives later still applies.
+  /** Read per recompute, so a record that arrives later still applies. */
   #swath: () => SwathExtents;
 
   #groundStations: GroundStation[] = [];

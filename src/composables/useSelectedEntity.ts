@@ -32,26 +32,29 @@ const isTracked = ref(false);
 const name = ref("");
 const position: Ref<PositionRow[]> = ref([]);
 const passRows: Ref<PassRow[]> = ref([]);
-// The passes behind `passRows`, in the same order.
+/** The passes behind `passRows`, in the same order. */
 const passes: ShallowRef<readonly Pass[]> = shallowRef([]);
-// The ongoing or next pass.
+/** The ongoing or next pass. */
 const nextPass: ShallowRef<Pass | null> = shallowRef(null);
-// Distinct subjects in the pass list. At one, the panel drops the first column.
+/** Distinct subjects in the pass list. At one, the panel drops the first column. */
 const subjectCount = ref(0);
-// Simulation time in epoch milliseconds at the last refresh. The clock itself is not reactive.
+/** Simulation time in epoch milliseconds at the last refresh. The clock itself is not reactive. */
 const nowMs = ref(0);
-/** The tab the user last chose, not the active one: a ground station has no Details, but selecting a satellite returns there. */
+/**
+ * The tab the user last chose, not the active one: a ground station has no Details, but
+ * selecting a satellite returns there.
+ */
 const preferredTab = ref("details");
-// The pass picked off the timeline, by start time.
+/** The pass picked off the timeline, by start time. */
 const pickedPassMs = ref<number | null>(null);
-// Lets the panel say "not yet" instead of "none" (see `PassPredictor.settled`).
+/** Lets the panel say "not yet" instead of "none" (see `PassPredictor.settled`). */
 const passesPending = ref(false);
-// Whether any passes exist before past ones are dropped; picks the empty-state text.
+/** Whether any passes exist before past ones are dropped; picks the empty-state text. */
 const hasAnyPasses = ref(false);
 const showPastPasses = ref(false);
 const groundStationAvailable = ref(false);
 const elements: ShallowRef<ElementsInfo | null> = shallowRef(null);
-// Resolved once per selection: none of it is time-dependent.
+/** Resolved once per selection: none of it is time-dependent. */
 const satelliteInfo: ShallowRef<[string, string][]> = shallowRef([]);
 
 let controller: CesiumController | undefined;

@@ -43,7 +43,9 @@ const GROUND_TRACK_REFRESH_FRAMES = 30;
  */
 const BUILD_BUDGET_MS = 16;
 
-/** Below this a build runs synchronously; the default 74-satellite scene fits in one budget anyway. */
+/**
+ * Below this a build runs synchronously; the default 74-satellite scene fits in one budget anyway.
+ */
 const BUILD_SYNCHRONOUS_LIMIT = 250;
 
 export interface DesiredScene {
@@ -67,10 +69,10 @@ const EMPTY_SCENE: DesiredScene = {
 };
 
 export class SatelliteManager {
-  // The last scene handed to reconcile. Nothing else mirrors store state.
+  /** The last scene handed to reconcile. Nothing else mirrors store state. */
   #desired: DesiredScene = EMPTY_SCENE;
 
-  // The user's choice comes from the desired scene; a scene morph suppresses Orbit.
+  /** The user's choice comes from the desired scene; a scene morph suppresses Orbit. */
   #components = new SuppressibleSet(({ show, hide }) => {
     show.forEach((name) => this.#showComponent(name));
     hide.forEach((name) => this.#hideComponent(name));
@@ -90,14 +92,14 @@ export class SatelliteManager {
   /** The same for the Orbit track, which is Earth-fixed and needs its own model matrix. */
   readonly tracks: PolylineBatch;
 
-  // Keyed by catalog entry key. Only entries in the activation target have a collection.
+  /** Keyed by catalog entry key. Only entries in the activation target have a collection. */
   #active = new Map<string, SatelliteComponentCollection>();
 
   availableComponents: string[] = [...SATELLITE_COMPONENTS];
 
   pendingTrackedSatellite: string | undefined;
 
-  // Selected the moment it is built. See select().
+  /** Selected the moment it is built. See select(). */
   #pendingSelection: string | undefined;
 
   /** Simulation time. */
@@ -111,7 +113,9 @@ export class SatelliteManager {
 
   #groundTracksRefreshedOnFrame = 0;
 
-  /** Undefined while the re-cut is in flight. Starts landed so a scene's first corridors do not wait. */
+  /**
+   * Undefined while the re-cut is in flight. Starts landed so a scene's first corridors do not wait.
+   */
   #groundTracksLandedOnFrame: number | undefined = 0;
 
   /** The satellite asked whether the corridor batch has caught up. */
@@ -122,7 +126,9 @@ export class SatelliteManager {
   /** A worker separate from sampling; see passWorker. */
   readonly #passes: PassSource = new WorkerPassSource();
 
-  /** Satellites whose opening window has arrived. A satellite is only created once it has a position. */
+  /**
+   * Satellites whose opening window has arrived. A satellite is only created once it has a position.
+   */
   #ready: Array<{ key: string; entry: CatalogEntry; chunk: SampleChunk }> = [];
 
   /** Opening windows still in flight. */
@@ -264,7 +270,7 @@ export class SatelliteManager {
     this.pendingTrackedSatellite = name;
   }
 
-  // Only the groups the activation state needs load now; the rest load on demand.
+  /** Only the groups the activation state needs load now; the rest load on demand. */
   loadElementSets(sourceTagList: ReadonlyArray<ElementsEntry>): Promise<void> {
     this.catalog.registerGroups(sourceTagList);
     this.#onCatalogChange?.();
@@ -272,8 +278,10 @@ export class SatelliteManager {
     return this.#ensureCatalogCoverage();
   }
 
-  // Loads every group when an enabled or pending-tracked name is unknown: its
-  // group cannot be known without loading.
+  /**
+   * Loads every group when an enabled or pending-tracked name is unknown: its
+   * group cannot be known without loading.
+   */
   #ensureCatalogCoverage(): Promise<void> {
     const loads = [this.catalog.ensureTags(this.#desired.enabledTags)];
     const names = [...this.#desired.enabledSatellites];
@@ -286,7 +294,7 @@ export class SatelliteManager {
     return Promise.all(loads).then(() => undefined);
   }
 
-  // For console and test use.
+  /** For console and test use. */
   addCustomRecords(records: GpRecord[], tags: string[]): void {
     this.catalog.addRecords(records, tags);
     this.#onCatalogChange?.();
@@ -561,7 +569,7 @@ export class SatelliteManager {
     return "";
   }
 
-  // Derived from Cesium; set it through reconcile.
+  /** Derived from Cesium; set it through reconcile. */
   get trackedSatellite(): string {
     for (const sat of this.#active.values()) {
       if (sat.isTracked) {
@@ -575,7 +583,7 @@ export class SatelliteManager {
     return [...this.#active.values()].filter((sat) => sat.created);
   }
 
-  // Active satellites only; use `cc.sats.catalog.getByName` for any entry.
+  /** Active satellites only; use `cc.sats.catalog.getByName` for any entry. */
   getSatellite(name: string): SatelliteComponentCollection | undefined {
     for (const sat of this.#active.values()) {
       if (sat.props.name === name) {

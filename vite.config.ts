@@ -25,19 +25,23 @@ try {
 
 const port = process.env.PORT ? Number(process.env.PORT) : undefined;
 
-// Cross-origin isolation exposes `performance.measureUserAgentSpecificMemory()` to the benchmark panel.
+/**
+ * Cross-origin isolation exposes `performance.measureUserAgentSpecificMemory()` to the benchmark panel.
+ */
 const CROSS_ORIGIN_ISOLATION_HEADERS = {
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Embedder-Policy": "credentialless",
 };
 
-// The repo ships levels 0-2; `pnpm update-imagery` generates 0-5.
-// The service worker precaches levels 0-3 and runtime-caches 4-5.
+/**
+ * The repo ships levels 0-2; `pnpm update-imagery` generates 0-5.
+ * The service worker precaches levels 0-3 and runtime-caches 4-5.
+ */
 const generatedImagery = existsSync(fileURLToPath(new URL("data/imagery/NaturalEarthII/3/0/0.webp", import.meta.url)));
 const COMMITTED_MAX_LEVEL = 2;
 const GENERATED_MAX_LEVEL = 5;
 
-// Absent until `git submodule update --init`.
+/** Absent until `git submodule update --init`. */
 const modelsCheckedOut = existsSync(fileURLToPath(new URL("data/models/public", import.meta.url)));
 
 export default defineConfig({
@@ -211,7 +215,8 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
     alias: [
-      // Stubs satellite.js's unused Emscripten bundles, which raise fifteen "externalized for browser compatibility" warnings.
+      // Stubs satellite.js's unused Emscripten bundles, which raise fifteen "externalized
+      // for browser compatibility" warnings.
       { find: "#wasm-single-thread", replacement: fileURLToPath(new URL("src/modules/util/satelliteWasmRuntime.ts", import.meta.url)) },
       { find: "#wasm-multi-thread", replacement: fileURLToPath(new URL("src/modules/util/satelliteWasmRuntime.ts", import.meta.url)) },
     ],

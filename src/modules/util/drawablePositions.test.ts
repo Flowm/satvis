@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { drawablePositions } from "./drawablePositions";
 
-// On the ellipsoid, so the relative epsilon works at the callers' magnitudes.
+/** On the ellipsoid, so the relative epsilon works at the callers' magnitudes. */
 const SURFACE = new Cartesian3(6378137, 0, 0);
 
 describe("drawablePositions", () => {

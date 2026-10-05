@@ -6,7 +6,7 @@ import { readonly, type Ref, ref } from "vue";
 import type { CesiumController } from "../modules/CesiumController";
 import type { Observer } from "../modules/skyGeometry";
 
-// A cold fix takes this long; shorter turns a slow success into a failure.
+/** A cold fix takes this long; shorter turns a slow success into a failure. */
 const TIMEOUT_MS = 10_000;
 
 /** Undefined when the user declines, the fix fails, or it times out. */

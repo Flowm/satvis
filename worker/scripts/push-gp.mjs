@@ -30,7 +30,7 @@ function fail(message) {
   process.exit(1);
 }
 
-// Undefined when the Worker holds no SATCAT or is unreachable, which costs a full download.
+/** Undefined when the Worker holds no SATCAT or is unreachable, which costs a full download. */
 async function storedSatcatValidator() {
   try {
     const res = await fetch(groupsUrl);
@@ -44,8 +44,10 @@ async function storedSatcatValidator() {
   }
 }
 
-// Conditional on the Worker's stored ETag, so the usual outcome is a 304. Posted as
-// raw bytes, which the Worker parses with its one SATCAT parser.
+/**
+ * Conditional on the Worker's stored ETag, so the usual outcome is a 304. Posted as
+ * raw bytes, which the Worker parses with its one SATCAT parser.
+ */
 async function downloadSatcat() {
   const validator = await storedSatcatValidator();
   const headers = { "User-Agent": "satvis.space (https://github.com/Flowm/satvis)" };

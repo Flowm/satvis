@@ -16,7 +16,9 @@ import {
 
 import { createGibsTimeLayer } from "./GibsTimeLayer";
 
-// Always present (see data/imagery/.gitignore). Its depth is `__IMAGERY_MAX_LEVEL__` in vite.config.ts.
+/**
+ * Always present (see data/imagery/.gitignore). Its depth is `__IMAGERY_MAX_LEVEL__` in vite.config.ts.
+ */
 const NATURAL_EARTH = "data/imagery/NaturalEarthII";
 
 /** What a layer that follows the simulation time needs from the viewer it is added to. */
@@ -39,7 +41,7 @@ export interface TerrainProviderEntry {
 }
 
 export const imageryProviders: Record<string, ImageryProviderEntry> = {
-  // The offline base map, and the default.
+  /** The offline base map, and the default. */
   NaturalEarth: {
     // Overrides the manifest, which declares only the committed levels; readonly after
     // construction. Above it Cesium magnifies the deepest ready ancestor tile.
@@ -59,8 +61,10 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
     alpha: 1,
     base: true,
   },
-  // Free and keyless. Cesium cannot read TileJSON, so the template and tile size are
-  // copied from https://tiles.versatiles.org/tiles/satellite/tiles.json.
+  /**
+   * Free and keyless. Cesium cannot read TileJSON, so the template and tile size are
+   * copied from https://tiles.versatiles.org/tiles/satellite/tiles.json.
+   */
   VersaTiles: {
     create: () =>
       new UrlTemplateImageryProvider({
@@ -98,7 +102,9 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
     alpha: 1,
     base: true,
   },
-  // Daily true colour since 2015. A composite of swaths, so the gaps near the equator are black.
+  /**
+   * Daily true colour since 2015. A composite of swaths, so the gaps near the equator are black.
+   */
   VIIRS: {
     create: (context) => createGibsTimeLayer({ layer: "VIIRS_SNPP_CorrectedReflectance_TrueColor", maximumLevel: 9, format: "jpeg", daily: true }, context),
     alpha: 1,
@@ -109,7 +115,7 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
     alpha: 1,
     base: false,
   },
-  // GOES-East clean infrared, every 10 minutes for the last few months, over the Americas.
+  /** GOES-East clean infrared, every 10 minutes for the last few months, over the Americas. */
   "GOES-IR": {
     create: (context) => createGibsTimeLayer({ layer: "GOES-East_ABI_Band13_Clean_Infrared", maximumLevel: 6, format: "png", daily: false }, context),
     alpha: 0.5,
@@ -135,13 +141,15 @@ export const terrainProviders: Record<string, TerrainProviderEntry> = {
   None: {
     create: () => new EllipsoidTerrainProvider(),
   },
-  // OSM Buildings forces this terrain (src/config/surfaceModels.ts). Needs the ion token.
+  /** OSM Buildings forces this terrain (src/config/surfaceModels.ts). Needs the ion token. */
   CesiumWorldTerrain: {
     // `globe.enableLighting` needs vertex normals, or the relief shades flat.
     create: () => createWorldTerrainAsync({ requestVertexNormals: true }),
   },
-  // Free and keyless, with no SLA. The `ellipsoid` variant, because the geoid one sits
-  // tens of metres off. No water mask: it would need a second attribution line.
+  /**
+   * Free and keyless, with no SLA. The `ellipsoid` variant, because the geoid one sits
+   * tens of metres off. No water mask: it would need a second attribution line.
+   */
   ReEarth: {
     create: () =>
       CesiumTerrainProvider.fromUrl("https://terrain.reearth.land/cesium-mesh/ellipsoid", {

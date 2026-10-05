@@ -55,7 +55,7 @@ const DAY = 24 * HOUR;
 
 const TLE = "ISS (ZARYA)\n1 25544U 98067A   18342.69352573  .00002284  00000-0  41838-4 0  9992\n2 25544  51.6407 229.0798 0005166 124.8351 329.3296 15.54069892145658";
 
-// Time near the TLE epoch so SGP4 propagation stays meaningful.
+/** Time near the TLE epoch so SGP4 propagation stays meaningful. */
 const EPOCH_TIME = JulianDate.fromDate(dayjs("2018-12-08").toDate());
 
 const MUNICH: GroundStation = { name: "Munich", position: { latitude: 48.177, longitude: 11.7476, height: 0 } };

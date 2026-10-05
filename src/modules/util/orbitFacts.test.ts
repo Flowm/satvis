@@ -15,7 +15,7 @@ function rowValue(orbit: Orbit, label: string): string | undefined {
   return derivedOrbitRows(orbit).find(([rowLabel]) => rowLabel === label)?.[1];
 }
 
-// Published descending node: 10:30 local mean solar time.
+/** Published descending node: 10:30 local mean solar time. */
 const SENTINEL_2A = orbitOf(
   "SENTINEL-2A\n1 40697U 15028A   26223.45944444  .00000123  00000-0  62329-4 0  9993\n2 40697  98.5663 297.5180 0001357  89.5010 270.6328 14.30818424580123",
 );

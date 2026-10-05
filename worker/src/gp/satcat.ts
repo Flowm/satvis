@@ -5,19 +5,23 @@ import type { FetchImpl } from "./evaluate.ts";
 import { normalizeSatnumKey } from "./evaluate.ts";
 import type { SatcatSnapshot } from "./types.ts";
 
-// The full catalog (~70k objects, ~6.7 MB). Not records.php?GROUP=active: it is 4.5x
-// smaller but drops the rocket bodies, debris and just-decayed objects that last-30-days carries.
+/**
+ * The full catalog (~70k objects, ~6.7 MB). Not records.php?GROUP=active: it is 4.5x
+ * smaller but drops the rocket bodies, debris and just-decayed objects that last-30-days carries.
+ */
 export const SATCAT_URL = "https://celestrak.org/pub/satcat.csv";
 
 const USER_AGENT = "satvis.space (https://github.com/Flowm/satvis)";
 const REQUEST_TIMEOUT_MS = 60_000;
 
-// SATCAT column -> key in src/config/satelliteMetadata.ts. Left out on purpose:
-//   PERIOD/INCLINATION/APOGEE/PERIGEE  the element set gives them unrounded
-//   RCS                                2.9% coverage on the satellites we serve
-//   DATA_STATUS_CODE                   empty for all of them
-//   OBJECT_TYPE                        12,583 of 12,594 are PAY; revisit for a debris group
-//   OBJECT_NAME/OBJECT_ID              the GP record carries both
+/**
+ * SATCAT column -> key in src/config/satelliteMetadata.ts. Left out on purpose:
+ *   PERIOD/INCLINATION/APOGEE/PERIGEE  the element set gives them unrounded
+ *   RCS                                2.9% coverage on the satellites we serve
+ *   DATA_STATUS_CODE                   empty for all of them
+ *   OBJECT_TYPE                        12,583 of 12,594 are PAY; revisit for a debris group
+ *   OBJECT_NAME/OBJECT_ID              the GP record carries both
+ */
 const FIELDS: [string, string][] = [
   ["OWNER", "owner"],
   ["LAUNCH_DATE", "launchDate"],
@@ -30,8 +34,10 @@ const FIELDS: [string, string][] = [
 
 const SATNUM_COLUMN = "NORAD_CAT_ID";
 
-// RFC 4180 quoting, but no quoted newlines: SATCAT has none, and the column-count
-// check in parseSatcatCsv would reject one.
+/**
+ * RFC 4180 quoting, but no quoted newlines: SATCAT has none, and the column-count
+ * check in parseSatcatCsv would reject one.
+ */
 function splitCsvLine(line: string): string[] {
   if (!line.includes('"')) {
     return line.split(",");
@@ -112,7 +118,7 @@ export function parseSatcatCsv(body: string): SatcatSnapshot["rows"] {
   return rows;
 }
 
-// Exactly one of `rows`, `notModified` and `error` is set.
+/** Exactly one of `rows`, `notModified` and `error` is set. */
 export interface SatcatFetch {
   status?: number;
   ms: number;

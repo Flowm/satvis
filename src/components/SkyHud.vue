@@ -66,10 +66,12 @@ import { SKY_MODE } from "../config/viewModes";
 import { compassPoint } from "../modules/SkyTargets";
 import { useCesiumStore } from "../stores/cesium";
 
-// Not Tailwind: it emits no CSS for a class built at runtime.
-// The toolbar buttons occupy y 5-37, and the tick labels sit 4 px above COMPASS_Y.
+/**
+ * Not Tailwind: it emits no CSS for a class built at runtime.
+ * The toolbar buttons occupy y 5-37, and the tick labels sit 4 px above COMPASS_Y.
+ */
 const COMPASS_Y = 62;
-// From the left edge of the right-pinned side svg.
+/** From the left edge of the right-pinned side svg. */
 const ELEVATION_RULE_X = 46;
 const TAPE_LENGTH = 12;
 

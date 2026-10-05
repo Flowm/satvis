@@ -3,7 +3,7 @@
 
 export interface LayerSelection {
   provider: string;
-  // Absent means the provider's default opacity.
+  /** Absent means the provider's default opacity. */
   alpha?: number;
 }
 

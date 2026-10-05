@@ -40,7 +40,7 @@ export interface BenchmarkHandle {
   /** The propagation axis: one component set across four clock rates. */
   clock(overrides?: RunOverrides): Promise<BenchmarkRun>;
   cancel(): void;
-  /** @returns the stop function. */
+  /** Returns the stop function. */
   watch(intervalMs?: number): () => void;
   readonly last: BenchmarkRun | undefined;
   log(): void;

@@ -40,13 +40,13 @@ async function runScheduled(cron) {
   console.log(`cron ${cron}: ${response.status ?? response.message}`);
 }
 
-// A fresh volume would otherwise have no satellites until the first cron.
+/** A fresh volume would otherwise have no satellites until the first cron. */
 const index = await (await fetch(`${upstream}/api/groups.json`)).json();
 if (!index.updated && crons[0]) {
   await runScheduled(crons[0]);
 }
 
-// Cron fields as Cloudflare evaluates them, in UTC: `*`, `a`, `a-b`, `/n` steps, comma lists.
+/** Cron fields as Cloudflare evaluates them, in UTC: `*`, `a`, `a-b`, `/n` steps, comma lists. */
 const fieldValues = [(d) => d.getUTCMinutes(), (d) => d.getUTCHours(), (d) => d.getUTCDate(), (d) => d.getUTCMonth() + 1, (d) => d.getUTCDay()];
 const fieldMinimums = [0, 0, 1, 1, 0];
 

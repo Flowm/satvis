@@ -110,7 +110,7 @@ const { now, playing, multiplier, rung, offPresent, togglePlaying, goLive } = cl
 const timeline = ref<HTMLElement>();
 const { ticks, width: timelineWidth, onDown: onTimelineDown, onMove: onTimelineMove, onUp: onTimelineUp, onKey: onTimelineKey, measure } = useTimeline(clock, timeline);
 
-// The timeline moves under a fixed needle, so marks are recomputed relative to `now`.
+/** The timeline moves under a fixed needle, so marks are recomputed relative to `now`. */
 const { passes } = usePassHighlights();
 const marks = computed(() => passMarks(passes.value, now.value.getTime(), timelineWidth.value));
 
@@ -119,7 +119,7 @@ const { onScroll: onLadderScroll, onDown: onLadderDown, onMove: onLadderMove, on
 
 const scale = ref<Scale>(Scale.Timeline);
 const onLadder = computed(() => scale.value === Scale.Ladder);
-// Folded on every touch device, tablets included.
+/** Folded on every touch device, tablets included. */
 const open = ref(!DeviceDetect.hasTouch());
 
 const resettable = computed(() => (onLadder.value ? multiplier.value !== 1 : offPresent.value));
@@ -169,15 +169,17 @@ function onLadderKey(event: KeyboardEvent): void {
   void nextTick(() => ladder.value?.querySelector<HTMLElement>(".rung--on")?.focus());
 }
 
-// Measured, not derived: the reset button appears for several reasons, and a `watch` list would drift.
-// Set on the deck, not the cluster, because the scale row's fillets use them too.
+/**
+ * Measured, not derived: the reset button appears for several reasons, and a `watch` list would drift.
+ * Set on the deck, not the cluster, because the scale row's fillets use them too.
+ */
 const cluster = ref<HTMLElement>();
 const surfaceLeft = ref(0);
 const surfaceRight = ref(0);
 const surfaceStyle = computed(() => ({ "--surface-left": `${surfaceLeft.value}px`, "--surface-right": `${surfaceRight.value}px` }));
 
 const SURFACE_PAD = 8;
-// `.play__circle`, not `.play`: the button box has 5 px of transparent slack on each side.
+/** `.play__circle`, not `.play`: the button box has 5 px of transparent slack on each side. */
 const SURFACE_PARTS = ".play__circle, .stamp, .mode, .reset";
 
 function measureSurface(): void {
@@ -197,8 +199,10 @@ function measureSurface(): void {
   surfaceRight.value = Math.max(0, box.right - right);
 }
 
-// The observer catches content changes; the resize listener catches viewport changes,
-// including in a background tab, where observer callbacks do not run.
+/**
+ * The observer catches content changes; the resize listener catches viewport changes,
+ * including in a background tab, where observer callbacks do not run.
+ */
 let rowSize: ResizeObserver | undefined;
 const onResize = (): void => measureSurface();
 

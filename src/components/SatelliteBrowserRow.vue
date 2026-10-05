@@ -43,8 +43,10 @@ const emit = defineEmits<{
   "toggle-expand": [tag: string];
 }>();
 
-// `indeterminate` is a DOM property only, never an attribute, so it is set imperatively.
-// Not UCheckbox: it renders a light-theme surface in this panel.
+/**
+ * `indeterminate` is a DOM property only, never an attribute, so it is set imperatively.
+ * Not UCheckbox: it renders a light-theme surface in this panel.
+ */
 const groupCheckbox = ref<HTMLInputElement | null>(null);
 function syncIndeterminate() {
   if (props.row.kind === "group" && groupCheckbox.value) {

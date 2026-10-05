@@ -103,7 +103,7 @@ const virtualizer = useVirtualizer(
   })),
 );
 
-// Drops any item whose row vanished mid-recompute, so the template stays index-safe.
+/** Drops any item whose row vanished mid-recompute, so the template stays index-safe. */
 const virtualRows = computed(() =>
   virtualizer.value
     .getVirtualItems()

@@ -3,14 +3,14 @@ import { describe, expect, it } from "vitest";
 import type { FetchImpl } from "../src/gp/evaluate.ts";
 import { fetchSatcat, parseSatcatCsv, SATCAT_URL } from "../src/gp/satcat.ts";
 
-// CelesTrak's real header, kept whole: the parser must survive ignored columns moving.
+/** CelesTrak's real header, kept whole: the parser must survive ignored columns moving. */
 const HEADER =
   "OBJECT_NAME,OBJECT_ID,NORAD_CAT_ID,OBJECT_TYPE,OPS_STATUS_CODE,OWNER,LAUNCH_DATE,LAUNCH_SITE,DECAY_DATE,PERIOD,INCLINATION,APOGEE,PERIGEE,RCS,DATA_STATUS_CODE,ORBIT_CENTER,ORBIT_TYPE";
 
 const ISS = "ISS (ZARYA),1998-067A,25544,PAY,+,ISS,1998-11-20,TYMSC,,92.94,51.63,424,414,399.0524,,EA,ORB";
 const NAUKA = "ISS (NAUKA),2021-066A,49044,PAY,+,CIS,2021-07-21,TYMSC,,92.94,51.63,424,414,,,25544,DOC";
 
-// CRLF, as served.
+/** CRLF, as served. */
 function csv(...rows: string[]): string {
   return [HEADER, ...rows].join("\r\n");
 }

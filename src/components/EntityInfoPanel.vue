@@ -237,14 +237,14 @@ const emptyPassText = computed(() => (groundStationAvailable.value ? "No passes 
 const satnum = computed(() => (selection.value?.kind === "satellite" ? selection.value.sat.props.satnum : undefined));
 const links = computed(() => (satnum.value ? externalLinks(satnum.value) : []));
 
-// The derived facts lead `satelliteInfo`, so the orbit class is its first row.
+/** The derived facts lead `satelliteInfo`, so the orbit class is its first row. */
 const facts = computed(() => new Map(satelliteInfo.value));
 const orbitClass = computed(() => facts.value.get("Orbit")?.split(" · ")[0] as OrbitClass | undefined);
 const orbitColor = computed(() => (orbitClass.value ? ORBIT_CLASS_COLOR[orbitClass.value] : "transparent"));
 
 const chips = computed(() => ["Orbit", "Owner", "Status"].map((key) => facts.value.get(key)).filter((value): value is string => value !== undefined));
 
-// The card title already carries the name.
+/** The card title already carries the name. */
 const liveRows = computed(() => position.value.filter((row) => row.label !== "Name"));
 
 const isOngoing = computed(() => !!nextPass.value && nextPass.value.start <= nowMs.value);
@@ -257,7 +257,7 @@ const ongoingFraction = computed(() => {
 });
 const nextPassSubject = computed(() => (nextPass.value ? (nextPass.value.groundStationName ?? nextPass.value.name) : ""));
 
-// A station's passes are too dense for a timeline; see PassTimeline.vue.
+/** A station's passes are too dense for a timeline; see PassTimeline.vue. */
 const showTimeline = computed(() => selection.value?.kind === "satellite");
 
 const tabs = computed(() => {
@@ -275,7 +275,7 @@ const tabs = computed(() => {
  */
 const resolvedTab = computed(() => (tabs.value.some((item) => item.value === preferredTab.value) ? preferredTab.value : (tabs.value[0]?.value ?? "passes")));
 
-// Pressing the active tab folds the body away; the selection stays.
+/** Pressing the active tab folds the body away; the selection stays. */
 const collapsed = ref(false);
 
 // The panel is not remounted between entities, so a new selection unfolds it here.

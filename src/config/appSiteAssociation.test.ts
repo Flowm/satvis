@@ -10,7 +10,7 @@ type Aasa = { applinks: { details: { appIDs: string[]; components: Component[] }
 
 const aasa = JSON.parse(readFileSync(fileURLToPath(new URL("../../public/.well-known/apple-app-site-association", import.meta.url)), "utf8")) as Aasa;
 
-// Apple's component patterns: `*` is zero or more characters, `?` exactly one.
+/** Apple's component patterns: `*` is zero or more characters, `?` exactly one. */
 function patternToRegExp(pattern: string) {
   const source = pattern
     .replace(/[.+^${}()|[\]\\]/g, "\\$&")

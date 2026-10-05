@@ -38,7 +38,7 @@ if (new URLSearchParams(window.location.search).has("framems")) {
   void import("./modules/benchmark/framePump").then(({ installFramePumpIfRequested }) => installFramePumpIfRequested(viewer, window.location.search));
 }
 
-// The url sync waits for this: the url only states what differs from the preset.
+/** The url sync waits for this: the url only states what differs from the preset. */
 const presetDefaults = markRaw(resolvePreset().then((preset) => preset.defaults));
 
 const pinia = createPinia();
@@ -59,10 +59,12 @@ app.use(ui);
 
 app.mount("#app");
 
-// The index.html loading screen is removed, not hidden, or the document keeps a second <h1>.
-// Its notes live here because index.html carries no comments. #shell sits outside #app
-// because `[v-cloak]` hides #app, and its /about link is the only one a crawler that
-// skips this bundle can find.
+/**
+ * The index.html loading screen is removed, not hidden, or the document keeps a second <h1>.
+ * Its notes live here because index.html carries no comments. #shell sits outside #app
+ * because `[v-cloak]` hides #app, and its /about link is the only one a crawler that
+ * skips this bundle can find.
+ */
 const shell = document.getElementById("shell");
 if (shell) {
   shell.classList.add("is-done");

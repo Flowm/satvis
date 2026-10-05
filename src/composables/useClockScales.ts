@@ -162,9 +162,9 @@ export function useLadder(clock: ViewerClock, ladder: Ref<HTMLElement | undefine
   let settleTimer: ReturnType<typeof setTimeout> | undefined;
   let rest: ReturnType<typeof setTimeout> | undefined;
 
-  /** A backstop: the window normally closes when the scroll arrives. */
+  // A backstop: the window normally closes when the scroll arrives.
   const SETTLE_BACKSTOP_MS = 2000;
-  /** How long a wheel must stop before the ladder settles. */
+  // How long a wheel must stop before the ladder settles.
   const REST_MS = 120;
 
   function scrollToRung(at: number, behavior: ScrollBehavior): void {

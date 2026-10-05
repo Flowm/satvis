@@ -21,7 +21,9 @@ import { GridPositionProperty } from "./util/GridPositionProperty";
 import type { SampleChunk, TrajectorySampler } from "./util/sampleSource";
 import { trajectoryWindow } from "./util/trajectoryWindow";
 
-// Cesium 1.143's LagrangePolynomialApproximation typings lag the widened InterpolationAlgorithm interface.
+/**
+ * Cesium 1.143's LagrangePolynomialApproximation typings lag the widened InterpolationAlgorithm interface.
+ */
 const lagrangeInterpolation = LagrangePolynomialApproximation as unknown as InterpolationAlgorithm;
 
 interface SampledPositionData {
@@ -407,12 +409,17 @@ export class SampledTrajectory {
     }
   }
 
-  /** Keep out of the per-sample loop: per sample it cost 1.2 million `Date`s and as many `JulianDate`s at 5,000 satellites. */
+  /**
+   * Keep out of the per-sample loop: per sample it cost 1.2 million `Date`s and as many
+   * `JulianDate`s at 5,000 satellites.
+   */
   static #chunkAnchor(chunk: SampleChunk): JulianDate {
     return JulianDate.fromDate(new Date(chunk.anchorEpochMs));
   }
 
-  /** From the shared anchor, so one grid index always yields one instant (see Sgp4Chunk.anchorEpochMs). */
+  /**
+   * From the shared anchor, so one grid index always yields one instant (see Sgp4Chunk.anchorEpochMs).
+   */
   static #sampleTimeFrom(anchor: JulianDate, chunk: SampleChunk, index: number): JulianDate {
     return JulianDate.addSeconds(anchor, (chunk.firstIndex + index) * chunk.stepSeconds, new JulianDate());
   }
