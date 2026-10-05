@@ -81,6 +81,10 @@ final class Session {
     /// What the last link carried that the app does not show (ADR 0001's foreign
     /// parameters), written back into every link the app makes.
     @ObservationIgnored private var foreign = LinkQuery()
+    /// The web app's FPS switch, which the app shows as its performance overlay.
+    /// Kept where the web keeps it, in the link as `fps=true`: a link the app
+    /// does not otherwise read, written back as it came.
+    private(set) var showsPerformance = false
 
     /// The view as it was left, as a link.
     private static let viewKey = "view"
@@ -195,6 +199,16 @@ final class Session {
 
     // MARK: Links
 
+    func setShowsPerformance(_ shows: Bool) {
+        showsPerformance = shows
+        foreign.items.removeAll { $0.key == Self.performanceKey }
+        if shows {
+            foreign.items.append(LinkQuery.Item(key: Self.performanceKey, values: ["true"]))
+        }
+    }
+
+    private static let performanceKey = "fps"
+
     /// Opens a link: what it shows replaces what is shown, as on the web.
     func open(_ link: Link) {
         guard started else {
@@ -253,6 +267,7 @@ final class Session {
         let read = LinkCodec.read(link.query, defaults: defaults)
         let state = read.state
         foreign = read.foreign
+        showsPerformance = foreign.items.contains { $0.key == Self.performanceKey && $0.values.last == "true" }
         if let tracked {
             track(tracked, false)
         }

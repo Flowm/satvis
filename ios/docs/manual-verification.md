@@ -87,3 +87,21 @@ never both at once. Satellites, Components, Ground stations and Map materialise 
 same frames, each a 62 × 52 pt glass button like the burger's with its name on a glass
 capsule beside it, legible over the globe and over space; the two menus' glass is
 drawn with the buttons', where the system's arrived a beat later.
+
+## Native app: performance and the sky view's instruments
+
+**Procedure.** Release build in the iPhone 17e simulator, `SATVIS_API=https://satvis.space`
+(which counts nothing), each link opened and left 30 s to load, then the app's CPU
+sampled once a second for 20 s and a 10 s Time Profiler trace taken.
+
+**Result, 2026-10-05.** The default view used 8% of a Mac core. 16,000 satellites (`tags=Active`)
+as points used 16–18%, with a 256 MB footprint, about 1.5 ms of main-thread work a
+frame and 3 s of multi-core work to build them; with orbits, 17%; Starlink with
+ground tracks, 11%. The sky view over the same 16,000 used 58%, two thirds of it
+the instruments: every satellite placed each frame for the crosshair, and the
+terrain walked for it and its path. Working the lock out fifteen times a second,
+keeping the ground's answers and putting the path on a 30 s grid brought it to
+24%, the instruments to about 6%; the lock on METEOSAT-11 over Lauterbrunnen read
+as before, 33.0° and 177.9° S. The performance overlay showed 60 fps, CPU 9.3 ms
+in a Debug build, GPU 0.2 ms, 16,633 satellites and 256 MB. The simulator's
+figures are relative only; the phone's need a device.

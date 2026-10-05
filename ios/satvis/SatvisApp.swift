@@ -116,6 +116,13 @@ struct ContentView: View {
             .padding()
         }
         .overlay(alignment: .top) {
+            // Between the tool menu and Share, level with them.
+            if session.showsPerformance, let renderer = session.renderer {
+                PerformanceOverlay(renderer: renderer)
+                    .padding(.top, 16)
+            }
+        }
+        .overlay(alignment: .top) {
             if let message = session.notice ?? session.alerts.message {
                 Text(message)
                     .font(.subheadline)
@@ -328,6 +335,13 @@ private struct MapMenu: View {
                     }
                 })
             Divider()
+            Toggle(
+                "Show performance",
+                isOn: Binding {
+                    session.showsPerformance
+                } set: {
+                    session.setShowsPerformance($0)
+                })
             Toggle(
                 "Share usage data",
                 isOn: Binding {
