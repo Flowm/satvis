@@ -99,8 +99,9 @@ struct ContentView: View {
                 Button("Share", systemImage: "square.and.arrow.up") {
                     ShareSheet.present(session.link(sharing: true).url(site: session.source.site))
                 }
+                // Always there, so the way back is where it always is.
+                Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
                 if session.observer != nil {
-                    Button("Leave the sky view", systemImage: "globe") { session.leaveSky() }
                     Button(
                         session.compass.isAiming ? "Stop aiming by compass" : "Aim by compass",
                         systemImage: session.compass.isAiming ? "location.north.circle.fill" : "location.north.circle"

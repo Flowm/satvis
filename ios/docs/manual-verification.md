@@ -130,3 +130,14 @@ station's panel predicted over its own station alone and the passes listed as th
 the first passes showed after 4.5 s and the last of the 16,629 after 42 s, the count of
 satellites done climbing beside them. The default view's 72 satellites took about 2 s,
 most of it the prediction loop's one-second pause.
+
+## Native app: picking a satellite by its name, and the way home
+
+**Procedure.** In the iPhone 17e simulator on the default view, tap the end of a
+satellite's name, well away from its point. Then drag the globe away and tap the globe
+button under Share.
+
+**Result, 2026-10-05.** Before, only the point answered a tap, within 24 pt, so a tap on
+a name more than that from its point picked nothing. A tap 84 pt along SENTINEL-3B's name
+opened its panel. The globe button flew the camera from over the Arctic back to the
+home view above 25° N 15° E in 1.5 s; in the sky view the same button leaves it.

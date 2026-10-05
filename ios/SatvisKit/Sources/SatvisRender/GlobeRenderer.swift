@@ -78,6 +78,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     public private(set) var skyCamera: SkyCamera?
     /// The flight to or from the sky view, while one is under way.
     private var skyFlight: SkyFlight?
+    /// The flight back to the home view, while one is under way: where it set
+    /// off, and when.
+    private var homeFlight: (from: OrbitCamera, to: OrbitCamera, start: Double)?
+    private static let homeFlightDuration = 1.5
     /// The pose of the last frame, which a flight sets off from.
     private var lastPose: CameraPose?
     /// The terrain as the Map menu has it; the sky view stands on it regardless.
@@ -400,12 +404,30 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         cameraMode = .orbit
     }
 
+    /// Back to where the app opens, letting go of what is followed. `animated`
+    /// flies there; without it, as reduced motion asks, the camera cuts. Not
+    /// from the sky view, which `leaveSky` leaves first.
+    public func flyHome(animated: Bool = true) {
+        guard cameraMode != .sky, let size = lastFrame?.size else {
+            return
+        }
+        stopTracking()
+        let home = OrbitCamera.home(aspectRatio: size.x / size.y)
+        if animated, let orbitCamera {
+            homeFlight = (orbitCamera, home, ProcessInfo.processInfo.systemUptime)
+        } else {
+            orbitCamera = home
+        }
+    }
+
     /// A drag of `points` on a view of `size` points: moves the free camera over
     /// the globe, circles what is followed, or turns the sky view.
     public func drag(by points: SIMD2<Double>, viewSize size: CGSize) {
         let longerSide = Double(max(size.width, size.height))
         switch cameraMode {
-        case .orbit: orbitCamera?.pan(by: points, longerSide: longerSide)
+        case .orbit:
+            homeFlight = nil
+            orbitCamera?.pan(by: points, longerSide: longerSide)
         case .tracking: trackingCamera.orbit(by: points, longerSide: longerSide)
         case .sky where isSkySettled: skyCamera?.drag(by: points, height: Double(size.height))
         case .sky: break
@@ -415,7 +437,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// A pinch: nearer for a scale above 1.
     public func zoom(by scale: Double) {
         switch cameraMode {
-        case .orbit: orbitCamera?.zoom(by: scale)
+        case .orbit:
+            homeFlight = nil
+            orbitCamera?.zoom(by: scale)
         case .tracking: trackingCamera.zoom(by: scale)
         case .sky where isSkySettled: skyCamera?.zoom(by: scale)
         case .sky: break
@@ -425,7 +449,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// A twist, in radians.
     public func rotate(by radians: Double) {
         switch cameraMode {
-        case .orbit: orbitCamera?.rotate(by: radians)
+        case .orbit:
+            homeFlight = nil
+            orbitCamera?.rotate(by: radians)
         case .tracking: trackingCamera.rotate(by: radians)
         // Only the device's attitude rolls the sky view.
         case .sky: break
@@ -553,12 +579,23 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     public func draw(in view: MTKView) {
-        guard let orbitCamera, let hdr, let depth, let drawable = view.currentDrawable, let screen = view.currentRenderPassDescriptor else {
+        guard var orbitCamera, let hdr, let depth, let drawable = view.currentDrawable, let screen = view.currentRenderPassDescriptor else {
             return
         }
         let measuring = measuresFrames
         let started = measuring ? ProcessInfo.processInfo.systemUptime : 0
         let now = clock()
+        if let flight = homeFlight {
+            // Called off by anything else the camera is asked to do.
+            let t = (ProcessInfo.processInfo.systemUptime - flight.start) / Self.homeFlightDuration
+            if cameraMode == .orbit {
+                orbitCamera = OrbitCamera.between(flight.from, flight.to, t: t)
+                self.orbitCamera = orbitCamera
+            }
+            if t >= 1 || cameraMode != .orbit {
+                homeFlight = nil
+            }
+        }
         var pose = orbitCamera.pose()
         if case .tracking(let id) = cameraMode, let target = position(of: id, at: now) {
             pose = trackingCamera.pose(target: target)
