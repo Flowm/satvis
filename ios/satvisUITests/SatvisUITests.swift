@@ -9,12 +9,7 @@ nonisolated class SatvisUITests: XCTestCase {
     // snapshot shipped in the app, so the test needs no network.
     @MainActor
     func testFindsASatelliteWithoutTheWorker() {
-        let app = search("METOP-C")
-
-        guard ProcessInfo.processInfo.environment["SCREENSHOTS"] != nil else {
-            return
-        }
-        screenshot("0Launch")
+        _ = search("METOP-C")
     }
 
     // A search result's info button switches it on and opens its panel.
