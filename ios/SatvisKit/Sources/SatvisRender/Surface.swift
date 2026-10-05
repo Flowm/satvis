@@ -26,6 +26,7 @@ final class Surface {
     private static let maximumTerrainTiles = 96
     /// Tiles laid over the terrain a frame, a few hundred lookups each.
     private static let drapesPerFrame = 16
+    /// Seconds before a failed imagery or terrain tile is asked for again.
     private static let retryInterval: TimeInterval = 60
     private static let maximumScreenSpaceError = 2.0
     /// CesiumJS's for an ellipsoid of 65-sample tiles, two at level 0.
@@ -42,9 +43,12 @@ final class Surface {
         /// Points on the tile for the horizon test: corners, edge middles, centre.
         let samples: [SIMD3<Double>]
         var texture: MTLTexture?
-        /// Baked from all it asked for, or waiting on sources still loading.
+        /// Baked from all it asked for, or waiting on sources still loading or
+        /// failed.
         var isComplete = false
         var needsBake = true
+        /// When it was last baked, so that one still missing a source asks again.
+        var bakedAt: Date?
         var lastUsed = 0
         /// The tile's grid laid over the terrain, and the terrain tile it was laid
         /// over: nil for the ellipsoid, where no terrain has loaded.
@@ -160,6 +164,7 @@ final class Surface {
         let sseFactor = viewportHeightPixels / (2 * tan(verticalFieldOfView / 2))
         var draw: [Tile] = []
         var bake: [Tile] = []
+        let now = Date()
 
         func visit(_ key: TileKey) {
             let tile = self.tile(key)
@@ -185,6 +190,12 @@ final class Surface {
             }
             _ = hasGeometry(tile)
             draw.append(tile)
+            // Still missing a source tile once the retry interval is up: a failed
+            // request leaves nothing else to bake it again, and it would keep its
+            // stand-in after the network came back.
+            if !tile.isComplete, let baked = tile.bakedAt, now.timeIntervalSince(baked) >= Self.retryInterval {
+                tile.needsBake = true
+            }
             if tile.needsBake || tile.texture == nil {
                 bake.append(tile)
             }
@@ -347,8 +358,9 @@ final class Surface {
                     continue
                 }
                 request(key)
-                if case .loading = sources[key] {
-                    complete = false
+                switch sources[key] {
+                case .loading, .failed: complete = false
+                default: break
                 }
                 // Meanwhile the nearest ancestor that has loaded, if any.
                 var ancestor = key.parent
@@ -364,6 +376,7 @@ final class Surface {
         encoder.endEncoding()
         tile.needsBake = false
         tile.isComplete = complete
+        tile.bakedAt = Date()
     }
 
     /// Starts loading a source tile, unless it is loading, loaded, or failed in the
@@ -371,7 +384,7 @@ final class Surface {
     private func request(_ key: TileKey) {
         switch sources[key] {
         case .loading, .ready: return
-        case .failed(let at) where Date().timeIntervalSince(at) < 60: return
+        case .failed(let at) where Date().timeIntervalSince(at) < Self.retryInterval: return
         default: break
         }
         guard let loader, let url = source.url(key) else {
