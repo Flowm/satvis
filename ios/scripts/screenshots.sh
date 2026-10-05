@@ -27,7 +27,11 @@ done <<EOF
 $devices
 EOF
 
-TEST_RUNNER_SCREENSHOTS=1 TEST_RUNNER_BASE_URL="${BASE_URL:-https://satvis.space}" xcodebuild test -project satvis.xcodeproj -scheme satvis -resultBundlePath "$result" "$@"
+# The screenshot tests alone: the others add nothing to the set, and one that
+# fails leaves xcodebuild hanging (AGENTS.md).
+tests=satvisUITests/SatvisUITests
+TEST_RUNNER_SCREENSHOTS=1 TEST_RUNNER_BASE_URL="${BASE_URL:-https://satvis.space}" xcodebuild test -project satvis.xcodeproj -scheme satvis -resultBundlePath "$result" \
+  -only-testing:"$tests/testScreenshot1Globe" -only-testing:"$tests/testScreenshot2ISS" -only-testing:"$tests/testScreenshot3Sky" "$@"
 
 xcrun xcresulttool export attachments --path "$result" --output-path "$out"
 
