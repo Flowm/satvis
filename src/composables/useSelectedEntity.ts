@@ -171,7 +171,7 @@ function init(): void {
   const { viewer } = cc();
   viewer.selectedEntityChanged.addEventListener(() => update());
   viewer.trackedEntityChanged.addEventListener(() => syncTracked());
-  // The Satvis.vue watcher that sets cc.sats.overpassMode is registered earlier, so it runs first.
+  // sceneSync's watcher (started in app.ts) sets cc.sats.overpassMode first, so update() reads the new mode.
   const { overpassMode } = storeToRefs(useSatStore());
   watch(overpassMode, () => update());
   watch(showPastPasses, () => update());

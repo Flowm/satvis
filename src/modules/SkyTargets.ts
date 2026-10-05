@@ -101,7 +101,7 @@ export function groundHides(scene: Scene, frame: ObserverFrame, position: Cartes
 
 /**
  * Not `scene.pick`: its rectangle is in drawing-buffer pixels, so a CSS-pixel
- * radius would change with `?quality`, and it searches in square rings rather
+ * radius would change with `?pixelratio`, and it searches in square rings rather
  * than by true distance. Targets below the horizon are dropped, not depth-tested.
  * `hidden` (a terrain ray) is asked nearest first, only until one passes.
  */

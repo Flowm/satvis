@@ -511,7 +511,7 @@ export class SatelliteManager {
 
   #instantiate(key: string, entry: CatalogEntry, chunk: SampleChunk): void {
     // A reconcile during opening windows re-requests every queued satellite
-    // without cancelling the requests out, so two replies can arrive for one key.
+    // without cancelling the requests already out, so two replies can arrive for one key.
     if (this.#active.has(key)) {
       return;
     }

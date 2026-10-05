@@ -14,6 +14,7 @@ import { Cartesian3, Math as CesiumMath } from "@cesium/engine";
 export function drawablePositions(positions: readonly (Cartesian3 | undefined)[]): Cartesian3[] {
   const drawable: Cartesian3[] = [];
   for (const position of positions) {
+    // A hole outside the sampled window: an `undefined` position throws in Cesium's geometry worker.
     if (!position) {
       continue;
     }

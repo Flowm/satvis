@@ -407,7 +407,7 @@ export class SampledTrajectory {
     }
   }
 
-  /** Keep out of the per-sample loop: per sample it cost 1.2 million allocations at 5,000 satellites. */
+  /** Keep out of the per-sample loop: per sample it cost 1.2 million `Date`s and as many `JulianDate`s at 5,000 satellites. */
   static #chunkAnchor(chunk: SampleChunk): JulianDate {
     return JulianDate.fromDate(new Date(chunk.anchorEpochMs));
   }

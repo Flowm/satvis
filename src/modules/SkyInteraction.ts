@@ -1,8 +1,8 @@
 // Looking around the sky view, and identifying what the crosshair is on.
 //
-// Pointer listeners go on the Cesium canvas, not a full-screen overlay:
-// `#app` isolates its stacking context, so no overlay can sit above Cesium's
-// clock, timeline and credits without swallowing their clicks. Walking lives in
+// Pointer listeners go on the Cesium canvas, not a full-screen overlay: `#app` paints
+// over `#cesiumContainer` and isolates its stacking context, so an overlay inside it
+// would cover Cesium's credits and no z-index could lift them back. Walking lives in
 // ./SkyMovement.
 
 import { Cartesian2, type JulianDate, type Scene } from "@cesium/engine";
@@ -350,8 +350,8 @@ export class SkyInteraction {
 
     // A drag takes the aim back from the device; otherwise the next reading would
     // spring the sky back. Only past the tap slop, so a tap can still select. A
-    // pinch's remaining finger restarts `#dragged`, so it must travel too. Walking
-    // never touches the aim and leaves the compass on.
+    // pinch's remaining finger restarts `#dragged`, so that finger must also pass the
+    // slop. Walking never touches the aim and leaves the compass on.
     if (this.#orientationActive) {
       if (this.#dragged <= TAP_SLOP) {
         return;

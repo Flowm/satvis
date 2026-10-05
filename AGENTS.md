@@ -64,7 +64,7 @@ workspace package). One `pnpm install` at the root covers both.
 - Component names in templates are kebab-case.
 - `pnpm lint:fix` formats (`oxfmt`) and sorts imports.
 - Keep private plugins in `data/custom/` out of commits; only
-  `example/satvis.yaml` and the scripts there are tracked.
+  `example/satvis.yaml` and the sync script there are tracked.
 
 ## Gotchas
 
