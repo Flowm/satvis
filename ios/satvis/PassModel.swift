@@ -41,9 +41,6 @@ final class PassModel {
         saved = stations
         self.stations = stations
         mode = UserDefaults.standard.string(forKey: Self.modeKey).flatMap(OverpassMode.init(rawValue:)) ?? .elevation
-        storage.onExternalChange = { [weak self] stations in
-            self?.apply(stations, save: false)
-        }
     }
 
     var hasStations: Bool { !stations.isEmpty }
@@ -58,7 +55,7 @@ final class PassModel {
 
     /// Replaces the saved stations.
     func setStations(_ stations: [GroundStation]) {
-        apply(GroundStations.normalized(stations), save: true)
+        apply(GroundStations.normalized(stations))
     }
 
     /// Adds a station, and says which it became: the one already there when it
@@ -200,14 +197,12 @@ final class PassModel {
         markerID.hasPrefix("station|") ? UUID(uuidString: String(markerID.dropFirst("station|".count))) : nil
     }
 
-    private func apply(_ stations: [GroundStation], save: Bool) {
+    private func apply(_ stations: [GroundStation]) {
         guard stations != saved else {
             return
         }
         saved = stations
-        if save {
-            storage.save(stations)
-        }
+        storage.save(stations)
         combine()
     }
 
@@ -246,29 +241,11 @@ extension Array {
     }
 }
 
-/// The station list on this device, mirrored to iCloud key-value storage so the
-/// user's other devices have it too. The device's copy is what the app reads; a
-/// change from iCloud replaces it.
+/// The station list, kept on this device and synced nowhere: stations are often
+/// where the user lives.
 final class GroundStationStorage {
     private static let key = "groundStations"
     private let defaults = UserDefaults.standard
-    private let cloud = NSUbiquitousKeyValueStore.default
-    var onExternalChange: ([GroundStation]) -> Void = { _ in }
-
-    init() {
-        NotificationCenter.default.addObserver(
-            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification, object: cloud, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self, let data = self.cloud.data(forKey: Self.key) else {
-                    return
-                }
-                self.defaults.set(data, forKey: Self.key)
-                self.onExternalChange(Self.decode(data))
-            }
-        }
-        cloud.synchronize()
-    }
 
     func load() -> [GroundStation] {
         Self.stored()
@@ -277,14 +254,14 @@ final class GroundStationStorage {
     /// Saves stations read without ids back with the ids they were given, so that
     /// an id read once stays theirs.
     func keepIDs(_ stations: [GroundStation]) {
-        guard let data = cloud.data(forKey: Self.key) ?? defaults.data(forKey: Self.key), !String(decoding: data, as: UTF8.self).contains("\"id\"") else {
+        guard let data = defaults.data(forKey: Self.key), !String(decoding: data, as: UTF8.self).contains("\"id\"") else {
             return
         }
         save(stations)
     }
 
     static func stored() -> [GroundStation] {
-        (NSUbiquitousKeyValueStore.default.data(forKey: key) ?? UserDefaults.standard.data(forKey: key)).map(decode) ?? []
+        UserDefaults.standard.data(forKey: key).map(decode) ?? []
     }
 
     func save(_ stations: [GroundStation]) {
@@ -292,7 +269,6 @@ final class GroundStationStorage {
             return
         }
         defaults.set(data, forKey: Self.key)
-        cloud.set(data, forKey: Self.key)
     }
 
     private static func decode(_ data: Data) -> [GroundStation] {
