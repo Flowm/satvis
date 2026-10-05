@@ -18,8 +18,7 @@ import {
 
 const components = () => SATELLITE_COMPONENTS as readonly string[];
 
-// The wire form the ADR pins. Production hands the parameter map to vue-router,
-// whose serializer matches this; asserting on it here keeps the format honest.
+// The wire form the ADR pins; vue-router's serializer matches it.
 const queryString = (params: Readonly<Record<string, string>>): string => {
   const query = new URLSearchParams(params).toString().replaceAll("%2C", ",");
   return query === "" ? "" : `?${query}`;
@@ -34,8 +33,6 @@ describe("boolean", () => {
     expect(kind.parse("false")).toEqual({ ok: true, value: false });
   });
 
-  // The defect this kind exists to fix: with no deserializer, "false" reached
-  // the store as a truthy string and switched the fps counter on.
   test("false is false, not a truthy string", () => {
     const parsed = kind.parse("false");
     expect(parsed.ok && parsed.value).toBe(false);
@@ -77,7 +74,6 @@ describe("stringList", () => {
     expect(kind.format(["Deep Space"])).toEqual({ ok: true, value: "Deep Space" });
   });
 
-  // The whole point of dropping the "-" escape from tags.
   test("a hyphen in a member survives a round trip", () => {
     const formatted = kind.format(["X-Ray"]);
     expect(formatted).toEqual({ ok: true, value: "X-Ray" });
@@ -136,13 +132,10 @@ describe("closedStringList (elements)", () => {
     expect(kind.parse("Point,Retired thing,Label")).toEqual({ ok: true, value: ["Point", "Label"] });
   });
 
-  // The literal is tried before the shim, which is what makes a hyphenated
-  // component name possible rather than a breaking change.
   test("prefers a literal match over the legacy shim", () => {
     const withHyphen = () => [...components(), "X-Ray"];
     const hyphenAware = closedStringList(withHyphen);
     expect(hyphenAware.parse("X-Ray")).toEqual({ ok: true, value: ["X-Ray"] });
-    // and the escaped form of a real component still resolves
     expect(hyphenAware.parse("Sensor-cone")).toEqual({ ok: true, value: ["Sensor cone"] });
   });
 
@@ -150,8 +143,7 @@ describe("closedStringList (elements)", () => {
     expect(kind.format(["Retired thing"]).ok).toBe(false);
   });
 
-  // Nothing left to keep, so the element rule gives way and the default selection
-  // stands. A stale link should leave a satellite drawn as something.
+  // A stale link should leave a satellite drawn as something.
   test("rejects the parameter when no member is known", () => {
     expect(kind.parse("Retired thing").ok).toBe(false);
     expect(kind.parse("Retired thing,Another one").ok).toBe(false);
@@ -170,7 +162,6 @@ describe("layerList", () => {
     expect(kind.format(["ArcGis_0.5", "Nextrad"])).toEqual({ ok: true, value: "ArcGis_0.5,Nextrad" });
   });
 
-  // An unusable alpha reached Cesium as NaN and rendered an invisible layer.
   test("drops a layer whose opacity is not a usable number", () => {
     expect(kind.parse("OSM_abc,ArcGis")).toEqual({ ok: true, value: ["ArcGis"] });
     expect(kind.parse("OSM_5,ArcGis")).toEqual({ ok: true, value: ["ArcGis"] });
@@ -193,8 +184,6 @@ describe("layerList", () => {
     expect(kind.parse("ArcGis,Bogus,Nextrad")).toEqual({ ok: true, value: ["ArcGis", "Nextrad"] });
   });
 
-  // Reproduced from `?layers=Bogus`, which dropped the one member it had and
-  // opened a blue globe with no imagery on it.
   test("rejects the parameter when nothing it names is usable", () => {
     expect(kind.parse("Bogus").ok).toBe(false);
     expect(kind.parse("Bogus,OSM_abc").ok).toBe(false);
@@ -224,7 +213,6 @@ describe("groundStationList", () => {
     expect(formatted).toEqual({ ok: true, value: raw });
   });
 
-  // Zero is a real coordinate. The filter this replaces tested `lat && lon`.
   test("keeps a station on the equator and the prime meridian", () => {
     expect(kind.parse("0,11.5")).toEqual({ ok: true, value: [{ lat: 0, lon: 11.5 }] });
     expect(kind.parse("48.1,0")).toEqual({ ok: true, value: [{ lat: 48.1, lon: 0 }] });
@@ -270,7 +258,6 @@ describe("timestamp", () => {
     expect(kind.parse("").ok).toBe(false);
   });
 
-  // null is the live clock: not a value the url carries.
   test("refuses to format null, which is how the parameter is omitted", () => {
     expect(kind.format(null).ok).toBe(false);
   });
@@ -314,8 +301,6 @@ describe("decode", () => {
     expect(invalid).toEqual(["fps"]);
   });
 
-  // The default here is the preset's basemap, which is what a misspelled
-  // provider has to leave standing.
   test("an unusable layers value keeps the default stack", () => {
     const { patch, invalid } = decode({ layers: "Bogus" }, SCHEMA, DEFAULTS);
     expect(patch.layers).toEqual(["NaturalEarth"]);
@@ -344,8 +329,7 @@ describe("encode", () => {
     expect(encode({ ...DEFAULTS, enabledTags: ["Weather", "Stations"] }, DEFAULTS, SCHEMA)).toEqual({ tags: "Weather,Stations" });
   });
 
-  // Foreign parameters are the adapter's business — see urlSync.test.ts. This
-  // map cannot express a valueless or repeated one, so it does not carry them.
+  // Foreign parameters belong to the adapter; see urlSync.test.ts.
   test("emits only the parameters it owns", () => {
     expect(encode({ ...DEFAULTS, showFps: true }, DEFAULTS, SCHEMA)).toEqual({ fps: "true" });
   });
@@ -383,13 +367,12 @@ describe("round trip", () => {
       time: "2026-07-26T20:46Z",
     };
     const params = encode(state, DEFAULTS, SCHEMA);
-    // through the wire form and back, so the round trip covers encoding too
+    // Through the wire form, so the round trip covers encoding too.
     const parsed = Object.fromEntries(new URLSearchParams(queryString(params)));
     expect(decode(parsed, SCHEMA, DEFAULTS).patch).toEqual(state);
   });
 });
 
-// Every URL that worked before this codec must still mean the same thing.
 describe("read compatibility with the pre-codec format", () => {
   test("a legacy url decodes to the values it always meant", () => {
     const legacy = "elements=Point,Label,Orbit,Sensor-cone,Ground-track&sats=IRIDIUM-NEXT%7E106&tags=Weather,Stations&track=ISS+%28ZARYA%29&fps=true";

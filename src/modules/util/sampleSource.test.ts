@@ -4,11 +4,6 @@ import { parseGpPayload, type GpRecord } from "./gp";
 import { laneIndexFor, WorkerSampleSource } from "./sampleSource";
 import type { Sgp4Request } from "./sgp4Worker";
 
-// The pool hands each satellite to one worker for the life of the session. Three
-// things in WorkerSampleSource depend on that being a pure function of the satnum —
-// the per-worker satrec cache, the single `#recordSent` set, and the eviction
-// budget — so it is pinned here rather than left to the shape of the hash.
-
 describe("laneIndexFor", () => {
   test("sends a satnum to the same lane every time", () => {
     for (const satnum of ["25544", "00900", "62841", "1", "999999"]) {
@@ -31,16 +26,12 @@ describe("laneIndexFor", () => {
   });
 
   test("collapses to the single lane", () => {
-    // The no-pool case has to stay exactly the old behaviour, including for a
-    // degenerate lane count.
     expect(laneIndexFor("25544", 1)).toBe(0);
     expect(laneIndexFor("25544", 0)).toBe(0);
   });
 
   test("spreads consecutive catalog numbers across the pool", () => {
-    // Satellites arrive as a slice of the sorted catalog, so consecutive satnums are
-    // the realistic input. A hash that grouped them would leave one worker with the
-    // whole activation and the rest idle.
+    // Satellites arrive as a slice of the sorted catalog, so satnums are consecutive.
     const laneCount = 4;
     const counts: number[] = Array.from({ length: laneCount }, () => 0);
     const population = 5000;
@@ -50,16 +41,13 @@ describe("laneIndexFor", () => {
     }
     const expected = population / laneCount;
     for (const count of counts) {
-      // Within 20% of even. Wide, because this asserts "not degenerate" rather than
-      // a property of this particular hash.
+      // Within 20% of even: this asserts "not degenerate", not a property of FNV-1a.
       expect(count).toBeGreaterThan(expected * 0.8);
       expect(count).toBeLessThan(expected * 1.2);
     }
   });
 
   test("spreads non-numeric satnums too", () => {
-    // The reason this is not `Number(satnum) % laneCount`: those all parse to NaN,
-    // and NaN % n is NaN, so every one of them would land on the same worker.
     const laneCount = 4;
     const seen = new Set<number>();
     for (const satnum of ["ISS", "STARLINK-1007", "2019-074A", "COSMOS 2251 DEB", "T-1", "unknown"]) {
@@ -69,16 +57,10 @@ describe("laneIndexFor", () => {
   });
 });
 
-// Giving up is the path that protects the main thread, and the pool multiplied its
-// triggers: any one of four workers failing moves the whole catalog to synchronous
-// propagation on the thread the workers exist to keep clear. It is also the path
-// nothing else exercises — the app only reaches it when something is already wrong.
-
 const TLE = "ISS (ZARYA)\n1 25544U 98067A   18342.69352573  .00002284  00000-0  41838-4 0  9992\n2 25544  51.6407 229.0798 0005166 124.8351 329.3296 15.54069892145658";
 const issRecord = (): GpRecord => parseGpPayload(TLE)[0] as GpRecord;
 const T0 = Date.UTC(2018, 11, 8);
 
-/** Stands in for a real Worker so the pool can be built and then broken on demand. */
 class FakeWorker {
   static instances: FakeWorker[] = [];
 
@@ -109,7 +91,7 @@ class FakeWorker {
   }
 }
 
-/** Six cores, so `hardwareConcurrency - 2` gives a pool with more than one lane. */
+/** Six cores, so `hardwareConcurrency - 2` is four. */
 function poolOfFour(): { source: WorkerSampleSource; errors: ReturnType<typeof vi.spyOn> } {
   FakeWorker.instances = [];
   vi.stubGlobal("navigator", { hardwareConcurrency: 6 });
@@ -141,8 +123,7 @@ describe("WorkerSampleSource pool", () => {
 
   test("a single worker failing answers every outstanding request inline", async () => {
     const { source, errors } = poolOfFour();
-    // Spread across lanes, and left un-flushed as well as flushed so both the
-    // in-flight map and the queue have something in them when the pool dies.
+    // Some flushed and some still queued, so both the in-flight map and the queue are non-empty.
     const flushed = ["25544", "00900", "43013", "62841"].map((satnum) => ask(source, satnum));
     await Promise.resolve();
     const queued = ["11111", "22222"].map((satnum) => ask(source, satnum));
@@ -150,16 +131,13 @@ describe("WorkerSampleSource pool", () => {
     FakeWorker.instances[0]?.emit("error", { message: "boom" });
 
     const chunks = await Promise.all([...flushed, ...queued]);
-    // Answered, and answered with real samples — the fallback has to be usable,
-    // not merely non-hanging.
+    // Answered with real samples, not merely settled.
     expect(chunks).toHaveLength(6);
     for (const chunk of chunks) {
       expect(chunk?.positionsFixed.length).toBeGreaterThan(0);
     }
     expect(source.stats.inlineFallbacks).toBe(6);
-    // Every lane goes, not just the one that failed.
     expect(FakeWorker.instances.every((worker) => worker.terminated)).toBe(true);
-    // Loud, and once.
     expect(errors).toHaveBeenCalledTimes(1);
   });
 
@@ -195,8 +173,7 @@ describe("WorkerSampleSource pool", () => {
     vi.useFakeTimers();
     try {
       const { source, errors } = poolOfFour();
-      // One lane gets work and answers; the other three hold nothing at all. With a
-      // single timer for the pool, their silence would read as death.
+      // One lane answers; the other three hold no work.
       void ask(source, "25544");
       await Promise.resolve();
       const busy = FakeWorker.instances.find((worker) => worker.posted.length > 0);

@@ -21,8 +21,7 @@ import {
   toCsv,
 } from "./report";
 
-// A result carrying only what the report reads. `cpuMs` is the figure every
-// derived table differences, so it is the one the fixtures set deliberately.
+// A result carrying only what the report reads.
 function result(options: {
   sats: number;
   components: string[];
@@ -129,9 +128,6 @@ describe("FrameSampler", () => {
   });
 
   test("reset bumps the epoch, so a reading in flight can tell it is stale", () => {
-    // The GPU clock's only defence against attributing a warmup frame to the
-    // sample, or the tail of one step to the next: a query records the epoch it
-    // started in and the delivery is dropped when the sampler has moved on.
     const sampler = new FrameSampler();
     const issued = sampler.epoch;
     sampler.pushGpu(5);
@@ -270,9 +266,6 @@ describe("scalingFits", () => {
     expect(fits[0]).toMatchObject({ points: 2, mainMsPer1000: 10, baseMainMs: 5 });
   });
 
-  // The defect: cpuMs excludes the clock tick, where most per-satellite work
-  // happens, so fitting it alone had the Point series holding 60 fps into the
-  // millions. The fit is over cpuMs + tickMs.
   test("the fit counts the clock tick, not just the render", () => {
     const fits = scalingFits(run([result({ sats: 0, components: ["Point"], cpuMs: 1, tickMs: 0 }), result({ sats: 1000, components: ["Point"], cpuMs: 1, tickMs: 10 })]));
 
@@ -284,9 +277,6 @@ describe("scalingFits", () => {
   test("satsAt60fps is blank when the floor alone has eaten the budget", () => {
     const fits = scalingFits(run([result({ sats: 0, components: ["Point"], cpuMs: 1, wallMs: 40 }), result({ sats: 1000, components: ["Point"], cpuMs: 2, wallMs: 42 })]));
 
-    // Main-thread work is trivial and its slope would extrapolate to a huge
-    // count, but every frame took 40 ms regardless — GPU or vsync bound. No
-    // satellite count is the reason 60 fps is unavailable.
     expect(fits[0]?.floorMs).toBe(40);
     expect(fits[0]?.satsAt60fps).toBe("");
   });
@@ -338,9 +328,6 @@ describe("propagationCosts", () => {
     ]);
   });
 
-  // The defect this table was rewritten for: propagation happens in clock.onTick,
-  // which runs before preUpdate and so is outside cpuMs entirely. Differencing
-  // cpuMs reported nothing for a step that had ground to a halt propagating.
   test("sees a cost that cpuMs cannot", () => {
     const costs = propagationCosts(
       run([result({ sats: 5000, components: ["Point"], cpuMs: 1.28, tickMs: 0.2 }), result({ sats: 5000, components: ["Point"], clock: 10000, cpuMs: 1.2, tickMs: 460 })]),
@@ -391,8 +378,7 @@ describe("repeatChecks", () => {
       buildDriftPct: 0,
     });
 
-    // A fifth of a millisecond on a two-millisecond control step. This is what a
-    // clean run looks like at the bottom of the range, and it used to warn.
+    // Noise on a 2 ms control step.
     expect(isDrifted(check(2.2, 1.79))).toBe(false);
     // The same proportion where it is worth milliseconds.
     expect(isDrifted(check(11, 18))).toBe(true);
@@ -417,9 +403,7 @@ describe("gpu timing", () => {
   });
 
   test("a timer claiming more GPU than the frame it presented in is withheld", () => {
-    // The ANGLE/Metal case: 49 ms of "GPU" against frames arriving every 14 ms.
-    // A frame that presented cannot have cost that, so the column goes blank
-    // rather than print it.
+    // The ANGLE/Metal case.
     const bad = run([result({ sats: 0, components: ["Point"], cpuMs: 1, gpuMs: 49, wallMs: 14 })]);
     expect(gpuTimerTrustworthy(bad)).toBe(false);
     expect(reportRows(bad)[0]?.gpuMs).toBe("");
@@ -484,9 +468,7 @@ describe("toCsv", () => {
   });
 
   test("a value carrying a comma is quoted rather than left to split the row", () => {
-    // Component names must not contain commas (see CONTEXT.md), so this is the
-    // quoting being defensive rather than a case the app can reach — and the row
-    // staying one field is the whole point of it.
+    // Defensive: component names cannot contain commas (CONTEXT.md).
     const csv = toCsv(run([result({ sats: 1, components: ["Point", "A,B"], cpuMs: 1 })]));
     const [header, row] = csv.split("\n");
     expect(row).toContain('"Point + A,B"');
@@ -499,10 +481,7 @@ describe("toCsv", () => {
 });
 
 describe("memoryFits", () => {
-  // The whole reason this is a slope and not a column: the garbage offset is
-  // common to the rows of one series, so it lands in the intercept. These two
-  // series carry wildly different offsets (+400 MB apart) over the same
-  // per-satellite cost, and must produce the same slope.
+  // Two series with offsets 400 MB apart and the same per-satellite cost.
   test("the garbage offset lands in the intercept, not the slope", () => {
     const clean = run([
       result({ sats: 0, components: ["Point"], cpuMs: 1, visible: 0, heapMb: [40] }),
@@ -554,10 +533,7 @@ describe("memoryFits", () => {
     expect(fits.map((fit) => fit.mbPer1000Sats)).toEqual([50, 100]);
   });
 
-  // The failure this fit actually has, caught in the wild: a major collection fell
-  // between the zero row and the next, so the offset stopped being common and the
-  // slope came out negative — memory apparently freed by drawing satellites. r² is
-  // the only thing standing between that and being read as a finding.
+  // Measured: a major GC between the zero row and the next.
   test("a collection landing mid-series shows up as scatter, not a plausible slope", () => {
     const fits = memoryFits(
       run([
@@ -578,14 +554,11 @@ describe("memoryFits", () => {
         result({ sats: 5000, components: ["Point"], cpuMs: 1, visible: 5001, heapMb: [310.5] }),
       ]),
     );
-    // The real measurement this is taken from: 53.7 KB per satellite against a
-    // forced-collection truth of 52.5.
+    // Measured: 53.7 KB against 52.5 from a forced collection.
     expect(fits[0]?.kbPerSatellite).toBeCloseTo(53.7, 0);
     expect(memoryFitTrustworthy(fits[0]!)).toBe(true);
   });
 
-  // Two points always lie on their own line, so r² alone would wave this through
-  // at 1.000 — which is precisely where the offset assumption is least tested.
   test("a two-count sweep is refused however well it fits", () => {
     const fits = memoryFits(
       run([result({ sats: 0, components: ["Point"], cpuMs: 1, visible: 0, heapMb: [53] }), result({ sats: 100, components: ["Point"], cpuMs: 1, visible: 100, heapMb: [73.4] })]),
@@ -595,8 +568,6 @@ describe("memoryFits", () => {
   });
 
   test("no heap reading means no rows, rather than a fit through zeroes", () => {
-    // A fit through absent data would report every satellite as free, which is
-    // worse than an empty table saying the browser cannot answer.
     const fits = memoryFits(run([result({ sats: 0, components: ["Point"], cpuMs: 1, visible: 0 }), result({ sats: 5000, components: ["Point"], cpuMs: 1, visible: 5000 })]));
     expect(fits).toEqual([]);
   });
@@ -618,9 +589,6 @@ describe("the footprint capture", () => {
   const withFootprints = (points: readonly { visible: number; jsMb: number; floorMb: number }[]) =>
     run(points.map((point) => result({ sats: point.visible, visible: point.visible, components: ["Point"], cpuMs: 1, heapMb: [point.floorMb], footprintMb: point.jsMb })));
 
-  // The two slopes are independent derivations of one quantity: one differenced
-  // out of garbage-contaminated floors, one measured after a collection. That is
-  // the whole reason both are reported.
   test("the measured slope sits beside the derived one", () => {
     const fits = memoryFits(
       withFootprints([
@@ -629,10 +597,9 @@ describe("the footprint capture", () => {
         { visible: 5001, jsMb: 287.7, floorMb: 310.5 },
       ]),
     );
-    // Both land near the 52.5 KB per satellite a forced collection reported.
+    // Both near the 52.5 KB a forced collection reported.
     expect(fits[0]?.kbPerSatellite).toBeCloseTo(53.7, 0);
     expect(fits[0]?.absoluteKbPerSatellite).toBeCloseTo(52.7, 0);
-    // Three captures for three counts, so the absolute slope stands on its own.
     expect(absoluteFitTrustworthy(fits[0]!)).toBe(true);
   });
 
@@ -644,21 +611,16 @@ describe("the footprint capture", () => {
     expect(reportRows(run([result({ sats: 0, components: ["Point"], cpuMs: 1 })]))[0]?.footprintMb).toBe("");
   });
 
-  // The review finding: `measureFootprint` can be refused for one step, which
-  // leaves the absolute fit two points wide while the floor fit beside it still has
-  // three. Borrowing the floor fit's r² would print that under a green guard.
   test("a refused capture is judged on its own points, not the floor fit's", () => {
     const fits = memoryFits(
       run([
         result({ sats: 0, components: ["Point"], cpuMs: 1, visible: 0, heapMb: [50.7], footprintMb: 30.2 }),
-        // This step's capture was refused: heap floor present, footprint absent.
+        // Capture refused: heap floor present, footprint absent.
         result({ sats: 1000, components: ["Point"], cpuMs: 1, visible: 1001, heapMb: [95.4] }),
         result({ sats: 5000, components: ["Point"], cpuMs: 1, visible: 5001, heapMb: [310.5], footprintMb: 287.7 }),
       ]),
     );
-    // The floor fit is fine — three points, tight.
     expect(memoryFitTrustworthy(fits[0]!)).toBe(true);
-    // The absolute one is not, and says so rather than borrowing that verdict.
     expect(fits[0]?.absolutePoints).toBe(2);
     expect(fits[0]?.absoluteKbPerSatellite).not.toBeUndefined();
     expect(absoluteFitTrustworthy(fits[0]!)).toBe(false);
@@ -672,12 +634,9 @@ describe("the footprint capture", () => {
   test("the absolute figures reach the rows, total and js apart", () => {
     const rows = reportRows(withFootprints([{ visible: 5001, jsMb: 297.4, floorMb: 310.5 }]));
     expect(rows[0]?.footprintMb).toBe(297.4);
-    // The total counts DOM and worker memory too, so it is the larger number.
     expect(Number(rows[0]?.footprintTotalMb)).toBeGreaterThan(297.4);
   });
 
-  // Same rule the gpu column follows: a column of dashes says nothing an absent
-  // column does not.
   test("the pasted table grows a memory column only when one was captured", () => {
     expect(formatTable(withFootprints([{ visible: 0, jsMb: 30, floorMb: 50 }])).split("\n")[0]).toContain("footprint");
     expect(formatTable(run([result({ sats: 0, components: ["Point"], cpuMs: 1 })])).split("\n")[0]).not.toContain("footprint");

@@ -1,13 +1,9 @@
-// Fetch-handler routing for the GP data API.
-
 import { coerceIndex, withConfig } from "./evaluate.ts";
 import { groupsConfig, ingestAll, type IngestSource, refreshAll } from "./refresh.ts";
 import { GP_INDEX_KEY, GP_KEY_PREFIX, type GroupWriteMetadata } from "./store.ts";
 
 const GROUP_NAME_RE = /^[a-zA-Z0-9_-]+$/;
-// Cooldown for POST /api/refresh: within this window of the last refresh (manual
-// OR cron) the endpoint will not re-hit CelesTrak. A second line of defence
-// behind the bearer token, and short enough for iterative debugging.
+// POST /api/refresh does not re-hit CelesTrak within this window of the last refresh, cron included.
 const REFRESH_COOLDOWN_MS = 60_000;
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
@@ -25,11 +21,9 @@ function badRequest(reason: string): Response {
   return jsonResponse({ error: reason }, { status: 400, headers: { "Cache-Control": "no-store" } });
 }
 
-// Bearer-token gate for the two write endpoints. Returns the rejection to send,
-// or null when the caller is authorized.
+// Null when the caller is authorized.
 function rejectUnauthorized(request: Request, env: Env): Response | null {
-  // Secrets live outside wrangler.jsonc, so `wrangler types` cannot see this one.
-  // An unset secret disables the endpoint rather than leaving it open.
+  // `wrangler types` cannot see secrets. An unset secret disables the endpoint rather than leaving it open.
   const expected = (env as Env & { REFRESH_TOKEN?: string }).REFRESH_TOKEN;
   if (!expected) {
     return jsonResponse({ error: "Refresh is not configured" }, { status: 503, headers: { "Cache-Control": "no-store" } });
@@ -40,8 +34,6 @@ function rejectUnauthorized(request: Request, env: Env): Response | null {
   return null;
 }
 
-// GET /api/gp/<group>.json — serve a group's records from KV with caching
-// headers and conditional-request (If-None-Match -> 304) support.
 async function handleGroup(name: string, request: Request, env: Env): Promise<Response> {
   if (!GROUP_NAME_RE.test(name)) {
     return notFound();
@@ -81,9 +73,7 @@ function fnv1a(text: string): string {
   return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
-// GET /api/groups.json — the stored index with the deployed config's tags and
-// presets laid over it. Its ETag hashes the body, because the body changes with
-// either a refresh or a deploy and no single timestamp covers both.
+// The ETag hashes the body: a refresh or a deploy changes it, and no single timestamp covers both.
 async function handleIndex(request: Request, env: Env): Promise<Response> {
   const index = withConfig(coerceIndex(await env.GP_KV.get(GP_INDEX_KEY, "json")), groupsConfig);
   const body = JSON.stringify(index);
@@ -95,17 +85,9 @@ async function handleIndex(request: Request, env: Env): Promise<Response> {
   return new Response(body, { headers });
 }
 
-// POST /api/refresh — run the same refresh as the cron (fetch every source,
-// evaluate, write KV) and return a per-source diagnostic report. Needs
-// `Authorization: Bearer <REFRESH_TOKEN>`: one run pulls ~7 MB from CelesTrak,
-// which firewalls by IP (250 MB/day) — and a Worker's egress IP is shared with
-// other Cloudflare tenants, so an open trigger risks a block that stalls the cron
-// for everyone. Also rate-limited: within REFRESH_COOLDOWN_MS of the last refresh
-// it does NOT re-fetch, instead returning the cached index (errors included) with
-// 429 so a caller keeps visibility without spending the budget. Whatever it does
-// fetch is persisted, so — unlike a read-only probe — it never wastes a download.
-// Its diagnostics matter most run against the deployed Worker, where failures
-// like the 522s an IP block produces reproduce (they never do from a laptop).
+// The cron's refresh plus a per-source report. One run pulls ~7 MB from CelesTrak,
+// which firewalls by IP (250 MB/day) across Cloudflare's shared egress, hence the
+// token and the cooldown. Within the cooldown it answers 429 with the stored index.
 async function handleRefresh(request: Request, env: Env): Promise<Response> {
   if (request.method !== "POST") {
     return jsonResponse({ error: "Method Not Allowed" }, { status: 405, headers: { Allow: "POST" } });
@@ -142,10 +124,8 @@ async function handleRefresh(request: Request, env: Env): Promise<Response> {
   );
 }
 
-// Shape-check a posted ingest bundle. Returns the sources, or a string naming
-// the first problem for the 400. Deliberately strict: a malformed bundle must
-// fail loudly here rather than reach the pipeline as a wave of empty sources,
-// which would read as an upstream outage.
+// Returns the first problem as a string. Strict, because a malformed bundle would
+// otherwise read as an upstream outage.
 function parseIngestBundle(raw: unknown): IngestSource[] | string {
   if (raw === null || typeof raw !== "object") {
     return "body must be a JSON object";
@@ -179,8 +159,7 @@ function parseIngestBundle(raw: unknown): IngestSource[] | string {
     if (validator !== undefined && typeof validator !== "string") {
       return `body.sources[${i}].validator must be a string`;
     }
-    // A 304 legitimately carries neither: it says the caller's conditional
-    // request matched, so the stored value already is the payload.
+    // A 304 carries neither: the stored value already is the payload.
     if (body === undefined && error === undefined && status !== 304) {
       return `body.sources[${i}] needs either body or error`;
     }
@@ -189,17 +168,8 @@ function parseIngestBundle(raw: unknown): IngestSource[] | string {
   return parsed;
 }
 
-// POST /api/ingest — run the normal refresh against payloads the caller already
-// downloaded, instead of fetching them here. Same bearer token as /api/refresh.
-//
-// The Worker keeps everything except the download: evaluation, enrichment,
-// last-known-good and the index are the cron's code path unchanged (see
-// bundleFetch). CelesTrak firewalls Cloudflare's shared Worker egress, so the
-// bytes have to be fetched elsewhere — worker/scripts/push-gp.mjs is the client.
-//
-// No cooldown, unlike /api/refresh: that window exists to protect CelesTrak's
-// per-IP download budget, and an ingest spends none of it. The token is the only
-// gate it needs.
+// The cron's refresh over payloads downloaded off-Worker (scripts/push-gp.mjs), for
+// when CelesTrak firewalls Cloudflare's egress. No cooldown: it spends no CelesTrak budget.
 async function handleIngest(request: Request, env: Env): Promise<Response> {
   if (request.method !== "POST") {
     return jsonResponse({ error: "Method Not Allowed" }, { status: 405, headers: { Allow: "POST" } });
@@ -238,8 +208,7 @@ async function handleIngest(request: Request, env: Env): Promise<Response> {
   );
 }
 
-// Route any /api/* request. Returns null for non-api paths so the caller can
-// fall through to static assets.
+// Null for non-api paths, which fall through to static assets.
 export async function handleApi(request: Request, env: Env): Promise<Response | null> {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -249,9 +218,7 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
 
   const groupMatch = /^\/api\/gp\/([^/]+)\.json$/.exec(path);
   if (groupMatch) {
-    // Malformed percent-encoding (e.g. /api/gp/%zz.json) throws URIError; treat
-    // it as an unknown group rather than a 500 (handleGroup's name check rejects
-    // anything exotic that does decode anyway).
+    // Malformed percent-encoding (/api/gp/%zz.json) throws a URIError; answer 404, not 500.
     let name: string;
     try {
       name = decodeURIComponent(groupMatch[1]!);

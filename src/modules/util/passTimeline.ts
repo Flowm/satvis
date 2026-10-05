@@ -1,38 +1,25 @@
-// Laying out a pass list as a strip: where each pass sits along a horizon, how
-// tall it is drawn, and where the hour marks and "now" fall.
-//
-// Pure and Cesium-free, because it is the part worth testing — the component that
-// consumes it does nothing but turn percentages into inline styles.
+// Lays out a pass list as a strip, in percentages. Cesium-free so it can be tested.
 
 import { passQuality, type Pass } from "../PassPredictor";
 
 const HOUR_MS = 3600 * 1000;
 
-/**
- * A little track before now, so the "now" marker is a line *on* the strip rather
- * than on its edge. A pass that has just ended stays visible too.
- */
+/** Keeps the "now" marker off the strip's edge, and a just-ended pass visible. */
 const LEAD_IN_MS = 30 * 60 * 1000;
 
 /**
- * How many passes the strip tries to cover, and the window it may not leave.
- *
- * A fixed span was measured empty. The ISS clumps into a morning and an evening
- * group. At 20:30 UTC only two of its twenty-three passes fell inside twelve hours,
- * while the table below listed all twenty-three. Sizing the span to the passes
- * keeps the strip populated for a clumper and a sun-synchronous regular alike.
+ * The span is sized to the passes, not fixed: a fixed 12 h held only two of the
+ * ISS's twenty-three passes at 20:30 UTC.
  */
 const TARGET_BLOCKS = 6;
 const MIN_SPAN_MS = 6 * HOUR_MS;
 const MAX_SPAN_MS = 48 * HOUR_MS;
 
-/** Bands a pass is drawn in. Three, because three is what a legend can explain. */
 export type PassBand = "high" | "mid" | "low";
 
 /**
- * Thresholds on `passQuality`. 0.5 and 0.222 are 45° and 20° of elevation, the
- * points either side of "worth going outside for". In swath mode they are the same
- * fractions of the way from the footprint edge to its centre.
+ * 0.5 and 0.222 are 45° and 20° of elevation; in swath mode, the same fractions of
+ * the way from the footprint edge to its centre.
  */
 export function passBand(quality: number): PassBand {
   if (quality >= 0.5) {
@@ -44,12 +31,11 @@ export function passBand(quality: number): PassBand {
 export interface TimelineBlock {
   key: string;
   startMs: number;
-  /** Percentages across the strip, ready for `left`/`width`/`height`. */
+  /** Percentages, for `left`/`width`/`height`. */
   leftPct: number;
   widthPct: number;
   heightPct: number;
   band: PassBand;
-  /** Happening now, which the strip draws differently from one merely upcoming. */
   live: boolean;
   past: boolean;
 }
@@ -62,21 +48,14 @@ export interface TimelineTick {
 export interface TimelineLayout {
   blocks: TimelineBlock[];
   ticks: TimelineTick[];
-  /** Where "now" falls, which is `LEAD_IN_MS` in rather than at the left edge. */
   nowPct: number;
-  /** How far the strip reaches, for the caption: "7 h", "1.5 d". */
+  /** "7 h", "1.5 d". */
   horizonLabel: string;
-  /** Passes that start beyond the strip, so their absence can be accounted for. */
+  /** How many passes start beyond the strip. */
   beyond: number;
 }
 
-/**
- * Lay out the passes that fall inside an automatically sized horizon.
- *
- * `passes` is the same list the table shows, in the same order. Blocks come back
- * keyed by start time. A caller can then match a block to a row without either side
- * assuming the two arrays stay index-aligned.
- */
+/** Blocks are keyed by start time, so a caller can match them to table rows without index alignment. */
 export function passTimelineLayout(passes: readonly Pass[], nowMs: number): TimelineLayout {
   const horizonMs = horizonFor(passes, nowMs);
   const spanStart = nowMs - LEAD_IN_MS;
@@ -92,9 +71,8 @@ export function passTimelineLayout(passes: readonly Pass[], nowMs: number): Time
         key: String(pass.start),
         startMs: pass.start,
         leftPct: left,
-        // Floored, so a nine-minute pass on a two-day strip is still a hittable target.
+        // Floored so a short pass on a long strip stays clickable.
         widthPct: Math.max(1.2, pct(Math.min(spanEnd, pass.end)) - left),
-        // Never zero-height: a grazing pass still happened.
         heightPct: 25 + passQuality(pass) * 75,
         band: passBand(passQuality(pass)),
         live: pass.start <= nowMs && pass.end >= nowMs,
@@ -111,18 +89,16 @@ export function passTimelineLayout(passes: readonly Pass[], nowMs: number): Time
   };
 }
 
-/** Enough span to hold `TARGET_BLOCKS` passes, clamped so neither extreme is absurd. */
 function horizonFor(passes: readonly Pass[], nowMs: number): number {
   const upcoming = passes.filter((pass) => pass.end >= nowMs);
   const last = upcoming[Math.min(TARGET_BLOCKS, upcoming.length) - 1];
   if (!last) {
     return MIN_SPAN_MS;
   }
-  // A tenth of headroom past the last block, so it is not flush with the edge.
+  // 10% headroom, so the last block is not flush with the edge.
   return Math.min(MAX_SPAN_MS, Math.max(MIN_SPAN_MS, (last.end - nowMs) * 1.1));
 }
 
-/** Roughly four marks, on a step a human reads in hours. */
 function ticksFor(horizonMs: number, nowMs: number, pct: (epochMs: number) => number): TimelineTick[] {
   const hours = horizonMs / HOUR_MS;
   const step = [1, 2, 3, 6, 12, 24].find((candidate) => hours / candidate <= 5) ?? 24;

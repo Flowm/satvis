@@ -1,4 +1,3 @@
-# The NASA SVS source maps are hundreds of megabytes and are re-downloadable.
-# The directory itself is tracked so the bind mount in generate.sh has a target.
+# The NASA SVS source maps. The directory is tracked so generate.sh's bind mount has a target.
 *
 !.gitignore

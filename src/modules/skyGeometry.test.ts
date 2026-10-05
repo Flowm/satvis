@@ -49,10 +49,7 @@ describe("levelBasis", () => {
 });
 
 describe("rollBasis and rollOf", () => {
-  // The regression this file exists for. Composing roll and decomposing it were
-  // written in two modules from the same formula, and disagreed in sign: feeding
-  // a device's measured roll back into the camera basis mirrored the view. They
-  // are each other's inverse now, and this is what holds them there.
+  // A sign mismatch between the two mirrors the view.
   test("are exact inverses", () => {
     for (const [azimuth, elevation] of angles) {
       for (const roll of [-170, -90, -30, 0, 30, 90, 170]) {
@@ -106,9 +103,8 @@ describe("offsetObserver", () => {
   });
 
   test("keeps its scale near the poles, where degrees of longitude do not", () => {
-    // 100 m east at 89.9°N is half a degree of longitude — the parallel there is
-    // 11 km around. A fixed 111,320 m per degree would move 0.0009° instead, and
-    // the observer would barely leave the spot.
+    // 100 m east at 89.9°N is half a degree of longitude: the parallel is 11 km
+    // around. A fixed 111,320 m per degree would move 0.0009°.
     const polar = { lat: 89.9, lon: 0 };
     expect(distance(polar, offsetObserver(polar, 100, 0))).toBeCloseTo(100, 1);
     expect(offsetObserver(polar, 100, 0).lon).toBeCloseTo(0.513, 2);

@@ -61,14 +61,7 @@ const EPOCH_TIME = JulianDate.fromDate(dayjs("2018-12-08").toDate());
 const MUNICH: GroundStation = { name: "Munich", position: { latitude: 48.177, longitude: 11.7476, height: 0 } };
 const VIENNA: GroundStation = { name: "Vienna", position: { latitude: 48.2082, longitude: 16.3738, height: 0 } };
 
-/**
- * A predictor over an inline source, with every query recorded.
- *
- * The queries are what the assertions watch. Spying on the test's own `Orbit`
- * would prove nothing now that prediction happens behind the source — the source
- * builds its own from the record, so a spy here would never fire whether the
- * predictor asked or not.
- */
+/** Records every query: the source builds its own `Orbit`, so spying on this one proves nothing. */
 function issPredictor(swathKm = 500): { orbit: Orbit; predictor: PassPredictor; queries: PassQuery[] } {
   const record = parseGpPayload(TLE)[0] as GpRecord;
   const orbit = new Orbit("ISS", record);
@@ -81,8 +74,7 @@ function issPredictor(swathKm = 500): { orbit: Orbit; predictor: PassPredictor; 
       return bound.passes(query);
     },
   };
-  // A symmetric split of the total, which is what a satellite without per-side
-  // extents of its own gets from SatelliteProperties.
+  // The symmetric split SatelliteProperties gives a satellite without per-side extents.
   const predictor = new PassPredictor(orbit, () => ({ starboardKm: swathKm / 2, portKm: swathKm / 2 }), source);
   return { orbit, predictor, queries };
 }
@@ -100,7 +92,6 @@ describe("PassPredictor", () => {
     const passes = await predictor.ensurePasses(EPOCH_TIME);
     expect(passes.length).toBeGreaterThan(0);
     expect(passes.every((pass) => pass.groundStationName === "Munich")).toBe(true);
-    // Stamped on this side — see PassPredictor's #apply.
     expect(passes.every((pass) => pass.name === "ISS")).toBe(true);
     expect(predictor.passIntervals.length).toBe(passes.length);
   });
@@ -109,7 +100,6 @@ describe("PassPredictor", () => {
     const { predictor } = issPredictor();
     predictor.groundStations = [MUNICH];
 
-    // The whole point of the change: this used to be 8 ms of SGP4 inline.
     expect(predictor.passes(EPOCH_TIME)).toHaveLength(0);
 
     await predictor.ensurePasses(EPOCH_TIME);
@@ -141,9 +131,7 @@ describe("PassPredictor", () => {
     predictor.passes(JulianDate.addDays(EPOCH_TIME, 5, new JulianDate()));
     await first;
 
-    // Three reads, two requests: the one that was already out, then a single
-    // re-ask for the latest time the other two wanted. At a fast clock the reads
-    // outrun the replies, and queueing each would only grow the queue.
+    // Three reads, two requests: the one already out, then one re-ask for the latest time.
     expect(queries).toHaveLength(2);
     expect(queries[1]!.startEpochMs).toBeGreaterThan(queries[0]!.startEpochMs);
   });
@@ -276,9 +264,7 @@ describe("formatCountdown", () => {
   });
 
   test("seconds drop out past the first minute, so a distant countdown mostly stops ticking", () => {
-    // The point of the format: thirty rows re-rendering every second was noise. It
-    // still changes once a minute. A second either side of the minute boundary is
-    // the one case that does move, which is why the offset here sits off it.
+    // Off the minute boundary, where a second either side does change the text.
     const pass = elevationPass(3 * HOUR + 30 * 1000, 4 * HOUR);
     expect(formatCountdown(T0, pass)).toBe("3 h 0 m");
     expect(formatCountdown(T0 + 1000, pass)).toBe("3 h 0 m");

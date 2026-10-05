@@ -23,7 +23,6 @@ function pass(startOffsetMs: number, lengthMs = 10 * MIN, maxElevation = 40): Pa
 
 describe("passBand", () => {
   test("splits at the elevations worth distinguishing", () => {
-    // 0.5 and 0.222 of full quality are 45 and 20 degrees.
     expect(passBand(45 / 90)).toBe("high");
     expect(passBand(44 / 90)).toBe("mid");
     expect(passBand(20 / 90)).toBe("mid");
@@ -33,7 +32,6 @@ describe("passBand", () => {
 
 describe("passTimelineLayout", () => {
   test("sizes the horizon to the passes rather than to a fixed window", () => {
-    // Six passes an hour apart need about six hours; six a day apart need days.
     const tight = passTimelineLayout(
       [1, 2, 3, 4, 5, 6].map((h) => pass(h * HOUR)),
       T0,
@@ -42,13 +40,10 @@ describe("passTimelineLayout", () => {
       [1, 2, 3, 4, 5, 6].map((d) => pass(d * 24 * HOUR)),
       T0,
     );
-    // 7 h, not 6: the last block gets a tenth of headroom so it is not flush
-    // with the right edge.
+    // 7 h, not 6: the last block gets 10% headroom.
     expect(tight.horizonLabel).toBe("7 h");
     expect(tight.blocks).toHaveLength(6);
-    // A satellite with one pass a day cannot fit six inside the 48 h ceiling. The
-    // strip shows what it can and the caption accounts for the rest. That is the
-    // clamp working, not the sizing failing.
+    // One pass a day cannot fit six inside the 48 h ceiling.
     expect(sparse.horizonLabel).toBe("2 d");
     expect(sparse.blocks).toHaveLength(2);
     expect(sparse.beyond).toBe(4);

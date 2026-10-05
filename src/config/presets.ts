@@ -7,21 +7,16 @@
 import { fetchGpIndex } from "../modules/util/gpSource";
 import type { Query } from "../modules/util/urlCodec";
 
-// A source is either a bare GP group name (resolved against the probed GP base,
-// worker `/api/gp/<name>.json` or the static `data/gp/<name>.json` snapshot) or
-// an explicit URL/path (anything containing "/" or ".", incl. legacy .txt),
-// which passes through unchanged and is parsed via payload sniffing.
-//
-// A search-only source fills the catalog like any other, but its tags get no
-// group row and no multiselect entry: the group is too large to enable whole.
+// A source is a GP group name, resolved against the probed GP base, or a URL/path (any "/"
+// or ".", including legacy .txt), passed through and parsed by sniffing. A search-only
+// source gets no group row or multiselect entry: it is too large to enable whole.
 export type ElementsEntry = [source: string, tags: string[], options?: { searchOnly?: boolean }];
 
 export interface Preset {
   name: string;
   title: string;
   description?: string;
-  // Url parameters (docs/adr/0001-url-parameter-specification.md) that the url
-  // only has to state deviations from.
+  // Url parameters (ADR 0001); the url states only deviations.
   defaults: Query;
   elements: ElementsEntry[];
 }

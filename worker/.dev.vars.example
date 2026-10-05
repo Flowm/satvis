@@ -1,9 +1,7 @@
 # Copy to worker/.dev.vars (gitignored) for local `wrangler dev`.
 #
-# Bearer token required by POST /api/refresh and POST /api/ingest. The cron
-# trigger does not use it. scripts/push-gp.mjs sends the same value, read from
-# SATVIS_REFRESH_TOKEN in its own environment.
-# Deployed value is a Worker secret, set separately:
+# Bearer token for POST /api/refresh and POST /api/ingest; scripts/push-gp.mjs
+# sends it as SATVIS_REFRESH_TOKEN. Unset disables both endpoints (503).
+# In production it is a Worker secret:
 #   pnpm --filter satvis-worker exec wrangler secret put REFRESH_TOKEN
-# Leaving it unset disables the endpoint (503) rather than opening it.
 REFRESH_TOKEN=local-dev-token

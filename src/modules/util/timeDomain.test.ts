@@ -55,8 +55,7 @@ describe("frameWindow", () => {
     ]);
   });
 
-  // Every step after the latest frame shows it, so the live clock does not cause a
-  // reload every ten minutes while GIBS has nothing newer.
+  // So the live clock does not reload every ten minutes while GIBS has nothing newer.
   test("merges the steps that show the same frame", () => {
     const steps = frameWindow(GOES, at("2026-10-05T11:40:00Z"), TEN_MINUTES, 3);
     expect(steps.map((step) => formatFrame(step.frame, false))).toEqual(["2026-10-05T11:10:00Z", "2026-10-05T11:20:00Z"]);

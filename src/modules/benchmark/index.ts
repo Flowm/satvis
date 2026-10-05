@@ -1,5 +1,4 @@
-// The console half of the framework, and the handle the panel shares with it so
-// the two cannot be measuring different things.
+// The `window.bench` console handle, shared with the panel.
 
 import type { CesiumController } from "../CesiumController";
 import {
@@ -23,14 +22,10 @@ export * from "./framePump";
 export * from "./frameSampler";
 export * from "./report";
 
-/** Three counts and nothing else — a sanity check, not a measurement. */
+/** A harness sanity check, not a measurement. */
 export const QUICK_SATELLITE_COUNTS: readonly number[] = [0, 100, 1000];
 
-/**
- * The component set the clock sweep holds fixed. Point and Orbit, because an
- * orbit is rebuilt from the sampled trajectory whenever the window refreshes, so
- * it is where a faster clock shows up most plainly.
- */
+/** Orbit is rebuilt on every trajectory window refresh, so a faster clock shows most there. */
 export const CLOCK_COMPONENT_SETS: readonly (readonly string[])[] = [["Point", "Orbit"]];
 
 export type RunOverrides = Partial<PlanSpec> & Partial<BenchmarkOptions> & TargetOptions;
@@ -38,16 +33,14 @@ export type RunOverrides = Partial<PlanSpec> & Partial<BenchmarkOptions> & Targe
 export interface BenchmarkHandle {
   readonly target: CesiumBenchmarkTarget;
   readonly runner: BenchmarkRunner;
-  /** Isolated component sets over the default counts. Logs its tables when done. */
+  /** Isolated component sets over the default counts. */
   run(overrides?: RunOverrides): Promise<BenchmarkRun>;
-  /** Cumulative sets: each row adds a component to the row above it. */
   cumulative(overrides?: RunOverrides): Promise<BenchmarkRun>;
-  /** Three counts, for checking the harness rather than the app. */
   quick(overrides?: RunOverrides): Promise<BenchmarkRun>;
-  /** One component set across four clock rates: the propagation axis. */
+  /** The propagation axis: one component set across four clock rates. */
   clock(overrides?: RunOverrides): Promise<BenchmarkRun>;
   cancel(): void;
-  /** Log a live line every `intervalMs`; returns the stop function. */
+  /** @returns the stop function. */
   watch(intervalMs?: number): () => void;
   readonly last: BenchmarkRun | undefined;
   log(): void;
@@ -65,12 +58,7 @@ export interface BenchmarkHandle {
 
 let handle: BenchmarkHandle | undefined;
 
-/**
- * Build (once) the handle both the console and the panel use, and hang it off
- * `window.bench`. Called by the panel on mount, which is the only thing that
- * loads this module at all — so opening the panel is what gives the console its
- * handle, and nothing here costs a normal visitor anything.
- */
+/** Idempotent. Only the panel loads this module, so `window.bench` exists once the panel opens. */
 export function installBenchmark(cc: CesiumController): BenchmarkHandle {
   if (handle) {
     return handle;
@@ -94,9 +82,6 @@ export function installBenchmark(cc: CesiumController): BenchmarkHandle {
     };
     const options: BenchmarkOptions = { warmupMs: warmupMs ?? DEFAULT_OPTIONS.warmupMs, sampleMs: sampleMs ?? DEFAULT_OPTIONS.sampleMs, captureFootprint };
     if (captureFootprint && !canMeasureFootprint()) {
-      // Refused up front rather than silently producing a run with no footprints
-      // in it: the fix is a header on the response, which no amount of retrying
-      // from here will supply.
       console.warn(
         "[bench] captureFootprint was asked for but performance.measureUserAgentSpecificMemory is not available — the page is not cross-origin isolated. " +
           "Serve it with COOP: same-origin and COEP: credentialless. Carrying on without footprints.",
@@ -130,8 +115,7 @@ export function installBenchmark(cc: CesiumController): BenchmarkHandle {
       const timer = setInterval(() => {
         const live = target.live();
         const { wall, cpu, heap } = live.frames;
-        // Low-water mark and peak, not one figure: the gap between them is
-        // uncollected garbage rather than footprint. See FrameSample.heap.
+        // The min-max gap is uncollected garbage; see FrameSample.heap.
         const heapText = heap === undefined ? "n/a" : `${heap.min.toFixed(0)}–${heap.max.toFixed(0)} MB`;
         console.log(
           `[bench] ${live.frames.fps.toFixed(1).padStart(5)} fps · frame ${(wall?.mean ?? 0).toFixed(2).padStart(6)} ms (p95 ${(wall?.p95 ?? 0).toFixed(2)}) · cpu ${(cpu?.mean ?? 0).toFixed(2).padStart(6)} ms ·`,
@@ -161,5 +145,4 @@ export function installBenchmark(cc: CesiumController): BenchmarkHandle {
   return handle;
 }
 
-/** The handle, if it has been installed. The panel uses this rather than building a second one. */
 export const benchmarkHandle = (): BenchmarkHandle | undefined => handle;

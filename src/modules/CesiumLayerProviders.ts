@@ -16,9 +16,7 @@ import {
 
 import { createGibsTimeLayer } from "./GibsTimeLayer";
 
-// Always present — see data/imagery/.gitignore for what is tracked. How deep it goes
-// is `__IMAGERY_MAX_LEVEL__`, decided in vite.config.ts, which is also where the
-// reasoning lives.
+// Always present (see data/imagery/.gitignore). Its depth is `__IMAGERY_MAX_LEVEL__` in vite.config.ts.
 const NATURAL_EARTH = "data/imagery/NaturalEarthII";
 
 /** What a layer that follows the simulation time needs from the viewer it is added to. */
@@ -41,18 +39,10 @@ export interface TerrainProviderEntry {
 }
 
 export const imageryProviders: Record<string, ImageryProviderEntry> = {
-  // The offline base map, and the default. Named for its source like every other
-  // base layer here; there is only one, because both depths are now the same tiles
-  // from the same generator and sharpness is the only difference.
+  // The offline base map, and the default.
   NaturalEarth: {
-    // `maximumLevel` overrides the manifest, which declares only the committed
-    // levels. It has to be passed at construction — the property is readonly, so a
-    // ceiling cannot be raised afterwards.
-    //
-    // Above it Cesium magnifies the deepest tile it has rather than leaving a hole
-    // (`TileImagery` walks up to the closest ready ancestor), which is what makes a
-    // build without the generated levels soft instead of broken, and what covers
-    // going offline somewhere the runtime cache has never been.
+    // Overrides the manifest, which declares only the committed levels; readonly after
+    // construction. Above it Cesium magnifies the deepest ready ancestor tile.
     create: () =>
       TileMapServiceImageryProvider.fromUrl(NATURAL_EARTH, {
         maximumLevel: __IMAGERY_MAX_LEVEL__,
@@ -69,20 +59,14 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
     alpha: 1,
     base: true,
   },
-  // Satellite and orthophoto imagery merged from several providers, free and
-  // keyless. Served as TileJSON, which Cesium cannot consume, so the template and
-  // the tile size below are transcribed from
-  // https://tiles.versatiles.org/tiles/satellite/tiles.json — the one thing worth
-  // re-checking if the imagery ever comes back wrong.
+  // Free and keyless. Cesium cannot read TileJSON, so the template and tile size are
+  // copied from https://tiles.versatiles.org/tiles/satellite/tiles.json.
   VersaTiles: {
     create: () =>
       new UrlTemplateImageryProvider({
-        // No `scheme` in the TileJSON, so the default `xyz` applies and Cesium's
-        // own `{y}` is already the right way up; `{reverseY}` would invert it.
+        // The TileJSON has no `scheme`, so `xyz` applies; `{reverseY}` would invert it.
         url: "https://tiles.versatiles.org/tiles/satellite/{z}/{x}/{y}",
-        // 512 px, measured from a fetched tile rather than assumed: at the default
-        // 256 Cesium would request four tiles where one will do and still resolve
-        // each of them at half the detail it holds.
+        // Measured from a fetched tile; at 256 Cesium requests four tiles at half detail.
         tileWidth: 512,
         tileHeight: 512,
         maximumLevel: 19,
@@ -114,8 +98,7 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
     alpha: 1,
     base: true,
   },
-  // The day's true colour as VIIRS imaged it, daily since 2015. A composite of
-  // swaths, so the gaps between them near the equator are black.
+  // Daily true colour since 2015. A composite of swaths, so the gaps near the equator are black.
   VIIRS: {
     create: (context) => createGibsTimeLayer({ layer: "VIIRS_SNPP_CorrectedReflectance_TrueColor", maximumLevel: 9, format: "jpeg", daily: true }, context),
     alpha: 1,
@@ -126,8 +109,7 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
     alpha: 1,
     base: false,
   },
-  // GOES-East's clean infrared band at the simulation time, every 10 minutes for
-  // the last few months; the full disk over the Americas.
+  // GOES-East clean infrared, every 10 minutes for the last few months, over the Americas.
   "GOES-IR": {
     create: (context) => createGibsTimeLayer({ layer: "GOES-East_ABI_Band13_Clean_Infrared", maximumLevel: 6, format: "png", daily: false }, context),
     alpha: 0.5,
@@ -153,23 +135,13 @@ export const terrainProviders: Record<string, TerrainProviderEntry> = {
   None: {
     create: () => new EllipsoidTerrainProvider(),
   },
-  // The terrain OSM Buildings was authored against, which is why selecting that
-  // surface model forces this one — see src/config/surfaceModels.ts. Needs the
-  // ion token, so it is the one terrain that can fail for a reason other than
-  // the network.
+  // OSM Buildings forces this terrain (src/config/surfaceModels.ts). Needs the ion token.
   CesiumWorldTerrain: {
-    // Vertex normals because `globe.enableLighting` is on: without them the
-    // terrain is shaded off the ellipsoid normal and the relief goes flat.
+    // `globe.enableLighting` needs vertex normals, or the relief shades flat.
     create: () => createWorldTerrainAsync({ requestVertexNormals: true }),
   },
-  // Free and keyless, which is the point of it. Best-effort uptime and no SLA, so
-  // it is offered beside the two hosted options rather than instead of them.
-  //
-  // The `ellipsoid` variant, matching every other terrain here: Cesium wants
-  // heights above the ellipsoid, and the geoid variant would sit tens of metres
-  // out. The water mask is advertised but not requested — it would oblige a second
-  // attribution line ("Protomaps · © OpenStreetMap contributors") for an effect on
-  // the oceans that this app never looks at.
+  // Free and keyless, with no SLA. The `ellipsoid` variant, because the geoid one sits
+  // tens of metres off. No water mask: it would need a second attribution line.
   ReEarth: {
     create: () =>
       CesiumTerrainProvider.fromUrl("https://terrain.reearth.land/cesium-mesh/ellipsoid", {
@@ -190,9 +162,6 @@ export const terrainProviders: Record<string, TerrainProviderEntry> = {
     visible: false,
   },
 };
-
-// Name accessors, so the url schema and CesiumController share one source of
-// truth for what is selectable instead of restating the list.
 
 export function imageryProviderNames(): string[] {
   return Object.keys(imageryProviders);

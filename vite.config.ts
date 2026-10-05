@@ -25,14 +25,14 @@ try {
 
 const port = process.env.PORT ? Number(process.env.PORT) : undefined;
 
-// Headers for `performance.measureUserAgentSpecificMemory()` to provide accurate memory data in the benchmark panel.
+// Cross-origin isolation exposes `performance.measureUserAgentSpecificMemory()` to the benchmark panel.
 const CROSS_ORIGIN_ISOLATION_HEADERS = {
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Embedder-Policy": "credentialless",
 };
 
-// The repo ships with levels 0-2, run `pnpm update-imagery` to generate levels 0-5.
-// Levels 0-3 are precached by the service worker (if available), levels 4-5 are runtime cached.
+// The repo ships levels 0-2; `pnpm update-imagery` generates 0-5.
+// The service worker precaches levels 0-3 and runtime-caches 4-5.
 const generatedImagery = existsSync(fileURLToPath(new URL("data/imagery/NaturalEarthII/3/0/0.webp", import.meta.url)));
 const COMMITTED_MAX_LEVEL = 2;
 const GENERATED_MAX_LEVEL = 5;
@@ -211,8 +211,7 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
     alias: [
-      // Cuts satellite.js's Emscripten bundles before Vite reads them: unused here,
-      // and the source of fifteen "externalized for browser compatibility" warnings.
+      // Stubs satellite.js's unused Emscripten bundles, which raise fifteen "externalized for browser compatibility" warnings.
       { find: "#wasm-single-thread", replacement: fileURLToPath(new URL("src/modules/util/satelliteWasmRuntime.ts", import.meta.url)) },
       { find: "#wasm-multi-thread", replacement: fileURLToPath(new URL("src/modules/util/satelliteWasmRuntime.ts", import.meta.url)) },
     ],

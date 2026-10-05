@@ -1,6 +1,4 @@
-// The sweep loop, over an injected target. Nothing here knows about Cesium,
-// Vue or the DOM: it decides what to measure and in what order, and the target
-// decides what "apply this scene" means.
+// The sweep loop over an injected target, free of Cesium, Vue and the DOM.
 
 import { buildPlan, type BenchmarkStep, type PlanSpec } from "./benchmarkPlan";
 import type { FrameSample } from "./frameSampler";
@@ -12,11 +10,9 @@ export interface SceneRequest {
 }
 
 /**
- * What the app actually built, as against what was asked for. Recorded rather
- * than assumed because the two genuinely differ: a name can match two catalog
- * entries, and a component is only created for satellites it applies to (no
- * sensor cone without a swath, no model without a model url). A row that
- * claimed 5,000 labels when 200 were drawn would be worse than no row.
+ * What the app built, which can differ from the request: a name can match two
+ * catalog entries, and a component exists only where it applies (no cone without
+ * a swath, no model without a model url).
  */
 export interface SceneApplied {
   satellitesRequested: number;
@@ -24,13 +20,13 @@ export interface SceneApplied {
   componentsRequested: string[];
   componentsDrawn: string[];
   componentInstances: Record<string, number>;
-  /** Recorded rather than read back off the step: the clock is the app's to refuse. */
+  /** Read from the app, not the step: the app can refuse the clock. */
   clockMultiplier: number;
   entities: number;
   primitives: number;
-  /** Tearing the previous scene down, so a build is never a diff from one. */
+  /** Teardown of the previous scene, so a build never starts from a diff. */
   clearMs: number;
-  /** Wall time of the synchronous build — instantiation plus component creation. */
+  /** Wall time of the synchronous build, instantiation plus components. */
   buildMs: number;
 }
 
@@ -41,84 +37,44 @@ export interface MeasureOptions {
 }
 
 /**
- * An absolute memory measurement, garbage excluded — as against the relative
- * slope `memoryFits` derives from sampled heap floors.
- *
- * From `performance.measureUserAgentSpecificMemory()`, which is why it is
- * optional in every sense: the API needs a cross-origin isolated context and
- * exists only in Chromium, and it resolves only when a collection happens, which
- * measured at 14-19 s a call. That cost is why capturing this is a choice rather
- * than something every sweep does.
+ * Absolute memory, garbage excluded, from `performance.measureUserAgentSpecificMemory()`:
+ * Chromium only, needs cross-origin isolation, and resolves only at a GC (14-19 s).
  */
 export interface FootprintSample {
-  /** The whole agent: JavaScript, DOM and shared memory, across every scope. */
+  /** JavaScript, DOM and shared memory, across every scope. */
   totalMb: number;
-  /**
-   * Just this window's JavaScript. The figure comparable with `memoryFits` and
-   * with a forced collection — measured 0.2% apart from one.
-   */
+  /** This window's JavaScript; within 0.2% of a forced collection. */
   jsMb: number;
-  /**
-   * Every worker scope's JavaScript.
-   *
-   * Separated because `totalMb` counts it and nothing else does, so moving work
-   * into a worker makes the total go up while the main thread gets cheaper — and a
-   * comparison against a revision that has no workers reads that move as a
-   * regression unless the two parts can be told apart.
-   */
+  /** Worker scopes' JavaScript. Only `totalMb` includes it, so moving work into a worker raises the total. */
   workerMb: number;
-  /** How long the call took, so a row records what it cost to have this number. */
   elapsedMs: number;
 }
 
 export interface BenchmarkTarget {
-  /** Facts about the machine, so a result set can be compared with another. */
   environment(): Record<string, string | number>;
-  /** Everything that has to be true before the first step, once per run. */
+  /** Once per run, before the first step. */
   prepare(): Promise<void>;
-  /** How many satellites are available to draw at all. */
   catalogSize(): number;
   apply(request: SceneRequest): Promise<SceneApplied>;
-  /**
-   * Sample the window. The heap is part of the returned frame sample rather than
-   * a separate reading taken afterwards — see `FrameSample.heap`.
-   */
   measure(options: MeasureOptions): Promise<FrameSample>;
-  /**
-   * The absolute footprint of the scene currently up, or undefined where this
-   * browser cannot answer. Called after the sample window and before the next
-   * step tears the scene down, so the figure belongs to the scene it is filed
-   * under — and never during the window, since a 17 s wait inside a 4 s sample
-   * would not be a sample.
-   */
+  /** Undefined where the browser cannot answer. Called after the sample window, with the scene still up. */
   measureFootprint(): Promise<FootprintSample | undefined>;
-  /** Put the app back the way it was found. */
   restore(): Promise<void>;
 }
 
 export interface BenchmarkOptions {
   warmupMs: number;
   sampleMs: number;
-  /**
-   * Capture an absolute footprint per step. Off by default because it is the
-   * most expensive thing in the framework — see `FootprintSample`.
-   */
+  /** Off by default: each capture waits ~17 s, see `FootprintSample`. */
   captureFootprint?: boolean;
 }
 
-/**
- * What one footprint capture costs, for the duration estimate. Measured over six
- * calls: 14, 16, 19, 16, 18 and 19 s. It is a wait for a collection rather than
- * work, so it does not scale with the scene.
- */
+/** Measured over six calls: 14, 16, 19, 16, 18 and 19 s. A wait for GC, so it does not scale with the scene. */
 export const FOOTPRINT_CAPTURE_MS = 17_000;
 
 /**
- * Long enough that a step is a measurement rather than a glance. The warmup has
- * to outlast the shader compiles and buffer uploads that follow a build, and the
- * sample has to span several of the sampled-trajectory refreshes that arrive on
- * a schedule of their own — a short sample either catches one or misses it, and
- * the row swings either way.
+ * The warmup must outlast the shader compiles and uploads after a build, and the
+ * sample must span several trajectory refreshes, or the row swings.
  */
 export const DEFAULT_OPTIONS: BenchmarkOptions = { warmupMs: 2000, sampleMs: 4000 };
 
@@ -126,17 +82,12 @@ export interface BenchmarkResult {
   step: BenchmarkStep;
   applied: SceneApplied;
   frames: FrameSample;
-  /** Present only when asked for, and only where the browser can answer. */
   footprint: FootprintSample | undefined;
 }
 
 export interface BenchmarkRun {
   startedAtIso: string;
-  /**
-   * The sweep that was asked for. Recorded because a run started from the console
-   * has to be legible in the panel: without it the controls would go on showing
-   * whatever was last typed while a different sweep ran.
-   */
+  /** Lets the panel show a sweep started from the console. */
   spec: PlanSpec;
   environment: Record<string, string | number>;
   options: BenchmarkOptions;
@@ -148,7 +99,6 @@ export interface BenchmarkRun {
 export interface RunnerHooks {
   onLog?(message: string): void;
   onProgress?(progress: { done: number; total: number; step: BenchmarkStep }): void;
-  /** Called as each row lands, so a live table does not wait for the sweep. */
   onResult?(result: BenchmarkResult, run: BenchmarkRun): void;
 }
 
@@ -206,20 +156,15 @@ export class BenchmarkRunner {
           break;
         }
         hooks.onProgress?.({ done: run.results.length, total: steps.length, step });
-        // Sequential is the whole point: two steps measured at once would be
-        // measuring each other.
         // eslint-disable-next-line no-await-in-loop
         const applied = await this.#target.apply({ satelliteCount: step.satelliteCount, components: step.components, clockMultiplier: step.clockMultiplier });
         // eslint-disable-next-line no-await-in-loop
         const frames = await this.#target.measure({ ...options, signal: abort.signal });
         if (abort.signal.aborted) {
-          // A sample cut short is not a sample. Drop it rather than record a
-          // fast-looking row that only measured the moment before the stop.
+          // Drop the cut-short sample.
           run.cancelled = true;
           break;
         }
-        // After the sample window, with the scene still up: this is the one
-        // measurement that must not happen inside the window it describes.
         // eslint-disable-next-line no-await-in-loop
         const footprint = options.captureFootprint ? await this.#target.measureFootprint() : undefined;
         const result: BenchmarkResult = { step, applied, frames, footprint };

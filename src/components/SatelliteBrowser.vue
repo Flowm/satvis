@@ -91,12 +91,6 @@ function showInfo(name: string): void {
 
 const groupItems = computed(() => availableGroups.value.toSorted((a, b) => a.tag.localeCompare(b.tag)).map((g) => ({ label: `${g.tag} (${g.count})`, value: g.tag })));
 
-// Surfaces come from Nuxt UI's dark palette (`dark` class on #app) with the
-// neutral-gray alias set in vite.config.ts, so no per-component color
-// overrides are needed here.
-
-// Scroll container height: min(rows * ROW_HEIGHT, 60dvh) so short lists hug
-// their content and long ones cap out and scroll internally.
 const listHeight = computed(() => `min(${rows.value.length * ROW_HEIGHT}px, 60dvh)`);
 
 const scrollEl = ref<HTMLElement | null>(null);
@@ -109,9 +103,7 @@ const virtualizer = useVirtualizer(
   })),
 );
 
-// Pair each virtual item with its row up front. The virtualizer only emits
-// indices within `count`, but pairing here lets the template stay index-safe
-// (and drops any stray item whose row vanished mid-recompute).
+// Drops any item whose row vanished mid-recompute, so the template stays index-safe.
 const virtualRows = computed(() =>
   virtualizer.value
     .getVirtualItems()
@@ -120,13 +112,7 @@ const virtualRows = computed(() =>
 );
 const totalSize = computed(() => virtualizer.value.getTotalSize());
 
-// Mount/visibility note: this component sits behind a `v-if` in Satvis.vue
-// (not v-show like the sibling panels), so the scroll element is always laid
-// out with its real size when the virtualizer first measures it. Under v-show
-// the initial measurement would read 0x0 from inside the hidden panel and the
-// list would stay blank until a ResizeObserver tick. TanStack's own observers
-// handle scroll and resize from here on; the composable's module-scoped state
-// (search, expansion) survives the remounts v-if causes.
+// Mounted behind a `v-if` in Satvis.vue, so the first measurement is not 0x0.
 </script>
 
 <style scoped>
@@ -160,9 +146,7 @@ const totalSize = computed(() => virtualizer.value.getTotalSize());
 }
 
 .browser-list {
-  /* Explicit height (min(rows*28px, 60dvh)) drives the size; the panel column
-     has no definite height, so `flex: 0 0 auto` keeps the list from collapsing
-     (flex-grow needs free space that a content-sized column doesn't provide). */
+  /* The column has no definite height, so the list would collapse under flex-grow. */
   flex: 0 0 auto;
   position: relative;
   overflow-y: auto;

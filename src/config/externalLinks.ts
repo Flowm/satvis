@@ -1,9 +1,4 @@
-// Where to go for the things this panel does not know: mass and radar cross
-// section, conjunction data, decay history, a second opinion on the orbit.
-//
-// Every entry is keyed on the NORAD catalog number and nothing else, which is what
-// makes the list a one-liner rather than a per-site integration. That constraint
-// also decided what is *not* here — see the note at the bottom.
+// Every entry is keyed on the NORAD catalog number alone (see the note at the bottom).
 
 export interface ExternalLink {
   label: string;
@@ -11,14 +6,7 @@ export interface ExternalLink {
   href: string;
 }
 
-/**
- * Ordered most-authoritative first. CelesTrak leads because it is where this app's
- * own element sets and SATCAT fields come from. It is the page that can settle a
- * disagreement with anything shown here.
- *
- * All five URL schemes were checked against 25544 rather than assumed — Heavens-Above
- * in particular uses `satid`, not the `CATNR`/`s`/`sat` the others use.
- */
+/** Most authoritative first; CelesTrak is this app's data source. Each URL scheme was checked against 25544. */
 export function externalLinks(satnum: string): ExternalLink[] {
   return [
     {
@@ -49,16 +37,6 @@ export function externalLinks(satnum: string): ExternalLink[] {
   ];
 }
 
-// Considered and left out, all for the same reason — no public page addressable by
-// catalog number alone:
-//
-//   Space-Track, ESA DISCOSweb   behind a login, so a link would land on a sign-in
-//                               form rather than on the satellite
-//   Wikipedia, Gunter's Space    organised by mission name, which this app does not
-//   Page, Jonathan's Space       hold in a form that survives being put in a URL
-//   Report
-//   orbit.ing-now.com            wants the international designator and a name slug
-//                               in the path as well as the number
-//
-// Deliberately not added either: CelesTrak's `gp.php?CATNR=` element query. It is a
-// data endpoint rather than a page, and the panel already shows those elements.
+// Left out, with no public page addressable by catalog number alone: Space-Track and ESA
+// DISCOSweb (login), Wikipedia, Gunter's Space Page and Jonathan's Space Report (by mission
+// name), orbit.ing-now.com (needs designator and slug). CelesTrak `gp.php` is data, not a page.

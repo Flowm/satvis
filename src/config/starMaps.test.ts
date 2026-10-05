@@ -1,14 +1,9 @@
-// What the Map menu is allowed to offer, and how the probe reads an answer.
-//
-// The interesting cases are all failures. A missing asset has to disappear from
-// the menu, but a dev server answering 200 with the app shell is also a missing
-// asset, and an unanswered request is not a missing asset at all.
+// An app-shell 200 is a missing asset; an unanswered request is not.
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { BUILTIN_STAR_MAP, STAR_MAPS, starMapAvailable, starMapRecovery, starMapSources } from "./starMaps";
 
-/** A fetch whose answer per url is chosen by the test; `init` is kept for inspection. */
 function stubFetch(answer: (url: string) => Response | Promise<Response>) {
   const spy = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => Promise.resolve(answer(String(input))));
   vi.stubGlobal("fetch", spy);
@@ -22,8 +17,7 @@ const missing = () => new Response(null, { status: 404 });
 const appShell = () => new Response(null, { status: 200, headers: { "content-type": "text/html" } });
 
 beforeEach(() => {
-  // The probe memoises for the life of the module, which is the point of it —
-  // so each test needs a module whose memo is empty.
+  // The probe memoises per module.
   vi.resetModules();
 });
 
@@ -49,7 +43,6 @@ describe("starMapSources", () => {
   test.each(optional)("%s names all six faces", (name) => {
     const sources = starMapSources(name);
     expect(sources && Object.keys(sources).toSorted()).toEqual(["negativeX", "negativeY", "negativeZ", "positiveX", "positiveY", "positiveZ"]);
-    // Six distinct files, not the same one under six keys.
     expect(new Set(Object.values(sources!)).size).toBe(6);
   });
 
@@ -57,8 +50,6 @@ describe("starMapSources", () => {
     expect(starMapSources(name)!.positiveX).toContain("data/starmap/");
   });
 
-  // Two cuts of one catalogue built by one generator run — distinct files, or
-  // the menu would offer the same sky twice under two names.
   test("no two maps share a face url", () => {
     const urls = optional.flatMap((name) => Object.values(starMapSources(name)!));
     expect(new Set(urls).size).toBe(urls.length);
@@ -80,8 +71,6 @@ describe("starMapRecovery", () => {
     expect(starMapRecovery(BUILTIN_STAR_MAP)).toBeUndefined();
   });
 
-  // The warning in sceneSync is the only thing a reader gets, and it used to
-  // tell everyone to init a submodule regardless of which map had failed.
   test("a hint exists for every map that can actually go missing", () => {
     for (const name of STAR_MAPS) {
       if (starMapSources(name) !== undefined) {
@@ -103,10 +92,7 @@ describe("starMapAvailable", () => {
     await expect(starMapAvailable("Nonsense")).resolves.toBe(false);
   });
 
-  // Not a HEAD: the Cache API ignores requests whose method is not GET, so a
-  // HEAD never sees the service worker's runtime cache and would report the map
-  // missing to someone merely offline. Same rule as the imagery probe in
-  // CesiumLayerProviders.ts. Ranged, because a face is ~600 kB.
+  // The Cache API ignores non-GET requests, so a HEAD misses the service worker's cache offline.
   test("probes with a one-byte ranged GET, never a HEAD", async () => {
     const spy = stubFetch(imagePart);
     const { starMapAvailable: probe } = await freshModule();
@@ -160,8 +146,7 @@ describe("starMapAvailable", () => {
 
 describe("availableStarMaps", () => {
   test("keeps STAR_MAPS order rather than probe completion order", async () => {
-    // Delay the probed map, so a list built from resolution order would put the
-    // unprobed builtin first only by accident — it has to be by construction.
+    // Delayed, so resolution order would put the unprobed builtin first.
     stubFetch(() => new Promise((r) => setTimeout(() => r(imagePart()), 5)));
     const { availableStarMaps: list } = await freshModule();
     await expect(list()).resolves.toEqual([...STAR_MAPS]);
@@ -179,9 +164,7 @@ describe("availableStarMaps", () => {
     await expect(list()).resolves.toContain(BUILTIN_STAR_MAP);
   });
 
-  // The two cuts are built together, but `--size 2048` builds only one and a
-  // half-finished run leaves only one. Each is probed on its own, so the menu
-  // offers whichever is actually there.
+  // `--size 2048` or a half-finished run leaves only one cut.
   test("offers only the cut that exists when the generator built one size", async () => {
     stubFetch((url) => (url.includes("_1024_") ? missing() : imagePart()));
     const { availableStarMaps: list } = await freshModule();

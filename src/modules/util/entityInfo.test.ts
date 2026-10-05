@@ -4,9 +4,8 @@ import Orbit from "../Orbit";
 import { formatEpoch, getSatelliteInfo } from "./entityInfo";
 import { parseGpPayload, type GpRecord } from "./gp";
 
-// The ISS: inclined enough to have nodes, and nowhere near sun-synchronous, so the
-// derived rows here are the apsides and nothing else. `orbitFacts.test.ts` covers
-// the derivation itself; these tests are about which rows appear and in what order.
+// Not sun-synchronous, so the only derived row after the class is the apsides.
+// orbitFacts.test.ts covers the derivation.
 const ISS = new Orbit(
   "ISS (ZARYA)",
   parseGpPayload(
@@ -31,15 +30,12 @@ describe("formatEpoch", () => {
 
 describe("getSatelliteInfo", () => {
   test("reports the derived rows even with no metadata, class first", () => {
-    // Derived before served, so the class is the first row whatever the record says.
     expect(labels(getSatelliteInfo(ISS, "LEO", {}))).toEqual(["Orbit", "Apogee / Perigee"]);
     expect(valueOf(getSatelliteInfo(ISS, "LEO", {}), "Orbit")).toBe("LEO");
   });
 
   test("omits every row the record does not carry, rather than showing defaults", () => {
-    // A satellite absent from the satellite table still renders with a 200 km
-    // swath and a 10° cone; showing those here would present a renderer fallback
-    // as a fact about the satellite.
+    // The renderer still draws a DEFAULT_SWATH_KM swath and a DEFAULT_CONE_FOV_DEG cone.
     expect(labels(getSatelliteInfo(ISS, "LEO", {}))).not.toContain("Swath");
     expect(labels(getSatelliteInfo(ISS, "LEO", {}))).not.toContain("Sensor FOV");
   });
@@ -70,8 +66,7 @@ describe("getSatelliteInfo", () => {
     });
 
     test("falls back to the raw code for one it does not know", () => {
-      // These tables go stale by design — a new nation reaches orbit and the
-      // record arrives before the table knows about it. A code beats a blank.
+      // The code tables lag new SATCAT codes; a code beats a blank.
       const rows = getSatelliteInfo(ISS, "LEO", { owner: "ZZZ", launchDate: "2026-01-01", launchSite: "QQQ", opsStatus: "!" });
       expect(valueOf(rows, "Owner")).toBe("ZZZ");
       expect(valueOf(rows, "Launched")).toBe("2026-01-01 · QQQ");
@@ -83,8 +78,6 @@ describe("getSatelliteInfo", () => {
     });
 
     test("suppresses the ordinary orbit type but names the interesting ones", () => {
-      // "Orbiting" is true of all but a handful of the satellites served, so it
-      // would cost a row on every panel to say nothing.
       expect(labels(getSatelliteInfo(ISS, "LEO", { orbitType: "ORB" }))).not.toContain("Orbit type");
       expect(valueOf(getSatelliteInfo(ISS, "LEO", { orbitType: "DOC" }), "Orbit type")).toBe("Docked");
       expect(valueOf(getSatelliteInfo(ISS, "LEO", { orbitType: "IMP" }), "Orbit type")).toBe("Impacted");
@@ -96,7 +89,6 @@ describe("getSatelliteInfo", () => {
     });
 
     test("adds nothing for a satellite the catalog said nothing about", () => {
-      // The derived rows are all that is left; no SATCAT label appears.
       expect(labels(getSatelliteInfo(ISS, "MEO", {}))).toEqual(["Orbit", "Apogee / Perigee"]);
       expect(valueOf(getSatelliteInfo(ISS, "MEO", {}), "Orbit")).toBe("MEO");
     });

@@ -1,15 +1,7 @@
 #!/usr/bin/env node
-// Merge the committed core config with every data/custom/*/satvis.yaml plugin
-// config, inline each group's extraRecordsFile TLE text into extraRecords,
-// give every satellite a model manifest lists its `modelFile`, validate, and
-// write worker/src/config/satvis.generated.json.
-//
-// A config contributes three independent sections: `groups` (what is served, as
-// which unit, under which tags), `presets` (the starting configuration of a
-// route) and `satellites` (static per-satellite facts, keyed by NORAD id and
-// attached to records at refresh time). With no plugin configs present this
-// still produces a valid generated file from the core config alone (so lint/CI
-// stay green).
+// Merge the core config with every data/custom/*/satvis.yaml, inline each
+// extraRecordsFile, give each satellite its model manifest `modelFile`, validate,
+// and write worker/src/config/satvis.generated.json. Works without plugins too.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -29,8 +21,7 @@ const PLUGIN_CONFIG_NAME = "satvis.yaml";
 // The submodule's and any plugin's list of files under /data/models/ by NORAD id (ADR 0007).
 const MODEL_MANIFEST_NAME = "models.yaml";
 const modelsManifestPath = path.join(repoRoot, "data", "models", MODEL_MANIFEST_NAME);
-// Pre-YAML plugin config name. Detected only to fail loudly: silently skipping
-// it would make a plugin's groups vanish from the build without a word.
+// Pre-YAML plugin config name, detected only to fail loudly instead of dropping the plugin.
 const LEGACY_PLUGIN_CONFIG_NAME = "groups.json";
 
 const GROUP_NAME_RE = /^[a-zA-Z0-9_-]+$/;
@@ -42,13 +33,8 @@ function readYaml(file) {
   return YAML.parse(fs.readFileSync(file, "utf8"));
 }
 
-// Parse TLE text into TleRecord objects. Supports 3-line blocks (optional
-// leading "0 " on the name line), and bare 2-line blocks (no name).
-//
-// Deliberate near-duplicate of src/modules/util/gp.ts parseTleText with an
-// intentionally opposite error policy: this build tool fails loud (throws) so
-// bad input never ships, while the browser path warns and skips. Do not
-// "unify" them.
+// Near-duplicate of parseTleText in src/modules/util/gp.ts with the opposite error
+// policy: this one throws so bad input never ships, the browser warns and skips. Do not unify them.
 function parseTleText(text) {
   const lines = text
     .split(/\r?\n/)
@@ -59,11 +45,9 @@ function parseTleText(text) {
   while (i < lines.length) {
     const line = lines[i];
     if (line.startsWith("1 ") && i + 1 < lines.length && lines[i + 1].startsWith("2 ")) {
-      // Bare 2-line block.
       records.push({ TLE_LINE1: line, TLE_LINE2: lines[i + 1] });
       i += 2;
     } else if (i + 2 < lines.length && lines[i + 1].startsWith("1 ") && lines[i + 2].startsWith("2 ")) {
-      // 3-line block; strip an optional "0 " name prefix.
       const name = line.startsWith("0 ") ? line.slice(2) : line;
       records.push({ OBJECT_NAME: name, TLE_LINE1: lines[i + 1], TLE_LINE2: lines[i + 2] });
       i += 3;
@@ -74,8 +58,7 @@ function parseTleText(text) {
   return records;
 }
 
-// Load and normalize one config file. `extraRecordsFile` (generator-only) is
-// resolved relative to the config's directory and inlined into extraRecords.
+// `extraRecordsFile` resolves relative to the config's directory.
 function loadConfig(configPath) {
   const config = readYaml(configPath);
   const dir = path.dirname(configPath);
@@ -106,7 +89,6 @@ function discoverPluginConfigs() {
       configs.push(candidate);
       continue;
     }
-    // Fail loudly rather than silently dropping a plugin that has not migrated.
     if (fs.existsSync(path.join(dir, LEGACY_PLUGIN_CONFIG_NAME))) {
       throw new Error(
         `${path.relative(repoRoot, path.join(dir, LEGACY_PLUGIN_CONFIG_NAME))} is the pre-YAML config format; ` +
@@ -117,7 +99,7 @@ function discoverPluginConfigs() {
   return configs;
 }
 
-// Without `git submodule update --init` (CI too) the submodule's is missing: warn, so lint and tests still run.
+// Without `git submodule update --init` (CI too) the submodule's manifest is missing: warn, so lint and tests still run.
 function discoverModelManifests() {
   const manifests = [];
   if (fs.existsSync(modelsManifestPath)) {
@@ -168,9 +150,6 @@ function modelAssignments(manifestPath) {
   });
 }
 
-// Validate a group's `satellites` rows (if any). Each row must select by
-// `noradId` (number) or `upstreamName` (string); `name`/`metadata` optional
-// with checked types. Throws with the group name on any violation.
 function validateSatellites(group) {
   if (group.satellites === undefined) {
     return;
@@ -198,13 +177,9 @@ function validateSatellites(group) {
     if (row.metadata !== undefined) {
       validateMetadata(row.metadata, where);
       if (row.noradId === undefined) {
-        // Metadata is keyed by NORAD id in the merged table; a name-only row has
-        // no key to lift it under.
         throw new Error(`${where}: "metadata" requires a "noradId" (matching is by NORAD id only)`);
       }
-      // Same rule as a top-level table entry: an empty bag would attach a
-      // meaningless `metadata` key to the served record, which is supposed to be
-      // present only when the satellite actually has facts to carry.
+      // A served record carries `metadata` only when there are facts to carry.
       if (Object.keys(row.metadata).length === 0) {
         throw new Error(`${where}: "metadata" is empty — remove it or give it a field`);
       }
@@ -215,11 +190,8 @@ function validateSatellites(group) {
   });
 }
 
-// Validate a metadata bag. The worker treats it as opaque, so only the fields
-// whose shape the frontend depends on are checked here: the swath extents, which
-// must be positive numbers and must be given for both sides or neither (see
-// swathExtentsOf in src/config/satelliteMetadata.ts, which reads them as a pair
-// and treats a half-specified swath as absent).
+// Only the swath extents are checked: swathExtentsOf in src/config/satelliteMetadata.ts
+// reads them as a pair and treats a half-specified swath as absent.
 function validateMetadata(metadata, where) {
   if (metadata === null || typeof metadata !== "object" || Array.isArray(metadata)) {
     throw new Error(`${where}: "metadata" must be an object`);
@@ -237,17 +209,13 @@ function validateMetadata(metadata, where) {
   }
 }
 
-// The keys of a satellite-table entry that are bookkeeping rather than payload.
-// Everything else in the entry IS the metadata bag, which is what keeps adding a
-// field a data-only edit.
+// Every other key of a table entry is metadata, so a new field needs no code change.
 const TABLE_ENTRY_KEYS = new Set(["noradId", "name", "decayed"]);
 
 function metadataFields(entry) {
   return Object.fromEntries(Object.entries(entry).filter(([key]) => !TABLE_ENTRY_KEYS.has(key)));
 }
 
-// Validate a config's top-level `satellites` table. Every entry keys on a
-// numeric `noradId`; `name` is documentation only.
 function validateSatelliteTable(entries, source) {
   if (!Array.isArray(entries)) {
     throw new Error(`${source}: "satellites" must be an array`);
@@ -303,7 +271,6 @@ function validate(groups) {
     validateSatellites(group);
     validateTags(group);
   }
-  // include / exclude targets must exist, and must be other groups.
   for (const group of groups) {
     for (const [field, verb] of [
       ["include", "includes"],
@@ -323,7 +290,6 @@ function validate(groups) {
       }
     }
   }
-  // no cycles through include or exclude edges (DFS).
   const byName = new Map(groups.map((g) => [g.name, g]));
   const state = new Map();
   const visit = (name, stack) => {
@@ -347,10 +313,8 @@ function validate(groups) {
 
 const sourcesOf = (group) => JSON.stringify(group.sources ?? []);
 
-// A group with `exclude` serves the remainder of its sources, so every sibling
-// in the same config that selects from those sources must be on the list, or
-// the remainder serves those records twice. Plugin configs are checked on their
-// own: their groups belong in a core remainder.
+// A remainder must exclude every sibling in its config that selects from the same
+// sources, or it serves their records twice. Each config is checked on its own.
 function validateRemainders(groups, source) {
   for (const remainder of groups) {
     if (!remainder.exclude) {
@@ -367,9 +331,7 @@ function validateRemainders(groups, source) {
   }
 }
 
-// A remainder and the groups it excludes make up one whole, and enabling a tag
-// of the remainder has to load all of it. So every excluded group carries every
-// tag of the group excluding it.
+// Enabling a tag of a remainder must load the whole, so excluded groups carry all its tags.
 function validateRemainderTags(groups) {
   const byName = new Map(groups.map((group) => [group.name, group]));
   for (const remainder of groups) {
@@ -384,8 +346,7 @@ function validateRemainderTags(groups) {
   }
 }
 
-// Normalize and check every preset against the merged groups. A group entry is
-// either a bare name or { name, searchOnly }, and comes out as the object.
+// A preset group entry is a bare name or { name, searchOnly }; it comes out as the object.
 function validatePresets(presets, groups) {
   const byName = new Map(groups.map((group) => [group.name, group]));
   const seen = new Set();
@@ -448,15 +409,8 @@ function validatePresets(presets, groups) {
   return normalized;
 }
 
-// Accumulator for the merged satellite table, keyed by NORAD id. Contributions
-// arrive from two kinds of place — a config's top-level `satellites` table and a
-// group's `satellites[].metadata` rows — and are merged field-wise in arrival
-// order, so a later, more specific contribution wins per field.
-//
-// Conflicts (two places giving one field different values for one satellite) are
-// a config bug: whichever won would depend on file discovery order, so we fail
-// with both origins instead of picking. Identical values merge silently, which
-// is what makes it safe to repeat a satellite across groups.
+// Merges contributions field by field. Two different values for one field fail the
+// build, because the winner would depend on discovery order; identical values merge.
 function createSatelliteTable() {
   const byNoradId = new Map();
   return {
@@ -480,8 +434,6 @@ function createSatelliteTable() {
       existing.decayed ||= fields.decayed;
       existing.origins.push(origin);
     },
-    // Strip the bookkeeping (`origins`) that only the merge needed, and drop
-    // absent optional keys so the generated JSON stays free of nulls.
     entries() {
       const out = [];
       for (const { noradId, name, decayed, metadata } of byNoradId.values()) {
@@ -523,10 +475,7 @@ function main() {
       table.add(entry.noradId, { metadata: metadataFields(entry), name: entry.name, decayed: entry.decayed }, `${source} satellites`);
     }
   }
-  // Group rows contribute after every table. Order only decides which origin is
-  // named first in a conflict message — it does NOT establish precedence: two
-  // places giving one satellite different values for a field is a build failure,
-  // because whichever won would depend on config discovery order.
+  // Order only decides which origin a conflict message names first; it sets no precedence.
   for (const group of groups) {
     for (const row of group.satellites ?? []) {
       if (row.metadata !== undefined) {

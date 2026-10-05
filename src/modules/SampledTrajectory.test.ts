@@ -16,11 +16,7 @@ const T0 = JulianDate.fromDate(dayjs("2018-12-08").toDate());
 
 const issRecord = (): GpRecord => parseGpPayload(TLE)[0] as GpRecord;
 
-/**
- * A trajectory sampling inline. The unit tests are the second implementation's
- * reason for existing: they exercise the same code the worker runs, on this
- * thread, with no transport in the way.
- */
+/** Samples inline, through the same code the worker runs. */
 function issTrajectory(): { orbit: Orbit; trajectory: SampledTrajectory; sampler: TrajectorySampler; source: InlineSampleSource; periodSeconds: number } {
   const record = issRecord();
   const orbit = new Orbit("ISS", record);
@@ -33,9 +29,7 @@ function issTrajectory(): { orbit: Orbit; trajectory: SampledTrajectory; sampler
 const fakeViewer = () => ({ clock: { currentTime: T0, onTick: { addEventListener: () => () => {} } } }) as unknown as Parameters<SampledTrajectory["start"]>[0];
 
 beforeEach(() => {
-  // The ICRF transform needs async-loaded IAU data that is unavailable in
-  // Node; pin it to identity — these tests cover the window bookkeeping, not
-  // the frame conversion itself.
+  // The ICRF transform needs async-loaded IAU data that Node lacks.
   vi.spyOn(Transforms, "computeFixedToIcrfMatrix").mockImplementation(() => Matrix3.clone(Matrix3.IDENTITY));
 });
 
@@ -58,7 +52,6 @@ describe("SampledTrajectory", () => {
     expect(JulianDate.secondsDifference(T0, interval.start)).toBeCloseTo(periodSeconds / 2, 5);
     expect(JulianDate.secondsDifference(interval.stop, T0)).toBeCloseTo(periodSeconds * 1.5, 5);
 
-    // Interpolated fixed-frame position sits at a plausible LEO radius.
     const position = trajectory.position(T0);
     expect(position).toBeDefined();
     expect(Cartesian3.magnitude(position!) / 1000).toBeGreaterThan(6600);
@@ -97,9 +90,8 @@ describe("SampledTrajectory", () => {
     expect(track.every((position) => position !== undefined)).toBe(true);
   });
 
-  // Outside the sampled window there is no track, and the callers have to see that
-  // from the position count alone. A degenerate pair instead is what stopped
-  // Cesium's render loop — see `drawablePositions` for the chain.
+  // Callers see this from the position count alone; a degenerate pair stopped Cesium's
+  // render loop (see `drawablePositions`).
   test("a clock far outside the window yields no drawable track", async () => {
     const { trajectory, periodSeconds } = issTrajectory();
     await trajectory.ensure(T0);
@@ -115,8 +107,6 @@ describe("SampledTrajectory", () => {
     const { trajectory } = issTrajectory();
     await trajectory.ensure(T0);
 
-    // A scene drawing points and nothing else pays for one sample set, not three:
-    // the grid, and neither irregular-capable property.
     expect(trajectory.entityPosition).toBeDefined();
     expect(trajectory.sampleCount).toBeGreaterThan(0);
     expect(trajectory.fixed).toBeUndefined();
@@ -131,8 +121,6 @@ describe("SampledTrajectory", () => {
 
     trajectory.requireInertial();
 
-    // Backfilled from the samples already held rather than re-propagated, so the
-    // two frames cover exactly the same instants.
     expect(trajectory.inertial?.length()).toBe(samples);
   });
 
@@ -152,7 +140,7 @@ describe("SampledTrajectory", () => {
 
     trajectory.requireInertial();
 
-    // Entities bind to this object, so replacing it would silently strand them.
+    // Entities bind to this object.
     expect(trajectory.inertial).toBe(first);
   });
 
@@ -163,8 +151,6 @@ describe("SampledTrajectory", () => {
 
     await trajectory.ensure(JulianDate.addSeconds(T0, periodSeconds, new JulianDate()));
 
-    // Not just backfilled once: the flag has to make every later refresh sample
-    // both frames, or the orbit would freeze a window behind the satellite.
     expect(trajectory.inertial?.length()).toBe(trajectory.sampleCount);
   });
 
@@ -200,8 +186,6 @@ describe("SampledTrajectory", () => {
 
       await trajectory.ensure(T0);
 
-      // Orbit still owns propagation for pass prediction and the info panel, but
-      // the sampling path no longer touches it.
       expect(sgp4).not.toHaveBeenCalled();
       expect(source.stats.chunks).toBe(1);
       expect(source.stats.samples).toBeGreaterThan(200);
@@ -214,8 +198,6 @@ describe("SampledTrajectory", () => {
 
       await trajectory.ensure(JulianDate.addSeconds(T0, periodSeconds / 4, new JulianDate()));
 
-      // A quarter revolution on is a quarter revolution of new samples, not
-      // another whole window.
       const added = source.stats.samples - openingSamples;
       expect(added).toBeGreaterThan(0);
       expect(added).toBeLessThan(openingSamples / 2);
@@ -226,16 +208,12 @@ describe("SampledTrajectory", () => {
       await trajectory.ensure(T0);
       await trajectory.ensure(JulianDate.addSeconds(T0, periodSeconds / 4, new JulianDate()));
 
-      // Through the sampled property, whose stored times are the thing under test;
-      // asking for it backfills them from the grid.
       trajectory.requireSampled();
       const { times } = trajectory.fixed!.getRawSamples();
       expect(times.length).toBeGreaterThan(200);
       const gaps = times.slice(1).map((time, index) => JulianDate.secondsDifference(time, times[index] as JulianDate));
       const expected = periodSeconds / 120;
-      // The grid is anchored to the element set's epoch, so the seam between two
-      // chunks is indistinguishable from anywhere else in the window. Without
-      // that anchor this is where a duplicated or short gap would show up.
+      // The grid is anchored to the epoch, so the seam between chunks shows no odd gap.
       for (const gap of gaps) {
         expect(gap).toBeCloseTo(expected, 3);
       }
@@ -246,10 +224,8 @@ describe("SampledTrajectory", () => {
       await trajectory.ensure(T0);
       await trajectory.ensure(JulianDate.addSeconds(T0, periodSeconds / 4, new JulianDate()));
 
-      // Not the same property, so not the same answer: a four-point cubic against
-      // Cesium's six-point quintic over identical samples. The bound is what makes
-      // the swap safe — a bug in the grid's index arithmetic would put the
-      // satellite a whole sample step away, which is tens of kilometres.
+      // A four-point cubic against Cesium's six-point quintic. An index bug would be
+      // a whole sample step (tens of kilometres) out.
       trajectory.requireSampled();
       expect(trajectory.entityPosition).not.toBe(trajectory.fixed);
       for (let offset = 0; offset < periodSeconds; offset += periodSeconds / 40) {
@@ -268,8 +244,6 @@ describe("SampledTrajectory", () => {
 
       trajectory.requireSampled();
 
-      // The samples are already in hand; only the times have to be rebuilt, and
-      // those come from the grid's anchor.
       expect(trajectory.fixed?.length()).toBe(trajectory.sampleCount);
       expect(source.stats.requests).toBe(requests);
       expect(sgp4).not.toHaveBeenCalled();
@@ -283,8 +257,7 @@ describe("SampledTrajectory", () => {
 
       await trajectory.ensure(JulianDate.addSeconds(T0, periodSeconds, new JulianDate()));
 
-      // A path graphic binds to this object, so it has to keep being fed rather
-      // than freeze at the window it was created from.
+      // A path graphic binds to this object.
       expect(trajectory.fixed).toBe(property);
       expect(trajectory.fixed?.length()).toBe(trajectory.sampleCount);
       expect(trajectory.fixed?.getValue(JulianDate.addSeconds(T0, periodSeconds, new JulianDate()))).toBeDefined();
@@ -295,8 +268,7 @@ describe("SampledTrajectory", () => {
       await trajectory.ensure(T0);
       trajectory.requireSampled();
 
-      // A clock jump clear of the window re-inits, which must honour what the
-      // trajectory was already committed to sampling.
+      // A clock jump clear of the window re-inits.
       await trajectory.ensure(JulianDate.addSeconds(T0, periodSeconds * 50, new JulianDate()));
 
       expect(trajectory.fixed?.length()).toBe(trajectory.sampleCount);
@@ -311,9 +283,6 @@ describe("SampledTrajectory", () => {
 
       await trajectory.ensure(T0);
 
-      // The grid read assumes no holes, so a chunk with any abandons the grid and
-      // brings the sampled property into being unasked — that is the whole point of
-      // the fallback, and without it a gapped satellite would have nowhere to read.
       expect(trajectory.fixed).toBeDefined();
       expect(trajectory.entityPosition).toBe(trajectory.fixed);
       expect(trajectory.sampleCount).toBeGreaterThan(0);
@@ -324,7 +293,6 @@ describe("SampledTrajectory", () => {
       const { periodSeconds } = issTrajectory();
       const inline = new InlineSampleSource().samplerFor("25544", issRecord());
       let gap = false;
-      // A gap only on the second fill, so the grid is populated and then abandoned.
       const sampler: TrajectorySampler = {
         samples: async (from, to) => {
           const chunk = (await inline.samples(from, to)) as SampleChunk;
@@ -334,15 +302,9 @@ describe("SampledTrajectory", () => {
       const subject = new SampledTrajectory(new Orbit("ISS", issRecord()), sampler);
 
       await subject.ensure(T0);
-      // Captured from the grid, before the gap, so it is an independent value to
-      // compare against rather than the same store asked twice — comparing
-      // `position()` with `fixed.getValue()` after the fallback is comparing one
-      // property to itself, which passes at distance 0 however broken the handover.
+      // Captured from the grid before the gap; afterwards both readers share one store.
       const gridCount = subject.sampleCount;
-      // A quarter orbit on, so it is comfortably inside the window both before and
-      // after the refill. T0 itself is no good: the new window starts exactly there,
-      // and a read at a window's first sample HOLDs rather than interpolates, which
-      // is a legitimate ~350 km at one grid step and says nothing about the handover.
+      // Not T0: the new window starts there, and a first-sample read HOLDs (~350 km off).
       const probe = JulianDate.addSeconds(T0, periodSeconds / 4, new JulianDate());
       const atProbe = subject.position(probe)!;
       expect(gridCount).toBeGreaterThan(200);
@@ -351,19 +313,13 @@ describe("SampledTrajectory", () => {
       const later = JulianDate.addSeconds(T0, periodSeconds / 2, new JulianDate());
       await subject.ensure(later);
 
-      // The window the grid held has to survive into the sampled property. If the
-      // backfill came up empty the property would hold only the gapped chunk, and
-      // HOLD would answer T0 with that chunk's first sample — most of an orbit away.
       expect(subject.entityPosition).toBe(subject.fixed);
-      // A whole window, not just the gapped chunk — eviction trims the far end, so
-      // the count lands near the pre-gap one rather than above it.
+      // Eviction trims the far end, so the count lands near the pre-gap one.
       expect(subject.sampleCount).toBeGreaterThan(gridCount / 2);
       // If the backfill came up empty, `fixed` would hold only the gapped chunk and
       // HOLD would answer this with a sample 1.25 revolutions away.
       expect(Cartesian3.distance(subject.position(probe)!, atProbe)).toBeLessThan(50);
       expect(subject.position(later)).toBeDefined();
-      // And the raw-sample readers follow the same store, or the track would be cut
-      // from a window the satellite has already left.
       expect(subject.positionsForTrack(later).length).toBeGreaterThan(1);
     });
 
@@ -372,14 +328,11 @@ describe("SampledTrajectory", () => {
       const sgp4 = vi.spyOn(orbit, "positionECI");
       vi.spyOn(sampler, "samples").mockImplementation(async (from, to) => {
         const chunk = (await new InlineSampleSource().samplerFor("25544", issRecord()).samples(from, to)) as SampleChunk;
-        // Blank three samples the way the propagator would when it refuses them.
         return { ...chunk, refusedIndices: [5, 6, 7] };
       });
 
       await trajectory.ensure(T0);
 
-      // Retrying would run the same propagator on the same instants and fail the
-      // same way, so the samples are simply absent.
       expect(sgp4).not.toHaveBeenCalled();
       expect(trajectory.valid).toBe(true);
       expect(trajectory.position(T0)).toBeDefined();
@@ -410,12 +363,9 @@ describe("SampledTrajectory", () => {
         return inline.samples(from, to);
       });
 
-      // Four ticks in one turn, the way a fast clock delivers them.
       const later = (n: number) => JulianDate.addSeconds(T0, (periodSeconds / 4) * n, new JulianDate());
       await Promise.all([trajectory.ensure(later(1)), trajectory.ensure(later(2)), trajectory.ensure(later(3)), trajectory.ensure(later(4))]);
 
-      // Without coalescing each of these computes the same missing range against
-      // the same un-updated interval and asks for it again.
       expect(peak).toBe(1);
     });
 
@@ -430,7 +380,6 @@ describe("SampledTrajectory", () => {
       });
 
       const first = trajectory.ensure(JulianDate.addSeconds(T0, periodSeconds / 4, new JulianDate()));
-      // Arrives while the first is still out, and asks about a much later time.
       const jumped = JulianDate.addSeconds(T0, periodSeconds * 4, new JulianDate());
       const second = trajectory.ensure(jumped);
       await Promise.all([first, second]);
@@ -438,7 +387,6 @@ describe("SampledTrajectory", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      // The jump is not lost: the window ends up covering where the clock went.
       expect(asked.length).toBeGreaterThan(1);
       expect(trajectory.position(jumped)).toBeDefined();
     });
@@ -458,14 +406,8 @@ describe("SampledTrajectory", () => {
   });
 
   describe("fixed-frame samples", () => {
-    // The rotation out of TEME is the sampler's own arithmetic rather than a Cesium
-    // call (see temeToFixed, sgp4Worker). temeToFixed.test.ts pins the angle against
-    // Cesium; this pins the whole path end to end, from a satrec this test propagates
-    // itself to what a consumer reads back — so neither a sign flip nor a chunk
-    // handled at the wrong instant can pass by agreeing with itself.
-    //
-    // Deliberately independent of where the rotation happens: it reconstructs the
-    // expected position from the element set, not from anything the chunk carries.
+    // End to end from the element set, independent of the chunk, so a sign flip or a
+    // wrong instant cannot pass by agreeing with itself (temeToFixed.test.ts pins the angle).
     test("are Cesium's own rotation of an independently propagated TEME", async () => {
       const { trajectory, sampler } = issTrajectory();
       const startMs = JulianDate.toDate(T0).getTime();
@@ -479,8 +421,7 @@ describe("SampledTrajectory", () => {
       const satrec = createSatrec(issRecord());
       const { anchorEpochMs, firstIndex, startEpochMs, stepSeconds } = chunk;
       const stepMs = stepSeconds * 1000;
-      // Truncated for the same reason the sampler truncates: this is where the grid
-      // files sample zero, whatever the anchor's fractional millisecond says.
+      // Truncated as the sampler truncates: the grid files sample zero here.
       const anchor = JulianDate.fromDate(new Date(anchorEpochMs));
       let worst = 0;
       for (let index = 0; index < samples; index += 1) {
@@ -494,8 +435,7 @@ describe("SampledTrajectory", () => {
         expect(actual).toBeDefined();
         worst = Math.max(worst, Cartesian3.distance(expected, actual as Cartesian3));
       }
-      // Millimetres, against positions in the millions of metres. A wrong rotation
-      // is kilometres out, so this is a wide margin around an exact expectation.
+      // Millimetres; a wrong rotation is kilometres out.
       expect(worst).toBeLessThan(1e-3);
     });
   });

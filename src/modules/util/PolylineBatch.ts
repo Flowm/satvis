@@ -1,20 +1,12 @@
-// One polyline primitive that many satellites' orbit lines are drawn into.
+// Many satellites' orbit lines merged into one Primitive, because thousands of
+// polylines are thousands of draw calls. It rebuilds asynchronously when the set
+// changes; do not morph the scene while a build is in flight (see `settled()`).
 //
-// Thousands of separate polylines is thousands of draw calls, so the lines are
-// merged into a single Primitive and that Primitive is rebuilt whenever the set
-// changes. Rebuilding is asynchronous and the scene must not be morphed while a
-// build is in flight, which is what `settled()` is for.
-//
-// Two batches exist, and the frame is what separates them:
-//
-// - **inertial** — the Orbit component. The ellipse is fixed in inertial space,
-//   so the whole primitive is re-oriented by a model matrix twice a second and
-//   the geometry itself only has to be rebuilt when the membership changes.
-// - **fixed** — the Orbit track component. An Earth-relative track is not a
-//   rigid transform of itself as time passes, so there is no matrix that keeps
-//   it current; instead the owner re-supplies geometry periodically through
-//   `replace`, and the coalescing window collapses those thousands of swaps into
-//   one rebuild. See SatelliteManager's track refresh.
+// - "inertial" (the Orbit component): the ellipse is fixed in inertial space, so a
+//   model matrix re-orients the primitive and only membership changes rebuild it.
+// - "fixed" (the Orbit track component): an Earth-relative track is no rigid
+//   transform of itself, so the owner swaps geometry through `replace` and the
+//   coalescing window folds those swaps into one rebuild.
 
 import { type GeometryInstance, type JulianDate, Matrix4, PolylineColorAppearance, Primitive, SceneMode, Transforms, defined } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
@@ -24,17 +16,13 @@ import { CesiumCallbackHelper } from "./CesiumCallbackHelper";
 /** Ticks to coalesce over, so a hundred satellites arriving cost one rebuild. */
 const COALESCE_TICKS = 30;
 
-/** How often the batch is re-oriented into the inertial frame, in seconds. */
+/** How often the batch is re-oriented into the inertial frame. */
 const FRAME_UPDATE_SECONDS = 0.5;
 
-/**
- * Which frame the geometries handed to this batch are expressed in — and so
- * whether a model matrix can keep them current. See the note at the top.
- */
 export type BatchFrame = "inertial" | "fixed";
 
 export class PolylineBatch {
-  /** So a broken assumption is reported once rather than on every tick. */
+  /** Report once, not on every tick. */
   static #reportedMissingState = false;
 
   static #reportMissingState(): void {
@@ -65,19 +53,15 @@ export class PolylineBatch {
     this.#viewer = viewer;
     this.#frame = frame;
     if (frame === "inertial") {
-      // Permanent, and a no-op while there is no batch. The orbits are drawn in the
-      // inertial frame, so the whole primitive is re-oriented rather than each orbit
-      // being recomputed.
+      // Permanent; a no-op while there is no primitive.
       CesiumCallbackHelper.createPeriodicTimeCallback(viewer, FRAME_UPDATE_SECONDS, (time) => this.#applyInertialFrame(time));
     }
   }
 
-  /** Whether a rebuild is queued or in flight. */
   get pending(): boolean {
     return this.#scheduled || this.#building;
   }
 
-  /** What a rebuild costs is a function of this. */
   get size(): number {
     return this.#geometries.length;
   }
@@ -93,18 +77,8 @@ export class PolylineBatch {
   }
 
   /**
-   * Swap one member's geometry for a freshly built one.
-   *
-   * A remove followed by an add would do the same thing, but this is the call a
-   * periodic refresh makes once per satellite per cycle, and at five thousand
-   * satellites the difference between one array pass and two is worth having.
-   * More to the point it says what it means: the batch's membership has not
-   * changed, only the shape of one line in it.
-   *
-   * Returns false when `previous` is not a member — a satellite whose component
-   * was disabled between the refresh being scheduled and it running — so the
-   * caller can drop the geometry it just built rather than leaking it into a
-   * batch that no longer wants it.
+   * Returns false when `previous` is not a member (its component was disabled before
+   * the refresh ran), so the caller can drop `next` instead of leaking it.
    */
   replace(previous: GeometryInstance, next: GeometryInstance): boolean {
     const index = this.#geometries.indexOf(previous);
@@ -117,11 +91,8 @@ export class PolylineBatch {
   }
 
   /**
-   * Resolves once the batch matches the geometries it has been given.
-   *
-   * The caller that needs this is the scene morph: suppressing the Orbit
-   * component drops every geometry, and morphing before the batch has caught up
-   * would rebuild it into the projection being left behind.
+   * Resolves once the batch matches its geometries. The scene morph waits on it:
+   * morphing first would rebuild the batch into the projection being left.
    */
   settled(): Promise<void> {
     if (!this.pending) {
@@ -144,7 +115,7 @@ export class PolylineBatch {
     }
     this.#scheduled = true;
     const stop = CesiumCallbackHelper.createPeriodicTickCallback(this.#viewer, COALESCE_TICKS, () => {
-      // A build is still in flight; keep the window open and try again.
+      // A build is in flight; try again next window.
       if (this.#building) {
         return;
       }
@@ -175,21 +146,17 @@ export class PolylineBatch {
       appearance: new PolylineColorAppearance(),
     });
 
-    // Drive the primitive through its creation states by hand, so the finished
-    // one replaces the old one in a single frame rather than the scene showing a
-    // gap while Cesium builds it.
+    // Drive the creation states by hand, so the finished primitive replaces the old
+    // one in a single frame, with no gap.
     let lastState = -1;
     const readyCallback = this.#viewer.clock.onTick.addEventListener(() => {
       if (!primitive.ready) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const state = (primitive as any)._state;
         if (state === undefined) {
-          // Cesium-internal, and the one reach here that would fail in silence:
-          // `update` would run exactly once, the primitive would never become
-          // ready, `#building` would stick, and orbits, tracks, `settled()` and
-          // therefore every scene morph would stop — with nothing logged. Say so,
-          // and drive it anyway, which is what the state check was only avoiding
-          // for the sake of one update per state.
+          // `_state` is Cesium-internal. Without it, `update` would run once and
+          // `#building` would stick, silently hanging every scene morph. Report it and
+          // drive the primitive anyway.
           PolylineBatch.#reportMissingState();
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (primitive as any).update(this.#viewer.scene.frameState);
@@ -202,8 +169,7 @@ export class PolylineBatch {
         }
         return;
       }
-      // Oriented before it goes in, so it is never drawn a frame behind the
-      // batch it is replacing.
+      // Oriented before it goes in, so it is never drawn a frame behind.
       this.#orient(primitive, this.#viewer.clock.currentTime);
       this.#clear();
       this.#viewer.scene.primitives.add(primitive);
@@ -224,12 +190,9 @@ export class PolylineBatch {
   }
 
   /**
-   * `modelMatrix` in the inertial frame is only supported in 3D — outside it,
-   * Cesium throws from inside the render loop — so the identity matrix stands in,
-   * and the periodic update puts the rotation back on return to 3D.
-   *
-   * A fixed-frame batch is already in the frame it is drawn in and needs no
-   * matrix at all.
+   * Cesium throws from the render loop on an inertial `modelMatrix` outside 3D, so
+   * the identity stands in until the periodic update restores the rotation. A
+   * fixed-frame batch needs no matrix.
    */
   #orient(primitive: Primitive, time: JulianDate): void {
     if (this.#frame === "fixed") {

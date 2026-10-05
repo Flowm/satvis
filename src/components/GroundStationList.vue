@@ -8,9 +8,7 @@
       :class="{ 'gsList__row--observer': index === observerStation, 'gsList__row--dragged': drag?.from === index, 'gsList__row--settling': settling }"
       :style="{ transform: `translateY(${offsetOf(index)}px)` }"
     >
-      <!-- The mark is also the control: it is the only thing in the row that
-           says "the sky view stands here", so it is the thing to press to say
-           it somewhere else. -->
+      <!-- The mark is also the control that moves the sky view's observer. -->
       <button
         type="button"
         class="gsList__rank"
@@ -21,9 +19,7 @@
       >
         {{ index === observerStation ? "◉" : index + 1 }}
       </button>
-      <!-- Keyboard-operable as well as draggable: dragging is the only way to
-           reorder now, and a list that can only be reordered with a pointer is
-           one some people cannot reorder at all. -->
+      <!-- Keyboard-operable as well as draggable: dragging is the only other way to reorder. -->
       <span
         class="gsList__grip"
         role="button"
@@ -79,11 +75,6 @@
       </button>
     </div>
 
-    <!-- What the marked row means, because the mark is a symbol and a symbol has
-         to be told once. Under the list and the buttons rather than over them — by
-         the time it matters you have a list to read it against, and above the rows
-         it was the first thing in a panel whose first thing should be the
-         stations. -->
     <div class="toolbarNote">The sky view stands at ◉, click a number to move it.</div>
   </div>
 </template>
@@ -117,23 +108,17 @@ const { pickMode } = storeToRefs(useCesiumStore());
 const { pending: locating, locate } = useGeolocation(cc);
 
 /**
- * Put back whatever the store kept — the rounded value, or the old one where the
- * edit was refused — because the input holds what was typed and the store is
- * what is true. Vue will not do it: the bound value has not changed from its
- * point of view, so there is nothing for it to patch.
+ * Puts back what the store kept (rounded, or the old value if refused). Vue does not:
+ * the bound value has not changed, so it has nothing to patch.
  */
 function settle(input: HTMLInputElement, value: string): void {
   input.value = value;
 }
 
 /**
- * Enter finishes an edit, and Escape abandons it.
- *
- * Both go through blur, because `change` is what commits and blur is what raises
- * it: a text input outside a form does not raise `change` on Enter — measured, not
- * assumed — so without this a typed coordinate sits in the field looking committed
- * and is not. Escape puts the stored value back first, which also means the blur
- * that follows finds nothing changed.
+ * Enter and Escape both blur, because blur raises the `change` that commits: a text
+ * input outside a form does not raise `change` on Enter (measured). Escape restores
+ * the stored value first, so its blur commits nothing.
  */
 function commit(event: KeyboardEvent): void {
   (event.target as HTMLInputElement).blur();
@@ -145,12 +130,7 @@ function abandon(event: KeyboardEvent, stored: string): void {
   input.blur();
 }
 
-/**
- * On `change` rather than on `input`, so a commit is one deliberate act: every
- * one of these is a store write, a url history entry, and a recomputation of
- * every active satellite's passes. Per keystroke that is six of each for
- * "Munich".
- */
+/** On `change`, not `input`: each commit writes the store and the url, and recomputes every satellite's passes. */
 function commitName(index: number, event: Event): void {
   const input = event.target as HTMLInputElement;
   satStore.setGroundStations(renamed(stations.value, index, input.value));
@@ -167,29 +147,20 @@ function commitCoordinate(index: number, field: "lat" | "lon", event: Event): vo
 }
 
 function removeAt(index: number): void {
-  // Designation first. It is computed against the list as it stands, and the store
-  // refuses an index past the end, so it has to be said while the station is still
-  // there to be counted.
+  // Observer first: the store refuses an index past the end of the list.
   const next = observerAfterRemoval(observerStation.value, index, stations.value.length);
   satStore.setObserverStation(next);
   satStore.setGroundStations(without(stations.value, index));
 }
 
-// Reordering by pointer events rather than HTML5 drag-and-drop, which does not exist on touch
-// at all — and the sky view this order decides is the phone feature. The row
-// height is measured at the start of each drag rather than pinned to a constant,
-// so the arithmetic cannot drift from the stylesheet.
+// Pointer events, not HTML5 drag-and-drop, which does not work on touch. The row
+// height is measured per drag, so the arithmetic cannot drift from the stylesheet.
 const drag = ref<{ from: number; to: number; offset: number; rowHeight: number } | undefined>();
 
 /**
- * The one frame in which a drop lands, with transitions off.
- *
- * The rows are keyed by position, so committing a reorder swaps the *content* of
- * rows that are still holding the drag's transform. Content and transform have to
- * arrive in the same paint: left to the transition, the transform unwinds over
- * 120 ms while the new content is already in place, and the row is seen flying
- * back to where it was dragged from. Cleared a frame later, so the parting
- * animation is there for the next drag.
+ * Transitions off for the frame a drop lands in. Rows are keyed by position, so a
+ * reorder swaps their content while they hold the drag transform; with the transition
+ * on, the row visibly flies back. Cleared a frame later.
  */
 const settling = ref(false);
 
@@ -205,8 +176,7 @@ function moveDrag(event: PointerEvent): void {
   if (!current) {
     return;
   }
-  // Movement rather than a start position: the handle has the pointer captured,
-  // so every move is reported here whatever it is over.
+  // The handle has pointer capture, so every move arrives here.
   const offset = current.offset + event.movementY;
   drag.value = { ...current, offset, to: dropIndex(current.from, offset, current.rowHeight, stations.value.length) };
 }
@@ -215,8 +185,7 @@ function endDrag(event: PointerEvent): void {
   const current = drag.value;
   drag.value = undefined;
   (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
-  // A tap on the handle ends where it started, and writing the store for that
-  // would cost a url entry and every satellite's passes for nothing.
+  // Skip the store write for a tap.
   if (current && current.to !== current.from) {
     settling.value = true;
     reorder(current.from, current.to - current.from);
@@ -224,23 +193,16 @@ function endDrag(event: PointerEvent): void {
   }
 }
 
-/**
- * Move a station and carry the observer designation with whichever station it was
- * on. The order is presentation now, so reordering must not silently move where the
- * sky view stands.
- */
+/** The observer designation moves with its station. */
 function reorder(index: number, by: number): void {
   satStore.setObserverStation(observerAfterMove(observerStation.value, index, by, stations.value.length));
   satStore.setGroundStations(moved(stations.value, index, by));
 }
 
-/** Arrow keys on the grip, for the reordering a pointer drag cannot do. */
 function nudge(index: number, by: number): void {
   reorder(index, by);
 }
 
-/** Where a row sits while a drag is in progress: the dragged one follows the
- *  pointer, the ones it has passed step aside by exactly one row. */
 function offsetOf(index: number): number {
   const current = drag.value;
   if (!current) {
@@ -268,22 +230,16 @@ function offsetOf(index: number): number {
   transition: transform 120ms ease-out;
 }
 
-/* The one the sky view stands at, marked on the row as well as in the note, so
-   the answer survives once the note has scrolled out of mind. */
 .gsList__row--observer {
   background-color: #4a5b50;
   opacity: 1;
 }
 
-/* The frame a drop lands in. The transform goes back to zero in the same paint
-   as the reordered content arrives, so there is nothing to see rather than a row
-   sliding back to where it came from. */
+/* See `settling`. */
 .gsList__row--settling {
   transition: none;
 }
 
-/* Under the pointer: no transition, because it is following a finger rather than
-   animating to a place, and above its neighbours as it crosses them. */
 .gsList__row--dragged {
   box-shadow: 0 2px 8px #0006;
   position: relative;
@@ -308,7 +264,6 @@ function offsetOf(index: number): number {
   color: #4ade80;
 }
 
-/* The one that is currently it, at full strength — the others are an offer. */
 .gsList__rank--observer {
   color: #4ade80;
   cursor: default;
@@ -321,7 +276,7 @@ function offsetOf(index: number): number {
   flex: none;
   font-size: 12px;
   opacity: 0.45;
-  /* So a touch drag moves the row instead of scrolling the panel. */
+  /* A touch drag moves the row instead of scrolling the panel. */
   touch-action: none;
   user-select: none;
 }
@@ -356,9 +311,7 @@ function offsetOf(index: number): number {
   outline: none;
 }
 
-/* An explicit width, not only a flex basis: an input's intrinsic width is its
-   `size` attribute — about 20 characters — and the panel is shrink-to-fit, so
-   three of them per row asked for a panel twice the width of every other one. */
+/* An explicit width: an input's intrinsic width is about 20 characters, and the panel is shrink-to-fit. */
 .gsList__name {
   flex: 1 1 auto;
   font-size: 12px;
@@ -427,8 +380,7 @@ function offsetOf(index: number): number {
   opacity: 0.6;
 }
 
-/* Picking is a mode, not an act: it stays on until a click on the globe answers
-   it, so the control has to look switched on for as long as that lasts. */
+/* Pick mode stays on until a click on the globe. */
 .gsList__action--on {
   border-color: #4ade80;
   color: #4ade80;

@@ -1,39 +1,19 @@
-// Where a trajectory's samples come from.
-//
-// One interface, two implementations, chosen once: a worker for the app and an
-// inline one for tests and for any environment without workers. That is the whole
-// reason this file exists — the alternative was a fallback branch inside
-// SampledTrajectory, which meant every sample carrying a question about where it
-// came from.
-//
-// The worker implementation batches: a synchronous burst of requests from the
-// build queue is coalesced onto one message by a microtask, so sixty-four
-// satellites cost one round trip rather than sixty-four, without costing a frame.
-//
-// It is also a small pool rather than one worker, because the build drains at the
-// speed of SGP4 and one thread of it is the ceiling. Which worker a satellite
-// belongs to is a pure function of its satnum and never changes — see `#laneFor`,
-// where the reasons that has to be true are the interesting part.
+// Where a trajectory's samples come from: a worker pool for the app, or inline for
+// tests and environments without workers. The pool coalesces a synchronous burst of
+// requests per microtask, and pins each satnum to one worker (see `#laneFor`).
 
 import type { GpRecord } from "./gp";
 import { runCommand, SatrecCache, type Sgp4Chunk, type Sgp4Command, type Sgp4Request, type Sgp4Response } from "./sgp4Worker";
 
-/** Samples for one interval. See Sgp4Chunk for what the fields mean. */
 export type SampleChunk = Sgp4Chunk;
 
-/**
- * A satellite's sampling, bound to its satnum and element set.
- *
- * Bound so that `SampledTrajectory` never handles a satnum, a record or a
- * transport — it asks for an interval and gets samples.
- */
+/** Bound to a satnum and element set, so `SampledTrajectory` never handles either. */
 export interface TrajectorySampler {
   samples(fromEpochMs: number, toEpochMs: number): Promise<SampleChunk | undefined>;
 }
 
 export interface SampleSource {
   samplerFor(satnum: string, record: GpRecord): TrajectorySampler;
-  /** Counters, so a measurement can tell whether this is earning its keep. */
   readonly stats: SampleSourceStats;
 }
 
@@ -43,43 +23,27 @@ export interface SampleSourceStats {
   samples: number;
   refused: number;
   unopenable: number;
-  /** Requests answered by the inline implementation after the worker was given up on. */
+  /** Requests answered inline after the pool was given up on. */
   inlineFallbacks: number;
 }
 
 /**
- * How long the worker may go *silent* before it is presumed dead.
- *
- * Silence, not batch age. A large activation posts every batch in one turn and the
- * worker answers them in order, so the last batch of five thousand satellites is
- * legitimately unanswered for seconds while the ones ahead of it propagate — timing
- * from when a batch was posted made that look like a hung worker on any machine
- * slower than the one it was tuned on. Giving up is expensive and permanent: it
- * terminates the worker and re-runs every pending window inline, synchronously, on
- * the thread the worker exists to protect. So the clock now restarts on every
- * reply, and only a worker that has said nothing at all for this long is dead.
+ * How long a lane may go silent before it is presumed dead. Silence, not batch age:
+ * the last batch of a large activation is legitimately unanswered for seconds, and
+ * giving up is permanent and moves all propagation onto the main thread.
  */
 const WORKER_SILENCE_MS = 4000;
 
 /**
- * Commands per message.
- *
- * A cap, not a target: coalescing is worth doing but one message is not. A single
- * `postMessage` carrying every request in an activation means structured-cloning
- * five thousand element sets in one go on this thread — measured at a 133 ms frame
- * — and the worker cannot start on any of it until all of it has been
- * deserialised. Splitting pipelines the two sides against each other: the worker
- * is propagating batch one while this thread is still posting batch ten, and the
- * build starts consuming before the tail has been asked for.
+ * A cap, so the two threads pipeline. One message for a whole activation
+ * structured-clones 5,000 element sets at once (a measured 133 ms frame), and the
+ * worker cannot start until all of it is deserialised.
  */
 const MAX_COMMANDS_PER_MESSAGE = 64;
 
 const emptyStats = (): SampleSourceStats => ({ requests: 0, chunks: 0, samples: 0, refused: 0, unopenable: 0, inlineFallbacks: 0 });
 
-/**
- * Propagates on the calling thread. The tests' implementation, and what the
- * worker-backed one degrades into.
- */
+/** Propagates on the calling thread: the tests' source, and the pool's fallback. */
 export class InlineSampleSource implements SampleSource {
   readonly #cache = new SatrecCache();
 
@@ -103,10 +67,7 @@ export class InlineSampleSource implements SampleSource {
   }
 }
 
-/**
- * One outstanding request. The record is kept whether or not it goes on the wire,
- * so an `unknown` reply can be retried with it.
- */
+/** The record is kept even when not sent, so an `unknown` reply can be retried with it. */
 interface Pending {
   resolve: (chunk: SampleChunk | undefined) => void;
   satnum: string;
@@ -116,58 +77,32 @@ interface Pending {
   sendRecord: boolean;
 }
 
-/** One worker and the traffic bound for it. See `#laneFor`. */
 interface WorkerLane {
   worker: Worker;
   queued: Pending[];
-  /** In-flight batches, so replies can be correlated. */
+  /** Keyed by batch id. */
   inFlight: Map<number, Pending[]>;
-  /** Restarted by every reply from this worker. See WORKER_SILENCE_MS. */
+  /** Restarted by every reply from this worker. */
   silenceTimer: ReturnType<typeof setTimeout> | undefined;
 }
 
 /**
- * Ceiling on the pool.
+ * The build drains at the speed of SGP4, which a pool splits. Bounded because the
+ * main thread and the pass predictor's worker need cores too.
  *
- * The build is worker-bound, measured rather than assumed: at 5,000 satellites a
- * 4.8x cheaper main-thread ingest moved `buildMs` by 19%, and then moving 48 ms of
- * rotation *into* the worker moved it back by 47. The queue drains at the speed of
- * SGP4, which is what a pool splits.
+ * `buildMs` medians against no pool: 27 → 19 at 100, 131 → 60 at 1,000, 562 → 321 at
+ * 5,000, 1,508 → 993 at 10,000. Past about 5,000 the main thread's entity creation
+ * dominates, so do not read this as a slope.
  *
- * Bounded rather than greedy, because two things already want the cores this would
- * take: the main thread, which is building entities and rendering throughout, and
- * the pass predictor's own worker.
- *
- * **This stops paying somewhere between 5,000 satellites and 10,000.** `buildMs`
- * medians against no pool: 27 → 19 at 100, 131 → 60 at 1,000, 562 → 321 at 5,000,
- * and 1,508 → 993 at 10,000 — where the propagation phases alone reach 934. Past
- * about five thousand the build stops waiting on SGP4 and starts waiting on entity
- * creation against the per-frame budget, and no amount of propagation throughput
- * moves a main-thread bound. Don't read the 5,000 figure as a slope.
- *
- * **It is also worth nothing without the worker-side rotation, and the reverse.**
- * That rotation (see sgp4Worker) measured as an 11% *regression* on its own, by
- * lengthening the worker's critical path. But with the rotation left on the main
- * thread, a pool is worse than no pool at all at 10,000 — 1,295 ms against 988 —
- * because four workers then feed the main thread faster than it can ingest. The
- * pair is the unit; neither half is worth judging alone.
- *
- * Four rather than two, measured over two interleaved passes: 4 is better on every
- * frame-time column at 5,000 and 10,000 and 17% better on `buildMs` at 1,000, and
- * 2 wins only `buildMs` at 10,000 by 9%. An earlier reading that 4 hurt tail
- * latency did not survive replication.
+ * Only worth it with the rotation in the worker (see sgp4Worker): with the rotation on
+ * the main thread, a pool is worse than none at 10,000 (1,295 ms against 988). Four
+ * beat two on every frame-time column at 5,000 and 10,000.
  */
 const MAX_WORKERS = 4;
 
 /**
- * Which lane a satnum belongs to. Exported for its test rather than for callers:
- * the property worth pinning is that it is a pure function, and that is not
- * observable from outside a pool whose workers the test environment has no way to
- * start.
- *
- * FNV-1a rather than `Number(satnum) % laneCount`: satnums are usually numeric but
- * nothing guarantees it, and a hash that only works on digits would quietly pile
- * every non-numeric satellite onto one worker.
+ * Exported for its test. FNV-1a, not `Number(satnum) % laneCount`: a non-numeric
+ * satnum parses to NaN, and all of them would land on one worker.
  */
 export function laneIndexFor(satnum: string, laneCount: number): number {
   if (laneCount <= 1) {
@@ -184,8 +119,7 @@ export function laneIndexFor(satnum: string, laneCount: number): number {
 function poolSize(): number {
   const cores = typeof navigator === "object" && navigator ? (navigator.hardwareConcurrency ?? 0) : 0;
   if (!Number.isFinite(cores) || cores <= 0) {
-    // A single worker rather than a guess, which is also what every environment
-    // without `navigator` gets — the tests, and any worker-less host.
+    // Unknown core count, which includes every environment without `navigator`.
     return 1;
   }
   return Math.max(1, Math.min(MAX_WORKERS, cores - 2));
@@ -194,15 +128,15 @@ function poolSize(): number {
 export class WorkerSampleSource implements SampleSource {
   #lanes: WorkerLane[] = [];
 
-  /** Set once the pool is given up on; every request goes inline from then on. */
+  /** Set once the pool is given up on. */
   #inline: InlineSampleSource | undefined;
 
-  /** Unique across lanes, so a reply is found in its own lane's map and nowhere else. */
+  /** Unique across lanes. */
   #nextBatchId = 1;
 
   #flushScheduled = false;
 
-  /** Satnums whose record has been sent at least once. See `record` in Sgp4SampleCommand. */
+  /** Satnums whose record has been sent. See `record` in Sgp4SampleCommand. */
   #recordSent = new Set<string>();
 
   readonly stats = emptyStats();
@@ -230,18 +164,9 @@ export class WorkerSampleSource implements SampleSource {
   }
 
   /**
-   * Which worker owns a satellite. A pure function of the satnum, and that is
-   * load-bearing in three separate places rather than a tidiness preference:
-   *
-   * - **The satrec cache is per worker.** Scattering one satellite's requests
-   *   across the pool would build a satrec for it in every worker it touched —
-   *   `sgp4init` and its memory multiplied by the pool size, for one satellite.
-   * - **`#recordSent` is one set for the whole pool.** It records that *a* worker
-   *   has the element set, which is only the same statement as *the* worker having
-   *   it while the mapping holds. Round-robin would answer the first request to
-   *   each new worker with `unknown` and pay a round trip to learn it.
-   * - **Eviction stays meaningful.** MAX_CACHED_SATRECS bounds a worker's own
-   *   satellites rather than a shifting fraction of all of them.
+   * Must be a pure function of the satnum: the satrec cache and its eviction budget
+   * are per worker, and the pool-wide `#recordSent` only says "this satellite's
+   * worker holds it" while the mapping holds.
    */
   #laneFor(satnum: string): WorkerLane | undefined {
     return this.#lanes[laneIndexFor(satnum, this.#lanes.length)];
@@ -256,14 +181,10 @@ export class WorkerSampleSource implements SampleSource {
         }
         const lane = this.#laneFor(satnum);
         if (!lane) {
-          // Not reachable while the pool is up, since every satnum maps to a lane.
-          // A pool that emptied without giving up would otherwise drop the request
-          // on the floor and leave the caller waiting on a promise nothing settles.
+          // Unreachable while the pool is up; without this the promise would never settle.
           this.#giveUp("no propagation worker");
           return this.#inlineSamples(satnum, record, fromEpochMs, toEpochMs);
         }
-        // The record only goes on the wire when this satellite's worker cannot be
-        // assumed to hold a satrec for it yet.
         const sendRecord = !this.#recordSent.has(satnum);
         this.#recordSent.add(satnum);
         return new Promise<SampleChunk | undefined>((resolve) => {
@@ -274,7 +195,6 @@ export class WorkerSampleSource implements SampleSource {
     };
   }
 
-  /** Every path that has stopped using the pool funnels through here. */
   #inlineSamples(satnum: string, record: GpRecord, fromEpochMs: number, toEpochMs: number): Promise<SampleChunk | undefined> {
     const inline = this.#inline;
     if (!inline) {
@@ -284,11 +204,7 @@ export class WorkerSampleSource implements SampleSource {
     return inline.samplerFor(satnum, record).samples(fromEpochMs, toEpochMs);
   }
 
-  /**
-   * Coalesce onto one message per turn. A microtask rather than a frame: the build
-   * queue asks for a whole chunk of satellites synchronously, and making it wait
-   * for a frame would put latency back that the batching is meant to remove.
-   */
+  /** A microtask, not a frame: the build queue requests a whole chunk synchronously. */
   #schedule(): void {
     if (this.#flushScheduled) {
       return;
@@ -317,10 +233,8 @@ export class WorkerSampleSource implements SampleSource {
         );
         const request: Sgp4Request = { batchId, commands };
         lane.inFlight.set(batchId, pending);
-        // Not `Window.postMessage`, which is the one that takes a target origin. A
-        // worker's second parameter is a transfer list, and the fix this rule
-        // suggests throws: `postMessage(msg, self.location.origin)` fails overload
-        // resolution in Chrome. Verified rather than assumed.
+        // A worker's second parameter is a transfer list, not a target origin: the
+        // rule's fix, `postMessage(msg, self.location.origin)`, throws in Chrome.
         // eslint-disable-next-line unicorn/require-post-message-target-origin
         lane.worker.postMessage(request);
       }
@@ -328,13 +242,7 @@ export class WorkerSampleSource implements SampleSource {
     }
   }
 
-  /**
-   * Restart one lane's silence timer while it has anything outstanding.
-   *
-   * Per lane, because an idle worker is legitimately silent: with one timer for the
-   * pool, a lane holding no work would be indistinguishable from a lane that had
-   * died, and the whole pool would be torn down on the first quiet stretch.
-   */
+  /** Per lane, because an idle worker is legitimately silent. */
   #armSilenceTimer(lane: WorkerLane): void {
     if (lane.silenceTimer !== undefined) {
       clearTimeout(lane.silenceTimer);
@@ -352,8 +260,7 @@ export class WorkerSampleSource implements SampleSource {
       return;
     }
     lane.inFlight.delete(response.batchId);
-    // Proof of life, so the timer measures silence rather than the depth of the
-    // queue this reply just came off.
+    // Proof of life: the timer measures silence, not queue depth.
     this.#armSilenceTimer(lane);
     response.replies.forEach((reply, index) => {
       const pending = batch[index];
@@ -368,9 +275,8 @@ export class WorkerSampleSource implements SampleSource {
         return;
       }
       if (reply.kind === "unknown") {
-        // The satrec was evicted, or a batch raced ahead of the one that would
-        // have created it. Re-queue with the record attached this time — onto this
-        // same lane, which is where the mapping sends it anyway.
+        // The satrec was evicted, or this batch overtook the one that creates it.
+        // Retry with the record, on the same lane.
         this.#recordSent.delete(reply.satnum);
         lane.queued.push({ ...pending, sendRecord: true });
         this.#schedule();
@@ -382,18 +288,8 @@ export class WorkerSampleSource implements SampleSource {
   }
 
   /**
-   * Stop using the pool and answer everything inline from here on.
-   *
-   * Loud, and once: a worker that fails to construct, throws on load or simply
-   * stops answering would otherwise look like nothing more than a slow build, and
-   * the app would keep working while quietly propagating everything on the thread
-   * this exists to protect.
-   *
-   * All of them rather than the one that failed. A lane owns its satellites
-   * outright, so keeping the survivors would leave part of the catalog propagating
-   * off-thread and part of it inline, at different speeds, with the failure
-   * reported once and then invisible. One rule is easier to reason about than a
-   * pool that is partly alive, and the fallback is correct either way.
+   * Loud, and once: otherwise a dead worker looks like a slow build. Every lane goes,
+   * not only the failed one, so the catalog never propagates half off-thread.
    */
   #giveUp(reason: string): void {
     if (this.#inline) {
@@ -423,7 +319,6 @@ export class WorkerSampleSource implements SampleSource {
     }
   }
 
-  /** The same, for a request that was already promised an answer. */
   #retryInline(item: Pending): void {
     void this.#inlineSamples(item.satnum, item.record, item.fromEpochMs, item.toEpochMs).then(item.resolve);
   }

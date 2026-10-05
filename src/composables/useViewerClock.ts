@@ -1,7 +1,5 @@
-// One reactive view of the viewer's clock, and the only place the deck writes it.
-// Scrubbing writes the clock directly and records the moment on release: pinning per
-// pointer event goes through `CesiumController.setTime`, which rebuilds the window
-// under the thumb.
+// The only place the deck writes the viewer's clock. Scrubbing writes the clock directly and
+// pins on release: `CesiumController.setTime` per pointer event would rebuild the window under the thumb.
 
 import { JulianDate } from "@cesium/engine";
 import { computed, onUnmounted, ref } from "vue";
@@ -24,8 +22,7 @@ export function useViewerClock() {
   const now = ref(JulianDate.toDate(clock.currentTime));
   const playing = ref(clock.shouldAnimate);
   const multiplier = ref(clock.multiplier);
-  // Wall-clock time, sampled at the same throttle, so "how far from the present is
-  // this" is answerable without a second timer.
+  // Wall-clock time at the same throttle, so no second timer is needed.
   const systemNow = ref(Date.now());
 
   // While a finger is down the clock is written, not read, or the thumb fights the tick.
@@ -67,7 +64,6 @@ export function useViewerClock() {
     cc.viewer.scene.requestRender();
   }
 
-  /** Set the rate from a rung. */
   const setRung = (index: number): void => setMultiplier(LADDER[index]!);
 
   function beginScrub(): void {
@@ -86,7 +82,6 @@ export function useViewerClock() {
     cesiumStore.setTime(now.value.toISOString());
   }
 
-  /** Let go without recording: the clock never moved. */
   function cancelScrub(): void {
     scrubbing = false;
   }

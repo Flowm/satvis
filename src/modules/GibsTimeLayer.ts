@@ -1,12 +1,9 @@
-// A NASA GIBS layer that shows the frame for the simulation time, not the latest one.
+// A NASA GIBS layer showing the frame for the simulation time. Cesium reloads the
+// tiles when the clock enters another interval of `times`. GOES-East alone has
+// ~370,000 frames, so `times` covers only a window around the clock.
 //
-// Cesium swaps the tiles: a WMTS provider given `clock` and `times` reloads them when
-// the clock enters another interval. GOES-East alone has ~370,000 frames, so `times`
-// covers a window around the clock, rebuilt when the clock leaves it. Outside the data
-// the nearest frame stands in, so the live view shows the latest one published.
-//
-// Web Mercator, because GIBS's EPSG:4326 tile matrices are not powers of two (3×2 at
-// level 1) and so cannot be a Cesium tiling scheme.
+// Web Mercator: GIBS's EPSG:4326 tile matrices are not powers of two (3×2 at level 1),
+// so they cannot be a Cesium tiling scheme.
 
 import { Clock, Iso8601, JulianDate, TimeInterval, TimeIntervalCollection, WebMapTileServiceImageryProvider, WebMercatorTilingScheme } from "@cesium/engine";
 
@@ -88,8 +85,7 @@ export async function createGibsTimeLayer(options: GibsTimeLayerOptions, { clock
   const cesiumClock = new Clock({ currentTime: clock.currentTime });
   const layer = provider(options, { clock: cesiumClock, times: frameIntervals(ranges, now(), options.daily) });
 
-  // Rebuilt once the clock is halfway to either end, so the next frames are always
-  // there for Cesium to preload.
+  // Rebuilt halfway to either end, so Cesium can always preload the next frames.
   const margin = (WINDOW_SLOTS / 2) * stepMs(options.daily);
   let center = now();
   let lastFetch = Date.now();
@@ -119,8 +115,7 @@ export async function createGibsTimeLayer(options: GibsTimeLayerOptions, { clock
         }
       });
     }
-    // Past the latest frame, or before the earliest, the open-ended interval already
-    // shows the right frame; rebuilding would only reload the same tiles.
+    // Outside the data the open-ended interval already shows the right frame.
     const settled = (time >= last && center >= last) || (time < first && center < first);
     if (Math.abs(time - center) > margin && !settled) {
       rebuild(time);

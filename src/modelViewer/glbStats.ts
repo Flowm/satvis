@@ -1,5 +1,4 @@
-// What a GLB costs and what it is made of, read from its JSON chunk without
-// rendering it.
+// What a GLB costs and contains, read from its JSON chunk without rendering it.
 
 const GLB_MAGIC = 0x46546c67; // "glTF"
 const CHUNK_JSON = 0x4e4f534a;

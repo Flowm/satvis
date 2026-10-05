@@ -1,5 +1,4 @@
-// The passes of whatever is selected. Module scope, like useSelectedEntity: one
-// selection, and the producer has no component tree to hand them down.
+// The selection's passes. Module scope: the producer has no component tree.
 
 import { readonly, ref } from "vue";
 

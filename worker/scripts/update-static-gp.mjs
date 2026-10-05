@@ -1,13 +1,6 @@
 #!/usr/bin/env node
-// Worker-less static snapshot generator. Runs the SAME refresh pipeline as
-// the cron (importing the runtime refresh directly via node's built-in TS
-// type stripping, node >= 24) against a disk-backed GroupStore adapter,
-// writing a static OMM-JSON snapshot into data/gp/ at the repo root:
-//   data/gp/<group>.json  — the evaluated, enriched records for each successful group
-//   data/gp/index.json    — GroupsIndex shape (mirrors gp:index)
-//
-// `pnpm update-gp` chains generate-groups first so the generated config is
-// fresh. Output is gitignored.
+// Runs the cron's refreshGroups (node >= 24 type stripping) against disk, writing
+// the gitignored data/gp/<group>.json and data/gp/index.json (the gp:index shape).
 
 import fs from "node:fs";
 import path from "node:path";
@@ -24,30 +17,17 @@ const configPath = path.join(workerDir, "src", "config", "satvis.generated.json"
 const outDir = path.join(repoRoot, "data", "gp");
 const satcatPath = path.join(workerDir, ".cache", "satcat.json");
 
-// Disk adapter for the GroupStore seam (see worker/src/gp/store.ts). Failed
-// groups get no write, so their last-known-good file stays on disk — the same
-// contract the KV adapter provides.
-//
-// The SATCAT snapshot is the one value here that is an input as well as an
-// output: the fetch is conditional, so a 304 leaves the previous run's rows as
-// the enrichment source. Deleting it costs one full 6.7 MB download, nothing
-// more.
-//
-// It lives outside data/ on purpose. Everything under data/ is copied into the
-// build (see viteStaticCopy in vite.config.ts), and this is a build-time cache
-// the app never fetches — the facts it holds reach the browser already attached
-// to the records in data/gp/<group>.json.
+// The SATCAT cache lives outside data/, because everything under data/ ships.
+// Deleting it costs one full 6.7 MB download.
 function diskGroupStore(dir, cachePath) {
   const indexPath = path.join(dir, "index.json");
   return {
-    // Read the existing index (tolerating absence or corruption) so
-    // buildStatuses can carry forward last-known-good status for failed groups.
     async readIndex() {
       let raw;
       try {
         raw = JSON.parse(fs.readFileSync(indexPath, "utf8"));
       } catch {
-        // Missing or corrupt index: start from empty.
+        // Missing or corrupt: start from empty.
       }
       return coerceIndex(raw);
     },

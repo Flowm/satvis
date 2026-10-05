@@ -27,13 +27,10 @@ describe("parseCoordinate", () => {
     expect(parseCoordinate("48.1372", MAX_LATITUDE)).toBe(48.1372);
     expect(parseCoordinate("-0.1278", MAX_LONGITUDE)).toBe(-0.1278);
     expect(parseCoordinate("  11.5756  ", MAX_LONGITUDE)).toBe(11.5756);
-    // 0 is a real coordinate, and the equator is not "no answer".
     expect(parseCoordinate("0", MAX_LATITUDE)).toBe(0);
   });
 
   test("refuses what is still being typed", () => {
-    // Committing any of these would write a station the store then drops, and a
-    // dropped station is a row disappearing under the cursor.
     expect(parseCoordinate("", MAX_LATITUDE)).toBeUndefined();
     expect(parseCoordinate("-", MAX_LATITUDE)).toBeUndefined();
     expect(parseCoordinate(".", MAX_LATITUDE)).toBeUndefined();
@@ -44,13 +41,11 @@ describe("parseCoordinate", () => {
     expect(parseCoordinate("91", MAX_LATITUDE)).toBeUndefined();
     expect(parseCoordinate("-90.001", MAX_LATITUDE)).toBeUndefined();
     expect(parseCoordinate("181", MAX_LONGITUDE)).toBeUndefined();
-    // The poles and the antimeridian are places.
     expect(parseCoordinate("90", MAX_LATITUDE)).toBe(90);
     expect(parseCoordinate("-180", MAX_LONGITUDE)).toBe(-180);
   });
 
   test("does not read a typo as a number", () => {
-    // `parseFloat` answers 48 here, which would move the station silently.
     expect(parseCoordinate("48abc", MAX_LATITUDE)).toBeUndefined();
   });
 });
@@ -64,8 +59,6 @@ describe("dropIndex", () => {
   });
 
   test("mirrors: dragging up half a row does what dragging down half a row does", () => {
-    // `Math.round` alone does not — it breaks ties toward +∞, so exactly 1.5 rows
-    // moves two places downward and one place upward.
     expect(dropIndex(0, ROW * 1.5, ROW, 4)).toBe(2);
     expect(dropIndex(3, -ROW * 1.5, ROW, 4)).toBe(1);
     expect(dropIndex(2, -ROW * 1.5, ROW, 3)).toBe(0);
@@ -78,7 +71,7 @@ describe("dropIndex", () => {
   });
 
   test("a row that has not really moved lands where it started", () => {
-    // Which is what makes a tap on the handle a no-op rather than a store write.
+    // So a tap on the handle is a no-op.
     expect(dropIndex(1, 0, ROW, 3)).toBe(1);
     expect(dropIndex(1, 3, ROW, 3)).toBe(1);
   });
@@ -92,10 +85,8 @@ describe("dragShift", () => {
   const ROW = 26;
 
   test("parts the list where the dragged row will land", () => {
-    // Dragging row 0 down to 2: the two it passes come up one row each.
     expect(dragShift(1, 0, 2, ROW)).toBe(-ROW);
     expect(dragShift(2, 0, 2, ROW)).toBe(-ROW);
-    // Dragging row 2 up to 0: the two it passes go down one row each.
     expect(dragShift(0, 2, 0, ROW)).toBe(ROW);
     expect(dragShift(1, 2, 0, ROW)).toBe(ROW);
   });
@@ -157,8 +148,6 @@ describe("renamed", () => {
   });
 
   test("clearing the name removes it rather than storing an empty one", () => {
-    // A nameless station is identified by its coordinates; `name: ""` would ride
-    // the url as a trailing separator saying the same thing less clearly.
     expect(renamed(list(), 0, "")[0]).toEqual({ lat: 48.1372, lon: 11.5756 });
     expect(renamed(list(), 0, "   ")[0]).not.toHaveProperty("name");
   });
@@ -186,8 +175,6 @@ describe("repositioned", () => {
   });
 });
 
-// Every list edit has to carry the observer designation to wherever its station
-// ended up — see `observerAfterMove`.
 describe("observerAfterMove", () => {
   test("follows the station being dragged", () => {
     expect(observerAfterMove(0, 0, 2, 4)).toBe(2);
@@ -195,9 +182,7 @@ describe("observerAfterMove", () => {
   });
 
   test("steps aside for a station dragged past it", () => {
-    // Observer at 1; the station above it moves below it, so it shifts up.
     expect(observerAfterMove(1, 0, 1, 3)).toBe(0);
-    // Observer at 1; the station below it moves above it, so it shifts down.
     expect(observerAfterMove(1, 2, -2, 3)).toBe(2);
   });
 
@@ -225,7 +210,6 @@ describe("observerAfterRemoval", () => {
   });
 
   test("falls back to the first station when the observer itself goes", () => {
-    // The old default, and the only choice that needs no guess.
     expect(observerAfterRemoval(2, 2, 3)).toBe(0);
   });
 

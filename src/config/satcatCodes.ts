@@ -1,14 +1,6 @@
-// CelesTrak SATCAT code tables.
-//
-// The codes travel on the wire, the labels are resolved here: an owner code is
-// 2-4 bytes on ~12,600 records where "European Organization for Meteorological
-// Satellites" is 54, and the mapping changes far more often than the codes do
-// (CelesTrak adds a country per launch year). Keeping it in the app also means a
-// correction ships with a deploy rather than a full GP refresh.
-//
-// Every lookup falls back to the raw code. These lists WILL go stale — a new
-// nation reaches orbit and the record arrives before this file knows about it —
-// and "SKOR" is a far better cell than a blank one.
+// CelesTrak SATCAT code tables. Codes travel on the wire and labels resolve here: a code is
+// 2-4 bytes against labels of up to 54, and a correction ships with a deploy, not a GP refresh.
+// Every lookup falls back to the raw code, because these lists go stale.
 //
 // Sources, re-check when adding:
 //   https://celestrak.org/satcat/sources.php      (owner)
@@ -18,11 +10,7 @@
 //
 // This module must stay Cesium-free (node-env vitest exercises it).
 
-// Country or organization that owns the satellite (SATCAT `OWNER`).
-//
-// Names are CelesTrak's own, verbatim and deliberately: "who owns this satellite"
-// is a question with contested answers, and passing upstream's wording through
-// unedited keeps this a data table rather than an editorial one.
+// SATCAT `OWNER`. CelesTrak's names verbatim: ownership is contested, so this is not an editorial table.
 export const SATCAT_OWNER: Record<string, string> = {
   AB: "Arab Satellite Communications Organization",
   ABS: "Asia Broadcast Satellite",
@@ -158,9 +146,7 @@ export const SATCAT_OWNER: Record<string, string> = {
   ZWE: "Zimbabwe",
 };
 
-// Where it went up from (SATCAT `LAUNCH_SITE`). Trimmed to the site itself —
-// upstream appends the country, which the owner row usually already implies and
-// which would push the value past the width the info panel has for it.
+// SATCAT `LAUNCH_SITE`, without upstream's country suffix, which overflows the info panel.
 export const SATCAT_LAUNCH_SITE: Record<string, string> = {
   AFETR: "Cape Canaveral, Florida",
   AFWTR: "Vandenberg, California",
@@ -205,9 +191,7 @@ export const SATCAT_LAUNCH_SITE: Record<string, string> = {
   YUN: "Yunsong, North Korea",
 };
 
-// Operational status (SATCAT `OPS_STATUS_CODE`). CelesTrak counts +, P, B, S and
-// X as active; note that active does not imply powered or communicating (a
-// geodetic reflector is active and inert).
+// SATCAT `OPS_STATUS_CODE`. CelesTrak counts +, P, B, S and X as active, which does not imply powered.
 export const SATCAT_OPS_STATUS: Record<string, string> = {
   "+": "Operational",
   "-": "Nonoperational",
@@ -219,9 +203,7 @@ export const SATCAT_OPS_STATUS: Record<string, string> = {
   "?": "Unknown",
 };
 
-// How the object moves (SATCAT `ORBIT_TYPE`). `ORB` — a normal orbit — is the
-// answer for all but a handful of the satellites we serve and is suppressed at
-// display time rather than listed as a fact (see getSatelliteInfo).
+// SATCAT `ORBIT_TYPE`. getSatelliteInfo hides the common `ORB`.
 export const SATCAT_ORBIT_TYPE: Record<string, string> = {
   ORB: "Orbiting",
   LAN: "Landed",
@@ -230,7 +212,7 @@ export const SATCAT_ORBIT_TYPE: Record<string, string> = {
   "R/T": "Roundtrip",
 };
 
-/** Resolve a SATCAT code to its label, falling back to the code itself. */
+/** Falls back to the code itself. */
 export function satcatLabel(table: Record<string, string>, code: string): string {
   return table[code] ?? code;
 }

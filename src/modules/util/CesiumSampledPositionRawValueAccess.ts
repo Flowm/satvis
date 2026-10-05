@@ -1,6 +1,5 @@
 import { SampledPositionProperty, binarySearch, JulianDate } from "@cesium/engine";
 
-// Augment Cesium's SampledPositionProperty with custom raw value accessors.
 declare module "@cesium/engine" {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface SampledPositionProperty {
@@ -34,14 +33,7 @@ declare module "@cesium/engine" {
   return result;
 };
 
-/**
- * Every stored sample, times alongside values.
- *
- * The whole window rather than a range, and both halves together, because the
- * one caller derives a second reference frame from what is already stored (see
- * SampledTrajectory's inertial backfill) and needs each value's own time to pick
- * the right transform for it.
- */
+/** Each value with its own time, so a caller can transform it into another frame (see SampledTrajectory). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (SampledPositionProperty.prototype as any).getRawSamples = function (this: any): { times: JulianDate[]; values: unknown[] } {
   const times: JulianDate[] = this._property._times;

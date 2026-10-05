@@ -54,17 +54,15 @@ export interface TrackOffsets {
 const EARTH_RADIUS_KM = 6371;
 const POLAR_RADIUS_KM = 6356.752;
 
-// Lookahead used to derive the ground-track bearing from two subpoints. Short
-// enough that the track is locally straight, long enough that the two subpoints
-// are ~75 km apart in LEO and the bearing is not dominated by rounding.
+// Lookahead for the ground-track bearing: the track is locally straight, and the
+// subpoints are ~75 km apart in LEO, so rounding does not dominate.
 const BEARING_SAMPLE_MS = 10_000;
 
 const MU_KM3_S2 = 398600.4418;
 const EARTH_ROTATION_RAD_S = 7.2921159e-5;
 const INV_PHI = (Math.sqrt(5) - 1) / 2;
 
-// Pass edges and peaks are resolved to this. A kilometre-wide swath can serve a
-// station for well under a second.
+// Pass edge and peak resolution. A kilometre-wide swath can serve a station for under a second.
 const PASS_RESOLUTION_MS = 10;
 // How often an asymmetric swath re-reads which side of the track the station is on.
 const SIDE_SAMPLE_MS = 1000;
@@ -136,11 +134,9 @@ function minimum(cost: (timeMs: number) => number, lo: number, hi: number, giveU
 export default class Orbit {
   name: string;
 
-  // The element set this orbit was built from; always present.
   record: GpRecord;
 
-  // The three TLE lines, present only for kind:"tle" records so the entity info
-  // panel can render them. Undefined for OMM-sourced orbits.
+  // Only for kind:"tle" records, for the info panel. Undefined for OMM.
   tle?: string[];
 
   satrec: satellitejs.SatRec;
@@ -233,9 +229,8 @@ export default class Orbit {
     });
 
     const passes: ElevationPass[] = [];
-    // An eccentric orbit can stay within reach for hours, setting and rising again,
-    // so a reach is walked in steps short enough for one peak, and a pass running
-    // over a step is carried on into the next.
+    // An eccentric orbit can stay within reach for hours and set and rise again, so
+    // a reach is walked in one-peak steps, and `open` carries a pass across steps.
     for (const reach of this.#reachIntervals(groundStationPosition, this.#visibilityRadiusKm(minElevation), startDate.getTime(), endDate.getTime())) {
       let open: { start: number; apex: { timeMs: number; elevation: number } } | undefined;
       for (let a = reach.start; a < reach.end; a += this.#scanStepMs) {
@@ -272,21 +267,12 @@ export default class Orbit {
   }
 
   /**
-   * Where a ground station sits relative to the ground track at `date`:
+   * `distanceKm` is the great-circle distance to the subpoint; `side` only selects
+   * which extent applies. Starboard is the flight bearing + 90°. `undefined` when
+   * the position cannot be propagated.
    *
-   * - `distanceKm` — great-circle distance to the subpoint. This is the magnitude
-   *   containment compares against, and the pass's closest approach.
-   * - `side` — which side of the track the station is on, from the sign of its
-   *   cross-track offset. Starboard is the velocity bearing + 90°. This is the
-   *   only thing the cross-track decomposition is needed for: it selects WHICH
-   *   extent applies, while `distanceKm` decides whether the station is within it.
-   *
-   * `undefined` when the position cannot be propagated.
-   *
-   * The flight bearing comes from two subpoints BEARING_SAMPLE_MS apart rather
-   * than the velocity vector: positionGeodetic returns only the speed magnitude,
-   * and rotating the ECI velocity into ECF without the ω × r term would skew the
-   * bearing by a few degrees.
+   * The bearing comes from two subpoints, not the velocity: rotating the ECI
+   * velocity into ECF without the ω × r term skews it by a few degrees.
    */
   trackOffsets(groundStation: GroundStationPosition, date: Date): TrackOffsets | undefined {
     const here = this.positionGeodetic(date);
@@ -303,9 +289,7 @@ export default class Orbit {
     const stationBearing = bearingRad(satLat, satLon, stationLat, stationLon);
     const distanceKm = greatCircleKm(satLat, satLon, stationLat, stationLon);
 
-    // sin() of the bearing difference carries the side: positive means the station
-    // lies clockwise of the flight direction, i.e. to starboard. Only the sign is
-    // used, so the cross-track magnitude is never computed.
+    // Positive: clockwise of the flight direction, i.e. starboard.
     const side: SwathSide = Math.sin(stationBearing - flightBearing) >= 0 ? "starboard" : "port";
 
     return { side, distanceKm };
@@ -321,9 +305,8 @@ export default class Orbit {
   }
 
   /**
-   * An upper bound on the subpoint's speed over the ground (km/s), and so on how
-   * fast its distance to a station can change: the angular rate at perigee plus
-   * the Earth's rotation, with margin for the perturbations SGP4 adds.
+   * Upper bound on the subpoint's ground speed (km/s): the angular rate at perigee
+   * plus the Earth's rotation, with margin for SGP4's perturbations.
    */
   #maxGroundSpeedKmS(): number {
     const eccentricity = this.satrec.ecco;
@@ -343,8 +326,7 @@ export default class Orbit {
 
   /**
    * The parts of `[from, to]` an asymmetric swath serves the station in. The side
-   * it lies on usually holds for a whole pass, but not where the ground track
-   * curves or reverses, so it is sampled rather than assumed.
+   * is sampled, because it can flip where the ground track curves or reverses.
    */
   #servedIntervals(groundStation: GroundStationPosition, swath: SwathExtents, from: number, to: number, closestMs: number): [number, number][] {
     const isServed = (timeMs: number) => {
@@ -391,9 +373,7 @@ export default class Orbit {
 
   /**
    * The stretches of `[startMs, endMs]` where the subpoint is within `radiusKm` of
-   * the station, each with its closest approach. The scan steps short enough for
-   * the distance to have one minimum per step, and skips a step the ground-speed
-   * bound proves cannot reach the radius.
+   * the station. Skips a step the ground-speed bound proves cannot reach it.
    */
   *#reachIntervals(groundStation: GroundStationPosition, radiusKm: number, startMs: number, endMs: number): Generator<{ start: number; end: number; closestMs: number }> {
     const maxSpeedKmS = this.#maxGroundSpeedKmS();
@@ -450,15 +430,13 @@ export default class Orbit {
     maxPasses = Number.POSITIVE_INFINITY,
   ): SwathPass[] {
     const swathWidth = swath.starboardKm + swath.portKm;
-    // The widest side bounds how far a station can be and still be served, so it
-    // gates the search before the side is known.
+    // Gates the search before the side is known.
     const maxExtent = Math.max(swath.starboardKm, swath.portKm);
     const distanceAt = (timeMs: number) => this.#subpointDistanceKm(groundStationPosition, timeMs);
 
     const passes: SwathPass[] = [];
     for (const reach of this.#reachIntervals(groundStationPosition, maxExtent, startDate.getTime(), endDate.getTime())) {
-      // The footprint is a half-disc per side (ADR-0002). A symmetric swath is a
-      // plain distance test, so the stretch within reach is the pass.
+      // A half-disc per side (ADR 0002); a symmetric swath is a plain distance test.
       const served =
         swath.starboardKm === swath.portKm ? [[reach.start, reach.end] as const] : this.#servedIntervals(groundStationPosition, swath, reach.start, reach.end, reach.closestMs);
       for (const [start, end] of served) {

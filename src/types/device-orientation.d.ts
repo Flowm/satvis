@@ -1,6 +1,4 @@
-// `deviceorientationabsolute` is Chrome's earth-referenced orientation event and
-// the only source of true north on Android. It is not in lib.dom, so a listener
-// for it does not type-check without this.
+// Chrome's earth-referenced orientation event, the only true north on Android. Not in lib.dom.
 
 interface WindowEventMap {
   deviceorientationabsolute: DeviceOrientationEvent;

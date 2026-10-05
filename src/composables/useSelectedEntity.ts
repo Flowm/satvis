@@ -1,22 +1,10 @@
-// useSelectedEntity — bridges the Cesium selection to Vue reactivity for the
-// entity info panel. `viewer.selectedEntity` stays the single source of truth:
-// this composable only observes it (via selectedEntityChanged) and resolves it
-// to the owning SatelliteComponentCollection or GroundStationEntity; it never
-// changes the selection itself except in `deselect()`, which mirrors the native
-// InfoBox close button (`viewer.selectedEntity = undefined`).
+// The Cesium selection, as Vue state for the entity info panel. `viewer.selectedEntity`
+// stays the source of truth; only `deselect()` writes it. A module-scope singleton.
 //
-// State lives at module scope as a lazy singleton, wired up on first use against
-// the controller its first caller hands it.
-// While something is selected, a 1 s periodic clock callback refreshes the
-// time-dependent data (position, pass countdowns) and re-resolves the selection
-// so a satellite disposed mid-selection (e.g. its tag toggled off) hides the
-// panel within a second. The callback waits for a second of both *simulation*
-// and real time: the countdown freezes while the clock is paused, as the old
-// InfoBox's did, and a fast clock refreshes once a second rather than every frame.
-//
-// Cesium objects are held via shallowRef/markRaw only: a deep reactive proxy
-// would break the `viewer.selectedEntity === entity` identity checks inside
-// `isSelected`.
+// While something is selected, a callback refreshes every second of both simulation and
+// real time, so countdowns freeze while paused and a satellite disposed mid-selection
+// hides the panel. Cesium objects stay shallowRef/markRaw: a deep proxy breaks the
+// `viewer.selectedEntity === entity` check in `isSelected`.
 
 import { JulianDate } from "@cesium/engine";
 import { storeToRefs } from "pinia";
@@ -44,48 +32,28 @@ const isTracked = ref(false);
 const name = ref("");
 const position: Ref<PositionRow[]> = ref([]);
 const passRows: Ref<PassRow[]> = ref([]);
-// The same passes `passRows` was formatted from, in the same order, for the parts
-// of the panel that draw rather than tabulate. The timeline and the next-pass
-// headline need the numbers, not the strings.
+// The passes behind `passRows`, in the same order.
 const passes: ShallowRef<readonly Pass[]> = shallowRef([]);
-// The ongoing or next pass, which is the panel's headline. Held rather than derived
-// in the component so "next" is decided once, against the same instant the rows
-// were formatted at.
+// The ongoing or next pass.
 const nextPass: ShallowRef<Pass | null> = shallowRef(null);
-// How many distinct subjects the pass list spans. One makes the first column thirty
-// repetitions of the same word, so the panel drops it.
+// Distinct subjects in the pass list. At one, the panel drops the first column.
 const subjectCount = ref(0);
-// Simulation time in epoch milliseconds, as of the last refresh: what the countdowns
-// and the timeline are drawn against. The clock itself is not reactive.
+// Simulation time in epoch milliseconds at the last refresh. The clock itself is not reactive.
 const nowMs = ref(0);
-/**
- * The tab the user last chose, kept across selections rather than reset with them.
- *
- * Not the *active* tab: a ground station has no Details, so opening one falls back
- * to Passes without forgetting that Details is where you were. Selecting a
- * satellite again puts you back there. Module scope, like the rest of this file's
- * state, so it survives the panel unmounting with the selection.
- */
+/** The tab the user last chose, not the active one: a ground station has no Details, but selecting a satellite returns there. */
 const preferredTab = ref("details");
-// The pass picked off the timeline, by start time. Null is "none picked".
+// The pass picked off the timeline, by start time.
 const pickedPassMs = ref<number | null>(null);
-// Whether the pass list is still being computed, so the panel can say "not yet"
-// instead of "none". See `PassPredictor.settled` for why the two look alike.
+// Lets the panel say "not yet" instead of "none" (see `PassPredictor.settled`).
 const passesPending = ref(false);
-// Whether the entity has any computed passes at all (before dropping past
-// ones); distinguishes the empty-state texts from an empty passes table.
+// Whether any passes exist before past ones are dropped; picks the empty-state text.
 const hasAnyPasses = ref(false);
-// Include already-finished passes in the table. Off by default so the list
-// starts at the ongoing/next pass.
 const showPastPasses = ref(false);
 const groundStationAvailable = ref(false);
 const elements: ShallowRef<ElementsInfo | null> = shallowRef(null);
-// Static facts about the satellite (derived orbit class + whatever its record
-// carries). Resolved once per selection, not per tick — none of it is time-dependent.
+// Resolved once per selection: none of it is time-dependent.
 const satelliteInfo: ShallowRef<[string, string][]> = shallowRef([]);
 
-// Given on first use rather than found on `globalThis`, so the dependency is in
-// the signature and app.ts decides which instance this singleton speaks for.
 let controller: CesiumController | undefined;
 let removeTickCallback: (() => void) | undefined;
 
@@ -96,11 +64,6 @@ function cc(): CesiumController {
   return controller;
 }
 
-/**
- * Offered on a ground station, and only from the globe. A satellite has no answer
- * to "the sky from where". Inside the sky view the control would be asking for the
- * view it is already in.
- */
 const canEnterSkyView = computed(() => selection.value?.kind === "groundstation" && useCesiumStore().sceneMode !== SKY_MODE);
 
 function selectionTarget(sel: Selection | null): SatelliteComponentCollection | GroundStationEntity | null {
@@ -138,8 +101,7 @@ function refreshData(sel: Selection, time: JulianDate): void {
   if (sel.kind === "satellite") {
     const { props } = sel.sat;
     name.value = props.name;
-    // Window-guarded: recomputes only when outside the current pass window,
-    // which keeps the list valid after large time jumps.
+    // Recomputes only outside the current pass window, so large time jumps stay valid.
     const allPasses = props.passPredictor.passes(time);
     const cartographic = props.orbit.positionGeodetic(JulianDate.toDate(time), true);
     position.value = cartographic
@@ -169,14 +131,7 @@ function refreshData(sel: Selection, time: JulianDate): void {
   }
 }
 
-/**
- * Publish one pass list four ways: formatted rows, the raw passes behind them, the
- * one that is next, and how many subjects they span.
- *
- * Together in one function because they must agree. Format the table at one instant
- * and choose the headline at another, and "next pass" ends up naming a row that is
- * not the highlighted one.
- */
+/** All four must come from one instant, or "next pass" names a row that is not highlighted. */
 function setPasses(visible: Pass[], time: JulianDate, nameField: "name" | "groundStationName", mode: string): void {
   const at = JulianDate.toDate(time).getTime();
   nowMs.value = at;
@@ -216,14 +171,9 @@ function init(): void {
   const { viewer } = cc();
   viewer.selectedEntityChanged.addEventListener(() => update());
   viewer.trackedEntityChanged.addEventListener(() => syncTracked());
-  // Flip the passes table columns immediately on mode change instead of
-  // waiting for the next periodic refresh. The manager (cc.sats.overpassMode)
-  // is updated by the Satvis.vue store watcher, which runs before this one
-  // (registered earlier), so reading the manager value in refreshData is safe.
+  // The Satvis.vue watcher that sets cc.sats.overpassMode is registered earlier, so it runs first.
   const { overpassMode } = storeToRefs(useSatStore());
   watch(overpassMode, () => update());
-  // Rebuild the table immediately when past passes are toggled instead of
-  // waiting for the next periodic refresh.
   watch(showPastPasses, () => update());
   // Pick up a selection made before the first panel mount.
   update();
@@ -239,23 +189,12 @@ export function useSelectedEntity(instance: CesiumController) {
     cc().viewer.selectedEntity = undefined;
   }
 
-  /**
-   * Pick a pass, or unpick it. Held by start time rather than by list index. The
-   * list is rebuilt every second, and shifts by one whenever a pass ends or past
-   * passes are toggled. An index would quietly come to mean a different row.
-   */
+  /** By start time, not index: the list shifts whenever a pass ends or past passes are toggled. */
   function pickPass(startMs: number): void {
     pickedPassMs.value = pickedPassMs.value === startMs ? null : startMs;
   }
 
-  /**
-   * Stand at the selected ground station and look up.
-   *
-   * Designating rather than reordering. `sat.observerStation` names which station
-   * the sky view stands at, so nothing about the list moves: it keeps its order,
-   * `?gs=` keeps its order, and the station entities are not rebuilt. The panel
-   * stays open on the place you are now standing.
-   */
+  /** Designates the observer station without reordering the list, `?gs=` or the station entities. */
   function enterSkyView(): void {
     const sel = selection.value;
     if (sel?.kind !== "groundstation") {

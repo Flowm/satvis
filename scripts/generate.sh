@@ -4,29 +4,13 @@
 #   pnpm update-imagery          the offline base map      (scripts/imagery)
 #   pnpm update-starmap          the sky box faces         (scripts/starmap)
 #
-# Anything after the target is passed through to the generator, so
-# `pnpm update-starmap --res 32k` and `pnpm update-imagery --help` do what they
-# look like. Each generator documents its own flags in its argparse; this file
-# knows nothing about them.
+# Arguments after the target pass through to the generator, which documents its own flags.
+# The two are not chained: together they download 734 MB, and no case needs both.
 #
-# Run separately and deliberately so: the base map's shallow levels are committed
-# and its source is checksum-pinned, so it is regenerated about never and always
-# ends in a commit, while the sky box is an opt-in asset somebody builds when they
-# want it. Chaining them would make each pay the other's download — 734 MB between
-# them — for no case that wants both.
-#
-# What every generator here has in common, and all this file does:
-#
-#   - the toolchain stays in the container, so the host needs nothing but docker
-#   - the source downloads live in the generator's own .cache, never under data/,
-#     because vite copies data/** into the build wholesale and those are hundreds
-#     of megabytes that must not be mistaken for shippable data
-#   - output goes to a committed directory carrying a .gitignore, so a bind mount
-#     never has to be created here — docker would create a missing one owned by
-#     root, which is a worse failure than saying so
-#   - the reference assets are optional and read-only, and never affect a single
-#     output byte: every generator writes its output first and reads the reference
-#     back to check it
+#   - source downloads go to the generator's .cache, never under data/, which ships wholesale
+#   - output directories are committed with a .gitignore, because docker would create
+#     a missing bind-mount target owned by root
+#   - the reference assets are optional and read-only, and never change the output
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
@@ -72,7 +56,6 @@ done
 echo "building $IMAGE"
 docker build --quiet --tag "$IMAGE" "$CONTEXT" >/dev/null
 
-# Mounted when it happens to be there; no generator needs it to run.
 REF_MOUNT=()
 if [ -d "$REF_DIR" ]; then
   REF_MOUNT=(--volume "$REF_DIR:/ref:ro")
@@ -81,7 +64,7 @@ else
   echo "      git clone --depth 1 https://github.com/Flowm/cesium-assets scripts/.reference/cesium-assets"
 fi
 
-# --user so the generated files belong to whoever ran this, not to root.
+# --user, so the output is not owned by root.
 exec docker run --rm --init \
   --user "$(id -u):$(id -g)" \
   --volume "$CACHE_DIR:/cache" \

@@ -1,11 +1,7 @@
-# Reference assets both generators check themselves against, and neither needs to
-# run. This used to be the `data/cesium-assets` submodule, which everybody had to
-# initialise for two checks most people never run; it is a plain optional clone now:
+# Optional reference assets for the generators' self-checks:
 #
 #   git clone --depth 1 https://github.com/Flowm/cesium-assets scripts/.reference/cesium-assets
 #
-# With it present, `pnpm update-imagery` compares its tiles against the tileset it
-# replaced and `pnpm update-starmap` checks its faces are the right way round.
-# Without it, both say so and skip. Neither check changes what is generated.
+# Without them both generators skip the check. Neither check changes the output.
 *
 !.gitignore

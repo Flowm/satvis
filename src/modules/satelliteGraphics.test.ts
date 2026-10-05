@@ -24,8 +24,7 @@ describe("isLeo", () => {
     expect(isLeo("LEO")).toBe(true);
     expect(isLeo("MEO")).toBe(false);
     expect(isLeo("GEO")).toBe(false);
-    // A highly elliptical orbit can have a short period; a swath corridor under
-    // one would be meaningless, and the class already rules it out.
+    // A highly elliptical orbit can have a short period.
     expect(isLeo("HEO")).toBe(false);
   });
 });
@@ -67,28 +66,22 @@ describe("coneDescription", () => {
 });
 
 describe("coneOrientation", () => {
-  // Somewhere over Europe at ISS altitude, so the quaternion comes from a position
-  // a satellite could hold.
+  // Over Europe at ISS altitude.
   const overhead = Cartesian3.fromDegrees(11.5, 48.1, 420000);
 
   test("orients the cone from a known position", () => {
     const orientation = coneOrientation(overhead);
     expect(orientation).toBeDefined();
-    // A rotation, not a degenerate quaternion — the visualizer would draw a cone
-    // pointing anywhere if this came back unnormalized.
+    // A rotation, not a degenerate quaternion.
     expect(Quaternion.magnitude(orientation!)).toBeCloseTo(1);
   });
 
-  // See `coneOrientation`: the throw runs inside `DataSourceDisplay.update`, so it
-  // stops Cesium's render loop for the session rather than skipping one cone.
   test("declines rather than throwing when there is no position", () => {
     expect(() => coneOrientation(undefined)).not.toThrow();
     expect(coneOrientation(undefined)).toBeUndefined();
   });
 
-  // Checked against Cesium, so the guard above rests on a measured throw rather
-  // than a remembered one. If an upgrade ever makes this tolerate a missing origin,
-  // this fails and the guard can be reconsidered.
+  // If a Cesium upgrade tolerates a missing origin, this fails and the guard can go.
   test("Cesium really does throw on the position the guard withholds", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => Transforms.headingPitchRollQuaternion(undefined as any, new HeadingPitchRoll(0, Math.PI, 0))).toThrow(/origin is required/);
@@ -136,15 +129,13 @@ describe("cesiumSceneMode", () => {
     expect(cesiumSceneMode("3D")).toBe(SceneMode.SCENE3D);
     expect(cesiumSceneMode("2D")).toBe(SceneMode.SCENE2D);
     expect(cesiumSceneMode("Columbus")).toBe(SceneMode.COLUMBUS_VIEW);
-    // Sky renders in 3D but is a camera placement, so morphing on its behalf is
-    // SkyView's business and this must not answer for it.
+    // SkyView morphs for Sky itself.
     expect(cesiumSceneMode("Sky")).toBeUndefined();
     expect(cesiumSceneMode("nonsense")).toBeUndefined();
   });
 
   test("every projection name in the app's vocabulary maps", () => {
-    // A mode added to SCENE_MODES without a projection here would silently stop
-    // morphing, so the list is checked rather than restated.
+    // A mode added to SCENE_MODES without a projection would silently stop morphing.
     const unmapped = SCENE_MODES.filter((mode) => mode !== SKY_MODE && cesiumSceneMode(mode) === undefined);
     expect(unmapped).toEqual([]);
   });

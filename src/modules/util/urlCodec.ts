@@ -1,10 +1,6 @@
-// Pure URL <-> state codec. The contract it implements is
-// docs/adr/0001-url-parameter-specification.md; read that before changing
-// anything here, especially the legacy read shims.
-//
-// This module must stay free of Cesium, pinia, vue-router and the DOM: query
-// strings and plain values are the only things that cross its interface, which
-// is what makes it exhaustively testable in the node-env vitest.
+// URL <-> state codec implementing docs/adr/0001-url-parameter-specification.md;
+// read it before changing the legacy read shims. Keep this free of Cesium, pinia,
+// vue-router and the DOM so node-env vitest can test it.
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -14,30 +10,28 @@ import type { SerializedGroundStation } from "../../stores/sat";
 
 dayjs.extend(utc);
 
-// A parse or format attempt. `ok: false` means "this cannot be represented" —
-// the caller decides whether that costs an element or the whole parameter.
+// `ok: false` means unrepresentable; the caller decides whether that costs an
+// element or the whole parameter.
 export type Result<T> = { ok: true; value: T } | { ok: false };
 
 const ok = <T>(value: T): Result<T> => ({ ok: true, value });
 const FAIL: Result<never> = { ok: false };
 
 export interface FieldKind<T> {
-  // Raw is already percent-decoded and "+"-expanded by the caller's query
-  // reader, so a space arrives as a space.
+  // `raw` is already percent-decoded and "+"-expanded.
   parse(raw: string): Result<T>;
   format(value: T): Result<string>;
 }
 
 export interface FieldSpec {
-  // Key in the store.
   name: string;
-  // Query parameter name; defaults to `name`.
+  // Defaults to `name`.
   url?: string;
   // Method-syntax members are bivariant, so any FieldKind<T> lands here.
   kind: FieldKind<unknown>;
 }
 
-/** Any string, unvalidated. For open vocabularies with no delimiter (`track`). */
+/** Unvalidated, for an open vocabulary with no delimiter (`track`). */
 export function plainString(): FieldKind<string> {
   return {
     parse: (raw) => ok(raw),
@@ -45,7 +39,7 @@ export function plainString(): FieldKind<string> {
   };
 }
 
-/** A closed set of literals. Rejecting on parse is what stops `?terrain=Garbage` diverging. */
+/** Rejects on parse, so `?terrain=Garbage` cannot diverge from the state. */
 export function enumString(values: readonly string[]): FieldKind<string> {
   const member = (v: unknown): v is string => typeof v === "string" && values.includes(v);
   return {
@@ -54,7 +48,7 @@ export function enumString(values: readonly string[]): FieldKind<string> {
   };
 }
 
-/** `true` | `false`. The kind whose absence made `?fps=false` switch the counter on. */
+/** Only `true` and `false`, so `?fps=false` cannot read as truthy. */
 export function boolean(): FieldKind<boolean> {
   return {
     parse: (raw) => (raw === "true" ? ok(true) : raw === "false" ? ok(false) : FAIL),
@@ -72,28 +66,22 @@ function formatList(value: unknown): Result<string> {
   if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")) {
     return FAIL;
   }
-  // The separator is in-band and cannot be escaped: URLSearchParams decodes
-  // %2C before we split, so a member containing a comma is unrepresentable.
-  // Refuse it rather than silently emitting a URL that reads back as two.
+  // URLSearchParams decodes %2C before the split, so a member containing a comma
+  // is unrepresentable. Refuse it rather than emit a URL that reads back as two.
   if ((value as string[]).some((entry) => entry.includes(LIST_SEPARATOR))) {
     return FAIL;
   }
   return ok((value as string[]).join(LIST_SEPARATOR));
 }
 
-/**
- * The one string-list kind: join and split on ",". Spaces need no escaping —
- * both URLSearchParams and vue-router encode a space as "+" and decode it back.
- */
+/** Spaces need no escaping: URLSearchParams and vue-router both round-trip them as "+". */
 export function stringList(): FieldKind<string[]> {
   return { parse: (raw) => ok(splitList(raw)), format: formatList };
 }
 
 /**
- * `sats` / `xsats`. Legacy read shim: these used to escape spaces as "~".
- * Applied unconditionally because satellite names are an open vocabulary, so
- * there is nothing to resolve an ambiguity against — which is why a literal
- * "~" in a satellite name stays unrepresentable.
+ * `sats` / `xsats`. Legacy read shim for "~" as a space, applied unconditionally
+ * because satellite names are an open vocabulary; a literal "~" is unrepresentable.
  */
 export function tildeEscapedStringList(): FieldKind<string[]> {
   return {
@@ -108,13 +96,9 @@ export function tildeEscapedStringList(): FieldKind<string[]> {
 }
 
 /**
- * The parse shared by the closed-vocabulary lists. An unusable member costs that
- * element, not the whole parameter: a link written against another build should
- * not wipe the selection. Where *every* member is unusable there is no rest to
- * keep. The empty list it would otherwise parse to is a state of its own — no
- * components, no imagery — and the url hands that back as deliberate, so this
- * case costs the whole parameter and the caller's default stands. An empty value
- * names no member and still means the empty list.
+ * An unusable member costs only that element. When every member is unusable the
+ * whole parameter fails and the default stands, because an empty list is a
+ * deliberate state of its own. An empty value still parses to the empty list.
  */
 function resolveList(raw: string, resolve: (entry: string) => string | undefined): Result<string[]> {
   const entries = splitList(raw);
@@ -126,10 +110,8 @@ function resolveList(raw: string, resolve: (entry: string) => string | undefined
 }
 
 /**
- * `elements`. A closed vocabulary, so the legacy "-" space escape can be
- * resolved by membership rather than applied blindly: try the literal first,
- * fall back to "-" → space, and drop the element only if neither names a known
- * component. That ordering is what lets a component name contain a hyphen.
+ * `elements`. Legacy "-" space escape, resolved by membership: the literal is tried
+ * first, so a component name can contain a hyphen.
  */
 export function closedStringList(members: () => readonly string[]): FieldKind<string[]> {
   const resolve = (entry: string, known: readonly string[]): string | undefined => {
@@ -155,14 +137,11 @@ export function closedStringList(members: () => readonly string[]): FieldKind<st
 }
 
 /**
- * `layers`. Each item is a provider name with an optional "_<alpha>" opacity
- * suffix, so the accepted set is checked against the leading segment. The
- * "at most one base layer" rule is a state invariant and lives in the store,
- * not here.
+ * `layers`. Each item is a provider with an optional "_<alpha>" opacity suffix. The
+ * "at most one base layer" rule lives in the store.
  */
 export function layerList(providers: () => readonly string[]): FieldKind<string[]> {
-  // Both the provider and the opacity have to be usable: an out-of-range or
-  // non-numeric alpha would reach Cesium as NaN and render nothing at all.
+  // An unusable alpha would reach Cesium as NaN and render nothing.
   const usable = (entry: string, names: readonly string[]): string | undefined => {
     const selection = parseLayer(entry);
     return selection !== undefined && names.includes(selection.provider) ? formatLayer(selection) : undefined;
@@ -186,9 +165,8 @@ const STATION_SEPARATOR = "_";
 const COORDINATE_PRECISION = 4;
 
 /**
- * `gs`. "_"-joined stations, each "lat,lon" or "lat,lon,name". A malformed
- * station costs itself, not the whole parameter. Nothing invalid is stored, so
- * downstream callers never have to filter NaN coordinates.
+ * `gs`. "_"-joined stations, each "lat,lon" or "lat,lon,name". A malformed station
+ * costs only itself, so no NaN coordinates reach the store.
  */
 export function groundStationList(): FieldKind<SerializedGroundStation[]> {
   return {
@@ -221,8 +199,7 @@ export function groundStationList(): FieldKind<SerializedGroundStation[]> {
           return FAIL;
         }
         const name = station.name;
-        // Both separators are in-band, so a name carrying either is
-        // unrepresentable. Refuse rather than corrupt.
+        // A name carrying either separator is unrepresentable.
         if (name !== undefined && (name.includes(LIST_SEPARATOR) || name.includes(STATION_SEPARATOR))) {
           return FAIL;
         }
@@ -236,14 +213,9 @@ export function groundStationList(): FieldKind<SerializedGroundStation[]> {
 
 const MINUTE_ISO = "YYYY-MM-DDTHH:mm[Z]";
 
-/**
- * Round to the minute, or undefined if this is not a time at all. The one place
- * the minute wire form is spelled out; callers holding a Date pass it straight
- * in rather than formatting it themselves.
- */
+/** Rounds to the minute; undefined if `value` is not a time. The only place the wire form is spelled out. */
 export function toMinuteIso(value: string | Date): string | undefined {
-  // dayjs is lenient enough to accept things like "Point", so gate on Date
-  // first and let dayjs do the formatting.
+  // dayjs accepts strings like "Point", so gate on Date.parse first.
   if (typeof value === "string" && Number.isNaN(Date.parse(value))) {
     return undefined;
   }
@@ -252,12 +224,8 @@ export function toMinuteIso(value: string | Date): string | undefined {
 }
 
 /**
- * `time`. Minute precision on the way out, anything parseable on the way in —
- * unlike the other parameters there is no historic emitted form to stay
- * compatible with, because `time` was never written to the url before.
- *
- * `null` means the clock is live and the parameter is absent; formatting it
- * fails, which is how the codec drops a parameter.
+ * `time`. Minute precision out, anything parseable in. `null` means the clock is
+ * live: formatting it fails, which drops the parameter.
  */
 export function timestamp(): FieldKind<string | null> {
   const round = (value: unknown) => (typeof value === "string" ? toMinuteIso(value) : undefined);
@@ -282,13 +250,9 @@ export interface DecodeResult {
   invalid: string[];
 }
 
-/** The query parameter a field is carried in. */
 export const paramOf = (spec: FieldSpec): string => spec.url ?? spec.name;
 
-/**
- * Query -> state. Defaults are supplied by the caller because they are the
- * preset-merged store values, which this module has no way to know.
- */
+/** `defaults` are the preset-merged store values, which only the caller knows. */
 export function decode(query: Query, schema: readonly FieldSpec[], defaults: Readonly<Record<string, unknown>>): DecodeResult {
   const patch: Record<string, unknown> = {};
   const invalid: string[] = [];
@@ -313,13 +277,8 @@ export function decode(query: Query, schema: readonly FieldSpec[], defaults: Rea
 }
 
 /**
- * State -> the parameters this codec owns. Returns a map rather than a string:
- * turning that into a url is the router's job, and its serializer already
- * matches the wire format this codec targets.
- *
- * Parameters belonging to anyone else are deliberately not handled here — only
- * the adapter has a query type able to express a valueless or repeated
- * parameter, and flattening one through this map would destroy it.
+ * Only the parameters this codec owns; the router serializes them. Foreign ones
+ * stay with the adapter, whose query type can hold a valueless or repeated parameter.
  */
 export function encode(state: Readonly<Record<string, unknown>>, defaults: Readonly<Record<string, unknown>>, schema: readonly FieldSpec[]): Record<string, string> {
   const params: Record<string, string> = {};
@@ -329,8 +288,7 @@ export function encode(state: Readonly<Record<string, unknown>>, defaults: Reado
     const kind = spec.kind as FieldKind<unknown>;
     const formatted = kind.format(state[spec.name]);
     if (!formatted.ok) {
-      // Unrepresentable: leave the parameter out rather than emit something
-      // that reads back as a different value.
+      // Leave it out rather than emit something that reads back differently.
       delete params[param];
       continue;
     }

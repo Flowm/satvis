@@ -1,14 +1,5 @@
-// GpSource — the single place that knows where GP data comes from. Hides the
-// worker probe, its memoization, the two URL schemes, and the API→static
-// fallback behind two fetch-shaped functions: fetchGpIndex and fetchGpGroup.
-//
-// On first use we probe `/api/groups.json`. If a worker answers with a
-// parseable JSON body we use the API base `/api/gp/` and keep the returned
-// group index (names + counts); otherwise we fall back to the static snapshot
-// under `data/gp/` (written by `pnpm update-gp`, served as part of the static
-// build) and read its `index.json` instead. The probe runs once per session
-// (memoized promise). When the worker API fails for a single group
-// mid-session, that request is retried once against the static snapshot.
+// Where GP data comes from: the worker API if `/api/groups.json` answers JSON
+// (probed once per session), else the static `data/gp/` snapshot from `pnpm update-gp`.
 
 const API_BASE = "/api/gp/";
 const STATIC_BASE = "data/gp/";
@@ -16,9 +7,7 @@ const PROBE_URL = "/api/groups.json";
 const STATIC_INDEX_URL = "data/gp/index.json";
 const PROBE_TIMEOUT_MS = 3000;
 
-// One entry of the group index (`/api/groups.json` or `data/gp/index.json`,
-// same shape): the group name, its record count for UI display, and the tags
-// it is enabled by.
+// `/api/groups.json` and `data/gp/index.json` share this shape.
 export interface GpIndexEntry {
   name: string;
   updated?: string;
@@ -26,8 +15,7 @@ export interface GpIndexEntry {
   tags?: string[];
 }
 
-// A route's starting configuration as the worker config defines it
-// (worker/src/gp/types.ts PresetDefinition). `defaults` are url parameters.
+// worker/src/gp/types.ts PresetDefinition. `defaults` are url parameters.
 export interface GpPreset {
   title?: string;
   description?: string;
@@ -52,8 +40,7 @@ let infoPromise: Promise<GpSourceInfo> | undefined;
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const isStringArray = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
 
-// Lenient: whatever does not have the expected shape is dropped, so an index
-// written before a field existed reads as one without it.
+// Lenient: a field of the wrong shape is dropped, so an older index still reads.
 function parsePreset(raw: unknown): GpPreset | undefined {
   if (!isObject(raw) || !Array.isArray(raw.groups)) {
     return undefined;
@@ -112,8 +99,7 @@ async function probeGpSource(): Promise<GpSourceInfo> {
     if (!response.ok) {
       return { base: STATIC_BASE, index: await fetchStaticIndex() };
     }
-    // A worker-less deployment may answer the probe with the SPA index HTML
-    // (200 + text/html). Require a parseable JSON body to accept the API base.
+    // A worker-less deployment answers with index.html and a 200, so require a JSON body.
     const payload = (await response.json()) as unknown;
     return { base: API_BASE, index: parseIndex(payload) };
   } catch {
@@ -128,10 +114,8 @@ function resolveGpSource(): Promise<GpSourceInfo> {
   return infoPromise;
 }
 
-// Resolve a preset source into a fetchable URL. Bare group names
-// (^[a-zA-Z0-9_-]+$) are resolved against the probed base; anything containing
-// "/" or "." (legacy .txt URLs, absolute/relative paths) passes through
-// unchanged so it can still be parsed via payload sniffing.
+// A bare group name resolves against the probed base; any other source (a legacy
+// .txt URL, a path) passes through unchanged and is sniffed by parseGpPayload.
 function resolveGroupUrl(source: string, base: string): string {
   if (/^[a-zA-Z0-9_-]+$/.test(source)) {
     return `${base}${source}.json`;
@@ -139,9 +123,7 @@ function resolveGroupUrl(source: string, base: string): string {
   return source;
 }
 
-// Static-snapshot URL for a bare group name, used as a per-request fallback
-// when the worker API fails mid-session. Explicit URL sources have no static
-// counterpart and return undefined.
+// Undefined for an explicit URL source, which has no static counterpart.
 function staticGroupUrl(source: string): string | undefined {
   if (/^[a-zA-Z0-9_-]+$/.test(source)) {
     return `${STATIC_BASE}${source}.json`;
@@ -149,23 +131,18 @@ function staticGroupUrl(source: string): string | undefined {
   return undefined;
 }
 
-// The group index (groups, their counts and tags, and the presets) from the
-// probe. Best-effort: empty when neither the worker nor the static snapshot
-// answers; never rejects.
+// Never rejects: empty when neither the worker nor the static snapshot answers.
 export async function fetchGpIndex(): Promise<GpIndex> {
   return (await resolveGpSource()).index;
 }
 
-// The payload text for a preset source. Bare group names resolve against the
-// probed base; when the worker API fails mid-session (network error or
-// non-2xx), the request is retried once against the static snapshot bundled
-// with the build. Explicit URL sources pass through without a fallback.
+// A bare group name that fails against the worker is retried once against the
+// static snapshot. An explicit URL source has no fallback.
 export async function fetchGpGroup(source: string): Promise<string> {
   const { base } = await resolveGpSource();
   const url = resolveGroupUrl(source, base);
   try {
-    // Plain fetch (NOT mode:"no-cors") — the API is same-origin; an opaque
-    // response would have an unreadable body and break parsing.
+    // Not mode:"no-cors": an opaque response has an unreadable body.
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(response.statusText);

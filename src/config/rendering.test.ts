@@ -51,9 +51,6 @@ describe("resolutionScaleFor", () => {
     }
   });
 
-  // The reason the top rung is `native` and not a literal 2: on a phone the
-  // ladder has to keep reaching both ends, the display's own resolution and the
-  // cheapest one.
   test("the ladder spans 1x to the display's own at every density", () => {
     for (const dpr of [1, 2, 3]) {
       const absolute = PIXEL_RATIOS.map((ratio) => resolutionScaleFor(ratio, dpr) * dpr);
@@ -121,9 +118,7 @@ describe("defaultMsaaRate", () => {
 });
 
 describe("currentDevicePixelRatio", () => {
-  // The store reads this at setup, and setup happens under vitest's node
-  // environment too — where a bare `window` throws and took ten sceneSync
-  // tests down with it.
+  // The store reads this at setup, which also runs under vitest's node environment.
   test("answers 1 with no window rather than throwing", () => {
     expect(globalThis.window).toBeUndefined();
     expect(currentDevicePixelRatio()).toBe(1);

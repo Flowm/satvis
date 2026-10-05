@@ -12,14 +12,7 @@ export interface GroundStationPositionData {
   cartesian: Cartesian3;
 }
 
-/**
- * A named position on the ground, drawn as one pin.
- *
- * One Entity, made once and never rebuilt — which is why this no longer extends
- * CesiumComponentCollection. It had a single component the whole time, so the
- * map of components, the lazy flag, the shared geometry array and the batch
- * rebuilding were all inherited and none of them were ever used.
- */
+/** A named position on the ground, drawn as one pin. */
 export class GroundStationEntity {
   readonly #viewer: Viewer;
 
@@ -40,23 +33,15 @@ export class GroundStationEntity {
     const billboard = new BillboardGraphics({
       image: icon,
       horizontalOrigin: HorizontalOrigin.CENTER,
-      // The tip of the pin is what marks the spot, and it is the bottom of the
-      // artwork.
       verticalOrigin: VerticalOrigin.BOTTOM,
-      // The station's own height is 0, so on any real surface the pin was buried
-      // by the local elevation — a few hundred metres of it under a photorealistic
-      // mesh, where the pin marks the very spot the sky view stands on. Clamped
-      // rather than offset, because there is no one height to offset by: the
-      // surface may be the ellipsoid, terrain, or a tileset.
+      // The station's height is 0, so the surface (terrain or a tileset) would bury it.
       heightReference: HeightReference.CLAMP_TO_GROUND,
-      // Scales are a fraction of the source image, so they belong with it: the
-      // pin is 96 px square, giving roughly 38 px up close and 21 px from orbit.
+      // The pin image is 96 px square: about 38 px up close, 21 px from orbit.
       scaleByDistance: new NearFarScalar(1e2, 0.4, 4e7, 0.22),
     });
     this.#entity = new Entity({
       name: this.name,
       position: position.cartesian,
-      // Where the camera sits when this is tracked.
       viewFrom: new Cartesian3(0, -3600000, 4200000),
       billboard,
     });
@@ -84,14 +69,7 @@ export class GroundStationEntity {
     this.#viewer.trackedEntity = this.#entity;
   }
 
-  /**
-   * Select this station, as clicking its pin would.
-   *
-   * Its counterpart to `track()`, and needed for the same reason the entity is
-   * private. Editing a station rebuilds every station entity. A caller that wants
-   * the panel to stay open on the one it just edited has to re-select the
-   * replacement, and has no other way to reach it.
-   */
+  /** Editing a station rebuilds every station entity, so a caller re-selects the replacement. */
   select(): void {
     this.#viewer.selectedEntity = this.#entity;
   }
@@ -116,7 +94,6 @@ export class GroundStationEntity {
     );
   }
 
-  /** Whether every satellite feeding this station's list has answered yet. */
   passesSettled(time: JulianDate): boolean {
     return stationPassesSettled(
       this.sats.visibleSatellites.map((sat) => sat.props.passPredictor),

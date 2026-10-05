@@ -46,8 +46,7 @@ describe("GridPositionProperty", () => {
   });
 
   test("interpolates a straight line without bending it", () => {
-    // A cubic through collinear points is that line, so any error here is the
-    // basis functions rather than the accuracy of the fit.
+    // A polynomial through collinear points is that line, so any error is in the basis.
     const property = filled();
     const value = property.getValue(at(3.25 * STEP)) as Cartesian3;
     expect(value.x).toBeCloseTo(325, 6);
@@ -55,9 +54,7 @@ describe("GridPositionProperty", () => {
   });
 
   test("holds the end value rather than extrapolating past it", () => {
-    // A clock scrubbed clear of the window reads here for a frame or two before the
-    // refill lands. A free-running cubic would answer with a position half an orbit
-    // of divergence away; holding answers with a stale one, which is bounded.
+    // Extrapolating would be wildly off; a held sample is stale but bounded.
     const property = filled(0, 6);
     expect((property.getValue(at(5 * STEP)) as Cartesian3).x).toBeCloseTo(500, 6);
     expect((property.getValue(at(20 * STEP)) as Cartesian3).x).toBeCloseTo(500, 6);
@@ -73,9 +70,6 @@ describe("GridPositionProperty", () => {
   });
 
   test("reads the same instant from either end of a seam", () => {
-    // Two batches, appended in either order, describing one grid. What makes this
-    // safe is that an index means an instant, so neither batch has to know the
-    // other's times.
     const forwards = filled(0, 6);
     forwards.add(6, ramp(6, 6));
     const backwards = filled(6, 6);
@@ -115,8 +109,7 @@ describe("GridPositionProperty", () => {
 
   test("refuses a batch that would leave a hole", () => {
     const property = filled(0, 5);
-    // Grid indices 5..7 are missing, so this cannot be spliced on without the
-    // samples between. The caller treats a refusal as a failed fill.
+    // Grid indices 5..7 are missing.
     expect(property.add(8, ramp(8, 3))).toBe(false);
     expect(property.length).toBe(5);
   });
@@ -132,8 +125,6 @@ describe("GridPositionProperty", () => {
   });
 
   test("keeps reading correctly after a window slides and refills", () => {
-    // The whole lifecycle in one: evict the tail of the window, append the new
-    // head, and check an instant in the part that was never touched.
     const property = filled(0, 12);
     property.dropBefore(6);
     expect(property.add(12, ramp(12, 6))).toBe(true);
@@ -164,26 +155,21 @@ describe("GridPositionProperty", () => {
     const own = property.getValueInReferenceFrame(at(2 * STEP), ReferenceFrame.FIXED) as Cartesian3;
     const other = property.getValueInReferenceFrame(at(2 * STEP), ReferenceFrame.INERTIAL);
     expect(own.x).toBeCloseTo(200, 6);
-    // Cesium's transform data is not loaded in a unit test, so the conversion may
-    // legitimately decline — what matters is that it is attempted, not assumed.
+    // Without Cesium's transform data the conversion may decline.
     if (other) {
       expect(other.x).not.toBeCloseTo(200, 6);
     }
   });
 
   test("drives an entity the way Cesium's own position properties do", () => {
-    // The interface is not enough to go on: VelocityVectorProperty subscribes via
-    // `value._definitionChanged` rather than the getter, so a property satisfying
-    // only the documented shape throws here. Constructing what the app constructs
-    // is the only check that catches it — every assertion above passed while a
-    // scene of 5,000 satellites built nothing at all.
+    // VelocityVectorProperty subscribes via `value._definitionChanged`, not the getter,
+    // so only a real Entity catches a property that lacks the field.
     const property = filled();
     const entity = new Entity({ name: "grid", position: property as never });
     entity.orientation = new VelocityOrientationProperty(property as never);
 
     expect(entity.position).toBe(property);
     expect((entity.position!.getValue(at(2 * STEP)) as Cartesian3).x).toBeCloseTo(200, 6);
-    // A ramp is straight, so the orientation is well defined and constant along it.
     expect(entity.orientation.getValue(at(2 * STEP))).toBeDefined();
   });
 
@@ -202,7 +188,7 @@ describe("GridPositionProperty", () => {
     const positions = property.rawPositions(2, 4);
     expect(positions).toHaveLength(3);
     expect(positions[0]?.x).toBeCloseTo(200, 6);
-    // Clamped to what is held rather than padded with zeroes.
+    // Clamped to what is held, not padded.
     expect(property.rawPositions(-5, 100)).toHaveLength(10);
   });
 });

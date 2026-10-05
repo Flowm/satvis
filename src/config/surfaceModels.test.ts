@@ -1,5 +1,4 @@
-// The suppression matrix. Everything the menu annotates and everything
-// SurfaceModel executes comes from here, so this is where the rules are pinned.
+// The suppression matrix that both the menu and SurfaceModel read.
 import { describe, expect, test } from "vitest";
 
 import { surfaceEffects, viewModeNote } from "./surfaceModels";
@@ -27,8 +26,6 @@ describe("surfaceEffects", () => {
     }
   });
 
-  // It adds to the globe rather than replacing it, so the imagery underneath is
-  // still the map the user picked.
   test("OsmBuildings leaves the imagery selection meaningful", () => {
     expect(surfaceEffects("OsmBuildings", "3D").inert).not.toContain("layers");
   });
@@ -41,8 +38,7 @@ describe("surfaceEffects", () => {
     });
   });
 
-  // The terrain is not overridden but not honoured either: a hidden globe loads
-  // no terrain at all, so the user's choice simply waits.
+  // A hidden globe loads no terrain, so the user's choice simply waits.
   test("GooglePhotorealistic imposes no terrain of its own", () => {
     expect(surfaceEffects("GooglePhotorealistic", "Sky").terrain).toBeUndefined();
   });
@@ -64,8 +60,6 @@ describe("surfaceEffects", () => {
     }
   });
 
-  // Suppression, not deselection: a model that cannot apply here takes nothing
-  // else with it, so the imagery and terrain controls still tell the truth.
   test("a suppressed model leaves the other groups alone", () => {
     expect(surfaceEffects("GooglePhotorealistic", "3D")).toMatchObject({
       hideGlobe: false,
@@ -74,8 +68,7 @@ describe("surfaceEffects", () => {
     });
   });
 
-  // The url is validated before it reaches the store, but the matrix is asked
-  // about the store's value and must not be the thing that throws.
+  // The matrix reads the store's value and must not throw.
   test("an unknown name is read as None", () => {
     expect(surfaceEffects("Garbage", "Sky")).toMatchObject({ tileset: undefined, hideGlobe: false, inert: [] });
   });
@@ -87,9 +80,6 @@ describe("surfaceEffects", () => {
   });
 });
 
-// The menu's explanation has to come from the rules, not from a sentence written
-// out beside them: a hardcoded one silently lies the moment `viewModes` widens,
-// which is the drift the pure matrix exists to prevent.
 describe("viewModeNote", () => {
   test("names the single view mode a model applies in", () => {
     expect(viewModeNote("GooglePhotorealistic")).toBe("Applies in the sky view only");
@@ -100,8 +90,7 @@ describe("viewModeNote", () => {
   });
 
   test("tracks the rules rather than restating them", () => {
-    // The note must mention every mode the model is actually allowed in. Derived
-    // from surfaceEffects so this test cannot pass by agreeing with a constant.
+    // Derived from surfaceEffects, so the test cannot pass by agreeing with a constant.
     const allowed = ["3D", "2D", "Columbus", "Sky"].filter((viewMode) => !surfaceEffects("OsmBuildings", viewMode).unavailable.includes("OsmBuildings"));
     const note = viewModeNote("OsmBuildings");
     expect(allowed.length).toBeGreaterThan(0);

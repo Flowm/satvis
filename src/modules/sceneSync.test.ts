@@ -1,10 +1,4 @@
-// What crosses the store→globe seam.
-//
-// This file could not exist before `startSceneSync` took a `SceneTarget`: its
-// argument was `CesiumController`, whose constructor called
-// `new Viewer("cesiumContainer", …)`, so there was no way to reach any of this
-// without a WebGL context. The fake below is the whole of what sceneSync needs,
-// which is also the point of declaring the interface.
+// What crosses the store→globe seam, against a fake `SceneTarget`.
 
 import { JulianDate } from "@cesium/engine";
 import { createPinia, setActivePinia } from "pinia";
@@ -20,14 +14,14 @@ import type { DesiredScene } from "./SatelliteManager";
 import { type SceneTarget, startSceneSync } from "./sceneSync";
 import type { Observer } from "./SkyView";
 
-// The url the page was opened on, which these tests set rather than route.
+// The url the page was opened on.
 const url = vi.hoisted(() => ({ elements: undefined as string | undefined, adjustUrlDefault: vi.fn() }));
 vi.mock("./util/urlSync", () => ({
   arrivalParam: (param: string) => (param === "elements" ? url.elements : undefined),
   adjustUrlDefault: url.adjustUrlDefault,
 }));
 
-/** Everything sceneSync writes to, recorded rather than enacted. */
+/** Records what sceneSync writes. */
 function fakeTarget() {
   const calls = {
     morphedTo: [] as string[],
@@ -35,7 +29,7 @@ function fakeTarget() {
     exits: 0,
     interactionStarts: 0,
     interactionStops: 0,
-    /** Set by the fake, called by the test: a walk arriving from the keyboard. */
+    /** A test calls it to simulate a walk. */
     observerMoved: undefined as ((observer: Observer) => void) | undefined,
     suppressCamera: 0,
     releaseCamera: 0,
@@ -44,10 +38,8 @@ function fakeTarget() {
     starMaps: [] as string[],
   };
 
-  // Which star maps this fake refuses, standing in for faces that are not there.
   const unavailableStarMaps = new Set<string>();
 
-  // Mutable so a test can grow the catalog the way a lazily-loaded group does.
   const catalog = { entries: [] as CatalogEntry[] };
 
   const target: SceneTarget & { skyView: { active: boolean } } = {
@@ -121,15 +113,11 @@ function fakeTarget() {
   return { target, calls, catalog, unavailableStarMaps };
 }
 
-/** `count` catalog entries, all carrying `tag`, as the browser would see them. */
 function entriesWithTag(tag: string, count: number): CatalogEntry[] {
   return Array.from({ length: count }, (_, i) => ({ key: `k${i}`, name: `SAT ${i}`, tags: [tag] }) as unknown as CatalogEntry);
 }
 
-/**
- * Drain the microtask queue. Sequential on purpose: the view-mode path is a
- * chain of awaits, and each tick can only release the next one.
- */
+/** Sequential: each tick of the view-mode await chain releases the next. */
 async function settle(): Promise<void> {
   for (let i = 0; i < 6; i += 1) {
     // eslint-disable-next-line no-await-in-loop
@@ -165,9 +153,7 @@ describe("startSceneSync", () => {
     startSceneSync(target);
     const store = useCesiumStore();
 
-    // The viewer is already built with the builtin sky box, so starting the sync
-    // must not re-install it — that would refetch six faces to reach the picture
-    // already on screen.
+    // The viewer already has the built-in sky box.
     expect(calls.starMaps).toEqual([]);
 
     store.starMap = "DeepStar2K";
@@ -186,8 +172,7 @@ describe("startSceneSync", () => {
     store.starMap = "DeepStar2K";
     await settle();
 
-    // The store is what the radio and the url read, so the fallback has to land
-    // there rather than only on the globe.
+    // The radio and the url read the store.
     expect(store.starMap).toBe(BUILTIN_STAR_MAP);
     expect(calls.starMaps).toEqual(["DeepStar2K", BUILTIN_STAR_MAP]);
   });
@@ -201,7 +186,6 @@ describe("startSceneSync", () => {
     await settle();
 
     expect(calls.morphedTo).toEqual(["2D"]);
-    // The flight home has to land before the projection changes underneath it.
     expect(calls.exits).toBe(1);
     expect(calls.releaseCamera).toBe(1);
   });
@@ -217,14 +201,12 @@ describe("startSceneSync", () => {
     await settle();
 
     expect(calls.entered).toEqual([{ lat: 48.1, lon: 11.6 }]);
-    // Suppressed rather than cleared, so `?camera=Inertial` survives the trip.
     expect(calls.suppressCamera).toBe(1);
     expect(calls.interactionStarts).toBe(1);
     expect(cesiumStore.sceneMode).toBe("Sky");
   });
 
   test("with no observer available the sky view is refused and the mode goes back", async () => {
-    // No ground station, and a device that declines to say where it is.
     vi.stubGlobal("navigator", { geolocation: { getCurrentPosition: (_ok: unknown, fail: (e: unknown) => void) => fail(new Error("denied")) } });
     const { target, calls } = fakeTarget();
     startSceneSync(target);
@@ -239,10 +221,7 @@ describe("startSceneSync", () => {
   });
 
   test("a refusal answers the url's echo of it, rather than asking the device twice", async () => {
-    // The url is a second writer of the view mode: the refused switch is pushed
-    // to the query before the mode is put back, and that navigation applies
-    // `scene=Sky` again from a url one step out of date. Standing in for it here
-    // by writing the store, which is what the query watcher does.
+    // Writing the store stands in for the query watcher re-applying a stale `scene=Sky`.
     let asked = 0;
     vi.stubGlobal("navigator", {
       geolocation: {
@@ -271,9 +250,6 @@ describe("startSceneSync", () => {
   });
 
   test("a deliberate retry is asked again, however the refusal was answered", async () => {
-    // The guard is time, so it has to expire — otherwise granting the permission
-    // in the browser's own settings and trying again would be swallowed by a
-    // refusal from minutes ago.
     let asked = 0;
     vi.stubGlobal("navigator", {
       geolocation: {
@@ -293,7 +269,6 @@ describe("startSceneSync", () => {
     await settle();
     expect(asked).toBe(1);
 
-    // Long enough after that nothing machine-driven is still in flight.
     clock = 5000;
     store.sceneMode = "Sky";
     await settle();
@@ -316,8 +291,7 @@ describe("startSceneSync", () => {
     calls.observerMoved?.({ lat: 48.10123456, lon: 11.60987654 });
     await settle();
 
-    // Rounded by the store, which is the one place coordinate precision is
-    // decided — and still called Munich, because that is who walked.
+    // The store rounds the coordinates; the name stays.
     expect(satStore.groundStations).toEqual([
       { lat: 48.1012, lon: 11.6099, name: "Munich" },
       { lat: 0, lon: 0, name: "Null Island" },
@@ -339,7 +313,6 @@ describe("startSceneSync", () => {
     await settle();
 
     expect(calls.entered).toEqual([{ lat: 47.27, lon: 11.39 }]);
-    // And the list is untouched: designating is not reordering.
     expect(satStore.groundStations.map((station) => station.name)).toEqual(["Munich", "Innsbruck"]);
   });
 
@@ -427,14 +400,12 @@ describe("startSceneSync", () => {
     const last = calls.reconciled.at(-1);
     expect(last?.enabledTags).toEqual(["Weather"]);
     expect(last?.enabledSatellites).toEqual(["ISS"]);
-    // Copies, not the store's own arrays: the manager diffs against what it was
-    // last given, and a live reference would compare equal to itself.
+    // The manager diffs against what it was last given, so a live reference would equal itself.
     expect(last?.enabledTags).not.toBe(satStore.enabledTags);
   });
 
   describe("the component budgets", () => {
-    // Enabling a tag counts nothing until its group's entries land, so every
-    // test here fills the catalog and bumps the revision the way a load does.
+    // A tag counts nothing until its group's entries land.
     function loadGroup(catalog: { entries: CatalogEntry[] }, tag: string, count: number): void {
       catalog.entries = entriesWithTag(tag, count);
       useSatStore().catalogRevision += 1;
@@ -451,7 +422,6 @@ describe("startSceneSync", () => {
       await settle();
 
       expect(satStore.enabledComponents).not.toContain("Label");
-      // Only the labels — the point is what is left to see 201 satellites by.
       expect(satStore.enabledComponents).toContain("Point");
     });
 
@@ -477,8 +447,7 @@ describe("startSceneSync", () => {
       await settle();
       expect(satStore.enabledComponents).not.toContain("Label");
 
-      // The user turns them back on, then activates more satellites. The rule is
-      // a crossing, not a cap, so it must not fire a second time.
+      // The rule is a crossing, not a cap.
       satStore.enabledComponents = [...satStore.enabledComponents, "Label"];
       loadGroup(catalog, "Starlink", 5000);
       await settle();

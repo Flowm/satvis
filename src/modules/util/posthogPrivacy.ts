@@ -36,7 +36,7 @@ function sanitizePropertyBag(bag: PropertyBag | undefined): void {
   }
 }
 
-/** PostHog `before_send` hook that removes precise ground-station coordinates from URL properties. */
+/** PostHog `before_send` hook. */
 export function sanitizePostHogEvent<T extends PostHogEventLike>(event: T): T {
   sanitizePropertyBag(event.properties);
   sanitizePropertyBag(event.$set);

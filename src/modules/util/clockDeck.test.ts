@@ -27,8 +27,6 @@ describe("the speed ladder", () => {
     expect(LADDER[0]).toBe(-86400);
     expect(LADDER.at(-1)).toBe(86400);
     expect(LADDER[REAL_TIME_RUNG]).toBe(1);
-    // Reverse is the mirror of forward, which is what makes the middle a boundary
-    // rather than a rung with nothing on one side of it.
     expect(LADDER[REAL_TIME_RUNG - 1]).toBe(-1);
   });
 
@@ -37,7 +35,6 @@ describe("the speed ladder", () => {
   });
 
   test("finds the nearest rung for a speed nothing on the ladder set", () => {
-    // A url can ask for any multiplier; the ladder still has to open somewhere.
     expect(LADDER[rungFor(1)]).toBe(1);
     expect(LADDER[rungFor(70)]).toBe(60);
     expect(LADDER[rungFor(-500)]).toBe(-600);
@@ -47,9 +44,7 @@ describe("the speed ladder", () => {
   test("reads the rung under the needle from the scroll offset", () => {
     expect(nearestRung(0)).toBe(0);
     expect(nearestRung(REAL_TIME_RUNG * CHIP_PX)).toBe(REAL_TIME_RUNG);
-    // Two thirds of the way past a rung is nearer the next one.
     expect(nearestRung(REAL_TIME_RUNG * CHIP_PX + CHIP_PX * 0.7)).toBe(REAL_TIME_RUNG + 1);
-    // Off either end, the ladder is what it is.
     expect(nearestRung(-500)).toBe(0);
     expect(nearestRung(1e6)).toBe(LADDER.length - 1);
   });
@@ -82,19 +77,15 @@ describe("the ruler", () => {
   test("centres the clock's moment under the needle", () => {
     const ticks = timelineTicks(AT.getTime(), 360);
     const centre = ticks.reduce((best, tick) => (Math.abs(tick.x - 180) < Math.abs(best.x - 180) ? tick : best));
-    // The nearest tick to the middle is within half a ten-minute step of now.
     expect(Math.abs(centre.at - AT.getTime())).toBeLessThanOrEqual(300_000);
   });
 
   test("covers the width it is given, at the scale it promises", () => {
     const ticks = timelineTicks(AT.getTime(), 360);
     const step = 600_000 / MS_PER_PX;
-    // Ticks land on ten-minute boundaries, so the outermost pair cannot be the
-    // ruler's own edges — what matters is that neither end is short by more than
-    // one step, or the ruler would have a bald patch.
+    // Ticks land on ten-minute boundaries, so neither end may be short by more than one step.
     expect(ticks[0]!.x).toBeLessThanOrEqual(0);
     expect(ticks.at(-1)!.x).toBeGreaterThan(360 - step);
-    // One hour is 150 px at MS_PER_PX, which is the whole reason a pass is findable.
     expect(3_600_000 / MS_PER_PX).toBe(150);
   });
 
@@ -105,7 +96,6 @@ describe("the ruler", () => {
     expect(labelled.every((tick) => tick.major)).toBe(true);
     expect(ticks.find((tick) => tick.at === midnight)?.label).toBe("Wed 19 Aug");
     expect(ticks.find((tick) => tick.at === midnight + 3_600_000)?.label).toBe("01:00");
-    // Ten-minute ticks carry no label, or the ruler would be a wall of numbers.
     expect(ticks.find((tick) => tick.at === midnight + 600_000)?.label).toBe("");
   });
 
@@ -122,7 +112,7 @@ describe("pass bands on the ruler", () => {
   const span = (startMin: number, endMin: number) => ({ start: NOON + startMin * 60_000, end: NOON + endMin * 60_000 });
 
   test("puts a pass where its minutes are", () => {
-    // 360 px is 2.4 hours, so the ruler runs from 10:48 to 13:12.
+    // 360 px is 2.4 hours: 10:48 to 13:12.
     const [band] = passMarks([span(0, 10)], NOON, 360);
     expect(band!.left).toBe(180);
     expect(band!.width).toBe((10 * 60_000) / MS_PER_PX);
@@ -131,14 +121,11 @@ describe("pass bands on the ruler", () => {
   test("leaves out what is not on screen, and clips what is half on", () => {
     const bands = passMarks([span(-600, -500), span(-90, 10)], NOON, 360);
     expect(bands).toHaveLength(1);
-    // Clipped at the ruler's left edge rather than drawn off it.
     expect(bands[0]!.left).toBe(0);
     expect(bands[0]!.left + bands[0]!.width).toBeCloseTo(180 + (10 * 60_000) / MS_PER_PX, 6);
   });
 
   test("keeps a pass that swallows the whole ruler", () => {
-    // A geostationary contact never ends; a ruler showing only its middle should
-    // still be entirely blue rather than empty.
     const [band] = passMarks([span(-6000, 6000)], NOON, 360);
     expect(band).toEqual({ key: expect.any(String), left: 0, width: 360 });
   });
@@ -151,8 +138,7 @@ describe("pass bands on the ruler", () => {
 
 describe("flick physics", () => {
   test("clamps a velocity two events in the same millisecond would produce", () => {
-    // `dt` is floored at 1 ms, so an unclamped drag of 40 px reads as 40 px/ms and
-    // coasts for days.
+    // `dt` is floored at 1 ms, so an unclamped 40 px drag reads as 40 px/ms.
     expect(clampMagnitude((40 * MS_PER_PX) / 1, MAX_SCRUB_VELOCITY)).toBe(MAX_SCRUB_VELOCITY);
     expect(clampMagnitude(-1e9, MAX_SCRUB_VELOCITY)).toBe(-MAX_SCRUB_VELOCITY);
     expect(clampMagnitude(1000, MAX_SCRUB_VELOCITY)).toBe(1000);
@@ -163,8 +149,7 @@ describe("flick physics", () => {
     const twoHalfFrames = decayVelocity(decayVelocity(100, 8.35), 8.35);
     expect(oneFrame).toBeCloseTo(94, 5);
     expect(twoHalfFrames).toBeCloseTo(oneFrame, 10);
-    // A second of coasting keeps a fortieth of the throw, which is where both
-    // gestures give up and settle.
+    // A second of coasting keeps about a fortieth of the throw.
     expect(decayVelocity(100, 1000)).toBeLessThan(3);
     expect(decayVelocity(100, 1000)).toBeLessThan(decayVelocity(100, 500));
   });

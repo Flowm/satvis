@@ -2,12 +2,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { CesiumCleanupHelper, collectLabelCollections } from "./CesiumCleanupHelper";
 
-// A stand-in for Cesium's BillboardCollection: remove() takes a billboard out and
-// destroys it, which is why the pool must be emptied alongside.
-//
-// A Set rather than an array, because the real `remove` is indexed off the
-// billboard (`_index`) rather than a scan — and because a linear one made this
-// file quadratic at the 68,000 billboards the regression actually produced.
+// A Set, because the real `remove` is indexed off `_index`; a scan made this file
+// quadratic at 68,000 billboards.
 const billboardCollection = (count: number) => {
   const held = new Set(Array.from({ length: count }, (_, index) => ({ id: index })));
   return {
@@ -20,10 +16,7 @@ const billboardCollection = (count: number) => {
   };
 };
 
-/**
- * The shape the drain reaches into, nested the way Cesium nests it: the entity
- * cluster's label collection three primitive collections down.
- */
+/** Nested the way Cesium nests it: the label collection three primitive collections down. */
 const sceneWith = (spareCount: number, extraBillboards = 1) => {
   const glyphs = billboardCollection(spareCount + extraBillboards);
   const labelCollection = {
@@ -73,10 +66,8 @@ describe("CesiumCleanupHelper.drain", () => {
 
     expect(drain(viewer)).toBe(67_952);
 
-    // The pool has to be emptied in the same breath: remove() destroys the
-    // billboard, so a spare left in the pool would be handed to the next glyph.
     expect(labelCollection._spareBillboards).toHaveLength(0);
-    // The one billboard still bound to a live glyph is left alone.
+    // The billboard still bound to a live glyph stays.
     expect(glyphs.billboards).toHaveLength(1);
     expect(requestRender).toHaveBeenCalled();
   });
@@ -96,14 +87,10 @@ describe("CesiumCleanupHelper.drain", () => {
 
     drain(viewer);
 
-    // Cesium reuses those slots, and measured they cost nothing: what costs
-    // frames is the orphaned billboards, so this is deliberately not a removeAll.
+    // Cesium reuses the slots and they measured as free, so this is not a removeAll.
     expect(labelCollection._labels).toHaveLength(10);
   });
 
-  // The regression that made this file necessary twice: `_billboardCollection`
-  // was renamed to `_glyphBillboardCollection` upstream and the drain became a
-  // silent no-op. A miss has to be audible.
   test("reports a renamed internal instead of skipping quietly", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const { viewer, labelCollection } = sceneWith(200);
@@ -115,10 +102,7 @@ describe("CesiumCleanupHelper.drain", () => {
   });
 
   test("a primitive tree with no label collection is silent, not reported", () => {
-    // A points-only scene has no label collection at all, and used to log an
-    // internals-have-moved error on every teardown for it. See CesiumCleanupHelper.drain.
-    // The test above pins the case that must still report: a collection that
-    // exists but cannot be read.
+    // A points-only scene has no label collection; only an unreadable one is reported.
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(drain({ scene: { primitives: { _primitives: [] }, requestRender: vi.fn() } })).toBe(0);

@@ -1,27 +1,11 @@
-// The TEME to pseudo-fixed rotation, as arithmetic on epoch milliseconds.
+// The TEME to pseudo-fixed rotation, as arithmetic on epoch milliseconds: Cesium's
+// `computeTemeToPseudoFixedMatrix` formula and constants (agreeing to 0.001 mm over
+// three years), but Cesium-free, so it runs in the propagation worker. Transform cost
+// for 5,000 satellites of 241 samples: Cesium 220 ms, Cesium with scratch objects
+// 105 ms, this 31 ms.
 //
-// Cesium's `Transforms.computeTemeToPseudoFixedMatrix` is a rotation about Z by a
-// single angle, and everything around it is overhead on six useful flops: a
-// `JulianDate` per sample, a leap-second lookup, a `Matrix3` allocated because the
-// call site passes no result, and a full 3x3 multiply. Measured over 5,000
-// satellites of 241 samples, the transform half of a window fill:
-//
-//     Cesium, as #applyChunk called it   220 ms
-//     Cesium, with scratch objects       105 ms
-//     this, rotation written inline       31 ms
-//
-// It is the same formula rather than an approximation of it — the constants below
-// are Cesium's — so the two agree to 0.001 mm over 42 anchors spanning three years,
-// including the midnight and noon crossings where the parameterisation changes
-// branch. The point is not a cheaper transform but a Cesium-free one: it can move
-// into the propagation worker, where the main thread stops paying for it at all.
-//
-// Deliberately *not* the GMST that satellite.js's `gstime` computes. That evaluates
-// the polynomial at the instant where this evaluates it at 0h and adds Earth's
-// rotation rate since; they differ by 1.5e-9 rad, which is 1 cm at LEO and 6 cm at
-// GEO. Immaterial on its own — the interpolation error in GridPositionProperty is
-// metres — but this way the stored positions stay bit-identical to what Cesium's own
-// transform produced, so the change is invisible to everything downstream.
+// Not satellite.js's `gstime`, which differs by 1.5e-9 rad (1 cm at LEO, 6 cm at
+// GEO): matching Cesium keeps the stored positions what Cesium's transform produced.
 
 /** Cesium's GMST polynomial, in seconds, evaluated in Julian centuries from J2000. */
 const GMST_C0 = 6 * 3600 + 41 * 60 + 50.54841;
@@ -43,28 +27,18 @@ const J2000_DAY_NUMBER = 2451545;
 /** J2000 proper is noon, so the rate term is referred to the midnight before it. */
 const J2000_MIDNIGHT = J2000_DAY_NUMBER - 0.5;
 
-/**
- * Cesium splits a Julian date this way, and the Unix epoch lands mid-day in it —
- * a Julian day starts at noon, so 00:00 UTC is half a day in.
- */
+/** A Julian day starts at noon, so the Unix epoch is half a day into this one. */
 const UNIX_EPOCH_DAY_NUMBER = 2440587;
 const HALF_DAY_SECONDS = 43200;
 
 /**
- * Greenwich hour angle for a UTC instant, in radians.
- *
- * Unix time is already UTC, which is the frame Cesium reduces to before doing this
- * arithmetic — it converts UTC to TAI on the way in and subtracts `taiMinusUtc` back
- * off here — so taking epoch milliseconds skips a round trip rather than skipping a
- * correction. The one case where that is not merely equivalent is an interval
- * spanning a leap second, where TAI and Unix time disagree about how many seconds
- * elapsed; see the test, which pins the bound rather than assuming it away.
+ * Greenwich hour angle for a UTC instant, in radians. Cesium converts UTC to TAI and
+ * back before this arithmetic, so starting from Unix time is equivalent except across
+ * a leap second (see the test).
  */
 export function greenwichHourAngle(epochMs: number): number {
-  // The day is split off as an integer first. Carrying the whole Julian date in one
-  // double puts the value near 2.44e6, whose ulp is about 47 us of Earth rotation —
-  // measured as a 9.5 mm error before this was split. Keeping `secondsOfDay` small
-  // keeps its resolution.
+  // Split off the day first: a whole Julian date in one double has an ulp of about
+  // 47 us of Earth rotation, which measured as a 9.5 mm error.
   const days = Math.floor(epochMs / MS_PER_DAY);
   const msIntoDay = epochMs - days * MS_PER_DAY;
   let dayNumber = UNIX_EPOCH_DAY_NUMBER + days;
@@ -84,13 +58,7 @@ export function greenwichHourAngle(epochMs: number): number {
   return angleAt0h + rotationRate * secondsSinceMidnight;
 }
 
-/**
- * The rotation for one instant, as the cosine and sine of the hour angle.
- *
- * Handed back as a pair rather than a matrix because seven of the nine entries are
- * constant: the fixed-frame position is
- * `(c*x + s*y, -s*x + c*y, z)`.
- */
+/** The fixed-frame position is `(c*x + s*y, -s*x + c*y, z)`. */
 export interface FixedRotation {
   cos: number;
   sin: number;

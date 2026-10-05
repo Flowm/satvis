@@ -1,29 +1,19 @@
 // The angles the sky view is built on, and the east-north-up vectors they name.
-//
-// One home for these because three modules need them and they have to agree
-// exactly: SkyView composes a camera basis from an aim, DeviceAim decomposes a
-// device's orientation back into one, and SkyTargets turns an aim into a world
-// position to project. A second copy of the level basis is a sign error waiting
-// to happen — composing and decomposing must be each other's inverse.
+// SkyView, DeviceAim and SkyTargets must agree exactly, so there is one copy:
+// composing and decomposing a basis must be each other's inverse.
 
 import { Cartesian3, Cartographic, Math as CesiumMath, Matrix3, Matrix4, Transforms } from "@cesium/engine";
 
-/** Where the sky view looks up from — see CONTEXT.md, observer. */
+/** See observer in CONTEXT.md. */
 export interface Observer {
   lat: number;
   lon: number;
 }
 
 /**
- * Which way the sky view is pointing: azimuth clockwise from north and pitch
- * above the horizontal, both in degrees, plus the roll about the view axis that
- * a handheld device supplies and a mouse does not.
- *
- * Pitch, not elevation. The two are equal whenever the camera is looking at
- * something — which is what makes the crosshair work — but they are different
- * roles: the camera has an attitude, a satellite has a position in the sky. This
- * codebase already spends "elevation" on the latter (see CONTEXT.md, pass, and
- * `?overpass=elevation`), and heights are called height.
+ * In degrees: azimuth clockwise from north, pitch above the horizontal, roll about
+ * the view axis (from a handheld device). Pitch, not elevation: "elevation" is a
+ * satellite's position in the sky (see pass in CONTEXT.md).
  */
 export interface Aim {
   azimuth: number;
@@ -31,11 +21,7 @@ export interface Aim {
   roll: number;
 }
 
-/**
- * The observer's local frame, built once and reused for every angle taken
- * against it. Owned by `SkyView`, which knows when the observer moves — building
- * one costs a 4x4 and a transpose, and three callers wanted it per frame.
- */
+/** Owned by `SkyView`, which knows when the observer moves. */
 export interface ObserverFrame {
   position: Cartesian3;
   fixedToEnu: Matrix3;
@@ -45,35 +31,28 @@ export function observerFrame(position: Cartesian3): ObserverFrame {
   const enuToFixed = Matrix4.getMatrix3(Transforms.eastNorthUpToFixedFrame(position, undefined, new Matrix4()), new Matrix3());
   return {
     position: Cartesian3.clone(position, new Cartesian3()),
-    // Orthonormal, so the transpose is the inverse and no solve is needed.
+    // Orthonormal, so the transpose is the inverse.
     fixedToEnu: Matrix3.transpose(enuToFixed, new Matrix3()),
   };
 }
 
 /**
- * The observer a local east/north offset away, in metres.
- *
- * Through the ellipsoid rather than by degrees per metre: the offset is applied
- * in the tangent plane at the observer and the result read back as coordinates,
- * which needs no wrapping at the antimeridian and does not stretch towards the
- * poles, where a fixed metres-per-degree of longitude is wrong by any factor you
- * like. The tangent plane's own error is the sagitta, d²/2R — 8 cm at a
- * kilometre, and a step is metres.
+ * Offsets in metres, applied in the tangent plane at the observer: no antimeridian
+ * wrap and no stretch near the poles. The error is the sagitta d²/2R, 8 cm at 1 km.
  */
 export function offsetObserver(observer: Observer, east: number, north: number): Observer {
   const origin = Cartesian3.fromDegrees(observer.lon, observer.lat);
   const enuToFixed = Transforms.eastNorthUpToFixedFrame(origin, undefined, new Matrix4());
   const moved = Matrix4.multiplyByPoint(enuToFixed, new Cartesian3(east, north, 0), new Cartesian3());
   const carto = Cartographic.fromCartesian(moved);
-  // Only the Earth's centre has no coordinates, which no offset from a point on
-  // the surface reaches — but the observer standing still is the honest answer.
+  // Only the Earth's centre has no coordinates, which no surface offset reaches.
   return carto ? { lat: CesiumMath.toDegrees(carto.latitude), lon: CesiumMath.toDegrees(carto.longitude) } : observer;
 }
 
-/** Wrap an azimuth to [0, 360). */
+/** To [0, 360). */
 export const normalizeAzimuth = (degrees: number): number => ((degrees % 360) + 360) % 360;
 
-/** The unit vector an azimuth and elevation point along, in east-north-up. */
+/** In east-north-up, of length `distance`. */
 export function enuDirection(azimuth: number, elevation: number, distance = 1): Cartesian3 {
   const az = CesiumMath.toRadians(azimuth);
   const el = CesiumMath.toRadians(elevation);
@@ -82,12 +61,8 @@ export function enuDirection(azimuth: number, elevation: number, distance = 1): 
 }
 
 /**
- * The up/right pair for an unrolled view along that direction, in east-north-up.
- *
- * `up` is where the view axis heads as elevation increases and `right` is level
- * with the horizon, so neither is a cross product against world up — which is
- * what keeps the pair defined at the zenith, where world up and the view axis
- * are the same line.
+ * In east-north-up. Neither vector is a cross product with world up, so both stay
+ * defined at the zenith.
  */
 export function levelBasis(azimuth: number, elevation: number): { up: Cartesian3; right: Cartesian3 } {
   const az = CesiumMath.toRadians(azimuth);
@@ -101,13 +76,7 @@ export function levelBasis(azimuth: number, elevation: number): { up: Cartesian3
   };
 }
 
-/**
- * Roll the level pair about the view axis.
- *
- * The inverse of `rollOf`, and the reason both live here: composing with one
- * sign and decomposing with the other mirrors the view, and the two were far
- * enough apart to hide it.
- */
+/** The inverse of `rollOf`; opposite signs between the two mirror the view. */
 export function rollBasis(azimuth: number, elevation: number, roll: number): { up: Cartesian3; right: Cartesian3 } {
   const { up: levelUp, right: levelRight } = levelBasis(azimuth, elevation);
   const radians = CesiumMath.toRadians(roll);
@@ -119,7 +88,7 @@ export function rollBasis(azimuth: number, elevation: number, roll: number): { u
   };
 }
 
-/** Recover the roll of an up vector about the view axis. The inverse of `rollBasis`. */
+/** The inverse of `rollBasis`. */
 export function rollOf(azimuth: number, elevation: number, up: Cartesian3): number {
   const { up: levelUp, right: levelRight } = levelBasis(azimuth, elevation);
   return CesiumMath.toDegrees(Math.atan2(-Cartesian3.dot(up, levelRight), Cartesian3.dot(up, levelUp)));

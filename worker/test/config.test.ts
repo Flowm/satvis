@@ -1,5 +1,4 @@
-// What the generated config promises its clients, checked on the generated file
-// itself so that a regression in the generator cannot ship quietly.
+// Checked on the generated file itself, so a generator regression cannot ship quietly.
 import { describe, expect, it } from "vitest";
 
 import generated from "../src/config/satvis.generated.json" with { type: "json" };
@@ -9,8 +8,7 @@ const { groups, presets = [], satellites = [] } = generated as GroupsConfig;
 const byName = new Map(groups.map((group) => [group.name, group]));
 
 describe("the generated config", () => {
-  // A group that excludes others promises that together they make up the whole,
-  // and one tag has to load all of it.
+  // A remainder and the groups it excludes make up one whole, which one tag must load.
   it("tags the excluded groups with every tag of the group excluding them", () => {
     const remainders = groups.filter((group) => (group.exclude ?? []).length > 0);
     expect(remainders.length).toBeGreaterThan(0);

@@ -4,9 +4,8 @@ import { fileURLToPath } from "node:url";
 import { json2satrec, propagate, twoline2satrec, type OMMJsonObject } from "satellite.js";
 import { describe, expect, test } from "vitest";
 
-// ISS fixtures fetched once from CelesTrak (FORMAT=2LE + FORMAT=JSON) and
-// committed under ./fixtures/. We assert that satrecs built from each
-// format propagate to the same ECI position (< 1 km per axis).
+// ISS fixtures from CelesTrak (FORMAT=2LE and FORMAT=JSON): satrecs from both formats
+// must propagate to the same ECI position.
 const twoLe = readFileSync(fileURLToPath(new URL("./fixtures/iss.2le.txt", import.meta.url)), "utf8")
   .trim()
   .split(/\r?\n/);

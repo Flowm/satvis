@@ -17,39 +17,28 @@ import { router, setupRouterGuards } from "./router";
 
 declare global {
   interface Window {
-    /**
-     * A console handle for debugging, and nothing else: the app itself reaches
-     * the controller through `provide`/`inject` (see composables/useController)
-     * or an argument. Assigned here rather than by the controller's own
-     * constructor, so constructing one has no global side effect.
-     */
+    /** A console handle for debugging only; the app uses `provide`/`inject` (composables/useController). */
     cc?: CesiumController;
   }
 }
 
 usePWAUpdate({ autoUpdate: true });
 
-// Before the viewer: everything ion-backed resolves through this one token, and
-// nothing here can pass it per asset. See src/config/ion.ts.
+// Before the viewer: every ion asset resolves through this token (src/config/ion.ts).
 Ion.defaultAccessToken = ionAccessToken;
 
-// The composition root. The viewer is built here and handed to the controller,
-// which is handed to the Vue tree — so every edge into the globe is an argument
-// somebody passed rather than a global somebody found.
 const app = createApp(App);
 const viewer = createViewer("cesiumContainer", { minimalUI: DeviceDetect.minimalUI() });
 const cc = new CesiumController(viewer);
 app.provide(controllerKey, cc);
 window.cc = cc;
 
-// Frames for a page the browser presents none in, such as an automated pane. See
-// modules/benchmark/framePump.
+// Frames for a page the browser presents none in, such as an automated pane.
 if (new URLSearchParams(window.location.search).has("framems")) {
   void import("./modules/benchmark/framePump").then(({ installFramePumpIfRequested }) => installFramePumpIfRequested(viewer, window.location.search));
 }
 
-// The url sync waits for this before it reads the url: the url only states what
-// differs from the preset.
+// The url sync waits for this: the url only states what differs from the preset.
 const presetDefaults = markRaw(resolvePreset().then((preset) => preset.defaults));
 
 const pinia = createPinia();
@@ -60,8 +49,7 @@ pinia.use(({ store }) => {
 pinia.use(piniaUrlSync);
 app.use(pinia);
 
-// Carry store state into the globe. Not a component: it has to outlive every
-// panel, and it must not depend on component mount order.
+// Not a component: it must outlive every panel and not depend on mount order.
 startSceneSync(cc);
 
 setupRouterGuards(router, cc);
@@ -71,24 +59,13 @@ app.use(ui);
 
 app.mount("#app");
 
-// The loading screen in index.html has served its purpose once the globe is up.
-// Faded rather than cut, so the handover reads as the screen resolving; removed
-// rather than left hidden, because it is a full-screen overlay and leaving it in
-// the tree would leave a second <h1> in the rendered document. Anything that
-// never runs this file keeps it.
-//
-// index.html holds no comments of its own, being served to every visitor exactly
-// as written, so the two things about its markup that are not self-evident live
-// here. #shell sits outside #app because `[v-cloak]` hides that until Vue mounts,
-// and a loading state nobody sees is not one. Its link to /about is the only one
-// in the raw html: Googlebot runs this bundle and finds the toolbar link instead,
-// but a crawler that does not has nothing else pointing at that page.
+// The index.html loading screen is removed, not hidden, or the document keeps a second <h1>.
+// index.html carries no comments, so: #shell sits outside #app because `[v-cloak]` hides #app,
+// and its /about link is the only one a crawler that skips this bundle can find.
 const shell = document.getElementById("shell");
 if (shell) {
   shell.classList.add("is-done");
-  // On the transition rather than a bare timer, so the node goes exactly when the
-  // fade ends — with a timer behind it because transitionend never fires when the
-  // transition is off (prefers-reduced-motion) or the tab is in the background.
+  // The timer covers reduced motion and background tabs, where transitionend never fires.
   shell.addEventListener("transitionend", () => shell.remove(), { once: true });
   setTimeout(() => shell.remove(), 1000);
 }

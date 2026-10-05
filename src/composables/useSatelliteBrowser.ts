@@ -1,23 +1,8 @@
-// useSatelliteBrowser — module-scoped state + derived row model for the
-// SatelliteBrowser panel. State lives at module scope (not inside the setup
-// function) so search text, expansion and scroll position survive the panel
-// being remounted (Satvis mounts the panel with a v-if, so opening/closing the
-// catalog panel unmounts and remounts it; module scope keeps that transparent).
+// State for the SatelliteBrowser panel, at module scope so it survives the panel's v-if remounts.
 //
-// The catalog itself is intentionally NOT reactive: it holds ~13k plain entries
-// once the whole active list is in. Instead the store exposes `catalogRevision`,
-// bumped whenever the catalog changes. Every computed here touches
-// `catalogRevision.value` so it recomputes as groups arrive, while reading the
-// actual entries imperatively from the catalog it is given.
-//
-// Writes only ever target the Pinia store, replacing the whole array (the
-// url-sync plugin's $subscribe requires a new array reference to detect the
-// change). sceneSync propagates store -> cc.sats — this composable never writes
-// cc.sats directly.
-//
-// The catalog arrives as an argument rather than through the controller: it is
-// the only thing here that is not the store, it is Cesium-free, and taking it
-// directly is what keeps this file constructible without a viewer.
+// The catalog (~13k entries) is not reactive: every computed touches `catalogRevision.value`
+// and reads entries imperatively. Writes go only to the store, as whole arrays, because the
+// url-sync plugin's $subscribe needs a new reference; sceneSync carries them to cc.sats.
 
 import { storeToRefs } from "pinia";
 import { computed, ref, shallowRef } from "vue";
@@ -43,10 +28,9 @@ export type BrowserRow =
       name: string;
       satnum: string;
       checked: boolean;
-      // The colour here is the one the satellite's point is drawn in, so the
-      // list reads as the legend for the globe.
+      // Coloured like the satellite's point, so the list is the globe's legend.
       orbitClass: OrbitClass;
-      // Only populated in search mode (tree-mode rows sit under their group).
+      // Search mode only.
       groupsLabel?: string;
     };
 
@@ -54,10 +38,9 @@ const SEARCH_DEBOUNCE_MS = 150;
 
 const searchQuery = ref("");
 const debouncedQuery = ref("");
-// The full-catalog load a search starts, while it is in flight.
+// The full-catalog load a search starts, while in flight.
 const searchLoad = shallowRef<Promise<void> | undefined>();
 const searchLoading = computed(() => searchLoad.value !== undefined);
-// Collapsed by default: an empty set means every group is collapsed.
 const expandedGroups = ref<Set<string>>(new Set());
 
 let debounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -81,7 +64,6 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     return catalog.groups;
   });
 
-  // The groups offered whole: a row in the tree, an entry in the multiselect.
   const availableGroups = computed(() => allGroups.value.filter((group) => !group.searchOnly));
 
   const searchOnlyTags = computed(() => new Set(allGroups.value.filter((group) => group.searchOnly).map((group) => group.tag)));
@@ -97,8 +79,7 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
 
   function setSearchQuery(value: string): void {
     searchQuery.value = value;
-    // Search spans every group. Memoized per group in the catalog; a group
-    // that failed to load is retried here.
+    // Search spans every group; a group that failed to load is retried here.
     if (value.trim() !== "" && searchLoad.value === undefined) {
       const load = catalog.ensureAll().finally(() => {
         if (searchLoad.value === load) {
@@ -119,9 +100,6 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     }
   }
 
-  // Precomputed search index: one entry per catalog satellite with a cheap,
-  // uppercased match key (nameUpper already exists on the entry). Recomputed
-  // only when the catalog revision bumps.
   const searchIndex = computed<{ entry: CatalogEntry; key: string }[]>(() => {
     void catalogRevision.value;
     return catalog.entries.map((entry) => ({
@@ -130,14 +108,11 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     }));
   });
 
-  // Sets of the current selection state, for fast membership tests.
   const enabledTagSet = computed(() => new Set(enabledTags.value));
   const enabledSatSet = computed(() => new Set(enabledSatellites.value));
   const disabledSatSet = computed(() => new Set(disabledSatellites.value));
 
-  // Union of all active satellite names: individually selected, plus tag
-  // members that are not opted out. Also drives group activeCount and the
-  // summary bar. Mirrors activeTargetEntries (minus tracking).
+  // Individually selected plus tag members not opted out. Mirrors activeTargetEntries, minus tracking.
   const activeSatNames = computed<Set<string>>(() => {
     void catalogRevision.value;
     const disabled = disabledSatSet.value;
@@ -154,11 +129,8 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
 
   const activeSatCount = computed(() => activeSatNames.value.size);
 
-  // Per-tag stats: total member count and how many are active (member of
-  // activeSatNames — enabled via any tag or individually selected). The count
-  // comes from availableGroups so a not-yet-loaded group shows its index
-  // estimate instead of 0; an enabled-but-unloaded group is displayed as fully
-  // active (optimistic — entries and exact counts follow when the load lands).
+  // `count` is the index estimate, so an unloaded group does not show 0. An enabled but
+  // unloaded group shows as fully active until its entries arrive.
   const groupStats = computed<Map<string, { count: number; activeCount: number }>>(() => {
     void catalogRevision.value;
     const active = activeSatNames.value;
@@ -178,8 +150,7 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     return stats;
   });
 
-  // Purely count-based: an enabled group with opted-out members shows "some"
-  // (indeterminate), so exclusions are visible at the group level.
+  // Count-based, so an enabled group with opted-out members shows "some".
   function groupState(count: number, activeCount: number): "all" | "some" | "none" {
     if (count > 0 && activeCount === count) {
       return "all";
@@ -187,11 +158,8 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     return activeCount > 0 ? "some" : "none";
   }
 
-  // The flat list the virtualizer renders. Two modes:
-  //   Tree mode (no query): alphabetical group rows; expanded groups are
-  //     followed by their member sat rows.
-  //   Search mode: matching group rows first, then flat deduped sat rows whose
-  //     match key contains the query, each annotated with its group labels.
+  // Without a query: group rows, each expanded one followed by its members. With one:
+  // matching groups, then deduplicated matching satellites with their group labels.
   const rows = computed<BrowserRow[]>(() => {
     void catalogRevision.value;
     const stats = groupStats.value;
@@ -230,7 +198,6 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
       return result;
     }
 
-    // Search mode.
     const result: BrowserRow[] = [];
     for (const { tag } of groups) {
       if (!tag.toUpperCase().includes(query)) {
@@ -271,12 +238,8 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     return tags.length > 0 ? tags.join(", ") : undefined;
   }
 
-  // Every action below writes a whole array to the store, never one element.
-
-  // Exclusions no longer covered by any enabled group, dropped so re-enabling a
-  // group later starts from the full group instead of resurrecting stale
-  // opt-outs. Names unknown to the catalog are kept (they may belong to a
-  // group that has not loaded yet — never destroy URL-hydrated state).
+  // Drops exclusions no enabled group covers, so re-enabling a group starts full. Names
+  // unknown to the catalog are kept: their group may not have loaded yet.
   function prunedExclusions(remainingTags: string[]): string[] {
     if (disabledSatellites.value.length === 0) {
       return [];
@@ -288,17 +251,13 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     });
   }
 
-  // Replace the enabled groups wholesale. Pruning lives here rather than at the
-  // call sites so the multiselect and the group rows cannot disagree.
+  // Prunes here, so the multiselect and the group rows cannot disagree.
   function setEnabledTags(next: string[]): void {
     satStore.setActivation({ enabledTags: next, disabledSatellites: prunedExclusions(next) });
   }
 
-  // Toggle a whole group. Never touches enabledSatellites — the old "promote
-  // full individual selection to a tag" behavior is deliberately dropped, and
-  // group ops never bulk-write sats= so the URL can't explode.
-  // Tri-state click cycle: off -> all on; "some" (opted-out members) -> all on
-  // (clear the members' exclusions); all on -> off.
+  // off -> all; some -> all (clears exclusions); all -> off. Never writes enabledSatellites,
+  // so `sats=` cannot explode.
   function toggleGroup(tag: string): void {
     if (!enabledTagSet.value.has(tag)) {
       satStore.setActivation({ enabledTags: [...enabledTags.value, tag] });
@@ -313,10 +272,7 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     setEnabledTags(enabledTags.value.filter((t) => t !== tag));
   }
 
-  // Toggle an individual satellite. A satellite covered by an enabled group
-  // toggles via the exclusion list (xsats=), so unchecking it inside an active
-  // group really disables it; anything else toggles the individual selection
-  // (sats=). The two lists are kept disjoint per name.
+  // A satellite in an enabled group toggles `xsats=`; any other toggles `sats=`. The two stay disjoint.
   function toggleSat(name: string): void {
     const entry = catalog.getByName(name);
     if (entry && isEnabledByTag(entry, enabledTagSet.value)) {
@@ -342,7 +298,7 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     }
   }
 
-  // Turn a satellite on without ever turning it off: opening its info needs it built.
+  // Never turns a satellite off: opening its info needs it built.
   function activateSat(name: string): void {
     if (!activeSatNames.value.has(name)) {
       toggleSat(name);
@@ -355,7 +311,6 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
       next.delete(tag);
     } else {
       next.add(tag);
-      // Expanding lists the members, so load the group if it hasn't been yet.
       void catalog.ensureTags([tag]);
     }
     expandedGroups.value = next;

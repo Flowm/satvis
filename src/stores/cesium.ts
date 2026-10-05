@@ -14,53 +14,28 @@ export const useCesiumStore = defineStore(
   "cesium",
   () => {
     const terrainProvider = ref("None");
-    // A plain ref, unlike `layers`: at most one is the shape of the value rather
-    // than an invariant of a list, so there is nothing to enforce on write. What
-    // a selection *implies* is not state — it is derived, in surfaceEffects.
+    // What a selection implies is derived in surfaceEffects, not stored.
     const surfaceModel = ref("None");
-    // The star field behind the globe. In the Map menu with the imagery rather
-    // than in Render with the quality ladders, because it is a choice about what
-    // is drawn rather than about how finely: the options cost the same frame,
-    // and only memory and download size separate them (`src/config/starMaps.ts`).
     const starMap = ref<string>(BUILTIN_STAR_MAP);
     const sceneMode = ref("3D");
     const cameraMode = ref("Fixed");
-    // Drawing-buffer pixels per CSS pixel; `native` is the display's own ratio.
+    // `native` is the display's own ratio.
     const pixelRatio = ref<string>("native");
-    // Multisample antialiasing. A second quality axis rather than part of
-    // `pixelRatio`, because the two buy smoothness in different currencies —
-    // the ratio trades away resolution, this trades away edge quality at the
-    // same resolution — and on a 4k canvas MSAA is the single most expensive
-    // thing in an empty frame.
-    //
-    // The default is the display's, not a constant: see `defaultMsaaRate`.
-    // Read once, so a window dragged to a second monitor keeps the rate it
-    // started with — re-deriving it would overwrite a choice the user may have
-    // made in between, and the menu is right there.
+    // The default is read once, so moving to another monitor cannot overwrite the user's choice.
     const msaa = ref<string>(defaultMsaaRate(currentDevicePixelRatio()));
     const background = ref(true);
     const showFps = ref(false);
     const pickMode = ref(false);
-    // Matches what createViewer sets. Held here rather than read off the scene so
-    // the menu's switch and the benchmark panel cannot disagree about it: a scene
-    // property is not reactive, so a checkbox bound straight to it keeps showing
-    // the old value after anything else has written it. Not URL-synced — it is a
-    // property of a debugging session, not of a view worth sharing.
+    // Matches createViewer. Held here because the scene property is not reactive. Not URL-synced.
     const requestRenderMode = ref(true);
-    // The benchmarking framework (src/modules/benchmark). URL-synced
-    // like the other switches in the Render menu, so a benchmarking session is a shareable
-    // link and the switch in the menu and the `?bench` parameter are one thing
-    // rather than two ways in.
+    // The benchmark panel (src/modules/benchmark).
     const showBenchmark = ref(false);
 
-    // Read-only: "at most one base layer" is an invariant of the list as a
-    // whole, so it cannot be enforced from a per-checkbox write.
+    // Read-only, so setLayers enforces "at most one base layer".
     const activeLayers = ref<string[]>(["NaturalEarth"]);
     const layers = computed(() => activeLayers.value);
 
-    // null means the clock is live and follows the present; a value means it
-    // was pinned, by a url or by a scrub of the clock deck's timeline. Read-only so
-    // the minute-rounding cannot be skipped — see CONTEXT.md, live vs pinned.
+    // null is live; a value is pinned. Read-only so the minute rounding cannot be skipped (CONTEXT.md).
     const pinnedTime = ref<string | null>(null);
     const time = computed(() => pinnedTime.value);
 
@@ -71,16 +46,11 @@ export const useCesiumStore = defineStore(
       }
     }
 
-    /**
-     * Commit a layer stack. Unknown providers are dropped, and where several
-     * base layers are present the last one wins — that is what picking a new
-     * base means. Overlays are always kept; list order is z-order.
-     */
+    /** Drops unknown providers; the last base layer wins. List order is z-order. */
     function setLayers(next: readonly string[]): void {
       const known = new Set(imageryProviderNames());
       const bases = new Set(baseLayerNames());
-      // A layer with an unusable opacity is no more storable than an unknown
-      // provider — it would reach Cesium as NaN and render nothing.
+      // An unusable opacity is dropped too: it would reach Cesium as NaN.
       const valid = next.filter((layer) => {
         const provider = layerProvider(layer);
         return provider !== undefined && known.has(provider);

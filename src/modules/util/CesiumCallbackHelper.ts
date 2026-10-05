@@ -7,7 +7,7 @@ type CesiumEvent = any;
 
 export class CesiumCallbackHelper {
   /**
-   * Fire every `refreshRate` ticks of the clock.
+   * Fires on the tick after every `refreshRate` ticks.
    * @returns the unsubscribe
    */
   static createPeriodicTickCallback(viewer: Viewer, refreshRate: number, callback: (time: JulianDate) => void, event: CesiumEvent = viewer.clock.onTick): () => void {
@@ -41,9 +41,8 @@ export class CesiumCallbackHelper {
   }
 
   /**
-   * Fire once `refreshRate` seconds have passed in both *simulation* and real
-   * time: as often as the periodic time callback at 1×, but no more than once per
-   * `refreshRate` real seconds at a faster clock, and not at all while it is paused.
+   * Fires once `refreshRate` seconds have passed in both *simulation* and real time,
+   * so a fast clock fires at most once per `refreshRate` real seconds and a paused one never.
    * @returns the unsubscribe
    */
   static createThrottledTimeCallback(viewer: Viewer, refreshRate: number, callback: (time: JulianDate) => void, event: CesiumEvent = viewer.clock.onTick): () => void {

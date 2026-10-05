@@ -1,9 +1,4 @@
-// The walk, driven the way the frame loop drives it.
-//
-// `press`/`release`/`step` are public for exactly this: the class listens on
-// `window` and ticks off `preRender`, neither of which exists here, and what is
-// worth pinning down is what a held key does to the view — not that a listener
-// was attached.
+// The walk, driven through `press`/`release`/`step` as the frame loop drives it.
 
 import { Cartesian3 } from "@cesium/engine";
 import { describe, expect, test } from "vitest";
@@ -15,7 +10,7 @@ const key = (code: string, shiftKey = false) => ({ code, shiftKey, ctrlKey: fals
 
 const MUNICH: Observer = { lat: 48.1372, lon: 11.5756 };
 
-/** The sky view as a walk sees it, recording rather than moving a camera. */
+/** Records instead of moving a camera. */
 function fakeView(overrides: Partial<WalkableView> = {}) {
   const view = {
     settled: true,
@@ -34,14 +29,10 @@ function fakeView(overrides: Partial<WalkableView> = {}) {
   return view;
 }
 
-/** Metres between two observers, on the ellipsoid at sea level. */
+/** On the ellipsoid at sea level. */
 const metresBetween = (from: Observer, to: Observer): number => Cartesian3.distance(Cartesian3.fromDegrees(from.lon, from.lat), Cartesian3.fromDegrees(to.lon, to.lat));
 
-/**
- * Walk with these keys held for a second of frames, and hand back the view they
- * moved. Frames rather than one long step, because a step longer than a frame
- * budget is capped — see the tab-coming-back test.
- */
+/** Holds the keys for `seconds` across several frames: a step longer than a frame is capped. */
 function walk(codes: string[], view = fakeView(), { shift = false, seconds = 1, frames = 20 } = {}) {
   const movement = new SkyMovement({ skyView: view as unknown as WalkableView });
   let now = 1000;
@@ -62,7 +53,7 @@ describe("walking", () => {
     const { view } = walk(["KeyW"]);
 
     expect(metresBetween(MUNICH, view.observer!)).toBeCloseTo(WALK_SPEED, 1);
-    // Facing north, so due north — checked as the offset that reproduces it.
+    // Facing north, so due north.
     expect(metresBetween(offsetObserver(MUNICH, 0, WALK_SPEED), view.observer!)).toBeLessThan(0.01);
   });
 
@@ -84,8 +75,7 @@ describe("walking", () => {
   });
 
   test("looking up does not walk into the sky", () => {
-    // The pitch is not in the movement at all: the sky view spends its time
-    // looking up, and W at 80° would otherwise be a takeoff.
+    // W at 80° pitch would otherwise be a takeoff.
     const steep = walk(["KeyW"], fakeView({ aim: { azimuth: 0, pitch: 80, roll: 0 } })).view;
 
     expect(metresBetween(MUNICH, steep.observer!)).toBeCloseTo(WALK_SPEED, 1);
@@ -125,8 +115,7 @@ describe("walking", () => {
   });
 
   test("a tab coming back does not teleport", () => {
-    // One frame with ten seconds behind it is a window that was not being
-    // rendered, not ten seconds of walking.
+    // A ten-second frame is a window that was not rendered, not ten seconds of walking.
     const view = fakeView();
     const movement = new SkyMovement({ skyView: view as unknown as WalkableView });
     movement.step(0);
@@ -160,8 +149,7 @@ describe("which keys count", () => {
   });
 
   test("a shortcut stops the walk rather than joining it", () => {
-    // Ctrl-W closes the tab; whatever the modifier summons, the keyup for what
-    // was already down may never arrive here.
+    // The keyup for a key already down may go to whatever the shortcut opens.
     const view = fakeView();
     const movement = new SkyMovement({ skyView: view as unknown as WalkableView });
     movement.step(0);
@@ -177,8 +165,7 @@ describe("which keys count", () => {
     const movement = new SkyMovement({ skyView: view as unknown as WalkableView });
     movement.step(0);
     movement.press(key("KeyW"));
-    // Focus moved into a field mid-press: the keyup goes there, and taking it
-    // only when it comes from the canvas would leave the observer walking.
+    // Focus moved into a field mid-press, so the keyup comes from there.
     movement.release({ ...key("KeyW"), target: { tagName: "INPUT" } });
     movement.step(1000);
 
@@ -204,10 +191,9 @@ describe("settling", () => {
 
     movement.step(600 + SETTLE_MS);
     expect(moves).toEqual([view.observer]);
-    // And the coarse height that carried the eye is replaced by a measured one.
+    // The throttled height is replaced by a final measurement.
     expect(view.remeasures).toBe(1);
 
-    // Once, not once per frame from then on.
     movement.step(5000);
     expect(moves).toHaveLength(1);
   });

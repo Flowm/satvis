@@ -221,9 +221,8 @@ describe("evaluateGroups: satellites rows", () => {
   });
 
   it("gives the lowest-index matching row the rename when a record matches both a name row and an id row", () => {
-    // The single LEMUR-2-ROHOVITHSA record is matched by row 0 (name-only) AND
-    // row 1 (id) — row order, not selector kind, decides the rename winner and
-    // the record is emitted exactly once.
+    // Rows 0 (name) and 1 (id) both match one record: row order, not selector kind,
+    // decides the rename, and the record is emitted once.
     const defs: GroupDefinition[] = [
       {
         name: "ot",
@@ -370,9 +369,6 @@ describe("evaluateGroups: failure propagation", () => {
 describe("fetchSources validation", () => {
   const defs: GroupDefinition[] = [{ name: "g", sources: [{ celestrak: "active" }] }];
 
-  // fetchSources returns raw per-source results; toRecordsBySource reduces them
-  // to the records-or-Error map the evaluator consumes — the shape these cases
-  // assert on.
   async function records(fetchImpl: Parameters<typeof fetchSources>[1]): Promise<OmmRecord[] | Error | undefined> {
     return toRecordsBySource(await fetchSources(defs, fetchImpl)).get("celestrak:active");
   }

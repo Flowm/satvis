@@ -1,35 +1,13 @@
-// A setting the user owns that something else can temporarily take over.
-//
-// CONTEXT.md already names the idea — suppression, as distinct from inert — and
-// the app had three separate implementations of it: the terrain a surface model
-// insists on, the camera mode the sky view cannot share, and the components a
-// scene morph has to hide. Same three verbs and the same two fields each time,
-// no shared code, and the comment on one of them pointed at another by name.
-//
-// They had drifted the way separately-written copies do. Only one could be read
-// back, so the menu reconstructed the terrain in force from the same inputs the
-// controller used instead of asking. Only one reported whether it had changed
-// anything. Each grew its own staleness guard for out-of-order async applies.
-//
-// Cesium-free on purpose: what is being suppressed is a value, and enacting it is
-// the caller's business.
+// A setting the user owns that something else can temporarily take over (see
+// suppression in CONTEXT.md). Cesium-free: enacting the value is the caller's job.
 
 /**
- * Enact the resolved value.
- *
- * `isCurrent` answers "is this still the newest apply?" — for an apply that has
- * to await something, checking it after each await is what stops a slow one that
- * resolves late from overwriting a newer one. Sync applies can ignore it.
+ * `isCurrent` turns false once a newer apply starts. An async apply checks it
+ * after each await, so a late one cannot overwrite a newer one.
  */
 export type Apply<T> = (value: T, isCurrent: () => boolean) => void | Promise<void>;
 
-/**
- * A chosen value, an optional override, and whatever wins.
- *
- * Nothing here writes the user's choice: suppressing leaves `chosen` exactly as
- * it was, which is what lets the toolbar go on saying so and the url survive the
- * round trip.
- */
+/** Suppressing never writes `chosen`, so the toolbar and the url keep the user's choice. */
 export class Suppressible<T> {
   #chosen: T;
 
@@ -39,7 +17,7 @@ export class Suppressible<T> {
 
   #generation = 0;
 
-  /** No apply on construction: the initial value is what the world already shows. */
+  /** No apply on construction: the initial value is already in force. */
   constructor(initial: T, apply: Apply<T>) {
     this.#chosen = initial;
     this.#apply = apply;
@@ -50,7 +28,6 @@ export class Suppressible<T> {
     return this.#chosen;
   }
 
-  /** What is actually enacted right now. */
   get inForce(): T {
     return this.#override ?? this.#chosen;
   }
@@ -60,9 +37,7 @@ export class Suppressible<T> {
   }
 
   /**
-   * Record the user's choice. Applied only if it is the one in force — a choice
-   * made under a suppression is what comes back on release, and enacting it now
-   * would do work for something nobody is going to see.
+   * Applied only if it is in force; a choice made under a suppression waits for release.
    *
    * @returns whether this changed what is in force.
    */
@@ -75,11 +50,7 @@ export class Suppressible<T> {
     return this.#reapply(before);
   }
 
-  /**
-   * Take the setting over, without touching the choice underneath.
-   *
-   * @returns whether this changed what is in force.
-   */
+  /** @returns whether this changed what is in force. */
   suppress(value: T): boolean {
     if (Object.is(value, this.#override)) {
       return false;
@@ -89,11 +60,7 @@ export class Suppressible<T> {
     return this.#reapply(before);
   }
 
-  /**
-   * Hand the setting back.
-   *
-   * @returns whether this changed what is in force.
-   */
+  /** @returns whether this changed what is in force. */
   release(): boolean {
     if (this.#override === undefined) {
       return false;
@@ -114,22 +81,14 @@ export class Suppressible<T> {
   }
 }
 
-/** What changed, for a caller that enacts a set one name at a time. */
 export interface SetChange {
   show: string[];
   hide: string[];
 }
 
 /**
- * The same idea for a set, where each member is suppressed independently.
- *
- * Separate from `Suppressible<T>` rather than forced into it: an override that
- * replaces a value and a set difference are not the same operation, and pretending
- * otherwise would cost more than the two share. What they do share is the rule —
- * the chosen set is never edited by a suppression — and the vocabulary.
- *
- * It remembers what it last put in force, so the caller does not have to
- * reconstruct the previous effective set to work out the difference.
+ * `Suppressible` for a set whose members are suppressed one by one. It remembers
+ * what it last put in force, so `apply` receives only the difference.
  */
 export class SuppressibleSet {
   #chosen: readonly string[] = [];
@@ -156,18 +115,12 @@ export class SuppressibleSet {
     return this.#suppressed.has(name);
   }
 
-  /** Record the user's choice, and enact the difference. */
   choose(values: readonly string[]): void {
     this.#chosen = [...values];
     this.#settle();
   }
 
-  /**
-   * Hide one member for as long as something else needs it out of the way.
-   *
-   * @returns whether this actually hid anything — false when it was already
-   * suppressed, or when the user does not have it switched on in the first place.
-   */
+  /** @returns false when `name` is already suppressed or not chosen. */
   suppress(name: string): boolean {
     if (this.#suppressed.has(name) || !this.#chosen.includes(name)) {
       return false;

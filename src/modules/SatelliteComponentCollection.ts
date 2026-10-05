@@ -58,20 +58,14 @@ export interface SatelliteBatches {
   tracks: PolylineBatch;
 }
 
-// The palette converted once, not per satellite: with ~10,000 points on screen
-// these are shared instances, the same way Cesium shares its own Color constants.
+// Converted once and shared by every point, like Cesium's own Color constants.
 const POINT_COLOR = Object.fromEntries(Object.entries(ORBIT_CLASS_COLOR).map(([orbitClass, hex]) => [orbitClass, Color.fromCssColorString(hex)])) as Record<OrbitClass, Color>;
 
-/**
- * `BoundingSphereState.PENDING`. Written out rather than imported: the enum is
- * exported from the engine's JavaScript but not from its type declarations. See
- * groundTrackSettled.
- */
+/** `BoundingSphereState.PENDING`, which the engine's type declarations do not export. */
 const BOUNDING_SPHERE_PENDING = 1;
 const BOUNDING_SPHERE_DONE = 0;
 
-// Where tracking starts, east-north-up from the satellite: far enough out to see
-// it in context, or, with its 3D model on, close enough to see the model.
+// Where tracking starts, east-north-up from the satellite.
 const VIEW_FROM = new Cartesian3(0, -3600000, 4200000);
 // South-east of and above the model, in model radii: a cubesat and the ISS differ 300-fold.
 const VIEW_FROM_MODEL_DIRECTION = Cartesian3.normalize(new Cartesian3(9, -10, 5), new Cartesian3());
@@ -80,20 +74,15 @@ const VIEW_FROM_MODEL_RADII = 6;
 const FALLBACK_MODEL_RADIUS = 2.5;
 
 /**
- * The smallest a model is drawn, in css pixels, by the diameter of its bounding
- * sphere in metres: a cubesat at 20, Landsat at 55, the ISS at 72. A cube root
- * rather than a log, which let a compact cubesat cover as many pixels as Landsat,
- * whose sphere is mostly one dark solar wing.
+ * The smallest a model is drawn, in css pixels, by its bounding-sphere diameter in
+ * metres: a cubesat at 20, Landsat at 55, the ISS at 72. A cube root, not a log: a
+ * log drew a compact cubesat as large as Landsat.
  */
 export function modelMinimumPixelSize(diameter: number): number {
   return Math.min(72, Math.max(20, 23 * Math.cbrt(diameter)));
 }
 
-/**
- * How each component is made. Keyed against the config list rather than written
- * out as a switch, so adding a component there without a creator here is a
- * compile error instead of a "Unknown component" at runtime.
- */
+/** Keyed by the config list, so a component without a creator is a compile error. */
 const CREATORS: Record<(typeof SATELLITE_COMPONENTS)[number], (sat: SatelliteComponentCollection) => void> = {
   Point: (sat) => sat.createPoint(),
   Label: (sat) => sat.createLabel(),
@@ -106,10 +95,8 @@ const CREATORS: Record<(typeof SATELLITE_COMPONENTS)[number], (sat: SatelliteCom
 };
 
 /**
- * Below this a polyline is not a polyline. `PolylineGeometry`'s constructor throws
- * rather than declining, and a throw raised while geometry is rebuilt escapes
- * through `clock.tick` into Cesium's render loop, which turns
- * `_useDefaultRenderLoop` off and stops the app for the rest of the session.
+ * `PolylineGeometry` throws below this, and a throw during a rebuild escapes
+ * through `clock.tick` and stops Cesium's render loop for the session.
  */
 const MIN_POLYLINE_POSITIONS = 2;
 
@@ -124,20 +111,14 @@ function releaseEntityView(view: EntityView): void {
   }
 }
 
-/**
- * An Entity when the component is drawn on its own, a GeometryInstance when it is
- * merged into the shared orbit batch. Never a Primitive: the one creator that made
- * one was dead code, and the branch checking for it could never be true.
- */
+/** A GeometryInstance when merged into a shared orbit batch. */
 type Component = Entity | GeometryInstance;
 
 /** One satellite's Cesium objects, created on demand and dropped on disable. */
 export class SatelliteComponentCollection {
-  /** Written into by `getBoundingSphere`. See groundTrackSettled. */
   static readonly #sphereScratch = new BoundingSphere();
   static readonly #pixelScratch = new Cartesian2();
 
-  /** So a broken assumption is reported once rather than on every tick. */
   static #reportedMissingBoundingSphere = false;
 
   static #reportMissingBoundingSphere(): void {
@@ -152,18 +133,13 @@ export class SatelliteComponentCollection {
 
   readonly props: SatelliteProperties;
 
-  /**
-   * The batches every untracked orbit and orbit track are drawn into. Passed in
-   * rather than reached for: they are shared by every satellite, and one owner
-   * beats a static.
-   */
   readonly #orbits: PolylineBatch;
 
   readonly #tracks: PolylineBatch;
 
   #components: Record<string, Component> = {};
 
-  /** What a click or a track acts on — the first Entity to be created. */
+  /** What a click or a track acts on: the first Entity created. */
   defaultEntity: Entity | undefined;
 
   eventListeners: Record<string, () => void> = {};
@@ -176,12 +152,8 @@ export class SatelliteComponentCollection {
   }
 
   /**
-   * Put this satellite's passes on the clock deck's ruler, once they exist.
-   *
-   * Prediction is off-thread, so the list a read returns may be the previous one
-   * or nothing at all. Publishing what is known now and again when the answer
-   * lands is the whole adaptation: the first call paints a stale or empty band and
-   * costs nothing, the second paints the real one.
+   * Prediction is off-thread, so this may paint a stale or empty band; the
+   * `passesChanged` listener paints the real one.
    */
   #highlightPasses(): void {
     const predictor = this.props.passPredictor;
@@ -189,8 +161,7 @@ export class SatelliteComponentCollection {
     if (this.isSelected) {
       setPassHighlights(predictor.passes(time));
     } else {
-      // Not selected: nothing to paint, but the tracked satellite still wants the
-      // window computed for its ground-station link.
+      // The tracked satellite still needs the window for its ground-station link.
       predictor.passes(time);
     }
   }
@@ -245,10 +216,8 @@ export class SatelliteComponentCollection {
   }
 
   /**
-   * Where engaging `trackedEntity` would put the camera right now. A flight that
-   * lands anywhere else jumps on arrival, and only `EntityView` knows which frame
-   * Cesium tracks a satellite in. It answers by moving the camera it is given, so
-   * it gets one of its own.
+   * Where engaging `trackedEntity` would put the camera now, so a flight lands
+   * without a jump. `EntityView` moves the camera it is given, so it gets its own.
    */
   #trackedCameraPose(entity: Entity): CameraPose {
     const { scene } = this.viewer;
@@ -259,9 +228,6 @@ export class SatelliteComponentCollection {
     return { destination: Cartesian3.clone(camera.positionWC), direction: Cartesian3.clone(camera.directionWC), up: Cartesian3.clone(camera.upWC) };
   }
 
-  /**
-   * Drive the camera from the entity's own position while it is tracked.
-   */
   artificiallyTrack(): void {
     const entity = this.defaultEntity;
     if (!entity) {
@@ -340,9 +306,7 @@ export class SatelliteComponentCollection {
     }
 
     if (this.defaultEntity === component) {
-      // Hand the role to whatever is still drawn. It used to be kept pointing at
-      // the removed entity, so a click target and the camera's tracked entity
-      // could both outlive what they referred to.
+      // Hand the role to whatever is still drawn.
       this.defaultEntity = Object.values(this.#components).find((remaining) => remaining instanceof Entity);
     }
 
@@ -362,10 +326,9 @@ export class SatelliteComponentCollection {
   );
 
   /**
-   * The scale at which the model is its minimum size as seen from as far as the
-   * default view is from the Earth's centre. Zoomed out beyond that it shrinks with
-   * the globe instead of covering it. Relative to the default view, not a fixed
-   * factor: a fixed 10,000x held a cubesat under a pixel at the default view.
+   * The scale at which the model is its minimum size from the default view's distance,
+   * so further out it shrinks with the globe. A fixed 10,000x held a cubesat under a
+   * pixel at the default view.
    */
   #modelMaximumScale(): number | undefined {
     const { camera, canvas, globe } = this.viewer.scene;
@@ -424,10 +387,8 @@ export class SatelliteComponentCollection {
       this.updatedSampledPositionForComponents(true);
     });
 
-    // Pass prediction answers late now, so the things derived from a pass list
-    // have to be told rather than to ask. The ground-station link reads
-    // passIntervals through a CallbackProperty and needs nothing; the timeline
-    // bands are painted once and do.
+    // Prediction answers late. The ground-station link reads passIntervals every
+    // frame; the timeline bands are painted once and must be told.
     this.eventListeners.passesChanged = this.props.passPredictor.onChanged(() => {
       if (this.isSelected) {
         setPassHighlights(this.props.passPredictor.passes(this.viewer.clock.currentTime));
@@ -450,14 +411,11 @@ export class SatelliteComponentCollection {
         this.artificiallyTrack();
       }
       if ("Orbit" in this.components && !this.isCorrectOrbitComponent()) {
-        // Rebuilt rather than adjusted: a geometry cannot change visualisation
-        // type in place.
+        // A geometry cannot change visualisation type in place.
         this.disableComponent("Orbit");
         this.enableComponent("Orbit");
       }
       if ("Orbit track" in this.components && !this.isCorrectOrbitTrackComponent()) {
-        // Same swap as the Orbit above: the satellite the camera is on gets the
-        // exact per-frame path, everything else gets the batch.
         this.disableComponent("Orbit track");
         this.enableComponent("Orbit track");
       }
@@ -465,32 +423,20 @@ export class SatelliteComponentCollection {
   }
 
   deinit(): void {
-    // Every one of them, by iterating rather than by naming: the pass listener was
-    // added to `init` and missed here, and an enable/disable cycle then left one
-    // more subscriber on the predictor's list every time round.
+    // Iterate rather than name them, so a listener added to `init` cannot leak.
     Object.values(this.eventListeners).forEach((remove) => remove?.());
     this.eventListeners = {};
     cancelPendingTrack(this.viewer, this);
   }
 
-  /**
-   * Fully tear down this collection so it can be dropped from the active set.
-   *
-   * `hide()` disables every created component; removing the last one triggers
-   * `deinit()` (see disableComponent), which detaches the sampledPosition and
-   * viewer listeners and tears down the sampledPosition. For a collection whose
-   * components were never created this is a no-op (empty componentNames), so
-   * dispose is safe to call unconditionally and is idempotent.
-   */
+  /** Idempotent: disabling the last component calls `deinit()`. */
   dispose(): void {
     this.hide();
   }
 
   updatedSampledPositionForComponents(update = false): void {
     const { entityPosition } = this.props.trajectory;
-    // Neither the inertial frame nor the sampled property: both are absent unless
-    // a component asked for them, and requiring either here would have stopped
-    // every other component updating in exactly the scenes the laziness is for.
+    // Not the inertial frame or the sampled property: both exist only when a component asks.
     if (!entityPosition) return;
 
     Object.entries(this.components).forEach(([type, component]) => {
@@ -500,20 +446,17 @@ export class SatelliteComponentCollection {
           this.props.trajectory.requireInertial();
           component.position = this.props.trajectory.inertial;
         } else if (update && component instanceof GeometryInstance) {
-          // A geometry cannot be edited in place; it has to be rebuilt
+          // A geometry cannot be edited in place.
           this.disableComponent("Orbit");
           this.enableComponent("Orbit");
         }
       } else if (type === "Orbit track") {
         if (component instanceof Entity) {
-          // The sampled property, not the grid — this one is a path, and an Orbit
-          // track Entity exists only because createOrbitTrackPath asked for it.
+          // A path needs the sampled property, not the grid.
           this.props.trajectory.requireSampled();
           component.position = this.props.trajectory.fixed;
         } else if (update) {
-          // The window it was cut from has just moved, so the samples behind the
-          // batched geometry are the old ones. Re-cut rather than rebuild the
-          // membership: replace() leaves the batch the same size.
+          // The sample window moved; re-cut with replace() rather than rebuild the membership.
           this.refreshOrbitTrack(this.viewer.clock.currentTime);
         }
       } else if (component instanceof Entity) {
@@ -536,9 +479,6 @@ export class SatelliteComponentCollection {
   }
 
   createComponent(name: SatelliteComponentName): void {
-    // A plain string, because that is what the store and the url carry. The
-    // table's own type is the const union, so a component added to the config
-    // without a creator here is still a compile error.
     const create = (CREATORS as Record<string, ((sat: SatelliteComponentCollection) => void) | undefined>)[name];
     if (!create) {
       console.error(`Unknown component ${name}`);
@@ -548,25 +488,16 @@ export class SatelliteComponentCollection {
   }
 
   /**
-   * An entity at the satellite, positioned by the grid property.
-   *
-   * Everything that only asks where the satellite is right now belongs here. A
-   * path graphic does not — it sub-samples the property it is given, and Cesium
-   * only knows how to do that densely for its own `SampledPositionProperty` — so
-   * `createOrbitTrackPath` and `createOrbitPath` build their entities directly.
+   * An entity positioned by the grid property. Not for path graphics: Cesium
+   * sub-samples densely only a `SampledPositionProperty`.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createCesiumSatelliteEntity(entityName: string, entityKey: string, entityValue: any): void {
     this.createCesiumEntity(entityName, entityKey, entityValue, this.props.name, this.props.trajectory.entityPosition, true);
   }
 
-  // Coloured by orbit regime, matching the badge the satellite browser shows on
-  // the same satellite's row — so the menu reads as the legend for the globe.
-  //
-  // Small on purpose: a whole constellation at 6 px merges into a sheet that
-  // hides the globe under it. 5 px still leaves the globe legible under a full
-  // Starlink activation, and the outline is what keeps a point visible against
-  // bright imagery rather than its size.
+  // Coloured like the satellite browser's orbit badge. At 6 px a full Starlink
+  // activation hides the globe; the outline keeps points visible on bright imagery.
   createPoint(): void {
     const point = new PointGraphics({
       pixelSize: 5,
@@ -591,9 +522,7 @@ export class SatelliteComponentCollection {
     this.createCesiumSatelliteEntity("3D model", "model", model);
   }
 
-  // Drawn in the neutral the LEO point uses, not white: a label is chrome next
-  // to the marker it names, and at white it outshouted the very points it was
-  // meant to identify.
+  // The LEO neutral, not white, which outshouted the points.
   createLabel(): void {
     const label = new LabelGraphics({
       text: this.props.name,
@@ -611,9 +540,7 @@ export class SatelliteComponentCollection {
   }
 
   createOrbit(): void {
-    // The Orbit is the only component drawn in the inertial frame, so it is the
-    // only thing that makes the second sample set worth keeping. Declared here,
-    // once, rather than at each of the two places below that go on to read it.
+    // The Orbit is the only component drawn in the inertial frame.
     this.props.trajectory.requireInertial();
     if (this.usePathGraphicForOrbit) {
       this.createOrbitPath();
@@ -622,15 +549,6 @@ export class SatelliteComponentCollection {
     }
   }
 
-  /**
-   * Whether the Orbit component matches how it should currently be drawn.
-   *
-   * The non-path branch used to be checked against `Primitive`, which is what
-   * the never-called `createOrbitPolylinePrimitive` would have stored —
-   * `createOrbitPolylineGeometry` stores a GeometryInstance, so the check was
-   * permanently false and every track change tore down and rebuilt the orbit of
-   * every untracked satellite in 3D, each rebuild costing a full batch rebuild.
-   */
   isCorrectOrbitComponent(): boolean {
     return this.usePathGraphicForOrbit ? this.components.Orbit instanceof Entity : this.components.Orbit instanceof GeometryInstance;
   }
@@ -649,7 +567,7 @@ export class SatelliteComponentCollection {
     this.createCesiumEntity("Orbit", "path", path, this.props.name, this.props.trajectory.inertial, true);
   }
 
-  /** The orbit as a geometry for the shared batch — how every untracked orbit is drawn in 3D. */
+  /** How every untracked orbit is drawn in 3D. */
   createOrbitPolylineGeometry(): void {
     const positions = this.props.trajectory.positionsForNextOrbit(this.viewer.clock.currentTime);
     if (positions.length < MIN_POLYLINE_POSITIONS) {
@@ -678,12 +596,6 @@ export class SatelliteComponentCollection {
     }
   }
 
-  /**
-   * Whether the Orbit track is currently drawn the way it should be — the same
-   * question `isCorrectOrbitComponent` asks of the Orbit, and for the same
-   * reason: tracking a satellite changes the answer, so the track has to be torn
-   * down and rebuilt when it does.
-   */
   isCorrectOrbitTrackComponent(): boolean {
     return this.usePathGraphicForOrbitTrack ? this.components["Orbit track"] instanceof Entity : this.components["Orbit track"] instanceof GeometryInstance;
   }
@@ -692,14 +604,7 @@ export class SatelliteComponentCollection {
     return orbitUsesPathGraphic(this.isTracked, this.viewer.scene.mode === SceneMode.SCENE3D);
   }
 
-  /**
-   * The exact track, resampled every frame by Cesium's PathVisualizer.
-   *
-   * Reserved for the tracked satellite, which is the one the camera is sitting
-   * on and the only one whose head anyone can see move. It costs about 60 µs a
-   * frame — irrelevant for one satellite, and 300 ms at five thousand, which is
-   * what the batch below exists to avoid.
-   */
+  /** Resampled every frame by PathVisualizer, about 60 µs each, so only for the tracked satellite. */
   createOrbitTrackPath(): void {
     const path = new PathGraphics({
       ...orbitTrackTimes(this.props.orbit.orbitalPeriod),
@@ -708,13 +613,12 @@ export class SatelliteComponentCollection {
       width: 2,
     });
     // The sampled property, so PathVisualizer sub-samples at the stored sample
-    // times rather than at `resolution`. Asking is what brings it into being —
-    // only the tracked satellite and the non-3D scene modes draw a path.
+    // times rather than at `resolution`.
     this.props.trajectory.requireSampled();
     this.createCesiumEntity("Orbit track", "path", path, this.props.name, this.props.trajectory.fixed, true);
   }
 
-  /** The track as a geometry for the shared batch — how every untracked track is drawn in 3D. */
+  /** How every untracked track is drawn in 3D. */
   createOrbitTrackPolylineGeometry(): void {
     const geometry = this.#orbitTrackGeometry(this.viewer.clock.currentTime);
     if (geometry) {
@@ -743,16 +647,9 @@ export class SatelliteComponentCollection {
   }
 
   /**
-   * Re-cut the batched track so its head sits back on the satellite.
-   *
-   * A fixed-frame track goes stale as the clock runs — the satellite advances
-   * along a line that does not move with it — so unlike the inertial orbit there
-   * is no model matrix that keeps it current and the geometry has to be rebuilt.
-   * Cheap enough to do on a timer because the batch coalesces: five thousand
-   * calls to `replace` cost one primitive rebuild, not five thousand.
-   *
-   * A no-op for the tracked satellite, whose track is a PathGraphic that Cesium
-   * already keeps exact, and for anything not currently in the batch.
+   * Re-cut the batched track so its head sits back on the satellite. No model
+   * matrix keeps a fixed-frame track current. The batch coalesces every
+   * `replace` into one primitive rebuild.
    */
   refreshOrbitTrack(time: JulianDate): void {
     const current = this.#components["Orbit track"];
@@ -766,20 +663,9 @@ export class SatelliteComponentCollection {
   }
 
   /**
-   * The swath corridor under the satellite, as *constant* positions re-assigned
-   * on a timer rather than a CallbackProperty read every frame.
-   *
-   * A CallbackProperty that reports itself non-constant puts the corridor on
-   * Cesium's dynamic-geometry path, and that path re-tessellates the geometry
-   * and recreates its ground primitive every single frame — for every satellite
-   * that has one. Measured at about 90 µs per drawn corridor per frame, which is
-   * 414 ms of main thread at five thousand satellites, and it bought nothing:
-   * the callback returns two positions 300 s apart, so the shape it was rebuilt
-   * from barely moved between one frame and the next.
-   *
-   * Constant positions put it back on the static path, where the geometry is
-   * only rebuilt when the property actually changes — which is now `refreshGroundTrack`,
-   * on the same schedule as the batched orbit tracks.
+   * Constant positions re-assigned by `refreshGroundTrack`, not a CallbackProperty:
+   * a non-constant property puts the corridor on Cesium's dynamic-geometry path,
+   * which re-tessellates every frame at about 90 µs per corridor.
    */
   createGroundTrack(): void {
     const description = groundTrackDescription(this.props.orbitClass, this.props.swath);
@@ -787,9 +673,7 @@ export class SatelliteComponentCollection {
       return;
     }
     const positions = this.#groundTrackPositions(this.viewer.clock.currentTime);
-    // The same check `refreshGroundTrack` makes, and for the same reason: a
-    // corridor Cesium cannot build geometry from takes the render loop down with
-    // it.
+    // A corridor Cesium cannot build takes the render loop down with it.
     if (positions.length < 2) {
       return;
     }
@@ -806,18 +690,8 @@ export class SatelliteComponentCollection {
   }
 
   /**
-   * The ground track as positions a corridor can be built from.
-   *
-   * Holes are dropped because the sampled position has no value outside its
-   * window and a corridor handed one throws from inside Cesium's geometry worker.
-   * Duplicates are dropped because the corridor collapses them itself and then
-   * declines to build anything, which costs more — see `drawablePositions`.
-   *
-   * Duplicates are the case that arrives. Outside the sample window
-   * `GridPositionProperty` clamps its stencil to the window's edge by design, so
-   * every time beyond it reads back the same edge sample: two instants 300 s apart
-   * answer with one point. Not `ExtrapolationType` — that governs the sampled
-   * property, which most satellites never build.
+   * Outside the sample window `GridPositionProperty` clamps to the edge sample,
+   * so the duplicates `drawablePositions` drops do arrive.
    */
   #groundTrackPositions(time: JulianDate): Cartesian3[] {
     return drawablePositions(this.props.trajectory.groundTrack(time));
@@ -838,22 +712,9 @@ export class SatelliteComponentCollection {
   }
 
   /**
-   * Whether the corridor Cesium is drawing has caught up with the positions it
-   * was last handed, or undefined when there is nothing to ask — no ground track
-   * on this satellite, or no way to ask about one.
-   *
-   * Worth asking because the rebuild takes a number of frames that varies with
-   * the size of the batch, so any fixed schedule is either slower than it needs
-   * to be or fast enough to discard an unfinished rebuild. See SatelliteManager's
-   * GROUND_TRACK_REFRESH_FRAMES for what the second of those does.
-   *
-   * `getBoundingSphere` is what Cesium itself calls once a frame to decide
-   * whether the tracked entity can be followed yet, and it reports PENDING for
-   * as long as the batch primitive behind the entity is unfinished — measured as
-   * landing one frame before the new corridor is drawn. Cesium marks it private
-   * and leaves it out of its type declarations, hence the cast and the check: if
-   * it goes away the caller falls back to a fixed schedule rather than silently
-   * never waiting again.
+   * Whether the drawn corridor has caught up with its last positions; undefined
+   * without a ground track or without `getBoundingSphere`. That private Cesium
+   * method reports PENDING while the batch primitive is unfinished.
    */
   groundTrackSettled(): boolean | undefined {
     const entity = this.#components["Ground track"];
@@ -899,8 +760,7 @@ export class SatelliteComponentCollection {
         const groundPosition = this.activeGroundStationCartesian(time as JulianDate);
         return [satPosition, groundPosition];
       }, false),
-      // Reading the passes keeps their window around the clock; nothing else asks
-      // for an unselected satellite's.
+      // Reading the passes keeps their window around the clock for an unselected satellite.
       show: new CallbackProperty((time?: JulianDate) => {
         this.props.passPredictor.passes(time as JulianDate);
         return this.props.passPredictor.passIntervals.contains(time as JulianDate);
@@ -910,14 +770,7 @@ export class SatelliteComponentCollection {
     this.createCesiumSatelliteEntity("Ground station link", "polyline", polyline);
   }
 
-  /**
-   * Resolve the cartesian endpoint for the ground-station link at the given time.
-   *
-   * The polyline is only shown during a pass (see `show` callback), so we find the
-   * pass that contains `time` and look up the ground station that recorded it.
-   * Falls back to the first ground station if no active pass is found (e.g. when
-   * Cesium evaluates the positions callback outside of any pass interval).
-   */
+  /** The station of the pass containing `time`, else the first station. */
   private activeGroundStationCartesian(time: JulianDate): Cartesian3 | undefined {
     const groundStations = this.props.passPredictor.groundStations;
     if (groundStations.length === 0) {
@@ -933,14 +786,12 @@ export class SatelliteComponentCollection {
   }
 
   set groundStations(groundStations: GroundStation[]) {
-    // No groundstation calculation for GEO satellites
+    // No pass prediction above a 12 h period.
     if (this.props.orbit.orbitalPeriod > 60 * 12) {
       return;
     }
 
-    // The setter clears the predictor's window; ask for the new one now so
-    // pass-dependent visuals update without waiting for a read. The answer is
-    // off-thread, so it arrives via the listener rather than here.
+    // The setter clears the predictor's window; the answer arrives via `passesChanged`.
     this.props.passPredictor.groundStations = groundStations;
     if (this.isSelected || this.isTracked) {
       this.#highlightPasses();

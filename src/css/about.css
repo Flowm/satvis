@@ -1,6 +1,4 @@
-/* The about page's styles, shared with the dialog that shows the same markup.
- * about.html links this file and AboutDialog.vue imports it, so both go through
- * Vite and neither holds a copy. */
+/* Shared by about.html and AboutDialog.vue, both through Vite. */
 
 .about {
   max-width: 46rem;
@@ -23,9 +21,7 @@
 .about p {
   margin: 0 0 0.9rem;
 }
-/* Explicit, because the dialog renders inside Tailwind's preflight, which resets
-   ul to list-style:none, and the about page, which has no Tailwind, does not.
-   Stating it is what keeps the two looking like the same content. */
+/* Explicit, because Tailwind's preflight in the dialog resets ul to list-style:none. */
 .about ul {
   margin: 0 0 0.9rem;
   padding-left: 1.25rem;
@@ -63,9 +59,7 @@
   font-size: 1.05rem;
 }
 
-/* In the dialog the card already supplies the margin, and its header already says
-   "About Satvis" — so the heading stays, it just stops behaving like the top of a
-   document. */
+/* In the dialog the card supplies the margin and the header already says "About Satvis". */
 .about--dialog {
   max-width: none;
   padding: 0;
