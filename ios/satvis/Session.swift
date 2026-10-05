@@ -140,6 +140,7 @@ final class Session {
             Task { await watchActive() },
             Task { await watchStations() },
             Task { await watchMode() },
+            Task { await watchEntries() },
             Task { await starMap.load(from: source) },
             Task { await predictPasses() },
             Task { await countViews() },
@@ -491,6 +492,39 @@ final class Session {
             alerts.forgetStations(except: Set(passes.saved.map(\.id)))
             await alerts.reschedule()
         }
+    }
+
+    /// Follows on, or lets go of, a satellite followed or open whose entry a
+    /// newer copy of its group no longer has: renamed since the copy kept on
+    /// disk, the catalog number kept, or decayed. Left as it was, the camera
+    /// would follow nothing and the gestures steer a camera not drawn.
+    private func watchEntries() async {
+        for await (tracked, selected) in Observations({ (self.missing(self.tracked), self.missing(self.selectedSatellite)) }) {
+            if let tracked {
+                if let next = successor(of: tracked) {
+                    track(next, true)
+                } else {
+                    track(tracked, false)
+                }
+            }
+            if let selected, selectedSatellite == selected {
+                selection = successor(of: selected).map(Selection.satellite)
+            }
+        }
+    }
+
+    /// A satellite's id, when the catalog no longer has it.
+    private func missing(_ id: String?) -> String? {
+        guard let id, PassModel.stationID(id) == nil, catalog.catalog.entries[id] == nil else {
+            return nil
+        }
+        return id
+    }
+
+    /// The entry under the same catalog number, as a renamed satellite keeps.
+    private func successor(of id: String) -> String? {
+        let satnum = id.prefix { $0 != "|" }
+        return catalog.catalog.entries.values.first { $0.satnum == satnum }?.id
     }
 
     private func watchMode() async {
