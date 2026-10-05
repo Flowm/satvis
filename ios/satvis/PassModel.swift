@@ -111,30 +111,30 @@ final class PassModel {
     /// Predicts what is missing for these satellites around the instant. Changes
     /// nothing when nothing had to be predicted; publishes a long prediction as it
     /// goes, twice a second.
-    func refresh(_ entries: [CatalogEntry], at time: Double) async {
+    /// `over` narrows it to some of the stations, as one station's panel needs.
+    func refresh(_ entries: [CatalogEntry], at time: Double, over subset: [GroundStation]? = nil) async {
         if storeIsStale {
             storeIsStale = false
             await store.reset()
         }
         await store.configure(PassStore.Settings(stations: stations, mode: mode))
         let settings = (stations, mode)
-        let predictedOver = Set(stations)
         var pending: [String: PassStore.Prediction] = [:]
         var lastPublished = Date()
         for offset in stride(from: 0, to: entries.count, by: Self.chunk) {
-            pending.merge(await store.predict(Array(entries[offset..<min(offset + Self.chunk, entries.count)]), at: time)) { _, new in new }
+            pending.merge(await store.predict(Array(entries[offset..<min(offset + Self.chunk, entries.count)]), at: time, over: subset)) { _, new in new }
             // Stations or mode changed while it ran.
             guard settings == (stations, mode) else {
                 return
             }
             if !pending.isEmpty, Date().timeIntervalSince(lastPublished) > Self.publishInterval {
-                publish(pending, over: predictedOver)
+                publish(pending)
                 pending = [:]
                 lastPublished = Date()
             }
         }
         if !pending.isEmpty {
-            publish(pending, over: predictedOver)
+            publish(pending)
         }
     }
 
@@ -191,11 +191,11 @@ final class PassModel {
         }
     }
 
-    private func publish(_ predictions: [String: PassStore.Prediction], over stations: Set<GroundStation>) {
+    private func publish(_ predictions: [String: PassStore.Prediction]) {
         for (id, prediction) in predictions {
             passes[id] = prediction.passes
             windows[id] = prediction.window
-            covered[id] = stations
+            covered[id] = prediction.stations
         }
         revision += 1
     }

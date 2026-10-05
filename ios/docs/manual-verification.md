@@ -117,3 +117,16 @@ refining at Natural Earth's level 6, and the terrain under it was level 4, a gri
 on, the valley's cliffs stand either side as they do on VersaTiles, Natural Earth
 magnified over them, at 60 fps and 3.1 ms of CPU a frame in a Debug build; the lock
 on METEOSAT-11 read 33.0° and 177.9° S as before.
+
+## Native app: passes for a new ground station
+
+**Procedure.** Debug build in the iPhone 17e simulator on `tags=Active&elements=Point`
+(16,629 satellites), then Ground stations → Pick on globe → a tap on the globe, timed by a
+UI test from the tap until "Computing passes…" goes.
+
+**Result, 2026-10-05.** Before, 136 s with two saved stations and 187 s with three, the
+panel blank throughout: every satellite was predicted over every station. With a
+station's panel predicted over its own station alone and the passes listed as they come,
+the first passes showed after 4.5 s and the last of the 16,629 after 42 s, the count of
+satellites done climbing beside them. The default view's 72 satellites took about 2 s,
+most of it the prediction loop's one-second pause.
