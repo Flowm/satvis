@@ -29,7 +29,9 @@ final class Session {
     let passes = PassModel()
     @ObservationIgnored let satellites = SatelliteLayer()
     @ObservationIgnored private let starMap = StarMap()
-    @ObservationIgnored private(set) var renderer: GlobeRenderer?
+    /// Observed: it arrives once its shaders compile, possibly after a link has
+    /// opened on the sky view, whose instruments wait for it.
+    private(set) var renderer: GlobeRenderer?
 
     var selection: Selection?
     /// What the camera follows: a satellite's catalog id or a station's marker id.
@@ -118,10 +120,15 @@ final class Session {
         renderer.setImagery(baseLayer, site: source.site)
         renderer.setTerrain(terrain)
         renderer.setStations(shownMarkers)
-        // A link that opened on the sky view: there is no globe to fly from yet.
+        // What a link opened on before the renderer was there to be told: the
+        // sky view, with no globe to fly from yet, or something followed.
         if let observer, let station = passes.station(observer) {
             renderer.enterSky(SkyCamera(latitude: station.latitude, longitude: station.longitude), animated: false)
+        } else if let tracked {
+            renderer.track(tracked)
         }
+        // The links went to no renderer at all if they were built before it.
+        linksKey = nil
         satellites.attach(renderer)
         starMap.attach(renderer)
     }
