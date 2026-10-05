@@ -21,14 +21,25 @@ public struct Catalog: Sendable {
 
     public init() {}
 
+    /// The tags each group was last added with, which its entries carry.
+    private var groupTags: [String: Set<String>] = [:]
+
     /// Adds a group's records, or newer element sets for satellites already known:
     /// two groups serving one satellite may lag each other, and the newer epoch
-    /// wins. Whether anything changed.
+    /// wins. A group's records are the whole group: a satellite it no longer
+    /// serves, renamed or decayed since a copy kept on disk or shipped in the
+    /// app, leaves the group, and the catalog once no group serves it. Whether
+    /// anything changed.
     @discardableResult
     public mutating func add(_ records: [GPRecord], tags: [String], group: String? = nil) -> Bool {
         var changed = false
+        if let group {
+            groupTags[group] = Set(tags)
+        }
+        var served = Set<String>()
         for record in records {
             let id = "\(record.satnum)|\(record.name)"
+            served.insert(id)
             guard var entry = entries[id] else {
                 entries[id] = CatalogEntry(id: id, record: record, tags: Set(tags), groups: group.map { [$0] } ?? [])
                 changed = true
@@ -38,6 +49,7 @@ public struct Catalog: Sendable {
             entry.tags.formUnion(tags)
             if let group {
                 entry.groups.insert(group)
+                entry.tags = self.tags(of: entry.groups)
             }
             if record != entry.record, record.meanElements.epoch.julianDate >= entry.record.meanElements.epoch.julianDate {
                 entry.record = record
@@ -47,7 +59,24 @@ public struct Catalog: Sendable {
                 changed = true
             }
         }
+        if let group {
+            for (id, var entry) in entries where entry.groups.contains(group) && !served.contains(id) {
+                entry.groups.remove(group)
+                if entry.groups.isEmpty {
+                    entries[id] = nil
+                } else {
+                    entry.tags = self.tags(of: entry.groups)
+                    entries[id] = entry
+                }
+                changed = true
+            }
+        }
         return changed
+    }
+
+    /// What the groups serving an entry tag it with.
+    private func tags(of groups: Set<String>) -> Set<String> {
+        groups.reduce(into: Set<String>()) { $0.formUnion(groupTags[$1] ?? []) }
     }
 
     public func entries(tagged tag: String) -> [CatalogEntry] {
