@@ -1,10 +1,9 @@
 // Ground stations as pins standing on the globe, as the web app's billboards are:
-// scaled from 0.4 at 100 m to 0.22 at 40,000 km, its tip on the spot. From 56 pt
-// rather than the web's 96 px: the needle is all height, where the web's pin is a
-// broad head whose artwork fills the whole square. And
-// the ground station link: a line from a satellite to the station it is passing,
-// drawn while the pass lasts, five pixels wide in forest green with Cesium's
-// PolylineGlowMaterial at a glow power of 0.5.
+// the same artwork, scaled from 0.4 at 100 m to 0.22 at 40,000 km, its tip on the
+// spot. From 56 pt rather than the web's 96 px, which stood too tall over a
+// phone-sized globe. And the ground station link: a line from a satellite to the
+// station it is passing, drawn while the pass lasts, five pixels wide in forest
+// green with Cesium's PolylineGlowMaterial at a glow power of 0.5.
 //
 // The glow is ported from CesiumJS (Shaders/Materials/PolylineGlowMaterial.glsl).
 // Copyright 2011-2024 CesiumJS Contributors. Licensed under the Apache License,
