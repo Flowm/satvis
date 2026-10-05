@@ -102,12 +102,12 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   controls laid over it take the touches that land on them. They go to the
   renderer, which steers whichever camera its `CameraMode` says is in use: the free
   one over the globe, or one following a satellite or a station.
-- Ground stations are kept in `UserDefaults` and mirrored to iCloud key-value
-  storage (`satvis.entitlements`), so they follow the user to their other
-  devices. That needs the iCloud capability on the App ID. A station has an id
-  that syncs with it, and everything that refers to one holds the id, not its
-  place in the list or its name: the open panel, the renderer's marker
-  (`station|<id>`), each pass, and an alert, which is dropped with its station.
+- Ground stations are kept in `UserDefaults` on the device and synced nowhere:
+  iCloud key-value sync was dropped, as it brought little and cost a section of
+  the privacy policy. A station has an id, and everything that refers to one
+  holds the id, not its place in the list or its name: the open panel, the
+  renderer's marker (`station|<id>`), each pass, and an alert, which is dropped
+  with its station.
 - Every element set reaches SGP4 as OMM keywords (`MeanElements`). The worker's
   pseudo element sets still arrive as TLE lines; they are read into the same
   keywords at parse time, and Vallado's `twoline2rv` is never called.
