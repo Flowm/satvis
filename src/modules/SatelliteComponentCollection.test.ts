@@ -1,10 +1,10 @@
-import { type BoundingSphere, Cartesian3, Entity, JulianDate, type Property } from "@cesium/engine";
+import { type BoundingSphere, Cartesian3, Entity, JulianDate, Math as CesiumMath, PerspectiveFrustum, type Property } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { describe, expect, test } from "vitest";
 
 import type { GroundStation } from "./PassPredictor";
 import { CatalogEntry } from "./SatelliteCatalog";
-import { SatelliteComponentCollection } from "./SatelliteComponentCollection";
+import { SatelliteComponentCollection, modelMinimumPixelSize } from "./SatelliteComponentCollection";
 import { parseGpPayload, type GpRecord } from "./util/gp";
 import { InlinePassSource } from "./util/passSource";
 import { PolylineBatch } from "./util/PolylineBatch";
@@ -31,6 +31,10 @@ function fakeViewer() {
       requestRender: () => {},
       primitives: { add: () => {}, remove: () => true },
       mode: 3,
+      // A desktop window: Cesium's 60° is then the horizontal angle.
+      camera: { frustum: new PerspectiveFrustum({ fov: CesiumMath.toRadians(60), aspectRatio: 1400 / 900 }) },
+      canvas: { clientWidth: 1400, clientHeight: 900 },
+      globe: { ellipsoid: { maximumRadius: 6378137 } },
       frameState: {},
       postRender: { addEventListener: (listener: () => void) => (postRender.add(listener), () => postRender.delete(listener)) },
     },
@@ -147,6 +151,31 @@ describe("SatelliteComponentCollection 3D model", () => {
     expect((sat.components["3D model"] as Entity).model?.uri?.getValue(JulianDate.now())).toBe("./data/models/ISS-(ZARYA).glb");
   });
 
+  test("is drawn no smaller than its real size allows, in css pixels", async () => {
+    const { sat, viewer, setModelRadius } = await setup();
+    sat.show(["Point", "3D model"]);
+    const minimumPixelSize = () => (sat.components["3D model"] as Entity).model!.minimumPixelSize!.getValue(viewer.clock.currentTime);
+
+    setModelRadius(65);
+    expect(minimumPixelSize()).toBe(72);
+    setModelRadius(0.15);
+    expect(minimumPixelSize()).toBe(20);
+  });
+
+  test("is never bigger than at the default view, so zoomed out it shrinks with the globe", async () => {
+    const { sat, viewer, setModelRadius } = await setup();
+    sat.show(["Point", "3D model"]);
+    const largestDiameter = (radius: number) => {
+      setModelRadius(radius);
+      return (sat.components["3D model"] as Entity).model!.maximumScale!.getValue(viewer.clock.currentTime) * 2 * radius;
+    };
+    const earth = 2 * 6378137;
+
+    // About a tenth of the Earth for the ISS, and a cubesat at its 20 of the ISS's 72 px.
+    expect(largestDiameter(65) / earth).toBeCloseTo(0.103, 3);
+    expect(largestDiameter(0.15) / largestDiameter(65)).toBeCloseTo(20 / 72);
+  });
+
   test("is not drawn, and nothing is fetched, for a satellite without a model", async () => {
     const { sat, viewer } = await setup({ modelFile: null });
     sat.show(["Point", "3D model"]);
@@ -154,6 +183,19 @@ describe("SatelliteComponentCollection 3D model", () => {
     // Tracking does not wait for a model that will never load.
     sat.track();
     expect(viewer.trackedEntity).toBe(sat.components.Point);
+  });
+});
+
+describe("modelMinimumPixelSize", () => {
+  test("orders models by size between a cubesat's floor and the ISS's ceiling", () => {
+    expect(modelMinimumPixelSize(0.3)).toBe(20);
+    expect(modelMinimumPixelSize(3.8)).toBeCloseTo(36, 0);
+    expect(modelMinimumPixelSize(13.4)).toBeCloseTo(55, 0);
+    expect(modelMinimumPixelSize(131)).toBe(72);
+  });
+
+  test("keeps Landsat well above a cubesat, whatever its sphere leaves empty", () => {
+    expect(modelMinimumPixelSize(13.4) / modelMinimumPixelSize(0.64)).toBeGreaterThan(2.5);
   });
 });
 

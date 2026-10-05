@@ -877,3 +877,72 @@ turns `requestRenderMode` off.
 Running: 113 renders in 309 ticks. Paused: 0 renders in 310 ticks, with the sensor cone
 and ground station link (the `CallbackProperty` users) on. Rerun with `?framems=16`
 and no panel: 115 and 0, `requestRenderMode` on throughout.
+
+## Orbit batch: the line passes through the satellite
+
+**Why it cannot be a unit test.** The unit test pins the ICRF transform to identity; the
+gap that matters is in the fixed frame, with the real rotation.
+
+**Procedure.** `?tags=&sats=ISS+(ZARYA),NOAA+20+(JPSS-1)&elements=Point,Orbit&framems=16`.
+For starts across one sampling interval, rotate the batch's orbit with
+`computeIcrfToFixedMatrix(t)` over the next quarter period and take the satellite's
+distance to the nearest segment. For cost, time `positionsForNextOrbit` over
+`?tags=Starlink`.
+
+**Result, 2026-10-05, Chrome (in-app browser pane, frame pump on).** Worst gap: ISS
+5.9 → 2.3 km, NOAA 20 7.1 → 2.5 km; the rest is the chord between samples. 11,146
+orbits: +21 ms per full rebuild, against 1.4 s on the main thread for the rebuild itself.
+
+## Time-dependent imagery: GOES-IR and VIIRS follow the clock
+
+**Why it cannot be a unit test.** Which tiles Cesium asks GIBS for, and whether a removed
+layer goes quiet, need the real globe and the real service.
+
+**Procedure.** `?tags=&layers=VIIRS,GOES-IR&time=2026-10-03T15:07Z&framems=16` with a
+viewport; raise `performance.setResourceTimingBufferSize` so the requests show. Move the
+clock, group GIBS requests by the time in their path, run at 3600×, then
+`setLayers(["NaturalEarth"])` and move the clock again.
+
+**Result, 2026-10-05, Chrome (in-app browser pane, frame pump on).** 15:07 showed the
+15:00 frame and an hour later 16:00, all 200; live at 14:29 UTC, the latest published
+frame and today's VIIRS. 3600×: ~53 requests a second, frames p50 16 ms, p99 36 ms.
+After removal, no GIBS requests and the layers' clocks stopped following the viewer's.
+
+## 3D models: visible from afar without crowding the globe
+
+**Why it cannot be a unit test.** The minimum size is unit-tested
+(`SatelliteComponentCollection.test.ts`); how big a model then looks, and whether it
+hides the globe or its neighbours, is a picture. The bounding sphere the minimum is
+set from says little about what a model covers: Landsat's is mostly one dark solar
+wing, FOREST-3's a bright box that fills it.
+
+**Procedure.** Open
+`?elements=Point,Label,3D+model&sats=ISS+(ZARYA),LANDSAT+8,ICESAT-2,GRACE-FO+1,GRACE-FO+2,FOREST-3&framems=16`,
+pause the clock and look at each model from 16,000 km and closer. For the pixels a
+model covers, render with its `model.show` off and on and count the pixels that
+differ; judge looks at a 1:1 css crop, since the pane's screenshots are scaled.
+`minimumPixelSize` is in css pixels: Cesium's `Camera.getPixelSize` already applies
+`scene.pixelRatio`.
+
+**Result, 2026-10-05, Chrome (in-app browser pane, frame pump on), 800×600 at
+ratio 2, Landsat 8 and FOREST-3 in one view from 16,000 km.**
+
+| `minimumPixelSize`                   | Landsat 8 (13.4 m sphere) | FOREST-3 (0.64 m sphere) |
+| ------------------------------------ | ------------------------- | ------------------------ |
+| `50`, `maximumScale: 10000` (before) | a speck                   | under a pixel            |
+| log, 24–48 px                        | 37×22 px, 233 px²         | 19×16 px, 209 px²        |
+| the same × `pixelRatio` (a bug)      | 76×45 px, 976 px²         | 38×33 px, 875 px²        |
+| cube root, 20–72 px (shipped)        | 55×33 px, 506 px²         | 15×13 px, 143 px²        |
+
+Under the log curve FOREST-3 looked the bigger of the two. Under the cube root GRACE-FO
+is 36 px and the ISS 72, and each model takes its real size once that is larger.
+GRACE-FO 1 and 2 still touch at 20,000 km. Paused, the scene drew 0 frames in 248
+ticks with the models on.
+
+**Zooming out, same setup at 1400×900.** Move the camera out along its own direction to
+1, 2, 4 and 10 times the default view's distance from the Earth's centre, and crop each
+frame to the same globe size. With no `maximumScale` the minimum held every model at
+20–72 px however small the globe got: at 4× the ISS spanned a third of the disc, at 10×
+the ISS and Landsat covered it. With the cap, the frames at 1× were identical to the
+uncapped ones, and further out every model kept its default-view share of the globe,
+the ISS about a tenth of its diameter.

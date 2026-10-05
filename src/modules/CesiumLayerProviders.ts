@@ -1,5 +1,6 @@
 import {
   ArcGisMapServerImageryProvider,
+  type Clock,
   ArcGISTiledElevationTerrainProvider,
   CesiumTerrainProvider,
   createWorldTerrainAsync,
@@ -13,13 +14,23 @@ import {
   WebMapServiceImageryProvider,
 } from "@cesium/engine";
 
+import { createGibsTimeLayer } from "./GibsTimeLayer";
+
 // Always present — see data/imagery/.gitignore for what is tracked. How deep it goes
 // is `__IMAGERY_MAX_LEVEL__`, decided in vite.config.ts, which is also where the
 // reasoning lives.
 const NATURAL_EARTH = "data/imagery/NaturalEarthII";
 
+/** What a layer that follows the simulation time needs from the viewer it is added to. */
+export interface ImageryContext {
+  clock: Clock;
+  requestRender: () => void;
+  /** Aborted once the layer is removed, to stop listening to the clock. */
+  signal: AbortSignal;
+}
+
 export interface ImageryProviderEntry {
-  create: () => ImageryProvider | Promise<ImageryProvider>;
+  create: (context: ImageryContext) => ImageryProvider | Promise<ImageryProvider>;
   alpha: number;
   base: boolean;
 }
@@ -103,22 +114,22 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
     alpha: 1,
     base: true,
   },
+  // The day's true colour as VIIRS imaged it, daily since 2015. A composite of
+  // swaths, so the gaps between them near the equator are black.
+  VIIRS: {
+    create: (context) => createGibsTimeLayer({ layer: "VIIRS_SNPP_CorrectedReflectance_TrueColor", maximumLevel: 9, format: "jpeg", daily: true }, context),
+    alpha: 1,
+    base: true,
+  },
   Tiles: {
     create: () => new TileCoordinatesImageryProvider(),
     alpha: 1,
     base: false,
   },
+  // GOES-East's clean infrared band at the simulation time, every 10 minutes for
+  // the last few months; the full disk over the Americas.
   "GOES-IR": {
-    create: () =>
-      new WebMapServiceImageryProvider({
-        url: "https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi?",
-        layers: "goes_conus_ir",
-        credit: "Infrared data courtesy Iowa Environmental Mesonet",
-        parameters: {
-          transparent: "true",
-          format: "image/png",
-        },
-      }),
+    create: (context) => createGibsTimeLayer({ layer: "GOES-East_ABI_Band13_Clean_Infrared", maximumLevel: 6, format: "png", daily: false }, context),
     alpha: 0.5,
     base: false,
   },

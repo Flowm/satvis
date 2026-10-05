@@ -1,4 +1,4 @@
-import { Cartesian3, JulianDate, Matrix3, Transforms } from "@cesium/engine";
+import { Cartesian3, JulianDate, Matrix3, ReferenceFrame, Transforms } from "@cesium/engine";
 import dayjs from "dayjs";
 import { propagate } from "satellite.js";
 import { beforeEach, describe, expect, test, vi } from "vitest";
@@ -78,17 +78,14 @@ describe("SampledTrajectory", () => {
     expect(trajectory.position(later)).toBeDefined();
   });
 
-  test("positionsForNextOrbit returns one orbit of raw samples closed into a loop", async () => {
+  test("positionsForNextOrbit returns one orbit closed into a loop", async () => {
     const { trajectory } = issTrajectory();
     await trajectory.ensure(T0);
 
     const positions = trajectory.positionsForNextOrbit(T0);
-    // ~120 samples per orbit plus the repeated first sample closing the loop.
+    // ~120 samples per orbit, the head, and the head again closing the loop.
     expect(positions.length).toBeGreaterThan(100);
     expect(positions.at(-1)).toBe(positions[0]);
-
-    const open = trajectory.positionsForNextOrbit(T0, "inertial", false);
-    expect(open.length).toBe(positions.length - 1);
   });
 
   test("groundTrack samples positions around the given time", async () => {
@@ -171,14 +168,28 @@ describe("SampledTrajectory", () => {
     expect(trajectory.inertial?.length()).toBe(trajectory.sampleCount);
   });
 
+  test("positionsForNextOrbit starts and closes the loop at the satellite, not at the next stored sample", async () => {
+    const { trajectory } = issTrajectory();
+    await trajectory.ensure(T0);
+    trajectory.requireInertial();
+
+    // Across one sampling interval, so most starts fall between two stored samples.
+    for (let offset = 0; offset < 50; offset += 7) {
+      const start = JulianDate.addSeconds(T0, offset, new JulianDate());
+      const positions = trajectory.positionsForNextOrbit(start);
+      const satellite = trajectory.inertial!.getValueInReferenceFrame(start, ReferenceFrame.INERTIAL)!;
+
+      expect(Cartesian3.distance(positions[0]!, satellite)).toBeLessThan(1);
+      expect(positions.at(-1)).toBe(positions[0]);
+    }
+  });
+
   test("positionsForNextOrbit asking for the inertial frame requires it implicitly", async () => {
     const { trajectory } = issTrajectory();
     await trajectory.ensure(T0);
     expect(trajectory.inertial).toBeUndefined();
 
-    const positions = trajectory.positionsForNextOrbit(T0, "inertial", false);
-
-    expect(positions.length).toBeGreaterThan(0);
+    expect(trajectory.positionsForNextOrbit(T0).length).toBeGreaterThan(0);
     expect(trajectory.inertial).toBeDefined();
   });
 

@@ -28,6 +28,7 @@ import utc from "dayjs/plugin/utc";
 import { currentPosition } from "../composables/useGeolocation";
 import { usePostHog } from "../composables/usePostHog";
 import { useToastProxy } from "../composables/useToastProxy";
+import { defaultViewDistance } from "../config/defaultView";
 import { parseLayer } from "../config/layers";
 import { MSAA_RATES, PIXEL_RATIOS, msaaSamplesFor, resolutionScaleFor } from "../config/rendering";
 import { STAR_MAPS, type StarMapSources, starMapSources } from "../config/starMaps";
@@ -36,6 +37,7 @@ import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 import {
   baseLayerNames,
+  type ImageryContext,
   type ImageryProviderEntry,
   imageryProviders,
   overlayLayerNames,
@@ -73,12 +75,6 @@ const BATCHED_COMPONENTS = ["Orbit", "Orbit track"] as const;
  */
 const DEFAULT_VIEW_LON = 15;
 const DEFAULT_VIEW_LAT = 25;
-
-/**
- * How much of the screen's narrower axis the globe spans on opening. Under one so
- * the whole disc is in frame with room around it, rather than touching two edges.
- */
-const DEFAULT_VIEW_FILL = 0.82;
 
 /**
  * The value the error panel received, as an error worth a report.
@@ -148,6 +144,9 @@ export class CesiumController {
   #uiVisible: boolean = true;
 
   #removeCameraTrackEci: (() => void) | undefined;
+
+  // Aborted when the imagery layers are replaced, which detaches any that follow the clock.
+  #imageryLifetime = new AbortController();
 
   /**
    * The reference frame the camera is pinned to. Suppressed by the sky view,
@@ -274,13 +273,9 @@ export class CesiumController {
       return;
     }
     const aspectRatio = canvas.clientHeight > 0 ? canvas.clientWidth / canvas.clientHeight : 1;
-    // Whichever angle Cesium is *not* reporting is the narrow one, by the rule
-    // above — so the derived angle is always the one the globe has to fit inside.
-    const { fov } = camera.frustum;
-    const narrow = aspectRatio > 1 ? 2 * Math.atan(Math.tan(fov / 2) / aspectRatio) : 2 * Math.atan(Math.tan(fov / 2) * aspectRatio);
     // The equatorial radius, because that is the widest the disc can be.
     const radius = globe.ellipsoid.maximumRadius;
-    const height = radius / Math.sin((narrow / 2) * DEFAULT_VIEW_FILL) - radius;
+    const height = defaultViewDistance(camera.frustum.fov, aspectRatio, radius) - radius;
     camera.setView({ destination: Cartesian3.fromDegrees(DEFAULT_VIEW_LON, DEFAULT_VIEW_LAT, height) });
   }
 
@@ -327,6 +322,8 @@ export class CesiumController {
   }
 
   clearImageryLayers(): void {
+    this.#imageryLifetime.abort();
+    this.#imageryLifetime = new AbortController();
     this.viewer.scene.imageryLayers.removeAll();
   }
 
@@ -337,7 +334,12 @@ export class CesiumController {
     }
 
     const provider = imageryProviders[imageryProviderName] as ImageryProviderEntry;
-    const layer = ImageryLayer.fromProviderAsync(Promise.resolve(provider.create()), {});
+    const context: ImageryContext = {
+      clock: this.viewer.clock,
+      requestRender: () => this.viewer.scene.requestRender(),
+      signal: this.#imageryLifetime.signal,
+    };
+    const layer = ImageryLayer.fromProviderAsync(Promise.resolve(provider.create(context)), {});
     layer.alpha = alpha === undefined ? provider.alpha : alpha;
     return layer;
   }
