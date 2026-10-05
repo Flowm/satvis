@@ -257,9 +257,14 @@ private struct ToolMenu<Tools: View>: View {
 /// The size of a large `.glass` button, with no glass of its own: that goes on
 /// around the whole control (`toolGlass`), where a menu's label shows it too.
 private struct ToolButtonStyle: ButtonStyle {
+    // Scaled with the text as the system's glass buttons are, the Share button
+    // beside them among them: about as a large title grows, icon and all.
+    @ScaledMetric(relativeTo: .largeTitle) private var width = 62.0
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .frame(width: 62, height: 52)
+            .scaleEffect(width / 62)
+            .frame(width: width, height: width * 52 / 62)
             .contentShape(.capsule)
     }
 }
