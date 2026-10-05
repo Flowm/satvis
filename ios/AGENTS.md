@@ -4,7 +4,7 @@ The native app: SwiftUI with no web view, reading the same worker as the web app
 Xcode 27, Swift 6 with MainActor default isolation in the app target, iOS 26 and
 later. Xcode Cloud builds, numbers and publishes every release; there is no
 fastlane. Why it is built this way, and the milestones it is built in, are in
-`docs/adr/0007-native-ios-app.md`. The WebView app it replaces is the tag
+`docs/adr/0008-native-ios-app.md`. The WebView app it replaces is the tag
 `ios-webview-final`.
 
 ## Layout
@@ -37,7 +37,7 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
 - Terrain (`Terrain.swift`) is Re:Earth's quantized mesh, decoded and kept per
   terrain tile; a surface tile's grid is laid over the terrain tile log₂(screen
   scale) levels coarser, the level the web app would ask for, so the app asks
-  Re:Earth no more than the web app does. ADR 0007 has why. The texture budget
+  Re:Earth no more than the web app does. ADR 0008 has why. The texture budget
   is soft: a low, oblique view can use more tiles than it, and evicting tiles in
   use only starts the refinement over.
 - The attribution is the web app's credit display: an "Attribution" link above
@@ -122,7 +122,7 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   required-reason API and every data type collected, and keep the App Store
   privacy label in step with it.
 - Analytics (`Analytics.swift`) is posthog-ios, set up from the app delegate as
-  its guide has it, reporting to the web app's project (ADR 0007): a `$pageview`
+  its guide has it, reporting to the web app's project (ADR 0008): a `$pageview`
   of the view's link whenever the view changes, the clock aside, its ground
   stations cut to the whole degree as the web's `posthogPrivacy.ts` does
   (`sanitizedForAnalytics`, held to it by the parity fixtures). It reports only

@@ -4,7 +4,7 @@ import Testing
 @testable import SatvisCore
 
 /// The passes the web app's `Orbit` finds for the parity element sets
-/// (scripts/parity/generate.mjs). ADR 0007 allows a second on a start or an end.
+/// (scripts/parity/generate.mjs). ADR 0008 allows a second on a start or an end.
 /// The search propagates the same instants, so they agree far closer than that.
 /// Elevation passes agree exactly. A swath pass agrees to the 10 ms its edges are
 /// bisected to: near a closest approach the distance barely changes from one

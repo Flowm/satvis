@@ -15,7 +15,9 @@ workspace package). One `pnpm install` at the root covers both.
   (0001), satellite metadata and swath extents (0002), the sky view (0003),
   compass aiming (0004), surface models (0005), SATCAT enrichment (0006), model
   manifests (0007), GCAT and the one owner per metadata field (0008), the native
-  iOS app (0007).
+  iOS app (0008).
+- **`docs/manual-verification.md`** — the checks jsdom cannot run. Rerun the ones
+  covering code you change, and record what they returned.
 - **`e2e/`** — Playwright specs against the running app: `journeys/` walks the main
   flows through the menus, `regressions/` pins down one past bug each, for what
   needs layout, a GPU or frames. Read `e2e/support/app.ts` before writing one: it
