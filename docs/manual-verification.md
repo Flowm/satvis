@@ -892,3 +892,18 @@ distance to the nearest segment. For cost, time `positionsForNextOrbit` over
 **Result, 2026-10-05, Chrome (in-app browser pane, frame pump on).** Worst gap: ISS
 5.9 → 2.3 km, NOAA 20 7.1 → 2.5 km; the rest is the chord between samples. 11,146
 orbits: +21 ms per full rebuild, against 1.4 s on the main thread for the rebuild itself.
+
+## Time-dependent imagery: GOES-IR and VIIRS follow the clock
+
+**Why it cannot be a unit test.** Which tiles Cesium asks GIBS for, and whether a removed
+layer goes quiet, need the real globe and the real service.
+
+**Procedure.** `?tags=&layers=VIIRS,GOES-IR&time=2026-10-03T15:07Z&framems=16` with a
+viewport; raise `performance.setResourceTimingBufferSize` so the requests show. Move the
+clock, group GIBS requests by the time in their path, run at 3600×, then
+`setLayers(["NaturalEarth"])` and move the clock again.
+
+**Result, 2026-10-05, Chrome (in-app browser pane, frame pump on).** 15:07 showed the
+15:00 frame and an hour later 16:00, all 200; live at 14:29 UTC, the latest published
+frame and today's VIIRS. 3600×: ~53 requests a second, frames p50 16 ms, p99 36 ms.
+After removal, no GIBS requests and the layers' clocks stopped following the viewer's.

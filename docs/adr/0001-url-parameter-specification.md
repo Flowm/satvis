@@ -113,9 +113,10 @@ the worker config (`worker/src/config/satvis.core.yaml`) is a single word. Addin
 encode as `+` — but it must never be escaped as `-`.
 
 `layers` items are validated against the leading segment before `_`. Base layers:
-`NaturalEarth`, `ArcGis`, `VersaTiles`, `OSM`, `BlackMarble`. Overlays: `Tiles`,
-`GOES-IR`, `Nextrad`. The split is also how the Map menu presents them — one basemap on
-radios, any number of overlays on checkboxes — and `base` on the registry entry is the one
+`NaturalEarth`, `ArcGis`, `VersaTiles`, `OSM`, `BlackMarble`, `VIIRS`. Overlays: `Tiles`,
+`GOES-IR`, `Nextrad`. `VIIRS` and `GOES-IR` show the frame for `time` (`GibsTimeLayer`).
+The split is also how the Map menu presents them — one basemap on radios, any number of
+overlays on checkboxes — and `base` on the registry entry is the one
 place it is decided. The optional `_<alpha>` suffix sets that layer's opacity and has no
 UI control. The accepted set is derived from the imagery-provider registry
 (`imageryProviderNames`), not restated, so it cannot drift.

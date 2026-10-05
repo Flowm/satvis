@@ -36,6 +36,7 @@ import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 import {
   baseLayerNames,
+  type ImageryContext,
   type ImageryProviderEntry,
   imageryProviders,
   overlayLayerNames,
@@ -148,6 +149,9 @@ export class CesiumController {
   #uiVisible: boolean = true;
 
   #removeCameraTrackEci: (() => void) | undefined;
+
+  // Aborted when the imagery layers are replaced, which detaches any that follow the clock.
+  #imageryLifetime = new AbortController();
 
   /**
    * The reference frame the camera is pinned to. Suppressed by the sky view,
@@ -327,6 +331,8 @@ export class CesiumController {
   }
 
   clearImageryLayers(): void {
+    this.#imageryLifetime.abort();
+    this.#imageryLifetime = new AbortController();
     this.viewer.scene.imageryLayers.removeAll();
   }
 
@@ -337,7 +343,12 @@ export class CesiumController {
     }
 
     const provider = imageryProviders[imageryProviderName] as ImageryProviderEntry;
-    const layer = ImageryLayer.fromProviderAsync(Promise.resolve(provider.create()), {});
+    const context: ImageryContext = {
+      clock: this.viewer.clock,
+      requestRender: () => this.viewer.scene.requestRender(),
+      signal: this.#imageryLifetime.signal,
+    };
+    const layer = ImageryLayer.fromProviderAsync(Promise.resolve(provider.create(context)), {});
     layer.alpha = alpha === undefined ? provider.alpha : alpha;
     return layer;
   }

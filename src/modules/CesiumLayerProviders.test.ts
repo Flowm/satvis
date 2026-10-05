@@ -27,7 +27,7 @@ describe("the NaturalEarth base map", () => {
   test("is the only offline basemap — every other one needs the network", () => {
     // Named sources rather than a count, so adding a hosted layer does not fail this
     // while removing the offline one silently would.
-    expect(baseLayerNames()).toEqual(["NaturalEarth", "ArcGis", "VersaTiles", "OSM", "BlackMarble"]);
+    expect(baseLayerNames()).toEqual(["NaturalEarth", "ArcGis", "VersaTiles", "OSM", "BlackMarble", "VIIRS"]);
   });
 
   test("opacity-only overlays stay overlays", () => {
