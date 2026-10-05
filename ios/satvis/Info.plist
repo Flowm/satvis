@@ -11,6 +11,14 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<!-- One window: the app has one session, and a second window would run it
+	     twice and take its globe over. Written here, with the generated scene
+	     manifest switched off in the build settings, which would say otherwise. -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+	</dict>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
