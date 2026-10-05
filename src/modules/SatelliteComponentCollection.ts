@@ -21,6 +21,7 @@ import {
   ModelGraphics,
   NearFarScalar,
   PathGraphics,
+  PerspectiveFrustum,
   PointGraphics,
   PolylineColorAppearance,
   PolylineGeometry,
@@ -35,6 +36,7 @@ import CesiumSensorVolumes from "cesium-sensor-volumes";
 
 import { clearPassHighlights, setPassHighlights } from "../composables/usePassHighlights";
 import { SATELLITE_COMPONENTS } from "../config/components";
+import { defaultViewDistance } from "../config/defaultView";
 import { ORBIT_CLASS_COLOR, type OrbitClass } from "../config/orbitClass";
 import type { GroundStation } from "./PassPredictor";
 import type { CatalogEntry } from "./SatelliteCatalog";
@@ -76,6 +78,16 @@ const VIEW_FROM_MODEL_DIRECTION = Cartesian3.normalize(new Cartesian3(9, -10, 5)
 const VIEW_FROM_MODEL_RADII = 6;
 /** For a model not loaded yet: a small satellite's. */
 const FALLBACK_MODEL_RADIUS = 2.5;
+
+/**
+ * The smallest a model is drawn, in css pixels, by the diameter of its bounding
+ * sphere in metres: a cubesat at 20, Landsat at 55, the ISS at 72. A cube root
+ * rather than a log, which let a compact cubesat cover as many pixels as Landsat,
+ * whose sphere is mostly one dark solar wing.
+ */
+export function modelMinimumPixelSize(diameter: number): number {
+  return Math.min(72, Math.max(20, 23 * Math.cbrt(diameter)));
+}
 
 /**
  * How each component is made. Keyed against the config list rather than written
@@ -123,6 +135,7 @@ type Component = Entity | GeometryInstance;
 export class SatelliteComponentCollection {
   /** Written into by `getBoundingSphere`. See groundTrackSettled. */
   static readonly #sphereScratch = new BoundingSphere();
+  static readonly #pixelScratch = new Cartesian2();
 
   /** So a broken assumption is reported once rather than on every tick. */
   static #reportedMissingBoundingSphere = false;
@@ -348,6 +361,23 @@ export class SatelliteComponentCollection {
     false,
   );
 
+  /**
+   * The scale at which the model is its minimum size as seen from as far as the
+   * default view is from the Earth's centre. Zoomed out beyond that it shrinks with
+   * the globe instead of covering it. Relative to the default view, not a fixed
+   * factor: a fixed 10,000x held a cubesat under a pixel at the default view.
+   */
+  #modelMaximumScale(): number | undefined {
+    const { camera, canvas, globe } = this.viewer.scene;
+    if (!(camera.frustum instanceof PerspectiveFrustum) || camera.frustum.fov === undefined || canvas.clientHeight === 0) {
+      return undefined;
+    }
+    const distance = defaultViewDistance(camera.frustum.fov, canvas.clientWidth / canvas.clientHeight, globe.ellipsoid.maximumRadius);
+    const pixel = camera.frustum.getPixelDimensions(canvas.clientWidth, canvas.clientHeight, distance, 1, SatelliteComponentCollection.#pixelScratch);
+    const diameter = 2 * this.#modelRadius();
+    return (modelMinimumPixelSize(diameter) * Math.max(pixel.x, pixel.y)) / diameter;
+  }
+
   #modelPending(): boolean {
     return this.#modelState() === "loading";
   }
@@ -555,8 +585,8 @@ export class SatelliteComponentCollection {
     }
     const model = new ModelGraphics({
       uri: modelUrl(modelFile),
-      minimumPixelSize: 50,
-      maximumScale: 10000,
+      minimumPixelSize: new CallbackProperty(() => modelMinimumPixelSize(2 * this.#modelRadius()), false),
+      maximumScale: new CallbackProperty(() => this.#modelMaximumScale(), false),
     });
     this.createCesiumSatelliteEntity("3D model", "model", model);
   }
