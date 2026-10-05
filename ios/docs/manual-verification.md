@@ -105,3 +105,15 @@ keeping the ground's answers and putting the path on a 30 s grid brought it to
 as before, 33.0° and 177.9° S. The performance overlay showed 60 fps, CPU 9.3 ms
 in a Debug build, GPU 0.2 ms, 16,633 satellites and 256 MB. The simulator's
 figures are relative only; the phone's need a device.
+
+## Native app: terrain under Natural Earth
+
+**Procedure.** In the iPhone 17e simulator, open the Lauterbrunnen sky view
+(`scene=Sky&gs=46.5935,7.9091`) on the default Natural Earth base map, with `fps=true`.
+
+**Result, 2026-10-05.** Before, the ground was a flat green band: the surface stopped
+refining at Natural Earth's level 6, and the terrain under it was level 4, a grid
+20 km apart. With the surface refining to the terrain's level whenever terrain is
+on, the valley's cliffs stand either side as they do on VersaTiles, Natural Earth
+magnified over them, at 60 fps and 3.1 ms of CPU a frame in a Debug build; the lock
+on METEOSAT-11 read 33.0° and 177.9° S as before.

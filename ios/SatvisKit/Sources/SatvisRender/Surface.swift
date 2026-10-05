@@ -162,7 +162,13 @@ final class Surface {
         terrainOffset = Terrain.offset(pixelsPerPoint: pixelsPerPoint)
         let planes = Self.planes(viewProjection)
         let eyeLatLon = geodetic(eye)
-        let maximumLevel = max(source.maximumLevel + (source.tileSize == 512 && source.projection == .geographic ? 1 : 0), 6)
+        let imageryLevel = max(source.maximumLevel + (source.tileSize == 512 && source.projection == .geographic ? 1 : 0), 6)
+        // With terrain, as fine as the terrain goes, whatever the imagery does: the
+        // ground's grid is the surface tile's, and stopped where Natural Earth
+        // stops, at level 6, it laid level-4 terrain under the sky view, a grid
+        // 20 km apart that leaves a valley a plain. Past its own finest level
+        // the imagery is drawn magnified from it.
+        let maximumLevel = terrainEnabled ? max(imageryLevel, Terrain.maximumLevel + terrainOffset) : imageryLevel
         let sseFactor = viewportHeightPixels / (2 * tan(verticalFieldOfView / 2))
         var draw: [Tile] = []
         var bake: [Tile] = []
