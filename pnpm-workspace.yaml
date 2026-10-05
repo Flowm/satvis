@@ -3,8 +3,8 @@ packages:
 
 catalog:
   typescript: ^6.0.3
-  oxlint: ^1.82.0
-  oxfmt: ^0.67.0
+  oxlint: ^1.86.0
+  oxfmt: ^0.71.0
 
 # typescript held at 6.x: The TS7 programmatic API needed for vue-tsc will only be available with TS7.1
 # https://github.com/vuejs/language-tools/issues/5381#issuecomment-4950412322
