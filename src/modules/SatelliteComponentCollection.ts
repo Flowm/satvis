@@ -627,8 +627,7 @@ export class SatelliteComponentCollection {
     }
     const geometryInstance = new GeometryInstance({
       geometry: new PolylineGeometry({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        positions: positions as any,
+        positions,
         width: 2,
         arcType: ArcType.NONE,
         vertexFormat: PolylineColorAppearance.VERTEX_FORMAT,

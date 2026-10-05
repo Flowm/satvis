@@ -877,3 +877,18 @@ turns `requestRenderMode` off.
 Running: 113 renders in 309 ticks. Paused: 0 renders in 310 ticks, with the sensor cone
 and ground station link (the `CallbackProperty` users) on. Rerun with `?framems=16`
 and no panel: 115 and 0, `requestRenderMode` on throughout.
+
+## Orbit batch: the line passes through the satellite
+
+**Why it cannot be a unit test.** The unit test pins the ICRF transform to identity; the
+gap that matters is in the fixed frame, with the real rotation.
+
+**Procedure.** `?tags=&sats=ISS+(ZARYA),NOAA+20+(JPSS-1)&elements=Point,Orbit&framems=16`.
+For starts across one sampling interval, rotate the batch's orbit with
+`computeIcrfToFixedMatrix(t)` over the next quarter period and take the satellite's
+distance to the nearest segment. For cost, time `positionsForNextOrbit` over
+`?tags=Starlink`.
+
+**Result, 2026-10-05, Chrome (in-app browser pane, frame pump on).** Worst gap: ISS
+5.9 → 2.3 km, NOAA 20 7.1 → 2.5 km; the rest is the chord between samples. 11,146
+orbits: +21 ms per full rebuild, against 1.4 s on the main thread for the rebuild itself.

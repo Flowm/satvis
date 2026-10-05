@@ -284,28 +284,10 @@ export class SampledTrajectory {
     return this.entityPosition?.getValue(time);
   }
 
-  positionsForNextOrbit(start: JulianDate, reference: "inertial" | "fixed" = "inertial", loop = true): unknown[] {
-    if (!this.#data) return [];
-    const end = JulianDate.addSeconds(start, this.#orbit.orbitalPeriod * 60, new JulianDate());
-    let positions: unknown[];
-    if (reference === "fixed") {
-      // The grid holds the same samples and always exists, so asking for the
-      // Earth-relative path does not drag a sampled property into being.
-      positions = this.#positionsBetween(start, end);
-    } else {
-      // Asking for the inertial frame is the declaration itself.
-      this.requireInertial();
-      const inertial = this.#data.inertial;
-      if (!inertial) return [];
-      positions = inertial.getRawValues(start, end);
-    }
-    if (positions.length === 0) return [];
-    if (loop) {
-      // Repeating the first sample is what closes the orbit, rather than leaving
-      // a gap at the seam.
-      return [...positions, positions[0]];
-    }
-    return positions;
+  /** The inertial orbit one period ahead of `start`, closed into a loop at the satellite. */
+  positionsForNextOrbit(start: JulianDate): Cartesian3[] {
+    const positions = this.#orbitFrom(start, "inertial");
+    return drawablePositions([...positions, positions[0]]);
   }
 
   /**
@@ -320,18 +302,27 @@ export class SampledTrajectory {
    * would read as a bug rather than as a level of detail.
    */
   positionsForTrack(start: JulianDate): Cartesian3[] {
+    return this.#orbitFrom(start, "fixed");
+  }
+
+  /**
+   * The satellite's interpolated position at `start`, then the stored samples of one
+   * orbit. A head with nothing behind it, after a clock jump or a gap, is one point,
+   * which the callers' below-two checks skip until the refill lands.
+   */
+  #orbitFrom(start: JulianDate, frame: "inertial" | "fixed"): Cartesian3[] {
     if (!this.#data) return [];
     const end = JulianDate.addSeconds(start, this.#orbit.orbitalPeriod * 60, new JulianDate());
-    const head = this.position(start);
-    const samples = this.#positionsBetween(start, end);
-    // A head with nothing behind it — a clock jump, or the moment after a gap
-    // abandoned the grid — is one point, not a track, so the caller's below-two
-    // check skips the component until the next re-cut, once the refill lands.
-    //
-    // Not `[head, head]` to get past `PolylineGeometry`'s below-two-positions
-    // throw: the duplicate collapses to `undefined` geometry, which costs more
-    // than the missing component. See `drawablePositions`.
-    return drawablePositions(head ? [head, ...samples] : samples);
+    if (frame === "fixed") {
+      // The grid holds the same samples and always exists, so asking for the
+      // Earth-relative path does not drag a sampled property into being.
+      return drawablePositions([this.position(start), ...this.#positionsBetween(start, end)]);
+    }
+    // Asking for the inertial frame is the declaration itself.
+    this.requireInertial();
+    const inertial = this.#data.inertial;
+    if (!inertial) return [];
+    return drawablePositions([inertial.getValueInReferenceFrame(start, ReferenceFrame.INERTIAL), ...(inertial.getRawValues(start, end) as Cartesian3[])]);
   }
 
   groundTrack(julianDate: JulianDate, samplesFwd = 1, samplesBwd = 0, interval = 300): (Cartesian3 | undefined)[] {
