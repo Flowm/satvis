@@ -84,6 +84,19 @@ import simd
         #expect(after[0].trajectory.firstIndex == before[0].trajectory.firstIndex)
         #expect(after[0].trajectory.positions == before[0].trajectory.positions)
     }
+
+    // Two catalog entries sharing a catalog number under two names are both drawn,
+    // as the catalog keeps both.
+    @Test func drawsEachCatalogEntrySharingANumber() async throws {
+        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        var renamed = records[0]
+        renamed.name = "ISS (RENAMED)"
+        let store = TrajectoryStore()
+        await store.replace(with: [records[0], renamed])
+        let now = (try SGP4Propagator(records[0].meanElements).epochJulianDate - 2440587.5) * 86_400_000
+        let drawn = try #require(await store.refresh(at: now))
+        #expect(Set(drawn.map(\.record.name)) == ["ISS (ZARYA)", "ISS (RENAMED)"])
+    }
 }
 
 /// A low orbit with heavy drag, which SGP4 gives up on a few weeks after its epoch.

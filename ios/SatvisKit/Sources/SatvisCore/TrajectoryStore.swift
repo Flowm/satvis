@@ -20,9 +20,10 @@ public actor TrajectoryStore {
 
     public init() {}
 
-    /// Replaces the set. A satellite carried by several groups is drawn once, as
-    /// the web app's catalog keeps it once, and one already in the set keeps its
-    /// window, so that switching a group on does not resample every other one.
+    /// Replaces the set. A satellite is drawn once, by the catalog's identity
+    /// (`satnum|name`), so that two entries sharing a catalog number are both
+    /// drawn, as the web app draws them; one already in the set keeps its window,
+    /// so that switching a group on does not resample every other one.
     public func replace(with records: [GPRecord]) {
         var kept: [String: (propagator: SGP4Propagator, trajectory: SampledTrajectory?, failedAt: Double?)] = [:]
         for (index, entry) in propagators.enumerated() {
@@ -32,7 +33,7 @@ public actor TrajectoryStore {
         var nextPropagators: [(record: GPRecord, propagator: SGP4Propagator)] = []
         var nextTrajectories: [SampledTrajectory?] = []
         var nextFailedAt: [Int: Double] = [:]
-        for record in records where seen.insert(record.satnum).inserted {
+        for record in records where seen.insert(Self.identity(record)).inserted {
             if let old = kept[Self.key(record)] {
                 if let failed = old.failedAt {
                     nextFailedAt[nextPropagators.count] = failed
@@ -50,9 +51,14 @@ public actor TrajectoryStore {
         changedSinceRefresh = true
     }
 
+    /// The catalog entry a record is drawn for (`CatalogEntry.id`).
+    private static func identity(_ record: GPRecord) -> String {
+        "\(record.satnum)|\(record.name)"
+    }
+
     /// The same satellite with the same element set.
     private static func key(_ record: GPRecord) -> String {
-        "\(record.satnum)|\(record.meanElements.epoch.year)|\(record.meanElements.epoch.dayOfYear)"
+        "\(identity(record))|\(record.meanElements.epoch.year)|\(record.meanElements.epoch.dayOfYear)"
     }
 
     /// Resamples every window that no longer covers the instant. Returns the whole
