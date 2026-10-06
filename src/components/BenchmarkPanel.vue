@@ -556,7 +556,7 @@ let savedRequestRenderMode: boolean | undefined;
 
 onMounted(() => {
   // Render-on-demand skips idle frames, so every figure would measure idleness.
-  // Set through the store, not `scene.requestRenderMode`, so the Render menu's
+  // Set through the store, not `scene.requestRenderMode`, so the Graphics panel's
   // switch follows.
   savedRequestRenderMode = cesiumStore.requestRenderMode;
   cesiumStore.requestRenderMode = false;

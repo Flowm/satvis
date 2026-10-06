@@ -73,10 +73,9 @@ describe("useSatelliteBrowser search-only groups", () => {
     vi.unstubAllGlobals();
   });
 
-  test("a search-only group gets no row and no multiselect entry", async () => {
+  test("a search-only group gets no row", async () => {
     const { catalog, browser } = setup();
     await catalog.ensureAll();
-    expect(browser.availableGroups.value.map((group) => group.tag).toSorted()).toEqual(["Custom", "Weather"]);
     expect(browser.rows.value.map((row) => row.id)).toEqual(["g:Custom", "g:Weather"]);
     expect(browser.isLoading.value).toBe(false);
   });
@@ -123,7 +122,7 @@ describe("useSatelliteBrowser search-only groups", () => {
     const { catalog, browser } = setup();
     const satStore = useSatStore();
     await catalog.ensureAll();
-    browser.setEnabledTags(["Weather"]);
+    browser.toggleGroup("Weather");
     browser.activateSat("METEO-1");
     expect(satStore.disabledSatellites).toEqual([]);
     browser.activateSat("SENTINEL-1");
