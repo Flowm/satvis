@@ -76,13 +76,16 @@ struct ClockDeck<Accessory: View>: View {
                     .accessibilityLabel(clock.clock.isPlaying ? "Pause" : "Play")
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
+            // The row's height even with nothing in it, for the accessory over it:
+            // folded, the column held only a spacer, and the accessory, 8 pt
+            // tall in it, took no taps.
+            .frame(maxWidth: .infinity, minHeight: Metrics.playBox, alignment: .trailing)
             // Over the column rather than in it, so that however wide it grows it
             // cannot widen the column, push the clock off the needle and out of
             // its tab; it has the room the play button leaves.
             .overlay(alignment: .leading) {
                 accessory
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     .padding(.trailing, isOpen ? Metrics.playBox + Metrics.gap : Metrics.gap)
             }
 
