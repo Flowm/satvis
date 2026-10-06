@@ -255,7 +255,7 @@ export class SkyView {
    * Walk the observer, measuring the ground on a throttle. Do not fall back to
    * `globe.getHeight` here: under a surface model the globe is not what is stood
    * on, and its ellipsoid answer of 0 passes the guard and drops the eye through
-   * the mesh (docs/manual-verification.md).
+   * the mesh (docs/adr/0005-surface-models.md, the ground under the sky view).
    */
   moveObserver(observer: Observer): void {
     if (!this.#observer) {

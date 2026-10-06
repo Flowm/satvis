@@ -208,11 +208,18 @@ re-apply state from the query.
 
 ### Time
 
-The clock is **live** by default and `time` is absent. It becomes **pinned** only by
-a deliberate act: a `time` parameter in the incoming URL, or the user scrubbing the
-clock deck's timeline (`src/composables/useViewerClock.ts`). While pinned, `time`
-follows the clock at minute granularity, so a shared link reproduces the moment the
-sharer saw. A link without `time` opens at the recipient's present.
+The clock is **live** by default and `time` is absent. It is **pinned** whenever it
+is more than a minute off the present, the url's own granularity, however it got
+there: a `time` parameter in the incoming URL, a scrub on the clock deck's timeline,
+a pass link, a pause, or a fast playback speed. Back within the minute it is live
+again and `time` goes, so an absent `time` and the deck's Live dot always agree
+(`offPresent` in `src/modules/util/clockDeck.ts`). While pinned, `time` follows the
+clock at minute granularity, so a shared link reproduces the moment the sharer saw.
+A link without `time` opens at the recipient's present.
+
+Pinning only on a deliberate act, the earlier rule, left the url saying "live" while
+the clock showed another moment: after a pass link, or at 600× after "Back to now",
+a shared link opened at the present instead of what the sharer saw.
 
 ## Naming constraints
 

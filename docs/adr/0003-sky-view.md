@@ -237,5 +237,5 @@ outright: the cut, in full, not a faster version of the movement.
 - **The shared clock works in the sky view on every device**, through the clock deck
   (CONTEXT.md, **Clock deck**). It was desktop-only while `minimalUI` hid Cesium's
   clock widgets on iOS.
-- **The overlay's click-through is verified by hand**, because jsdom has no layout.
-  See `docs/manual-verification.md`.
+- **The overlay's click-through is checked in a real browser**, because the unit
+  tests have no layout: `e2e/regressions/skyHud.spec.ts`.

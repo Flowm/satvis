@@ -5,6 +5,15 @@ import utc from "dayjs/plugin/utc";
 
 dayjs.extend(utc);
 
+/** The granularity the url records anyway. See CONTEXT.md, live vs pinned time. */
+const PRESENT_TOLERANCE_MS = 60_000;
+
+/**
+ * Whether the clock shows a moment other than the present. The deck's Live dot goes
+ * out on it, and the url pins `time` on it, so the two always agree.
+ */
+export const isOffPresent = (clockMs: number, systemMs: number): boolean => Math.abs(clockMs - systemMs) > PRESENT_TOLERANCE_MS;
+
 /** An enum, not the app's usual `const` array: nothing iterates it. */
 export enum Scale {
   Timeline = "timeline",
@@ -46,6 +55,15 @@ const FLICK_DECAY = 0.94;
 export const decayVelocity = (velocity: number, dtMs: number): number => velocity * FLICK_DECAY ** (dtMs / 16.7);
 
 export const clampMagnitude = (value: number, limit: number): number => Math.max(-limit, Math.min(limit, value));
+
+/** Longer than a few frames between the last move and the release: the finger had stopped. */
+const HOLD_MS = 100;
+
+/**
+ * The speed a release throws with. A pointer at rest sends no moves, so the last
+ * move's speed would otherwise survive a pause and fling a drag that had stopped.
+ */
+export const releaseVelocity = (velocity: number, sinceLastMoveMs: number): number => (sinceLastMoveMs > HOLD_MS ? 0 : velocity);
 
 export interface TimelineTick {
   /** Epoch ms. */

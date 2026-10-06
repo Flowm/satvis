@@ -65,9 +65,12 @@ const {
   clearAll,
 } = useSatelliteBrowser(sats.catalog);
 
+const emit = defineEmits<{ "show-info": [name: string] }>();
+
 function showInfo(name: string): void {
   activateSat(name);
   sats.select(name);
+  emit("show-info", name);
 }
 
 const listHeight = computed(() => `min(${rows.value.length * ROW_HEIGHT}px, 60dvh)`);

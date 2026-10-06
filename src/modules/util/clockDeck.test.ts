@@ -11,6 +11,7 @@ import {
   multiplierLabel,
   nearestRung,
   rateLabel,
+  releaseVelocity,
   REAL_TIME_RUNG,
   passMarks,
   timelineTicks,
@@ -142,6 +143,13 @@ describe("flick physics", () => {
     expect(clampMagnitude((40 * MS_PER_PX) / 1, MAX_SCRUB_VELOCITY)).toBe(MAX_SCRUB_VELOCITY);
     expect(clampMagnitude(-1e9, MAX_SCRUB_VELOCITY)).toBe(-MAX_SCRUB_VELOCITY);
     expect(clampMagnitude(1000, MAX_SCRUB_VELOCITY)).toBe(1000);
+  });
+
+  test("a release after the finger stopped throws nothing", () => {
+    // A move every frame up to the release keeps the throw.
+    expect(releaseVelocity(12, 16)).toBe(12);
+    // Held still for a moment before letting go: no fling.
+    expect(releaseVelocity(12, 300)).toBe(0);
   });
 
   test("decays toward a stop, at a rate that does not depend on the frame rate", () => {

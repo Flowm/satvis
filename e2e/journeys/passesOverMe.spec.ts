@@ -1,0 +1,38 @@
+import { clockMs, openApp } from "../support/app";
+import { expect, test } from "../support/test";
+import { addStationHere, showInfo } from "../support/ui";
+
+const ISS = "ISS (ZARYA)";
+
+test.use({ geolocation: { latitude: 48.1372, longitude: 11.5756 }, permissions: ["geolocation"], viewport: { width: 1280, height: 800 } });
+
+test("the ISS lists its passes over my location, and a pass can be jumped to", async ({ page }) => {
+  await openApp(page, "", { live: true });
+  await addStationHere(page, "Munich");
+
+  await showInfo(page, ISS);
+
+  const panel = page.locator(".entity-info-panel");
+  const passesTab = panel.getByRole("tab", { name: /Passes/ });
+  // The badge counts the passes once they are computed.
+  await expect(passesTab).toHaveText(/Passes\s*\d+/);
+  await passesTab.click();
+  await expect(panel.locator(".hero__label")).toContainText("Next pass");
+  const rows = panel.locator("tbody tr");
+  expect(await rows.count()).toBeGreaterThan(0);
+
+  const bars = panel.locator(".timeline__pass:not(.is-past)");
+  await bars.nth(1).click();
+  await expect(panel.locator("tbody tr.is-picked")).toHaveCount(1);
+
+  // Off the present, the url pins the moment, so a shared link shows the pass.
+  const picked = panel.locator("tbody tr.is-picked");
+  const startMs = Number(await picked.getAttribute("data-start-ms"));
+  await picked.locator("a.link").click();
+  await expect.poll(() => clockMs(page)).toBeGreaterThanOrEqual(startMs);
+  await expect(panel.locator(".hero__label")).toContainText("Overhead now");
+  await expect(page.getByRole("img", { name: "Live" })).toBeHidden();
+  // To the minute, and the clock runs on: the pass's start minute or the one after.
+  await expect.poll(() => Date.parse(new URL(page.url()).searchParams.get("time") ?? "") - (startMs - (startMs % 60_000))).toBeGreaterThanOrEqual(0);
+  expect(Date.parse(new URL(page.url()).searchParams.get("time")!) - startMs).toBeLessThan(120_000);
+});

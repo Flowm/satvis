@@ -1,0 +1,58 @@
+{
+  "groups": [
+    {
+      "name": "resource",
+      "updated": "2026-10-06T00:23:53.091Z",
+      "count": 167,
+      "tags": [
+        "Resource"
+      ]
+    },
+    {
+      "name": "science",
+      "updated": "2026-10-06T00:23:53.091Z",
+      "count": 46,
+      "tags": [
+        "Science"
+      ]
+    },
+    {
+      "name": "stations",
+      "updated": "2026-10-06T00:23:53.091Z",
+      "count": 23,
+      "tags": [
+        "Stations"
+      ]
+    },
+    {
+      "name": "weather",
+      "updated": "2026-10-06T00:23:53.091Z",
+      "count": 73,
+      "tags": [
+        "Weather"
+      ]
+    }
+  ],
+  "presets": {
+    "default": {
+      "title": "Satvis - 3D Satellite Tracker & Sky View",
+      "defaults": {
+        "tags": "Weather"
+      },
+      "groups": [
+        {
+          "name": "resource"
+        },
+        {
+          "name": "science"
+        },
+        {
+          "name": "stations"
+        },
+        {
+          "name": "weather"
+        }
+      ]
+    }
+  }
+}

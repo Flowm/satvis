@@ -1,0 +1,297 @@
+// Opens the app on the GP fixture with every external host cut off, so a spec sees
+// the same satellites at the same time on any machine.
+
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+import { expect, type Page } from "@playwright/test";
+
+const FIXTURE_DIR = fileURLToPath(new URL("../fixtures/gp/", import.meta.url));
+
+/** Within a day of every fixture epoch (e2e/fixtures/gp). */
+export const FIXTURE_TIME = "2026-10-05T12:00Z";
+
+/** The fixture's group sizes, which the default preset's counts follow. */
+export const fixtureGroupCount = (name: string): number => (JSON.parse(readFileSync(`${FIXTURE_DIR}${name}.json`, "utf8")) as unknown[]).length;
+
+/** One transparent pixel. */
+export const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+
+/**
+ * Serves `/api` from the fixture and keeps every request on localhost. A map tile from
+ * elsewhere (an image by its extension, as OSM's are) gets a transparent pixel; anything
+ * else is aborted.
+ */
+export async function useFixtureNetwork(page: Page): Promise<void> {
+  await page.route(
+    (url) => url.hostname !== "localhost",
+    (route) => (/\.(png|jpe?g|webp)$/.test(new URL(route.request().url()).pathname) ? route.fulfill({ contentType: "image/png", body: PIXEL }) : route.abort("blockedbyclient")),
+  );
+  await page.route("**/api/groups.json", (route) => route.fulfill({ contentType: "application/json", body: readFileSync(`${FIXTURE_DIR}groups.json`) }));
+  await page.route("**/api/gp/*.json", (route) => {
+    const name = new URL(route.request().url()).pathname.split("/").pop()!;
+    try {
+      return route.fulfill({ contentType: "application/json", body: readFileSync(`${FIXTURE_DIR}${name}`) });
+    } catch {
+      return route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
+    }
+  });
+}
+
+/**
+ * Draws the globe at `factor` of its usual resolution, the CSS layout unchanged.
+ * SwiftShader's cost is mostly pixels: at 0.25 a frame costs a third and the boot
+ * two thirds. Wraps the widget's `resolutionScale`, because the app sets it from
+ * the `pixelratio` setting and would undo a plain assignment.
+ */
+async function scaleRendering(page: Page, factor: number): Promise<void> {
+  await page.addInitScript((scale) => {
+    let controller: typeof window.cc;
+    Object.defineProperty(window, "cc", {
+      configurable: true,
+      get: () => controller,
+      set(value: NonNullable<typeof window.cc>) {
+        controller = value;
+        const widget = value.viewer.cesiumWidget;
+        const own = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(widget), "resolutionScale")!;
+        Object.defineProperty(widget, "resolutionScale", {
+          configurable: true,
+          get() {
+            return (own.get!.call(this) as number) / scale;
+          },
+          set(requested: number) {
+            own.set!.call(this, requested * scale);
+          },
+        });
+        widget.resolutionScale = 1;
+      },
+    });
+  }, factor);
+}
+
+export interface OpenOptions {
+  /** Routes added after the fixture's, which makes them win: Playwright tries the last registered route first. */
+  setup?: (page: Page) => Promise<void>;
+  /** False for a query that selects no satellites. */
+  satellites?: boolean;
+  /** Drawing-buffer pixels per CSS pixel; 1 for a spec that reads pixels. */
+  renderScale?: number;
+  /**
+   * Opens the url as given, with the browser's own clock moved to the fixture time
+   * and running, as a visitor's would be. Otherwise `time` pins the app's clock.
+   */
+  live?: boolean;
+}
+
+/**
+ * Opens `query` at the fixture time and waits until the satellites are built and
+ * the globe tiles are loaded.
+ */
+export async function openApp(page: Page, query: string, { setup, satellites = true, renderScale = 0.25, live = false }: OpenOptions = {}): Promise<void> {
+  await useFixtureNetwork(page);
+  await setup?.(page);
+  if (renderScale !== 1) {
+    await scaleRendering(page, renderScale);
+  }
+  if (live) {
+    await page.clock.install({ time: new Date(FIXTURE_TIME) });
+    await page.goto(query === "" ? "/" : `/?${query}`);
+  } else {
+    const params = new URLSearchParams(query);
+    if (!params.has("time")) {
+      params.set("time", FIXTURE_TIME);
+    }
+    await page.goto(`/?${params.toString().replaceAll("%2C", ",")}`);
+  }
+  await waitForScene(page, satellites);
+}
+
+/** Built satellites and loaded tiles. A frame must run for either to change. */
+export async function waitForScene(page: Page, satellites = true): Promise<void> {
+  await page.waitForFunction(() => window.cc !== undefined);
+  await expect
+    .poll(
+      () =>
+        page.evaluate((wanted) => (!wanted || window.cc!.sats.activeSatellites.length > 0) && !window.cc!.sats.building && window.cc!.viewer.scene.globe.tilesLoaded, satellites),
+      { message: satellites ? "satellites built and globe tiles loaded" : "globe tiles loaded" },
+    )
+    .toBe(true);
+}
+
+/** Waits for the sky view's descent to land. */
+export async function waitForSky(page: Page): Promise<void> {
+  await expect.poll(() => page.evaluate(() => window.cc!.skyView.settled), { message: "sky view landed" }).toBe(true);
+}
+
+/** Selects the active satellite named `name`, or the first one, as a click on it would. */
+export async function selectSatellite(page: Page, name?: string): Promise<void> {
+  await page.evaluate((wanted) => {
+    const sats = window.cc!.sats.activeSatellites;
+    const sat = wanted === undefined ? sats[0] : sats.find((candidate) => candidate.props.name === wanted);
+    if (!sat) {
+      throw new Error(`no active satellite ${wanted ?? ""}`);
+    }
+    window.cc!.viewer.selectedEntity = sat.defaultEntity;
+  }, name);
+}
+
+/** Whether a click at the centre of each selector's element would reach it, or what it would hit instead. */
+export async function hitTest(page: Page, selectors: Record<string, string>): Promise<Record<string, string>> {
+  return page.evaluate((entries) => {
+    const result: Record<string, string> = {};
+    for (const [name, selector] of Object.entries(entries)) {
+      const element = document.querySelector(selector);
+      if (!element) {
+        result[name] = "missing";
+        continue;
+      }
+      const box = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      result[name] = element.contains(hit) ? "clickable" : `blocked by ${hit ? `${hit.tagName.toLowerCase()}.${[...hit.classList].join(".")}` : "nothing"}`;
+    }
+    return result;
+  }, selectors);
+}
+
+/** The globe canvas's box, and its centre in page coordinates. */
+export async function canvasBox(page: Page): Promise<{ x: number; y: number; width: number; height: number; cx: number; cy: number }> {
+  const box = (await page.locator("#cesiumContainer canvas").boundingBox())!;
+  return { ...box, cx: box.x + box.width / 2, cy: box.y + box.height / 2 };
+}
+
+/** The viewer's clock, in epoch ms. */
+export const clockMs = (page: Page): Promise<number> => page.evaluate(() => Date.parse(window.cc!.viewer.clock.currentTime.toString()));
+
+/** Sets the viewer's clock to an ISO 8601 time. JulianDate is not on `window`, so it is reached through the clock's own. */
+export const setClock = (page: Page, iso: string): Promise<void> =>
+  page.evaluate((time) => {
+    const { clock } = window.cc!.viewer;
+    const JulianDate = clock.currentTime.constructor as unknown as { fromIso8601: (value: string) => typeof clock.currentTime };
+    clock.currentTime = JulianDate.fromIso8601(time);
+  }, iso);
+
+/** Moves the viewer's clock by `minutes`. */
+export const moveClock = (page: Page, minutes: number): Promise<void> =>
+  page.evaluate((delta) => {
+    const { clock } = window.cc!.viewer;
+    const JulianDate = clock.currentTime.constructor as unknown as { addMinutes: (time: unknown, value: number, result: unknown) => typeof clock.currentTime };
+    clock.currentTime = JulianDate.addMinutes(clock.currentTime, delta, clock.currentTime.clone());
+  }, minutes);
+
+// The helpers below count clock ticks, not milliseconds: a GitHub runner's SwiftShader
+// draws about 1 frame a second, a laptop's 5, a GPU 60. Every frame ticks the clock
+// whether or not it renders.
+
+/** Returns after `ticks` more clock ticks. */
+export async function waitTicks(page: Page, ticks: number): Promise<void> {
+  await page.evaluate(
+    (count) =>
+      new Promise<void>((resolve) => {
+        let seen = 0;
+        const off = window.cc!.viewer.clock.onTick.addEventListener(() => {
+          seen += 1;
+          if (seen >= count) {
+            off();
+            resolve();
+          }
+        });
+      }),
+    ticks,
+  );
+}
+
+/** Waits until `read` gives the same value across three frames, and returns it. */
+export async function steady<T>(page: Page, read: () => Promise<T>): Promise<T> {
+  let value!: T;
+  await expect
+    .poll(async () => {
+      value = await read();
+      await waitTicks(page, 3);
+      return JSON.stringify(value) === JSON.stringify(await read());
+    })
+    .toBe(true);
+  return value;
+}
+
+/**
+ * Returns once `quietTicks` ticks and `quietMs` in a row pass without a render, or
+ * after `maxTicks` regardless. Both, because the frames that follow a change come
+ * from geometry built in web workers, which finish on wall time, not per frame.
+ */
+export async function waitForQuiet(page: Page, options: { quietTicks: number; quietMs: number; maxTicks: number }): Promise<void> {
+  await page.evaluate(
+    ({ quietTicks, quietMs, maxTicks }) =>
+      new Promise<void>((resolve) => {
+        const { scene, clock } = window.cc!.viewer;
+        let ticks = 0;
+        let quiet = 0;
+        let lastRender = performance.now();
+        const offRender = scene.postRender.addEventListener(() => {
+          quiet = 0;
+          lastRender = performance.now();
+        });
+        const offTick = clock.onTick.addEventListener(() => {
+          // onTick runs before the frame's render, so it judges the frame before.
+          ticks += 1;
+          if ((quiet >= quietTicks && performance.now() - lastRender >= quietMs) || ticks >= maxTicks) {
+            offRender();
+            offTick();
+            resolve();
+          }
+          quiet += 1;
+        });
+      }),
+    options,
+  );
+}
+
+/**
+ * Frames rendered over the next `ticks` clock ticks, and for each one what asked
+ * for it: the callers of `requestRender` since the last render, or the camera or
+ * clock when nothing called it.
+ */
+export async function rendersOverTicks(page: Page, ticks: number): Promise<{ renders: number; causes: string[] }> {
+  return page.evaluate(
+    (count) =>
+      new Promise<{ renders: number; causes: string[] }>((resolve) => {
+        const { scene, clock } = window.cc!.viewer;
+        const start = performance.now();
+        let renders = 0;
+        let seen = 0;
+        let requests: string[] = [];
+        const causes: string[] = [];
+        const requestRender = scene.requestRender;
+        scene.requestRender = function (this: typeof scene) {
+          const frames = new Error().stack!.split("\n").slice(2, 5);
+          requests.push(
+            frames
+              .map((frame) =>
+                frame
+                  .trim()
+                  .replace(/\(?https?:\/\/[^/]+/, "(")
+                  .replace(/\?v=\w+/, ""),
+              )
+              .join(" < "),
+          );
+          requestRender.call(this);
+        };
+        const offRender = scene.postRender.addEventListener(() => {
+          renders += 1;
+          const at = `tick ${seen}, ${Math.round(performance.now() - start)} ms`;
+          causes.push(requests.length > 0 ? `${at}: ${[...new Set(requests)].join(" | ")}` : `${at}: no requestRender (camera moved or time changed)`);
+          requests = [];
+        });
+        const offTick = clock.onTick.addEventListener(() => {
+          // Counted at the next tick, so the last frame's render is included.
+          if (seen === count) {
+            offRender();
+            offTick();
+            scene.requestRender = requestRender;
+            resolve({ renders, causes });
+          }
+          seen += 1;
+        });
+      }),
+    ticks,
+  );
+}
