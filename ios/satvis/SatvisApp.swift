@@ -180,19 +180,27 @@ struct ContentView: View {
         .sheet(isPresented: $showsStations) {
             GroundStationsView(passes: session.passes, onPick: { session.isPicking = true }, onSelect: { session.selection = .station($0) })
         }
-        // A column beside the globe where there is room for one, a sheet over the
-        // lower half where there is not, leaving the globe to steer either way.
-        .inspector(
-            isPresented: Binding {
-                sizeClass == .regular && session.selection != nil
-            } set: {
-                if !$0 { session.selection = nil }
+        // A card over the trailing edge where there is room for one, a sheet over
+        // the lower half where there is not, leaving the globe to steer either
+        // way. Not an inspector column: one narrows the globe's view, and iPadOS
+        // then presents its frames late enough to halve every other one, 40 fps
+        // tracking the ISS on an iPad mini where the card leaves it at 60. The
+        // controls move aside for the card; the globe, under the safe area, does
+        // not.
+        .safeAreaInset(edge: .trailing, spacing: 0) {
+            if sizeClass == .regular, session.selection != nil {
+                infoPanel
+                    // Wide enough for the live strip's four cells and the chips on one line.
+                    .frame(width: 400)
+                    // Opaque: glass this large, blurring a globe that changes every
+                    // frame, costs the compositor as much as the inspector did.
+                    .background(Color(uiColor: .systemBackground))
+                    .clipShape(.rect(cornerRadius: 28))
+                    .padding([.vertical, .trailing], 12)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
             }
-        ) {
-            infoPanel
-                // Wide enough for the live strip's four cells and the chips on one line.
-                .inspectorColumnWidth(min: 360, ideal: 420, max: 520)
         }
+        .animation(.smooth, value: sizeClass == .regular && session.selection != nil)
         .sheet(
             isPresented: Binding {
                 sizeClass != .regular && session.selection != nil
