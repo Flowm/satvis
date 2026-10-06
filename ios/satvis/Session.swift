@@ -122,6 +122,16 @@ final class Session {
                 return nil
             }
         }
+        // The models the site serves for its own globe, cached as the tiles are.
+        renderer.modelLoader = { [tiles, site = source.site] file in
+            let url = site.appending(path: "data/models").appending(path: file)
+            do {
+                return try await tiles.tile(url, contentType: "model/gltf-binary")
+            } catch {
+                log.error("\(url, privacy: .public): \(error, privacy: .public)")
+                return nil
+            }
+        }
         renderer.setImagery(baseLayer, site: source.site)
         renderer.setTerrain(terrain)
         renderer.setStations(shownMarkers)

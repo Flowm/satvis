@@ -263,7 +263,7 @@ try {
   const codec = await runner.import("/src/modules/util/urlCodec.ts");
   const { parseQuery, stringifyQuery } = await runner.import("vue-router");
   const vocabulary = {
-    components: ["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "Ground station link"],
+    components: ["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model", "Ground station link"],
     layers: ["NaturalEarth", "VersaTiles", "BlackMarble"],
     terrain: ["None", "ReEarth"],
     overpass: ["elevation", "swath"],

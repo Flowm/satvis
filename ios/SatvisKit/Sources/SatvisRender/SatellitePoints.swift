@@ -13,13 +13,17 @@ public struct PointSatellite: Sendable {
     public var color: SIMD4<Float>
     /// Nil where the web app draws none: for every satellite not in a low orbit.
     public var footprint: Footprint?
+    /// Its 3D model's path under the site's /data/models/, as a model manifest
+    /// gives it (ADR 0007); nil for the satellites none lists.
+    public var modelFile: String?
 
-    public init(id: String, name: String, trajectory: SampledTrajectory, color: SIMD4<Float>, footprint: Footprint? = nil) {
+    public init(id: String, name: String, trajectory: SampledTrajectory, color: SIMD4<Float>, footprint: Footprint? = nil, modelFile: String? = nil) {
         self.id = id
         self.name = name
         self.trajectory = trajectory
         self.color = color
         self.footprint = footprint
+        self.modelFile = modelFile
     }
 }
 
@@ -72,9 +76,12 @@ public struct PreparedSatellites: @unchecked Sendable {
     let labels: (atlas: LabelAtlas, instances: MTLBuffer)?
     /// The sensor cones, for the satellites that have one.
     let cones: (buffer: MTLBuffer, count: Int)?
+    /// The satellites with a 3D model, by index: a handful among thousands.
+    let modelled: [Int]
 
     init(_ satellites: [PointSatellite], device: MTLDevice, labelScale: Double) {
         self.satellites = satellites
+        modelled = satellites.indices.filter { satellites[$0].modelFile != nil }
         let sampleCount = satellites.reduce(0) { $0 + $1.trajectory.positions.count }
         guard sampleCount > 0,
             let samples = device.makeBuffer(length: sampleCount * 3 * MemoryLayout<Float>.stride, options: .storageModeShared),

@@ -1,0 +1,59 @@
+// The satellites' 3D models (SatelliteModels.swift), lit by the sun: the base
+// colour and its texture, a diffuse term with a little ambient so the side away
+// from the sun still reads, and a highlight that metal and smooth surfaces
+// sharpen. Simpler than CesiumJS's physically based lighting, for models drawn
+// mostly at 20 to 72 points across.
+
+// Mirrors ModelVertex in ModelAsset.swift.
+struct ModelVertex {
+    float3 position;
+    float3 normal;
+    float2 uv;
+};
+
+// Mirrors ModelInstance in SatelliteModels.swift.
+struct ModelInstance {
+    float4x4 modelViewProjection;
+    float3x3 rotation;
+    float4x4 modelToEye;
+    float4 baseColor;
+    float3 sunDirection;
+    int hasTexture;
+    float metallic;
+    float roughness;
+};
+
+struct ModelOut {
+    float4 position [[position]];
+    float3 normal;
+    float3 fromEye;
+    float2 uv;
+};
+
+vertex ModelOut modelVertex(uint vid [[vertex_id]], const device ModelVertex *vertices [[buffer(0)]], constant ModelInstance &instance [[buffer(1)]]) {
+    ModelVertex v = vertices[vid];
+    ModelOut out;
+    out.position = instance.modelViewProjection * float4(v.position, 1.0);
+    out.normal = instance.rotation * v.normal;
+    out.fromEye = (instance.modelToEye * float4(v.position, 1.0)).xyz;
+    out.uv = v.uv;
+    return out;
+}
+
+fragment float4 modelFragment(ModelOut in [[stage_in]], bool front [[front_facing]], constant ModelInstance &instance [[buffer(1)]],
+                              texture2d<float> baseTexture [[texture(0)]], sampler linear [[sampler(0)]]) {
+    float4 albedo = instance.baseColor;
+    if (instance.hasTexture != 0) {
+        albedo *= baseTexture.sample(linear, in.uv);
+    }
+    float3 normal = normalize(in.normal) * (front ? 1.0 : -1.0);
+    float3 light = instance.sunDirection;
+    float diffuse = max(dot(normal, light), 0.0);
+    float3 toEye = -normalize(in.fromEye);
+    float3 halfway = normalize(light + toEye);
+    float shininess = mix(128.0, 4.0, instance.roughness);
+    float reflectance = mix(0.04, 0.6, instance.metallic);
+    float highlight = diffuse > 0.0 ? pow(max(dot(normal, halfway), 0.0), shininess) * reflectance : 0.0;
+    float3 color = albedo.rgb * (0.15 + 0.95 * diffuse * (1.0 - 0.5 * instance.metallic)) + float3(highlight);
+    return float4(color, 1.0);
+}

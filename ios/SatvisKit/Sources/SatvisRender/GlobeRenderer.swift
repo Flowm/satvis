@@ -12,7 +12,7 @@ public enum RendererError: Error {
 /// Compiles Shaders/*.msl. At run time rather than at build time, so that neither
 /// the build nor CI needs Xcode's separately downloaded Metal toolchain.
 enum ShaderLibrary {
-    static let files = ["Common", "Sky", "Globe", "Surface", "Points", "Lines", "Labels", "Stations", "Footprints", "Tonemap"]
+    static let files = ["Common", "Sky", "Globe", "Surface", "Points", "Lines", "Labels", "Stations", "Footprints", "Models", "Tonemap"]
 
     static func make(device: MTLDevice) async throws -> MTLLibrary {
         let source = try files.map { name in
@@ -40,6 +40,8 @@ public struct SatelliteComponents: OptionSet, Sendable, Hashable {
     public static let orbitTrack = SatelliteComponents(rawValue: 1 << 3)
     public static let groundTrack = SatelliteComponents(rawValue: 1 << 4)
     public static let sensorCone = SatelliteComponents(rawValue: 1 << 5)
+    /// For the satellites a model manifest gives a model (ADR 0007).
+    public static let model = SatelliteComponents(rawValue: 1 << 6)
     public static let groundStationLink = SatelliteComponents(rawValue: 1 << 7)
 
     /// Past these many active satellites the web app switches a component off,
@@ -52,7 +54,7 @@ public struct SatelliteComponents: OptionSet, Sendable, Hashable {
 
     /// The web app's names, as its `elements` url parameter and presets use them.
     public static let named: [(String, SatelliteComponents)] = [
-        ("Point", .point), ("Label", .label), ("Orbit", .orbit), ("Orbit track", .orbitTrack), ("Ground track", .groundTrack), ("Sensor cone", .sensorCone),
+        ("Point", .point), ("Label", .label), ("Orbit", .orbit), ("Orbit track", .orbitTrack), ("Ground track", .groundTrack), ("Sensor cone", .sensorCone), ("3D model", .model),
         ("Ground station link", .groundStationLink),
     ]
 }
@@ -112,6 +114,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let linkPipeline: MTLRenderPipelineState
     private let overlayPipeline: MTLRenderPipelineState
     private let conePipeline: MTLRenderPipelineState
+    private let modelPipeline: MTLRenderPipelineState
     private let coneRimPipeline: MTLRenderPipelineState
     private let overlay: GroundOverlay
     private let tonemapPipeline: MTLRenderPipelineState
@@ -127,6 +130,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var hdr: MTLTexture?
     private var depth: MTLTexture?
     let points = SatellitePoints()
+    let models: SatelliteModels
     private var stations: [StationMarker] = []
     private var links: [StationLink] = []
     private var pin: MTLTexture?
@@ -204,6 +208,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         globePipeline = try pipeline("globeVertex", "globeFragment")
         pointPipeline = try pipeline("pointVertex", "pointFragment")
         linePipeline = try pipeline("lineVertex", "lineFragment", blend: true)
+        modelPipeline = try pipeline("modelVertex", "modelFragment")
         labelPipeline = try pipeline("labelVertex", "labelFragment", blend: true, premultiplied: true)
         stationPipeline = try pipeline("stationVertex", "stationFragment", blend: true, premultiplied: true)
         linkPipeline = try pipeline("linkVertex", "linkFragment", blend: true)
@@ -242,6 +247,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             return (vertices, indices, mesh.indices.count)
         }
         surface = try Surface(device: device, library: library, site: URL(string: "https://satvis.space/")!)
+        models = SatelliteModels(device: device)
         let tileSamplerDescriptor = MTLSamplerDescriptor()
         tileSamplerDescriptor.minFilter = .linear
         tileSamplerDescriptor.magFilter = .linear
@@ -370,6 +376,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             return
         }
         skyCamera?.attitude = SkyCamera.attitude(azimuth: camera.azimuth, pitch: camera.pitch)
+    }
+
+    /// What fetches a 3D model's bytes by its path under /data/models/; models
+    /// are not drawn without one.
+    public var modelLoader: (@Sendable (String) async -> Data?)? {
+        get { models.loader }
+        set { models.loader = newValue }
     }
 
     /// What fetches a map tile's bytes; tiles are not fetched without one.
@@ -722,6 +735,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 }
             }
 
+            if components.contains(.model) {
+                drawModels(encoder, pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now, frame: frame)
+            }
+
             // Under the satellites and their names: a pin marks the ground.
             drawStations(encoder, eye: pose.position, now: now)
 
@@ -781,6 +798,68 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// The links of the passes under way, then the pins of the stations facing
     /// the eye. Few enough to go in with the draw call.
+    /// Each modelled satellite's model where it is, its glTF +Z along the velocity
+    /// and +Y up from the ellipsoid, as CesiumJS's VelocityOrientationProperty
+    /// turns it. At its real size in metres where that is large enough, else
+    /// scaled up to the web app's smallest size on screen
+    /// (`modelMinimumPixelSize`), but no further than that size at the home
+    /// view's distance, so it shrinks with the globe beyond it.
+    private func drawModels(_ encoder: MTLRenderCommandEncoder, pose: CameraPose, size: SIMD2<Double>, now: Double, frame: FrameUniforms) {
+        guard let prepared = points.prepared, !prepared.modelled.isEmpty, let lastFrame else {
+            return
+        }
+        let aspectRatio = size.x / size.y
+        let heightPoints = size.y / pixelScale
+        let tangent = tan(pose.verticalFieldOfView(aspectRatio: aspectRatio) / 2)
+        let homeMetresPerPoint = 2 * OrbitCamera.home(aspectRatio: aspectRatio).radius * tangent / heightPoints
+        let sun = SIMD3<Float>(Sun.directionFixed(epochMilliseconds: now))
+        encoder.setRenderPipelineState(modelPipeline)
+        encoder.setDepthStencilState(depthWrite)
+        encoder.setFragmentSamplerState(tileSampler, index: 0)
+        for index in prepared.modelled {
+            let satellite = prepared.satellites[index]
+            guard let file = satellite.modelFile, let model = models.model(file), let position = satellite.trajectory.position(at: now),
+                let before = satellite.trajectory.position(at: now - 1000), let after = satellite.trajectory.position(at: now + 1000)
+            else {
+                continue
+            }
+            let forward = normalize(after - before)
+            let surfaceUp = normalize(position / (ellipsoidRadii * ellipsoidRadii))
+            let port = normalize(cross(surfaceUp, forward))
+            let up = cross(forward, port)
+            let diameter = 2 * Double(model.radius)
+            let minimum = Self.modelMinimumPoints(diameter: diameter)
+            let metresPerPoint = 2 * simd.distance(position, pose.position) * tangent / heightPoints
+            let scale = min(max(1, minimum * metresPerPoint / diameter), minimum * homeMetresPerPoint / diameter)
+            let toEye = simd_double4x4(columns: (SIMD4(port * scale, 0), SIMD4(up * scale, 0), SIMD4(forward * scale, 0), SIMD4(position - pose.position, 1)))
+            let rotation = simd_float3x3(columns: (SIMD3<Float>(port), SIMD3<Float>(up), SIMD3<Float>(forward)))
+            for part in model.parts {
+                var instance = ModelInstance(
+                    modelViewProjection: float4x4(lastFrame.viewProjection * toEye), rotation: rotation, modelToEye: float4x4(toEye),
+                    baseColor: part.material.baseColor, sunDirection: sun, hasTexture: part.texture == nil ? 0 : 1, metallic: part.material.metallic,
+                    roughness: part.material.roughness)
+                encoder.setCullMode(part.material.doubleSided ? .none : .back)
+                encoder.setVertexBuffer(model.vertices, offset: 0, index: 0)
+                encoder.setVertexBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
+                encoder.setFragmentBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
+                encoder.setFragmentTexture(part.texture, index: 0)
+                encoder.drawIndexedPrimitives(
+                    type: .triangle, indexCount: part.indexCount, indexType: .uint32, indexBuffer: model.indices,
+                    indexBufferOffset: part.indexStart * MemoryLayout<UInt32>.stride)
+            }
+        }
+        // The frame's uniforms, which the passes after this one read there.
+        var frame = frame
+        encoder.setVertexBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
+        encoder.setFragmentBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
+    }
+
+    /// The web app's smallest size for a model on screen, by its bounding sphere's
+    /// diameter in metres: a cubesat at 20 points, Landsat at 55, the ISS at 72.
+    static func modelMinimumPoints(diameter: Double) -> Double {
+        min(72, max(20, 23 * cbrt(diameter)))
+    }
+
     private func drawStations(_ encoder: MTLRenderCommandEncoder, eye: SIMD3<Double>, now: Double) {
         func relative(_ position: SIMD3<Double>) -> (Float, Float, Float) {
             let offset = position - eye
