@@ -332,3 +332,17 @@ The UI tests on the iPad mini (`iPad14,1`), UI Automation enabled: 9 passed and 
 screenshot tests skipped, once the tests opened the column only where it is folded; they
 had assumed a phone's folded column and failed on the iPad's open one. On the iPhone 17e
 simulator, the same 9 passed.
+
+## Native app: the menu column's panels
+
+**Procedure.** The iPhone 17e and iPad Pro 13-inch (M5) simulators, a temporary UI test
+opening Components, Map, View and Graphics in turn for screenshots; the column's open and
+close recorded with `simctl io recordVideo` and read frame by frame.
+
+**Result, 2026-10-07.** Each opens a panel beside the column: its title and close button
+over a rule level with the column's, switches for the components and the measurements, a
+segmented control for Terrain and View mode, ticked rows for Basemap and Pixel ratio, the
+entry cyan while its panel is open. On the phone the column folds to its icons and the
+panel runs to the margin over Share and the globe button; beside them at 280 pt, they had
+peeked out past it. On the iPad the names stay. The column opens and closes in about 0.2 s,
+the rows uncovered by the growing panel rather than showing ahead of it.

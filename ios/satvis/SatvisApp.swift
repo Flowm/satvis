@@ -49,6 +49,8 @@ struct ContentView: View {
     @State private var showsStations = false
     @State private var showsAttribution = false
     @State private var showsTools = false
+    /// The panel open beside the menu column, if any.
+    @State private var panel: ToolPanel?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -86,32 +88,6 @@ struct ContentView: View {
                     .padding(.top, sizeClass == .regular ? 16 : 76)
             }
         }
-        .overlay(alignment: .topLeading) {
-            ToolMenu(isOpen: $showsTools) {
-                // The web app's menu column: its entries, icons, order and hints.
-                // The hints are its hover texts, read by VoiceOver.
-                Button("Satellites", image: .lucideSatellite) {
-                    showsBrowser = true
-                }
-                .accessibilityHint("Search and pick which satellites to show")
-                ComponentsMenu(catalog: session.catalog)
-                    .accessibilityHint("Orbits, ground tracks, labels and sensor cones")
-                Button("Ground station", image: .lucideMapPin) {
-                    showsStations = true
-                }
-                .accessibilityHint("Your location, for pass predictions")
-                MapMenu(session: session)
-                    .accessibilityHint("Basemap and terrain")
-                ViewMenu(session: session)
-                    .accessibilityHint("Globe or sky view, and the compass")
-                GraphicsMenu(session: session)
-                    .accessibilityHint("Quality and performance")
-            }
-            .padding()
-        }
-        // Open from the start where there is room, as the web app's is on a desktop
-        // and folded on a phone.
-        .onAppear { showsTools = sizeClass == .regular }
         .overlay(alignment: .topTrailing) {
             VStack {
                 // Made when tapped, so that a pinned clock gives its minute then.
@@ -135,6 +111,48 @@ struct ContentView: View {
             .buttonStyle(.glass)
             .controlSize(.large)
             .padding()
+        }
+        // Over the top-right buttons: on a phone an open panel covers them, as on the web.
+        .overlay(alignment: .topLeading) {
+            HStack(alignment: .top, spacing: 8) {
+                ToolMenu(isOpen: $showsTools) {
+                    // The web app's menu column: its entries, icons, order and hints.
+                    ToolEntry(title: "Satellites", image: .lucideSatellite, hint: "Search and pick which satellites to show") {
+                        showsBrowser = true
+                    }
+                    entry(.components, image: .lucideOrbit, hint: "Orbits, ground tracks, labels and sensor cones")
+                    ToolEntry(title: "Ground station", image: .lucideMapPin, hint: "Your location, for pass predictions") {
+                        showsStations = true
+                    }
+                    entry(.map, image: .lucideLayers, hint: "Basemap and terrain")
+                    entry(.view, image: .lucideTelescope, hint: "Globe or sky view, and the compass")
+                    entry(.graphics, image: .lucideGauge, hint: "Quality and performance")
+                }
+                .environment(\.toolNamesFolded, sizeClass != .regular && panel != nil)
+                if let panel {
+                    ToolPanelView(title: panel.title, fillsWidth: sizeClass != .regular, onClose: { self.panel = nil }) {
+                        switch panel {
+                        case .components: ComponentsPanel(catalog: session.catalog)
+                        case .map: MapPanel(session: session)
+                        case .view: ViewPanel(session: session)
+                        case .graphics: GraphicsPanel(session: session)
+                        }
+                    }
+                    .id(panel)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topLeading)))
+                }
+            }
+            .animation(.snappy(duration: 0.2), value: panel)
+            .padding()
+        }
+        // Open from the start where there is room, as the web app's is on a desktop
+        // and folded on a phone.
+        .onAppear { showsTools = sizeClass == .regular }
+        // A panel goes with the column.
+        .onChange(of: showsTools) { _, open in
+            if !open {
+                panel = nil
+            }
         }
         .overlay(alignment: .top) {
             if let message = session.notice ?? session.alerts.message {
@@ -189,8 +207,11 @@ struct ContentView: View {
             }
         }
         .onChange(of: showsBrowser || showsStations) { _, presenting in
-            if presenting, sizeClass != .regular {
-                showsTools = false
+            if presenting {
+                panel = nil
+                if sizeClass != .regular {
+                    showsTools = false
+                }
             }
         }
         .sheet(isPresented: $showsBrowser) {
@@ -249,6 +270,13 @@ struct ContentView: View {
         }
     }
 
+    /// An entry that opens its panel, or closes it if it is open.
+    private func entry(_ which: ToolPanel, image: ImageResource, hint: LocalizedStringKey) -> some View {
+        ToolEntry(title: which.title, image: image, hint: hint, isSelected: panel == which) {
+            panel = panel == which ? nil : which
+        }
+    }
+
     @ViewBuilder private var infoPanel: some View {
         switch session.selection {
         case .satellite(let id):
@@ -269,227 +297,6 @@ struct ContentView: View {
             }
         case nil:
             EmptyView()
-        }
-    }
-}
-
-/// The web app's menu column: one panel, the Menu toggle over a rule and the
-/// tools under it, each its icon and its name, folding to the toggle alone so
-/// that a phone's width is left to the globe.
-private struct ToolMenu<Tools: View>: View {
-    @Binding var isOpen: Bool
-    @ViewBuilder let tools: Tools
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Named "Menu" either way, as the web app's toggle is; VoiceOver hears
-            // what a tap does.
-            Button {
-                isOpen.toggle()
-            } label: {
-                Label("Menu", image: isOpen ? .lucideChevronUp : .lucideMenu)
-                    // Swapped, not faded: a crossfade shows both at once.
-                    .contentTransition(.identity)
-            }
-            .accessibilityLabel(isOpen ? "Close menu" : "Menu")
-
-            if isOpen {
-                // In at once, where they will stand, for the growing panel to
-                // uncover: faded in, they stood clear of it before it reached
-                // them. Out faded, inside the shrinking panel.
-                Group {
-                    Divider()
-                    tools
-                }
-                .transition(.asymmetric(insertion: .identity, removal: .opacity))
-            }
-        }
-        // As wide as its widest name, every row across all of it.
-        .fixedSize()
-        .labelStyle(ToolLabelStyle())
-        .buttonStyle(ToolRowStyle())
-        .menuStyle(.button)
-        // In the web app's order, top down, even where a menu opens upwards.
-        .menuOrder(.fixed)
-        .padding(.vertical, 4)
-        .clipShape(.rect(cornerRadius: 26))
-        // The glass the system draws around a large `.glass` button, around the
-        // whole panel instead: a menu's own arrives a beat after a button's.
-        .glassEffect(.regular, in: .rect(cornerRadius: 26))
-        .animation(.snappy(duration: 0.2), value: isOpen)
-    }
-}
-
-/// An icon in a column of its own, so the names line up, and the name beside it.
-private struct ToolLabelStyle: LabelStyle {
-    // Scaled with the text, icon and all, as the system's glass buttons are.
-    @ScaledMetric(relativeTo: .body) private var scale = 1.0
-
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 4) {
-            configuration.icon
-                .scaleEffect(scale)
-                .frame(width: 44 * scale)
-            configuration.title
-                .font(.body.weight(.medium))
-                .lineLimit(1)
-        }
-    }
-}
-
-/// A row of the panel, across its width, a fingertip tall: with the panel's
-/// inset, the toggle's middle is level with the large glass buttons' opposite.
-private struct ToolRowStyle: ButtonStyle {
-    @ScaledMetric(relativeTo: .body) private var scale = 1.0
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .padding(.leading, 4)
-            .padding(.trailing, 18)
-            .frame(maxWidth: .infinity, minHeight: 44 * scale, alignment: .leading)
-            .background(.white.opacity(configuration.isPressed ? 0.12 : 0))
-            // Gone with the touch, not carried through the panel's animation.
-            .animation(nil, value: configuration.isPressed)
-            .contentShape(.rect)
-    }
-}
-
-/// What the globe is covered with.
-private struct MapMenu: View {
-    @Bindable var session: Session
-
-    var body: some View {
-        Menu("Map", image: .lucideLayers) {
-            Choices("Basemap", selection: $session.baseLayer, options: BaseLayer.allCases.map { ($0.title, $0) })
-            // The web app's names for the two, as its links spell them.
-            Choices("Terrain", selection: $session.terrain, options: [("None", false), ("ReEarth", true)])
-        }
-    }
-}
-
-/// From where the globe is seen: the web app's View panel, less the scene modes
-/// (2D, Columbus) and the camera modes the app does not draw.
-private struct ViewMenu: View {
-    let session: Session
-
-    var body: some View {
-        Menu("View", image: .lucideTelescope) {
-            Choices(
-                "View mode",
-                selection: Binding {
-                    session.observer != nil ? "Sky" : "3D"
-                } set: { mode in
-                    if mode == "Sky" {
-                        Task { await session.viewTheSky() }
-                    } else {
-                        session.leaveSky()
-                    }
-                },
-                options: LinkCodec.scenes.map { ($0, $0) })
-            if session.observer != nil {
-                Section("Aiming") {
-                    Toggle(
-                        "Use compass",
-                        isOn: Binding {
-                            session.compass.isAiming
-                        } set: { _ in
-                            session.toggleCompass()
-                        })
-                }
-            }
-        }
-    }
-}
-
-/// How the globe is drawn and what that costs: the web app's Graphics panel, less
-/// the scene effects and MSAA, which the app does not switch.
-private struct GraphicsMenu: View {
-    let session: Session
-
-    var body: some View {
-        Menu("Graphics", image: .lucideGauge) {
-            Section("Measurement") {
-                Toggle(
-                    "FPS",
-                    isOn: Binding {
-                        session.showsPerformance
-                    } set: {
-                        session.setShowsPerformance($0)
-                    })
-                Toggle(
-                    "Benchmark",
-                    isOn: Binding {
-                        session.showsBenchmark
-                    } set: {
-                        session.setShowsBenchmark($0)
-                    })
-            }
-            PixelRatioPicker(session: session)
-        }
-    }
-}
-
-/// The web app's "Pixel ratio" (src/config/rendering.ts): the fixed rungs below the
-/// screen's own ratio, then the screen's, so the menu only offers savings.
-private struct PixelRatioPicker: View {
-    @Bindable var session: Session
-    @Environment(\.displayScale) private var displayScale
-
-    var body: some View {
-        Choices(
-            "Pixel ratio", selection: $session.pixelRatio,
-            options: LinkCodec.pixelRatios.filter { $0 == "native" || (Double($0) ?? 0) < displayScale }.map { ratio in
-                (ratio == "native" ? String(format: "%.1fx (Native)", displayScale) : String(format: "%.1fx", Double(ratio) ?? 0), ratio)
-            })
-    }
-}
-
-/// One of several, ticked, under the title the web app's panel gives them. Not a
-/// Picker: in a menu an inline one drops its section's title.
-private struct Choices<Value: Hashable>: View {
-    let title: LocalizedStringKey
-    @Binding var selection: Value
-    let options: [(String, Value)]
-
-    init(_ title: LocalizedStringKey, selection: Binding<Value>, options: [(String, Value)]) {
-        self.title = title
-        _selection = selection
-        self.options = options
-    }
-
-    var body: some View {
-        Section(title) {
-            ForEach(options, id: \.1) { name, value in
-                Toggle(
-                    name,
-                    isOn: Binding {
-                        selection == value
-                    } set: {
-                        if $0 { selection = value }
-                    })
-            }
-        }
-    }
-}
-
-/// Which satellite components are drawn.
-private struct ComponentsMenu: View {
-    let catalog: CatalogModel
-
-    var body: some View {
-        Menu("Components", image: .lucideOrbit) {
-            ForEach(SatelliteComponents.named, id: \.0) { name, component in
-                Toggle(
-                    name,
-                    isOn: Binding {
-                        catalog.components.contains(component)
-                    } set: {
-                        catalog.setComponent(component, enabled: $0)
-                    })
-            }
-            if catalog.components.contains(.label), catalog.activeEntries.count > SatelliteComponents.labelBudget {
-                Text("Labels show for up to \(SatelliteComponents.labelBudget) satellites")
-            }
         }
     }
 }
