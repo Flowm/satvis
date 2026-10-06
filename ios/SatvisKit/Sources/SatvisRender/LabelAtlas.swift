@@ -83,7 +83,8 @@ struct LabelAtlas {
             LabelInstance(
                 uvRect: SIMD4(
                     Float(frame.minX) / Float(width), Float(frame.minY) / Float(atlasHeight), Float(frame.maxX) / Float(width), Float(frame.maxY) / Float(atlasHeight)),
-                size: SIMD2(Float(frame.width), Float(frame.height)), satellite: UInt32(index))
+                // In points, so a label keeps its size whatever the drawable's pixel ratio.
+                size: SIMD2(Float(frame.width), Float(frame.height)) / Float(scale), satellite: UInt32(index))
         }
     }
 }

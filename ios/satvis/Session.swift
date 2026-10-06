@@ -85,6 +85,10 @@ final class Session {
     /// Kept where the web keeps it, in the link as `fps=true`: a link the app
     /// does not otherwise read, written back as it came.
     private(set) var showsPerformance = false
+    /// Drawable pixels per point, the web app's `pixelratio`: `1`, `1.5`, or
+    /// `native` for the screen's own. Fewer pixels for frames the GPU finishes in
+    /// time; kept in links as on the web.
+    var pixelRatio = "native"
     /// The benchmark panel, the web app's `bench=true`, kept in the link the same
     /// way; open through a run, whose scenes' links do not carry it.
     private(set) var showsBenchmark = false
@@ -284,6 +288,7 @@ final class Session {
             layers: [baseLayer.rawValue],
             terrain: terrain ? "ReEarth" : "None",
             scene: observer == nil ? "3D" : "Sky",
+            pixelRatio: pixelRatio,
             time: withTime && clock.clock.isPinned ? minuteISO(Date(timeIntervalSince1970: clock.now() / 1000)) : nil)
         return Link(preset: catalog.presetName, query: LinkCodec.write(state, foreign: foreign, defaults: defaults))
     }
@@ -322,6 +327,7 @@ final class Session {
                 baseLayer = base
             }
             terrain = state.terrain == "ReEarth"
+            pixelRatio = state.pixelRatio
             passes.setMode(OverpassMode(rawValue: state.overpass) ?? .elevation)
             // A clock pinned for a screenshot stays where it was put.
             if ViewerClock.launchTime == nil {

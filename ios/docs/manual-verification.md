@@ -212,3 +212,22 @@ frame, reading each satellite's own array to check its nodes. Memory reached 650
 sky view. The first scene repeated at the end drifted 0%, the device nominal throughout.
 The glass panel itself cost about 2 ms of GPU a frame (11.3 against 9.2 ms in the default
 view); without the glass while measuring, 10.5.
+
+## Native app: the pixel ratio, and the panel open while tracking
+
+**Procedure.** Release build on the iPad mini (`iPad14,1`, 60 Hz), the benchmark run with
+`SATVIS_BENCHMARK=print` over the default view, all orbits and the ISS tracked with its
+panel open, launched on `?pixelratio=native`, `1.5` and `1`. Then screenshots of
+`?elements=Point,Label,Orbit` at native and at 1.5.
+
+**Result, 2026-10-06.** The tracked ISS with its panel open, 40 to 44 fps at native, held
+60 fps at 1.5 (8.8 ms of GPU) and at 1 (5.7 ms). The default view took 10.5 ms of GPU at
+native, 6.7 at 1.5 and 2.8 at 1 (2266×1488, 1700×1116 and 1133×744 drawables). All
+orbits stayed near 30 fps at every ratio, their cost being vertices, not pixels. Points,
+labels, pins and lines kept their size at 1.5; the picture was a little softer and the
+map a level coarser.
+
+Before, the panel's 40 fps was not its glass: an opaque panel and an empty inspector ran at
+40 fps too. An inspector column narrows the globe's view, and frames then missed every
+other refresh; a card over the full-screen globe ran at 40 to 54 fps, our 9 to 11 ms of GPU
+a frame and the compositor's 7 to 8 ms a refresh leaving no margin.

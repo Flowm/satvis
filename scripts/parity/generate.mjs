@@ -262,12 +262,14 @@ try {
   // vue-router's own parser and serializer, as the web app's does.
   const codec = await runner.import("/src/modules/util/urlCodec.ts");
   const { parseQuery, stringifyQuery } = await runner.import("vue-router");
+  const { PIXEL_RATIOS } = await runner.import("/src/config/rendering.ts");
   const vocabulary = {
     components: ["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model", "Ground station link"],
     layers: ["NaturalEarth", "VersaTiles", "BlackMarble"],
     terrain: ["None", "ReEarth"],
     overpass: ["elevation", "swath"],
     scenes: ["3D", "Sky"],
+    pixelRatios: [...PIXEL_RATIOS],
   };
   const kinds = {
     plainString: codec.plainString(),
@@ -377,6 +379,7 @@ try {
     { name: "layers", kind: kinds.layers },
     { name: "terrain", kind: codec.enumString(vocabulary.terrain) },
     { name: "scene", kind: codec.enumString(vocabulary.scenes) },
+    { name: "pixelratio", kind: codec.enumString(vocabulary.pixelRatios) },
     { name: "time", kind: kinds.timestamp },
   ];
   const owned = new Set(schema.map((spec) => spec.name));
@@ -391,6 +394,7 @@ try {
     layers: ["NaturalEarth"],
     terrain: "None",
     scene: "3D",
+    pixelratio: "native",
     time: null,
   };
   const PRESETS = {
@@ -410,6 +414,9 @@ try {
     ["default", "scene=Columbus&gs=46.5935,7.9091"],
     ["default", "scene=Sky&track=ISS+(ZARYA)"],
     ["default", "layers=NaturalEarth,VersaTiles_0.50,BlackMarble"],
+    ["default", "pixelratio=1.5&tags=Starlink"],
+    ["default", "pixelratio=native"],
+    ["default", "pixelratio=2&msaa=4"],
     ["default", "sats=Caf%C3%A9+1,%E2%9C%93&track=a%26b%3Dc%23d"],
     ["demo", ""],
     ["demo", "tags=GNSS"],

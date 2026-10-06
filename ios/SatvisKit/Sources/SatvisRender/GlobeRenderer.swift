@@ -147,7 +147,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var stations: [StationMarker] = []
     private var links: [StationLink] = []
     private var pin: MTLTexture?
-    private nonisolated let pixelScale: Double
+    /// The screen's pixels per point, which the labels are drawn at.
+    private nonisolated let screenScale: Double
+    /// The drawable's pixels per point: the screen's, or fewer at a lower pixel
+    /// ratio (`pixelratio`). Whatever is sized in points on the screen is drawn by it.
+    private var pixelScale: Double
     /// How wide each 3D model was drawn in the last frame, in points, by
     /// satellite: for picking.
     private var lastModelPoints: [Int: Double] = [:]
@@ -310,7 +314,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         tileSampler = device.makeSamplerState(descriptor: tileSamplerDescriptor)!
         skyShell = upload(Meshes.skyShell())
         pointFrameBuffers = Array(repeating: nil, count: Self.framesInFlight)
-        pixelScale = Double(view.contentScaleFactorForPoints)
+        screenScale = Double(view.contentScaleFactorForPoints)
+        pixelScale = screenScale
         pin = Textures.texture2D(StationPin.bitmap(), device: device, queue: queue)
         super.init()
         view.delegate = self
@@ -344,7 +349,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// `setSatellites`.
     public nonisolated func prepare(_ satellites: [PointSatellite]) async -> PreparedSatellites {
         let device = device
-        let scale = pixelScale
+        let scale = screenScale
         return await Task.detached(priority: .userInitiated) {
             PreparedSatellites(satellites, device: device, labelScale: scale)
         }.value
@@ -616,8 +621,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             let distance = simd.distance(position, lastFrame.position)
             if let labels, index < labels.count, distance > 2000, distance < 8e7 {
                 let size = labels[index].size
-                let width = Double(size.x) / pixelScale
-                let height = Double(size.y) / pixelScale
+                let width = Double(size.x)
+                let height = Double(size.y)
                 let gap = max(10, (lastModelPoints[index] ?? 0) / 2 + 4)
                 label = CGRect(x: spot.x + gap, y: spot.y - height / 2, width: width, height: height)
             }
@@ -677,6 +682,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     public func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
         guard size.width > 0, size.height > 0 else {
             return
+        }
+        if view.bounds.width > 0 {
+            pixelScale = Double(size.width / view.bounds.width)
         }
         if orbitCamera == nil {
             orbitCamera = OrbitCamera.home(aspectRatio: size.width / size.height)
@@ -1069,9 +1077,10 @@ private func float4x4(_ m: simd_double4x4) -> simd_float4x4 {
 
 extension MTKView {
     /// Pixels per point, on either platform.
+    /// The screen's, whatever the view's pixel ratio is set to.
     fileprivate var contentScaleFactorForPoints: CGFloat {
         #if canImport(UIKit)
-            contentScaleFactor
+            traitCollection.displayScale > 0 ? traitCollection.displayScale : contentScaleFactor
         #else
             window?.backingScaleFactor ?? 2
         #endif

@@ -7030,6 +7030,11 @@
       "scenes": [
         "3D",
         "Sky"
+      ],
+      "pixelRatios": [
+        "1",
+        "1.5",
+        "native"
       ]
     },
     "presets": {
@@ -7059,6 +7064,7 @@
       ],
       "terrain": "None",
       "scene": "3D",
+      "pixelratio": "native",
       "time": null
     },
     "fieldKinds": [
@@ -7710,6 +7716,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [],
@@ -7736,6 +7743,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [],
@@ -7760,6 +7768,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [],
@@ -7788,6 +7797,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [],
@@ -7821,6 +7831,7 @@
           ],
           "terrain": "ReEarth",
           "scene": "Sky",
+          "pixelratio": "native",
           "time": "2026-10-04T19:22Z"
         },
         "invalid": [],
@@ -7853,6 +7864,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [],
@@ -7884,6 +7896,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [
@@ -7915,6 +7928,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [],
@@ -7938,6 +7952,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [],
@@ -7969,6 +7984,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [
@@ -7997,6 +8013,7 @@
           ],
           "terrain": "None",
           "scene": "Sky",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [],
@@ -8025,10 +8042,94 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [],
         "written": "layers=NaturalEarth,VersaTiles_0.5,BlackMarble"
+      },
+      {
+        "preset": "default",
+        "query": "pixelratio=1.5&tags=Starlink",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Starlink"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "3D",
+          "pixelratio": "1.5",
+          "time": null
+        },
+        "invalid": [],
+        "written": "tags=Starlink&pixelratio=1.5"
+      },
+      {
+        "preset": "default",
+        "query": "pixelratio=native",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "3D",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": ""
+      },
+      {
+        "preset": "default",
+        "query": "pixelratio=2&msaa=4",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "3D",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [
+          "pixelratio"
+        ],
+        "written": "msaa=4"
       },
       {
         "preset": "default",
@@ -8054,6 +8155,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [],
@@ -8081,6 +8183,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [],
@@ -8108,6 +8211,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [],
@@ -8135,6 +8239,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [],
@@ -8161,6 +8266,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "pixelratio": "native",
           "time": null
         },
         "invalid": [],

@@ -61,7 +61,8 @@ vertex LabelOut labelVertex(uint vid [[vertex_id]], uint iid [[instance_id]], co
     }
     float2 corner = float2(vid & 1, vid >> 1);
     float gap = max(10.0, frames[label.satellite].modelPoints / 2.0 + 4.0);
-    float2 offset = float2(gap * frame.pixelScale + corner.x * label.size.x, (0.5 - corner.y) * label.size.y);
+    // The label's size is in points, as everything placed on the screen is.
+    float2 offset = float2(gap + corner.x * label.size.x, (0.5 - corner.y) * label.size.y) * frame.pixelScale;
     clip.xy += offset * 2.0 / frame.viewportSize * clip.w;
     out.position = clip;
     out.uv = mix(label.uvRect.xy, label.uvRect.zw, corner);

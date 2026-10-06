@@ -24,6 +24,7 @@ import Testing
         #expect(vocabulary["terrain"] == LinkCodec.terrains)
         #expect(vocabulary["overpass"] == LinkCodec.overpassModes)
         #expect(vocabulary["scenes"] == LinkCodec.scenes)
+        #expect(vocabulary["pixelRatios"] == LinkCodec.pixelRatios)
     }
 
     @Test func readsAndWritesEachKindAsTheWebAppDoes() throws {
@@ -96,6 +97,7 @@ import Testing
             #expect(read.state.layers == want["layers"] as? [String], "\(label)")
             #expect(read.state.terrain == want["terrain"] as? String, "\(label)")
             #expect(read.state.scene == want["scene"] as? String, "\(label)")
+            #expect(read.state.pixelRatio == want["pixelratio"] as? String, "\(label)")
             #expect(read.state.time == want["time"] as? String, "\(label)")
             #expect(read.invalid == test["invalid"] as? [String], "\(label)")
             let written = LinkCodec.write(read.state, foreign: read.foreign, defaults: defaults).string
