@@ -134,6 +134,30 @@ import simd
         #expect(SampledTrajectory(propagator, around: decay + 7 * 86_400_000) == nil)
     }
 
+    // The renderer finds thousands of stencils a frame from a few numbers each
+    // (`SampledTrajectory.stencil(at:anchor:…)`), and checks the nodes only of a
+    // window that is not complete: the two agree at every instant, refused nodes
+    // and the window's edges included.
+    @Test func findsTheSameStencilFromTheWindowsBounds() throws {
+        let trajectory = try #require(SampledTrajectory(propagator, around: decay - 600_000))
+        let whole = try #require(SampledTrajectory(propagator, around: decay - 3 * 86_400_000))
+        #expect(!trajectory.isComplete && whole.isComplete)
+        for window in [trajectory, whole] {
+            let start = window.anchorMilliseconds + Double(window.firstIndex) * window.stepMilliseconds
+            for step in stride(from: -2.0, through: Double(window.positions.count) + 2, by: 0.37) {
+                let instant = start + step * window.stepMilliseconds
+                let packed = SampledTrajectory.stencil(
+                    at: instant, anchor: window.anchorMilliseconds, step: window.stepMilliseconds, firstIndex: window.firstIndex,
+                    count: window.positions.count)
+                if window.isComplete {
+                    #expect(packed?.start == window.stencil(at: instant)?.start && packed?.offset == window.stencil(at: instant)?.offset)
+                } else if let found = window.stencil(at: instant) {
+                    #expect(packed?.start == found.start && packed?.offset == found.offset)
+                }
+            }
+        }
+    }
+
     // Scrubbed past the decay and back, it is drawn again.
     @Test func bringsItBackWhenTheClockReturns() async throws {
         let store = TrajectoryStore()
