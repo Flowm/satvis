@@ -76,23 +76,36 @@ struct ContentView: View {
                     .ignoresSafeArea()
             }
         }
+        .overlay(alignment: .top) {
+            // Between the menu and Share, level with them where there is room for
+            // it; on a phone under them, the "Menu" pill reaching into the middle.
+            // Under the menu panel too, which covers it while open. The benchmark
+            // panel shows its own measurements in its place.
+            if session.showsPerformance, !session.showsBenchmark, let renderer = session.renderer {
+                PerformanceOverlay(renderer: renderer)
+                    .padding(.top, sizeClass == .regular ? 16 : 76)
+            }
+        }
         .overlay(alignment: .topLeading) {
             ToolMenu(isOpen: $showsTools) {
                 // The web app's menu column: its entries, icons, order and hints.
-                ToolRow("Satellites", hint: "Search and pick which satellites to show") {
-                    Button("Satellites", image: .lucideSatellite) {
-                        showsBrowser = true
-                    }
+                // The hints are its hover texts, read by VoiceOver.
+                Button("Satellites", image: .lucideSatellite) {
+                    showsBrowser = true
                 }
-                ToolRow("Components", hint: "Orbits, ground tracks, labels and sensor cones") { ComponentsMenu(catalog: session.catalog) }
-                ToolRow("Ground station", hint: "Your location, for pass predictions") {
-                    Button("Ground station", image: .lucideMapPin) {
-                        showsStations = true
-                    }
+                .accessibilityHint("Search and pick which satellites to show")
+                ComponentsMenu(catalog: session.catalog)
+                    .accessibilityHint("Orbits, ground tracks, labels and sensor cones")
+                Button("Ground station", image: .lucideMapPin) {
+                    showsStations = true
                 }
-                ToolRow("Map", hint: "Basemap and terrain") { MapMenu(session: session) }
-                ToolRow("View", hint: "Globe or sky view, and the compass") { ViewMenu(session: session) }
-                ToolRow("Graphics", hint: "Quality and performance") { GraphicsMenu(session: session) }
+                .accessibilityHint("Your location, for pass predictions")
+                MapMenu(session: session)
+                    .accessibilityHint("Basemap and terrain")
+                ViewMenu(session: session)
+                    .accessibilityHint("Globe or sky view, and the compass")
+                GraphicsMenu(session: session)
+                    .accessibilityHint("Quality and performance")
             }
             .padding()
         }
@@ -122,14 +135,6 @@ struct ContentView: View {
             .buttonStyle(.glass)
             .controlSize(.large)
             .padding()
-        }
-        .overlay(alignment: .top) {
-            // Between the tool menu and Share, level with them.
-            // The benchmark panel shows its own measurements in its place.
-            if session.showsPerformance, !session.showsBenchmark, let renderer = session.renderer {
-                PerformanceOverlay(renderer: renderer)
-                    .padding(.top, 16)
-            }
         }
         .overlay(alignment: .top) {
             if let message = session.notice ?? session.alerts.message {
@@ -268,91 +273,75 @@ struct ContentView: View {
     }
 }
 
-/// The tools behind one button: a column of the same glass buttons unfolding
-/// under it, each named beside it, so that a phone's width is left to the globe.
+/// The web app's menu column: one panel, the Menu toggle over a rule and the
+/// tools under it, each its icon and its name, folding to the toggle alone so
+/// that a phone's width is left to the globe.
 private struct ToolMenu<Tools: View>: View {
     @Binding var isOpen: Bool
     @ViewBuilder let tools: Tools
 
     var body: some View {
-        // Spacing under the row's 10 pt gap, so a name's glass stays apart from
-        // its button's rather than melting into it.
-        GlassEffectContainer(spacing: 8) {
-            VStack(alignment: .leading, spacing: 12) {
-                // Named "Menu" beside it either way, as the web app's toggle is.
-                ToolRow("Menu", hint: "") {
-                    Button(isOpen ? "Close menu" : "Menu", image: isOpen ? .lucideChevronUp : .lucideMenu) {
-                        isOpen.toggle()
-                    }
+        VStack(alignment: .leading, spacing: 0) {
+            // Named "Menu" either way, as the web app's toggle is; VoiceOver hears
+            // what a tap does.
+            Button {
+                isOpen.toggle()
+            } label: {
+                Label("Menu", image: isOpen ? .lucideChevronUp : .lucideMenu)
                     // Swapped, not faded: a crossfade shows both at once.
                     .contentTransition(.identity)
-                }
-                if isOpen {
-                    tools
-                }
             }
-            .labelStyle(.iconOnly)
-            .buttonStyle(ToolButtonStyle())
-            .menuStyle(.button)
-            // In the web app's order, top down, even where a menu opens upwards.
-            .menuOrder(.fixed)
+            .accessibilityLabel(isOpen ? "Close menu" : "Menu")
+
+            if isOpen {
+                Divider()
+                tools
+            }
         }
+        // As wide as its widest name, every row across all of it.
+        .fixedSize()
+        .labelStyle(ToolLabelStyle())
+        .buttonStyle(ToolRowStyle())
+        .menuStyle(.button)
+        // In the web app's order, top down, even where a menu opens upwards.
+        .menuOrder(.fixed)
+        .padding(.vertical, 4)
+        // The glass the system draws around a large `.glass` button, around the
+        // whole panel instead: a menu's own arrives a beat after a button's.
+        .glassEffect(.regular, in: .rect(cornerRadius: 26))
         .animation(.snappy, value: isOpen)
     }
 }
 
-/// The size of a large `.glass` button, with no glass of its own: that goes on
-/// around the whole control (`toolGlass`), where a menu's label shows it too.
-private struct ToolButtonStyle: ButtonStyle {
-    // Scaled with the text as the system's glass buttons are, the Share button
-    // beside them among them: about as a large title grows, icon and all.
-    @ScaledMetric(relativeTo: .largeTitle) private var width = 62.0
+/// An icon in a column of its own, so the names line up, and the name beside it.
+private struct ToolLabelStyle: LabelStyle {
+    // Scaled with the text, icon and all, as the system's glass buttons are.
+    @ScaledMetric(relativeTo: .body) private var scale = 1.0
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 4) {
+            configuration.icon
+                .scaleEffect(scale)
+                .frame(width: 44 * scale)
+            configuration.title
+                .font(.body.weight(.medium))
+                .lineLimit(1)
+        }
+    }
+}
+
+/// A row of the panel, across its width, a fingertip tall: with the panel's
+/// inset, the toggle's middle is level with the large glass buttons' opposite.
+private struct ToolRowStyle: ButtonStyle {
+    @ScaledMetric(relativeTo: .body) private var scale = 1.0
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(width / 62)
-            .frame(width: width, height: width * 52 / 62)
-            .contentShape(.capsule)
-    }
-}
-
-extension View {
-    /// The glass of a large `.glass` button, drawn by SwiftUI around a control
-    /// rather than by the system inside it: a menu's system glass arrives a beat
-    /// after a button's, so the column would unfold in two steps.
-    fileprivate func toolGlass() -> some View {
-        glassEffect(.regular.interactive(), in: .capsule)
-    }
-}
-
-/// A tool and its name, small beside it on a glass of its own, which keeps it
-/// legible over bright ground and dark space alike. The name is a caption: the
-/// button carries the same one for VoiceOver, and a tap on it reaches the globe.
-/// `hint` is the web app's hover text, what is behind the entry, read by VoiceOver.
-private struct ToolRow<Tool: View>: View {
-    let title: LocalizedStringKey
-    let hint: LocalizedStringKey
-    @ViewBuilder let tool: Tool
-
-    init(_ title: LocalizedStringKey, hint: LocalizedStringKey, @ViewBuilder tool: () -> Tool) {
-        self.title = title
-        self.hint = hint
-        self.tool = tool()
-    }
-
-    var body: some View {
-        HStack(spacing: 10) {
-            tool
-                .toolGlass()
-                .accessibilityHint(hint)
-            Text(title)
-                .font(.footnote.weight(.semibold))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .glassEffect(in: .capsule)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
+            .padding(.leading, 4)
+            .padding(.trailing, 18)
+            .frame(maxWidth: .infinity, minHeight: 44 * scale, alignment: .leading)
+            .background(.white.opacity(configuration.isPressed ? 0.12 : 0))
+            .contentShape(.rect)
     }
 }
 
