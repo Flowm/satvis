@@ -5,6 +5,15 @@ import utc from "dayjs/plugin/utc";
 
 dayjs.extend(utc);
 
+/** The granularity the url records anyway. See CONTEXT.md, live vs pinned time. */
+const PRESENT_TOLERANCE_MS = 60_000;
+
+/**
+ * Whether the clock shows a moment other than the present. The deck's Live dot goes
+ * out on it, and the url pins `time` on it, so the two always agree.
+ */
+export const isOffPresent = (clockMs: number, systemMs: number): boolean => Math.abs(clockMs - systemMs) > PRESENT_TOLERANCE_MS;
+
 /** An enum, not the app's usual `const` array: nothing iterates it. */
 export enum Scale {
   Timeline = "timeline",

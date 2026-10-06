@@ -4,15 +4,12 @@
 import { JulianDate } from "@cesium/engine";
 import { computed, onUnmounted, ref } from "vue";
 
-import { rungFor, LADDER } from "../modules/util/clockDeck";
+import { isOffPresent, rungFor, LADDER } from "../modules/util/clockDeck";
 import { useCesiumStore } from "../stores/cesium";
 import { useController } from "./useController";
 
 /** Every write here re-renders the deck, and the tick listener runs at render rate. */
 const READOUT_MS = 100;
-
-/** The granularity the url records anyway. See CONTEXT.md, live vs pinned time. */
-const PRESENT_TOLERANCE_MS = 60_000;
 
 export function useViewerClock() {
   const cc = useController();
@@ -45,8 +42,7 @@ export function useViewerClock() {
   });
   onUnmounted(removeTickListener);
 
-  /** Not the same as pinned: 60× leaves the present in a second, with nothing touched. */
-  const offPresent = computed(() => Math.abs(now.value.getTime() - systemNow.value) > PRESENT_TOLERANCE_MS);
+  const offPresent = computed(() => isOffPresent(now.value.getTime(), systemNow.value));
 
   const rung = computed(() => rungFor(multiplier.value));
 

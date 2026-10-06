@@ -2,7 +2,7 @@
 
 import { JulianDate } from "@cesium/engine";
 import { createPinia, setActivePinia } from "pinia";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { nextTick } from "vue";
 
 import { BUILTIN_STAR_MAP } from "../config/starMaps";
@@ -39,6 +39,16 @@ function fakeTarget() {
   };
 
   const unavailableStarMaps = new Set<string>();
+  const tickListeners: (() => void)[] = [];
+  const clock = {
+    currentTime: JulianDate.fromIso8601("2026-01-01T00:00:00Z"),
+    onTick: {
+      addEventListener: (listener: () => void) => {
+        tickListeners.push(listener);
+        return () => {};
+      },
+    },
+  };
 
   const catalog = { entries: [] as CatalogEntry[] };
 
@@ -84,10 +94,7 @@ function fakeTarget() {
       catalog,
     },
     viewer: {
-      clock: {
-        currentTime: JulianDate.fromIso8601("2026-01-01T00:00:00Z"),
-        onTick: { addEventListener: () => () => {} },
-      },
+      clock,
       timeline: undefined,
     },
     applySurfaceModel: (surfaceModel, viewMode) => {
@@ -110,7 +117,10 @@ function fakeTarget() {
     setTime: () => {},
   };
 
-  return { target, calls, catalog, unavailableStarMaps };
+  /** One frame of the viewer's clock. */
+  const tick = () => tickListeners.forEach((listener) => listener());
+
+  return { target, calls, catalog, unavailableStarMaps, clock, tick };
 }
 
 function entriesWithTag(tag: string, count: number): CatalogEntry[] {
@@ -534,6 +544,54 @@ describe("startSceneSync", () => {
       await settle();
       expect(satStore.enabledComponents).not.toContain("Ground station link");
       expect(satStore.enabledComponents).toContain("Point");
+    });
+  });
+
+  describe("the url's time follows the Live dot", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date", "performance"], now: Date.parse("2026-01-01T00:00:00Z") });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    test("a live clock that leaves the present pins the url to the minute it shows", () => {
+      const { target, clock, tick } = fakeTarget();
+      startSceneSync(target);
+      const store = useCesiumStore();
+
+      vi.advanceTimersByTime(2000);
+      tick();
+      expect(store.time).toBeNull();
+
+      // A pass link, a paused clock or 600× all move the clock away from the present.
+      clock.currentTime = JulianDate.fromIso8601("2026-01-01T02:30:20Z");
+      tick();
+      expect(store.time).toBe("2026-01-01T02:30Z");
+    });
+
+    test("a pinned clock back at the present goes live", () => {
+      const { target, clock, tick } = fakeTarget();
+      startSceneSync(target);
+      const store = useCesiumStore();
+      store.setTime("2025-12-31T21:00Z");
+
+      // Scrubbed back to the present: the deck shows Live, so the url must not pin.
+      vi.advanceTimersByTime(2000);
+      clock.currentTime = JulianDate.fromIso8601("2026-01-01T00:00:02Z");
+      tick();
+      expect(store.time).toBeNull();
+    });
+
+    test("a clock within a minute of the present stays live", () => {
+      const { target, clock, tick } = fakeTarget();
+      startSceneSync(target);
+      const store = useCesiumStore();
+
+      vi.advanceTimersByTime(2000);
+      clock.currentTime = JulianDate.fromIso8601("2026-01-01T00:00:50Z");
+      tick();
+      expect(store.time).toBeNull();
     });
   });
 });

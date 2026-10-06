@@ -14,6 +14,7 @@ import { activeTargetEntries } from "./satelliteActivation";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import type { DesiredScene } from "./SatelliteManager";
 import type { Observer } from "./SkyView";
+import { isOffPresent } from "./util/clockDeck";
 import { repositioned } from "./util/groundStationEdits";
 import { toMinuteIso } from "./util/urlCodec";
 import { adjustUrlDefault, arrivalParam } from "./util/urlSync";
@@ -325,8 +326,9 @@ export function startSceneSync(cc: SceneTarget): void {
 
   watch(desired, (next) => cc.sats.reconcile(next), { deep: true, immediate: true });
 
-  // `time` is null (live) until the url or the clock deck pins it; then it follows the
-  // clock to the minute.
+  // `time` is null (live) exactly while the clock shows the present, as the deck's Live
+  // dot does. Off it, however it got there (a scrub, a pass link, a pause, 600×), `time`
+  // follows the clock to the minute, so a shared link shows what the sender saw.
   const clockMinute = (): string | undefined => toMinuteIso(JulianDate.toDate(cc.viewer.clock.currentTime));
 
   watch(
@@ -341,19 +343,20 @@ export function startSceneSync(cc: SceneTarget): void {
 
   let lastClockWrite = 0;
   cc.viewer.clock.onTick.addEventListener(() => {
-    if (cesiumStore.time === null) {
+    const live = !isOffPresent(JulianDate.toDate(cc.viewer.clock.currentTime).getTime(), Date.now());
+    if (live && cesiumStore.time === null) {
       return;
     }
     const now = performance.now();
     if (now - lastClockWrite < MIN_CLOCK_WRITE_MS) {
       return;
     }
-    const minute = clockMinute();
+    const minute = live ? null : (clockMinute() ?? null);
     if (minute === cesiumStore.time) {
       return;
     }
     lastClockWrite = now;
-    cesiumStore.setTime(minute ?? null);
+    cesiumStore.setTime(minute);
   });
 
   cc.sats.onTrackedChange((name) => {
