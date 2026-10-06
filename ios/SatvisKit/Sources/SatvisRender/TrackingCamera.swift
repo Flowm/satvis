@@ -51,13 +51,25 @@ public struct TrackingCamera: Sendable, Equatable {
 
     public init() {}
 
+    /// Close up on a 3D model, as the web app tracks one while its model is on:
+    /// south-east of it and above, along (9, −10, 5) east-north-up, six model
+    /// radii away, so a cubesat and the ISS fill the screen alike.
+    static func framing(modelRadius radius: Double) -> TrackingCamera {
+        var camera = TrackingCamera()
+        camera.heading = atan2(9, -10)
+        camera.pitch = atan2(5, (81.0 + 100).squareRoot())
+        camera.range = 6 * radius
+        return camera
+    }
+
     func pose(target: SIMD3<Double>) -> CameraPose {
         let up = normalize(target)
         let east = normalize(cross(SIMD3(0, 0, 1), up))
         let north = cross(up, east)
         let back = cos(pitch) * (sin(heading) * east + cos(heading) * north) + sin(pitch) * up
         let right = normalize(cross(up, back))
-        return CameraPose(position: target + range * back, right: right, up: cross(back, right), back: back)
+        // Nearer than a metre to a cubesat's model: the near plane comes in with it.
+        return CameraPose(position: target + range * back, right: right, up: cross(back, right), back: back, near: min(1, range / 10))
     }
 
     /// Circles the satellite: across turns the heading, up and down the pitch.
@@ -68,7 +80,8 @@ public struct TrackingCamera: Sendable, Equatable {
     }
 
     public mutating func zoom(by scale: Double) {
-        range = min(max(range / scale, 1_000), 100_000_000)
+        // CesiumJS's minimumZoomDistance: a metre, near enough for a 3D model.
+        range = min(max(range / scale, 1), 100_000_000)
     }
 
     public mutating func rotate(by radians: Double) {

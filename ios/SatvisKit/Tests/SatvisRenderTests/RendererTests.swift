@@ -36,7 +36,7 @@ import simd
         #expect(MemoryLayout<FrameUniforms>.size == 264)
         #expect(MemoryLayout<GlobeVertex>.stride == 64)
         #expect(MemoryLayout<PointInstance>.stride == 32)
-        #expect(MemoryLayout<PointFrame>.stride == 8)
+        #expect(MemoryLayout<PointFrame>.stride == 12)
         #expect(MemoryLayout<LabelInstance>.stride == 32)
         #expect(MemoryLayout<StationInstance>.stride == 16)
         #expect(MemoryLayout<LinkInstance>.stride == 24)

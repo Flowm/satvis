@@ -175,3 +175,18 @@ satellite, a frame in between showing the globe turning, as the web app's Track 
 since bf576a0; the clock ran on, since the flight heads for where the satellite is each
 frame rather than where it was. The globe button flew from the tracking view straight back
 to the home view, with no cut to the view tracking began from on the way.
+
+## Native app: 3D models
+
+**Procedure.** In the iPhone 17e simulator, open the about page's ISS view
+(`?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model&layers=VersaTiles&time=2026-10-04T02:07Z`)
+and close the info panel. Then the same link without `track`, from the home view. In a
+scratch test, read every file in `data/models/public` with `ModelAsset`.
+
+**Result, 2026-10-06.** All ten models read, with the triangle counts and dimensions
+`models.yaml` records, in up to 0.5 s each in a Debug build, off the main thread. The ISS
+was fetched from satvis.space and drawn with its truss across the ground track and its
+arrays lit by the sun. From the home view it held the web app's 72 points, its point
+hidden and its label moved past its edge. Tracked, the camera opened six model
+radii off, south-east and above, as the web app frames a model, once the model had
+loaded; the point was hidden, and the label too, being nearer than 2 km.

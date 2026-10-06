@@ -64,6 +64,7 @@ struct PointInstance {
 struct PointFrame {
     var stencilStart: UInt32
     var offset: Float
+    var modelPoints: Float = 0
 }
 
 /// The satellites ready to draw: their samples and instances in GPU buffers, and
@@ -152,6 +153,10 @@ final class SatellitePoints {
                 frames[index] = PointFrame(stencilStart: 0, offset: -1)
             }
         }
+    }
+
+    func satellite(_ id: String) -> PointSatellite? {
+        indexByID[id].map { satellites[$0] }
     }
 
     /// Where a satellite is, by the same interpolation the shader does.

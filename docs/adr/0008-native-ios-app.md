@@ -139,9 +139,17 @@ it off.
   not worth checking for a second satellite basemap.
 - The benchmark panel, the render-quality menu, WebVR and the embed mode
 
-These come later: the 2D view mode, the inertial camera mode, 3D models (loaded
-with GLTFKit2), the DeepStar2K star map, a camera passthrough in the sky view, and
-a Live Activity for a pass.
+These come later: the 2D view mode, the inertial camera mode, the DeepStar2K star
+map, a camera passthrough in the sky view, and a Live Activity for a pass.
+
+3D models are drawn from the web app's own files rather than a converted copy,
+so `data/models` stays the one place a model is built. GLTFKit2, the plan here
+at first, was not used: it would still have needed Draco, which every model is
+compressed with, and its scene objects would have been converted again for the
+Metal renderer, which needs only meshes, materials and textures. A small GLB
+reader does that, with Draco from the prebuilt DracoSwift package. They are lit
+by the sun alone, not by Cesium's physically based lighting: at the 20 to 72
+points they are mostly drawn at, the difference does not show.
 
 ## Release
 
