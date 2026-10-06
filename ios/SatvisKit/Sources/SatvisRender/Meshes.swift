@@ -35,20 +35,27 @@ struct EllipsoidMesh<Vertex> {
                 vertices.append(vertex(k / sqrt(dot(normal, k)), normal, SIMD2(u, v)))
             }
         }
-        indices = []
-        indices.reserveCapacity(longitudes * latitudes * 6)
-        let stride = UInt32(longitudes + 1)
-        for row in 0..<UInt32(latitudes) {
-            for column in 0..<UInt32(longitudes) {
+        indices = Meshes.grid(columns: longitudes, rows: latitudes)
+    }
+}
+
+enum Meshes {
+    /// Triangles over a grid of `columns + 1` by `rows + 1` vertices, numbered
+    /// along the rows.
+    static func grid(columns: Int, rows: Int) -> [UInt32] {
+        let stride = UInt32(columns + 1)
+        var indices: [UInt32] = []
+        indices.reserveCapacity(columns * rows * 6)
+        for row in 0..<UInt32(rows) {
+            for column in 0..<UInt32(columns) {
                 let a = row * stride + column
                 let b = a + stride
                 indices += [a, b, a + 1, a + 1, b, b + 1]
             }
         }
+        return indices
     }
-}
 
-enum Meshes {
     /// The sky atmosphere's shell, 2.5 % outside the ellipsoid (SkyAtmosphere.js).
     static func skyShell() -> EllipsoidMesh<SIMD4<Float>> {
         EllipsoidMesh(radii: ellipsoidRadii * 1.025, longitudes: 128, latitudes: 64) { position, _, _ in
