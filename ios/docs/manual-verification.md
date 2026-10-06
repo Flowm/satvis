@@ -296,3 +296,18 @@ tiles. With no width where a node and its neighbours are behind the Earth, the s
 39.9 fps on 29.4 ms; the Weather view and the sky view drew the same pixels as HEAD. The
 other scenes: default view 5.4 ms, Starlink 7.4, all active as points 8.1, Weather 7.5, the
 ISS tracked 6.8 and with its panel 7.2, the sky view 8.8, all at 60 fps.
+
+## Native app: the orbit closed into a loop, and main's new models
+
+**Procedure.** The ISS alone with its orbit on the iPhone 17e simulator, at 12:25 UTC,
+when the far side of its orbit crosses the globe, compared pixel by pixel with the build
+before; the benchmark's `active_orbits` and `weather_all_components` on the iPad mini.
+Then Suomi NPP, GOES 18, CYGFM03 and TDRS 12 tracked with their 3D models, the panel
+closed, against the site's models.
+
+**Result, 2026-10-06.** The line's two ends had missed by the orbit's drift over a
+period, about 2 px at the default view; they now meet, and only the quarter behind the
+satellite moved, by up to 51 levels at the seam and less along the ramp. All active
+satellites' orbits ran at 39.7 fps on 32.1 ms of GPU, against 39.9 on 29.4 before; Weather
+held 60 at 7.3 ms. All four models loaded and drew with their textures, TDRS 12's mesh
+antennas too.

@@ -1,7 +1,8 @@
 // Each satellite's orbit and orbit track, drawn through its samples as a line one
 // point wide in screen space, as the web app's PathGraphics and PolylineGeometry
-// draw them: the orbit white at 15 %, half a period either side and fixed in
-// inertial space; the track gold at 15 %, a period ahead over the turning Earth.
+// draw them: the orbit white at 15 %, half a period either side, fixed in
+// inertial space and closed into a loop; the track gold at 15 %, a period ahead
+// over the turning Earth.
 // Its edges fade over a device pixel, where the web app smooths them with FXAA.
 
 struct LineOut {
@@ -12,6 +13,11 @@ struct LineOut {
 
 constant float earthRotationRate = 7.2921158553e-5;
 constant int lineNodes = 121;
+/// The orbit's nodes furthest behind the satellite that take up its drift, a
+/// quarter of them, as SampledTrajectory.ts's DRIFT_RAMP_SHARE: one period on
+/// the orbit has drifted (J2: 31 km for the ISS), so its two ends would miss.
+/// Ahead of the satellite the line is its own path.
+constant int driftRampNodes = (lineNodes - 1) / 4;
 
 /// Sample `node` of a satellite, for a line of the given kind: an orbit node is
 /// turned to where the Earth is now, so the line stays put in inertial space.
@@ -54,6 +60,20 @@ vertex LineOut lineVertex(uint vid [[vertex_id]], uint satellite [[instance_id]]
     float3 here = lineNode(node, kind, nowNode, instance, samples);
     float3 before = lineNode(node - 1, kind, nowNode, instance, samples);
     float3 after = lineNode(node + 1, kind, nowNode, instance, samples);
+    if (kind == 0) {
+        // The first node moved on by the drift is the last: the loop closes.
+        float3 drift = lineNode(first + lineNodes - 1, kind, nowNode, instance, samples) - lineNode(first, kind, nowNode, instance, samples);
+        float3 shifted[3] = {before, here, after};
+        for (int i = 0; i < 3; ++i) {
+            float weight = clamp(float(driftRampNodes - (node - 1 + i - first)) / float(driftRampNodes), 0.0, 1.0);
+            if (weight > 0.0) {
+                shifted[i] += drift * weight;
+            }
+        }
+        before = shifted[0];
+        here = shifted[1];
+        after = shifted[2];
+    }
     float4 clip = frame.viewProjection * float4((here - frame.cameraHigh) - frame.cameraLow, 1.0);
     float4 previous = frame.viewProjection * float4((before - frame.cameraHigh) - frame.cameraLow, 1.0);
     float4 next = frame.viewProjection * float4((after - frame.cameraHigh) - frame.cameraLow, 1.0);
