@@ -30,14 +30,19 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Stop tracking"].firstMatch.exists)
     }
 
-    // The web app's menu column unfolds from the menu button, folded on a phone,
-    // and the menus among it open.
+    // The web app's menu column unfolds from the menu button, folded on a phone
+    // and open from the start on an iPad, and the menus among it open.
     @MainActor
     func testOpensTheToolsFromTheMenu() {
         let app = launch()
-        XCTAssert(app.buttons["Menu"].waitForExistence(timeout: 30))
-        XCTAssertFalse(app.buttons["Map"].exists)
-        app.buttons["Menu"].tap()
+        let toggle = menuToggle(app)
+        XCTAssert(toggle.waitForExistence(timeout: 30))
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            XCTAssertEqual(toggle.label, "Close menu")
+        } else {
+            XCTAssertFalse(app.buttons["Map"].exists)
+            toggle.tap()
+        }
         for entry in ["Satellites", "Components", "Ground station", "Map", "View", "Graphics"] {
             XCTAssert(app.buttons[entry].waitForExistence(timeout: 5), "No \(entry) in the menu")
         }
@@ -90,7 +95,7 @@ nonisolated class SatvisUITests: XCTestCase {
         let app = launch(link: "/?fps=true")
         let overlay = app.descendants(matching: .any)["Performance"]
         XCTAssert(overlay.waitForExistence(timeout: 30))
-        app.buttons["Menu"].tap()
+        openMenu(app)
         app.buttons["Graphics"].tap()
         app.descendants(matching: .any)["FPS"].firstMatch.tap()
         XCTAssert(overlay.waitForNonExistence(timeout: 5))
@@ -105,10 +110,27 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(start.waitForExistence(timeout: 30))
         app.buttons["Close"].firstMatch.tap()
         XCTAssert(start.waitForNonExistence(timeout: 5))
-        app.buttons["Menu"].tap()
+        openMenu(app)
         app.buttons["Graphics"].tap()
         app.buttons["Benchmark"].firstMatch.tap()
         XCTAssert(start.waitForExistence(timeout: 5))
+    }
+
+    /// The menu column's toggle, named for what a tap on it does: "Menu" folded,
+    /// "Close menu" open.
+    @MainActor
+    private func menuToggle(_ app: XCUIApplication) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label IN {'Menu', 'Close menu'}")).firstMatch
+    }
+
+    /// Unfolds the menu column, unless it is open already, as on an iPad.
+    @MainActor
+    private func openMenu(_ app: XCUIApplication) {
+        let toggle = menuToggle(app)
+        XCTAssert(toggle.waitForExistence(timeout: 30))
+        if toggle.label == "Menu" {
+            toggle.tap()
+        }
     }
 
     /// Launches with no worker to answer, on a link: by default the plain site,
@@ -127,7 +149,7 @@ nonisolated class SatvisUITests: XCTestCase {
     private func search(_ name: String) -> XCUIApplication {
         let app = launch()
 
-        app.buttons["Menu"].tap()
+        openMenu(app)
         app.buttons["Satellites"].tap()
         let search = app.searchFields["Search satellites"]
         XCTAssert(search.waitForExistence(timeout: 10))
@@ -189,7 +211,7 @@ nonisolated class SatvisUITests: XCTestCase {
             app.launchEnvironment["SATVIS_TIME"] = "\(time.1):00Z"
         }
         app.launch()
-        XCTAssert(app.buttons["Menu"].waitForExistence(timeout: 30))
+        XCTAssert(menuToggle(app).waitForExistence(timeout: 30))
         sleep(20)
     }
 

@@ -327,3 +327,8 @@ opening upwards had reversed its items until `menuOrder(.fixed)`. The Attributio
 had taken no taps, at HEAD too: folded, the deck's left column held only a spacer and
 left the link 35 by 8 pt. With the column the row's height it is 56 by 44 pt, and the
 sheet opens, "Share usage data" beside the privacy policy, disabled in a debug build.
+
+The UI tests on the iPad mini (`iPad14,1`), UI Automation enabled: 9 passed and the 3
+screenshot tests skipped, once the tests opened the column only where it is folded; they
+had assumed a phone's folded column and failed on the iPad's open one. On the iPhone 17e
+simulator, the same 9 passed.
