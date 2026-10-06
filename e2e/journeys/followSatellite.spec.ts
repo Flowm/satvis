@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test";
 
 import { openApp, waitTicks } from "../support/app";
 import { expect, test } from "../support/test";
-import { closeMenuPanel, DEVICES, openMenu } from "../support/ui";
+import { DEVICES, openMenu } from "../support/ui";
 
 const ISS = "ISS (ZARYA)";
 
@@ -28,12 +28,8 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await openMenu(page, "Satellites");
       await page.getByPlaceholder("Search satellites").fill("ISS");
       await page.getByRole("button", { name: `Show info for ${ISS}` }).click();
-      // On a phone the catalog and the menu column stay open over the info panel
-      // that just opened: two taps before it can be read.
-      if (device === "phone") {
-        await closeMenuPanel(page, "Satellites");
-        await page.getByRole("button", { name: "Close menu" }).click();
-      }
+      // On a phone the catalog and the menu column make way for the info panel.
+      await expect(page.getByRole("region", { name: "Satellites" })).toBeVisible({ visible: device === "desktop" });
 
       const panel = page.locator(".entity-info-panel");
       await expect(panel.locator(".head__name")).toHaveText(ISS);

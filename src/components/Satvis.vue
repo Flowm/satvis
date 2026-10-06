@@ -35,7 +35,7 @@
       <!-- v-if, not v-show: the virtualized list measures its scroll element on mount,
            and a hidden mount measures 0. Search and expansion state survive remounts in useSatelliteBrowser. -->
       <toolbar-panel v-if="menu.cat" title="Satellites" wide class="toolbarSwitches--catalog" @close="closePanel('cat')">
-        <satellite-browser />
+        <satellite-browser @show-info="onShowInfo" />
       </toolbar-panel>
       <!-- "Components", not "elements": an element set is the GP data. -->
       <toolbar-panel v-show="menu.sat" title="Components" @close="closePanel('sat')">
@@ -258,8 +258,10 @@ const showUI = ref(true);
 const menuToggle = ref<HTMLButtonElement>();
 const entryButtons: Partial<Record<MenuKey, HTMLButtonElement | null>> = {};
 
-/** Collapsed only on a known phone width; a hidden tab can report a width of 0. */
-const menuExpanded = ref(!(window.innerWidth > 0 && window.innerWidth < 640));
+/** A known phone width, below which the column stacks over the info panel. A hidden tab can report 0. */
+const isNarrow = (): boolean => window.innerWidth > 0 && window.innerWidth < 640;
+
+const menuExpanded = ref(!isNarrow());
 
 /** `hint` is the hover text, saying what is behind an entry. */
 const menuItems = computed(() =>
@@ -382,6 +384,14 @@ function closeMenus() {
   (Object.keys(menu) as MenuKey[]).forEach((k) => {
     menu[k] = false;
   });
+}
+
+/** On a phone the catalog and the column would cover the info panel just opened. */
+function onShowInfo(): void {
+  if (isNarrow()) {
+    closeMenus();
+    menuExpanded.value = false;
+  }
 }
 
 function toggleMenuColumn() {
