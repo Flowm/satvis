@@ -13,6 +13,7 @@ import {
   MIN_SWIPE_VELOCITY,
   MS_PER_PX,
   nearestRung,
+  releaseVelocity,
   timelineTicks,
   LADDER,
 } from "../modules/util/clockDeck";
@@ -73,11 +74,12 @@ function useFlickDrag(options: {
     options.advance(delta);
   }
 
-  function onUp(): void {
+  function onUp(event: PointerEvent): void {
     if (!dragging) {
       return;
     }
     dragging = false;
+    velocity = releaseVelocity(velocity, event.timeStamp - lastAt);
     // A coast would wait on a frame that never comes in a hidden tab.
     if (!moved || DeviceDetect.prefersReducedMotion() || Math.abs(velocity) < options.minVelocity) {
       options.onSettle(moved);

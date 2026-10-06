@@ -56,6 +56,15 @@ export const decayVelocity = (velocity: number, dtMs: number): number => velocit
 
 export const clampMagnitude = (value: number, limit: number): number => Math.max(-limit, Math.min(limit, value));
 
+/** Longer than a few frames between the last move and the release: the finger had stopped. */
+const HOLD_MS = 100;
+
+/**
+ * The speed a release throws with. A pointer at rest sends no moves, so the last
+ * move's speed would otherwise survive a pause and fling a drag that had stopped.
+ */
+export const releaseVelocity = (velocity: number, sinceLastMoveMs: number): number => (sinceLastMoveMs > HOLD_MS ? 0 : velocity);
+
 export interface TimelineTick {
   /** Epoch ms. */
   at: number;
