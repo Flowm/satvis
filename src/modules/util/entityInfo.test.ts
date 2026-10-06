@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import Orbit from "../Orbit";
-import { formatEpoch, getSatelliteInfo } from "./entityInfo";
+import { formatEpoch, getElementsInfo, getSatelliteInfo, staleElementsNotice, STALE_ELEMENTS_DAYS } from "./entityInfo";
 import { parseGpPayload, type GpRecord } from "./gp";
 
 /**
@@ -27,6 +27,27 @@ describe("formatEpoch", () => {
   test("formats a julian date as UTC timestamp", () => {
     // JD 2460000.5 == 2023-02-25T00:00:00Z
     expect(formatEpoch(2460000.5)).toBe("2023-02-25 00:00:00");
+  });
+});
+
+describe("staleElementsNotice", () => {
+  const DAY_MS = 86_400_000;
+  const epochMs = getElementsInfo(ISS).epochMs;
+
+  test("places the epoch in Unix milliseconds", () => {
+    // 18342.69352573: day 342 of 2018 is December 8.
+    expect(new Date(epochMs).toISOString()).toMatch(/^2018-12-08T16:38:40/);
+  });
+
+  test("stays quiet within the threshold, either side of the epoch", () => {
+    expect(staleElementsNotice(epochMs, epochMs)).toBeUndefined();
+    expect(staleElementsNotice(epochMs, epochMs + STALE_ELEMENTS_DAYS * DAY_MS)).toBeUndefined();
+    expect(staleElementsNotice(epochMs, epochMs - STALE_ELEMENTS_DAYS * DAY_MS)).toBeUndefined();
+  });
+
+  test("names the offset and its direction past the threshold", () => {
+    expect(staleElementsNotice(epochMs, epochMs + 30.4 * DAY_MS)).toBe("Position may be inaccurate, clock 30 days after element epoch");
+    expect(staleElementsNotice(epochMs, epochMs - 15 * DAY_MS)).toBe("Position may be inaccurate, clock 15 days before element epoch");
   });
 });
 

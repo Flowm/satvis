@@ -16,7 +16,7 @@ import type { GroundStationEntity } from "../modules/GroundStationEntity";
 import { filterPasses, toPassRows, type Pass, type PassRow } from "../modules/PassPredictor";
 import type { SatelliteComponentCollection } from "../modules/SatelliteComponentCollection";
 import { CesiumCallbackHelper } from "../modules/util/CesiumCallbackHelper";
-import { getElementsInfo, getSatelliteInfo, type ElementsInfo } from "../modules/util/entityInfo";
+import { getElementsInfo, getSatelliteInfo, staleElementsNotice, type ElementsInfo } from "../modules/util/entityInfo";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 
@@ -54,6 +54,8 @@ const hasAnyPasses = ref(false);
 const showPastPasses = ref(false);
 const groundStationAvailable = ref(false);
 const elements: ShallowRef<ElementsInfo | null> = shallowRef(null);
+/** Set while the simulation time is far enough from the element epoch that the position may be inaccurate. */
+const staleNotice = ref<string | undefined>(undefined);
 /** Resolved once per selection: none of it is time-dependent. */
 const satelliteInfo: ShallowRef<[string, string][]> = shallowRef([]);
 
@@ -116,6 +118,7 @@ function refreshData(sel: Selection, time: JulianDate): void {
           { label: "Velocity", value: `${(cartographic.velocity ?? 0).toFixed(2)} km/s` },
         ]
       : [];
+    staleNotice.value = elements.value ? staleElementsNotice(elements.value.epochMs, JulianDate.toDate(time).getTime()) : undefined;
     passesPending.value = !props.passPredictor.settled(time);
     hasAnyPasses.value = allPasses.length > 0;
     setPasses(filterPasses(allPasses, time, showPastPasses.value), time, "groundStationName", mode);
@@ -127,6 +130,7 @@ function refreshData(sel: Selection, time: JulianDate): void {
       { label: "Latitude", value: `${gs.position.latitude.toFixed(2)}°` },
       { label: "Longitude", value: `${gs.position.longitude.toFixed(2)}°` },
     ];
+    staleNotice.value = undefined;
     const allPasses = gs.passes(time);
     passesPending.value = !gs.passesSettled(time);
     hasAnyPasses.value = allPasses.length > 0;
@@ -239,6 +243,7 @@ export function useSelectedEntity(instance: CesiumController) {
     preferredTab,
     groundStationAvailable,
     elements,
+    staleNotice,
     satelliteInfo,
     canEnterSkyView,
     enterSkyView,

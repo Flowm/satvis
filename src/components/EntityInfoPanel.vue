@@ -58,6 +58,11 @@
         </span>
       </div>
 
+      <div v-if="staleNotice" class="stale" title="Only the latest element set is kept, so positions far from its epoch drift by kilometres to thousands of kilometres.">
+        <UIcon name="i-lucide-triangle-alert" class="stale__icon" />
+        <span>{{ staleNotice }}</span>
+      </div>
+
       <!-- The tab row shows even with one tab: pressing it folds the body.
            `min-h-8` reserves the height of a badged trigger, so the row does not grow when the pass count arrives. -->
       <UTabs
@@ -216,6 +221,7 @@ const {
   preferredTab,
   groundStationAvailable,
   elements,
+  staleNotice,
   satelliteInfo,
   canEnterSkyView,
   enterSkyView,
@@ -509,6 +515,21 @@ function notifyPasses(): void {
   font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Amber: the app colour for "away from rest", as on the clock's reset. */
+.stale {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #ffd47914;
+  color: #ffd479;
+  font-size: 11px;
+}
+
+.stale__icon {
+  flex-shrink: 0;
 }
 
 .hero {
