@@ -2,8 +2,9 @@ import { JulianDate } from "@cesium/engine";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
+import { gcatCategoryLabel, gcatClassLabel } from "../../config/gcatCodes";
 import type { OrbitClass } from "../../config/orbitClass";
-import { satcatLabel, SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, SATCAT_ORBIT_TYPE, SATCAT_OWNER } from "../../config/satcatCodes";
+import { satcatLabel, SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, SATCAT_ORBIT_TYPE } from "../../config/satcatCodes";
 import { swathExtentsOf, type SatelliteMetadata } from "../../config/satelliteMetadata";
 import type Orbit from "../Orbit";
 import { recordTleLines } from "./gp";
@@ -32,7 +33,7 @@ export const STALE_ELEMENTS_DAYS = 10;
 export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata: SatelliteMetadata): [string, string][] {
   const rows: [string, string][] = [["Orbit", orbitRegimeLabel(orbitClass, orbit)], ...derivedOrbitRows(orbit)];
 
-  const { coneFovDeg, operator, missionType, owner, launchDate, launchSite, opsStatus, orbitType, decayDate } = metadata;
+  const { coneFovDeg, missionType, country, operator, category, class: ownerClass, manufacturer, bus, massKg, launchDate, launchSite, opsStatus, orbitType, decayDate } = metadata;
   const extents = swathExtentsOf(metadata);
   if (extents !== undefined) {
     const { starboardKm, portKm } = extents;
@@ -42,14 +43,33 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
   if (coneFovDeg !== undefined) {
     rows.push(["Sensor FOV", `${coneFovDeg}°`]);
   }
-  if (operator !== undefined) {
-    rows.push(["Operator", operator]);
-  }
   if (missionType !== undefined) {
     rows.push(["Mission", missionType]);
   }
-  if (owner !== undefined) {
-    rows.push(["Owner", satcatLabel(SATCAT_OWNER, owner)]);
+  if (country !== undefined) {
+    rows.push(["Country", country]);
+  }
+  if (operator !== undefined) {
+    rows.push(["Operator", operator]);
+  }
+  if (category !== undefined) {
+    rows.push(["Purpose", gcatCategoryLabel(category)]);
+  }
+  if (ownerClass !== undefined) {
+    rows.push(["Class", gcatClassLabel(ownerClass)]);
+  }
+  if (manufacturer !== undefined) {
+    rows.push(["Manufacturer", manufacturer]);
+  }
+  if (bus !== undefined) {
+    rows.push(["Bus", bus]);
+  }
+  if (massKg !== undefined) {
+    rows.push(["Mass", `${approximate(metadata, "massKg", massKg.toLocaleString("en-US"))} kg`]);
+  }
+  const size = sizeOf(metadata);
+  if (size !== undefined) {
+    rows.push(["Size", size]);
   }
   if (launchDate !== undefined) {
     rows.push(["Launched", launchSite === undefined ? launchDate : `${launchDate} · ${satcatLabel(SATCAT_LAUNCH_SITE, launchSite)}`]);
@@ -65,6 +85,21 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
     rows.push(["Decayed", decayDate]);
   }
   return rows;
+}
+
+/** GCAT flags most sizes and some masses as estimates (`estimated`); "~" says so. */
+function approximate(metadata: SatelliteMetadata, key: keyof SatelliteMetadata, text: string): string {
+  return metadata.estimated?.includes(key) ? `~${text}` : text;
+}
+
+/** "12.6 × 4.2 m, span 23.9 m": the body's two dimensions as GCAT gives them, then the span with arrays and booms. */
+function sizeOf(metadata: SatelliteMetadata): string | undefined {
+  const body = (["lengthM", "diameterM"] as const).flatMap((key) => (metadata[key] === undefined ? [] : [approximate(metadata, key, String(metadata[key]))]));
+  const parts = body.length === 0 ? [] : [`${body.join(" × ")} m`];
+  if (metadata.spanM !== undefined) {
+    parts.push(`span ${approximate(metadata, "spanM", String(metadata.spanM))} m`);
+  }
+  return parts.length === 0 ? undefined : parts.join(", ");
 }
 
 export function getElementsInfo(orbit: Orbit): ElementsInfo {

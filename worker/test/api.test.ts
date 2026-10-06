@@ -3,9 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 
 import generatedConfig from "../src/config/satvis.generated.json" with { type: "json" };
 import { collectSources, sourceKey, sourceUrl } from "../src/gp/evaluate.ts";
-import { SATCAT_URL } from "../src/gp/satcat.ts";
+import { GCAT_CATALOG_URL } from "../src/gp/gcat.ts";
+import { CATALOG_CRON, GP_CRON } from "../src/gp/schedule.ts";
 import type { GroupsConfig, GroupsIndex, OmmRecord } from "../src/gp/types.ts";
+import { UPSTREAMS } from "../src/gp/upstreams.ts";
 import worker from "../src/index.ts";
+import { GCAT_CATALOG_LINES, GCAT_ORGS_LINES, gcatCatalog, gcatOrgs } from "./gcatFixtures.ts";
 
 /** Distinct upstream requests per refresh, asserted against the fetch spy after each test. */
 const SOURCE_COUNT = collectSources((generatedConfig as GroupsConfig).groups).length;
@@ -48,6 +51,34 @@ function ingestBundle(reply: (source: string) => unknown, opts?: { status?: numb
 
 function postIngest(body: string, headers: Record<string, string> = AUTH): Promise<Response> {
   return SELF.fetch("https://satvis.space/api/ingest", { method: "POST", headers, body });
+}
+
+/** As push-catalog uploads a downloaded table. */
+function putTable(name: string, body: string, headers: Record<string, string> = {}): Promise<Response> {
+  return SELF.fetch(`https://satvis.space/api/upstream/${name}`, { method: "PUT", headers: { ...AUTH, ...headers }, body });
+}
+
+/** As push-catalog reports a 304 or a failure: no body, a header saying which. */
+function reportTable(name: string, headers: Record<string, string>): Promise<Response> {
+  return SELF.fetch(`https://satvis.space/api/upstream/${name}`, { method: "PUT", headers: { ...AUTH, ...headers } });
+}
+
+interface StatusBody {
+  stale: boolean;
+  built: string | null;
+  sources: Record<string, { updated?: string; checked?: string; etag?: string; rows?: number; lastError?: string; stored: boolean; stale: boolean }>;
+  groups: { name: string; updated: string | null; stale: boolean }[];
+}
+
+/** Storage persists across this file's tests, so a test that needs no tables or index starts here. */
+async function clearTablesAndIndex(): Promise<void> {
+  const listed = await Promise.all(["upstream:", "status:", "gp:index"].map((prefix) => env.GP_KV.list({ prefix })));
+  await Promise.all(listed.flatMap(({ keys }) => keys.map(({ name }) => env.GP_KV.delete(name))));
+}
+
+/** GET /api/status, parsed. */
+async function status(): Promise<StatusBody> {
+  return (await (await SELF.fetch("https://satvis.space/api/status")).json()) as StatusBody;
 }
 
 describe("GET /api/gp/<group>.json", () => {
@@ -179,17 +210,14 @@ describe("scheduled() refresh", () => {
   });
 
   /**
-   * Answers gp.php and sup-gp.php requests synthetically. The SATCAT is one more
-   * request and answers 304, the production steady state; curated entries still apply.
+   * Answers gp.php and sup-gp.php requests synthetically. A GP refresh asks for nothing
+   * else: it reads the upstream tables from KV.
    */
   function interceptCelestrak(reply: (group: string) => unknown, opts?: { status?: number }): void {
-    expectedFetches = SOURCE_COUNT + 1;
+    expectedFetches = SOURCE_COUNT;
     fetchSpy.mockImplementation(async (input, init) => {
       const request = new Request(input, init);
       const url = new URL(request.url);
-      if (request.method === "GET" && request.url === SATCAT_URL) {
-        return new Response(null, { status: 304 });
-      }
       const isGp = url.pathname === "/NORAD/elements/gp.php" || url.pathname === "/NORAD/elements/supplemental/sup-gp.php";
       if (request.method !== "GET" || url.origin !== "https://celestrak.org" || !isGp) {
         throw new Error(`unmocked fetch: ${request.method} ${request.url}`);
@@ -203,7 +231,7 @@ describe("scheduled() refresh", () => {
     interceptCelestrak((group) => [{ OBJECT_NAME: `${group.toUpperCase()}-1`, NORAD_CAT_ID: 10000 + group.length }]);
 
     const ctx = createExecutionContext();
-    const controller = createScheduledController({ scheduledTime: Date.now(), cron: "23 */6 * * *" });
+    const controller = createScheduledController({ scheduledTime: Date.now(), cron: GP_CRON });
     await worker.scheduled(controller, env, ctx);
     await waitOnExecutionContext(ctx);
 
@@ -245,7 +273,7 @@ describe("scheduled() refresh", () => {
     );
 
     const ctx = createExecutionContext();
-    const controller = createScheduledController({ scheduledTime: Date.now(), cron: "23 */6 * * *" });
+    const controller = createScheduledController({ scheduledTime: Date.now(), cron: GP_CRON });
     await worker.scheduled(controller, env, ctx);
     await waitOnExecutionContext(ctx);
 
@@ -268,7 +296,7 @@ describe("scheduled() refresh", () => {
     interceptCelestrak(() => [], { status: 503 });
 
     const ctx = createExecutionContext();
-    const controller = createScheduledController({ scheduledTime: Date.now(), cron: "23 */6 * * *" });
+    const controller = createScheduledController({ scheduledTime: Date.now(), cron: GP_CRON });
     await worker.scheduled(controller, env, ctx);
     await waitOnExecutionContext(ctx);
 
@@ -425,9 +453,9 @@ describe("POST /api/ingest", () => {
     const weather = (await env.GP_KV.get("gp:weather", "json")) as OmmRecord[];
     expect(weather.map((r) => r.OBJECT_NAME)).toEqual(["GOOD SAT"]);
     const index = (await env.GP_KV.get("gp:index", "json")) as GroupsIndex;
-    const status = index.groups.find((g) => g.name === "weather");
-    expect(status?.updated).toBe("2026-01-01T00:00:00.000Z");
-    expect(status?.lastError).toContain("HTTP 522");
+    const weatherStatus = index.groups.find((g) => g.name === "weather");
+    expect(weatherStatus?.updated).toBe("2026-01-01T00:00:00.000Z");
+    expect(weatherStatus?.lastError).toContain("HTTP 522");
   });
 
   it("rejects a payload that is not a valid OMM array, keeping last-known-good", async () => {
@@ -454,35 +482,16 @@ describe("POST /api/ingest", () => {
     expect(body.groups.find((g) => g.name === "weather")?.lastError).toContain("absent from the ingest bundle");
   });
 
-  it("stores a posted SATCAT with the downloader's ETag, and enriches from it", async () => {
-    const satcat = ["OBJECT_NAME,NORAD_CAT_ID,OWNER,LAUNCH_DATE,ORBIT_TYPE", "WEATHER-1,10007,US,2019-11-11,ORB"].join("\r\n");
-    const bundle = JSON.parse(ingestBundle((source) => [{ OBJECT_NAME: `${source.toUpperCase()}-1`, NORAD_CAT_ID: 10000 + source.length }]));
-    bundle.sources.push({ key: "satcat", url: SATCAT_URL, status: 200, body: satcat, validator: '"abc123"' });
+  it("enriches from the stored tables, which the bundle no longer carries", async () => {
+    await clearTablesAndIndex();
+    // The ISS's GCAT row, renumbered onto a record the bundle serves.
+    await putTable("gcat", gcatCatalog(GCAT_CATALOG_LINES.ISS.replace("\t25544\t", "\t10007\t")));
+    await putTable("gcatOrgs", gcatOrgs(...Object.values(GCAT_ORGS_LINES)));
 
-    const res = await postIngest(JSON.stringify(bundle));
+    const res = await postIngest(ingestBundle((source) => [{ OBJECT_NAME: `${source.toUpperCase()}-1`, NORAD_CAT_ID: 10000 + source.length }]));
     expect(res.status).toBe(200);
-    expect(((await res.json()) as { satcat: { count: number; validator: string } }).satcat).toMatchObject({ count: 1, validator: '"abc123"' });
-
-    const stored = (await env.GP_KV.get("gp:satcat", "json")) as { validator: string; rows: Record<string, unknown> };
-    expect(stored.validator).toBe('"abc123"');
-    expect(stored.rows["10007"]).toEqual({ owner: "US", launchDate: "2019-11-11", orbitType: "ORB" });
-
     const weather = (await env.GP_KV.get("gp:weather", "json")) as OmmRecord[];
-    expect(weather.find((r) => r.NORAD_CAT_ID === 10007)?.metadata).toMatchObject({ owner: "US" });
-  });
-
-  it("keeps the stored SATCAT when the downloader posts a 304", async () => {
-    await env.GP_KV.put("gp:satcat", JSON.stringify({ validator: '"abc123"', updated: UPDATED, rows: { "10007": { owner: "CIS" } } }));
-    const bundle = JSON.parse(ingestBundle((source) => [{ OBJECT_NAME: `${source.toUpperCase()}-1`, NORAD_CAT_ID: 10000 + source.length }]));
-    bundle.sources.push({ key: "satcat", url: SATCAT_URL, status: 304 });
-
-    const res = await postIngest(JSON.stringify(bundle));
-    expect(res.status).toBe(200);
-    // Still enriched, and still dated from when the rows were actually fetched.
-    expect(((await res.json()) as { satcat: { count: number; updated: string } }).satcat).toMatchObject({ count: 1, updated: UPDATED });
-
-    const weather = (await env.GP_KV.get("gp:weather", "json")) as OmmRecord[];
-    expect(weather.find((r) => r.NORAD_CAT_ID === 10007)?.metadata).toMatchObject({ owner: "CIS" });
+    expect(weather.find((r) => r.NORAD_CAT_ID === 10007)?.metadata).toMatchObject({ country: "USA", bus: "77KS", massKg: 20281 });
   });
 
   it.each([
@@ -491,8 +500,6 @@ describe("POST /api/ingest", () => {
     ["an empty sources array", JSON.stringify({ sources: [] }), "body.sources is empty"],
     ["an entry without key/url", JSON.stringify({ sources: [{ body: "[]" }] }), "needs string key and url"],
     ["an entry with neither body nor error", JSON.stringify({ sources: [{ key: "k", url: "u" }] }), "needs either body or error"],
-    // ...unless it is a 304, which says the stored value already is the payload.
-    ["a bad validator type", JSON.stringify({ sources: [{ key: "k", url: "u", status: 304, validator: 7 }] }), "validator must be a string"],
   ])("400s %s", async (_label, body, expected) => {
     const res = await postIngest(body);
     expect(res.status).toBe(400);
@@ -528,5 +535,146 @@ describe("POST /api/ingest", () => {
     } finally {
       secretEnv.REFRESH_TOKEN = configured;
     }
+  });
+});
+
+describe("PUT /api/upstream/<name>", () => {
+  beforeEach(clearTablesAndIndex);
+
+  const SATCAT_CSV = ["OBJECT_NAME,NORAD_CAT_ID,LAUNCH_DATE,ORBIT_TYPE", "WEATHER-1,10007,2019-11-11,ORB"].join("\r\n");
+
+  it("stores a new file and its ETag, which /api/status then serves", async () => {
+    const res = await putTable("satcat", SATCAT_CSV, { "X-Upstream-ETag": '"abc"' });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ name: "satcat", etag: '"abc"', rows: 1 });
+
+    const { sources } = await status();
+    expect(sources.satcat).toMatchObject({ etag: '"abc"', rows: 1, stale: false });
+    expect(sources.satcat!.updated).toBe(sources.satcat!.checked);
+    // Stored compressed: gzip's magic bytes.
+    const stored = new Uint8Array((await env.GP_KV.get("upstream:satcat", "arrayBuffer"))!);
+    expect(Array.from(stored.slice(0, 2))).toEqual([0x1f, 0x8b]);
+  });
+
+  it("refuses a file that does not parse with 422, and keeps the stored one", async () => {
+    await putTable("satcat", SATCAT_CSV, { "X-Upstream-ETag": '"abc"' });
+    const res = await putTable("satcat", "<html>503 Service Unavailable</html>", { "X-Upstream-ETag": '"def"' });
+
+    expect(res.status).toBe(422);
+    const { sources } = await status();
+    expect(sources.satcat).toMatchObject({ etag: '"abc"', rows: 1 });
+    expect(sources.satcat!.lastError).toMatch(/^refused: /);
+  });
+
+  it("records a 304 report as a check, and an error report as the last error", async () => {
+    await putTable("satcat", SATCAT_CSV, { "X-Upstream-ETag": '"abc"' });
+    const updated = (await status()).sources.satcat!.updated;
+
+    expect((await reportTable("satcat", { "X-Upstream-Status": "304" })).status).toBe(200);
+    expect((await status()).sources.satcat).toMatchObject({ updated, etag: '"abc"' });
+
+    expect((await reportTable("satcat", { "X-Upstream-Error": "HTTP 522" })).status).toBe(200);
+    expect((await status()).sources.satcat).toMatchObject({ updated, lastError: "HTTP 522" });
+  });
+
+  it("400s a new file without a body, 404s an unknown table, 405s another method", async () => {
+    expect((await putTable("satcat", "")).status).toBe(400);
+    expect((await putTable("nonsense", SATCAT_CSV)).status).toBe(404);
+    expect((await SELF.fetch("https://satvis.space/api/upstream/satcat")).status).toBe(405);
+  });
+
+  it("needs the token", async () => {
+    const res = await SELF.fetch("https://satvis.space/api/upstream/satcat", { method: "PUT", body: SATCAT_CSV });
+    expect(res.status).toBe(401);
+    expect((await status()).sources.satcat).not.toHaveProperty("rows");
+  });
+});
+
+describe("GET /api/status", () => {
+  beforeEach(clearTablesAndIndex);
+
+  it("marks everything stale before anything is stored or written", async () => {
+    const body = await status();
+    expect(body.stale).toBe(true);
+    expect(Object.keys(body.sources)).toEqual(UPSTREAMS.map((spec) => spec.name));
+    expect(body.sources.gcat).toEqual({ stored: false, stale: true });
+    expect(body.groups.every((group) => group.stale)).toBe(true);
+  });
+
+  it("marks a group stale twelve hours after its last write, and a table after its threshold", async () => {
+    const fresh = new Date().toISOString();
+    const old = new Date(Date.now() - 13 * 3600_000).toISOString();
+    await env.GP_KV.put(
+      "gp:index",
+      JSON.stringify({
+        updated: fresh,
+        groups: [
+          { name: "weather", updated: old, count: 1 },
+          { name: "stations", updated: fresh, count: 1 },
+        ],
+      }),
+    );
+    // SATCAT goes stale after two days without a check, the GCAT tables after ten.
+    await env.GP_KV.put("status:satcat", "", { metadata: { checked: new Date(Date.now() - 3 * 24 * 3600_000).toISOString() } });
+    await env.GP_KV.put("status:gcat", "", { metadata: { checked: new Date(Date.now() - 3 * 24 * 3600_000).toISOString() } });
+    await env.GP_KV.put("upstream:satcat", "stored");
+    await env.GP_KV.put("upstream:gcat", "stored");
+
+    const body = await status();
+    expect(body.built).toBe(fresh);
+    expect(body.groups.find((group) => group.name === "weather")?.stale).toBe(true);
+    expect(body.groups.find((group) => group.name === "stations")?.stale).toBe(false);
+    expect(body.sources.satcat?.stale).toBe(true);
+    expect(body.sources.gcat?.stale).toBe(false);
+  });
+
+  it("marks a table without its file stale, and gives no ETag for it", async () => {
+    await env.GP_KV.put("status:gcat", "", { metadata: { checked: new Date().toISOString(), etag: '"cat1"' } });
+    expect((await status()).sources.gcat).toEqual({ checked: expect.any(String), stored: false, stale: true });
+  });
+});
+
+describe("POST /api/upstream/refresh and the catalog schedule", () => {
+  let fetchSpy: MockInstance<typeof fetch>;
+
+  beforeEach(async () => {
+    await clearTablesAndIndex();
+    // Every table answers 304, except GCAT's catalog, which is new.
+    fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const request = new Request(input, init);
+      if (request.url === GCAT_CATALOG_URL) {
+        return new Response(gcatCatalog(GCAT_CATALOG_LINES.ISS), { headers: { ETag: '"cat1"' } });
+      }
+      if (UPSTREAMS.some((spec) => spec.url === request.url)) {
+        return new Response(null, { status: 304 });
+      }
+      throw new Error(`unmocked fetch: ${request.url}`);
+    });
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("downloads every table, and stores the changed one", async () => {
+    const res = await SELF.fetch("https://satvis.space/api/upstream/refresh", { method: "POST", headers: AUTH });
+    expect(res.status).toBe(200);
+    expect(fetchSpy).toHaveBeenCalledTimes(UPSTREAMS.length);
+    expect(((await res.json()) as { sources: Record<string, { etag?: string }> }).sources.gcat).toMatchObject({ etag: '"cat1"' });
+    expect((await status()).sources.gcat).toMatchObject({ rows: 1, etag: '"cat1"' });
+  });
+
+  it("runs on the catalog cron, and fetches no GP source", async () => {
+    const ctx = createExecutionContext();
+    await worker.scheduled(createScheduledController({ scheduledTime: Date.now(), cron: CATALOG_CRON }), env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(UPSTREAMS.length);
+    expect((await status()).sources.gcat).toMatchObject({ rows: 1 });
+  });
+
+  it("needs the token", async () => {
+    const res = await SELF.fetch("https://satvis.space/api/upstream/refresh", { method: "POST" });
+    expect(res.status).toBe(401);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

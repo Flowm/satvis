@@ -10,6 +10,8 @@ import http from "node:http";
 
 import { unstable_startWorker } from "wrangler";
 
+import { CATALOG_CRON, GP_CRON } from "../src/gp/schedule.ts";
+
 const port = Number(process.env.PORT ?? 8080);
 const upstream = `http://127.0.0.1:${port + 1}`;
 
@@ -35,21 +37,26 @@ http
   })
   .listen(port, () => console.log(`satvis listening on port ${port}`));
 
-/**
- * At :23, off the hour, as CelesTrak asks. 6 h rather than 3 halves our share of its
- * 250 MB/day per-IP budget: ~7 MB a run is ~29 MB/day, for a few hundred metres of SGP4 drift.
- */
-const crons = ["23 */6 * * *"];
+/** Both refreshes; the scheduled handler tells them apart by cron. */
+const crons = [GP_CRON, CATALOG_CRON];
 
 async function runScheduled(cron) {
   const response = await fetch(`${upstream}/cdn-cgi/handler/scheduled?cron=${encodeURIComponent(cron)}`).catch((error) => error);
   console.log(`cron ${cron}: ${response.status ?? response.message}`);
 }
 
-/** A fresh volume would otherwise have no satellites until the first scheduled refresh. */
-const index = await (await fetch(`${upstream}/api/groups.json`)).json();
-if (!index.updated) {
-  await runScheduled(crons[0]);
+/**
+ * A fresh volume would otherwise have no satellites until the first scheduled refresh,
+ * and a volume from before the tables existed no enrichment until the next of each.
+ * Tables first, so the GP refresh enriches from them.
+ */
+const status = await (await fetch(`${upstream}/api/status`)).json();
+const tablesMissing = Object.values(status.sources).some((source) => !source.stored);
+if (tablesMissing) {
+  await runScheduled(CATALOG_CRON);
+}
+if (tablesMissing || !status.built) {
+  await runScheduled(GP_CRON);
 }
 
 /** Cron fields as Cloudflare evaluates them, in UTC: `*`, `a`, `a-b`, `/n` steps, comma lists. */

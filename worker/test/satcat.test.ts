@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { FetchImpl } from "../src/gp/evaluate.ts";
-import { fetchSatcat, parseSatcatCsv, SATCAT_URL } from "../src/gp/satcat.ts";
+import { parseSatcatCsv, SATCAT, SATCAT_URL } from "../src/gp/satcat.ts";
+import { fetchUpstream } from "../src/gp/upstream.ts";
 
 /** CelesTrak's real header, kept whole: the parser must survive ignored columns moving. */
 const HEADER =
@@ -19,7 +20,6 @@ describe("parseSatcatCsv", () => {
   it("maps SATCAT columns onto the metadata bag's names", () => {
     const rows = parseSatcatCsv(csv(ISS));
     expect(rows["25544"]).toEqual({
-      owner: "ISS",
       launchDate: "1998-11-20",
       launchSite: "TYMSC",
       opsStatus: "+",
@@ -31,7 +31,7 @@ describe("parseSatcatCsv", () => {
   it("drops the columns we deliberately do not serve", () => {
     const bag = parseSatcatCsv(csv(ISS))["25544"]!;
     // Why each one is excluded is on FIELDS in satcat.ts.
-    for (const key of ["rcs", "RCS", "period", "PERIOD", "inclination", "apogee", "perigee", "objectType", "OBJECT_TYPE"]) {
+    for (const key of ["owner", "OWNER", "rcs", "RCS", "period", "PERIOD", "inclination", "apogee", "perigee", "objectType", "OBJECT_TYPE"]) {
       expect(bag).not.toHaveProperty(key);
     }
   });
@@ -50,10 +50,10 @@ describe("parseSatcatCsv", () => {
 
   it("handles quoted fields containing commas and escaped quotes", () => {
     const rows = parseSatcatCsv(csv(`"COSMOS 2221, DEB",1992-093A,25544,PAY,+,CIS,1992-12-25,PLMSC,,92.9,51.6,424,414,,,EA,ORB`));
-    expect(rows["25544"]).toMatchObject({ owner: "CIS", launchSite: "PLMSC", orbitType: "ORB" });
+    expect(rows["25544"]).toMatchObject({ launchDate: "1992-12-25", launchSite: "PLMSC", orbitType: "ORB" });
 
     const escaped = parseSatcatCsv(csv(`"SAT ""X""",1992-093A,25544,PAY,+,US,1992-12-25,AFETR,,92.9,51.6,424,414,,,EA,ORB`));
-    expect(escaped["25544"]).toMatchObject({ owner: "US" });
+    expect(escaped["25544"]).toMatchObject({ launchSite: "AFETR" });
   });
 
   it("normalizes the satnum key the way enrichment looks it up", () => {
@@ -63,8 +63,8 @@ describe("parseSatcatCsv", () => {
   });
 
   it("resolves columns by name, not position", () => {
-    const reordered = ["ORBIT_TYPE,NORAD_CAT_ID,OWNER", "DOC,49044,CIS"].join("\r\n");
-    expect(parseSatcatCsv(reordered)["49044"]).toEqual({ orbitType: "DOC", owner: "CIS" });
+    const reordered = ["ORBIT_TYPE,NORAD_CAT_ID,LAUNCH_SITE", "DOC,49044,TYMSC"].join("\r\n");
+    expect(parseSatcatCsv(reordered)["49044"]).toEqual({ orbitType: "DOC", launchSite: "TYMSC" });
   });
 
   it("skips blank lines, including the trailing newline", () => {
@@ -81,26 +81,25 @@ describe("parseSatcatCsv", () => {
 });
 
 const badStatus: FetchImpl = async () => ({ status: 522, text: async () => "" });
-const garbageBody: FetchImpl = async () => ({ status: 200, text: async () => "<html>nope</html>" });
 const connectionReset: FetchImpl = async () => {
   throw new Error("connection reset");
 };
 
-describe("fetchSatcat", () => {
-  const rowsBody = csv(ISS);
-
-  it("sends no conditional header when there is no stored validator", async () => {
+// fetchUpstream through SATCAT's spec; the GCAT tables share the same code.
+describe("fetchUpstream", () => {
+  it("sends no conditional header when nothing is stored", async () => {
     let sent: Record<string, string> | undefined;
     const fetchImpl: FetchImpl = async (_url, init) => {
       sent = init?.headers;
-      return { status: 200, text: async () => rowsBody };
+      return { status: 200, text: async () => csv(ISS) };
     };
-    const result = await fetchSatcat(fetchImpl);
+    const result = await fetchUpstream(fetchImpl, SATCAT);
     expect(sent).not.toHaveProperty("If-None-Match");
-    expect(result.rows!["25544"]).toBeDefined();
+    // The body as served: storing it is what validates it (upstream.test.ts).
+    expect(result.body).toBe(csv(ISS));
   });
 
-  it("sends the stored validator and reports a 304 without a body", async () => {
+  it("sends the stored ETag and reports a 304 without a body", async () => {
     let url: string | undefined;
     let sent: Record<string, string> | undefined;
     const fetchImpl: FetchImpl = async (requested, init) => {
@@ -108,27 +107,28 @@ describe("fetchSatcat", () => {
       sent = init?.headers;
       return { status: 304, text: async () => "" };
     };
-    const result = await fetchSatcat(fetchImpl, '"abc123"');
+    const result = await fetchUpstream(fetchImpl, SATCAT, '"abc123"');
 
     expect(url).toBe(SATCAT_URL);
     expect(sent!["If-None-Match"]).toBe('"abc123"');
     expect(result).toMatchObject({ status: 304, notModified: true });
-    expect(result.rows).toBeUndefined();
+    expect(result.body).toBeUndefined();
   });
 
   it("keeps the ETag so the next fetch can be conditional", async () => {
-    const result = await fetchSatcat(async () => ({
-      status: 200,
-      headers: { get: (name: string) => (name.toLowerCase() === "etag" ? '"abc123"' : null) },
-      text: async () => rowsBody,
-    }));
-    expect(result.validator).toBe('"abc123"');
+    const result = await fetchUpstream(
+      async () => ({
+        status: 200,
+        headers: { get: (name: string) => (name.toLowerCase() === "etag" ? '"abc123"' : null) },
+        text: async () => csv(ISS),
+      }),
+      SATCAT,
+    );
+    expect(result.etag).toBe('"abc123"');
   });
 
   it("reports every failure mode instead of throwing", async () => {
-    // No path may throw.
-    expect(await fetchSatcat(badStatus)).toMatchObject({ status: 522, error: "HTTP 522" });
-    expect((await fetchSatcat(garbageBody)).error).toMatch(/NORAD_CAT_ID/);
-    expect(await fetchSatcat(connectionReset)).toMatchObject({ error: "connection reset" });
+    expect(await fetchUpstream(badStatus, SATCAT)).toMatchObject({ status: 522, error: "HTTP 522" });
+    expect(await fetchUpstream(connectionReset, SATCAT)).toMatchObject({ error: "connection reset" });
   });
 });

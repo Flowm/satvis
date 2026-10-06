@@ -15,9 +15,12 @@ import {
   toRecordsBySource,
   withConfig,
 } from "./evaluate.ts";
-import { fetchSatcat } from "./satcat.ts";
+import { GCAT_CATALOG, GCAT_ORGS, GCAT_PAYLOADS, gcatBags } from "./gcat.ts";
+import { SATCAT } from "./satcat.ts";
 import { kvGroupStore, type GroupStore } from "./store.ts";
-import type { GroupsConfig, GroupsIndex, SatcatSnapshot, SatcatStatus, SatelliteEntry } from "./types.ts";
+import type { GroupsConfig, GroupsIndex, SatelliteEntry, UpstreamName, UpstreamStatus } from "./types.ts";
+import { loadUpstream, refreshUpstream } from "./upstream.ts";
+import { UPSTREAMS } from "./upstreams.ts";
 
 export const groupsConfig = generatedConfig as GroupsConfig;
 
@@ -29,52 +32,24 @@ export interface RefreshReport {
   durationMs: number;
 }
 
-/** Curated rows override SATCAT field by field, so a row with only a swath keeps SATCAT's owner. */
-export function mergeSatelliteTables(satcat: SatcatSnapshot | undefined, entries: SatelliteEntry[]): Map<string, SatelliteFacts> {
+/**
+ * Upstream bags first, then curated rows over them field by field, so a row with only
+ * a swath keeps SATCAT's launch date. Upstream tables own disjoint keys (ADR 0008), so
+ * their order sets no precedence.
+ */
+export function mergeSatelliteTables(upstream: Record<string, Record<string, unknown>>[], entries: SatelliteEntry[]): Map<string, SatelliteFacts> {
   const merged = new Map<string, SatelliteFacts>();
-  for (const [satnum, bag] of Object.entries(satcat?.rows ?? {})) {
-    merged.set(satnum, { metadata: bag });
+  for (const table of upstream) {
+    for (const [satnum, bag] of Object.entries(table)) {
+      const previous = merged.get(satnum);
+      merged.set(satnum, { metadata: previous === undefined ? bag : { ...previous.metadata, ...bag } });
+    }
   }
   for (const [satnum, curated] of indexSatellitesByNoradId(entries)) {
-    const upstream = merged.get(satnum);
-    merged.set(satnum, { metadata: upstream === undefined ? curated.metadata : { ...upstream.metadata, ...curated.metadata } });
+    const upstreamFacts = merged.get(satnum);
+    merged.set(satnum, { metadata: upstreamFacts === undefined ? curated.metadata : { ...upstreamFacts.metadata, ...curated.metadata } });
   }
   return merged;
-}
-
-/**
- * A 304 and a failure both fall back to the stored snapshot: a SATCAT outage costs
- * enrichment freshness and nothing else.
- */
-async function resolveSatcat(
-  store: GroupStore,
-  fetchImpl: FetchImpl,
-  previous: GroupsIndex,
-  now: string,
-): Promise<{ snapshot: SatcatSnapshot | undefined; status: SatcatStatus | undefined }> {
-  const stored = await store.readSatcat();
-  const result = await fetchSatcat(fetchImpl, stored?.validator);
-
-  if (result.rows !== undefined) {
-    const snapshot: SatcatSnapshot = { validator: result.validator, updated: now, rows: result.rows };
-    await store.writeSatcat(snapshot);
-    const count = Object.keys(result.rows).length;
-    console.log(`gp refresh: satcat HTTP 200 — ${count} rows, ${result.bytes} bytes, ${result.ms}ms`);
-    return { snapshot, status: { updated: now, count, validator: result.validator } };
-  }
-
-  const count = stored === undefined ? 0 : Object.keys(stored.rows).length;
-  if (result.notModified) {
-    console.log(`gp refresh: satcat HTTP 304 — reusing ${count} stored rows (${result.ms}ms)`);
-    return { snapshot: stored, status: { updated: stored?.updated ?? now, count, validator: stored?.validator } };
-  }
-
-  // Carry the previous `updated` forward, so it still says when the rows were fetched.
-  console.warn(`gp refresh: satcat FAILED after ${result.ms}ms — ${result.error} (keeping ${count} stored rows)`);
-  return {
-    snapshot: stored,
-    status: { updated: previous.satcat?.updated ?? stored?.updated ?? "", count, validator: stored?.validator, lastError: result.error, lastErrorAt: now },
-  };
 }
 
 /** Failed groups get no write, so their last-known-good value stays in the store. */
@@ -88,10 +63,14 @@ export async function refreshGroups(config: GroupsConfig, store: GroupStore, fet
   const evaluated = evaluateGroups(defs, toRecordsBySource(fetched));
   const previous = await store.readIndex();
   const statuses = buildStatuses(defs, evaluated, previous, now);
-  const satcat = await resolveSatcat(store, fetchImpl, previous, now);
+
+  // The stored tables, parsed anew, so a parser change applies on the next update
+  // (ADR 0008). One after another, so each file's text is released before the next.
+  const satcat = await loadUpstream(SATCAT, store);
+  const gcat = gcatBags(await loadUpstream(GCAT_CATALOG, store), await loadUpstream(GCAT_ORGS, store), await loadUpstream(GCAT_PAYLOADS, store));
 
   // Enrich after evaluateGroups, so every served record, includes and extras too, gets exactly one pass.
-  const table = mergeSatelliteTables(satcat.snapshot, config.satellites ?? []);
+  const table = mergeSatelliteTables([satcat ?? {}, gcat], config.satellites ?? []);
   const matchedSatnums = new Set<string>();
 
   let written = 0;
@@ -127,19 +106,44 @@ export async function refreshGroups(config: GroupsConfig, store: GroupStore, fet
   }
 
   const refreshed: GroupsIndex = { updated: now, groups: statuses };
-  if (satcat.status !== undefined) {
-    refreshed.satcat = satcat.status;
-  }
   // The static snapshot is served straight from disk, so write the config's half too.
   const index = withConfig(refreshed, config);
   await store.writeIndex(index);
   const durationMs = Date.now() - startedMs;
-  console.log(`gp refresh: done in ${durationMs}ms — ${written} groups written, ${skipped} skipped/failed, ${satcat.status?.count ?? 0} satcat rows`);
+  console.log(
+    `gp refresh: done in ${durationMs}ms — ${written} groups written, ${skipped} skipped/failed, enriched from ${Object.keys(satcat ?? {}).length} satcat and ${Object.keys(gcat).length} gcat rows`,
+  );
   return { index, sources: fetched.map(toProbe), written, skipped, durationMs };
 }
 
 export async function refreshAll(env: Env): Promise<RefreshReport> {
   return refreshGroups(groupsConfig, kvGroupStore(env.GP_KV), (url, init) => fetch(url, init));
+}
+
+/**
+ * The Worker's own fetch of every upstream table, one after another, each conditional
+ * on its stored file. The groups pick them up at the next GP update. A table whose
+ * store write fails is reported with its error, and the next one is still fetched.
+ */
+export async function refreshUpstreams(store: GroupStore, fetchImpl: FetchImpl): Promise<Partial<Record<UpstreamName, UpstreamStatus>>> {
+  const now = new Date().toISOString();
+  const statuses: Partial<Record<UpstreamName, UpstreamStatus>> = {};
+  for (const spec of UPSTREAMS) {
+    try {
+      // eslint-disable-next-line no-await-in-loop -- one file in memory at a time; GCAT's is 19 MB
+      statuses[spec.name] = await refreshUpstream(spec, store, fetchImpl, now);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(`upstream ${spec.name}: store failed — ${message}`);
+      statuses[spec.name] = { lastError: `store failed: ${message}`, lastErrorAt: now };
+    }
+  }
+  return statuses;
+}
+
+/** refreshUpstreams against KV and the real fetch: POST /api/upstream/refresh and the catalog cron. */
+export async function refreshAllUpstreams(env: Env): Promise<Partial<Record<UpstreamName, UpstreamStatus>>> {
+  return refreshUpstreams(kvGroupStore(env.GP_KV), (url, init) => fetch(url, init));
 }
 
 /**
@@ -152,10 +156,6 @@ export interface IngestSource {
   status?: number;
   body?: string;
   error?: string;
-  /**
-   * The ETag the downloader saw, replayed as a header for the SATCAT fetch. GP sources leave it unset.
-   */
-  validator?: string;
 }
 
 /**
@@ -167,19 +167,13 @@ export function bundleFetch(sources: IngestSource[]): FetchImpl {
   return async (url) => {
     const source = byUrl.get(url);
     if (source === undefined) {
-      // E.g. an older push-gp against a newer Worker. A group keeps its last-known-good;
-      // fetchSatcat catches it and keeps the stored snapshot.
+      // E.g. an older push-gp against a newer Worker. The group keeps its last-known-good.
       throw new Error("source absent from the ingest bundle");
     }
     if (source.error !== undefined) {
       throw new Error(source.error);
     }
-    const validator = source.validator;
-    return {
-      status: source.status ?? 0,
-      headers: { get: (name: string) => (name.toLowerCase() === "etag" ? (validator ?? null) : null) },
-      text: async () => source.body ?? "",
-    };
+    return { status: source.status ?? 0, text: async () => source.body ?? "" };
   };
 }
 

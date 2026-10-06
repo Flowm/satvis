@@ -33,6 +33,10 @@ for (const [device, options] of Object.entries(DEVICES)) {
 
       await expect(panel.getByRole("tab", { name: "Details" })).toHaveAttribute("aria-selected", "true");
       await expect(panel.getByRole("row", { name: /Launched/ })).toContainText("1998-11-20");
+      // GCAT's facts beside SATCAT's (ADR 0008): named by the worker, labelled here.
+      await expect(panel.getByRole("row", { name: /Country/ })).toContainText("USA");
+      await expect(panel.getByRole("row", { name: /Purpose/ })).toContainText("Human spaceflight");
+      await expect(panel.getByRole("row", { name: /Size/ })).toContainText("12.6 × ~4.2 m, span 23.9 m");
       await panel.getByRole("tab", { name: /Passes/ }).click();
       await expect(panel).toContainText("No ground station set");
       await panel.getByRole("tab", { name: "Details" }).click();

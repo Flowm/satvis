@@ -1,12 +1,16 @@
 import { coerceIndex, withConfig } from "./evaluate.ts";
-import { groupsConfig, ingestAll, type IngestSource, refreshAll } from "./refresh.ts";
-import { GP_INDEX_KEY, GP_KEY_PREFIX, type GroupWriteMetadata } from "./store.ts";
+import { groupsConfig, ingestAll, type IngestSource, refreshAll, refreshAllUpstreams } from "./refresh.ts";
+import { GP_INDEX_KEY, GP_KEY_PREFIX, type GroupWriteMetadata, kvGroupStore } from "./store.ts";
+import { recordFailure, recordUnchanged, storeUpstream } from "./upstream.ts";
+import { UPSTREAMS, upstreamSpec } from "./upstreams.ts";
 
 const GROUP_NAME_RE = /^[a-zA-Z0-9_-]+$/;
 /**
  * POST /api/refresh does not re-hit CelesTrak within this window of the last refresh, cron included.
  */
 const REFRESH_COOLDOWN_MS = 60_000;
+/** /api/status marks a group stale after this long without a write; push-gp runs several times a day. */
+const GROUP_STALE_AFTER_MS = 12 * 3600_000;
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(body), {
@@ -126,7 +130,6 @@ async function handleRefresh(request: Request, env: Env): Promise<Response> {
       skipped: report.skipped,
       sources: report.sources,
       groups: report.index.groups,
-      satcat: report.index.satcat,
     },
     { headers: { "Cache-Control": "no-store" } },
   );
@@ -153,7 +156,7 @@ function parseIngestBundle(raw: unknown): IngestSource[] | string {
     if (entry === null || typeof entry !== "object") {
       return `body.sources[${i}] must be an object`;
     }
-    const { key, url, status, body, error, validator } = entry;
+    const { key, url, status, body, error } = entry;
     if (typeof key !== "string" || typeof url !== "string") {
       return `body.sources[${i}] needs string key and url`;
     }
@@ -166,14 +169,11 @@ function parseIngestBundle(raw: unknown): IngestSource[] | string {
     if (error !== undefined && typeof error !== "string") {
       return `body.sources[${i}].error must be a string`;
     }
-    if (validator !== undefined && typeof validator !== "string") {
-      return `body.sources[${i}].validator must be a string`;
-    }
     // A 304 carries neither: the stored value already is the payload.
     if (body === undefined && error === undefined && status !== 304) {
       return `body.sources[${i}] needs either body or error`;
     }
-    parsed.push({ key, url, status, body, error, validator });
+    parsed.push({ key, url, status, body, error });
   }
   return parsed;
 }
@@ -214,10 +214,87 @@ async function handleIngest(request: Request, env: Env): Promise<Response> {
       skipped: report.skipped,
       sources: report.sources,
       groups: report.index.groups,
-      satcat: report.index.satcat,
     },
     { headers: { "Cache-Control": "no-store" } },
   );
+}
+
+/**
+ * push-catalog's one call per table (ADR 0008): a body is a new file, which is stored
+ * only if it parses; an empty body reports that upstream answered 304
+ * (`X-Upstream-Status`) or failed (`X-Upstream-Error`).
+ */
+async function handleUpstreamPut(name: string, request: Request, env: Env): Promise<Response> {
+  if (request.method !== "PUT") {
+    return jsonResponse({ error: "Method Not Allowed" }, { status: 405, headers: { Allow: "PUT" } });
+  }
+  const rejection = rejectUnauthorized(request, env);
+  if (rejection) {
+    return rejection;
+  }
+  const spec = upstreamSpec(name);
+  if (spec === undefined) {
+    return notFound();
+  }
+  const store = kvGroupStore(env.GP_KV);
+  const now = new Date().toISOString();
+  const headers = { "Cache-Control": "no-store" };
+  const failure = request.headers.get("X-Upstream-Error");
+  if (failure !== null) {
+    return jsonResponse({ name, ...(await recordFailure(spec.name, store, failure, now)) }, { headers });
+  }
+  if (request.headers.get("X-Upstream-Status") === "304") {
+    return jsonResponse({ name, ...(await recordUnchanged(spec.name, store, now)) }, { headers });
+  }
+  const body = await request.text();
+  if (body === "") {
+    return badRequest("a new file needs a body; report an unchanged one with X-Upstream-Status: 304");
+  }
+  const { stored, status } = await storeUpstream(spec, store, body, request.headers.get("X-Upstream-ETag") ?? undefined, now);
+  return jsonResponse({ name, ...status }, { status: stored ? 200 : 422, headers });
+}
+
+/** The Worker downloads every upstream table itself, each conditional on its stored file. */
+async function handleUpstreamRefresh(request: Request, env: Env): Promise<Response> {
+  if (request.method !== "POST") {
+    return jsonResponse({ error: "Method Not Allowed" }, { status: 405, headers: { Allow: "POST" } });
+  }
+  const rejection = rejectUnauthorized(request, env);
+  if (rejection) {
+    return rejection;
+  }
+  return jsonResponse({ sources: await refreshAllUpstreams(env) }, { headers: { "Cache-Control": "no-store" } });
+}
+
+/**
+ * How fresh everything is: each upstream table's status and each group's last write,
+ * with `stale` set past a threshold, so an uptime monitor can watch one keyword. Public:
+ * nothing in it is secret, and push-catalog reads its ETags here.
+ */
+async function handleStatus(env: Env): Promise<Response> {
+  const store = kvGroupStore(env.GP_KV);
+  const [index, statuses, stored] = await Promise.all([store.readIndex(), store.listStatuses(), store.listUpstreams()]);
+  const now = Date.now();
+  const olderThan = (time: string | null | undefined, ms: number): boolean => time === null || time === undefined || now - Date.parse(time) > ms;
+  // Without its file, a table's ETag would make push-catalog's download conditional and
+  // never bring the file back (upstream.ts, storedEtag).
+  const sources = Object.fromEntries(
+    UPSTREAMS.map(({ name, staleAfterMs }) => {
+      const { etag, ...status } = statuses[name] ?? {};
+      const isStored = stored.has(name);
+      return [name, { ...status, ...(isStored && etag !== undefined && { etag }), stored: isStored, stale: !isStored || olderThan(status.checked, staleAfterMs) }];
+    }),
+  );
+  const groups = withConfig(index, groupsConfig).groups.map(({ name, updated, count, lastError, lastErrorAt }) => ({
+    name,
+    updated,
+    count,
+    lastError,
+    lastErrorAt,
+    stale: olderThan(updated, GROUP_STALE_AFTER_MS),
+  }));
+  const stale = [...Object.values(sources), ...groups].some((entry) => entry.stale);
+  return jsonResponse({ stale, built: index.updated || null, sources, groups }, { headers: { "Cache-Control": "no-store" } });
 }
 
 /** Null for non-api paths, which fall through to static assets. */
@@ -247,6 +324,17 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
   }
   if (path === "/api/ingest") {
     return handleIngest(request, env);
+  }
+  if (path === "/api/status") {
+    return handleStatus(env);
+  }
+  // Before the table route: no table is called "refresh".
+  if (path === "/api/upstream/refresh") {
+    return handleUpstreamRefresh(request, env);
+  }
+  const upstreamMatch = /^\/api\/upstream\/([a-zA-Z]+)$/.exec(path);
+  if (upstreamMatch) {
+    return handleUpstreamPut(upstreamMatch[1]!, request, env);
   }
   return notFound();
 }

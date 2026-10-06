@@ -14,7 +14,7 @@ workspace package). One `pnpm install` at the root covers both.
 - **`docs/adr/`** — decisions and the alternatives they beat: url parameters
   (0001), satellite metadata and swath extents (0002), the sky view (0003),
   compass aiming (0004), surface models (0005), SATCAT enrichment (0006), model
-  manifests (0007).
+  manifests (0007), GCAT and the one owner per metadata field (0008).
 - **`e2e/`** — Playwright specs against the running app: `journeys/` walks the main
   flows through the menus, `regressions/` pins down one past bug each, for what
   needs layout, a GPU or frames. Read `e2e/support/app.ts` before writing one: it
@@ -28,11 +28,14 @@ workspace package). One `pnpm install` at the root covers both.
 
 ## Architecture
 
-- The worker serves `/api/gp/<group>.json` and `/api/groups.json` from Workers KV.
-  `push-gp` downloads from CelesTrak elsewhere and posts to `POST /api/ingest`;
-  `POST /api/refresh` fetches from the Worker itself. Both run one refresh pass
-  behind a bearer token. The deployed Worker has no cron; the Docker image
-  schedules its own refresh (`worker/scripts/serve.mjs`).
+- The worker serves `/api/gp/<group>.json`, `/api/groups.json` and `/api/status`
+  from Workers KV. `push-gp` downloads the GP data elsewhere and posts it to
+  `POST /api/ingest`; `POST /api/refresh` fetches it from the Worker itself. Both run
+  one refresh pass behind a bearer token. The upstream tables (SATCAT, GCAT) travel
+  apart: `push-catalog` uploads them to `PUT /api/upstream/<name>`, or
+  `POST /api/upstream/refresh` fetches them, and every GP refresh reads them from KV
+  (ADR 0008). The deployed Worker has no cron; the Docker image schedules both
+  (`worker/src/gp/schedule.ts`).
 - `pnpm update-gp` runs that pipeline locally into a static `data/gp/` snapshot;
   the app probes `/api/groups.json` and falls back to it.
 - Config is declarative YAML — core in `worker/src/config/satvis.core.yaml`,
@@ -118,8 +121,10 @@ workspace package). One `pnpm install` at the root covers both.
 - **Run `pnpm update-imagery` before `pnpm deploy`.** `data/imagery/` levels 0–2
   are committed and 3–5 are generated; the build only warns when they are missing,
   and ships a globe capped at level 2.
-- **KV is empty after a first deploy** until the first `push-gp`. Nothing else
-  fills it, and if the push job stops, the data goes stale without an error.
+- **KV is empty after a first deploy** until the first `push-catalog` and `push-gp`,
+  or their on-Worker equivalents, `POST /api/upstream/refresh` and `POST /api/refresh`.
+  Nothing scheduled fills it. If a push job stops, `/api/status` marks what it feeds
+  `stale`, and nothing else complains.
 - **Everything under `data/` ships,** except `data/custom/` (only its synced
   `dist/`) and the models repo (only `data/models/public/`). That is why the
   generators live under `scripts/`. The Docker image builds in whatever plugins

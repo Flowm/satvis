@@ -30,21 +30,35 @@ discussion; sharpen them here when they drift.
 - **Satellite table**: the static per-satellite facts, keyed by NORAD id and
   independent of the groups that serve those satellites. Contributors: curated
   rows from every config (`worker/src/config/satvis.core.yaml`, plugin configs),
-  `modelFile` rows from the model manifests, and the CelesTrak **SATCAT** fetched
-  at refresh time (`worker/src/gp/satcat.ts`). Curated wins field by field, so a
-  curated row extends its upstream row rather than replacing it
-  (`mergeSatelliteTables`).
-- **SATCAT**: CelesTrak's satellite catalog: owner, launch date and site,
-  operational status, orbit type. Not a group source: it selects nothing and only
-  enriches satellites some group already carries, so losing it costs enrichment
-  freshness and no group. Kept as a stored snapshot and fetched conditionally
-  (`docs/adr/0006-satcat-enrichment.md`).
+  `modelFile` rows from the model manifests, and the **upstream tables**, **SATCAT**
+  and **GCAT**, read from KV at refresh time. Every field has one upstream owner, and a
+  curated row may override any field, extending its upstream row rather than
+  replacing it (`mergeSatelliteTables`, `docs/adr/0008-gcat-and-field-ownership.md`).
+- **Upstream table**: a catalog stored whole in KV as the file upstream served,
+  gzip-compressed, with a **table status** beside it (`worker/src/gp/upstream.ts`):
+  SATCAT, and GCAT's catalog, organisations and payloads. Stored only by
+  `push-catalog` (`PUT /api/upstream/<name>`) and the Worker's own fetch, each
+  conditional on the stored ETag, and parsed anew by every GP refresh. Not a group
+  source: it selects nothing and only enriches satellites some group already
+  carries, so losing it costs enrichment freshness and no group.
+- **Table status**: when an upstream table was last stored (`updated`) and last
+  asked for (`checked`), with its ETag, size, rows and last error. `/api/status`
+  serves them with each group's last write, and marks `stale` what is overdue.
+- **SATCAT**: CelesTrak's satellite catalog: launch date and site, operational
+  status, orbit type and decay (`docs/adr/0006-satcat-enrichment.md`).
+- **GCAT**: Jonathan McDowell's catalogue: what a satellite is, its country,
+  operator, purpose, class, manufacturer, bus, mass and size, for payloads still in
+  orbit. About
+  twelve weeks behind on new satellites. CC BY 4.0
+  (`docs/adr/0008-gcat-and-field-ownership.md`).
+- **Bus**: a spacecraft design, as GCAT names it (`Starlink V2M`, `A2100`); one
+  bus serves many satellites.
 - **Satellite metadata**: the bag of static facts a GP record carries beside its
   element set, given meaning only by the frontend
   (`src/config/satelliteMetadata.ts`). Provenance is per field, and decides what
   an absent field means:
   - **curated**: hand-written for a few dozen satellites, attached by the worker;
-  - **upstream**: from SATCAT, for every satellite, attached by the worker;
+  - **upstream**: from SATCAT or GCAT, one owner per field, attached by the worker;
   - **derived**: the orbit class, computed by the frontend from the element set.
 
   A satellite in neither table still has its orbit class, and uses app defaults
@@ -56,8 +70,8 @@ discussion; sharpen them here when they drift.
   has no model; models are never looked up by name
   (`docs/adr/0007-model-manifest.md`).
 - **Group store**: the persistence seam of the GP refresh pipeline
-  (`readIndex`/`writeGroup`/`writeIndex`, `readSatcat`/`writeSatcat`), with a
-  Workers KV adapter (API, ingest and Docker schedule, `worker/src/gp/store.ts`) and a disk adapter
+  (`readIndex`/`writeGroup`/`writeIndex`, the upstream files and their statuses), with
+  a Workers KV adapter (API, ingest and Docker schedule, `worker/src/gp/store.ts`) and a disk adapter
   for the static `data/gp/` snapshot (`worker/scripts/update-static-gp.mjs`).
 - **GP source**: where the frontend gets GP data: the worker API when the probe
   succeeds, else the static `data/gp/` snapshot, with a per-request API → static

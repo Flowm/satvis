@@ -118,23 +118,74 @@ export interface SatelliteEntry {
   decayed?: boolean;
 }
 
-/** The stored SATCAT, the second contributor to the satellite table (see satcat.ts). */
-export interface SatcatSnapshot {
-  /** The body's ETag, sent as If-None-Match next time. Absent when upstream sent none. */
-  validator?: string;
-  updated: string;
-  /** satnum -> metadata bag, already renamed to the frontend's field names. */
-  rows: Record<string, Record<string, string>>;
-}
+/**
+ * A table downloaded whole and stored as the file it is (upstream.ts, ADR 0008): SATCAT,
+ * and GCAT's catalog, organisations and payloads. Each name is the key of its file and
+ * its status, and its entry in /api/status.
+ */
+export type UpstreamName = "satcat" | "gcat" | "gcatOrgs" | "gcatPayloads";
+
+/** satnum -> metadata bag, already renamed to the frontend's field names (satcat.ts). */
+export type SatcatRows = Record<string, Record<string, string>>;
 
 /**
- * Served in /api/groups.json. push-gp reads `validator` from it to make its off-Worker
- * download conditional.
+ * One GCAT catalog row (gcat.ts). `country`, `manufacturer` and `operator` are still
+ * GCAT codes here: they become names when the satellite table is built.
  */
-export interface SatcatStatus {
-  updated: string;
-  count: number;
-  validator?: string;
+export interface GcatRow {
+  /** GCAT's own id, which the payload table is keyed by. Not served. */
+  jcat: string;
+  /** `State`: a country or intergovernmental code (`US`, `I-ESA`). */
+  country?: string;
+  /** `Bus`, as GCAT spells it: "Starlink V2M". */
+  bus?: string;
+  /** `Manufacturer`: organisation codes, several joined with "/". */
+  manufacturer?: string;
+  /** `Owner`: the operating organisation's code. */
+  operator?: string;
+  /** Launch mass, kg. */
+  massKg?: number;
+  /** Metres: the body's longest dimension. */
+  lengthM?: number;
+  /** Metres: the body's second dimension. */
+  diameterM?: number;
+  /** Metres: the extent with arrays and booms. */
+  spanM?: number;
+  /** Free text, spaces collapsed: "Box + 2 Pan". */
+  shape?: string;
+  /** The keys GCAT flags as estimated. */
+  estimated?: string[];
+}
+
+/** satnum -> catalog row. */
+export type GcatRows = Record<string, GcatRow>;
+
+/** GCAT organisation or country code -> display name. */
+export type GcatOrgNames = Record<string, string>;
+
+/** JCAT -> the payload table's codes, labelled by the frontend (src/config/gcatCodes.ts). */
+export type GcatPayloadRows = Record<string, { category?: string; class?: string }>;
+
+/**
+ * Stored as KV metadata on `status:<name>`, apart from the file, so a 304 or a failure
+ * is recorded without rewriting it. Served in /api/status, where push-catalog reads
+ * `etag` to make its download conditional.
+ */
+export interface UpstreamStatus {
+  /** When the stored file was last replaced. */
+  updated?: string;
+  /**
+   * When upstream last answered with a file or a 304. A failure leaves it, so a table
+   * that keeps failing goes stale.
+   */
+  checked?: string;
+  /** The stored file's ETag, sent as If-None-Match next time. */
+  etag?: string;
+  /** The stored file's size, uncompressed. */
+  bytes?: number;
+  /** How many rows the stored file parsed to. */
+  rows?: number;
+  /** The last failure since upstream last answered, a download's or a refused file's. */
   lastError?: string;
   lastErrorAt?: string;
 }
@@ -165,8 +216,4 @@ export interface GroupsIndex {
   groups: GroupStatus[];
   /** From the config, not the refresh, keyed by preset name: see withConfig. */
   presets?: Record<string, Omit<PresetDefinition, "name">>;
-  /**
-   * Absent until the first successful SATCAT fetch; kept, with lastError, when a later one fails.
-   */
-  satcat?: SatcatStatus;
 }

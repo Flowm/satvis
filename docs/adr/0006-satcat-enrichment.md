@@ -1,6 +1,10 @@
 ---
-status: accepted
+status: accepted; how SATCAT is fetched and stored, and `owner`, superseded by ADR 0008
 ---
+
+> SATCAT no longer rides in the GP ingest bundle as a parsed snapshot: it is stored as
+> the file CelesTrak served, apart from the GP data, and every GP update parses it
+> (ADR 0008). Its `OWNER` column is no longer carried; `country` comes from GCAT.
 
 # SATCAT as the satellite table's second contributor
 
