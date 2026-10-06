@@ -51,8 +51,10 @@ workspace package). One `pnpm install` at the root covers both.
 
 - Worker scripts run through `pnpm --filter satvis-worker <script>`.
 - `pnpm lint` covers both packages, but `pnpm test` covers only the frontend —
-  the worker suite is `pnpm --filter satvis-worker test`. CI runs lint, both test
-  suites, the build and `pnpm test:e2e`.
+  the worker suite is `pnpm --filter satvis-worker test`, which also starts
+  `wrangler dev` to check the asset routing (`worker/scripts/check-routes.mjs`).
+  `pnpm test:build` checks `dist/sw.js` after a build. CI runs lint, both test
+  suites, the build with `test:build`, and `pnpm test:e2e`.
 - `pnpm test:e2e` renders with SwiftShader, as a GPU-less CI runner does;
   `pnpm test:e2e:gpu` runs the same specs about four times faster on a Mac.
 - Full-stack dev is `pnpm dev:worker` plus

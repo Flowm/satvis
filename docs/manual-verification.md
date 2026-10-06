@@ -158,58 +158,6 @@ origin", the radio went back to `None`, and `surface` left the url.
 `SurfaceModel.apply` ran twice (the attempt and the revert), so the failure is
 reported once.
 
-## Worker: missing files 404, and none of it is billed
-
-**Covers:** `not_found_handling` in `worker/wrangler.jsonc`, `public/404.html`,
-`public/_redirects`, and the Worker's `fetch`. Constraint: asset traffic must not
-become billed Worker invocations.
-
-**Procedure.** `pnpm build`, `pnpm dev:worker`, then request each path and read the
-status. For billing, put `console.log("BILLED", new URL(request.url).pathname)` at the
-top of the Worker's `fetch` and watch which requests log.
-
-**Result, 2026-07-30, wrangler dev on the built dist.**
-
-| path                                     | status                                                     |
-| ---------------------------------------- | ---------------------------------------------------------- |
-| `/`, `/ot`                               | 200 text/html                                              |
-| `/embedded.html`, `/test.html`           | 307 to `/embedded`, `/test` (asset router `html_handling`) |
-| `/typo-route`                            | 404 text/html (the 404 page)                               |
-| `/api/groups.json`                       | 200 application/json                                       |
-| `/cesium/…/tilemapresource.xml` (exists) | 200 application/xml                                        |
-| `/data/imagery/…` (a missing tile)       | **404**                                                    |
-| `/data/gp/weather.json` (absent)         | **404**                                                    |
-
-Only `/api/groups.json` logged `BILLED`. Two configurations that do invoke the
-Worker, both measured: `404-page` with no `404.html`, and
-`not_found_handling: "none"` for every unmatched path. Production before the change
-answered a missing data asset with `200 text/html`.
-
-`/ot` depends on the rewrite in `public/_redirects`; its comments say why the target
-is `/` and why the rule sits above the splat. In a browser, `/ot?v=clean` selected
-VersaTiles and added no `layers=`, and `/` used the default basemap.
-
-With the service worker installed, a navigation to an unknown route is answered from
-precache by `navigateFallback`, so it shows the app, not the 404 page. This is
-deliberate: offline, that is the wanted behaviour.
-
-## PWA: a data url in the address bar must not serve the app shell
-
-**Covers:** `navigateFallbackDenylist` in `vite.config.ts` (AGENTS.md, Gotchas).
-`pnpm preview` has no `/api` backend, so a denied navigation and a served shell look
-the same locally.
-
-**Result, 2026-07-30.** `https://satvis.space/api/groups.json` answers
-`application/json` with or without an HTML `Accept` header, so the shell came from
-the service worker. `workbox-routing/NavigationRoute._match` rejects a request whose
-`mode !== "navigate"` before it reads the denylist, then tests `pathname + search`.
-That is why `.json` missing from the extension list handed `/api/groups.json` to
-`createHandlerBoundToURL("/index.html")`. Check the built `dist/sw.js` for the
-`/api/`, `/data/` and `/cesium/` prefixes.
-
-**Not verified:** a live navigation against a deployed Worker with the new service
-worker installed. After a deploy, open the url in a tab and confirm JSON.
-
 ## Clock deck: nothing covers the controls, and the gestures hold still
 
 **Covers:** `src/components/ClockDeck.vue`, `src/composables/useClockDeckChrome.ts`
