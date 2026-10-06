@@ -153,8 +153,14 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   over Satellites, Components, Ground station, Map, View and Graphics, with their
   Lucide icons, names, order and hover hints (read by VoiceOver), one glass panel
   whose rows each hold an icon and its name, folded on a phone and open on an
-  iPad, as the web's is on a desktop. Each is a system menu
-  or sheet rather than the web's panel, its sections titled as the panel's are.
+  iPad, as the web's is on a desktop. Components, Map, View
+  and Graphics open the web's panels beside it (`ToolPanels.swift`): a title and a
+  close button over a rule level with the column's, sections under small titles,
+  switches, a segmented control where the choices are short, ticked rows where
+  they are long. On a phone the column folds to its icons beside a panel, which
+  covers the top-right buttons, as the web's does below 640 px. Not system
+  menus: iOS 26 grows one out of its control, in the column's place, and it holds
+  ticked lists alone. Satellites and Ground station are sheets: long lists.
   What the app does not draw is left out: Map's overlays, surface and star map;
   View's 2D, Columbus and camera modes; Graphics' scene effects and MSAA. The
   web's Mobile panel is the WebView app's, which this one replaces.

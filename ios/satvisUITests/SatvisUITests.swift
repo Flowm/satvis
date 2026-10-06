@@ -97,7 +97,7 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(overlay.waitForExistence(timeout: 30))
         openMenu(app)
         app.buttons["Graphics"].tap()
-        app.descendants(matching: .any)["FPS"].firstMatch.tap()
+        flip(app, "FPS")
         XCTAssert(overlay.waitForNonExistence(timeout: 5))
     }
 
@@ -112,7 +112,7 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(start.waitForNonExistence(timeout: 5))
         openMenu(app)
         app.buttons["Graphics"].tap()
-        app.buttons["Benchmark"].firstMatch.tap()
+        flip(app, "Benchmark")
         XCTAssert(start.waitForExistence(timeout: 5))
     }
 
@@ -121,6 +121,16 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     private func menuToggle(_ app: XCUIApplication) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "label IN {'Menu', 'Close menu'}")).firstMatch
+    }
+
+    /// Flips a panel's switch by the switch itself: a tap in the middle of the row
+    /// lands on its name, which does not.
+    @MainActor
+    private func flip(_ app: XCUIApplication, _ name: String) {
+        let row = app.switches[name]
+        XCTAssert(row.waitForExistence(timeout: 5))
+        let control = row.switches.firstMatch
+        (control.exists ? control : row).tap()
     }
 
     /// Unfolds the menu column, unless it is open already, as on an iPad.
