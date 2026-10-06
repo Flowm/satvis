@@ -1782,6 +1782,36 @@
       "name": "Svalbard",
       "latitude": 78.2232,
       "longitude": 15.6267
+    },
+    {
+      "name": "",
+      "latitude": 49.06486812368574,
+      "longitude": 10.776090478758352
+    },
+    {
+      "name": "",
+      "latitude": 48.82823596048432,
+      "longitude": 10.907191267038419
+    },
+    {
+      "name": "",
+      "latitude": 49.047970765845996,
+      "longitude": 10.78549615704942
+    },
+    {
+      "name": "",
+      "latitude": 56.74032766172364,
+      "longitude": 30.48140183927962
+    },
+    {
+      "name": "",
+      "latitude": 56.81757001754316,
+      "longitude": 30.918860942940654
+    },
+    {
+      "name": "",
+      "latitude": 56.745895689158296,
+      "longitude": 30.51258908134303
     }
   ],
   "passes": [
@@ -3725,6 +3755,268 @@
         "portKm": 100
       },
       "passes": []
+    }
+  ],
+  "passEdges": [
+    {
+      "record": 0,
+      "station": 0,
+      "startMs": 1790940568210,
+      "endMs": 1790951368210,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790940568210,
+          "end": 1790940827012.4856,
+          "duration": 258802.48559570312,
+          "azimuthStart": 341.0920375310131,
+          "azimuthApex": 341.0920375310131,
+          "azimuthEnd": 67.75672629506596,
+          "maxElevation": 73.63108261301701,
+          "apex": 1790940568210
+        },
+        {
+          "start": 1790946141576.3228,
+          "end": 1790946647975.044,
+          "duration": 506398.72119140625,
+          "azimuthStart": 282.54909535710095,
+          "azimuthApex": 0.5556922189634087,
+          "azimuthEnd": 78.58163214967874,
+          "maxElevation": 43.81194968594175,
+          "apex": 1790946395196.64
+        }
+      ]
+    },
+    {
+      "record": 0,
+      "station": 0,
+      "startMs": 1790938509405,
+      "endMs": 1790940568210,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790940309401.8413,
+          "end": 1790940568210,
+          "duration": 258808.15869140625,
+          "azimuthStart": 253.49200259034416,
+          "azimuthApex": 340.59991579271946,
+          "azimuthEnd": 341.0920375310131,
+          "maxElevation": 73.63165230066873,
+          "apex": 1790940568063.7102
+        }
+      ]
+    },
+    {
+      "record": 0,
+      "station": 0,
+      "startMs": 1790940329405,
+      "endMs": 1790940807015,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790940329405,
+          "end": 1790940807015,
+          "duration": 477610,
+          "azimuthStart": 253.8762303987704,
+          "azimuthApex": 340.59991579271946,
+          "azimuthEnd": 67.36642748029149,
+          "maxElevation": 73.63165230066873,
+          "apex": 1790940568063.6497
+        }
+      ]
+    },
+    {
+      "record": 0,
+      "station": 3,
+      "startMs": 1790939965000,
+      "endMs": 1790941165000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 1,
+        "portKm": 1
+      },
+      "passes": [
+        {
+          "start": 1790940564877.4514,
+          "end": 1790940565133.4724,
+          "duration": 256.02099609375,
+          "minDistance": 0.4999999999991023,
+          "minDistanceTime": 1790940565000.4097,
+          "swathWidth": 2
+        }
+      ]
+    },
+    {
+      "record": 0,
+      "station": 4,
+      "startMs": 1790939965000,
+      "endMs": 1790941165000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 30,
+        "portKm": 30
+      },
+      "passes": [
+        {
+          "start": 1790940563637.0156,
+          "end": 1790940566362.966,
+          "duration": 2725.950439453125,
+          "minDistance": 28.49999546639648,
+          "minDistanceTime": 1790940564998.9915,
+          "swathWidth": 60
+        }
+      ]
+    },
+    {
+      "record": 0,
+      "station": 5,
+      "startMs": 1790939965000,
+      "endMs": 1790941165000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 5,
+        "portKm": 100
+      },
+      "passes": [
+        {
+          "start": 1790940564373.6765,
+          "end": 1790940565631.489,
+          "duration": 1257.8125,
+          "minDistance": 2.500000000000597,
+          "minDistanceTime": 1790940565000.6296,
+          "swathWidth": 105
+        }
+      ]
+    },
+    {
+      "record": 1,
+      "station": 0,
+      "startMs": 1790965901584,
+      "endMs": 1790976701584,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790965901584,
+          "end": 1790966207995.669,
+          "duration": 306411.6689453125,
+          "azimuthStart": 56.60811545826189,
+          "azimuthApex": 56.60811545826189,
+          "azimuthEnd": 3.7133653135445215,
+          "maxElevation": 19.303999330117716,
+          "apex": 1790965901584
+        },
+        {
+          "start": 1790971485735.1953,
+          "end": 1790972258137.0176,
+          "duration": 772401.822265625,
+          "azimuthStart": 168.11192627387902,
+          "azimuthApex": 255.88475225016057,
+          "azimuthEnd": 343.9335332804848,
+          "maxElevation": 77.94885029284174,
+          "apex": 1790971870297.339
+        }
+      ]
+    },
+    {
+      "record": 1,
+      "station": 0,
+      "startMs": 1790963795171,
+      "endMs": 1790965901584,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790965595173.7466,
+          "end": 1790965901584,
+          "duration": 306410.25341796875,
+          "azimuthStart": 109.9234736847264,
+          "azimuthApex": 56.70936848005883,
+          "azimuthEnd": 56.60811545826189,
+          "maxElevation": 19.30404600338306,
+          "apex": 1790965901173.3052
+        }
+      ]
+    },
+    {
+      "record": 1,
+      "station": 0,
+      "startMs": 1790965615171,
+      "endMs": 1790966187997,
+      "mode": "elevation",
+      "passes": [
+        {
+          "start": 1790965615171,
+          "end": 1790966187997,
+          "duration": 572826,
+          "azimuthStart": 107.99396125425326,
+          "azimuthApex": 56.70961626210016,
+          "azimuthEnd": 5.609934695725931,
+          "maxElevation": 19.304046003737454,
+          "apex": 1790965901172.3271
+        }
+      ]
+    },
+    {
+      "record": 1,
+      "station": 6,
+      "startMs": 1790965345000,
+      "endMs": 1790966545000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 1,
+        "portKm": 1
+      },
+      "passes": [
+        {
+          "start": 1790965944870.3545,
+          "end": 1790965945131.3406,
+          "duration": 260.986083984375,
+          "minDistance": 0.5000407060886014,
+          "minDistanceTime": 1790965944999.1309,
+          "swathWidth": 2
+        }
+      ]
+    },
+    {
+      "record": 1,
+      "station": 7,
+      "startMs": 1790965345000,
+      "endMs": 1790966545000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 30,
+        "portKm": 30
+      },
+      "passes": [
+        {
+          "start": 1790965943597.7744,
+          "end": 1790965946410.225,
+          "duration": 2812.45068359375,
+          "minDistance": 28.499994907153823,
+          "minDistanceTime": 1790965944997.5706,
+          "swathWidth": 60
+        }
+      ]
+    },
+    {
+      "record": 1,
+      "station": 8,
+      "startMs": 1790965345000,
+      "endMs": 1790966545000,
+      "mode": "swath",
+      "swath": {
+        "starboardKm": 5,
+        "portKm": 100
+      },
+      "passes": [
+        {
+          "start": 1790965944349.7612,
+          "end": 1790965945654.4348,
+          "duration": 1304.673583984375,
+          "minDistance": 2.5000000000003615,
+          "minDistanceTime": 1790965945000.072,
+          "swathWidth": 105
+        }
+      ]
     }
   ],
   "presentation": [
