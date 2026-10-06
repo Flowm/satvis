@@ -1,6 +1,5 @@
-// The entity panel refreshes once a real second whatever the clock speed, and never
-// while paused (CesiumCallbackHelper.createThrottledTimeCallback). It once
-// re-rendered on 310 of 311 frames at 3600×.
+// Once a real second at any clock speed, never while paused
+// (CesiumCallbackHelper.createThrottledTimeCallback).
 
 import type { Page } from "@playwright/test";
 
@@ -9,8 +8,7 @@ import { expect, test } from "../support/test";
 
 /**
  * Counts the ticks on which the panel text changed, over at least `minMs` and
- * `minTicks`: enough frames that a panel refreshing on every frame stands out from
- * one refreshing every second, on a runner drawing one frame a second too.
+ * `minTicks`, so a per-frame refresh stands out from a once-a-second one.
  */
 const watchPanel = (page: Page, minMs: number, minTicks: number) =>
   page.evaluate(

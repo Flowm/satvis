@@ -1,9 +1,7 @@
-// The batched orbit line is one inertial period ahead, closed at the satellite. An
-// orbit does not close on itself (ISS drifts ~31 km a period, NOAA 20 ~54 km), so a
-// line closed straight back to its head bent by 7.6–42°, and one starting at the
-// first sample left the satellite up to 7 km off its own line. The drift is now ramped
-// out over the last quarter (SampledTrajectory.positionsForNextOrbit). The unit tests
-// stand TEME in for ICRF; this runs against Cesium's real IAU data.
+// An orbit does not close on itself: the ISS drifts ~31 km a period, NOAA 20 ~54 km.
+// Closed straight back to its head the line bent by 7.6–42°; started at the first
+// sample it left the satellite up to 7 km off. The unit tests stand TEME in for ICRF;
+// this uses Cesium's IAU data.
 
 import type { Page } from "@playwright/test";
 

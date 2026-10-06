@@ -1,6 +1,5 @@
-// The compass tape is a heading readout, so tilting the view must not stretch it.
-// Projected onto the horizon, 15° of azimuth grew from 147 px at eye level to
-// 1691 px at 85° pitch. `headingOffset` is unit-tested; this checks the live tape.
+// A heading readout, not a horizon projection: projected, 15° of azimuth grew from
+// 147 px at eye level to 1691 px at 85° pitch.
 
 import type { Page } from "@playwright/test";
 

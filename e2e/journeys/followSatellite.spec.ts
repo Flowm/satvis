@@ -1,6 +1,3 @@
-// Find a satellite by name, read about it, follow it with the camera and let it go,
-// all through the menus and the info panel, on a desktop and on a phone.
-
 import type { Page } from "@playwright/test";
 
 import { openApp, waitTicks } from "../support/app";
@@ -9,7 +6,7 @@ import { DEVICES, openMenu } from "../support/ui";
 
 const ISS = "ISS (ZARYA)";
 
-/** Metres from the camera to the tracked satellite, and how far the satellite has come since `from`. */
+/** Metres from the camera to the tracked satellite, and where the satellite is. */
 const trackingGap = (page: Page) =>
   page.evaluate(() => {
     const { viewer } = window.cc!;
@@ -35,7 +32,6 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await expect(panel.locator(".head__name")).toHaveText(ISS);
       await expect.poll(() => new URL(page.url()).searchParams.get("sats")).toContain(ISS);
 
-      // Details open first. Without a ground station there are no passes, and the panel says so.
       await expect(panel.getByRole("tab", { name: "Details" })).toHaveAttribute("aria-selected", "true");
       await expect(panel.getByRole("row", { name: /Launched/ })).toContainText("1998-11-20");
       await panel.getByRole("tab", { name: /Passes/ }).click();
@@ -43,14 +39,14 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await panel.getByRole("tab", { name: "Details" }).click();
       await expect(panel.getByRole("row", { name: /Launched/ })).toBeVisible();
 
-      // Pressing the active tab folds the body away, to free the globe, and back.
+      // Pressing the active tab folds the body; pressing it again unfolds it.
       await panel.getByRole("tab", { name: "Details" }).click();
       await expect(panel.getByRole("row", { name: /Launched/ })).toBeHidden();
       await expect(panel.locator(".head__name")).toBeVisible();
       await panel.getByRole("tab", { name: "Details" }).click();
       await expect(panel.getByRole("row", { name: /Launched/ })).toBeVisible();
 
-      // Track: the camera flies in, then keeps its distance while the ISS moves on.
+      // Following: the ISS moves on while the camera keeps its distance.
       await panel.getByRole("button", { name: "Track entity" }).click();
       await expect.poll(() => new URL(page.url()).searchParams.get("track")).toBe(ISS);
       await expect
@@ -69,7 +65,6 @@ for (const [device, options] of Object.entries(DEVICES)) {
         )
         .toBe("following");
 
-      // The same button lets go.
       await panel.getByRole("button", { name: "Track entity" }).click();
       await expect.poll(() => new URL(page.url()).searchParams.get("track")).toBeNull();
       expect(await page.evaluate(() => window.cc!.viewer.trackedEntity)).toBeUndefined();

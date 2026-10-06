@@ -1,7 +1,5 @@
-// A surface model that cannot load (ion unreachable, or a token not valid for the
-// origin) must say so once, put the radio back on None and leave the url alone,
-// rather than leave a dead selection behind (SurfaceModel.ts, Satvis.vue). OSM
-// Buildings, because Google Photorealistic applies in the sky view only.
+// OSM Buildings: Google Photorealistic applies in the sky view only, so in 3D it
+// loads nothing that could fail.
 
 import { openApp } from "../support/app";
 import { expect, test } from "../support/test";
@@ -19,7 +17,7 @@ test("an unavailable surface model reverts to None and says so once", async ({ p
   // One toast. Its text is also announced in an alert span, so count the region's items.
   const toasts = page.getByRole("region", { name: /Notifications/ }).getByRole("listitem");
   await expect(toasts.filter({ hasText: "OsmBuildings unavailable" })).toHaveCount(1);
-  // The surface radios are the unnamed ones; the terrain radio is back on its own choice too.
+  // The surface radios are the unnamed ones.
   await expect(page.locator('input[type="radio"][value="None"]:not([name])')).toBeChecked();
   await expect(page.locator('input[name="terrain"][value="None"]')).toBeChecked();
   expect(new URL(page.url()).searchParams.get("surface")).toBeNull();

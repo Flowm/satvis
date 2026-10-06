@@ -1,6 +1,4 @@
-// Cesium's credit lightbox goes full screen below 576 px. It once sat under the
-// toolbars and the clock deck, with its close button out of reach, so nothing
-// closed it (main.css, .cesium-credit-lightbox-mobile).
+// Below 576 px Cesium's credit lightbox is full screen (main.css, .cesium-credit-lightbox-mobile).
 
 import { openApp } from "../support/app";
 import { expect, test } from "../support/test";
@@ -14,7 +12,6 @@ test("on a phone the lightbox covers the app chrome and its close button closes 
   await expect(page.locator(overlay)).toBeVisible();
   await expect(page.locator(".cesium-credit-lightbox")).toHaveClass(/cesium-credit-lightbox-mobile/);
 
-  // What a tap at each place would reach.
   const hits = await page.evaluate((overlaySelector) => {
     const target = (selector: string) => {
       const box = document.querySelector(selector)!.getBoundingClientRect();

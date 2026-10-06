@@ -1,12 +1,10 @@
-// What the asset router answers, and which requests reach the Worker, under the real
-// wrangler.jsonc, public/404.html and public/_redirects. A request that reaches the
-// Worker is a billed invocation; asset traffic must not be one.
+// What the asset router answers under the real wrangler.jsonc, public/404.html and
+// public/_redirects. A request that reaches the Worker is a billed invocation; asset
+// traffic must not be one.
 //
 // `wrangler dev`, not vitest-pool-workers: its SELF.fetch goes straight to the Worker,
-// past the asset router this checks. The site is a stand-in for dist/, so no build is
-// needed: the routing config is under test, not the bundle.
-//
-// Run with `node --test scripts/check-routes.mjs` (part of `pnpm test`).
+// past the asset router. The site stands in for dist/: the routing config is under
+// test, not the bundle.
 
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";

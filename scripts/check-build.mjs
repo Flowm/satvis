@@ -1,10 +1,6 @@
-// What the built service worker does, read from dist/sw.js after `pnpm build`.
-//
-// Two rules no unit test can see, because they exist only in the generated file
-// (AGENTS.md, Gotchas): a data url opened in the address bar must not be answered
-// with the app shell, and nothing from Cesium ion or Google's tile hosts may be cached.
-//
-// Run with `pnpm test:build`.
+// Two rules that exist only in the generated dist/sw.js (AGENTS.md, Gotchas): a data url
+// opened in the address bar must not get the app shell, and nothing from Cesium ion or
+// Google's tile hosts may be cached.
 
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";

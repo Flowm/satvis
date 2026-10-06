@@ -326,9 +326,9 @@ export function startSceneSync(cc: SceneTarget): void {
 
   watch(desired, (next) => cc.sats.reconcile(next), { deep: true, immediate: true });
 
-  // `time` is null (live) exactly while the clock shows the present, as the deck's Live
-  // dot does. Off it, however it got there (a scrub, a pass link, a pause, 600×), `time`
-  // follows the clock to the minute, so a shared link shows what the sender saw.
+  // `time` is null (live) exactly while the clock shows the present, as the Live dot does.
+  // Off it, however it got there, `time` follows the clock to the minute, so a shared link
+  // shows what the sender saw.
   const clockMinute = (): string | undefined => toMinuteIso(JulianDate.toDate(cc.viewer.clock.currentTime));
 
   watch(

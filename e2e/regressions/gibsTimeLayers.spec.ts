@@ -1,6 +1,5 @@
-// GOES-IR and VIIRS show the GIBS frame for the simulation time, and a removed
-// layer stops asking GIBS for anything (GibsTimeLayer.ts). GIBS is stubbed: each
-// layer's time domain is fixed here and every tile is one transparent pixel.
+// GIBS is stubbed: each layer's time domain is fixed here, and every tile is one
+// transparent pixel.
 
 import type { Page } from "@playwright/test";
 
@@ -12,7 +11,7 @@ const DOMAINS: Record<string, string> = {
   VIIRS_SNPP_CorrectedReflectance_TrueColor: "2026-09-01/2026-10-05/P1D",
 };
 
-/** The `{Time}` of every GIBS tile requested, by layer, since the last `clear`. */
+/** Stubs GIBS, and records the `{Time}` of every tile and the domain requests since the last `clear`. */
 function stubGibs(page: Page) {
   const tiles: { layer: string; time: string }[] = [];
   let domainRequests = 0;
@@ -66,7 +65,7 @@ test("the layers request the frame for the clock, and nothing once removed", asy
   await setClock(page, "2026-10-09T12:00:00Z");
   await expect.poll(() => gibs.times("VIIRS_SNPP_CorrectedReflectance_TrueColor")).toEqual(["2026-10-05"]);
 
-  // Remove both from the Map panel: NaturalEarth replaces VIIRS, GOES-IR is unticked.
+  // NaturalEarth replaces VIIRS as the base map; GOES-IR is an overlay.
   const tickListeners = () => page.evaluate(() => window.cc!.viewer.clock.onTick.numberOfListeners);
   const listenersWithLayers = await tickListeners();
   await page.getByRole("button", { name: "Map" }).click();

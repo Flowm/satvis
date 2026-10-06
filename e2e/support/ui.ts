@@ -1,5 +1,4 @@
-// What a visitor does with the app's own controls. Journeys go through these; on a
-// phone the menu column starts collapsed and the clock deck folded.
+// What a visitor does with the app's own controls.
 
 import { expect, type Page } from "@playwright/test";
 
@@ -26,7 +25,7 @@ export async function openClockDeck(page: Page): Promise<void> {
   }
 }
 
-/** Adds a ground station at the browser's geolocation, as the Ground station panel's button does. */
+/** Adds a station at the browser's geolocation through the Ground station panel. */
 export async function addStationHere(page: Page, name: string): Promise<void> {
   await openMenu(page, "Ground station");
   const rows = page.locator(".gsList__row");

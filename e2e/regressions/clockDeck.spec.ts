@@ -1,8 +1,5 @@
-// The clock deck shares the bottom of the screen with Cesium's credit line, placed
-// by useClockDeckChrome and main.css at breakpoints measured off the credit box. Every
-// control and credit must stay clickable on both sides of each breakpoint, and the
-// deck's gestures must not shift it: folding keeps the clock where it is, the ladder
-// keeps the deck's height, and a swipe on the ladder comes to rest on a rung.
+// The credit line shares the bottom edge with the deck, placed at breakpoints measured
+// off the credit box (useClockDeckChrome, main.css).
 
 import { hitTest, openApp } from "../support/app";
 import { expect, test } from "../support/test";
@@ -63,7 +60,7 @@ test("folding keeps the clock still, the ladder keeps the height, and a swipe re
   await expect(ladder).toBeVisible();
   expect((await deck.boundingBox())!.height).toBe(height);
 
-  // Swipe two and a half rungs and let go while moving: it coasts, then settles on a rung.
+  // Two and a half rungs, released while moving: it coasts, then settles.
   const box = (await ladder.boundingBox())!;
   const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
   await page.mouse.move(x, y);

@@ -1,5 +1,4 @@
-// The url is the app's state (ADR 0001): set a scene up through the menus, send the
-// link, and whoever opens it in a fresh browser sees the same scene.
+// The url carries the whole scene (ADR 0001).
 
 import type { Page } from "@playwright/test";
 
@@ -37,7 +36,6 @@ async function sceneState(page: Page) {
 test("a scene set up through the menus survives the trip through its url", async ({ page, browser }) => {
   await openApp(page, "", { live: true });
 
-  // Only the ISS: find it, then drop the default weather group.
   await menu(page, "Satellites");
   await page.getByPlaceholder("Search satellites").fill("ISS");
   await page.getByRole("checkbox", { name: `Toggle ${ISS}` }).click();
@@ -45,7 +43,6 @@ test("a scene set up through the menus survives the trip through its url", async
   await page.getByRole("checkbox", { name: "Toggle group Weather" }).click();
   await expect.poll(() => page.evaluate(() => window.cc!.sats.activeSatellites.map((sat) => sat.props.name))).toEqual([ISS]);
 
-  // A ground station where the browser says we are, named.
   await menu(page, "Ground station");
   await page.getByRole("button", { name: "My location" }).click();
   const station = page.locator(".gsList__row").first();
@@ -68,7 +65,7 @@ test("a scene set up through the menus survives the trip through its url", async
     expect(link.searchParams.has(parameter), `the link carries ${parameter}`).toBe(true);
   }
 
-  // Someone else opens it: a fresh browser, no storage, no location.
+  // A fresh browser: no storage, no location.
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const shared = await context.newPage();
   const errors = collectConsoleErrors(shared);

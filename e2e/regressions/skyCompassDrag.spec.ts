@@ -1,8 +1,5 @@
-// While the compass aims the sky view, a drag takes the aim back for good, a nudge
-// inside the tap slop does not, and a pinch zooms without ending compass aiming
-// (SkyInteraction.ts, useSkyCompass.ts; ADR 0004). The pinch once marked itself "not
-// a tap" by bumping the drag counter, and the handover read the same counter, so the
-// first pixel after a pinch ended compass aiming.
+// ADR 0004. A pinch once ended compass aiming on its first pixel: it marked itself
+// "not a tap" by bumping the drag counter that the handover reads.
 
 import type { Page } from "@playwright/test";
 
@@ -10,8 +7,7 @@ import { openApp, waitForSky } from "../support/app";
 import { expect, test } from "../support/test";
 import { menuSwitch, openMenu } from "../support/ui";
 
-// Granted as a visitor would: the headless shell asks DeviceOrientationEvent.requestPermission,
-// and without these it answers "denied".
+// The headless shell asks DeviceOrientationEvent.requestPermission; without these it is denied.
 test.use({ viewport: { width: 1000, height: 800 }, permissions: ["accelerometer", "gyroscope", "magnetometer"] });
 
 const sky = (page: Page) => page.evaluate(() => ({ aiming: window.cc!.skyInteraction.orientationActive, aim: { ...window.cc!.skyView.aim }, fovy: window.cc!.skyView.fovy }));
@@ -73,7 +69,7 @@ test("a nudge leaves the compass aiming; a drag takes the aim back, levels it an
 
 test("a drag during the sensor probe cancels quietly", async ({ page }) => {
   await menuSwitch(page, "Use compass").click();
-  // Inside the 1.2 s probe: listening, the control waiting on it.
+  // Inside the 1.2 s probe.
   await expect(compassSwitch(page)).toBeDisabled();
   expect((await sky(page)).aiming).toBe(true);
   await drag(page, 40, 40);
@@ -106,14 +102,13 @@ test("a pinch zooms without ending compass aiming, and its last finger must real
   await expect.poll(async () => (await sky(page)).fovy).toBeCloseTo(before.fovy / 2, 6);
   expect((await sky(page)).aiming).toBe(true);
 
-  // One finger left, moved 3 px: still a tap's worth, so still aiming, and nothing selected.
+  // One finger left, moved 3 px: still a tap's worth.
   await touch("touchEnd", [[1, x + 100, y]]);
   await touch("touchMove", [[0, x - 97, y]]);
   await page.waitForTimeout(300);
   expect((await sky(page)).aiming).toBe(true);
   expect(await page.evaluate(() => window.cc!.viewer.selectedEntity)).toBeUndefined();
 
-  // A real drag of that finger hands the aim over.
   await touch("touchMove", [[0, x, y]]);
   await expect.poll(async () => (await sky(page)).aiming).toBe(false);
   await touch("touchEnd", [[0, x, y]]);

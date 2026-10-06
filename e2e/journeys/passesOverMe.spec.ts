@@ -1,6 +1,3 @@
-// When does the ISS pass over me? Add a station where the browser says we are, open
-// the ISS, pick a pass on its timeline, and jump the clock to it.
-
 import { openApp } from "../support/app";
 import { expect, test } from "../support/test";
 import { addStationHere, openMenu } from "../support/ui";
@@ -26,13 +23,11 @@ test("the ISS lists its passes over my location, and a pass can be jumped to", a
   const rows = panel.locator("tbody tr");
   expect(await rows.count()).toBeGreaterThan(0);
 
-  // A bar on the timeline marks its row in the table.
   const bars = panel.locator(".timeline__pass:not(.is-past)");
   await bars.nth(1).click();
   await expect(panel.locator("tbody tr.is-picked")).toHaveCount(1);
 
-  // Its start time sets the clock, and the ISS is overhead. Off the present, the deck
-  // no longer reads live and the url pins the moment, so a shared link shows the pass.
+  // Off the present, the url pins the moment, so a shared link shows the pass.
   const picked = panel.locator("tbody tr.is-picked");
   const startMs = Number(await picked.getAttribute("data-start-ms"));
   await picked.locator("a.link").click();

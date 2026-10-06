@@ -1,6 +1,3 @@
-// The wheel and pinch handlers in SkyInteraction against a live canvas. The clamp
-// and the curve are unit-tested; the event dispatch is not.
-
 import type { Page } from "@playwright/test";
 
 import { openApp, waitForSky } from "../support/app";
@@ -30,7 +27,6 @@ test("equal wheel notches zoom by a constant ratio about a fixed aim", async ({ 
   for (let index = 1; index < fovys.length; index += 1) {
     expect(fovys[index]! / fovys[index - 1]!).toBeCloseTo(Math.exp(-200 * WHEEL_ZOOM_RATE), 9);
   }
-  // Back out by the same amount: no drift.
   await page.mouse.wheel(0, 600);
   await expect.poll(async () => (await view(page)).fovy).toBeCloseTo(75, 9);
   expect((await view(page)).aim).toEqual(start.aim);
@@ -77,7 +73,7 @@ test("a pinch scales the field of view by the finger spread, and the last finger
   await expect.poll(async () => (await view(page)).fovy).toBeCloseTo(25, 6);
   expect((await view(page)).aim).toEqual(start.aim);
 
-  // Lift the second finger, then drag the first 40 px to the right.
+  // Lift the second finger, then drag the first 40 px.
   await touch("touchEnd", [[1, cx + 150, cy]]);
   await touch("touchMove", [[0, cx - 130, cy]]);
   await touch("touchMove", [[0, cx - 110, cy]]);

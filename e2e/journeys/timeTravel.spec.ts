@@ -1,16 +1,12 @@
-// Leave the present and come back with the clock deck: pause, drag the timeline an
-// hour back, speed up, and return to now. Off the present the url pins the time;
-// back on it the url lets go.
-
 import type { Page } from "@playwright/test";
 
 import { FIXTURE_TIME, openApp } from "../support/app";
 import { expect, test } from "../support/test";
 import { openClockDeck } from "../support/ui";
 
-// Reduced motion turns off the timeline's coast after release. The coast is
-// integrated per frame, so at a runner's frame a second it ran 12 minutes past the
-// hour; whether it glides belongs to the clock deck's own regression spec.
+// Reduced motion turns off the timeline's coast, which is integrated per frame: at a
+// runner's frame a second it overshot the hour by 12 minutes. timelineRelease.spec.ts
+// covers the coast.
 test.use({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce" });
 
 const clockMs = (page: Page) => page.evaluate(() => Date.parse(window.cc!.viewer.clock.currentTime.toString()));
@@ -42,7 +38,7 @@ test("pause, drag an hour back, speed up, and return to now", async ({ page }) =
   await expect(live).toBeHidden();
   await expect.poll(() => pinned(page)).not.toBeNull();
 
-  // Pick 600× on the speed ladder and play: ten minutes pass in a second.
+  // 600×: ten minutes a second.
   await deck.getByRole("button", { name: "Set playback speed", exact: true }).click();
   await deck.getByRole("radio", { name: /^600×/ }).click();
   await expect(deck.getByRole("radio", { name: /^600×/ })).toHaveAttribute("aria-checked", "true");
@@ -51,7 +47,7 @@ test("pause, drag an hour back, speed up, and return to now", async ({ page }) =
   const playing = await clockMs(page);
   await expect.poll(async () => (await clockMs(page)) - playing, { message: "the clock runs at 600×" }).toBeGreaterThan(5 * 60_000);
 
-  // Back to now from a paused 600×: playing at real time, or it would leave the present again.
+  // Back to now from a paused 600× must play at 1×, or the clock leaves the present again.
   await deck.getByRole("button", { name: "Pause", exact: true }).click();
   await deck.getByRole("button", { name: "Show timeline", exact: true }).click();
   await deck.getByRole("button", { name: "Back to now", exact: true }).click();
@@ -60,7 +56,6 @@ test("pause, drag an hour back, speed up, and return to now", async ({ page }) =
   await expect(live).toBeVisible();
   await expect.poll(() => pinned(page)).toBeNull();
   expect(Math.abs((await clockMs(page)) - Date.parse(FIXTURE_TIME))).toBeLessThan(5 * 60_000);
-  // And it stays there.
   await page.waitForTimeout(2000);
   await expect(live).toBeVisible();
   expect(pinned(page)).toBeNull();

@@ -1,6 +1,5 @@
-// A drag on the clock deck's timeline coasts only when it is let go while moving.
-// The throw was the last move's speed, kept while the pointer rested, so a drag that
-// had stopped still flung the clock on release (useClockScales, releaseVelocity).
+// The throw was the last move's speed, kept while the pointer rested, so a stopped
+// drag still flung the clock (releaseVelocity).
 
 import type { Page } from "@playwright/test";
 

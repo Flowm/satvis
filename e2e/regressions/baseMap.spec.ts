@@ -1,7 +1,5 @@
-// The default base map is NaturalEarth, however deep its imagery goes in this
-// checkout: only the ceiling (`__IMAGERY_MAX_LEVEL__`) changes, never the
-// selection. A design that switched to a fallback provider when imagery was
-// missing overwrote the route preset's base map after hydration.
+// Only the imagery ceiling (`__IMAGERY_MAX_LEVEL__`) depends on the checkout, never the
+// base map: a fallback chosen after hydration overwrote the route preset's base map.
 
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";

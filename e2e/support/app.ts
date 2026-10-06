@@ -18,9 +18,9 @@ export const fixtureGroupCount = (name: string): number => (JSON.parse(readFileS
 export const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
 
 /**
- * Serves `/api` from the fixture and keeps every request on localhost. A map tile
- * from elsewhere (an image by its extension, as OSM's are) gets a transparent
- * pixel, so a base map loads as if online; anything else is aborted.
+ * Serves `/api` from the fixture and keeps every request on localhost. A map tile from
+ * elsewhere (an image by its extension, as OSM's are) gets a transparent pixel; anything
+ * else is aborted.
  */
 export async function useFixtureNetwork(page: Page): Promise<void> {
   await page.route(

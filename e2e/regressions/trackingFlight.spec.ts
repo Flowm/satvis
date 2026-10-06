@@ -1,8 +1,4 @@
-// Tracking flies the camera to the satellite, then hands over to Cesium's tracking
-// without a jump; a newer track supersedes a flight; the clock holds for the flight;
-// the sky view takes the camera from one; and stopping flies back to where tracking
-// began (trackFlight.ts). Each of these has broken: one probe moved the camera about
-// 11,000 km, and chained flights landed more than once.
+// A pose probe once moved the camera 11,000 km, and chained flights landed more than once.
 
 import type { Page } from "@playwright/test";
 
@@ -64,18 +60,15 @@ test("track, switch and stop through the panel: no jump on landing, none on a cl
   expect(metres((await trackingChanges(page)).at(-1)!.at, await camera(page))).toBeLessThan(1);
   expect(await cameraHolds(page)).toBeLessThan(1);
 
-  // Clicking another satellite opens its panel and leaves the camera and the tracking alone.
   await selectSatellite(page, CSS);
   await expect(panel.locator(".head__name")).toHaveText(CSS);
   expect(await cameraHolds(page, 10)).toBeLessThan(1);
   expect(await tracked(page)).toBe(ISS);
 
-  // Its Track button flies there.
   await panel.getByRole("button", { name: "Track entity" }).click();
   await expect.poll(() => tracked(page)).toBe(CSS);
   expect(await cameraHolds(page)).toBeLessThan(1);
 
-  // Stopping flies back to the view tracking began from.
   await panel.getByRole("button", { name: "Track entity" }).click();
   await expect.poll(() => tracked(page)).toBeUndefined();
   await expect.poll(async () => metres(await camera(page), start), { message: "back where tracking began" }).toBeLessThan(1000);

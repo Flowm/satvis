@@ -1,7 +1,3 @@
-// A first visit: the bare url on a live clock, on a desktop and on a phone. The globe fills with
-// the default preset's weather satellites, the menu is there to use, and the url
-// stays clean until the visitor changes something.
-
 import { fixtureGroupCount, openApp, waitTicks } from "../support/app";
 import { expect, test } from "../support/test";
 import { DEVICES, openMenu } from "../support/ui";
@@ -16,13 +12,11 @@ for (const [device, options] of Object.entries(DEVICES)) {
       const weather = fixtureGroupCount("weather");
       expect(await page.evaluate(() => window.cc!.sats.activeSatellites.length)).toBe(weather);
 
-      // Live: the deck says so, and the clock moves with the browser's.
       await expect(page.getByRole("img", { name: "Live" })).toBeVisible();
       const clockLabel = () => page.locator(".stamp").getAttribute("aria-label");
       const before = await clockLabel();
       await expect.poll(clockLabel, { timeout: 10_000 }).not.toBe(before);
 
-      // The menu column is open on a desktop and one tap away on a phone, every entry labelled.
       await expect(page.getByRole("button", { name: "Open menu" })).toBeVisible({ visible: device === "phone" });
       await openMenu(page, "Satellites");
       for (const entry of ["Satellites", "Components", "Ground station", "Map", "View"]) {
@@ -30,7 +24,7 @@ for (const [device, options] of Object.entries(DEVICES)) {
       }
       await expect(page.locator(".browser-summary")).toContainText(`1 group · ${weather} satellites active`);
 
-      // Opening a panel is not a change worth a url.
+      // Opening a panel does not change the url.
       await waitTicks(page, 5);
       expect(new URL(page.url()).search).toBe("");
     });

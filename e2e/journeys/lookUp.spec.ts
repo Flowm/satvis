@@ -1,7 +1,4 @@
-// Stand at my ground station and look up: open the sky view from the station's
-// panel, drag the sky until the crosshair holds a satellite, tap it, walk, stand at
-// a second station, and go back to the globe. METEOSAT-12 is geostationary, so it
-// holds still in Munich's sky.
+// METEOSAT-12 is geostationary, so it holds still in Munich's sky.
 
 import type { Page } from "@playwright/test";
 
@@ -55,7 +52,6 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   const panel = page.locator(".entity-info-panel");
   await expect(panel.getByRole("tab", { name: "Details" })).toHaveAttribute("aria-selected", "true");
 
-  // The station's pin on the globe opens its panel; the telescope stands there.
   await clickEntity(page, "Munich");
   await expect(panel.locator(".head__name")).toHaveText("Munich");
   await expect(panel.getByRole("tab", { name: /Passes/ })).toHaveAttribute("aria-selected", "true");
@@ -64,7 +60,7 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   await waitForSky(page);
   await expect(page.locator(".sky-hud--settled")).toBeVisible();
 
-  // Drag the sky so the target sits under the crosshair: the view follows the cursor.
+  // The view follows the cursor, so this drag puts the target under the crosshair.
   const target = await skyPosition(page, TARGET);
   const view = await page.evaluate(() => ({ ...window.cc!.skyView.aim, fovy: window.cc!.skyView.fovy }));
   const box = (await page.locator("#cesiumContainer canvas").boundingBox())!;
@@ -81,8 +77,7 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   await page.mouse.click(cx, cy);
   await expect(panel.locator(".head__name")).toHaveText(TARGET);
 
-  // Walk towards it, sprinting: the station follows once the walk settles, name kept.
-  // Two seconds, because a runner's frame a second caps each step at 100 ms of walk.
+  // Two seconds of sprint: a runner's frame a second caps each step at 100 ms of walk.
   const [start] = stations(page);
   await page.keyboard.down("Shift");
   await page.keyboard.down("KeyW");
@@ -92,7 +87,6 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   await expect.poll(() => Number(stations(page)[0]![0]), { message: "the station walked south" }).toBeLessThan(Number(start![0]));
   expect(stations(page)[0]![2]).toBe("Munich");
 
-  // A second station, then stand there by its rank: the view moves, the list order stays.
   await page.context().setGeolocation({ latitude: 47.27, longitude: 11.39 });
   await addStationHere(page, "Innsbruck");
   const rows = page.locator(".gsList__row");
@@ -101,7 +95,6 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   await expect.poll(() => page.evaluate(() => window.cc!.skyView.observer?.lat)).toBe(47.27);
   expect(stations(page).map((station) => station[2])).toEqual(["Munich", "Innsbruck"]);
 
-  // Back to the globe from the View menu.
   await openMenu(page, "View");
   await menuSwitch(page, "3D").click();
   await expect(page.locator(".sky-hud")).toBeHidden();
