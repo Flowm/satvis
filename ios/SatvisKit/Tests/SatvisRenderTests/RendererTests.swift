@@ -11,7 +11,7 @@ import simd
         for name in [
             "fullscreenVertex", "skyBoxFragment", "skyAtmosphereVertex", "skyAtmosphereFragment", "globeVertex", "globeFragment", "pointVertex", "pointFragment",
             "lineVertex", "lineFragment", "labelVertex", "labelFragment", "stationVertex", "stationFragment", "linkVertex", "linkFragment", "overlayVertex", "overlayFragment",
-            "coneVertex", "coneFragment", "coneRimVertex", "coneRimFragment",
+            "coneVertex", "coneFragment", "coneRimVertex", "coneRimFragment", "modelVertex", "modelFragment",
             "tonemapFragment",
         ] {
             #expect(library.makeFunction(name: name) != nil, "\(name)")
@@ -40,6 +40,8 @@ import simd
         #expect(MemoryLayout<LabelInstance>.stride == 32)
         #expect(MemoryLayout<StationInstance>.stride == 16)
         #expect(MemoryLayout<LinkInstance>.stride == 24)
+        #expect(MemoryLayout<ModelVertex>.stride == 48)
+        #expect(MemoryLayout<ModelInstance>.stride == 224)
     }
 
     // The way back from a tap on the globe to the place it touched.

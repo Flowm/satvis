@@ -7011,6 +7011,7 @@
         "Orbit track",
         "Ground track",
         "Sensor cone",
+        "3D model",
         "Ground station link"
       ],
       "layers": [
@@ -7239,6 +7240,7 @@
           {
             "raw": "3D model,Label",
             "value": [
+              "3D model",
               "Label"
             ]
           },
@@ -7770,7 +7772,8 @@
           "elements": [
             "Point",
             "Label",
-            "Orbit"
+            "Orbit",
+            "3D model"
           ],
           "sats": [
             "ISS (ZARYA)"
@@ -7788,7 +7791,7 @@
           "time": null
         },
         "invalid": [],
-        "written": "elements=Point,Label,Orbit&sats=ISS+(ZARYA)&tags=&track=ISS+(ZARYA)&layers=VersaTiles"
+        "written": "elements=Point,Label,Orbit,3D+model&sats=ISS+(ZARYA)&tags=&track=ISS+(ZARYA)&layers=VersaTiles"
       },
       {
         "preset": "default",
