@@ -71,8 +71,8 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   either side of when it was made, as on the web.
 - A link is the view, as on the web (ADR 0001): `LinkCodec` reads one onto its
   preset's defaults and `Session.open` applies it, replacing what is shown;
-  `Session.link` writes the view back. Parameters the app does not honour (`scene`,
-  `stars`, `bench`…) are kept as they came and written into every link it makes.
+  `Session.link` writes the view back. Parameters the app does not honour (`stars`,
+  `bench`…) are kept as they came and written into every link it makes.
   The view is kept as a link when the app goes to the background and reopened
   from it, without its time, so the app reopens live. Past a component's budget
   (labels at 200 active satellites, ground station links at 500) it switches off
