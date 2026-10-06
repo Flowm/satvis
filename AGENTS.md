@@ -19,8 +19,6 @@ workspace package). One `pnpm install` at the root covers both.
   flows through the menus, `regressions/` pins down one past bug each, for what
   needs layout, a GPU or frames. Read `e2e/support/app.ts` before writing one: it
   holds the fixture, the helpers and why they count clock ticks.
-- **`docs/manual-verification.md`** — the checks no suite runs yet. Rerun the ones
-  covering code you change, and record what they returned.
 - **`worker/src/gp/types.ts`** — the group, preset and satellite-table config
   schema, field by field.
 - **`src/modules/benchmark/README.md`** — the benchmark framework, and how the
