@@ -18,6 +18,10 @@ node_modules/
 
 report/
 
+# Playwright (pnpm test:e2e)
+/test-results/
+/playwright-report/
+
 # Environment variables
 .env
 .env.*

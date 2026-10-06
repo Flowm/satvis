@@ -14,6 +14,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test --project=swiftshader",
+    "test:e2e:gpu": "playwright test --project=gpu",
     "type-check": "vue-tsc --noEmit",
     "lint": "pnpm lint:web && pnpm lint:worker",
     "lint:web": "oxlint --disable-nested-config && oxfmt --disable-nested-config --check && vue-tsc",
@@ -45,6 +47,7 @@
   "devDependencies": {
     "@iconify-json/fa6-brands": "^1.2.6",
     "@iconify-json/lucide": "^1.2.139",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.4",
     "@vite-pwa/assets-generator": "^2.0.0",
     "@vitejs/plugin-vue": "^6.0.9",

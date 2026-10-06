@@ -4,5 +4,5 @@
   "sortImports": true,
   "sortPackageJson": true,
   "sortTailwindcss": true,
-  "ignorePatterns": ["dist", "data", "ios", "worker"]
+  "ignorePatterns": ["dist", "data", "ios", "worker", "e2e/fixtures"]
 }
