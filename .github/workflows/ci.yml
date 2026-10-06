@@ -52,6 +52,8 @@ jobs:
         run: pnpm ci
       - name: Build project
         run: pnpm build
+      - name: Check the built service worker
+        run: pnpm test:build
   e2e:
     runs-on: ubuntu-latest
     # SwiftShader on a runner draws a frame in 0.3-1.2 s: 15 tests took 6.5 min on one.
