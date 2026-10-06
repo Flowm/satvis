@@ -125,8 +125,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let coneRimPipeline: MTLRenderPipelineState
     private let overlay: GroundOverlay
     private let tonemapPipeline: MTLRenderPipelineState
+    /// The tonemap as the scene pass's last draw, on a GPU that reads its own
+    /// render targets (`tonemapTileFragment`); nil where it cannot, which
+    /// tonemaps in a second pass.
+    private let tonemapTilePipeline: MTLRenderPipelineState?
     private let depthWrite: MTLDepthStencilState
     private let depthTest: MTLDepthStencilState
+    /// Passes only where nothing has been drawn: depth still at the clear's 0.
+    private let depthEmpty: MTLDepthStencilState
     private let noDepth: MTLDepthStencilState
     private let linearSampler: MTLSamplerState
     let surface: Surface
@@ -209,6 +215,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             }
             return function
         }
+        // One pass where the GPU can read its render targets in place: the HDR
+        // image and the depth stay in tile memory, and the screen is the scene
+        // pass's second target, written by the tonemap alone.
+        let tileTonemap = device.supportsFamily(.apple4) ? library.makeFunction(name: "tonemapTileFragment") : nil
+        let screenFormat = view.colorPixelFormat
         func pipeline(
             _ vertex: String, _ fragment: String, format: MTLPixelFormat = Self.hdrFormat, depth: Bool = true, blend: Bool = false, premultiplied: Bool = false
         ) throws -> MTLRenderPipelineState {
@@ -216,6 +227,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             descriptor.vertexFunction = try function(vertex)
             descriptor.fragmentFunction = try function(fragment)
             descriptor.colorAttachments[0].pixelFormat = format
+            if tileTonemap != nil, format == Self.hdrFormat, depth {
+                descriptor.colorAttachments[1].pixelFormat = screenFormat
+                descriptor.colorAttachments[1].writeMask = []
+            }
             if blend {
                 let attachment = descriptor.colorAttachments[0]!
                 attachment.isBlendingEnabled = true
@@ -246,6 +261,16 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         self.overlay = overlay
         tonemapPipeline = try pipeline("fullscreenVertex", "tonemapFragment", format: view.colorPixelFormat, depth: false)
+        tonemapTilePipeline = try tileTonemap.map { fragment in
+            let descriptor = MTLRenderPipelineDescriptor()
+            descriptor.vertexFunction = try function("fullscreenVertex")
+            descriptor.fragmentFunction = fragment
+            descriptor.colorAttachments[0].pixelFormat = Self.hdrFormat
+            descriptor.colorAttachments[0].writeMask = []
+            descriptor.colorAttachments[1].pixelFormat = screenFormat
+            descriptor.depthAttachmentPixelFormat = Self.depthFormat
+            return try device.makeRenderPipelineState(descriptor: descriptor)
+        }
 
         func depthState(compare: MTLCompareFunction, write: Bool) -> MTLDepthStencilState {
             let descriptor = MTLDepthStencilDescriptor()
@@ -257,6 +282,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         depthWrite = depthState(compare: .greater, write: true)
         depthTest = depthState(compare: .greater, write: false)
         noDepth = depthState(compare: .always, write: false)
+        depthEmpty = depthState(compare: .greaterEqual, write: false)
 
         let samplerDescriptor = MTLSamplerDescriptor()
         samplerDescriptor.minFilter = .linear
@@ -657,8 +683,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         func target(_ format: MTLPixelFormat) -> MTLTexture? {
             let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: Int(size.width), height: Int(size.height), mipmapped: false)
-            descriptor.usage = [.renderTarget, .shaderRead]
-            descriptor.storageMode = .private
+            // In tile memory alone where the tonemap reads it there.
+            if tonemapTilePipeline != nil {
+                descriptor.usage = .renderTarget
+                descriptor.storageMode = .memoryless
+            } else {
+                descriptor.usage = [.renderTarget, .shaderRead]
+                descriptor.storageMode = .private
+            }
             return device.makeTexture(descriptor: descriptor)
         }
         hdr = target(Self.hdrFormat)
@@ -754,7 +786,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         scene.colorAttachments[0].texture = hdr
         scene.colorAttachments[0].loadAction = .clear
         scene.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
-        scene.colorAttachments[0].storeAction = .store
+        scene.colorAttachments[0].storeAction = tonemapTilePipeline == nil ? .store : .dontCare
+        if tonemapTilePipeline != nil {
+            scene.colorAttachments[1].texture = drawable.texture
+            scene.colorAttachments[1].loadAction = .dontCare
+            scene.colorAttachments[1].storeAction = .store
+        }
         scene.depthAttachment.texture = depth
         scene.depthAttachment.loadAction = .clear
         scene.depthAttachment.clearDepth = 0
@@ -763,21 +800,6 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             encoder.setFrontFacing(.counterClockwise)
             encoder.setVertexBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
             encoder.setFragmentBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
-
-            if let stars {
-                encoder.setRenderPipelineState(skyBoxPipeline)
-                encoder.setDepthStencilState(noDepth)
-                encoder.setCullMode(.none)
-                encoder.setFragmentTexture(stars, index: 0)
-                encoder.setFragmentSamplerState(linearSampler, index: 0)
-                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-            }
-
-            encoder.setRenderPipelineState(skyAtmospherePipeline)
-            encoder.setDepthStencilState(noDepth)
-            encoder.setCullMode(.front)
-            encoder.setVertexBuffer(skyShell.vertices, offset: 0, index: 0)
-            encoder.drawIndexedPrimitives(type: .triangle, indexCount: skyShell.count, indexType: .uint32, indexBuffer: skyShell.indices, indexBufferOffset: 0)
 
             if !surfaceTiles.isEmpty {
                 encoder.setRenderPipelineState(globePipeline)
@@ -793,6 +815,24 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             }
 
             drawModels(encoder, placements, frame: frame)
+
+            // Behind the globe and the models, drawn after them so that only the
+            // sky they leave is shaded: half the screen and more, close up.
+            if let stars {
+                encoder.setRenderPipelineState(skyBoxPipeline)
+                encoder.setDepthStencilState(depthEmpty)
+                encoder.setCullMode(.none)
+                encoder.setFragmentTexture(stars, index: 0)
+                encoder.setFragmentSamplerState(linearSampler, index: 0)
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+            }
+            // The shell's far side, where the globe stands in front of it, fails
+            // the depth test.
+            encoder.setRenderPipelineState(skyAtmospherePipeline)
+            encoder.setDepthStencilState(depthTest)
+            encoder.setCullMode(.front)
+            encoder.setVertexBuffer(skyShell.vertices, offset: 0, index: 0)
+            encoder.drawIndexedPrimitives(type: .triangle, indexCount: skyShell.count, indexType: .uint32, indexBuffer: skyShell.indices, indexBufferOffset: 0)
 
             // Under the satellites and their names: a pin marks the ground.
             drawStations(encoder, eye: pose.position, now: now)
@@ -834,10 +874,16 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                     encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: labels.atlas.instances.count)
                 }
             }
+            if let tonemapTilePipeline {
+                encoder.setRenderPipelineState(tonemapTilePipeline)
+                encoder.setDepthStencilState(noDepth)
+                encoder.setCullMode(.none)
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+            }
             encoder.endEncoding()
         }
 
-        if let encoder = commands.makeRenderCommandEncoder(descriptor: screen) {
+        if tonemapTilePipeline == nil, let encoder = commands.makeRenderCommandEncoder(descriptor: screen) {
             encoder.setRenderPipelineState(tonemapPipeline)
             encoder.setFragmentTexture(hdr, index: 0)
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)

@@ -16,6 +16,11 @@ import simd
         ] {
             #expect(library.makeFunction(name: name) != nil, "\(name)")
         }
+        // Where the GPU reads its own render targets, the tonemap runs in tile memory.
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        if device.supportsFamily(.apple4) {
+            #expect(library.makeFunction(name: "tonemapTileFragment") != nil)
+        }
     }
 
     @Test func loadsTheImagery() throws {

@@ -17,10 +17,24 @@ inline float3 acesTonemapping(float3 color) {
     return clamp(color, 0.0, 1.0);
 }
 
+inline float4 toScreen(float3 color) {
+    return float4(pow(acesTonemapping(color), float3(1.0 / 2.2)), 1.0);
+}
+
 fragment float4 tonemapFragment(FullscreenOut in [[stage_in]], texture2d<float> hdr [[texture(0)]]) {
     constexpr sampler nearest(filter::nearest);
-    float3 color = hdr.sample(nearest, in.uv).rgb;
-    color = acesTonemapping(color);
-    color = pow(color, float3(1.0 / 2.2));
-    return float4(color, 1.0);
+    return toScreen(hdr.sample(nearest, in.uv).rgb);
 }
+
+#if defined(__HAVE_COLOR_ARGUMENTS__)
+struct ScreenOut {
+    float4 color [[color(1)]];
+};
+
+/// The same, as the scene pass's last draw on a GPU that reads its own render
+/// targets: the HDR pixel straight from tile memory, so the HDR image is never
+/// written out and read back, 27 MB a frame on an iPad mini.
+fragment ScreenOut tonemapTileFragment(FullscreenOut in [[stage_in]], float4 hdr [[color(0)]]) {
+    return {toScreen(hdr.rgb)};
+}
+#endif
