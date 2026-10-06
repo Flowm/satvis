@@ -92,7 +92,7 @@ async function handleIndex(request: Request, env: Env): Promise<Response> {
 }
 
 /**
- * The cron's refresh plus a per-source report. One run pulls ~7 MB from CelesTrak,
+ * The scheduled refresh plus a per-source report. One run pulls ~7 MB from CelesTrak,
  * which firewalls by IP (250 MB/day) across Cloudflare's shared egress, hence the
  * token and the cooldown. Within the cooldown it answers 429 with the stored index.
  */
@@ -179,7 +179,7 @@ function parseIngestBundle(raw: unknown): IngestSource[] | string {
 }
 
 /**
- * The cron's refresh over payloads downloaded off-Worker (scripts/push-gp.mjs), for
+ * The scheduled refresh over payloads downloaded off-Worker (scripts/push-gp.mjs), for
  * when CelesTrak firewalls Cloudflare's egress. No cooldown: it spends no CelesTrak budget.
  */
 async function handleIngest(request: Request, env: Env): Promise<Response> {

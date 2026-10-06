@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Downloads the GP sources and SATCAT from this machine with the cron's own
+// Downloads the GP sources and SATCAT from this machine with the Worker's own
 // fetchSources (node >= 24 type stripping) and POSTs them to /api/ingest, for when
 // CelesTrak firewalls Cloudflare's egress (HTTP 522 on every source). One run pulls
 // ~7 MB: keep the cadence at 6 h or more, since CelesTrak asks for one download per update.

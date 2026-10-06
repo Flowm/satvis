@@ -57,7 +57,7 @@ discussion; sharpen them here when they drift.
   (`docs/adr/0007-model-manifest.md`).
 - **Group store**: the persistence seam of the GP refresh pipeline
   (`readIndex`/`writeGroup`/`writeIndex`, `readSatcat`/`writeSatcat`), with a
-  Workers KV adapter (cron and API, `worker/src/gp/store.ts`) and a disk adapter
+  Workers KV adapter (API, ingest and Docker schedule, `worker/src/gp/store.ts`) and a disk adapter
   for the static `data/gp/` snapshot (`worker/scripts/update-static-gp.mjs`).
 - **GP source**: where the frontend gets GP data: the worker API when the probe
   succeeds, else the static `data/gp/` snapshot, with a per-request API → static

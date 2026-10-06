@@ -28,9 +28,11 @@ workspace package). One `pnpm install` at the root covers both.
 
 ## Architecture
 
-- The worker refreshes each group from CelesTrak into Workers KV on a 6 h cron and
-  serves `/api/gp/<group>.json` and `/api/groups.json`. `POST /api/refresh` and
-  `POST /api/ingest` run the same pass on demand behind a bearer token.
+- The worker serves `/api/gp/<group>.json` and `/api/groups.json` from Workers KV.
+  `push-gp` downloads from CelesTrak elsewhere and posts to `POST /api/ingest`;
+  `POST /api/refresh` fetches from the Worker itself. Both run one refresh pass
+  behind a bearer token. The deployed Worker has no cron; the Docker image
+  schedules its own refresh (`worker/scripts/serve.mjs`).
 - `pnpm update-gp` runs that pipeline locally into a static `data/gp/` snapshot;
   the app probes `/api/groups.json` and falls back to it.
 - Config is declarative YAML — core in `worker/src/config/satvis.core.yaml`,
@@ -111,13 +113,13 @@ workspace package). One `pnpm install` at the root covers both.
   More in `src/modules/benchmark/README.md`, "Cross-origin isolation".
 - **`HTTP 522` on every CelesTrak source is CelesTrak firewalling Cloudflare's
   shared egress**, not a Cloudflare fault — celestrak.org is not behind Cloudflare.
-  The cron cannot recover on its own; push the data in with
+  That is why the deployed Worker has no cron, and the data arrives through
   `pnpm --filter satvis-worker push-gp` (README, "Downloading off-Worker").
 - **Run `pnpm update-imagery` before `pnpm deploy`.** `data/imagery/` levels 0–2
   are committed and 3–5 are generated; the build only warns when they are missing,
   and ships a globe capped at level 2.
-- **KV is empty after a first deploy** until the cron runs (≤ 6 h). README
-  "Deploy" has the command that fills it now.
+- **KV is empty after a first deploy** until the first `push-gp`. Nothing else
+  fills it, and if the push job stops, the data goes stale without an error.
 - **Everything under `data/` ships,** except `data/custom/` (only its synced
   `dist/`) and the models repo (only `data/models/public/`). That is why the
   generators live under `scripts/`. The Docker image builds in whatever plugins

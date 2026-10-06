@@ -2,7 +2,9 @@
 // The Docker image's entrypoint: the Worker on wrangler's local runtime, plus the
 // two things that runtime lacks for serving. It never fires crons, and it answers
 // /cdn-cgi/handler/scheduled for anyone, so it listens on loopback behind a proxy
-// that refuses /cdn-cgi/ and this file triggers the crons itself.
+// that refuses /cdn-cgi/ and this file triggers the refresh itself. The schedule is
+// its own: the deployed Worker has none, because CelesTrak firewalls Cloudflare's
+// egress, which a self-hosted container does not share.
 
 import http from "node:http";
 
@@ -33,16 +35,20 @@ http
   })
   .listen(port, () => console.log(`satvis listening on port ${port}`));
 
-const crons = (worker.config.triggers ?? []).filter((t) => t.type === "cron").map((t) => t.cron);
+/**
+ * At :23, off the hour, as CelesTrak asks. 6 h rather than 3 halves our share of its
+ * 250 MB/day per-IP budget: ~7 MB a run is ~29 MB/day, for a few hundred metres of SGP4 drift.
+ */
+const crons = ["23 */6 * * *"];
 
 async function runScheduled(cron) {
   const response = await fetch(`${upstream}/cdn-cgi/handler/scheduled?cron=${encodeURIComponent(cron)}`).catch((error) => error);
   console.log(`cron ${cron}: ${response.status ?? response.message}`);
 }
 
-/** A fresh volume would otherwise have no satellites until the first cron. */
+/** A fresh volume would otherwise have no satellites until the first scheduled refresh. */
 const index = await (await fetch(`${upstream}/api/groups.json`)).json();
-if (!index.updated && crons[0]) {
+if (!index.updated) {
   await runScheduled(crons[0]);
 }
 

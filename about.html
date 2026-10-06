@@ -103,9 +103,9 @@
       <h2>Where the data comes from</h2>
       <p>
         Element sets come from <a href="https://celestrak.org" rel="noopener">CelesTrak</a> as OMM JSON, the format replacing TLE for new objects, and a
-        <a href="https://workers.cloudflare.com" rel="noopener">Cloudflare Worker</a> refreshes them every six hours. Positions are propagated from them in the browser with SGP4,
-        through <a href="https://github.com/shashwatak/satellite-js" rel="noopener">satellite.js</a>. A snapshot of the same element sets ships inside the app, so everything still
-        works offline.
+        <a href="https://workers.cloudflare.com" rel="noopener">Cloudflare Worker</a> serves them, refreshed several times a day. Positions are propagated from them in the browser
+        with SGP4, through <a href="https://github.com/shashwatak/satellite-js" rel="noopener">satellite.js</a>. A snapshot of the same element sets ships inside the app, so
+        everything still works offline.
       </p>
 
       <h2>Built with</h2>

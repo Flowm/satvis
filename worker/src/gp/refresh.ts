@@ -159,7 +159,7 @@ export interface IngestSource {
 }
 
 /**
- * Replays a downloaded bundle, so an ingest runs the cron's exact path. `url` is only
+ * Replays a downloaded bundle, so an ingest runs the Worker's own fetch path. `url` is only
  * a Map key: a posted bundle cannot make the Worker fetch anything.
  */
 export function bundleFetch(sources: IngestSource[]): FetchImpl {

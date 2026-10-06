@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Runs the cron's refreshGroups (node >= 24 type stripping) against disk, writing
+// Runs the Worker's refreshGroups (node >= 24 type stripping) against disk, writing
 // the gitignored data/gp/<group>.json and data/gp/index.json (the gp:index shape).
 
 import fs from "node:fs";

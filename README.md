@@ -72,8 +72,8 @@ pnpm dev:worker                                     # wrangler dev on :8080
 SATVIS_API_PROXY=http://localhost:8080 pnpm dev     # frontend proxies /api → local worker
 ```
 
-The cron trigger fills Workers KV. `pnpm dev:worker` starts wrangler with
-`--test-scheduled`, so you can run the cron once:
+A refresh fills Workers KV. `pnpm dev:worker` starts wrangler with
+`--test-scheduled`, so you can run the scheduled refresh once:
 
 ```
 curl "http://localhost:8080/__scheduled?cron=23+*%2F6+*+*+*"
@@ -103,14 +103,9 @@ caller already downloaded ([Downloading off-Worker](#downloading-off-worker)).
 namespace bound as `GP_KV` (`worker/wrangler.jsonc`). Run `pnpm update-imagery`
 first ([Offline base map](#offline-base-map)).
 
-After the first deploy, KV is empty until the cron runs (at most 6 h). To fill
-the deployed KV now:
-
-```sh
-cd worker
-wrangler dev --remote --test-scheduled
-curl "http://localhost:8080/__scheduled?cron=23+*%2F6+*+*+*"
-```
+After the first deploy, KV is empty until the first `push-gp`
+([Downloading off-Worker](#downloading-off-worker)). The deployed worker has no
+cron, so nothing else fills it.
 
 ## Satellite data
 
@@ -118,8 +113,9 @@ Element sets come from [CelesTrak](https://celestrak.org) as OMM JSON
 (CelesTrak is phasing out TLE for new objects). The Cloudflare Worker in
 `worker/` fetches and serves them:
 
-- A cron trigger (every 6 h) refreshes each group into Workers KV. A failed
-  source keeps its last-known-good copy.
+- `push-gp` refreshes each group into Workers KV from another machine
+  ([Downloading off-Worker](#downloading-off-worker)). A failed source keeps its
+  last-known-good copy.
 - `GET /api/gp/<group>.json`: one group's element sets, as an OMM array with
   per-satellite metadata attached ([Satellite metadata](#satellite-metadata)).
 - `GET /api/groups.json`: the group index. The frontend also uses it to probe
@@ -128,9 +124,9 @@ Element sets come from [CelesTrak](https://celestrak.org) as OMM JSON
 ### Downloading off-Worker
 
 CelesTrak firewalls by IP, and Cloudflare's Worker egress addresses are shared
-across tenants. So the cron can get `HTTP 522` on every source while the same
-URLs work from anywhere else. Groups then keep their last-known-good copy and go
-stale.
+across tenants. So a Worker gets `HTTP 522` on every source while the same URLs
+work from anywhere else. That is why the deployed worker has no cron: every run
+failed, and marked every group failed in the index while the data was fresh.
 
 `pnpm --filter satvis-worker push-gp` runs the worker's download logic on your
 machine (a CI runner, a VPS, a laptop) and POSTs the payloads to
@@ -142,8 +138,8 @@ SATVIS_REFRESH_TOKEN=<token> pnpm --filter satvis-worker push-gp
 ```
 
 `SATVIS_INGEST_URL` overrides the target (default `https://satvis.space/api/ingest`).
-Run it at most every 6 h, like the cron: a run still costs ~7 MB, only from a
-different IP, and CelesTrak asks for one download per update.
+Run it on a schedule, at most every 6 h: a run costs ~7 MB, and CelesTrak asks
+for one download per update.
 
 The same run refreshes the SATCAT. It reads the worker's stored `ETag` from
 `/api/groups.json` first, so the 6.7 MB catalog only downloads when it changed.
@@ -187,7 +183,7 @@ ships this way.
 ### Worker-less deployments
 
 For static hosting without a worker, run `pnpm update-gp` before `pnpm build`.
-It runs the cron's refresh pipeline, metadata enrichment included, and writes a
+It runs the worker's refresh pipeline, metadata enrichment included, and writes a
 static snapshot to `data/gp/` (`<group>.json`, `index.json`; gitignored). At
 runtime the app probes `/api/groups.json` and, if that fails, uses the snapshot,
 so all presets work without the worker.
@@ -196,8 +192,9 @@ so all presets work without the worker.
 
 The `Dockerfile` serves the app and the worker from one container. The worker
 runs on workerd through wrangler's local runtime (`worker/scripts/serve.mjs`). KV
-is stored as SQLite in `/data`, and the cron runs on its normal schedule. A fresh
-volume refreshes once at startup.
+is stored as SQLite in `/data`, and `serve.mjs` runs the refresh every 6 h
+itself: a self-hosted container is not behind Cloudflare's firewalled egress. A
+fresh volume refreshes once at startup.
 
 ```sh
 docker build --build-arg BUILD_SHA=$(git rev-parse --short HEAD) -t satvis .
