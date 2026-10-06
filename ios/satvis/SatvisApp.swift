@@ -56,8 +56,11 @@ struct ContentView: View {
         GlobeView(
             onRenderer: session.attach,
             onTap: {
-                // A tap on the globe is done with the menu, whatever else it does.
-                showsTools = false
+                // On a phone a tap on the globe is done with the menu, whatever else
+                // it does; on an iPad the menu stays, as the web app's on a desktop.
+                if sizeClass != .regular {
+                    showsTools = false
+                }
                 session.tap(at: $0, viewSize: $1)
             },
             onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) },
@@ -75,25 +78,27 @@ struct ContentView: View {
         }
         .overlay(alignment: .topLeading) {
             ToolMenu(isOpen: $showsTools) {
-                // The web app's toolbar, its icons and its order.
-                ToolRow("Satellites") {
+                // The web app's menu column: its entries, icons, order and hints.
+                ToolRow("Satellites", hint: "Search and pick which satellites to show") {
                     Button("Satellites", image: .lucideSatellite) {
-                        showsTools = false
                         showsBrowser = true
                     }
                 }
-                ToolRow("Components") { ComponentsMenu(catalog: session.catalog) }
-                ToolRow("Ground stations") {
-                    Button("Ground stations", image: .lucideMapPin) {
-                        showsTools = false
+                ToolRow("Components", hint: "Orbits, ground tracks, labels and sensor cones") { ComponentsMenu(catalog: session.catalog) }
+                ToolRow("Ground station", hint: "Your location, for pass predictions") {
+                    Button("Ground station", image: .lucideMapPin) {
                         showsStations = true
                     }
                 }
-                ToolRow("Map") { MapMenu(session: session) }
-                ToolRow("Settings") { SettingsMenu(session: session) }
+                ToolRow("Map", hint: "Basemap and terrain") { MapMenu(session: session) }
+                ToolRow("View", hint: "Globe or sky view, and the compass") { ViewMenu(session: session) }
+                ToolRow("Graphics", hint: "Quality and performance") { GraphicsMenu(session: session) }
             }
             .padding()
         }
+        // Open from the start where there is room, as the web app's is on a desktop
+        // and folded on a phone.
+        .onAppear { showsTools = sizeClass == .regular }
         .overlay(alignment: .topTrailing) {
             VStack {
                 // Made when tapped, so that a pinned clock gives its minute then.
@@ -178,11 +183,16 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
             }
         }
+        .onChange(of: showsBrowser || showsStations) { _, presenting in
+            if presenting, sizeClass != .regular {
+                showsTools = false
+            }
+        }
         .sheet(isPresented: $showsBrowser) {
             BrowserView(catalog: session.catalog) { session.selection = .satellite($0.id) }
         }
         .sheet(isPresented: $showsAttribution) {
-            AttributionView(map: session.mapCredits, privacyPolicy: session.privacyPolicy)
+            AttributionView(map: session.mapCredits, privacyPolicy: session.privacyPolicy, analytics: session.analytics)
                 .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showsStations) {
@@ -269,12 +279,14 @@ private struct ToolMenu<Tools: View>: View {
         // its button's rather than melting into it.
         GlassEffectContainer(spacing: 8) {
             VStack(alignment: .leading, spacing: 12) {
-                Button(isOpen ? "Close menu" : "Menu", image: isOpen ? .lucideX : .lucideMenu) {
-                    isOpen.toggle()
+                // Named "Menu" beside it either way, as the web app's toggle is.
+                ToolRow("Menu", hint: "") {
+                    Button(isOpen ? "Close menu" : "Menu", image: isOpen ? .lucideChevronUp : .lucideMenu) {
+                        isOpen.toggle()
+                    }
+                    // Swapped, not faded: a crossfade shows both at once.
+                    .contentTransition(.identity)
                 }
-                // Swapped, not faded: a crossfade shows both at once.
-                .contentTransition(.identity)
-                .toolGlass()
                 if isOpen {
                     tools
                 }
@@ -282,6 +294,8 @@ private struct ToolMenu<Tools: View>: View {
             .labelStyle(.iconOnly)
             .buttonStyle(ToolButtonStyle())
             .menuStyle(.button)
+            // In the web app's order, top down, even where a menu opens upwards.
+            .menuOrder(.fixed)
         }
         .animation(.snappy, value: isOpen)
     }
@@ -314,12 +328,15 @@ extension View {
 /// A tool and its name, small beside it on a glass of its own, which keeps it
 /// legible over bright ground and dark space alike. The name is a caption: the
 /// button carries the same one for VoiceOver, and a tap on it reaches the globe.
+/// `hint` is the web app's hover text, what is behind the entry, read by VoiceOver.
 private struct ToolRow<Tool: View>: View {
     let title: LocalizedStringKey
+    let hint: LocalizedStringKey
     @ViewBuilder let tool: Tool
 
-    init(_ title: LocalizedStringKey, @ViewBuilder tool: () -> Tool) {
+    init(_ title: LocalizedStringKey, hint: LocalizedStringKey, @ViewBuilder tool: () -> Tool) {
         self.title = title
+        self.hint = hint
         self.tool = tool()
     }
 
@@ -327,6 +344,7 @@ private struct ToolRow<Tool: View>: View {
         HStack(spacing: 10) {
             tool
                 .toolGlass()
+                .accessibilityHint(hint)
             Text(title)
                 .font(.footnote.weight(.semibold))
                 .padding(.horizontal, 10)
@@ -344,52 +362,71 @@ private struct MapMenu: View {
 
     var body: some View {
         Menu("Map", image: .lucideLayers) {
-            Picker("Base map", selection: $session.baseLayer) {
-                ForEach(BaseLayer.allCases, id: \.self) { Text($0.title) }
-            }
-            Toggle("Terrain", isOn: $session.terrain)
-            Divider()
-            Toggle(
-                "View the sky",
-                isOn: Binding {
-                    session.observer != nil
-                } set: { on in
-                    if on {
-                        Task { await session.viewTheSky() }
-                    } else {
-                        session.leaveSky()
-                    }
-                })
+            Choices("Basemap", selection: $session.baseLayer, options: BaseLayer.allCases.map { ($0.title, $0) })
+            // The web app's names for the two, as its links spell them.
+            Choices("Terrain", selection: $session.terrain, options: [("None", false), ("ReEarth", true)])
         }
     }
 }
 
-/// What concerns the app rather than the view: measuring it, and what it counts.
-private struct SettingsMenu: View {
+/// From where the globe is seen: the web app's View panel, less the scene modes
+/// (2D, Columbus) and the camera modes the app does not draw.
+private struct ViewMenu: View {
     let session: Session
 
     var body: some View {
-        Menu("Settings", image: .lucideSettings) {
-            Toggle(
-                "Show performance",
-                isOn: Binding {
-                    session.showsPerformance
-                } set: {
-                    session.setShowsPerformance($0)
-                })
-            PixelRatioPicker(session: session)
-            Button("Benchmark", systemImage: "gauge.with.dots.needle.67percent") { session.setShowsBenchmark(true) }
-            Toggle(
-                "Share usage data",
-                isOn: Binding {
-                    session.analytics.isSharing
-                } set: {
-                    session.analytics.setSharing($0)
+        Menu("View", image: .lucideTelescope) {
+            Choices(
+                "View mode",
+                selection: Binding {
+                    session.observer != nil ? "Sky" : "3D"
+                } set: { mode in
+                    if mode == "Sky" {
+                        Task { await session.viewTheSky() }
+                    } else {
+                        session.leaveSky()
+                    }
+                },
+                options: LinkCodec.scenes.map { ($0, $0) })
+            if session.observer != nil {
+                Section("Aiming") {
+                    Toggle(
+                        "Use compass",
+                        isOn: Binding {
+                            session.compass.isAiming
+                        } set: { _ in
+                            session.toggleCompass()
+                        })
                 }
-            )
-            // Nothing is counted where usage may not be at all: not a debug build,
-            // and not another site than satvis.space.
-            .disabled(!Analytics.isAvailable)
+            }
+        }
+    }
+}
+
+/// How the globe is drawn and what that costs: the web app's Graphics panel, less
+/// the scene effects and MSAA, which the app does not switch.
+private struct GraphicsMenu: View {
+    let session: Session
+
+    var body: some View {
+        Menu("Graphics", image: .lucideGauge) {
+            Section("Measurement") {
+                Toggle(
+                    "FPS",
+                    isOn: Binding {
+                        session.showsPerformance
+                    } set: {
+                        session.setShowsPerformance($0)
+                    })
+                Toggle(
+                    "Benchmark",
+                    isOn: Binding {
+                        session.showsBenchmark
+                    } set: {
+                        session.setShowsBenchmark($0)
+                    })
+            }
+            PixelRatioPicker(session: session)
         }
     }
 }
@@ -401,12 +438,39 @@ private struct PixelRatioPicker: View {
     @Environment(\.displayScale) private var displayScale
 
     var body: some View {
-        Picker("Pixel ratio", selection: $session.pixelRatio) {
-            ForEach(LinkCodec.pixelRatios.filter { $0 == "native" || (Double($0) ?? 0) < displayScale }, id: \.self) { ratio in
-                Text(ratio == "native" ? String(format: "%.1fx (Native)", displayScale) : String(format: "%.1fx", Double(ratio) ?? 0))
+        Choices(
+            "Pixel ratio", selection: $session.pixelRatio,
+            options: LinkCodec.pixelRatios.filter { $0 == "native" || (Double($0) ?? 0) < displayScale }.map { ratio in
+                (ratio == "native" ? String(format: "%.1fx (Native)", displayScale) : String(format: "%.1fx", Double(ratio) ?? 0), ratio)
+            })
+    }
+}
+
+/// One of several, ticked, under the title the web app's panel gives them. Not a
+/// Picker: in a menu an inline one drops its section's title.
+private struct Choices<Value: Hashable>: View {
+    let title: LocalizedStringKey
+    @Binding var selection: Value
+    let options: [(String, Value)]
+
+    init(_ title: LocalizedStringKey, selection: Binding<Value>, options: [(String, Value)]) {
+        self.title = title
+        _selection = selection
+        self.options = options
+    }
+
+    var body: some View {
+        Section(title) {
+            ForEach(options, id: \.1) { name, value in
+                Toggle(
+                    name,
+                    isOn: Binding {
+                        selection == value
+                    } set: {
+                        if $0 { selection = value }
+                    })
             }
         }
-        .pickerStyle(.menu)
     }
 }
 
@@ -415,7 +479,7 @@ private struct ComponentsMenu: View {
     let catalog: CatalogModel
 
     var body: some View {
-        Menu("Satellite components", image: .lucideOrbit) {
+        Menu("Components", image: .lucideOrbit) {
             ForEach(SatelliteComponents.named, id: \.0) { name, component in
                 Toggle(
                     name,

@@ -165,7 +165,7 @@ struct BenchmarkPanel: View {
         case .done:
             session.analytics.isSharing
                 ? "Sends the results with your device model, iOS version, screen and temperature state."
-                : Analytics.isAvailable ? "Turn on Share usage data in Settings to send the results." : "This build does not send usage data."
+                : Analytics.isAvailable ? "Turn on Share usage data under Attribution to send the results." : "This build does not send usage data."
         }
     }
 

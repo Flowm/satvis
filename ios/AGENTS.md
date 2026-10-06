@@ -149,7 +149,15 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   its own manifest for the APIs it uses. Add to the app's with every
   required-reason API and every data type collected, and keep the App Store
   privacy label in step with it.
-- The Settings menu's "Show performance" is the web app's FPS switch, kept in links as
+- The menu column is the web app's (`Satvis.vue`'s `menuItems`): a Menu toggle
+  over Satellites, Components, Ground station, Map, View and Graphics, with their
+  Lucide icons, names, order and hover hints (read by VoiceOver), folded on a
+  phone and open on an iPad, as the web's is on a desktop. Each is a system menu
+  or sheet rather than the web's panel, its sections titled as the panel's are.
+  What the app does not draw is left out: Map's overlays, surface and star map;
+  View's 2D, Columbus and camera modes; Graphics' scene effects and MSAA. The
+  web's Mobile panel is the WebView app's, which this one replaces.
+- The Graphics menu's "FPS" is the web app's FPS switch, kept in links as
   `fps=true` as the web keeps it (`PerformanceOverlay.swift`, `FrameStats`):
   frames per second, the renderer's CPU and the GPU's milliseconds a frame,
   satellites drawn and the memory footprint iOS counts. Nothing is timed while it
@@ -161,7 +169,7 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   PostHog only for the site `https://satvis.space/` exactly, so pointing
   `SATVIS_API` at `https://satvis.space` measures the real data and counts
   nothing.
-- The Settings menu's "Pixel ratio" is the web app's (`pixelratio`, kept in links):
+- The Graphics menu's "Pixel ratio" is the web app's (`pixelratio`, kept in links):
   the globe drawn at 1 or 1.5 pixels a point instead of the screen's own, which
   the system scales up (`ScaledMTKView` in `GlobeView.swift`). The renderer sizes
   everything placed on the screen in points times the drawable's pixels a point,
@@ -170,7 +178,7 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   shaders took fast math, the default view took 10.5 ms of GPU a frame at native,
   6.7 at 1.5 and 2.8 at 1. A benchmark runs
   at the ratio it began at and records it.
-- The Settings menu's "Benchmark" is the web app's `bench=true`, kept in links
+- The Graphics menu's "Benchmark" is the web app's `bench=true`, kept in links
   the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): eight scenes opened
   by their links in turn, each waited for until everything active is drawn,
   settled 3 s and recorded 5 s frame by frame (`FrameRecording`), then the first
@@ -194,7 +202,8 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   (`sanitizedForAnalytics`, held to it by the parity fixtures). It reports only
   from a release build on satvis.space, so development, the UI tests and a local
   worker count nothing; check a change with a Release build in the simulator,
-  whose events carry `$is_emulator`. The Settings menu's "Share usage data" opts out.
+  whose events carry `$is_emulator`. "Share usage data", beside the privacy policy in the Attribution sheet, opts
+  out; the web app has no switch, and so no menu entry to keep it in.
   The app keeps that choice (`shareUsageData` in `UserDefaults`), not PostHog:
   opted out, PostHog is not set up at all, so nothing is sent, not even its
   remote config. PostHog's defaults that send more than the privacy policy says
