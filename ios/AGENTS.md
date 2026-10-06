@@ -74,7 +74,11 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   `Session.link` writes the view back. Parameters the app does not honour (`scene`,
   `stars`, `bench`…) are kept as they came and written into every link it makes.
   The view is kept as a link when the app goes to the background and reopened
-  from it, without its time, so the app reopens live. A link's ground stations
+  from it, without its time, so the app reopens live. Past a component's budget
+  (labels at 200 active satellites, ground station links at 500) it switches off
+  once, on the crossing, unless the link being opened names it, and a link then
+  names it whenever it is on, as on the web (ADR 0001). Labels past 200 are still
+  not drawn, even switched on: their atlas would outgrow a texture. A link's ground stations
   visit: they are shown and predicted for, but saved only on the user's word, and
   have no alerts until then. A shared link carries the visiting stations and the
   selected one, never the rest of the saved ones, which are often where the user
@@ -184,8 +188,9 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 - **`screenshots`** erases one simulator per App Store size and writes
   `screenshots/`. Upload them to App Store Connect by hand. It takes the about
   page's demo views by their links (`about.html`), each paused at its link's
-  minute, from the site `BASE_URL` names (satvis.space by default). Labels stop
-  at 200 active satellites, so the sky view's has none where the web's does.
+  minute, from the site `BASE_URL` names (satvis.space by default). Labels are
+  not drawn past 200 active satellites, so the sky view's has none where the
+  web's does.
 
 ## The worker
 

@@ -222,7 +222,11 @@ final class Session {
     /// saved stations only the selected one goes into a link, and only one that
     /// is `sharing`: they are often where the user lives.
     func link(sharing: Bool, withTime: Bool = true) -> Link {
-        let defaults = LinkCodec.defaults(preset: catalog.presetDefaults)
+        var defaults = LinkCodec.defaults(preset: catalog.presetDefaults)
+        // Past a budget the default lacks the component, so a view showing it
+        // anyway says so (ADR 0001).
+        let overBudget = Set(SatelliteComponents.named.filter { catalog.overBudget.contains($0.1) }.map(\.0))
+        defaults.elements.removeAll { overBudget.contains($0) }
         var stations = passes.visiting
         if sharing, case .station(let id) = selection, let station = passes.station(id), !stations.contains(where: { $0.id == id }) {
             stations.append(station)
@@ -294,7 +298,9 @@ final class Session {
         await catalog.open(
             preset: preset,
             activation: Activation(enabledTags: Set(state.tags), enabledSatellites: Set(state.sats), disabledSatellites: Set(state.xsats)),
-            components: SatelliteComponents(SatelliteComponents.named.filter { state.elements.contains($0.0) }.map(\.1)))
+            components: SatelliteComponents(SatelliteComponents.named.filter { state.elements.contains($0.0) }.map(\.1)),
+            named: link.query.items.contains { $0.key == "elements" }
+                ? SatelliteComponents(SatelliteComponents.named.filter { state.elements.contains($0.0) }.map(\.1)) : [])
         guard generation == linkGeneration else {
             return
         }
@@ -566,7 +572,8 @@ final class Session {
     private func predictPasses() async {
         while !Task.isCancelled {
             let active = catalog.activeEntries
-            let showsLinks = catalog.components.contains(.groundStationLink) && active.count <= SatelliteComponents.linkBudget
+            // Past its budget only when switched back on, as on the web.
+            let showsLinks = catalog.components.contains(.groundStationLink)
             // A satellite's panel and the links are over every station; a
             // station's panel over its own alone, which with thousands of
             // satellites and several stations is most of the work saved.

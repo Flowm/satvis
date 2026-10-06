@@ -152,3 +152,14 @@ and look at a 3× crop of the lines over the globe.
 the web app now runs FXAA (ac4fdc3). The white and gold at 15 % still read over Natural
 Earth's land and sea. The globe's limb against space is still a hard edge: only a full-frame
 pass would smooth it.
+
+## Native app: a link that names a component keeps it over its budget
+
+**Procedure.** Debug build in the iPhone 17e simulator against satvis.space, by a UI
+test that opens a link, waits 25 s for Starlink to load, then reads the Label switch in
+Menu → Satellite components. Once with `?tags=Starlink&elements=Point,Label`, once with
+`?tags=Starlink`.
+
+**Result, 2026-10-06.** With `elements` naming it, Label stayed on through the crossing
+of 200, with the note that labels show for up to 200 satellites. Without it, Label
+switched off and the note was gone, as on the web since 971e415.
