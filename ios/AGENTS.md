@@ -151,8 +151,9 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   privacy label in step with it.
 - The menu column is the web app's (`Satvis.vue`'s `menuItems`): a Menu toggle
   over Satellites, Components, Ground station, Map, View and Graphics, with their
-  Lucide icons, names, order and hover hints (read by VoiceOver), folded on a
-  phone and open on an iPad, as the web's is on a desktop. Each is a system menu
+  Lucide icons, names, order and hover hints (read by VoiceOver), one glass panel
+  whose rows each hold an icon and its name, folded on a phone and open on an
+  iPad, as the web's is on a desktop. Each is a system menu
   or sheet rather than the web's panel, its sections titled as the panel's are.
   What the app does not draw is left out: Map's overlays, surface and star map;
   View's 2D, Columbus and camera modes; Graphics' scene effects and MSAA. The

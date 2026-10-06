@@ -130,6 +130,8 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(toggle.waitForExistence(timeout: 30))
         if toggle.label == "Menu" {
             toggle.tap()
+            // Its rows take no taps while they fade in, and one reaches the globe.
+            sleep(1)
         }
     }
 
