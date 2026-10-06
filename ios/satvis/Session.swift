@@ -363,7 +363,7 @@ final class Session {
             return leaveSky()
         }
         if let tracked {
-            track(tracked, false)
+            track(tracked, false, animated: true)
         }
         renderer?.flyHome(animated: !UIAccessibility.isReduceMotionEnabled)
     }
@@ -477,8 +477,11 @@ final class Session {
     }
 
     /// Follows a satellite or a station, or lets it go. Tracking keeps a satellite
-    /// active even when its group is switched off, as on the web.
-    func track(_ id: String, _ follow: Bool) {
+    /// active even when its group is switched off, as on the web. `animated`
+    /// flies the camera, as the web app's Track button does, unless reduced
+    /// motion is asked for; a link or a double tap cuts.
+    func track(_ id: String, _ follow: Bool, animated: Bool = false) {
+        let animated = animated && !UIAccessibility.isReduceMotionEnabled
         let isStation = PassModel.stationID(id) != nil
         // Nothing is followed from the ground (ADR 0003).
         if follow, observer != nil {
@@ -492,9 +495,9 @@ final class Session {
             }
             tracked = id
             selection = PassModel.stationID(id).map(Selection.station) ?? .satellite(id)
-            renderer?.track(id)
+            renderer?.track(id, animated: animated)
         } else {
-            renderer?.stopTracking()
+            renderer?.stopTracking(animated: animated)
             tracked = nil
             if !isStation {
                 catalog.setTracked(nil)

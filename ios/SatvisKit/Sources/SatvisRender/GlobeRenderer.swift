@@ -85,6 +85,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The flight back to the home view, while one is under way: where it set
     /// off, and when.
     private var homeFlight: (from: OrbitCamera, to: OrbitCamera, start: Double)?
+    /// The flight into tracking or out of it, while one is under way.
+    private var poseFlight: PoseFlight?
     private static let homeFlightDuration = 1.5
     /// The pose of the last frame, which a flight sets off from.
     private var lastPose: CameraPose?
@@ -311,6 +313,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// flies there; without it, as reduced motion asks, the camera cuts.
     public func enterSky(_ camera: SkyCamera, animated: Bool = true) {
         let now = ProcessInfo.processInfo.systemUptime
+        // From wherever a flight into or out of tracking has got to.
+        poseFlight = nil
         if var flight = skyFlight, !flight.entering {
             // Turned around on the way out: carry on from where the camera is.
             flight.reverse(at: now)
@@ -387,7 +391,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// Follows a satellite or a ground station from where the web app's tracking
     /// view opens.
-    public func track(_ id: String) {
+    /// Follows what has this id. `animated` flies there from where the camera
+    /// is, as the web app's Track button does; a link or a double tap cuts.
+    public func track(_ id: String, animated: Bool = false) {
         // From the flight out of the sky view too, which lands only while the
         // camera is the sky's: the ground's camera and its forced terrain go.
         if skyFlight != nil || skyCamera != nil {
@@ -395,15 +401,24 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             skyCamera = nil
             surface.setTerrain(terrainSetting)
         }
+        startPoseFlight(animated)
         cameraMode = .tracking(id)
         trackingCamera = TrackingCamera()
     }
 
     /// Lets go, and goes back to the view tracking began from, as the web app
     /// does: the free camera is kept while tracking, through switches from one
-    /// satellite to another.
-    public func stopTracking() {
+    /// satellite to another. `animated` flies back.
+    public func stopTracking(animated: Bool = false) {
+        if case .tracking = cameraMode {
+            startPoseFlight(animated)
+        }
         cameraMode = .orbit
+    }
+
+    /// From the pose last drawn, which may be partway through another flight.
+    private func startPoseFlight(_ animated: Bool) {
+        poseFlight = animated ? lastPose.map { PoseFlight(from: $0, start: ProcessInfo.processInfo.systemUptime) } : nil
     }
 
     /// Back to where the app opens, letting go of what is followed. `animated`
@@ -413,9 +428,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         guard cameraMode != .sky, let size = lastFrame?.size else {
             return
         }
-        stopTracking()
+        stopTracking(animated: animated)
         let home = OrbitCamera.home(aspectRatio: size.x / size.y)
-        if animated, let orbitCamera {
+        if poseFlight != nil {
+            // Already flying out of tracking: on to home instead.
+            orbitCamera = home
+        } else if animated, let orbitCamera {
             homeFlight = (orbitCamera, home, ProcessInfo.processInfo.systemUptime)
         } else {
             orbitCamera = home
@@ -601,6 +619,15 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         var pose = orbitCamera.pose()
         if case .tracking(let id) = cameraMode, let target = position(of: id, at: now) {
             pose = trackingCamera.pose(target: target)
+        }
+        if let flight = poseFlight {
+            let uptime = ProcessInfo.processInfo.systemUptime
+            if cameraMode != .sky {
+                pose = PoseFlight.pose(from: flight.from, to: pose, t: flight.progress(at: uptime))
+            }
+            if flight.isOver(at: uptime) || cameraMode == .sky {
+                poseFlight = nil
+            }
         }
         if cameraMode == .sky, var camera = skyCamera {
             // Up at once out of the ground; down gently onto finer terrain as it loads.

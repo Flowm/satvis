@@ -87,7 +87,7 @@ struct SkyFlight {
         return t < 0.5 ? 16 * pow(t, 5) : 1 + 16 * pow(t - 1, 5)
     }
 
-    private static func attitude(_ pose: CameraPose) -> simd_quatd {
+    static func attitude(_ pose: CameraPose) -> simd_quatd {
         simd_quatd(simd_double3x3(columns: (pose.right, pose.up, pose.back))).normalized
     }
 
