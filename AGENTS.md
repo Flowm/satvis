@@ -45,7 +45,8 @@ workspace package). One `pnpm install` at the root covers both.
   metadata endpoint and no rule matching in the browser: a record either carries
   the bag or the frontend applies its defaults (`src/config/satelliteMetadata.ts`).
 - A satellite's 3D model is the `modelFile` its model manifest gives it
-  (`data/models/models.yaml`, `data/custom/*/models.yaml`), never its name.
+  (`data/models/models.yaml`, `data/custom/*/models.yaml`), by NORAD id or by GCAT
+  bus, never its name.
 - The html entrypoints are the MPA inputs in `vite.config.ts`.
 
 ## Commands

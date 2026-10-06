@@ -50,18 +50,18 @@ record at refresh time. The new rule is about who may write each field.
 - **Curated rows may override any field**, as ADR 0006 has it.
 - **Derived fields are computed after the merge**, from fields already in the bag.
 
-| Facet        | Fields                                                          | Owner                                                                 |
-| ------------ | --------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Registration | `country`                                                       | GCAT                                                                  |
-| Launch       | `launchDate`, `launchSite`                                      | SATCAT                                                                |
-| Status       | `opsStatus`, `orbitType`, `orbitCenter`, `decayDate`            | SATCAT                                                                |
-| Design       | `bus`, `manufacturer`, `operator`                               | GCAT                                                                  |
-| Physical     | `massKg`, `lengthM`, `diameterM`, `spanM`, `shape`, `estimated` | GCAT                                                                  |
-| Purpose      | `category`, `class`                                             | GCAT                                                                  |
-| Sensor       | `swathStarboardKm`, `swathPortKm`, `coneFovDeg`                 | curated only                                                          |
-| Mission      | `missionType`                                                   | curated only                                                          |
-| Model        | `modelFile`                                                     | curated (manifest NORAD ids); by `bus` once ADR 0007's proposal lands |
-| Orbit        | `orbitClass`                                                    | derived, client-side (ADR 0002)                                       |
+| Facet        | Fields                                                          | Owner                                                            |
+| ------------ | --------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Registration | `country`                                                       | GCAT                                                             |
+| Launch       | `launchDate`, `launchSite`                                      | SATCAT                                                           |
+| Status       | `opsStatus`, `orbitType`, `orbitCenter`, `decayDate`            | SATCAT                                                           |
+| Design       | `bus`, `manufacturer`, `operator`                               | GCAT                                                             |
+| Physical     | `massKg`, `lengthM`, `diameterM`, `spanM`, `shape`, `estimated` | GCAT                                                             |
+| Purpose      | `category`, `class`                                             | GCAT                                                             |
+| Sensor       | `swathStarboardKm`, `swathPortKm`, `coneFovDeg`                 | curated only                                                     |
+| Mission      | `missionType`                                                   | curated only                                                     |
+| Model        | `modelFile`                                                     | curated (manifest NORAD ids), else derived from `bus` (ADR 0007) |
+| Orbit        | `orbitClass`                                                    | derived, client-side (ADR 0002)                                  |
 
 **No field falls back from one upstream source to another.** A chain such as "GCAT's
 launch date, else SATCAT's" would mix two definitions of the same field, depending on

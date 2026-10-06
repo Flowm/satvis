@@ -64,11 +64,12 @@ discussion; sharpen them here when they drift.
   A satellite in neither table still has its orbit class, and uses app defaults
   for the rest.
 
-- **Model manifest**: a `models.yaml` that lists 3D model files and the NORAD ids
-  each depicts: the `data/models` submodule's, and any plugin's. The generator
-  turns it into each listed satellite's `modelFile`. A satellite no manifest lists
-  has no model; models are never looked up by name
-  (`docs/adr/0007-model-manifest.md`).
+- **Model manifest**: a `models.yaml` that lists 3D model files and what each
+  depicts, by NORAD id or by GCAT **bus**: the `data/models` submodule's, and any
+  plugin's. The generator turns a NORAD id into that satellite's `modelFile`, and a
+  bus into an entry of a map the refresh applies to every satellite of that bus; a
+  listed NORAD id wins. A satellite matched by neither has no model; models are never
+  looked up by name (`docs/adr/0007-model-manifest.md`).
 - **Group store**: the persistence seam of the GP refresh pipeline
   (`readIndex`/`writeGroup`/`writeIndex`, the upstream files and their statuses), with
   a Workers KV adapter (API, ingest and Docker schedule, `worker/src/gp/store.ts`) and a disk adapter

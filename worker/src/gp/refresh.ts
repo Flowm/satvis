@@ -52,6 +52,23 @@ export function mergeSatelliteTables(upstream: Record<string, Record<string, unk
   return merged;
 }
 
+/**
+ * Gives each satellite of a listed GCAT bus its model, unless the table already has
+ * one for it: a NORAD id a manifest lists is a claim about that satellite, the bus a
+ * claim about its family, and the specific one wins (ADR 0007).
+ */
+export function assignModelsByBus(table: Map<string, SatelliteFacts>, modelBuses: Record<string, string> | undefined): void {
+  if (modelBuses === undefined) {
+    return;
+  }
+  for (const [satnum, { metadata }] of table) {
+    const modelFile = typeof metadata.bus === "string" ? modelBuses[metadata.bus] : undefined;
+    if (modelFile !== undefined && metadata.modelFile === undefined) {
+      table.set(satnum, { metadata: { ...metadata, modelFile } });
+    }
+  }
+}
+
 /** Failed groups get no write, so their last-known-good value stays in the store. */
 export async function refreshGroups(config: GroupsConfig, store: GroupStore, fetchImpl: FetchImpl): Promise<RefreshReport> {
   const defs = config.groups;
@@ -71,6 +88,7 @@ export async function refreshGroups(config: GroupsConfig, store: GroupStore, fet
 
   // Enrich after evaluateGroups, so every served record, includes and extras too, gets exactly one pass.
   const table = mergeSatelliteTables([satcat ?? {}, gcat], config.satellites ?? []);
+  assignModelsByBus(table, config.modelBuses);
   const matchedSatnums = new Set<string>();
 
   let written = 0;

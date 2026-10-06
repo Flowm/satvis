@@ -210,6 +210,40 @@ describe("refreshGroups + stored tables", () => {
   });
 });
 
+// ADR 0007: a constellation's model by its GCAT bus, a listed NORAD id first.
+describe("refreshGroups + model buses", () => {
+  const RECORDS = [
+    { OBJECT_NAME: "ISS (ZARYA)", NORAD_CAT_ID: 25544 },
+    { OBJECT_NAME: "ISS (NAUKA)", NORAD_CAT_ID: 49044 },
+  ];
+
+  it("gives a satellite of a listed bus that bus's model, and a listed NORAD id wins", async () => {
+    const config: GroupsConfig = {
+      ...CONFIG,
+      // The ISS is a 77KS, Nauka an Almaz; a manifest lists Nauka by NORAD id.
+      modelBuses: { "77KS": "BUS-77KS.glb", Almaz: "BUS-ALMAZ.glb" },
+      satellites: [{ noradId: 49044, metadata: { modelFile: "NAUKA.glb" } }],
+    };
+    const { store, groups } = memoryStore();
+    await storeAll(store);
+    await refreshGroups(config, store, okFetch(RECORDS));
+
+    const [iss, nauka] = groups.get("stations")!.records as OmmRecord[];
+    expect(iss!.metadata).toMatchObject({ bus: "77KS", modelFile: "BUS-77KS.glb" });
+    expect(nauka!.metadata).toMatchObject({ bus: "Almaz", modelFile: "NAUKA.glb" });
+  });
+
+  it("gives no model without a GCAT bus", async () => {
+    const config: GroupsConfig = { ...CONFIG, modelBuses: { "77KS": "BUS-77KS.glb" } };
+    const { store, groups } = memoryStore();
+    // SATCAT only: no bus to match.
+    await storeUpstream(SATCAT, store, SATCAT_CSV, undefined, NOW);
+    await refreshGroups(config, store, okFetch(RECORDS));
+
+    expect((groups.get("stations")!.records as OmmRecord[])[0]!.metadata).not.toHaveProperty("modelFile");
+  });
+});
+
 describe("refreshUpstreams", () => {
   it("asks for every table, each conditional on its own stored file", async () => {
     const { store } = memoryStore();

@@ -82,9 +82,10 @@ so and names the fix.
 - Models a plugin copies into `/data/models/` without a manifest entry are reachable
   only by explicit URL, as `ot-models`' `grafana*/` copies are by its Grafana plugin.
 
-## Proposed: a constellation's models by bus
+## A constellation's models by bus
 
-_Status: proposed. Depends on GCAT reaching the satellite table at refresh time._
+GCAT's `bus` reaches every record at refresh time (ADR 0008), which this rule depends
+on.
 
 A NORAD list suits a model with one satellite, or a pair. It does not suit a
 constellation. Starlink is 11,152 tracked satellites in five generations, and in 2026
@@ -120,8 +121,8 @@ What a model depicts is still a fact about the model: a bus is a design, and a m
 depicts a design. The rule stays in the manifest, beside the file.
 
 **Matched at refresh time, where the bus is known.** The generator writes a bus →
-`modelFile` map into the generated config. When the worker enriches a record whose
-GCAT bus is in that map, it gives the record that `modelFile`. A satellite GCAT
+`modelFile` map into the generated config (`modelBuses`). When the worker enriches a
+record whose GCAT bus is in that map, it gives the record that `modelFile`. A satellite GCAT
 catalogues next week gets its model on the next refresh, with no deploy and no
 manifest change.
 
@@ -138,9 +139,11 @@ terminals that tell them apart are invisible at the size satvis draws them.
 - **The newest satellites have no model until GCAT catalogues them**, about twelve
   weeks: today 472 Starlinks, 4%, drawn as points. A missing bus means "not known
   yet", as an absent fact does in ADR 0002. Nothing guesses.
-- **A new design needs a model and a manifest line.** The 26 V3 Starlinks in orbit
-  since 28 September have both, but get their model only once GCAT catalogues them
-  under `Starlink V3`.
+- **A new design needs a model, a manifest line and a deploy**, since the map is
+  bundled into the worker. The 26 V3 Starlinks in orbit since 28 September have the
+  first two, but get their model only once GCAT catalogues them under `Starlink V3`.
+- **Coverage, on the 2 October snapshot:** 12,608 of 16,653 served satellites, 76%,
+  get a model by NORAD id or bus, against 245 by NORAD id alone. Starlink alone is 10,679.
 - **The Starlink manifest is four entries**: v1, V2 mini, Direct to Cell and V3. It
   would otherwise be 11,152 ids.
 - **GCAT is CC BY 4.0.** The app credits "Data from J. McDowell, planet4589.org".

@@ -267,8 +267,8 @@ field has one of them as its owner
   Hand-written in the `satellites` table of `satvis.core.yaml` and of any plugin
   config, for the few dozen satellites that need them
   ([ADR 0002](docs/adr/0002-static-satellite-metadata.md)).
-- **Model manifests**: each listed satellite's `modelFile`
-  ([ADR 0007](docs/adr/0007-model-manifest.md)).
+- **Model manifests**: a satellite's `modelFile`, by NORAD id, or by GCAT bus for
+  a constellation, applied at refresh time ([ADR 0007](docs/adr/0007-model-manifest.md)).
 - **SATCAT**: launch date and site, operational status, orbit type and centre,
   from the CelesTrak [SATCAT](https://celestrak.org/satcat/) for every served
   satellite. Raw SATCAT codes go over the wire; `src/config/satcatCodes.ts` turns

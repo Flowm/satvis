@@ -28,6 +28,14 @@ describe("the generated config", () => {
     }
   });
 
+  // ADR 0007: the same rule as a listed satellite's modelFile.
+  it("maps every model bus to a .glb path under /data/models/", () => {
+    for (const [bus, modelFile] of Object.entries((generated as GroupsConfig).modelBuses ?? {})) {
+      expect(bus.trim(), "a bus name").not.toBe("");
+      expect(modelFile, bus).toMatch(/^(?!\/)(?!.*\.\.).*\.glb$/);
+    }
+  });
+
   it("has a default preset", () => {
     expect(presets.map((preset) => preset.name)).toContain("default");
   });

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Merge the core config with every data/custom/*/satvis.yaml, inline each
-// extraRecordsFile, give each satellite its model manifest `modelFile`, validate,
-// and write worker/src/config/satvis.generated.json. Works without plugins too.
+// extraRecordsFile, give each listed satellite its model manifest `modelFile` and
+// each named GCAT bus its model, validate, and write
+// worker/src/config/satvis.generated.json. Works without plugins too.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -125,13 +126,15 @@ function discoverModelManifests() {
 
 /** A model's `file` is its path under /data/models/; the app adds the prefix. */
 function modelAssignments(manifestPath) {
+  const satellites = [];
+  const buses = [];
   const source = path.relative(repoRoot, manifestPath);
   const dir = path.dirname(manifestPath);
   const { models } = readYaml(manifestPath) ?? {};
   if (!Array.isArray(models)) {
     throw new Error(`${source}: expected a top-level "models" list`);
   }
-  return models.flatMap((model, i) => {
+  models.forEach((model, i) => {
     if (typeof model?.file !== "string" || !model.file.endsWith(".glb") || model.file.startsWith("/") || model.file.includes("..")) {
       throw new Error(`${source}: models[${i}].file must be a .glb path under /data/models/ (got ${JSON.stringify(model?.file)})`);
     }
@@ -146,13 +149,37 @@ function modelAssignments(manifestPath) {
     if (model.satellites !== undefined && !Array.isArray(model.satellites)) {
       throw new Error(`${source}: ${model.file} has a "satellites" that is not a list`);
     }
-    return (model.satellites ?? []).map((satellite) => {
+    for (const satellite of model.satellites ?? []) {
       if (!Number.isInteger(satellite?.noradId)) {
         throw new Error(`${source}: ${model.file} lists a satellite without a numeric noradId`);
       }
-      return { noradId: satellite.noradId, modelFile: model.file, origin: `${source} ${model.file}` };
-    });
+      satellites.push({ noradId: satellite.noradId, modelFile: model.file, origin: `${source} ${model.file}` });
+    }
+    if (model.buses !== undefined && (!Array.isArray(model.buses) || model.buses.some((bus) => typeof bus !== "string" || bus.trim() === ""))) {
+      throw new Error(`${source}: ${model.file} has a "buses" that is not a list of GCAT bus names`);
+    }
+    for (const bus of model.buses ?? []) {
+      buses.push({ bus, modelFile: model.file, origin: `${source} ${model.file}` });
+    }
   });
+  return { satellites, buses };
+}
+
+/**
+ * GCAT bus -> modelFile, from every manifest (ADR 0007). A bus is matched exactly and
+ * belongs to one model; two models naming it is a build failure that names both, as two
+ * claims on one NORAD id are.
+ */
+function modelsByBus(assignments) {
+  const byBus = new Map();
+  for (const { bus, modelFile, origin } of assignments) {
+    const previous = byBus.get(bus);
+    if (previous !== undefined && previous.modelFile !== modelFile) {
+      throw new Error(`bus ${JSON.stringify(bus)} is claimed by ${previous.origin} and by ${origin}`);
+    }
+    byBus.set(bus, { modelFile, origin });
+  }
+  return Object.fromEntries([...byBus].toSorted(([a], [b]) => a.localeCompare(b)).map(([bus, { modelFile }]) => [bus, modelFile]));
 }
 
 function validateSatellites(group) {
@@ -495,16 +522,22 @@ function main() {
     }
   }
   // Through the same table, so a plugin's different modelFile is a conflict, not an override.
+  const busAssignments = [];
   for (const manifestPath of discoverModelManifests()) {
-    for (const { noradId, modelFile, origin } of modelAssignments(manifestPath)) {
+    const { satellites, buses } = modelAssignments(manifestPath);
+    for (const { noradId, modelFile, origin } of satellites) {
       table.add(noradId, { metadata: { modelFile } }, origin);
     }
+    busAssignments.push(...buses);
   }
   const satellites = table.entries();
+  const modelBuses = modelsByBus(busAssignments);
 
-  const generated = { groups, presets, satellites };
+  const generated = { groups, presets, satellites, modelBuses };
   fs.writeFileSync(outPath, `${JSON.stringify(generated, null, 2)}\n`);
-  process.stdout.write(`Wrote ${path.relative(repoRoot, outPath)} (${groups.length} groups, ${presets.length} presets, ${satellites.length} satellites)\n`);
+  process.stdout.write(
+    `Wrote ${path.relative(repoRoot, outPath)} (${groups.length} groups, ${presets.length} presets, ${satellites.length} satellites, ${Object.keys(modelBuses).length} model buses)\n`,
+  );
 }
 
 main();

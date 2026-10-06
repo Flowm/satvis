@@ -194,6 +194,11 @@ export interface GroupsConfig {
   groups: GroupDefinition[];
   satellites?: SatelliteEntry[];
   presets?: PresetDefinition[];
+  /**
+   * GCAT bus -> modelFile, from the model manifests' `buses` (ADR 0007). Applied at
+   * refresh time to a satellite whose GCAT bus is listed and no manifest lists by NORAD id.
+   */
+  modelBuses?: Record<string, string>;
 }
 
 /** Stored in the KV index (gp:index). */
