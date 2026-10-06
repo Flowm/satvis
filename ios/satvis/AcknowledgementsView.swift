@@ -15,6 +15,11 @@ struct AcknowledgementsView: View {
                 }
                 entry("SGP4", "David Vallado's reference implementation (AIAA 2006-6753), released without restriction.")
                 NavigationLink {
+                    LicenceText(title: "Draco", text: Self.bundled("draco"))
+                } label: {
+                    entry("Draco", "Google's mesh decompression, for the satellites' 3D models. Apache License 2.0.")
+                }
+                NavigationLink {
                     LicenceText(title: "Lucide", text: Self.bundled("lucide"))
                 } label: {
                     entry("Lucide", "The toolbar's icons and the ground station pin, the web app's own. ISC License.")
