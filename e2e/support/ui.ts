@@ -1,7 +1,7 @@
 // What a visitor does with the app's own controls. Journeys go through these; on a
 // phone the menu column starts collapsed and the clock deck folded.
 
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 /** Opens a menu entry's panel, opening the menu column first where it is collapsed. */
 export async function openMenu(page: Page, entry: string): Promise<void> {
@@ -29,8 +29,12 @@ export async function openClockDeck(page: Page): Promise<void> {
 /** Adds a ground station at the browser's geolocation, as the Ground station panel's button does. */
 export async function addStationHere(page: Page, name: string): Promise<void> {
   await openMenu(page, "Ground station");
+  const rows = page.locator(".gsList__row");
+  const before = await rows.count();
   await page.getByRole("button", { name: "My location" }).click();
-  const station = page.locator(".gsList__row").last();
+  // The fix arrives asynchronously; renaming `.last()` before it would rename the previous row.
+  await expect(rows).toHaveCount(before + 1);
+  const station = rows.nth(before);
   await station.getByLabel("Name").fill(name);
   await station.getByLabel("Name").press("Enter");
 }

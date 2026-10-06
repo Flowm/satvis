@@ -1,6 +1,7 @@
 // Stand at my ground station and look up: open the sky view from the station's
-// panel, drag the sky until the crosshair holds a satellite, tap it, and go back to
-// the globe. METEOSAT-12 is geostationary, so it holds still in Munich's sky.
+// panel, drag the sky until the crosshair holds a satellite, tap it, walk, stand at
+// a second station, and go back to the globe. METEOSAT-12 is geostationary, so it
+// holds still in Munich's sky.
 
 import type { Page } from "@playwright/test";
 
@@ -37,15 +38,28 @@ const skyPosition = (page: Page, name: string) =>
     };
   }, name);
 
-test("from my station, look up and find a satellite in the sky", async ({ page }) => {
+/** The url's ground stations, as [lat, lon, name] rows. */
+const stations = (page: Page) => (new URL(page.url()).searchParams.get("gs") ?? "").split("_").map((station) => station.split(","));
+
+test("from my station, look up, find a satellite, walk, and stand somewhere else", async ({ page }) => {
   await openApp(page, "", { live: true });
   await addStationHere(page, "Munich");
   await closeMenuPanel(page, "Ground station");
 
+  // A satellite's panel opens on Details. A station has no Details, so clicking its pin
+  // must switch the panel to Passes rather than leave the body empty.
+  await openMenu(page, "Satellites");
+  await page.getByPlaceholder("Search satellites").fill("ISS");
+  await page.getByRole("button", { name: "Show info for ISS (ZARYA)" }).click();
+  await closeMenuPanel(page, "Satellites");
+  const panel = page.locator(".entity-info-panel");
+  await expect(panel.getByRole("tab", { name: "Details" })).toHaveAttribute("aria-selected", "true");
+
   // The station's pin on the globe opens its panel; the telescope stands there.
   await clickEntity(page, "Munich");
-  const panel = page.locator(".entity-info-panel");
   await expect(panel.locator(".head__name")).toHaveText("Munich");
+  await expect(panel.getByRole("tab", { name: /Passes/ })).toHaveAttribute("aria-selected", "true");
+  await expect(panel.getByRole("tab", { name: "Details" })).toHaveCount(0);
   await panel.getByRole("button", { name: "View the sky from this ground station" }).click();
   await waitForSky(page);
   await expect(page.locator(".sky-hud--settled")).toBeVisible();
@@ -66,6 +80,26 @@ test("from my station, look up and find a satellite in the sky", async ({ page }
   // A tap anywhere opens what the crosshair holds.
   await page.mouse.click(cx, cy);
   await expect(panel.locator(".head__name")).toHaveText(TARGET);
+
+  // Walk towards it, sprinting: the station follows once the walk settles, name kept.
+  // Two seconds, because a runner's frame a second caps each step at 100 ms of walk.
+  const [start] = stations(page);
+  await page.keyboard.down("Shift");
+  await page.keyboard.down("KeyW");
+  await page.waitForTimeout(2000);
+  await page.keyboard.up("KeyW");
+  await page.keyboard.up("Shift");
+  await expect.poll(() => Number(stations(page)[0]![0]), { message: "the station walked south" }).toBeLessThan(Number(start![0]));
+  expect(stations(page)[0]![2]).toBe("Munich");
+
+  // A second station, then stand there by its rank: the view moves, the list order stays.
+  await page.context().setGeolocation({ latitude: 47.27, longitude: 11.39 });
+  await addStationHere(page, "Innsbruck");
+  const rows = page.locator(".gsList__row");
+  await rows.nth(1).getByRole("button", { name: "2" }).click();
+  await expect(rows.nth(1).locator(".gsList__rank")).toHaveText("◉");
+  await expect.poll(() => page.evaluate(() => window.cc!.skyView.observer?.lat)).toBe(47.27);
+  expect(stations(page).map((station) => station[2])).toEqual(["Munich", "Innsbruck"]);
 
   // Back to the globe from the View menu.
   await openMenu(page, "View");

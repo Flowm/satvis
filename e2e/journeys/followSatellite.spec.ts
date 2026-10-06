@@ -43,6 +43,13 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await panel.getByRole("tab", { name: "Details" }).click();
       await expect(panel.getByRole("row", { name: /Launched/ })).toBeVisible();
 
+      // Pressing the active tab folds the body away, to free the globe, and back.
+      await panel.getByRole("tab", { name: "Details" }).click();
+      await expect(panel.getByRole("row", { name: /Launched/ })).toBeHidden();
+      await expect(panel.locator(".head__name")).toBeVisible();
+      await panel.getByRole("tab", { name: "Details" }).click();
+      await expect(panel.getByRole("row", { name: /Launched/ })).toBeVisible();
+
       // Track: the camera flies in, then keeps its distance while the ISS moves on.
       await panel.getByRole("button", { name: "Track entity" }).click();
       await expect.poll(() => new URL(page.url()).searchParams.get("track")).toBe(ISS);
