@@ -311,3 +311,19 @@ satellite moved, by up to 51 levels at the seam and less along the ramp. All act
 satellites' orbits ran at 39.7 fps on 32.1 ms of GPU, against 39.9 on 29.4 before; Weather
 held 60 at 7.3 ms. All four models loaded and drew with their textures, TDRS 12's mesh
 antennas too.
+
+## Native app: the web app's menu column, and the attribution link
+
+**Procedure.** The iPhone 17e simulator, a temporary UI test holding each menu open for
+screenshots: the column, Map, View, Graphics and the Attribution sheet; then the iPad Pro
+13-inch (M5) simulator at launch.
+
+**Result, 2026-10-06.** The column reads Menu, Satellites, Components, Ground station,
+Map, View, Graphics, with the web app's icons, folded on the phone and open on the iPad.
+Map lists Basemap and Terrain (None, ReEarth), View lists View mode (3D, Sky), and
+Graphics lists Measurement (FPS, Benchmark) and Pixel ratio, each under its title and in
+the web's order: an inline Picker in a menu had dropped its section's title, and a menu
+opening upwards had reversed its items until `menuOrder(.fixed)`. The Attribution link
+had taken no taps, at HEAD too: folded, the deck's left column held only a spacer and
+left the link 35 by 8 pt. With the column the row's height it is 56 by 44 pt, and the
+sheet opens, "Share usage data" beside the privacy policy, disabled in a debug build.

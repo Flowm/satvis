@@ -30,15 +30,18 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Stop tracking"].firstMatch.exists)
     }
 
-    // The tools unfold from the menu button, and the menus among them open.
+    // The web app's menu column unfolds from the menu button, folded on a phone,
+    // and the menus among it open.
     @MainActor
     func testOpensTheToolsFromTheMenu() {
         let app = launch()
         XCTAssert(app.buttons["Menu"].waitForExistence(timeout: 30))
         XCTAssertFalse(app.buttons["Map"].exists)
         app.buttons["Menu"].tap()
-        XCTAssert(app.buttons["Map"].waitForExistence(timeout: 5))
-        app.buttons["Satellite components"].tap()
+        for entry in ["Satellites", "Components", "Ground station", "Map", "View", "Graphics"] {
+            XCTAssert(app.buttons[entry].waitForExistence(timeout: 5), "No \(entry) in the menu")
+        }
+        app.buttons["Components"].tap()
         XCTAssert(app.descendants(matching: .any)["Orbit track"].waitForExistence(timeout: 5))
     }
 
@@ -80,21 +83,21 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(stamp.label.contains("19:22"), "The clock read \(stamp.label)")
     }
 
-    // The web app's `fps=true` shows the performance overlay; the Settings menu
-    // switches it off.
+    // The web app's `fps=true` shows the performance overlay; the Graphics menu's
+    // FPS switches it off.
     @MainActor
     func testShowsPerformanceFromALink() {
         let app = launch(link: "/?fps=true")
         let overlay = app.descendants(matching: .any)["Performance"]
         XCTAssert(overlay.waitForExistence(timeout: 30))
         app.buttons["Menu"].tap()
-        app.buttons["Settings"].tap()
-        app.descendants(matching: .any)["Show performance"].firstMatch.tap()
+        app.buttons["Graphics"].tap()
+        app.descendants(matching: .any)["FPS"].firstMatch.tap()
         XCTAssert(overlay.waitForNonExistence(timeout: 5))
     }
 
     // The web app's `bench=true` opens the benchmark panel; Close puts it away,
-    // and the Settings menu brings it back.
+    // and the Graphics menu brings it back.
     @MainActor
     func testOpensTheBenchmarkFromALink() {
         let app = launch(link: "/?bench=true")
@@ -103,7 +106,7 @@ nonisolated class SatvisUITests: XCTestCase {
         app.buttons["Close"].firstMatch.tap()
         XCTAssert(start.waitForNonExistence(timeout: 5))
         app.buttons["Menu"].tap()
-        app.buttons["Settings"].tap()
+        app.buttons["Graphics"].tap()
         app.buttons["Benchmark"].firstMatch.tap()
         XCTAssert(start.waitForExistence(timeout: 5))
     }
