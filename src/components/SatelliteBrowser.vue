@@ -1,21 +1,5 @@
 <template>
   <div class="satellite-browser">
-    <!-- Bound to enabledTags by the tag value-key, so one click takes a whole group. -->
-    <div class="toolbarTitle">Satellite groups</div>
-    <div class="browser-quickselect">
-      <USelectMenu
-        :model-value="enabledTags"
-        @update:model-value="setEnabledTags"
-        :items="groupItems"
-        value-key="value"
-        label-key="label"
-        multiple
-        :search-input="{ placeholder: 'Filter groups' }"
-        placeholder="Select groups"
-        class="w-full"
-      />
-    </div>
-
     <div class="browser-search">
       <UInput
         :model-value="searchQuery"
@@ -69,9 +53,6 @@ const {
   searchLoading,
   setSearchQuery,
   clearSearch,
-  availableGroups,
-  enabledTags,
-  setEnabledTags,
   rows,
   activeSatCount,
   groupCount,
@@ -88,8 +69,6 @@ function showInfo(name: string): void {
   activateSat(name);
   sats.select(name);
 }
-
-const groupItems = computed(() => availableGroups.value.toSorted((a, b) => a.tag.localeCompare(b.tag)).map((g) => ({ label: `${g.tag} (${g.count})`, value: g.tag })));
 
 const listHeight = computed(() => `min(${rows.value.length * ROW_HEIGHT}px, 60dvh)`);
 
@@ -126,7 +105,6 @@ const totalSize = computed(() => virtualizer.value.getTotalSize());
   box-sizing: border-box;
 }
 
-.browser-quickselect,
 .browser-search {
   flex: 0 0 auto;
 }

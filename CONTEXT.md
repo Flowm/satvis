@@ -17,7 +17,7 @@ discussion; sharpen them here when they drift.
   are taken out (`exclude`), so one upstream list is served in disjoint pieces.
 - **Search-only**: a group a preset registers with `searchOnly: true`. Its
   satellites are in the catalog and can be enabled one by one, but its tags get no
-  group row and no place in the group multiselect.
+  group row.
 - **Tag**: a label a group attaches to its satellites, and the unit the user
   enables ("enable Weather"). A tag belongs to the group in the config, not to a
   preset or a client, so it means the same everywhere. A satellite can carry tags

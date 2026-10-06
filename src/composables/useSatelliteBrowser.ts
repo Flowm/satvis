@@ -255,11 +255,6 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     });
   }
 
-  /** Prunes here, so the multiselect and the group rows cannot disagree. */
-  function setEnabledTags(next: string[]): void {
-    satStore.setActivation({ enabledTags: next, disabledSatellites: prunedExclusions(next) });
-  }
-
   /**
    * off -> all; some -> all (clears exclusions); all -> off. Never writes enabledSatellites,
    * so `sats=` cannot explode.
@@ -275,7 +270,8 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
       satStore.setActivation({ disabledSatellites: disabledSatellites.value.filter((name) => !memberNames.has(name)) });
       return;
     }
-    setEnabledTags(enabledTags.value.filter((t) => t !== tag));
+    const remaining = enabledTags.value.filter((t) => t !== tag);
+    satStore.setActivation({ enabledTags: remaining, disabledSatellites: prunedExclusions(remaining) });
   }
 
   /**
@@ -337,9 +333,6 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     searchLoading,
     setSearchQuery,
     clearSearch,
-    availableGroups,
-    enabledTags,
-    setEnabledTags,
     rows,
     activeSatCount,
     groupCount,
