@@ -14,17 +14,33 @@ public enum RendererError: Error {
 enum ShaderLibrary {
     static let files = ["Common", "Sky", "Globe", "Surface", "Points", "Lines", "Labels", "Stations", "Footprints", "Models", "Tonemap"]
 
-    static func make(device: MTLDevice) async throws -> MTLLibrary {
+    /// The shaders compiled twice: safe math for the vertex functions that place a
+    /// satellite, where fast math may regroup the high/low subtraction from the
+    /// camera, and fast math for the rest: the fragment functions, which only
+    /// shade, and the globe's and the sky's vertex functions, which need no split
+    /// (the globe's tiles are drawn relative to their centres). On an iPad mini
+    /// safe math made the star background alone 5.6 ms a frame, 0 with fast math,
+    /// and the atmosphere's per-vertex scattering 2.8 ms.
+    struct Libraries {
+        let precise: MTLLibrary
+        let fast: MTLLibrary
+    }
+
+    static func make(device: MTLDevice) async throws -> Libraries {
         let source = try files.map { name in
             guard let url = Bundle.module.url(forResource: name, withExtension: "msl", subdirectory: "Shaders") else {
                 throw RendererError.missingShader(name)
             }
             return try String(contentsOf: url, encoding: .utf8)
         }.joined(separator: "\n")
-        let options = MTLCompileOptions()
-        // Fast math may regroup the high/low subtraction relativeToEye depends on.
-        options.mathMode = .safe
-        return try await device.makeLibrary(source: source, options: options)
+        func options(_ mode: MTLMathMode) -> MTLCompileOptions {
+            let options = MTLCompileOptions()
+            options.mathMode = mode
+            return options
+        }
+        return Libraries(
+            precise: try await device.makeLibrary(source: source, options: options(.safe)),
+            fast: try await device.makeLibrary(source: source, options: options(.fast)))
     }
 }
 
@@ -199,10 +215,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         guard let device = view.device ?? MTLCreateSystemDefaultDevice() else {
             throw RendererError.noDevice
         }
-        return try GlobeRenderer(view: view, device: device, library: try await ShaderLibrary.make(device: device))
+        return try GlobeRenderer(view: view, device: device, libraries: try await ShaderLibrary.make(device: device))
     }
 
-    private init(view: MTKView, device: MTLDevice, library: MTLLibrary) throws {
+    private init(view: MTKView, device: MTLDevice, libraries: ShaderLibrary.Libraries) throws {
         guard let queue = device.makeCommandQueue() else {
             throw RendererError.noDevice
         }
@@ -213,7 +229,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         view.depthStencilPixelFormat = .invalid
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
 
-        func function(_ name: String) throws -> MTLFunction {
+        // Vertex functions from the precise library, fragment functions from the fast.
+        func function(_ name: String, in library: MTLLibrary = libraries.precise) throws -> MTLFunction {
             guard let function = library.makeFunction(name: name) else {
                 throw RendererError.missingFunction(name)
             }
@@ -222,14 +239,17 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         // One pass where the GPU can read its render targets in place: the HDR
         // image and the depth stay in tile memory, and the screen is the scene
         // pass's second target, written by the tonemap alone.
-        let tileTonemap = device.supportsFamily(.apple4) ? library.makeFunction(name: "tonemapTileFragment") : nil
+        let tileTonemap = device.supportsFamily(.apple4) ? libraries.fast.makeFunction(name: "tonemapTileFragment") : nil
         let screenFormat = view.colorPixelFormat
         func pipeline(
-            _ vertex: String, _ fragment: String, format: MTLPixelFormat = Self.hdrFormat, depth: Bool = true, blend: Bool = false, premultiplied: Bool = false
+            _ vertex: String, _ fragment: String, format: MTLPixelFormat = Self.hdrFormat, depth: Bool = true, blend: Bool = false, premultiplied: Bool = false,
+            // A vertex function that places nothing by the high/low split may take
+            // fast math too.
+            fastVertex: Bool = false
         ) throws -> MTLRenderPipelineState {
             let descriptor = MTLRenderPipelineDescriptor()
-            descriptor.vertexFunction = try function(vertex)
-            descriptor.fragmentFunction = try function(fragment)
+            descriptor.vertexFunction = try function(vertex, in: fastVertex ? libraries.fast : libraries.precise)
+            descriptor.fragmentFunction = try function(fragment, in: libraries.fast)
             descriptor.colorAttachments[0].pixelFormat = format
             if tileTonemap != nil, format == Self.hdrFormat, depth {
                 descriptor.colorAttachments[1].pixelFormat = screenFormat
@@ -249,8 +269,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             return try device.makeRenderPipelineState(descriptor: descriptor)
         }
         skyBoxPipeline = try pipeline("fullscreenVertex", "skyBoxFragment")
-        skyAtmospherePipeline = try pipeline("skyAtmosphereVertex", "skyAtmosphereFragment", blend: true)
-        globePipeline = try pipeline("globeVertex", "globeFragment")
+        skyAtmospherePipeline = try pipeline("skyAtmosphereVertex", "skyAtmosphereFragment", blend: true, fastVertex: true)
+        globePipeline = try pipeline("globeVertex", "globeFragment", fastVertex: true)
         pointPipeline = try pipeline("pointVertex", "pointFragment")
         linePipeline = try pipeline("lineVertex", "lineFragment", blend: true)
         modelPipeline = try pipeline("modelVertex", "modelFragment")
@@ -302,7 +322,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             let indices = mesh.indices.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count)! }
             return (vertices, indices, mesh.indices.count)
         }
-        surface = try Surface(device: device, library: library, site: URL(string: "https://satvis.space/")!)
+        surface = try Surface(device: device, library: libraries.precise, site: URL(string: "https://satvis.space/")!)
         models = SatelliteModels(device: device)
         let tileSamplerDescriptor = MTLSamplerDescriptor()
         tileSamplerDescriptor.minFilter = .linear
@@ -816,6 +836,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 encoder.setFragmentTexture(overlay.texture, index: 1)
                 encoder.setFragmentSamplerState(tileSampler, index: 0)
                 for tile in surfaceTiles {
+                    var centre = SIMD3<Float>(tile.centre - pose.position)
+                    encoder.setVertexBytes(&centre, length: MemoryLayout<SIMD3<Float>>.stride, index: 2)
                     encoder.setVertexBuffer(surface.vertices(tile), offset: 0, index: 0)
                     encoder.setFragmentTexture(tile.texture, index: 0)
                     encoder.drawIndexedPrimitives(type: .triangle, indexCount: surface.indexCount, indexType: .uint32, indexBuffer: surface.indexBuffer, indexBufferOffset: 0)

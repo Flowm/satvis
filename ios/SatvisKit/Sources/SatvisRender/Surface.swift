@@ -611,14 +611,14 @@ struct SurfaceMesh {
         var points: [SIMD3<Double>] = []
         for row in 0...n {
             for column in 0...n {
-                let (vertex, position) = Self.vertex(bounds, row: row, column: column, depth: 0, terrain: terrain?.sample)
+                let (vertex, position) = Self.vertex(bounds, row: row, column: column, depth: 0, terrain: terrain?.sample, centre: centre)
                 vertices.append(vertex)
                 points.append(position)
             }
         }
         // The skirt: the edge again, lowered, in order around the tile.
         for edge in Self.edge {
-            vertices.append(Self.vertex(bounds, row: edge.row, column: edge.column, depth: skirt, terrain: terrain?.sample).0)
+            vertices.append(Self.vertex(bounds, row: edge.row, column: edge.column, depth: skirt, terrain: terrain?.sample, centre: centre).0)
         }
         self.vertices = vertices
         let centre = centre
@@ -627,7 +627,9 @@ struct SurfaceMesh {
     }
 
     /// A grid point of a tile, `depth` metres below the surface.
-    private static func vertex(_ bounds: Bounds, row: Int, column: Int, depth: Double, terrain: ((Double, Double) -> (height: Double, normal: SIMD3<Double>?))?) -> (
+    private static func vertex(
+        _ bounds: Bounds, row: Int, column: Int, depth: Double, terrain: ((Double, Double) -> (height: Double, normal: SIMD3<Double>?))?, centre: SIMD3<Double>
+    ) -> (
         GlobeVertex, SIMD3<Double>
     ) {
         let u = Double(column) / Double(size)
@@ -639,8 +641,7 @@ struct SurfaceMesh {
         let up = SIMD3(cos(phi) * cos(lambda), cos(phi) * sin(lambda), sin(phi))
         let ground = terrain?(latitude, longitude)
         let position = fixedPosition(latitude: latitude, longitude: longitude) + ((ground?.height ?? 0) - depth) * up
-        let (high, low) = encode(position)
-        return (GlobeVertex(high: high, low: low, normal: SIMD3<Float>(ground?.normal ?? up), uv: SIMD2(Float(u), Float(v))), position)
+        return (GlobeVertex(offset: SIMD3<Float>(position - centre), normal: SIMD3<Float>(ground?.normal ?? up), uv: SIMD2(Float(u), Float(v))), position)
     }
 
     /// The edge vertices around a tile, starting at its north-west corner.

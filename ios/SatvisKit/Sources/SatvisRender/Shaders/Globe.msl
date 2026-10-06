@@ -12,8 +12,7 @@
 
 // Mirrors GlobeVertex in Meshes.swift.
 struct GlobeVertex {
-    float3 high;
-    float3 low;
+    float3 offset;
     float3 normal;
     float2 uv;
 };
@@ -37,16 +36,19 @@ constant float nightFadeOutDistance = M_PI_2_F * minimumRadius;
 constant float nightFadeInDistance = 5.0 * M_PI_2_F * minimumRadius;
 constant float groundAtmosphereLightIntensity = 10.0;
 
-vertex GlobeOut globeVertex(uint vid [[vertex_id]], const device GlobeVertex *vertices [[buffer(0)]], constant FrameUniforms &frame [[buffer(1)]]) {
+/// Relative to the tile's centre (CesiumJS's RTC): `centre` is the centre's
+/// offset from the eye, worked out in double precision on the CPU.
+vertex GlobeOut globeVertex(uint vid [[vertex_id]], const device GlobeVertex *vertices [[buffer(0)]], constant FrameUniforms &frame [[buffer(1)]],
+                            constant float3 &centre [[buffer(2)]]) {
     GlobeVertex v = vertices[vid];
     GlobeOut out;
-    out.position = frame.viewProjection * float4(relativeToEye(v.high, v.low, frame), 1.0);
-    out.positionWC = v.high + v.low;
+    float3 cameraToPosition = centre + v.offset;
+    out.position = frame.viewProjection * float4(cameraToPosition, 1.0);
+    out.positionWC = frame.cameraPosition + cameraToPosition;
     out.normal = v.normal;
     out.uv = v.uv;
 
     // GroundAtmosphere.glsl, per vertex as Cesium does it below the night fade.
-    float3 cameraToPosition = out.positionWC - frame.cameraPosition;
     float rayLength = length(cameraToPosition);
     computeScattering(frame.cameraPosition, cameraToPosition / rayLength, rayLength, frame.sunDirection, length(out.positionWC), out.rayleighColor, out.mieColor,
                       out.opacity);

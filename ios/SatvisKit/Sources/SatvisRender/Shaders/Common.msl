@@ -39,15 +39,6 @@ constant float rayleighScaleHeight = 10000.0;
 constant float mieScaleHeight = 3200.0;
 constant float mieAnisotropy = 0.9;
 
-/// A position relative to the camera from two floats each, so that the
-/// subtraction keeps the precision a single float at Earth's radius lacks
-/// (czm_translateRelativeToEye). Needs safe math: fast math may regroup it.
-inline float3 relativeToEye(float3 high, float3 low, constant FrameUniforms &frame) {
-    float3 highDifference = high - frame.cameraHigh;
-    float3 lowDifference = low - frame.cameraLow;
-    return highDifference + lowDifference;
-}
-
 struct RaySegment {
     float start;
     float stop;

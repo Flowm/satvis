@@ -67,7 +67,7 @@ import simd
         let draped = SurfaceMesh(bounds: bounds, level: 12, terrain: (source.sample, skirt))
         #expect(draped.vertices.count == flat.vertices.count)
         let grid = (SurfaceMesh.size + 1) * (SurfaceMesh.size + 1)
-        func height(_ vertex: GlobeVertex) -> Double { length(SIMD3<Double>(vertex.high) + SIMD3<Double>(vertex.low)) }
+        func height(_ vertex: GlobeVertex) -> Double { length(draped.centre + SIMD3<Double>(vertex.offset)) }
         let raised = zip(draped.vertices.prefix(grid), flat.vertices.prefix(grid)).map { height($0) - height($1) }
         #expect(raised.allSatisfy { $0 > 500 })
         #expect((raised.max() ?? 0) > 1500)
