@@ -76,7 +76,7 @@ export function startSceneSync(cc: SceneTarget): void {
   const satStore = useSatStore();
 
   // Immediate: the viewer has no base layer until this. Nothing may correct the stack
-  // later, or it races the route preset's hydration (docs/manual-verification.md).
+  // later, or it races the route preset's hydration (e2e/baseMap.spec.ts).
   watch(
     () => cesiumStore.layers,
     (layers) => {
