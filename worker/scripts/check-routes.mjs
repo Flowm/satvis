@@ -156,7 +156,7 @@ test("existing data and Cesium files are served as themselves", async () => {
 test("only /api reaches the Worker", async () => {
   const api = await request("/api/groups.json");
   assert.deepEqual([api.status, api.type], [200, "application/json"]);
-  // The detection itself: an api path the Worker does not know comes back as its own text.
+  // An api path the Worker does not know is its JSON 404, not the 404 page.
   const unknown = await request("/api/nothing-here");
-  assert.equal(unknown.status, 404);
+  assert.deepEqual([unknown.status, unknown.type, JSON.parse(unknown.body)], [404, "application/json", { error: "Not Found" }]);
 });

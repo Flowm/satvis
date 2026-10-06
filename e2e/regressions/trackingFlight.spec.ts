@@ -57,17 +57,17 @@ test("track, switch and stop through the panel: no jump on landing, none on a cl
   await panel.getByRole("button", { name: "Track entity" }).click();
   await expect.poll(() => tracked(page)).toBe(ISS);
   // Where the flight put the camera is where tracking keeps it: millimetres measured.
-  expect(metres((await trackingChanges(page)).at(-1)!.at, await camera(page))).toBeLessThan(1);
-  expect(await cameraHolds(page)).toBeLessThan(1);
+  expect(metres((await trackingChanges(page)).at(-1)!.at, await camera(page))).toBeLessThan(0.1);
+  expect(await cameraHolds(page)).toBeLessThan(0.1);
 
   await selectSatellite(page, CSS);
   await expect(panel.locator(".head__name")).toHaveText(CSS);
-  expect(await cameraHolds(page, 10)).toBeLessThan(1);
+  expect(await cameraHolds(page, 10)).toBeLessThan(0.1);
   expect(await tracked(page)).toBe(ISS);
 
   await panel.getByRole("button", { name: "Track entity" }).click();
   await expect.poll(() => tracked(page)).toBe(CSS);
-  expect(await cameraHolds(page)).toBeLessThan(1);
+  expect(await cameraHolds(page)).toBeLessThan(0.1);
 
   await panel.getByRole("button", { name: "Track entity" }).click();
   await expect.poll(() => tracked(page)).toBeUndefined();

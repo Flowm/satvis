@@ -25,6 +25,7 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await showInfo(page, ISS);
       // On a phone the catalog and the menu column make way for the info panel.
       await expect(page.getByRole("region", { name: "Satellites" })).toBeVisible({ visible: device === "desktop" });
+      await expect(page.getByRole("button", { name: "Open menu" })).toBeVisible({ visible: device === "phone" });
 
       const panel = page.locator(".entity-info-panel");
       await expect(panel.locator(".head__name")).toHaveText(ISS);

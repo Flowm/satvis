@@ -15,6 +15,9 @@ test("an unavailable surface model reverts to None and says so once", async ({ p
   await menuSwitch(page, "OsmBuildings").click();
 
   await expect(toasts(page, "OsmBuildings unavailable")).toHaveCount(1);
+  // Still one a moment later: the failure handler must not report twice.
+  await page.waitForTimeout(1000);
+  await expect(toasts(page, "OsmBuildings unavailable")).toHaveCount(1);
   // The surface radios are the unnamed ones.
   await expect(page.locator('input[type="radio"][value="None"]:not([name])')).toBeChecked();
   await expect(page.locator('input[name="terrain"][value="None"]')).toBeChecked();
