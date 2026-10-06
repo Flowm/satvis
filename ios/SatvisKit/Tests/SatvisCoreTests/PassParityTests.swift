@@ -5,12 +5,12 @@ import Testing
 
 /// The passes the web app's `Orbit` finds for the parity element sets
 /// (scripts/parity/generate.mjs). ADR 0008 allows a second on a start or an end.
-/// The search propagates the same instants, so they agree far closer than that.
-/// Elevation passes agree exactly. A swath pass agrees to the 10 ms its edges are
-/// bisected to: near a closest approach the distance barely changes from one
-/// millisecond to the next, so the last-bit differences between V8's and Darwin's
-/// trigonometry (tens of micrometres) can tip the golden-section search a few
-/// milliseconds either way.
+/// The search propagates the same instants, so they agree far closer than that:
+/// to the 10 ms the edges are bisected to. Near a peak or a closest approach the
+/// curve barely changes from one millisecond to the next, so the last-bit
+/// differences between V8's and Darwin's trigonometry (tens of micrometres) can
+/// tip the golden-section search a few milliseconds either way, and a slow
+/// orbit's elevation peak by more.
 struct PassParity: Decodable {
     struct Station: Decodable {
         let name: String
@@ -102,6 +102,9 @@ struct PassParity: Decodable {
 
     let stations: [Station]
     let passes: [Case]
+    /// What the base cases never reach: windows opening or closing partway
+    /// through a pass, and swaths only a few kilometres wide.
+    let passEdges: [Case]
     let presentation: [Presentation]
     let countdowns: [Countdown]
     let compassPoints: [CompassPoint]
@@ -124,7 +127,8 @@ extension PassParity.ExpectedPass {
         let parity = try JSONDecoder().decode(PassParity.self, from: Parity.fixture("parity"))
         let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
         #expect(parity.passes.contains { !$0.passes.isEmpty && $0.mode == .swath && $0.swath?.starboardKm != $0.swath?.portKm })
-        for expected in parity.passes {
+        #expect(parity.passEdges.allSatisfy { !$0.passes.isEmpty })
+        for expected in parity.passes + parity.passEdges {
             let record = records[expected.record]
             let station = parity.stations[expected.station].station
             let finder = PassFinder(try SGP4Propagator(record.meanElements))

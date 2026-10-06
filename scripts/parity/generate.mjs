@@ -9,7 +9,7 @@
 // The web code is loaded through Vite's module runner, because its imports are
 // extensionless TypeScript that plain node cannot resolve.
 
-// `Orbit` steps its pass search with Date.setMinutes, which works in local time.
+// The pass presentation formats dates, which works in local time.
 process.env.TZ = "UTC";
 
 import fs from "node:fs";
@@ -49,6 +49,17 @@ const STATIONS = [
 const PASS_WINDOW_DAYS = 2;
 // One footprint wider to starboard, so the side a station lies on decides.
 const ASYMMETRIC_SWATH = { starboardKm: 900, portKm: 250 };
+// The edges the base passes never reach (Orbit.test.ts has them too): a station
+// abeam the ground track, km to starboard, under a swath it barely enters, and
+// windows that open or close partway through an elevation pass. Of the ISS and
+// METOP-C, at their first pass over Munich.
+const NARROW_SWATHS = [
+  { offsetKm: 0.5, swath: { starboardKm: 1, portKm: 1 } },
+  { offsetKm: 28.5, swath: { starboardKm: 30, portKm: 30 } },
+  { offsetKm: 2.5, swath: { starboardKm: 5, portKm: 100 } },
+];
+const EDGE_RECORDS = [0, 1];
+const MEAN_EARTH_RADIUS_KM = 6371;
 
 // No dependency scan: nothing here is served to a browser, and on a cold cache the
 // scan reports errors for entry points this script never loads.
@@ -160,6 +171,58 @@ try {
         })),
       ];
     });
+  });
+
+  // The edge cases, over stations of their own after the named ones.
+  const edgeStations = [];
+  const passEdges = EDGE_RECORDS.flatMap((index) => {
+    const record = records[index];
+    const orbit = new Orbit("", record);
+    const strip = ({ name: _name, ...pass }) => pass;
+    const [first] = passes.find((entry) => entry.record === index && entry.station === 0 && entry.mode === "elevation").passes;
+    const munich = { latitude: STATIONS[0].latitude, longitude: STATIONS[0].longitude, height: 0 };
+    // Whole milliseconds, so a window's edge is exact in every language.
+    const [start, end] = [Math.round(first.start), Math.round(first.end)];
+    const middle = Math.round((start + end) / 2);
+    const windows = [
+      [middle, middle + 180 * MS_PER_MINUTE],
+      [start - 30 * MS_PER_MINUTE, middle],
+      [start + 20_000, end - 20_000],
+    ];
+    const elevation = windows.map(([startMs, endMs]) => ({
+      record: index,
+      station: 0,
+      startMs,
+      endMs,
+      mode: "elevation",
+      passes: orbit.computePassesElevation(munich, new Date(startMs), new Date(endMs)).map(strip),
+    }));
+    // Closest approach 25 s off the minute grid, at that pass's apex.
+    const closest = Math.round(first.apex / MS_PER_MINUTE) * MS_PER_MINUTE + 25_000;
+    const here = orbit.positionGeodetic(new Date(closest));
+    const ahead = orbit.positionGeodetic(new Date(closest + 10_000));
+    const rad = Math.PI / 180;
+    const [lat1, lon1, lat2, lon2] = [here.latitude * rad, here.longitude * rad, ahead.latitude * rad, ahead.longitude * rad];
+    const bearing = Math.atan2(Math.sin(lon2 - lon1) * Math.cos(lat2), Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1));
+    const narrow = NARROW_SWATHS.map(({ offsetKm, swath }) => {
+      const delta = offsetKm / MEAN_EARTH_RADIUS_KM;
+      const starboard = bearing + Math.PI / 2;
+      const lat = Math.asin(Math.sin(lat1) * Math.cos(delta) + Math.cos(lat1) * Math.sin(delta) * Math.cos(starboard));
+      const lon = lon1 + Math.atan2(Math.sin(starboard) * Math.sin(delta) * Math.cos(lat1), Math.cos(delta) - Math.sin(lat1) * Math.sin(lat));
+      const station = { name: "", latitude: lat / rad, longitude: lon / rad };
+      edgeStations.push(station);
+      const [startMs, endMs] = [closest - 10 * MS_PER_MINUTE, closest + 10 * MS_PER_MINUTE];
+      return {
+        record: index,
+        station: STATIONS.length + edgeStations.length - 1,
+        startMs,
+        endMs,
+        mode: "swath",
+        swath,
+        passes: orbit.computePassesSwath({ ...station, height: 0 }, swath, new Date(startMs), new Date(endMs)).map(strip),
+      };
+    });
+    return elevation.concat(narrow);
   });
 
   // How the info panel presents a pass list: the table's rows, the headline's
@@ -389,8 +452,9 @@ try {
     propagation,
     grids,
     details,
-    stations: STATIONS,
+    stations: [...STATIONS, ...edgeStations],
     passes,
+    passEdges,
     presentation,
     countdowns,
     compassPoints,
