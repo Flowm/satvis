@@ -89,6 +89,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var homeFlight: (from: OrbitCamera, to: OrbitCamera, start: Double)?
     /// The flight into tracking or out of it, while one is under way.
     private var poseFlight: PoseFlight?
+    /// What is tracked and may be framed close up on its 3D model: once the
+    /// satellite is drawn, as a link tracks one before it is, and its model has
+    /// loaded. A gesture since leaves the camera where the user put it.
+    private var framingModel: String?
+    /// What the web app frames a model by while it has not loaded: a small
+    /// satellite's radius, in metres.
+    private static let fallbackModelRadius = 2.5
     private static let homeFlightDuration = 1.5
     /// The pose of the last frame, which a flight sets off from.
     private var lastPose: CameraPose?
@@ -135,6 +142,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var links: [StationLink] = []
     private var pin: MTLTexture?
     private nonisolated let pixelScale: Double
+    /// How wide each 3D model was drawn in the last frame, in points, by
+    /// satellite: for picking.
+    private var lastModelPoints: [Int: Double] = [:]
     /// What the last frame was drawn from, for picking.
     private(set) var lastFrame: (viewProjection: simd_double4x4, position: SIMD3<Double>, size: SIMD2<Double>, time: Double)?
     /// What the sky view's instruments worked out, kept between frames.
@@ -417,6 +427,26 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         startPoseFlight(animated)
         cameraMode = .tracking(id)
         trackingCamera = TrackingCamera()
+        framingModel = id
+        frameModel()
+    }
+
+    /// Closes in on the tracked satellite's 3D model, as the web app does while
+    /// the model is on: by the model's size once it has loaded, by a small
+    /// satellite's meanwhile.
+    private func frameModel() {
+        guard let id = framingModel, cameraMode == .tracking(id), let satellite = points.satellite(id) else {
+            return
+        }
+        guard components.contains(.model), let file = satellite.modelFile else {
+            framingModel = nil
+            return
+        }
+        let model = models.model(file)
+        trackingCamera = .framing(modelRadius: model.map { Double($0.radius) } ?? Self.fallbackModelRadius)
+        if model != nil {
+            framingModel = nil
+        }
     }
 
     /// Lets go, and goes back to the view tracking began from, as the web app
@@ -461,7 +491,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         case .orbit:
             homeFlight = nil
             orbitCamera?.pan(by: points, longerSide: longerSide)
-        case .tracking: trackingCamera.orbit(by: points, longerSide: longerSide)
+        case .tracking:
+            framingModel = nil
+            trackingCamera.orbit(by: points, longerSide: longerSide)
         case .sky where isSkySettled: skyCamera?.drag(by: points, height: Double(size.height))
         case .sky: break
         }
@@ -473,7 +505,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         case .orbit:
             homeFlight = nil
             orbitCamera?.zoom(by: scale)
-        case .tracking: trackingCamera.zoom(by: scale)
+        case .tracking:
+            framingModel = nil
+            trackingCamera.zoom(by: scale)
         case .sky where isSkySettled: skyCamera?.zoom(by: scale)
         case .sky: break
         }
@@ -485,7 +519,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         case .orbit:
             homeFlight = nil
             orbitCamera?.rotate(by: radians)
-        case .tracking: trackingCamera.rotate(by: radians)
+        case .tracking:
+            framingModel = nil
+            trackingCamera.rotate(by: radians)
         // Only the device's attitude rolls the sky view.
         case .sky: break
         }
@@ -540,9 +576,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 let size = labels[index].size
                 let width = Double(size.x) / pixelScale
                 let height = Double(size.y) / pixelScale
-                label = CGRect(x: spot.x + 10, y: spot.y - height / 2, width: width, height: height)
+                let gap = max(10, (lastModelPoints[index] ?? 0) / 2 + 4)
+                label = CGRect(x: spot.x + gap, y: spot.y - height / 2, width: width, height: height)
             }
-            if let score = Picking.score(of: point, point: spot, label: label), score < best?.score ?? .infinity {
+            let reach = (lastModelPoints[index] ?? 0) / 2
+            if let score = Picking.score(of: point, point: spot, label: label, reach: reach), score < best?.score ?? .infinity {
                 best = (satellite.id, score)
             }
         }
@@ -630,6 +668,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             }
         }
         var pose = orbitCamera.pose()
+        frameModel()
         if case .tracking(let id) = cameraMode, let target = position(of: id, at: now) {
             pose = trackingCamera.pose(target: target)
         }
@@ -680,6 +719,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         frameIndex = (frameIndex + 1) % Self.framesInFlight
 
         var frame = uniforms(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now)
+        let placements = components.contains(.model) ? modelPlacements(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now) : []
+        lastModelPoints = Dictionary(placements.map { ($0.index, $0.points) }, uniquingKeysWith: max)
         overlay.encode(commands, pipeline: overlayPipeline, satellites: points.satellites, at: now, enabled: components.contains(.groundTrack), device: device)
         var surfaceTiles: [Surface.Tile] = []
         if let imagery, let lastFrame {
@@ -735,14 +776,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 }
             }
 
-            if components.contains(.model) {
-                drawModels(encoder, pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now, frame: frame)
-            }
+            drawModels(encoder, placements, frame: frame)
 
             // Under the satellites and their names: a pin marks the ground.
             drawStations(encoder, eye: pose.position, now: now)
 
-            if let samples = points.prepared?.samples, let instances = points.prepared?.instances, let states = pointFrames(at: now) {
+            if let samples = points.prepared?.samples, let instances = points.prepared?.instances, let states = pointFrames(at: now, models: placements) {
                 encoder.setDepthStencilState(depthTest)
                 encoder.setCullMode(.none)
                 encoder.setVertexBuffer(samples, offset: 0, index: 0)
@@ -798,30 +837,38 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// The links of the passes under way, then the pins of the stations facing
     /// the eye. Few enough to go in with the draw call.
+    /// A 3D model where it is drawn this frame.
+    private struct ModelPlacement {
+        var index: Int
+        var model: PreparedModel
+        /// The model's frame to the eye's, scaled: metres from the eye.
+        var toEye: simd_double4x4
+        var rotation: simd_float3x3
+        /// How wide its bounding sphere is drawn, in points.
+        var points: Double
+    }
+
     /// Each modelled satellite's model where it is, its glTF +Z along the velocity
     /// and +Y up from the ellipsoid, as CesiumJS's VelocityOrientationProperty
     /// turns it. At its real size in metres where that is large enough, else
     /// scaled up to the web app's smallest size on screen
     /// (`modelMinimumPixelSize`), but no further than that size at the home
-    /// view's distance, so it shrinks with the globe beyond it.
-    private func drawModels(_ encoder: MTLRenderCommandEncoder, pose: CameraPose, size: SIMD2<Double>, now: Double, frame: FrameUniforms) {
-        guard let prepared = points.prepared, !prepared.modelled.isEmpty, let lastFrame else {
-            return
+    /// view's distance, so it shrinks with the globe beyond it. A model not
+    /// loaded yet is asked for, and has no place until it lands.
+    private func modelPlacements(pose: CameraPose, size: SIMD2<Double>, now: Double) -> [ModelPlacement] {
+        guard let prepared = points.prepared, !prepared.modelled.isEmpty else {
+            return []
         }
         let aspectRatio = size.x / size.y
         let heightPoints = size.y / pixelScale
         let tangent = tan(pose.verticalFieldOfView(aspectRatio: aspectRatio) / 2)
         let homeMetresPerPoint = 2 * OrbitCamera.home(aspectRatio: aspectRatio).radius * tangent / heightPoints
-        let sun = SIMD3<Float>(Sun.directionFixed(epochMilliseconds: now))
-        encoder.setRenderPipelineState(modelPipeline)
-        encoder.setDepthStencilState(depthWrite)
-        encoder.setFragmentSamplerState(tileSampler, index: 0)
-        for index in prepared.modelled {
+        return prepared.modelled.compactMap { index in
             let satellite = prepared.satellites[index]
             guard let file = satellite.modelFile, let model = models.model(file), let position = satellite.trajectory.position(at: now),
                 let before = satellite.trajectory.position(at: now - 1000), let after = satellite.trajectory.position(at: now + 1000)
             else {
-                continue
+                return nil
             }
             let forward = normalize(after - before)
             let surfaceUp = normalize(position / (ellipsoidRadii * ellipsoidRadii))
@@ -831,20 +878,34 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             let minimum = Self.modelMinimumPoints(diameter: diameter)
             let metresPerPoint = 2 * simd.distance(position, pose.position) * tangent / heightPoints
             let scale = min(max(1, minimum * metresPerPoint / diameter), minimum * homeMetresPerPoint / diameter)
-            let toEye = simd_double4x4(columns: (SIMD4(port * scale, 0), SIMD4(up * scale, 0), SIMD4(forward * scale, 0), SIMD4(position - pose.position, 1)))
-            let rotation = simd_float3x3(columns: (SIMD3<Float>(port), SIMD3<Float>(up), SIMD3<Float>(forward)))
-            for part in model.parts {
+            return ModelPlacement(
+                index: index, model: model,
+                toEye: simd_double4x4(columns: (SIMD4(port * scale, 0), SIMD4(up * scale, 0), SIMD4(forward * scale, 0), SIMD4(position - pose.position, 1))),
+                rotation: simd_float3x3(columns: (SIMD3<Float>(port), SIMD3<Float>(up), SIMD3<Float>(forward))),
+                points: diameter * scale / metresPerPoint)
+        }
+    }
+
+    private func drawModels(_ encoder: MTLRenderCommandEncoder, _ placements: [ModelPlacement], frame: FrameUniforms) {
+        guard !placements.isEmpty, let lastFrame else {
+            return
+        }
+        encoder.setRenderPipelineState(modelPipeline)
+        encoder.setDepthStencilState(depthWrite)
+        encoder.setFragmentSamplerState(tileSampler, index: 0)
+        for placement in placements {
+            encoder.setVertexBuffer(placement.model.vertices, offset: 0, index: 0)
+            for part in placement.model.parts {
                 var instance = ModelInstance(
-                    modelViewProjection: float4x4(lastFrame.viewProjection * toEye), rotation: rotation, modelToEye: float4x4(toEye),
-                    baseColor: part.material.baseColor, sunDirection: sun, hasTexture: part.texture == nil ? 0 : 1, metallic: part.material.metallic,
-                    roughness: part.material.roughness)
+                    modelViewProjection: float4x4(lastFrame.viewProjection * placement.toEye), rotation: placement.rotation,
+                    modelToEye: float4x4(placement.toEye), baseColor: part.material.baseColor, sunDirection: frame.sunDirection,
+                    hasTexture: part.texture == nil ? 0 : 1, metallic: part.material.metallic, roughness: part.material.roughness)
                 encoder.setCullMode(part.material.doubleSided ? .none : .back)
-                encoder.setVertexBuffer(model.vertices, offset: 0, index: 0)
                 encoder.setVertexBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
                 encoder.setFragmentBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
                 encoder.setFragmentTexture(part.texture, index: 0)
                 encoder.drawIndexedPrimitives(
-                    type: .triangle, indexCount: part.indexCount, indexType: .uint32, indexBuffer: model.indices,
+                    type: .triangle, indexCount: part.indexCount, indexType: .uint32, indexBuffer: placement.model.indices,
                     indexBufferOffset: part.indexStart * MemoryLayout<UInt32>.stride)
             }
         }
@@ -896,8 +957,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// What `setVertexBytes` takes, 4 KB, in the larger of the two instances.
     private static let maximumInlineInstances = 4096 / MemoryLayout<LinkInstance>.stride
 
-    /// This frame's stencils, in a buffer the GPU is not still reading.
-    private func pointFrames(at now: Double) -> MTLBuffer? {
+    /// This frame's stencils, and how wide each 3D model is drawn, in a buffer
+    /// the GPU is not still reading.
+    private func pointFrames(at now: Double, models: [ModelPlacement]) -> MTLBuffer? {
         let length = points.count * MemoryLayout<PointFrame>.stride
         guard length > 0 else {
             return nil
@@ -909,6 +971,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             return nil
         }
         points.writeFrames(at: now, into: buffer)
+        let frames = buffer.contents().bindMemory(to: PointFrame.self, capacity: points.count)
+        for model in models where model.index < points.count {
+            frames[model.index].modelPoints = Float(model.points)
+        }
         return buffer
     }
 

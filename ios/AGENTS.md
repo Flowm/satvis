@@ -58,6 +58,13 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   follow terrain; `RendererTests` holds its faces to Metal's own cube lookup. The
   sensor cones are drawn per frame from the same interpolation, cut where they
   meet the ground. Both are for low orbits only, as on the web.
+- 3D models are the web app's files, fetched from the site's `/data/models/` by
+  the `modelFile` a record carries and cached as the tiles are. `ModelAsset`
+  reads only what `data/models` uses (triangles, Draco, base colours, PNG, JPEG
+  and WebP textures); Draco is DracoSwift's prebuilt 1.5.7 behind `DracoBridge`.
+  Sizes, the point and label around a model and the close-up tracking follow
+  `SatelliteComponentCollection.ts`; the lighting is a simple sun, not Cesium's
+  PBR. `ios/scripts/make-model-fixture.mjs` writes the test's cube.
 - `Session`, owned by `SatvisApp`, is one open globe: the models (`ViewerClock`,
   `CatalogModel`, `PassModel`, `SatelliteLayer`, `StarMap`, and `PassAlerts`, which
   the background refresh needs too), what is selected and followed, what a tap

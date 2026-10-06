@@ -14,10 +14,11 @@ enum Picking {
     /// `label` is where the name is drawn, beside the point. A tap inside it
     /// scores by how far off its middle line it is, so that of two overlapping
     /// labels the one it is centred on wins.
-    static func score(of tap: CGPoint, point: CGPoint, label: CGRect?) -> Double? {
+    /// `reach` widens the point's to cover a 3D model drawn there.
+    static func score(of tap: CGPoint, point: CGPoint, label: CGRect?, reach: Double = pointReach) -> Double? {
         var best: Double?
         let pointDistance = hypot(tap.x - point.x, tap.y - point.y)
-        if pointDistance < pointReach {
+        if pointDistance < max(reach, pointReach) {
             best = pointDistance
         }
         if let label {

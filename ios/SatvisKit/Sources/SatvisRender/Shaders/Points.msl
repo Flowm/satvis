@@ -15,7 +15,13 @@ struct PointInstance {
 struct PointFrame {
     uint stencilStart;
     float offset;
+    /// How wide its 3D model is drawn, in points; 0 without one.
+    float modelPoints;
 };
+
+/// Below this across, a model is too small to stand in for its point
+/// (MODEL_MARKER_PIXELS on the web).
+constant float modelMarkerPoints = 10.0;
 
 /// Where a satellite is this frame, in the fixed frame. False when it is outside
 /// its window until the next refill.
@@ -51,7 +57,7 @@ vertex PointOut pointVertex(uint iid [[vertex_id]], const device packed_float3 *
     out.color = instances[iid].color;
     out.size = frame.pointSize;
     float3 position;
-    if (!satellitePosition(iid, samples, instances, frames, position)) {
+    if (!satellitePosition(iid, samples, instances, frames, position) || frames[iid].modelPoints >= modelMarkerPoints) {
         out.position = float4(0.0, 0.0, -2.0, 1.0);
         out.size = 0.0;
         return out;
