@@ -119,7 +119,8 @@ struct ContentView: View {
         }
         .overlay(alignment: .top) {
             // Between the tool menu and Share, level with them.
-            if session.showsPerformance, let renderer = session.renderer {
+            // The benchmark panel shows its own measurements in its place.
+            if session.showsPerformance, !session.showsBenchmark, let renderer = session.renderer {
                 PerformanceOverlay(renderer: renderer)
                     .padding(.top, 16)
             }
@@ -146,21 +147,28 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .bottom) {
-            // Flush with the bottom edge, as on the web.
-            ClockDeck(clock: session.clock, passes: session.passes, satellite: session.selectedSatellite) {
-                // Where the web app has its credit line: the map's sources are owed
-                // a link in sight of the map.
-                Button("Attribution") { showsAttribution = true }
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.8))
-                    .shadow(color: .black, radius: 2)
-                    .padding(.leading, 8)
-                    .lineLimit(1)
-                    // Larger text, up to the room left of the play button.
-                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                    .minimumScaleFactor(0.6)
+            VStack(spacing: 12) {
+                // Above the clock, clear of the buttons down either side.
+                if session.showsBenchmark, let renderer = session.renderer {
+                    BenchmarkPanel(session: session, renderer: renderer)
+                        .padding(.horizontal, 16)
+                }
+                // Flush with the bottom edge, as on the web.
+                ClockDeck(clock: session.clock, passes: session.passes, satellite: session.selectedSatellite) {
+                    // Where the web app has its credit line: the map's sources are owed
+                    // a link in sight of the map.
+                    Button("Attribution") { showsAttribution = true }
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.8))
+                        .shadow(color: .black, radius: 2)
+                        .padding(.leading, 8)
+                        .lineLimit(1)
+                        // Larger text, up to the room left of the play button.
+                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                        .minimumScaleFactor(0.6)
+                }
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity)
         }
         .sheet(isPresented: $showsBrowser) {
             BrowserView(catalog: session.catalog) { session.selection = .satellite($0.id) }
@@ -353,6 +361,7 @@ private struct SettingsMenu: View {
                 } set: {
                     session.setShowsPerformance($0)
                 })
+            Button("Benchmark", systemImage: "gauge.with.dots.needle.67percent") { session.setShowsBenchmark(true) }
             Toggle(
                 "Share usage data",
                 isOn: Binding {

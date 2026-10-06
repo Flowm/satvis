@@ -85,6 +85,10 @@ final class Session {
     /// Kept where the web keeps it, in the link as `fps=true`: a link the app
     /// does not otherwise read, written back as it came.
     private(set) var showsPerformance = false
+    /// The benchmark panel, the web app's `bench=true`, kept in the link the same
+    /// way; open through a run, whose scenes' links do not carry it.
+    private(set) var showsBenchmark = false
+    let benchmark = Benchmark()
 
     /// The view as it was left, as a link.
     private static let viewKey = "view"
@@ -179,6 +183,16 @@ final class Session {
                 await source.refresh()
                 await catalog.revalidate(refetching: false)
             }
+            if Benchmark.runsAtLaunch {
+                setShowsBenchmark(true)
+                Task {
+                    // The renderer is attached once the view has a size.
+                    while renderer == nil {
+                        try? await Task.sleep(for: .milliseconds(100))
+                    }
+                    benchmark.startAtLaunch(on: self)
+                }
+            }
             await satellites.run(clock: clock)
         } onCancel: {
             for watcher in watchers {
@@ -218,6 +232,19 @@ final class Session {
     }
 
     private static let performanceKey = "fps"
+
+    func setShowsBenchmark(_ shows: Bool) {
+        if !shows {
+            benchmark.cancel()
+        }
+        showsBenchmark = shows
+        foreign.items.removeAll { $0.key == Self.benchmarkKey }
+        if shows {
+            foreign.items.append(LinkQuery.Item(key: Self.benchmarkKey, values: ["true"]))
+        }
+    }
+
+    private static let benchmarkKey = "bench"
 
     /// Opens a link: what it shows replaces what is shown, as on the web.
     func open(_ link: Link) {
@@ -282,6 +309,7 @@ final class Session {
         let state = read.state
         foreign = read.foreign
         showsPerformance = foreign.items.contains { $0.key == Self.performanceKey && $0.values.last == "true" }
+        showsBenchmark = benchmark.isRunning || foreign.items.contains { $0.key == Self.benchmarkKey && $0.values.last == "true" }
         if let tracked {
             track(tracked, false)
         }
@@ -334,7 +362,8 @@ final class Session {
     private func countViews() async {
         var counted: Link?
         for await view in Observations({ self.link(sharing: false, withTime: false) }) {
-            guard started, view != counted else {
+            // A benchmark's scenes are not the user's views.
+            guard started, view != counted, !benchmark.isRunning else {
                 continue
             }
             counted = view

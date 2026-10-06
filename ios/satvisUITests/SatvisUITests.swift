@@ -84,6 +84,21 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(overlay.waitForNonExistence(timeout: 5))
     }
 
+    // The web app's `bench=true` opens the benchmark panel; Close puts it away,
+    // and the Settings menu brings it back.
+    @MainActor
+    func testOpensTheBenchmarkFromALink() {
+        let app = launch(link: "/?bench=true")
+        let start = app.buttons["Start"]
+        XCTAssert(start.waitForExistence(timeout: 30))
+        app.buttons["Close"].firstMatch.tap()
+        XCTAssert(start.waitForNonExistence(timeout: 5))
+        app.buttons["Menu"].tap()
+        app.buttons["Settings"].tap()
+        app.buttons["Benchmark"].firstMatch.tap()
+        XCTAssert(start.waitForExistence(timeout: 5))
+    }
+
     /// Launches with no worker to answer, on a link: by default the plain site,
     /// rather than the view an earlier run left.
     @MainActor

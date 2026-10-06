@@ -122,6 +122,17 @@ final class Analytics {
             "$pageview", properties: ["$current_url": url.absoluteString, "$host": url.host() ?? "", "$pathname": url.path()])
     }
 
+    /// An event the user sends by hand, as the benchmark's results: false where
+    /// nothing may be sent, so the view can say why.
+    func send(_ event: String, properties: [String: Any]) -> Bool {
+        guard Self.isSetUp else {
+            return false
+        }
+        PostHogSDK.shared.capture(event, properties: properties)
+        PostHogSDK.shared.flush()
+        return true
+    }
+
     private static func distribution(_ environment: AppStore.Environment) -> String {
         switch environment {
         case .production: "appstore"
