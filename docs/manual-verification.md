@@ -816,3 +816,18 @@ makes the frame faster, because the texture handed on is its 8-bit output rather
 the tonemapper's float one; every one of eight paired blocks was 2.2–2.9 ms faster.
 `gpuMs` stays blank, since the benchmark distrusts this driver's timer queries. Not
 measured on another GPU or at ratio 1.
+
+## Orbit batch: no bend where the loop closes
+
+**Why it cannot be a unit test.** The unit test stands in TEME for ICRF; the drift that
+bent the seam is checked here against the real IAU data.
+
+**Procedure.** `?tags=&sats=ISS+(ZARYA),NOAA+20+(JPSS-1)&elements=Point,Orbit&framems=16`.
+For starts 0.5, 5, 20 and 40 s ahead, take the largest bend between consecutive segments
+of `positionsForNextOrbit`, and of the loop closed straight back to the head. Then, as in
+the section above, the satellite's distance to its line over the next quarter period.
+
+**Result, 2026-10-06, Chrome (in-app browser pane, frame pump on).** Drift over one
+period: ISS 31 km, NOAA 20 54 km. Largest bend, closed straight back: ISS 7.6 to 42°,
+NOAA 20 3.2 to 6.1°; with the drift ramped out, 3.01° for both, the 3° of 120 samples an
+orbit. Worst gap: ISS 2.33 km, NOAA 20 2.47 km, unchanged.

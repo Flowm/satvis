@@ -1,4 +1,4 @@
-import { Cartesian3, JulianDate, Matrix3, ReferenceFrame, Transforms } from "@cesium/engine";
+import { Cartesian3, Math as CesiumMath, JulianDate, Matrix3, ReferenceFrame, Transforms } from "@cesium/engine";
 import dayjs from "dayjs";
 import { propagate } from "satellite.js";
 import { beforeEach, describe, expect, test, vi } from "vitest";
@@ -166,6 +166,25 @@ describe("SampledTrajectory", () => {
       const satellite = trajectory.inertial!.getValueInReferenceFrame(start, ReferenceFrame.INERTIAL)!;
 
       expect(Cartesian3.distance(positions[0]!, satellite)).toBeLessThan(1);
+      expect(positions.at(-1)).toBe(positions[0]);
+    }
+  });
+
+  test("positionsForNextOrbit closes the loop without a bend at the satellite", async () => {
+    // A real Earth rotation: with the identity, a period's drift is the Earth's turn, not J2's.
+    vi.spyOn(Transforms, "computeFixedToIcrfMatrix").mockImplementation((time) => Matrix3.transpose(Transforms.computeTemeToPseudoFixedMatrix(time), new Matrix3()));
+    const { trajectory } = issTrajectory();
+    await trajectory.ensure(T0);
+
+    const turn = (a: Cartesian3, b: Cartesian3, c: Cartesian3) => Cartesian3.angleBetween(Cartesian3.subtract(b, a, new Cartesian3()), Cartesian3.subtract(c, b, new Cartesian3()));
+    // A start just past a sample made the closing segment short and sideways: a 95° bend.
+    for (let offset = 1; offset < 50; offset += 7) {
+      const positions = trajectory.positionsForNextOrbit(JulianDate.addSeconds(T0, offset, new JulianDate()));
+      const bends = positions.slice(1, -1).map((position, index) => turn(positions[index]!, position, positions[index + 2]!));
+      bends.push(turn(positions.at(-2)!, positions[0]!, positions[1]!));
+
+      // 3° a vertex at 120 samples an orbit.
+      expect(Math.max(...bends)).toBeLessThan(CesiumMath.toRadians(3.2));
       expect(positions.at(-1)).toBe(positions[0]);
     }
   });
