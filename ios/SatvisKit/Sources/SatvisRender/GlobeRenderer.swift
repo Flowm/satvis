@@ -163,6 +163,22 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// The frames' averages over the last half second, while measured.
     public var frameStats: FrameStats? { measuresFrames ? meter.stats : nil }
+
+    /// Records every frame until `stopRecordingFrames`, measuring meanwhile.
+    public func startRecordingFrames() {
+        measuresFrames = true
+        meter.startRecording()
+    }
+
+    public func stopRecordingFrames() -> FrameRecording {
+        meter.stopRecording()
+    }
+
+    /// Satellites handed to the renderer, drawn or not.
+    public var satelliteCount: Int { points.count }
+
+    /// The size the last frame was drawn at, in pixels.
+    public var drawableSize: CGSize? { lastFrame.map { CGSize(width: $0.size.x, height: $0.size.y) } }
     private var pointFrameBuffers: [MTLBuffer?]
     private var frameIndex = 0
     private let inFlight = DispatchSemaphore(value: framesInFlight)
