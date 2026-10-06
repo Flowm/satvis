@@ -146,7 +146,7 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   `SATVIS_API` at `https://satvis.space` measures the real data and counts
   nothing.
 - The Settings menu's "Benchmark" is the web app's `bench=true`, kept in links
-  the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): seven scenes opened
+  the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): eight scenes opened
   by their links in turn, each waited for until everything active is drawn,
   settled 3 s and recorded 5 s frame by frame (`FrameRecording`), then the first
   again for drift, and the view put back. A run counts no page views. "Send
@@ -157,7 +157,9 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   or the metrics change. The panel drops its glass while measuring: blurring the
   globe cost the GPU 2 ms a frame on an iPad mini. `SATVIS_BENCHMARK` in the
   launch environment runs it at once, sends the results itself and prints them
-  as JSON, for a device driven from the Mac:
+  as JSON, for a device driven from the Mac; `SATVIS_BENCHMARK=print` only
+  prints them, and `SATVIS_BENCHMARK_SCENES` (scene ids by commas) runs only
+  those:
   `xcrun devicectl device process launch --console --environment-variables
   '{"SATVIS_BENCHMARK":"1"}' org.frcy.app.satvis`.
 - Analytics (`Analytics.swift`) is posthog-ios, set up from the app delegate as
