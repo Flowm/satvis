@@ -158,15 +158,22 @@ struct ContentView: View {
                 ClockDeck(clock: session.clock, passes: session.passes, satellite: session.selectedSatellite) {
                     // Where the web app has its credit line: the map's sources are owed
                     // a link in sight of the map.
-                    Button("Attribution") { showsAttribution = true }
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.8))
-                        .shadow(color: .black, radius: 2)
-                        .padding(.leading, 8)
-                        .lineLimit(1)
-                        // Larger text, up to the room left of the play button.
-                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                        .minimumScaleFactor(0.6)
+                    Button {
+                        showsAttribution = true
+                    } label: {
+                        // Tappable over the row's height, not just the small text's.
+                        Text("Attribution")
+                            .frame(maxHeight: .infinity)
+                            .contentShape(.rect)
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.8))
+                    .shadow(color: .black, radius: 2)
+                    .padding(.leading, 8)
+                    .lineLimit(1)
+                    // Larger text, up to the room left of the play button.
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    .minimumScaleFactor(0.6)
                 }
                 .frame(maxWidth: .infinity)
             }

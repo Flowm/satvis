@@ -42,6 +42,15 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.descendants(matching: .any)["Orbit track"].waitForExistence(timeout: 5))
     }
 
+    // The credits open from the link beside the clock.
+    @MainActor
+    func testOpensTheAttribution() {
+        let app = launch()
+        XCTAssert(app.buttons["Attribution"].waitForExistence(timeout: 30))
+        app.buttons["Attribution"].tap()
+        XCTAssert(app.buttons["Done"].waitForExistence(timeout: 5))
+    }
+
     // Paused, the clock falls behind the present, and the deck offers the way back
     // without anything else being touched.
     @MainActor
