@@ -3,8 +3,8 @@
 
 import type { Page } from "@playwright/test";
 
-import { openApp, waitForSky } from "./support/app";
-import { expect, test } from "./support/test";
+import { openApp, waitForSky } from "../support/app";
+import { expect, test } from "../support/test";
 
 /** SkyInteraction's WHEEL_ZOOM_RATE: a 100 px notch scales the field of view by e^0.15. */
 const WHEEL_ZOOM_RATE = 0.0015;

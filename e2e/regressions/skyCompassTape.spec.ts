@@ -4,8 +4,8 @@
 
 import type { Page } from "@playwright/test";
 
-import { openApp, waitForSky } from "./support/app";
-import { expect, test } from "./support/test";
+import { openApp, waitForSky } from "../support/app";
+import { expect, test } from "../support/test";
 
 /** The compass ticks' x and the elevation ticks' y, which follow the pitch. */
 const tapes = (page: Page) =>

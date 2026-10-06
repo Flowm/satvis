@@ -4,15 +4,13 @@
 
 import type { Page } from "@playwright/test";
 
-import { openApp, waitTicks } from "./support/app";
-import { expect, test } from "./support/test";
+import { openApp, PIXEL, waitTicks } from "../support/app";
+import { expect, test } from "../support/test";
 
 const DOMAINS: Record<string, string> = {
   "GOES-East_ABI_Band13_Clean_Infrared": "2026-10-01T00:00:00Z/2026-10-05T23:50:00Z/PT10M",
   VIIRS_SNPP_CorrectedReflectance_TrueColor: "2026-09-01/2026-10-05/P1D",
 };
-
-const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
 
 /** The `{Time}` of every GIBS tile requested, by layer, since the last `clear`. */
 function stubGibs(page: Page) {

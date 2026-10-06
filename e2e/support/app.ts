@@ -11,11 +11,21 @@ const FIXTURE_DIR = fileURLToPath(new URL("../fixtures/gp/", import.meta.url));
 /** Within a day of every fixture epoch (e2e/fixtures/gp). */
 export const FIXTURE_TIME = "2026-10-05T12:00Z";
 
-/** Serves `/api` from the fixture and aborts every request that leaves localhost. */
+/** The fixture's group sizes, which the default preset's counts follow. */
+export const fixtureGroupCount = (name: string): number => (JSON.parse(readFileSync(`${FIXTURE_DIR}${name}.json`, "utf8")) as unknown[]).length;
+
+/** One transparent pixel. */
+export const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+
+/**
+ * Serves `/api` from the fixture and keeps every request on localhost. A map tile
+ * from elsewhere (an image by its extension, as OSM's are) gets a transparent
+ * pixel, so a base map loads as if online; anything else is aborted.
+ */
 export async function useFixtureNetwork(page: Page): Promise<void> {
   await page.route(
     (url) => url.hostname !== "localhost",
-    (route) => route.abort("blockedbyclient"),
+    (route) => (/\.(png|jpe?g|webp)$/.test(new URL(route.request().url()).pathname) ? route.fulfill({ contentType: "image/png", body: PIXEL }) : route.abort("blockedbyclient")),
   );
   await page.route("**/api/groups.json", (route) => route.fulfill({ contentType: "application/json", body: readFileSync(`${FIXTURE_DIR}groups.json`) }));
   await page.route("**/api/gp/*.json", (route) => {
@@ -29,19 +39,70 @@ export async function useFixtureNetwork(page: Page): Promise<void> {
 }
 
 /**
- * Opens `query` at the fixture time and waits until the satellites are built and
- * the globe tiles are loaded. `setup` adds routes after the fixture's, which makes
- * them win: Playwright tries the last registered route first. A query that selects
- * no satellites passes `satellites: false`.
+ * Draws the globe at `factor` of its usual resolution, the CSS layout unchanged.
+ * SwiftShader's cost is mostly pixels: at 0.25 a frame costs a third and the boot
+ * two thirds. Wraps the widget's `resolutionScale`, because the app sets it from
+ * the `pixelratio` setting and would undo a plain assignment.
  */
-export async function openApp(page: Page, query: string, { setup, satellites = true }: { setup?: (page: Page) => Promise<void>; satellites?: boolean } = {}): Promise<void> {
+async function scaleRendering(page: Page, factor: number): Promise<void> {
+  await page.addInitScript((scale) => {
+    let controller: typeof window.cc;
+    Object.defineProperty(window, "cc", {
+      configurable: true,
+      get: () => controller,
+      set(value: NonNullable<typeof window.cc>) {
+        controller = value;
+        const widget = value.viewer.cesiumWidget;
+        const own = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(widget), "resolutionScale")!;
+        Object.defineProperty(widget, "resolutionScale", {
+          configurable: true,
+          get() {
+            return (own.get!.call(this) as number) / scale;
+          },
+          set(requested: number) {
+            own.set!.call(this, requested * scale);
+          },
+        });
+        widget.resolutionScale = 1;
+      },
+    });
+  }, factor);
+}
+
+export interface OpenOptions {
+  /** Routes added after the fixture's, which makes them win: Playwright tries the last registered route first. */
+  setup?: (page: Page) => Promise<void>;
+  /** False for a query that selects no satellites. */
+  satellites?: boolean;
+  /** Drawing-buffer pixels per CSS pixel; 1 for a spec that reads pixels. */
+  renderScale?: number;
+  /**
+   * Opens the url as given, with the browser's own clock moved to the fixture time
+   * and running, as a visitor's would be. Otherwise `time` pins the app's clock.
+   */
+  live?: boolean;
+}
+
+/**
+ * Opens `query` at the fixture time and waits until the satellites are built and
+ * the globe tiles are loaded.
+ */
+export async function openApp(page: Page, query: string, { setup, satellites = true, renderScale = 0.25, live = false }: OpenOptions = {}): Promise<void> {
   await useFixtureNetwork(page);
   await setup?.(page);
-  const params = new URLSearchParams(query);
-  if (!params.has("time")) {
-    params.set("time", FIXTURE_TIME);
+  if (renderScale !== 1) {
+    await scaleRendering(page, renderScale);
   }
-  await page.goto(`/?${params.toString().replaceAll("%2C", ",")}`);
+  if (live) {
+    await page.clock.install({ time: new Date(FIXTURE_TIME) });
+    await page.goto(query === "" ? "/" : `/?${query}`);
+  } else {
+    const params = new URLSearchParams(query);
+    if (!params.has("time")) {
+      params.set("time", FIXTURE_TIME);
+    }
+    await page.goto(`/?${params.toString().replaceAll("%2C", ",")}`);
+  }
   await waitForScene(page, satellites);
 }
 

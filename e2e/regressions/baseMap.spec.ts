@@ -6,11 +6,11 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { openApp, waitForScene } from "./support/app";
-import { expect, test } from "./support/test";
+import { openApp, waitForScene } from "../support/app";
+import { expect, test } from "../support/test";
 
 /** vite.config.ts: levels 0-2 are committed, `pnpm update-imagery` generates 3-5. */
-const CEILING = existsSync(fileURLToPath(new URL("../data/imagery/NaturalEarthII/3/0/0.webp", import.meta.url))) ? 5 : 2;
+const CEILING = existsSync(fileURLToPath(new URL("../../data/imagery/NaturalEarthII/3/0/0.webp", import.meta.url))) ? 5 : 2;
 
 test(`the default route shows NaturalEarth down to level ${CEILING} and no deeper`, async ({ page }) => {
   const levels = new Set<number>();

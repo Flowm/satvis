@@ -238,4 +238,4 @@ outright: the cut, in full, not a faster version of the movement.
   (CONTEXT.md, **Clock deck**). It was desktop-only while `minimalUI` hid Cesium's
   clock widgets on iOS.
 - **The overlay's click-through is checked in a real browser**, because the unit
-  tests have no layout: `e2e/skyHud.spec.ts`.
+  tests have no layout: `e2e/regressions/skyHud.spec.ts`.

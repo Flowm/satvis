@@ -5,8 +5,8 @@
 // none, the entity panel at 5, the toolbars at 6 and 7, and look-around listening
 // on the canvas.
 
-import { hitTest, openApp, selectSatellite, waitForSky } from "./support/app";
-import { expect, test } from "./support/test";
+import { hitTest, openApp, selectSatellite, waitForSky } from "../support/app";
+import { expect, test } from "../support/test";
 
 const CONTROLS = {
   "menu toggle": "#toolbarLeft .menuColumn__toggle",

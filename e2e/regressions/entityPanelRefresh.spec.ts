@@ -4,8 +4,8 @@
 
 import type { Page } from "@playwright/test";
 
-import { openApp, selectSatellite, waitTicks } from "./support/app";
-import { expect, test } from "./support/test";
+import { openApp, selectSatellite, waitTicks } from "../support/app";
+import { expect, test } from "../support/test";
 
 /**
  * Counts the ticks on which the panel text changed, over at least `minMs` and

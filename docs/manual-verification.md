@@ -520,9 +520,9 @@ re-measured from the `resize` listener.
 ## Attribution lightbox: the safe area on iOS
 
 **Covers:** the safe-area padding in `.cesium-credit-lightbox-mobile`
-(`src/css/main.css`). `e2e/attributionLightbox.spec.ts` checks that the lightbox
-covers the app chrome and closes; only a device with a notch shows whether the
-close button clears the status bar.
+(`src/css/main.css`). `e2e/regressions/attributionLightbox.spec.ts` checks that
+the lightbox covers the app chrome and closes; only a device with a notch shows
+whether the close button clears the status bar.
 
 **Procedure.** Run the iOS app against the change, tap `Attribution`, then tap the
 close button.

@@ -2,8 +2,8 @@
 // toolbars and the clock deck, with its close button out of reach, so nothing
 // closed it (main.css, .cesium-credit-lightbox-mobile).
 
-import { openApp } from "./support/app";
-import { expect, test } from "./support/test";
+import { openApp } from "../support/app";
+import { expect, test } from "../support/test";
 
 const overlay = ".cesium-credit-lightbox-overlay";
 

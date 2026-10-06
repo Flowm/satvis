@@ -15,9 +15,10 @@ workspace package). One `pnpm install` at the root covers both.
   (0001), satellite metadata and swath extents (0002), the sky view (0003),
   compass aiming (0004), surface models (0005), SATCAT enrichment (0006), model
   manifests (0007).
-- **`e2e/`** — Playwright specs against the running app, for what needs layout, a
-  GPU or frames. Read `e2e/support/app.ts` before writing one: it holds the
-  fixture, the helpers and why they count clock ticks.
+- **`e2e/`** — Playwright specs against the running app: `journeys/` walks the main
+  flows through the menus, `regressions/` pins down one past bug each, for what
+  needs layout, a GPU or frames. Read `e2e/support/app.ts` before writing one: it
+  holds the fixture, the helpers and why they count clock ticks.
 - **`docs/manual-verification.md`** — the checks no suite runs yet. Rerun the ones
   covering code you change, and record what they returned.
 - **`worker/src/gp/types.ts`** — the group, preset and satellite-table config

@@ -1,8 +1,8 @@
 // requestRenderMode (createViewer.ts) with every CallbackProperty user on: a paused
 // clock must draw nothing. Not under `bench=true`, which turns the mode off.
 
-import { openApp, rendersOverTicks, waitForQuiet } from "./support/app";
-import { expect, test } from "./support/test";
+import { openApp, rendersOverTicks, waitForQuiet } from "../support/app";
+import { expect, test } from "../support/test";
 
 const COMPONENTS = "Point,Label,Orbit,Orbit+track,Ground+track,Sensor+cone,Ground+station+link";
 
