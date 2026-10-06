@@ -179,4 +179,19 @@ import simd
         // From 6 rad to 0 is a quarter turn on, not most of one back.
         #expect(OrbitCamera.between(from, home, t: 0.5).heading > from.heading)
     }
+    // A flight into tracking sets off from the pose the camera was in and lands
+    // on the one it is heading for, upright all the way.
+    @Test func fliesFromOnePoseToAnother() {
+        let from = OrbitCamera.home(aspectRatio: 0.5).pose()
+        let to = TrackingCamera().pose(target: SIMD3(0, 7_000_000, 0))
+        let start = PoseFlight.pose(from: from, to: to, t: 0)
+        let end = PoseFlight.pose(from: from, to: to, t: 1)
+        #expect(simd.distance(start.position, from.position) < 1e-3 && simd.distance(start.back, from.back) < 1e-9)
+        #expect(simd.distance(end.position, to.position) < 1e-3 && simd.distance(end.back, to.back) < 1e-9)
+        for t in stride(from: 0.0, through: 1.0, by: 0.1) {
+            let pose = PoseFlight.pose(from: from, to: to, t: t)
+            #expect(abs(simd.length(pose.right) - 1) < 1e-9 && abs(dot(pose.right, pose.up)) < 1e-9)
+            #expect(simd.length(pose.position) > ellipsoidRadii.x)
+        }
+    }
 }

@@ -163,3 +163,15 @@ Menu → Satellite components. Once with `?tags=Starlink&elements=Point,Label`, 
 **Result, 2026-10-06.** With `elements` naming it, Label stayed on through the crossing
 of 200, with the note that labels show for up to 200 satellites. Without it, Label
 switched off and the note was gone, as on the web since 971e415.
+
+## Native app: flying into tracking, and home from it
+
+**Procedure.** In the iPhone 17e simulator on the default view, select FENGYUN 3A, tap
+Track in its panel, then the globe button, capturing the screen as fast as `simctl io`
+allows (a frame every 0.4 s or so).
+
+**Result, 2026-10-06.** Track flew from the home view to the tracking view over the
+satellite, a frame in between showing the globe turning, as the web app's Track button has
+since bf576a0; the clock ran on, since the flight heads for where the satellite is each
+frame rather than where it was. The globe button flew from the tracking view straight back
+to the home view, with no cut to the view tracking began from on the way.
