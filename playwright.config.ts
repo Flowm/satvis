@@ -12,7 +12,9 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]] : "list",
   use: {
     baseURL: `http://localhost:${PORT}`,
-    viewport: { width: 1000, height: 800 },
+    // A GitHub runner draws 1000×800 at about a frame a second and 640×400 twice as fast.
+    // Specs that measure layout set their own.
+    viewport: { width: 640, height: 400 },
     trace: "retain-on-failure",
   },
   projects: [

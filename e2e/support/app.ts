@@ -30,41 +30,89 @@ export async function useFixtureNetwork(page: Page): Promise<void> {
 
 /**
  * Opens `query` at the fixture time and waits until the satellites are built and
- * the globe tiles are loaded. Every console error fails the spec unless it matches
- * `allowErrors`.
+ * the globe tiles are loaded. `setup` adds routes after the fixture's, which makes
+ * them win: Playwright tries the last registered route first. A query that selects
+ * no satellites passes `satellites: false`.
  */
-export async function openApp(page: Page, query: string, { allowErrors = [] as RegExp[] } = {}): Promise<string[]> {
-  const errors: string[] = [];
-  page.on("console", (message) => {
-    if (message.type() === "error" && !allowErrors.some((pattern) => pattern.test(message.text()))) {
-      errors.push(message.text());
-    }
-  });
-  page.on("pageerror", (error) => errors.push(error.message));
-
+export async function openApp(page: Page, query: string, { setup, satellites = true }: { setup?: (page: Page) => Promise<void>; satellites?: boolean } = {}): Promise<void> {
   await useFixtureNetwork(page);
+  await setup?.(page);
   const params = new URLSearchParams(query);
   if (!params.has("time")) {
     params.set("time", FIXTURE_TIME);
   }
   await page.goto(`/?${params.toString().replaceAll("%2C", ",")}`);
-  await waitForScene(page);
-  return errors;
+  await waitForScene(page, satellites);
 }
 
 /** Built satellites and loaded tiles. A frame must run for either to change. */
-export async function waitForScene(page: Page): Promise<void> {
+export async function waitForScene(page: Page, satellites = true): Promise<void> {
   await page.waitForFunction(() => window.cc !== undefined);
   await expect
-    .poll(() => page.evaluate(() => window.cc!.sats.activeSatellites.length > 0 && !window.cc!.sats.building && window.cc!.viewer.scene.globe.tilesLoaded), {
-      message: "satellites built and globe tiles loaded",
-    })
+    .poll(
+      () =>
+        page.evaluate((wanted) => (!wanted || window.cc!.sats.activeSatellites.length > 0) && !window.cc!.sats.building && window.cc!.viewer.scene.globe.tilesLoaded, satellites),
+      { message: satellites ? "satellites built and globe tiles loaded" : "globe tiles loaded" },
+    )
     .toBe(true);
+}
+
+/** Waits for the sky view's descent to land. */
+export async function waitForSky(page: Page): Promise<void> {
+  await expect.poll(() => page.evaluate(() => window.cc!.skyView.settled), { message: "sky view landed" }).toBe(true);
+}
+
+/** Selects the active satellite named `name`, or the first one, as a click on it would. */
+export async function selectSatellite(page: Page, name?: string): Promise<void> {
+  await page.evaluate((wanted) => {
+    const sats = window.cc!.sats.activeSatellites;
+    const sat = wanted === undefined ? sats[0] : sats.find((candidate) => candidate.props.name === wanted);
+    if (!sat) {
+      throw new Error(`no active satellite ${wanted ?? ""}`);
+    }
+    window.cc!.viewer.selectedEntity = sat.defaultEntity;
+  }, name);
+}
+
+/** Whether a click at the centre of each selector's element would reach it, or what it would hit instead. */
+export async function hitTest(page: Page, selectors: Record<string, string>): Promise<Record<string, string>> {
+  return page.evaluate((entries) => {
+    const result: Record<string, string> = {};
+    for (const [name, selector] of Object.entries(entries)) {
+      const element = document.querySelector(selector);
+      if (!element) {
+        result[name] = "missing";
+        continue;
+      }
+      const box = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      result[name] = element.contains(hit) ? "clickable" : `blocked by ${hit ? `${hit.tagName.toLowerCase()}.${[...hit.classList].join(".")}` : "nothing"}`;
+    }
+    return result;
+  }, selectors);
 }
 
 // The helpers below count clock ticks, not milliseconds: a GitHub runner's SwiftShader
 // draws about 1 frame a second, a laptop's 5, a GPU 60. Every frame ticks the clock
 // whether or not it renders.
+
+/** Returns after `ticks` more clock ticks. */
+export async function waitTicks(page: Page, ticks: number): Promise<void> {
+  await page.evaluate(
+    (count) =>
+      new Promise<void>((resolve) => {
+        let seen = 0;
+        const off = window.cc!.viewer.clock.onTick.addEventListener(() => {
+          seen += 1;
+          if (seen >= count) {
+            off();
+            resolve();
+          }
+        });
+      }),
+    ticks,
+  );
+}
 
 /**
  * Returns once `quietTicks` ticks and `quietMs` in a row pass without a render, or

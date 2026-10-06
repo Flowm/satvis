@@ -18,5 +18,13 @@
     "browser": true,
     "vue": true
   },
+  "overrides": [
+    {
+      "files": ["e2e/**"],
+      "rules": {
+        "no-await-in-loop": "off"
+      }
+    }
+  ],
   "ignorePatterns": ["dist", "data", "ios", "worker"]
 }
