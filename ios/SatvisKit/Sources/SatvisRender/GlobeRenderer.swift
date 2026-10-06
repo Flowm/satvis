@@ -892,6 +892,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                     var kind = Int32(kind)
                     encoder.setRenderPipelineState(linePipeline)
                     encoder.setVertexBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
+                    encoder.setFragmentBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
                     encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 2 * 121, instanceCount: points.count)
                 }
                 if components.contains(.point) {

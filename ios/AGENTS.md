@@ -62,6 +62,10 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   bumps along the limb and a shell fine enough to hide them cost 3 ms a frame.
   Satellites are points the vertex shader interpolates from each one's sampled
   trajectory, with the web app's quintic; the CPU only finds each stencil.
+  Orbits behind the Earth are drawn with no width, so the GPU drops their
+  triangles before sorting them into tiles: with every active satellite's orbit
+  that took an iPad mini's GPU from 57 to 33 ms a frame, where cheaper pixels
+  saved 4.
   The ground tracks are drawn once a second into the ground overlay, a cube map
   around the Earth's centre that the globe samples by direction, so they will
   follow terrain; `RendererTests` holds its faces to Metal's own cube lookup. The
