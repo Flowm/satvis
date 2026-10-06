@@ -60,6 +60,19 @@ struct PointInstance {
     var stepSeconds: Float
 }
 
+/// What finding a satellite's stencil needs of its trajectory, packed with every
+/// other satellite's into one array: a frame reads it in order, where reading
+/// each trajectory took 41% of the CPU with 16,000 satellites on an iPad mini,
+/// most of it waiting on memory.
+struct StencilWindow {
+    var anchor: Double
+    var step: Double
+    var firstIndex: Int
+    var count: Int
+    /// Every node propagated, so no stencil's nodes need checking.
+    var isComplete: Bool
+}
+
 /// Mirrors `PointFrame` in Shaders/Points.msl.
 struct PointFrame {
     var stencilStart: UInt32
@@ -79,10 +92,18 @@ public struct PreparedSatellites: @unchecked Sendable {
     let cones: (buffer: MTLBuffer, count: Int)?
     /// The satellites with a 3D model, by index: a handful among thousands.
     let modelled: [Int]
+    /// Each satellite's, in the same order.
+    let windows: [StencilWindow]
 
     init(_ satellites: [PointSatellite], device: MTLDevice, labelScale: Double) {
         self.satellites = satellites
         modelled = satellites.indices.filter { satellites[$0].modelFile != nil }
+        windows = satellites.map {
+            let trajectory = $0.trajectory
+            return StencilWindow(
+                anchor: trajectory.anchorMilliseconds, step: trajectory.stepMilliseconds, firstIndex: trajectory.firstIndex,
+                count: trajectory.positions.count, isComplete: trajectory.isComplete)
+        }
         let sampleCount = satellites.reduce(0) { $0 + $1.trajectory.positions.count }
         guard sampleCount > 0,
             let samples = device.makeBuffer(length: sampleCount * 3 * MemoryLayout<Float>.stride, options: .storageModeShared),
@@ -145,13 +166,28 @@ final class SatellitePoints {
     /// A satellite outside its window, or past a refused node, is hidden until
     /// the next refill.
     func writeFrames(at epochMilliseconds: Double, into buffer: MTLBuffer) {
-        let frames = buffer.contents().bindMemory(to: PointFrame.self, capacity: count)
-        for (index, satellite) in satellites.enumerated() {
-            if let (start, offset) = satellite.trajectory.stencil(at: epochMilliseconds) {
-                frames[index] = PointFrame(stencilStart: UInt32(start), offset: Float(offset))
-            } else {
-                frames[index] = PointFrame(stencilStart: 0, offset: -1)
-            }
+        guard let prepared else {
+            return
+        }
+        Self.writeFrames(
+            prepared.windows, satellites: prepared.satellites, at: epochMilliseconds,
+            into: buffer.contents().bindMemory(to: PointFrame.self, capacity: prepared.windows.count))
+    }
+
+    /// Off the main actor's isolation: in it, Swift checked it was on the main
+    /// actor on every turn of this loop, 1.3 ms a frame with 16,000 satellites on
+    /// an iPad mini.
+    private nonisolated static func writeFrames(
+        _ windows: [StencilWindow], satellites: [PointSatellite], at epochMilliseconds: Double, into frames: UnsafeMutablePointer<PointFrame>
+    ) {
+        for index in windows.indices {
+            let window = windows[index]
+            // Only a window with a refused node reads its trajectory.
+            let stencil =
+                window.isComplete
+                ? SampledTrajectory.stencil(at: epochMilliseconds, anchor: window.anchor, step: window.step, firstIndex: window.firstIndex, count: window.count)
+                : satellites[index].trajectory.stencil(at: epochMilliseconds)
+            frames[index] = stencil.map { PointFrame(stencilStart: UInt32($0.start), offset: Float($0.offset)) } ?? PointFrame(stencilStart: 0, offset: -1)
         }
     }
 

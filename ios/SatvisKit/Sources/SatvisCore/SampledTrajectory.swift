@@ -62,18 +62,35 @@ public struct SampledTrajectory: Sendable {
     /// past that node it is, in steps (2 ≤ fraction < 3 for a centred stencil).
     /// Nil outside the samples, and where one of its nodes was refused.
     public func stencil(at epochMilliseconds: Double) -> (start: Int, offset: Double)? {
-        let u = (epochMilliseconds - anchorMilliseconds) / stepMilliseconds - Double(firstIndex)
-        // Checked before it becomes an Int, which traps on a NaN or a huge value.
-        guard u >= 0, u < Double(positions.count) else {
-            return nil
-        }
-        let start = Int(u.rounded(.down)) - (Self.stencil / 2 - 1)
-        guard start >= 0, start + Self.stencil <= positions.count,
+        guard
+            let (start, offset) = Self.stencil(
+                at: epochMilliseconds, anchor: anchorMilliseconds, step: stepMilliseconds, firstIndex: firstIndex, count: positions.count),
             positions[start..<start + Self.stencil].allSatisfy({ $0.x.isFinite })
         else {
             return nil
         }
+        return (start, offset)
+    }
+
+    /// The stencil of a window with these bounds, its nodes' refusals aside: what
+    /// a caller holding thousands of windows works out from a few numbers each,
+    /// without reading the positions.
+    public static func stencil(at epochMilliseconds: Double, anchor: Double, step: Double, firstIndex: Int, count: Int) -> (start: Int, offset: Double)? {
+        let u = (epochMilliseconds - anchor) / step - Double(firstIndex)
+        // Checked before it becomes an Int, which traps on a NaN or a huge value.
+        guard u >= 0, u < Double(count) else {
+            return nil
+        }
+        let start = Int(u.rounded(.down)) - (stencil / 2 - 1)
+        guard start >= 0, start + stencil <= count else {
+            return nil
+        }
         return (start, u - Double(start))
+    }
+
+    /// Whether SGP4 gave every node: then no stencil needs its nodes checked.
+    public var isComplete: Bool {
+        positions.allSatisfy { $0.x.isFinite }
     }
 
     public func position(at epochMilliseconds: Double) -> SIMD3<Double>? {
