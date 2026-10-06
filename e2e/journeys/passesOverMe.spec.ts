@@ -1,6 +1,6 @@
-import { openApp } from "../support/app";
+import { clockMs, openApp } from "../support/app";
 import { expect, test } from "../support/test";
-import { addStationHere, openMenu } from "../support/ui";
+import { addStationHere, showInfo } from "../support/ui";
 
 const ISS = "ISS (ZARYA)";
 
@@ -10,9 +10,7 @@ test("the ISS lists its passes over my location, and a pass can be jumped to", a
   await openApp(page, "", { live: true });
   await addStationHere(page, "Munich");
 
-  await openMenu(page, "Satellites");
-  await page.getByPlaceholder("Search satellites").fill("ISS");
-  await page.getByRole("button", { name: `Show info for ${ISS}` }).click();
+  await showInfo(page, ISS);
 
   const panel = page.locator(".entity-info-panel");
   const passesTab = panel.getByRole("tab", { name: /Passes/ });
@@ -31,7 +29,7 @@ test("the ISS lists its passes over my location, and a pass can be jumped to", a
   const picked = panel.locator("tbody tr.is-picked");
   const startMs = Number(await picked.getAttribute("data-start-ms"));
   await picked.locator("a.link").click();
-  await expect.poll(() => page.evaluate(() => Date.parse(window.cc!.viewer.clock.currentTime.toString()))).toBeGreaterThanOrEqual(startMs);
+  await expect.poll(() => clockMs(page)).toBeGreaterThanOrEqual(startMs);
   await expect(panel.locator(".hero__label")).toContainText("Overhead now");
   await expect(page.getByRole("img", { name: "Live" })).toBeHidden();
   // To the minute, and the clock runs on: the pass's start minute or the one after.

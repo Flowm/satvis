@@ -3,9 +3,9 @@
 
 import type { Page } from "@playwright/test";
 
-import { openApp, waitForSky } from "../support/app";
+import { canvasBox, openApp, waitForSky } from "../support/app";
 import { expect, test } from "../support/test";
-import { menuSwitch, openMenu } from "../support/ui";
+import { menuSwitch, openMenu, toasts, touchscreen } from "../support/ui";
 
 // The headless shell asks DeviceOrientationEvent.requestPermission; without these it is denied.
 test.use({ viewport: { width: 1000, height: 800 }, permissions: ["accelerometer", "gyroscope", "magnetometer"] });
@@ -25,16 +25,15 @@ let centre: { x: number; y: number };
 test.beforeEach(async ({ page }) => {
   await openApp(page, "scene=Sky&gs=48.1372,11.5756,Munich");
   await waitForSky(page);
-  const box = (await page.locator("#cesiumContainer canvas").boundingBox())!;
-  centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const { cx, cy } = await canvasBox(page);
+  centre = { x: cx, y: cy };
   await startSensor(page);
   await openMenu(page, "View");
 });
 
 async function aimByCompass(page: Page) {
   await menuSwitch(page, "Use compass").click();
-  const toasts = page.getByRole("region", { name: /Notifications/ }).getByRole("listitem");
-  await expect(toasts.filter({ hasText: "Aiming by compass" })).toHaveCount(1);
+  await expect(toasts(page, "Aiming by compass")).toHaveCount(1);
   await expect(compassSwitch(page)).toBeChecked();
   expect((await sky(page)).aiming).toBe(true);
 }
@@ -77,7 +76,7 @@ test("a drag during the sensor probe cancels quietly", async ({ page }) => {
   await expect(compassSwitch(page)).not.toBeChecked();
   expect((await sky(page)).aiming).toBe(false);
   expect((await sky(page)).aim.roll).toBe(0);
-  await expect(page.getByText("Compass aiming unavailable")).toHaveCount(0);
+  await expect(toasts(page, "Compass aiming unavailable")).toHaveCount(0);
 });
 
 test("a pinch zooms without ending compass aiming, and its last finger must really drag", async ({ page }) => {
@@ -85,10 +84,7 @@ test("a pinch zooms without ending compass aiming, and its last finger must real
   await page.evaluate(() => (window.cc!.viewer.selectedEntity = undefined));
   const before = await sky(page);
   const { x, y } = centre;
-  // CDP keys fingers by `id`: touchEnd releases the points it lists.
-  const cdp = await page.context().newCDPSession(page);
-  const touch = (type: "touchStart" | "touchMove" | "touchEnd", points: [id: number, x: number, y: number][]) =>
-    cdp.send("Input.dispatchTouchEvent", { type, touchPoints: points.map(([id, px, py]) => ({ id, x: px, y: py })) });
+  const touch = await touchscreen(page);
 
   await touch("touchStart", [[0, x - 50, y]]);
   await touch("touchStart", [

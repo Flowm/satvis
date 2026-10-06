@@ -2,9 +2,9 @@
 
 import type { Page } from "@playwright/test";
 
-import { openApp, waitForSky } from "../support/app";
+import { canvasBox, openApp, waitForSky } from "../support/app";
 import { expect, test } from "../support/test";
-import { addStationHere, clickEntity, closeMenuPanel, menuSwitch, openMenu } from "../support/ui";
+import { addStationHere, clickEntity, closeMenuPanel, menuSwitch, openMenu, showInfo } from "../support/ui";
 
 const MUNICH = { latitude: 48.1372, longitude: 11.5756 };
 const TARGET = "METEOSAT-12 (MTG-I1)";
@@ -45,9 +45,7 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
 
   // A satellite's panel opens on Details. A station has no Details, so clicking its pin
   // must switch the panel to Passes rather than leave the body empty.
-  await openMenu(page, "Satellites");
-  await page.getByPlaceholder("Search satellites").fill("ISS");
-  await page.getByRole("button", { name: "Show info for ISS (ZARYA)" }).click();
+  await showInfo(page, "ISS (ZARYA)");
   await closeMenuPanel(page, "Satellites");
   const panel = page.locator(".entity-info-panel");
   await expect(panel.getByRole("tab", { name: "Details" })).toHaveAttribute("aria-selected", "true");
@@ -63,10 +61,10 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   // The view follows the cursor, so this drag puts the target under the crosshair.
   const target = await skyPosition(page, TARGET);
   const view = await page.evaluate(() => ({ ...window.cc!.skyView.aim, fovy: window.cc!.skyView.fovy }));
-  const box = (await page.locator("#cesiumContainer canvas").boundingBox())!;
+  const box = await canvasBox(page);
   const perPixel = view.fovy / box.height;
   const turn = ((view.azimuth - target.azimuth + 540) % 360) - 180;
-  const [cx, cy] = [box.x + box.width / 2, box.y + box.height / 2];
+  const { cx, cy } = box;
   await page.mouse.move(cx, cy);
   await page.mouse.down();
   await page.mouse.move(cx + turn / perPixel, cy + (target.elevation - view.pitch) / perPixel, { steps: 10 });

@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 
 import { openApp, waitTicks } from "../support/app";
 import { expect, test } from "../support/test";
-import { DEVICES, openMenu } from "../support/ui";
+import { DEVICES, showInfo } from "../support/ui";
 
 const ISS = "ISS (ZARYA)";
 
@@ -22,9 +22,7 @@ for (const [device, options] of Object.entries(DEVICES)) {
     test("search for the ISS, read its details, and follow it", async ({ page }) => {
       await openApp(page, "", { live: true });
 
-      await openMenu(page, "Satellites");
-      await page.getByPlaceholder("Search satellites").fill("ISS");
-      await page.getByRole("button", { name: `Show info for ${ISS}` }).click();
+      await showInfo(page, ISS);
       // On a phone the catalog and the menu column make way for the info panel.
       await expect(page.getByRole("region", { name: "Satellites" })).toBeVisible({ visible: device === "desktop" });
 

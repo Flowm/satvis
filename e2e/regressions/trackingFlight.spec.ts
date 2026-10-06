@@ -2,7 +2,7 @@
 
 import type { Page } from "@playwright/test";
 
-import { openApp, selectSatellite, waitTicks } from "../support/app";
+import { openApp, selectSatellite, waitForSky, waitTicks } from "../support/app";
 import { expect, test } from "../support/test";
 import { menuSwitch, openMenu } from "../support/ui";
 
@@ -103,7 +103,7 @@ test("the sky view takes the camera from a flight: nothing tracked, the clock ru
   await openMenu(page, "View");
   await track(page, ISS);
   await menuSwitch(page, "Sky").click();
-  await expect.poll(() => page.evaluate(() => window.cc!.skyView.settled)).toBe(true);
+  await waitForSky(page);
   await waitTicks(page, 20);
   expect(await tracked(page)).toBeUndefined();
   expect((await trackingChanges(page)).map((change) => change.name).filter(Boolean)).toEqual([]);

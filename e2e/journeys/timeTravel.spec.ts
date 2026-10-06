@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-import { FIXTURE_TIME, openApp } from "../support/app";
+import { clockMs, FIXTURE_TIME, openApp } from "../support/app";
 import { expect, test } from "../support/test";
 import { openClockDeck } from "../support/ui";
 
@@ -9,7 +9,6 @@ import { openClockDeck } from "../support/ui";
 // covers the coast.
 test.use({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce" });
 
-const clockMs = (page: Page) => page.evaluate(() => Date.parse(window.cc!.viewer.clock.currentTime.toString()));
 const pinned = (page: Page) => new URL(page.url()).searchParams.get("time");
 
 test("pause, drag an hour back, speed up, and return to now", async ({ page }) => {

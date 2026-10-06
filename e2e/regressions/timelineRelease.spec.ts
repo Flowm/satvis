@@ -3,13 +3,11 @@
 
 import type { Page } from "@playwright/test";
 
-import { openApp, waitTicks } from "../support/app";
+import { clockMs, openApp, steady } from "../support/app";
 import { expect, test } from "../support/test";
 import { openClockDeck } from "../support/ui";
 
 test.use({ viewport: { width: 1280, height: 800 } });
-
-const clockMs = (page: Page) => page.evaluate(() => Date.parse(window.cc!.viewer.clock.currentTime.toString()));
 
 /**
  * Drags the paused timeline 150 px (an hour) to the right, holding `holdMs` before
@@ -41,15 +39,8 @@ async function dragAnHour(page: Page, { holdMs }: { holdMs: number }): Promise<n
     }
     fire("pointerup", x + 150);
   }, holdMs);
-  // Settled: unmoved across three frames, since a coast advances on every one.
-  await expect
-    .poll(async () => {
-      const first = await clockMs(page);
-      await waitTicks(page, 3);
-      return first === (await clockMs(page));
-    })
-    .toBe(true);
-  return (before - (await clockMs(page))) / 60_000;
+  // A coast advances on every frame, so a clock steady across three has settled.
+  return (before - (await steady(page, () => clockMs(page)))) / 60_000;
 }
 
 test("a drag held still before release does not coast; one let go moving does", async ({ page }) => {

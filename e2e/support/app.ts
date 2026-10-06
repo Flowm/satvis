@@ -153,6 +153,31 @@ export async function hitTest(page: Page, selectors: Record<string, string>): Pr
   }, selectors);
 }
 
+/** The globe canvas's box, and its centre in page coordinates. */
+export async function canvasBox(page: Page): Promise<{ x: number; y: number; width: number; height: number; cx: number; cy: number }> {
+  const box = (await page.locator("#cesiumContainer canvas").boundingBox())!;
+  return { ...box, cx: box.x + box.width / 2, cy: box.y + box.height / 2 };
+}
+
+/** The viewer's clock, in epoch ms. */
+export const clockMs = (page: Page): Promise<number> => page.evaluate(() => Date.parse(window.cc!.viewer.clock.currentTime.toString()));
+
+/** Sets the viewer's clock to an ISO 8601 time. JulianDate is not on `window`, so it is reached through the clock's own. */
+export const setClock = (page: Page, iso: string): Promise<void> =>
+  page.evaluate((time) => {
+    const { clock } = window.cc!.viewer;
+    const JulianDate = clock.currentTime.constructor as unknown as { fromIso8601: (value: string) => typeof clock.currentTime };
+    clock.currentTime = JulianDate.fromIso8601(time);
+  }, iso);
+
+/** Moves the viewer's clock by `minutes`. */
+export const moveClock = (page: Page, minutes: number): Promise<void> =>
+  page.evaluate((delta) => {
+    const { clock } = window.cc!.viewer;
+    const JulianDate = clock.currentTime.constructor as unknown as { addMinutes: (time: unknown, value: number, result: unknown) => typeof clock.currentTime };
+    clock.currentTime = JulianDate.addMinutes(clock.currentTime, delta, clock.currentTime.clone());
+  }, minutes);
+
 // The helpers below count clock ticks, not milliseconds: a GitHub runner's SwiftShader
 // draws about 1 frame a second, a laptop's 5, a GPU 60. Every frame ticks the clock
 // whether or not it renders.
@@ -173,6 +198,19 @@ export async function waitTicks(page: Page, ticks: number): Promise<void> {
       }),
     ticks,
   );
+}
+
+/** Waits until `read` gives the same value across three frames, and returns it. */
+export async function steady<T>(page: Page, read: () => Promise<T>): Promise<T> {
+  let value!: T;
+  await expect
+    .poll(async () => {
+      value = await read();
+      await waitTicks(page, 3);
+      return JSON.stringify(value) === JSON.stringify(await read());
+    })
+    .toBe(true);
+  return value;
 }
 
 /**

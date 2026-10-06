@@ -3,7 +3,7 @@
 
 import type { Page } from "@playwright/test";
 
-import { openApp, selectSatellite, waitTicks } from "../support/app";
+import { moveClock, openApp, selectSatellite, waitTicks } from "../support/app";
 import { expect, test } from "../support/test";
 
 /**
@@ -62,13 +62,7 @@ test("the panel stays still while paused, and catches up once after a jump", asy
   expect((await watchPanel(page, 1500, 10)).changes).toBe(0);
 
   const before = await page.locator(".entity-info-panel").innerText();
-  await page.evaluate(() => {
-    const { clock } = window.cc!.viewer;
-    const JulianDate = clock.currentTime.constructor as typeof clock.currentTime.constructor & {
-      addMinutes: (time: unknown, minutes: number, result: unknown) => typeof clock.currentTime;
-    };
-    clock.currentTime = JulianDate.addMinutes(clock.currentTime, 30, clock.currentTime.clone());
-  });
+  await moveClock(page, 30);
   await expect.poll(() => page.locator(".entity-info-panel").innerText(), { timeout: 10_000 }).not.toBe(before);
   expect((await watchPanel(page, 1500, 10)).changes).toBe(0);
 });

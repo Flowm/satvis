@@ -4,18 +4,16 @@ import type { Page } from "@playwright/test";
 
 import { openApp } from "../support/app";
 import { collectConsoleErrors, expect, test } from "../support/test";
+import { menuSwitch, openMenu, searchSatellites } from "../support/ui";
 
 const ISS = "ISS (ZARYA)";
 const MUNICH = { latitude: 48.1372, longitude: 11.5756 };
 
 test.use({ geolocation: MUNICH, permissions: ["geolocation"], viewport: { width: 1280, height: 800 } });
 
-const menu = (page: Page, entry: string) => page.getByRole("button", { name: entry, exact: true }).click();
-const toggle = (page: Page, label: string) => page.locator("label.toolbarSwitch", { hasText: new RegExp(`^\\s*${label}\\s*$`) });
-
 /** What the scene shows, read from the menus a visitor would look at. */
 async function sceneState(page: Page) {
-  await menu(page, "Ground station");
+  await openMenu(page, "Ground station");
   const station = page.locator(".gsList__row").first();
   const state = {
     satellites: await page.evaluate(() => window.cc!.sats.activeSatellites.map((sat) => sat.props.name).toSorted()),
@@ -24,38 +22,37 @@ async function sceneState(page: Page) {
     basemap: "",
     scene: "",
   };
-  await menu(page, "Components");
-  state.groundTrack = await toggle(page, "Ground track").locator("input").isChecked();
-  await menu(page, "Map");
+  await openMenu(page, "Components");
+  state.groundTrack = await menuSwitch(page, "Ground track").locator("input").isChecked();
+  await openMenu(page, "Map");
   state.basemap = await page.locator('input[name="basemap"]:checked').inputValue();
-  await menu(page, "View");
-  state.scene = (await toggle(page, "2D").locator("input").isChecked()) ? "2D" : "other";
+  await openMenu(page, "View");
+  state.scene = (await menuSwitch(page, "2D").locator("input").isChecked()) ? "2D" : "other";
   return state;
 }
 
 test("a scene set up through the menus survives the trip through its url", async ({ page, browser }) => {
   await openApp(page, "", { live: true });
 
-  await menu(page, "Satellites");
-  await page.getByPlaceholder("Search satellites").fill("ISS");
+  await searchSatellites(page, "ISS");
   await page.getByRole("checkbox", { name: `Toggle ${ISS}` }).click();
   await page.getByRole("button", { name: "Clear search" }).click();
   await page.getByRole("checkbox", { name: "Toggle group Weather" }).click();
   await expect.poll(() => page.evaluate(() => window.cc!.sats.activeSatellites.map((sat) => sat.props.name))).toEqual([ISS]);
 
-  await menu(page, "Ground station");
+  await openMenu(page, "Ground station");
   await page.getByRole("button", { name: "My location" }).click();
   const station = page.locator(".gsList__row").first();
   await expect(station.getByLabel("Latitude")).toHaveValue(String(MUNICH.latitude));
   await station.getByLabel("Name").fill("Munich");
   await station.getByLabel("Name").press("Enter");
 
-  await menu(page, "Components");
-  await toggle(page, "Ground track").click();
-  await menu(page, "Map");
-  await toggle(page, "OSM").click();
-  await menu(page, "View");
-  await toggle(page, "2D").click();
+  await openMenu(page, "Components");
+  await menuSwitch(page, "Ground track").click();
+  await openMenu(page, "Map");
+  await menuSwitch(page, "OSM").click();
+  await openMenu(page, "View");
+  await menuSwitch(page, "2D").click();
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.scene.mode)).toBe(2);
 
   const before = await sceneState(page);

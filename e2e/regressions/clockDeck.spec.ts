@@ -1,7 +1,7 @@
 // The credit line shares the bottom edge with the deck, placed at breakpoints measured
 // off the credit box (useClockDeckChrome, main.css).
 
-import { hitTest, openApp } from "../support/app";
+import { hitTest, openApp, steady } from "../support/app";
 import { expect, test } from "../support/test";
 
 /** Each breakpoint and its neighbour, with the credit placement expected there. */
@@ -67,17 +67,8 @@ test("folding keeps the clock still, the ladder keeps the height, and a swipe re
   await page.mouse.down();
   await page.mouse.move(x - 160, y, { steps: 8 });
   await page.mouse.up();
-  const scroll = () => ladder.evaluate((element) => element.scrollLeft);
-  await expect
-    .poll(
-      async () => {
-        const first = await scroll();
-        await page.waitForTimeout(300);
-        return first === (await scroll()) && first % 64 === 0;
-      },
-      { message: "the ladder rests on a rung" },
-    )
-    .toBe(true);
-  const rung = Math.round((await scroll()) / 64);
+  const scrollLeft = await steady(page, () => ladder.evaluate((element) => element.scrollLeft));
+  expect(scrollLeft % 64, "the ladder rests on a rung").toBe(0);
+  const rung = scrollLeft / 64;
   await expect(ladder.getByRole("radio").nth(rung)).toHaveAttribute("aria-checked", "true");
 });

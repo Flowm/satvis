@@ -1,7 +1,8 @@
 import type { Page } from "@playwright/test";
 
-import { openApp, waitForSky } from "../support/app";
+import { canvasBox, openApp, waitForSky } from "../support/app";
 import { expect, test } from "../support/test";
+import { touchscreen } from "../support/ui";
 
 /** SkyInteraction's WHEEL_ZOOM_RATE: a 100 px notch scales the field of view by e^0.15. */
 const WHEEL_ZOOM_RATE = 0.0015;
@@ -11,8 +12,8 @@ const view = (page: Page) => page.evaluate(() => ({ fovy: window.cc!.skyView.fov
 test.beforeEach(async ({ page }) => {
   await openApp(page, "scene=Sky&gs=48.1400,11.5800");
   await waitForSky(page);
-  const box = (await page.locator("#cesiumContainer canvas").boundingBox())!;
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const { cx, cy } = await canvasBox(page);
+  await page.mouse.move(cx, cy);
   expect((await view(page)).fovy).toBe(75);
 });
 
@@ -48,12 +49,9 @@ test("the wheel clamps the field of view and reads line deltas", async ({ page }
 
 test("a pinch scales the field of view by the finger spread, and the last finger drags on without a jump", async ({ page }) => {
   const start = await view(page);
-  const box = (await page.locator("#cesiumContainer canvas").boundingBox())!;
-  const [cx, cy] = [box.x + box.width / 2, box.y + box.height / 2];
-  // CDP keys fingers by `id`: touchEnd releases the points it lists, touchMove moves them.
-  const cdp = await page.context().newCDPSession(page);
-  const touch = (type: "touchStart" | "touchMove" | "touchEnd", points: [id: number, x: number, y: number][]) =>
-    cdp.send("Input.dispatchTouchEvent", { type, touchPoints: points.map(([id, x, y]) => ({ id, x, y })) });
+  const box = await canvasBox(page);
+  const { cx, cy } = box;
+  const touch = await touchscreen(page);
 
   await touch("touchStart", [[0, cx - 50, cy]]);
   await touch("touchStart", [

@@ -3,8 +3,9 @@
 
 import type { Page } from "@playwright/test";
 
-import { openApp, PIXEL, waitTicks } from "../support/app";
+import { openApp, PIXEL, setClock, waitTicks } from "../support/app";
 import { expect, test } from "../support/test";
+import { menuSwitch, openMenu } from "../support/ui";
 
 const DOMAINS: Record<string, string> = {
   "GOES-East_ABI_Band13_Clean_Infrared": "2026-10-01T00:00:00Z/2026-10-05T23:50:00Z/PT10M",
@@ -40,13 +41,6 @@ function stubGibs(page: Page) {
   };
 }
 
-const setClock = (page: Page, iso: string) =>
-  page.evaluate((time) => {
-    const { clock } = window.cc!.viewer;
-    const JulianDate = clock.currentTime.constructor as unknown as { fromIso8601: (iso: string) => typeof clock.currentTime };
-    clock.currentTime = JulianDate.fromIso8601(time);
-  }, iso);
-
 test("the layers request the frame for the clock, and nothing once removed", async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 600 });
   const gibs = stubGibs(page);
@@ -68,9 +62,9 @@ test("the layers request the frame for the clock, and nothing once removed", asy
   // NaturalEarth replaces VIIRS as the base map; GOES-IR is an overlay.
   const tickListeners = () => page.evaluate(() => window.cc!.viewer.clock.onTick.numberOfListeners);
   const listenersWithLayers = await tickListeners();
-  await page.getByRole("button", { name: "Map" }).click();
-  await page.locator("label.toolbarSwitch", { hasText: /^\s*NaturalEarth\s*$/ }).click();
-  await page.locator("label.toolbarSwitch", { hasText: /^\s*GOES-IR\s*$/ }).click();
+  await openMenu(page, "Map");
+  await menuSwitch(page, "NaturalEarth").click();
+  await menuSwitch(page, "GOES-IR").click();
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.imageryLayers.length)).toBe(1);
   expect(new URL(page.url()).searchParams.get("layers")).toBeNull();
   // Each layer kept the viewer's clock in step with one listener.

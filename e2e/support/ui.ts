@@ -63,3 +63,32 @@ export const DEVICES = {
   desktop: { viewport: { width: 1280, height: 800 } },
   phone: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
 } as const;
+
+/** The toasts showing `text`. Its text is also announced in an alert span, so count these instead. */
+export const toasts = (page: Page, text: string) =>
+  page
+    .getByRole("region", { name: /Notifications/ })
+    .getByRole("listitem")
+    .filter({ hasText: text });
+
+/** Opens the Satellites panel and searches the catalog for `query`. */
+export async function searchSatellites(page: Page, query: string): Promise<void> {
+  await openMenu(page, "Satellites");
+  await page.getByPlaceholder("Search satellites").fill(query);
+}
+
+/** Finds `name` in the catalog and presses its Show info button, which activates and selects it. */
+export async function showInfo(page: Page, name: string): Promise<void> {
+  await searchSatellites(page, name);
+  await page.getByRole("button", { name: `Show info for ${name}` }).click();
+}
+
+/**
+ * Real touch input through CDP, which keys fingers by `id`: touchStart and touchMove
+ * carry every finger down, touchEnd only the ones lifted.
+ */
+export async function touchscreen(page: Page) {
+  const cdp = await page.context().newCDPSession(page);
+  return (type: "touchStart" | "touchMove" | "touchEnd", fingers: [id: number, x: number, y: number][]) =>
+    cdp.send("Input.dispatchTouchEvent", { type, touchPoints: fingers.map(([id, x, y]) => ({ id, x, y })) });
+}
