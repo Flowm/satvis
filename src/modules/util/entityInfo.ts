@@ -11,7 +11,18 @@ import { derivedOrbitRows, orbitRegimeLabel } from "./orbitFacts";
 
 dayjs.extend(utc);
 
-export type ElementsInfo = { kind: "tle"; epoch: string; lines: string } | { kind: "omm"; epoch: string; rows: [string, string][] };
+/** `epochMs` is the element set's epoch in Unix milliseconds; `epoch` is its label. */
+export type ElementsInfo = { kind: "tle"; epoch: string; epochMs: number; lines: string } | { kind: "omm"; epoch: string; epochMs: number; rows: [string, string][] };
+
+/** Julian date of the Unix epoch. */
+const JD_UNIX_EPOCH = 2440587.5;
+
+/**
+ * How far the simulation time may be from the element epoch before the panel warns. After
+ * two weeks most satellites are a few km off, a low one can be 1,000 km off. Live element
+ * sets are rarely over 2 days old, so only time travel triggers it.
+ */
+export const STALE_ELEMENTS_DAYS = 10;
 
 /**
  * Derived rows first, then served rows only for fields the record carries: the
@@ -58,9 +69,10 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
 
 export function getElementsInfo(orbit: Orbit): ElementsInfo {
   const epoch = formatEpoch(orbit.julianDate);
+  const epochMs = (orbit.julianDate - JD_UNIX_EPOCH) * 86_400_000;
   if (orbit.record.kind === "tle") {
     const tle = orbit.tle ?? recordTleLines(orbit.record)!;
-    return { kind: "tle", epoch, lines: tle.slice(1, 3).join("\n") };
+    return { kind: "tle", epoch, epochMs, lines: tle.slice(1, 3).join("\n") };
   }
   const { omm } = orbit.record;
   const rows: [string, unknown][] = [
@@ -77,8 +89,22 @@ export function getElementsInfo(orbit: Orbit): ElementsInfo {
   return {
     kind: "omm",
     epoch,
+    epochMs,
     rows: rows.filter(([, value]) => value !== undefined && value !== null).map(([label, value]) => [label, String(value)]),
   };
+}
+
+/**
+ * The notice text, or undefined while the simulation time is within `STALE_ELEMENTS_DAYS` of
+ * the epoch. Both directions count: propagating backwards is no more accurate.
+ */
+export function staleElementsNotice(epochMs: number, timeMs: number): string | undefined {
+  const offsetDays = (timeMs - epochMs) / 86_400_000;
+  if (Math.abs(offsetDays) <= STALE_ELEMENTS_DAYS) {
+    return undefined;
+  }
+  const days = Math.round(Math.abs(offsetDays));
+  return `Position may be inaccurate, clock ${days} days ${offsetDays > 0 ? "after" : "before"} element epoch`;
 }
 
 export function formatEpoch(julianDate: number): string {
