@@ -17,6 +17,8 @@ struct GlobeView: View {
     let onDoubleTap: (CGPoint, CGSize) -> Void
     /// Asked with a drag's translation so far whether it may move the view.
     var mayDrag: (CGSize) -> Bool = { _ in true }
+    /// Drawable pixels per point, the web app's `pixelratio`; nil for the screen's own.
+    var pixelRatio: Double?
 
     @State private var renderer: GlobeRenderer?
     @State private var lastTranslation = CGSize.zero
@@ -26,7 +28,7 @@ struct GlobeView: View {
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            MetalView { renderer in
+            MetalView(pixelRatio: pixelRatio) { renderer in
                 self.renderer = renderer
                 onRenderer(renderer)
             }
@@ -70,10 +72,12 @@ struct GlobeView: View {
 
 /// The MTKView the renderer draws into, and nothing else.
 private struct MetalView: UIViewRepresentable {
+    let pixelRatio: Double?
     let onRenderer: (GlobeRenderer) -> Void
 
-    func makeUIView(context: Context) -> MTKView {
-        let view = MTKView(frame: .zero, device: MTLCreateSystemDefaultDevice())
+    func makeUIView(context: Context) -> ScaledMTKView {
+        let view = ScaledMTKView(frame: .zero, device: MTLCreateSystemDefaultDevice())
+        view.pixelRatio = pixelRatio
         view.preferredFramesPerSecond = 60
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         Task {
@@ -86,5 +90,34 @@ private struct MetalView: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ view: MTKView, context: Context) {}
+    func updateUIView(_ view: ScaledMTKView, context: Context) {
+        view.pixelRatio = pixelRatio
+    }
+}
+
+/// Drawn at the pixel ratio asked for: fewer pixels a point than the screen's,
+/// which the system scales up to it, for frames the GPU can finish in time.
+/// UIKit sets a view's scale to the screen's when it joins a window, so the
+/// ratio is set again then.
+private final class ScaledMTKView: MTKView {
+    /// Nil for the screen's own.
+    var pixelRatio: Double? {
+        didSet {
+            if pixelRatio != oldValue {
+                applyPixelRatio()
+            }
+        }
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        applyPixelRatio()
+    }
+
+    private func applyPixelRatio() {
+        guard window != nil else {
+            return
+        }
+        contentScaleFactor = pixelRatio.map { CGFloat($0) } ?? traitCollection.displayScale
+    }
 }

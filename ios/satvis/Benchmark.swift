@@ -135,7 +135,7 @@ final class Benchmark {
         submitted = false
         // Running from here on, so a second start finds it so.
         phase = .loading(0)
-        environment = Self.environment(renderer: renderer)
+        environment = Self.environment(renderer: renderer, session: session)
         let saved = session.link(sharing: false)
         run = Task {
             renderer.measuresFrames = true
@@ -148,6 +148,11 @@ final class Benchmark {
                 }
             }
             environment["device_thermal_state_end"] = Self.name(ProcessInfo.processInfo.thermalState)
+            // Read again at the end: a run started at launch can begin before the
+            // first frame at the link's pixel ratio has been drawn.
+            if let size = renderer.drawableSize {
+                environment["device_drawable_pixels"] = "\(Int(size.width))x\(Int(size.height))"
+            }
             phase = Task.isCancelled ? .cancelled : .done
             session.open(saved)
             if Self.runsAtLaunch, phase == .done {
@@ -177,7 +182,12 @@ final class Benchmark {
     private func measure(_ scene: Scene, index: Int, session: Session, renderer: GlobeRenderer) async -> Result? {
         phase = .loading(index)
         let opened = ContinuousClock.now
-        session.open(Link(scene.link))
+        // At the pixel ratio the run began at, which the scenes' links do not name.
+        var link = Link(scene.link)
+        if let ratio = environment["app_pixel_ratio"] as? String, ratio != "native" {
+            link.query.items.append(LinkQuery.Item(key: "pixelratio", values: [ratio]))
+        }
+        session.open(link)
         // Loaded once everything active is drawn and has stayed so for two
         // seconds: groups arrive one by one, and are handed to the renderer
         // packed, off the main thread.
@@ -266,7 +276,7 @@ final class Benchmark {
     }
 
     /// What the frame times depend on beyond the app.
-    private static func environment(renderer: GlobeRenderer) -> [String: Any] {
+    private static func environment(renderer: GlobeRenderer, session: Session) -> [String: Any] {
         var system = utsname()
         uname(&system)
         let identifier = withUnsafeBytes(of: system.machine) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
@@ -281,6 +291,7 @@ final class Benchmark {
             "device_processor_count": ProcessInfo.processInfo.activeProcessorCount,
             "device_memory_gb": NSDecimalNumber(string: String(format: "%.1f", Double(ProcessInfo.processInfo.physicalMemory) / 1_073_741_824)),
             "device_low_power_mode": ProcessInfo.processInfo.isLowPowerModeEnabled,
+            "app_pixel_ratio": session.pixelRatio,
             "device_thermal_state_start": name(ProcessInfo.processInfo.thermalState),
         ]
         if let screen {

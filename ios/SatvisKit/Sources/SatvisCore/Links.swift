@@ -120,17 +120,19 @@ public struct LinkState: Sendable, Hashable {
     public var terrain: String
     /// `3D`, or `Sky` for the sky view (ADR 0003).
     public var scene: String
+    /// Drawable pixels per point: `1`, `1.5`, or `native` for the screen's own.
+    public var pixelRatio: String
     /// The minute the clock is pinned at (`2026-10-04T20:46Z`), nil while live.
     public var time: String?
 
     /// The web app's defaults before any preset (src/stores).
     public static let global = LinkState(
         elements: ["Point", "Label"], sats: [], xsats: [], tags: [], gs: [], track: "", overpass: "elevation", layers: ["NaturalEarth"], terrain: "None",
-        scene: "3D", time: nil)
+        scene: "3D", pixelRatio: "native", time: nil)
 
     public init(
         elements: [String], sats: [String], xsats: [String], tags: [String], gs: [LinkStation], track: String, overpass: String, layers: [String],
-        terrain: String, scene: String = "3D", time: String?
+        terrain: String, scene: String = "3D", pixelRatio: String = "native", time: String?
     ) {
         self.elements = elements
         self.sats = sats
@@ -142,6 +144,7 @@ public struct LinkState: Sendable, Hashable {
         self.layers = layers
         self.terrain = terrain
         self.scene = scene
+        self.pixelRatio = pixelRatio
         self.time = time
     }
 }
@@ -156,6 +159,8 @@ public enum LinkCodec {
     public static let terrains = ["None", "ReEarth"]
     public static let overpassModes = ["elevation", "swath"]
     public static let scenes = ["3D", "Sky"]
+    /// The web app's `PIXEL_RATIOS` (src/config/rendering.ts).
+    public static let pixelRatios = ["1", "1.5", "native"]
 
     /// One parameter: how it reads into the state and writes out of it.
     struct Field: Sendable {
@@ -194,6 +199,7 @@ public enum LinkCodec {
         Field("layers", \.layers, .layerList(layers)),
         Field("terrain", \.terrain, .oneOf(terrains)),
         Field("scene", \.scene, .oneOf(scenes)),
+        Field("pixelratio", \.pixelRatio, .oneOf(pixelRatios)),
         Field("time", \.time, .timestamp),
     ]
 

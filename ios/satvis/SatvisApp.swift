@@ -61,7 +61,8 @@ struct ContentView: View {
                 session.tap(at: $0, viewSize: $1)
             },
             onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) },
-            mayDrag: session.mayDrag
+            mayDrag: session.mayDrag,
+            pixelRatio: Double(session.pixelRatio)
         )
         .ignoresSafeArea()
         .background(.black)
@@ -369,6 +370,7 @@ private struct SettingsMenu: View {
                 } set: {
                     session.setShowsPerformance($0)
                 })
+            PixelRatioPicker(session: session)
             Button("Benchmark", systemImage: "gauge.with.dots.needle.67percent") { session.setShowsBenchmark(true) }
             Toggle(
                 "Share usage data",
@@ -382,6 +384,22 @@ private struct SettingsMenu: View {
             // and not another site than satvis.space.
             .disabled(!Analytics.isAvailable)
         }
+    }
+}
+
+/// The web app's "Pixel ratio" (src/config/rendering.ts): the fixed rungs below the
+/// screen's own ratio, then the screen's, so the menu only offers savings.
+private struct PixelRatioPicker: View {
+    @Bindable var session: Session
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        Picker("Pixel ratio", selection: $session.pixelRatio) {
+            ForEach(LinkCodec.pixelRatios.filter { $0 == "native" || (Double($0) ?? 0) < displayScale }, id: \.self) { ratio in
+                Text(ratio == "native" ? String(format: "%.1fx (Native)", displayScale) : String(format: "%.1fx", Double(ratio) ?? 0))
+            }
+        }
+        .pickerStyle(.menu)
     }
 }
 

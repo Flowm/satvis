@@ -145,6 +145,14 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   PostHog only for the site `https://satvis.space/` exactly, so pointing
   `SATVIS_API` at `https://satvis.space` measures the real data and counts
   nothing.
+- The Settings menu's "Pixel ratio" is the web app's (`pixelratio`, kept in links):
+  the globe drawn at 1 or 1.5 pixels a point instead of the screen's own, which
+  the system scales up (`ScaledMTKView` in `GlobeView.swift`). The renderer sizes
+  everything placed on the screen in points times the drawable's pixels a point,
+  labels included, so only the sharpness changes; the map refines a level less, as
+  its error is measured in the drawable's pixels. On an iPad mini the default view
+  took 10.5 ms of GPU a frame at native, 6.7 at 1.5 and 2.8 at 1. A benchmark runs
+  at the ratio it began at and records it.
 - The Settings menu's "Benchmark" is the web app's `bench=true`, kept in links
   the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): eight scenes opened
   by their links in turn, each waited for until everything active is drawn,
