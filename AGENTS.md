@@ -15,7 +15,10 @@ workspace package). One `pnpm install` at the root covers both.
   (0001), satellite metadata and swath extents (0002), the sky view (0003),
   compass aiming (0004), surface models (0005), SATCAT enrichment (0006), model
   manifests (0007).
-- **`docs/manual-verification.md`** — the checks jsdom cannot run. Rerun the ones
+- **`e2e/`** — Playwright specs against the running app, for what needs layout, a
+  GPU or frames. Read `e2e/support/app.ts` before writing one: it holds the
+  fixture, the helpers and why they count clock ticks.
+- **`docs/manual-verification.md`** — the checks no suite runs yet. Rerun the ones
   covering code you change, and record what they returned.
 - **`worker/src/gp/types.ts`** — the group, preset and satellite-table config
   schema, field by field.
@@ -48,7 +51,9 @@ workspace package). One `pnpm install` at the root covers both.
 - Worker scripts run through `pnpm --filter satvis-worker <script>`.
 - `pnpm lint` covers both packages, but `pnpm test` covers only the frontend —
   the worker suite is `pnpm --filter satvis-worker test`. CI runs lint, both test
-  suites and the build.
+  suites, the build and `pnpm test:e2e`.
+- `pnpm test:e2e` renders with SwiftShader, as a GPU-less CI runner does;
+  `pnpm test:e2e:gpu` runs the same specs about four times faster on a Mac.
 - Full-stack dev is `pnpm dev:worker` plus
   `SATVIS_API_PROXY=http://localhost:8080 pnpm dev`. Plain `pnpm dev` proxies
   `/api` to <https://satvis.space>.

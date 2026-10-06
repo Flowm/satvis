@@ -1,8 +1,10 @@
 # Manual verification
 
-Checks that `pnpm test` cannot run. jsdom has no layout engine, no GPU and no
-render loop, so it cannot answer `getBoundingClientRect`, `elementFromPoint`,
-stacking, frame contents or frame timing.
+Checks that no test suite runs yet. `pnpm test` runs in node, with no layout
+engine, no GPU and no render loop. The checks that need only a browser are moving
+to the Playwright suite in `e2e/` (`pnpm test:e2e`, plan in
+`docs/manual-verification-replacement-plan.md`); each one leaves this file when its
+spec lands.
 
 Each check names the code it **covers**, its **procedure**, and its latest
 **result** with a date. When you change covered code, rerun the check and replace
@@ -35,85 +37,6 @@ These apply to every check driven from an automated or hidden browser pane.
   change.
 - **Surface models and terrain from ion** need an unrestricted
   `VITE_CESIUM_ION_TOKEN` locally (AGENTS.md, Gotchas).
-
-## Sky view: the HUD does not swallow clicks
-
-**Covers:** `src/components/SkyHud.vue`, the `z-index` of `#toolbarLeft` /
-`#toolbarRight` (`src/css/main.css`) and `.entity-info-panel`
-(`EntityInfoPanel.vue`), `ClockDeck.vue`, and `SkyInteraction` listening on the
-canvas.
-
-The HUD is a transparent full-viewport layer, so a control under it still looks
-correct. `#cesiumContainer` is a sibling before `#app`, and `#app` isolates its
-stacking context, so no z-index lifts Cesium's widgets above the app. The
-arrangement that works: HUD root at `z-index: 4` with `pointer-events: none`,
-entity info panel at 5, toolbars at 6 and 7 (the left one over the right), and
-look-around listening on the Cesium canvas, not on an overlay. The HUD holds no
-interactive control.
-
-**Procedure.** Open `?scene=Sky&gs=48.1400,11.5800` and wait for the scene to
-settle. Select a satellite first for the panel:
-`cc.viewer.selectedEntity = cc.sats.activeSatellites[0].defaultEntity`. Then hit-test
-the centre of each control:
-
-```js
-[
-  ["menu toggle", "#toolbarLeft .menuColumn__toggle"],
-  ["toolbar Map", "#toolbarLeft .menuColumn__item:nth-child(4)"],
-  ["toolbar eye", "#toolbarRight button"],
-  ["cesium credits", ".cesium-credit-logoContainer"],
-  ["clock deck controls", ".cluster"],
-  ["clock deck scale row", ".scale-row"],
-  ["entity info panel", ".entity-info-panel"],
-].map(([name, selector]) => {
-  const el = document.querySelector(selector);
-  if (!el) return [name, "not present on this platform"];
-  const r = el.getBoundingClientRect();
-  const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-  return [name, el.contains(hit) ? "clickable" : `BLOCKED by ${hit?.className || hit?.tagName}`];
-});
-```
-
-**Result, 2026-10-06, Chrome, 1000x1576.** All seven clickable, with the menu
-column expanded and an entity selected. This is the first run against the clock
-deck rows; the 2026-07-27 run checked Cesium's animation and timeline widgets.
-Again at 563x1576, with `#toolbarLeft` at z-index 7: all seven clickable once the
-column is expanded (it starts collapsed below 640px), the Map entry over the entity
-info panel. And at 1106x1576 with `pointer-events: none` on `#toolbarLeft` (its
-children re-enabled): all seven clickable.
-
-## Sky view: the zoom gestures
-
-**Covers:** the wheel and pinch handlers in `src/modules/SkyInteraction.ts`, and the
-`fovy` setter in `SkyView.ts` (`MIN_FOVY`, `MAX_FOVY`). The clamp and the curve are
-unit-tested; event dispatch against a live canvas is not.
-
-**Procedure.** Open `?scene=Sky&gs=48.1400,11.5800`. Dispatch `WheelEvent`s and
-`PointerEvent`s at `cc.viewer.scene.canvas`, and read `cc.skyView.fovy` and
-`cc.skyView.aim` between them. Two fingers 100 px apart that spread to 200 px must
-halve the field of view. The aim must not change.
-
-**Result, 2026-07-28, Chrome.** Wheel: 75° → 55.561° → 41.161° on equal notches
-(a constant ratio), and −200/−200/+400 returns to exactly 75°. Clamps at 10° and
-90° (the upper clamp was 90° then; `MAX_FOVY` is 100 now). A `deltaMode: 1` delta of
-−3 steps 75° → 69.79°, so Firefox-style deltas work. Pinch: 60° → 30° at 2×
-separation and → 20° at 3×, computed from the gesture start. The aim was identical
-across every notch and the whole pinch. A drag after the second finger lifted moved
-the aim without a jump.
-
-## Sky view: the compass tape holds its scale
-
-**Covers:** `headingOffset` in `src/composables/useSkyHud.ts` and the tape in
-`SkyHud.vue`. `headingOffset` is unit-tested against a projection, including the
-`1/cos(pitch)` divergence it avoids; the live tape is not.
-
-**Procedure.** Open `?scene=Sky&gs=48.1400,11.5800`. Step
-`cc.skyView.look({ pitch })` through 0, 30, 60 and 85, read the tick offsets from
-the HUD, and check that the spacing between adjacent ticks does not change.
-
-**Result, 2026-07-29, Chrome.** Spacing constant at every pitch, and the marks point
-at the zenith. Before the fix, 15° of azimuth spanned 147 px at eye level and
-1691 px at 85° pitch.
 
 ## Sky view: a drag takes the aim back from the compass
 
@@ -324,20 +247,6 @@ repeatedly; the other tab switches and expands in one press. Folded, 556 px of g
 lies between panel and deck, and a pass ten minutes ahead draws 29 px wide at 220 px
 along a 390 px ruler.
 
-## Entity info panel: once a second at any clock speed
-
-**Covers:** `src/modules/util/CesiumCallbackHelper.ts` and
-`src/composables/useSelectedEntity.ts`. The helper's timing is unit-tested.
-
-**Procedure.** Open with `?framems=16` and select a LEO satellite with
-`cc.viewer.selectedEntity`. For 5 s at each clock speed, count the frames on which
-the panel's `innerText` changed. Pause, jump the clock 30 min, and check that the
-panel catches up and then stays still.
-
-**Result, 2026-10-04, Chrome (frame pump on), CYGFM04.** 5 changes at 1×, 60×,
-3600× and 86400×, none while paused (before: 310 in 311 frames at 3600×). After the
-jump the panel updated within 200 ms and then did not change.
-
 ## Surface models: the matrix, the eye height, and what drapes on a mesh
 
 **Covers:** `surfaceEffects` and `viewModeNote` (`src/config/surfaceModels.ts`,
@@ -423,38 +332,6 @@ errors. "VersaTiles sources" is in the attribution.
 **Result, 2026-10-06, Chrome, the menu column's Map panel.** The imagery half again:
 ArcGis checked for `ArcGis_0.5`, Nextrad checked; OSM wrote `?layers=OSM,Nextrad`;
 Tiles took the imagery layers from 2 to 3 and back. Terrain was not re-flown.
-
-## Layers: the base map's depth upgrade
-
-**Covers:** `__IMAGERY_MAX_LEVEL__` (`vite.config.ts`), the `NaturalEarth` provider
-in `CesiumLayerProviders.ts`, and the imagery precache globs.
-
-**Procedure.** Use a checkout without `data/imagery/NaturalEarthII/3/`, which is any
-checkout where nobody ran `pnpm update-imagery`. Load the default route, read the
-basemap selection, the url and the console, and zoom past continent scale. Then run
-`pnpm update-imagery`, restart (the ceiling is a build-time `define`), and zoom
-again. Do not simulate the absent case by deleting files from a running dev server:
-that most likely answers 404, where a file that never existed gets the SPA fallback
-(inferred, not measured).
-
-**Result, 2026-08-04, Chrome, dev and built preview.** Basemap `NaturalEarth` both
-times, url unchanged, console clean, a correct globe either way: `maximumLevel` 2
-without the generated levels and 5 with them. Only the ceiling changes, never the
-selection. The design this replaced switched the selection to a fallback provider
-when imagery was missing, and its probe, answering after the route preset had
-hydrated, overwrote the preset's basemap. That is why nothing may correct the layer
-stack after hydration (`startSceneSync` in `src/modules/sceneSync.ts`).
-
-Above the ceiling the map is complete: built with levels 4–5 removed and the
-ceiling at 5, the Alps and Italy rendered from magnified level-3 imagery, with seams
-where neighbouring tiles magnify by different amounts. Offline, a region the runtime
-cache never held takes the same path, which is why the precache goes to level 3.
-
-**Measured:** in the built preview, a ranged request for a missing tile returns
-**206 with `content-type: text/html`**, and a plain request for a missing manifest
-returns **200 with `index.html`** (1065 bytes). `response.ok` is true for both. An
-earlier result in this file (2026-07-28) was wrong because its probe trusted the
-status (AGENTS.md, "Probes read the answer, not the status").
 
 ## Worker: missing files 404, and none of it is billed
 
@@ -640,12 +517,15 @@ with the same corners.
 whether 1 h per 150 px suits a thumb), and rotation, where the surface is
 re-measured from the `resize` listener.
 
-## Attribution lightbox: closable on a phone
+## Attribution lightbox: the safe area on iOS
 
-**Covers:** the `.cesium-credit-lightbox-mobile` rules in `src/css/main.css`.
+**Covers:** the safe-area padding in `.cesium-credit-lightbox-mobile`
+(`src/css/main.css`). `e2e/attributionLightbox.spec.ts` checks that the lightbox
+covers the app chrome and closes; only a device with a notch shows whether the
+close button clears the status bar.
 
 **Procedure.** Run the iOS app against the change, tap `Attribution`, then tap the
-close button. In a desktop browser, open the lightbox and click outside it.
+close button.
 
 `make run URL=…` (ios/) does not work here: the simulator blanks a launch variable
 named `URL`, so `SIMCTL_CHILD_URL` arrives empty and the app loads satvis.space. The
@@ -653,12 +533,9 @@ same value under another name arrives intact; this run used a temporary
 `SATVIS_URL` pointed at `http://[::1]:<port>/`, since Vite listens on IPv6 loopback
 only.
 
-**Result, 2026-10-04, iPhone 18 Pro Max simulator, iOS 27.** Before: the full-screen
-lightbox sat below the toolbars and the clock deck, its title and close button under
-the Dynamic Island, and nothing closed it. After: it covers the app chrome, the
-title and close button start below the status bar, and the close button dismisses
-it. At 1024 px wide the windowed lightbox covers the toolbars, and a click outside
-closes it.
+**Result, 2026-10-04, iPhone 18 Pro Max simulator, iOS 27.** Before: the title and
+close button sat under the Dynamic Island. After: they start below the status bar,
+and the close button dismisses the lightbox.
 
 ## Tracking: the flight lands where tracking puts the camera
 
@@ -693,21 +570,6 @@ direction after an animated track, after ISS then CSS, after an instant track, a
 after tracking a ground station. Entering the sky view while tracking untracks
 first, and leaving lands 0 km from the tracked view.
 
-## Render on demand: a paused clock draws nothing
-
-**Covers:** `requestRenderMode` in `createViewer.ts` / `CesiumController.ts`, and
-the `CallbackProperty` users (sensor cone, ground station link).
-
-**Procedure.** Open
-`?elements=Point,Label,Orbit,Orbit+track,Ground+track,Sensor+cone,Ground+station+link&gs=48.1371,11.5754&framems=16`
-and wait for the tiles to load. Count `scene.postRender` and `clock.onTick` events
-for 5 s running and 5 s paused. Do not use `bench=true`: the benchmark panel turns
-`requestRenderMode` off.
-
-**Result, 2026-10-04, Chrome (frame pump on), 72 satellites.** Running: 113 renders
-in 309 ticks. Paused: 0 renders in 310 ticks, with the sensor cone and the ground
-station link on. A rerun gave 115 and 0, with `requestRenderMode` on throughout.
-
 ## Orbit batch: the line passes through the satellite, without a bend
 
 **Covers:** `SampledTrajectory.positionsForNextOrbit` and the batched orbit in
@@ -729,22 +591,6 @@ the last sample included; 120 samples an orbit bend 3°. Worst gap: ISS 2.33 km,
 2.47 km, the chord between samples (2026-10-05, before the head: 5.9 and 7.1 km). 11,146
 orbits: 62 ms per full rebuild against 46 ms; the rebuild itself took 1.4 s on the main
 thread (2026-10-05).
-
-## Time-dependent imagery: GOES-IR and VIIRS follow the clock
-
-**Covers:** `src/modules/GibsTimeLayer.ts`, `src/modules/util/timeDomain.ts` and the
-`ImageryContext` in `CesiumLayerProviders.ts`. Which tiles Cesium asks GIBS for, and
-whether a removed layer goes quiet, need the real globe and the real service.
-
-**Procedure.** `?tags=&layers=VIIRS,GOES-IR&time=2026-10-03T15:07Z&framems=16` with a
-viewport; raise `performance.setResourceTimingBufferSize` so the requests show. Move the
-clock, group GIBS requests by the time in their path, run at 3600×, then
-`setLayers(["NaturalEarth"])` and move the clock again.
-
-**Result, 2026-10-05, Chrome (frame pump on).** 15:07 showed the 15:00 frame and an
-hour later 16:00, all 200; live at 14:29 UTC, the latest published frame and today's
-VIIRS. 3600×: ~53 requests a second, frames p50 16 ms, p99 36 ms. After removal, no
-GIBS requests and the layers' clocks stopped following the viewer's.
 
 ## 3D models: visible from afar without crowding the globe
 
