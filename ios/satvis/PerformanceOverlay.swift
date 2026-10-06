@@ -15,7 +15,7 @@ struct PerformanceOverlay: View {
                 Text(stats.map { "\(Int($0.framesPerSecond.rounded())) fps" } ?? "– fps")
                     .fontWeight(.semibold)
                 Text("CPU \(milliseconds(stats?.cpuMilliseconds)) · GPU \(milliseconds(stats?.gpuMilliseconds))")
-                Text("\((stats?.satellites ?? 0).formatted()) satellites · \(Self.footprintMegabytes().map { "\($0) MB" } ?? "–")")
+                Text("\((stats?.satellites ?? 0).formatted()) satellites · \(MemoryFootprint.megabytes().map { "\($0) MB" } ?? "–")")
             }
             .font(.caption2.monospacedDigit())
             .foregroundStyle(.white)
@@ -34,8 +34,11 @@ struct PerformanceOverlay: View {
         value.map { String(format: "%.1f ms", $0) } ?? "–"
     }
 
-    /// What iOS counts against the app's memory limit, as Xcode's gauge shows it.
-    private static func footprintMegabytes() -> Int? {
+}
+
+/// What iOS counts against the app's memory limit, as Xcode's gauge shows it.
+enum MemoryFootprint {
+    static func megabytes() -> Int? {
         var info = task_vm_info_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
         let result = withUnsafeMutablePointer(to: &info) {

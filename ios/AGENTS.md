@@ -127,7 +127,8 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
 - `satvis/PrivacyInfo.xcprivacy` is the privacy manifest App Store Connect
   requires: no tracking; product interaction collected for analytics, and a
   coarse location (the sky view's station, to the whole degree, in a page view's
-  link), both linked to no one; `UserDefaults` read by the app alone, and the
+  link), and performance data (the benchmark's results, sent by hand), all
+  linked to no one; `UserDefaults` read by the app alone, and the
   system uptime the renderer's flights are timed by. The PostHog package brings
   its own manifest for the APIs it uses. Add to the app's with every
   required-reason API and every data type collected, and keep the App Store
@@ -144,6 +145,21 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   PostHog only for the site `https://satvis.space/` exactly, so pointing
   `SATVIS_API` at `https://satvis.space` measures the real data and counts
   nothing.
+- The Settings menu's "Benchmark" is the web app's `bench=true`, kept in links
+  the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): seven scenes opened
+  by their links in turn, each waited for until everything active is drawn,
+  settled 3 s and recorded 5 s frame by frame (`FrameRecording`), then the first
+  again for drift, and the view put back. A run counts no page views. "Send
+  results" sends one `benchmark` event, only where usage is shared, its
+  properties flat for PostHog's insights: `benchmark_` and `app_` for the run,
+  `device_` for the device, system and screen, and `scene_<scene>_<metric>` per
+  scene (`_repeat` for the drift check). Bump `Benchmark.version` when the scenes
+  or the metrics change. The panel drops its glass while measuring: blurring the
+  globe cost the GPU 2 ms a frame on an iPad mini. `SATVIS_BENCHMARK` in the
+  launch environment runs it at once, sends the results itself and prints them
+  as JSON, for a device driven from the Mac:
+  `xcrun devicectl device process launch --console --environment-variables
+  '{"SATVIS_BENCHMARK":"1"}' org.frcy.app.satvis`.
 - Analytics (`Analytics.swift`) is posthog-ios, set up from the app delegate as
   its guide has it, reporting to the web app's project (ADR 0008): a `$pageview`
   of the view's link whenever the view changes, the clock aside, its ground

@@ -190,3 +190,25 @@ arrays lit by the sun. From the home view it held the web app's 72 points, its p
 hidden and its label moved past its edge. Tracked, the camera opened six model
 radii off, south-east and above, as the web app frames a model, once the model had
 loaded; the point was hidden, and the label too, being nearer than 2 km.
+
+## Native app: the benchmark on an iPad mini
+
+**Procedure.** Release build, development-signed, on an iPad mini (6th generation,
+`iPad14,1`, iOS 27.0.1, 60 Hz, drawn at 2266×1488), run with `SATVIS_BENCHMARK=1`
+through `xcrun devicectl device process launch --console`, the report read from its
+output. The same scenes were first measured by hand with Instruments' Metal System
+Trace and Time Profiler.
+
+**Result, 2026-10-06.** Everything held 60 fps but two scenes. All active satellites
+with orbits ran at 26.6 fps on 43.5 ms of GPU a frame: 16,630 orbits of 121 nodes, each
+node worked out three times. The ISS model tracked close up ran at 40 fps on 12 to 13 ms
+of GPU, frames alternating between 16.7 and 33.3 ms, but only with its info panel open,
+which the tracking link opens: the panel's glass over the half of the screen it covers.
+With the panel closed, as the benchmark leaves it, the scene held 60 fps on 9.2 ms. Every scene carried
+about 9 ms of GPU before a satellite was drawn: the tonemap pass 2.1, the star background
+2.0, the globe's 51 tiles 1.9, the sky atmosphere 1.7. On the CPU, 41% of all time with
+16,630 satellites was `SampledTrajectory.stencil(at:)`, 3.4 ms of the main thread's 4.3 a
+frame, reading each satellite's own array to check its nodes. Memory reached 650 MB in the
+sky view. The first scene repeated at the end drifted 0%, the device nominal throughout.
+The glass panel itself cost about 2 ms of GPU a frame (11.3 against 9.2 ms in the default
+view); without the glass while measuring, 10.5.
