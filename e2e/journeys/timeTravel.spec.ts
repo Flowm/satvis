@@ -1,6 +1,6 @@
 // Leave the present and come back with the clock deck: pause, drag the timeline an
-// hour back, speed up, and return to real time and to now. Off the present the url
-// pins the time; back on it the url lets go.
+// hour back, speed up, and return to now. Off the present the url pins the time;
+// back on it the url lets go.
 
 import type { Page } from "@playwright/test";
 
@@ -51,12 +51,17 @@ test("pause, drag an hour back, speed up, and return to now", async ({ page }) =
   const playing = await clockMs(page);
   await expect.poll(async () => (await clockMs(page)) - playing, { message: "the clock runs at 600×" }).toBeGreaterThan(5 * 60_000);
 
-  // Two resets, one per scale: the ladder's restores the speed, the timeline's the time.
-  await deck.getByRole("button", { name: "Back to real time", exact: true }).click();
-  await expect.poll(() => page.evaluate(() => window.cc!.viewer.clock.multiplier)).toBe(1);
+  // Back to now from a paused 600×: playing at real time, or it would leave the present again.
+  await deck.getByRole("button", { name: "Pause", exact: true }).click();
   await deck.getByRole("button", { name: "Show timeline", exact: true }).click();
   await deck.getByRole("button", { name: "Back to now", exact: true }).click();
+  expect(await page.evaluate(() => window.cc!.viewer.clock.multiplier)).toBe(1);
+  await expect(deck.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
   await expect(live).toBeVisible();
   await expect.poll(() => pinned(page)).toBeNull();
   expect(Math.abs((await clockMs(page)) - Date.parse(FIXTURE_TIME))).toBeLessThan(5 * 60_000);
+  // And it stays there.
+  await page.waitForTimeout(2000);
+  await expect(live).toBeVisible();
+  expect(pinned(page)).toBeNull();
 });

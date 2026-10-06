@@ -82,8 +82,13 @@ export function useViewerClock() {
     scrubbing = false;
   }
 
-  /** Back to the present and to live, which also rebuilds the window to −12 h / +7 d. */
+  /**
+   * Back to the present, playing at real time, which also rebuilds the window to −12 h / +7 d.
+   * Paused or at any other speed the clock would leave the present again.
+   */
   function goLive(): void {
+    setMultiplier(1);
+    setPlaying(true);
     cc.setTime(new Date());
     cesiumStore.setTime(null);
     systemNow.value = Date.now();
