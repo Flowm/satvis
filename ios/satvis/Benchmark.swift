@@ -16,8 +16,10 @@ final class Benchmark {
     struct Scene: Identifiable, Hashable {
         /// Its name in the event sent, `scene_<id>_<metric>`.
         let id: String
+        /// One line each in the panel, on a phone too.
         let title: String
-        /// What it draws, beyond the count measured.
+        let subtitle: String
+        /// What it draws, for the event sent.
         let detail: String
         let link: String
     }
@@ -51,21 +53,25 @@ final class Benchmark {
     /// component, the 3D model close up and the sky view, which the tests on an
     /// iPad mini found to differ most (docs/manual-verification.md).
     static let scenes = [
-        Scene(id: "default_view", title: "Default view", detail: "The default preset's satellites, points and labels, on the globe", link: "/"),
-        Scene(id: "starlink_points", title: "Starlink, points", detail: "The Starlink group, points only", link: "/?tags=Starlink&elements=Point"),
-        Scene(id: "active_points", title: "All active, points", detail: "Every active satellite, points only", link: "/?tags=Active&elements=Point"),
         Scene(
-            id: "weather_all_components", title: "Weather, every component",
+            id: "default_view", title: "Default view", subtitle: "Points and labels", detail: "The default preset's satellites, points and labels, on the globe",
+            link: "/"),
+        Scene(
+            id: "starlink_points", title: "Starlink", subtitle: "Points", detail: "The Starlink group, points only", link: "/?tags=Starlink&elements=Point"),
+        Scene(
+            id: "active_points", title: "All active", subtitle: "Points", detail: "Every active satellite, points only", link: "/?tags=Active&elements=Point"),
+        Scene(
+            id: "weather_all_components", title: "Weather", subtitle: "Every component",
             detail: "Weather satellites with points, labels, orbits, orbit and ground tracks, and sensor cones",
             link: "/?tags=Weather&elements=Point,Label,Orbit,Orbit+track,Ground+track,Sensor+cone"),
         Scene(
-            id: "active_orbits", title: "All active, orbits", detail: "Every active satellite with its orbit, 121 nodes each",
+            id: "active_orbits", title: "All active", subtitle: "Orbits", detail: "Every active satellite with its orbit, 121 nodes each",
             link: "/?tags=Active&elements=Point,Orbit"),
         Scene(
-            id: "iss_model_tracked", title: "ISS model, tracked", detail: "The ISS alone, its 3D model followed close up, with its orbit",
+            id: "iss_model_tracked", title: "ISS", subtitle: "3D model, tracked", detail: "The ISS alone, its 3D model followed close up, with its orbit",
             link: "/?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model"),
         Scene(
-            id: "sky_view", title: "Sky view", detail: "Looking up from Lauterbrunnen, on terrain, the default preset's satellites",
+            id: "sky_view", title: "Sky view", subtitle: "Lauterbrunnen", detail: "Looking up from Lauterbrunnen, on terrain, the default preset's satellites",
             link: "/?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen"),
     ]
     /// Changed when the scenes or the metrics change, so results can be told apart.
@@ -78,7 +84,10 @@ final class Benchmark {
     static let settle: Duration = .seconds(3)
     static let measure: Duration = .seconds(5)
     /// The first scene again, last: the drift check.
-    static var plan: [Scene] { scenes + [scenes[0]] }
+    static var plan: [Scene] {
+        let first = scenes[0]
+        return scenes + [Scene(id: "\(first.id)_repeat", title: "Repeat", subtitle: first.title, detail: first.detail, link: first.link)]
+    }
 
     /// `SATVIS_BENCHMARK` in the launch environment runs the benchmark at once,
     /// sends its results where usage is shared and prints them as JSON to
@@ -120,7 +129,7 @@ final class Benchmark {
                 guard !Task.isCancelled else {
                     break
                 }
-                if let result = await measure(scene, index: index, repeated: index >= Self.scenes.count, session: session, renderer: renderer) {
+                if let result = await measure(scene, index: index, session: session, renderer: renderer) {
                     results.append(result)
                 }
             }
@@ -149,7 +158,7 @@ final class Benchmark {
         run?.cancel()
     }
 
-    private func measure(_ scene: Scene, index: Int, repeated: Bool, session: Session, renderer: GlobeRenderer) async -> Result? {
+    private func measure(_ scene: Scene, index: Int, session: Session, renderer: GlobeRenderer) async -> Result? {
         phase = .loading(index)
         let opened = ContinuousClock.now
         session.open(Link(scene.link))
@@ -192,7 +201,7 @@ final class Benchmark {
             return nil
         }
         return Result(
-            id: repeated ? "\(scene.id)_repeat" : scene.id, title: repeated ? "\(scene.title), again" : scene.title, detail: scene.detail,
+            id: scene.id, title: scene.title, detail: scene.detail,
             satellites: renderer.satelliteCount, loadSeconds: max(loaded / .seconds(1), 0),
             timedOut: timedOut, recording: recording, memoryMegabytes: MemoryFootprint.megabytes())
     }

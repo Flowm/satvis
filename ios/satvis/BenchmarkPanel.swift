@@ -1,36 +1,26 @@
 import SatvisRender
 import SwiftUI
 
-/// The benchmark (`Benchmark`): what it will do, how far it has got, and what it
-/// measured, with a button to send that. Measures frames while it is open, as
-/// the performance overlay does, which it stands in for.
+/// The benchmark (`Benchmark`): every scene it runs, what each measured as it
+/// ends, and a button to send the results. One layout from start to end, every
+/// row and column there from the first, so nothing moves as results arrive.
+/// Measures frames while it is open, as the performance overlay does, which it
+/// stands in for.
 struct BenchmarkPanel: View {
     let session: Session
     let renderer: GlobeRenderer
 
     private var benchmark: Benchmark { session.benchmark }
 
+    /// The metric columns, wide enough for their widest figure ("43.7", "655").
+    private static let columns: [(title: String, width: CGFloat)] = [("fps", 30), ("p95", 38), ("CPU", 36), ("GPU", 38), ("MB", 34)]
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Benchmark").font(.headline)
-                Spacer()
-                Button("Close", systemImage: "xmark") { session.setShowsBenchmark(false) }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.glass)
-            }
-            switch benchmark.phase {
-            case .idle, .cancelled:
-                introduction
-            case .loading(let index), .settling(let index), .measuring(let index):
-                progress(index)
-                if !benchmark.results.isEmpty {
-                    table
-                }
-            case .done:
-                table
-                actions
-            }
+        VStack(alignment: .leading, spacing: 8) {
+            header
+            ProgressView(value: progress)
+            table
+            footer
         }
         .padding(14)
         .frame(maxWidth: 440)
@@ -46,113 +36,136 @@ struct BenchmarkPanel: View {
         .onDisappear { renderer.measuresFrames = session.showsPerformance }
     }
 
-    private var introduction: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(
-                "Opens \(Benchmark.scenes.count) scenes in turn and measures each for \(Int(Benchmark.measure.components.seconds)) s once it has loaded, then the first again. Keep the app in front; your view comes back at the end."
-            )
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            ForEach(Benchmark.scenes) { scene in
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(scene.title).font(.caption)
-                    Text(scene.detail).font(.caption2).foregroundStyle(.secondary)
-                }
-            }
-            if benchmark.phase == .cancelled {
-                Text("Cancelled.").font(.caption)
-            }
-            Button("Start") { benchmark.start(on: session) }
-                .buttonStyle(.glassProminent)
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Benchmark").font(.headline)
+            Text(status)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            Button("Close", systemImage: "xmark") { session.setShowsBenchmark(false) }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.glass)
         }
     }
 
-    private func progress(_ index: Int) -> some View {
-        let plan = Benchmark.plan
-        let step: String =
-            switch benchmark.phase {
-            case .loading: "Loading"
-            case .settling: "Settling"
-            default: "Measuring"
-            }
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("\(index + 1) of \(plan.count) · \(plan[index].title)\(index == plan.count - 1 ? ", again" : "")")
-                    .font(.subheadline)
-                Spacer()
-                Button("Cancel", role: .cancel) { benchmark.cancel() }
-                    .buttonStyle(.glass)
-            }
-            Text("\(step): \(plan[index].detail)").font(.caption).foregroundStyle(.secondary)
-            ProgressView(value: Double(index), total: Double(plan.count))
+    private var status: String {
+        let count = Benchmark.plan.count
+        switch benchmark.phase {
+        case .idle: return "\(count) scenes"
+        case .cancelled: return "Cancelled"
+        case .loading(let index): return "\(index + 1) of \(count) · Loading"
+        case .settling(let index): return "\(index + 1) of \(count) · Settling"
+        case .measuring(let index): return "\(index + 1) of \(count) · Measuring"
+        // Rounded first, and plus zero, so a drift of −0.04 % reads +0.0 %, not −0.0 %.
+        case .done: return benchmark.drift.map { String(format: "Done · drift %+.1f %%", ($0 * 10).rounded() / 10 + 0) } ?? "Done"
         }
     }
 
-    /// Every scene measured so far, with what it drew.
+    private var progress: Double {
+        switch benchmark.phase {
+        case .idle, .cancelled: 0
+        case .loading(let index), .settling(let index), .measuring(let index): Double(index) / Double(Benchmark.plan.count)
+        case .done: 1
+        }
+    }
+
+    private var current: Int? {
+        switch benchmark.phase {
+        case .loading(let index), .settling(let index), .measuring(let index): index
+        default: nil
+        }
+    }
+
+    /// Every scene of the plan, measured or not.
     private var table: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ScrollView {
-                Grid(alignment: .trailing, horizontalSpacing: 10, verticalSpacing: 6) {
-                    GridRow {
-                        Text("Scene").gridColumnAlignment(.leading)
-                        Text("fps")
-                        Text("p95")
-                        Text("CPU")
-                        Text("GPU")
-                        Text("MB")
-                    }
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    ForEach(benchmark.results) { result in
-                        GridRow {
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(result.title).lineLimit(1)
-                                Text("^[\(result.satellites) satellite](inflect: true)\(result.timedOut ? ", still loading" : "")")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .gridColumnAlignment(.leading)
-                            Text(number(result.recording.framesPerSecond, digits: 0))
-                            Text(number(result.recording.percentile(0.95), digits: 1))
-                            Text(number(result.recording.meanCPU, digits: 1))
-                            Text(number(result.recording.meanGPU, digits: 1))
-                            Text(result.memoryMegabytes.map(String.init) ?? "–")
-                        }
-                        .font(.caption.monospacedDigit())
-                    }
+        VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                Text("Scene").frame(maxWidth: .infinity, alignment: .leading)
+                ForEach(Self.columns, id: \.title) { column in
+                    Text(column.title).frame(width: column.width, alignment: .trailing)
                 }
             }
-            .frame(maxHeight: 260)
-            .scrollBounceBehavior(.basedOnSize)
-            Text("Frame times and per-frame CPU and GPU work in milliseconds; memory as iOS counts it against the app.")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.secondary)
+            ForEach(Array(Benchmark.plan.enumerated()), id: \.offset) { index, scene in
+                row(scene, result: benchmark.results.indices.contains(index) ? benchmark.results[index] : nil, isCurrent: index == current)
+            }
+        }
+    }
+
+    private func row(_ scene: Benchmark.Scene, result: Benchmark.Result?, isCurrent: Bool) -> some View {
+        let values: [String] =
+            result.map {
+                [
+                    number($0.recording.framesPerSecond, digits: 0), number($0.recording.percentile(0.95), digits: 1),
+                    number($0.recording.meanCPU, digits: 1), number($0.recording.meanGPU, digits: 1),
+                    $0.memoryMegabytes.map(String.init) ?? "–",
+                ]
+            } ?? Array(repeating: isCurrent ? "…" : "–", count: Self.columns.count)
+        return HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(scene.title)
+                    .font(.caption.weight(isCurrent ? .semibold : .regular))
+                    .foregroundStyle(isCurrent ? Color.accentColor : .primary)
+                // The count once measured, where the subtitle stood before.
+                Group {
+                    if let result {
+                        Text("^[\(result.satellites) satellite](inflect: true)\(result.timedOut ? ", still loading" : "")")
+                    } else {
+                        Text(scene.subtitle)
+                    }
+                }
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-            if let drift = benchmark.drift {
-                Text(String(format: "Frame rate on the repeat: %+.1f %%", drift))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
             }
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            ForEach(Array(zip(Self.columns, values)), id: \.0.title) { column, value in
+                Text(value).frame(width: column.width, alignment: .trailing)
+            }
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(result == nil ? .secondary : .primary)
         }
     }
 
-    private var actions: some View {
+    /// The same height whatever the phase: one row of buttons, two lines of text.
+    private var footer: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Button(benchmark.submitted ? "Sent" : "Send results") { benchmark.submit(with: session.analytics) }
-                    .buttonStyle(.glassProminent)
-                    .disabled(benchmark.submitted || !session.analytics.isSharing)
-                Button("Run again") { benchmark.start(on: session) }
-                    .buttonStyle(.glass)
+                switch benchmark.phase {
+                case .idle, .cancelled:
+                    Button("Start") { benchmark.start(on: session) }
+                        .buttonStyle(.glassProminent)
+                case .loading, .settling, .measuring:
+                    Button("Cancel", role: .cancel) { benchmark.cancel() }
+                        .buttonStyle(.glass)
+                case .done:
+                    Button(benchmark.submitted ? "Sent" : "Send results") { benchmark.submit(with: session.analytics) }
+                        .buttonStyle(.glassProminent)
+                        .disabled(benchmark.submitted || !session.analytics.isSharing)
+                    Button("Run again") { benchmark.start(on: session) }
+                        .buttonStyle(.glass)
+                }
             }
-            // Sent with the usage data, and only where that is counted.
-            Text(
-                session.analytics.isSharing
-                    ? "Sends these results with your device model, iOS version, app build, screen size and temperature state to satvis's usage data."
-                    : Analytics.isAvailable
-                        ? "Turn on Share usage data in Settings to send these results." : "This build does not send usage data."
-            )
-            .font(.caption2)
-            .foregroundStyle(.secondary)
+            Text(caption)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2, reservesSpace: true)
+        }
+    }
+
+    private var caption: String {
+        switch benchmark.phase {
+        case .idle, .cancelled:
+            "Measures each scene for \(Int(Benchmark.measure.components.seconds)) s once loaded. Times in ms, memory in MB."
+        case .loading, .settling, .measuring:
+            "Keep the app in front. Your view comes back at the end."
+        case .done:
+            session.analytics.isSharing
+                ? "Sends the results with your device model, iOS version, screen and temperature state."
+                : Analytics.isAvailable ? "Turn on Share usage data in Settings to send the results." : "This build does not send usage data."
         }
     }
 
