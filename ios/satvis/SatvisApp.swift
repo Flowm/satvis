@@ -294,8 +294,14 @@ private struct ToolMenu<Tools: View>: View {
             .accessibilityLabel(isOpen ? "Close menu" : "Menu")
 
             if isOpen {
-                Divider()
-                tools
+                // In at once, where they will stand, for the growing panel to
+                // uncover: faded in, they stood clear of it before it reached
+                // them. Out faded, inside the shrinking panel.
+                Group {
+                    Divider()
+                    tools
+                }
+                .transition(.asymmetric(insertion: .identity, removal: .opacity))
             }
         }
         // As wide as its widest name, every row across all of it.
@@ -306,10 +312,11 @@ private struct ToolMenu<Tools: View>: View {
         // In the web app's order, top down, even where a menu opens upwards.
         .menuOrder(.fixed)
         .padding(.vertical, 4)
+        .clipShape(.rect(cornerRadius: 26))
         // The glass the system draws around a large `.glass` button, around the
         // whole panel instead: a menu's own arrives a beat after a button's.
         .glassEffect(.regular, in: .rect(cornerRadius: 26))
-        .animation(.snappy, value: isOpen)
+        .animation(.snappy(duration: 0.2), value: isOpen)
     }
 }
 
@@ -341,6 +348,8 @@ private struct ToolRowStyle: ButtonStyle {
             .padding(.trailing, 18)
             .frame(maxWidth: .infinity, minHeight: 44 * scale, alignment: .leading)
             .background(.white.opacity(configuration.isPressed ? 0.12 : 0))
+            // Gone with the touch, not carried through the panel's animation.
+            .animation(nil, value: configuration.isPressed)
             .contentShape(.rect)
     }
 }
