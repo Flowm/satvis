@@ -383,11 +383,8 @@ private struct ComponentsMenu: View {
                         catalog.setComponent(component, enabled: $0)
                     })
             }
-            if catalog.activeEntries.count > SatelliteComponents.labelBudget {
+            if catalog.components.contains(.label), catalog.activeEntries.count > SatelliteComponents.labelBudget {
                 Text("Labels show for up to \(SatelliteComponents.labelBudget) satellites")
-            }
-            if catalog.activeEntries.count > SatelliteComponents.linkBudget {
-                Text("Ground station links show for up to \(SatelliteComponents.linkBudget) satellites")
             }
         }
     }

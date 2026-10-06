@@ -28,6 +28,12 @@ final class CatalogModel {
     private(set) var catalog = Catalog()
     private(set) var activation = Activation()
     private(set) var components: SatelliteComponents = [.point, .label]
+    /// The components past their budget for what is active, which links leave
+    /// out of the default for `elements`, so that one naming them keeps them.
+    private(set) var overBudget: SatelliteComponents = []
+    /// What the link being opened names in `elements`: kept through the crossing
+    /// its own activation causes.
+    @ObservationIgnored private var named: SatelliteComponents = []
     /// The tracked satellite, by catalog id.
     private(set) var tracked: String?
     /// The satellites drawn, by name. Kept rather than worked out on every read:
@@ -51,19 +57,25 @@ final class CatalogModel {
     /// Takes a preset's groups, with what is active and drawn over them, and loads
     /// the groups that needs: the enabled tags', or every one where satellites are
     /// named, since a name does not say which group it is in.
-    func open(preset: String?, activation: Activation, components: SatelliteComponents) async {
+    /// `named` is what the link names in `elements`, which a budget crossed on
+    /// the way does not switch off.
+    func open(preset: String?, activation: Activation, components: SatelliteComponents, named: SatelliteComponents = []) async {
         presetName = preset
         if let index = source.index?.value {
             apply(index)
         }
         self.activation = activation
         self.components = components
+        self.named = named
+        // Counted afresh for what this link activates.
+        overBudget = []
         changed()
         if !activation.enabledSatellites.isEmpty || !activation.disabledSatellites.isEmpty {
             await load(groups)
         } else {
             await load(groups.filter { !$0.tags.isEmpty && !Set($0.tags).isDisjoint(with: activation.enabledTags) })
         }
+        self.named = []
     }
 
     /// A satellite by name, among the groups loaded, loading every one first.
@@ -212,6 +224,18 @@ final class CatalogModel {
         let active = activation.active(in: catalog, tracked: tracked.flatMap { catalog.entries[$0]?.name })
         if active != activeEntries {
             activeEntries = active
+        }
+        // Edge-triggered, as the web app's sceneSync: a component switched back on
+        // past its budget stays on until the count drops under and crosses again.
+        for (component, budget) in SatelliteComponents.budgets {
+            if active.count <= budget {
+                overBudget.remove(component)
+            } else if !overBudget.contains(component) {
+                overBudget.insert(component)
+                if !named.contains(component) {
+                    components.remove(component)
+                }
+            }
         }
     }
 }
