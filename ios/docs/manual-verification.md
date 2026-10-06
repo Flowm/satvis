@@ -257,3 +257,24 @@ actor's isolation, and Swift checked on every turn that it was on the main actor
 frame; reading each trajectory for its refused nodes was the rest. The stencils are now
 found off the actor from one packed array, and a trajectory is read only when it has a
 refused node.
+
+## Native app: the globe's limb, and the sky atmosphere as a ring
+
+**Procedure.** The default view at a pinned instant (`SATVIS_TIME`) on the iPhone 17e
+simulator and the iPad mini (`iPad14,1`, Release), screenshots of the limb compared
+pixel by pixel between commits and variants, at 12:00 and 17:30 UTC; then the benchmark
+with `SATVIS_BENCHMARK=print` on the iPad, each variant against the same build's HEAD.
+
+**Result, 2026-10-06.** The limb had not changed since the tile meshes came in: every
+commit back to the benchmark panel drew it pixel for pixel the same, on both. The bumps
+along it were the sky atmosphere's 128 by 64 shell, coloured per vertex: where the eye's
+ray grazes the shell its colour changes faster than one facet can follow. Computing the
+ground atmosphere per fragment, as CesiumJS does past the night fade, changed 20 pixels.
+A 256 by 256 shell, CesiumJS's, was smooth but took the default view from 5.8 to 9.2 ms
+of GPU a frame, and skipping the scattering at the vertices no pixel shows saved 0.4 of
+that. Colouring the shell per fragment was smooth too and cost 1.1 ms in fragments, the
+depth test and a ray test for the globe's pixels saving nothing. 4× MSAA smoothed the
+rim's remaining steps for 0.8 to 2.7 ms and was dropped, as the web app drops MSAA at a
+ratio of 2. The ring, from more than 10 % outside the shell, is as smooth as the 256 by
+256 shell; the default view took 5.4 ms, HEAD 5.3 to 5.8, and the sky view and the ISS
+tracked, which keep the whole shell, did not change.

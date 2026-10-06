@@ -129,6 +129,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let queue: MTLCommandQueue
     private let skyBoxPipeline: MTLRenderPipelineState
     private let skyAtmospherePipeline: MTLRenderPipelineState
+    private let skyRingPipeline: MTLRenderPipelineState
     private let globePipeline: MTLRenderPipelineState
     private let pointPipeline: MTLRenderPipelineState
     private let linePipeline: MTLRenderPipelineState
@@ -154,6 +155,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     let surface: Surface
     private let tileSampler: MTLSamplerState
     private let skyShell: (vertices: MTLBuffer, indices: MTLBuffer, count: Int)
+    private let skyRing: (indices: MTLBuffer, count: Int)
     private var imagery: MTLTexture?
     private var stars: MTLTexture?
     private var hdr: MTLTexture?
@@ -270,6 +272,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         skyBoxPipeline = try pipeline("fullscreenVertex", "skyBoxFragment")
         skyAtmospherePipeline = try pipeline("skyAtmosphereVertex", "skyAtmosphereFragment", blend: true, fastVertex: true)
+        skyRingPipeline = try pipeline("skyRingVertex", "skyAtmosphereFragment", blend: true, fastVertex: true)
         globePipeline = try pipeline("globeVertex", "globeFragment", fastVertex: true)
         pointPipeline = try pipeline("pointVertex", "pointFragment")
         linePipeline = try pipeline("lineVertex", "lineFragment", blend: true)
@@ -333,6 +336,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         tileSamplerDescriptor.tAddressMode = .clampToEdge
         tileSampler = device.makeSamplerState(descriptor: tileSamplerDescriptor)!
         skyShell = upload(Meshes.skyShell())
+        let ringIndices = Meshes.grid(columns: Self.skyRingColumns, rows: Self.skyRingRows)
+        guard let ringBuffer = ringIndices.withUnsafeBytes({ device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) }) else {
+            throw RendererError.noDevice
+        }
+        skyRing = (ringBuffer, ringIndices.count)
         pointFrameBuffers = Array(repeating: nil, count: Self.framesInFlight)
         screenScale = Double(view.contentScaleFactorForPoints)
         pixelScale = screenScale
@@ -858,11 +866,18 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             }
             // The shell's far side, where the globe stands in front of it, fails
             // the depth test.
-            encoder.setRenderPipelineState(skyAtmospherePipeline)
             encoder.setDepthStencilState(depthTest)
-            encoder.setCullMode(.front)
-            encoder.setVertexBuffer(skyShell.vertices, offset: 0, index: 0)
-            encoder.drawIndexedPrimitives(type: .triangle, indexCount: skyShell.count, indexType: .uint32, indexBuffer: skyShell.indices, indexBufferOffset: 0)
+            if simd_length(pose.position) > Self.skyRingDistance {
+                encoder.setRenderPipelineState(skyRingPipeline)
+                encoder.setCullMode(.none)
+                encoder.drawIndexedPrimitives(type: .triangle, indexCount: skyRing.count, indexType: .uint32, indexBuffer: skyRing.indices, indexBufferOffset: 0)
+            } else {
+                encoder.setRenderPipelineState(skyAtmospherePipeline)
+                encoder.setCullMode(.front)
+                encoder.setVertexBuffer(skyShell.vertices, offset: 0, index: 0)
+                encoder.drawIndexedPrimitives(
+                    type: .triangle, indexCount: skyShell.count, indexType: .uint32, indexBuffer: skyShell.indices, indexBufferOffset: 0)
+            }
 
             // Under the satellites and their names: a pin marks the ground.
             drawStations(encoder, eye: pose.position, now: now)
@@ -1043,6 +1058,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
     }
 
+    /// Mirror `skyRingColumns` and `skyRingRows` in Shaders/Sky.msl.
+    private static let skyRingColumns = 512
+    private static let skyRingRows = 16
+    /// From the Earth's centre, in metres: past this the sky atmosphere is drawn
+    /// as the ring round the globe (`skyRingVertex`), nearer as the whole shell,
+    /// which the eye can be inside. 10 % outside the shell.
+    private static let skyRingDistance = 1.1 * 1.025 * 6_378_137.0
     /// Mirrors `coneSides` in Shaders/Footprints.msl.
     private static let coneSides = 48
 

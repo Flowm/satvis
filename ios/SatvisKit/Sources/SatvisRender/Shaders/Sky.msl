@@ -28,9 +28,9 @@ struct SkyOut {
 
 constant float skyAtmosphereLightIntensity = 50.0;
 
-/// The inside of a shell 2.5 % outside the ellipsoid, coloured per vertex.
-vertex SkyOut skyAtmosphereVertex(uint vid [[vertex_id]], const device float4 *positions [[buffer(0)]], constant FrameUniforms &frame [[buffer(1)]]) {
-    float3 positionWC = positions[vid].xyz;
+/// SkyAtmosphereVS.glsl, per vertex: the colours along the ray from the eye to
+/// `positionWC` on the shell.
+inline SkyOut skyAtmosphere(float3 positionWC, constant FrameUniforms &frame) {
     float3 light = normalize(frame.sunDirection);
 
     float ellipsoidRadiiDifference = ellipsoidRadii.x - ellipsoidRadii.z;
@@ -55,6 +55,43 @@ vertex SkyOut skyAtmosphereVertex(uint vid [[vertex_id]], const device float4 *p
     out.positionWC = positionWC;
     out.position = frame.viewProjection * float4(cameraToPosition, 1.0);
     return out;
+}
+
+/// The inside of a shell 2.5 % outside the ellipsoid (SkyAtmosphere.js).
+vertex SkyOut skyAtmosphereVertex(uint vid [[vertex_id]], const device float4 *positions [[buffer(0)]], constant FrameUniforms &frame [[buffer(1)]]) {
+    return skyAtmosphere(positions[vid].xyz, frame);
+}
+
+// Mirrors skyRingColumns and skyRingRows in GlobeRenderer.swift.
+constant int skyRingColumns = 512;
+constant int skyRingRows = 16;
+
+/// The same shell, from outside it, where all of it that shows is a ring round
+/// the globe: only that ring, where the eye's rays between the globe's limb and
+/// the shell's meet the shell's far side, in 512 pieces around and 16 across.
+/// Coloured per vertex, the 128 by 64 shell drew its facets as bumps along the
+/// limb, and a 256 by 256 one, as CesiumJS's, cost an iPad mini 3 ms of GPU a
+/// frame.
+/// `vid` counts along the rows, `skyRingColumns + 1` vertices to a row.
+vertex SkyOut skyRingVertex(uint vid [[vertex_id]], constant FrameUniforms &frame [[buffer(1)]]) {
+    int column = int(vid) % (skyRingColumns + 1);
+    int row = int(vid) / (skyRingColumns + 1);
+    // Scaled so that the shell is the unit sphere, and the ellipsoid a sphere
+    // inside it.
+    float3 shellRadii = 1.025 * ellipsoidRadii;
+    float3 eye = frame.cameraPosition / shellRadii;
+    float distance = length(eye);
+    float3 axis = -eye / distance;
+    float3 u = normalize(cross(axis, abs(axis.z) < 0.9 ? float3(0.0, 0.0, 1.0) : float3(1.0, 0.0, 0.0)));
+    float3 v = cross(axis, u);
+    // Across, by the sine of the ray's angle off the axis: from 1 % inside the
+    // globe's limb, which the globe hides, to the shell's.
+    float sine = mix(0.99 / (1.025 * distance), 1.0 / distance, float(row) / float(skyRingRows));
+    float cosine = sqrt(1.0 - sine * sine);
+    float around = 2.0 * M_PI_F * float(column) / float(skyRingColumns);
+    float3 direction = cosine * axis + sine * (cos(around) * u + sin(around) * v);
+    float far = distance * cosine + sqrt(max(1.0 - distance * distance * sine * sine, 0.0));
+    return skyAtmosphere((eye + far * direction) * shellRadii, frame);
 }
 
 fragment float4 skyAtmosphereFragment(SkyOut in [[stage_in]], constant FrameUniforms &frame [[buffer(1)]]) {

@@ -56,6 +56,10 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   eye in double precision on the CPU. Everything else, every fragment function
   included, is compiled with fast math (`ShaderLibrary`): safe math made the
   full-screen passes and the atmosphere's per-vertex scattering twice as slow.
+  The sky atmosphere is CesiumJS's shell, coloured per vertex; from more than
+  10 % outside it only the ring it shows round the globe is drawn
+  (`skyRingVertex`), 512 pieces around, as the whole shell's facets showed as
+  bumps along the limb and a shell fine enough to hide them cost 3 ms a frame.
   Satellites are points the vertex shader interpolates from each one's sampled
   trajectory, with the web app's quintic; the CPU only finds each stencil.
   The ground tracks are drawn once a second into the ground overlay, a cube map
