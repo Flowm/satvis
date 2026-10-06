@@ -71,7 +71,8 @@ public enum CameraMode: Sendable, Equatable {
 public final class GlobeRenderer: NSObject, MTKViewDelegate {
     public private(set) var cameraMode = CameraMode.orbit
     /// Nil until the view has a size, then the web app's home view. Kept while
-    /// tracking, for when what is followed cannot be placed.
+    /// tracking: shown when what is followed cannot be placed, and gone back to
+    /// when tracking stops.
     private var orbitCamera: OrbitCamera?
     private var trackingCamera = TrackingCamera()
     /// The sky view's camera, while it is on the ground.
@@ -395,12 +396,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         trackingCamera = TrackingCamera()
     }
 
-    /// Lets go, and leaves the camera 2,000 km straight above what it followed, as
-    /// the web app does.
+    /// Lets go, and goes back to the view tracking began from, as the web app
+    /// does: the free camera is kept while tracking, through switches from one
+    /// satellite to another.
     public func stopTracking() {
-        if case .tracking(let id) = cameraMode, let lastFrame, let position = position(of: id, at: lastFrame.time) {
-            orbitCamera = .above(position, altitude: 2_000_000)
-        }
         cameraMode = .orbit
     }
 

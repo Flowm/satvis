@@ -41,13 +41,6 @@ public struct OrbitCamera: Sendable, Equatable {
 
     public var position: SIMD3<Double> { up * radius }
 
-    /// Straight down on a point from a height: where the web app leaves the camera
-    /// when it stops tracking a satellite (2,000 km above it).
-    public static func above(_ point: SIMD3<Double>, altitude: Double) -> OrbitCamera {
-        let unit = normalize(point)
-        return OrbitCamera(latitude: asin(unit.z), longitude: atan2(unit.y, unit.x), altitude: altitude)
-    }
-
     /// The camera `t` of the way from one to another, eased: along the great
     /// circle between the points below them, the height evenly in its logarithm,
     /// the heading the shorter way round.
