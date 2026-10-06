@@ -22,6 +22,8 @@ final class Benchmark {
         /// What it draws, for the event sent.
         let detail: String
         let link: String
+        /// Whether the info panel a tracking link opens stays open, glass and all.
+        var keepsPanel = false
     }
 
     /// One scene's measurement.
@@ -38,6 +40,8 @@ final class Benchmark {
         let timedOut: Bool
         let recording: FrameRecording
         let memoryMegabytes: Int?
+        /// The display's interval between refreshes, which slow frames are counted by.
+        let refreshMilliseconds: Double
     }
 
     enum Phase: Equatable {
@@ -71,11 +75,15 @@ final class Benchmark {
             id: "iss_model_tracked", title: "ISS", subtitle: "3D model, tracked", detail: "The ISS alone, its 3D model followed close up, with its orbit",
             link: "/?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model"),
         Scene(
+            id: "iss_model_tracked_panel", title: "ISS", subtitle: "Tracked, panel open",
+            detail: "The ISS alone, its 3D model followed close up, with its orbit and its info panel open",
+            link: "/?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model", keepsPanel: true),
+        Scene(
             id: "sky_view", title: "Sky view", subtitle: "Lauterbrunnen", detail: "Looking up from Lauterbrunnen, on terrain, the default preset's satellites",
             link: "/?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen"),
     ]
     /// Changed when the scenes or the metrics change, so results can be told apart.
-    static let version = 1
+    static let version = 2
 
     /// How long a scene may take to load before it is measured anyway: the
     /// largest groups come from the worker on a first run.
@@ -83,8 +91,13 @@ final class Benchmark {
     /// After loading, for the tiles, the model and the shader caches to settle.
     static let settle: Duration = .seconds(3)
     static let measure: Duration = .seconds(5)
-    /// The first scene again, last: the drift check.
+    /// The first scene again, last: the drift check. `SATVIS_BENCHMARK_SCENES`
+    /// in the launch environment, scene ids by commas, runs only those, without
+    /// the repeat: for checking a change to one of them.
     static var plan: [Scene] {
+        if let only = ProcessInfo.processInfo.environment["SATVIS_BENCHMARK_SCENES"]?.split(separator: ",").map(String.init) {
+            return scenes.filter { only.contains($0.id) }
+        }
         let first = scenes[0]
         return scenes + [Scene(id: "\(first.id)_repeat", title: "Repeat", subtitle: first.title, detail: first.detail, link: first.link)]
     }
@@ -92,8 +105,9 @@ final class Benchmark {
     /// `SATVIS_BENCHMARK` in the launch environment runs the benchmark at once,
     /// sends its results where usage is shared and prints them as JSON to
     /// standard output: for a device driven from the Mac (`xcrun devicectl device
-    /// process launch --console`).
+    /// process launch --console`). `SATVIS_BENCHMARK=print` only prints them.
     static let runsAtLaunch = ProcessInfo.processInfo.environment["SATVIS_BENCHMARK"] != nil
+    private static let sendsAtLaunch = runsAtLaunch && ProcessInfo.processInfo.environment["SATVIS_BENCHMARK"] != "print"
     /// Whether that run has begun: SwiftUI may run the session's task again.
     @ObservationIgnored private var ranAtLaunch = false
 
@@ -137,7 +151,9 @@ final class Benchmark {
             phase = Task.isCancelled ? .cancelled : .done
             session.open(saved)
             if Self.runsAtLaunch, phase == .done {
-                submit(with: session.analytics)
+                if Self.sendsAtLaunch {
+                    submit(with: session.analytics)
+                }
                 if let json = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
                     print(String(decoding: json, as: UTF8.self))
                 }
@@ -189,8 +205,10 @@ final class Benchmark {
         }
         let loaded = ContinuousClock.now - opened - (timedOut ? .zero : .seconds(2))
         // A tracking link selects what it follows; its panel would cover the
-        // scene measured and cost its own frames.
-        session.selection = nil
+        // scene measured and cost its own frames, unless that is what is measured.
+        if !scene.keepsPanel {
+            session.selection = nil
+        }
         phase = .settling(index)
         try? await Task.sleep(for: Self.settle)
         phase = .measuring(index)
@@ -203,13 +221,14 @@ final class Benchmark {
         return Result(
             id: scene.id, title: scene.title, detail: scene.detail,
             satellites: renderer.satelliteCount, loadSeconds: max(loaded / .seconds(1), 0),
-            timedOut: timedOut, recording: recording, memoryMegabytes: MemoryFootprint.megabytes())
+            timedOut: timedOut, recording: recording, memoryMegabytes: MemoryFootprint.megabytes(),
+            refreshMilliseconds: 1000 / Double((UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.maximumFramesPerSecond ?? 60))
     }
 
     /// The first scene against its repeat at the end, in percent of frame rate:
     /// a device that warmed up and slowed shows here.
     var drift: Double? {
-        guard results.count == Self.plan.count, let first = results.first?.recording.framesPerSecond,
+        guard results.count == Self.plan.count, results.last?.id.hasSuffix("_repeat") == true, let first = results.first?.recording.framesPerSecond,
             let repeated = results.last?.recording.framesPerSecond, first > 0
         else {
             return nil
@@ -302,7 +321,7 @@ extension Benchmark.Result {
             "fps": rounded(recording.framesPerSecond, 1),
             "frame_p50_ms": rounded(recording.percentile(0.5)),
             "frame_p95_ms": rounded(recording.percentile(0.95)),
-            "slow_pct": rounded(recording.slowShare.map { $0 * 100 }, 1),
+            "slow_pct": rounded(recording.slowShare(refresh: refreshMilliseconds).map { $0 * 100 }, 1),
             "cpu_ms": rounded(recording.meanCPU),
             "gpu_ms": rounded(recording.meanGPU),
             "memory_mb": memoryMegabytes.map { $0 as Any } ?? NSNull(),

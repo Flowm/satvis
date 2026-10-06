@@ -12,14 +12,15 @@ import Testing
         #expect(recording.percentile(0.5) == 16.7)
         #expect(recording.percentile(0.95) == 50.1)
         #expect(recording.percentile(0) == 16.7)
-        #expect(recording.slowShare == 0.1)
+        #expect(recording.slowShare(refresh: 1000.0 / 60) == 0.1)
+        #expect(FrameRecording(intervals: [16.7, 32.5]).slowShare(refresh: 1000.0 / 60) == 0.5)
         #expect(recording.meanCPU == 2)
         #expect(recording.meanGPU == 9)
     }
 
     @Test func readsNothingFromNoFrames() {
         let recording = FrameRecording()
-        #expect(recording.framesPerSecond == nil && recording.percentile(0.95) == nil && recording.slowShare == nil && recording.meanGPU == nil)
+        #expect(recording.framesPerSecond == nil && recording.percentile(0.95) == nil && recording.slowShare(refresh: 1000.0 / 60) == nil && recording.meanGPU == nil)
     }
 
     // Frames handed to the meter while it records come back, each GPU time with

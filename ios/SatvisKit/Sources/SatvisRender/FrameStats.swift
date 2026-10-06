@@ -49,10 +49,12 @@ public struct FrameRecording: Sendable, Equatable {
         return sorted[max(0, min(rank, sorted.count - 1))]
     }
 
-    /// The share of frames slower than 33 ms, the web benchmark's `jankPct`: at
-    /// 60 Hz, every frame that missed a refresh.
-    public var slowShare: Double? {
-        intervals.isEmpty ? nil : Double(intervals.filter { $0 > 33 }.count) / Double(intervals.count)
+    /// The share of frames that missed a refresh of a display refreshing every
+    /// `refresh` milliseconds: longer than one and a half refreshes. The web
+    /// benchmark's `jankPct` counts frames over 33 ms, which at 60 Hz misses the
+    /// frames of two refreshes that came in at 32.5 ms.
+    public func slowShare(refresh: Double) -> Double? {
+        intervals.isEmpty ? nil : Double(intervals.filter { $0 > 1.5 * refresh }.count) / Double(intervals.count)
     }
 
     public var meanCPU: Double? { cpu.isEmpty ? nil : cpu.reduce(0, +) / Double(cpu.count) }
