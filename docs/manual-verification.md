@@ -35,8 +35,6 @@ These apply to every check driven from an automated or hidden browser pane.
   tab can open on an earlier url. Navigate with a distinct query (`/ot?v=clean`).
 - **An emulated viewport does not fire `resize`.** Dispatch one after each width
   change.
-- **Surface models and terrain from ion** need an unrestricted
-  `VITE_CESIUM_ION_TOKEN` locally (AGENTS.md, Gotchas).
 
 ## Sky view: a drag takes the aim back from the compass
 
@@ -96,10 +94,6 @@ No console errors.
 the 250 ms throttle instead of `globe.getHeight`: the eye held at 2 m through the
 sprint and the settle still wrote `gs`.
 
-**Not verified:** walking under `surface=GooglePhotorealistic`, the case that fix is
-for. Record `camera.positionCartographic.height` on every `preRender` while you hold
-`W` in Munich. It must stay near the mesh top (~570 m), not fall to 2 m.
-
 ## Sky view: the observer is a designation, not the first station
 
 **Covers:** `sat.observerStation` (`src/stores/sat.ts`), `resolveObserver` and the
@@ -122,103 +116,6 @@ Innsbruck carried the ◉ with Innsbruck to row 1 and did not move the observer.
 London designated, removing Munich left the ◉ on London at row 2 and the observer
 unmoved. The GEO arc read Meteosat-12 at 30.3° elevation, 180.4° azimuth from
 London. No console errors.
-
-## Sky view: enabling a surface model must not lurch or flip
-
-**Covers:** the terrain swap in `CesiumController` that measures the new provider
-before it assigns it, and `SkyView`'s ground height source. Decision: ADR 0005.
-
-**Procedure.** Enter `?scene=Sky&gs=48.1372,11.5756,Munich` with no surface model,
-then enable OsmBuildings while you record `camera.position` and `camera.up` on every
-`preRender`.
-
-**Result, 2026-07-30, Chrome.** Two eye heights, 2 m then 572.8 m (World Terrain's
-570.8 m plus the 2 m eye), in one transition in the frame the provider changes.
-`up.z` constant at 0.979. Before the fix the eye stayed at 2 m, ~570 m under the new
-ground, then stepped up per terrain refinement (one reading of −76639 was rejected
-by the plausibility guard).
-
-## Sky view: moving the observer must not drop the eye underground
-
-**Covers:** `SkyView.enter` and the ground height source.
-
-**Procedure.** Settle the sky view over Munich with OsmBuildings. Move the observer
-with `cc.skyView.enter({ lat, lon })`, which is what a station drag or a geolocation
-fix does, and record `camera.position` on every `preRender`.
-
-**Result, 2026-07-30, Chrome.** One height throughout, 572.8 m, `up.z` constant at
-0.979. Before the fix the eye went to 2 m, 568 m underground, until the measurement
-returned.
-
-From under a surface you see its underside with the same imagery: a plan view of
-the city, an edge where the mesh ends, black below. It was reported as the world
-flipping. Reproduce it with `cc.skyView.setGroundHeight(0)` over any city.
-
-## Sky view: the terrain hides the satellites behind it
-
-**Covers:** `depthTestAgainstTerrain` and `coarseDepthTestDistance` in `SkyView.ts`
-(`#enter` and exit).
-
-**Procedure.** Open
-`?terrain=ReEarth&scene=Sky&elements=Point&tags=Starlink,Weather,Stations&gs=47.3879,12.3077`
-(the Kitzbühel Alps). For each satellite that projects inside the viewport, compare
-the brightest pixel within 4 px of its projection between a frame with
-`scene.globe.depthTestAgainstTerrain` on and one with it off. A point reads 173
-against terrain's 45–70. Compute each satellite's elevation against the geodetic
-normal at the eye.
-
-**Result, 2026-08-10, Chrome.** 133 satellites on screen. Depth test off: 94 drawn,
-from −0.96° to 67°. On: 48 drawn, lowest at 9.28°, the ridge line in that direction.
-The 46 removed spanned −0.96° to 14.26°, and none appeared that was not drawn
-before.
-
-Before the fix, Cesium's depth plane already hid the sky below the horizon (with
-`scene._depthPlane.execute = () => {}`, satellites at −7° drew at full brightness).
-Its cutoff is about 1° short of the horizon, because it is a quad of the limb's
-radius ~101 km from an eye 800 m up. So the missing occlusion was relief only.
-
-**Labels, 2026-10-04, Chrome.** Beyond the label collection's
-`coarseDepthTestDistance` (~636 km) Cesium tests billboards against the ellipsoid
-only. At `?scene=Sky&gs=46.5935,7.9091&terrain=ReEarth&time=2026-10-04T20:00Z`
-(Lauterbrunnen, looking south), 5 of 72 weather-satellite labels (METEOSAT-9,
-CYGFM07, CYGFM02, FENGYUN 3F, ELEKTRO-L 2) drew on the cliffs with no point. With
-`SkyView` setting the distance to infinity, all five went and the five above the
-skyline stayed. Leaving the view restored 635,675 m.
-
-## Sky view: the crosshair agrees with the picture
-
-**Covers:** `groundHides` (`src/modules/SkyTargets.ts`) and the lock in
-`SkyInteraction.ts`. `SkyTargets.test.ts` covers the ordering and the lock; this
-checks the answer against the frame.
-
-**Procedure.** Same place and terrain as above.
-
-1. For each satellite above the horizon in the viewport, compare `groundHides` with
-   whether the frame drew it (brightest pixel within 4 px).
-2. Aim at each of 25 satellites in turn, render **twice**, and compare
-   `cc.skyInteraction.locked` with the pixel at screen centre. The lock runs in
-   `preRender` against the tiles of the previous frame, so the first frame after a
-   jump answers for the old view. A drag never shows this.
-
-**Result, 2026-08-10, Chrome, 11,011 satellites.** Part 1: 87 of 88 agreed. The
-exception sat at 9.7° on a ridge silhouette, where the ray meets a tile the drawn
-mesh dips below. Part 2: 25 of 25 (8 drawn and locked, 17 hidden and not locked).
-
-Cost, warm: about 10 µs a ray. 25 samples took 0.23–0.31 ms per batch, on the
-500 ms sampling interval. Frame time stayed at 11.5–14.4 ms with no spike on a
-sampling frame. Cold, the first rays of a session took up to 2 ms.
-
-## Sky view: what a device is still needed for
-
-**Covers:** `src/modules/DeviceAim.ts` and the sensor path in `SkyInteraction.ts`.
-
-Device orientation is **verified on iOS**: the sign of the screen-orientation
-correction and the `360 - webkitCompassHeading` substitution are right, and the sky
-lines up with no trim. **Not verified:** the Android path,
-`deviceorientationabsolute` (ADR 0004). `DeviceOrientationEvent.requestPermission`
-and `getUserMedia` need a secure context, so `pnpm dev:host` over a LAN address
-cannot test them. Use a tunnel or a preview deploy. Camera passthrough is not
-implemented.
 
 ## Entity info panel: the tab set, the timeline and the pass link
 
@@ -247,91 +144,19 @@ repeatedly; the other tab switches and expands in one press. Folded, 556 px of g
 lies between panel and deck, and a pass ten minutes ahead draws 29 px wide at 220 px
 along a 390 px ruler.
 
-## Surface models: the matrix, the eye height, and what drapes on a mesh
+## Surface models: an unavailable model reverts and says so
 
-**Covers:** `surfaceEffects` and `viewModeNote` (`src/config/surfaceModels.ts`,
-unit-tested), `src/modules/SurfaceModel.ts`, the terrain note in
-`src/components/Satvis.vue`, and the ground station pin. Decision: ADR 0005. Needs
-an unrestricted `VITE_CESIUM_ION_TOKEN`.
+**Covers:** the failure path of `src/modules/SurfaceModel.ts` and the surface radio in
+`src/components/Satvis.vue`. What each model does to the view is `surfaceEffects`
+(`src/config/surfaceModels.ts`, unit-tested), which the menu and the globe both read.
 
-**Procedure.** With `?layers=ArcGis&gs=48.1372,11.5756,Munich`, walk `surface=` and
-`scene=` through the combinations. Read `cc.surface.active`, `scene.globe.show`,
-`scene.terrainProvider.constructor.name`, the camera's cartographic height, and the
-dimmed groups in the Map panel.
+**Procedure.** With ion unreachable, select `GooglePhotorealistic` in the Map menu.
 
-**Result, 2026-07-29, Chrome** (terrain radio re-checked 2026-07-30).
-
-- `surface=OsmBuildings&scene=3D`: buildings on the globe, terrain
-  `CesiumTerrainProvider` while the store holds `None`, Terrain dimmed and Layers
-  not. The radio reads `CesiumWorldTerrain` with its rows disabled, and the note
-  reads "OsmBuildings needs CesiumWorldTerrain, None returns".
-- `surface=GooglePhotorealistic&scene=Sky`: globe hidden, mesh drawn, Layers and
-  Terrain dimmed. Camera at 563.3 m: the mesh surface plus 2 m.
-- Then `scene=3D`: tileset removed, globe back, nothing dimmed, terrain
-  `EllipsoidTerrainProvider`, `?surface=` kept, note "Applies in the sky view only".
-- `surface=OsmBuildings&scene=2D`: no tileset, terrain not overridden, note
-  "Applies in the 3D and sky views only".
-- A probe corridor with `heightReference: CLAMP_TO_GROUND` draped onto the
-  photorealistic mesh, following the street and occluded by buildings. The ground
-  track needs no suppression there.
-- With `VITE_CESIUM_ION_TOKEN=not-a-real-token`, selecting `GooglePhotorealistic`
-  toasted "GooglePhotorealistic unavailable … Cesium ion needs a token valid for
-  this origin", reset the radio to `None` and dropped `surface` from the url.
-  `SurfaceModel.apply` ran twice (attempt and revert), so the failure is reported
-  once.
-- At the Eiger with `terrain=CesiumWorldTerrain` the station pin sits on the ridge
-  (at height 0 it was ~4 km under it).
-
-**Loading cost, 2026-07-30, Chrome.** At globe altitude OSM Buildings loads nothing
-(0 tiles, 0 MB). In the sky view at Marienplatz, settled: 34.38 MB across 34 tiles
-with the sky-view roll-off, 39.73 MB across 40 at Cesium's defaults (13% less). Eye
-at 573 m. These numbers were taken against a 2 km globe ceiling: at 9,261 km and
-2,500 m the tileset was hidden (0 tiles, 0 MB), and at 1,400 m it showed and
-streamed 35 tiles, 44 MB. The ceiling is now 1 km above the ground
-(`GLOBE_BUILDING_CEILING`), and the above-ground gate is **not verified**: this
-environment never refined terrain past level 0, so `globe.getHeight` returned
-nothing or nonsense (−76594). Re-check in a real browser over a high city.
-
-**The mesh waits for the descent, 2026-07-30, Chrome.** Entering the sky view with
-`surface=GooglePhotorealistic`: mid-flight the tileset had `show: false`, 0 MB, and
-the globe visible. On landing (`settled: true`) it showed, the globe hid, and
-requests started. Tileset options: `maximumScreenSpaceError: 24`,
-`skipLevelOfDetail: true`, `immediatelyLoadDesiredLevelOfDetail: true`.
-
-**Not measured:** the skip-LOD saving (it needs an uncached city and Google quota),
-and iOS, where the reduced `cacheBytes` apply. The service worker is checked in the
-build output: neither `ion.cesium.com` nor `googleapis` appears in `dist/sw.js`.
-
-## Map menu: the Basemap/Overlays split, and Re:Earth terrain
-
-**Covers:** the imagery and terrain registries in
-`src/modules/CesiumLayerProviders.ts` (`base`), `setLayers` in
-`src/stores/cesium.ts`, and the Map menu.
-
-**Procedure.** Open `?layers=ArcGis_0.5,Nextrad&terrain=ReEarth`. Read the two
-imagery groups, switch basemap, toggle an overlay, and fly somewhere with relief.
-
-**Result, 2026-07-30, Chrome.** Basemap radios had ArcGis checked, bound by
-provider, so the `_0.5` token still reads as ArcGis. (The radios then also listed
-`Offline` and `OfflineHighres`; both are now the single `NaturalEarth`.) Overlays
-`Tiles`, `GOES-IR`, `Nextrad`, with Nextrad checked. Switching to OSM wrote
-`?layers=OSM,Nextrad`, keeping the overlay and dropping the old basemap's opacity.
-Toggling `Tiles` gave `OSM,Nextrad,Tiles` and three imagery layers; untoggling gave
-two.
-
-Re:Earth terrain resolved `https://terrain.reearth.land/cesium-mesh/ellipsoid/` and
-rendered the Bernese Alps with relief. Its credit "Re:Earth Terrain · Mapterhorn
-(CC BY 4.0)" shows in the attribution, beside the service's own layer.json credits.
-Re:Earth is a free, keyless service with no SLA: if terrain looks flat, check it
-first.
-
-VersaTiles rendered the right way up (its TileJSON declares no `scheme`, so no
-`{reverseY}`) and sharp orthophoto over central Munich, tile levels 7 to 14, no
-errors. "VersaTiles sources" is in the attribution.
-
-**Result, 2026-10-06, Chrome, the menu column's Map panel.** The imagery half again:
-ArcGis checked for `ArcGis_0.5`, Nextrad checked; OSM wrote `?layers=OSM,Nextrad`;
-Tiles took the imagery layers from 2 to 3 and back. Terrain was not re-flown.
+**Result, 2026-07-29, Chrome, `VITE_CESIUM_ION_TOKEN=not-a-real-token`.** A toast
+read "GooglePhotorealistic unavailable … Cesium ion needs a token valid for this
+origin", the radio went back to `None`, and `surface` left the url.
+`SurfaceModel.apply` ran twice (the attempt and the revert), so the failure is
+reported once.
 
 ## Worker: missing files 404, and none of it is billed
 
@@ -385,157 +210,30 @@ That is why `.json` missing from the extension list handed `/api/groups.json` to
 **Not verified:** a live navigation against a deployed Worker with the new service
 worker installed. After a deploy, open the url in a tab and confirm JSON.
 
-## Ground station link: drawn when switched on, free when not
-
-**Covers:** the `Ground station link` component in
-`src/modules/SatelliteComponentCollection.ts` (one dynamic polyline entity per
-satellite) and its budget in `sceneSync.ts`. Whether it reaches the scene is
-unit-tested; the frame cost is not.
-
-**Procedure.** `pnpm build && pnpm preview`, then open
-`?tags=Starlink&gs=48.1800,11.7500,Munich&elements=Point&framems=16`. Once every
-satellite is active and the scene has settled, time `clock.tick()` plus
-`scene.render()` from the console. Repeat with
-`elements=Point,Ground+station+link`, look at Munich, and untick the link in the
-Components panel.
-
-**Result, 2026-10-04, Chrome (frame pump on), 11,152 Starlink satellites.** Link
-off: 18 ms a frame and no link entities. Link on: 109 ms a frame (about 8 µs per
-satellite), activation about 4× slower, 281 links drawn from Munich. Unticking
-removed all 11,152 link entities and dropped it from `elements`.
-
-**Result, 2026-10-04, same setup, the first 1,000 catalog names.** Off, on, off in
-one page, each settled: `dataSourceDisplay.update` 0.5 ms off and 8 ms on, a frame
-21 ms and 30 ms. 50 links drawn.
-
-## Clock deck: the replacement for the animation and timeline widgets
+## Clock deck: nothing covers the controls, and the gestures hold still
 
 **Covers:** `src/components/ClockDeck.vue`, `src/composables/useClockDeckChrome.ts`
-(the credit placement cases and breakpoints), `usePassHighlights.ts`, the
-`body.clock-deck` rules in `src/css/main.css`, and the `Attribution` link text in
-`createViewer.ts`.
+(the credit placement cases and breakpoints), the `body.clock-deck` rules in
+`src/css/main.css`, and the `Attribution` link text in `createViewer.ts`. The
+time-travel journey and `e2e/regressions/timelineRelease.spec.ts` cover the
+timeline drag and its release.
 
-**Geometry.** At any viewport:
+**Procedure.** At 375, 447, 448, 623, 624, 1000 and 1280 px wide, hit-test the
+centre of the deck's controls, the scale row, the credit logo and both credit links,
+and above 1000 px the fullscreen button: each must reach itself. Read
+`body[data-clock-deck]`. Then tap the clock to fold and unfold (the clock and play
+button must not move), tap the gauge (the deck height must not change), and swipe
+the ladder and let go (it rests on a rung: `scrollLeft / 64` is an integer).
 
-```js
-const cluster = document.querySelector(".cluster");
-const surface = getComputedStyle(cluster, "::before");
-const box = cluster.getBoundingClientRect();
-const parts = [...cluster.querySelectorAll(".play__circle, .stamp, .mode, .reset")].map((el) => el.getBoundingClientRect());
-const credits = document.querySelector(".cesium-viewer-bottom").getBoundingClientRect();
-({
-  // The surface hugs the controls, 8 px either side.
-  surfaceLeft: box.left + parseFloat(surface.left) - (Math.min(...parts.map((p) => p.left)) - 8),
-  surfaceRight: box.right - parseFloat(surface.right) - (Math.max(...parts.map((p) => p.right)) + 8),
-  // It is flush against the band: one shape, not two.
-  seam: document.querySelector(".scale-row").getBoundingClientRect().top - box.bottom,
-  // The clock sits on the needle.
-  clockOffset: (() => {
-    const s = document.querySelector(".stamp").getBoundingClientRect();
-    return (s.left + s.right) / 2 - innerWidth / 2;
-  })(),
-  creditBottom: innerHeight - credits.bottom,
-  // The deck must not be the thing a tap on the credits hits.
-  creditHit: document.elementFromPoint(credits.left + 20, credits.top + 14)?.className,
-});
-```
-
-Then: tap the clock to fold and unfold (the clock and play button must not move);
-tap the gauge to put the ladder on the band (the deck height must not change); swipe
-the ladder and let go (it must coast and rest on a rung, `scrollLeft / 64` an
-integer); drag the timeline and let go (the clock pins, `?time=` and the reset
-button appear).
-
-**Result, 2026-08-19, Chrome, 375x700, 390x844 and 694x800.** Surface 92.5 → 317.5
-against controls at 100.5 → 309.5, so both edges exact. Seam 0.0, clock offset 0.0.
-The credit logo and both links hit-test to themselves, and `Attribution` opens
-Cesium's lightbox. Sky view cards sit at `bottom: 102px` with the deck and 64 px
-without.
-
-**Credit placement.** `useClockDeckChrome` sets `body[data-clock-deck]` to `clear`,
-`stacked`, `beside` or `folded`, and main.css writes each offset in terms of
-`--clock-deck-safe` and the safe-area insets. Read the computed variables, not the
-pixels, which are right only without a home indicator. The breakpoints are measured
-off the credit container's box, not its content (see the comment above
-`@media (min-width: 1000px)`); changing the `Attribution` text or the 22 px logo
-moves them.
-
-**Result, 2026-08-19, Chrome, 694x800 and 1280x800.** `calc(51px + max(6px, 0px))`
-beside the controls, `calc(3px + 0px)` folded and in the desktop corner,
-`calc(var(--clock-deck-height) + 4px)` clear of the deck.
+The breakpoints are measured off the credit container's box, not its content (see
+the comment above `@media (min-width: 1000px)`), so changing the `Attribution` text
+or the 22 px logo moves them.
 
 **Result, 2026-09-05, Chrome, emulated 447 / 448 / 623 / 624 / 1000 px.** 447:
-clear, one line 4 px above the deck. 448: stacked, 113.4 × 39 with 10.6 px clearance
-to the surface, centre 1.5 px above the clock's. 623: stacked. 624: beside, one line
-201 × 25 with 10.8 px clearance. 1000: one line in the corner (2026-08-20: 13.8 px
-clear of the scale row, fullscreen button 191 px clear).
-
-**Result, 2026-08-23, iPhone 17 Pro, standalone, iOS 26.5.** With
-`viewport-fit=cover` the insets are real. The folded corner placement is
-`--credit-corner-bottom` / `--credit-corner-left` on `:root`, and the credit line
-cleared the bottom edge by 40 pt (15 pt before). Every offset reduces to its old
-literal at zero insets, checked in a desktop browser.
-
-**Ruler width.** `--clock-deck-max` lives on `:root`, not on `body.clock-deck`: the
-class arrives in the deck's `onMounted`, and the timeline measures its width in the
-same tick. Check that hour labels are 150 px apart and the one before the needle is
-no further from it than the clock is past the hour.
-
-**Result, 2026-08-19, Chrome, 1280x800.** Ruler 560 px, 23 ticks, hour labels at
-118.5 / 268.5 / 418.5, needle at 280, clock 21:04:48, so 21:00 sits 11.5 px left of
-the needle (4.8 min is 12 px). Deck at 360–920, credits 277 px clear of it,
-fullscreen button 331 px clear. Below 1000 px the fullscreen button is
-`display: none` (checked at 900, back at 1280). The eye toggle removes and restores
-the deck, the body class and the fullscreen button together.
-
-**Pass bands.** Drive the seam directly; Vite returns the module instance the deck
-imported:
-
-```js
-const mod = await import("/src/composables/usePassHighlights.ts");
-const clockMs = Date.now(); // or the deck's own clock, if it has drifted
-mod.setPassHighlights([{ start: clockMs + 5 * 60_000, end: clockMs + 13 * 60_000 }]);
-```
-
-**Result, 2026-08-19, Chrome, 1280x800.** A pass 5 min ahead lands 12.5 px right of
-the needle and is 20 px wide (8 min at 1 h per 150 px). One 40 min behind lands
-100 px left. One spanning the window is clipped to the ruler. One 10 h out is not
-drawn.
-
-**The scale row and the surface are one shape.** The row's top corners carry the
-surface's 16 px radius, and two fillets (`::before` / `::after`, placed off
-`--surface-left` / `--surface-right` on the deck) join them. Each fillet's computed
-`left`/`right` is the inset less 16.
-
-**Result, 2026-09-05, Chrome, emulated 800 and 1100 px.** Fillets at `left: 239px`
-against a surface at 255, row radius `16px 16px 0 0`, the row's top-left pixel
-hit-tests to the globe and 20 px lower to the timeline. Folded, the card is `16px`
-all round and the row and fillets are gone. At 1100 the capped row is a 560 px card
-with the same corners.
-
-**Not verified on a device:** gesture feel (flick inertia, the ladder's settle,
-whether 1 h per 150 px suits a thumb), and rotation, where the surface is
-re-measured from the `resize` listener.
-
-## Attribution lightbox: the safe area on iOS
-
-**Covers:** the safe-area padding in `.cesium-credit-lightbox-mobile`
-(`src/css/main.css`). `e2e/regressions/attributionLightbox.spec.ts` checks that
-the lightbox covers the app chrome and closes; only a device with a notch shows
-whether the close button clears the status bar.
-
-**Procedure.** Run the iOS app against the change, tap `Attribution`, then tap the
-close button.
-
-`make run URL=…` (ios/) does not work here: the simulator blanks a launch variable
-named `URL`, so `SIMCTL_CHILD_URL` arrives empty and the app loads satvis.space. The
-same value under another name arrives intact; this run used a temporary
-`SATVIS_URL` pointed at `http://[::1]:<port>/`, since Vite listens on IPv6 loopback
-only.
-
-**Result, 2026-10-04, iPhone 18 Pro Max simulator, iOS 27.** Before: the title and
-close button sat under the Dynamic Island. After: they start below the status bar,
-and the close button dismisses the lightbox.
+`clear`, one line above the deck. 448 and 623: `stacked`. 624: `beside`. 1000: one
+line in the corner. Every control and credit hit-tests to itself (2026-08-19 at 375,
+390 and 694 px; 2026-08-20 at 1000 px, the fullscreen button clear of the scale row).
+Below 1000 px the fullscreen button is `display: none`.
 
 ## Tracking: the flight lands where tracking puts the camera
 
@@ -591,90 +289,3 @@ the last sample included; 120 samples an orbit bend 3°. Worst gap: ISS 2.33 km,
 2.47 km, the chord between samples (2026-10-05, before the head: 5.9 and 7.1 km). 11,146
 orbits: 62 ms per full rebuild against 46 ms; the rebuild itself took 1.4 s on the main
 thread (2026-10-05).
-
-## 3D models: visible from afar without crowding the globe
-
-**Covers:** `modelMinimumPixelSize` and the model graphics in
-`SatelliteComponentCollection.ts` (the minimum itself is unit-tested). How big a
-model looks, and whether it hides the globe or its neighbours, is a picture. The
-bounding sphere says little about what a model covers: Landsat's is mostly one dark
-solar wing, FOREST-3's a bright box that fills it.
-
-**Procedure.** Open
-`?elements=Point,Label,3D+model&sats=ISS+(ZARYA),LANDSAT+8,ICESAT-2,GRACE-FO+1,GRACE-FO+2,FOREST-3&framems=16`,
-pause the clock and look at each model from 16,000 km and closer. For the pixels a
-model covers, render with its `model.show` off and on and count the pixels that
-differ; judge looks at a 1:1 css crop, since the pane's screenshots are scaled.
-`minimumPixelSize` is in css pixels: Cesium's `Camera.getPixelSize` already applies
-`scene.pixelRatio`.
-
-**Result, 2026-10-05, Chrome (frame pump on), 800×600 at ratio 2, Landsat 8 and
-FOREST-3 in one view from 16,000 km.**
-
-| `minimumPixelSize`                   | Landsat 8 (13.4 m sphere) | FOREST-3 (0.64 m sphere) |
-| ------------------------------------ | ------------------------- | ------------------------ |
-| `50`, `maximumScale: 10000` (before) | a speck                   | under a pixel            |
-| log, 24–48 px                        | 37×22 px, 233 px²         | 19×16 px, 209 px²        |
-| the same × `pixelRatio` (a bug)      | 76×45 px, 976 px²         | 38×33 px, 875 px²        |
-| cube root, 20–72 px (shipped)        | 55×33 px, 506 px²         | 15×13 px, 143 px²        |
-
-Under the log curve FOREST-3 looked the bigger of the two. Under the cube root
-GRACE-FO is 36 px and the ISS 72, and each model takes its real size once that is
-larger. GRACE-FO 1 and 2 still touch at 20,000 km. Paused, the scene drew 0 frames
-in 248 ticks with the models on.
-
-**Zooming out, same setup at 1400×900.** Move the camera out along its own direction
-to 1, 2, 4 and 10 times the default view's distance from the Earth's centre, and crop
-each frame to the same globe size. Without `maximumScale` the minimum held every
-model at 20–72 px however small the globe got: at 10× the ISS and Landsat covered the
-disc. With the cap, 1× matched the uncapped frames, and further out every model kept
-its default-view share of the globe, the ISS about a tenth of its diameter.
-
-## 3D models beside the other components
-
-**Why it cannot be a unit test.** The label offset and the point's visibility are
-unit-tested against a stubbed camera; whether a label clears its model, and which
-component hides which, is a picture.
-
-**Procedure.**
-`?tags=&elements=Point,Label,Orbit,Orbit+track,Ground+track,Sensor+cone,3D+model,Ground+station+link&gs=48.1371,11.5754,Munich&sats=ISS+(ZARYA),LANDSAT+8,ICESAT-2,GRACE-FO+1,GRACE-FO+2,FOREST-3&framems=16`,
-paused. Look at each model from 16,000 and 3,000 km at a 1:1 css crop with one other
-component at a time (`cc.sats.suppressComponent`, `releaseComponent`), then read each
-label's `pixelOffset` and point's `show` at 1, 2 and 4 times the default view's
-distance.
-
-**Result, 2026-10-05, Chrome (in-app browser pane, frame pump on), ratio 2,
-800×600.** Before, the label sat a fixed 20 px right of centre, over the ISS (72 px)
-and Landsat (55 px), and the point sat on the model's centre. After, labels start 40, 31
-and 13 px out for the ISS, Landsat and FOREST-3 at the default view, and 15, 12 and
-10 px at four times its distance. The point is hidden while the model is 10 px or
-more across, which by their 20, 55 and 72 px minimums brings it back at about 2, 5.5
-and 7 times the default distance for FOREST-3, Landsat and the ISS (computed, not
-re-measured). Orbits, tracks and the ground station link run through or under the
-model; the sensor cone, drawn at real size, shows as a stub beside it from afar.
-Paused, the scene drew 0 frames in 230 ticks with every component on.
-
-## FXAA: what it smooths and what it costs
-
-**Why it cannot be a unit test.** Both questions are about pixels and GPU time on a
-real context.
-
-**Procedure.** `pnpm build && pnpm preview`. For quality, open
-`?elements=Orbit&framems=16`, hide the globe, sky box, atmosphere, sun and moon,
-pause the clock, and compare no antialiasing, MSAA 4x and FXAA against the same frame
-rendered at `resolutionScale` 3 and box-filtered down. For cost, open
-`?bench=true&framems=1` and count `postRender` events in alternating blocks of FXAA
-off and on, pairing each on block with the off block before it.
-
-**Result, 2026-10-06, Chrome 152 (in-app browser pane, frame pump on), Apple M4 Pro,
-ANGLE Metal, ratio 2.** Orbit RMSE against the reference, in 8-bit levels: 17.9
-without antialiasing and with MSAA 4x (the same pixels), 10.1 with FXAA; 18.5 and
-10.2 at twice the default distance. FXAA changed 27% of label pixels by a mean of
-1.3%, invisible at four times magnification, and 1.6% of a frame without orbits.
-
-Cost at 2800×1800 with the default 72 satellites, ms per frame of throughput under
-the pump: HDR on, FXAA off 11.8 and on 10.5; HDR off, 8.6 and 11.0. Under HDR FXAA
-makes the frame faster, because the texture handed on is its 8-bit output rather than
-the tonemapper's float one; every one of eight paired blocks was 2.2–2.9 ms faster.
-`gpuMs` stays blank, since the benchmark distrusts this driver's timer queries. Not
-measured on another GPU or at ratio 1.
