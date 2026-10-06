@@ -278,3 +278,21 @@ rim's remaining steps for 0.8 to 2.7 ms and was dropped, as the web app drops MS
 ratio of 2. The ring, from more than 10 % outside the shell, is as smooth as the 256 by
 256 shell; the default view took 5.4 ms, HEAD 5.3 to 5.8, and the sky view and the ISS
 tracked, which keep the whole shell, did not change.
+
+## Native app: every active satellite's orbit
+
+**Procedure.** Release build on the iPad mini, the benchmark's `active_orbits` scene
+(16,626 satellites, an orbit of 121 nodes each) with temporary switches; a Metal System
+Trace of the same view; then the simulator's Weather group with orbits and orbit tracks,
+and the sky view with orbits, compared pixel by pixel with HEAD.
+
+**Result, 2026-10-06.** The scene ran at 26.9 fps on 60.5 ms of GPU a frame. With the
+lines given no width it took 14.5 ms, and leaving out the neighbouring nodes and the
+Earth's turn from the vertex function changed nothing, so the vertex work was not the
+cost. Opaque lines took 49 ms, and gamma-correcting once per line rather than per pixel,
+the colour out of the vertex outputs and a quad no wider than its fade together took 4.
+The trace put 24.6 ms of the frame before the fragments, sorting 4 million triangles into
+tiles. With no width where a node and its neighbours are behind the Earth, the scene ran at
+39.9 fps on 29.4 ms; the Weather view and the sky view drew the same pixels as HEAD. The
+other scenes: default view 5.4 ms, Starlink 7.4, all active as points 8.1, Weather 7.5, the
+ISS tracked 6.8 and with its panel 7.2, the sky view 8.8, all at 60 fps.

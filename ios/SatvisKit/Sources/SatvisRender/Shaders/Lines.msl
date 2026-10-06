@@ -6,7 +6,6 @@
 
 struct LineOut {
     float4 position [[position]];
-    float4 color;
     /// Device pixels from the middle of the line, signed.
     float across;
 };
@@ -27,12 +26,19 @@ inline float3 lineNode(int node, int kind, float nowNode, PointInstance instance
     return p;
 }
 
+/// Whether the Earth stands between the eye and `p`, by a ray to a sphere a
+/// little inside the ellipsoid, so a point just over the limb still shows.
+inline bool behindEarth(float3 p, float3 eye) {
+    float3 inverseRadii = 1.0 / ellipsoidRadii;
+    RaySegment hit = raySphereIntersection(eye * inverseRadii, (p - eye) * inverseRadii, 0.999);
+    return !isEmpty(hit) && hit.start > 0.0 && hit.start < 1.0;
+}
+
 vertex LineOut lineVertex(uint vid [[vertex_id]], uint satellite [[instance_id]], const device packed_float3 *samples [[buffer(0)]],
                           constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
                           const device PointFrame *frames [[buffer(3)]], constant int &kind [[buffer(5)]]) {
     LineOut out;
     out.across = 0.0;
-    out.color = kind == 0 ? float4(1.0, 1.0, 1.0, 0.15) : float4(1.0, 0.843, 0.0, 0.15);
     PointFrame state = frames[satellite];
     PointInstance instance = instances[satellite];
     if (state.offset < 0.0) {
@@ -45,9 +51,12 @@ vertex LineOut lineVertex(uint vid [[vertex_id]], uint satellite [[instance_id]]
     int node = first + int(vid / 2);
     float side = (vid & 1) ? 1.0 : -1.0;
 
-    float4 clip = frame.viewProjection * float4((lineNode(node, kind, nowNode, instance, samples) - frame.cameraHigh) - frame.cameraLow, 1.0);
-    float4 previous = frame.viewProjection * float4((lineNode(node - 1, kind, nowNode, instance, samples) - frame.cameraHigh) - frame.cameraLow, 1.0);
-    float4 next = frame.viewProjection * float4((lineNode(node + 1, kind, nowNode, instance, samples) - frame.cameraHigh) - frame.cameraLow, 1.0);
+    float3 here = lineNode(node, kind, nowNode, instance, samples);
+    float3 before = lineNode(node - 1, kind, nowNode, instance, samples);
+    float3 after = lineNode(node + 1, kind, nowNode, instance, samples);
+    float4 clip = frame.viewProjection * float4((here - frame.cameraHigh) - frame.cameraLow, 1.0);
+    float4 previous = frame.viewProjection * float4((before - frame.cameraHigh) - frame.cameraLow, 1.0);
+    float4 next = frame.viewProjection * float4((after - frame.cameraHigh) - frame.cameraLow, 1.0);
     // NaN is a node SGP4 refused (SampledTrajectory): the line stops there.
     if (clip.w <= 0.0 || previous.w <= 0.0 || next.w <= 0.0 || any(isnan(clip)) || any(isnan(previous)) || any(isnan(next))) {
         out.position = float4(0.0, 0.0, -2.0, 1.0);
@@ -57,15 +66,23 @@ vertex LineOut lineVertex(uint vid [[vertex_id]], uint satellite [[instance_id]]
     float2 direction = (next.xy / next.w - previous.xy / previous.w) * toScreen;
     direction = length(direction) > 0.0 ? normalize(direction) : float2(1.0, 0.0);
     float2 normal = float2(-direction.y, direction.x);
-    // Half the point, and the pixel its edge fades over.
-    float halfWidth = 0.5 * frame.pixelScale + 1.0;
+    // Half the point, and the half pixel its edge fades over beyond that.
+    float halfWidth = 0.5 * frame.pixelScale + 0.5;
+    // No width where this node and both its neighbours are behind the Earth: the
+    // segments between such nodes have no area, and the GPU drops them before
+    // sorting them into its tiles. The depth test discarded their pixels anyway,
+    // but over 16,600 orbits the sorting took an iPad mini 57 ms of GPU a frame
+    // to 33.
+    if (behindEarth(here, frame.cameraPosition) && behindEarth(before, frame.cameraPosition) && behindEarth(after, frame.cameraPosition)) {
+        halfWidth = 0.0;
+    }
     clip.xy += normal * side * halfWidth / toScreen * clip.w;
     out.position = clip;
     out.across = side * halfWidth;
     return out;
 }
 
-fragment float4 lineFragment(LineOut in [[stage_in]], constant FrameUniforms &frame [[buffer(1)]]) {
+fragment float4 lineFragment(LineOut in [[stage_in]], constant FrameUniforms &frame [[buffer(1)]], constant int &kind [[buffer(5)]]) {
     float coverage = clamp(0.5 * frame.pixelScale + 0.5 - abs(in.across), 0.0, 1.0);
-    return float4(gammaCorrect(in.color.rgb), in.color.a * coverage);
+    return float4(gammaCorrect(kind == 0 ? float3(1.0) : float3(1.0, 0.843, 0.0)), 0.15 * coverage);
 }
