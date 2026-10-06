@@ -698,21 +698,27 @@ for 5 s running and 5 s paused. Do not use `bench=true`: the benchmark panel tur
 in 309 ticks. Paused: 0 renders in 310 ticks, with the sensor cone and the ground
 station link on. A rerun gave 115 and 0, with `requestRenderMode` on throughout.
 
-## Orbit batch: the line passes through the satellite
+## Orbit batch: the line passes through the satellite, without a bend
 
 **Covers:** `SampledTrajectory.positionsForNextOrbit` and the batched orbit in
-`SatelliteComponentCollection.ts`. The unit test pins the ICRF transform to
-identity; the gap that matters is in the fixed frame, with the real rotation.
+`SatelliteComponentCollection.ts`. The unit tests stand TEME in for ICRF; this checks
+the drift, the gap and the cost against the real IAU data.
 
 **Procedure.** `?tags=&sats=ISS+(ZARYA),NOAA+20+(JPSS-1)&elements=Point,Orbit&framems=16`.
-For starts across one sampling interval, rotate the batch's orbit with
-`computeIcrfToFixedMatrix(t)` over the next quarter period and take the satellite's
-distance to the nearest segment. For cost, time `positionsForNextOrbit` over
-`?tags=Starlink`.
+For starts 0.5, 5, 20 and 40 s ahead, and one whose period ends just past the last
+sample (`inertial.lastTime()` less a period, plus 1 s), take the largest bend between
+consecutive segments. For the gap, take the satellite's distance to the nearest segment
+over the next three quarters of a period, both in the inertial frame. For cost, time
+`positionsForNextOrbit` over `?tags=Starlink` once the build is done, against
+`[head, ...getRawValues, head]` through `drawablePositions` in the same page.
 
-**Result, 2026-10-05, Chrome (frame pump on).** Worst gap: ISS 5.9 → 2.3 km, NOAA 20
-7.1 → 2.5 km; the rest is the chord between samples. 11,146 orbits: +21 ms per full
-rebuild, against 1.4 s on the main thread for the rebuild itself.
+**Result, 2026-10-06, Chrome (in-app browser pane, frame pump on).** Drift over one
+period: ISS 31 km, NOAA 20 54 km. Closed straight back to the head, the largest bend was
+ISS 7.6 to 42°, NOAA 20 3.2 to 6.1°. Now ISS 3.004°, NOAA 20 3.13 to 3.26°, the end past
+the last sample included; 120 samples an orbit bend 3°. Worst gap: ISS 2.33 km, NOAA 20
+2.47 km, the chord between samples (2026-10-05, before the head: 5.9 and 7.1 km). 11,146
+orbits: 62 ms per full rebuild against 46 ms; the rebuild itself took 1.4 s on the main
+thread (2026-10-05).
 
 ## Time-dependent imagery: GOES-IR and VIIRS follow the clock
 
@@ -816,18 +822,3 @@ makes the frame faster, because the texture handed on is its 8-bit output rather
 the tonemapper's float one; every one of eight paired blocks was 2.2–2.9 ms faster.
 `gpuMs` stays blank, since the benchmark distrusts this driver's timer queries. Not
 measured on another GPU or at ratio 1.
-
-## Orbit batch: no bend where the loop closes
-
-**Why it cannot be a unit test.** The unit test stands in TEME for ICRF; the drift that
-bent the seam is checked here against the real IAU data.
-
-**Procedure.** `?tags=&sats=ISS+(ZARYA),NOAA+20+(JPSS-1)&elements=Point,Orbit&framems=16`.
-For starts 0.5, 5, 20 and 40 s ahead, take the largest bend between consecutive segments
-of `positionsForNextOrbit`, and of the loop closed straight back to the head. Then, as in
-the section above, the satellite's distance to its line over the next quarter period.
-
-**Result, 2026-10-06, Chrome (in-app browser pane, frame pump on).** Drift over one
-period: ISS 31 km, NOAA 20 54 km. Largest bend, closed straight back: ISS 7.6 to 42°,
-NOAA 20 3.2 to 6.1°; with the drift ramped out, 3.01° for both, the 3° of 120 samples an
-orbit. Worst gap: ISS 2.33 km, NOAA 20 2.47 km, unchanged.

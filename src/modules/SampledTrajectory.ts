@@ -35,6 +35,14 @@ interface SampledPositionData {
   valid: boolean;
 }
 
+/**
+ * The far share of the orbit line that takes up its drift. Before it the line is the
+ * satellite's own path, so a rebuild up to three quarters of a period late still runs
+ * through the satellite. The ramp's turn leaves the largest bend at 3.005° for the ISS
+ * and 3.26° for NOAA 20, whose drift lies along the orbit; 120 samples an orbit bend 3°.
+ */
+const DRIFT_RAMP_SHARE = 0.25;
+
 /** One satellite's sliding sample window: half an orbit back, 1.5 forward, in the fixed and inertial frames. */
 export class SampledTrajectory {
   #orbit: Orbit;
@@ -190,29 +198,35 @@ export class SampledTrajectory {
    * The inertial orbit one period ahead of `start`, closed into a loop at the satellite.
    * One period on, the orbit has drifted from the head (J2: 31 km for the ISS, 54 km for
    * NOAA 20); closing straight back bent the line by up to 95° at the satellite. The
-   * drift is ramped out over the far half, which the satellite reaches only after the
-   * quarter-period rebuild.
+   * drift is ramped out over the last quarter instead. A head with nothing behind it,
+   * after a clock jump or a gap, is one point, which the caller's below-two check skips
+   * until the refill lands.
    */
   positionsForNextOrbit(start: JulianDate): Cartesian3[] {
     if (!this.#data) return [];
     this.requireInertial();
     const inertial = this.#data.inertial;
-    if (!inertial) return [];
-    const halfPeriod = this.#orbit.orbitalPeriod * 30;
-    const end = JulianDate.addSeconds(start, 2 * halfPeriod, new JulianDate());
-    const head = inertial.getValueInReferenceFrame(start, ReferenceFrame.INERTIAL);
-    if (!head) return [];
+    const last = inertial?.lastTime();
+    if (!inertial || !last) return [];
+    const periodSeconds = this.#orbit.orbitalPeriod * 60;
+    const end = JulianDate.addSeconds(start, periodSeconds, new JulianDate());
+    const head = inertial.getValueInReferenceFrame(start, ReferenceFrame.INERTIAL)!;
     const { times, values } = inertial.getRawSamples(start, end);
     const positions = values as Cartesian3[];
-    // Past the window, interpolation holds the last sample, so the drift is unknown.
-    if (TimeInterval.contains(this.#data.interval, end)) {
-      const drift = Cartesian3.subtract(inertial.getValueInReferenceFrame(end, ReferenceFrame.INERTIAL)!, head, new Cartesian3());
-      const shift = new Cartesian3();
-      for (const [index, position] of positions.entries()) {
-        const weight = JulianDate.secondsDifference(times[index]!, start) / halfPeriod - 1;
-        if (weight > 0) {
-          Cartesian3.subtract(position, Cartesian3.multiplyByScalar(drift, weight, shift), position);
-        }
+    // Measured a period back from the last sample when `end` is past it, where
+    // interpolation would hold that sample instead. The drift barely changes in between.
+    const measuredAt = JulianDate.lessThan(end, last) ? end : last;
+    const drift = Cartesian3.subtract(
+      inertial.getValueInReferenceFrame(measuredAt, ReferenceFrame.INERTIAL)!,
+      inertial.getValueInReferenceFrame(JulianDate.addSeconds(measuredAt, -periodSeconds, new JulianDate()), ReferenceFrame.INERTIAL)!,
+      new Cartesian3(),
+    );
+    const rampSeconds = periodSeconds * DRIFT_RAMP_SHARE;
+    const shift = new Cartesian3();
+    for (const [index, position] of positions.entries()) {
+      const weight = (JulianDate.secondsDifference(times[index]!, start) - periodSeconds + rampSeconds) / rampSeconds;
+      if (weight > 0) {
+        Cartesian3.subtract(position, Cartesian3.multiplyByScalar(drift, weight, shift), position);
       }
     }
     return drawablePositions([head, ...positions, head]);
@@ -220,9 +234,8 @@ export class SampledTrajectory {
 
   /**
    * One orbit ahead of `start`, from the raw samples. The head is interpolated: the
-   * first sample can sit a step (about 45 s, 350 km) ahead of the satellite. A head with
-   * nothing behind it, after a clock jump or a gap, is one point, which the caller's
-   * below-two check skips until the refill lands.
+   * first sample can sit a step (about 45 s, 350 km) ahead of the satellite. A lone head
+   * is skipped as in `positionsForNextOrbit`.
    */
   positionsForTrack(start: JulianDate): Cartesian3[] {
     if (!this.#data) return [];

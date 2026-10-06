@@ -33,6 +33,28 @@ beforeEach(() => {
   vi.spyOn(Transforms, "computeFixedToIcrfMatrix").mockImplementation(() => Matrix3.clone(Matrix3.IDENTITY));
 });
 
+/** 3° a vertex at 120 samples an orbit; the drift ramp keeps the largest at 3.005°. */
+const MAX_BEND = CesiumMath.toRadians(3.1);
+
+/** With the identity, a period's drift is the Earth's turn, not J2's: TEME stands in for ICRF. */
+function useRealEarthRotation(): void {
+  vi.spyOn(Transforms, "computeFixedToIcrfMatrix").mockImplementation((time) => Matrix3.transpose(Transforms.computeTemeToPseudoFixedMatrix(time), new Matrix3()));
+}
+
+/** Radians, over every vertex of a closed loop, the seam included. */
+function largestBend(loop: Cartesian3[]): number {
+  const bend = (a: Cartesian3, b: Cartesian3, c: Cartesian3) => Cartesian3.angleBetween(Cartesian3.subtract(b, a, new Cartesian3()), Cartesian3.subtract(c, b, new Cartesian3()));
+  const bends = loop.slice(1, -1).map((position, index) => bend(loop[index]!, position, loop[index + 2]!));
+  return Math.max(...bends, bend(loop.at(-2)!, loop[0]!, loop[1]!));
+}
+
+/** Metres from `point` to the segment from `a` to `b`. */
+function distanceToSegment(point: Cartesian3, a: Cartesian3, b: Cartesian3): number {
+  const ab = Cartesian3.subtract(b, a, new Cartesian3());
+  const along = CesiumMath.clamp(Cartesian3.dot(Cartesian3.subtract(point, a, new Cartesian3()), ab) / Cartesian3.magnitudeSquared(ab), 0, 1);
+  return Cartesian3.distance(point, Cartesian3.add(a, Cartesian3.multiplyByScalar(ab, along, ab), ab));
+}
+
 describe("SampledTrajectory", () => {
   test("is empty before the first update", async () => {
     const { trajectory } = issTrajectory();
@@ -171,21 +193,46 @@ describe("SampledTrajectory", () => {
   });
 
   test("positionsForNextOrbit closes the loop without a bend at the satellite", async () => {
-    // A real Earth rotation: with the identity, a period's drift is the Earth's turn, not J2's.
-    vi.spyOn(Transforms, "computeFixedToIcrfMatrix").mockImplementation((time) => Matrix3.transpose(Transforms.computeTemeToPseudoFixedMatrix(time), new Matrix3()));
+    useRealEarthRotation();
     const { trajectory } = issTrajectory();
     await trajectory.ensure(T0);
 
-    const turn = (a: Cartesian3, b: Cartesian3, c: Cartesian3) => Cartesian3.angleBetween(Cartesian3.subtract(b, a, new Cartesian3()), Cartesian3.subtract(c, b, new Cartesian3()));
     // A start just past a sample made the closing segment short and sideways: a 95° bend.
     for (let offset = 1; offset < 50; offset += 7) {
       const positions = trajectory.positionsForNextOrbit(JulianDate.addSeconds(T0, offset, new JulianDate()));
-      const bends = positions.slice(1, -1).map((position, index) => turn(positions[index]!, position, positions[index + 2]!));
-      bends.push(turn(positions.at(-2)!, positions[0]!, positions[1]!));
 
-      // 3° a vertex at 120 samples an orbit.
-      expect(Math.max(...bends)).toBeLessThan(CesiumMath.toRadians(3.2));
+      expect(largestBend(positions)).toBeLessThan(MAX_BEND);
       expect(positions.at(-1)).toBe(positions[0]);
+    }
+  });
+
+  test("positionsForNextOrbit closes the loop without a bend when the period ends past the last sample", async () => {
+    useRealEarthRotation();
+    const { trajectory, periodSeconds } = issTrajectory();
+    await trajectory.ensure(T0);
+    trajectory.requireInertial();
+    const last = trajectory.inertial!.lastTime()!;
+
+    // The grid's last sample sits up to a step short of the window, where interpolation holds it.
+    const start = JulianDate.addSeconds(last, 1 - periodSeconds, new JulianDate());
+
+    expect(largestBend(trajectory.positionsForNextOrbit(start))).toBeLessThan(MAX_BEND);
+  });
+
+  test("positionsForNextOrbit runs through the satellite until the drift ramp", async () => {
+    useRealEarthRotation();
+    const { trajectory, periodSeconds } = issTrajectory();
+    await trajectory.ensure(T0);
+    const positions = trajectory.positionsForNextOrbit(JulianDate.addSeconds(T0, 20, new JulianDate()));
+
+    // Up to the ramp, three quarters on, a rebuild running late still finds the satellite on its line.
+    for (let fraction = 0; fraction <= 0.74; fraction += 0.01) {
+      const time = JulianDate.addSeconds(T0, 20 + fraction * periodSeconds, new JulianDate());
+      const satellite = trajectory.inertial!.getValueInReferenceFrame(time, ReferenceFrame.INERTIAL)!;
+      const gap = Math.min(...positions.slice(1).map((position, index) => distanceToSegment(satellite, positions[index]!, position)));
+
+      // The chord between samples sags about 2.4 km below the orbit.
+      expect(gap).toBeLessThan(3000);
     }
   });
 
