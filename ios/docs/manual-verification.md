@@ -141,3 +141,14 @@ button under Share.
 a name more than that from its point picked nothing. A tap 84 pt along SENTINEL-3B's name
 opened its panel. The globe button flew the camera from over the Arctic back to the
 home view above 25° N 15° E in 1.5 s; in the sky view the same button leaves it.
+
+## Native app: orbit lines one point wide, edges smoothed
+
+**Procedure.** In the iPhone 17e simulator, open `?tags=Weather&elements=Point,Label,Orbit,Orbit+track`
+and look at a 3× crop of the lines over the globe.
+
+**Result, 2026-10-06.** The orbits and orbit tracks are one point wide, as the web app's
+1 px since 5dcc6b1, and their edges fade over a device pixel with no stair steps, where
+the web app now runs FXAA (ac4fdc3). The white and gold at 15 % still read over Natural
+Earth's land and sea. The globe's limb against space is still a hard edge: only a full-frame
+pass would smooth it.

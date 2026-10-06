@@ -1,11 +1,14 @@
-// Each satellite's orbit and orbit track, drawn through its samples as a strip two
-// points wide in screen space, as the web app's PathGraphics and PolylineGeometry
+// Each satellite's orbit and orbit track, drawn through its samples as a line one
+// point wide in screen space, as the web app's PathGraphics and PolylineGeometry
 // draw them: the orbit white at 15 %, half a period either side and fixed in
 // inertial space; the track gold at 15 %, a period ahead over the turning Earth.
+// Its edges fade over a device pixel, where the web app smooths them with FXAA.
 
 struct LineOut {
     float4 position [[position]];
     float4 color;
+    /// Device pixels from the middle of the line, signed.
+    float across;
 };
 
 constant float earthRotationRate = 7.2921158553e-5;
@@ -28,6 +31,7 @@ vertex LineOut lineVertex(uint vid [[vertex_id]], uint satellite [[instance_id]]
                           constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
                           const device PointFrame *frames [[buffer(3)]], constant int &kind [[buffer(5)]]) {
     LineOut out;
+    out.across = 0.0;
     out.color = kind == 0 ? float4(1.0, 1.0, 1.0, 0.15) : float4(1.0, 0.843, 0.0, 0.15);
     PointFrame state = frames[satellite];
     PointInstance instance = instances[satellite];
@@ -53,11 +57,15 @@ vertex LineOut lineVertex(uint vid [[vertex_id]], uint satellite [[instance_id]]
     float2 direction = (next.xy / next.w - previous.xy / previous.w) * toScreen;
     direction = length(direction) > 0.0 ? normalize(direction) : float2(1.0, 0.0);
     float2 normal = float2(-direction.y, direction.x);
-    clip.xy += normal * side * frame.pixelScale / toScreen * clip.w;
+    // Half the point, and the pixel its edge fades over.
+    float halfWidth = 0.5 * frame.pixelScale + 1.0;
+    clip.xy += normal * side * halfWidth / toScreen * clip.w;
     out.position = clip;
+    out.across = side * halfWidth;
     return out;
 }
 
-fragment float4 lineFragment(LineOut in [[stage_in]]) {
-    return float4(gammaCorrect(in.color.rgb), in.color.a);
+fragment float4 lineFragment(LineOut in [[stage_in]], constant FrameUniforms &frame [[buffer(1)]]) {
+    float coverage = clamp(0.5 * frame.pixelScale + 0.5 - abs(in.across), 0.0, 1.0);
+    return float4(gammaCorrect(in.color.rgb), in.color.a * coverage);
 }
