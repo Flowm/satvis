@@ -231,3 +231,29 @@ Before, the panel's 40 fps was not its glass: an opaque panel and an empty inspe
 40 fps too. An inspector column narrows the globe's view, and frames then missed every
 other refresh; a card over the full-screen globe ran at 40 to 54 fps, our 9 to 11 ms of GPU
 a frame and the compositor's 7 to 8 ms a refresh leaving no margin.
+
+## Native app: fast math, tiles relative to their centres, and the stencils off the main actor
+
+**Procedure.** Release build on the iPad mini (`iPad14,1`, 60 Hz, native pixel ratio), the
+benchmark with `SATVIS_BENCHMARK=print` over the default view, all active satellites as
+points, every component on Weather, the ISS tracked with and without its panel, and the sky
+view; temporary switches skipped one pass at a time. Then screenshots of the sky view at
+Lauterbrunnen and of the ISS tracked over VersaTiles and Re:Earth terrain.
+
+**Result, 2026-10-06.** The shaders had been compiled with safe math for the sake of the
+high/low subtraction a few vertex functions need. With nothing but the stars on, the frame
+took 7.9 ms of GPU; with fast math, 1.6. Fragment functions on fast math brought the default
+view from 11.2 to 8.5 ms. The atmosphere's per-vertex scattering, safe, cost another 2.8 ms:
+the sky shell needs no split and took fast math as it was, and the globe's tiles, drawn
+relative to their centres with the centre offset from the eye in double precision, took it
+too. The default view then took 5.6 ms, all active satellites 4.2, the sky view 8.6, and the
+ISS tracked with its panel open held 60 fps at 7.5 ms, where it ran at 40 to 44 fps. The
+explicit `fast::exp` in the scattering of a safe library had changed nothing. Neither view
+showed cracks or jitter, the sky view's camera 2 m over the terrain.
+
+With 16,630 satellites the renderer's main-thread work fell from 3.6 to 1.0 ms a frame.
+Finding each satellite's stencil had been 41% of all CPU time: the loop ran inside the main
+actor's isolation, and Swift checked on every turn that it was on the main actor, 1.3 ms a
+frame; reading each trajectory for its refused nodes was the rest. The stencils are now
+found off the actor from one packed array, and a trajectory is read only when it has a
+refused node.

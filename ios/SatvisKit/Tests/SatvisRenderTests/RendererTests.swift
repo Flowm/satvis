@@ -7,19 +7,19 @@ import simd
 @Suite struct RendererTests {
     // The shaders compile at run time, so this is where a mistake in them shows.
     @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func compilesTheShaders() async throws {
-        let library = try await ShaderLibrary.make(device: try #require(MTLCreateSystemDefaultDevice()))
+        let libraries = try await ShaderLibrary.make(device: try #require(MTLCreateSystemDefaultDevice()))
         for name in [
             "fullscreenVertex", "skyBoxFragment", "skyAtmosphereVertex", "skyAtmosphereFragment", "globeVertex", "globeFragment", "pointVertex", "pointFragment",
             "lineVertex", "lineFragment", "labelVertex", "labelFragment", "stationVertex", "stationFragment", "linkVertex", "linkFragment", "overlayVertex", "overlayFragment",
             "coneVertex", "coneFragment", "coneRimVertex", "coneRimFragment", "modelVertex", "modelFragment",
             "tonemapFragment",
         ] {
-            #expect(library.makeFunction(name: name) != nil, "\(name)")
+            #expect(libraries.precise.makeFunction(name: name) != nil && libraries.fast.makeFunction(name: name) != nil, "\(name)")
         }
         // Where the GPU reads its own render targets, the tonemap runs in tile memory.
         let device = try #require(MTLCreateSystemDefaultDevice())
         if device.supportsFamily(.apple4) {
-            #expect(library.makeFunction(name: "tonemapTileFragment") != nil)
+            #expect(libraries.fast.makeFunction(name: "tonemapTileFragment") != nil)
         }
     }
 
@@ -39,7 +39,7 @@ import simd
     // Metal reads these as its own structs; a mismatch draws garbage silently.
     @Test func matchesTheShaderLayouts() {
         #expect(MemoryLayout<FrameUniforms>.size == 264)
-        #expect(MemoryLayout<GlobeVertex>.stride == 64)
+        #expect(MemoryLayout<GlobeVertex>.stride == 48)
         #expect(MemoryLayout<PointInstance>.stride == 32)
         #expect(MemoryLayout<PointFrame>.stride == 12)
         #expect(MemoryLayout<LabelInstance>.stride == 32)
@@ -114,10 +114,10 @@ import simd
     func drawsTheGroundOverlayWhereTheGlobeSamplesIt(direction: SIMD3<Double>) async throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let queue = try #require(device.makeCommandQueue())
-        let library = try await ShaderLibrary.make(device: device)
+        let libraries = try await ShaderLibrary.make(device: device)
         let descriptor = MTLRenderPipelineDescriptor()
-        descriptor.vertexFunction = library.makeFunction(name: "overlayVertex")
-        descriptor.fragmentFunction = library.makeFunction(name: "overlayFragment")
+        descriptor.vertexFunction = libraries.precise.makeFunction(name: "overlayVertex")
+        descriptor.fragmentFunction = libraries.fast.makeFunction(name: "overlayFragment")
         descriptor.colorAttachments[0].pixelFormat = .r8Unorm
         let pipeline = try await device.makeRenderPipelineState(descriptor: descriptor)
         let overlay = try #require(GroundOverlay(device: device))

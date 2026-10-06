@@ -3,8 +3,10 @@ import simd
 
 /// Mirrors `GlobeVertex` in Shaders/Globe.msl.
 struct GlobeVertex {
-    var high: SIMD3<Float>
-    var low: SIMD3<Float>
+    /// From its tile's centre, in metres: small enough for a float to hold to the
+    /// centimetre on a close tile, so the vertex function adds it to the centre's
+    /// offset from the eye with no high/low split, and may use fast math.
+    var offset: SIMD3<Float>
     var normal: SIMD3<Float>
     var uv: SIMD2<Float>
 }

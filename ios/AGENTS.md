@@ -49,8 +49,13 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   (`data/starmap/`) and kept like the GP data, not shipped: it is generated with
   Docker by `pnpm update-starmap`, and committing it here would be a second copy.
   The sky is black until the first fetch.
-- The renderer works in the Earth-fixed frame in metres, relative to the eye
-  (high/low float pairs, safe math), with reversed-Z depth and no far plane.
+- The renderer works in the Earth-fixed frame in metres, relative to the eye,
+  with reversed-Z depth and no far plane. Satellites are placed by high/low float
+  pairs, in vertex functions compiled with safe math, which fast math could
+  regroup; the globe's tiles are drawn relative to their centres, offset from the
+  eye in double precision on the CPU. Everything else, every fragment function
+  included, is compiled with fast math (`ShaderLibrary`): safe math made the
+  full-screen passes and the atmosphere's per-vertex scattering twice as slow.
   Satellites are points the vertex shader interpolates from each one's sampled
   trajectory, with the web app's quintic; the CPU only finds each stencil.
   The ground tracks are drawn once a second into the ground overlay, a cube map
@@ -150,8 +155,9 @@ fastlane. Why it is built this way, and the milestones it is built in, are in
   the system scales up (`ScaledMTKView` in `GlobeView.swift`). The renderer sizes
   everything placed on the screen in points times the drawable's pixels a point,
   labels included, so only the sharpness changes; the map refines a level less, as
-  its error is measured in the drawable's pixels. On an iPad mini the default view
-  took 10.5 ms of GPU a frame at native, 6.7 at 1.5 and 2.8 at 1. A benchmark runs
+  its error is measured in the drawable's pixels. On an iPad mini, before the
+  shaders took fast math, the default view took 10.5 ms of GPU a frame at native,
+  6.7 at 1.5 and 2.8 at 1. A benchmark runs
   at the ratio it began at and records it.
 - The Settings menu's "Benchmark" is the web app's `bench=true`, kept in links
   the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): eight scenes opened
