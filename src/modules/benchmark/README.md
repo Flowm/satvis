@@ -8,7 +8,7 @@ The framework answers three questions repeatably:
 
 ## Run it
 
-Open **Render menu → Measurement → Benchmark**, or add `?bench=true` to the url
+Open **Menu → Graphics → Measurement → Benchmark**, or add `?bench=true` to the url
 (`cesium.showBenchmark`). Opening the panel loads the framework and installs
 `window.bench` for the console.
 

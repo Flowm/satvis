@@ -574,7 +574,7 @@ export class CesiumController {
   }
 
   /**
-   * Owned by the store: the Render menu and the benchmark panel both write it, and the
+   * Owned by the store: the Graphics panel and the benchmark panel both write it, and the
    * scene property is not reactive.
    */
   set requestRenderMode(value: boolean) {

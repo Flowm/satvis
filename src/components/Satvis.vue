@@ -1,62 +1,54 @@
 <template>
   <div class="cesium">
-    <div v-show="showUI" id="toolbarLeft">
-      <div class="toolbarButtons">
-        <UTooltip text="Satellite selection">
-          <button type="button" class="cesium-button cesium-toolbar-button" :class="{ 'toolbarButton--open': menu.cat }" @click="toggleMenu('cat')">
-            <UIcon name="lucide:satellite" />
+    <div v-show="showUI" id="toolbarLeft" :class="{ 'toolbarLeft--panelOpen': anyMenuOpen }">
+      <div class="menuColumn">
+        <button
+          ref="menuToggle"
+          type="button"
+          class="menuColumn__toggle"
+          :aria-expanded="menuExpanded"
+          aria-controls="menuColumnList"
+          :aria-label="menuExpanded ? 'Close menu' : 'Open menu'"
+          @click="toggleMenuColumn"
+        >
+          <UIcon :name="menuExpanded ? 'lucide:chevron-up' : 'lucide:menu'" class="menuColumn__toggleIcon" />
+          <span class="menuColumn__label menuColumn__label--muted">Menu</span>
+        </button>
+        <nav v-show="menuExpanded" id="menuColumnList" class="menuColumn__list" aria-label="Main menu">
+          <button
+            v-for="item in menuItems"
+            :key="item.key"
+            :ref="(el) => (entryButtons[item.key] = el as HTMLButtonElement | null)"
+            type="button"
+            class="menuColumn__item"
+            :class="{ 'menuColumn__item--open': menu[item.key] }"
+            :aria-expanded="menu[item.key]"
+            :aria-label="item.label"
+            :title="item.hint"
+            @click="toggleMenu(item.key)"
+          >
+            <UIcon :name="item.icon" class="menuColumn__icon" />
+            <span class="menuColumn__label">{{ item.label }}</span>
           </button>
-        </UTooltip>
-        <UTooltip text="Satellite components">
-          <button type="button" class="cesium-button cesium-toolbar-button" :class="{ 'toolbarButton--open': menu.sat }" @click="toggleMenu('sat')">
-            <UIcon name="lucide:orbit" />
-          </button>
-        </UTooltip>
-        <UTooltip text="Ground station">
-          <button type="button" class="cesium-button cesium-toolbar-button" :class="{ 'toolbarButton--open': menu.gs }" @click="toggleMenu('gs')">
-            <UIcon name="lucide:map-pin" />
-          </button>
-        </UTooltip>
-        <UTooltip text="Map">
-          <button type="button" class="cesium-button cesium-toolbar-button" :class="{ 'toolbarButton--open': menu.map }" @click="toggleMenu('map')">
-            <UIcon name="lucide:layers" />
-          </button>
-        </UTooltip>
-        <UTooltip text="View">
-          <button type="button" class="cesium-button cesium-toolbar-button" :class="{ 'toolbarButton--open': menu.view }" @click="toggleMenu('view')">
-            <UIcon name="lucide:telescope" />
-          </button>
-        </UTooltip>
-        <UTooltip v-if="cc.minimalUI" text="Mobile">
-          <button type="button" class="cesium-button cesium-toolbar-button" :class="{ 'toolbarButton--open': menu.ios }" @click="toggleMenu('ios')">
-            <UIcon name="lucide:smartphone" />
-          </button>
-        </UTooltip>
-        <UTooltip text="Render">
-          <button type="button" class="cesium-button cesium-toolbar-button" :class="{ 'toolbarButton--open': menu.render }" @click="toggleMenu('render')">
-            <UIcon name="lucide:gauge" />
-          </button>
-        </UTooltip>
+        </nav>
       </div>
       <!-- v-if, not v-show: the virtualized list measures its scroll element on mount,
            and a hidden mount measures 0. Search and expansion state survive remounts in useSatelliteBrowser. -->
-      <div v-if="menu.cat" class="toolbarSwitches toolbarSwitches--catalog">
+      <toolbar-panel v-if="menu.cat" title="Satellites" wide class="toolbarSwitches--catalog" @close="closePanel('cat')">
         <satellite-browser />
-      </div>
-      <div v-show="menu.sat" class="toolbarSwitches">
-        <!-- "Components", not "elements": an element set is the GP data. -->
-        <div class="toolbarTitle">Satellite components</div>
+      </toolbar-panel>
+      <!-- "Components", not "elements": an element set is the GP data. -->
+      <toolbar-panel v-show="menu.sat" title="Components" @close="closePanel('sat')">
         <label v-for="componentName in cc.sats.availableComponents" :key="componentName" class="toolbarSwitch">
           <input v-model="enabledComponents" type="checkbox" :value="componentName" />
           <span class="slider"></span>
           {{ componentName }}
         </label>
-      </div>
-      <div v-show="menu.gs" class="toolbarSwitches">
-        <div class="toolbarTitle">Ground station</div>
+      </toolbar-panel>
+      <toolbar-panel v-show="menu.gs" title="Ground station" @close="closePanel('gs')">
         <ground-station-list />
-      </div>
-      <div v-show="menu.map" class="toolbarSwitches">
+      </toolbar-panel>
+      <toolbar-panel v-show="menu.map" title="Map" @close="closePanel('map')">
         <!-- Both groups bind by provider, not token, so a url layer with an opacity
              (`ArcGis_0.5`) still matches. An inert group is dimmed but stays live. -->
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('layers') }">Basemap</div>
@@ -95,9 +87,9 @@
           <span class="slider"></span>
           {{ name }}
         </label>
-      </div>
-      <div v-show="menu.view" class="toolbarSwitches">
-        <div class="toolbarTitle">View</div>
+      </toolbar-panel>
+      <toolbar-panel v-show="menu.view" title="View" @close="closePanel('view')">
+        <div class="toolbarTitle">View mode</div>
         <label v-for="name in cc.sceneModes" :key="name" class="toolbarSwitch">
           <input v-model="sceneMode" type="radio" :value="name" />
           <span class="slider"></span>
@@ -121,9 +113,8 @@
             Use compass
           </label>
         </template>
-      </div>
-      <div v-show="menu.ios" class="toolbarSwitches">
-        <div class="toolbarTitle">Mobile</div>
+      </toolbar-panel>
+      <toolbar-panel v-show="menu.ios" title="Mobile" @close="closePanel('ios')">
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.useWebVR" type="checkbox" />
           <span class="slider"></span>
@@ -146,8 +137,8 @@
           <input type="button" @click="reload" />
           Reload
         </label>
-      </div>
-      <div v-show="menu.render" class="toolbarSwitches">
+      </toolbar-panel>
+      <toolbar-panel v-show="menu.render" title="Graphics" @close="closePanel('render')">
         <div class="toolbarTitle">Measurement</div>
         <label class="toolbarSwitch">
           <input v-model="showFps" type="checkbox" />
@@ -199,7 +190,7 @@
           <span class="slider"></span>
           {{ rate === "off" ? "Off" : `${rate}x` }}
         </label>
-      </div>
+      </toolbar-panel>
     </div>
     <div id="toolbarRight">
       <about-dialog v-if="showUI" />
@@ -225,7 +216,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
-import { computed, defineAsyncComponent, onMounted, reactive, ref } from "vue";
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 
 import { useController } from "../composables/useController";
 import { compassAvailable, useSkyCompass } from "../composables/useSkyCompass";
@@ -243,6 +234,7 @@ import EntityInfoPanel from "./EntityInfoPanel.vue";
 import GroundStationList from "./GroundStationList.vue";
 import SatelliteBrowser from "./SatelliteBrowser.vue";
 import SkyHud from "./SkyHud.vue";
+import ToolbarPanel from "./ToolbarPanel.vue";
 
 type MenuKey = "cat" | "sat" | "gs" | "map" | "view" | "ios" | "render";
 
@@ -260,7 +252,29 @@ const menu = reactive<Record<MenuKey, boolean>>({
   ios: false,
   render: false,
 });
+const anyMenuOpen = computed(() => Object.values(menu).some(Boolean));
 const showUI = ref(true);
+
+const menuToggle = ref<HTMLButtonElement>();
+const entryButtons: Partial<Record<MenuKey, HTMLButtonElement | null>> = {};
+
+/** Collapsed only on a known phone width; a hidden tab can report a width of 0. */
+const menuExpanded = ref(!(window.innerWidth > 0 && window.innerWidth < 640));
+
+/** `hint` is the hover text, saying what is behind an entry. */
+const menuItems = computed(() =>
+  (
+    [
+      { key: "cat", label: "Satellites", icon: "lucide:satellite", hint: "Search and pick which satellites to show" },
+      { key: "sat", label: "Components", icon: "lucide:orbit", hint: "Orbits, ground tracks, labels and sensor cones" },
+      { key: "gs", label: "Ground station", icon: "lucide:map-pin", hint: "Your location, for pass predictions" },
+      { key: "map", label: "Map", icon: "lucide:layers", hint: "Basemap, overlays, terrain and stars" },
+      { key: "view", label: "View", icon: "lucide:telescope", hint: "Globe, flat map or sky view, and the camera" },
+      { key: "ios", label: "Mobile", icon: "lucide:smartphone", hint: "VR, playback and reload" },
+      { key: "render", label: "Graphics", icon: "lucide:gauge", hint: "Quality, effects and performance" },
+    ] satisfies { key: MenuKey; label: string; icon: string; hint: string }[]
+  ).filter((item) => item.key !== "ios" || cc.minimalUI),
+);
 
 const cesiumStore = useCesiumStore();
 const { layers, terrainProvider, surfaceModel, starMap, sceneMode, cameraMode, pixelRatio, msaa, showFps, showBenchmark, requestRenderMode } = storeToRefs(cesiumStore);
@@ -351,14 +365,62 @@ async function onCompassToggle(event: Event): Promise<void> {
 
 onMounted(() => {
   showUI.value = !DeviceDetect.inIframe();
+  window.addEventListener("keydown", onEscape);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onEscape);
 });
 
 function toggleMenu(name: MenuKey) {
   const oldState = menu[name];
+  closeMenus();
+  menu[name] = !oldState;
+}
+
+function closeMenus() {
   (Object.keys(menu) as MenuKey[]).forEach((k) => {
     menu[k] = false;
   });
-  menu[name] = !oldState;
+}
+
+function toggleMenuColumn() {
+  menuExpanded.value = !menuExpanded.value;
+  if (!menuExpanded.value) {
+    closeMenus();
+  }
+}
+
+/** Closes the open panel, then the column. Inputs and an open dialog keep Escape for themselves. */
+function onEscape(event: KeyboardEvent) {
+  if (
+    event.key !== "Escape" ||
+    event.defaultPrevented ||
+    (event.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable]") ||
+    // Not every [role=dialog]: Cesium's credit lightbox carries the role while hidden.
+    document.querySelector('[role="dialog"][data-state="open"]')
+  ) {
+    return;
+  }
+  const open = (Object.keys(menu) as MenuKey[]).find((k) => menu[k]);
+  if (open) {
+    closePanel(open);
+  } else {
+    const focusInList = !!document.activeElement?.closest(".menuColumn__list");
+    menuExpanded.value = false;
+    if (focusInList) {
+      menuToggle.value?.focus();
+    }
+  }
+}
+
+/** Focus inside the closing panel moves to its entry, so keyboard users keep their place. */
+function closePanel(key: MenuKey) {
+  const focusInPanel = !!document.activeElement?.closest(".toolbarPanel");
+  menu[key] = false;
+  if (focusInPanel) {
+    entryButtons[key]?.focus();
+  }
 }
 
 function toggleUI() {

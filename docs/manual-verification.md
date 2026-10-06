@@ -47,8 +47,9 @@ The HUD is a transparent full-viewport layer, so a control under it still looks
 correct. `#cesiumContainer` is a sibling before `#app`, and `#app` isolates its
 stacking context, so no z-index lifts Cesium's widgets above the app. The
 arrangement that works: HUD root at `z-index: 4` with `pointer-events: none`,
-entity info panel at 5, toolbars at 6, and look-around listening on the Cesium
-canvas, not on an overlay. The HUD holds no interactive control.
+entity info panel at 5, toolbars at 6 and 7 (the left one over the right), and
+look-around listening on the Cesium canvas, not on an overlay. The HUD holds no
+interactive control.
 
 **Procedure.** Open `?scene=Sky&gs=48.1400,11.5800` and wait for the scene to
 settle. Select a satellite first for the panel:
@@ -57,7 +58,8 @@ the centre of each control:
 
 ```js
 [
-  ["toolbar Map", "#toolbarLeft .toolbarButtons button:nth-child(4)"],
+  ["menu toggle", "#toolbarLeft .menuColumn__toggle"],
+  ["toolbar Map", "#toolbarLeft .menuColumn__item:nth-child(4)"],
   ["toolbar eye", "#toolbarRight button"],
   ["cesium credits", ".cesium-credit-logoContainer"],
   ["clock deck controls", ".cluster"],
@@ -72,9 +74,13 @@ the centre of each control:
 });
 ```
 
-**Result, 2026-07-27, Chrome, 1618x1576.** All six clickable. That run checked
-Cesium's animation and timeline widgets where the two clock deck rows are now; the
-deck rows have not been run through this snippet.
+**Result, 2026-10-06, Chrome, 1000x1576.** All seven clickable, with the menu
+column expanded and an entity selected. This is the first run against the clock
+deck rows; the 2026-07-27 run checked Cesium's animation and timeline widgets.
+Again at 563x1576, with `#toolbarLeft` at z-index 7: all seven clickable once the
+column is expanded (it starts collapsed below 640px), the Map entry over the entity
+info panel. And at 1106x1576 with `pointer-events: none` on `#toolbarLeft` (its
+children re-enabled): all seven clickable.
 
 ## Sky view: the zoom gestures
 
@@ -414,6 +420,10 @@ VersaTiles rendered the right way up (its TileJSON declares no `scheme`, so no
 `{reverseY}`) and sharp orthophoto over central Munich, tile levels 7 to 14, no
 errors. "VersaTiles sources" is in the attribution.
 
+**Result, 2026-10-06, Chrome, the menu column's Map panel.** The imagery half again:
+ArcGis checked for `ArcGis_0.5`, Nextrad checked; OSM wrote `?layers=OSM,Nextrad`;
+Tiles took the imagery layers from 2 to 3 and back. Terrain was not re-flown.
+
 ## Layers: the base map's depth upgrade
 
 **Covers:** `__IMAGERY_MAX_LEVEL__` (`vite.config.ts`), the `NaturalEarth` provider
@@ -510,7 +520,7 @@ unit-tested; the frame cost is not.
 satellite is active and the scene has settled, time `clock.tick()` plus
 `scene.render()` from the console. Repeat with
 `elements=Point,Ground+station+link`, look at Munich, and untick the link in the
-satellite menu.
+Components panel.
 
 **Result, 2026-10-04, Chrome (frame pump on), 11,152 Starlink satellites.** Link
 off: 18 ms a frame and no link entities. Link on: 109 ms a frame (about 8 µs per

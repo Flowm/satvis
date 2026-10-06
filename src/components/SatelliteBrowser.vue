@@ -119,7 +119,7 @@ const totalSize = computed(() => virtualizer.value.getTotalSize());
 .satellite-browser {
   display: flex;
   flex-direction: column;
-  width: min(320px, calc(100vw - 12px));
+  width: min(320px, var(--toolbar-panel-max));
   max-height: calc(100dvh - 120px);
   gap: 6px;
   padding: 0 6px 6px;
