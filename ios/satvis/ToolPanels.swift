@@ -142,8 +142,10 @@ private struct ToolRow: View {
             .padding(.trailing, folded ? 4 : 18)
             .frame(maxWidth: .infinity, minHeight: 44 * scale, alignment: .leading)
             .background(.white.opacity(configuration.isPressed ? 0.12 : isSelected ? 0.1 : 0))
-            // Gone with the touch, not carried through the column's animation.
+            // Changed at once, the press's and the open panel's alike: the panel's
+            // animation faded the latter in after the former had gone, a flicker.
             .animation(nil, value: configuration.isPressed)
+            .animation(nil, value: isSelected)
             .contentShape(.rect)
     }
 }
