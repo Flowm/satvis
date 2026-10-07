@@ -68,9 +68,10 @@ test("a nudge leaves the compass aiming; a drag takes the aim back, levels it an
 
 test("a drag during the sensor probe cancels quietly", async ({ page }) => {
   await menuSwitch(page, "Use compass").click();
-  // Inside the 1.2 s probe.
+  // Inside the 1.2 s probe. Aiming starts once the permission request answers, up to
+  // 14 ms after the switch disables, so a single read could land before it.
   await expect(compassSwitch(page)).toBeDisabled();
-  expect((await sky(page)).aiming).toBe(true);
+  await expect.poll(async () => (await sky(page)).aiming, { intervals: [20] }).toBe(true);
   await drag(page, 40, 40);
   await expect(compassSwitch(page)).toBeEnabled();
   await expect(compassSwitch(page)).not.toBeChecked();
