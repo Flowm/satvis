@@ -43,6 +43,10 @@ macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
   Re:Earth no more than the web app does. ADR 0008 has why. The texture budget
   is soft: a low, oblique view can use more tiles than it, and evicting tiles in
   use only starts the refinement over.
+- About, in the top-right column, is the web app's About dialog (`AboutView.swift`):
+  what Satvis is, the about page's three demos (opened in the app, by their links),
+  what it does and where its data comes from, written for the app. Keep the demos'
+  links in step with `about.html`'s.
 - The attribution is the web app's credit display: an "Attribution" link above
   the clock deck opens what the map is drawn from now (`Credit.map`), the
   element sets' source, and the site's privacy policy. The terrain's sources are
