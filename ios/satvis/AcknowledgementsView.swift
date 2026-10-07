@@ -46,7 +46,7 @@ struct AcknowledgementsView: View {
                 Link(destination: URL(string: "https://nasa3d.arc.nasa.gov")!) {
                     entry(
                         "3D models",
-                        "From NASA 3D Resources, not subject to US copyright; NASA's insignia are not free to use, and their use implies no endorsement. The MOVE CubeSats' from the Technical University of Munich."
+                        "From NASA 3D Resources, not subject to US copyright; NASA's insignia are not free to use, and their use implies no endorsement. The generic CubeSats, communications satellites and constellation buses are satvis's own, built from published dimensions, under the MIT licence."
                     )
                 }
                 Link(destination: URL(string: "https://planet4589.org/space/gcat/")!) {

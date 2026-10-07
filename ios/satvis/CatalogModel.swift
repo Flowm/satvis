@@ -227,8 +227,9 @@ final class CatalogModel {
         }
         // Edge-triggered, as the web app's sceneSync: a component switched back on
         // past its budget stays on until the count drops under and crosses again.
+        let modelled = active.count { $0.record.metadata["modelFile"]?.string != nil }
         for (component, budget) in SatelliteComponents.budgets {
-            if active.count <= budget {
+            if (component == .model ? modelled : active.count) <= budget {
                 overBudget.remove(component)
             } else if !overBudget.contains(component) {
                 overBudget.insert(component)
