@@ -117,6 +117,15 @@ import simd
         }
     }
 
+    // glTF's alpha modes, as the materials name them.
+    @Test func readsTheAlphaModes() throws {
+        let model = try ModelAsset(
+            glb: Self.cube { document in
+                document["materials"] = [["alphaMode": "BLEND"], ["alphaMode": "MASK", "alphaCutoff": 0.25], ["alphaMode": "MASK"], [:]]
+            })
+        #expect(model.materials.map(\.alphaMode) == [.blend, .mask(cutoff: 0.25), .mask(cutoff: 0.5), .opaque, .opaque])
+    }
+
     // An image whose header claims more than a tile or a texture has is not decoded.
     @Test func refusesOversizedImages() throws {
         let side = 3000

@@ -42,6 +42,13 @@ struct AcknowledgementsView: View {
                 }
             }
             Section("Data") {
+                // As the models repository's manifest credits each model.
+                Link(destination: URL(string: "https://nasa3d.arc.nasa.gov")!) {
+                    entry(
+                        "3D models",
+                        "From NASA 3D Resources, not subject to US copyright; NASA's insignia are not free to use, and their use implies no endorsement. The MOVE CubeSats' from the Technical University of Munich."
+                    )
+                }
                 Link(destination: URL(string: "https://www.naturalearthdata.com")!) {
                     entry("Natural Earth", "The base map shipped in the app. Public domain.")
                 }

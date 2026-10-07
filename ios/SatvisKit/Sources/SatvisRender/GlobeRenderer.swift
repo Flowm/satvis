@@ -139,6 +139,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let overlayPipeline: MTLRenderPipelineState
     private let conePipeline: MTLRenderPipelineState
     private let modelPipeline: MTLRenderPipelineState
+    /// For a model's blended parts, after every opaque one.
+    private let modelBlendPipeline: MTLRenderPipelineState
     private let coneRimPipeline: MTLRenderPipelineState
     private let overlay: GroundOverlay
     private let tonemapPipeline: MTLRenderPipelineState
@@ -277,6 +279,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         pointPipeline = try pipeline("pointVertex", "pointFragment")
         linePipeline = try pipeline("lineVertex", "lineFragment", blend: true)
         modelPipeline = try pipeline("modelVertex", "modelFragment")
+        modelBlendPipeline = try pipeline("modelVertex", "modelFragment", blend: true)
         labelPipeline = try pipeline("labelVertex", "labelFragment", blend: true, premultiplied: true)
         stationPipeline = try pipeline("stationVertex", "stationFragment", blend: true, premultiplied: true)
         linkPipeline = try pipeline("linkVertex", "linkFragment", blend: true)
@@ -1001,23 +1004,31 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         guard !placements.isEmpty, let lastFrame else {
             return
         }
-        encoder.setRenderPipelineState(modelPipeline)
-        encoder.setDepthStencilState(depthWrite)
         encoder.setFragmentSamplerState(tileSampler, index: 0)
-        for placement in placements {
-            encoder.setVertexBuffer(placement.model.vertices, offset: 0, index: 0)
-            for part in placement.model.parts {
-                var instance = ModelInstance(
-                    modelViewProjection: float4x4(lastFrame.viewProjection * placement.toEye), rotation: placement.rotation,
-                    modelToEye: float4x4(placement.toEye), baseColor: part.material.baseColor, sunDirection: frame.sunDirection,
-                    hasTexture: part.texture == nil ? 0 : 1, metallic: part.material.metallic, roughness: part.material.roughness)
-                encoder.setCullMode(part.material.doubleSided ? .none : .back)
-                encoder.setVertexBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
-                encoder.setFragmentBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
-                encoder.setFragmentTexture(part.texture, index: 0)
-                encoder.drawIndexedPrimitives(
-                    type: .triangle, indexCount: part.indexCount, indexType: .uint32, indexBuffer: placement.model.indices,
-                    indexBufferOffset: part.indexStart * MemoryLayout<UInt32>.stride)
+        // The opaque and cut-out parts, writing depth, then the blended ones over
+        // them, testing it: as CesiumJS draws glTF's translucent parts.
+        for blended in [false, true] {
+            encoder.setRenderPipelineState(blended ? modelBlendPipeline : modelPipeline)
+            encoder.setDepthStencilState(blended ? depthTest : depthWrite)
+            for placement in placements {
+                encoder.setVertexBuffer(placement.model.vertices, offset: 0, index: 0)
+                for part in placement.model.parts where (part.material.alphaMode == .blend) == blended {
+                    var cutoff: Float = 0
+                    if case .mask(let value) = part.material.alphaMode {
+                        cutoff = value
+                    }
+                    var instance = ModelInstance(
+                        modelViewProjection: float4x4(lastFrame.viewProjection * placement.toEye), rotation: placement.rotation,
+                        modelToEye: float4x4(placement.toEye), baseColor: part.material.baseColor, sunDirection: frame.sunDirection,
+                        hasTexture: part.texture == nil ? 0 : 1, metallic: part.material.metallic, roughness: part.material.roughness, alphaCutoff: cutoff)
+                    encoder.setCullMode(part.material.doubleSided ? .none : .back)
+                    encoder.setVertexBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
+                    encoder.setFragmentBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
+                    encoder.setFragmentTexture(part.texture, index: 0)
+                    encoder.drawIndexedPrimitives(
+                        type: .triangle, indexCount: part.indexCount, indexType: .uint32, indexBuffer: placement.model.indices,
+                        indexBufferOffset: part.indexStart * MemoryLayout<UInt32>.stride)
+                }
             }
         }
         // The frame's uniforms, which the passes after this one read there.
