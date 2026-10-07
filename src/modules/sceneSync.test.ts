@@ -545,6 +545,23 @@ describe("startSceneSync", () => {
       expect(satStore.enabledComponents).not.toContain("Ground station link");
       expect(satStore.enabledComponents).toContain("Point");
     });
+
+    test("switches 3D models off past 200, as labels", async () => {
+      const { target, catalog } = fakeTarget();
+      startSceneSync(target);
+      const satStore = useSatStore();
+      satStore.enabledComponents = [...satStore.enabledComponents, "3D model"];
+
+      satStore.setActivation({ enabledTags: ["Starlink"] });
+      loadGroup(catalog, "Starlink", 200);
+      await settle();
+      expect(satStore.enabledComponents).toContain("3D model");
+
+      loadGroup(catalog, "Starlink", 201);
+      await settle();
+      expect(satStore.enabledComponents).not.toContain("3D model");
+      expect(satStore.enabledComponents).toContain("Point");
+    });
   });
 
   describe("the url's time follows the Live dot", () => {

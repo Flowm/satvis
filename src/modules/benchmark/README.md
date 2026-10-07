@@ -240,8 +240,8 @@ Cesium's workers `CacheFirst` for 30 days, and those cached responses have no CO
   - `fps` and `frameMs` measure the pump. `cpuMs` and `tickMs` stay readable.
     Compare only pumped runs with pumped runs, and say so when you quote them.
 - **The sweep drives `SatelliteManager.reconcile` directly, not the store.**
-  `sceneSync` switches Label off above 200 active satellites, so a store-driven
-  sweep could not measure labels at 1,000. Do not touch the toolbar during a run.
+  `sceneSync` switches Label and 3D model off above 200 active satellites, so a
+  store-driven sweep could not measure them at 1,000. Do not touch the toolbar during a run.
   `restore()` puts back the store's scene, `requestRenderMode`, `shouldAnimate`
   and the clock multiplier.
 - **Render-on-demand is switched off while the panel is open**, because with it on

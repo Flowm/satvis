@@ -24,11 +24,14 @@ const MIN_CLOCK_WRITE_MS = 1000;
 
 /**
  * Active satellites above which a component is switched off. Labels become unreadable
- * on a 1080p globe; the ground station link costs about 8 µs per satellite a frame.
+ * on a 1080p globe; the ground station link costs about 8 µs per satellite a frame; a
+ * 3D model about 52 µs, which held 60 fps to about 230 models on an M4 Pro (Starlink,
+ * where 11,000 models ran at 1.7 fps with a 2.4 GB heap).
  */
 const COMPONENT_BUDGETS: Record<string, number> = {
   Label: 200,
   "Ground station link": 500,
+  "3D model": 200,
 };
 
 /** The part of `CesiumController` this file uses, so a test can stand in without WebGL. */
