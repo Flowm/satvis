@@ -48,6 +48,7 @@ struct ContentView: View {
     @State private var showsBrowser = false
     @State private var showsStations = false
     @State private var showsAttribution = false
+    @State private var showsAbout = false
     @State private var showsTools = false
     /// The panel open beside the menu column, if any.
     @State private var panel: ToolPanel?
@@ -96,6 +97,8 @@ struct ContentView: View {
                 }
                 // Always there, so the way back is where it always is.
                 Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
+                // The web app's About button.
+                Button("About Satvis", systemImage: "info") { showsAbout = true }
                 if session.observer != nil {
                     Button(
                         session.compass.isAiming ? "Stop aiming by compass" : "Aim by compass",
@@ -222,6 +225,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showsBrowser) {
             BrowserView(catalog: session.catalog) { session.selection = .satellite($0.id) }
+        }
+        .sheet(isPresented: $showsAbout) {
+            AboutView(onOpen: { session.open($0) }, privacyPolicy: session.privacyPolicy)
         }
         .sheet(isPresented: $showsAttribution) {
             AttributionView(map: session.mapCredits, privacyPolicy: session.privacyPolicy, analytics: session.analytics)

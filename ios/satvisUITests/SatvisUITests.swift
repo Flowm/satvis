@@ -50,6 +50,22 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.descendants(matching: .any)["Orbit track"].waitForExistence(timeout: 5))
     }
 
+    // The about page's demos open in the app: the first pins the clock at its minute.
+    @MainActor
+    func testOpensADemoFromAbout() {
+        let app = launch()
+        XCTAssert(app.buttons["About Satvis"].waitForExistence(timeout: 30))
+        app.buttons["About Satvis"].tap()
+        let demo = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Open it'")).firstMatch
+        XCTAssert(demo.waitForExistence(timeout: 5))
+        demo.tap()
+        let stamp = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UTC'")).firstMatch
+        XCTAssert(stamp.waitForExistence(timeout: 10))
+        let pinned = NSPredicate(format: "label CONTAINS '08:5'")
+        expectation(for: pinned, evaluatedWith: stamp)
+        waitForExpectations(timeout: 10)
+    }
+
     // The credits open from the link beside the clock.
     @MainActor
     func testOpensTheAttribution() {
