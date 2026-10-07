@@ -51,6 +51,23 @@ public actor TrajectoryStore {
         changedSinceRefresh = true
     }
 
+    /// Samples the windows on every core: the web app fills them in a worker
+    /// pool, and one at a time a constellation switched on took seconds. Within
+    /// the actor's turn, so nothing can replace the set while they are sampled.
+    private static func sample(_ propagators: [SGP4Propagator], around epochMilliseconds: Double) -> [SampledTrajectory?] {
+        var results = [SampledTrajectory?](repeating: nil, count: propagators.count)
+        results.withUnsafeMutableBufferPointer { results in
+            // A chunk of satellites a task, so the scheduling costs little next to SGP4.
+            let chunk = 64
+            DispatchQueue.concurrentPerform(iterations: (propagators.count + chunk - 1) / chunk) { part in
+                for index in (part * chunk)..<min((part + 1) * chunk, propagators.count) {
+                    results[index] = SampledTrajectory(propagators[index], around: epochMilliseconds)
+                }
+            }
+        }
+        return results
+    }
+
     /// The catalog entry a record is drawn for (`CatalogEntry.id`).
     private static func identity(_ record: GPRecord) -> String {
         "\(record.satnum)|\(record.name)"
@@ -66,12 +83,17 @@ public actor TrajectoryStore {
     public func refresh(at epochMilliseconds: Double) -> [Entry]? {
         var changed = changedSinceRefresh
         changedSinceRefresh = false
-        for index in propagators.indices where !(trajectories[index]?.isFresh(at: epochMilliseconds) ?? false) {
-            let propagator = propagators[index].propagator
-            if let failed = failedAt[index], abs(epochMilliseconds - failed) < SampledTrajectory.periodMilliseconds(propagator) {
-                continue
+        let stale = propagators.indices.filter { index in
+            guard !(trajectories[index]?.isFresh(at: epochMilliseconds) ?? false) else {
+                return false
             }
-            let trajectory = SampledTrajectory(propagator, around: epochMilliseconds)
+            if let failed = failedAt[index], abs(epochMilliseconds - failed) < SampledTrajectory.periodMilliseconds(propagators[index].propagator) {
+                return false
+            }
+            return true
+        }
+        let sampled = Self.sample(stale.map { propagators[$0].propagator }, around: epochMilliseconds)
+        for (index, trajectory) in zip(stale, sampled) {
             failedAt[index] = trajectory == nil ? epochMilliseconds : nil
             // A satellite that stays refused changes nothing that is drawn.
             if trajectory != nil || trajectories[index] != nil {
