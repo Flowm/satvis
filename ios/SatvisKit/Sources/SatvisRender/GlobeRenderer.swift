@@ -388,9 +388,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         overlay.isStale = true
     }
 
-    /// The base map, and the site the shipped one's finer levels come from.
-    public func setImagery(_ layer: BaseLayer, site: URL) {
-        surface.setLayer(layer, site: site)
+    /// The base map, the site the shipped one's finer levels come from, and a
+    /// daily one's day (`GIBS.frame`).
+    public func setImagery(_ layer: BaseLayer, site: URL, frame: String? = nil) {
+        surface.setLayer(layer, site: site, frame: frame)
     }
 
     /// Whether the globe follows Re:Earth's terrain. Off by default, as on the web.

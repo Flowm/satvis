@@ -82,6 +82,11 @@ final class Surface {
     /// Fetches a tile's bytes: the app's tile fetcher, nil when it has none.
     var loader: (@Sendable (TileRequest) async -> Data?)?
     private(set) var layer = BaseLayer.naturalEarth
+    /// A daily layer's day.
+    private(set) var day: String?
+    /// Counts the changes of base map or day: a tile asked for under another is
+    /// dropped when it arrives.
+    private var sourceGeneration = 0
     /// Whether the surface follows Re:Earth's terrain or the ellipsoid.
     private(set) var terrainEnabled = false
     private var source: ImagerySource
@@ -123,14 +128,17 @@ final class Surface {
 
     var indexBuffer: MTLBuffer { indices }
 
-    /// Changes the base map, and bakes every tile again, the nearest first.
-    func setLayer(_ layer: BaseLayer, site: URL) {
-        guard layer != self.layer || site != self.site else {
+    /// Changes the base map, or a daily one's day, and bakes every tile again, the
+    /// nearest first.
+    func setLayer(_ layer: BaseLayer, site: URL, frame: String? = nil) {
+        guard layer != self.layer || site != self.site || frame != day else {
             return
         }
         self.layer = layer
         self.site = site
-        source = layer.source(site: site)
+        day = frame
+        sourceGeneration += 1
+        source = layer.source(site: site, frame: frame)
         // The old map's tiles still on their way would only be dropped on arrival.
         for case .loading(let work) in sources.values {
             work.cancel()
@@ -407,6 +415,7 @@ final class Surface {
         }
         let contentType = source.contentType
         let layer = layer
+        let generation = sourceGeneration
         let device = device
         let work = Task.detached(priority: .utility) { () -> DecodedTile? in
             guard let data = await loader(TileRequest(url: url, contentType: contentType, headers: [:])) else {
@@ -418,7 +427,7 @@ final class Surface {
         Task {
             let texture = await work.value?.texture
             // A tile of a base map no longer shown, or cancelled as flown past, is dropped.
-            guard layer == self.layer, case .loading(let current) = sources[key], current == work else {
+            guard generation == sourceGeneration, case .loading(let current) = sources[key], current == work else {
                 return
             }
             if texture == nil {
@@ -433,7 +442,7 @@ final class Surface {
                 // keep their stand-ins after the network came back.
                 Task {
                     try? await Task.sleep(for: .seconds(Self.retryInterval))
-                    guard layer == self.layer, case .failed = sources[key] else {
+                    guard generation == sourceGeneration, case .failed = sources[key] else {
                         return
                     }
                     markForBake(covering: key)

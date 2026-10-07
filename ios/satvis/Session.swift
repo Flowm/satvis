@@ -47,7 +47,7 @@ final class Session {
     var baseLayer: BaseLayer = UserDefaults.standard.string(forKey: "baseLayer").flatMap(BaseLayer.init(rawValue:)) ?? .naturalEarth {
         didSet {
             UserDefaults.standard.set(baseLayer.rawValue, forKey: "baseLayer")
-            renderer?.setImagery(baseLayer, site: source.site)
+            renderer?.setImagery(baseLayer, site: source.site, frame: imageryFrame)
         }
     }
     /// Whether the globe follows Re:Earth's terrain: off by default, as on the web.
@@ -58,6 +58,12 @@ final class Session {
         }
     }
     @ObservationIgnored private let tiles = TileFetcher.shared()
+    /// The days GIBS has VIIRS for, and when it was last asked.
+    @ObservationIgnored private var viirsDays: ClosedRange<String>?
+    @ObservationIgnored private var viirsDaysAsked: Date?
+    /// A daily base map's day, as the renderer was given it: the clock's, within
+    /// GIBS's days; nil, GIBS's latest, until they are known.
+    @ObservationIgnored private var imageryFrame: String?
     let analytics = Analytics()
 
     /// What the map is drawn from now, to credit: with the terrain the sky view
@@ -140,7 +146,7 @@ final class Session {
                 return nil
             }
         }
-        renderer.setImagery(baseLayer, site: source.site)
+        renderer.setImagery(baseLayer, site: source.site, frame: imageryFrame)
         renderer.setTerrain(terrain)
         renderer.setStations(shownMarkers)
         // What a link opened on before the renderer was there to be told: the
@@ -165,6 +171,7 @@ final class Session {
             Task { await watchEntries() },
             Task { await starMap.load(from: source) },
             Task { await predictPasses() },
+            Task { await followImageryDay() },
             Task { await countViews() },
         ]
         await withTaskCancellationHandler {
@@ -615,6 +622,30 @@ final class Session {
     private func successor(of id: String) -> String? {
         let satnum = id.prefix { $0 != "|" }
         return catalog.catalog.entries.values.first { $0.satnum == satnum }?.id
+    }
+
+    /// Keeps a daily base map (VIIRS) on the clock's day, once a second, as the web
+    /// app's GibsTimeLayer moves it with the clock, asking GIBS which days it has
+    /// every half hour, as long as GIBS lets its answer be cached.
+    private func followImageryDay() async {
+        while !Task.isCancelled {
+            if baseLayer.isDaily {
+                if viirsDaysAsked.map({ Date().timeIntervalSince($0) >= 1800 }) ?? true {
+                    viirsDaysAsked = Date()
+                    if let (data, _) = try? await URLSession.shared.data(from: GIBS.viirsDomain),
+                        let days = GIBS.days(inDomain: String(decoding: data, as: UTF8.self))
+                    {
+                        viirsDays = days
+                    }
+                }
+                let frame = viirsDays.map { GIBS.frame(at: clock.now(), within: $0) }
+                if frame != imageryFrame {
+                    imageryFrame = frame
+                    renderer?.setImagery(baseLayer, site: source.site, frame: frame)
+                }
+            }
+            try? await Task.sleep(for: .seconds(1))
+        }
     }
 
     private func watchMode() async {
