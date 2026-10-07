@@ -137,6 +137,9 @@ export class CesiumController {
   /** The `applyStarMap` call that started last wins, not the one whose faces arrive last. */
   #starMapGeneration = 0;
 
+  /** Set by `keepSelectionOnEmptyClick` for the click being released. */
+  #keepSelection = false;
+
   constructor(viewer: Viewer) {
     this.preloadReferenceFrameData();
     this.minimalUI = DeviceDetect.minimalUI();
@@ -482,6 +485,16 @@ export class CesiumController {
   }
 
   createInputHandler(): void {
+    // The Viewer's own click handler selects what a click hits and clears the selection on a miss.
+    const viewerHandler = this.viewer.screenSpaceEventHandler;
+    const select = viewerHandler.getInputAction(ScreenSpaceEventType.LEFT_CLICK) as (event: ScreenSpaceEventHandler.PositionedEvent) => void;
+    viewerHandler.setInputAction((event: ScreenSpaceEventHandler.PositionedEvent) => {
+      if (this.#keepSelection && !defined(this.viewer.scene.pick(event.position))) {
+        return;
+      }
+      select(event);
+    }, ScreenSpaceEventType.LEFT_CLICK);
+
     const handler = new ScreenSpaceEventHandler(this.viewer.scene.canvas);
     handler.setInputAction((event: ScreenSpaceEventHandler.PositionedEvent) => {
       const { pickMode } = useCesiumStore();
@@ -490,6 +503,17 @@ export class CesiumController {
       }
       this.setGroundStationFromClickEvent(event);
     }, ScreenSpaceEventType.LEFT_CLICK);
+  }
+
+  /**
+   * The click being released keeps the selection if it hits nothing, and still selects what it hits. Cleared
+   * once this event is over, because Cesium fires no click for a press that moved past its 5px tolerance.
+   */
+  keepSelectionOnEmptyClick(): void {
+    this.#keepSelection = true;
+    setTimeout(() => {
+      this.#keepSelection = false;
+    });
   }
 
   setGroundStationFromClickEvent(event: ScreenSpaceEventHandler.PositionedEvent): void {

@@ -330,14 +330,61 @@ async function onCompassToggle(event: Event): Promise<void> {
   }
 }
 
+/** Aborted on unmount, removing the window listeners. */
+const windowListeners = new AbortController();
+
 onMounted(() => {
   showUI.value = !DeviceDetect.inIframe();
-  window.addEventListener("keydown", onEscape);
+  const { signal } = windowListeners;
+  window.addEventListener("keydown", onEscape, { signal });
+  // Capture, so the menu marks its tap before the Viewer's own pointerup handler picks.
+  window.addEventListener("pointerdown", onPointerDown, { capture: true, signal });
+  window.addEventListener("pointerup", onPointerUp, { capture: true, signal });
+  window.addEventListener("pointercancel", onPointerCancel, { capture: true, signal });
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener("keydown", onEscape);
+  windowListeners.abort();
 });
+
+/** Pixels a press on the globe may travel and still count as a tap rather than a drag. */
+const TAP_SLOP_PX = 8;
+
+/** The press on the globe that may close the menu on release. */
+let globePress: { id: number; x: number; y: number } | undefined;
+
+/** The main button on the globe only. A second finger is a pinch, so it drops the pending press. */
+function onPointerDown(event: PointerEvent): void {
+  const onGlobe = event.target === cc.viewer.scene.canvas && event.button === 0;
+  globePress = event.isPrimary && onGlobe ? { id: event.pointerId, x: event.clientX, y: event.clientY } : undefined;
+}
+
+/**
+ * A tap on the globe returns the menu to how it starts: no panel, and on a phone a folded column. The tap
+ * still selects what it hits, but a miss keeps the selection. Pick mode leaves the menu open, so the new
+ * station shows in its panel.
+ */
+function onPointerUp(event: PointerEvent): void {
+  const press = globePress;
+  globePress = undefined;
+  if (!press || press.id !== event.pointerId || Math.hypot(event.clientX - press.x, event.clientY - press.y) > TAP_SLOP_PX || cesiumStore.pickMode) {
+    return;
+  }
+  const foldColumn = isNarrow() && menuExpanded.value;
+  if (!anyMenuOpen.value && !foldColumn) {
+    return;
+  }
+  closeMenus();
+  if (foldColumn) {
+    menuExpanded.value = false;
+  }
+  cc.keepSelectionOnEmptyClick();
+}
+
+/** A cancelled press is no tap. */
+function onPointerCancel(): void {
+  globePress = undefined;
+}
 
 function toggleMenu(name: MenuKey) {
   const oldState = menu[name];
