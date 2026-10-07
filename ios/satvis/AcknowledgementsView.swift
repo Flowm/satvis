@@ -49,6 +49,9 @@ struct AcknowledgementsView: View {
                         "From NASA 3D Resources, not subject to US copyright; NASA's insignia are not free to use, and their use implies no endorsement. The MOVE CubeSats' from the Technical University of Munich."
                     )
                 }
+                Link(destination: URL(string: "https://planet4589.org/space/gcat/")!) {
+                    entry("GCAT", "What each satellite is: its country, operator, manufacturer, bus, mass and size. Data from J. McDowell, planet4589.org, under CC BY 4.0.")
+                }
                 Link(destination: URL(string: "https://www.naturalearthdata.com")!) {
                     entry("Natural Earth", "The base map shipped in the app. Public domain.")
                 }

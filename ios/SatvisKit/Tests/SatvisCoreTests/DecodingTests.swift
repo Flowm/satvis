@@ -7,7 +7,7 @@ import Testing
     @Test func keepsTheMetadataBag() throws {
         let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
         let metop = try #require(records.first { $0.name == "METOP-C" })
-        #expect(metop.metadata["owner"]?.string == "EUME")
+        #expect(metop.metadata["country"]?.string == "EUMETSAT")
         guard case .omm(let omm) = metop.elements else {
             Issue.record("METOP-C is an OMM")
             return
