@@ -19,7 +19,7 @@ public struct SampledTrajectory: Sendable {
     /// The grid index of `positions[0]`.
     public let firstIndex: Int
     /// NaN where SGP4 refused the instant, e.g. once a satellite has decayed.
-    public let positions: [SIMD3<Double>]
+    public let positions: SamplePositions
 
     /// Samples the window around `epochMilliseconds`. A node SGP4 refuses is left
     /// out on its own, as the web app's sampler skips it, so a satellite is hidden
@@ -35,8 +35,7 @@ public struct SampledTrajectory: Sendable {
         let step = periodMilliseconds / Self.samplesPerOrbit
         let first = Int(((epochMilliseconds - Self.orbitsBack * periodMilliseconds - anchor) / step).rounded(.down)) - Self.stencil / 2
         let last = Int(((epochMilliseconds + Self.orbitsForward * periodMilliseconds - anchor) / step).rounded(.up)) + Self.stencil / 2
-        var positions: [SIMD3<Double>] = []
-        positions.reserveCapacity(last - first + 1)
+        var positions = SamplePositions(capacity: last - first + 1)
         var propagated = false
         for index in first...last {
             let instant = anchor + Double(index) * step
@@ -112,6 +111,27 @@ public struct SampledTrajectory: Sendable {
         let start = anchorMilliseconds + Double(firstIndex) * stepMilliseconds
         let end = start + Double(positions.count - 1) * stepMilliseconds
         return epochMilliseconds >= start + 0.25 * period && epochMilliseconds <= end - period
+    }
+}
+
+/// A window's positions, three doubles each: as `SIMD3<Double>` each took 32
+/// bytes, padded as a SIMD4, and 16,600 satellites' windows some 135 MB.
+public struct SamplePositions: RandomAccessCollection, Sendable, Equatable {
+    private var storage: [Double] = []
+
+    init(capacity: Int) {
+        storage.reserveCapacity(3 * capacity)
+    }
+
+    public var startIndex: Int { 0 }
+    public var endIndex: Int { storage.count / 3 }
+
+    public subscript(index: Int) -> SIMD3<Double> {
+        SIMD3(storage[3 * index], storage[3 * index + 1], storage[3 * index + 2])
+    }
+
+    mutating func append(_ position: SIMD3<Double>) {
+        storage += [position.x, position.y, position.z]
     }
 }
 
