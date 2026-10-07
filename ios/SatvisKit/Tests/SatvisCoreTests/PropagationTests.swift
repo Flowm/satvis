@@ -8,6 +8,21 @@ import Testing
         epoch: .init(year: 2026, dayOfYear: 275.46549369), meanMotion: 15.48710782, eccentricity: 0.00069284, inclination: 51.6316,
         raOfAscNode: 140.1, argOfPericenter: 30.2, meanAnomaly: 329.9, bstar: 0.00025, meanMotionDot: 0.00013, meanMotionDDot: 0)
 
+    // The deep-space integrator goes on in place from its last step: whatever was
+    // asked before, the state is the one a fresh propagator gives.
+    @Test func givesTheSameDeepSpaceStatesInAnyOrder() throws {
+        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        for name in ["GOES 19", "POLAR", "GPS BIIR-5  (PRN 22)"] {
+            let record = try #require(records.first { $0.name == name })
+            let reused = try SGP4Propagator(record.meanElements)
+            let day = 1440.0
+            for minutes in [0, 30 * day, 120 * day, 45.5 * day, -10 * day, 200 * day, 120 * day] {
+                let fresh = try SGP4Propagator(record.meanElements).state(minutesSinceEpoch: minutes)
+                #expect(try reused.state(minutesSinceEpoch: minutes) == fresh, "\(name) at \(minutes / day) days")
+            }
+        }
+    }
+
     @Test func refusesElementsSGP4Rejects() {
         var hyperbolic = Self.iss
         hyperbolic.eccentricity = 1.2

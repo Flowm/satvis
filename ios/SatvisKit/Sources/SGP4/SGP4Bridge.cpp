@@ -40,10 +40,11 @@ SGP4Shape sgp4_shape(const SGP4Satellite *satellite) {
     return SGP4Shape{satellite->record.a, satellite->record.alta, satellite->record.altp};
 }
 
-int sgp4_propagate(const SGP4Satellite *satellite, double minutesSinceEpoch, double position[3], double velocity[3]) {
-    // sgp4 writes into the record as it goes (the deep-space integrator keeps its
-    // last step there), so each call works on its own copy.
-    elsetrec record = satellite->record;
-    SGP4Funcs::sgp4(record, minutesSinceEpoch, position, velocity);
-    return record.error;
+SGP4Satellite *sgp4_copy(const SGP4Satellite *satellite) {
+    return new SGP4Satellite(*satellite);
+}
+
+int sgp4_propagate(SGP4Satellite *satellite, double minutesSinceEpoch, double position[3], double velocity[3]) {
+    SGP4Funcs::sgp4(satellite->record, minutesSinceEpoch, position, velocity);
+    return satellite->record.error;
 }

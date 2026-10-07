@@ -1,5 +1,6 @@
 import Foundation
 import SGP4
+import Synchronization
 
 /// A position and velocity in the TEME frame SGP4 works in.
 public struct TEMEState: Sendable, Hashable {
@@ -32,7 +33,7 @@ public enum SGP4Error: Error, Hashable {
 
 /// One element set, initialised for SGP4 as satellite.js does it: WGS-72, improved
 /// mode, the epoch and the time since it by satellite.js's own Julian arithmetic.
-/// Immutable once made, so it may be propagated from any thread.
+/// It may be propagated from any thread: calls take turns on one working copy.
 public final class SGP4Propagator: Sendable {
     public let elements: MeanElements
     /// The epoch's Julian date, which the minutes since epoch count from.
@@ -46,6 +47,13 @@ public final class SGP4Propagator: Sendable {
         return (shape.semiMajorAxis, shape.apogeeAltitude, shape.perigeeAltitude)
     }
     private nonisolated(unsafe) let satellite: OpaquePointer
+    /// Propagated in place, so the deep-space integrator of a GEO or Molniya orbit
+    /// goes on from where it stopped: with a fresh copy every call it integrated
+    /// from the epoch each time. For GOES 19 sampled 120 days past its epoch, 7.1
+    /// µs a call against 0.4 in place (a Mac, release build). The states are the
+    /// same (`SGP4Bridge.h`).
+    private nonisolated(unsafe) let working: OpaquePointer
+    private let turn = Mutex(())
 
     public init(_ elements: MeanElements) throws(SGP4Error) {
         let radiansPerDegree = Double.pi / 180
@@ -69,19 +77,24 @@ public final class SGP4Propagator: Sendable {
             throw SGP4Error(code: code)
         }
         self.satellite = satellite
+        working = sgp4_copy(satellite)
     }
 
     deinit {
+        sgp4_destroy(working)
         sgp4_destroy(satellite)
     }
 
     public func state(minutesSinceEpoch: Double) throws(SGP4Error) -> TEMEState {
         var position = SIMD3<Double>()
         var velocity = SIMD3<Double>()
-        let code = withUnsafeMutableBytes(of: &position) { position in
-            withUnsafeMutableBytes(of: &velocity) { velocity in
-                sgp4_propagate(
-                    satellite, minutesSinceEpoch, position.baseAddress!.assumingMemoryBound(to: Double.self), velocity.baseAddress!.assumingMemoryBound(to: Double.self))
+        let code = turn.withLock { _ in
+            withUnsafeMutableBytes(of: &position) { position in
+                withUnsafeMutableBytes(of: &velocity) { velocity in
+                    sgp4_propagate(
+                        working, minutesSinceEpoch, position.baseAddress!.assumingMemoryBound(to: Double.self),
+                        velocity.baseAddress!.assumingMemoryBound(to: Double.self))
+                }
             }
         }
         guard code == 0 else {
