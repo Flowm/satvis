@@ -1,9 +1,12 @@
 # AGENTS.md — iOS app
 
 The native app: SwiftUI with no web view, reading the same worker as the web app.
-Xcode 27, Swift 6 with MainActor default isolation in the app target, iOS 26 and
-later. Xcode Cloud builds, numbers and publishes every release; there is no
-fastlane. Why it is built this way, and the milestones it is built in, are in
+Developed with Xcode 27, Swift 6 with MainActor default isolation in the app
+target, iOS 26 and later. Xcode Cloud builds, numbers and publishes every release;
+there is no fastlane. CI (`.github/workflows/ios.yml`, run only when `ios/`, the
+web app's sources or the parity script change) builds with the newest Xcode its
+macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
+`swift format`: a newer formatter's rules can fail `make lint` there. Why it is built this way, and the milestones it is built in, are in
 `docs/adr/0008-native-ios-app.md`. The WebView app it replaces is the tag
 `ios-webview-final`.
 
