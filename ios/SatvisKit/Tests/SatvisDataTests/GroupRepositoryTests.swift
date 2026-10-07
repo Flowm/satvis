@@ -129,6 +129,26 @@ private let fixedNow = Date(timeIntervalSince1970: 1_790_000_000)
         #expect(try await repository.index().source == .cache)
         #expect(store.read(.index)?.etag == "a")
     }
+
+    // An answer whose every record fails to decode, from a format the app does not
+    // read yet, is no group: it must not replace the copy that still shows it.
+    @Test func keepsTheOldGroupWhenNoRecordOfTheNewOneDecodes() async throws {
+        let store = temporaryStore()
+        try store.write(.group("weather"), data: Data(weather.utf8), etag: "a", confirmed: fixedNow)
+        let unreadable = #"[{"OBJECT_NAME": "METEOR", "EPOCH": "2026-10-02T00:00:00+00:00", "NORAD_CAT_ID": 1}]"#
+        let repository = GroupRepository(client: StubWorker([.json(unreadable, etag: "b")]).client, store: store, snapshot: nil)
+
+        let records = try await repository.records(of: "weather")
+        #expect(records.source == .cache)
+        #expect(records.value.map(\.name) == ["METEOR"])
+        #expect(store.read(.group("weather"))?.etag == "a")
+    }
+
+    // An empty group is a group.
+    @Test func keepsAnEmptyGroup() async throws {
+        let repository = GroupRepository(client: StubWorker([.json("[]", etag: "b")]).client, store: temporaryStore(), snapshot: nil)
+        #expect(try await repository.records(of: "weather").value.isEmpty)
+    }
 }
 
 @Suite struct ShippedSnapshotTests {

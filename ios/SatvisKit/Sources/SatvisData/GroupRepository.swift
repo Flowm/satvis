@@ -39,7 +39,7 @@ public actor GroupRepository {
     }
 
     public func records(of group: String) async throws -> Loaded<[GPRecord]> {
-        try await load(.group(group), fetch: { try await self.client.group(group, ifNoneMatch: $0) }, decode: GPRecord.decodePayload)
+        try await load(.group(group), fetch: { try await self.client.group(group, ifNoneMatch: $0) }, decode: GPRecord.decodeGroup)
     }
 
     /// The group index as last kept, or as shipped, without asking the worker: what
@@ -50,7 +50,7 @@ public actor GroupRepository {
 
     /// A group as last kept, or as shipped, without asking the worker.
     public func keptRecords(of group: String) -> Loaded<[GPRecord]>? {
-        kept(.group(group), decode: GPRecord.decodePayload)
+        kept(.group(group), decode: GPRecord.decodeGroup)
     }
 
     /// The star map as last kept, without asking the worker. Nil while any face
