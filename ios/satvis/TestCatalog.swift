@@ -5,7 +5,8 @@
     /// The fixed catalog the UI tests run on, in Debug builds only: `UITestCatalog.json`,
     /// which the target's Release `EXCLUDED_SOURCE_FILE_NAMES` leaves out, holds the
     /// index and the default preset's groups as satvis.space served them on
-    /// 2026-10-04. The tests point the app at a worker that does not answer and ask
+    /// 2026-10-07, GCAT's facts included, with only the core config's groups and
+    /// presets, since the plugins' stay out of the repository. The tests point the app at a worker that does not answer and ask
     /// for it with `SATVIS_TEST_CATALOG`, so they need no network and no live data.
     enum TestCatalog {
         /// The catalog unpacked into a store's layout, or nil unless asked for.
