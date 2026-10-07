@@ -39,6 +39,17 @@ import Testing
         #expect(clock.time(at: start + 2000) == start + 2000)
     }
 
+    // As the web app's Back to now: paused at 600x it would leave the present again.
+    @Test func goingLivePlaysAtRealTime() {
+        var clock = SimulationClock(real: start)
+        clock.setMultiplier(600, at: start)
+        clock.setPlaying(false, at: start + 1000)
+        clock.goLive(at: start + 5000)
+        #expect(clock.multiplier == 1)
+        #expect(clock.isPlaying)
+        #expect(!clock.isOffPresent(at: start + 65_000))
+    }
+
     @Test func labelsRatesAsTheWebAppDoes() {
         #expect(SimulationClock.rateLabel(1) == "1 s/s")
         #expect(SimulationClock.rateLabel(-120) == "−2 min/s")
