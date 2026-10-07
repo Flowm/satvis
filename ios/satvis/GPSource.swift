@@ -21,7 +21,7 @@ final class GPSource {
         self.site = site
     }
 
-    /// The index as last kept, or as shipped, for a start that does not wait on the
+    /// The index as last kept, for a start that does not wait on the
     /// network. `refresh` asks the worker.
     func loadKept() async {
         if index == nil {
@@ -45,7 +45,7 @@ final class GPSource {
         try await repository.records(of: group)
     }
 
-    /// A group as last kept, or as shipped, without asking the worker.
+    /// A group as last kept, without asking the worker.
     func keptRecords(of group: String) async -> GroupRepository.Loaded<[GPRecord]>? {
         await repository.keptRecords(of: group)
     }

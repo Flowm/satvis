@@ -1,6 +1,6 @@
 # Tasks for the iOS app; see AGENTS.md.
 # DEVICE picks the simulator by name, on RUNTIME (e.g. "iOS 27") or the newest
-# runtime that has it. API replaces satvis.space for `make run` and `make snapshot`.
+# runtime that has it. API replaces satvis.space for `make run`.
 
 DEVICE ?= iPhone 17
 RUNTIME ?=
@@ -12,7 +12,7 @@ APP = $(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/satvis.app
 XCODEBUILD = xcodebuild -project satvis.xcodeproj -scheme satvis -derivedDataPath $(DERIVED_DATA) -destination id=$(UDID) CODE_SIGNING_ALLOWED=NO
 SOURCES = satvis satvisUITests SatvisKit
 
-.PHONY: build test test-kit run logs snapshot format lint screenshots clean
+.PHONY: build test test-kit run logs format lint screenshots clean
 
 build:
 	$(XCODEBUILD) build
@@ -31,9 +31,6 @@ run: build
 
 logs:
 	xcrun simctl spawn $(UDID) log stream --level debug --style compact --predicate 'subsystem == "org.frcy.app.satvis"'
-
-snapshot:
-	scripts/snapshot.sh
 
 format:
 	swift format -i -r $(SOURCES)

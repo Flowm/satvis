@@ -151,22 +151,6 @@ private let fixedNow = Date(timeIntervalSince1970: 1_790_000_000)
     }
 }
 
-@Suite struct ShippedSnapshotTests {
-    // What a first launch shows: the default preset and the groups it enables.
-    @Test func carriesTheDefaultPresetAndItsGroups() throws {
-        let shipped = try #require(PayloadStore.shipped)
-        let index = try JSONDecoder().decode(GroupIndex.self, from: try #require(shipped.read(.index)).data)
-        let preset = try #require(index.preset(named: nil))
-        let enabled = Set(preset.defaults["tags", default: ""].split(separator: ",").map(String.init))
-        let groups = index.groups.filter { !enabled.isDisjoint(with: $0.tags) }
-        #expect(!groups.isEmpty)
-        for group in groups {
-            let records = try GPRecord.decodePayload(try #require(shipped.read(.group(group.name)), "\(group.name)").data)
-            #expect(!records.isEmpty, "\(group.name)")
-        }
-    }
-}
-
 @Suite struct SiteImageTests {
     @Test func keepsAnImageAndRevalidatesIt() async throws {
         let worker = StubWorker([.image(Data([1, 2, 3]), etag: "a"), .notModified, .offline])

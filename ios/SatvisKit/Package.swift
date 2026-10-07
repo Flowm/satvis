@@ -25,7 +25,7 @@ let package = Package(
         // Element sets, the group index, and the arithmetic the web app does on them.
         .target(name: "SatvisCore", dependencies: ["SGP4"], resources: [.copy("Shared")]),
         // The worker client, its disk cache, and the snapshot shipped in the app.
-        .target(name: "SatvisData", dependencies: ["SatvisCore"], resources: [.copy("Snapshot")]),
+        .target(name: "SatvisData", dependencies: ["SatvisCore"]),
         // The Metal globe. Its shaders compile at run time from Shaders/*.msl.
         .target(name: "SatvisRender", dependencies: ["SatvisCore", "DracoBridge"], resources: [.copy("Shaders")]),
         .testTarget(name: "SatvisCoreTests", dependencies: ["SatvisCore"], resources: [.copy("Fixtures")]),

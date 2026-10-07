@@ -40,8 +40,8 @@ public struct WorkerClient: Sendable {
         // The validator is ours to send. URLSession's own cache would otherwise
         // answer from a copy for max-age and never let the worker say 304.
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        // Short, because there is always something to show meanwhile: the kept
-        // copy or the snapshot. The default minute holds a captive portal open.
+        // Short: the kept copy shows meanwhile, and a first launch with none asks
+        // again soon. The default minute holds a captive portal open.
         request.timeoutInterval = 15
         if let etag {
             request.setValue(etag, forHTTPHeaderField: "If-None-Match")

@@ -17,8 +17,8 @@ macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
   behind a C bridge, so no Swift module needs C++ interoperability. `SatvisCore`
   holds element sets, the group index, propagation, sampled trajectories, the Sun,
   ground stations and pass prediction, and the arithmetic the web app does on
-  them. `SatvisData` holds the worker client, its disk cache, and the snapshot
-  shipped in the app. `SatvisRender` is the Metal globe. The app target holds the
+  them. `SatvisData` holds the worker client and its disk cache. `SatvisRender`
+  is the Metal globe. The app target holds the
   views, their models and the session that ties them together.
 - `SatvisRender`'s shaders are `Shaders/*.msl`, compiled at run time by
   `ShaderLibrary` off the main thread, so neither the build nor CI needs Xcode's
@@ -250,21 +250,20 @@ macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
 
 ## Tasks
 
-`make` in `ios/` runs them: `build`, `test`, `test-kit`, `run`, `logs`, `snapshot`,
-`format`, `lint`, `screenshots`, `clean`. `DEVICE="iPad Pro 13-inch (M5)"` picks
+`make` in `ios/` runs them: `build`, `test`, `test-kit`, `run`, `logs`, `format`,
+`lint`, `screenshots`, `clean`. `DEVICE="iPad Pro 13-inch (M5)"` picks
 the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 (default `iPhone 17`); `UDID=…` picks one exactly.
 `make run` opens no simulator window; follow the app with `make logs`.
 
 - **`test-kit`** runs the package tests on macOS, with no simulator. **`test`** runs
   them, then the UI tests, which need no network: they point the app at a worker
-  that is not there, open the satellite browser, find a satellite in the kept copy
-  or the snapshot, and open its panel from there.
+  that is not there and set `SATVIS_TEST_CATALOG`, which starts a Debug build
+  from a fixed catalog (`TestCatalog.swift`, `UITestCatalog.json`, which the
+  Release configuration's `EXCLUDED_SOURCE_FILE_NAMES` leaves out), open the
+  satellite browser, find a satellite there, and open its panel from there.
 - **`run API=…`** installs and launches against another worker, e.g. a local one
   at `http://localhost:8080` (`pnpm dev:worker` at the repository root).
-- **`snapshot`** refreshes the snapshot shipped in the app from satvis.space (or
-  `API=…`): the group index and the groups the default preset enables. Run it
-  before a release.
 - **`screenshots`** erases one simulator per App Store size and writes
   `screenshots/`. Upload them to App Store Connect by hand. It takes the about
   page's demo views by their links (`about.html`), each paused at its link's
@@ -280,11 +279,13 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
   lighting. `SATVIS_LINK` opens on a link, a whole url or a path with its query
   (`/ot?tags=OT`), ahead of the view a last run left; the UI tests open on `/`.
 - `GroupRepository` revalidates every payload with its ETag, keeps it in
-  Application Support, and falls back to the kept copy, then the snapshot, when
-  the worker cannot be asked. A 200 that is not JSON counts as no answer: a host
+  Application Support, and falls back to the kept copy when the worker cannot be
+  asked. The app ships no catalog: a bundled one is weeks out of date by the time
+  most people install, and the first answer replaces it anyway. A first launch
+  offline shows a note and asks again every 10 s. A 200 that is not JSON counts as no answer: a host
   without the worker serves its index.html for any path. The app never waits on
   the worker for what a copy can show: the index and each group come from the
-  kept copy or the snapshot first (`keptIndex`, `keptRecords`), the worker's
+  kept copy first (`keptIndex`, `keptRecords`), the worker's
   answer replaces them when it lands, and a return to the foreground asks again
   for every group loaded. Requests time out after 15 s.
 - Work that grows with the number of satellites stays off the main thread, or is

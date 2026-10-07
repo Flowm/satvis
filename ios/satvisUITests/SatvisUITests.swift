@@ -6,7 +6,7 @@ nonisolated class SatvisUITests: XCTestCase {
     }
 
     // With no worker to answer, the groups come from the copy on disk or the
-    // snapshot shipped in the app, so the test needs no network.
+    // test catalog, so the test needs no network.
     @MainActor
     func testFindsASatelliteWithoutTheWorker() {
         _ = search("METOP-C")
@@ -111,6 +111,7 @@ nonisolated class SatvisUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments += ["-AppleLocale", "en_US", "-AppleLanguages", "(en)"]
         app.launchEnvironment["SATVIS_API"] = "http://127.0.0.1:9"
+        app.launchEnvironment["SATVIS_TEST_CATALOG"] = "1"
         app.launchEnvironment["SATVIS_LINK"] = "/"
         app.launchEnvironment["SATVIS_TIME"] = "2026-10-04T19:22:00Z"
         app.launch()
@@ -176,12 +177,14 @@ nonisolated class SatvisUITests: XCTestCase {
         }
     }
 
-    /// Launches with no worker to answer, on a link: by default the plain site,
-    /// rather than the view an earlier run left.
+    /// Launches with no worker to answer, on the app's fixed test catalog
+    /// (`TestCatalog`), on a link: by default the plain site, rather than the view
+    /// an earlier run left.
     @MainActor
     private func launch(link: String = "/") -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["SATVIS_API"] = "http://127.0.0.1:9"
+        app.launchEnvironment["SATVIS_TEST_CATALOG"] = "1"
         app.launchEnvironment["SATVIS_LINK"] = link
         app.launch()
         return app

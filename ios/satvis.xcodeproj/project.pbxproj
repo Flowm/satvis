@@ -452,6 +452,7 @@
 		579DA884218C123C00B417CB /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				EXCLUDED_SOURCE_FILE_NAMES = UITestCatalog.json;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = satvis.entitlements;
 				CODE_SIGN_STYLE = Automatic;

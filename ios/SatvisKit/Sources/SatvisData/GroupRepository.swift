@@ -2,8 +2,9 @@ import Foundation
 import SatvisCore
 
 /// Where the app gets GP data, and the site's static files beside it: the worker
-/// when it answers, the copy kept on disk when it does not, and the snapshot
-/// shipped in the app before there is one. Every request revalidates the kept copy
+/// when it answers, the copy kept on disk when it does not, and a snapshot, if
+/// given one, before there is one: the UI tests' fixed catalog. The app ships
+/// none, so a first launch offline has nothing until the worker answers. Every request revalidates the kept copy
 /// with its ETag, so a current copy costs a 304 and no body.
 public actor GroupRepository {
     public enum Source: Sendable, Equatable {
@@ -11,7 +12,7 @@ public actor GroupRepository {
         case worker
         /// The kept copy; the worker could not be asked.
         case cache
-        /// Shipped in the app; nothing has been fetched yet.
+        /// The snapshot; nothing has been fetched yet.
         case snapshot
     }
 
@@ -42,13 +43,13 @@ public actor GroupRepository {
         try await load(.group(group), fetch: { try await self.client.group(group, ifNoneMatch: $0) }, decode: GPRecord.decodeGroup)
     }
 
-    /// The group index as last kept, or as shipped, without asking the worker: what
+    /// The group index as last kept, or the snapshot's, without asking the worker: what
     /// to show while it is asked.
     public func keptIndex() -> Loaded<GroupIndex>? {
         kept(.index) { try JSONDecoder().decode(GroupIndex.self, from: $0) }
     }
 
-    /// A group as last kept, or as shipped, without asking the worker.
+    /// A group as last kept, or the snapshot's, without asking the worker.
     public func keptRecords(of group: String) -> Loaded<[GPRecord]>? {
         kept(.group(group), decode: GPRecord.decodeGroup)
     }
@@ -85,7 +86,7 @@ public actor GroupRepository {
         if let kept = store.read(key), let value = try? decode(kept.data) {
             return Loaded(value: value, source: .cache, confirmed: kept.confirmed)
         }
-        if let shipped = snapshot?.read(key), let value = try? decode(shipped.data) {
+        if let snapshotted = snapshot?.read(key), let value = try? decode(snapshotted.data) {
             return Loaded(value: value, source: .snapshot, confirmed: nil)
         }
         return nil

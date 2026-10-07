@@ -2,8 +2,7 @@ import Foundation
 
 /// What the worker serves, kept on disk in its own layout: `groups.json`,
 /// `gp/<group>.json` and `site/<path>`, each beside a sidecar with its ETag and
-/// when it was confirmed. The same layout read-only is the snapshot shipped in
-/// the app.
+/// when it was confirmed. The same layout read-only is a repository's snapshot.
 public struct PayloadStore: Sendable {
     public enum Key: Sendable, Hashable {
         case index
@@ -51,11 +50,6 @@ public struct PayloadStore: Sendable {
         values.isExcludedFromBackup = true
         try? directory.setResourceValues(values)
         return PayloadStore(directory: directory)
-    }
-
-    /// The snapshot shipped in the app (ios/scripts/snapshot.sh).
-    public static var shipped: PayloadStore? {
-        Bundle.module.url(forResource: "Snapshot", withExtension: nil).map(PayloadStore.init(directory:))
     }
 
     public func read(_ key: Key) -> Entry? {

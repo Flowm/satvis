@@ -36,7 +36,12 @@ struct SatvisApp: App {
 
     private static func repository(site: URL) -> GroupRepository {
         let store = (try? PayloadStore.applicationSupport()) ?? PayloadStore(directory: URL.temporaryDirectory.appending(path: "GP"))
-        return GroupRepository(client: WorkerClient(baseURL: site), store: store, snapshot: PayloadStore.shipped)
+        #if DEBUG
+            let snapshot = TestCatalog.store()
+        #else
+            let snapshot: PayloadStore? = nil
+        #endif
+        return GroupRepository(client: WorkerClient(baseURL: site), store: store, snapshot: snapshot)
     }
 }
 

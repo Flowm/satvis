@@ -189,6 +189,19 @@ final class Session {
             if source.index == nil {
                 await source.refresh()
             }
+            // The app ships no catalog, so a first launch offline shows none until
+            // the worker answers once; after that the kept copy starts it.
+            if source.index == nil {
+                let waiting = String(localized: "No satellites yet. They load once Satvis is online.")
+                while source.index == nil, !Task.isCancelled {
+                    notice = waiting
+                    try? await Task.sleep(for: .seconds(10))
+                    await source.refresh()
+                }
+                if notice == waiting {
+                    notice = nil
+                }
+            }
             started = true
             if let link = pendingLink ?? Self.launchLink ?? UserDefaults.standard.string(forKey: Self.viewKey).map(Link.init) {
                 pendingLink = nil

@@ -97,8 +97,9 @@ new plugin group. So:
 
 **The app works offline.** Each group is kept on disk with its ETag. The app checks
 for new data on launch, on return to the foreground, and in `BGAppRefreshTask`,
-which keeps pass notifications correct. A snapshot of the default groups ships in
-the app.
+which keeps pass notifications correct. No catalog ships in the app: one would be
+weeks out of date for most installs and replaced by the first answer anyway, so a
+first launch offline shows none until the worker answers once.
 
 **Links are the shared state, as on the web.** The URL codec is ported. Share
 produces a satvis.space link, and a universal link with state opens in the app.
@@ -166,7 +167,7 @@ earlier release would take the sky view away from them.
 | Milestone | Contents                                                                                                                                                                                                                                                          |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | M0a       | Shared config: tags and presets in YAML and in `/api/groups.json`, the web app reads them, an ETag on the index. Merged on its own.                                                                                                                               |
-| M0b       | Foundation: tag and remove the WebView app, `ios/SatvisKit`, SGP4 and the parity fixtures, the data client and cache, the bundled snapshot, CI.                                                                                                                   |
+| M0b       | Foundation: tag and remove the WebView app, `ios/SatvisKit`, SGP4 and the parity fixtures, the data client and cache, CI.                                                                                                                                         |
 | M1        | First light: the globe, satellites as points, live time.                                                                                                                                                                                                          |
 | M2        | Explore: browser and search, selection, info panel, labels, orbit and orbit track, tracked satellite, clock deck.                                                                                                                                                 |
 | M3        | Passes: ground stations, both overpass modes, the passes tab, notifications, the ground station link.                                                                                                                                                             |
@@ -196,7 +197,7 @@ A GitHub Actions job on `macos-26` runs the package tests and regenerates the
 fixtures. It fails if the fixtures changed, so a change to the web's propagation
 cannot break parity unnoticed. It also lints the Swift sources and builds the app
 and its UI tests. Xcode Cloud builds the app, runs its UI tests against a worker
-that does not answer, so that they read the snapshot shipped in the app, and
+that does not answer, on a fixed test catalog only Debug builds carry, and
 uploads to TestFlight.
 
 ## Alternatives rejected
