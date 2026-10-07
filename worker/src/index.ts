@@ -1,5 +1,6 @@
 import { handleApi } from "./gp/api.ts";
-import { refreshAll } from "./gp/refresh.ts";
+import { refreshAll, refreshAllUpstreams } from "./gp/refresh.ts";
+import { CATALOG_CRON } from "./gp/schedule.ts";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -16,7 +17,11 @@ export default {
    * sequential refresh overruns that and is cancelled before it writes KV. An awaited
    * promise lives up to the 15-minute cron limit.
    */
-  async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
-    await refreshAll(env);
+  async scheduled(controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
+    if (controller.cron === CATALOG_CRON) {
+      await refreshAllUpstreams(env);
+    } else {
+      await refreshAll(env);
+    }
   },
 } satisfies ExportedHandler<Env>;

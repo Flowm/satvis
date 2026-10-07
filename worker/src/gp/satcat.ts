@@ -1,9 +1,9 @@
-// The upstream half of the satellite table (see ADR 0006). Not a group source: it
-// selects nothing, so its failure degrades enrichment without failing a group.
+// SATCAT, a contributor to the satellite table (ADR 0006): launch, status and decay.
+// The download and the stored file are upstream.ts's.
 
-import type { FetchImpl } from "./evaluate.ts";
 import { normalizeSatnumKey } from "./evaluate.ts";
-import type { SatcatSnapshot } from "./types.ts";
+import type { SatcatRows } from "./types.ts";
+import type { UpstreamSpec } from "./upstream.ts";
 
 /**
  * The full catalog (~70k objects, ~6.7 MB). Not records.php?GROUP=active: it is 4.5x
@@ -11,11 +11,9 @@ import type { SatcatSnapshot } from "./types.ts";
  */
 export const SATCAT_URL = "https://celestrak.org/pub/satcat.csv";
 
-const USER_AGENT = "satvis.space (https://github.com/Flowm/satvis)";
-const REQUEST_TIMEOUT_MS = 60_000;
-
 /**
  * SATCAT column -> key in src/config/satelliteMetadata.ts. Left out on purpose:
+ *   OWNER                              `country` is GCAT's, which names a country (ADR 0008)
  *   PERIOD/INCLINATION/APOGEE/PERIGEE  the element set gives them unrounded
  *   RCS                                2.9% coverage on the satellites we serve
  *   DATA_STATUS_CODE                   empty for all of them
@@ -23,7 +21,6 @@ const REQUEST_TIMEOUT_MS = 60_000;
  *   OBJECT_NAME/OBJECT_ID              the GP record carries both
  */
 const FIELDS: [string, string][] = [
-  ["OWNER", "owner"],
   ["LAUNCH_DATE", "launchDate"],
   ["LAUNCH_SITE", "launchSite"],
   ["OPS_STATUS_CODE", "opsStatus"],
@@ -31,6 +28,9 @@ const FIELDS: [string, string][] = [
   ["ORBIT_CENTER", "orbitCenter"],
   ["DECAY_DATE", "decayDate"],
 ];
+
+/** The metadata keys SATCAT owns; no other upstream table may write them (ADR 0008). */
+export const SATCAT_KEYS: readonly string[] = FIELDS.map(([, key]) => key);
 
 const SATNUM_COLUMN = "NORAD_CAT_ID";
 
@@ -72,9 +72,9 @@ function splitCsvLine(line: string): string[] {
 /**
  * Keyed by normalized satnum. Columns resolve by header name, because CelesTrak
  * adds columns. Empty values are dropped. Throws on a body that is not SATCAT, so
- * the caller keeps the last-known-good snapshot.
+ * it is not stored and the stored file stands.
  */
-export function parseSatcatCsv(body: string): SatcatSnapshot["rows"] {
+export function parseSatcatCsv(body: string): SatcatRows {
   // CelesTrak serves CRLF; a stray \r on the last field would blank ORBIT_TYPE.
   const lines = body.replace(/\r\n?/g, "\n").split("\n");
   const header = lines[0];
@@ -88,7 +88,7 @@ export function parseSatcatCsv(body: string): SatcatSnapshot["rows"] {
   }
   const wanted = FIELDS.map(([column, key]) => [columns.indexOf(column), key] as const).filter(([index]) => index !== -1);
 
-  const rows: SatcatSnapshot["rows"] = {};
+  const rows: SatcatRows = {};
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!;
     if (line === "") {
@@ -118,47 +118,12 @@ export function parseSatcatCsv(body: string): SatcatSnapshot["rows"] {
   return rows;
 }
 
-/** Exactly one of `rows`, `notModified` and `error` is set. */
-export interface SatcatFetch {
-  status?: number;
-  ms: number;
-  bytes?: number;
-  rows?: SatcatSnapshot["rows"];
-  validator?: string;
-  notModified?: boolean;
-  error?: string;
-}
-
-/**
- * Never throws. CelesTrak asks for one download per update, and SATCAT updates once
- * or twice a day against a 6 h refresh, so `validator` (the last ETag) makes the usual case a 304.
- */
-export async function fetchSatcat(fetchImpl: FetchImpl, validator?: string): Promise<SatcatFetch> {
-  const started = Date.now();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(new Error(`timed out after ${REQUEST_TIMEOUT_MS}ms`)), REQUEST_TIMEOUT_MS);
-  const headers: Record<string, string> = { "User-Agent": USER_AGENT };
-  if (validator !== undefined) {
-    headers["If-None-Match"] = validator;
-  }
-  try {
-    const res = await fetchImpl(SATCAT_URL, { headers, signal: controller.signal });
-    const ms = Date.now() - started;
-    if (res.status === 304) {
-      return { status: 304, ms, notModified: true };
-    }
-    if (res.status !== 200) {
-      return { status: res.status, ms, error: `HTTP ${res.status}` };
-    }
-    const body = await res.text();
-    try {
-      return { status: 200, ms, bytes: body.length, rows: parseSatcatCsv(body), validator: res.headers?.get("ETag") ?? undefined };
-    } catch (parseErr) {
-      return { status: 200, ms, bytes: body.length, error: parseErr instanceof Error ? parseErr.message : String(parseErr) };
-    }
-  } catch (err) {
-    return { ms: Date.now() - started, error: err instanceof Error ? err.message : String(err) };
-  } finally {
-    clearTimeout(timer);
-  }
-}
+/** CelesTrak's whole catalog, for launch, status and decay. */
+export const SATCAT: UpstreamSpec<SatcatRows> = {
+  name: "satcat",
+  url: SATCAT_URL,
+  parse: parseSatcatCsv,
+  timeoutMs: 60_000,
+  // CelesTrak updates it once or twice a day; push-catalog checks daily.
+  staleAfterMs: 2 * 24 * 3600_000,
+};

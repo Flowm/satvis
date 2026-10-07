@@ -65,7 +65,8 @@ Every parameter is optional. An absent parameter means "use the default" (see
 
 [^3]:
     Above a component's budget the default loses it: `Label` past 200 active
-    satellites, `Ground station link` past 500 (`COMPONENT_BUDGETS` in
+    satellites, `3D model` past 200 that have a model, `Ground station link` past 500
+    (`COMPONENT_BUDGETS` in
     `src/modules/sceneSync.ts`). Crossing a budget switches the component off in the
     store, and the baseline follows, so a bare `?tags=Starlink` stays bare. Above the
     budget `elements=Point,Label` is not the default, so it is emitted, and a link

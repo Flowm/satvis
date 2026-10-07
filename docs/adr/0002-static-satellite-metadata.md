@@ -45,8 +45,9 @@ footprints), and JSON cannot carry a comment.
 - **Sentinel-3's ground track roughly doubles**, 740 → 1500 km, and other extents
   shift ~1% (Terra 2330 → 2350, Sentinel-2 290 → 300, VIIRS 3000 → 3130) as
   calibrated values replace nominal ones.
-- **Up to one cron interval of defaults after a deploy** (`23 */6 * * *`, so 6 h),
-  until a refresh rewrites KV or an authenticated `POST /api/refresh` does it sooner.
+- **Defaults after a deploy** until the next GP update rewrites KV: the next
+  `push-gp`, or an authenticated `POST /api/refresh`. The deployed Worker has no cron
+  since ADR 0008.
 - **`/api/metadata.json` is gone**, with the browser-side matcher, the revision
   counter and the per-entry memo.
 

@@ -72,10 +72,13 @@ pnpm dev:worker                                     # wrangler dev on :8080
 SATVIS_API_PROXY=http://localhost:8080 pnpm dev     # frontend proxies /api → local worker
 ```
 
-The cron trigger fills Workers KV. `pnpm dev:worker` starts wrangler with
-`--test-scheduled`, so you can run the cron once:
+A refresh fills Workers KV. `pnpm dev:worker` starts wrangler with
+`--test-scheduled`, so you can run the scheduled refreshes once: the upstream
+tables first, then the GP data, which is enriched from them
+(`worker/src/gp/schedule.ts` has both crons):
 
 ```
+curl "http://localhost:8080/__scheduled?cron=47+4+*+*+*"
 curl "http://localhost:8080/__scheduled?cron=23+*%2F6+*+*+*"
 ```
 
@@ -103,14 +106,11 @@ caller already downloaded ([Downloading off-Worker](#downloading-off-worker)).
 namespace bound as `GP_KV` (`worker/wrangler.jsonc`). Run `pnpm update-imagery`
 first ([Offline base map](#offline-base-map)).
 
-After the first deploy, KV is empty until the cron runs (at most 6 h). To fill
-the deployed KV now:
-
-```sh
-cd worker
-wrangler dev --remote --test-scheduled
-curl "http://localhost:8080/__scheduled?cron=23+*%2F6+*+*+*"
-```
+After the first deploy, KV is empty until the first `push-catalog` and `push-gp`
+([Downloading off-Worker](#downloading-off-worker)), in that order, so the groups
+are enriched from the start. The deployed worker has no cron, so nothing else fills
+it. `POST /api/upstream/refresh` fetches the tables from the Worker itself, since
+planet4589.org does not firewall Cloudflare; CelesTrak's SATCAT still answers it with 522.
 
 ## Satellite data
 
@@ -118,19 +118,22 @@ Element sets come from [CelesTrak](https://celestrak.org) as OMM JSON
 (CelesTrak is phasing out TLE for new objects). The Cloudflare Worker in
 `worker/` fetches and serves them:
 
-- A cron trigger (every 6 h) refreshes each group into Workers KV. A failed
-  source keeps its last-known-good copy.
+- `push-gp` refreshes each group into Workers KV from another machine
+  ([Downloading off-Worker](#downloading-off-worker)). A failed source keeps its
+  last-known-good copy.
 - `GET /api/gp/<group>.json`: one group's element sets, as an OMM array with
   per-satellite metadata attached ([Satellite metadata](#satellite-metadata)).
 - `GET /api/groups.json`: the group index. The frontend also uses it to probe
   for the worker.
+- `GET /api/status`: how fresh each upstream table and each group is, with
+  `stale: true` past a threshold, for an uptime monitor.
 
 ### Downloading off-Worker
 
 CelesTrak firewalls by IP, and Cloudflare's Worker egress addresses are shared
-across tenants. So the cron can get `HTTP 522` on every source while the same
-URLs work from anywhere else. Groups then keep their last-known-good copy and go
-stale.
+across tenants. So a Worker gets `HTTP 522` on every source while the same URLs
+work from anywhere else. That is why the deployed worker has no cron: every run
+failed, and marked every group failed in the index while the data was fresh.
 
 `pnpm --filter satvis-worker push-gp` runs the worker's download logic on your
 machine (a CI runner, a VPS, a laptop) and POSTs the payloads to
@@ -142,11 +145,23 @@ SATVIS_REFRESH_TOKEN=<token> pnpm --filter satvis-worker push-gp
 ```
 
 `SATVIS_INGEST_URL` overrides the target (default `https://satvis.space/api/ingest`).
-Run it at most every 6 h, like the cron: a run still costs ~7 MB, only from a
-different IP, and CelesTrak asks for one download per update.
+Run it on a schedule, at most every 6 h: a run costs ~7 MB, and CelesTrak asks
+for one download per update.
 
-The same run refreshes the SATCAT. It reads the worker's stored `ETag` from
-`/api/groups.json` first, so the 6.7 MB catalog only downloads when it changed.
+The upstream tables, SATCAT and GCAT, travel apart from the GP data, with their own
+script, run daily ([Satellite metadata](#satellite-metadata)):
+
+```
+SATVIS_REFRESH_TOKEN=<token> pnpm --filter satvis-worker push-catalog
+```
+
+It reads each table's stored `ETag` from `/api/status`, downloads only what
+changed, and reports every table to `PUT /api/upstream/<name>`: the new file as the
+body with upstream's ETag in `X-Upstream-ETag`, or no body with
+`X-Upstream-Status: 304` or `X-Upstream-Error: <message>`. `SATVIS_API_URL` overrides the worker
+(default `https://satvis.space`). It exits non-zero when a table was not refreshed.
+`POST /api/upstream/refresh` does the same from the worker itself, behind the same
+token.
 
 ### Configuration
 
@@ -187,7 +202,7 @@ ships this way.
 ### Worker-less deployments
 
 For static hosting without a worker, run `pnpm update-gp` before `pnpm build`.
-It runs the cron's refresh pipeline, metadata enrichment included, and writes a
+It runs the worker's refresh pipeline, metadata enrichment included, and writes a
 static snapshot to `data/gp/` (`<group>.json`, `index.json`; gitignored). At
 runtime the app probes `/api/groups.json` and, if that fails, uses the snapshot,
 so all presets work without the worker.
@@ -196,8 +211,10 @@ so all presets work without the worker.
 
 The `Dockerfile` serves the app and the worker from one container. The worker
 runs on workerd through wrangler's local runtime (`worker/scripts/serve.mjs`). KV
-is stored as SQLite in `/data`, and the cron runs on its normal schedule. A fresh
-volume refreshes once at startup.
+is stored as SQLite in `/data`, and `serve.mjs` runs the GP refresh every 6 h and
+the upstream tables daily itself (`worker/src/gp/schedule.ts`): a self-hosted
+container is not behind Cloudflare's firewalled egress. A fresh volume refreshes
+both once at startup.
 
 ```sh
 docker build --build-arg BUILD_SHA=$(git rev-parse --short HEAD) -t satvis .
@@ -242,30 +259,43 @@ magnified. `pnpm update-starmap` does the same for the optional star maps.
 ### Satellite metadata
 
 Static per-satellite facts are keyed by NORAD id in one satellite table
-([CONTEXT.md](CONTEXT.md#catalog-and-data)). It has three contributors:
+([CONTEXT.md](CONTEXT.md#catalog-and-data)). It has four contributors, and every
+field has one of them as its owner
+([ADR 0008](docs/adr/0008-gcat-and-field-ownership.md)):
 
-- **Curated**: per-side swath extents, sensor cone FOV, operator, mission type.
+- **Curated**: per-side swath extents, sensor cone FOV, mission type, and any
+  upstream field it overrides.
   Hand-written in the `satellites` table of `satvis.core.yaml` and of any plugin
   config, for the few dozen satellites that need them
   ([ADR 0002](docs/adr/0002-static-satellite-metadata.md)).
-- **Model manifests**: each listed satellite's `modelFile`
-  ([ADR 0007](docs/adr/0007-model-manifest.md)).
-- **Upstream**: owner, launch date and site, operational status, orbit type and
-  centre, from the CelesTrak [SATCAT](https://celestrak.org/satcat/) for every
-  served satellite. Raw SATCAT codes go over the wire; `src/config/satcatCodes.ts`
-  turns them into labels.
+- **Model manifests**: a satellite's `modelFile`, by NORAD id, or by GCAT bus for
+  a constellation, applied at refresh time ([ADR 0007](docs/adr/0007-model-manifest.md)).
+- **SATCAT**: launch date and site, operational status, orbit type and centre,
+  from the CelesTrak [SATCAT](https://celestrak.org/satcat/) for every served
+  satellite. Raw SATCAT codes go over the wire; `src/config/satcatCodes.ts` turns
+  them into labels.
+- **GCAT**: country, operator, purpose, class, manufacturer, bus, mass and size,
+  from Jonathan
+  McDowell's [GCAT](https://planet4589.org/space/gcat/) (CC BY 4.0) for payloads
+  still in orbit. GCAT runs about twelve weeks behind on new satellites. The worker
+  names GCAT's codes from its organisations table, and lists the values GCAT flags
+  as estimates in `estimated`.
 
 A curated value wins field by field. The refresh attaches the merged facts to each
 served record under a lowercase `metadata` key, so there is no rule matching in the
 browser. A satellite in no table carries no metadata and gets the defaults in
 `src/config/satelliteMetadata.ts`.
 
-The SATCAT fetch is conditional: the stored snapshot keeps its `ETag` and the next
-fetch sends it as `If-None-Match`, so a usual refresh gets a 304 with no body.
-`pnpm update-gp` caches its copy in `worker/.cache/satcat.json`, outside `data/`
-because everything in `data/` ships. Deleting the cache costs one full 6.7 MB
-download. A SATCAT failure leaves every group untouched
-([ADR 0006](docs/adr/0006-satcat-enrichment.md)).
+The four upstream tables (SATCAT, and GCAT's catalog, organisations and payloads)
+are stored in KV as the files upstream served, gzip-compressed, and each GP update
+parses them anew, so a parser change applies at the next update. They are stored
+only by `push-catalog` and `POST /api/upstream/refresh`; a new file that does not
+parse is refused and the stored one stands. Each download is conditional on the
+stored `ETag`, so an unchanged table costs a 304. `pnpm update-gp` keeps its copies
+in `worker/.cache/<name>.gz`, outside `data/` because everything in `data/` ships;
+deleting one costs a full download, 6.7 MB for SATCAT and 19 MB for GCAT's catalog.
+A missing table leaves every group untouched, only less enriched
+([ADR 0008](docs/adr/0008-gcat-and-field-ownership.md)).
 
 ## iOS App
 

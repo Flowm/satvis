@@ -1,35 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { FetchImpl } from "../src/gp/evaluate.ts";
-import { refreshGroups } from "../src/gp/refresh.ts";
-import { SATCAT_URL } from "../src/gp/satcat.ts";
-import type { GroupStore, GroupWriteMetadata } from "../src/gp/store.ts";
-import type { GpRecord, GroupsConfig, GroupsIndex, OmmRecord, SatcatSnapshot } from "../src/gp/types.ts";
-
-/** The GroupStore contract of the KV and disk adapters, in memory. */
-function memoryStore(previous: GroupsIndex = { updated: "", groups: [] }, storedSatcat?: SatcatSnapshot) {
-  const groups = new Map<string, { records: GpRecord[]; metadata: GroupWriteMetadata }>();
-  let index: GroupsIndex | undefined;
-  let satcat = storedSatcat;
-  const store: GroupStore = {
-    async readIndex() {
-      return previous;
-    },
-    async writeGroup(name, records, metadata) {
-      groups.set(name, { records, metadata });
-    },
-    async writeIndex(newIndex) {
-      index = newIndex;
-    },
-    async readSatcat() {
-      return satcat;
-    },
-    async writeSatcat(snapshot) {
-      satcat = snapshot;
-    },
-  };
-  return { store, groups, index: () => index, satcat: () => satcat };
-}
+import { GCAT_CATALOG, GCAT_ORGS, GCAT_PAYLOADS } from "../src/gp/gcat.ts";
+import { refreshGroups, refreshUpstreams } from "../src/gp/refresh.ts";
+import { SATCAT } from "../src/gp/satcat.ts";
+import type { GroupsConfig, GroupsIndex, OmmRecord } from "../src/gp/types.ts";
+import { storeUpstream } from "../src/gp/upstream.ts";
+import { UPSTREAMS } from "../src/gp/upstreams.ts";
+import { GCAT_CATALOG_LINES, GCAT_ORGS_LINES, GCAT_PAYLOADS_LINES, gcatCatalog, gcatOrgs, gcatPayloads } from "./gcatFixtures.ts";
+import { memoryStore } from "./memoryStore.ts";
 
 const CONFIG: GroupsConfig = { groups: [{ name: "stations", sources: [{ celestrak: "stations" }] }] };
 
@@ -46,21 +25,19 @@ const SATCAT_CSV = [
   "ISS (NAUKA),2021-066A,49044,PAY,+,CIS,2021-07-21,TYMSC,,92.94,51.63,424,414,,,25544,DOC",
 ].join("\r\n");
 
-/**
- * Routed by URL, so the SATCAT fetch never gets a group payload. The catalog answers
- * 304 by default, the production steady state.
- */
-function routedFetch(records: unknown[], satcat: Awaited<ReturnType<FetchImpl>>): FetchImpl {
-  return async (url) => (url === SATCAT_URL ? satcat : { status: 200, text: async () => JSON.stringify(records) });
-}
+const UPSTREAM_URLS = new Set(UPSTREAMS.map((spec) => spec.url));
 
-const notModified = { status: 304, text: async () => "" };
-
+/** A GP update reads the tables from the store; asking upstream for one fails the test. */
 function okFetch(records: unknown[]): FetchImpl {
-  return routedFetch(records, notModified);
+  return async (url) => {
+    expect(UPSTREAM_URLS.has(url), `a GP update fetched ${url}`).toBe(false);
+    return { status: 200, text: async () => JSON.stringify(records) };
+  };
 }
 
-const failingFetch: FetchImpl = async (url) => (url === SATCAT_URL ? notModified : { status: 500, text: async () => "upstream error" });
+const failingFetch: FetchImpl = async () => ({ status: 500, text: async () => "upstream error" });
+
+const NOW = "2026-10-07T00:00:00.000Z";
 
 describe("refreshGroups", () => {
   it("writes evaluated groups and the rebuilt index through the store", async () => {
@@ -152,100 +129,155 @@ describe("refreshGroups", () => {
   });
 });
 
-// What enrichment reads and what survives an unchanged or broken catalog; satcat.test.ts covers parsing.
-describe("refreshGroups + satcat", () => {
+/** Stores all four tables from the fixtures, as push-catalog would. */
+async function storeAll(store: Parameters<typeof storeUpstream>[1]): Promise<void> {
+  await storeUpstream(SATCAT, store, SATCAT_CSV, undefined, NOW);
+  await storeUpstream(GCAT_CATALOG, store, gcatCatalog(GCAT_CATALOG_LINES.ISS, GCAT_CATALOG_LINES.NAUKA), undefined, NOW);
+  await storeUpstream(GCAT_ORGS, store, gcatOrgs(...Object.values(GCAT_ORGS_LINES)), undefined, NOW);
+  await storeUpstream(GCAT_PAYLOADS, store, gcatPayloads(GCAT_PAYLOADS_LINES.ISS), undefined, NOW);
+}
+
+// What a GP update reads from the stored tables; upstream.test.ts covers storing them.
+describe("refreshGroups + stored tables", () => {
   const RECORDS = [
     { OBJECT_NAME: "ISS (ZARYA)", NORAD_CAT_ID: 25544 },
     { OBJECT_NAME: "ISS (NAUKA)", NORAD_CAT_ID: 49044 },
   ];
 
-  const downloaded: Awaited<ReturnType<FetchImpl>> = {
-    status: 200,
-    headers: { get: (name: string) => (name.toLowerCase() === "etag" ? '"abc123"' : null) },
-    text: async () => SATCAT_CSV,
-  };
-
-  it("enriches every record from a freshly downloaded catalog, and stores it with its ETag", async () => {
-    const { store, groups, index, satcat } = memoryStore();
-    await refreshGroups(CONFIG, store, routedFetch(RECORDS, downloaded));
-
-    const written = groups.get("stations")!.records as OmmRecord[];
-    expect(written[0]!.metadata).toEqual({ owner: "ISS", launchDate: "1998-11-20", launchSite: "TYMSC", opsStatus: "+", orbitType: "ORB", orbitCenter: "EA" });
-    // Nauka is docked, and SATCAT is the only thing that knows it.
-    expect(written[1]!.metadata).toMatchObject({ orbitType: "DOC", orbitCenter: "25544" });
-
-    expect(satcat()!.validator).toBe('"abc123"');
-    expect(Object.keys(satcat()!.rows)).toEqual(["25544", "49044"]);
-    expect(index()!.satcat).toMatchObject({ count: 2, validator: '"abc123"' });
-  });
-
-  it("sends the stored ETag and reuses the stored rows on a 304", async () => {
-    const stored: SatcatSnapshot = {
-      validator: '"abc123"',
-      updated: "2026-07-01T00:00:00.000Z",
-      rows: { "25544": { owner: "ISS", launchDate: "1998-11-20" } },
-    };
-    const seen: (string | undefined)[] = [];
-    const fetchImpl: FetchImpl = async (url, init) => {
-      if (url !== SATCAT_URL) {
-        return { status: 200, text: async () => JSON.stringify(RECORDS) };
-      }
-      seen.push(init?.headers?.["If-None-Match"]);
-      return notModified;
-    };
-
-    const { store, groups, index } = memoryStore({ updated: "", groups: [] }, stored);
-    await refreshGroups(CONFIG, store, fetchImpl);
-
-    expect(seen).toEqual(['"abc123"']);
-    const written = groups.get("stations")!.records as OmmRecord[];
-    expect(written[0]!.metadata).toEqual({ owner: "ISS", launchDate: "1998-11-20" });
-    // A 304 keeps `updated` at when the served rows were downloaded.
-    expect(index()!.satcat).toMatchObject({ count: 1, updated: "2026-07-01T00:00:00.000Z" });
-  });
-
-  it("keeps enriching from the stored catalog when the fetch fails, and reports the error", async () => {
-    const stored: SatcatSnapshot = { updated: "2026-07-01T00:00:00.000Z", rows: { "25544": { owner: "ISS" } } };
-    const fetchImpl = routedFetch(RECORDS, { status: 503, text: async () => "" });
-
-    const { store, groups, index } = memoryStore({ updated: "", groups: [] }, stored);
-    const report = await refreshGroups(CONFIG, store, fetchImpl);
-
-    // A SATCAT outage leaves the groups untouched.
-    expect(report.written).toBe(1);
-    expect(report.skipped).toBe(0);
-    expect((groups.get("stations")!.records as OmmRecord[])[0]!.metadata).toEqual({ owner: "ISS" });
-    expect(index()!.satcat).toMatchObject({ count: 1, lastError: "HTTP 503", updated: "2026-07-01T00:00:00.000Z" });
-  });
-
-  it("lets a curated field win over the catalog's without erasing the rest of the row", async () => {
-    const config: GroupsConfig = {
-      ...CONFIG,
-      satellites: [{ noradId: 25544, name: "ISS", metadata: { owner: "INTERNATIONAL", swathStarboardKm: 205, swathPortKm: 205 } }],
-    };
+  it("joins every stored table into one bag per satellite, codes named", async () => {
     const { store, groups } = memoryStore();
-    await refreshGroups(config, store, routedFetch(RECORDS, downloaded));
+    await storeAll(store);
+    await refreshGroups(CONFIG, store, okFetch(RECORDS));
 
-    const written = groups.get("stations")!.records as OmmRecord[];
-    expect(written[0]!.metadata).toEqual({
-      owner: "INTERNATIONAL",
-      swathStarboardKm: 205,
-      swathPortKm: 205,
+    const [iss, nauka] = groups.get("stations")!.records as OmmRecord[];
+    expect(iss!.metadata).toEqual({
       launchDate: "1998-11-20",
       launchSite: "TYMSC",
       opsStatus: "+",
       orbitType: "ORB",
       orbitCenter: "EA",
+      country: "USA",
+      bus: "77KS",
+      manufacturer: "KHRR",
+      operator: "JSC",
+      massKg: 20281,
+      lengthM: 12.6,
+      diameterM: 4.2,
+      spanM: 23.9,
+      shape: "Cyl + 2 Pan",
+      estimated: ["diameterM"],
+      category: "SS",
+      class: "C",
     });
+    // Nauka is docked, and SATCAT is the only thing that knows it.
+    expect(nauka!.metadata).toMatchObject({ orbitType: "DOC", orbitCenter: "25544", country: "Russia", operator: "RKK Energiya" });
   });
 
-  it("enriches nothing rather than failing when there is no catalog at all", async () => {
-    const fetchImpl = routedFetch(RECORDS, { status: 503, text: async () => "" });
-    const { store, groups, index } = memoryStore();
-    const report = await refreshGroups(CONFIG, store, fetchImpl);
+  it("enriches from whichever tables are stored, and fails no group for a missing one", async () => {
+    const { store, groups } = memoryStore();
+    await storeUpstream(GCAT_CATALOG, store, gcatCatalog(GCAT_CATALOG_LINES.ISS), undefined, NOW);
+    const report = await refreshGroups(CONFIG, store, okFetch(RECORDS));
+
+    expect(report.written).toBe(1);
+    // No organisations table, so the codes stay codes; no SATCAT, so no launch.
+    expect((groups.get("stations")!.records as OmmRecord[])[0]!.metadata).toMatchObject({ country: "US", operator: "JSC" });
+    expect((groups.get("stations")!.records as OmmRecord[])[0]!.metadata).not.toHaveProperty("launchDate");
+  });
+
+  it("enriches nothing rather than failing when no table is stored", async () => {
+    const { store, groups } = memoryStore();
+    const report = await refreshGroups(CONFIG, store, okFetch(RECORDS));
 
     expect(report.written).toBe(1);
     expect(groups.get("stations")!.records[0]).not.toHaveProperty("metadata");
-    expect(index()!.satcat).toMatchObject({ count: 0, lastError: "HTTP 503" });
+  });
+
+  it("lets a curated field win over a table's without erasing the rest of the row", async () => {
+    const config: GroupsConfig = {
+      ...CONFIG,
+      satellites: [{ noradId: 25544, name: "ISS", metadata: { operator: "NASA and Roscosmos", swathStarboardKm: 205, swathPortKm: 205 } }],
+    };
+    const { store, groups } = memoryStore();
+    await storeAll(store);
+    await refreshGroups(config, store, okFetch(RECORDS));
+
+    expect((groups.get("stations")!.records as OmmRecord[])[0]!.metadata).toMatchObject({
+      operator: "NASA and Roscosmos",
+      swathStarboardKm: 205,
+      country: "USA",
+      launchDate: "1998-11-20",
+    });
+  });
+});
+
+// ADR 0007: a constellation's model by its GCAT bus, a listed NORAD id first.
+describe("refreshGroups + model buses", () => {
+  const RECORDS = [
+    { OBJECT_NAME: "ISS (ZARYA)", NORAD_CAT_ID: 25544 },
+    { OBJECT_NAME: "ISS (NAUKA)", NORAD_CAT_ID: 49044 },
+  ];
+
+  it("gives a satellite of a listed bus that bus's model, and a listed NORAD id wins", async () => {
+    const config: GroupsConfig = {
+      ...CONFIG,
+      // The ISS is a 77KS, Nauka an Almaz; a manifest lists Nauka by NORAD id.
+      modelBuses: { "77KS": "BUS-77KS.glb", Almaz: "BUS-ALMAZ.glb" },
+      satellites: [{ noradId: 49044, metadata: { modelFile: "NAUKA.glb" } }],
+    };
+    const { store, groups } = memoryStore();
+    await storeAll(store);
+    await refreshGroups(config, store, okFetch(RECORDS));
+
+    const [iss, nauka] = groups.get("stations")!.records as OmmRecord[];
+    expect(iss!.metadata).toMatchObject({ bus: "77KS", modelFile: "BUS-77KS.glb" });
+    expect(nauka!.metadata).toMatchObject({ bus: "Almaz", modelFile: "NAUKA.glb" });
+  });
+
+  it("gives no model without a GCAT bus", async () => {
+    const config: GroupsConfig = { ...CONFIG, modelBuses: { "77KS": "BUS-77KS.glb" } };
+    const { store, groups } = memoryStore();
+    // SATCAT only: no bus to match.
+    await storeUpstream(SATCAT, store, SATCAT_CSV, undefined, NOW);
+    await refreshGroups(config, store, okFetch(RECORDS));
+
+    expect((groups.get("stations")!.records as OmmRecord[])[0]!.metadata).not.toHaveProperty("modelFile");
+  });
+});
+
+describe("refreshUpstreams", () => {
+  it("asks for every table, each conditional on its own stored file", async () => {
+    const { store } = memoryStore();
+    await storeUpstream(SATCAT, store, SATCAT_CSV, '"abc"', NOW);
+    const asked = new Map<string, string | undefined>();
+    const statuses = await refreshUpstreams(store, async (url, init) => {
+      asked.set(url, init?.headers?.["If-None-Match"]);
+      return { status: 304, text: async () => "" };
+    });
+
+    expect([...asked.keys()]).toEqual(UPSTREAMS.map((spec) => spec.url));
+    expect(asked.get(SATCAT.url)).toBe('"abc"');
+    expect(asked.get(GCAT_CATALOG.url)).toBeUndefined();
+    expect(Object.keys(statuses)).toEqual(["satcat", "gcat", "gcatOrgs", "gcatPayloads"]);
+  });
+
+  it("carries on past a table whose store throws", async () => {
+    const { store, files } = memoryStore();
+    const writeUpstream = store.writeUpstream;
+    store.writeUpstream = async (name, bytes) => {
+      if (name === "satcat") {
+        throw new Error("KV put failed");
+      }
+      return writeUpstream(name, bytes);
+    };
+    const bodies = new Map<string, string>([
+      [SATCAT.url, SATCAT_CSV],
+      [GCAT_CATALOG.url, gcatCatalog(GCAT_CATALOG_LINES.ISS)],
+      [GCAT_ORGS.url, gcatOrgs(...Object.values(GCAT_ORGS_LINES))],
+      [GCAT_PAYLOADS.url, gcatPayloads(GCAT_PAYLOADS_LINES.ISS)],
+    ]);
+    const statuses = await refreshUpstreams(store, async (url) => ({ status: 200, text: async () => bodies.get(url)!, headers: { get: () => null } }));
+
+    expect(statuses.satcat).toMatchObject({ lastError: "store failed: KV put failed" });
+    expect([...files.keys()]).toEqual(["gcat", "gcatOrgs", "gcatPayloads"]);
   });
 });

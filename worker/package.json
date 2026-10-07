@@ -10,6 +10,7 @@
     "dev": "pnpm generate-groups && wrangler dev --port 8080 --test-scheduled",
     "generate-groups": "node scripts/generate-groups.mjs",
     "generate-types": "wrangler types src/worker-configuration.d.ts",
+    "push-catalog": "node scripts/push-catalog.mjs",
     "push-gp": "pnpm generate-groups && node scripts/push-gp.mjs",
     "lint": "pnpm generate-groups && oxlint && oxfmt --check && tsc --noEmit",
     "lint:fix": "oxlint --fix && oxfmt --write",

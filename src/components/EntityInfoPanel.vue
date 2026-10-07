@@ -248,7 +248,7 @@ const facts = computed(() => new Map(satelliteInfo.value));
 const orbitClass = computed(() => facts.value.get("Orbit")?.split(" · ")[0] as OrbitClass | undefined);
 const orbitColor = computed(() => (orbitClass.value ? ORBIT_CLASS_COLOR[orbitClass.value] : "transparent"));
 
-const chips = computed(() => ["Orbit", "Owner", "Status"].map((key) => facts.value.get(key)).filter((value): value is string => value !== undefined));
+const chips = computed(() => ["Orbit", "Country", "Status"].map((key) => facts.value.get(key)).filter((value): value is string => value !== undefined));
 
 /** The card title already carries the name. */
 const liveRows = computed(() => position.value.filter((row) => row.label !== "Name"));

@@ -42,7 +42,7 @@ interface ManifestSatellite {
 
 /** A models.yaml, as the models repo's build and a plugin write it. */
 interface Manifest {
-  models?: Array<{ file: string; satellites?: ManifestSatellite[] }>;
+  models?: Array<{ file: string; satellites?: ManifestSatellite[]; buses?: string[] }>;
 }
 
 interface Listing {
@@ -51,6 +51,8 @@ interface Listing {
   /** The manifest's repository, or an unlisted file's folder. */
   folder: string;
   satellites?: ManifestSatellite[];
+  /** GCAT buses whose satellites get this model (ADR 0007). */
+  buses?: string[];
   /** Why a listed file cannot be shown here. */
   missing?: string;
 }
@@ -71,10 +73,10 @@ function listModels(): Listing[] {
       pluginDirs.push(`${dir}/`);
     }
     const folder = submodule ? "models" : dir.replace(/^\/data\/custom\//, "");
-    for (const { file, satellites = [] } of (YAML.parse(text) as Manifest).models ?? []) {
+    for (const { file, satellites = [], buses = [] } of (YAML.parse(text) as Manifest).models ?? []) {
       const path = `${submodule ? "/data/models/public/" : "/data/custom/dist/models/"}${file}`;
       const missing = present.has(path) ? undefined : submodule ? "missing from data/models/public" : "not synced: run `pnpm update-custom-data`";
-      listed.push({ path, folder, satellites, missing });
+      listed.push({ path, folder, satellites, buses, missing });
     }
   }
   const listedPaths = new Set(listed.map((listing) => listing.path));
@@ -108,6 +110,8 @@ interface Entry {
   sphere?: BoundingSphere;
   /** From the model manifests; undefined for a file none of them lists. */
   satellites?: ManifestSatellite[];
+  /** From the model manifests: GCAT buses whose satellites get this model. */
+  buses?: string[];
 }
 
 /** Where every model sits: 500 km above 0°N 0°E. */
@@ -187,7 +191,7 @@ const shown = params.get("show")?.split(",");
 
 const folderHeadings = new Map<string, HTMLElement>();
 
-const entries: Entry[] = listModels().map(({ path, folder, satellites, missing }) => {
+const entries: Entry[] = listModels().map(({ path, folder, satellites, buses, missing }) => {
   const name = path
     .split("/")
     .pop()!
@@ -217,7 +221,7 @@ const entries: Entry[] = listModels().map(({ path, folder, satellites, missing }
   toggle.type = "checkbox";
   option.append(toggle, ` ${name}`);
   controls.pickerList.append(option);
-  const entry: Entry = { path, url: `.${path}`, name, folder, card, visible: shown?.includes(name) ?? true, toggle, satellites, error: missing };
+  const entry: Entry = { path, url: `.${path}`, name, folder, card, visible: shown?.includes(name) ?? true, toggle, satellites, buses, error: missing };
   toggle.checked = entry.visible;
   toggle.addEventListener("change", () => setVisible([entry], toggle.checked));
   card.hidden = !entry.visible;
@@ -479,12 +483,18 @@ function renderCard(entry: Entry): void {
   const rows: Array<[string, string]> = [];
   // Shown even when the file is missing.
   if (entry.satellites) {
-    rows.push([
-      "Satellites",
-      entry.satellites.length === 0
-        ? "none (generic)"
-        : entry.satellites.map(({ name, noradId, decayed }) => `${escape(name ?? "")} <span class="path">${noradId}${decayed ? ", decayed" : ""}</span>`).join("<br>"),
-    ]);
+    const generic = entry.satellites.length === 0 && (entry.buses ?? []).length === 0;
+    if (generic || entry.satellites.length > 0) {
+      rows.push([
+        "Satellites",
+        generic
+          ? "none (generic)"
+          : entry.satellites.map(({ name, noradId, decayed }) => `${escape(name ?? "")} <span class="path">${noradId}${decayed ? ", decayed" : ""}</span>`).join("<br>"),
+      ]);
+    }
+  }
+  if (entry.buses && entry.buses.length > 0) {
+    rows.push(["Buses", entry.buses.map((bus) => escape(bus)).join("<br>")]);
   }
   if (stats) {
     rows.push(["File", `${megabytes(stats.fileBytes)} (textures ${megabytes(stats.imageBytes)})`]);

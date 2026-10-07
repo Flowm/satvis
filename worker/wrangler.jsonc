@@ -22,10 +22,11 @@
   },
   "kv_namespaces": [{ "binding": "GP_KV", "id": "26a7848ab641416fa518a3df4790a968" }],
   "triggers": {
-    // At :23, off the hour, as CelesTrak asks. 6 h rather than 3 halves our share of
-    // CelesTrak's 250 MB/day per-IP budget, which Cloudflare tenants share: ~7 MB a run
-    // is ~29 MB/day, for a few hundred metres of SGP4 drift.
-    "crons": ["23 */6 * * *"],
+    // None: CelesTrak firewalls Cloudflare's egress, so a deployed cron gets HTTP 522
+    // on every GP source and rewrites the index as failed. scripts/push-gp.mjs fills KV
+    // instead, and the Docker image schedules its own refresh (scripts/serve.mjs).
+    // Empty, not absent: without the key, a deploy leaves the old trigger in place.
+    "crons": [],
   },
   "observability": {
     "enabled": true,

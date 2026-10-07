@@ -1,8 +1,9 @@
-// Static facts a GP record carries beside its element set (ADR 0002, 0006). Curated
-// fields (satvis.core.yaml, plugins) beat SATCAT fields one by one (mergeSatelliteTables);
-// `orbitClass` is derived here. The worker only copies the bag, so a new field needs no
-// worker change, except the swath pair, whose both-or-neither rule the generator enforces.
-// Cesium-free: node-env vitest exercises it.
+// Static facts a GP record carries beside its element set (ADR 0002, 0006, 0008). Every
+// field has one owner: curated rows (satvis.core.yaml, plugins, model manifests), SATCAT,
+// or GCAT, and curated rows may override an upstream field (mergeSatelliteTables).
+// `orbitClass` is derived here. A curated field needs no worker change, except the swath
+// pair, whose both-or-neither rule the generator enforces; an upstream field is mapped
+// by its parser (worker/src/gp/satcat.ts, gcat.ts). Cesium-free: node-env vitest exercises it.
 
 import type { OrbitClass } from "./orbitClass";
 
@@ -17,14 +18,39 @@ export interface SatelliteMetadata {
   coneFovDeg?: number;
   /** Path under /data/models/, from a model manifest (ADR 0007). */
   modelFile?: string;
-  /** Display-only free text. */
-  operator?: string;
+  /** Curated, display-only free text. */
   missionType?: string;
+
+  // From GCAT, organisation and country names resolved by the worker; absent where GCAT
+  // has none yet (~12 weeks for a new satellite) or its cell is "-".
+
+  /** The country, or the intergovernmental body, responsible for it: "USA", "Germany", "ESA". */
+  country?: string;
+  /** Who runs it: "SpaceX (Seattle)". Several join with " / ". */
+  operator?: string;
+  /** Who built it. Several join with " / ". */
+  manufacturer?: string;
+  /** GCAT's bus name: "Starlink V2M", "A2100". */
+  bus?: string;
+  /** Launch mass, kg. */
+  massKg?: number;
+  /** Metres: the main body's length, as GCAT gives it; often shorter than its diameter. */
+  lengthM?: number;
+  /** Metres: the main body's diameter, or its width. */
+  diameterM?: number;
+  /** Metres: the extent with arrays and booms. */
+  spanM?: number;
+  /** Free text: "Box + 2 Pan". */
+  shape?: string;
+  /** The keys among these GCAT flags as estimates, e.g. ["spanM"]. */
+  estimated?: string[];
+  /** GCAT purpose codes, labelled by gcatCodes.ts: "COM", "IMG/TECH". */
+  category?: string;
+  /** GCAT owner-type code, labelled by gcatCodes.ts: "B" commercial, "D" military. */
+  class?: string;
 
   // Raw SATCAT codes, labelled by satcatCodes.ts; absent when upstream's cell is empty.
 
-  /** Registration code, e.g. "US", "ESA", "PRC"; `operator` is curated free text. */
-  owner?: string;
   /** ISO date, e.g. "1998-11-20". */
   launchDate?: string;
   launchSite?: string;

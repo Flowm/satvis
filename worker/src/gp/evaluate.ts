@@ -3,7 +3,8 @@
 import type { GpRecord, GroupDefinition, GroupsConfig, GroupsIndex, GroupStatus, OmmRecord, SatelliteEntry, SatelliteSpec, SourceSpec } from "./types.ts";
 
 const CELESTRAK_BASE = "https://celestrak.org/NORAD/elements/";
-const USER_AGENT = "satvis.space (https://github.com/Flowm/satvis)";
+/** Sent with every upstream download, GP sources and tables alike. */
+export const USER_AGENT = "satvis.space (https://github.com/Flowm/satvis)";
 /** CelesTrak asks clients to space out requests. */
 const REQUEST_SPACING_MS = 250;
 /**
@@ -55,7 +56,7 @@ export type FetchImpl = (
 ) => Promise<{
   status: number;
   /**
-   * Optional, so a replayed bundle (bundleFetch) can omit it. Only the SATCAT fetch reads it, for the ETag.
+   * Optional, so a replayed bundle (bundleFetch) can omit it. Only the upstream tables read it, for the ETag.
    */
   headers?: { get: (name: string) => string | null };
   text: () => Promise<string>;

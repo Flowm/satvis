@@ -80,18 +80,60 @@ describe("getSatelliteInfo", () => {
     expect(valueOf(rows, "Mission")).toBe("Earth observation");
   });
 
+  describe("GCAT fields", () => {
+    // The ISS's own GCAT values; the worker has already named the codes.
+    const ISS_GCAT = {
+      country: "USA",
+      operator: "NASA Johnson Space Flight Center",
+      manufacturer: "Khrunichev State Research and Production Center",
+      bus: "77KS",
+      massKg: 20281,
+      lengthM: 12.6,
+      diameterM: 4.2,
+      spanM: 23.9,
+      estimated: ["diameterM"],
+    };
+
+    test("shows who is responsible for it, who runs it and who built it", () => {
+      const rows = getSatelliteInfo(ISS, "LEO", ISS_GCAT);
+      expect(valueOf(rows, "Country")).toBe("USA");
+      expect(valueOf(rows, "Operator")).toBe("NASA Johnson Space Flight Center");
+      expect(valueOf(rows, "Manufacturer")).toBe("Khrunichev State Research and Production Center");
+      expect(valueOf(rows, "Bus")).toBe("77KS");
+    });
+
+    test("labels the purpose and owner type, keeping what GCAT marks uncertain", () => {
+      const rows = getSatelliteInfo(ISS, "LEO", { category: "IMG/TECH?", class: "BD" });
+      expect(valueOf(rows, "Purpose")).toBe("Imaging / Technology?");
+      expect(valueOf(rows, "Class")).toBe("Commercial / Military");
+      // A code the table lacks shows as itself.
+      expect(valueOf(getSatelliteInfo(ISS, "LEO", { category: "NEW*" }), "Purpose")).toBe("NEW");
+      expect(valueOf(getSatelliteInfo(ISS, "LEO", { category: "SIG?*" }), "Purpose")).toBe("Signals intelligence?");
+    });
+
+    test("shows mass and size, marking GCAT's estimates", () => {
+      const rows = getSatelliteInfo(ISS, "LEO", ISS_GCAT);
+      expect(valueOf(rows, "Mass")).toBe("20,281 kg");
+      expect(valueOf(rows, "Size")).toBe("12.6 × ~4.2 m, span 23.9 m");
+    });
+
+    test("builds the size row from whatever dimensions there are", () => {
+      expect(valueOf(getSatelliteInfo(ISS, "LEO", { spanM: 29, estimated: ["spanM"] }), "Size")).toBe("span ~29 m");
+      expect(valueOf(getSatelliteInfo(ISS, "LEO", { lengthM: 0.3 }), "Size")).toBe("0.3 m");
+      expect(labels(getSatelliteInfo(ISS, "LEO", { country: "USA" }))).not.toContain("Size");
+    });
+  });
+
   describe("SATCAT fields", () => {
-    test("resolves owner, launch and status codes to labels", () => {
-      const rows = getSatelliteInfo(ISS, "LEO", { owner: "ISS", launchDate: "1998-11-20", launchSite: "TYMSC", opsStatus: "+" });
-      expect(valueOf(rows, "Owner")).toBe("International Space Station");
+    test("resolves launch and status codes to labels", () => {
+      const rows = getSatelliteInfo(ISS, "LEO", { launchDate: "1998-11-20", launchSite: "TYMSC", opsStatus: "+" });
       expect(valueOf(rows, "Launched")).toBe("1998-11-20 · Baikonur, Kazakhstan");
       expect(valueOf(rows, "Status")).toBe("Operational");
     });
 
     test("falls back to the raw code for one it does not know", () => {
       // The code tables lag new SATCAT codes; a code beats a blank.
-      const rows = getSatelliteInfo(ISS, "LEO", { owner: "ZZZ", launchDate: "2026-01-01", launchSite: "QQQ", opsStatus: "!" });
-      expect(valueOf(rows, "Owner")).toBe("ZZZ");
+      const rows = getSatelliteInfo(ISS, "LEO", { launchDate: "2026-01-01", launchSite: "QQQ", opsStatus: "!" });
       expect(valueOf(rows, "Launched")).toBe("2026-01-01 · QQQ");
       expect(valueOf(rows, "Status")).toBe("!");
     });
