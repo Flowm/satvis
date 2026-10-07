@@ -409,7 +409,8 @@ function notifyPasses(): void {
 /* The width loses both side insets, or the card overflows beside a landscape notch. */
 .entity-info-panel {
   position: absolute;
-  top: calc(50px + var(--safe-top, 0px));
+  /* 18px: the toolbars' 5px offset and 2px margin, and an 11px gap below the row. */
+  top: calc(18px + var(--toolbar-row) + var(--safe-top, 0px));
   right: calc(5px + var(--safe-right, 0px));
   width: calc(100% - 10px - var(--safe-left, 0px) - var(--safe-right, 0px));
   max-width: 540px;
