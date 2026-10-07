@@ -218,7 +218,7 @@ discussion; sharpen them here when they drift.
 
 - **Native app**: the iOS app that draws the globe and its controls itself, with
   no web view, and reads the same worker endpoints as the web app
-  (`docs/adr/0008-native-ios-app.md`). It replaces the **WebView app**, the
+  (`docs/adr/0009-native-ios-app.md`). It replaces the **WebView app**, the
   earlier iOS app that showed satvis.space in a web view, kept only as the tag
   `ios-webview-final`. "The iOS app" means the native app.
 - **Parity fixture**: an output of the web app's own code for a fixed element

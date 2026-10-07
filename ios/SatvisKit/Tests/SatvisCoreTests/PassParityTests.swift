@@ -4,7 +4,7 @@ import Testing
 @testable import SatvisCore
 
 /// The passes the web app's `Orbit` finds for the parity element sets
-/// (scripts/parity/generate.mjs). ADR 0008 allows a second on a start or an end.
+/// (scripts/parity/generate.mjs). ADR 0009 allows a second on a start or an end.
 /// The search propagates the same instants, so they agree far closer than that:
 /// to the 10 ms the edges are bisected to. Near a peak or a closest approach the
 /// curve barely changes from one millisecond to the next, so the last-bit

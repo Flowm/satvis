@@ -76,7 +76,7 @@ struct Parity: Decodable {
     }
 
     // satellite.js and Vallado's C++ are the same algorithm, and agree to under a
-    // micrometre. ADR 0008 allows a metre; held to a centimetre so that a mistake
+    // micrometre. ADR 0009 allows a metre; held to a centimetre so that a mistake
     // in setting up the satrec, which costs metres, cannot hide in the margin.
     @Test func propagatesLikeTheWebApp() throws {
         let parity = try Parity.load()
