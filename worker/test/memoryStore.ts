@@ -1,10 +1,10 @@
-// The GroupStore contract of the KV and disk adapters, in memory; refresh.test.ts and
-// upstream.test.ts share it.
+// A GroupStore in memory, held to the KV and disk adapters' contract (storeContract.ts);
+// refresh.test.ts and upstream.test.ts share it.
 
 import type { GroupStore, GroupWriteMetadata } from "../src/gp/store.ts";
 import type { GpRecord, GroupsIndex, UpstreamName, UpstreamStatus } from "../src/gp/types.ts";
 
-/** `previous` is the index a refresh reads; the accessors read back what it wrote. */
+/** `previous` is the index a refresh reads until one is written; the accessors read back what it wrote. */
 export function memoryStore(previous: GroupsIndex = { updated: "", groups: [] }) {
   const groups = new Map<string, { records: GpRecord[]; metadata: GroupWriteMetadata }>();
   const files = new Map<UpstreamName, Uint8Array>();
@@ -12,7 +12,11 @@ export function memoryStore(previous: GroupsIndex = { updated: "", groups: [] })
   let index: GroupsIndex | undefined;
   const store: GroupStore = {
     async readIndex() {
-      return previous;
+      return index ?? previous;
+    },
+    async readGroup(name) {
+      const group = groups.get(name);
+      return group && { body: JSON.stringify(group.records), metadata: group.metadata };
     },
     async writeGroup(name, records, metadata) {
       groups.set(name, { records, metadata });

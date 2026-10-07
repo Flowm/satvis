@@ -1,6 +1,6 @@
-import { coerceIndex, withConfig } from "./evaluate.ts";
+import { withConfig } from "./evaluate.ts";
 import { groupsConfig, ingestAll, type IngestSource, refreshAll, refreshAllUpstreams } from "./refresh.ts";
-import { GP_INDEX_KEY, GP_KEY_PREFIX, type GroupWriteMetadata, kvGroupStore } from "./store.ts";
+import { kvGroupStore, upstreamStatuses } from "./store.ts";
 import { recordFailure, recordUnchanged, storeUpstream } from "./upstream.ts";
 import { UPSTREAMS, upstreamSpec } from "./upstreams.ts";
 
@@ -44,15 +44,12 @@ async function handleGroup(name: string, request: Request, env: Env): Promise<Re
   if (!GROUP_NAME_RE.test(name)) {
     return notFound();
   }
-  const { value, metadata } = await env.GP_KV.getWithMetadata<GroupWriteMetadata>(GP_KEY_PREFIX + name, {
-    type: "text",
-    cacheTtl: 300,
-  });
-  if (value === null) {
+  const group = await kvGroupStore(env.GP_KV).readGroup(name);
+  if (group === undefined) {
     return notFound();
   }
 
-  const updated = metadata?.updated;
+  const updated = group.metadata?.updated;
   const updatedMs = updated ? Date.parse(updated) : Date.now();
   const etag = `W/"${name}-${updatedMs}"`;
   const headers: Record<string, string> = {
@@ -65,7 +62,7 @@ async function handleGroup(name: string, request: Request, env: Env): Promise<Re
   if (request.headers.get("If-None-Match") === etag) {
     return new Response(null, { status: 304, headers });
   }
-  return new Response(value, { headers });
+  return new Response(group.body, { headers });
 }
 
 /**
@@ -85,7 +82,7 @@ function fnv1a(text: string): string {
  * The ETag hashes the body: a refresh or a deploy changes it, and no single timestamp covers both.
  */
 async function handleIndex(request: Request, env: Env): Promise<Response> {
-  const index = withConfig(coerceIndex(await env.GP_KV.get(GP_INDEX_KEY, "json")), groupsConfig);
+  const index = withConfig(await kvGroupStore(env.GP_KV).readIndex(), groupsConfig);
   const body = JSON.stringify(index);
   const etag = `W/"groups-${fnv1a(body)}"`;
   const headers: Record<string, string> = { "Content-Type": "application/json", "Cache-Control": "public, max-age=300", ETag: etag };
@@ -110,7 +107,7 @@ async function handleRefresh(request: Request, env: Env): Promise<Response> {
     return rejection;
   }
 
-  const previous = coerceIndex(await env.GP_KV.get(GP_INDEX_KEY, "json"));
+  const previous = await kvGroupStore(env.GP_KV).readIndex();
   const sinceMs = Date.now() - Date.parse(previous.updated);
   if (Number.isFinite(sinceMs) && sinceMs < REFRESH_COOLDOWN_MS) {
     const retryAfterMs = REFRESH_COOLDOWN_MS - sinceMs;
@@ -273,16 +270,13 @@ async function handleUpstreamRefresh(request: Request, env: Env): Promise<Respon
  */
 async function handleStatus(env: Env): Promise<Response> {
   const store = kvGroupStore(env.GP_KV);
-  const [index, statuses, stored] = await Promise.all([store.readIndex(), store.listStatuses(), store.listUpstreams()]);
+  const [index, statuses] = await Promise.all([store.readIndex(), upstreamStatuses(store)]);
   const now = Date.now();
   const olderThan = (time: string | null | undefined, ms: number): boolean => time === null || time === undefined || now - Date.parse(time) > ms;
-  // Without its file, a table's ETag would make push-catalog's download conditional and
-  // never bring the file back (upstream.ts, storedEtag).
   const sources = Object.fromEntries(
     UPSTREAMS.map(({ name, staleAfterMs }) => {
-      const { etag, ...status } = statuses[name] ?? {};
-      const isStored = stored.has(name);
-      return [name, { ...status, ...(isStored && etag !== undefined && { etag }), stored: isStored, stale: !isStored || olderThan(status.checked, staleAfterMs) }];
+      const status = statuses[name] ?? { stored: false };
+      return [name, { ...status, stale: !status.stored || olderThan(status.checked, staleAfterMs) }];
     }),
   );
   const groups = withConfig(index, groupsConfig).groups.map(({ name, updated, count, lastError, lastErrorAt }) => ({

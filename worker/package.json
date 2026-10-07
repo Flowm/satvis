@@ -14,7 +14,7 @@
     "push-gp": "pnpm generate-groups && node scripts/push-gp.mjs",
     "lint": "pnpm generate-groups && oxlint && oxfmt --check && tsc --noEmit",
     "lint:fix": "oxlint --fix && oxfmt --write",
-    "test": "pnpm generate-groups && vitest run && node --test scripts/check-routes.mjs",
+    "test": "pnpm generate-groups && vitest run && node --test scripts/check-routes.mjs scripts/check-disk-store.mjs",
     "type-check": "tsc"
   },
   "devDependencies": {

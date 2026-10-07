@@ -5,6 +5,7 @@ import generatedConfig from "../src/config/satvis.generated.json" with { type: "
 import { collectSources, sourceKey, sourceUrl } from "../src/gp/evaluate.ts";
 import { GCAT_CATALOG_URL } from "../src/gp/gcat.ts";
 import { CATALOG_CRON, GP_CRON } from "../src/gp/schedule.ts";
+import { kvGroupStore } from "../src/gp/store.ts";
 import type { GroupsConfig, GroupsIndex, OmmRecord } from "../src/gp/types.ts";
 import { UPSTREAMS } from "../src/gp/upstreams.ts";
 import worker from "../src/index.ts";
@@ -27,12 +28,21 @@ function ommArray(...pairs: [string, number][]): OmmRecord[] {
   return pairs.map(([name, id]) => ({ OBJECT_NAME: name, NORAD_CAT_ID: id }));
 }
 
+/** The Worker's own store over the test KV, so no test knows its key layout. */
+const store = () => kvGroupStore(env.GP_KV);
+
+/** A stored group's records; null when none is stored. */
+async function groupRecords(name: string): Promise<OmmRecord[] | null> {
+  const group = await store().readGroup(name);
+  return group === undefined ? null : (JSON.parse(group.body) as OmmRecord[]);
+}
+
 async function seedGroup(name: string, records: OmmRecord[], updated = UPDATED): Promise<void> {
-  await env.GP_KV.put(`gp:${name}`, JSON.stringify(records), { metadata: { updated, count: records.length } });
+  await store().writeGroup(name, records, { updated, count: records.length });
 }
 
 async function idsOf(group: string): Promise<unknown[]> {
-  return ((await env.GP_KV.get(`gp:${group}`, "json")) as OmmRecord[]).map((r) => r.NORAD_CAT_ID);
+  return (await groupRecords(group))!.map((r) => r.NORAD_CAT_ID);
 }
 
 /** Built like scripts/push-gp.mjs builds it: bundleFetch matches on the sourceUrl() url. */
@@ -70,10 +80,10 @@ interface StatusBody {
   groups: { name: string; updated: string | null; stale: boolean }[];
 }
 
-/** Storage persists across this file's tests, so a test that needs no tables or index starts here. */
-async function clearTablesAndIndex(): Promise<void> {
-  const listed = await Promise.all(["upstream:", "status:", "gp:index"].map((prefix) => env.GP_KV.list({ prefix })));
-  await Promise.all(listed.flatMap(({ keys }) => keys.map(({ name }) => env.GP_KV.delete(name))));
+/** Storage persists across this file's tests, so a test that needs an empty store starts here. */
+async function clearStore(): Promise<void> {
+  const { keys } = await env.GP_KV.list();
+  await Promise.all(keys.map(({ name }) => env.GP_KV.delete(name)));
 }
 
 /** GET /api/status, parsed. */
@@ -130,7 +140,7 @@ describe("GET /api/gp/<group>.json", () => {
 describe("index route", () => {
   it("serves gp:index at /api/groups.json", async () => {
     const index: GroupsIndex = { updated: UPDATED, groups: [{ name: "weather", updated: UPDATED, count: 2 }] };
-    await env.GP_KV.put("gp:index", JSON.stringify(index));
+    await store().writeIndex(index);
     const res = await SELF.fetch("https://satvis.space/api/groups.json");
     expect(res.status).toBe(200);
     const body = (await res.json()) as GroupsIndex;
@@ -141,7 +151,7 @@ describe("index route", () => {
   // The config's half is the deployed one, whatever the last refresh wrote.
   it("lays the deployed tags and presets over the stored index", async () => {
     const index: GroupsIndex = { updated: UPDATED, groups: [{ name: "weather", updated: UPDATED, count: 2, tags: ["Stale"] }] };
-    await env.GP_KV.put("gp:index", JSON.stringify(index));
+    await store().writeIndex(index);
     const body = (await (await SELF.fetch("https://satvis.space/api/groups.json")).json()) as GroupsIndex;
     expect(body.groups.map((group) => group.name)).toEqual((generatedConfig as GroupsConfig).groups.map((group) => group.name));
     expect(body.groups.find((group) => group.name === "weather")?.tags).toEqual(["Weather"]);
@@ -151,7 +161,7 @@ describe("index route", () => {
   });
 
   it("serves the config's half when no index is stored", async () => {
-    await env.GP_KV.delete("gp:index");
+    await clearStore();
     const res = await SELF.fetch("https://satvis.space/api/groups.json");
     expect(res.status).toBe(200);
     const body = (await res.json()) as GroupsIndex;
@@ -161,7 +171,7 @@ describe("index route", () => {
   });
 
   it("answers a matching If-None-Match with a 304, and a refresh changes the ETag", async () => {
-    await env.GP_KV.put("gp:index", JSON.stringify({ updated: UPDATED, groups: [] } satisfies GroupsIndex));
+    await store().writeIndex({ updated: UPDATED, groups: [] } satisfies GroupsIndex);
     const first = await SELF.fetch("https://satvis.space/api/groups.json");
     const etag = first.headers.get("ETag");
     expect(etag).toMatch(/^W\/"groups-[0-9a-f]{8}"$/);
@@ -171,7 +181,7 @@ describe("index route", () => {
     expect(again.status).toBe(304);
     expect(await again.text()).toBe("");
 
-    await env.GP_KV.put("gp:index", JSON.stringify({ updated: "2026-07-05T00:00:00.000Z", groups: [] } satisfies GroupsIndex));
+    await store().writeIndex({ updated: "2026-07-05T00:00:00.000Z", groups: [] } satisfies GroupsIndex);
     const refreshed = await SELF.fetch("https://satvis.space/api/groups.json", { headers: { "If-None-Match": etag! } });
     expect(refreshed.status).toBe(200);
     expect(refreshed.headers.get("ETag")).not.toBe(etag);
@@ -235,10 +245,10 @@ describe("scheduled() refresh", () => {
     await worker.scheduled(controller, env, ctx);
     await waitOnExecutionContext(ctx);
 
-    const weather = await env.GP_KV.get("gp:weather", "json");
+    const weather = await groupRecords("weather");
     expect(Array.isArray(weather)).toBe(true);
 
-    const index = (await env.GP_KV.get("gp:index", "json")) as GroupsIndex;
+    const index = await store().readIndex();
     const weatherStatus = index.groups.find((g) => g.name === "weather");
     expect(weatherStatus?.count).toBeGreaterThan(0);
     expect(weatherStatus?.lastError).toBeUndefined();
@@ -288,10 +298,7 @@ describe("scheduled() refresh", () => {
 
   it("preserves last-known-good on failure", async () => {
     await seedGroup("weather", ommArray(["GOOD SAT", 1]), "2026-01-01T00:00:00.000Z");
-    await env.GP_KV.put(
-      "gp:index",
-      JSON.stringify({ updated: "2026-01-01T00:00:00.000Z", groups: [{ name: "weather", updated: "2026-01-01T00:00:00.000Z", count: 1 }] } satisfies GroupsIndex),
-    );
+    await store().writeIndex({ updated: "2026-01-01T00:00:00.000Z", groups: [{ name: "weather", updated: "2026-01-01T00:00:00.000Z", count: 1 }] } satisfies GroupsIndex);
 
     interceptCelestrak(() => [], { status: 503 });
 
@@ -300,10 +307,10 @@ describe("scheduled() refresh", () => {
     await worker.scheduled(controller, env, ctx);
     await waitOnExecutionContext(ctx);
 
-    const weather = (await env.GP_KV.get("gp:weather", "json")) as OmmRecord[];
+    const weather = (await groupRecords("weather"))!;
     expect(weather.map((r) => r.OBJECT_NAME)).toEqual(["GOOD SAT"]);
 
-    const index = (await env.GP_KV.get("gp:index", "json")) as GroupsIndex;
+    const index = await store().readIndex();
     const weatherStatus = index.groups.find((g) => g.name === "weather");
     expect(weatherStatus?.updated).toBe("2026-01-01T00:00:00.000Z");
     expect(weatherStatus?.lastError).toBeTruthy();
@@ -312,7 +319,7 @@ describe("scheduled() refresh", () => {
 
   it("runs the refresh and reports per-source diagnostics on POST /api/refresh", async () => {
     // An old index is past the cooldown.
-    await env.GP_KV.put("gp:index", JSON.stringify({ updated: "2020-01-01T00:00:00.000Z", groups: [] } satisfies GroupsIndex));
+    await store().writeIndex({ updated: "2020-01-01T00:00:00.000Z", groups: [] } satisfies GroupsIndex);
     interceptCelestrak((group) => [{ OBJECT_NAME: `${group.toUpperCase()}-1`, NORAD_CAT_ID: 42 }]);
 
     const res = await SELF.fetch("https://satvis.space/api/refresh", { method: "POST", headers: AUTH });
@@ -329,16 +336,16 @@ describe("scheduled() refresh", () => {
     expect(body.written).toBeGreaterThan(0);
     expect(body.sources).toHaveLength(SOURCE_COUNT);
     expect(body.sources.every((s) => s.ok && s.status === 200 && (s.records ?? 0) > 0)).toBe(true);
-    expect(Array.isArray(await env.GP_KV.get("gp:weather", "json"))).toBe(true);
+    expect(Array.isArray(await groupRecords("weather"))).toBe(true);
   });
 
   it("rate-limits POST /api/refresh within the cooldown and returns the cached index", async () => {
     // Without interceptCelestrak(), the afterEach count proves no upstream fetch was made.
     const recent = new Date().toISOString();
-    await env.GP_KV.put(
-      "gp:index",
-      JSON.stringify({ updated: recent, groups: [{ name: "weather", updated: recent, count: 2, lastError: "source celestrak:weather failed: HTTP 522" }] } satisfies GroupsIndex),
-    );
+    await store().writeIndex({
+      updated: recent,
+      groups: [{ name: "weather", updated: recent, count: 2, lastError: "source celestrak:weather failed: HTTP 522" }],
+    } satisfies GroupsIndex);
 
     const res = await SELF.fetch("https://satvis.space/api/refresh", { method: "POST", headers: AUTH });
     expect(res.status).toBe(429);
@@ -402,9 +409,9 @@ describe("POST /api/ingest", () => {
     expect(body.sources).toHaveLength(SOURCE_COUNT);
     expect(body.sources.every((s) => s.ok && (s.records ?? 0) > 0)).toBe(true);
 
-    const index = (await env.GP_KV.get("gp:index", "json")) as GroupsIndex;
+    const index = await store().readIndex();
     expect(index.groups.find((g) => g.name === "weather")?.lastError).toBeUndefined();
-    expect(Array.isArray(await env.GP_KV.get("gp:weather", "json"))).toBe(true);
+    expect(Array.isArray(await groupRecords("weather"))).toBe(true);
   });
 
   it("carves the derived groups out of the ingested active source", async () => {
@@ -430,10 +437,7 @@ describe("POST /api/ingest", () => {
 
   it("preserves last-known-good for a source the downloader could not fetch", async () => {
     await seedGroup("weather", ommArray(["GOOD SAT", 1]), "2026-01-01T00:00:00.000Z");
-    await env.GP_KV.put(
-      "gp:index",
-      JSON.stringify({ updated: "2026-01-01T00:00:00.000Z", groups: [{ name: "weather", updated: "2026-01-01T00:00:00.000Z", count: 1 }] } satisfies GroupsIndex),
-    );
+    await store().writeIndex({ updated: "2026-01-01T00:00:00.000Z", groups: [{ name: "weather", updated: "2026-01-01T00:00:00.000Z", count: 1 }] } satisfies GroupsIndex);
 
     // Replace the weather source with the failure shape push-gp.mjs sends.
     const parsed = JSON.parse(ingestBundle(() => [{ OBJECT_NAME: "SAT", NORAD_CAT_ID: 5 }])) as {
@@ -450,9 +454,9 @@ describe("POST /api/ingest", () => {
     expect(res.status).toBe(200);
 
     // The value survives, and the index carries the downloader's own message.
-    const weather = (await env.GP_KV.get("gp:weather", "json")) as OmmRecord[];
+    const weather = (await groupRecords("weather"))!;
     expect(weather.map((r) => r.OBJECT_NAME)).toEqual(["GOOD SAT"]);
-    const index = (await env.GP_KV.get("gp:index", "json")) as GroupsIndex;
+    const index = await store().readIndex();
     const weatherStatus = index.groups.find((g) => g.name === "weather");
     expect(weatherStatus?.updated).toBe("2026-01-01T00:00:00.000Z");
     expect(weatherStatus?.lastError).toContain("HTTP 522");
@@ -466,7 +470,7 @@ describe("POST /api/ingest", () => {
     const res = await postIngest(ingestBundle(() => ({ not: "an array" })));
     expect(res.status).toBe(200);
 
-    const weather = (await env.GP_KV.get("gp:weather", "json")) as OmmRecord[];
+    const weather = (await groupRecords("weather"))!;
     expect(weather.map((r) => r.OBJECT_NAME)).toEqual(["GOOD SAT"]);
     const body = (await res.json()) as { written: number; skipped: number };
     expect(body.written).toBe(0);
@@ -483,14 +487,14 @@ describe("POST /api/ingest", () => {
   });
 
   it("enriches from the stored tables, which the bundle no longer carries", async () => {
-    await clearTablesAndIndex();
+    await clearStore();
     // The ISS's GCAT row, renumbered onto a record the bundle serves.
     await putTable("gcat", gcatCatalog(GCAT_CATALOG_LINES.ISS.replace("\t25544\t", "\t10007\t")));
     await putTable("gcatOrgs", gcatOrgs(...Object.values(GCAT_ORGS_LINES)));
 
     const res = await postIngest(ingestBundle((source) => [{ OBJECT_NAME: `${source.toUpperCase()}-1`, NORAD_CAT_ID: 10000 + source.length }]));
     expect(res.status).toBe(200);
-    const weather = (await env.GP_KV.get("gp:weather", "json")) as OmmRecord[];
+    const weather = (await groupRecords("weather"))!;
     expect(weather.find((r) => r.NORAD_CAT_ID === 10007)?.metadata).toMatchObject({ country: "USA", bus: "77KS", massKg: 20281 });
   });
 
@@ -539,7 +543,7 @@ describe("POST /api/ingest", () => {
 });
 
 describe("PUT /api/upstream/<name>", () => {
-  beforeEach(clearTablesAndIndex);
+  beforeEach(clearStore);
 
   const SATCAT_CSV = ["OBJECT_NAME,NORAD_CAT_ID,LAUNCH_DATE,ORBIT_TYPE", "WEATHER-1,10007,2019-11-11,ORB"].join("\r\n");
 
@@ -552,7 +556,7 @@ describe("PUT /api/upstream/<name>", () => {
     expect(sources.satcat).toMatchObject({ etag: '"abc"', rows: 1, stale: false });
     expect(sources.satcat!.updated).toBe(sources.satcat!.checked);
     // Stored compressed: gzip's magic bytes.
-    const stored = new Uint8Array((await env.GP_KV.get("upstream:satcat", "arrayBuffer"))!);
+    const stored = (await store().readUpstream("satcat"))!;
     expect(Array.from(stored.slice(0, 2))).toEqual([0x1f, 0x8b]);
   });
 
@@ -591,7 +595,7 @@ describe("PUT /api/upstream/<name>", () => {
 });
 
 describe("GET /api/status", () => {
-  beforeEach(clearTablesAndIndex);
+  beforeEach(clearStore);
 
   it("marks everything stale before anything is stored or written", async () => {
     const body = await status();
@@ -604,21 +608,18 @@ describe("GET /api/status", () => {
   it("marks a group stale twelve hours after its last write, and a table after its threshold", async () => {
     const fresh = new Date().toISOString();
     const old = new Date(Date.now() - 13 * 3600_000).toISOString();
-    await env.GP_KV.put(
-      "gp:index",
-      JSON.stringify({
-        updated: fresh,
-        groups: [
-          { name: "weather", updated: old, count: 1 },
-          { name: "stations", updated: fresh, count: 1 },
-        ],
-      }),
-    );
+    await store().writeIndex({
+      updated: fresh,
+      groups: [
+        { name: "weather", updated: old, count: 1 },
+        { name: "stations", updated: fresh, count: 1 },
+      ],
+    });
     // SATCAT goes stale after two days without a check, the GCAT tables after ten.
-    await env.GP_KV.put("status:satcat", "", { metadata: { checked: new Date(Date.now() - 3 * 24 * 3600_000).toISOString() } });
-    await env.GP_KV.put("status:gcat", "", { metadata: { checked: new Date(Date.now() - 3 * 24 * 3600_000).toISOString() } });
-    await env.GP_KV.put("upstream:satcat", "stored");
-    await env.GP_KV.put("upstream:gcat", "stored");
+    await store().writeStatus("satcat", { checked: new Date(Date.now() - 3 * 24 * 3600_000).toISOString() });
+    await store().writeStatus("gcat", { checked: new Date(Date.now() - 3 * 24 * 3600_000).toISOString() });
+    await store().writeUpstream("satcat", new TextEncoder().encode("stored"));
+    await store().writeUpstream("gcat", new TextEncoder().encode("stored"));
 
     const body = await status();
     expect(body.built).toBe(fresh);
@@ -629,7 +630,7 @@ describe("GET /api/status", () => {
   });
 
   it("marks a table without its file stale, and gives no ETag for it", async () => {
-    await env.GP_KV.put("status:gcat", "", { metadata: { checked: new Date().toISOString(), etag: '"cat1"' } });
+    await store().writeStatus("gcat", { checked: new Date().toISOString(), etag: '"cat1"' });
     expect((await status()).sources.gcat).toEqual({ checked: expect.any(String), stored: false, stale: true });
   });
 });
@@ -638,7 +639,7 @@ describe("POST /api/upstream/refresh and the catalog schedule", () => {
   let fetchSpy: MockInstance<typeof fetch>;
 
   beforeEach(async () => {
-    await clearTablesAndIndex();
+    await clearStore();
     // Every table answers 304, except GCAT's catalog, which is new.
     fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const request = new Request(input, init);
