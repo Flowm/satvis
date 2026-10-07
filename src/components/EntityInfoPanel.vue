@@ -148,9 +148,9 @@
 
         <template #details>
           <div class="tab-body__pad">
-            <table v-if="satelliteInfo.length > 0" class="info-table info-table--facts">
+            <table v-if="satelliteInfo" class="info-table info-table--facts">
               <tbody>
-                <tr v-for="[label, value] in satelliteInfo" :key="label">
+                <tr v-for="[label, value] in satelliteInfo.rows" :key="label">
                   <th>{{ label }}</th>
                   <td class="right">{{ value }}</td>
                 </tr>
@@ -192,7 +192,7 @@ import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 import { useController } from "../composables/useController";
 import { useSelectedEntity } from "../composables/useSelectedEntity";
 import { externalLinks } from "../config/externalLinks";
-import { ORBIT_CLASS_COLOR, type OrbitClass } from "../config/orbitClass";
+import { ORBIT_CLASS_COLOR } from "../config/orbitClass";
 import { SKY_MODE } from "../config/viewModes";
 import { formatCountdown, passSummary, type Pass } from "../modules/PassPredictor";
 import { useCesiumStore } from "../stores/cesium";
@@ -242,12 +242,9 @@ const emptyPassText = computed(() => (groundStationAvailable.value ? "No passes 
 const satnum = computed(() => (selection.value?.kind === "satellite" ? selection.value.sat.props.satnum : undefined));
 const links = computed(() => (satnum.value ? externalLinks(satnum.value) : []));
 
-/** The derived facts lead `satelliteInfo`, so the orbit class is its first row. */
-const facts = computed(() => new Map(satelliteInfo.value));
-const orbitClass = computed(() => facts.value.get("Orbit")?.split(" · ")[0] as OrbitClass | undefined);
+const orbitClass = computed(() => satelliteInfo.value?.orbitClass);
 const orbitColor = computed(() => (orbitClass.value ? ORBIT_CLASS_COLOR[orbitClass.value] : "transparent"));
-
-const chips = computed(() => ["Orbit", "Country", "Status"].map((key) => facts.value.get(key)).filter((value): value is string => value !== undefined));
+const chips = computed(() => satelliteInfo.value?.chips ?? []);
 
 /** The card title already carries the name. */
 const liveRows = computed(() => position.value.filter((row) => row.label !== "Name"));
@@ -267,7 +264,7 @@ const showTimeline = computed(() => selection.value?.kind === "satellite");
 
 const tabs = computed(() => {
   const items: { label: string; slot: string; value: string; badge?: number }[] = [];
-  if (satelliteInfo.value.length > 0 || elements.value) {
+  if (satelliteInfo.value || elements.value) {
     items.push({ label: "Details", slot: "details", value: "details" });
   }
   items.push({ label: "Passes", slot: "passes", value: "passes", ...(passRows.value.length > 0 ? { badge: passRows.value.length } : {}) });

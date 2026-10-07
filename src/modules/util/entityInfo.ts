@@ -25,15 +25,31 @@ const JD_UNIX_EPOCH = 2440587.5;
  */
 export const STALE_ELEMENTS_DAYS = 10;
 
+/** What the info panel shows of a satellite: a header, and the facts as rows. */
+export interface SatelliteInfo {
+  /** The dot's colour. */
+  orbitClass: OrbitClass;
+  /** Under the name: the orbit, then the country and the status where known. */
+  chips: string[];
+  rows: [string, string][];
+}
+
 /**
  * Derived rows first, then served rows only for fields the record carries: the
  * renderer's fallback values are defaults, not data about the satellite.
  * `orbitClass` comes from the caller (`CatalogEntry.orbitClass`), not the bag.
  */
-export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata: SatelliteMetadata): [string, string][] {
-  const rows: [string, string][] = [["Orbit", orbitRegimeLabel(orbitClass, orbit)], ...derivedOrbitRows(orbit)];
+export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata: SatelliteMetadata): SatelliteInfo {
+  const regime = orbitRegimeLabel(orbitClass, orbit);
+  const status = metadata.opsStatus === undefined ? undefined : satcatLabel(SATCAT_OPS_STATUS, metadata.opsStatus);
+  const chips = [regime, metadata.country, status].filter((chip): chip is string => chip !== undefined);
+  return { orbitClass, chips, rows: satelliteRows(orbit, regime, metadata, status) };
+}
 
-  const { coneFovDeg, missionType, country, operator, category, class: ownerClass, manufacturer, bus, massKg, launchDate, launchSite, opsStatus, orbitType, decayDate } = metadata;
+function satelliteRows(orbit: Orbit, regime: string, metadata: SatelliteMetadata, status: string | undefined): [string, string][] {
+  const rows: [string, string][] = [["Orbit", regime], ...derivedOrbitRows(orbit)];
+
+  const { coneFovDeg, missionType, country, operator, category, class: ownerClass, manufacturer, bus, massKg, launchDate, launchSite, orbitType, decayDate } = metadata;
   const extents = swathExtentsOf(metadata);
   if (extents !== undefined) {
     const { starboardKm, portKm } = extents;
@@ -74,8 +90,8 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
   if (launchDate !== undefined) {
     rows.push(["Launched", launchSite === undefined ? launchDate : `${launchDate} · ${satcatLabel(SATCAT_LAUNCH_SITE, launchSite)}`]);
   }
-  if (opsStatus !== undefined) {
-    rows.push(["Status", satcatLabel(SATCAT_OPS_STATUS, opsStatus)]);
+  if (status !== undefined) {
+    rows.push(["Status", status]);
   }
   // Nearly every served satellite is "ORB", so only the exceptions get a row.
   if (orbitType !== undefined && orbitType !== "ORB") {
