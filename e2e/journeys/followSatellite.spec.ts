@@ -29,6 +29,7 @@ for (const [device, options] of Object.entries(DEVICES)) {
 
       const panel = page.locator(".entity-info-panel");
       await expect(panel.locator(".head__name")).toHaveText(ISS);
+      await expect(panel.locator(".head__chips")).toContainText("USA");
       await expect.poll(() => new URL(page.url()).searchParams.get("sats")).toContain(ISS);
 
       await expect(panel.getByRole("tab", { name: "Details" })).toHaveAttribute("aria-selected", "true");

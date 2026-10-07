@@ -50,7 +50,8 @@ export function gcatCategoryLabel(code: string): string {
   return code
     .split("/")
     .map((part) => {
-      const uncertain = part.endsWith("?");
+      // Both marks can follow one code, "?" first: "SIG?*".
+      const uncertain = part.includes("?");
       const bare = part.replace(/[?*]+$/, "");
       return `${GCAT_CATEGORY[bare] ?? bare}${uncertain ? "?" : ""}`;
     })

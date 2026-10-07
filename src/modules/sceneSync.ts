@@ -22,16 +22,24 @@ import { adjustUrlDefault, arrivalParam } from "./util/urlSync";
 /** Enough to keep a fast clock multiplier from hammering the history api. */
 const MIN_CLOCK_WRITE_MS = 1000;
 
+/** How many active satellites a component may draw on, and which of them it draws on. */
+interface ComponentBudget {
+  limit: number;
+  /** Every active satellite when absent. */
+  counts?: (entry: CatalogEntry) => boolean;
+}
+
 /**
- * Active satellites above which a component is switched off. Labels become unreadable
- * on a 1080p globe; the ground station link costs about 8 µs per satellite a frame; a
- * 3D model about 52 µs, which held 60 fps to about 230 models on an M4 Pro (Starlink,
- * where 11,000 models ran at 1.7 fps with a 2.4 GB heap).
+ * Above its limit a component is switched off. Labels become unreadable on a 1080p
+ * globe; the ground station link costs about 8 µs per satellite a frame; a 3D model
+ * about 52 µs, which held 60 fps to about 230 models on an M4 Pro (Starlink, where
+ * 11,000 models ran at 1.7 fps with a 2.4 GB heap). Only a satellite with a model file
+ * draws one, so only those count against it.
  */
-const COMPONENT_BUDGETS: Record<string, number> = {
-  Label: 200,
-  "Ground station link": 500,
-  "3D model": 200,
+const COMPONENT_BUDGETS: Record<string, ComponentBudget> = {
+  Label: { limit: 200 },
+  "Ground station link": { limit: 500 },
+  "3D model": { limit: 200, counts: (entry) => entry.metadata.modelFile !== undefined },
 };
 
 /** The part of `CesiumController` this file uses, so a test can stand in without WebGL. */
@@ -277,16 +285,22 @@ export function startSceneSync(cc: SceneTarget): void {
   );
 
   // Asked of the catalog, so it is known before anything is built. Reads
-  // catalogRevision so a lazily-loaded group re-runs it.
-  const activeSatelliteCount = (): number => {
+  // catalogRevision so a lazily-loaded group re-runs it. One count per budget, joined
+  // into a string so the watch fires on a changed count, not on every new array.
+  const budgetCounts = (): string => {
     void satStore.catalogRevision;
-    return activeTargetEntries({
-      entries: cc.sats.catalog.entries,
-      enabledTags: satStore.enabledTags,
-      enabledSatellites: satStore.enabledSatellites,
-      disabledSatellites: satStore.disabledSatellites,
-      trackedName: satStore.trackedSatellite || undefined,
-    }).size;
+    const active = [
+      ...activeTargetEntries({
+        entries: cc.sats.catalog.entries,
+        enabledTags: satStore.enabledTags,
+        enabledSatellites: satStore.enabledSatellites,
+        disabledSatellites: satStore.disabledSatellites,
+        trackedName: satStore.trackedSatellite || undefined,
+      }).values(),
+    ];
+    return Object.values(COMPONENT_BUDGETS)
+      .map(({ counts }) => (counts ? active.filter(counts).length : active.length))
+      .join(",");
   };
 
   // A store write, not a suppression, and edge-triggered on the crossing, so a user
@@ -295,12 +309,13 @@ export function startSceneSync(cc: SceneTarget): void {
   const overBudget = new Set<string>();
   const withinBudget = (components: unknown): string[] => (components as string[]).filter((component) => !overBudget.has(component));
   watch(
-    activeSatelliteCount,
-    (count) => {
+    budgetCounts,
+    (joined) => {
+      const counts = joined.split(",").map(Number);
       const named = arrivalParam("elements")?.split(",") ?? [];
       let changed = false;
-      for (const [component, budget] of Object.entries(COMPONENT_BUDGETS)) {
-        if (count <= budget) {
+      for (const [index, [component, { limit }]] of Object.entries(COMPONENT_BUDGETS).entries()) {
+        if (counts[index]! <= limit) {
           changed = overBudget.delete(component) || changed;
         } else if (!overBudget.has(component)) {
           overBudget.add(component);

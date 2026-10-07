@@ -124,7 +124,7 @@ function fakeTarget() {
 }
 
 function entriesWithTag(tag: string, count: number): CatalogEntry[] {
-  return Array.from({ length: count }, (_, i) => ({ key: `k${i}`, name: `SAT ${i}`, tags: [tag] }) as unknown as CatalogEntry);
+  return Array.from({ length: count }, (_, i) => ({ key: `k${i}`, name: `SAT ${i}`, tags: [tag], metadata: {} }) as unknown as CatalogEntry);
 }
 
 /** Sequential: each tick of the view-mode await chain releases the next. */
@@ -546,18 +546,26 @@ describe("startSceneSync", () => {
       expect(satStore.enabledComponents).toContain("Point");
     });
 
-    test("switches 3D models off past 200, as labels", async () => {
+    test("switches 3D models off past 200 satellites that have one", async () => {
       const { target, catalog } = fakeTarget();
       startSceneSync(target);
       const satStore = useSatStore();
       satStore.enabledComponents = [...satStore.enabledComponents, "3D model"];
+      const withModels = (count: number, total: number): CatalogEntry[] => {
+        const entries = entriesWithTag("Starlink", total);
+        entries.slice(0, count).forEach((entry) => Object.assign(entry, { metadata: { modelFile: "STARLINK-V1.glb" } }));
+        return entries;
+      };
 
       satStore.setActivation({ enabledTags: ["Starlink"] });
-      loadGroup(catalog, "Starlink", 200);
+      catalog.entries = withModels(200, 1000);
+      satStore.catalogRevision += 1;
       await settle();
       expect(satStore.enabledComponents).toContain("3D model");
+      expect(satStore.enabledComponents).not.toContain("Label");
 
-      loadGroup(catalog, "Starlink", 201);
+      catalog.entries = withModels(201, 1000);
+      satStore.catalogRevision += 1;
       await settle();
       expect(satStore.enabledComponents).not.toContain("3D model");
       expect(satStore.enabledComponents).toContain("Point");

@@ -34,9 +34,9 @@ export interface SatelliteMetadata {
   bus?: string;
   /** Launch mass, kg. */
   massKg?: number;
-  /** Metres: the body's longest dimension. */
+  /** Metres: the main body's length, as GCAT gives it; often shorter than its diameter. */
   lengthM?: number;
-  /** Metres: the body's second dimension. */
+  /** Metres: the main body's diameter, or its width. */
   diameterM?: number;
   /** Metres: the extent with arrays and booms. */
   spanM?: number;

@@ -108,6 +108,7 @@ describe("getSatelliteInfo", () => {
       expect(valueOf(rows, "Class")).toBe("Commercial / Military");
       // A code the table lacks shows as itself.
       expect(valueOf(getSatelliteInfo(ISS, "LEO", { category: "NEW*" }), "Purpose")).toBe("NEW");
+      expect(valueOf(getSatelliteInfo(ISS, "LEO", { category: "SIG?*" }), "Purpose")).toBe("Signals intelligence?");
     });
 
     test("shows mass and size, marking GCAT's estimates", () => {
