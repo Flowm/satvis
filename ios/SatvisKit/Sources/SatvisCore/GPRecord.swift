@@ -64,6 +64,20 @@ extension GPRecord {
     public static func decodePayload(_ data: Data) throws -> [GPRecord] {
         try JSONDecoder().decode([Lenient<RawRecord>].self, from: data).compactMap { $0.value?.record }
     }
+
+    /// A group as the worker serves it, for keeping: as `decodePayload`, but a
+    /// payload with records none of which decode is malformed, not an empty group.
+    /// A format the app cannot read yet would otherwise replace a good copy with
+    /// nothing, and the group's satellites would vanish while the web app still
+    /// showed them.
+    public static func decodeGroup(_ data: Data) throws -> [GPRecord] {
+        let raw = try JSONDecoder().decode([Lenient<RawRecord>].self, from: data)
+        let records = raw.compactMap { $0.value?.record }
+        guard records.isEmpty == raw.isEmpty else {
+            throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "No record of \(raw.count) decodes"))
+        }
+        return records
+    }
 }
 
 private func satnumField(_ line1: String) -> String {
