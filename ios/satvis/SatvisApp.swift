@@ -74,7 +74,7 @@ struct ContentView: View {
         .overlay {
             if session.observer != nil, let renderer = session.renderer {
                 // In the renderer's frame, the whole screen, since it projects into it.
-                SkyHUD(renderer: renderer, tapeTop: 132)
+                SkyHUD(renderer: renderer, tapeTop: 132, trailingInset: cardInset)
                     .ignoresSafeArea()
             }
         }
@@ -92,7 +92,7 @@ struct ContentView: View {
             VStack {
                 // Made when tapped, so that a pinned clock gives its minute then.
                 Button("Share", systemImage: "square.and.arrow.up") {
-                    ShareSheet.present(session.link(sharing: true).url(site: session.source.site))
+                    ShareSheet.present(session.link(sharing: true).url(site: session.source.site), trailingInset: cardInset)
                 }
                 // Always there, so the way back is where it always is.
                 Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
@@ -112,38 +112,44 @@ struct ContentView: View {
             .controlSize(.large)
             .padding()
         }
-        // Over the top-right buttons: on a phone an open panel covers them, as on the web.
+        // Over the top-right buttons: where there is no room beside them an open
+        // panel covers them, as on the web.
         .overlay(alignment: .topLeading) {
-            HStack(alignment: .top, spacing: 8) {
-                ToolMenu(isOpen: $showsTools) {
-                    // The web app's menu column: its entries, icons, order and hints.
-                    ToolEntry(title: "Satellites", image: .lucideSatellite, hint: "Search and pick which satellites to show") {
-                        showsBrowser = true
-                    }
-                    entry(.components, image: .lucideOrbit, hint: "Orbits, ground tracks, labels and sensor cones")
-                    ToolEntry(title: "Ground station", image: .lucideMapPin, hint: "Your location, for pass predictions") {
-                        showsStations = true
-                    }
-                    entry(.map, image: .lucideLayers, hint: "Basemap and terrain")
-                    entry(.view, image: .lucideTelescope, hint: "Globe or sky view, and the compass")
-                    entry(.graphics, image: .lucideGauge, hint: "Quality and performance")
-                }
-                .environment(\.toolNamesFolded, sizeClass != .regular && panel != nil)
-                if let panel {
-                    ToolPanelView(title: panel.title, fillsWidth: sizeClass != .regular, onClose: { self.panel = nil }) {
-                        switch panel {
-                        case .components: ComponentsPanel(catalog: session.catalog)
-                        case .map: MapPanel(session: session)
-                        case .view: ViewPanel(session: session)
-                        case .graphics: GraphicsPanel(session: session)
+            // The names stay beside a panel only where both fit: on an iPad mini
+            // with the info card open, a panel beside them was 100 pt wide.
+            GeometryReader { proxy in
+                let roomy = proxy.size.width >= Self.roomForNames
+                HStack(alignment: .top, spacing: 8) {
+                    ToolMenu(isOpen: $showsTools) {
+                        // The web app's menu column: its entries, icons, order and hints.
+                        ToolEntry(title: "Satellites", image: .lucideSatellite, hint: "Search and pick which satellites to show") {
+                            showsBrowser = true
                         }
+                        entry(.components, image: .lucideOrbit, hint: "Orbits, ground tracks, labels and sensor cones")
+                        ToolEntry(title: "Ground station", image: .lucideMapPin, hint: "Your location, for pass predictions") {
+                            showsStations = true
+                        }
+                        entry(.map, image: .lucideLayers, hint: "Basemap and terrain")
+                        entry(.view, image: .lucideTelescope, hint: "Globe or sky view, and the compass")
+                        entry(.graphics, image: .lucideGauge, hint: "Quality and performance")
                     }
-                    .id(panel)
-                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topLeading)))
+                    .environment(\.toolNamesFolded, !roomy && panel != nil)
+                    if let panel {
+                        ToolPanelView(title: panel.title, fillsWidth: !roomy, onClose: { self.panel = nil }) {
+                            switch panel {
+                            case .components: ComponentsPanel(catalog: session.catalog)
+                            case .map: MapPanel(session: session)
+                            case .view: ViewPanel(session: session)
+                            case .graphics: GraphicsPanel(session: session)
+                            }
+                        }
+                        .id(panel)
+                        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topLeading)))
+                    }
                 }
+                .animation(.snappy(duration: 0.2), value: panel)
+                .padding()
             }
-            .animation(.snappy(duration: 0.2), value: panel)
-            .padding()
         }
         // Open from the start where there is room, as the web app's is on a desktop
         // and folded on a phone.
@@ -234,8 +240,7 @@ struct ContentView: View {
         .safeAreaInset(edge: .trailing, spacing: 0) {
             if sizeClass == .regular, session.selection != nil {
                 infoPanel
-                    // Wide enough for the live strip's four cells and the chips on one line.
-                    .frame(width: 400)
+                    .frame(width: Self.cardWidth)
                     // Opaque: glass this large, blurring a globe that changes every
                     // frame, costs the compositor as much as the inspector did.
                     .background(Color(uiColor: .systemBackground))
@@ -277,6 +282,17 @@ struct ContentView: View {
         }
     }
 
+    /// How far the info card reaches in from the trailing edge: its width and its
+    /// margin, where it shows.
+    private var cardInset: CGFloat {
+        sizeClass == .regular && session.selection != nil ? Self.cardWidth + 12 : 0
+    }
+
+    /// Wide enough for the live strip's four cells and the chips on one line.
+    private static let cardWidth: CGFloat = 400
+    /// The menu column with its names, a gap and a 280 pt panel, and the margins.
+    private static let roomForNames: CGFloat = 520
+
     @ViewBuilder private var infoPanel: some View {
         switch session.selection {
         case .satellite(let id):
@@ -306,7 +322,8 @@ struct ContentView: View {
 /// stays open beneath it; from the top-right corner, where the button is, as a
 /// popover on iPad.
 private enum ShareSheet {
-    static func present(_ url: URL) {
+    /// `trailingInset` is the info card's, which the Share button moves aside for.
+    static func present(_ url: URL, trailingInset: CGFloat) {
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
         guard var top = scene?.keyWindow?.rootViewController else {
             return
@@ -317,7 +334,8 @@ private enum ShareSheet {
         let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
         if let popover = sheet.popoverPresentationController, let window = scene?.keyWindow {
             popover.sourceView = window
-            popover.sourceRect = CGRect(x: window.bounds.maxX - window.safeAreaInsets.right - 44, y: window.safeAreaInsets.top + 44, width: 1, height: 1)
+            popover.sourceRect = CGRect(
+                x: window.bounds.maxX - window.safeAreaInsets.right - trailingInset - 44, y: window.safeAreaInsets.top + 44, width: 1, height: 1)
         }
         top.present(sheet, animated: true)
     }
