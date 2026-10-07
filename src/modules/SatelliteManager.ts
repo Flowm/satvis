@@ -242,7 +242,7 @@ export class SatelliteManager {
 
   #applyGroundStations(stations: readonly SerializedGroundStation[]): void {
     this.#stations.forEach((station) => station.hide());
-    this.#stations = stations.map((station) =>
+    this.#stations = stations.map((station, index) =>
       this.createGroundstation(
         {
           latitude: station.lat,
@@ -251,6 +251,7 @@ export class SatelliteManager {
           cartesian: Cartesian3.fromDegrees(station.lon, station.lat, 0),
         },
         station.name ?? "",
+        index,
       ),
     );
     this.activeSatellites.forEach((sat) => {
@@ -643,8 +644,9 @@ export class SatelliteManager {
     }
   }
 
-  createGroundstation(position: GroundStationPositionData, name: string): GroundStationEntity {
-    const groundStation = new GroundStationEntity(this.viewer, this, position, name);
+  /** `index` is its place in the store's list. */
+  createGroundstation(position: GroundStationPositionData, name: string, index = 0): GroundStationEntity {
+    const groundStation = new GroundStationEntity(this.viewer, this, position, name, index);
     groundStation.show();
     return groundStation;
   }

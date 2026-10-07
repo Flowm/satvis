@@ -24,11 +24,15 @@ export class GroundStationEntity {
 
   givenName: string;
 
-  constructor(viewer: Viewer, sats: SatelliteManager, position: GroundStationPositionData, givenName: string = "") {
+  /** Its place in the store's list, which every station edit and the observer designation name it by. */
+  readonly index: number;
+
+  constructor(viewer: Viewer, sats: SatelliteManager, position: GroundStationPositionData, givenName: string = "", index = 0) {
     this.#viewer = viewer;
     this.sats = sats;
     this.position = position;
     this.givenName = givenName;
+    this.index = index;
 
     const billboard = new BillboardGraphics({
       image: icon,

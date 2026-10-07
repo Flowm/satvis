@@ -195,7 +195,6 @@ import { externalLinks } from "../config/externalLinks";
 import { ORBIT_CLASS_COLOR, type OrbitClass } from "../config/orbitClass";
 import { SKY_MODE } from "../config/viewModes";
 import { formatCountdown, passSummary, type Pass } from "../modules/PassPredictor";
-import { renamed } from "../modules/util/groundStationEdits";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 import PassTimeline from "./PassTimeline.vue";
@@ -355,11 +354,8 @@ function commitRename(): void {
   if (sel?.kind !== "groundstation") {
     return;
   }
-  const index = cc.sats.groundStations.indexOf(sel.gs);
-  if (index < 0) {
-    return;
-  }
-  satStore.setGroundStations(renamed(satStore.groundStations, index, draftName.value));
+  const { index } = sel.gs;
+  satStore.renameGroundStation(index, draftName.value);
   // The write rebuilds every station entity and drops the selection; re-select the replacement.
   nextTick(() => cc.sats.groundStations[index]?.select());
 }

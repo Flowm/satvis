@@ -551,7 +551,7 @@ export class CesiumController {
    */
   private addGroundStation(lat: number, lon: number, name = ""): void {
     const satStore = useSatStore();
-    satStore.setGroundStations([...satStore.groundStations, { lat, lon, ...(name ? { name } : {}) }]);
+    satStore.addGroundStation({ lat, lon, ...(name ? { name } : {}) });
   }
 
   /** Cesium's own chrome is only the fullscreen button. */

@@ -36,7 +36,6 @@ export function useGeolocation(cc: CesiumController): { pending: Readonly<Ref<bo
     }
     pending.value = true;
     try {
-      // The controller is the only writer of ground stations.
       await cc.setGroundStationFromGeolocation();
     } finally {
       pending.value = false;

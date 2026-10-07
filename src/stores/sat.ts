@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 
 import { SATELLITE_COMPONENTS } from "../config/components";
 import { sameValue } from "../modules/util/equality";
+import { moved, observerAfterMove, observerAfterRemoval, relocated, renamed, repositioned, without } from "../modules/util/groundStationEdits";
 import { closedStringList, enumString, groundStationList, plainString, stringList, tildeEscapedStringList } from "../modules/util/urlCodec";
 
 export interface SerializedGroundStation {
@@ -67,7 +68,7 @@ export const useSatStore = defineStore(
     const observer = ref(0);
     const observerStation = computed(() => Math.min(observer.value, Math.max(0, stations.value.length - 1)));
 
-    /** An index past the end is ignored. */
+    /** Designates the observer. An index past the end is ignored. */
     function setObserverStation(index: number): void {
       if (!Number.isInteger(index) || index < 0 || index >= stations.value.length) {
         return;
@@ -87,11 +88,15 @@ export const useSatStore = defineStore(
       return safe === "" ? undefined : safe;
     }
 
-    /** Drops unusable coordinates and duplicates. */
-    function setGroundStations(next: readonly SerializedGroundStation[]): void {
-      const seen = new Set<string>();
+    /**
+     * Drops unusable coordinates and duplicates, and puts the observer on the station
+     * `observerAt` named in `next`: on the copy kept, should that one be a duplicate.
+     */
+    function replaceStations(next: readonly SerializedGroundStation[], observerAt: number): void {
+      const kept = new Map<string, number>();
       const valid: SerializedGroundStation[] = [];
-      for (const station of next) {
+      let nextObserver = 0;
+      for (const [index, station] of next.entries()) {
         if (!Number.isFinite(station.lat) || !Number.isFinite(station.lon)) {
           continue;
         }
@@ -99,14 +104,59 @@ export const useSatStore = defineStore(
         const lon = roundCoordinate(station.lon);
         const name = wireSafeName(station.name);
         const key = `${lat}|${lon}|${name ?? ""}`;
-        if (seen.has(key)) {
-          continue;
+        let at = kept.get(key);
+        if (at === undefined) {
+          at = valid.length;
+          kept.set(key, at);
+          valid.push(name === undefined ? { lat, lon } : { lat, lon, name });
         }
-        seen.add(key);
-        valid.push(name === undefined ? { lat, lon } : { lat, lon, name });
+        if (index === observerAt) {
+          nextObserver = at;
+        }
       }
       if (!sameValue(valid, stations.value)) {
         stations.value = valid;
+      }
+      observer.value = nextObserver;
+    }
+
+    /** Replaces the list, as the url does. The observer keeps its place in it. */
+    function setGroundStations(next: readonly SerializedGroundStation[]): void {
+      replaceStations(next, observerStation.value);
+    }
+
+    // The edits a person makes. Each keeps the observer on the station it designates
+    // (CONTEXT.md, Observer), so no caller pairs a list edit with a designation edit.
+
+    /** Appended; `observe` designates it. */
+    function addGroundStation(station: SerializedGroundStation, { observe = false } = {}): void {
+      replaceStations([...stations.value, station], observe ? stations.value.length : observerStation.value);
+    }
+
+    /** Removing the observer hands it to the first station. */
+    function removeGroundStation(index: number): void {
+      replaceStations(without(stations.value, index), observerAfterRemoval(observerStation.value, index, stations.value.length));
+    }
+
+    /** By `by` places. Unchanged if the move would leave the list. */
+    function moveGroundStation(index: number, by: number): void {
+      replaceStations(moved(stations.value, index, by), observerAfterMove(observerStation.value, index, by, stations.value.length));
+    }
+
+    /** An empty name removes it. */
+    function renameGroundStation(index: number, name: string): void {
+      replaceStations(renamed(stations.value, index, name), observerStation.value);
+    }
+
+    function relocateGroundStation(index: number, field: "lat" | "lon", value: number): void {
+      replaceStations(relocated(stations.value, index, field, value), observerStation.value);
+    }
+
+    /** Where a sky-view walk ends: the observer's station moves, keeping its name and list position. */
+    function repositionObserver(lat: number, lon: number): void {
+      const at = observerStation.value;
+      if (stations.value[at]) {
+        replaceStations(repositioned(stations.value, at, lat, lon), at);
       }
     }
 
@@ -123,6 +173,12 @@ export const useSatStore = defineStore(
       setActivation,
       setGroundStations,
       setObserverStation,
+      addGroundStation,
+      removeGroundStation,
+      moveGroundStation,
+      renameGroundStation,
+      relocateGroundStation,
+      repositionObserver,
     };
   },
   {

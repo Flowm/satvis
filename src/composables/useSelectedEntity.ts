@@ -207,8 +207,7 @@ export function useSelectedEntity(instance: CesiumController) {
     if (sel?.kind !== "groundstation") {
       return;
     }
-    // `sats.groundStations` is built by mapping the store array, so indices agree.
-    useSatStore().setObserverStation(cc().sats.groundStations.indexOf(sel.gs));
+    useSatStore().setObserverStation(sel.gs.index);
     useCesiumStore().sceneMode = SKY_MODE;
   }
 

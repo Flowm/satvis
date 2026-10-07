@@ -122,7 +122,9 @@ discussion; sharpen them here when they drift.
   against. The list order is presentation only: which station the sky view stands
   at is a separate designation (`sat.observerStation`), not a rank. The ground
   station panel edits the list in place and marks the observer; the mark is the
-  control that moves it.
+  control that moves it. Every edit goes through the sat store's station edits
+  (`addGroundStation`, `moveGroundStation`, ...), which keep the designation on its
+  station.
 - **Pass**: a time range in which a satellite serves a ground station, by
   line-of-sight elevation ("elevation" mode) or sensor footprint overlap ("swath"
   mode). In swath mode the side of the ground track the station is on matters,
