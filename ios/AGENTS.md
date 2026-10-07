@@ -105,7 +105,8 @@ macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
   `surface`…) are kept as they came and written into every link it makes.
   The view is kept as a link when the app goes to the background and reopened
   from it, without its time, so the app reopens live. Past a component's budget
-  (labels at 200 active satellites, ground station links at 500) it switches off
+  (labels at 200 active satellites, ground station links at 500, 3D models at 200
+  that have one) it switches off
   once, on the crossing, unless the link being opened names it, and a link then
   names it whenever it is on, as on the web (ADR 0001). Labels past 200 are still
   not drawn, even switched on: their atlas would outgrow a texture. A link's ground stations
