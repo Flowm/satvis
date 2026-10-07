@@ -40,3 +40,6 @@ Carthage/Build
 
 # App Store screenshots (scripts/screenshots.sh)
 screenshots/
+
+# PostHog key and host (Config/Base.xcconfig)
+Config/Analytics.xcconfig

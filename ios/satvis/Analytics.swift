@@ -22,8 +22,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 /// leaves PostHog not even set up.
 @Observable
 final class Analytics {
-    private static let projectToken = ""
-    private static let host = ""
+    /// PostHog's project key and host, from the build settings by way of
+    /// Info.plist (Config/Base.xcconfig): not committed, as the web app's are not,
+    /// and empty in a build without them, which then counts nothing.
+    private static let projectToken = Bundle.main.object(forInfoDictionaryKey: "PostHogProjectToken") as? String ?? ""
+    private static let host = Bundle.main.object(forInfoDictionaryKey: "PostHogHost") as? String ?? ""
     private static let sharingKey = "shareUsageData"
     /// Where usage may be counted at all: a release build on satvis.space, as
     /// the web app's, so that development, tests and a local worker count nothing.
@@ -50,7 +53,7 @@ final class Analytics {
         #if DEBUG
             return
         #else
-            guard site == WorkerClient.production else {
+            guard site == WorkerClient.production, !projectToken.isEmpty, !host.isEmpty else {
                 return
             }
             isAvailable = true

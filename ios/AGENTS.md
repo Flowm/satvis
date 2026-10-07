@@ -221,8 +221,12 @@ macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
   of the view's link whenever the view changes, the clock aside, its ground
   stations cut to the whole degree as the web's `posthogPrivacy.ts` does
   (`sanitizedForAnalytics`, held to it by the parity fixtures). It reports only
-  from a release build on satvis.space, so development, the UI tests and a local
-  worker count nothing; check a change with a Release build in the simulator,
+  from a release build on satvis.space with PostHog's project key and host, which
+  are not committed: `Config/Base.xcconfig` includes them from the gitignored
+  `Config/Analytics.xcconfig` (copy `Analytics.example.xcconfig`), and Xcode
+  Cloud's `ci_scripts/ci_post_clone.sh` writes that file from the workflow's
+  `POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST`. So development, the UI tests, a
+  local worker and a checkout without the file count nothing; check a change with a Release build in the simulator,
   whose events carry `$is_emulator`. "Share usage data", beside the privacy policy in the Attribution sheet, opts
   out; the web app has no switch, and so no menu entry to keep it in.
   The app keeps that choice (`shareUsageData` in `UserDefaults`), not PostHog:
@@ -231,8 +235,9 @@ macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
   are off by name: feature flags, default person properties, rage clicks.
 - `Info.plist` is generated from `INFOPLIST_KEY_*` build settings. The file
   `satvis/Info.plist` holds only the keys that have no build setting:
-  `UILaunchScreen`, `NSAppTransportSecurity` to allow a local worker, and the
-  background refresh's `UIBackgroundModes` and `BGTaskSchedulerPermittedIdentifiers`.
+  `UILaunchScreen`, `NSAppTransportSecurity` to allow a local worker, the
+  background refresh's `UIBackgroundModes` and `BGTaskSchedulerPermittedIdentifiers`,
+  and PostHog's key and host, passed through from the xcconfig.
 - Pass notifications (`PassAlerts`) are kept rather than sent once, as the web app
   sends them: the subjects are saved, and every launch, return to the foreground
   and background refresh predicts them again from the newest element sets and

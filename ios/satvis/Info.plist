@@ -6,6 +6,12 @@
 	<array>
 		<string>org.frcy.app.satvis.passes</string>
 	</array>
+	<!-- From Config/Base.xcconfig: empty unless Config/Analytics.xcconfig, which git
+	     ignores, sets them. -->
+	<key>PostHogHost</key>
+	<string>$(POSTHOG_HOST)</string>
+	<key>PostHogProjectToken</key>
+	<string>$(POSTHOG_PROJECT_TOKEN)</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
