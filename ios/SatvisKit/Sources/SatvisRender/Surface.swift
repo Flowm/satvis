@@ -450,7 +450,8 @@ final class Surface {
     }
 
     nonisolated private static func decode(_ data: Data, device: MTLDevice) -> MTLTexture? {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil), let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+        // Map tiles are 256 or 512 pixels a side.
+        guard let image = Textures.image(data, maximumSide: 2048) else {
             return nil
         }
         let bitmap = Bitmap(width: image.width, height: image.height, alpha: true) { context in

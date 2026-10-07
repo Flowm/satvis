@@ -25,6 +25,23 @@ struct Bitmap: Sendable {
 }
 
 enum Textures {
+    /// A downloaded image decoded, unless its header says it is larger than
+    /// `maximumSide` pixels either way: a few kilobytes of PNG can claim 20,000
+    /// pixels a side, and decoding it would take gigabytes.
+    static func image(_ data: Data, maximumSide: Int) -> CGImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+            let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+            let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
+            (1...maximumSide).contains(width), (1...maximumSide).contains(height),
+            let image = CGImageSourceCreateImageAtIndex(source, 0, nil),
+            image.width <= maximumSide, image.height <= maximumSide
+        else {
+            return nil
+        }
+        return image
+    }
+
     private static func image(_ url: URL) -> CGImage? {
         CGImageSourceCreateWithURL(url as CFURL, nil).flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) }
     }

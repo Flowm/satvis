@@ -33,7 +33,9 @@ final class PreparedModel: @unchecked Sendable {
         self.indices = indices
         parts = asset.parts.map { part in
             let material = asset.materials[part.material]
-            return Part(indexStart: part.indexStart, indexCount: part.indexCount, material: material, texture: material.texture.flatMap { textures[$0] })
+            return Part(
+                indexStart: part.indexStart, indexCount: part.indexCount, material: material,
+                texture: material.texture.flatMap { textures.indices.contains($0) ? textures[$0] : nil })
         }
         center = asset.center
         radius = asset.radius
