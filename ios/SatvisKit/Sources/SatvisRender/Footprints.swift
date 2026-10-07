@@ -26,6 +26,10 @@ final class GroundOverlay {
     private var isEmpty = false
     /// Set when the satellites change, so the next frame draws them.
     var isStale = true
+    /// Whether corridors are being worked out, off the main thread.
+    private var isBuilding = false
+    /// Corridors worked out and not yet drawn, and the instant they are for.
+    private var built: (vertices: [(Float, Float, Float)], at: Double)?
 
     init?(device: MTLDevice) {
         let descriptor = MTLTextureDescriptor.textureCubeDescriptor(pixelFormat: .r8Unorm, size: Self.size, mipmapped: false)
@@ -38,7 +42,9 @@ final class GroundOverlay {
     }
 
     /// Draws the ground tracks into the overlay when they are due, or clears it
-    /// once when they are switched off.
+    /// once when they are switched off. They are worked out off the main thread
+    /// and drawn by the first frame after: for 8,000 Starlink satellites that work
+    /// took 7 ms on a Mac, once a second, a dropped frame on a phone.
     func encode(_ commands: MTLCommandBuffer, pipeline: MTLRenderPipelineState, satellites: [PointSatellite], at now: Double, enabled: Bool, device: MTLDevice) {
         if !enabled {
             if !isEmpty {
@@ -46,17 +52,29 @@ final class GroundOverlay {
                 isEmpty = true
             }
             drawnAt = nil
+            built = nil
             return
         }
-        guard isStale || drawnAt.map({ abs(now - $0) >= Self.refreshMilliseconds }) ?? true else {
+        if let built {
+            let vertices = built.vertices
+            let buffer = vertices.isEmpty ? nil : vertices.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) }
+            draw(commands, pipeline: pipeline, vertices: buffer, count: vertices.count)
+            isEmpty = vertices.isEmpty
+            drawnAt = built.at
+            self.built = nil
+        }
+        guard !isBuilding, isStale || drawnAt.map({ abs(now - $0) >= Self.refreshMilliseconds }) ?? true else {
             return
         }
-        let vertices = Self.corridors(satellites, at: now)
-        let buffer = vertices.isEmpty ? nil : vertices.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) }
-        draw(commands, pipeline: pipeline, vertices: buffer, count: vertices.count)
-        isEmpty = vertices.isEmpty
-        drawnAt = now
+        isBuilding = true
         isStale = false
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let vertices = Self.corridors(satellites, at: now)
+            await MainActor.run {
+                self?.built = (vertices, now)
+                self?.isBuilding = false
+            }
+        }
     }
 
     func drawForTest(_ commands: MTLCommandBuffer, pipeline: MTLRenderPipelineState, vertices: MTLBuffer, count: Int) {
