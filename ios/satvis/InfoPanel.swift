@@ -25,6 +25,18 @@ struct InfoPanel: View {
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         LiveStrip(position: try? propagator?.livePosition(epochMilliseconds: clock.now()))
                     }
+                    // The web app's notice, amber as the deck's way back to rest.
+                    TimelineView(.periodic(from: .now, by: 1)) { _ in
+                        if let propagator,
+                            let notice = SatelliteDetails.staleElementsNotice(
+                                epochMilliseconds: SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate), time: clock.now())
+                        {
+                            Label(notice, systemImage: "exclamationmark.triangle")
+                                .font(.footnote)
+                                .foregroundStyle(Color.deckAmber)
+                                .accessibilityHint("Only the latest element set is kept, so positions far from its epoch drift by kilometres to thousands of kilometres.")
+                        }
+                    }
                     Picker("Tab", selection: $tab) {
                         ForEach(InfoTab.allCases, id: \.self) { Text($0.rawValue.capitalized) }
                     }

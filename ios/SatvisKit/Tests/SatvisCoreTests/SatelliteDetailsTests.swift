@@ -10,6 +10,7 @@ import Testing
         struct Elements: Decodable {
             let kind: String
             let epoch: String
+            let epochMs: Double
             let lines: String?
             let rows: [[String]]?
         }
@@ -30,6 +31,7 @@ import Testing
             let facts = SatelliteDetails.facts(record, propagator: propagator).map { [$0.0, $0.1] }
             #expect(facts == expected.facts, "\(record.name)")
 
+            #expect(abs(SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate) - expected.elements.epochMs) < 1, "\(record.name)")
             switch SatelliteDetails.elements(record, epochJulianDate: propagator.epochJulianDate) {
             case .tle(let epoch, let lines):
                 #expect(expected.elements.kind == "tle")
@@ -41,6 +43,19 @@ import Testing
                 #expect(rows.map { [$0.label, $0.value] } == expected.elements.rows, "\(record.name)")
             }
         }
+    }
+
+    // entityInfo.test.ts's cases.
+    @Test func flagsAClockFarFromTheEpoch() {
+        let epoch = 1_544_287_120_000.0
+        let day = 86_400_000.0
+        #expect(SatelliteDetails.staleElementsNotice(epochMilliseconds: epoch, time: epoch) == nil)
+        #expect(SatelliteDetails.staleElementsNotice(epochMilliseconds: epoch, time: epoch + 10 * day) == nil)
+        #expect(SatelliteDetails.staleElementsNotice(epochMilliseconds: epoch, time: epoch - 10 * day) == nil)
+        #expect(
+            SatelliteDetails.staleElementsNotice(epochMilliseconds: epoch, time: epoch + 30.4 * day) == "Position may be inaccurate, clock 30 days after element epoch")
+        #expect(
+            SatelliteDetails.staleElementsNotice(epochMilliseconds: epoch, time: epoch - 15 * day) == "Position may be inaccurate, clock 15 days before element epoch")
     }
 
     @Test func writesNumbersAsJavaScriptDoes() {

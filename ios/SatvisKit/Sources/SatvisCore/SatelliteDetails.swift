@@ -110,6 +110,24 @@ public enum SatelliteDetails {
         }
     }
 
+    /// More than this many days from the epoch, either way, a position may be off
+    /// (entityInfo.ts's `STALE_ELEMENTS_DAYS`): only the latest element set is kept.
+    public static let staleElementsDays = 10.0
+
+    /// The epoch in UTC milliseconds since 1970, as entityInfo.ts's `epochMs`.
+    public static func epochMilliseconds(julianDate: Double) -> Double {
+        (julianDate - 2440587.5) * msPerDay
+    }
+
+    /// entityInfo.ts's `staleElementsNotice`: nil within `staleElementsDays` of the epoch.
+    public static func staleElementsNotice(epochMilliseconds epoch: Double, time: Double) -> String? {
+        let offsetDays = (time - epoch) / msPerDay
+        guard abs(offsetDays) > staleElementsDays else {
+            return nil
+        }
+        return "Position may be inaccurate, clock \(Int(abs(offsetDays).rounded())) days \(offsetDays > 0 ? "after" : "before") element epoch"
+    }
+
     static func formatEpoch(julianDate: Double) -> String {
         let utc = civilDate(epochMilliseconds: ((julianDate - 2440587.5) * msPerDay).rounded())
         func two(_ value: Int) -> String { value < 10 ? "0\(value)" : "\(value)" }

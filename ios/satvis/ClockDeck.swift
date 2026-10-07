@@ -412,7 +412,7 @@ private struct Ladder: View {
 extension Color {
     fileprivate static let deckInk = Color(red: 0xED / 255, green: 1, blue: 1)
     /// The app's colour for "not where it rests": the needle and the reset.
-    fileprivate static let deckAmber = Color(red: 1, green: 0xD4 / 255, blue: 0x79 / 255)
+    static let deckAmber = Color(red: 1, green: 0xD4 / 255, blue: 0x79 / 255)
     fileprivate static let deckNight = Color(red: 0x14 / 255, green: 0x18 / 255, blue: 0x1C / 255)
     fileprivate static let deckSurface = deckNight.opacity(0.92)
 }
