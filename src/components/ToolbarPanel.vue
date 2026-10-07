@@ -42,7 +42,7 @@ const emit = defineEmits<{ close: [] }>();
   padding-right: 12px;
 }
 
-/* 32px with the divider, level with the divider under the Menu row. */
+/* With the divider, level with the divider under the Menu row. */
 .toolbarPanel__header {
   flex: none;
   box-sizing: border-box;
@@ -50,7 +50,7 @@ const emit = defineEmits<{ close: [] }>();
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  height: 32px;
+  height: var(--toolbar-row);
   margin-bottom: 4px;
   padding-left: 4px;
   border-bottom: 1px solid #ffffff1f;
@@ -80,6 +80,12 @@ const emit = defineEmits<{ close: [] }>();
 .toolbarPanel__close:focus-visible {
   outline: 2px solid #7fd2ea;
   outline-offset: -2px;
+}
+
+@media (pointer: coarse) {
+  .toolbarPanel__close {
+    padding: 10px;
+  }
 }
 
 @media (hover: hover) {

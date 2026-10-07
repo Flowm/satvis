@@ -68,20 +68,24 @@
     </div>
 
     <div class="gsList__actions">
-      <button type="button" :class="{ 'gsList__action--on': pickMode }" @click="pickMode = !pickMode">Pick on globe</button>
+      <button type="button" :class="{ 'gsList__action--on': pickMode }" :aria-pressed="pickMode" @click="pickMode = !pickMode">
+        <UIcon name="lucide:crosshair" />
+        {{ pickMode ? "Cancel pick" : "Pick on globe" }}
+      </button>
       <button type="button" :disabled="locating" @click="void locate()">
         <span v-if="locating" class="toolbarSpinner gsList__spinner"></span>
         My location
       </button>
     </div>
 
+    <div v-if="pickMode" class="toolbarNote gsList__pickNote">Choose a spot on the globe for the station.</div>
     <div class="toolbarNote">The sky view stands at ◉, click a number to move it.</div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
-import { nextTick, ref } from "vue";
+import { nextTick, ref, watch } from "vue";
 
 import { useController } from "../composables/useController";
 import { useGeolocation } from "../composables/useGeolocation";
@@ -105,6 +109,10 @@ const cc = useController();
 const satStore = useSatStore();
 const { groundStations: stations, observerStation } = storeToRefs(satStore);
 const { pickMode } = storeToRefs(useCesiumStore());
+// The canvas, not a class on the page: Cesium's own widgets keep their cursors.
+watch(pickMode, (on) => {
+  cc.viewer.scene.canvas.style.cursor = on ? "crosshair" : "";
+});
 const { pending: locating, locate } = useGeolocation(cc);
 
 /**
@@ -385,9 +393,16 @@ function offsetOf(index: number): number {
 }
 
 /* Pick mode stays on until a click on the globe. */
-.gsList__action--on {
-  border-color: #4ade80;
+.gsList__actions .gsList__action--on,
+.gsList__actions .gsList__action--on:hover:not(:disabled) {
+  background-color: #4ade80;
+  color: #14281b;
+  font-weight: 600;
+}
+
+.gsList__pickNote {
   color: #4ade80;
+  opacity: 1;
 }
 
 .gsList__spinner {

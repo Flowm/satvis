@@ -45,6 +45,20 @@ body {
   /* `body.clock-deck` moves the line up. */
   --credit-bottom: var(--credit-corner-bottom);
   --credit-left: var(--credit-corner-left);
+
+  /* The top row: the Menu toggle, the top-right buttons, a panel's header, and the
+     entity info panel's offset below them. */
+  --toolbar-row: 32px;
+  /* From the menu column's border to an icon. */
+  --menu-inset: 5px;
+}
+
+/* A finger needs 44px. The icons move in to keep the column square when collapsed. */
+@media (pointer: coarse) {
+  :root {
+    --toolbar-row: 44px;
+    --menu-inset: 10px;
+  }
 }
 
 /* Above the sky HUD (z-4) and the entity info panel (z-5), so the sky view's exit stays
@@ -56,8 +70,8 @@ body {
   z-index: 7;
   display: flex;
   align-items: flex-start;
-  /* Beside the collapsed 32px column: 43px of insets and margins on the left, 5px on the right. */
-  --toolbar-panel-max: calc(100vw - 48px - var(--safe-left) - var(--safe-right));
+  /* Beside the collapsed column, 2 × inset + 22px wide: 16px of insets and margins around it. */
+  --toolbar-panel-max: calc(100vw - 38px - 2 * var(--menu-inset) - var(--safe-left) - var(--safe-right));
   /* The box spans the column and a panel; the globe takes the drag in the gaps. */
   pointer-events: none;
 }
@@ -105,13 +119,12 @@ body {
   overflow: hidden;
 }
 
-/* Icons centre 16px from the outer edge, as in a 32px toolbar button. */
 .menuColumn__toggle,
 .menuColumn__item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 10px 0 5px;
+  padding: 0 10px 0 var(--menu-inset);
   background: none;
   border: none;
   color: #edffff;
@@ -120,14 +133,20 @@ body {
   cursor: pointer;
 }
 
-/* 32px with the column's border. */
+/* The row with the column's 2px of border; the larger icon starts 1px further out. */
 .menuColumn__toggle {
-  height: 30px;
-  padding-left: 4px;
+  height: calc(var(--toolbar-row) - 2px);
+  padding-left: calc(var(--menu-inset) - 1px);
 }
 
 .menuColumn__item {
   height: 34px;
+}
+
+@media (pointer: coarse) {
+  .menuColumn__item {
+    height: 44px;
+  }
 }
 
 @media (hover: hover) {
@@ -187,11 +206,11 @@ body {
   }
 
   .toolbarLeft--panelOpen .menuColumn__item {
-    padding-right: 5px;
+    padding-right: var(--menu-inset);
   }
 
   .toolbarLeft--panelOpen .menuColumn__toggle {
-    padding-right: 4px;
+    padding-right: calc(var(--menu-inset) - 1px);
   }
 }
 
@@ -316,6 +335,8 @@ input:checked + .slider::before {
 
 /* Without flex the block-level Iconify SVGs hug the button's left edge. */
 #toolbarRight .cesium-toolbar-button {
+  width: var(--toolbar-row);
+  height: var(--toolbar-row);
   align-items: center;
   justify-content: center;
   display: inline-flex;

@@ -114,30 +114,6 @@
           </label>
         </template>
       </toolbar-panel>
-      <toolbar-panel v-show="menu.ios" title="Mobile" @close="closePanel('ios')">
-        <label class="toolbarSwitch">
-          <input v-model="cc.viewer.scene.useWebVR" type="checkbox" />
-          <span class="slider"></span>
-          VR
-        </label>
-        <label class="toolbarSwitch">
-          <input v-model="cc.viewer.clock.shouldAnimate" type="checkbox" />
-          <span class="slider"></span>
-          Play
-        </label>
-        <label class="toolbarSwitch">
-          <input type="button" @click="cc.viewer.clockViewModel.multiplier *= 2" />
-          Increase play speed
-        </label>
-        <label class="toolbarSwitch">
-          <input type="button" @click="cc.viewer.clockViewModel.multiplier /= 2" />
-          Decrease play speed
-        </label>
-        <label class="toolbarSwitch">
-          <input type="button" @click="reload" />
-          Reload
-        </label>
-      </toolbar-panel>
       <toolbar-panel v-show="menu.render" title="Graphics" @close="closePanel('render')">
         <div class="toolbarTitle">Measurement</div>
         <label class="toolbarSwitch">
@@ -194,14 +170,9 @@
     </div>
     <div id="toolbarRight">
       <about-dialog v-if="showUI" />
-      <UTooltip v-if="showUI" text="Github">
-        <a class="cesium-button cesium-toolbar-button" href="https://github.com/Flowm/satvis/" target="_blank" rel="noopener">
-          <UIcon name="fa6-brands:github" />
-        </a>
-      </UTooltip>
-      <UTooltip text="Toggle UI">
-        <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleUI">
-          <UIcon name="lucide:eye" />
+      <UTooltip :text="showUI ? 'Hide UI' : 'Show UI'">
+        <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="showUI ? 'Hide UI' : 'Show UI'" @click="toggleUI">
+          <UIcon :name="showUI ? 'lucide:eye' : 'lucide:eye-off'" />
         </button>
       </UTooltip>
     </div>
@@ -236,7 +207,7 @@ import SatelliteBrowser from "./SatelliteBrowser.vue";
 import SkyHud from "./SkyHud.vue";
 import ToolbarPanel from "./ToolbarPanel.vue";
 
-type MenuKey = "cat" | "sat" | "gs" | "map" | "view" | "ios" | "render";
+type MenuKey = "cat" | "sat" | "gs" | "map" | "view" | "render";
 
 /** Async, so the benchmark stays out of the main bundle. */
 const BenchmarkPanel = defineAsyncComponent(() => import("./BenchmarkPanel.vue"));
@@ -249,7 +220,6 @@ const menu = reactive<Record<MenuKey, boolean>>({
   gs: false,
   map: false,
   view: false,
-  ios: false,
   render: false,
 });
 const anyMenuOpen = computed(() => Object.values(menu).some(Boolean));
@@ -264,19 +234,14 @@ const isNarrow = (): boolean => window.innerWidth > 0 && window.innerWidth < 640
 const menuExpanded = ref(!isNarrow());
 
 /** `hint` is the hover text, saying what is behind an entry. */
-const menuItems = computed(() =>
-  (
-    [
-      { key: "cat", label: "Satellites", icon: "lucide:satellite", hint: "Search and pick which satellites to show" },
-      { key: "sat", label: "Components", icon: "lucide:orbit", hint: "Orbits, ground tracks, labels and sensor cones" },
-      { key: "gs", label: "Ground station", icon: "lucide:map-pin", hint: "Your location, for pass predictions" },
-      { key: "map", label: "Map", icon: "lucide:layers", hint: "Basemap, overlays, terrain and stars" },
-      { key: "view", label: "View", icon: "lucide:telescope", hint: "Globe, flat map or sky view, and the camera" },
-      { key: "ios", label: "Mobile", icon: "lucide:smartphone", hint: "VR, playback and reload" },
-      { key: "render", label: "Graphics", icon: "lucide:gauge", hint: "Quality, effects and performance" },
-    ] satisfies { key: MenuKey; label: string; icon: string; hint: string }[]
-  ).filter((item) => item.key !== "ios" || cc.minimalUI),
-);
+const menuItems: { key: MenuKey; label: string; icon: string; hint: string }[] = [
+  { key: "cat", label: "Satellites", icon: "lucide:orbit", hint: "Search and pick which satellites to show" },
+  { key: "sat", label: "Components", icon: "lucide:satellite", hint: "Orbits, ground tracks, labels and sensor cones" },
+  { key: "gs", label: "Ground station", icon: "lucide:map-pin", hint: "Your location, for pass predictions" },
+  { key: "map", label: "Map", icon: "lucide:layers", hint: "Basemap, overlays, terrain and stars" },
+  { key: "view", label: "View", icon: "lucide:telescope", hint: "Globe, flat map or sky view, and the camera" },
+  { key: "render", label: "Graphics", icon: "lucide:gauge", hint: "Quality, effects and performance" },
+];
 
 const cesiumStore = useCesiumStore();
 const { layers, terrainProvider, surfaceModel, starMap, sceneMode, cameraMode, pixelRatio, msaa, showFps, showBenchmark, requestRenderMode } = storeToRefs(cesiumStore);
@@ -365,14 +330,61 @@ async function onCompassToggle(event: Event): Promise<void> {
   }
 }
 
+/** Aborted on unmount, removing the window listeners. */
+const windowListeners = new AbortController();
+
 onMounted(() => {
   showUI.value = !DeviceDetect.inIframe();
-  window.addEventListener("keydown", onEscape);
+  const { signal } = windowListeners;
+  window.addEventListener("keydown", onEscape, { signal });
+  // Capture, so the menu marks its tap before the Viewer's own pointerup handler picks.
+  window.addEventListener("pointerdown", onPointerDown, { capture: true, signal });
+  window.addEventListener("pointerup", onPointerUp, { capture: true, signal });
+  window.addEventListener("pointercancel", onPointerCancel, { capture: true, signal });
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener("keydown", onEscape);
+  windowListeners.abort();
 });
+
+/** Pixels a press on the globe may travel and still count as a tap rather than a drag. */
+const TAP_SLOP_PX = 8;
+
+/** The press on the globe that may close the menu on release. */
+let globePress: { id: number; x: number; y: number } | undefined;
+
+/** The main button on the globe only. A second finger is a pinch, so it drops the pending press. */
+function onPointerDown(event: PointerEvent): void {
+  const onGlobe = event.target === cc.viewer.scene.canvas && event.button === 0;
+  globePress = event.isPrimary && onGlobe ? { id: event.pointerId, x: event.clientX, y: event.clientY } : undefined;
+}
+
+/**
+ * A tap on the globe returns the menu to how it starts: no panel, and on a phone a folded column. The tap
+ * still selects what it hits, but a miss keeps the selection. Pick mode leaves the menu open, so the new
+ * station shows in its panel.
+ */
+function onPointerUp(event: PointerEvent): void {
+  const press = globePress;
+  globePress = undefined;
+  if (!press || press.id !== event.pointerId || Math.hypot(event.clientX - press.x, event.clientY - press.y) > TAP_SLOP_PX || cesiumStore.pickMode) {
+    return;
+  }
+  const foldColumn = isNarrow() && menuExpanded.value;
+  if (!anyMenuOpen.value && !foldColumn) {
+    return;
+  }
+  closeMenus();
+  if (foldColumn) {
+    menuExpanded.value = false;
+  }
+  cc.keepSelectionOnEmptyClick();
+}
+
+/** A cancelled press is no tap. */
+function onPointerCancel(): void {
+  globePress = undefined;
+}
 
 function toggleMenu(name: MenuKey) {
   const oldState = menu[name];
@@ -437,9 +449,5 @@ function toggleUI() {
   showUI.value = !showUI.value;
   // cc owns the Cesium fullscreen button, which showUI also hides.
   cc.showUI = showUI.value;
-}
-
-function reload() {
-  window.location.reload();
 }
 </script>
