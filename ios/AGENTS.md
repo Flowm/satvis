@@ -38,7 +38,9 @@ macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
   rows at a time: a float cannot place a pixel at level 19. Tiles come through
   `TileFetcher`, a URLSession with its own 500 MB cache in Caches, served from
   the cache whatever their age, which leaves a host alone for as long as a 429
-  asks. The base map and the terrain are the Map menu's, kept between launches.
+  asks. Natural Earth's levels 3 to 5 are kept for good instead (`KeptTiles`, in
+  Application Support), since the whole pyramid is 17 MB: a place seen once
+  shows offline, whatever the system purges. The base map and the terrain are the Map menu's, kept between launches.
 - Terrain (`Terrain.swift`) is Re:Earth's quantized mesh, decoded and kept per
   terrain tile; a surface tile's grid is laid over the terrain tile log₂(screen
   scale) levels coarser, the level the web app would ask for, so the app asks

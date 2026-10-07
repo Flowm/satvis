@@ -58,6 +58,7 @@ final class Session {
         }
     }
     @ObservationIgnored private let tiles = TileFetcher.shared()
+    @ObservationIgnored private let keptTiles = KeptTiles.applicationSupport()
     /// The days GIBS has VIIRS for, and when it was last asked.
     @ObservationIgnored private var viirsDays: ClosedRange<String>?
     @ObservationIgnored private var viirsDaysAsked: Date?
@@ -124,9 +125,16 @@ final class Session {
     func attach(_ renderer: GlobeRenderer) {
         self.renderer = renderer
         renderer.clock = { [clock] in clock.now() }
-        renderer.tileLoader = { [tiles] request in
+        renderer.tileLoader = { [tiles, keptTiles] request in
+            if request.keeps, let data = keptTiles.read(request.url) {
+                return data
+            }
             do {
-                return try await tiles.tile(request.url, contentType: request.contentType, headers: request.headers)
+                let data = try await tiles.tile(request.url, contentType: request.contentType, headers: request.headers)
+                if request.keeps {
+                    keptTiles.keep(data, for: request.url)
+                }
+                return data
             } catch is CancellationError {
                 return nil
             } catch let error as URLError where error.code == .cancelled {

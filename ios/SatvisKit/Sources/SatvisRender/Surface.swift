@@ -414,11 +414,12 @@ final class Surface {
             return
         }
         let contentType = source.contentType
+        let keeps = source.keeps
         let layer = layer
         let generation = sourceGeneration
         let device = device
         let work = Task.detached(priority: .utility) { () -> DecodedTile? in
-            guard let data = await loader(TileRequest(url: url, contentType: contentType, headers: [:])) else {
+            guard let data = await loader(TileRequest(url: url, contentType: contentType, headers: [:], keeps: keeps)) else {
                 return nil
             }
             return Self.decode(data, device: device).map(DecodedTile.init)
@@ -622,6 +623,8 @@ public struct TileRequest: Sendable {
     /// What the answer's Content-Type must start with.
     public var contentType: String
     public var headers: [String: String]
+    /// Kept for good once fetched, rather than in a cache the system may purge.
+    public var keeps = false
 }
 
 /// A source tile decoded off the main thread: finished before it is handed over,

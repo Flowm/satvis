@@ -100,6 +100,9 @@ struct ImagerySource: Sendable {
     var maximumLevel: Int
     /// What the answer's Content-Type must start with.
     var contentType: String
+    /// Whether its tiles are kept for good once fetched rather than cached
+    /// (`TileRequest.keeps`): only for a pyramid small enough to keep whole.
+    var keeps = false
     var url: @Sendable (TileKey) -> URL?
 
     /// The source level whose texels best match a surface tile's at `level`: a
@@ -131,12 +134,13 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
     public var isDaily: Bool { self == .viirs }
 
     /// Where its tiles come from. Natural Earth is the site's own, levels 3 to 5:
-    /// the app ships level 2 and draws everything over it. `frame` is a daily
+    /// the app ships level 2 and draws everything over it, and keeps each finer
+    /// tile once fetched, 17 MB for the lot, so that a place seen once shows offline. `frame` is a daily
     /// layer's day, `YYYY-MM-DD`; nil asks GIBS for its latest.
     func source(site: URL, frame: String? = nil) -> ImagerySource {
         switch self {
         case .naturalEarth:
-            ImagerySource(projection: .geographic, tileSize: 256, maximumLevel: 5, contentType: "image/") { key in
+            ImagerySource(projection: .geographic, tileSize: 256, maximumLevel: 5, contentType: "image/", keeps: true) { key in
                 // A TMS pyramid: rows counted from the south.
                 site.appending(path: "data/imagery/NaturalEarthII/\(key.level)/\(key.x)/\((1 << key.level) - 1 - key.y).webp")
             }

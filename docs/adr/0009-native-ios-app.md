@@ -43,7 +43,10 @@ SwiftUI draws all the controls over the `MTKView`.
 
 - Natural Earth's level 2 ships in the app, so the first launch works with no
   network: the web app's committed tiles, copied in by the app target, not a
-  second copy. Its finer levels, 3 to 5, stream from the site as the web app's do.
+  second copy. Its finer levels, 3 to 5, stream from the site as the web app's do,
+  and are kept once fetched, 17 MB for the whole pyramid, so that a place seen
+  once shows offline. Bundling them was rejected: the same bytes, but every
+  install pays for all of them.
 - VersaTiles satellite, NASA Black Marble and VIIRS stream as the user zooms. The
   surface is a quadtree of geographic tiles, as CesiumJS's, and each tile's
   texture is baked from the base map's tiles: VersaTiles's and VIIRS's Web
