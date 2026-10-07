@@ -29,6 +29,39 @@ import simd
         #expect(onWest && onNorth)
     }
 
+    /// The fixture with `bytes` written at `offset`, little-endian.
+    private static func corrupted(at offset: Int, _ bytes: [UInt8]) throws -> Data {
+        let url = try #require(Bundle.module.url(forResource: "10-1086-781", withExtension: "terrain", subdirectory: "Fixtures"))
+        var data = try Data(contentsOf: url)
+        data.replaceSubrange(offset..<(offset + bytes.count), with: bytes)
+        return data
+    }
+
+    // A tile cut short anywhere, as a dropped connection leaves it, is refused, not
+    // read past its end.
+    @Test func refusesATruncatedTile() throws {
+        let url = try #require(Bundle.module.url(forResource: "10-1086-781", withExtension: "terrain", subdirectory: "Fixtures"))
+        let data = try Data(contentsOf: url)
+        for length in stride(from: 0, to: data.count - 1, by: 997) {
+            #expect(throws: QuantizedMesh.DecodingError.self) { try QuantizedMesh(data.prefix(length)) }
+        }
+    }
+
+    // Counts and indices the tile's data cannot hold, which had crashed the app
+    // whenever the cached tile came into view. In this tile the vertex count is at
+    // byte 88, the first triangle index at 24726 and the first west-edge index at
+    // 72490, as the format lays out 4105 vertices and 7960 triangles.
+    @Test func refusesCountsAndIndicesPastTheVertices() throws {
+        // Some 4 billion vertices.
+        #expect(throws: QuantizedMesh.DecodingError.self) { try QuantizedMesh(Self.corrupted(at: 88, [0xFF, 0xFF, 0xFF, 0xFF])) }
+        // A first index above the high-water mark, which wrapped round to 4 billion.
+        #expect(throws: QuantizedMesh.DecodingError.malformed) { try QuantizedMesh(Self.corrupted(at: 24726, [0xFF, 0xFF])) }
+        // An edge vertex past the last vertex.
+        #expect(throws: QuantizedMesh.DecodingError.malformed) { try QuantizedMesh(Self.corrupted(at: 72490, [0xFF, 0xFF])) }
+        // A height range that is not a number.
+        #expect(throws: QuantizedMesh.DecodingError.malformed) { try QuantizedMesh(Self.corrupted(at: 24, [0x00, 0x00, 0xC0, 0x7F])) }
+    }
+
     // The Zugspitze, 2,962 m, stands in this tile: its summit is the high ground.
     @Test func findsTheGroundUnderAPoint() throws {
         let source = TerrainSource(mesh: try Self.tile(), key: Self.key)
