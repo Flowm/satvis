@@ -74,7 +74,7 @@ final class Surface {
     }
 
     private enum Source {
-        case loading
+        case loading(Task<DecodedTile?, Never>)
         case ready(MTLTexture, lastUsed: Int)
         case failed(at: Date)
     }
@@ -131,6 +131,10 @@ final class Surface {
         self.layer = layer
         self.site = site
         source = layer.source(site: site)
+        // The old map's tiles still on their way would only be dropped on arrival.
+        for case .loading(let work) in sources.values {
+            work.cancel()
+        }
         sources = [:]
         for tile in tiles.values {
             tile.needsBake = true
@@ -401,19 +405,20 @@ final class Surface {
             sources[key] = .failed(at: Date())
             return
         }
-        sources[key] = .loading
         let contentType = source.contentType
         let layer = layer
         let device = device
+        let work = Task.detached(priority: .utility) { () -> DecodedTile? in
+            guard let data = await loader(TileRequest(url: url, contentType: contentType, headers: [:])) else {
+                return nil
+            }
+            return Self.decode(data, device: device).map(DecodedTile.init)
+        }
+        sources[key] = .loading(work)
         Task {
-            let texture = await Task.detached(priority: .utility) { () -> DecodedTile? in
-                guard let data = await loader(TileRequest(url: url, contentType: contentType, headers: [:])) else {
-                    return nil
-                }
-                return Self.decode(data, device: device).map(DecodedTile.init)
-            }.value?.texture
-            // A tile of a base map no longer shown is dropped.
-            guard layer == self.layer else {
+            let texture = await work.value?.texture
+            // A tile of a base map no longer shown, or cancelled as flown past, is dropped.
+            guard layer == self.layer, case .loading(let current) = sources[key], current == work else {
                 return
             }
             if texture == nil {
@@ -515,7 +520,36 @@ final class Surface {
                 sources[key] = nil
             }
         }
+        evictSources()
         evictTerrain()
+    }
+
+    /// Cancels the source tiles nothing drawn in the last second is waiting for,
+    /// so that a fast pan or zoom does not leave hundreds of requests for tiles
+    /// flown past to be sent, as the terrain's are cancelled; and forgets the
+    /// failures past their retry interval, which are asked for again anyway.
+    private func evictSources() {
+        guard frame % 30 == 0 else {
+            return
+        }
+        let waiting = tiles.values.filter { !$0.isComplete && $0.lastUsed >= frame - 60 }
+        for (key, state) in sources {
+            switch state {
+            case .loading(let work):
+                let bounds = source.projection.bounds(key)
+                if !waiting.contains(where: { overlaps($0.bounds, bounds) }) {
+                    work.cancel()
+                    sources[key] = nil
+                    // Baked again when next drawn, which asks for it again.
+                    markForBake(covering: key)
+                }
+            case .failed(let at) where Date().timeIntervalSince(at) >= Self.retryInterval:
+                sources[key] = nil
+                markForBake(covering: key)
+            default:
+                break
+            }
+        }
     }
 
     /// Drops the terrain tiles wanted longest ago past the budget, and cancels the
