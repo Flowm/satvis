@@ -25,9 +25,9 @@ launch date, launch site and operational status at ~100%.
 
 It selects nothing and serves no records; it only says what is true of a satellite
 some group already carries. So it is fetched on its own (`worker/src/gp/satcat.ts`),
-not through `collectSources`/`fetchSources`, and `mergeSatelliteTables` folds it into
-the map `enrichRecords` consumes. **`enrichRecords` is unchanged**: the merge happens
-before it, so the join, the satnum normalization and the "no entry, no `metadata` key"
+not through `collectSources`/`fetchSources`, and the satellite table
+(`worker/src/gp/satelliteTable.ts`) folds it in. **The join is unchanged**: the merge
+happens before it, so the satnum normalization and the "no entry, no `metadata` key"
 rule stay as ADR 0002 left them.
 
 **Curated wins field by field.** A YAML row with only a swath keeps SATCAT's owner and

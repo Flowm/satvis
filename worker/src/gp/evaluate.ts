@@ -1,6 +1,6 @@
 // No Cloudflare APIs here: the static generator imports this file through node type stripping.
 
-import type { GpRecord, GroupDefinition, GroupsConfig, GroupsIndex, GroupStatus, OmmRecord, SatelliteEntry, SatelliteSpec, SourceSpec } from "./types.ts";
+import type { GpRecord, GroupDefinition, GroupsConfig, GroupsIndex, GroupStatus, OmmRecord, SatelliteSpec, SourceSpec } from "./types.ts";
 
 const CELESTRAK_BASE = "https://celestrak.org/NORAD/elements/";
 /** Sent with every upstream download, GP sources and tables alike. */
@@ -454,7 +454,7 @@ export function evaluateGroups(defs: GroupDefinition[], recordsBySource: Records
  * read from columns 3-7 of line 1, because pseudo element sets in `extraRecords`
  * have no NORAD_CAT_ID. Alpha-5 ids ("E8493") never match a numeric table key.
  */
-function enrichmentSatnum(record: GpRecord): string {
+export function enrichmentSatnum(record: GpRecord): string {
   // `"TLE_LINE1" in record` cannot narrow: OmmRecord's index signature admits the key.
   const line1 = (record as { TLE_LINE1?: unknown }).TLE_LINE1;
   const raw = typeof line1 === "string" ? line1.substring(2, 7) : String((record as OmmRecord).NORAD_CAT_ID ?? "");
@@ -468,41 +468,6 @@ function enrichmentSatnum(record: GpRecord): string {
 export function normalizeSatnumKey(raw: string): string {
   const trimmed = raw.trim();
   return /^\d+$/.test(trimmed) ? String(parseInt(trimmed, 10)) : trimmed;
-}
-
-/** Entry ids are numeric, so only the record side needs normalizing. */
-export function indexSatellitesByNoradId(entries: SatelliteEntry[]): Map<string, SatelliteEntry> {
-  return new Map(entries.map((entry) => [String(entry.noradId), entry]));
-}
-
-/**
- * Narrower than SatelliteEntry: SATCAT-only rows in the merged table have no
- * curated `noradId`/`name`.
- */
-export interface SatelliteFacts {
-  metadata: Record<string, unknown>;
-}
-
-/**
- * Lowercase `metadata` cannot collide with a CelesTrak field, which are all upper
- * case. Unmatched records get no key at all: the frontend applies its defaults.
- * `matched` lets the caller report table entries that matched nothing.
- */
-export function enrichRecords(records: GpRecord[], table: Map<string, SatelliteFacts>): { records: GpRecord[]; matched: Set<string> } {
-  const matched = new Set<string>();
-  if (table.size === 0) {
-    return { records, matched };
-  }
-  const out = records.map((record) => {
-    const satnum = enrichmentSatnum(record);
-    const entry = table.get(satnum);
-    if (entry === undefined) {
-      return record;
-    }
-    matched.add(satnum);
-    return { ...record, metadata: entry.metadata };
-  });
-  return { records: out, matched };
 }
 
 export function coerceIndex(raw: unknown): GroupsIndex {

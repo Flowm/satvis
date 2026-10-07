@@ -33,7 +33,7 @@ discussion; sharpen them here when they drift.
   `modelFile` rows from the model manifests, and the **upstream tables**, **SATCAT**
   and **GCAT**, read from KV at refresh time. Every field has one upstream owner, and a
   curated row may override any field, extending its upstream row rather than
-  replacing it (`mergeSatelliteTables`, `docs/adr/0008-gcat-and-field-ownership.md`).
+  replacing it (`SatelliteTable`, `docs/adr/0008-gcat-and-field-ownership.md`).
 - **Upstream table**: a catalog stored whole in KV as the file upstream served,
   gzip-compressed, with a **table status** beside it (`worker/src/gp/upstream.ts`):
   SATCAT, and GCAT's catalog, organisations and payloads. Stored only by

@@ -18,7 +18,7 @@ export interface TleRecord {
   OBJECT_NAME?: string;
   TLE_LINE1: string;
   TLE_LINE2: string;
-  /** Attached by enrichRecords; OmmRecord admits it through its index signature. */
+  /** Attached by SatelliteTable.enrich; OmmRecord admits it through its index signature. */
   metadata?: Record<string, unknown>;
 }
 
