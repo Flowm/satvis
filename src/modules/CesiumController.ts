@@ -336,6 +336,11 @@ export class CesiumController {
       this.viewer.terrainProvider = provider;
       if (groundHeight !== undefined) {
         this.skyView.setGroundHeight(groundHeight);
+        // That height is the terrain's and discards a measurement in flight, such as the
+        // roof under OSM Buildings, which brings World Terrain with it.
+        if (this.surface.active) {
+          this.skyView.remeasureGround();
+        }
       }
     } catch (error) {
       // The previous terrain stays.
@@ -348,10 +353,9 @@ export class CesiumController {
    * tile has loaded, so the eye would jump as terrain streams.
    */
   async #observerGroundHeight(observer: Observer): Promise<number | undefined> {
-    if (this.surface.active) {
-      return this.surface.surfaceHeight(observer);
-    }
-    return this.#terrainHeightAt(this.viewer.terrainProvider, observer);
+    // Where the tileset has nothing, a street under OSM Buildings, the terrain answers.
+    const surface = this.surface.active ? await this.surface.surfaceHeight(observer) : undefined;
+    return surface ?? this.#terrainHeightAt(this.viewer.terrainProvider, observer);
   }
 
   /** The ellipsoid provider has no `availability`, and its height is 0 everywhere. */

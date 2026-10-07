@@ -93,14 +93,17 @@ the eye at ellipsoid height: about 560 m _inside_ the mesh in Munich, looking at
 underside of the ground, a view that never recovers.
 
 So `SkyView` takes a `GroundHeightSource`, asked once per observer, not per frame,
-and the surface model answers it with `clampToHeightMostDetailed`. Two consequences:
+and the surface model answers it with the top of the tileset at the observer. Two
+consequences:
 
-- It clamps to the **top** of whatever is there, so standing where a building stands
-  puts the eye on its roof. That is the only outcome that never buries the view, which
-  is why it was preferred to sampling the ground beneath.
-- The plausibility guard written for `getHeight` matters twice now: the clamp answers
-  against any scene geometry above the point, and a satellite's 3D model passing
-  overhead is scene geometry.
+- It takes the **top** of whatever is there, so standing where a building stands puts
+  the eye on its roof. That is the only outcome that never buries the view, which is
+  why it was preferred to sampling the ground beneath.
+- Only the tileset counts. `clampToHeightMostDetailed` takes the first geometry of
+  any kind, and the globe under OSM Buildings answers from whatever tile has loaded,
+  so the measurement drills down the ray for the first tileset hit
+  (`SurfaceModel.surfaceHeight`, through a private Cesium method). Where the tileset
+  has nothing, a street under OSM Buildings, the terrain answers.
 
 The source is permanent and covers every case (surface model, terrain, bare
 ellipsoid), and it is asked again whenever what the observer stands on changes. The
