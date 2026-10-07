@@ -2,59 +2,22 @@
 //
 // Pointer listeners go on the Cesium canvas, not a full-screen overlay: `#app` paints
 // over `#cesiumContainer` and isolates its stacking context, so an overlay inside it
-// would cover Cesium's credits and no z-index could lift them back. Walking lives in
-// ./SkyMovement.
+// would cover Cesium's credits and no z-index could lift them back. What a gesture
+// means lives in ./skyGestures, aiming by compass in ./DeviceAim, walking in ./SkyMovement.
 
 import { Cartesian2, type JulianDate, type Scene, type ScreenSpaceEventHandler, ScreenSpaceEventType } from "@cesium/engine";
 
-import { aimFromDeviceOrientation, CompassCalibration, hasHeadingSource } from "./DeviceAim";
+import { browserOrientationEvents, CompassAiming, type CompassCalibration, type CompassOutcome } from "./DeviceAim";
 import type { SatelliteManager } from "./SatelliteManager";
+import { type GestureIntent, lookAfterDrag, SkyGestures } from "./skyGestures";
 import { SkyMovement } from "./SkyMovement";
 import { groundHides, nearestTarget, type SkyTarget, skyTargets } from "./SkyTargets";
 import type { Observer, SkyView } from "./SkyView";
-
-/** iOS gates the sensor behind a call from a user gesture, over https only. Not in lib.dom. */
-interface DeviceOrientationPermission {
-  requestPermission?: () => Promise<"granted" | "denied" | "prompt">;
-}
-
-/** Safari only. */
-interface CompassEvent extends DeviceOrientationEvent {
-  webkitCompassHeading?: number;
-}
-
-/**
- * A laptop, a declined permission and a missing magnetometer each need different words.
- * See docs/adr/0004-compass-aiming.md.
- */
-export type CompassOutcome =
-  | "aiming"
-  // Aiming, but north waits on the phone being held flat once.
-  | "aiming-uncalibrated"
-  | "unsupported"
-  | "denied"
-  // Granted, but never fired. Desktop browsers do this.
-  | "silent"
-  // Orientation works, but nothing on this device knows north.
-  | "no-heading"
-  // The user took the aim back by hand during the probe. Nothing to report, but the control must hear it.
-  | "taken-back";
 
 /** In CSS pixels. */
 export const CAPTURE_RADIUS = 60;
 
 const VIEWER_PICK_INPUTS = [ScreenSpaceEventType.LEFT_CLICK, ScreenSpaceEventType.LEFT_DOUBLE_CLICK];
-
-/** A drag this small (CSS pixels) is a tap: it absorbs tremor but not a short flick. */
-const TAP_SLOP = 8;
-
-/** Multiplicative, so equal gestures give equal zoom rather than equal degrees. */
-const WHEEL_ZOOM_RATE = 0.0015;
-
-/** `deltaMode` 1 is lines and 2 is pages; normalise to pixels. */
-const WHEEL_DELTA_SCALE: Record<number, number> = { 1: 16, 2: 100 };
-
-const SENSOR_PROBE_MS = 1200;
 
 export interface SkyInteractionOptions {
   scene: Scene;
@@ -81,41 +44,22 @@ export class SkyInteraction {
   /** The viewer's pick actions, put back by `stop`. */
   #viewerActions: [ScreenSpaceEventType, unknown][] = [];
 
-  #pointerId: number | undefined;
-
-  /** In CSS pixels. */
-  #dragged = 0;
-
-  /** Separate from `#dragged`: a pinch is not a tap, though its fingers may not have dragged. */
-  #pinched = false;
-
-  #last = new Cartesian2();
-
-  #pointers = new Map<number, Cartesian2>();
-
-  /** Latched at the pinch start: accumulating per-move ratios drifts over a long gesture. */
-  #pinch: { startDistance: number; startFovy: number } | undefined;
+  readonly #gestures: SkyGestures;
 
   #targets: SkyTarget[] = [];
 
   #locked: SkyTarget | undefined;
 
-  readonly compass = new CompassCalibration();
-
   readonly movement: SkyMovement;
+
+  readonly #aiming: CompassAiming;
 
   #observerMoved: ((observer: Observer) => void) | undefined;
 
-  #orientationStopped: (() => void) | undefined;
-
-  #orientationActive = false;
-
-  #sawOrientation = false;
-
-  #sawHeadingSource = false;
-
   constructor(options: SkyInteractionOptions) {
     this.#options = options;
+    this.#aiming = new CompassAiming({ events: browserOrientationEvents(), look: (aim) => options.skyView.look(aim) });
+    this.#gestures = new SkyGestures({ fovy: () => options.skyView.fovy, aimHeld: () => this.#aiming.active });
     this.movement = new SkyMovement({
       skyView: options.skyView,
       onMove: (observer) => this.#observerMoved?.(observer),
@@ -131,94 +75,27 @@ export class SkyInteraction {
   }
 
   get orientationActive(): boolean {
-    return this.#orientationActive;
+    return this.#aiming.active;
   }
 
-  /**
-   * Must be called from a user gesture (iOS permission prompt, secure context
-   * only). `deviceorientationabsolute` is the only source of north on Android;
-   * `deviceorientation` carries `webkitCompassHeading` on iOS.
-   */
-  async enableDeviceOrientation(): Promise<CompassOutcome> {
-    if (this.#orientationActive) {
-      return this.compass.calibrated ? "aiming" : "aiming-uncalibrated";
-    }
-    if (typeof DeviceOrientationEvent === "undefined") {
-      return "unsupported";
-    }
-    const gate = DeviceOrientationEvent as unknown as DeviceOrientationPermission;
-    if (typeof gate.requestPermission === "function") {
-      try {
-        if ((await gate.requestPermission()) !== "granted") {
-          return "denied";
-        }
-      } catch {
-        // Thrown outside a gesture.
-        return "denied";
-      }
-    }
-    window.addEventListener("deviceorientationabsolute", this.#onDeviceOrientation);
-    window.addEventListener("deviceorientation", this.#onDeviceOrientation);
-    this.#orientationActive = true;
-
-    // Desktop browsers grant the event and never fire it, which would freeze the
-    // view, so the sensor has to prove itself.
-    this.#sawOrientation = false;
-    this.#sawHeadingSource = false;
-    await new Promise((resolve) => setTimeout(resolve, SENSOR_PROBE_MS));
-    // A drag can take the aim back during the probe; report what is in force.
-    if (!this.#orientationActive) {
-      return "taken-back";
-    }
-    if (!this.#sawOrientation) {
-      this.disableDeviceOrientation();
-      return "silent";
-    }
-    // Without north, the azimuth would be measured from wherever the device happened to point.
-    if (!this.#sawHeadingSource) {
-      this.disableDeviceOrientation();
-      return "no-heading";
-    }
-    return this.compass.calibrated ? "aiming" : "aiming-uncalibrated";
+  get compass(): CompassCalibration {
+    return this.#aiming.calibration;
   }
 
-  /**
-   * Levels the view on the way out: only the sensor rolls it, so a leftover roll
-   * is one the pointer cannot straighten.
-   */
+  /** Must be called from a user gesture; see `CompassAiming.enable`. */
+  enableDeviceOrientation(): Promise<CompassOutcome> {
+    return this.#aiming.enable();
+  }
+
+  /** Levels the view; see `CompassAiming.disable`. */
   disableDeviceOrientation(): void {
-    if (!this.#orientationActive) {
-      return;
-    }
-    window.removeEventListener("deviceorientationabsolute", this.#onDeviceOrientation);
-    window.removeEventListener("deviceorientation", this.#onDeviceOrientation);
-    this.#orientationActive = false;
-    this.#options.skyView.look({ roll: 0 });
-    this.#orientationStopped?.();
+    this.#aiming.disable();
   }
 
   /** Also called when a drag takes the aim back, which the compass control cannot otherwise see. */
   onOrientationStop(callback: () => void): void {
-    this.#orientationStopped = callback;
+    this.#aiming.onStop(callback);
   }
-
-  #onDeviceOrientation = (event: DeviceOrientationEvent): void => {
-    const { alpha, beta, gamma } = event;
-    if (alpha === null || beta === null || gamma === null) {
-      return;
-    }
-    this.#sawOrientation = true;
-    const sample = { alpha, beta, gamma, screenAngle: screen.orientation?.angle ?? 0 };
-    // `deviceorientation` sets `absolute` false too; that says nothing about iOS's heading.
-    const reading = {
-      compassHeading: (event as CompassEvent).webkitCompassHeading,
-      absolute: event.type === "deviceorientationabsolute" && event.absolute,
-    };
-    this.#sawHeadingSource ||= hasHeadingSource(reading);
-    // The compass is a yaw offset about world up, never folded into alpha; see DeviceAim.
-    this.compass.update(sample, reading);
-    this.#options.skyView.look(this.compass.correct(aimFromDeviceOrientation(sample)));
-  };
 
   /** Refreshed each frame. */
   get targets(): readonly SkyTarget[] {
@@ -273,9 +150,7 @@ export class SkyInteraction {
     this.disableDeviceOrientation();
     this.#removePreRender?.();
     this.#removePreRender = undefined;
-    this.#pointerId = undefined;
-    this.#pointers.clear();
-    this.#pinch = undefined;
+    this.#gestures.reset();
     this.#targets = [];
     this.#setLocked(undefined);
   }
@@ -307,128 +182,53 @@ export class SkyInteraction {
     this.#options.onLockChange?.(target);
   }
 
-  #zoomBy(factor: number): void {
-    const { skyView } = this.#options;
-    if (!skyView.active) {
-      return;
+  /** What a gesture means, applied to the view. */
+  #apply(intents: GestureIntent[]): void {
+    const { skyView, scene } = this.#options;
+    for (const intent of intents) {
+      switch (intent.kind) {
+        case "look":
+          skyView.look(lookAfterDrag(skyView.aim, intent.dx, intent.dy, skyView.fovy, scene.canvas.clientHeight));
+          break;
+        case "fovy":
+          skyView.fovy = intent.fovy;
+          break;
+        case "zoom":
+          // About the crosshair, not the cursor: under device orientation the next
+          // reading overwrites the aim, so zoom-to-cursor would snap back.
+          if (skyView.active) {
+            skyView.fovy *= intent.factor;
+          }
+          break;
+        case "take-aim":
+          // Walking never touches the aim and leaves the compass on.
+          this.disableDeviceOrientation();
+          break;
+        case "tap":
+          if (this.#locked) {
+            this.#options.onSelect?.(this.#locked);
+          }
+          break;
+      }
     }
-    skyView.fovy *= factor;
   }
 
-  /**
-   * Zooms about the crosshair, not the cursor: under device orientation the next
-   * reading overwrites the aim, so zoom-to-cursor would snap back.
-   */
   #onWheel = (event: WheelEvent): void => {
     event.preventDefault();
-    const pixels = event.deltaY * (WHEEL_DELTA_SCALE[event.deltaMode] ?? 1);
-    // Scrolling down widens the field of view.
-    this.#zoomBy(Math.exp(pixels * WHEEL_ZOOM_RATE));
+    this.#apply(this.#gestures.wheel(event.deltaY, event.deltaMode));
   };
 
-  #pinchDistance(): number | undefined {
-    const [first, second] = [...this.#pointers.values()];
-    return first && second ? Cartesian2.distance(first, second) : undefined;
-  }
-
   #onPointerDown = (event: PointerEvent): void => {
-    this.#pointers.set(event.pointerId, new Cartesian2(event.clientX, event.clientY));
     this.#canvas?.setPointerCapture(event.pointerId);
-
-    if (this.#pointers.size === 2) {
-      // A gesture is a drag or a pinch: zoom changes only the field of view.
-      this.#pointerId = undefined;
-      this.#pinched = true;
-      this.#pinch = { startDistance: this.#pinchDistance() ?? 1, startFovy: this.#options.skyView.fovy };
-      return;
-    }
-    if (this.#pointers.size === 1) {
-      this.#pointerId = event.pointerId;
-      this.#dragged = 0;
-      this.#pinched = false;
-      this.#last = new Cartesian2(event.clientX, event.clientY);
-    }
+    this.#apply(this.#gestures.down(event.pointerId, event.clientX, event.clientY));
   };
 
   #onPointerMove = (event: PointerEvent): void => {
-    if (!this.#pointers.has(event.pointerId)) {
-      return;
-    }
-    this.#pointers.set(event.pointerId, new Cartesian2(event.clientX, event.clientY));
-
-    if (this.#pinch) {
-      const distance = this.#pinchDistance();
-      if (distance !== undefined && distance > 0) {
-        // Twist is ignored: only the device sensor rolls the view.
-        this.#options.skyView.fovy = (this.#pinch.startFovy * this.#pinch.startDistance) / distance;
-      }
-      return;
-    }
-
-    if (event.pointerId !== this.#pointerId) {
-      return;
-    }
-    const dx = event.clientX - this.#last.x;
-    const dy = event.clientY - this.#last.y;
-    this.#last = new Cartesian2(event.clientX, event.clientY);
-    this.#dragged += Math.abs(dx) + Math.abs(dy);
-
-    // A drag takes the aim back from the device; otherwise the next reading would
-    // spring the sky back. Only past the tap slop, so a tap can still select. A
-    // pinch's remaining finger restarts `#dragged`, so that finger must also pass the
-    // slop. Walking never touches the aim and leaves the compass on.
-    if (this.#orientationActive) {
-      if (this.#dragged <= TAP_SLOP) {
-        return;
-      }
-      this.disableDeviceOrientation();
-    }
-
-    // Degrees per pixel from the vertical field of view, so the sky tracks the cursor at any zoom.
-    const { skyView, scene } = this.#options;
-    const height = scene.canvas.clientHeight || 1;
-    const perPixel = skyView.fovy / height;
-    const { azimuth, pitch } = skyView.aim;
-    skyView.look({
-      azimuth: azimuth - dx * perPixel,
-      // Clamped, not wrapped: passing the zenith would flip the azimuth and the roll.
-      pitch: Math.min(90, Math.max(-90, pitch + dy * perPixel)),
-    });
+    this.#apply(this.#gestures.move(event.pointerId, event.clientX, event.clientY));
   };
 
   #onPointerUp = (event: PointerEvent): void => {
-    const tracked = this.#pointers.delete(event.pointerId);
     this.#canvas?.releasePointerCapture?.(event.pointerId);
-    if (!tracked) {
-      return;
-    }
-
-    if (this.#pinch) {
-      if (this.#pointers.size >= 2) {
-        return;
-      }
-      this.#pinch = undefined;
-      const [remaining] = [...this.#pointers.entries()];
-      if (remaining) {
-        // Re-seeded, not resumed: the finger moved while pinching. `#pinched`
-        // remembers this was no tap.
-        this.#pointerId = remaining[0];
-        this.#last = remaining[1];
-        this.#dragged = 0;
-      }
-      return;
-    }
-
-    if (event.pointerId !== this.#pointerId) {
-      return;
-    }
-    this.#pointerId = undefined;
-    if (this.#dragged > TAP_SLOP || this.#pinched) {
-      return;
-    }
-    // A tap selects what the crosshair is on, not what is under the finger.
-    if (this.#locked) {
-      this.#options.onSelect?.(this.#locked);
-    }
+    this.#apply(this.#gestures.up(event.pointerId));
   };
 }

@@ -118,3 +118,176 @@ export class CompassCalibration {
     return { ...aim, azimuth: normalizeAzimuth(aim.azimuth + this.#offset) };
   }
 }
+
+/**
+ * A laptop, a declined permission and a missing magnetometer each need different words.
+ * See docs/adr/0004-compass-aiming.md.
+ */
+export type CompassOutcome =
+  | "aiming"
+  // Aiming, but north waits on the phone being held flat once.
+  | "aiming-uncalibrated"
+  | "unsupported"
+  | "denied"
+  // Granted, but never fired. Desktop browsers do this.
+  | "silent"
+  // Orientation works, but nothing on this device knows north.
+  | "no-heading"
+  // The user took the aim back by hand during the probe. Nothing to report, but the control must hear it.
+  | "taken-back";
+
+/** One orientation event, as the browser's `deviceorientation` and `deviceorientationabsolute` carry it. */
+export interface OrientationEvent {
+  type: string;
+  alpha: number | null;
+  beta: number | null;
+  gamma: number | null;
+  absolute: boolean;
+  /** Safari only. */
+  webkitCompassHeading?: number;
+}
+
+/** Where orientation events come from. */
+export interface OrientationEvents {
+  /** False where the browser has no orientation events at all. */
+  readonly supported: boolean;
+  /** iOS gates the sensor behind this, called from a user gesture, over https only. Absent elsewhere. */
+  requestPermission?: () => Promise<string>;
+  /** Both event types; returns the removal. */
+  listen(listener: (event: OrientationEvent) => void): () => void;
+  /** `screen.orientation.angle`. */
+  screenAngle(): number;
+}
+
+/**
+ * The browser's. `deviceorientationabsolute` is the only source of north on Android;
+ * `deviceorientation` carries `webkitCompassHeading` on iOS.
+ */
+export function browserOrientationEvents(): OrientationEvents {
+  const supported = typeof DeviceOrientationEvent !== "undefined";
+  const gate = supported ? (DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> }) : undefined;
+  return {
+    supported,
+    ...(typeof gate?.requestPermission === "function" && { requestPermission: () => gate.requestPermission!() }),
+    listen(listener) {
+      const handler = (event: Event) => listener(event as unknown as OrientationEvent);
+      window.addEventListener("deviceorientationabsolute", handler);
+      window.addEventListener("deviceorientation", handler);
+      return () => {
+        window.removeEventListener("deviceorientationabsolute", handler);
+        window.removeEventListener("deviceorientation", handler);
+      };
+    },
+    screenAngle: () => screen.orientation?.angle ?? 0,
+  };
+}
+
+const SENSOR_PROBE_MS = 1200;
+
+export interface CompassAimingOptions {
+  events: OrientationEvents;
+  /** Applies an aim; omitted angles keep their value. */
+  look: (aim: Partial<Aim>) => void;
+  /** Resolves after `ms`; a test passes its own clock. */
+  wait?: (ms: number) => Promise<void>;
+}
+
+/** Aiming the sky view by the device's orientation and compass (docs/adr/0004-compass-aiming.md). */
+export class CompassAiming {
+  readonly calibration = new CompassCalibration();
+
+  readonly #options: CompassAimingOptions;
+
+  #unlisten: (() => void) | undefined;
+
+  #sawOrientation = false;
+
+  #sawHeadingSource = false;
+
+  #stopped: (() => void) | undefined;
+
+  constructor(options: CompassAimingOptions) {
+    this.#options = options;
+  }
+
+  get active(): boolean {
+    return this.#unlisten !== undefined;
+  }
+
+  /** Called whenever aiming stops, however: the control cannot see a drag take the aim back. */
+  onStop(callback: () => void): void {
+    this.#stopped = callback;
+  }
+
+  /**
+   * Must be called from a user gesture. The sensor then has to prove itself: desktop
+   * browsers grant the event and never fire it, which would freeze the view.
+   */
+  async enable(): Promise<CompassOutcome> {
+    if (this.active) {
+      return this.calibration.calibrated ? "aiming" : "aiming-uncalibrated";
+    }
+    const { events } = this.#options;
+    if (!events.supported) {
+      return "unsupported";
+    }
+    if (events.requestPermission) {
+      try {
+        if ((await events.requestPermission()) !== "granted") {
+          return "denied";
+        }
+      } catch {
+        // Thrown outside a gesture.
+        return "denied";
+      }
+    }
+    this.#sawOrientation = false;
+    this.#sawHeadingSource = false;
+    this.#unlisten = events.listen(this.#onOrientation);
+
+    await (this.#options.wait ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))))(SENSOR_PROBE_MS);
+    // A drag can take the aim back during the probe; report what is in force.
+    if (!this.active) {
+      return "taken-back";
+    }
+    if (!this.#sawOrientation) {
+      this.disable();
+      return "silent";
+    }
+    // Without north, the azimuth would be measured from wherever the device happened to point.
+    if (!this.#sawHeadingSource) {
+      this.disable();
+      return "no-heading";
+    }
+    return this.calibration.calibrated ? "aiming" : "aiming-uncalibrated";
+  }
+
+  /**
+   * Levels the view on the way out: only the sensor rolls it, so a leftover roll is one
+   * the pointer cannot straighten.
+   */
+  disable(): void {
+    if (!this.#unlisten) {
+      return;
+    }
+    this.#unlisten();
+    this.#unlisten = undefined;
+    this.#options.look({ roll: 0 });
+    this.#stopped?.();
+  }
+
+  #onOrientation = (event: OrientationEvent): void => {
+    const { alpha, beta, gamma } = event;
+    if (alpha === null || beta === null || gamma === null) {
+      return;
+    }
+    this.#sawOrientation = true;
+    const sample = { alpha, beta, gamma, screenAngle: this.#options.events.screenAngle() };
+    // `deviceorientation` sets `absolute` false too; that says nothing about iOS's heading.
+    const reading = { compassHeading: event.webkitCompassHeading, absolute: event.type === "deviceorientationabsolute" && event.absolute };
+    this.#sawHeadingSource ||= hasHeadingSource(reading);
+    // The compass is a yaw offset about world up, never folded into alpha.
+    this.calibration.update(sample, reading);
+    this.#options.look(this.calibration.correct(aimFromDeviceOrientation(sample)));
+  };
+}

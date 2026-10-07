@@ -1,11 +1,9 @@
 import type { Page } from "@playwright/test";
 
+import { WHEEL_ZOOM_RATE } from "../../src/modules/skyGestures";
 import { canvasBox, openApp, waitForSky } from "../support/app";
 import { expect, test } from "../support/test";
 import { touchscreen } from "../support/ui";
-
-/** SkyInteraction's WHEEL_ZOOM_RATE: a 100 px notch scales the field of view by e^0.15. */
-const WHEEL_ZOOM_RATE = 0.0015;
 
 const view = (page: Page) => page.evaluate(() => ({ fovy: window.cc!.skyView.fovy, aim: { ...window.cc!.skyView.aim } }));
 
