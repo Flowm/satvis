@@ -116,18 +116,24 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
     case naturalEarth = "NaturalEarth"
     case versaTiles = "VersaTiles"
     case blackMarble = "BlackMarble"
+    case viirs = "VIIRS"
 
     public var title: String {
         switch self {
         case .naturalEarth: "Natural Earth"
         case .versaTiles: "Satellite (VersaTiles)"
         case .blackMarble: "Black Marble"
+        case .viirs: "VIIRS"
         }
     }
 
+    /// Whether it shows the clock's day (`frame`), as VIIRS's daily true colour does.
+    public var isDaily: Bool { self == .viirs }
+
     /// Where its tiles come from. Natural Earth is the site's own, levels 3 to 5:
-    /// the app ships level 2 and draws everything over it.
-    func source(site: URL) -> ImagerySource {
+    /// the app ships level 2 and draws everything over it. `frame` is a daily
+    /// layer's day, `YYYY-MM-DD`; nil asks GIBS for its latest.
+    func source(site: URL, frame: String? = nil) -> ImagerySource {
         switch self {
         case .naturalEarth:
             ImagerySource(projection: .geographic, tileSize: 256, maximumLevel: 5, contentType: "image/") { key in
@@ -153,7 +159,54 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
                 ]
                 return components?.url
             }
+        case .viirs:
+            // GIBS's daily true colour since 2015, as the web app's GibsTimeLayer asks
+            // for it: Web Mercator WMTS, 256-pixel tiles to level 9, a frame a day. A
+            // composite of swaths, so the gaps near the equator are black.
+            ImagerySource(projection: .webMercator, tileSize: 256, maximumLevel: 9, contentType: "image/") { key in
+                URL(
+                    string:
+                        "\(GIBS.wmts)/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/\(frame ?? "default")/GoogleMapsCompatible_Level9/\(key.level)/\(key.y)/\(key.x).jpg")
+            }
         }
+    }
+}
+
+/// NASA's Global Imagery Browse Services, for the daily layers' frames.
+public enum GIBS {
+    static let wmts = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best"
+
+    /// Where VIIRS's frames are listed: the capabilities the web app's
+    /// GibsTimeLayer reads its domain from.
+    public static let viirsDomain = URL(string: "\(wmts)/1.0.0/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/GoogleMapsCompatible_Level9/all/all.xml")!
+
+    /// The first and last day a layer's `<Domain>` lists (`timeDomain.ts`'s
+    /// `parseDomain`, for a daily layer): ranges `start/end/P1D` or single days,
+    /// by commas. Nil where it lists nothing usable.
+    public static func days(inDomain xml: String) -> ClosedRange<String>? {
+        guard let open = xml.range(of: "<Domain>"), let close = xml.range(of: "</Domain>", range: open.upperBound..<xml.endIndex) else {
+            return nil
+        }
+        let dates = xml[open.upperBound..<close.lowerBound].split(separator: ",").flatMap { range in
+            range.split(separator: "/").prefix(2).map { String($0.trimmingCharacters(in: .whitespaces).prefix(10)) }
+        }
+        .filter { $0.wholeMatch(of: /\d{4}-\d{2}-\d{2}/) != nil }
+        guard let first = dates.min(), let last = dates.max() else {
+            return nil
+        }
+        return first...last
+    }
+
+    /// The day a daily layer shows at an instant: its UTC date, within the days
+    /// GIBS lists; outside them the nearest, as the web app's open-ended first and
+    /// last frames show.
+    public static func frame(at epochMilliseconds: Double, within days: ClosedRange<String>) -> String {
+        let date = Date(timeIntervalSince1970: epochMilliseconds / 1000)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        let day = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 1, parts.day ?? 1)
+        return min(max(day, days.lowerBound), days.upperBound)
     }
 }
 

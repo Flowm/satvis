@@ -19,7 +19,7 @@ public struct Credit: Hashable, Sendable {
         switch baseLayer {
         case .naturalEarth: break
         case .versaTiles: credits.append(Credit("VersaTiles sources", link: "https://versatiles.org/sources/"))
-        case .blackMarble: credits.append(Credit("NASA Global Imagery Browse Services for EOSDIS", link: "https://earthdata.nasa.gov/gibs"))
+        case .blackMarble, .viirs: credits.append(Credit("NASA Global Imagery Browse Services for EOSDIS", link: "https://earthdata.nasa.gov/gibs"))
         }
         if terrain {
             credits += [

@@ -7023,7 +7023,8 @@
       "layers": [
         "NaturalEarth",
         "VersaTiles",
-        "BlackMarble"
+        "BlackMarble",
+        "VIIRS"
       ],
       "terrain": [
         "None",

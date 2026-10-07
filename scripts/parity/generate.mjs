@@ -265,7 +265,7 @@ try {
   const { PIXEL_RATIOS } = await runner.import("/src/config/rendering.ts");
   const vocabulary = {
     components: ["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model", "Ground station link"],
-    layers: ["NaturalEarth", "VersaTiles", "BlackMarble"],
+    layers: ["NaturalEarth", "VersaTiles", "BlackMarble", "VIIRS"],
     terrain: ["None", "ReEarth"],
     overpass: ["elevation", "swath"],
     scenes: ["3D", "Sky"],
