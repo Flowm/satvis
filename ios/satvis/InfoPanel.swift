@@ -9,7 +9,8 @@ struct InfoPanel: View {
     let passes: PassModel
     let alerts: PassAlerts
     let isTracked: Bool
-    let onTrack: (Bool) -> Void
+    /// Nil in the sky view, which follows nothing: the web app hides Track there.
+    let onTrack: ((Bool) -> Void)?
     let onClose: () -> Void
     /// The tab chosen last, kept across selections, as on the web.
     @AppStorage("infoPanelTab") private var tab = InfoTab.details
@@ -56,8 +57,10 @@ struct InfoPanel: View {
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     AlertButton(subject: .satellite(entry.id), satellites: [entry], passes: passes, alerts: alerts)
-                    Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
-                        onTrack(!isTracked)
+                    if let onTrack {
+                        Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
+                            onTrack(!isTracked)
+                        }
                     }
                     Button("Close", systemImage: "xmark", action: onClose)
                 }
@@ -115,7 +118,8 @@ struct StationPanel: View {
     let alerts: PassAlerts
     let catalog: CatalogModel
     let isTracked: Bool
-    let onTrack: (Bool) -> Void
+    /// Nil in the sky view, which follows nothing: the web app hides Track there.
+    let onTrack: ((Bool) -> Void)?
     let onSky: () -> Void
     let onClose: () -> Void
     @State private var renaming = false
@@ -148,8 +152,10 @@ struct StationPanel: View {
                         AlertButton(subject: .station(station.id), satellites: catalog.activeEntries, passes: passes, alerts: alerts)
                     }
                     Button("View the sky from here", systemImage: "binoculars", action: onSky)
-                    Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
-                        onTrack(!isTracked)
+                    if let onTrack {
+                        Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
+                            onTrack(!isTracked)
+                        }
                     }
                     Button("Close", systemImage: "xmark", action: onClose)
                 }
