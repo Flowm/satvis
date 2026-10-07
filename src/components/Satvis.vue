@@ -114,30 +114,6 @@
           </label>
         </template>
       </toolbar-panel>
-      <toolbar-panel v-show="menu.ios" title="Mobile" @close="closePanel('ios')">
-        <label class="toolbarSwitch">
-          <input v-model="cc.viewer.scene.useWebVR" type="checkbox" />
-          <span class="slider"></span>
-          VR
-        </label>
-        <label class="toolbarSwitch">
-          <input v-model="cc.viewer.clock.shouldAnimate" type="checkbox" />
-          <span class="slider"></span>
-          Play
-        </label>
-        <label class="toolbarSwitch">
-          <input type="button" @click="cc.viewer.clockViewModel.multiplier *= 2" />
-          Increase play speed
-        </label>
-        <label class="toolbarSwitch">
-          <input type="button" @click="cc.viewer.clockViewModel.multiplier /= 2" />
-          Decrease play speed
-        </label>
-        <label class="toolbarSwitch">
-          <input type="button" @click="reload" />
-          Reload
-        </label>
-      </toolbar-panel>
       <toolbar-panel v-show="menu.render" title="Graphics" @close="closePanel('render')">
         <div class="toolbarTitle">Measurement</div>
         <label class="toolbarSwitch">
@@ -236,7 +212,7 @@ import SatelliteBrowser from "./SatelliteBrowser.vue";
 import SkyHud from "./SkyHud.vue";
 import ToolbarPanel from "./ToolbarPanel.vue";
 
-type MenuKey = "cat" | "sat" | "gs" | "map" | "view" | "ios" | "render";
+type MenuKey = "cat" | "sat" | "gs" | "map" | "view" | "render";
 
 /** Async, so the benchmark stays out of the main bundle. */
 const BenchmarkPanel = defineAsyncComponent(() => import("./BenchmarkPanel.vue"));
@@ -249,7 +225,6 @@ const menu = reactive<Record<MenuKey, boolean>>({
   gs: false,
   map: false,
   view: false,
-  ios: false,
   render: false,
 });
 const anyMenuOpen = computed(() => Object.values(menu).some(Boolean));
@@ -264,19 +239,14 @@ const isNarrow = (): boolean => window.innerWidth > 0 && window.innerWidth < 640
 const menuExpanded = ref(!isNarrow());
 
 /** `hint` is the hover text, saying what is behind an entry. */
-const menuItems = computed(() =>
-  (
-    [
-      { key: "cat", label: "Satellites", icon: "lucide:satellite", hint: "Search and pick which satellites to show" },
-      { key: "sat", label: "Components", icon: "lucide:orbit", hint: "Orbits, ground tracks, labels and sensor cones" },
-      { key: "gs", label: "Ground station", icon: "lucide:map-pin", hint: "Your location, for pass predictions" },
-      { key: "map", label: "Map", icon: "lucide:layers", hint: "Basemap, overlays, terrain and stars" },
-      { key: "view", label: "View", icon: "lucide:telescope", hint: "Globe, flat map or sky view, and the camera" },
-      { key: "ios", label: "Mobile", icon: "lucide:smartphone", hint: "VR, playback and reload" },
-      { key: "render", label: "Graphics", icon: "lucide:gauge", hint: "Quality, effects and performance" },
-    ] satisfies { key: MenuKey; label: string; icon: string; hint: string }[]
-  ).filter((item) => item.key !== "ios" || cc.minimalUI),
-);
+const menuItems: { key: MenuKey; label: string; icon: string; hint: string }[] = [
+  { key: "cat", label: "Satellites", icon: "lucide:satellite", hint: "Search and pick which satellites to show" },
+  { key: "sat", label: "Components", icon: "lucide:orbit", hint: "Orbits, ground tracks, labels and sensor cones" },
+  { key: "gs", label: "Ground station", icon: "lucide:map-pin", hint: "Your location, for pass predictions" },
+  { key: "map", label: "Map", icon: "lucide:layers", hint: "Basemap, overlays, terrain and stars" },
+  { key: "view", label: "View", icon: "lucide:telescope", hint: "Globe, flat map or sky view, and the camera" },
+  { key: "render", label: "Graphics", icon: "lucide:gauge", hint: "Quality, effects and performance" },
+];
 
 const cesiumStore = useCesiumStore();
 const { layers, terrainProvider, surfaceModel, starMap, sceneMode, cameraMode, pixelRatio, msaa, showFps, showBenchmark, requestRenderMode } = storeToRefs(cesiumStore);
@@ -437,9 +407,5 @@ function toggleUI() {
   showUI.value = !showUI.value;
   // cc owns the Cesium fullscreen button, which showUI also hides.
   cc.showUI = showUI.value;
-}
-
-function reload() {
-  window.location.reload();
 }
 </script>
