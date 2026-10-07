@@ -111,7 +111,7 @@ struct ImagerySource: Sendable {
 }
 
 /// The globe's base map: the web app's base layers that the native app offers
-/// (ADR 0008), by the names its `layers` url parameter uses.
+/// (ADR 0009), by the names its `layers` url parameter uses.
 public enum BaseLayer: String, CaseIterable, Sendable, Codable {
     case naturalEarth = "NaturalEarth"
     case versaTiles = "VersaTiles"

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Write the parity fixtures the native app's tests are held to
-// (docs/adr/0008-native-ios-app.md): what the web app's own code answers for the
+// (docs/adr/0009-native-ios-app.md): what the web app's own code answers for the
 // element sets in parity-input.json. Also write the tables the native app reads
 // as they are rather than keeping a copy of its own: the SATCAT code labels and
 // the external links. Never edit either output by hand; CI checks that rerunning

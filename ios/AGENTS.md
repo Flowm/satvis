@@ -7,7 +7,7 @@ there is no fastlane. CI (`.github/workflows/ios.yml`, run only when `ios/`, the
 web app's sources or the parity script change) builds with the newest Xcode its
 macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
 `swift format`: a newer formatter's rules can fail `make lint` there. Why it is built this way, and the milestones it is built in, are in
-`docs/adr/0008-native-ios-app.md`. The WebView app it replaces is the tag
+`docs/adr/0009-native-ios-app.md`. The WebView app it replaces is the tag
 `ios-webview-final`.
 
 ## Layout
@@ -40,7 +40,7 @@ macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
 - Terrain (`Terrain.swift`) is Re:Earth's quantized mesh, decoded and kept per
   terrain tile; a surface tile's grid is laid over the terrain tile log₂(screen
   scale) levels coarser, the level the web app would ask for, so the app asks
-  Re:Earth no more than the web app does. ADR 0008 has why. The texture budget
+  Re:Earth no more than the web app does. ADR 0009 has why. The texture budget
   is soft: a low, oblique view can use more tiles than it, and evicting tiles in
   use only starts the refinement over.
 - About, in the top-right column, is the web app's About dialog (`AboutView.swift`):
@@ -211,7 +211,7 @@ macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
   `xcrun devicectl device process launch --console --environment-variables
   '{"SATVIS_BENCHMARK":"1"}' org.frcy.app.satvis`.
 - Analytics (`Analytics.swift`) is posthog-ios, set up from the app delegate as
-  its guide has it, reporting to the web app's project (ADR 0008): a `$pageview`
+  its guide has it, reporting to the web app's project (ADR 0009): a `$pageview`
   of the view's link whenever the view changes, the clock aside, its ground
   stations cut to the whole degree as the web's `posthogPrivacy.ts` does
   (`sanitizedForAnalytics`, held to it by the parity fixtures). It reports only
