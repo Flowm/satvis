@@ -37,7 +37,12 @@ extension MeanElements {
     /// As satellite.js's `json2satrec` reads an OMM: `EPOCH` is UTC, truncated to
     /// the millisecond as a JavaScript Date keeps it.
     public init?(_ omm: OMM) {
-        guard let epochMilliseconds = utcMilliseconds(iso: omm.epoch) else {
+        // A string field "NaN" reads as a number; satellite.js would draw nothing.
+        let numbers = [
+            omm.meanMotion, omm.eccentricity, omm.inclination, omm.raOfAscNode, omm.argOfPericenter, omm.meanAnomaly, omm.bstar, omm.meanMotionDot,
+            omm.meanMotionDDot,
+        ]
+        guard numbers.allSatisfy(\.isFinite), let epochMilliseconds = utcMilliseconds(iso: omm.epoch) else {
             return nil
         }
         let year = civilDate(epochMilliseconds: epochMilliseconds).year
@@ -77,7 +82,11 @@ extension MeanElements {
             let eccentricity = number("." + field(two, 26..<33).replacingOccurrences(of: " ", with: "0")),
             let argOfPericenter = number(field(two, 34..<42)),
             let meanAnomaly = number(field(two, 43..<51)),
-            let meanMotion = number(field(two, 52..<63))
+            let meanMotion = number(field(two, 52..<63)),
+            // `Double` reads "nan" and "inf" too, and an epoch day like that trapped
+            // when SGP4 was set up, on every launch the group was kept for.
+            [dayOfYear, meanMotionDot, meanMotionDDot, bstar, inclination, raOfAscNode, eccentricity, argOfPericenter, meanAnomaly, meanMotion]
+                .allSatisfy(\.isFinite), (0..<367).contains(dayOfYear)
         else {
             return nil
         }
@@ -118,6 +127,13 @@ func utcMilliseconds(iso text: String) -> Double? {
             return nil
         }
         milliseconds = value
+    }
+    // Held to a calendar's ranges before any arithmetic: a JavaScript Date refuses
+    // month 13 or hour 99, and a 17-digit year overflowed.
+    guard (1...9999).contains(date[0]), (1...12).contains(date[1]), (1...31).contains(date[2]), (0...24).contains(hour), (0...59).contains(minute),
+        (0...60).contains(second)
+    else {
+        return nil
     }
     let days = daysFromCivil(year: date[0], month: date[1], day: date[2])
     return Double(days) * msPerDay + Double(((hour * 60 + minute) * 60 + second) * 1000 + milliseconds)
