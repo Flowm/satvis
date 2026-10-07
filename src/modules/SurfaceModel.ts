@@ -75,12 +75,36 @@ export class SurfaceModel {
   /** The last plausible ground height under the camera, in metres. */
   #groundHeight = 0;
 
+  #listeners = new Set<() => void>();
+
+  /** What listeners last heard, so they hear only of a change. */
+  #reported: { tileset: Cesium3DTileset | undefined; shown: boolean } = { tileset: undefined, shown: false };
+
   constructor(deps: SurfaceModelDeps) {
     this.#deps = deps;
   }
 
   get active(): SurfaceTileset | undefined {
     return this.#name;
+  }
+
+  /**
+   * Raised when the tileset is added, removed, shown or withheld: whenever what stands
+   * at the ground may have changed.
+   */
+  onChange(listener: () => void): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
+  }
+
+  #reportChange(): void {
+    const tileset = this.#tileset;
+    const shown = tileset?.show ?? false;
+    if (tileset === this.#reported.tileset && shown === this.#reported.shown) {
+      return;
+    }
+    this.#reported = { tileset, shown };
+    this.#listeners.forEach((listener) => listener());
   }
 
   /** Idempotent. Call it when either argument changes. */
@@ -123,6 +147,7 @@ export class SurfaceModel {
     this.#tuneForViewMode(viewMode);
     // Without this, render-on-demand never traverses the new tileset.
     this.#deps.scene.requestRender();
+    this.#reportChange();
   }
 
   /**
@@ -174,6 +199,7 @@ export class SurfaceModel {
         this.#tileset.show = true;
       }
       this.#syncGlobe();
+      this.#reportChange();
       return;
     }
     this.#applyGate();
@@ -192,6 +218,7 @@ export class SurfaceModel {
       // The globe stands in while the tileset is withheld.
       this.#syncGlobe();
       this.#deps.scene.requestRender();
+      this.#reportChange();
     }
   }
 
@@ -247,6 +274,7 @@ export class SurfaceModel {
       this.#deps.scene.primitives.remove(tileset);
       this.#deps.scene.requestRender();
     }
+    this.#reportChange();
   }
 
   /**

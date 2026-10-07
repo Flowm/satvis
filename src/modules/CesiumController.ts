@@ -188,6 +188,10 @@ export class CesiumController {
     });
 
     this.skyView.setGroundHeightSource((observer) => this.#observerGroundHeight(observer));
+    // The photorealistic mesh is withheld until the descent lands, and only its showing
+    // makes it the ground: re-measured only on a change of model, the eye stayed at the
+    // ellipsoid, 559 m inside the mesh in Munich.
+    this.surface.onChange(() => this.skyView.remeasureGround());
 
     this.pm = new PushManager();
 
@@ -373,11 +377,7 @@ export class CesiumController {
       }
     }
 
-    const before = this.surface.active;
     await this.surface.apply(surfaceModel, viewMode);
-    if (this.surface.active !== before) {
-      this.skyView.remeasureGround();
-    }
   }
 
   /** Only modes naming a Cesium `SceneMode`; sceneSync drives "Sky". */
