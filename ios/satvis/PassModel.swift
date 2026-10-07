@@ -324,7 +324,8 @@ final class GroundStationStorage {
 }
 
 /// Where the device is, once: nil when the user declines, or no fix comes within
-/// ten seconds, which a cold fix can genuinely take.
+/// ten seconds of the user answering the prompt (or of asking, once answered
+/// before), which a cold fix can genuinely take.
 func currentLocation() async -> CLLocationCoordinate2D? {
     await withTaskGroup(of: CLLocationCoordinate2D?.self) { group in
         group.addTask {
@@ -343,7 +344,16 @@ func currentLocation() async -> CLLocationCoordinate2D? {
             return nil
         }
         group.addTask {
-            try? await Task.sleep(for: .seconds(10))
+            // Not counted while the prompt is up: a user reading it for ten
+            // seconds was told the location was unavailable before tapping Allow.
+            let manager = CLLocationManager()
+            var waited = Duration.zero
+            while waited < .seconds(10), !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(250))
+                if manager.authorizationStatus != .notDetermined {
+                    waited += .milliseconds(250)
+                }
+            }
             return nil
         }
         let first = await group.next() ?? nil
