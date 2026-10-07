@@ -170,9 +170,10 @@ macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
   covers the top-right buttons, as the web's does below 640 px. Not system
   menus: iOS 26 grows one out of its control, in the column's place, and it holds
   ticked lists alone. Satellites and Ground station are sheets: long lists.
+  A tap on the globe closes the panel and on a phone folds the column, as on
+  the web, and a miss that did so keeps the selection.
   What the app does not draw is left out: Map's overlays, surface and star map;
-  View's 2D, Columbus and camera modes; Graphics' scene effects and MSAA. The
-  web's Mobile panel is the WebView app's, which this one replaces.
+  View's 2D, Columbus and camera modes; Graphics' scene effects and MSAA.
 - The Graphics menu's "FPS" is the web app's FPS switch, kept in links as
   `fps=true` as the web keeps it (`PerformanceOverlay.swift`, `FrameStats`):
   frames per second, the renderer's CPU and the GPU's milliseconds a frame,

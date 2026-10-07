@@ -499,8 +499,8 @@ final class Session {
     }
 
     /// A tap places a station while picking, and otherwise selects what it lands
-    /// on, or nothing.
-    func tap(at point: CGPoint, viewSize size: CGSize) {
+    /// on, or nothing unless `keepingSelection`.
+    func tap(at point: CGPoint, viewSize size: CGSize, keepingSelection: Bool = false) {
         guard let renderer else {
             return
         }
@@ -518,7 +518,11 @@ final class Session {
             }
             return
         }
-        selection = renderer.entity(at: point, viewSize: size).map { id in
+        let hit = renderer.entity(at: point, viewSize: size)
+        if hit == nil, keepingSelection {
+            return
+        }
+        selection = hit.map { id in
             PassModel.stationID(id).map(Selection.station) ?? .satellite(id)
         }
     }

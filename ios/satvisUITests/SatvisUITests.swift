@@ -50,6 +50,21 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.descendants(matching: .any)["Orbit track"].waitForExistence(timeout: 5))
     }
 
+    // A tap on the globe puts the menu back as it starts, as on the web: the panel
+    // closed, and on a phone the column folded.
+    @MainActor
+    func testClosesTheMenuOnATapOnTheGlobe() {
+        let app = launch()
+        openMenu(app)
+        app.buttons["Components"].tap()
+        let panel = app.descendants(matching: .any)["Orbit track"]
+        XCTAssert(panel.waitForExistence(timeout: 5))
+        // Space beside the globe, clear of the menu, the buttons and the clock.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.62)).tap()
+        XCTAssert(panel.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(menuToggle(app).label, UIDevice.current.userInterfaceIdiom == .pad ? "Close menu" : "Menu")
+    }
+
     // The about page's demos open in the app: the first pins the clock at its minute.
     @MainActor
     func testOpensADemoFromAbout() {

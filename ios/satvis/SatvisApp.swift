@@ -58,13 +58,20 @@ struct ContentView: View {
     var body: some View {
         GlobeView(
             onRenderer: session.attach,
-            onTap: {
-                // On a phone a tap on the globe is done with the menu, whatever else
-                // it does; on an iPad the menu stays, as the web app's on a desktop.
-                if sizeClass != .regular {
-                    showsTools = false
+            onTap: { point, size in
+                // As the web app's: a tap on the globe puts the menu back as it
+                // starts, no panel and on a phone a folded column, and still selects
+                // what it hits; a miss that closed the menu keeps the selection.
+                // Picking leaves the menu alone.
+                let foldsColumn = sizeClass != .regular && showsTools
+                let closesMenu = !session.isPicking && (panel != nil || foldsColumn)
+                if closesMenu {
+                    panel = nil
+                    if foldsColumn {
+                        showsTools = false
+                    }
                 }
-                session.tap(at: $0, viewSize: $1)
+                session.tap(at: point, viewSize: size, keepingSelection: closesMenu)
             },
             onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) },
             mayDrag: session.mayDrag,
@@ -125,10 +132,10 @@ struct ContentView: View {
                 HStack(alignment: .top, spacing: 8) {
                     ToolMenu(isOpen: $showsTools) {
                         // The web app's menu column: its entries, icons, order and hints.
-                        ToolEntry(title: "Satellites", image: .lucideSatellite, hint: "Search and pick which satellites to show") {
+                        ToolEntry(title: "Satellites", image: .lucideOrbit, hint: "Search and pick which satellites to show") {
                             showsBrowser = true
                         }
-                        entry(.components, image: .lucideOrbit, hint: "Orbits, ground tracks, labels and sensor cones")
+                        entry(.components, image: .lucideSatellite, hint: "Orbits, ground tracks, labels and sensor cones")
                         ToolEntry(title: "Ground station", image: .lucideMapPin, hint: "Your location, for pass predictions") {
                             showsStations = true
                         }
