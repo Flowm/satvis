@@ -165,6 +165,7 @@ export class CesiumController {
       scene: this.viewer.scene,
       skyView: this.skyView,
       sats: this.sats,
+      viewerInputs: this.viewer.screenSpaceEventHandler,
       onSelect: (target) => {
         this.viewer.selectedEntity = target.sat.defaultEntity;
       },

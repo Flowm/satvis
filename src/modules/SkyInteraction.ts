@@ -5,7 +5,7 @@
 // would cover Cesium's credits and no z-index could lift them back. Walking lives in
 // ./SkyMovement.
 
-import { Cartesian2, type JulianDate, type Scene } from "@cesium/engine";
+import { Cartesian2, type JulianDate, type Scene, type ScreenSpaceEventHandler, ScreenSpaceEventType } from "@cesium/engine";
 
 import { aimFromDeviceOrientation, CompassCalibration, hasHeadingSource } from "./DeviceAim";
 import type { SatelliteManager } from "./SatelliteManager";
@@ -43,6 +43,8 @@ export type CompassOutcome =
 /** In CSS pixels. */
 export const CAPTURE_RADIUS = 60;
 
+const VIEWER_PICK_INPUTS = [ScreenSpaceEventType.LEFT_CLICK, ScreenSpaceEventType.LEFT_DOUBLE_CLICK];
+
 /** A drag this small (CSS pixels) is a tap: it absorbs tremor but not a short flick. */
 const TAP_SLOP = 8;
 
@@ -58,6 +60,12 @@ export interface SkyInteractionOptions {
   scene: Scene;
   skyView: SkyView;
   sats: SatelliteManager;
+  /**
+   * The viewer's, whose click selects what is under the pointer and whose double-click
+   * tracks it. Both are off while this runs: the sky view acts on its crosshair and
+   * tracks nothing (docs/adr/0003-sky-view.md).
+   */
+  viewerInputs?: ScreenSpaceEventHandler;
   /** Also called when the lock clears. */
   onLockChange?: (target: SkyTarget | undefined) => void;
   onSelect?: (target: SkyTarget) => void;
@@ -69,6 +77,9 @@ export class SkyInteraction {
   #canvas: HTMLCanvasElement | undefined;
 
   #removePreRender: (() => void) | undefined;
+
+  /** The viewer's pick actions, put back by `stop`. */
+  #viewerActions: [ScreenSpaceEventType, unknown][] = [];
 
   #pointerId: number | undefined;
 
@@ -230,6 +241,11 @@ export class SkyInteraction {
     this.#canvas.addEventListener("pointercancel", this.#onPointerUp);
     // Not passive: the wheel zooms, so the page must not scroll.
     this.#canvas.addEventListener("wheel", this.#onWheel, { passive: false });
+    const inputs = this.#options.viewerInputs;
+    if (inputs) {
+      this.#viewerActions = VIEWER_PICK_INPUTS.map((type) => [type, inputs.getInputAction(type)]);
+      VIEWER_PICK_INPUTS.forEach((type) => inputs.removeInputAction(type));
+    }
     this.movement.start();
     this.#removePreRender = scene.preRender.addEventListener((_scene: Scene, time: JulianDate) => {
       this.movement.step(performance.now());
@@ -247,6 +263,12 @@ export class SkyInteraction {
     this.#canvas.removeEventListener("pointercancel", this.#onPointerUp);
     this.#canvas.removeEventListener("wheel", this.#onWheel);
     this.#canvas = undefined;
+    for (const [type, action] of this.#viewerActions) {
+      if (action) {
+        this.#options.viewerInputs?.setInputAction(action as Parameters<ScreenSpaceEventHandler["setInputAction"]>[0], type);
+      }
+    }
+    this.#viewerActions = [];
     this.movement.stop();
     this.disableDeviceOrientation();
     this.#removePreRender?.();
