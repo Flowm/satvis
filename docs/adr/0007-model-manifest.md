@@ -59,8 +59,8 @@ A satellite without `modelFile` has no model. The 3D model component draws nothi
 it and requests nothing, and tracking does not wait for a model that will never load.
 The name rule was kept until every satellite that matched a file by name was mapped,
 checked against the GP snapshot: the ISS, LANDSAT 8, ICESAT-2, GRACE-FO 1, FOREST-2
-and FOREST-3. Unmapped satellites get no generic stand-in yet; `generic/` holds
-candidates for a later decision.
+and FOREST-3. An unmapped satellite gets no generic stand-in; a generic model in
+`generic/` is drawn only for the buses it names (below).
 
 Files keep the name of their first satellite (`GRACE-FO-1.glb` serves both GRACE-FO).
 Nothing reads the name, and a name that matches a satellite costs nothing.
@@ -118,7 +118,9 @@ all manifests, checked by the generator as NORAD ids are.
 ```
 
 What a model depicts is still a fact about the model: a bus is a design, and a model
-depicts a design. The rule stays in the manifest, beside the file.
+depicts a design. The rule stays in the manifest, beside the file. A generic model
+names a platform bus it shows only in outline: one CubeSat per size for GCAT's
+`Cubesat 3U`, one comsat for the `Eurostar 3000` family.
 
 **Matched at refresh time, where the bus is known.** The generator writes a bus →
 `modelFile` map into the generated config (`modelBuses`). When the worker enriches a
@@ -142,8 +144,9 @@ terminals that tell them apart are invisible at the size satvis draws them.
 - **A new design needs a model, a manifest line and a deploy**, since the map is
   bundled into the worker. The 26 V3 Starlinks in orbit since 28 September have the
   first two, but get their model only once GCAT catalogues them under `Starlink V3`.
-- **Coverage, on the 2 October snapshot:** 12,608 of 16,653 served satellites, 76%,
-  get a model by NORAD id or bus, against 245 by NORAD id alone. Starlink alone is 10,679.
+- **Coverage, on the 7 October snapshot:** 13,379 of 16,634 served satellites, 80%,
+  get a model by NORAD id or bus, against 245 by NORAD id alone. Starlink alone is
+  10,665, the generic CubeSats about 820, the generic comsats about 200.
 - **The Starlink manifest is four entries**: v1, V2 mini, Direct to Cell and V3. It
   would otherwise be 11,152 ids.
 - **GCAT is CC BY 4.0.** The app credits "Data from J. McDowell, planet4589.org".
