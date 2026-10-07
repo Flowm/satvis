@@ -8,8 +8,10 @@
 extern "C" {
 #endif
 
-/// An initialised element set. Never mutated after creation, so one may be
-/// propagated from several threads at once.
+/// An initialised element set. Propagating one writes into it: the deep-space
+/// integrator keeps its last step there and goes on from it, on a fixed
+/// 720-minute grid from the epoch, restarting there when time goes back. The
+/// states are the same either way; one propagated at a time, from one thread.
 typedef struct SGP4Satellite SGP4Satellite;
 
 /// The elements a satellite is initialised from, with WGS-72 constants in
@@ -35,6 +37,9 @@ SGP4Satellite *_Nullable sgp4_create(SGP4Elements elements, int *_Nonnull error)
 
 void sgp4_destroy(SGP4Satellite *_Nullable satellite);
 
+/// A copy to propagate apart from the original.
+SGP4Satellite *_Nonnull sgp4_copy(const SGP4Satellite *_Nonnull satellite);
+
 /// The mean motion SGP4 recovered from the Kozai one, in radians per minute.
 double sgp4_mean_motion(const SGP4Satellite *_Nonnull satellite);
 
@@ -50,7 +55,7 @@ SGP4Shape sgp4_shape(const SGP4Satellite *_Nonnull satellite);
 
 /// TEME position in km and velocity in km/s. Returns SGP4's error code, 0 when
 /// the state is valid.
-int sgp4_propagate(const SGP4Satellite *_Nonnull satellite, double minutesSinceEpoch, double position[_Nonnull 3], double velocity[_Nonnull 3]);
+int sgp4_propagate(SGP4Satellite *_Nonnull satellite, double minutesSinceEpoch, double position[_Nonnull 3], double velocity[_Nonnull 3]);
 
 #ifdef __cplusplus
 }
