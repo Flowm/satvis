@@ -80,10 +80,9 @@ async function setup({ modelFile = "ISS-(ZARYA).glb" }: { modelFile?: string | n
   const sampler = new InlineSampleSource().samplerFor(entry.satnum, entry.record);
   const predictor = new InlinePassSource().predictorFor(entry.satnum, entry.record);
   const batches = { orbits: new PolylineBatch(viewer, "inertial"), tracks: new PolylineBatch(viewer, "fixed") };
-  const sat = new SatelliteComponentCollection(viewer, entry, batches, sampler, predictor);
   const nowMs = JulianDate.toDate(viewer.clock.currentTime).getTime();
-  const chunk = await sampler.samples(nowMs - 3600_000, nowMs + 3600_000);
-  if (chunk) sat.props.trajectory.adopt(chunk);
+  const opening = (await sampler.samples(nowMs - 3600_000, nowMs + 3600_000))!;
+  const sat = new SatelliteComponentCollection(viewer, entry, batches, sampler, predictor, opening);
   return {
     sat,
     viewer,
@@ -131,6 +130,28 @@ describe("SatelliteComponentCollection ground station link", () => {
 
     expect(removed).toContain(link);
     expect(sat.eventListeners).toEqual({});
+  });
+});
+
+describe("SatelliteComponentCollection lifetime", () => {
+  test("draws again after every component was switched off", async () => {
+    const { sat, viewer } = await setup();
+    sat.show(["Point"]);
+    sat.hide(["Point"]);
+
+    sat.show(["Point"]);
+
+    expect(sat.componentNames).toEqual(["Point"]);
+    expect(sat.props.trajectory.position(viewer.clock.currentTime)).toBeDefined();
+  });
+
+  test("stops sampling once disposed", async () => {
+    const { sat, viewer } = await setup();
+    sat.show(["Point"]);
+
+    sat.dispose();
+
+    expect(sat.props.trajectory.position(viewer.clock.currentTime)).toBeUndefined();
   });
 });
 

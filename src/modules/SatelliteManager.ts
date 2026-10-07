@@ -529,9 +529,8 @@ export class SatelliteManager {
       { orbits: this.orbits, tracks: this.tracks },
       this.#samples.samplerFor(entry.satnum, entry.record),
       this.#passes.predictorFor(entry.satnum, entry.record),
+      chunk,
     );
-    // Before show(), which is what reads the trajectory.
-    sat.props.trajectory.adopt(chunk);
     sat.props.passPredictor.mode = this.#desired.overpassMode;
     sat.show(this.#effectiveComponents());
     // After show(): `defaultEntity` is the first entity created, and it must not

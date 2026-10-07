@@ -102,8 +102,9 @@ discussion; sharpen them here when they drift.
   the sky view is up nothing is tracked, and an attempt to track is undone.
 - **Sampled trajectory**: the sliding window of a satellite's positions (half an
   orbit back, 1.5 forward) in the fixed and inertial frames, kept fresh as time
-  advances (`SampledTrajectory`). Samples arrive in the fixed frame; the inertial
-  frame is derived from them on demand (see **Pseudo-fixed**).
+  advances (`SampledTrajectory`). It lives as long as the satellite is active,
+  whichever components are on, and a stopped one stays empty. Samples arrive in the
+  fixed frame; the inertial frame is derived from them on demand (see **Pseudo-fixed**).
 - **Lane**: one propagation worker and the traffic bound for it. A satellite
   belongs to one lane for the whole session, chosen by a pure function of its
   satnum (`laneIndexFor`), so the pool keeps one satrec per satellite and one

@@ -46,7 +46,7 @@ import { cancelPendingTrack, trackEntity, trackWhenReady, type CameraPose } from
 import { drawablePositions } from "./util/drawablePositions";
 import type { PassPredictorSource } from "./util/passSource";
 import type { PolylineBatch } from "./util/PolylineBatch";
-import type { TrajectorySampler } from "./util/sampleSource";
+import type { SampleChunk, TrajectorySampler } from "./util/sampleSource";
 
 type SatelliteComponentName = string;
 
@@ -156,11 +156,17 @@ export class SatelliteComponentCollection {
 
   eventListeners: Record<string, () => void> = {};
 
-  constructor(viewer: Viewer, entry: CatalogEntry, batches: SatelliteBatches, sampler: TrajectorySampler, passes: PassPredictorSource) {
+  /**
+   * `opening` is the satellite's first window of samples. The trajectory follows the
+   * clock from here until `dispose`, whichever components come and go.
+   */
+  constructor(viewer: Viewer, entry: CatalogEntry, batches: SatelliteBatches, sampler: TrajectorySampler, passes: PassPredictorSource, opening: SampleChunk) {
     this.viewer = viewer;
     this.props = new SatelliteProperties(entry, sampler, passes);
     this.#orbits = batches.orbits;
     this.#tracks = batches.tracks;
+    this.props.trajectory.adopt(opening);
+    this.props.trajectory.follow(viewer, () => this.updatedSampledPositionForComponents(true));
   }
 
   /**
@@ -396,10 +402,6 @@ export class SatelliteComponentCollection {
   }
 
   init(): void {
-    this.eventListeners.sampledPosition = this.props.trajectory.start(this.viewer, () => {
-      this.updatedSampledPositionForComponents(true);
-    });
-
     // Prediction answers late. The ground-station link reads passIntervals every
     // frame; the timeline bands are painted once and must be told.
     this.eventListeners.passesChanged = this.props.passPredictor.onChanged(() => {
@@ -442,9 +444,10 @@ export class SatelliteComponentCollection {
     cancelPendingTrack(this.viewer, this);
   }
 
-  /** Idempotent: disabling the last component calls `deinit()`. */
+  /** Idempotent and final: disabling the last component calls `deinit()`, and the trajectory stops. */
   dispose(): void {
     this.hide();
+    this.props.trajectory.stop();
   }
 
   updatedSampledPositionForComponents(update = false): void {
