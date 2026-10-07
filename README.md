@@ -109,7 +109,8 @@ first ([Offline base map](#offline-base-map)).
 After the first deploy, KV is empty until the first `push-catalog` and `push-gp`
 ([Downloading off-Worker](#downloading-off-worker)), in that order, so the groups
 are enriched from the start. The deployed worker has no cron, so nothing else fills
-it.
+it. `POST /api/upstream/refresh` fetches the tables from the Worker itself, since
+planet4589.org does not firewall Cloudflare; CelesTrak's SATCAT still answers it with 522.
 
 ## Satellite data
 

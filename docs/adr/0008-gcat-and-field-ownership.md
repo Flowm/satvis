@@ -121,7 +121,11 @@ change its file before it applied, because a 304 reused the parsed rows. Now:
   `CATALOG_CRON`. Both are conditional on the stored file's ETag, but only while the
   file is there: a status that outlived its file would otherwise make every download a
   304 and never bring the file back. A new file is parsed before it is stored, so an
-  error page or a cut-off download is refused (422) and the stored file stands.
+  error page or a cut-off download is refused (422) and the stored file stands. A file
+  cut at a line break parses, so one with under half the stored rows is refused too;
+  neither table ever halves. The two paths are not meant to run at once: two stores of
+  one table can interleave file and status, and leave the older file under the newer
+  ETag until upstream changes again.
 - **Every GP update reads them.** `refreshGroups` decompresses and parses the four
   files anew, about 160 ms, and enriches from them; it never downloads a table. A
   parser change applies at the next GP update. A table stored between two GP updates
@@ -134,7 +138,8 @@ change its file before it applied, because a 304 reused the parsed rows. Now:
   `X-Upstream-Error`). A failure records only the error, so a dead job and a table that
   keeps failing both show as a `checked` that stops moving; a 304 clears the error,
   since upstream still serves the stored file. KV caps metadata at 1024 bytes, so the
-  error is cut to fit in bytes, and an ETag too long to be real is dropped.
+  error is cut to fit in bytes as JSON escapes them, and an ETag too long to be real
+  is dropped.
 - **`GET /api/status`**, public, gathers the statuses with one `list()`, says whether
   each table's file is `stored`, and adds each group's last write from the index. A
   table without its file, or not checked within its threshold (SATCAT 2 days, GCAT 10
@@ -247,4 +252,4 @@ panel shows.
   the newest satellites without a launch date.
 - **`shape`** is free text with several spellings of each value ("Box + 2 Pan",
   "Box+2 pan"). Only runs of spaces are collapsed; it is otherwise carried as is until
-  generic models need it normalised.
+  generic models need it normalised. Nothing shows it yet; it ships for them.
