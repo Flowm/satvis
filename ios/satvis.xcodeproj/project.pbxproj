@@ -11,6 +11,7 @@
 		57A0C0DE000000000000000D /* SatvisData in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE000000000000000B /* SatvisData */; };
 		57A0C0DE000000000000000F /* SatvisRender in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE000000000000000E /* SatvisRender */; };
 		57A0C0DE0000000000000012 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE0000000000000011 /* PostHog */; };
+		57A0C0DE0000000000000014 /* 2 in Copy Natural Earth */ = {isa = PBXBuildFile; fileRef = 57A0C0DE0000000000000013 /* 2 */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -23,7 +24,22 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		57A0C0DE0000000000000015 /* Copy Natural Earth */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = NaturalEarthII;
+			dstSubfolderSpec = 7;
+			files = (
+				57A0C0DE0000000000000014 /* 2 in Copy Natural Earth */,
+			);
+			name = "Copy Natural Earth";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		57A0C0DE0000000000000013 /* 2 */ = {isa = PBXFileReference; lastKnownFileType = folder; name = 2; path = ../data/imagery/NaturalEarthII/2; sourceTree = SOURCE_ROOT; };
 		570DD92722B5BA980078A4A1 /* satvisUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = satvisUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		579DA870218C123A00B417CB /* satvis.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = satvis.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -81,6 +97,7 @@
 			children = (
 				57A0C0DE0000000000000006 /* satvis */,
 				57A0C0DE0000000000000007 /* satvisUITests */,
+				57A0C0DE0000000000000013 /* 2 */,
 				579DA871218C123A00B417CB /* Products */,
 			);
 			sourceTree = "<group>";
@@ -125,6 +142,7 @@
 				579DA86C218C123A00B417CB /* Sources */,
 				579DA86D218C123A00B417CB /* Frameworks */,
 				579DA86E218C123A00B417CB /* Resources */,
+				57A0C0DE0000000000000015 /* Copy Natural Earth */,
 			);
 			buildRules = (
 			);

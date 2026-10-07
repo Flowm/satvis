@@ -82,7 +82,9 @@ private struct MetalView: UIViewRepresentable {
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         Task {
             do {
-                onRenderer(try await GlobeRenderer.make(view: view))
+                // The web app's level 2, copied in by the app target's "Copy Natural
+                // Earth" phase from data/imagery rather than kept a second time.
+                onRenderer(try await GlobeRenderer.make(view: view, naturalEarth: Bundle.main.url(forResource: "NaturalEarthII", withExtension: nil)))
             } catch {
                 log.error("No globe: \(error, privacy: .public)")
             }

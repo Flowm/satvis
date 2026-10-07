@@ -216,15 +216,16 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let inFlight = DispatchSemaphore(value: framesInFlight)
 
     /// Compiles the shaders, which takes a second or two, without holding up the
-    /// main thread, then takes over drawing the view.
-    public static func make(view: MTKView) async throws -> GlobeRenderer {
+    /// main thread, then takes over drawing the view. `naturalEarth` is the folder
+    /// of the Natural Earth II tiles the app ships (`Textures.naturalEarth(at:)`).
+    public static func make(view: MTKView, naturalEarth: URL?) async throws -> GlobeRenderer {
         guard let device = view.device ?? MTLCreateSystemDefaultDevice() else {
             throw RendererError.noDevice
         }
-        return try GlobeRenderer(view: view, device: device, libraries: try await ShaderLibrary.make(device: device))
+        return try GlobeRenderer(view: view, device: device, libraries: try await ShaderLibrary.make(device: device), naturalEarth: naturalEarth)
     }
 
-    private init(view: MTKView, device: MTLDevice, libraries: ShaderLibrary.Libraries) throws {
+    private init(view: MTKView, device: MTLDevice, libraries: ShaderLibrary.Libraries, naturalEarth: URL?) throws {
         guard let queue = device.makeCommandQueue() else {
             throw RendererError.noDevice
         }
@@ -353,13 +354,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         super.init()
         view.delegate = self
         mtkView(view, drawableSizeWillChange: view.drawableSize)
-        loadTextures()
+        loadTextures(naturalEarth: naturalEarth)
     }
 
     /// Decodes off the main thread; the globe is not drawn until it lands.
-    private func loadTextures() {
+    private func loadTextures(naturalEarth: URL?) {
         Task.detached(priority: .userInitiated) {
-            let imagery = Textures.naturalEarth()
+            let imagery = naturalEarth.flatMap(Textures.naturalEarth(at:))
             await MainActor.run {
                 self.imagery = imagery.flatMap { Textures.texture2D($0, device: self.device, queue: self.queue) }
             }

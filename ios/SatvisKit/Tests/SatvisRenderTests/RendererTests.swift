@@ -23,13 +23,16 @@ import simd
         }
     }
 
+    /// The web app's tiles, which the app target ships.
+    static let naturalEarthTiles = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../../../data/imagery/NaturalEarthII").standardized
+
     @Test func loadsTheImagery() throws {
-        let imagery = try #require(Textures.naturalEarth())
+        let imagery = try #require(Textures.naturalEarth(at: Self.naturalEarthTiles))
         #expect((imagery.width, imagery.height) == (2048, 1024))
     }
 
     @Test func takesSixSquareFacesForTheSky() throws {
-        let tiles = try #require(Textures.naturalEarthTiles)
+        let tiles = Self.naturalEarthTiles
         let square = try Data(contentsOf: tiles.appending(path: "2/0/0.webp"))
         #expect(Textures.cubeFaces(Array(repeating: square, count: 6))?.count == 6)
         #expect(Textures.cubeFaces(Array(repeating: square, count: 5)) == nil)

@@ -46,15 +46,10 @@ enum Textures {
         CGImageSourceCreateWithURL(url as CFURL, nil).flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) }
     }
 
-    /// The shipped Natural Earth II tiles, a TMS pyramid to level 2.
-    static var naturalEarthTiles: URL? { Bundle.module.url(forResource: "NaturalEarthII", withExtension: nil) }
-
-    /// Natural Earth II at level 2 of its geodetic tile pyramid, stitched into one
+    /// Natural Earth II at level 2 of its geodetic tile pyramid under `root`, a TMS
+    /// pyramid as the web app's `data/imagery/NaturalEarthII`, stitched into one
     /// equirectangular image with north at the top: 8 × 4 tiles of 256 px.
-    static func naturalEarth() -> Bitmap? {
-        guard let root = naturalEarthTiles else {
-            return nil
-        }
+    static func naturalEarth(at root: URL) -> Bitmap? {
         let tile = 256
         var missing = false
         let bitmap = Bitmap(width: 8 * tile, height: 4 * tile) { context in

@@ -41,8 +41,9 @@ SwiftUI draws all the controls over the `MTKView`.
 
 **The globe has offline imagery, streamed imagery and terrain.**
 
-- Natural Earth ships in the app, so the first launch works with no network. Its
-  finer levels, 3 to 5, stream from the site as the web app's do.
+- Natural Earth's level 2 ships in the app, so the first launch works with no
+  network: the web app's committed tiles, copied in by the app target, not a
+  second copy. Its finer levels, 3 to 5, stream from the site as the web app's do.
 - VersaTiles satellite, NASA Black Marble and VIIRS stream as the user zooms. The
   surface is a quadtree of geographic tiles, as CesiumJS's, and each tile's
   texture is baked from the base map's tiles: VersaTiles's and VIIRS's Web

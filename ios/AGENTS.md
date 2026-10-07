@@ -30,7 +30,9 @@ macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
 - The globe's surface is a quadtree of geographic tiles (`Surface`), refined by
   screen-space error as CesiumJS's is, but in device pixels where CesiumJS counts
   CSS pixels, each with a 256-texel texture baked from the base map
-  (`Imagery.swift`): the shipped Natural Earth first, then the base map's tiles
+  (`Imagery.swift`): Natural Earth's level 2 first, which the app target's "Copy
+  Natural Earth" phase copies from the web app's `data/imagery` rather than
+  keeping a second copy, then the base map's tiles
   as they load, the nearest loaded ancestor standing in. A Mercator tile's
   texture coordinates are worked out in double precision on the CPU, a strip of
   rows at a time: a float cannot place a pixel at level 19. Tiles come through
