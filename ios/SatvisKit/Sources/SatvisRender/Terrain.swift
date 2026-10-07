@@ -23,6 +23,9 @@ struct QuantizedMesh: Sendable {
 
     enum DecodingError: Error {
         case truncated
+        /// Counts or indices the tile's own data cannot hold: a tile like that
+        /// would index past its vertices.
+        case malformed
     }
 
     init(_ data: Data) throws(DecodingError) {
@@ -32,9 +35,17 @@ struct QuantizedMesh: Sendable {
         try reader.skip(24)
         minimumHeight = Double(try reader.float())
         maximumHeight = Double(try reader.float())
+        guard minimumHeight.isFinite, maximumHeight.isFinite, minimumHeight <= maximumHeight else {
+            throw .malformed
+        }
         try reader.skip(56)
 
+        // Each count is held to what the bytes left could carry before anything is
+        // reserved for it: a count from a corrupt tile reached gigabytes.
         let count = Int(try reader.uint32())
+        guard count <= reader.remaining / 6 else {
+            throw .truncated
+        }
         func zigzag(_ count: Int) throws(DecodingError) -> [Double] {
             var value = 0
             var values: [Double] = []
@@ -54,24 +65,39 @@ struct QuantizedMesh: Sendable {
 
         let wide = count > 65536
         try reader.align(wide ? 4 : 2)
+        let indexSize = wide ? 4 : 2
         let triangleCount = Int(try reader.uint32())
+        guard triangleCount <= reader.remaining / (3 * indexSize) else {
+            throw .truncated
+        }
         // High-water-mark encoded.
         var highest: UInt32 = 0
         var triangles: [UInt32] = []
         triangles.reserveCapacity(triangleCount * 3)
         for _ in 0..<triangleCount * 3 {
             let code = wide ? try reader.uint32() : UInt32(try reader.uint16())
-            triangles.append(highest &- code)
+            guard code <= highest, highest - code < count else {
+                throw .malformed
+            }
+            triangles.append(highest - code)
             if code == 0 {
                 highest += 1
             }
         }
         self.triangles = triangles
         func edge() throws(DecodingError) -> [UInt32] {
-            let count = Int(try reader.uint32())
+            let edgeCount = Int(try reader.uint32())
+            guard edgeCount <= reader.remaining / indexSize else {
+                throw .truncated
+            }
             var indices: [UInt32] = []
-            for _ in 0..<count {
-                indices.append(wide ? try reader.uint32() : UInt32(try reader.uint16()))
+            indices.reserveCapacity(edgeCount)
+            for _ in 0..<edgeCount {
+                let index = wide ? try reader.uint32() : UInt32(try reader.uint16())
+                guard index < count else {
+                    throw .malformed
+                }
+                indices.append(index)
             }
             return indices
         }
@@ -164,6 +190,7 @@ private struct Reader {
     var offset = 0
 
     var isAtEnd: Bool { offset >= data.count }
+    var remaining: Int { data.count - offset }
 
     mutating func skip(_ count: Int) throws(QuantizedMesh.DecodingError) {
         guard offset + count <= data.count else {
