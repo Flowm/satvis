@@ -29,6 +29,17 @@ struct AcknowledgementsView: View {
                 } label: {
                     entry("PostHog for iOS", "Usage analytics. MIT License.")
                 }
+                // Built into PostHog for iOS, which ships them in its binary.
+                NavigationLink {
+                    LicenceText(title: "PLCrashReporter", text: Self.bundled("plcrashreporter"))
+                } label: {
+                    entry("PLCrashReporter", "Part of PostHog for iOS. MIT License; its protobuf-c, Apache License 2.0.")
+                }
+                NavigationLink {
+                    LicenceText(title: "libwebp", text: Self.bundled("libwebp"))
+                } label: {
+                    entry("libwebp", "Part of PostHog for iOS. BSD 3-Clause License, with Google's patent grant.")
+                }
             }
             Section("Data") {
                 Link(destination: URL(string: "https://www.naturalearthdata.com")!) {
