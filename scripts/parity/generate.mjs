@@ -2,7 +2,7 @@
 // Write the parity fixtures the native app's tests are held to
 // (docs/adr/0009-native-ios-app.md): what the web app's own code answers for the
 // element sets in parity-input.json. Also write the tables the native app reads
-// as they are rather than keeping a copy of its own: the SATCAT code labels and
+// as they are rather than keeping a copy of its own: the SATCAT and GCAT code labels and
 // the external links. Never edit either output by hand; CI checks that rerunning
 // this changes nothing.
 //
@@ -79,6 +79,7 @@ try {
   const { default: Orbit } = await runner.import("/src/modules/Orbit.ts");
   const entityInfo = await runner.import("/src/modules/util/entityInfo.ts");
   const satcatCodes = await runner.import("/src/config/satcatCodes.ts");
+  const gcatCodes = await runner.import("/src/config/gcatCodes.ts");
   const { externalLinks } = await runner.import("/src/config/externalLinks.ts");
 
   const input = fs.readFileSync(inputPath, "utf8");
@@ -137,7 +138,7 @@ try {
     };
   });
 
-  // The info panel's Details tab: derived, curated and SATCAT facts, then the
+  // The info panel's Details tab: derived, curated, GCAT and SATCAT facts, then the
   // element set as the panel shows it.
   const details = records.map((record, index) => {
     const orbit = new Orbit(parsed[index].name, record);
@@ -473,11 +474,11 @@ try {
   const tables = {
     generatedBy: "scripts/parity/generate.mjs",
     satcat: {
-      owner: satcatCodes.SATCAT_OWNER,
       launchSite: satcatCodes.SATCAT_LAUNCH_SITE,
       opsStatus: satcatCodes.SATCAT_OPS_STATUS,
       orbitType: satcatCodes.SATCAT_ORBIT_TYPE,
     },
+    gcat: { category: gcatCodes.GCAT_CATEGORY, class: gcatCodes.GCAT_CLASS },
     // `{satnum}` stands where the catalog number goes.
     externalLinks: externalLinks("{satnum}"),
   };

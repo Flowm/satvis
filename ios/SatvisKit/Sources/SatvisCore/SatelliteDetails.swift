@@ -1,14 +1,34 @@
 import Foundation
 
 /// The tables the native app reads from the web app rather than keeping its own:
-/// SATCAT code labels and the external links (Shared/web-tables.json, written by
-/// scripts/parity/generate.mjs).
+/// SATCAT and GCAT code labels and the external links (Shared/web-tables.json,
+/// written by scripts/parity/generate.mjs).
 public struct WebTables: Sendable, Decodable {
     public struct Satcat: Sendable, Decodable {
-        public var owner: [String: String]
         public var launchSite: [String: String]
         public var opsStatus: [String: String]
         public var orbitType: [String: String]
+    }
+
+    /// GCAT's payload codes (src/config/gcatCodes.ts).
+    public struct Gcat: Sendable, Decodable {
+        public var category: [String: String]
+        public var `class`: [String: String]
+
+        /// "IMG/TECH" as "Imaging / Technology". GCAT appends "?" to an uncertain
+        /// category, kept, and "*" to one whose orbit the US keeps secret, dropped.
+        public func categoryLabel(_ code: String) -> String {
+            code.split(separator: "/", omittingEmptySubsequences: false).map { part in
+                // Both marks can follow one code, "?" first: "SIG?*".
+                let bare = String(part.reversed().drop { $0 == "?" || $0 == "*" }.reversed())
+                return (category[bare] ?? bare) + (part.contains("?") ? "?" : "")
+            }.joined(separator: " / ")
+        }
+
+        /// "BD" as "Commercial / Military"; a letter it does not know stays a letter.
+        public func classLabel(_ code: String) -> String {
+            code.map { self.class[String($0)] ?? String($0) }.joined(separator: " / ")
+        }
     }
 
     public struct Link: Sendable, Decodable, Hashable {
@@ -23,6 +43,7 @@ public struct WebTables: Sendable, Decodable {
     }
 
     public var satcat: Satcat
+    public var gcat: Gcat
     public var externalLinks: [Link]
 
     public static let shared: WebTables = {
@@ -34,7 +55,7 @@ public struct WebTables: Sendable, Decodable {
 /// What the info panel's Details tab says about a satellite, as the web app's
 /// `getSatelliteInfo` and `getElementsInfo` say it (src/modules/util/entityInfo.ts).
 public enum SatelliteDetails {
-    /// Label and value rows: the orbit, then curated, then SATCAT facts.
+    /// Label and value rows: the orbit, then curated, GCAT and SATCAT facts.
     public static func facts(_ record: GPRecord, propagator: SGP4Propagator?, tables: WebTables = .shared) -> [(String, String)] {
         var rows: [(String, String)] = []
         let regime = record.orbitClass.rawValue
@@ -56,14 +77,32 @@ public enum SatelliteDetails {
         if let fov = metadata["coneFovDeg"]?.number {
             rows.append(("Sensor FOV", "\(javaScriptString(fov))°"))
         }
-        if let operatorName = metadata["operator"]?.string {
-            rows.append(("Operator", operatorName))
-        }
         if let mission = metadata["missionType"]?.string {
             rows.append(("Mission", mission))
         }
-        if let owner = label(tables.satcat.owner, "owner") {
-            rows.append(("Owner", owner))
+        if let country = metadata["country"]?.string {
+            rows.append(("Country", country))
+        }
+        if let operatorName = metadata["operator"]?.string {
+            rows.append(("Operator", operatorName))
+        }
+        if let category = metadata["category"]?.string {
+            rows.append(("Purpose", tables.gcat.categoryLabel(category)))
+        }
+        if let ownerClass = metadata["class"]?.string {
+            rows.append(("Class", tables.gcat.classLabel(ownerClass)))
+        }
+        if let manufacturer = metadata["manufacturer"]?.string {
+            rows.append(("Manufacturer", manufacturer))
+        }
+        if let bus = metadata["bus"]?.string {
+            rows.append(("Bus", bus))
+        }
+        if let mass = metadata["massKg"]?.number {
+            rows.append(("Mass", "\(approximate(metadata, "massKg", groupedString(mass))) kg"))
+        }
+        if let size = size(metadata) {
+            rows.append(("Size", size))
         }
         if let launchDate = metadata["launchDate"]?.string {
             rows.append(("Launched", label(tables.satcat.launchSite, "launchSite").map { "\(launchDate) · \($0)" } ?? launchDate))
@@ -78,6 +117,28 @@ public enum SatelliteDetails {
             rows.append(("Decayed", decay))
         }
         return rows
+    }
+
+    /// GCAT flags most sizes and some masses as estimates (`estimated`); "~" says so.
+    private static func approximate(_ metadata: [String: JSONValue], _ key: String, _ text: String) -> String {
+        metadata["estimated"]?.array?.contains(.string(key)) == true ? "~\(text)" : text
+    }
+
+    /// "12.6 × 4.2 m, span 23.9 m": the body's two dimensions as GCAT gives them,
+    /// then the span with arrays and booms.
+    private static func size(_ metadata: [String: JSONValue]) -> String? {
+        let body = ["lengthM", "diameterM"].compactMap { key in metadata[key]?.number.map { approximate(metadata, key, javaScriptString($0)) } }
+        var parts = body.isEmpty ? [] : ["\(body.joined(separator: " × ")) m"]
+        if let span = metadata["spanM"]?.number {
+            parts.append("span \(approximate(metadata, "spanM", javaScriptString(span))) m")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
+    }
+
+    /// The number as `toLocaleString("en-US")` writes it: grouped by thousands, at
+    /// most three decimals.
+    static func groupedString(_ value: Double) -> String {
+        value.formatted(.number.locale(Locale(identifier: "en_US")).precision(.fractionLength(0...3)).rounded(rule: .toNearestOrAwayFromZero))
     }
 
     public enum Elements: Sendable, Equatable {

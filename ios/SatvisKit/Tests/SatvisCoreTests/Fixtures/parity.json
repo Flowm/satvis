@@ -1422,8 +1422,36 @@
           "426 / 416 km"
         ],
         [
-          "Owner",
-          "International Space Station"
+          "Country",
+          "USA"
+        ],
+        [
+          "Operator",
+          "NASA Johnson Space Flight Center"
+        ],
+        [
+          "Purpose",
+          "Human spaceflight"
+        ],
+        [
+          "Class",
+          "Civil government"
+        ],
+        [
+          "Manufacturer",
+          "Khrunichev State Research and Production Center"
+        ],
+        [
+          "Bus",
+          "77KS"
+        ],
+        [
+          "Mass",
+          "20,281 kg"
+        ],
+        [
+          "Size",
+          "12.6 × ~4.2 m, span 23.9 m"
         ],
         [
           "Launched",
@@ -1497,8 +1525,36 @@
           "2900 km"
         ],
         [
-          "Owner",
+          "Country",
           "EUMETSAT"
+        ],
+        [
+          "Operator",
+          "EUMETSAT"
+        ],
+        [
+          "Purpose",
+          "Meteorology / Earth science"
+        ],
+        [
+          "Class",
+          "Civil government"
+        ],
+        [
+          "Manufacturer",
+          "Airbus Defence and Space / Thales Alenia Space"
+        ],
+        [
+          "Bus",
+          "Metop"
+        ],
+        [
+          "Mass",
+          "~4,085 kg"
+        ],
+        [
+          "Size",
+          "span ~17.6 m"
         ],
         [
           "Launched",
@@ -1564,8 +1620,28 @@
           "20494 / 19871 km"
         ],
         [
-          "Owner",
-          "United States"
+          "Country",
+          "USA"
+        ],
+        [
+          "Operator",
+          "US Space Force"
+        ],
+        [
+          "Purpose",
+          "Navigation"
+        ],
+        [
+          "Class",
+          "Military"
+        ],
+        [
+          "Mass",
+          "2,032 kg"
+        ],
+        [
+          "Size",
+          "1.9 m"
         ],
         [
           "Launched",
@@ -1631,8 +1707,24 @@
           "35792 / 35784 km"
         ],
         [
-          "Owner",
-          "United States"
+          "Country",
+          "USA"
+        ],
+        [
+          "Operator",
+          "NOAA"
+        ],
+        [
+          "Purpose",
+          "Meteorology?"
+        ],
+        [
+          "Class",
+          "Civil government"
+        ],
+        [
+          "Mass",
+          "2,857.123 kg"
         ],
         [
           "Launched",
@@ -1698,8 +1790,16 @@
           "52415 / 5808 km"
         ],
         [
-          "Owner",
-          "United States"
+          "Purpose",
+          "Science?"
+        ],
+        [
+          "Class",
+          "Commercial / Military"
+        ],
+        [
+          "Size",
+          "2.4 m"
         ],
         [
           "Launched",

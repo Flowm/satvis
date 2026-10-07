@@ -91,12 +91,12 @@ struct InfoPanel: View {
     private var chips: some View {
         let metadata = entry.record.metadata
         let tables = WebTables.shared.satcat
-        let owner = metadata["owner"]?.string.map { tables.owner[$0] ?? $0 }
+        let country = metadata["country"]?.string
         let status = metadata["opsStatus"]?.string.map { tables.opsStatus[$0] ?? $0 }
         return HStack {
             Chip(text: entry.record.orbitClass.rawValue, color: Color(orbitClass: entry.record.orbitClass))
-            if let owner {
-                Chip(text: owner, color: .secondary)
+            if let country {
+                Chip(text: country, color: .secondary)
             }
             if let status {
                 Chip(text: status, color: .secondary)

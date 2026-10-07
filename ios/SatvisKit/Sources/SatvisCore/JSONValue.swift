@@ -44,4 +44,8 @@ public enum JSONValue: Sendable, Hashable, Codable {
     public var number: Double? {
         if case .number(let value) = self { value } else { nil }
     }
+
+    public var array: [JSONValue]? {
+        if case .array(let value) = self { value } else { nil }
+    }
 }
