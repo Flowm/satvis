@@ -19,15 +19,25 @@ final class PreparedModel: @unchecked Sendable {
     let center: SIMD3<Float>
     let radius: Float
 
-    init?(_ asset: ModelAsset, device: MTLDevice) {
+    /// The asset on the GPU, its textures loaded without holding a thread: the
+    /// loader's synchronous call waits on a semaphore for work of its own, and
+    /// six models loading at once took all six of an iPad mini 6's cooperative
+    /// threads that way, for good, which stopped every task in the app.
+    static func prepare(_ asset: ModelAsset, device: MTLDevice) async -> PreparedModel? {
+        let loader = MTKTextureLoader(device: device)
+        var textures: [MTLTexture?] = []
+        for image in asset.images {
+            textures.append(
+                try? await loader.newTexture(cgImage: image, options: [.SRGB: true, .generateMipmaps: true, .textureStorageMode: MTLStorageMode.private.rawValue]))
+        }
+        return PreparedModel(asset, textures: textures, device: device)
+    }
+
+    private init?(_ asset: ModelAsset, textures: [MTLTexture?], device: MTLDevice) {
         guard let vertices = asset.vertices.withUnsafeBytes({ device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) }),
             let indices = asset.indices.withUnsafeBytes({ device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) })
         else {
             return nil
-        }
-        let loader = MTKTextureLoader(device: device)
-        let textures = asset.images.map { image in
-            try? loader.newTexture(cgImage: image, options: [.SRGB: true, .generateMipmaps: true, .textureStorageMode: MTLStorageMode.private.rawValue])
         }
         self.vertices = vertices
         self.indices = indices
@@ -106,11 +116,10 @@ final class SatelliteModels {
                 guard let data = await loader(file) else {
                     return nil
                 }
-                do {
-                    return PreparedModel(try ModelAsset(glb: data), device: device)
-                } catch {
+                guard let asset = try? ModelAsset(glb: data) else {
                     return nil
                 }
+                return await PreparedModel.prepare(asset, device: device)
             }.value
             models[file] = prepared.map(State.ready) ?? .failed(at: Date())
         }
