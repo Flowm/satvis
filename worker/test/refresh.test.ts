@@ -259,4 +259,25 @@ describe("refreshUpstreams", () => {
     expect(asked.get(GCAT_CATALOG.url)).toBeUndefined();
     expect(Object.keys(statuses)).toEqual(["satcat", "gcat", "gcatOrgs", "gcatPayloads"]);
   });
+
+  it("carries on past a table whose store throws", async () => {
+    const { store, files } = memoryStore();
+    const writeUpstream = store.writeUpstream;
+    store.writeUpstream = async (name, bytes) => {
+      if (name === "satcat") {
+        throw new Error("KV put failed");
+      }
+      return writeUpstream(name, bytes);
+    };
+    const bodies = new Map<string, string>([
+      [SATCAT.url, SATCAT_CSV],
+      [GCAT_CATALOG.url, gcatCatalog(GCAT_CATALOG_LINES.ISS)],
+      [GCAT_ORGS.url, gcatOrgs(...Object.values(GCAT_ORGS_LINES))],
+      [GCAT_PAYLOADS.url, gcatPayloads(GCAT_PAYLOADS_LINES.ISS)],
+    ]);
+    const statuses = await refreshUpstreams(store, async (url) => ({ status: 200, text: async () => bodies.get(url)!, headers: { get: () => null } }));
+
+    expect(statuses.satcat).toMatchObject({ lastError: "store failed: KV put failed" });
+    expect([...files.keys()]).toEqual(["gcat", "gcatOrgs", "gcatPayloads"]);
+  });
 });

@@ -22,6 +22,12 @@ export interface UpstreamSpec<T> {
   staleAfterMs: number;
 }
 
+/**
+ * A parse that keeps fewer than this share of the stored rows is refused. The parsers
+ * catch a cut row, not a file cut at a line break; neither table ever halves.
+ */
+const MIN_ROW_RATIO = 0.5;
+
 /** Exactly one of `body`, `notModified` and `error` is set. */
 export interface UpstreamFetch {
   /** Upstream's HTTP status; absent when the request itself failed. */
@@ -86,9 +92,13 @@ export async function storeUpstream<T>(
   etag: string | undefined,
   now: string,
 ): Promise<{ stored: boolean; status: UpstreamStatus }> {
-  let rows: T;
+  let rows: number;
   try {
-    rows = spec.parse(body);
+    rows = Object.keys(spec.parse(body) as object).length;
+    const stored = (await store.listUpstreams()).has(spec.name) ? (await store.readStatus(spec.name))?.rows : undefined;
+    if (stored !== undefined && rows < stored * MIN_ROW_RATIO) {
+      throw new Error(`${rows} rows, against ${stored} stored: cut off?`);
+    }
   } catch (err) {
     const message = `refused: ${err instanceof Error ? err.message : String(err)}`;
     console.warn(`upstream ${spec.name}: ${message} (keeping the stored file)`);
@@ -96,7 +106,7 @@ export async function storeUpstream<T>(
   }
   const blob = new Blob([body]);
   await store.writeUpstream(spec.name, await gzip(blob));
-  const status: UpstreamStatus = { updated: now, checked: now, etag, bytes: blob.size, rows: Object.keys(rows as object).length };
+  const status: UpstreamStatus = { updated: now, checked: now, etag, bytes: blob.size, rows };
   await store.writeStatus(spec.name, status);
   console.log(`upstream ${spec.name}: stored ${status.rows} rows, ${status.bytes} bytes`);
   return { stored: true, status };

@@ -104,11 +104,7 @@ async function main() {
   }
 
   for (const [name, status] of Object.entries(statuses)) {
-    process.stdout.write(
-      status.lastError && status.lastErrorAt === status.checked
-        ? `  ${name}: FAILED (${status.lastError}) — kept the stored file\n`
-        : `  ${name}: ${status.rows} rows (stored ${status.updated})\n`,
-    );
+    process.stdout.write(status.lastError ? `  ${name}: FAILED (${status.lastError}) — kept the stored file\n` : `  ${name}: ${status.rows} rows (stored ${status.updated})\n`);
   }
 
   process.stdout.write(`Wrote ${path.relative(repoRoot, outDir)}/ (${report.written}/${defs.length} groups)\n`);

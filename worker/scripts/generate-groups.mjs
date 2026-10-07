@@ -10,6 +10,8 @@ import { fileURLToPath } from "node:url";
 
 import YAML from "yaml";
 
+import { isGcatBusName, modelsByBus } from "../src/gp/modelBuses.ts";
+
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workerDir = path.resolve(scriptDir, "..");
 const repoRoot = path.resolve(workerDir, "..");
@@ -155,31 +157,19 @@ function modelAssignments(manifestPath) {
       }
       satellites.push({ noradId: satellite.noradId, modelFile: model.file, origin: `${source} ${model.file}` });
     }
-    if (model.buses !== undefined && (!Array.isArray(model.buses) || model.buses.some((bus) => typeof bus !== "string" || bus.trim() === ""))) {
-      throw new Error(`${source}: ${model.file} has a "buses" that is not a list of GCAT bus names`);
+    if (model.buses !== undefined && !Array.isArray(model.buses)) {
+      throw new Error(`${source}: ${model.file} has a "buses" that is not a list`);
+    }
+    for (const bus of model.buses ?? []) {
+      if (!isGcatBusName(bus)) {
+        throw new Error(`${source}: ${model.file} names bus ${JSON.stringify(bus)}, not spelled as GCAT's: trimmed, single spaces`);
+      }
     }
     for (const bus of model.buses ?? []) {
       buses.push({ bus, modelFile: model.file, origin: `${source} ${model.file}` });
     }
   });
   return { satellites, buses };
-}
-
-/**
- * GCAT bus -> modelFile, from every manifest (ADR 0007). A bus is matched exactly and
- * belongs to one model; two models naming it is a build failure that names both, as two
- * claims on one NORAD id are.
- */
-function modelsByBus(assignments) {
-  const byBus = new Map();
-  for (const { bus, modelFile, origin } of assignments) {
-    const previous = byBus.get(bus);
-    if (previous !== undefined && previous.modelFile !== modelFile) {
-      throw new Error(`bus ${JSON.stringify(bus)} is claimed by ${previous.origin} and by ${origin}`);
-    }
-    byBus.set(bus, { modelFile, origin });
-  }
-  return Object.fromEntries([...byBus].toSorted(([a], [b]) => a.localeCompare(b)).map(([bus, { modelFile }]) => [bus, modelFile]));
 }
 
 function validateSatellites(group) {

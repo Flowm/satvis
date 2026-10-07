@@ -40,6 +40,19 @@ describe("storeUpstream", () => {
     expect(await loadUpstream(SATCAT, store)).toHaveProperty("25544");
   });
 
+  it("refuses a file that parses to under half the stored rows, as one cut at a line break", async () => {
+    const { store } = memoryStore();
+    const [header, iss] = SATCAT_CSV.split("\r\n") as [string, string];
+    const rows = (count: number) => [header, ...Array.from({ length: count }, (_, i) => iss.replace("25544", String(90000 + i)))].join("\r\n");
+    await storeUpstream(SATCAT, store, rows(10), '"abc"', NOW);
+
+    const { stored, status } = await storeUpstream(SATCAT, store, rows(4), '"def"', LATER);
+    expect(stored).toBe(false);
+    expect(status).toMatchObject({ rows: 10, etag: '"abc"' });
+    expect(status.lastError).toBe("refused: 4 rows, against 10 stored: cut off?");
+    expect((await storeUpstream(SATCAT, store, rows(5), '"ghi"', LATER)).stored).toBe(true);
+  });
+
   it("clears an earlier error once a file is stored", async () => {
     const { store } = memoryStore();
     await recordFailure("satcat", store, "HTTP 522", NOW);
@@ -85,6 +98,14 @@ describe("boundStatus", () => {
     expect(new TextEncoder().encode(JSON.stringify(bounded)).length).toBeLessThanOrEqual(1000);
     expect(bounded).not.toHaveProperty("etag");
     expect(bounded.lastError).toMatch(/^€+.*…$/);
+  });
+
+  it("counts the error as KV does, escaped", () => {
+    for (const char of ['"', "\\", "\n", "\u0001"]) {
+      const bounded = boundStatus({ updated: NOW, checked: NOW, etag: `"${"x".repeat(150)}"`, rows: 1, lastError: char.repeat(1000), lastErrorAt: NOW });
+      expect(new TextEncoder().encode(JSON.stringify(bounded)).length).toBeLessThanOrEqual(1000);
+      expect(bounded.lastError).toMatch(/…$/);
+    }
   });
 
   it("leaves a status that fits as it is", () => {

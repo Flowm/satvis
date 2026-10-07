@@ -45,17 +45,25 @@ async function runScheduled(cron) {
   console.log(`cron ${cron}: ${response.status ?? response.message}`);
 }
 
-/**
- * A fresh volume would otherwise have no satellites until the first scheduled refresh,
- * and a volume from before the tables existed no enrichment until the next of each.
- * Tables first, so the GP refresh enriches from them.
- */
-const status = await (await fetch(`${upstream}/api/status`)).json();
-const tablesMissing = Object.values(status.sources).some((source) => !source.stored);
-if (tablesMissing) {
-  await runScheduled(CATALOG_CRON);
+/** When the groups were built, and how many of the tables /api/status lists are stored. */
+async function storedTables() {
+  const { built, sources } = await (await fetch(`${upstream}/api/status`)).json();
+  const tables = Object.values(sources);
+  return { built, stored: tables.filter((source) => source.stored).length, total: tables.length };
 }
-if (tablesMissing || !status.built) {
+
+// A fresh volume would otherwise have no satellites until the first scheduled refresh,
+// and a volume from before the tables existed no enrichment until the next of each.
+// Tables first, so the GP refresh enriches from them. GP runs again only for a table
+// that arrived: a table that cannot be fetched would otherwise cost CelesTrak a full
+// download on every restart.
+const before = await storedTables();
+let after = before;
+if (before.stored < before.total) {
+  await runScheduled(CATALOG_CRON);
+  after = await storedTables();
+}
+if (!before.built || after.stored > before.stored) {
   await runScheduled(GP_CRON);
 }
 

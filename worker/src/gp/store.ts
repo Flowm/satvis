@@ -37,31 +37,47 @@ export interface GroupStore {
 
 /** KV caps metadata at 1024 bytes of JSON; this leaves room for the KV wrapper. */
 const MAX_STATUS_BYTES = 1000;
-/** A longer ETag is dropped, not cut: a cut one would never match, and none is ever this long. */
+/** A longer ETag, escaped, is dropped, not cut: a cut one would never match, and none is ever this long. */
 const MAX_ETAG_BYTES = 200;
 
 const encoder = new TextEncoder();
-const decoder = new TextDecoder();
 
 function byteLength(text: string): number {
   return encoder.encode(text).length;
 }
 
+/** Bytes in KV's JSON: a quote, a backslash or a control character grows when escaped. */
+function jsonLength(text: string): number {
+  return byteLength(JSON.stringify(text)) - 2;
+}
+
 /**
  * Fits a status into KV metadata. `etag` arrives in a client header and `lastError`
- * from any failure, so both are bounded, in bytes; the rest is fixed-size.
+ * from any failure, so both are bounded, in escaped bytes; the rest is fixed-size.
  */
 export function boundStatus(status: UpstreamStatus): UpstreamStatus {
   const { etag, lastError, ...rest } = status;
-  const bounded: UpstreamStatus = { ...rest, ...(etag !== undefined && byteLength(etag) <= MAX_ETAG_BYTES && { etag }) };
+  const bounded: UpstreamStatus = { ...rest, ...(etag !== undefined && jsonLength(etag) <= MAX_ETAG_BYTES && { etag }) };
   if (lastError === undefined) {
     return bounded;
   }
   const room = MAX_STATUS_BYTES - byteLength(JSON.stringify({ ...bounded, lastError: "" }));
-  const bytes = encoder.encode(lastError);
-  // A cut through a multi-byte character decodes as U+FFFD, three bytes for the one or
-  // two it replaces, so it goes; the "…" takes three.
-  return { ...bounded, lastError: bytes.length <= room ? lastError : `${decoder.decode(bytes.slice(0, Math.max(0, room - 3))).replace(/\uFFFD$/, "")}…` };
+  if (jsonLength(lastError) <= room) {
+    return { ...bounded, lastError };
+  }
+  // The longest prefix of whole code points that fits with its "…".
+  const chars = Array.from(lastError);
+  let low = 0;
+  let high = chars.length;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (jsonLength(`${chars.slice(0, mid).join("")}…`) <= room) {
+      low = mid;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return { ...bounded, lastError: `${chars.slice(0, low).join("")}…` };
 }
 
 export function kvGroupStore(kv: KVNamespace): GroupStore {
