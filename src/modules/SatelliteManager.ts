@@ -121,10 +121,9 @@ export class SatelliteManager {
   /** The satellite asked whether the corridor batch has caught up. */
   #groundTrackProbe: string | undefined;
 
-  readonly #samples: SampleSource = new WorkerSampleSource();
+  readonly #samples: SampleSource;
 
-  /** A worker separate from sampling; see passWorker. */
-  readonly #passes: PassSource = new WorkerPassSource();
+  readonly #passes: PassSource;
 
   /**
    * Satellites whose opening window has arrived. A satellite is only created once it has a position.
@@ -144,8 +143,12 @@ export class SatelliteManager {
 
   #buildWaiters: Array<() => void> = [];
 
-  constructor(viewer: Viewer) {
+  /** The sources default to the workers; a test passes the inline ones. */
+  constructor(viewer: Viewer, sources: { samples?: SampleSource; passes?: PassSource } = {}) {
     this.viewer = viewer;
+    this.#samples = sources.samples ?? new WorkerSampleSource();
+    // A worker separate from sampling; see passWorker.
+    this.#passes = sources.passes ?? new WorkerPassSource();
     this.orbits = new PolylineBatch(viewer, "inertial");
     this.tracks = new PolylineBatch(viewer, "fixed");
     this.#tracksRefreshedAt = viewer.clock.currentTime;
