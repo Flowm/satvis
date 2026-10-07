@@ -221,8 +221,11 @@ final class Session {
 
     func enteredBackground() {
         alerts.requestRefresh()
-        // Kept without its time: the app reopens on the present.
-        UserDefaults.standard.set(link(sharing: false, withTime: false).url(site: source.site).absoluteString, forKey: Self.viewKey)
+        // Kept without its time: the app reopens on the present. Not a benchmark
+        // scene: the view the run began from.
+        var kept = benchmark.abandon(on: self) ?? link(sharing: false)
+        kept.query.items.removeAll { $0.key == "time" }
+        UserDefaults.standard.set(kept.url(site: source.site).absoluteString, forKey: Self.viewKey)
     }
 
     // MARK: Links
@@ -239,7 +242,7 @@ final class Session {
 
     func setShowsBenchmark(_ shows: Bool) {
         if !shows {
-            benchmark.cancel()
+            benchmark.cancel(closing: true)
         }
         showsBenchmark = shows
         foreign.items.removeAll { $0.key == Self.benchmarkKey }

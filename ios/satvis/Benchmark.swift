@@ -117,6 +117,10 @@ final class Benchmark {
     private(set) var environment: [String: Any] = [:]
     private(set) var submitted = false
     @ObservationIgnored private var run: Task<Void, Never>?
+    /// The user's view while a run shows its scenes, opened again at its end.
+    @ObservationIgnored private(set) var savedLink: Link?
+    /// The settings the scenes' links change and the app keeps between launches.
+    @ObservationIgnored private var savedSettings: (baseLayer: BaseLayer, terrain: Bool, mode: OverpassMode)?
 
     var isRunning: Bool {
         switch phase {
@@ -136,7 +140,8 @@ final class Benchmark {
         // Running from here on, so a second start finds it so.
         phase = .loading(0)
         environment = Self.environment(renderer: renderer, session: session)
-        let saved = session.link(sharing: false)
+        savedLink = session.link(sharing: false)
+        savedSettings = (session.baseLayer, session.terrain, session.passes.mode)
         run = Task {
             renderer.measuresFrames = true
             for (index, scene) in Self.plan.enumerated() {
@@ -154,7 +159,11 @@ final class Benchmark {
                 environment["device_drawable_pixels"] = "\(Int(size.width))x\(Int(size.height))"
             }
             phase = Task.isCancelled ? .cancelled : .done
-            session.open(saved)
+            if let savedLink {
+                session.open(savedLink)
+            }
+            savedLink = nil
+            savedSettings = nil
             if Self.runsAtLaunch, phase == .done {
                 if Self.sendsAtLaunch {
                     submit(with: session.analytics)
@@ -175,8 +184,29 @@ final class Benchmark {
         start(on: session)
     }
 
-    func cancel() {
+    /// `closing` as the panel closes: the view opened again is then without it.
+    func cancel(closing: Bool = false) {
+        if closing {
+            savedLink?.query.items.removeAll { $0.key == "bench" }
+        }
         run?.cancel()
+    }
+
+    /// Stops a run as the app leaves the foreground, where iOS draws no frames to
+    /// measure, and puts the user's settings back at once: iOS may end the app
+    /// before the run's own restore, which left the last scene's base map,
+    /// terrain and pass mode kept as the user's. The user's view, to keep.
+    func abandon(on session: Session) -> Link? {
+        guard isRunning else {
+            return nil
+        }
+        run?.cancel()
+        if let savedSettings {
+            session.baseLayer = savedSettings.baseLayer
+            session.terrain = savedSettings.terrain
+            session.passes.setMode(savedSettings.mode)
+        }
+        return savedLink
     }
 
     private func measure(_ scene: Scene, index: Int, session: Session, renderer: GlobeRenderer) async -> Result? {
