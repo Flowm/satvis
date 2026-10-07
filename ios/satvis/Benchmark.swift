@@ -55,7 +55,7 @@ final class Benchmark {
 
     /// The scenes the device runs, cheap to heavy: the web app's axes of count and
     /// component, the 3D model close up and the sky view, which the tests on an
-    /// iPad mini found to differ most (docs/manual-verification.md).
+    /// iPad mini found to differ most (ios/docs/manual-verification.md).
     static let scenes = [
         Scene(
             id: "default_view", title: "Default view", subtitle: "Points and labels", detail: "The default preset's satellites, points and labels, on the globe",

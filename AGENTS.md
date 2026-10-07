@@ -16,8 +16,6 @@ workspace package). One `pnpm install` at the root covers both.
   compass aiming (0004), surface models (0005), SATCAT enrichment (0006), model
   manifests (0007), GCAT and the one owner per metadata field (0008), the native
   iOS app (0008).
-- **`docs/manual-verification.md`** — the checks jsdom cannot run. Rerun the ones
-  covering code you change, and record what they returned.
 - **`e2e/`** — Playwright specs against the running app: `journeys/` walks the main
   flows through the menus, `regressions/` pins down one past bug each, for what
   needs layout, a GPU or frames. Read `e2e/support/app.ts` before writing one: it
@@ -27,7 +25,8 @@ workspace package). One `pnpm install` at the root covers both.
 - **`src/modules/benchmark/README.md`** — the benchmark framework, and how the
   frame cost scales.
 - **`ios/AGENTS.md`** — the native iOS app: building, testing, its worker
-  client, and its parity with the web app.
+  client, and its parity with the web app. Its manual checks, which no test can
+  run, are `ios/docs/manual-verification.md`.
 
 ## Architecture
 
@@ -58,20 +57,19 @@ workspace package). One `pnpm install` at the root covers both.
 
 - Worker scripts run through `pnpm --filter satvis-worker <script>`.
 - `pnpm lint` covers both packages, but `pnpm test` covers only the frontend —
-  the worker suite is `pnpm --filter satvis-worker test`. CI runs lint, both test
-  suites, then build, and on macOS the native app's package tests, its Swift lint
-  and a build of the app and its UI tests.
   the worker suite is `pnpm --filter satvis-worker test`, which also starts
   `wrangler dev` to check the asset routing (`worker/scripts/check-routes.mjs`).
   `pnpm test:build` checks `dist/sw.js` after a build. CI runs lint, both test
   suites, the build with `test:build`, and `pnpm test:e2e`, and on macOS the
-  native app's package tests.
+  native app's package tests, its Swift lint and a build of the app and its UI
+  tests.
 - `pnpm update-parity-fixtures` reruns the web code the native app is held to
   (`scripts/parity/`), and writes the tables it reads from the web app as they are
-  (SATCAT labels, external links). Rerun it after changing propagation, element-set
-  parsing, pass prediction, the info panel's details and passes, the URL codec, or
-  those tables;
-  CI fails while the committed output is stale.
+  (SATCAT labels, external links). Rerun it after changing propagation or its
+  sampling grid, element-set parsing, pass prediction, the info panel's details
+  and passes, the URL codec, the analytics sanitising (`posthogPrivacy.ts`), the
+  pixel ratios (`config/rendering.ts`), or those tables; CI fails while the
+  committed output is stale.
 - `pnpm test:e2e` renders with SwiftShader, as a GPU-less CI runner does;
   `pnpm test:e2e:gpu` runs the same specs about four times faster on a Mac.
 - The full e2e suite takes 10+ minutes even on the GPU, so run it only when
