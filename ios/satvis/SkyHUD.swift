@@ -11,6 +11,9 @@ struct SkyHUD: View {
     let renderer: GlobeRenderer
     /// Where the compass tape sits, below the controls along the top.
     let tapeTop: CGFloat
+    /// How far the info card covers the trailing edge, for the elevation tape and
+    /// the lock's card to stand clear of it.
+    var trailingInset: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -19,7 +22,7 @@ struct SkyHUD: View {
                 let settled = renderer.isSkySettled
                 // Up as the ground arrives: projected against a camera still in
                 // flight, the tapes would swim across the screen.
-                SkyInstruments(renderer: renderer, tapeTop: tapeTop, size: proxy.size, date: context.date)
+                SkyInstruments(renderer: renderer, tapeTop: tapeTop, trailingInset: trailingInset, size: proxy.size, date: context.date)
                     .opacity(settled ? 1 : 0)
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: settled)
             }
@@ -33,6 +36,7 @@ struct SkyHUD: View {
 private struct SkyInstruments: View {
     let renderer: GlobeRenderer
     let tapeTop: CGFloat
+    let trailingInset: CGFloat
     let size: CGSize
     let date: Date
 
@@ -58,6 +62,7 @@ private struct SkyInstruments: View {
                 // Above the clock deck.
                 card(lock)
                     .padding(.bottom, 136)
+                    .padding(.trailing, trailingInset)
             }
         }
     }
@@ -125,7 +130,7 @@ private struct SkyInstruments: View {
 
     /// Elevations down the right edge, where the view draws them.
     private func elevationTape(_ camera: SkyCamera, size: CGSize, in context: inout GraphicsContext) {
-        let left = size.width - 64
+        let left = size.width - trailingInset - 64
         let fieldOfView = camera.verticalFieldOfView * 180 / .pi
         let step = Self.step(span: fieldOfView)
         let pitch = camera.pitch * 180 / .pi
