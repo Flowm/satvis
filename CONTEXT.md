@@ -91,7 +91,8 @@ discussion; sharpen them here when they drift.
 - **Component**: one visual part of a satellite that can be switched on on its
   own: point, label, orbit, orbit track, ground track, sensor cone, 3D model,
   ground station link (`src/config/components.ts`). Component names must not
-  contain a comma.
+  contain a comma. How each kind is drawn, kept current and re-cut is its own module
+  (`COMPONENT_KINDS` in `src/modules/componentKinds.ts`).
 - **Activation**: which catalog entries exist as live satellites: tag-enabled
   entries minus per-satellite opt-outs, plus name-enabled entries, plus the
   tracked satellite. Carried as three lists (enabled tags, enabled satellites,

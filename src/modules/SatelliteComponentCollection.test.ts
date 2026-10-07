@@ -1,10 +1,23 @@
-import { type BoundingSphere, type Cartesian2, Cartesian3, Entity, JulianDate, Math as CesiumMath, PerspectiveFrustum, type Property } from "@cesium/engine";
+import {
+  type BoundingSphere,
+  type Cartesian2,
+  Cartesian3,
+  Entity,
+  GeometryInstance,
+  JulianDate,
+  Math as CesiumMath,
+  Matrix3,
+  PerspectiveFrustum,
+  type Property,
+  Transforms,
+} from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
-import { describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { modelMinimumPixelSize } from "./componentKinds";
 import type { GroundStation } from "./PassPredictor";
 import { CatalogEntry } from "./SatelliteCatalog";
-import { SatelliteComponentCollection, modelMinimumPixelSize } from "./SatelliteComponentCollection";
+import { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { parseGpPayload, type GpRecord } from "./util/gp";
 import { InlinePassSource } from "./util/passSource";
 import { PolylineBatch } from "./util/PolylineBatch";
@@ -20,6 +33,7 @@ const munich = (): GroundStation => ({ name: "Munich", position: { latitude: 48.
 function fakeViewer() {
   const entities = new Set<unknown>();
   const postRender = new Set<() => void>();
+  const trackedListeners = new Set<() => void>();
   const removed: unknown[] = [];
   const viewer = {
     clock: {
@@ -49,9 +63,16 @@ function fakeViewer() {
       contains: (e: unknown) => entities.has(e),
     },
     selectedEntity: undefined,
-    trackedEntity: undefined,
+    tracked: undefined as unknown,
+    get trackedEntity() {
+      return viewer.tracked;
+    },
+    set trackedEntity(entity: unknown) {
+      viewer.tracked = entity;
+      [...trackedListeners].forEach((listener) => listener());
+    },
     selectedEntityChanged: { addEventListener: () => () => {} },
-    trackedEntityChanged: { addEventListener: () => () => {} },
+    trackedEntityChanged: { addEventListener: (listener: () => void) => (trackedListeners.add(listener), () => trackedListeners.delete(listener)) },
     // A model measures `modelRadius` once loaded; until then Cesium reports PENDING (1).
     modelRadius: undefined as number | undefined,
     // Metres per CSS pixel at the satellite; the default view's is 18.3 km on this canvas.
@@ -94,6 +115,10 @@ async function setup({ modelFile = "ISS-(ZARYA).glb" }: { modelFile?: string | n
 }
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("SatelliteComponentCollection ground station link", () => {
   test("is not drawn for a ground station unless switched on", async () => {
@@ -152,6 +177,41 @@ describe("SatelliteComponentCollection lifetime", () => {
     sat.dispose();
 
     expect(sat.props.trajectory.position(viewer.clock.currentTime)).toBeUndefined();
+  });
+});
+
+describe("SatelliteComponentCollection lines and corridors", () => {
+  beforeEach(() => {
+    // The ICRF transform needs async-loaded IAU data that Node lacks.
+    vi.spyOn(Transforms, "computeFixedToIcrfMatrix").mockImplementation(() => Matrix3.clone(Matrix3.IDENTITY));
+  });
+
+  test("are not drawn from fewer than two distinct positions, which would stop Cesium's render loop", async () => {
+    const { sat, viewer } = await setup();
+    // A day past the window, where every position clamps to the last sample.
+    viewer.clock.currentTime = JulianDate.addDays(viewer.clock.currentTime, 1, new JulianDate());
+
+    sat.show(["Point", "Orbit", "Orbit track", "Ground track"]);
+    expect(sat.componentNames).toEqual(["Point"]);
+
+    viewer.clock.currentTime = JulianDate.addDays(viewer.clock.currentTime, -1, new JulianDate());
+    sat.show(["Orbit", "Orbit track", "Ground track"]);
+    expect(sat.componentNames).toEqual(["Point", "Orbit", "Orbit track", "Ground track"]);
+  });
+
+  test("draw the tracked satellite's orbit as a path, and go back into the batch once it is let go", async () => {
+    const { sat, viewer } = await setup();
+    sat.show(["Point", "Orbit", "Orbit track"]);
+    expect(sat.components.Orbit).toBeInstanceOf(GeometryInstance);
+    expect(sat.components["Orbit track"]).toBeInstanceOf(GeometryInstance);
+
+    sat.track();
+    expect(sat.components.Orbit).toBeInstanceOf(Entity);
+    expect(sat.components["Orbit track"]).toBeInstanceOf(Entity);
+
+    viewer.trackedEntity = undefined;
+    expect(sat.components.Orbit).toBeInstanceOf(GeometryInstance);
+    expect(sat.components["Orbit track"]).toBeInstanceOf(GeometryInstance);
   });
 });
 

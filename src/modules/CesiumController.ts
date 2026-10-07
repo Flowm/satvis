@@ -45,6 +45,7 @@ import {
   terrainProviders,
   terrainProviderNames as visibleTerrainProviderNames,
 } from "./CesiumLayerProviders";
+import { BATCHED_COMPONENTS } from "./componentKinds";
 import { cesiumSceneMode } from "./satelliteGraphics";
 import { SatelliteManager } from "./SatelliteManager";
 import { SkyInteraction } from "./SkyInteraction";
@@ -56,9 +57,6 @@ import { PushManager } from "./util/PushManager";
 import { Suppressible } from "./util/Suppressible";
 
 dayjs.extend(utc);
-
-/** Drawn into shared polyline primitives, so a scene morph must suppress them (see `morphTo`). */
-const BATCHED_COMPONENTS = ["Orbit", "Orbit track"] as const;
 
 /**
  * Degrees. A little north, so Europe clears the limb without cutting off the southern hemisphere.

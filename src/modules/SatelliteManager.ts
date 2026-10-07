@@ -350,10 +350,10 @@ export class SatelliteManager {
     }
     for (const sat of this.#active.values()) {
       if (tracksDue) {
-        sat.refreshOrbitTrack(time);
+        sat.recut("Orbit track", time);
       }
       if (groundTracksDue) {
-        sat.refreshGroundTrack(time);
+        sat.recut("Ground track", time);
       }
     }
   }
