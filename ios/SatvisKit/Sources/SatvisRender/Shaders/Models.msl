@@ -21,6 +21,7 @@ struct ModelInstance {
     int hasTexture;
     float metallic;
     float roughness;
+    float alphaCutoff;
 };
 
 struct ModelOut {
@@ -55,5 +56,10 @@ fragment float4 modelFragment(ModelOut in [[stage_in]], bool front [[front_facin
     float reflectance = mix(0.04, 0.6, instance.metallic);
     float highlight = diffuse > 0.0 ? pow(max(dot(normal, halfway), 0.0), shininess) * reflectance : 0.0;
     float3 color = albedo.rgb * (0.15 + 0.95 * diffuse * (1.0 - 0.5 * instance.metallic)) + float3(highlight);
-    return float4(color, 1.0);
+    // glTF's alpha modes: cut out below a mask's cutoff; the alpha blended for a
+    // blended part, whose pipeline blends, ignored for an opaque one.
+    if (albedo.a < instance.alphaCutoff) {
+        discard_fragment();
+    }
+    return float4(color, albedo.a);
 }

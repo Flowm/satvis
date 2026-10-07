@@ -30,7 +30,15 @@ struct ModelAsset {
         var metallic: Float = 1
         var roughness: Float = 1
         var doubleSided = false
-        var blended = false
+        var alphaMode = AlphaMode.opaque
+    }
+
+    /// glTF's `alphaMode`: the base colour's alpha ignored, a cut-out at
+    /// `alphaCutoff`, or blended over what is behind.
+    enum AlphaMode: Equatable {
+        case opaque
+        case mask(cutoff: Float)
+        case blend
     }
 
     /// A run of `indices` drawn with one material.
@@ -257,7 +265,11 @@ private struct Reader {
         material.metallic = (pbr["metallicFactor"] as? NSNumber)?.floatValue ?? 1
         material.roughness = (pbr["roughnessFactor"] as? NSNumber)?.floatValue ?? 1
         material.doubleSided = json["doubleSided"] as? Bool ?? false
-        material.blended = json["alphaMode"] as? String == "BLEND"
+        switch json["alphaMode"] as? String {
+        case "BLEND": material.alphaMode = .blend
+        case "MASK": material.alphaMode = .mask(cutoff: (json["alphaCutoff"] as? NSNumber)?.floatValue ?? 0.5)
+        default: material.alphaMode = .opaque
+        }
         return material
     }
 

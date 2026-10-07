@@ -54,6 +54,8 @@ struct ModelInstance {
     var hasTexture: Int32
     var metallic: Float
     var roughness: Float
+    /// Below it a fragment is cut out (`AlphaMode.mask`); 0 for none.
+    var alphaCutoff: Float
 }
 
 /// The satellites' 3D models: fetched by file when first drawn, read off the main
