@@ -170,14 +170,9 @@
     </div>
     <div id="toolbarRight">
       <about-dialog v-if="showUI" />
-      <UTooltip v-if="showUI" text="Github">
-        <a class="cesium-button cesium-toolbar-button" href="https://github.com/Flowm/satvis/" target="_blank" rel="noopener">
-          <UIcon name="fa6-brands:github" />
-        </a>
-      </UTooltip>
-      <UTooltip text="Toggle UI">
-        <button type="button" class="cesium-button cesium-toolbar-button" @click="toggleUI">
-          <UIcon name="lucide:eye" />
+      <UTooltip :text="showUI ? 'Hide UI' : 'Show UI'">
+        <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="showUI ? 'Hide UI' : 'Show UI'" @click="toggleUI">
+          <UIcon :name="showUI ? 'lucide:eye' : 'lucide:eye-off'" />
         </button>
       </UTooltip>
     </div>

@@ -46,7 +46,6 @@
     "vue-router": "^5.3.1"
   },
   "devDependencies": {
-    "@iconify-json/fa6-brands": "^1.2.6",
     "@iconify-json/lucide": "^1.2.139",
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.4",
