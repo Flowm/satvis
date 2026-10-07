@@ -562,8 +562,9 @@ final class Session {
         }
     }
 
-    /// Stands the stations on the globe, lets go of one that is gone, drops its
-    /// alerts, and predicts the notifications again, whenever the list changes.
+    /// Stands the stations on the globe, lets go of one that is gone (and leaves
+    /// the sky view standing on it), drops its alerts, and predicts the
+    /// notifications again, whenever the list changes.
     private func watchStations() async {
         for await stations in Observations({ self.passes.stations }) {
             renderer?.setStations(shownMarkers)
@@ -573,6 +574,9 @@ final class Session {
             }
             if case .station(let station) = selection, !ids.contains(station) {
                 selection = nil
+            }
+            if let observer, !ids.contains(observer) {
+                leaveSky()
             }
             // Alerts are for the saved stations only.
             alerts.forgetStations(except: Set(passes.saved.map(\.id)))
