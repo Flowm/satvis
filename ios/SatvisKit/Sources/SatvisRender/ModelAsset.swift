@@ -69,8 +69,9 @@ struct ModelAsset {
         let scenes = document["scenes"] as? [[String: Any]] ?? []
         let scene = scenes[safe: document["scene"] as? Int ?? 0]
         let roots = scene?["nodes"] as? [Int] ?? Array((reader.nodes.indices))
+        var visits = 0
         for root in roots {
-            try add(node: root, parent: matrix_identity_float4x4, reader: &reader, depth: 0)
+            try add(node: root, parent: matrix_identity_float4x4, reader: &reader, depth: 0, visits: &visits)
         }
         guard !vertices.isEmpty else {
             throw Failure.malformed("no triangles")
@@ -79,10 +80,19 @@ struct ModelAsset {
         let high = vertices.reduce(SIMD3<Float>(repeating: -.infinity)) { simd_max($0, $1.position) }
         center = (low + high) / 2
         radius = simd_length(high - low) / 2
+        // A transform or a position that is not a number would frame the camera nowhere.
+        guard center.x.isFinite, center.y.isFinite, center.z.isFinite, radius.isFinite else {
+            throw Failure.malformed("bounds")
+        }
     }
 
-    private mutating func add(node index: Int, parent: simd_float4x4, reader: inout Reader, depth: Int) throws {
-        guard depth < 64, let node = reader.nodes[safe: index] else {
+    /// Nodes placed in all, counting each time a node is reached again: a node
+    /// listing the same child twice at every level is reached 2^depth times.
+    private static let maximumNodeVisits = 65_536
+
+    private mutating func add(node index: Int, parent: simd_float4x4, reader: inout Reader, depth: Int, visits: inout Int) throws {
+        visits += 1
+        guard depth < 64, visits <= Self.maximumNodeVisits, let node = reader.nodes[safe: index] else {
             throw Failure.malformed("node \(index)")
         }
         let transform = parent * Self.transform(of: node)
@@ -92,7 +102,7 @@ struct ModelAsset {
             }
         }
         for child in node["children"] as? [Int] ?? [] {
-            try add(node: child, parent: transform, reader: &reader, depth: depth + 1)
+            try add(node: child, parent: transform, reader: &reader, depth: depth + 1, visits: &visits)
         }
     }
 
@@ -239,7 +249,9 @@ private struct Reader {
         if let factor = (pbr["baseColorFactor"] as? [NSNumber])?.map(\.floatValue), factor.count == 4 {
             material.baseColor = SIMD4(factor[0], factor[1], factor[2], factor[3])
         }
-        if let texture = (pbr["baseColorTexture"] as? [String: Any])?["index"] as? Int, let source = source(of: texture) {
+        if let texture = (pbr["baseColorTexture"] as? [String: Any])?["index"] as? Int, let source = source(of: texture),
+            ((document["images"] as? [Any])?.indices ?? 0..<0).contains(source)
+        {
             material.texture = source
         }
         material.metallic = (pbr["metallicFactor"] as? NSNumber)?.floatValue ?? 1
@@ -259,12 +271,10 @@ private struct Reader {
     }
 
     func image(_ json: [String: Any]) -> CGImage? {
-        guard let view = json["bufferView"] as? Int, let bytes = bytes(ofView: view),
-            let source = CGImageSourceCreateWithData(bytes as CFData, nil)
-        else {
+        guard let view = json["bufferView"] as? Int, let bytes = bytes(ofView: view) else {
             return nil
         }
-        return CGImageSourceCreateImageAtIndex(source, 0, nil)
+        return Textures.image(bytes, maximumSide: 4096)
     }
 
     mutating func mesh(_ primitive: [String: Any]) throws -> PrimitiveMesh {
@@ -285,7 +295,7 @@ private struct Reader {
     }
 
     private func decodeDraco(_ extension: [String: Any]) throws -> PrimitiveMesh {
-        guard let view = `extension`["bufferView"] as? Int, let bytes = bytes(ofView: view) else {
+        guard let view = `extension`["bufferView"] as? Int, let bytes = bytes(ofView: view), !bytes.isEmpty else {
             throw ModelAsset.Failure.malformed("Draco buffer")
         }
         let attributes = `extension`["attributes"] as? [String: Int] ?? [:]
@@ -298,11 +308,11 @@ private struct Reader {
         defer { draco_destroy(decoded) }
         let points = Int(draco_point_count(decoded))
         func attribute(_ name: String, components: Int) -> [Float]? {
-            guard let id = attributes[name], draco_attribute_components(decoded, UInt32(id)) == components else {
+            guard let id = attributes[name], let attribute = UInt32(exactly: id), draco_attribute_components(decoded, attribute) == components else {
                 return nil
             }
             var values = [Float](repeating: 0, count: points * components)
-            return draco_attribute_floats(decoded, UInt32(id), &values) ? values : nil
+            return draco_attribute_floats(decoded, attribute, &values) ? values : nil
         }
         var mesh = PrimitiveMesh()
         mesh.positions = attribute("POSITION", components: 3).map(vectors3) ?? []
@@ -369,9 +379,17 @@ private struct Reader {
         else {
             return nil
         }
-        let base = (view["byteOffset"] as? Int ?? 0) + (accessor["byteOffset"] as? Int ?? 0)
-        let stride = view["byteStride"] as? Int ?? componentSize * components
-        guard count >= 0, base >= 0, count == 0 || base + (count - 1) * stride + components * componentSize <= bytes.count else {
+        let viewOffset = view["byteOffset"] as? Int ?? 0
+        let accessorOffset = accessor["byteOffset"] as? Int ?? 0
+        let elementSize = components * componentSize
+        let stride = view["byteStride"] as? Int ?? elementSize
+        // Checked before multiplying: a stride under the element's size, or a count
+        // past what the buffer holds, read out of it.
+        guard count >= 0, viewOffset >= 0, accessorOffset >= 0, viewOffset <= bytes.count, accessorOffset <= bytes.count, stride >= elementSize else {
+            return nil
+        }
+        let base = viewOffset + accessorOffset
+        guard count == 0 || (base + elementSize <= bytes.count && count - 1 <= (bytes.count - base - elementSize) / stride) else {
             return nil
         }
         var values: [T] = []
