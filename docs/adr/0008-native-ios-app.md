@@ -139,7 +139,7 @@ it off.
 - The OSM and ArcGIS basemaps. The OSMF tile policy forbids an app that
   depends on `tile.openstreetmap.org`, and Esri's terms for published apps were
   not worth checking for a second satellite basemap.
-- The benchmark panel, the render-quality menu, WebVR and the embed mode
+- MSAA and the scene effects in the Graphics menu, WebVR and the embed mode
 
 These come later: the 2D view mode, the inertial camera mode, the DeepStar2K star
 map, a camera passthrough in the sky view, and a Live Activity for a pass.
