@@ -1,7 +1,10 @@
 import { defineConfig } from "@playwright/test";
 
-/** Away from Vite's default 5173, so a running `pnpm dev` is never reused by accident. */
-const PORT = 5199;
+/**
+ * Away from Vite's default 5173, so a running `pnpm dev` is never reused by accident.
+ * `E2E_PORT` moves it off a server another worktree's run left on 5199, which would be reused.
+ */
+const PORT = Number(process.env.E2E_PORT ?? 5199);
 
 export default defineConfig({
   testDir: "e2e",

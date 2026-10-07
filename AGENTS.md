@@ -61,6 +61,11 @@ workspace package). One `pnpm install` at the root covers both.
   suites, the build with `test:build`, and `pnpm test:e2e`.
 - `pnpm test:e2e` renders with SwiftShader, as a GPU-less CI runner does;
   `pnpm test:e2e:gpu` runs the same specs about four times faster on a Mac.
+- The full e2e suite takes 10+ minutes even on the GPU, so run it only when
+  asked. Otherwise run the specs a change touches: `pnpm test:e2e:gpu <file>`.
+- Playwright reuses any server already on port 5199, including one another
+  worktree's run left behind, and then tests that checkout's code. Check with
+  `lsof -iTCP:5199 -sTCP:LISTEN`, and set `E2E_PORT` to a free port if it is taken.
 - Full-stack dev is `pnpm dev:worker` plus
   `SATVIS_API_PROXY=http://localhost:8080 pnpm dev`. Plain `pnpm dev` proxies
   `/api` to <https://satvis.space>.
