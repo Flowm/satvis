@@ -734,7 +734,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     public func draw(in view: MTKView) {
-        guard var orbitCamera, let hdr, let depth, let drawable = view.currentDrawable, let screen = view.currentRenderPassDescriptor else {
+        guard var orbitCamera, let hdr, let depth else {
             return
         }
         let measuring = measuresFrames
@@ -790,7 +790,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         let waitStarted = measuring ? ProcessInfo.processInfo.systemUptime : 0
         inFlight.wait()
         let waited = measuring ? ProcessInfo.processInfo.systemUptime - waitStarted : 0
-        guard let commands = queue.makeCommandBuffer() else {
+        // Taken only once a frame is free: taken before, a drawable was held while
+        // the main thread waited on a GPU running behind (every orbit on).
+        guard let drawable = view.currentDrawable, let screen = view.currentRenderPassDescriptor, let commands = queue.makeCommandBuffer() else {
             inFlight.signal()
             return
         }
