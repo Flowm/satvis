@@ -102,7 +102,7 @@ macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
 - A link is the view, as on the web (ADR 0001): `LinkCodec` reads one onto its
   preset's defaults and `Session.open` applies it, replacing what is shown;
   `Session.link` writes the view back. Parameters the app does not honour (`stars`,
-  `bench`…) are kept as they came and written into every link it makes.
+  `surface`…) are kept as they came and written into every link it makes.
   The view is kept as a link when the app goes to the background and reopened
   from it, without its time, so the app reopens live. Past a component's budget
   (labels at 200 active satellites, ground station links at 500) it switches off
@@ -158,7 +158,8 @@ macOS runner has, Xcode 26.6 at the time of writing, and lints with that Xcode's
   privacy label in step with it.
 - The menu column is the web app's (`Satvis.vue`'s `menuItems`): a Menu toggle
   over Satellites, Components, Ground station, Map, View and Graphics, with their
-  Lucide icons, names, order and hover hints (read by VoiceOver), one glass panel
+  Lucide icons, names and order, and their hover hints, trimmed to what the
+  app has, as VoiceOver hints, one glass panel
   whose rows each hold an icon and its name, folded on a phone and open on an
   iPad, as the web's is on a desktop. Components, Map, View
   and Graphics open the web's panels beside it (`ToolPanels.swift`): a title and a

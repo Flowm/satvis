@@ -299,10 +299,11 @@ A missing table leaves every group untouched, only less enriched
 
 ## iOS App
 
-iOS does not [support](https://developer.mozilla.org/en-US/docs/Web/API/Notifications_API#Browser_compatibility)
-local browser notifications, so a small app wraps the web view and schedules pass
-notifications as [UserNotifications](https://developer.apple.com/documentation/usernotifications).
-`ios/AGENTS.md` covers building and testing it.
+The iOS app is native: SwiftUI, with the globe drawn by its own Metal renderer,
+reading the same worker as the web app and scheduling pass notifications as
+[UserNotifications](https://developer.apple.com/documentation/usernotifications)
+([ADR 0008](docs/adr/0008-native-ios-app.md)). `ios/AGENTS.md` covers building
+and testing it.
 
 <p align="center"><a href="https://apps.apple.com/app/satvis/id1441084766"><img src="src/assets/app-store-badge.svg" width="250" /></a></p>
 
