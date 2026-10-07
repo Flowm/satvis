@@ -289,7 +289,9 @@ final class Session {
             terrain: terrain ? "ReEarth" : "None",
             scene: observer == nil ? "3D" : "Sky",
             pixelRatio: pixelRatio,
-            time: withTime && clock.clock.isPinned ? minuteISO(Date(timeIntervalSince1970: clock.now() / 1000)) : nil)
+            // Whenever the clock is off the present, as the deck's Live dot says
+            // (`sceneSync.ts`), so a shared link shows what the sender saw.
+            time: withTime && clock.clock.isOffPresent(at: ViewerClock.real()) ? minuteISO(Date(timeIntervalSince1970: clock.now() / 1000)) : nil)
         return Link(preset: catalog.presetName, query: LinkCodec.write(state, foreign: foreign, defaults: defaults))
     }
 

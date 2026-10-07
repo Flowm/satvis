@@ -6,8 +6,8 @@ import Foundation
 /// `clockDeck.ts`).
 ///
 /// Live vs pinned (CONTEXT.md): the clock starts live, following the present, and
-/// is pinned only by a deliberate act, scrubbing to a moment, after which it stays
-/// pinned and keeps advancing from there.
+/// is pinned whenever it is more than a minute off it (`isOffPresent`), however it
+/// got there: a link's time, a scrub, a pass, a pause, a fast speed.
 public struct SimulationClock: Sendable, Equatable {
     /// Cesium's shuttle-ring ticks, the ladder's rungs on either side of zero.
     public static let speedTicks: [Double] = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 21600, 43200, 86400]
@@ -18,7 +18,8 @@ public struct SimulationClock: Sendable, Equatable {
 
     public private(set) var multiplier = 1.0
     public private(set) var isPlaying = true
-    /// Set by scrubbing; cleared only by going back to the present.
+    /// Set by a scrub or a link's time, cleared by going back to the present: the
+    /// deck offers the way back while it is set, even within the minute.
     public private(set) var isPinned = false
     private var anchorTime: Double
     private var anchorReal: Double
@@ -66,11 +67,14 @@ public struct SimulationClock: Sendable, Equatable {
         isPinned = true
     }
 
-    /// Back to the present, and to live. The rate is left as it is.
+    /// Back to the present, playing at real time (`useViewerClock.goLive`): paused
+    /// or at any other speed it would leave the present again at once.
     public mutating func goLive(at real: Double) {
         anchorTime = real
         anchorReal = real
         isPinned = false
+        multiplier = 1
+        isPlaying = true
     }
 
     private mutating func reanchor(at real: Double) {
