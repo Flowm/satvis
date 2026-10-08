@@ -12,7 +12,7 @@ APP = $(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/satvis.app
 XCODEBUILD = xcodebuild -project satvis.xcodeproj -scheme satvis -derivedDataPath $(DERIVED_DATA) -destination id=$(UDID) CODE_SIGNING_ALLOWED=NO
 SOURCES = satvis satvisUITests SatvisKit
 
-.PHONY: build test test-kit run logs format lint screenshots clean
+.PHONY: build test test-kit run logs format lint screenshots upload-screenshots clean
 
 build:
 	$(XCODEBUILD) build
@@ -40,6 +40,9 @@ lint:
 
 screenshots:
 	scripts/screenshots.sh
+
+upload-screenshots:
+	swift scripts/upload-screenshots.swift $(if $(DRY_RUN),--dry-run)
 
 clean:
 	rm -rf build screenshots SatvisKit/.build
