@@ -56,12 +56,14 @@ public actor TrajectoryStore {
     /// the actor's turn, so nothing can replace the set while they are sampled.
     private static func sample(_ propagators: [SGP4Propagator], around epochMilliseconds: Double) -> [SampledTrajectory?] {
         var results = [SampledTrajectory?](repeating: nil, count: propagators.count)
-        results.withUnsafeMutableBufferPointer { results in
+        results.withUnsafeMutableBufferPointer { buffer in
+            // Each part writes only its own indices, and the buffer outlives them all.
+            nonisolated(unsafe) let output = buffer
             // A chunk of satellites a task, so the scheduling costs little next to SGP4.
             let chunk = 64
             DispatchQueue.concurrentPerform(iterations: (propagators.count + chunk - 1) / chunk) { part in
                 for index in (part * chunk)..<min((part + 1) * chunk, propagators.count) {
-                    results[index] = SampledTrajectory(propagators[index], around: epochMilliseconds)
+                    output[index] = SampledTrajectory(propagators[index], around: epochMilliseconds)
                 }
             }
         }
