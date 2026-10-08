@@ -138,9 +138,11 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   magnetic north without a location, so it needs no calibration step; it can
   only be tried on a device, the simulator having no motion sensor. The
   observer is where the device is, kept as the one saved station named
-  "Geolocation" and moved there each time, unlike the web app, whose Sky panel
-  lists the stations to stand on: the Sky panel's Look up stands there, as does a
-  link to the sky view that names no station. A link that names one stands on
+  "Geolocation" and moved there each time, as on the web (ADR 0003): the Sky
+  panel's Look up stands there, as does a link to the sky view that names no
+  station. It is listed first, by Look up and by Locations' My location alike, as
+  on the web, where a link's stations are its list and its sky view stands on
+  the first; the app also writes the observer first into the links it makes. A link that names one stands on
   its first, and a station's panel on that station. Its own pin is hidden
   underfoot. What cannot be seen
   (ADR 0010) is dimmed or hidden by the point and label shaders, from the frame's
