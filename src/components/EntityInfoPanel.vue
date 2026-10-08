@@ -1,5 +1,5 @@
-<!-- The header and the position strip are always visible; passes and details are
-     tabs, because stacking all four overflowed a 500 px window by almost 900 px. -->
+<!-- The header and the position strip are always visible; the orbit, the spacecraft and
+     the passes are tabs, because stacking them overflowed a 500 px window by almost 900 px. -->
 <template>
   <div v-if="selection" class="entity-info-panel">
     <UCard :ui="{ root: 'bg-[#303336]/95 text-[#edffff] divide-neutral-600', header: 'p-2 sm:px-3', body: 'p-0 sm:p-0' }">
@@ -146,23 +146,16 @@
           </div>
         </template>
 
-        <template #details>
+        <template #orbit>
           <div class="tab-body__pad">
             <table v-if="satelliteInfo" class="info-table info-table--facts">
               <tbody>
-                <tr v-for="[label, value] in satelliteInfo.rows" :key="label">
+                <tr v-for="[label, value] in satelliteInfo.orbitRows" :key="label">
                   <th>{{ label }}</th>
                   <td class="right">{{ value }}</td>
                 </tr>
               </tbody>
             </table>
-
-            <template v-if="links.length > 0">
-              <div class="section">Links</div>
-              <div class="links">
-                <a v-for="link in links" :key="link.label" class="links__item" :href="link.href" :title="link.title" target="_blank" rel="noopener">{{ link.label }}</a>
-              </div>
-            </template>
 
             <template v-if="elements">
               <div class="section">{{ elements.kind === "tle" ? "TLE" : "Elements" }} · epoch {{ elements.epoch }}</div>
@@ -175,6 +168,28 @@
                   </tr>
                 </tbody>
               </table>
+            </template>
+          </div>
+        </template>
+
+        <template #spacecraft>
+          <div class="tab-body__pad">
+            <satellite-model-view v-if="modelFile && !collapsed" :model-file="modelFile" :name="name" />
+
+            <table v-if="spacecraftRows.length > 0" class="info-table info-table--facts" :class="{ 'info-table--below-model': modelFile }">
+              <tbody>
+                <tr v-for="[label, value] in spacecraftRows" :key="label">
+                  <th>{{ label }}</th>
+                  <td class="right">{{ value }}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <template v-if="links.length > 0">
+              <div class="section">Links</div>
+              <div class="links">
+                <a v-for="link in links" :key="link.label" class="links__item" :href="link.href" :title="link.title" target="_blank" rel="noopener">{{ link.label }}</a>
+              </div>
             </template>
           </div>
         </template>
@@ -198,6 +213,7 @@ import { formatCountdown, passSummary, type Pass } from "../modules/PassPredicto
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 import PassTimeline from "./PassTimeline.vue";
+import SatelliteModelView from "./SatelliteModelView.vue";
 
 const cc = useController();
 const toast = useToast();
@@ -241,6 +257,9 @@ const emptyPassText = computed(() => (groundStationAvailable.value ? "No passes 
 
 const satnum = computed(() => (selection.value?.kind === "satellite" ? selection.value.sat.props.satnum : undefined));
 const links = computed(() => (satnum.value ? externalLinks(satnum.value) : []));
+const spacecraftRows = computed(() => satelliteInfo.value?.spacecraftRows ?? []);
+/** Only satellites a model manifest lists have one (ADR 0007). */
+const modelFile = computed(() => (selection.value?.kind === "satellite" ? selection.value.sat.props.metadata.modelFile : undefined));
 
 const orbitClass = computed(() => satelliteInfo.value?.orbitClass);
 const orbitColor = computed(() => (orbitClass.value ? ORBIT_CLASS_COLOR[orbitClass.value] : "transparent"));
@@ -265,7 +284,10 @@ const showTimeline = computed(() => selection.value?.kind === "satellite");
 const tabs = computed(() => {
   const items: { label: string; slot: string; value: string; badge?: number }[] = [];
   if (satelliteInfo.value || elements.value) {
-    items.push({ label: "Details", slot: "details", value: "details" });
+    items.push({ label: "Orbit", slot: "orbit", value: "orbit" });
+  }
+  if (modelFile.value || spacecraftRows.value.length > 0 || links.value.length > 0) {
+    items.push({ label: "Spacecraft", slot: "spacecraft", value: "spacecraft" });
   }
   items.push({ label: "Passes", slot: "passes", value: "passes", ...(passRows.value.length > 0 ? { badge: passRows.value.length } : {}) });
   return items;
@@ -273,7 +295,7 @@ const tabs = computed(() => {
 
 /**
  * Controlled, not left to UTabs: the component is not remounted across selections,
- * and an uncontrolled UTabs keeps a tab the new selection lacks (a ground station has no Details).
+ * and an uncontrolled UTabs keeps a tab the new selection lacks (a ground station has no Orbit).
  */
 const resolvedTab = computed(() => (tabs.value.some((item) => item.value === preferredTab.value) ? preferredTab.value : (tabs.value[0]?.value ?? "passes")));
 
@@ -635,6 +657,10 @@ function notifyPasses(): void {
 
 .info-table tbody tr:nth-child(odd) {
   background: #ffffff08;
+}
+
+.info-table--below-model {
+  margin-top: 10px;
 }
 
 .info-table--facts tbody th {

@@ -41,10 +41,10 @@ const subjectCount = ref(0);
 /** Simulation time in epoch milliseconds at the last refresh. The clock itself is not reactive. */
 const nowMs = ref(0);
 /**
- * The tab the user last chose, not the active one: a ground station has no Details, but
+ * The tab the user last chose, not the active one: a ground station has no Orbit, but
  * selecting a satellite returns there.
  */
-const preferredTab = ref("details");
+const preferredTab = ref("orbit");
 /** The pass picked off the timeline, by start time. */
 const pickedPassMs = ref<number | null>(null);
 /** Lets the panel say "not yet" instead of "none" (see `PassPredictor.settled`). */
