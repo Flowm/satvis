@@ -217,31 +217,33 @@ nonisolated class SatvisUITests: XCTestCase {
     }
 
     // Night in the Lauterbrunnen valley, standing on the link's station: every
-    // active satellite, as past 200 none is labelled.
+    // active satellite, as past 200 none is labelled. The terrain refines a level
+    // at a time from an empty cache, a few seconds a tile, on three simulators at
+    // once: 30 s left an iPad's cliffs coarse.
     @MainActor
     func testScreenshot2Sky() throws {
         try open(
-            "/?scene=Sky&gs=46.5935,7.9091&terrain=ReEarth&layers=VersaTiles&stars=DeepStar2K&time=2026-10-04T19:22Z&tags=Active,GNSS,Weather&elements=Point"
-        )
+            "/?scene=Sky&gs=46.5935,7.9091&terrain=ReEarth&layers=VersaTiles&stars=DeepStar2K&time=2026-10-04T19:22Z&tags=Active,GNSS,Weather&elements=Point",
+            wait: 60)
         screenshot("2Sky")
     }
 
-    // A phone's sheet would hide the station; closing it keeps the station tracked.
+    // The station alone: the panel would cover it on a phone and crowd it on an
+    // iPad, and closing it keeps the station tracked.
     @MainActor
     func testScreenshot3ISS() throws {
         let app = try open("/?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model&layers=VersaTiles&time=2026-10-04T02:07Z")
-        if UIDevice.current.userInterfaceIdiom == .phone {
-            app.buttons["Close"].firstMatch.tap()
-            sleep(2)
-        }
+        app.buttons["Close"].firstMatch.tap()
+        sleep(2)
         screenshot("3ISS")
     }
 
     /// Launches on a link of BASE_URL's site, its clock stopped at the link's
-    /// minute so that every device shows the same moment, and waits for the tiles.
+    /// minute so that every device shows the same moment, and waits `wait`
+    /// seconds for the tiles.
     @MainActor
     @discardableResult
-    func open(_ path: String) throws -> XCUIApplication {
+    func open(_ path: String, wait: UInt32 = 20) throws -> XCUIApplication {
         let environment = ProcessInfo.processInfo.environment
         guard environment["SCREENSHOTS"] != nil else {
             throw XCTSkip("Taken by scripts/screenshots.sh")
@@ -256,7 +258,7 @@ nonisolated class SatvisUITests: XCTestCase {
         }
         app.launch()
         XCTAssert(menuToggle(app).waitForExistence(timeout: 30))
-        sleep(20)
+        sleep(wait)
         return app
     }
 

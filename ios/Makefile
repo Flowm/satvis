@@ -39,7 +39,7 @@ lint:
 	swift format lint -r -s $(SOURCES)
 
 screenshots:
-	scripts/screenshots.sh
+	scripts/screenshots.sh $(SHOTS)
 
 upload-screenshots:
 	swift scripts/upload-screenshots.swift $(if $(DRY_RUN),--dry-run)
