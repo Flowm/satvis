@@ -3,16 +3,17 @@ import SatvisRender
 import SwiftUI
 
 /// What the menu column opens beside it, as the web app's toolbar panels
-/// (`ToolbarPanel.vue`). The satellite browser and the ground stations are
-/// sheets instead: lists too long for a panel.
+/// (`ToolbarPanel.vue`). The satellite browser and the locations are sheets
+/// instead: lists too long for a panel.
 enum ToolPanel: Hashable {
-    case components, map, view, graphics
+    case components, map, globe, sky, graphics
 
     var title: LocalizedStringKey {
         switch self {
         case .components: "Components"
         case .map: "Map"
-        case .view: "View"
+        case .globe: "Globe"
+        case .sky: "Sky"
         case .graphics: "Graphics"
         }
     }
@@ -248,7 +249,9 @@ private struct Choices<Value: Hashable>: View {
                     selection = value
                 } label: {
                     HStack {
+                        // Cut short rather than wrapped, as the web app's rows are.
                         Text(name)
+                            .lineLimit(1)
                         Spacer(minLength: 8)
                         if selection == value {
                             Image(systemName: "checkmark")
@@ -306,37 +309,118 @@ struct MapPanel: View {
     }
 }
 
-/// From where the globe is seen: the web app's View panel, less the scene modes
-/// (2D, Columbus) and the camera modes the app does not draw.
-struct ViewPanel: View {
-    let session: Session
+/// The globe's projection and camera: the web app's Globe panel, less the 2D and
+/// Columbus projections the app does not draw. It writes the same view as the
+/// Sky panel, so in the sky view no projection is ticked (ADR 0003).
+struct GlobePanel: View {
+    @Bindable var session: Session
 
     var body: some View {
-        PanelSection("View mode") {
-            Segments(
-                title: "View mode",
+        let inSky = session.observer != nil
+        PanelSection("Projection") {
+            Choices(
                 selection: Binding {
-                    session.observer != nil ? "Sky" : "3D"
-                } set: { mode in
-                    if mode == "Sky" {
-                        Task { await session.viewTheSky() }
-                    } else {
+                    inSky ? nil : "3D"
+                } set: { _ in
+                    if inSky {
                         session.leaveSky()
                     }
                 },
-                options: LinkCodec.scenes.map { ($0, $0) })
+                options: [("3D", Optional("3D"))])
+            if inSky {
+                Note("In the sky view. Pick 3D to return to the globe.")
+            }
         }
-        if session.observer != nil {
-            PanelSection("Aiming") {
+        PanelSection("Camera") {
+            Segments(title: "Camera", selection: $session.cameraFrame, options: CameraFrame.allCases.map { ($0.rawValue, $0) })
+                .disabled(inSky)
+            if inSky {
+                Note("The sky view holds the camera.")
+            }
+        }
+    }
+}
+
+/// Looking up from where the user is: the web app's Sky panel, less its list of
+/// locations, whose panels look up from them instead. Its settings stay in sight
+/// on the globe, disabled where they need the sky view (ADR 0003).
+struct SkyPanel: View {
+    @Bindable var session: Session
+    @State private var locating = false
+
+    var body: some View {
+        let inSky = session.observer != nil
+        PanelSection("Sky view") {
+            // The spinner in the switch's place while the position comes back.
+            if locating {
+                HStack {
+                    Text("Look up")
+                    Spacer()
+                    ProgressView()
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityValue("Finding your location")
+            } else {
+                Toggle(
+                    "Look up",
+                    isOn: Binding {
+                        inSky
+                    } set: { on in
+                        guard on else {
+                            return session.leaveSky()
+                        }
+                        Task {
+                            locating = true
+                            defer { locating = false }
+                            await session.lookUpFromHere()
+                        }
+                    })
+            }
+            Note("From where you are. A location's panel looks up from there.")
+        }
+        PanelSection("Aiming") {
+            // The spinner in the switch's place, as the web app's replaces its slider:
+            // waiting on the sensor, a second tap must not start a second probe.
+            if session.compass.isProbing {
+                HStack {
+                    Text("Use compass")
+                    Spacer()
+                    ProgressView()
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityValue("Waiting for the motion sensor")
+            } else {
                 Toggle(
                     "Use compass",
                     isOn: Binding {
                         session.compass.isAiming
                     } set: { _ in
                         session.toggleCompass()
-                    })
+                    }
+                )
+                .disabled(!inSky)
             }
         }
+        PanelSection("Out of sight") {
+            Segments(title: "Out of sight", selection: $session.unseen, options: UnseenMode.allCases.map { ($0.rawValue.capitalized, $0) })
+                .disabled(!inSky)
+            Note("In Earth's shadow, too far away or during daylight.")
+        }
+    }
+}
+
+/// A line under a panel's settings, as the web app's `toolbarNote`.
+private struct Note: View {
+    let text: LocalizedStringKey
+
+    init(_ text: LocalizedStringKey) {
+        self.text = text
+    }
+
+    var body: some View {
+        Text(text)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
     }
 }
 

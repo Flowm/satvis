@@ -50,6 +50,7 @@ struct SatvisApp: App {
 /// selected, and the clock deck. Views only: what they do is the session's.
 struct ContentView: View {
     @Bindable var session: Session
+    @State private var showsBookmarks = false
     @State private var showsBrowser = false
     @State private var showsStations = false
     @State private var showsAttribution = false
@@ -137,15 +138,21 @@ struct ContentView: View {
                 HStack(alignment: .top, spacing: 8) {
                     ToolMenu(isOpen: $showsTools) {
                         // The web app's menu column: its entries, icons, order and hints.
+                        ToolEntry(
+                            title: "Bookmarks", image: .lucideBookmark, hint: "Demos, saved views and links you opened, and the way back to the default view"
+                        ) {
+                            showsBookmarks = true
+                        }
                         ToolEntry(title: "Satellites", image: .lucideOrbit, hint: "Search and pick which satellites to show") {
                             showsBrowser = true
                         }
                         entry(.components, image: .lucideSatellite, hint: "Orbits, ground tracks, labels and sensor cones")
-                        ToolEntry(title: "Ground station", image: .lucideMapPin, hint: "Your location, for pass predictions") {
+                        entry(.map, image: .lucideLayers, hint: "Basemap and terrain")
+                        ToolEntry(title: "Locations", image: .lucideMapPin, hint: "Ground stations, for pass predictions and the sky view") {
                             showsStations = true
                         }
-                        entry(.map, image: .lucideLayers, hint: "Basemap and terrain")
-                        entry(.view, image: .lucideTelescope, hint: "Globe or sky view, and the compass")
+                        entry(.globe, image: .lucideGlobe, hint: "The globe's projection, and the camera")
+                        entry(.sky, image: .lucideTelescope, hint: "Look up from a ground station and see what passes over")
                         entry(.graphics, image: .lucideGauge, hint: "Quality and performance")
                     }
                     .environment(\.toolNamesFolded, !roomy && panel != nil)
@@ -154,7 +161,8 @@ struct ContentView: View {
                             switch panel {
                             case .components: ComponentsPanel(catalog: session.catalog)
                             case .map: MapPanel(session: session)
-                            case .view: ViewPanel(session: session)
+                            case .globe: GlobePanel(session: session)
+                            case .sky: SkyPanel(session: session)
                             case .graphics: GraphicsPanel(session: session)
                             }
                         }
@@ -172,6 +180,12 @@ struct ContentView: View {
         // A panel goes with the column.
         .onChange(of: showsTools) { _, open in
             if !open {
+                panel = nil
+            }
+        }
+        // Out of the way of the sky the compass now aims, as on the web.
+        .onChange(of: session.compass.isAiming && !session.compass.isProbing) { _, aiming in
+            if aiming, panel == .sky {
                 panel = nil
             }
         }
@@ -227,7 +241,7 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .onChange(of: showsBrowser || showsStations) { _, presenting in
+        .onChange(of: showsBookmarks || showsBrowser || showsStations) { _, presenting in
             if presenting {
                 panel = nil
                 if sizeClass != .regular {
@@ -235,11 +249,14 @@ struct ContentView: View {
                 }
             }
         }
+        .sheet(isPresented: $showsBookmarks) {
+            BookmarksView(session: session)
+        }
         .sheet(isPresented: $showsBrowser) {
             BrowserView(catalog: session.catalog) { session.selection = .satellite($0.id) }
         }
         .sheet(isPresented: $showsAbout) {
-            AboutView(onOpen: { session.open($0) }, privacyPolicy: session.privacyPolicy)
+            AboutView(onOpen: { session.open($0, records: true) }, privacyPolicy: session.privacyPolicy)
         }
         .sheet(isPresented: $showsAttribution) {
             AttributionView(map: session.mapCredits, privacyPolicy: session.privacyPolicy, analytics: session.analytics)
@@ -283,7 +300,7 @@ struct ContentView: View {
             await session.run()
         }
         // A satvis.space link the system hands over, universal link or not.
-        .onOpenURL { session.open(Link($0.absoluteString)) }
+        .onOpenURL { session.open(Link($0.absoluteString), records: true) }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active: session.becameActive()

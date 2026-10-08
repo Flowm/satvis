@@ -41,7 +41,7 @@ import simd
 
     // Metal reads these as its own structs; a mismatch draws garbage silently.
     @Test func matchesTheShaderLayouts() {
-        #expect(MemoryLayout<FrameUniforms>.size == 264)
+        #expect(MemoryLayout<FrameUniforms>.size == 272)
         #expect(MemoryLayout<GlobeVertex>.stride == 48)
         #expect(MemoryLayout<PointInstance>.stride == 32)
         #expect(MemoryLayout<PointFrame>.stride == 12)
@@ -49,7 +49,7 @@ import simd
         #expect(MemoryLayout<StationInstance>.stride == 16)
         #expect(MemoryLayout<LinkInstance>.stride == 24)
         #expect(MemoryLayout<ModelVertex>.stride == 48)
-        #expect(MemoryLayout<ModelInstance>.stride == 224)
+        #expect(MemoryLayout<ModelInstance>.stride == 240)
     }
 
     // The way back from a tap on the globe to the place it touched.

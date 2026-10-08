@@ -7153,6 +7153,692 @@
       "radians": 9.718420233815436
     }
   ],
+  "visibility": {
+    "sunDirections": [
+      {
+        "instant": "2000-01-01T12:00:00.000Z",
+        "direction": {
+          "x": 0.9201812787170598,
+          "y": 0.013254132517245554,
+          "z": -0.3912681206920037
+        }
+      },
+      {
+        "instant": "2016-12-31T23:59:59.000Z",
+        "direction": {
+          "x": -0.9203944343672057,
+          "y": -0.013878365470195941,
+          "z": -0.390744771120161
+        }
+      },
+      {
+        "instant": "2017-01-01T00:00:00.000Z",
+        "direction": {
+          "x": -0.920395447354323,
+          "y": -0.013811454495870928,
+          "z": -0.3907447558370351
+        }
+      },
+      {
+        "instant": "2026-10-04T11:59:59.999Z",
+        "direction": {
+          "x": 0.995759940359589,
+          "y": -0.04912508601296259,
+          "z": -0.07777446302795427
+        }
+      },
+      {
+        "instant": "2026-10-04T12:00:00.000Z",
+        "direction": {
+          "x": 0.9957599367803212,
+          "y": -0.04912515844069126,
+          "z": -0.07777446310600622
+        }
+      },
+      {
+        "instant": "2049-06-30T18:30:15.250Z",
+        "direction": {
+          "x": -0.10552098303777113,
+          "y": -0.913761672989949,
+          "z": 0.39230718463131914
+        }
+      }
+    ],
+    "shadows": [
+      {
+        "position": {
+          "x": -7000000,
+          "y": 0,
+          "z": 0
+        },
+        "sun": {
+          "x": 0.014465361159475526,
+          "y": -0.9961841174833254,
+          "z": -0.08606949169417684
+        },
+        "inShadow": false
+      },
+      {
+        "position": {
+          "x": 7000000,
+          "y": 0,
+          "z": 0
+        },
+        "sun": {
+          "x": 0.014465361159475526,
+          "y": -0.9961841174833254,
+          "z": -0.08606949169417684
+        },
+        "inShadow": false
+      },
+      {
+        "position": {
+          "x": 0,
+          "y": 7000000,
+          "z": 0
+        },
+        "sun": {
+          "x": 0.014465361159475526,
+          "y": -0.9961841174833254,
+          "z": -0.08606949169417684
+        },
+        "inShadow": true
+      },
+      {
+        "position": {
+          "x": -7000000,
+          "y": 6300000,
+          "z": 0
+        },
+        "sun": {
+          "x": 0.014465361159475526,
+          "y": -0.9961841174833254,
+          "z": -0.08606949169417684
+        },
+        "inShadow": false
+      },
+      {
+        "position": {
+          "x": -7000000,
+          "y": 6400000,
+          "z": 0
+        },
+        "sun": {
+          "x": 0.014465361159475526,
+          "y": -0.9961841174833254,
+          "z": -0.08606949169417684
+        },
+        "inShadow": false
+      },
+      {
+        "position": {
+          "x": -42000000,
+          "y": 0,
+          "z": 1000000
+        },
+        "sun": {
+          "x": 0.014465361159475526,
+          "y": -0.9961841174833254,
+          "z": -0.08606949169417684
+        },
+        "inShadow": false
+      },
+      {
+        "position": {
+          "x": -7000000,
+          "y": 0,
+          "z": 6500000
+        },
+        "sun": {
+          "x": 0.014465361159475526,
+          "y": -0.9961841174833254,
+          "z": -0.08606949169417684
+        },
+        "inShadow": false
+      }
+    ],
+    "verdicts": [
+      {
+        "sunElevation": -6,
+        "sunlit": true,
+        "rangeKm": 1000,
+        "visibility": "visible"
+      },
+      {
+        "sunElevation": -5.999,
+        "sunlit": true,
+        "rangeKm": 1000,
+        "visibility": "daylight"
+      },
+      {
+        "sunElevation": -20,
+        "sunlit": true,
+        "rangeKm": 5000,
+        "visibility": "visible"
+      },
+      {
+        "sunElevation": -20,
+        "sunlit": true,
+        "rangeKm": 5000.001,
+        "visibility": "far"
+      },
+      {
+        "sunElevation": -20,
+        "sunlit": false,
+        "rangeKm": 1000,
+        "visibility": "shadow"
+      },
+      {
+        "sunElevation": -20,
+        "sunlit": false,
+        "rangeKm": 36000,
+        "visibility": "far"
+      },
+      {
+        "sunElevation": 10,
+        "sunlit": false,
+        "rangeKm": 1000,
+        "visibility": "daylight"
+      },
+      {
+        "sunElevation": 10,
+        "sunlit": true,
+        "rangeKm": 36000,
+        "visibility": "daylight"
+      }
+    ]
+  },
+  "bookmarks": {
+    "now": "2026-10-08T12:00:00Z",
+    "summaries": [
+      {
+        "preset": "default",
+        "query": {},
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": "",
+          "sats": "ISS (ZARYA)",
+          "track": "ISS (ZARYA)",
+          "time": "2026-10-04T02:07Z"
+        },
+        "summary": {
+          "what": "ISS (ZARYA)",
+          "where": "Following it",
+          "time": "4 Oct, 02:07 UTC"
+        },
+        "name": "Following ISS (ZARYA)"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Sky",
+          "gs": "46.5935,7.9091,Lauterbrunnen_48.1,11.5",
+          "tags": "GNSS,Weather,OneWeb"
+        },
+        "summary": {
+          "what": "GNSS, Weather and OneWeb",
+          "where": "Sky over Lauterbrunnen"
+        },
+        "name": "Sky over Lauterbrunnen"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Sky",
+          "gs": "46.5935,7.9091"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Sky over 46.59°, 7.91°"
+        },
+        "name": "Sky over 46.59°, 7.91°"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Sky",
+          "gs": "-33.92495,18.42405"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Sky over -33.92°, 18.42°"
+        },
+        "name": "Sky over -33.92°, 18.42°"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Sky"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Sky view"
+        },
+        "name": "Sky view"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Sky",
+          "gs": ""
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Sky view"
+        },
+        "name": "Sky view"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "sats": "A,B,C"
+        },
+        "summary": {
+          "what": "Weather satellites + 3 satellites",
+          "where": "Globe"
+        },
+        "name": "Weather satellites + 3 satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": "",
+          "sats": "A,B"
+        },
+        "summary": {
+          "what": "A and B",
+          "where": "Globe"
+        },
+        "name": "A and B"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": "",
+          "sats": "A"
+        },
+        "summary": {
+          "what": "A",
+          "where": "Globe"
+        },
+        "name": "A"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": ""
+        },
+        "summary": {
+          "what": "No satellites",
+          "where": "Globe"
+        },
+        "name": "No satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "2D",
+          "tags": "Science"
+        },
+        "summary": {
+          "what": "Science satellites",
+          "where": "Flat map"
+        },
+        "name": "Science satellites, flat map"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Columbus"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Columbus view"
+        },
+        "name": "Weather satellites, columbus view"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Bogus"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Bogus"
+        },
+        "name": "Weather satellites, bogus"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "track": "NOAA 19"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Following NOAA 19"
+        },
+        "name": "Following NOAA 19"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": "Stations",
+          "track": "ISS (ZARYA)"
+        },
+        "summary": {
+          "what": "Stations",
+          "where": "Following ISS (ZARYA)"
+        },
+        "name": "Following ISS (ZARYA)"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": "GNSS"
+        },
+        "summary": {
+          "what": "GNSS satellites",
+          "where": "Globe"
+        },
+        "name": "GNSS satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": "OT",
+          "sats": "X"
+        },
+        "summary": {
+          "what": "OT satellites + X",
+          "where": "Globe"
+        },
+        "name": "OT satellites + X"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2025-12-31T23:59Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "31 Dec 2025, 23:59 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "not a time"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "not a time"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-01-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Jan, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-02-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Feb, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-03-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Mar, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-04-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Apr, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-05-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 May, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-06-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Jun, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-07-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Jul, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-08-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Aug, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-09-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Sept, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-10-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Oct, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-11-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Nov, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-12-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Dec, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "demo",
+        "query": {},
+        "summary": {
+          "what": "GNSS satellites",
+          "where": "Globe"
+        },
+        "name": "GNSS satellites"
+      },
+      {
+        "preset": "demo",
+        "query": {
+          "scene": "Sky",
+          "gs": "1,2,Home"
+        },
+        "summary": {
+          "what": "GNSS satellites",
+          "where": "Sky over Home"
+        },
+        "name": "Sky over Home"
+      },
+      {
+        "preset": "default",
+        "query": {},
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": "",
+          "sats": "ISS (ZARYA)",
+          "track": "ISS (ZARYA)",
+          "elements": "Point,Label,Orbit,3D model",
+          "layers": "VersaTiles"
+        },
+        "summary": {
+          "what": "ISS (ZARYA)",
+          "where": "Following it"
+        },
+        "name": "Following ISS (ZARYA)"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Sky",
+          "gs": "46.5935,7.9091,Lauterbrunnen",
+          "terrain": "ReEarth",
+          "layers": "VersaTiles",
+          "stars": "DeepStar2K",
+          "tags": "GNSS"
+        },
+        "summary": {
+          "what": "GNSS satellites",
+          "where": "Sky over Lauterbrunnen"
+        },
+        "name": "Sky over Lauterbrunnen"
+      }
+    ],
+    "ages": [
+      {
+        "ago": 0,
+        "text": "just now"
+      },
+      {
+        "ago": 30000,
+        "text": "just now"
+      },
+      {
+        "ago": 59999,
+        "text": "just now"
+      },
+      {
+        "ago": 60000,
+        "text": "1 min ago"
+      },
+      {
+        "ago": 300000,
+        "text": "5 min ago"
+      },
+      {
+        "ago": 3540000,
+        "text": "59 min ago"
+      },
+      {
+        "ago": 3600000,
+        "text": "1 h ago"
+      },
+      {
+        "ago": 10800000,
+        "text": "3 h ago"
+      },
+      {
+        "ago": 86340000,
+        "text": "23 h ago"
+      },
+      {
+        "ago": 180000000,
+        "text": "2 d ago"
+      },
+      {
+        "ago": -60000,
+        "text": "just now"
+      }
+    ],
+    "openedLimit": 8
+  },
   "links": {
     "vocabulary": {
       "components": [
@@ -7182,6 +7868,15 @@
       "scenes": [
         "3D",
         "Sky"
+      ],
+      "unseen": [
+        "show",
+        "dim",
+        "hide"
+      ],
+      "cameras": [
+        "Fixed",
+        "Inertial"
       ],
       "pixelRatios": [
         "1",
@@ -7216,6 +7911,8 @@
       ],
       "terrain": "None",
       "scene": "3D",
+      "unseen": "dim",
+      "camera": "Fixed",
       "pixelratio": "native",
       "time": null
     },
@@ -7868,6 +8565,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -7895,6 +8594,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -7920,6 +8621,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -7949,6 +8652,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -7983,6 +8688,8 @@
           ],
           "terrain": "ReEarth",
           "scene": "Sky",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": "2026-10-04T19:22Z"
         },
@@ -8016,6 +8723,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8048,6 +8757,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8080,6 +8791,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8104,6 +8817,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8136,6 +8851,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8165,11 +8882,201 @@
           ],
           "terrain": "None",
           "scene": "Sky",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
         "invalid": [],
         "written": "track=ISS+(ZARYA)&scene=Sky"
+      },
+      {
+        "preset": "default",
+        "query": "scene=Sky&unseen=hide&gs=48.1372,11.5756,Munich",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [
+            {
+              "lat": 48.1372,
+              "lon": 11.5756,
+              "name": "Munich"
+            }
+          ],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "Sky",
+          "unseen": "hide",
+          "camera": "Fixed",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": "gs=48.1372,11.5756,Munich&scene=Sky&unseen=hide"
+      },
+      {
+        "preset": "default",
+        "query": "unseen=show",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "3D",
+          "unseen": "show",
+          "camera": "Fixed",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": "unseen=show"
+      },
+      {
+        "preset": "default",
+        "query": "camera=Inertial&scene=Sky&gs=48.1372,11.5756",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [
+            {
+              "lat": 48.1372,
+              "lon": 11.5756
+            }
+          ],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "Sky",
+          "unseen": "dim",
+          "camera": "Inertial",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": "gs=48.1372,11.5756&scene=Sky&camera=Inertial"
+      },
+      {
+        "preset": "default",
+        "query": "camera=inertial",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [
+          "camera"
+        ],
+        "written": ""
+      },
+      {
+        "preset": "demo",
+        "query": "camera=Fixed",
+        "state": {
+          "elements": [
+            "Point",
+            "Orbit",
+            "Ground track"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "GNSS"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "swath",
+          "layers": [
+            "VersaTiles"
+          ],
+          "terrain": "None",
+          "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": ""
+      },
+      {
+        "preset": "default",
+        "query": "unseen=dim&unseen=Hide",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": ""
       },
       {
         "preset": "default",
@@ -8194,6 +9101,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8221,6 +9130,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "1.5",
           "time": null
         },
@@ -8248,6 +9159,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8275,6 +9188,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8307,6 +9222,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8335,6 +9252,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8363,6 +9282,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8391,6 +9312,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8418,6 +9341,8 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },

@@ -1,3 +1,4 @@
+import CoreLocation
 import XCTest
 
 nonisolated class SatvisUITests: XCTestCase {
@@ -43,7 +44,7 @@ nonisolated class SatvisUITests: XCTestCase {
             XCTAssertFalse(app.buttons["Map"].exists)
             toggle.tap()
         }
-        for entry in ["Satellites", "Components", "Ground station", "Map", "View", "Graphics"] {
+        for entry in ["Bookmarks", "Satellites", "Components", "Map", "Locations", "Globe", "Sky", "Graphics"] {
             XCTAssert(app.buttons[entry].waitForExistence(timeout: 5), "No \(entry) in the menu")
         }
         app.buttons["Components"].tap()
@@ -63,6 +64,86 @@ nonisolated class SatvisUITests: XCTestCase {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.62)).tap()
         XCTAssert(panel.waitForNonExistence(timeout: 5))
         XCTAssertEqual(menuToggle(app).label, UIDevice.current.userInterfaceIdiom == .pad ? "Close menu" : "Menu")
+    }
+
+    // Look up stands where the device is, a location kept as "Geolocation" however
+    // many stations there are, and leaves the sky view again.
+    @MainActor
+    func testLooksUpFromWhereTheDeviceIs() {
+        XCUIDevice.shared.location = XCUILocation(location: CLLocation(latitude: 47.2692, longitude: 11.4041))
+        let app = XCUIApplication()
+        app.resetAuthorizationStatus(for: .location)
+        let launched = launch(link: "/?gs=48.1372,11.5756,Munich")
+        openMenu(launched)
+        launched.buttons["Sky"].tap()
+        flip(launched, "Look up")
+        let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow While Using App"]
+        if allow.waitForExistence(timeout: 10) {
+            allow.tap()
+        }
+        XCTAssert(launched.buttons["Leave the sky view"].waitForExistence(timeout: 20))
+        XCTAssertEqual(launched.switches["Look up"].value as? String, "1")
+        flip(launched, "Look up")
+        XCTAssert(launched.buttons["Home view"].waitForExistence(timeout: 10))
+    }
+
+    // The sky view holds the camera, keeping a link's camera mode for the globe,
+    // and the Globe panel's projection takes the view back there.
+    @MainActor
+    func testReturnsToTheGlobeFromTheGlobePanel() {
+        let app = launch(link: "/?gs=48.1372,11.5756,Munich&scene=Sky&camera=Inertial")
+        openMenu(app)
+        app.buttons["Globe"].tap()
+        let projection = app.buttons["3D"]
+        XCTAssert(projection.waitForExistence(timeout: 5))
+        XCTAssertFalse(projection.isSelected)
+        // A disabled picker's segments read as enabled; the control does not.
+        let camera = app.segmentedControls.firstMatch
+        let inertial = camera.buttons["Inertial"]
+        XCTAssert(inertial.isSelected)
+        XCTAssertFalse(camera.isEnabled)
+        projection.tap()
+        XCTAssert(app.buttons["Home view"].waitForExistence(timeout: 10))
+        XCTAssert(projection.isSelected)
+        XCTAssert(camera.isEnabled && inertial.isSelected)
+        app.buttons["Fixed"].tap()
+        XCTAssert(app.buttons["Fixed"].isSelected)
+    }
+
+    // A link the app opens with is kept under Recent; saving it moves it to Saved,
+    // under the name given, and it opens again from there after the default view.
+    @MainActor
+    func testSavesAndReopensABookmark() {
+        let app = launch(link: "/?tags=&sats=METOP-B&elements=Point,Label")
+        openMenu(app)
+        app.buttons["Bookmarks"].tap()
+        XCTAssert(app.buttons["Recent 1"].waitForExistence(timeout: 10))
+        app.buttons["Save this view"].tap()
+        let name = app.alerts.textFields.firstMatch
+        XCTAssert(name.waitForExistence(timeout: 10))
+        // Over the name drawn from the scene.
+        name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 40) + "Mine\n")
+        XCTAssert(app.alerts.firstMatch.waitForNonExistence(timeout: 5))
+        XCTAssert(app.buttons["Saved 1"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Recent 1"].exists)
+        XCTAssert(app.buttons["Saved"].exists)
+
+        let sheet = app.navigationBars["Bookmarks"]
+        app.buttons["Default view"].tap()
+        XCTAssert(sheet.waitForNonExistence(timeout: 5))
+        openMenu(app)
+        app.buttons["Bookmarks"].tap()
+        let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Mine'")).firstMatch
+        XCTAssert(card.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["Default view"].isEnabled)
+        XCTAssertFalse(card.isSelected)
+        card.tap()
+        XCTAssert(sheet.waitForNonExistence(timeout: 5))
+        openMenu(app)
+        app.buttons["Bookmarks"].tap()
+        XCTAssert(card.waitForExistence(timeout: 10))
+        XCTAssert(card.isSelected)
+        XCTAssert(app.buttons["Default view"].isEnabled)
     }
 
     // The about page's demos open in the app: the first pins the clock at its minute.

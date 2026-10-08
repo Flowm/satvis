@@ -29,6 +29,8 @@ final class Session {
     let passes = PassModel()
     @ObservationIgnored let satellites = SatelliteLayer()
     @ObservationIgnored private let starMap = StarMap()
+    /// The demo bookmarks' pictures by their path on the site, kept once fetched.
+    private(set) var demoPictures: [String: Data] = [:]
     /// Observed: it arrives once its shaders compile, possibly after a link has
     /// opened on the sky view, whose instruments wait for it.
     private(set) var renderer: GlobeRenderer?
@@ -38,8 +40,19 @@ final class Session {
     private(set) var tracked: String?
     /// The next tap on the globe places a ground station.
     var isPicking = false
-    /// The station the sky view stands on, while it is open (ADR 0003).
+    /// The station the sky view stands on, while it is open (ADR 0003): where the
+    /// device is, unless a link names one or a station's panel opened it.
     private(set) var observer: UUID?
+    /// In the sky view, how the satellites that cannot be seen are drawn (ADR
+    /// 0010). Kept in links as `unseen`.
+    var unseen = UnseenMode.dim {
+        didSet { renderer?.unseen = unseen }
+    }
+    /// The Globe panel's camera mode, kept in links as `camera`. The sky view
+    /// holds the camera, and keeps the choice for the way back.
+    var cameraFrame = CameraFrame.fixed {
+        didSet { renderer?.cameraFrame = cameraFrame }
+    }
     let compass = SkyCompass()
     /// A word for the user that goes by itself: how switching the compass on went.
     private(set) var notice: String?
@@ -66,6 +79,14 @@ final class Session {
     /// GIBS's days; nil, GIBS's latest, until they are known.
     @ObservationIgnored private var imageryFrame: String?
     let analytics = Analytics()
+    let bookmarks: BookmarkModel = {
+        #if DEBUG
+            if let storage = TestCatalog.bookmarkStorage() {
+                return BookmarkModel(storage: storage)
+            }
+        #endif
+        return BookmarkModel()
+    }()
 
     /// What the map is drawn from now, to credit: with the terrain the sky view
     /// always stands on, whatever the Map menu says.
@@ -79,8 +100,9 @@ final class Session {
     /// When the data was last asked for again, so that the scene turning active
     /// twice in a row does not ask twice.
     @ObservationIgnored private var revalidated = Date.distantPast
-    /// A link that came before there was a catalog to open it on.
-    @ObservationIgnored private var pendingLink: Link?
+    /// A link that came before there was a catalog to open it on, and whether it
+    /// is one to keep among the opened links.
+    @ObservationIgnored private var pendingLink: (link: Link, records: Bool)?
     /// Counts the links applied, so that one superseded while it waited stops
     /// there rather than finish over the newer one.
     @ObservationIgnored private var linkGeneration = 0
@@ -156,6 +178,8 @@ final class Session {
         }
         renderer.setImagery(baseLayer, site: source.site, frame: imageryFrame)
         renderer.setTerrain(terrain)
+        renderer.unseen = unseen
+        renderer.cameraFrame = cameraFrame
         renderer.setStations(shownMarkers)
         // What a link opened on before the renderer was there to be told: the
         // sky view, with no globe to fly from yet, or something followed.
@@ -178,6 +202,7 @@ final class Session {
             Task { await watchMode() },
             Task { await watchEntries() },
             Task { await starMap.load(from: source) },
+            Task { await loadDemoPictures() },
             Task { await predictPasses() },
             Task { await followImageryDay() },
             Task { await countViews() },
@@ -203,9 +228,14 @@ final class Session {
                 }
             }
             started = true
-            if let link = pendingLink ?? Self.launchLink ?? UserDefaults.standard.string(forKey: Self.viewKey).map(Link.init) {
+            // The view a last run left is the user's own, as a reload is on the web:
+            // not an opened link.
+            if let (link, records) = pendingLink ?? Self.launchLink.map({ ($0, true) }) ?? UserDefaults.standard.string(forKey: Self.viewKey).map({ (Link($0), false) }) {
                 pendingLink = nil
                 await apply(link, settings: true)
+                if records {
+                    Task { await recordOpened() }
+                }
             } else {
                 // The first launch: the default preset, and the map as the
                 // settings before links kept it.
@@ -281,13 +311,20 @@ final class Session {
 
     private static let benchmarkKey = "bench"
 
-    /// Opens a link: what it shows replaces what is shown, as on the web.
-    func open(_ link: Link) {
+    /// Opens a link: what it shows replaces what is shown, as on the web. `records`
+    /// keeps it among the opened links (ADR 0011): one the system hands over, or the
+    /// about page's, as a visit starts with on the web.
+    func open(_ link: Link, records: Bool = false) {
         guard started else {
-            pendingLink = link
+            pendingLink = (link, records)
             return
         }
-        Task { await apply(link, settings: true) }
+        Task {
+            await apply(link, settings: true)
+            if records {
+                await recordOpened()
+            }
+        }
     }
 
     /// The view as a link, as the web app's address bar would hold it. Of the
@@ -319,6 +356,8 @@ final class Session {
             layers: [baseLayer.rawValue],
             terrain: terrain ? "ReEarth" : "None",
             scene: observer == nil ? "3D" : "Sky",
+            unseen: unseen,
+            camera: cameraFrame,
             pixelRatio: pixelRatio,
             // Whenever the clock is off the present, as the deck's Live dot says
             // (`sceneSync.ts`), so a shared link shows what the sender saw.
@@ -366,11 +405,14 @@ final class Session {
             if ViewerClock.launchTime == nil {
                 if let time = state.time.flatMap(date(minuteISO:)) {
                     clock.pin(at: (time.timeIntervalSince1970 * 1000).rounded(.down))
-                } else if clock.clock.isPinned {
+                } else if clock.clock.isOffPresent(at: ViewerClock.real()) {
+                    // However it left the present, as a link without `time` is live.
                     clock.goLive()
                 }
             }
         }
+        unseen = state.unseen
+        cameraFrame = state.camera
         passes.setVisiting(state.gs.map { GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) })
         await catalog.open(
             preset: preset,
@@ -382,14 +424,15 @@ final class Session {
             return
         }
         if state.scene == "Sky" {
-            // On the link's first station, as it was listed, else the user's first.
-            // Nil where the link's station is not on the globe, and was refused.
+            // On the link's first station, as it was listed; where the device is
+            // when it names none, or none the globe can stand on.
             let first = state.gs.first.flatMap {
                 GroundStations.normalized([GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name)]).first.map(GroundStations.Place.init)
             }
-            let station = first.map { place in passes.stations.first { GroundStations.Place($0) == place } } ?? passes.saved.first
-            if let station {
+            if let station = first.flatMap({ place in passes.stations.first { GroundStations.Place($0) == place } }) {
                 enterSky(at: station.id)
+            } else if let here = await stationHere(), generation == linkGeneration {
+                enterSky(at: here)
             }
         } else if !state.track.isEmpty, let entry = await catalog.entry(named: state.track), generation == linkGeneration {
             track(entry.id, true)
@@ -410,10 +453,92 @@ final class Session {
         }
     }
 
+    // MARK: Bookmarks
+
+    /// The scene on screen as a bookmark would keep it: its preset's path and the
+    /// parameters the web app's stores own.
+    var here: SceneLink {
+        SceneLink(path: Bookmarks.path(preset: catalog.presetName), query: Bookmarks.ownedQuery(of: link(sharing: false).query))
+    }
+
+    /// What a bookmark's card says, read against its own preset's defaults.
+    func summary(_ scene: SceneLink) -> BookmarkSummary {
+        Bookmarks.summarize(scene.query, presetDefaults: source.index?.value.preset(named: scene.preset)?.defaults ?? [:])
+    }
+
+    /// Opens a bookmark's scene, carrying the link's parameters no store owns.
+    /// Without a `time` it is live: a paused or fast clock at the present has none either.
+    func open(_ scene: SceneLink) {
+        let carried = Bookmarks.carriedItems(of: link(sharing: false).query)
+        if scene.query["time"] == nil, ViewerClock.launchTime == nil {
+            clock.goLive()
+        }
+        open(scene.link(carrying: carried))
+    }
+
+    /// The preset as it opens: every scene parameter dropped, the clock live.
+    func openDefaultView() {
+        open(SceneLink(path: here.path, query: [:]))
+    }
+
+    /// Saves the scene on screen, named after what it shows, with its picture.
+    func saveHere() async -> Bookmark {
+        let scene = here
+        let picture = await renderer?.snapshot(width: Self.pictureWidth)
+        return bookmarks.save(name: Bookmarks.defaultName(summary(scene)), scene: scene, picture: picture)
+    }
+
+    /// The demos' pictures as kept, then as the site has them: fetched once and
+    /// kept for offline launches, as the star map is.
+    private func loadDemoPictures() async {
+        let paths = Bookmarks.demos.compactMap(\.thumbnail)
+        for path in paths {
+            demoPictures[path] = await source.keptImage(path)
+        }
+        for path in paths {
+            if let fetched = await source.image(path), fetched != demoPictures[path] {
+                demoPictures[path] = fetched
+            }
+        }
+    }
+
+    /// Pixels across a bookmark's picture: a card two columns wide at 3x, where
+    /// the web app's 320 would be soft.
+    private static let pictureWidth = 480
+
+    /// Keeps the link just opened among the opened ones, unless it shows the
+    /// preset as it opens or is among the demos and saved bookmarks, and pictures
+    /// it once it has loaded: everything active drawn, the sky view landed, and
+    /// three seconds for the tiles. Not if the user has moved on by then.
+    private func recordOpened() async {
+        let opened = here
+        guard !opened.query.isEmpty, !(Bookmarks.demos + bookmarks.saved).contains(where: { $0.scene == opened }) else {
+            return
+        }
+        let link = bookmarks.recordOpened(name: Bookmarks.defaultName(summary(opened)), scene: opened)
+        let start = ContinuousClock.now
+        try? await Task.sleep(for: .seconds(3))
+        while ContinuousClock.now - start < .seconds(20) {
+            let drawn = renderer.map { $0.satelliteCount == catalog.activeEntries.count && (observer == nil || $0.isSkySettled) } ?? false
+            if drawn {
+                break
+            }
+            try? await Task.sleep(for: .milliseconds(250))
+        }
+        let now = here
+        guard now.path == opened.path, Bookmarks.withoutTime(now.query) == Bookmarks.withoutTime(opened.query),
+            let picture = await renderer?.snapshot(width: Self.pictureWidth)
+        else {
+            return
+        }
+        bookmarks.setPicture(link.id, picture)
+    }
+
     // MARK: Sky view
 
-    /// Stands on a ground station and looks up. Nothing is followed from the
-    /// ground: a camera cannot both chase a satellite and stand still.
+    /// Stands on a ground station and looks up; in the sky view already, moves
+    /// there. Nothing is followed from the ground: a camera cannot both chase a
+    /// satellite and stand still.
     func enterSky(at id: UUID) {
         guard let station = passes.station(id) else {
             return
@@ -446,21 +571,23 @@ final class Session {
         renderer?.flyHome(animated: !UIAccessibility.isReduceMotionEnabled)
     }
 
-    /// Looks up from the selected station, else the first saved one, else where
-    /// the device is, which becomes a station. Without one of those it does not
-    /// open: a sky at a place nobody chose looks like a working view and is not.
-    func viewTheSky() async {
-        if case .station(let id) = selection {
-            return enterSky(at: id)
+    /// Looks up from where the device is: the Sky panel's Look up. A station's
+    /// panel looks up from that station instead.
+    func lookUpFromHere() async {
+        if let id = await stationHere() {
+            enterSky(at: id)
         }
-        if let first = passes.saved.first ?? passes.stations.first {
-            return enterSky(at: first.id)
+    }
+
+    /// The "Geolocation" station, moved to where the device is; nil, and a word
+    /// why, where no position comes back. Without one the sky view does not open:
+    /// a sky at a place nobody chose looks like a working view and is not.
+    private func stationHere() async -> UUID? {
+        guard let location = await currentLocation(), let id = passes.setGeolocation(latitude: location.latitude, longitude: location.longitude) else {
+            show("The sky view needs your location. Allow it in Settings, or look up from a location's panel.")
+            return nil
         }
-        guard let location = await currentLocation(), let id = passes.add(latitude: location.latitude, longitude: location.longitude, name: "Geolocation") else {
-            show("The sky view needs a place to stand: allow your location, or add a ground station.")
-            return
-        }
-        enterSky(at: id)
+        return id
     }
 
     /// Aims the sky view with the device, or hands the aim back.

@@ -22,6 +22,8 @@ struct ModelInstance {
     float metallic;
     float roughness;
     float alphaCutoff;
+    /// How the sky view draws it, 1 as usual: drawn blended below 1.
+    float opacity;
 };
 
 struct ModelOut {
@@ -61,5 +63,5 @@ fragment float4 modelFragment(ModelOut in [[stage_in]], bool front [[front_facin
     if (albedo.a < instance.alphaCutoff) {
         discard_fragment();
     }
-    return float4(color, albedo.a);
+    return float4(color, albedo.a * instance.opacity);
 }

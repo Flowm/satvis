@@ -66,7 +66,10 @@ vertex LabelOut labelVertex(uint vid [[vertex_id]], uint iid [[instance_id]], co
     clip.xy += offset * 2.0 / frame.viewportSize * clip.w;
     out.position = clip;
     out.uv = mix(label.uvRect.xy, label.uvRect.zw, corner);
-    out.alpha = 1.0 - clamp((distance - 6e7) / 2e7, 0.0, 1.0);
+    out.alpha = (1.0 - clamp((distance - 6e7) / 2e7, 0.0, 1.0)) * skyOpacity(position, relative, frame);
+    if (out.alpha <= 0.0) {
+        out.position = float4(0.0, 0.0, -2.0, 1.0);
+    }
     return out;
 }
 

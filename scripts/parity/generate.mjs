@@ -264,12 +264,16 @@ try {
   const codec = await runner.import("/src/modules/util/urlCodec.ts");
   const { parseQuery, stringifyQuery } = await runner.import("vue-router");
   const { PIXEL_RATIOS } = await runner.import("/src/config/rendering.ts");
+  const { UNSEEN_MODES } = await runner.import("/src/modules/util/visibility.ts");
+  const { CAMERA_MODES } = await runner.import("/src/config/viewModes.ts");
   const vocabulary = {
     components: ["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model", "Ground station link"],
     layers: ["NaturalEarth", "VersaTiles", "BlackMarble", "VIIRS"],
     terrain: ["None", "ReEarth"],
     overpass: ["elevation", "swath"],
     scenes: ["3D", "Sky"],
+    unseen: [...UNSEEN_MODES],
+    cameras: [...CAMERA_MODES],
     pixelRatios: [...PIXEL_RATIOS],
   };
   const kinds = {
@@ -380,6 +384,8 @@ try {
     { name: "layers", kind: kinds.layers },
     { name: "terrain", kind: codec.enumString(vocabulary.terrain) },
     { name: "scene", kind: codec.enumString(vocabulary.scenes) },
+    { name: "unseen", kind: codec.enumString(vocabulary.unseen) },
+    { name: "camera", kind: codec.enumString(vocabulary.cameras) },
     { name: "pixelratio", kind: codec.enumString(vocabulary.pixelRatios) },
     { name: "time", kind: kinds.timestamp },
   ];
@@ -395,6 +401,8 @@ try {
     layers: ["NaturalEarth"],
     terrain: "None",
     scene: "3D",
+    unseen: "dim",
+    camera: "Fixed",
     pixelratio: "native",
     time: null,
   };
@@ -414,6 +422,12 @@ try {
     ["default", "track=&gs=&elements="],
     ["default", "scene=Columbus&gs=46.5935,7.9091"],
     ["default", "scene=Sky&track=ISS+(ZARYA)"],
+    ["default", "scene=Sky&unseen=hide&gs=48.1372,11.5756,Munich"],
+    ["default", "unseen=show"],
+    ["default", "camera=Inertial&scene=Sky&gs=48.1372,11.5756"],
+    ["default", "camera=inertial"],
+    ["demo", "camera=Fixed"],
+    ["default", "unseen=dim&unseen=Hide"],
     ["default", "layers=NaturalEarth,VersaTiles_0.50,BlackMarble"],
     ["default", "pixelratio=1.5&tags=Starlink"],
     ["default", "pixelratio=native"],
@@ -454,6 +468,75 @@ try {
 
   const hourAngles = HOUR_ANGLE_INSTANTS.map((instant) => ({ instant, radians: greenwichHourAngle(Date.parse(instant)) }));
 
+  // The sky view's verdict on what could be seen (ADR 0010): the sun, Earth's
+  // shadow, and the verdict at the edges of its cut-offs.
+  const sky = await runner.import("/src/modules/util/visibility.ts");
+  const sunDirections = HOUR_ANGLE_INSTANTS.map((instant) => ({ instant, direction: sky.sunDirection(Date.parse(instant), { x: 0, y: 0, z: 0 }) }));
+  const shadowSun = sky.sunDirection(Date.parse("2026-10-05T17:45:00Z"), { x: 0, y: 0, z: 0 });
+  const shadows = [
+    [-7e6, 0, 0],
+    [7e6, 0, 0],
+    [0, 7e6, 0],
+    [-7e6, 6.3e6, 0],
+    [-7e6, 6.4e6, 0],
+    [-42e6, 0, 1e6],
+    [-7e6, 0, 6.5e6],
+  ].map(([x, y, z]) => {
+    const position = { x, y, z };
+    return { position, sun: shadowSun, inShadow: sky.inEarthShadow(position, shadowSun) };
+  });
+  const verdicts = [
+    [sky.DARK_SKY_SUN_ELEVATION, true, 1000],
+    [sky.DARK_SKY_SUN_ELEVATION + 0.001, true, 1000],
+    [-20, true, sky.MAX_VISIBLE_RANGE_KM],
+    [-20, true, sky.MAX_VISIBLE_RANGE_KM + 0.001],
+    [-20, false, 1000],
+    [-20, false, 36_000],
+    [10, false, 1000],
+    [10, true, 36_000],
+  ].map(([sunElevation, sunlit, rangeKm]) => ({ sunElevation, sunlit, rangeKm, visibility: sky.visibility(sunElevation, sunlit, rangeKm) }));
+
+  // Bookmarks (ADR 0011): what a card says of a scene, and the name a scene is given,
+  // against the default preset's defaults and the demo preset's.
+  const bookmarks = await runner.import("/src/modules/util/bookmarks.ts");
+  const { DEMO_BOOKMARKS } = await runner.import("/src/config/bookmarks.ts");
+  const BOOKMARK_NOW = "2026-10-08T12:00:00Z";
+  const BOOKMARK_CASES = [
+    ["default", {}],
+    ["default", { tags: "", sats: "ISS (ZARYA)", track: "ISS (ZARYA)", time: "2026-10-04T02:07Z" }],
+    ["default", { scene: "Sky", gs: "46.5935,7.9091,Lauterbrunnen_48.1,11.5", tags: "GNSS,Weather,OneWeb" }],
+    ["default", { scene: "Sky", gs: "46.5935,7.9091" }],
+    ["default", { scene: "Sky", gs: "-33.92495,18.42405" }],
+    ["default", { scene: "Sky" }],
+    ["default", { scene: "Sky", gs: "" }],
+    ["default", { sats: "A,B,C" }],
+    ["default", { tags: "", sats: "A,B" }],
+    ["default", { tags: "", sats: "A" }],
+    ["default", { tags: "" }],
+    ["default", { scene: "2D", tags: "Science" }],
+    ["default", { scene: "Columbus" }],
+    ["default", { scene: "Bogus" }],
+    ["default", { track: "NOAA 19" }],
+    ["default", { tags: "Stations", track: "ISS (ZARYA)" }],
+    ["default", { tags: "GNSS" }],
+    ["default", { tags: "OT", sats: "X" }],
+    ["default", { time: "2025-12-31T23:59Z" }],
+    ["default", { time: "not a time" }],
+    ...Array.from({ length: 12 }, (_, month) => ["default", { time: `2026-${String(month + 1).padStart(2, "0")}-09T07:05Z` }]),
+    ["demo", {}],
+    ["demo", { scene: "Sky", gs: "1,2,Home" }],
+    ...DEMO_BOOKMARKS.map((demo) => ["default", demo.query]),
+  ];
+  const summaries = BOOKMARK_CASES.map(([preset, query]) => {
+    const summary = bookmarks.summarize(query, PRESETS[preset], new Date(BOOKMARK_NOW));
+    return { preset, query, summary, name: bookmarks.defaultName(summary) };
+  });
+  const bookmarkNow = Date.parse(BOOKMARK_NOW);
+  const ages = [0, 30_000, 59_999, 60_000, 5 * 60_000, 59 * 60_000, 3_600_000, 3 * 3_600_000, 23 * 3_600_000 + 59 * 60_000, 50 * 3_600_000, -60_000].map((ago) => ({
+    ago,
+    text: bookmarks.timeAgo(bookmarkNow - ago, bookmarkNow),
+  }));
+
   const output = {
     generatedBy: "scripts/parity/generate.mjs",
     parsed,
@@ -467,6 +550,8 @@ try {
     countdowns,
     compassPoints,
     greenwichHourAngle: hourAngles,
+    visibility: { sunDirections, shadows, verdicts },
+    bookmarks: { now: BOOKMARK_NOW, summaries, ages, openedLimit: bookmarks.OPENED_LIMIT },
     links: { vocabulary, presets: PRESETS, defaults: globalDefaults, fieldKinds, cases: links, sanitized },
   };
   fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
@@ -481,6 +566,15 @@ try {
     gcat: { category: gcatCodes.GCAT_CATEGORY, class: gcatCodes.GCAT_CLASS },
     // `{satnum}` stands where the catalog number goes.
     externalLinks: externalLinks("{satnum}"),
+    bookmarks: {
+      demos: DEMO_BOOKMARKS,
+      // The parameters the web app's stores own, which a bookmark keeps and the rest
+      // of a link carries past it. Read from the stores' urlsync configs: creating the
+      // stores here would need the router and the globe.
+      ownedParams: ["sat", "cesium"].flatMap((store) =>
+        [...fs.readFileSync(path.join(repoRoot, `src/stores/${store}.ts`), "utf8").matchAll(/\burl: "([a-z]+)"/g)].map((match) => match[1]),
+      ),
+    },
   };
   fs.mkdirSync(path.dirname(tablesPath), { recursive: true });
   fs.writeFileSync(tablesPath, `${JSON.stringify(tables, null, 2)}\n`);

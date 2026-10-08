@@ -120,6 +120,21 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The terrain as the Map menu has it; the sky view stands on it regardless.
     private var terrainSetting = false
     public var components: SatelliteComponents = [.point, .label]
+    /// What the free camera holds still in. Tracking keeps the satellite's own
+    /// frame, and the sky view the observer's, so it waits while either is up:
+    /// the free camera does not turn meanwhile.
+    public var cameraFrame = CameraFrame.fixed {
+        didSet { inertialAngle = nil }
+    }
+    /// The Greenwich hour angle the free camera was last turned to, while inertial.
+    private var inertialAngle: Double?
+    /// In the sky view, how the satellites that cannot be seen are drawn (ADR 0010).
+    public var unseen = UnseenMode.dim {
+        didSet {
+            // The crosshair passes over hidden ones: judged again at once.
+            skyCache.lockAt = -.infinity
+        }
+    }
     /// The instant to draw, in UTC milliseconds since 1970.
     public var clock: () -> Double = { (Date().timeIntervalSince1970 * 1000).rounded(.down) }
 
@@ -212,6 +227,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The size the last frame was drawn at, in pixels.
     public var drawableSize: CGSize? { lastFrame.map { CGSize(width: $0.size.x, height: $0.size.y) } }
     private var pointFrameBuffers: [MTLBuffer?]
+    /// A picture asked for of the next frame that can be read: its width in pixels,
+    /// and who waits for it.
+    private var snapshotRequest: (id: Int, width: Int, continuation: CheckedContinuation<Data?, Never>)?
+    private var snapshotCount = 0
     private var frameIndex = 0
     private let inFlight = DispatchSemaphore(value: framesInFlight)
 
@@ -279,7 +298,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         skyAtmospherePipeline = try pipeline("skyAtmosphereVertex", "skyAtmosphereFragment", blend: true, fastVertex: true)
         skyRingPipeline = try pipeline("skyRingVertex", "skyAtmosphereFragment", blend: true, fastVertex: true)
         globePipeline = try pipeline("globeVertex", "globeFragment", fastVertex: true)
-        pointPipeline = try pipeline("pointVertex", "pointFragment")
+        // Blended, for the sky view to dim what cannot be seen.
+        pointPipeline = try pipeline("pointVertex", "pointFragment", blend: true)
         linePipeline = try pipeline("lineVertex", "lineFragment", blend: true)
         modelPipeline = try pipeline("modelVertex", "modelFragment")
         modelBlendPipeline = try pipeline("modelVertex", "modelFragment", blend: true)
@@ -740,7 +760,33 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         depth = target(Self.depthFormat)
     }
 
+    /// The next frame as a JPEG `width` pixels across, for a bookmark's card; nil
+    /// where none comes within two seconds, as in the background.
+    public func snapshot(width: Int) async -> Data? {
+        snapshotCount += 1
+        let id = snapshotCount
+        return await withCheckedContinuation { continuation in
+            snapshotRequest?.continuation.resume(returning: nil)
+            snapshotRequest = (id, width, continuation)
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                finishSnapshot(id, nil)
+            }
+        }
+    }
+
+    private func finishSnapshot(_ id: Int, _ data: Data?) {
+        guard let request = snapshotRequest, request.id == id else {
+            return
+        }
+        snapshotRequest = nil
+        request.continuation.resume(returning: data)
+    }
+
     public func draw(in view: MTKView) {
+        // A drawable can be read only from a view asked for readable ones, which
+        // cannot keep them in tile memory: asked for one frame, and back after.
+        view.framebufferOnly = snapshotRequest == nil
         guard var orbitCamera, let hdr, let depth else {
             return
         }
@@ -757,6 +803,18 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             if t >= 1 || cameraMode != .orbit {
                 homeFlight = nil
             }
+        }
+        if cameraFrame == .inertial, cameraMode == .orbit {
+            // Turned back by as far as the Earth has turned since, in whichever
+            // direction the clock went; not mid-flight home, which sets the camera.
+            let angle = greenwichHourAngle(epochMilliseconds: now)
+            if let last = inertialAngle, homeFlight == nil {
+                orbitCamera.holdInertial(from: last, to: angle)
+                self.orbitCamera = orbitCamera
+            }
+            inertialAngle = angle
+        } else {
+            inertialAngle = nil
         }
         var pose = orbitCamera.pose()
         frameModel()
@@ -811,8 +869,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         frameIndex = (frameIndex + 1) % Self.framesInFlight
 
-        var frame = uniforms(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now)
-        let placements = components.contains(.model) ? modelPlacements(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now) : []
+        // From the ground, once it has landed, as the instruments wait to.
+        let judgement = isSkySettled ? skyCamera.map { SkyJudgement(camera: $0, at: now, unseen: unseen) } : nil
+        var frame = uniforms(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now, judgement: judgement)
+        let placements =
+            components.contains(.model) ? modelPlacements(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now, judgement: judgement) : []
         lastModelPoints = Dictionary(placements.map { ($0.index, $0.points) }, uniquingKeysWith: max)
         overlay.encode(commands, pipeline: overlayPipeline, satellites: points.satellites, at: now, enabled: components.contains(.groundTrack), device: device)
         var surfaceTiles: [Surface.Tile] = []
@@ -944,6 +1005,15 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             encoder.endEncoding()
         }
+        // Taken off as it is queued: the frames already in flight would copy it again.
+        if let request = snapshotRequest, !drawable.texture.isFramebufferOnly,
+            let copy = Snapshot.encodeCopy(of: drawable.texture, into: commands, device: device)
+        {
+            snapshotRequest = nil
+            commands.addCompletedHandler { _ in
+                request.continuation.resume(returning: copy.jpeg(width: request.width))
+            }
+        }
         commands.present(drawable)
         commands.commit()
         if measuring {
@@ -963,6 +1033,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         var rotation: simd_float3x3
         /// How wide its bounding sphere is drawn, in points.
         var points: Double
+        /// How the sky view draws it, 1 as usual.
+        var opacity: Float
     }
 
     /// Each modelled satellite's model where it is, its glTF +Z along the velocity
@@ -971,8 +1043,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// scaled up to the web app's smallest size on screen
     /// (`modelMinimumPixelSize`), but no further than that size at the home
     /// view's distance, so it shrinks with the globe beyond it. A model not
-    /// loaded yet is asked for, and has no place until it lands.
-    private func modelPlacements(pose: CameraPose, size: SIMD2<Double>, now: Double) -> [ModelPlacement] {
+    /// loaded yet is asked for, and has no place until it lands; one the sky view
+    /// hides has none either.
+    private func modelPlacements(pose: CameraPose, size: SIMD2<Double>, now: Double, judgement: SkyJudgement?) -> [ModelPlacement] {
         guard let prepared = points.prepared, !prepared.modelled.isEmpty else {
             return []
         }
@@ -987,6 +1060,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             else {
                 return nil
             }
+            let opacity = judgement?.opacity(of: position, from: pose.position) ?? 1
+            guard opacity > 0 else {
+                return nil
+            }
             let forward = normalize(after - before)
             let surfaceUp = normalize(position / (ellipsoidRadii * ellipsoidRadii))
             let port = normalize(cross(surfaceUp, forward))
@@ -999,7 +1076,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 index: index, model: model,
                 toEye: simd_double4x4(columns: (SIMD4(port * scale, 0), SIMD4(up * scale, 0), SIMD4(forward * scale, 0), SIMD4(position - pose.position, 1))),
                 rotation: simd_float3x3(columns: (SIMD3<Float>(port), SIMD3<Float>(up), SIMD3<Float>(forward))),
-                points: diameter * scale / metresPerPoint)
+                points: diameter * scale / metresPerPoint, opacity: Float(opacity))
         }
     }
 
@@ -1009,13 +1086,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         encoder.setFragmentSamplerState(tileSampler, index: 0)
         // The opaque and cut-out parts, writing depth, then the blended ones over
-        // them, testing it: as CesiumJS draws glTF's translucent parts.
+        // them, testing it: as CesiumJS draws glTF's translucent parts. A model the
+        // sky view dims is blended whole.
         for blended in [false, true] {
             encoder.setRenderPipelineState(blended ? modelBlendPipeline : modelPipeline)
             encoder.setDepthStencilState(blended ? depthTest : depthWrite)
             for placement in placements {
                 encoder.setVertexBuffer(placement.model.vertices, offset: 0, index: 0)
-                for part in placement.model.parts where (part.material.alphaMode == .blend) == blended {
+                for part in placement.model.parts where (part.material.alphaMode == .blend || placement.opacity < 1) == blended {
                     var cutoff: Float = 0
                     if case .mask(let value) = part.material.alphaMode {
                         cutoff = value
@@ -1023,7 +1101,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                     var instance = ModelInstance(
                         modelViewProjection: float4x4(lastFrame.viewProjection * placement.toEye), rotation: placement.rotation,
                         modelToEye: float4x4(placement.toEye), baseColor: part.material.baseColor, sunDirection: frame.sunDirection,
-                        hasTexture: part.texture == nil ? 0 : 1, metallic: part.material.metallic, roughness: part.material.roughness, alphaCutoff: cutoff)
+                        hasTexture: part.texture == nil ? 0 : 1, metallic: part.material.metallic, roughness: part.material.roughness, alphaCutoff: cutoff,
+                        opacity: placement.opacity)
                     encoder.setCullMode(part.material.doubleSided ? .none : .back)
                     encoder.setVertexBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
                     encoder.setFragmentBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
@@ -1110,7 +1189,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         return buffer
     }
 
-    private func uniforms(pose: CameraPose, size: SIMD2<Double>, now: Double) -> FrameUniforms {
+    private func uniforms(pose: CameraPose, size: SIMD2<Double>, now: Double, judgement: SkyJudgement?) -> FrameUniforms {
         let viewProjection = pose.projection(aspectRatio: size.x / size.y) * pose.view()
         lastFrame = (viewProjection, pose.position, size, now)
         let angle = greenwichHourAngle(epochMilliseconds: now)
@@ -1129,7 +1208,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             eyeHeight: Float(pose.eyeHeight),
             cameraDistance: Float(length(position)),
             pointSize: Float(7 * pixelScale),
-            pixelScale: Float(pixelScale))
+            pixelScale: Float(pixelScale),
+            unseenOpacity: judgement?.uniforms.unseenOpacity ?? 1,
+            skyIsDark: judgement?.uniforms.skyIsDark ?? 0)
     }
 }
 

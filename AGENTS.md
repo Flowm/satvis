@@ -67,9 +67,10 @@ workspace package). One `pnpm install` at the root covers both.
   (`scripts/parity/`), and writes the tables it reads from the web app as they are
   (SATCAT labels, external links). Rerun it after changing propagation or its
   sampling grid, element-set parsing, pass prediction, the info panel's details
-  and passes, the URL codec, the analytics sanitising (`posthogPrivacy.ts`), the
-  pixel ratios (`config/rendering.ts`), or those tables; CI fails while the
-  committed output is stale.
+  and passes, the URL codec, the sky view's visibility (`visibility.ts`), the
+  analytics sanitising (`posthogPrivacy.ts`), the pixel ratios
+  (`config/rendering.ts`), or those tables; CI fails while the committed output
+  is stale.
 - `pnpm test:e2e` renders with SwiftShader, as a GPU-less CI runner does;
   `pnpm test:e2e:gpu` runs the same specs about four times faster on a Mac.
 - The full e2e suite takes 10+ minutes even on the GPU, so run it only when

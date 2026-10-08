@@ -66,6 +66,8 @@ struct ModelInstance {
     var roughness: Float
     /// Below it a fragment is cut out (`AlphaMode.mask`); 0 for none.
     var alphaCutoff: Float
+    /// How the sky view draws it, 1 as usual: drawn blended below 1.
+    var opacity: Float
 }
 
 /// The satellites' 3D models: fetched by file when first drawn, read off the main

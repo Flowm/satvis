@@ -58,4 +58,14 @@ final class GPSource {
     func keptStarMap() async -> [Data]? {
         await repository.keptStarMap()
     }
+
+    /// An image the site serves, such as a demo bookmark's picture, revalidated
+    /// with the site and kept; nil while it has never been fetched.
+    func image(_ path: String) async -> Data? {
+        try? await repository.image(path).value
+    }
+
+    func keptImage(_ path: String) async -> Data? {
+        await repository.keptImage(path)
+    }
 }

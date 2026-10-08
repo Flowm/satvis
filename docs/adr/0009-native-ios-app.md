@@ -146,7 +146,7 @@ it off.
   not worth checking for a second satellite basemap.
 - MSAA and the scene effects in the Graphics menu, WebVR and the embed mode
 
-These come later: the 2D view mode, the inertial camera mode, the DeepStar2K star
+These come later: the 2D view mode, the DeepStar2K star
 map, a camera passthrough in the sky view, and a Live Activity for a pass.
 
 3D models are drawn from the web app's own files rather than a converted copy,

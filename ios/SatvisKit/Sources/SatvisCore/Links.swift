@@ -120,6 +120,9 @@ public struct LinkState: Sendable, Hashable {
     public var terrain: String
     /// `3D`, or `Sky` for the sky view (ADR 0003).
     public var scene: String
+    /// In the sky view, how the satellites that cannot be seen are drawn (ADR 0010).
+    public var unseen: UnseenMode
+    public var camera: CameraFrame
     /// Drawable pixels per point: `1`, `1.5`, or `native` for the screen's own.
     public var pixelRatio: String
     /// The minute the clock is pinned at (`2026-10-04T20:46Z`), nil while live.
@@ -128,11 +131,12 @@ public struct LinkState: Sendable, Hashable {
     /// The web app's defaults before any preset (src/stores).
     public static let global = LinkState(
         elements: ["Point", "Label"], sats: [], xsats: [], tags: [], gs: [], track: "", overpass: "elevation", layers: ["NaturalEarth"], terrain: "None",
-        scene: "3D", pixelRatio: "native", time: nil)
+        scene: "3D", unseen: .dim, camera: .fixed, pixelRatio: "native", time: nil)
 
     public init(
         elements: [String], sats: [String], xsats: [String], tags: [String], gs: [LinkStation], track: String, overpass: String, layers: [String],
-        terrain: String, scene: String = "3D", pixelRatio: String = "native", time: String?
+        terrain: String, scene: String = "3D", unseen: UnseenMode = .dim, camera: CameraFrame = .fixed, pixelRatio: String = "native",
+        time: String?
     ) {
         self.elements = elements
         self.sats = sats
@@ -144,6 +148,8 @@ public struct LinkState: Sendable, Hashable {
         self.layers = layers
         self.terrain = terrain
         self.scene = scene
+        self.unseen = unseen
+        self.camera = camera
         self.pixelRatio = pixelRatio
         self.time = time
     }
@@ -199,6 +205,8 @@ public enum LinkCodec {
         Field("layers", \.layers, .layerList(layers)),
         Field("terrain", \.terrain, .oneOf(terrains)),
         Field("scene", \.scene, .oneOf(scenes)),
+        Field("unseen", \.unseen, .enumeration),
+        Field("camera", \.camera, .enumeration),
         Field("pixelratio", \.pixelRatio, .oneOf(pixelRatios)),
         Field("time", \.time, .timestamp),
     ]
@@ -262,6 +270,11 @@ extension FieldKind where Value == String {
     static func oneOf(_ values: [String]) -> Self {
         Self(parse: { values.contains($0) ? $0 : nil }, format: { values.contains($0) ? $0 : nil })
     }
+}
+
+extension FieldKind where Value: RawRepresentable & CaseIterable, Value.RawValue == String {
+    /// One of an enum's raw values, as `enumString` over its cases.
+    static var enumeration: Self { Self(parse: Value.init(rawValue:), format: \.rawValue) }
 }
 
 extension FieldKind where Value == [String] {

@@ -29,5 +29,14 @@
             }
             return store
         }
+
+        /// A bookmark storage of its own for each launch on the test catalog, so a
+        /// test starts with no bookmarks whatever an earlier run saved; nil unless asked for.
+        static func bookmarkStorage() -> BookmarkStorage? {
+            guard ProcessInfo.processInfo.environment["SATVIS_TEST_CATALOG"] != nil else {
+                return nil
+            }
+            return BookmarkStorage(directory: URL.temporaryDirectory.appending(path: "UITestBookmarks-\(UUID())", directoryHint: .isDirectory))
+        }
     }
 #endif

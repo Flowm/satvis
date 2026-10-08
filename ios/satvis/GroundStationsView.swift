@@ -1,7 +1,7 @@
 import SatvisCore
 import SwiftUI
 
-/// The ground station list, as the web app's: each station's name and coordinates
+/// The ground station list, the web app's Locations: each station's name and coordinates
 /// editable in place, in an order the user sets, added by picking a place on the
 /// globe or from where the device is.
 struct GroundStationsView: View {
@@ -76,7 +76,7 @@ struct GroundStationsView: View {
                             locating = true
                             defer { locating = false }
                             if let location = await currentLocation() {
-                                passes.add(latitude: location.latitude, longitude: location.longitude, name: "Geolocation")
+                                passes.setGeolocation(latitude: location.latitude, longitude: location.longitude)
                             } else {
                                 locationFailed = true
                             }
@@ -93,7 +93,7 @@ struct GroundStationsView: View {
                     .disabled(locating)
                 }
             }
-            .navigationTitle("Ground stations")
+            .navigationTitle("Locations")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

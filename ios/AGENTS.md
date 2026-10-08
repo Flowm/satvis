@@ -137,8 +137,16 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   Compass aiming (`SkyCompass`) is CoreMotion's attitude against true north, or
   magnetic north without a location, so it needs no calibration step; it can
   only be tried on a device, the simulator having no motion sensor. The
-  observer is a link's first station, and the station whose panel opened it,
-  and its own pin is hidden underfoot.
+  observer is where the device is, kept as the one saved station named
+  "Geolocation" and moved there each time, unlike the web app, whose Sky panel
+  lists the stations to stand on: the Sky panel's Look up stands there, as does a
+  link to the sky view that names no station. A link that names one stands on
+  its first, and a station's panel on that station. Its own pin is hidden
+  underfoot. What cannot be seen
+  (ADR 0010) is dimmed or hidden by the point and label shaders, from the frame's
+  sun and how dark the observer's sky is (`SkyJudgement`): per satellite on the
+  CPU it would cost what the lock costs, every frame. A dimmed 3D model is drawn
+  blended whole; the card's verdict is the same `Visibility`, in double precision.
 - The globe's gestures are SwiftUI's, not UIKit recognizers on the MTKView, so the
   controls laid over it take the touches that land on them. They go to the
   renderer, which steers whichever camera its `CameraMode` says is in use: the free
@@ -164,22 +172,48 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   required-reason API and every data type collected, and keep the App Store
   privacy label in step with it.
 - The menu column is the web app's (`Satvis.vue`'s `menuItems`): a Menu toggle
-  over Satellites, Components, Ground station, Map, View and Graphics, with their
+  over Bookmarks, Satellites, Components, Map, Locations, Globe, Sky and Graphics, with their
   Lucide icons, names and order, and their hover hints, trimmed to what the
   app has, as VoiceOver hints, one glass panel
   whose rows each hold an icon and its name, folded on a phone and open on an
-  iPad, as the web's is on a desktop. Components, Map, View
+  iPad, as the web's is on a desktop. Components, Map, Globe, Sky
   and Graphics open the web's panels beside it (`ToolPanels.swift`): a title and a
   close button over a rule level with the column's, sections under small titles,
   switches, a segmented control where the choices are short, ticked rows where
-  they are long. On a phone the column folds to its icons beside a panel, which
+  they are long; a setting that needs the sky view is disabled on the globe,
+  not hidden. On a phone the column folds to its icons beside a panel, which
   covers the top-right buttons, as the web's does below 640 px. Not system
   menus: iOS 26 grows one out of its control, in the column's place, and it holds
-  ticked lists alone. Satellites and Ground station are sheets: long lists.
+  ticked lists alone. Bookmarks, Satellites and Locations are sheets: long lists.
   A tap on the globe closes the panel and on a phone folds the column, as on
   the web, and a miss that did so keeps the selection.
   What the app does not draw is left out: Map's overlays, surface and star map;
-  View's 2D, Columbus and camera modes; Graphics' scene effects and MSAA.
+  Globe's 2D and Columbus projections; Sky's keyboard note; Graphics' scene
+  effects and MSAA.
+- Bookmarks are the web app's (ADR 0011, `BookmarksView.swift`): the same records,
+  a preset's path and the parameters the web app's stores own, so the code that
+  describes and names them (`Bookmarks` in SatvisCore) is held to its
+  `bookmarks.ts` by the parity fixtures, and the demos and the owned parameters
+  come from `web-tables.json`. A bookmark opens through `Session.open`, carrying the
+  link's other parameters, and goes live without a `time`. Saved ones and opened
+  links are kept in Application Support (`BookmarkStorage`), in backups, and synced
+  nowhere; a deleted one's picture stays while its own Undo lasts. A card's
+  actions are a long press, and a "…" on the card shows they are there. An opened link is one the system hands over, the About page's, or
+  `SATVIS_LINK`: not the view a last run left, which is a reload. Pictures are the
+  renderer's next frame (`GlobeRenderer.snapshot`), read from a drawable asked
+  for readable for that frame alone, 480 pixels across where the web app's are
+  320, soft on a card at 3x; an opened link's once everything active is drawn, as
+  the web app waits for its scene. The demos' are the site's `showcase/`
+  pictures, fetched as the star map is (`GroupRepository.image`): revalidated each
+  launch, kept, and shown offline once fetched. A launch on the test catalog
+  keeps its bookmarks apart, so every UI test starts with none.
+- The Globe panel's camera mode is the web app's `camera` (`CameraFrame`, kept
+  in links): Fixed, or Inertial, where the free camera is turned back each frame
+  by as far as the Earth has turned (`OrbitCamera.holdInertial`, the Greenwich
+  hour angle the satellites are rotated by), so the Earth turns under it and a
+  scrubbed clock spins it. Tracking keeps the satellite's frame and the sky view
+  the observer's; the free camera waits meanwhile, and the sky view keeps the
+  choice for the way back, as the web suspends it there.
 - The Graphics menu's "FPS" is the web app's FPS switch, kept in links as
   `fps=true` as the web keeps it (`PerformanceOverlay.swift`, `FrameStats`):
   frames per second, the renderer's CPU and the GPU's milliseconds a frame,
@@ -323,7 +357,7 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 
 `SatvisKit/Tests/SatvisCoreTests/Fixtures/parity.json` is what the web app's own
 code answers for the element sets in `parity-input.json`: positions, the sampling
-grid, the info panel's details, and passes over three ground stations in both
+grid, the sun and the sky view's visibility verdict, the info panel's details, and passes over three ground stations in both
 overpass modes, with the rows, headline and timeline strip the panel makes of
 them. It also holds the URL codec's answers (`urlCodec.ts`, with vue-router's
 query parser and serializer): each kind of parameter on awkward input, and whole

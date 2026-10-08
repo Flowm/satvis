@@ -161,14 +161,12 @@ private struct SkyInstruments: View {
     private func card(_ target: SkyTarget) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(target.name).fontWeight(.semibold)
-            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 2) {
-                GridRow {
-                    Text("Elevation \(target.elevation, format: .number.precision(.fractionLength(1)))°")
-                    Text("Azimuth \(target.azimuth, format: .number.precision(.fractionLength(1)))° \(compassPoint(target.azimuth))")
-                }
-                GridRow {
-                    Text("Range \(Int(target.range.rounded()), format: .number) km")
-                    Text("Altitude \(Int(target.altitude.rounded()), format: .number) km")
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 1) {
+                ForEach(Self.facts(target), id: \.0) { name, value in
+                    GridRow {
+                        Text(name)
+                        Text(value).gridColumnAlignment(.trailing)
+                    }
                 }
             }
             .monospacedDigit()
@@ -180,6 +178,18 @@ private struct SkyInstruments: View {
         .padding(.vertical, 8)
         .frame(minWidth: 220, alignment: .leading)
         .background(Color(red: 0x30 / 255, green: 0x33 / 255, blue: 0x36 / 255).opacity(0.85), in: .rect(cornerRadius: 8))
+    }
+
+    /// What the card says of a satellite, in the web app's order (SkyHud.vue).
+    private static func facts(_ target: SkyTarget) -> [(String, String)] {
+        let degrees = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(1))
+        return [
+            ("Azimuth", "\(target.azimuth.formatted(degrees))° \(compassPoint(target.azimuth))"),
+            ("Elevation", "\(target.elevation.formatted(degrees))°"),
+            ("Range", "\(Int(target.range.rounded()).formatted()) km"),
+            ("Altitude", "\(Int(target.altitude.rounded()).formatted()) km"),
+            ("Visibility", target.visibility.label),
+        ]
     }
 
     private func label(_ text: String, at point: CGPoint, anchor: UnitPoint, in context: inout GraphicsContext) {
