@@ -33,7 +33,7 @@ discussion; sharpen them here when they drift.
   `modelFile` rows from the model manifests, and the **upstream tables**, **SATCAT**
   and **GCAT**, read from KV at refresh time. Every field has one upstream owner, and a
   curated row may override any field, extending its upstream row rather than
-  replacing it (`mergeSatelliteTables`, `docs/adr/0008-gcat-and-field-ownership.md`).
+  replacing it (`SatelliteTable`, `docs/adr/0008-gcat-and-field-ownership.md`).
 - **Upstream table**: a catalog stored whole in KV as the file upstream served,
   gzip-compressed, with a **table status** beside it (`worker/src/gp/upstream.ts`):
   SATCAT, and GCAT's catalog, organisations and payloads. Stored only by
@@ -70,10 +70,11 @@ discussion; sharpen them here when they drift.
   bus into an entry of a map the refresh applies to every satellite of that bus; a
   listed NORAD id wins. A satellite matched by neither has no model; models are never
   looked up by name (`docs/adr/0007-model-manifest.md`).
-- **Group store**: the persistence seam of the GP refresh pipeline
-  (`readIndex`/`writeGroup`/`writeIndex`, the upstream files and their statuses), with
-  a Workers KV adapter (API, ingest and Docker schedule, `worker/src/gp/store.ts`) and a disk adapter
-  for the static `data/gp/` snapshot (`worker/scripts/update-static-gp.mjs`).
+- **Group store**: the persistence seam of the GP refresh pipeline (groups, the index,
+  the upstream files and their statuses), with a Workers KV adapter (API, ingest and
+  Docker schedule, `worker/src/gp/store.ts`) and a disk adapter for the static
+  `data/gp/` snapshot (`worker/scripts/diskStore.mjs`), both held to one contract
+  (`worker/test/storeContract.ts`). Nothing outside the KV adapter knows its key layout.
 - **GP source**: where the frontend gets GP data: the worker API when the probe
   succeeds, else the static `data/gp/` snapshot, with a per-request API → static
   fallback mid-session (`src/modules/util/gpSource.ts`).
@@ -91,7 +92,8 @@ discussion; sharpen them here when they drift.
 - **Component**: one visual part of a satellite that can be switched on on its
   own: point, label, orbit, orbit track, ground track, sensor cone, 3D model,
   ground station link (`src/config/components.ts`). Component names must not
-  contain a comma.
+  contain a comma. How each kind is drawn, kept current and re-cut is its own module
+  (`COMPONENT_KINDS` in `src/modules/componentKinds.ts`).
 - **Activation**: which catalog entries exist as live satellites: tag-enabled
   entries minus per-satellite opt-outs, plus name-enabled entries, plus the
   tracked satellite. Carried as three lists (enabled tags, enabled satellites,
@@ -102,8 +104,9 @@ discussion; sharpen them here when they drift.
   the sky view is up nothing is tracked, and an attempt to track is undone.
 - **Sampled trajectory**: the sliding window of a satellite's positions (half an
   orbit back, 1.5 forward) in the fixed and inertial frames, kept fresh as time
-  advances (`SampledTrajectory`). Samples arrive in the fixed frame; the inertial
-  frame is derived from them on demand (see **Pseudo-fixed**).
+  advances (`SampledTrajectory`). It lives as long as the satellite is active,
+  whichever components are on, and a stopped one stays empty. Samples arrive in the
+  fixed frame; the inertial frame is derived from them on demand (see **Pseudo-fixed**).
 - **Lane**: one propagation worker and the traffic bound for it. A satellite
   belongs to one lane for the whole session, chosen by a pure function of its
   satnum (`laneIndexFor`), so the pool keeps one satrec per satellite and one
@@ -120,7 +123,9 @@ discussion; sharpen them here when they drift.
   against. The list order is presentation only: which station the sky view stands
   at is a separate designation (`sat.observerStation`), not a rank. The ground
   station panel edits the list in place and marks the observer; the mark is the
-  control that moves it.
+  control that moves it. Every edit goes through the sat store's station edits
+  (`addGroundStation`, `moveGroundStation`, ...), which keep the designation on its
+  station.
 - **Pass**: a time range in which a satellite serves a ground station, by
   line-of-sight elevation ("elevation" mode) or sensor footprint overlap ("swath"
   mode). In swath mode the side of the ground track the station is on matters,

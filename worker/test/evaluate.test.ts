@@ -4,8 +4,6 @@ import {
   buildStatuses,
   coerceIndex,
   collectSources,
-  indexSatellitesByNoradId,
-  enrichRecords,
   evaluateGroups,
   fetchSources,
   type GroupResult,
@@ -15,7 +13,7 @@ import {
   toProbe,
   toRecordsBySource,
 } from "../src/gp/evaluate.ts";
-import type { GpRecord, GroupDefinition, GroupsIndex, OmmRecord, SatelliteEntry } from "../src/gp/types.ts";
+import type { GroupDefinition, GroupsIndex, OmmRecord } from "../src/gp/types.ts";
 
 function omm(name: string, id: number): OmmRecord {
   return { OBJECT_NAME: name, NORAD_CAT_ID: id };
@@ -465,60 +463,5 @@ describe("buildStatuses", () => {
     const evaluated = new Map<string, GroupResult | Error>([["ok", { records: [omm("A", 1)], warnings: ["noradId 999: matched no record in the group's sources"] }]]);
     const statuses = buildStatuses([{ name: "ok" }], evaluated, previous, NOW);
     expect(statuses).toEqual([{ name: "ok", updated: NOW, count: 1, warnings: ["noradId 999: matched no record in the group's sources"] }]);
-  });
-});
-
-const table = (...entries: SatelliteEntry[]) => indexSatellitesByNoradId(entries);
-
-function metadataOf(record: GpRecord): unknown {
-  return (record as OmmRecord).metadata;
-}
-
-describe("enrichRecords", () => {
-  const terra: SatelliteEntry = { noradId: 25994, name: "TERRA", metadata: { swathStarboardKm: 1175, swathPortKm: 1175 } };
-
-  it("attaches metadata to the matching record only", () => {
-    const { records } = enrichRecords([omm("TERRA", 25994), omm("AQUA", 27424)], table(terra));
-    expect(metadataOf(records[0]!)).toEqual({ swathStarboardKm: 1175, swathPortKm: 1175 });
-    expect(records[1]).not.toHaveProperty("metadata");
-  });
-
-  it("does not mutate the input records", () => {
-    const input = omm("TERRA", 25994);
-    enrichRecords([input], table(terra));
-    expect(input).not.toHaveProperty("metadata");
-  });
-
-  it("matches a satnum regardless of numeric form or leading zeros", () => {
-    for (const id of [25994, "25994", "025994"] as const) {
-      const { records } = enrichRecords([{ OBJECT_NAME: "TERRA", NORAD_CAT_ID: id }], table(terra));
-      expect(metadataOf(records[0]!), String(id)).toBeDefined();
-    }
-  });
-
-  it("matches by satnum, not by name — a renamed record still gets its metadata", () => {
-    const { records } = enrichRecords([omm("FOREST-5", 63354)], table({ noradId: 63354, name: "LEMUR-2-THERMORAPTOR", metadata: { coneFovDeg: 30 } }));
-    expect(metadataOf(records[0]!)).toEqual({ coneFovDeg: 30 });
-  });
-
-  it("reaches TleRecord extras via columns 3-8 of line 1", () => {
-    const tle: GpRecord = {
-      OBJECT_NAME: "ISS",
-      TLE_LINE1: "1 25544U 98067A   26187.50000000  .00016717  00000-0  10270-3 0  9999",
-      TLE_LINE2: "2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.72125391563537",
-    };
-    const { records } = enrichRecords([tle], table({ noradId: 25544, metadata: { coneFovDeg: 45 } }));
-    expect(metadataOf(records[0]!)).toEqual({ coneFovDeg: 45 });
-  });
-
-  it("reports which entries matched, so the caller can flag the rest", () => {
-    const { matched } = enrichRecords([omm("TERRA", 25994)], table(terra, { noradId: 99999, metadata: { coneFovDeg: 1 } }));
-    expect([...matched]).toEqual(["25994"]);
-  });
-
-  it("returns the records untouched when the table is empty", () => {
-    const input = [omm("TERRA", 25994)];
-    const { records } = enrichRecords(input, table());
-    expect(records).toBe(input);
   });
 });

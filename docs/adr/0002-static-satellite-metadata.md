@@ -22,7 +22,7 @@ carried 740 km, the nominal OLCI figure for a different instrument.
 
 **Facts are attached to the record at refresh time**, from a NORAD-keyed satellite
 table in `satvis.core.yaml` (and plugin configs). The table is merged into the
-generated config and applied by `enrichRecords` inside `refreshGroups`. The worker
+generated config and applied by `SatelliteTable.enrich` inside `refreshGroups`. The worker
 API and the static `data/gp/` snapshot both go through that path.
 
 **Matching is by NORAD id only.** No patterns. A satellite gets a swath because

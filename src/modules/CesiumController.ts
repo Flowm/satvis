@@ -45,6 +45,7 @@ import {
   terrainProviders,
   terrainProviderNames as visibleTerrainProviderNames,
 } from "./CesiumLayerProviders";
+import { BATCHED_COMPONENTS } from "./componentKinds";
 import { cesiumSceneMode } from "./satelliteGraphics";
 import { SatelliteManager } from "./SatelliteManager";
 import { SkyInteraction } from "./SkyInteraction";
@@ -56,9 +57,6 @@ import { PushManager } from "./util/PushManager";
 import { Suppressible } from "./util/Suppressible";
 
 dayjs.extend(utc);
-
-/** Drawn into shared polyline primitives, so a scene morph must suppress them (see `morphTo`). */
-const BATCHED_COMPONENTS = ["Orbit", "Orbit track"] as const;
 
 /**
  * Degrees. A little north, so Europe clears the limb without cutting off the southern hemisphere.
@@ -165,6 +163,7 @@ export class CesiumController {
       scene: this.viewer.scene,
       skyView: this.skyView,
       sats: this.sats,
+      viewerInputs: this.viewer.screenSpaceEventHandler,
       onSelect: (target) => {
         this.viewer.selectedEntity = target.sat.defaultEntity;
       },
@@ -187,6 +186,10 @@ export class CesiumController {
     });
 
     this.skyView.setGroundHeightSource((observer) => this.#observerGroundHeight(observer));
+    // The photorealistic mesh is withheld until the descent lands, and only its showing
+    // makes it the ground: re-measured only on a change of model, the eye stayed at the
+    // ellipsoid, 559 m inside the mesh in Munich.
+    this.surface.onChange(() => this.skyView.remeasureGround());
 
     this.pm = new PushManager();
 
@@ -331,6 +334,11 @@ export class CesiumController {
       this.viewer.terrainProvider = provider;
       if (groundHeight !== undefined) {
         this.skyView.setGroundHeight(groundHeight);
+        // That height is the terrain's and discards a measurement in flight, such as the
+        // roof under OSM Buildings, which brings World Terrain with it.
+        if (this.surface.active) {
+          this.skyView.remeasureGround();
+        }
       }
     } catch (error) {
       // The previous terrain stays.
@@ -343,10 +351,9 @@ export class CesiumController {
    * tile has loaded, so the eye would jump as terrain streams.
    */
   async #observerGroundHeight(observer: Observer): Promise<number | undefined> {
-    if (this.surface.active) {
-      return this.surface.surfaceHeight(observer);
-    }
-    return this.#terrainHeightAt(this.viewer.terrainProvider, observer);
+    // Where the tileset has nothing, a street under OSM Buildings, the terrain answers.
+    const surface = this.surface.active ? await this.surface.surfaceHeight(observer) : undefined;
+    return surface ?? this.#terrainHeightAt(this.viewer.terrainProvider, observer);
   }
 
   /** The ellipsoid provider has no `availability`, and its height is 0 everywhere. */
@@ -372,11 +379,7 @@ export class CesiumController {
       }
     }
 
-    const before = this.surface.active;
     await this.surface.apply(surfaceModel, viewMode);
-    if (this.surface.active !== before) {
-      this.skyView.remeasureGround();
-    }
   }
 
   /** Only modes naming a Cesium `SceneMode`; sceneSync drives "Sky". */
@@ -548,7 +551,7 @@ export class CesiumController {
    */
   private addGroundStation(lat: number, lon: number, name = ""): void {
     const satStore = useSatStore();
-    satStore.setGroundStations([...satStore.groundStations, { lat, lon, ...(name ? { name } : {}) }]);
+    satStore.addGroundStation({ lat, lon, ...(name ? { name } : {}) });
   }
 
   /** Cesium's own chrome is only the fullscreen button. */

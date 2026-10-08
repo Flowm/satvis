@@ -25,8 +25,8 @@ function issTrajectory(): { orbit: Orbit; trajectory: SampledTrajectory; sampler
   return { orbit, trajectory: new SampledTrajectory(orbit, sampler), sampler, source, periodSeconds: orbit.orbitalPeriod * 60 };
 }
 
-/** `start` only needs a clock and a tick event off the viewer. */
-const fakeViewer = () => ({ clock: { currentTime: T0, onTick: { addEventListener: () => () => {} } } }) as unknown as Parameters<SampledTrajectory["start"]>[0];
+/** `follow` only needs a clock and a tick event off the viewer. */
+const fakeViewer = () => ({ clock: { currentTime: T0, onTick: { addEventListener: () => () => {} } } }) as unknown as Parameters<SampledTrajectory["follow"]>[0];
 
 beforeEach(() => {
   // The ICRF transform needs async-loaded IAU data that Node lacks.
@@ -457,17 +457,28 @@ describe("SampledTrajectory", () => {
       expect(trajectory.position(jumped)).toBeDefined();
     });
 
-    test("start only arranges the top-ups; it does not fill", async () => {
+    test("follow only arranges the top-ups; it does not fill", async () => {
       const { trajectory, source } = issTrajectory();
       let notified = 0;
 
-      const teardown = trajectory.start(fakeViewer(), () => {
+      trajectory.follow(fakeViewer(), () => {
         notified += 1;
       });
 
-      expect(notified).toBe(1);
+      expect(notified).toBe(0);
       expect(source.stats.requests).toBe(0);
-      teardown();
+      trajectory.stop();
+    });
+
+    test("a stopped trajectory stays empty, even when a fill lands after", async () => {
+      const { trajectory } = issTrajectory();
+      const filling = trajectory.ensure(T0);
+
+      trajectory.stop();
+      await filling;
+      await trajectory.ensure(T0);
+
+      expect(trajectory.position(T0)).toBeUndefined();
     });
   });
 

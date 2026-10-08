@@ -1,25 +1,11 @@
 // Store-agnostic: the Worker runs it against KV, scripts/update-static-gp.mjs against disk.
 
 import generatedConfig from "../config/satvis.generated.json" with { type: "json" };
-import {
-  buildStatuses,
-  collectSources,
-  indexSatellitesByNoradId,
-  enrichRecords,
-  evaluateGroups,
-  fetchSources,
-  type FetchImpl,
-  type SatelliteFacts,
-  type SourceProbe,
-  toProbe,
-  toRecordsBySource,
-  withConfig,
-} from "./evaluate.ts";
-import { GCAT_CATALOG, GCAT_ORGS, GCAT_PAYLOADS, gcatBags } from "./gcat.ts";
-import { SATCAT } from "./satcat.ts";
+import { buildStatuses, collectSources, evaluateGroups, fetchSources, type FetchImpl, type SourceProbe, toProbe, toRecordsBySource, withConfig } from "./evaluate.ts";
+import { SatelliteTable } from "./satelliteTable.ts";
 import { kvGroupStore, type GroupStore } from "./store.ts";
-import type { GroupsConfig, GroupsIndex, SatelliteEntry, UpstreamName, UpstreamStatus } from "./types.ts";
-import { loadUpstream, refreshUpstream } from "./upstream.ts";
+import type { GroupsConfig, GroupsIndex, UpstreamName, UpstreamStatus } from "./types.ts";
+import { refreshUpstream } from "./upstream.ts";
 import { UPSTREAMS } from "./upstreams.ts";
 
 export const groupsConfig = generatedConfig as GroupsConfig;
@@ -30,43 +16,6 @@ export interface RefreshReport {
   written: number;
   skipped: number;
   durationMs: number;
-}
-
-/**
- * Upstream bags first, then curated rows over them field by field, so a row with only
- * a swath keeps SATCAT's launch date. Upstream tables own disjoint keys (ADR 0008), so
- * their order sets no precedence.
- */
-export function mergeSatelliteTables(upstream: Record<string, Record<string, unknown>>[], entries: SatelliteEntry[]): Map<string, SatelliteFacts> {
-  const merged = new Map<string, SatelliteFacts>();
-  for (const table of upstream) {
-    for (const [satnum, bag] of Object.entries(table)) {
-      const previous = merged.get(satnum);
-      merged.set(satnum, { metadata: previous === undefined ? bag : { ...previous.metadata, ...bag } });
-    }
-  }
-  for (const [satnum, curated] of indexSatellitesByNoradId(entries)) {
-    const upstreamFacts = merged.get(satnum);
-    merged.set(satnum, { metadata: upstreamFacts === undefined ? curated.metadata : { ...upstreamFacts.metadata, ...curated.metadata } });
-  }
-  return merged;
-}
-
-/**
- * Gives each satellite of a listed GCAT bus its model, unless the table already has
- * one for it: a NORAD id a manifest lists is a claim about that satellite, the bus a
- * claim about its family, and the specific one wins (ADR 0007).
- */
-export function assignModelsByBus(table: Map<string, SatelliteFacts>, modelBuses: Record<string, string> | undefined): void {
-  if (modelBuses === undefined) {
-    return;
-  }
-  for (const [satnum, { metadata }] of table) {
-    const modelFile = typeof metadata.bus === "string" ? modelBuses[metadata.bus] : undefined;
-    if (modelFile !== undefined && metadata.modelFile === undefined) {
-      table.set(satnum, { metadata: { ...metadata, modelFile } });
-    }
-  }
 }
 
 /** Failed groups get no write, so their last-known-good value stays in the store. */
@@ -81,15 +30,8 @@ export async function refreshGroups(config: GroupsConfig, store: GroupStore, fet
   const previous = await store.readIndex();
   const statuses = buildStatuses(defs, evaluated, previous, now);
 
-  // The stored tables, parsed anew, so a parser change applies on the next update
-  // (ADR 0008). One after another, so each file's text is released before the next.
-  const satcat = await loadUpstream(SATCAT, store);
-  const gcat = gcatBags(await loadUpstream(GCAT_CATALOG, store), await loadUpstream(GCAT_ORGS, store), await loadUpstream(GCAT_PAYLOADS, store));
-
-  // Enrich after evaluateGroups, so every served record, includes and extras too, gets exactly one pass.
-  const table = mergeSatelliteTables([satcat ?? {}, gcat], config.satellites ?? []);
-  assignModelsByBus(table, config.modelBuses);
-  const matchedSatnums = new Set<string>();
+  // The stored tables, parsed anew, so a parser change applies on the next update (ADR 0008).
+  const table = await SatelliteTable.load(store, config);
 
   let written = 0;
   let skipped = 0;
@@ -103,12 +45,10 @@ export async function refreshGroups(config: GroupsConfig, store: GroupStore, fet
       for (const warning of result.warnings) {
         console.warn(`gp refresh: ${def.name}: ${warning}`);
       }
-      const enriched = enrichRecords(result.records, table);
-      for (const satnum of enriched.matched) {
-        matchedSatnums.add(satnum);
-      }
+      // After evaluateGroups, so every served record, includes and extras too, gets exactly one pass.
+      const records = table.enrich(result.records);
       written++;
-      return store.writeGroup(def.name, enriched.records, { updated: now, count: enriched.records.length });
+      return store.writeGroup(def.name, records, { updated: now, count: records.length });
     }),
   );
 
@@ -117,8 +57,7 @@ export async function refreshGroups(config: GroupsConfig, store: GroupStore, fet
   if (skipped > 0) {
     console.log(`gp refresh: skipping the satellite-table check — ${skipped} group(s) failed, so unmatched entries cannot be distinguished from unreachable ones`);
   } else {
-    const unmatched = (config.satellites ?? []).filter((entry) => !entry.decayed && !matchedSatnums.has(String(entry.noradId)));
-    for (const entry of unmatched) {
+    for (const entry of table.unmatched()) {
       console.warn(`gp refresh: satellite table entry ${entry.noradId}${entry.name ? ` (${entry.name})` : ""} matched no record in any group`);
     }
   }
@@ -129,7 +68,7 @@ export async function refreshGroups(config: GroupsConfig, store: GroupStore, fet
   await store.writeIndex(index);
   const durationMs = Date.now() - startedMs;
   console.log(
-    `gp refresh: done in ${durationMs}ms — ${written} groups written, ${skipped} skipped/failed, enriched from ${Object.keys(satcat ?? {}).length} satcat and ${Object.keys(gcat).length} gcat rows`,
+    `gp refresh: done in ${durationMs}ms — ${written} groups written, ${skipped} skipped/failed, enriched from ${table.rows.satcat ?? 0} satcat and ${table.rows.gcat ?? 0} gcat rows`,
   );
   return { index, sources: fetched.map(toProbe), written, skipped, durationMs };
 }

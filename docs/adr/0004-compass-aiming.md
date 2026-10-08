@@ -37,7 +37,7 @@ only nudged it would be erased within about 60 ms. A gesture that visibly does
 nothing reads as a broken compass. Only unsubscribing lets the user have the aim.
 
 The threshold is the tap slop that selection uses (`TAP_SLOP` in
-`SkyInteraction.ts`), not the first pixel: a tap chooses a satellite, and the tremor
+`skyGestures.ts`), not the first pixel: a tap chooses a satellite, and the tremor
 inside one must not cost the compass. The movement keys are the same trade from the
 other side: walking moves the observer and never the aim, so it leaves the compass
 on.

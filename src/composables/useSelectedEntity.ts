@@ -16,7 +16,7 @@ import type { GroundStationEntity } from "../modules/GroundStationEntity";
 import { filterPasses, toPassRows, type Pass, type PassRow } from "../modules/PassPredictor";
 import type { SatelliteComponentCollection } from "../modules/SatelliteComponentCollection";
 import { CesiumCallbackHelper } from "../modules/util/CesiumCallbackHelper";
-import { getElementsInfo, getSatelliteInfo, staleElementsNotice, type ElementsInfo } from "../modules/util/entityInfo";
+import { getElementsInfo, getSatelliteInfo, staleElementsNotice, type ElementsInfo, type SatelliteInfo } from "../modules/util/entityInfo";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 
@@ -57,7 +57,7 @@ const elements: ShallowRef<ElementsInfo | null> = shallowRef(null);
 /** Set while the simulation time is far enough from the element epoch that the position may be inaccurate. */
 const staleNotice = ref<string | undefined>(undefined);
 /** Resolved once per selection: none of it is time-dependent. */
-const satelliteInfo: ShallowRef<[string, string][]> = shallowRef([]);
+const satelliteInfo: ShallowRef<SatelliteInfo | undefined> = shallowRef();
 
 let controller: CesiumController | undefined;
 let removeTickCallback: (() => void) | undefined;
@@ -157,7 +157,7 @@ function update(time?: JulianDate): void {
   if (selectionTarget(next) !== previousTarget) {
     selection.value = next;
     elements.value = next?.kind === "satellite" ? getElementsInfo(next.sat.props.orbit) : null;
-    satelliteInfo.value = next?.kind === "satellite" ? getSatelliteInfo(next.sat.props.orbit, next.sat.props.orbitClass, next.sat.props.metadata) : [];
+    satelliteInfo.value = next?.kind === "satellite" ? getSatelliteInfo(next.sat.props.orbit, next.sat.props.orbitClass, next.sat.props.metadata) : undefined;
     // A pass picked on one entity's timeline means nothing on the next one's.
     pickedPassMs.value = null;
     if (next && !removeTickCallback) {
@@ -207,8 +207,7 @@ export function useSelectedEntity(instance: CesiumController) {
     if (sel?.kind !== "groundstation") {
       return;
     }
-    // `sats.groundStations` is built by mapping the store array, so indices agree.
-    useSatStore().setObserverStation(cc().sats.groundStations.indexOf(sel.gs));
+    useSatStore().setObserverStation(sel.gs.index);
     useCesiumStore().sceneMode = SKY_MODE;
   }
 

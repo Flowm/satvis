@@ -72,6 +72,8 @@ export class SampledTrajectory {
   /** Not `!this.#data`: the whole-window fill runs while `#data` is undefined anyway. */
   #stopped = false;
 
+  #unfollow: (() => void) | undefined;
+
   constructor(orbit: Orbit, sampler: TrajectorySampler) {
     this.#orbit = orbit;
     this.#sampler = sampler;
@@ -262,7 +264,7 @@ export class SampledTrajectory {
    */
   adopt(chunk: SampleChunk): void {
     const sampleCount = Math.floor(chunk.positionsFixed.length / 3);
-    if (this.#data || sampleCount === 0) {
+    if (this.#data || this.#stopped || sampleCount === 0) {
       return;
     }
     const start = SampledTrajectory.#sampleTime(chunk, 0);
@@ -405,7 +407,7 @@ export class SampledTrajectory {
 
   /**
    * A gap abandons the grid rather than interpolating across 45 s. The next refresh
-   * rebinds the entities (see updatedSampledPositionForComponents).
+   * rebinds the entities (SatelliteComponentCollection's `#bindAll`).
    */
   #addToGrid(chunk: SampleChunk, fixedFlat: Float64Array, hadGaps: boolean): void {
     if (!this.#gridUsable) {
@@ -471,22 +473,30 @@ export class SampledTrajectory {
     }
   }
 
-  /** Schedules top-ups and returns the teardown. The build has already awaited the first `ensure`. */
-  start(viewer: Viewer, callback: () => void): () => void {
-    callback();
+  /**
+   * Keeps the window fresh as the viewer's clock moves, until `stop`, and calls
+   * `onRefill` after each top-up. Schedules only: the opening window is `adopt`ed.
+   */
+  follow(viewer: Viewer, onRefill: () => void): void {
+    if (this.#stopped || this.#unfollow) {
+      return;
+    }
     const samplingRefreshRate = (this.#orbit.orbitalPeriod * 60) / 4;
-    const removeCallback = CesiumCallbackHelper.createPeriodicTimeCallback(viewer, samplingRefreshRate, (time) => {
+    this.#unfollow = CesiumCallbackHelper.createPeriodicTimeCallback(viewer, samplingRefreshRate, (time) => {
       void this.ensure(time).then(() => {
-        // Torn down while the top-up was in flight.
-        if (this.#data) callback();
+        // Stopped while the top-up was in flight.
+        if (this.#data) onRefill();
       });
     });
-    return () => {
-      removeCallback();
-      this.#stopped = true;
-      this.#data = undefined;
-      this.#pendingTime = undefined;
-    };
+  }
+
+  /** Final: drops the samples and ends the top-ups, so a stopped trajectory stays empty. */
+  stop(): void {
+    this.#unfollow?.();
+    this.#unfollow = undefined;
+    this.#stopped = true;
+    this.#data = undefined;
+    this.#pendingTime = undefined;
   }
 
   static #createProperty(referenceFrame?: ReferenceFrame): SampledPositionProperty {

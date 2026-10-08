@@ -1,7 +1,7 @@
 // Owns the surface model's tileset. src/config/surfaceModels.ts decides what a
 // selection means; see docs/adr/0005-surface-models.md.
 
-import { Cartesian3, Cartographic, type Cesium3DTileset, createGooglePhotorealistic3DTileset, createOsmBuildingsAsync, type Scene } from "@cesium/engine";
+import { Cartesian3, Cartographic, type Cesium3DTileset, createGooglePhotorealistic3DTileset, createOsmBuildingsAsync, Ray, type Scene } from "@cesium/engine";
 
 import { surfaceEffects, type SurfaceTileset } from "../config/surfaceModels";
 import { SKY_MODE } from "../config/viewModes";
@@ -44,6 +44,40 @@ function googleTilesetOptions(): Cesium3DTileset.ConstructorOptions {
  */
 const GLOBE_BUILDING_CEILING = 1000;
 
+/** Metres: where Cesium starts a clamp's ray, above any terrain (`ApproximateTerrainHeights`). */
+const RAY_START_HEIGHT = 9000;
+
+/** Hits taken down the ray before giving up on the tileset: the globe, a pin, a cone. */
+const RAY_HITS = 8;
+
+/** Metres across, Cesium's default for a clamp. */
+const RAY_WIDTH = 0.1;
+
+/** `Scene.drillPickFromRayMostDetailed`, which Cesium marks private and leaves out of its typings. */
+type DrillPick = (ray: Ray, limit: number, objectsToExclude: undefined, width: number) => Promise<{ object?: { primitive?: unknown }; position?: Cartesian3 }[]>;
+
+let reportedMissingDrillPick = false;
+
+/** The first point of `tileset` straight down through the observer. */
+async function tilesetTop(scene: Scene, tileset: Cesium3DTileset, observer: Observer): Promise<Cartesian3 | undefined> {
+  const drillPick = (scene as unknown as { drillPickFromRayMostDetailed?: DrillPick }).drillPickFromRayMostDetailed;
+  const ground = Cartesian3.fromDegrees(observer.lon, observer.lat, 0);
+  if (!drillPick) {
+    if (!reportedMissingDrillPick) {
+      reportedMissingDrillPick = true;
+      console.error(
+        "Cesium Scene has no drillPickFromRayMostDetailed; measuring the ground with clampToHeight, which also hits the globe. Cesium internals have moved — see SurfaceModel.surfaceHeight.",
+      );
+    }
+    const [clamped] = await scene.clampToHeightMostDetailed([ground]);
+    return clamped;
+  }
+  const down = Cartesian3.negate(scene.ellipsoid.geodeticSurfaceNormal(ground, new Cartesian3()), new Cartesian3());
+  const ray = new Ray(Cartesian3.fromDegrees(observer.lon, observer.lat, RAY_START_HEIGHT), down);
+  const hits = await drillPick.call(scene, ray, RAY_HITS, undefined, RAY_WIDTH);
+  return hits.find((hit) => hit.object?.primitive === tileset)?.position;
+}
+
 /** Not beside the layer providers: a surface model is not one (see CONTEXT.md). */
 const SURFACE_TILESETS: Record<SurfaceTileset, () => Promise<Cesium3DTileset>> = {
   /** The default style colours each building from its `cesium#color` property. */
@@ -75,12 +109,36 @@ export class SurfaceModel {
   /** The last plausible ground height under the camera, in metres. */
   #groundHeight = 0;
 
+  #listeners = new Set<() => void>();
+
+  /** What listeners last heard, so they hear only of a change. */
+  #reported: { tileset: Cesium3DTileset | undefined; shown: boolean } = { tileset: undefined, shown: false };
+
   constructor(deps: SurfaceModelDeps) {
     this.#deps = deps;
   }
 
   get active(): SurfaceTileset | undefined {
     return this.#name;
+  }
+
+  /**
+   * Raised when the tileset is added, removed, shown or withheld: whenever what stands
+   * at the ground may have changed.
+   */
+  onChange(listener: () => void): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
+  }
+
+  #reportChange(): void {
+    const tileset = this.#tileset;
+    const shown = tileset?.show ?? false;
+    if (tileset === this.#reported.tileset && shown === this.#reported.shown) {
+      return;
+    }
+    this.#reported = { tileset, shown };
+    this.#listeners.forEach((listener) => listener());
   }
 
   /** Idempotent. Call it when either argument changes. */
@@ -123,6 +181,7 @@ export class SurfaceModel {
     this.#tuneForViewMode(viewMode);
     // Without this, render-on-demand never traverses the new tileset.
     this.#deps.scene.requestRender();
+    this.#reportChange();
   }
 
   /**
@@ -174,6 +233,7 @@ export class SurfaceModel {
         this.#tileset.show = true;
       }
       this.#syncGlobe();
+      this.#reportChange();
       return;
     }
     this.#applyGate();
@@ -192,12 +252,14 @@ export class SurfaceModel {
       // The globe stands in while the tileset is withheld.
       this.#syncGlobe();
       this.#deps.scene.requestRender();
+      this.#reportChange();
     }
   }
 
   /**
-   * Undefined without a model, clamp support or geometry there. Clamps to the top,
-   * so a building gives its roof (ADR 0005).
+   * The top of the tileset at the observer, so a building gives its roof (ADR 0005);
+   * undefined where the tileset has nothing. Not `clampToHeight`, which also hits the
+   * streaming globe: 558 m or -429 m in a Munich street.
    */
   async surfaceHeight(observer: Observer): Promise<number | undefined> {
     const { scene } = this.#deps;
@@ -205,12 +267,12 @@ export class SurfaceModel {
     if (!tileset || !scene.clampToHeightSupported) {
       return undefined;
     }
-    const [clamped] = await scene.clampToHeightMostDetailed([Cartesian3.fromDegrees(observer.lon, observer.lat, 0)]);
+    const top = await tilesetTop(scene, tileset, observer);
     // Not `#generation`: a no-op re-apply must not discard the measurement.
-    if (this.#tileset !== tileset || !clamped) {
+    if (this.#tileset !== tileset || !top) {
       return undefined;
     }
-    return Cartographic.fromCartesian(clamped).height;
+    return Cartographic.fromCartesian(top).height;
   }
 
   /** Logs only the first failure: an exhausted quota mid-session looks like this. */
@@ -247,6 +309,7 @@ export class SurfaceModel {
       this.#deps.scene.primitives.remove(tileset);
       this.#deps.scene.requestRender();
     }
+    this.#reportChange();
   }
 
   /**

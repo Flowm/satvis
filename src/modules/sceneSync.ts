@@ -15,7 +15,6 @@ import type { CatalogEntry } from "./SatelliteCatalog";
 import type { DesiredScene } from "./SatelliteManager";
 import type { Observer } from "./SkyView";
 import { isOffPresent } from "./util/clockDeck";
-import { repositioned } from "./util/groundStationEdits";
 import { toMinuteIso } from "./util/urlCodec";
 import { adjustUrlDefault, arrivalParam } from "./util/urlSync";
 
@@ -154,8 +153,7 @@ export function startSceneSync(cc: SceneTarget): void {
     }
     // The location becomes a ground station and the observer. Read it back rather
     // than reuse `fix`, so the observer is the rounded value the url holds.
-    satStore.setGroundStations([...satStore.groundStations, { ...fix, name: "Geolocation" }]);
-    satStore.setObserverStation(satStore.groundStations.length - 1);
+    satStore.addGroundStation({ ...fix, name: "Geolocation" }, { observe: true });
     const created = satStore.groundStations[satStore.observerStation];
     return created ? { lat: created.lat, lon: created.lon } : undefined;
   }
@@ -384,11 +382,7 @@ export function startSceneSync(cc: SceneTarget): void {
   // A walk moves the observer's ground station, keeping its name and list position
   // (docs/adr/0003-sky-view.md).
   cc.skyInteraction.onObserverMove((observer) => {
-    const at = satStore.observerStation;
-    if (!satStore.groundStations[at]) {
-      return;
-    }
-    satStore.setGroundStations(repositioned(satStore.groundStations, at, observer.lat, observer.lon));
+    satStore.repositionObserver(observer.lat, observer.lon);
   });
 
   // The catalog (~10k entries) is not reactive; the revision counter is.

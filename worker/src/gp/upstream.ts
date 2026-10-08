@@ -5,7 +5,7 @@
 // None is a group source: a missing table costs enrichment and fails no group.
 
 import { type FetchImpl, USER_AGENT } from "./evaluate.ts";
-import type { GroupStore } from "./store.ts";
+import { type GroupStore, upstreamStatuses } from "./store.ts";
 import type { UpstreamName, UpstreamStatus } from "./types.ts";
 
 /** One downloaded table: where it lives and how its file becomes rows. */
@@ -133,14 +133,9 @@ export async function recordFailure(name: UpstreamName, store: GroupStore, error
   return status;
 }
 
-/**
- * The stored file's ETag, if the file is there too: a status whose file is gone would
- * otherwise make every download conditional, upstream would answer 304, and the
- * table would never come back.
- */
+/** The stored file's ETag, for a conditional download; none without the file (store.ts, upstreamStatuses). */
 export async function storedEtag(name: UpstreamName, store: GroupStore): Promise<string | undefined> {
-  const [status, stored] = await Promise.all([store.readStatus(name), store.listUpstreams()]);
-  return stored.has(name) ? status?.etag : undefined;
+  return (await upstreamStatuses(store))[name]?.etag;
 }
 
 /**

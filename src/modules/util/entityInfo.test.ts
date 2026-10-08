@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import Orbit from "../Orbit";
-import { formatEpoch, getElementsInfo, getSatelliteInfo, staleElementsNotice, STALE_ELEMENTS_DAYS } from "./entityInfo";
+import { formatEpoch, getElementsInfo, getSatelliteInfo, type SatelliteInfo, staleElementsNotice, STALE_ELEMENTS_DAYS } from "./entityInfo";
 import { parseGpPayload, type GpRecord } from "./gp";
 
 /**
@@ -15,11 +15,11 @@ const ISS = new Orbit(
   )[0] as GpRecord,
 );
 
-function labels(rows: [string, string][]): string[] {
+function labels({ rows }: SatelliteInfo): string[] {
   return rows.map(([label]) => label);
 }
 
-function valueOf(rows: [string, string][], label: string): string | undefined {
+function valueOf({ rows }: SatelliteInfo, label: string): string | undefined {
   return rows.find(([rowLabel]) => rowLabel === label)?.[1];
 }
 
@@ -52,6 +52,17 @@ describe("staleElementsNotice", () => {
 });
 
 describe("getSatelliteInfo", () => {
+  // 6786907: the chips asked for an "Owner" row that GCAT's Country had replaced.
+  test("heads the panel with the orbit, the country and the status, from the facts themselves", () => {
+    const info = getSatelliteInfo(ISS, "LEO", { country: "USA", opsStatus: "+", operator: "NASA" });
+    expect(info.orbitClass).toBe("LEO");
+    expect(info.chips).toEqual(["LEO", "USA", "Operational"]);
+  });
+
+  test("leaves out a chip the record has nothing for", () => {
+    expect(getSatelliteInfo(ISS, "MEO", {}).chips).toEqual(["MEO"]);
+  });
+
   test("reports the derived rows even with no metadata, class first", () => {
     expect(labels(getSatelliteInfo(ISS, "LEO", {}))).toEqual(["Orbit", "Apogee / Perigee"]);
     expect(valueOf(getSatelliteInfo(ISS, "LEO", {}), "Orbit")).toBe("LEO");

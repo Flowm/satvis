@@ -225,7 +225,9 @@ outright: the cut, in full, not a faster version of the movement.
   trace. The ray keeps the crosshair in agreement with the picture, which is
   depth-tested against terrain (`SkyView#enter`); without it a satellite behind a
   ridge is hidden but lockable. Candidates are asked nearest first, only until one is
-  visible, so a normal frame casts one ray.
+  visible, so a normal frame casts one ray. The viewer's own click and double-click,
+  which select and track what is under the pointer, are off while the sky view's
+  interaction runs.
 - **The capture radius stays in CSS pixels**, so its angular reach follows the zoom:
   ±5.3° at the default on an 844 px-tall phone, ±0.71° at maximum zoom. Zooming in
   _is_ how you choose between two satellites in the reticle, which a radius in

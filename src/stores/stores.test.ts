@@ -138,6 +138,70 @@ describe("setGroundStations", () => {
   });
 });
 
+describe("ground station edits", () => {
+  const MUNICH = { lat: 48.1, lon: 11.6, name: "Munich" };
+  const BERLIN = { lat: 52.5, lon: 13.4, name: "Berlin" };
+  const PARIS = { lat: 48.9, lon: 2.4, name: "Paris" };
+
+  /** Munich, Berlin and Paris, with the observer on the named one. */
+  function stations(observed: string) {
+    const sat = useSatStore();
+    sat.setGroundStations([MUNICH, BERLIN, PARIS]);
+    sat.setObserverStation(sat.groundStations.findIndex((station) => station.name === observed));
+    return { sat, observed: () => sat.groundStations[sat.observerStation]?.name };
+  }
+
+  test("removing a station before the observer keeps the same station observed", () => {
+    const { sat, observed } = stations("Paris");
+    sat.removeGroundStation(0);
+    expect(sat.groundStations.map((station) => station.name)).toEqual(["Berlin", "Paris"]);
+    expect(observed()).toBe("Paris");
+  });
+
+  test("removing the observer hands it to the first station", () => {
+    const { sat, observed } = stations("Berlin");
+    sat.removeGroundStation(1);
+    expect(observed()).toBe("Munich");
+  });
+
+  test("moving a station carries the designation with whichever station it is on", () => {
+    const { sat, observed } = stations("Munich");
+    sat.moveGroundStation(0, 2);
+    expect(sat.groundStations.map((station) => station.name)).toEqual(["Berlin", "Paris", "Munich"]);
+    expect(observed()).toBe("Munich");
+
+    sat.moveGroundStation(1, 1);
+    expect(observed()).toBe("Munich");
+  });
+
+  test("an edit that makes the observer a duplicate leaves it on the copy kept", () => {
+    const { sat, observed } = stations("Berlin");
+    sat.relocateGroundStation(1, "lat", MUNICH.lat);
+    sat.relocateGroundStation(1, "lon", MUNICH.lon);
+    sat.renameGroundStation(1, "Munich");
+    expect(sat.groundStations.map((station) => station.name)).toEqual(["Munich", "Paris"]);
+    expect(sat.observerStation).toBe(0);
+    expect(observed()).toBe("Munich");
+  });
+
+  test("an added station is designated only when asked, even if it duplicates one already there", () => {
+    const { sat, observed } = stations("Berlin");
+    sat.addGroundStation({ lat: 0, lon: 0 });
+    expect(observed()).toBe("Berlin");
+
+    sat.addGroundStation(PARIS, { observe: true });
+    expect(sat.groundStations).toHaveLength(4);
+    expect(observed()).toBe("Paris");
+  });
+
+  test("a walk moves the observer's station, keeping its name and place", () => {
+    const { sat } = stations("Berlin");
+    sat.repositionObserver(52.52, 13.41);
+    expect(sat.groundStations[1]).toEqual({ lat: 52.52, lon: 13.41, name: "Berlin" });
+    expect(sat.observerStation).toBe(1);
+  });
+});
+
 describe("setLayers", () => {
   test("keeps a single base layer with its overlays", () => {
     const cesium = useCesiumStore();

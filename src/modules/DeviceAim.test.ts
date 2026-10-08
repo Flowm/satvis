@@ -1,7 +1,18 @@
 import { Cartesian3, Math as CesiumMath, Matrix3 } from "@cesium/engine";
 import { describe, expect, test } from "vitest";
 
-import { aimFromDeviceOrientation, CompassCalibration, compassIsMeaningful, compassYawOffset, type DeviceOrientationSample, hasHeadingSource, normalizeAzimuth } from "./DeviceAim";
+import {
+  aimFromDeviceOrientation,
+  CompassAiming,
+  CompassCalibration,
+  compassIsMeaningful,
+  compassYawOffset,
+  type DeviceOrientationSample,
+  hasHeadingSource,
+  normalizeAzimuth,
+  type OrientationEvent,
+} from "./DeviceAim";
+import type { Aim } from "./skyGeometry";
 import { skyBasis } from "./SkyView";
 
 const sample = (alpha: number, beta: number, gamma: number, screenAngle = 0): DeviceOrientationSample => ({ alpha, beta, gamma, screenAngle });
@@ -188,5 +199,88 @@ describe("hasHeadingSource", () => {
   test("either source will do", () => {
     expect(hasHeadingSource({ compassHeading: 0 })).toBe(true);
     expect(hasHeadingSource({ absolute: true })).toBe(true);
+  });
+});
+
+describe("CompassAiming", () => {
+  /** An orientation source the test fires, and a probe that ends when the test says. */
+  function setup({ supported = true, permission }: { supported?: boolean; permission?: () => Promise<string> } = {}) {
+    const listeners = new Set<(event: OrientationEvent) => void>();
+    const looks: Partial<Aim>[] = [];
+    let endProbe = () => {};
+    const aiming = new CompassAiming({
+      events: {
+        supported,
+        ...(permission && { requestPermission: permission }),
+        listen: (listener) => (listeners.add(listener), () => listeners.delete(listener)),
+        screenAngle: () => 0,
+      },
+      look: (aim) => looks.push(aim),
+      wait: () => new Promise((resolve) => (endProbe = () => resolve())),
+    });
+    const fire = (event: Partial<OrientationEvent>) =>
+      listeners.forEach((listener) => listener({ type: "deviceorientation", alpha: 10, beta: 20, gamma: 0, absolute: false, ...event }));
+    const probe = async (during: () => void = () => {}) => {
+      const outcome = aiming.enable();
+      await Promise.resolve();
+      await Promise.resolve();
+      during();
+      endProbe();
+      return outcome;
+    };
+    return { aiming, fire, probe, looks, listening: () => listeners.size };
+  }
+
+  test("aims from a device that knows north, flat or not", async () => {
+    const { aiming, fire, probe, looks } = setup();
+    expect(await probe(() => fire({ type: "deviceorientationabsolute", absolute: true }))).toBe("aiming");
+    expect(aiming.active).toBe(true);
+    expect(looks).toHaveLength(1);
+  });
+
+  test("aims uncalibrated until an iOS phone is held flat", async () => {
+    const { probe, fire } = setup();
+    // Pointed near the zenith, where the compass heading swings.
+    expect(await probe(() => fire({ beta: 90, webkitCompassHeading: 100 }))).toBe("aiming-uncalibrated");
+  });
+
+  test("says so where the browser has no orientation events", async () => {
+    expect(await setup({ supported: false }).probe()).toBe("unsupported");
+  });
+
+  test("is denied when the permission is refused, or asked for outside a gesture", async () => {
+    expect(await setup({ permission: () => Promise.resolve("denied") }).probe()).toBe("denied");
+    expect(await setup({ permission: () => Promise.reject(new Error("not a gesture")) }).probe()).toBe("denied");
+  });
+
+  test("gives up on a sensor that never fires, as desktop browsers grant and stay silent", async () => {
+    const { aiming, probe, listening } = setup();
+    expect(await probe()).toBe("silent");
+    expect(aiming.active).toBe(false);
+    expect(listening()).toBe(0);
+  });
+
+  test("gives up on orientation without north", async () => {
+    const { aiming, fire, probe } = setup();
+    expect(await probe(() => fire({}))).toBe("no-heading");
+    expect(aiming.active).toBe(false);
+  });
+
+  test("reports a probe the user took the aim back from by hand", async () => {
+    const { aiming, fire, probe } = setup();
+    expect(await probe(() => (fire({ type: "deviceorientationabsolute", absolute: true }), aiming.disable()))).toBe("taken-back");
+  });
+
+  test("levels the view and tells the control when it stops", async () => {
+    const { aiming, fire, probe, looks } = setup();
+    let stopped = 0;
+    aiming.onStop(() => (stopped += 1));
+    await probe(() => fire({ type: "deviceorientationabsolute", absolute: true }));
+
+    aiming.disable();
+    aiming.disable();
+
+    expect(looks.at(-1)).toEqual({ roll: 0 });
+    expect(stopped).toBe(1);
   });
 });

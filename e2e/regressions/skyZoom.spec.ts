@@ -1,11 +1,9 @@
 import type { Page } from "@playwright/test";
 
+import { WHEEL_ZOOM_RATE } from "../../src/modules/skyGestures";
 import { canvasBox, openApp, waitForSky } from "../support/app";
 import { expect, test } from "../support/test";
 import { touchscreen } from "../support/ui";
-
-/** SkyInteraction's WHEEL_ZOOM_RATE: a 100 px notch scales the field of view by e^0.15. */
-const WHEEL_ZOOM_RATE = 0.0015;
 
 const view = (page: Page) => page.evaluate(() => ({ fovy: window.cc!.skyView.fovy, aim: { ...window.cc!.skyView.aim } }));
 
@@ -42,7 +40,7 @@ test("the wheel clamps the field of view and reads line deltas", async ({ page }
   await page.mouse.wheel(0, Math.log(75 / 100) / WHEEL_ZOOM_RATE);
   await expect.poll(async () => (await view(page)).fovy).toBeCloseTo(75, 4);
 
-  // Firefox scrolls in lines (deltaMode 1), which SkyInteraction counts as 16 px.
+  // Firefox scrolls in lines (deltaMode 1), which skyGestures counts as 16 px.
   await page.evaluate(() => window.cc!.viewer.scene.canvas.dispatchEvent(new WheelEvent("wheel", { deltaY: -3, deltaMode: 1, cancelable: true })));
   expect((await view(page)).fovy).toBeCloseTo(75 * Math.exp(-48 * WHEEL_ZOOM_RATE), 4);
 });

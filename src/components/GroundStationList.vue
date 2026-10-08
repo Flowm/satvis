@@ -89,19 +89,7 @@ import { nextTick, ref, watch } from "vue";
 
 import { useController } from "../composables/useController";
 import { useGeolocation } from "../composables/useGeolocation";
-import {
-  dragShift,
-  dropIndex,
-  MAX_LATITUDE,
-  MAX_LONGITUDE,
-  moved,
-  observerAfterMove,
-  observerAfterRemoval,
-  parseCoordinate,
-  relocated,
-  renamed,
-  without,
-} from "../modules/util/groundStationEdits";
+import { dragShift, dropIndex, MAX_LATITUDE, MAX_LONGITUDE, parseCoordinate } from "../modules/util/groundStationEdits";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 
@@ -143,7 +131,7 @@ function abandon(event: KeyboardEvent, stored: string): void {
  */
 function commitName(index: number, event: Event): void {
   const input = event.target as HTMLInputElement;
-  satStore.setGroundStations(renamed(stations.value, index, input.value));
+  satStore.renameGroundStation(index, input.value);
   settle(input, stations.value[index]?.name ?? "");
 }
 
@@ -151,16 +139,13 @@ function commitCoordinate(index: number, field: "lat" | "lon", event: Event): vo
   const input = event.target as HTMLInputElement;
   const value = parseCoordinate(input.value, field === "lat" ? MAX_LATITUDE : MAX_LONGITUDE);
   if (value !== undefined) {
-    satStore.setGroundStations(relocated(stations.value, index, field, value));
+    satStore.relocateGroundStation(index, field, value);
   }
   settle(input, String(stations.value[index]?.[field] ?? ""));
 }
 
 function removeAt(index: number): void {
-  // Observer first: the store refuses an index past the end of the list.
-  const next = observerAfterRemoval(observerStation.value, index, stations.value.length);
-  satStore.setObserverStation(next);
-  satStore.setGroundStations(without(stations.value, index));
+  satStore.removeGroundStation(index);
 }
 
 /**
@@ -205,10 +190,8 @@ function endDrag(event: PointerEvent): void {
   }
 }
 
-/** The observer designation moves with its station. */
 function reorder(index: number, by: number): void {
-  satStore.setObserverStation(observerAfterMove(observerStation.value, index, by, stations.value.length));
-  satStore.setGroundStations(moved(stations.value, index, by));
+  satStore.moveGroundStation(index, by);
 }
 
 function nudge(index: number, by: number): void {
