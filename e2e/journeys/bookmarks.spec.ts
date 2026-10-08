@@ -1,5 +1,5 @@
 // A visitor opens a link, goes back to the default view in one click, returns to the
-// link from Recent, and saves it under a name that outlives a reload (ADR 0011).
+// link from Recent, and saves it under names that outlive a reload (ADR 0011).
 
 import { clockMs, FIXTURE_TIME, openApp, waitForScene } from "../support/app";
 import { expect, test } from "../support/test";
@@ -41,12 +41,24 @@ test("back to the default view, back to the link, and keep it", async ({ page })
   await name.press("Enter");
   await expect(cards.filter({ hasText: "Science at eleven" })).toHaveCount(1);
 
+  // Saved from Recent, the name opens with the footer's button saving it, not a new bookmark.
+  const save = panel.getByRole("button", { name: "Save this view" });
+  await panel.getByRole("tab", { name: /Recent/ }).click();
+  await opened.getByRole("button", { name: "Save Science satellites" }).click();
+  await expect(name).toBeFocused();
+  await expect(save).toBeHidden();
+  await name.fill("Kept link");
+  await panel.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(cards).toHaveCount(2);
+  await expect(cards.filter({ hasText: "Kept link" })).toHaveCount(1);
+  await expect(save).toBeVisible();
+
   // A reload reopens the visitor's own scene, so it is not recorded as another link.
   await page.reload();
   await waitForScene(page);
   await openMenu(page, "Bookmarks");
   await expect(panel.getByRole("tab", { name: /Saved/ })).toHaveAttribute("aria-selected", "true");
-  await expect(cards.filter({ hasText: "Science at eleven" })).toHaveCount(1);
+  await expect(cards).toHaveCount(2);
   await panel.getByRole("tab", { name: /Recent/ }).click();
-  await expect(cards).toHaveCount(1);
+  await expect(cards).toHaveCount(0);
 });

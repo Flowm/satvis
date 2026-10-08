@@ -1,10 +1,18 @@
 <!-- One bookmark: its picture, name, satellites and camera; the time on the picture. -->
 <template>
   <div class="bookmarkCard" :class="{ 'bookmarkCard--current': current }">
-    <form v-if="renaming" class="bookmarkCard__rename" @submit.prevent="commitRename">
+    <form v-if="renaming" class="bookmarkCard__rename" @submit.prevent="emit('commit')">
       <img v-if="thumbnailUrl" :src="thumbnailUrl" alt="" class="bookmarkCard__thumb" />
       <span v-else class="bookmarkCard__thumb bookmarkCard__thumb--none"><UIcon name="lucide:image-off" /></span>
-      <input ref="nameInput" v-model="draft" type="text" aria-label="Bookmark name" @keydown.esc.stop.prevent="emit('renamed', undefined)" @blur="commitRename" />
+      <input
+        ref="nameInput"
+        :value="draft"
+        type="text"
+        aria-label="Bookmark name"
+        @input="emit('update:draft', ($event.target as HTMLInputElement).value)"
+        @keydown.esc.stop.prevent="emit('cancel')"
+        @blur="onBlur"
+      />
     </form>
     <button v-else type="button" class="bookmarkCard__open" :aria-current="current || undefined" @click="emit('open')">
       <span class="bookmarkCard__media">
@@ -35,8 +43,9 @@ import { computed, nextTick, ref, watch } from "vue";
 
 import { type Bookmark, type BookmarkSummary, timeAgo } from "../modules/util/bookmarks";
 
-const props = defineProps<{ bookmark: Bookmark; summary: BookmarkSummary; current: boolean; renaming: boolean }>();
-const emit = defineEmits<{ open: []; rename: []; renamed: [name: string | undefined]; remove: []; keep: [] }>();
+/** `draft` is the name being typed, held by the panel, whose footer can save it too. */
+const props = defineProps<{ bookmark: Bookmark; summary: BookmarkSummary; current: boolean; renaming: boolean; draft: string }>();
+const emit = defineEmits<{ open: []; rename: []; "update:draft": [name: string]; commit: []; cancel: []; remove: []; keep: [] }>();
 
 /** A demo's picture is a path under the app's base; a saved one is a data url. */
 const thumbnailUrl = computed(() => {
@@ -46,7 +55,6 @@ const thumbnailUrl = computed(() => {
 
 const whereIcon = computed(() => (props.summary.where.startsWith("Sky") ? "lucide:telescope" : props.summary.where.startsWith("Following") ? "lucide:crosshair" : "lucide:globe"));
 
-const draft = ref("");
 const nameInput = ref<HTMLInputElement>();
 
 watch(
@@ -55,7 +63,6 @@ watch(
     if (!renaming) {
       return;
     }
-    draft.value = props.bookmark.name;
     void nextTick(() => {
       nameInput.value?.focus();
       nameInput.value?.select();
@@ -64,10 +71,13 @@ watch(
   { immediate: true },
 );
 
-/** Enter and leaving the field both keep the name; Escape keeps the old one. */
-function commitRename(): void {
-  if (props.renaming) {
-    emit("renamed", draft.value);
+/**
+ * Leaving the field keeps the name, unless for the control that saves it (`data-saves-name`),
+ * which would otherwise find the edit already over. Enter keeps it too; Escape keeps the old one.
+ */
+function onBlur(event: FocusEvent): void {
+  if (props.renaming && !(event.relatedTarget as HTMLElement | null)?.closest("[data-saves-name]")) {
+    emit("commit");
   }
 }
 </script>

@@ -22,10 +22,12 @@
         :bookmark="bookmark"
         :summary="summary(bookmark)"
         :current="isCurrent(bookmark)"
+        v-model:draft="draft"
         :renaming="renaming === bookmark.id"
         @open="open(bookmark)"
-        @rename="renaming = bookmark.id"
-        @renamed="(name) => onRenamed(bookmark, name)"
+        @rename="startRename(bookmark)"
+        @commit="commitRename"
+        @cancel="renaming = undefined"
         @remove="onRemove(bookmark)"
         @keep="onKeep(bookmark)"
       />
@@ -34,7 +36,12 @@
 
     <footer class="bookmarkPanel__footer">
       <button type="button" :disabled="isDefault" @click="openDefault"><UIcon name="lucide:rotate-ccw" />Default view</button>
-      <button type="button" class="bookmarkPanel__primary" :disabled="isDefault || saving" @click="void onSave()"><UIcon name="lucide:bookmark-plus" />Save this view</button>
+      <!-- While a name is open the button saves it, not a new bookmark. Pressing it keeps the focus
+           in the field, or Safari, which focuses no clicked button, would end the edit first. -->
+      <button v-if="renaming" type="button" class="bookmarkPanel__primary" data-saves-name @pointerdown.prevent @click="commitRename"><UIcon name="lucide:check" />Save</button>
+      <button v-else type="button" class="bookmarkPanel__primary" :disabled="isDefault || saving" @click="void onSave()">
+        <UIcon name="lucide:bookmark-plus" />Save this view
+      </button>
     </footer>
   </div>
 </template>
@@ -68,9 +75,23 @@ const tab = ref<Tab>(saved.value.length > 0 ? "saved" : "demo");
 const shown = computed(() => (tab.value === "demo" ? demos : tab.value === "saved" ? saved.value : opened.value));
 const count = (key: Tab): number => (key === "saved" ? saved.value.length : key === "opened" ? opened.value.length : 0);
 
-/** The bookmark whose name is being edited. */
+/** The bookmark whose name is being edited, and the name as typed so far. */
 const renaming = ref<string>();
+const draft = ref("");
 const saving = ref(false);
+
+function startRename(bookmark: Bookmark): void {
+  draft.value = bookmark.name;
+  renaming.value = bookmark.id;
+}
+
+/** A blank name keeps the old one (the store's `rename`). */
+function commitRename(): void {
+  if (renaming.value !== undefined) {
+    store.rename(renaming.value, draft.value);
+    renaming.value = undefined;
+  }
+}
 
 /** Saves under a name drawn from the scene, then offers to change it. */
 async function onSave(): Promise<void> {
@@ -78,24 +99,17 @@ async function onSave(): Promise<void> {
   try {
     const bookmark = await saveCurrent();
     tab.value = "saved";
-    renaming.value = bookmark.id;
+    startRename(bookmark);
   } finally {
     saving.value = false;
   }
-}
-
-function onRenamed(bookmark: Bookmark, name: string | undefined): void {
-  if (name !== undefined) {
-    store.rename(bookmark.id, name);
-  }
-  renaming.value = undefined;
 }
 
 function onKeep(bookmark: Bookmark): void {
   const kept = store.keep(bookmark.id, bookmark.name);
   if (kept) {
     tab.value = "saved";
-    renaming.value = kept.id;
+    startRename(kept);
   }
 }
 
