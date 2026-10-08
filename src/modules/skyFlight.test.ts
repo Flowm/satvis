@@ -1,7 +1,7 @@
 import { Cartesian3, Math as CesiumMath, Quaternion } from "@cesium/engine";
 import { describe, expect, test } from "vitest";
 
-import { easeFlight, type FlightPath, flightPose, flightPosition, LOCK_ON, newPose, type Pose, poseRotation, TIP_UP, TOUCHDOWN } from "./skyFlight";
+import { easeFlight, FLIGHT_MS, type FlightPath, flightPath, flightPose, flightPosition, LOCK_ON, newPose, type Pose, poseRotation, TIP_UP, TOUCHDOWN } from "./skyFlight";
 
 const EARTH_RADIUS = 6378137;
 
@@ -41,10 +41,18 @@ const ground = pose(destination, new Cartesian3(0, 1, 1), new Cartesian3(0, 1, -
  */
 const overGround = pose(destination, Cartesian3.negate(UP, new Cartesian3()), NORTH);
 
-const path: FlightPath = { from: orbit, to: ground, over: overGround };
+const path: FlightPath = flightPath(orbit, ground, overGround);
+
+/** Facing south, 45° above the horizon: the default aim north of the equator, opposite the globe's north-up. */
+const groundSouth = pose(destination, new Cartesian3(0, 1, -1), new Cartesian3(0, 1, 1), 75);
+const overGroundSouth = pose(destination, Cartesian3.negate(UP, new Cartesian3()), Cartesian3.negate(NORTH, new Cartesian3()));
+const southPath: FlightPath = flightPath(orbit, groundSouth, overGroundSouth);
+
+/** Degrees per second of flight between two steps of raw progress `dt` apart. */
+const perSecond = (degrees: number, dt: number): number => degrees / ((dt * FLIGHT_MS) / 1000);
 
 describe("flightPosition", () => {
-  const between = (from: Cartesian3, to: Cartesian3, sweep: number, drop = sweep): Cartesian3 => flightPosition(from, to, sweep, drop, new Cartesian3());
+  const between = (from: Cartesian3, to: Cartesian3, overhead: number, drop = overhead): Cartesian3 => flightPosition(from, to, overhead, drop, new Cartesian3());
 
   test("starts and ends exactly where it was told to", () => {
     expect(Cartesian3.distance(between(orbit.position, destination, 0), orbit.position)).toBeLessThan(1e-6);
@@ -52,18 +60,25 @@ describe("flightPosition", () => {
   });
 
   test("follows the great circle rather than the chord", () => {
+    // With no height lost, the way round is `overhead` alone.
     const total = angleDegrees(orbit.position, destination);
     for (const t of [0.25, 0.5, 0.75]) {
-      expect(angleDegrees(orbit.position, between(orbit.position, destination, t))).toBeCloseTo(total * t, 6);
+      const step = between(orbit.position, destination, t, 0);
+      expect(angleDegrees(orbit.position, step)).toBeCloseTo(total * t, 6);
+      expect(Cartesian3.magnitude(step)).toBeCloseTo(Cartesian3.magnitude(orbit.position), 6);
     }
   });
 
-  test("comes down where it is told to, independently of how far round it has come", () => {
-    // The two fractions must not leak into each other.
-    const overhead = between(orbit.position, destination, 1, 0.4);
-    expect(angleDegrees(overhead, destination)).toBeCloseTo(0, 9);
-    const radii = [Cartesian3.magnitude(orbit.position), Cartesian3.magnitude(destination)];
-    expect(Cartesian3.magnitude(overhead)).toBeCloseTo(radii[0]! + 0.4 * (radii[1]! - radii[0]!), 6);
+  test("is overhead once told to be, at any height", () => {
+    for (const drop of [0, 0.4, 0.9]) {
+      expect(angleDegrees(between(orbit.position, destination, 1, drop), destination)).toBeCloseTo(0, 9);
+    }
+  });
+
+  test("loses height geometrically while far up, a steady zoom rather than a rush at the end", () => {
+    const height = (drop: number): number => Cartesian3.magnitude(between(orbit.position, destination, 0, drop)) - Cartesian3.magnitude(destination);
+    expect(height(0.25) / height(0)).toBeCloseTo(height(0.5) / height(0.25), 1);
+    expect(height(0.5)).toBeLessThan(height(0) / 10);
   });
 
   test("never dips below either end, so no arc height is needed to clear the ground", () => {
@@ -78,7 +93,7 @@ describe("flightPosition", () => {
     const from = at(1, 0, 0, EARTH_RADIUS + 1_000_000);
     const to = at(-1, 0, 0, EARTH_RADIUS + 2);
     for (const t of [0, 0.25, 0.5, 0.75, 1]) {
-      const step = between(from, to, t);
+      const step = between(from, to, t, 0);
       expect(Number.isFinite(step.x) && Number.isFinite(step.y) && Number.isFinite(step.z)).toBe(true);
       expect(angleDegrees(from, step)).toBeCloseTo(180 * t, 6);
     }
@@ -209,6 +224,56 @@ describe("flightPose", () => {
       const { direction, up, right } = step(t);
       const finite = (v: Cartesian3): boolean => Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z);
       expect(finite(direction) && finite(up) && finite(right), `t=${t.toFixed(2)}`).toBe(true);
+    }
+  });
+});
+
+describe("flightPose, landing facing away from the globe's up", () => {
+  const step = (t: number): Pose => flightPose(southPath, t, newPose());
+
+  test("still starts and ends on the poses it was given", () => {
+    for (const [t, end] of [
+      [0, orbit],
+      [1, groundSouth],
+    ] as const) {
+      const here = step(t);
+      expect(Cartesian3.distance(here.position, end.position)).toBeLessThan(1e-6);
+      expect(angleDegrees(here.direction, end.direction)).toBeCloseTo(0, 6);
+      expect(angleDegrees(here.up, end.up)).toBeCloseTo(0, 6);
+    }
+  });
+
+  test("locks on without rolling the globe over", () => {
+    // Turning to the aim's heading in the lock-on rolled the view 180° in 0.66 s.
+    expect(turnBetween(step(0), step(LOCK_ON))).toBeLessThan(turnBetween(path.from, flightPose(path, LOCK_ON, newPose())) + 10);
+  });
+
+  test("keeps the horizon level while it turns round", () => {
+    for (let t = 1 - TIP_UP; t <= 1; t += 0.02) {
+      expect(Cartesian3.dot(step(t).right, UP), `t=${t.toFixed(2)}`).toBeCloseTo(0, 6);
+    }
+  });
+
+  test("never turns faster than a steady pan", () => {
+    // 1200°/s with the turn in the lock-on and Cesium's quintic easing.
+    const dt = 0.002;
+    let previous = step(0);
+    for (let t = dt; t <= 1; t += dt) {
+      const next = step(t);
+      expect(perSecond(turnBetween(previous, next), dt), `t=${t.toFixed(3)}`).toBeLessThan(300);
+      previous = next;
+    }
+  });
+
+  test("zooms in at a steady rate rather than rushing the ground at the end", () => {
+    // In e-folds of the height per second, down to the last 100 m: a radius lerp reached 54.
+    const height = (here: Pose): number => Cartesian3.magnitude(here.position) - Cartesian3.magnitude(destination) + 2;
+    const dt = 0.002;
+    let previous = step(0);
+    for (let t = dt; height(previous) > 100; t += dt) {
+      const next = step(t);
+      expect(perSecond(Math.log(height(previous) / height(next)), dt), `t=${t.toFixed(3)}`).toBeLessThan(25);
+      previous = next;
     }
   });
 });
