@@ -61,6 +61,11 @@ public actor GroupRepository {
         return faces.count == Self.starMapFaces.count ? faces : nil
     }
 
+    /// An image as last kept, without asking the site.
+    public func keptImage(_ path: String) -> Data? {
+        store.read(.file(path))?.data
+    }
+
     /// An image the site serves. Never shipped, so absent until fetched once.
     public func image(_ path: String) async throws -> Loaded<Data> {
         try await load(.file(path), fetch: { try await self.client.image(path, ifNoneMatch: $0) }, decode: { $0 })

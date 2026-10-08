@@ -24,8 +24,8 @@ import Testing
         #expect(vocabulary["terrain"] == LinkCodec.terrains)
         #expect(vocabulary["overpass"] == LinkCodec.overpassModes)
         #expect(vocabulary["scenes"] == LinkCodec.scenes)
-        #expect(vocabulary["unseen"] == LinkCodec.unseenModes)
-        #expect(vocabulary["cameras"] == LinkCodec.cameras)
+        #expect(vocabulary["unseen"] == UnseenMode.allCases.map(\.rawValue))
+        #expect(vocabulary["cameras"] == CameraFrame.allCases.map(\.rawValue))
         #expect(vocabulary["pixelRatios"] == LinkCodec.pixelRatios)
     }
 
@@ -99,8 +99,8 @@ import Testing
             #expect(read.state.layers == want["layers"] as? [String], "\(label)")
             #expect(read.state.terrain == want["terrain"] as? String, "\(label)")
             #expect(read.state.scene == want["scene"] as? String, "\(label)")
-            #expect(read.state.unseen == want["unseen"] as? String, "\(label)")
-            #expect(read.state.camera == want["camera"] as? String, "\(label)")
+            #expect(read.state.unseen.rawValue == want["unseen"] as? String, "\(label)")
+            #expect(read.state.camera.rawValue == want["camera"] as? String, "\(label)")
             #expect(read.state.pixelRatio == want["pixelratio"] as? String, "\(label)")
             #expect(read.state.time == want["time"] as? String, "\(label)")
             #expect(read.invalid == test["invalid"] as? [String], "\(label)")

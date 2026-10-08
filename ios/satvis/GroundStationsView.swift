@@ -76,7 +76,7 @@ struct GroundStationsView: View {
                             locating = true
                             defer { locating = false }
                             if let location = await currentLocation() {
-                                passes.add(latitude: location.latitude, longitude: location.longitude, name: "Geolocation")
+                                passes.setGeolocation(latitude: location.latitude, longitude: location.longitude)
                             } else {
                                 locationFailed = true
                             }

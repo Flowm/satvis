@@ -1,5 +1,32 @@
 import Foundation
 
+/// A scene as a url: a route and the parameters on it (the web app's `Link`).
+public struct SceneLink: Sendable, Hashable {
+    /// The path that opens the route's preset: `/` for the default one, `/ot`.
+    public var path: String
+    /// The parameters the web app's stores own (`Bookmarks.ownedParameters`),
+    /// defaults left out.
+    public var query: [String: String]
+
+    public init(path: String, query: [String: String]) {
+        self.path = path
+        self.query = query
+    }
+
+    /// The preset `path` opens, nil for the default one.
+    public var preset: String? {
+        path == "/" ? nil : String(path.drop { $0 == "/" })
+    }
+
+    /// The link to open, after the parameters `carried` from the link on screen:
+    /// the codec's own in its order, the rest by name.
+    public func link(carrying carried: [LinkQuery.Item] = []) -> Link {
+        let known = LinkCodec.parameters
+        let keys = known.filter { query[$0] != nil } + query.keys.filter { !known.contains($0) }.sorted()
+        return Link(preset: preset, query: LinkQuery(carried + keys.map { LinkQuery.Item(key: $0, values: [query[$0]]) }))
+    }
+}
+
 /// A link to a scene, kept under a name with a picture (src/modules/util/bookmarks.ts,
 /// ADR 0011): a route and the url parameters the web app's stores own, never a
 /// camera position. The same records the web app keeps, so either reads the other's.
@@ -15,43 +42,26 @@ public struct Bookmark: Sendable, Hashable, Codable, Identifiable {
     public var kind: Kind
     /// The user's, or one drawn from the scene (`Bookmarks.defaultName`).
     public var name: String
-    /// The path that opens the route's preset: `/` for the default one, `/ot`.
+    /// `scene`'s, flat as the web app keeps them.
     public var path: String
-    /// The parameters the web app's stores own (`Bookmarks.ownedParameters`),
-    /// defaults left out.
     public var query: [String: String]
     /// A demo's picture, as a path on the site; the app keeps the others' apart.
     public var thumbnail: String?
     /// When it was saved or opened, in epoch milliseconds; 0 for a demo.
     public var at: Double
 
-    public init(id: String, kind: Kind, name: String, path: String, query: [String: String], thumbnail: String? = nil, at: Double) {
+    public init(id: String, kind: Kind, name: String, scene: SceneLink, thumbnail: String? = nil, at: Double) {
         self.id = id
         self.kind = kind
         self.name = name
-        self.path = path
-        self.query = query
+        path = scene.path
+        query = scene.query
         self.thumbnail = thumbnail
         self.at = at
     }
 
-    /// The preset `path` opens, nil for the default one.
-    public var preset: String? {
-        path == "/" ? nil : String(path.drop { $0 == "/" })
-    }
-
-    /// The link to open, after the parameters `carried` from the link on screen:
-    /// the codec's own in its order, the rest by name.
-    public func link(carrying carried: [LinkQuery.Item] = []) -> Link {
-        let known = LinkCodec.parameters
-        let keys = known.filter { query[$0] != nil } + query.keys.filter { !known.contains($0) }.sorted()
-        return Link(preset: preset, query: LinkQuery(carried + keys.map { LinkQuery.Item(key: $0, values: [query[$0]]) }))
-    }
-
-    /// Whether two bookmarks open the same scene: the same route and parameters.
-    public func opensTheSameScene(as other: Bookmark) -> Bool {
-        path == other.path && query == other.query
-    }
+    /// The scene it opens; two bookmarks of one scene open the same.
+    public var scene: SceneLink { SceneLink(path: path, query: query) }
 }
 
 /// What a card says under a bookmark's name.
@@ -107,7 +117,7 @@ public enum Bookmarks {
 
     /// Records a link a visit started with: newest first, once each, at most `openedLimit`.
     public static func withOpened(_ opened: [Bookmark], _ link: Bookmark) -> [Bookmark] {
-        Array(([link] + opened.filter { !$0.opensTheSameScene(as: link) }).prefix(openedLimit))
+        Array(([link] + opened.filter { $0.scene != link.scene }).prefix(openedLimit))
     }
 
     /// What a bookmark shows, in words. `presetDefaults` fill what the query leaves
@@ -137,7 +147,8 @@ public enum Bookmarks {
         let scene = value("scene") ?? "3D"
         let place: String
         if scene == "Sky" {
-            place = value("gs").map { "Sky over \(firstStation($0))" } ?? "Sky view"
+            // An empty `gs` names no station, as JavaScript's "" is false.
+            place = value("gs").flatMap { $0.isEmpty ? nil : "Sky over \(firstStation($0))" } ?? "Sky view"
         } else if let track, !track.isEmpty {
             // Under its own name, the satellite needs no second mention.
             place = what == track ? "Following it" : "Following \(track)"
@@ -252,18 +263,17 @@ public struct BookmarkLists: Sendable, Hashable, Codable {
 
     /// Saves a scene under `name`, and takes its link off the opened ones.
     @discardableResult
-    public mutating func save(name: String, path: String, query: [String: String], id: String, at: Double) -> Bookmark {
-        let bookmark = Bookmark(id: id, kind: .saved, name: name, path: path, query: query, at: at)
+    public mutating func save(name: String, scene: SceneLink, id: String, at: Double) -> Bookmark {
+        let bookmark = Bookmark(id: id, kind: .saved, name: name, scene: scene, at: at)
         saved.insert(bookmark, at: 0)
-        // Saved, a link is no longer only a recent one.
-        opened.removeAll { $0.opensTheSameScene(as: bookmark) }
+        opened.removeAll { $0.scene == scene }
         return bookmark
     }
 
     /// Records the link a visit started with.
     @discardableResult
-    public mutating func recordOpened(name: String, path: String, query: [String: String], id: String, at: Double) -> Bookmark {
-        let bookmark = Bookmark(id: id, kind: .opened, name: name, path: path, query: query, at: at)
+    public mutating func recordOpened(name: String, scene: SceneLink, id: String, at: Double) -> Bookmark {
+        let bookmark = Bookmark(id: id, kind: .opened, name: name, scene: scene, at: at)
         opened = Bookmarks.withOpened(opened, bookmark)
         return bookmark
     }

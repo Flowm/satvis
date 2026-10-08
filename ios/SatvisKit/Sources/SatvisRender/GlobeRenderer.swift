@@ -88,15 +88,6 @@ public enum CameraMode: Sendable, Equatable {
     case sky
 }
 
-/// What the globe's free camera holds still in: the web app's camera modes, by
-/// the names its links give them.
-public enum CameraFrame: String, Sendable, CaseIterable {
-    /// The Earth: the globe stands still on the screen.
-    case fixed = "Fixed"
-    /// The stars: the Earth turns under the camera, once a sidereal day.
-    case inertial = "Inertial"
-}
-
 /// Draws the globe, the sky around it, the ground stations on it and the
 /// satellites over it, for one MTKView.
 @MainActor
@@ -1014,12 +1005,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             encoder.endEncoding()
         }
+        // Taken off as it is queued: the frames already in flight would copy it again.
         if let request = snapshotRequest, !drawable.texture.isFramebufferOnly,
             let copy = Snapshot.encodeCopy(of: drawable.texture, into: commands, device: device)
         {
+            snapshotRequest = nil
             commands.addCompletedHandler { _ in
-                let data = copy.jpeg(width: request.width)
-                Task { @MainActor in self.finishSnapshot(request.id, data) }
+                request.continuation.resume(returning: copy.jpeg(width: request.width))
             }
         }
         commands.present(drawable)

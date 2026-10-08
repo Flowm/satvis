@@ -51,6 +51,15 @@ public enum Visibility: String, Sendable, Equatable {
     }
 }
 
+/// What the globe's free camera holds still in: the web app's camera modes
+/// (`?camera=`), by the names its links give them.
+public enum CameraFrame: String, Sendable, CaseIterable {
+    /// The Earth: the globe stands still on the screen.
+    case fixed = "Fixed"
+    /// The stars: the Earth turns under the camera, once a sidereal day.
+    case inertial = "Inertial"
+}
+
 /// What the sky view does with the satellites that are not visible: `?unseen=`.
 public enum UnseenMode: String, Sendable, CaseIterable {
     case show, dim, hide

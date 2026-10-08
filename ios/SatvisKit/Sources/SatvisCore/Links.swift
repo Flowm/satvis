@@ -120,12 +120,9 @@ public struct LinkState: Sendable, Hashable {
     public var terrain: String
     /// `3D`, or `Sky` for the sky view (ADR 0003).
     public var scene: String
-    /// In the sky view, how the satellites that cannot be seen are drawn: `show`,
-    /// `dim` or `hide` (ADR 0010).
-    public var unseen: String
-    /// `Fixed` to the Earth, or `Inertial`: the globe's free camera held still
-    /// against the stars while the Earth turns under it.
-    public var camera: String
+    /// In the sky view, how the satellites that cannot be seen are drawn (ADR 0010).
+    public var unseen: UnseenMode
+    public var camera: CameraFrame
     /// Drawable pixels per point: `1`, `1.5`, or `native` for the screen's own.
     public var pixelRatio: String
     /// The minute the clock is pinned at (`2026-10-04T20:46Z`), nil while live.
@@ -134,11 +131,11 @@ public struct LinkState: Sendable, Hashable {
     /// The web app's defaults before any preset (src/stores).
     public static let global = LinkState(
         elements: ["Point", "Label"], sats: [], xsats: [], tags: [], gs: [], track: "", overpass: "elevation", layers: ["NaturalEarth"], terrain: "None",
-        scene: "3D", unseen: "dim", camera: "Fixed", pixelRatio: "native", time: nil)
+        scene: "3D", unseen: .dim, camera: .fixed, pixelRatio: "native", time: nil)
 
     public init(
         elements: [String], sats: [String], xsats: [String], tags: [String], gs: [LinkStation], track: String, overpass: String, layers: [String],
-        terrain: String, scene: String = "3D", unseen: String = "dim", camera: String = "Fixed", pixelRatio: String = "native",
+        terrain: String, scene: String = "3D", unseen: UnseenMode = .dim, camera: CameraFrame = .fixed, pixelRatio: String = "native",
         time: String?
     ) {
         self.elements = elements
@@ -168,10 +165,6 @@ public enum LinkCodec {
     public static let terrains = ["None", "ReEarth"]
     public static let overpassModes = ["elevation", "swath"]
     public static let scenes = ["3D", "Sky"]
-    /// The web app's `UNSEEN_MODES` (src/modules/util/visibility.ts).
-    public static let unseenModes = UnseenMode.allCases.map(\.rawValue)
-    /// The web app's `CAMERA_MODES` (src/config/viewModes.ts).
-    public static let cameras = ["Fixed", "Inertial"]
     /// The web app's `PIXEL_RATIOS` (src/config/rendering.ts).
     public static let pixelRatios = ["1", "1.5", "native"]
 
@@ -212,8 +205,8 @@ public enum LinkCodec {
         Field("layers", \.layers, .layerList(layers)),
         Field("terrain", \.terrain, .oneOf(terrains)),
         Field("scene", \.scene, .oneOf(scenes)),
-        Field("unseen", \.unseen, .oneOf(unseenModes)),
-        Field("camera", \.camera, .oneOf(cameras)),
+        Field("unseen", \.unseen, .enumeration),
+        Field("camera", \.camera, .enumeration),
         Field("pixelratio", \.pixelRatio, .oneOf(pixelRatios)),
         Field("time", \.time, .timestamp),
     ]
@@ -277,6 +270,11 @@ extension FieldKind where Value == String {
     static func oneOf(_ values: [String]) -> Self {
         Self(parse: { values.contains($0) ? $0 : nil }, format: { values.contains($0) ? $0 : nil })
     }
+}
+
+extension FieldKind where Value: RawRepresentable & CaseIterable, Value.RawValue == String {
+    /// One of an enum's raw values, as `enumString` over its cases.
+    static var enumeration: Self { Self(parse: Value.init(rawValue:), format: \.rawValue) }
 }
 
 extension FieldKind where Value == [String] {

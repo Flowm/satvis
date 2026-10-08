@@ -163,6 +163,16 @@ private let fixedNow = Date(timeIntervalSince1970: 1_790_000_000)
         #expect(worker.requests.withLock { $0.first?.url?.absoluteString } == "https://satvis.test/data/starmap/x.webp")
     }
 
+    // A demo bookmark's picture, offline after the first launch that fetched it.
+    @Test func keepsAPictureForOfflineLaunches() async throws {
+        let store = temporaryStore()
+        let online = GroupRepository(client: StubWorker([.image(Data([9]), etag: "b")]).client, store: store, snapshot: nil)
+        #expect(await online.keptImage("showcase/globe-card.jpg") == nil)
+        _ = try await online.image("showcase/globe-card.jpg")
+        let offline = GroupRepository(client: StubWorker([.offline]).client, store: store, snapshot: nil)
+        #expect(await offline.keptImage("showcase/globe-card.jpg") == Data([9]))
+    }
+
     // `pnpm dev`, and a deploy that never ran the generator, answer with index.html.
     @Test func doesNotTakeAPageForAnImage() async throws {
         let repository = GroupRepository(client: StubWorker([.html]).client, store: temporaryStore(), snapshot: nil)

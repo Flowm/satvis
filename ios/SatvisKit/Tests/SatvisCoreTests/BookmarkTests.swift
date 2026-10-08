@@ -79,7 +79,7 @@ import Testing
 
 @Suite struct BookmarkListTests {
     private static func opened(_ query: [String: String], path: String = "/") -> Bookmark {
-        Bookmark(id: query.description + path, kind: .opened, name: "", path: path, query: query, at: 0)
+        Bookmark(id: query.description + path, kind: .opened, name: "", scene: SceneLink(path: path, query: query), at: 0)
     }
 
     @Test func keepsEachOpenedLinkOnceNewestFirst() {
@@ -99,11 +99,11 @@ import Testing
 
     @Test func savingALinkTakesItOffRecent() {
         var lists = BookmarkLists()
-        let link = lists.recordOpened(name: "GNSS satellites", path: "/", query: ["tags": "GNSS"], id: "o1", at: 1)
-        lists.save(name: "Mine", path: "/", query: ["tags": "GNSS"], id: "s1", at: 2)
+        let link = lists.recordOpened(name: "GNSS satellites", scene: SceneLink(path: "/", query: ["tags": "GNSS"]), id: "o1", at: 1)
+        lists.save(name: "Mine", scene: SceneLink(path: "/", query: ["tags": "GNSS"]), id: "s1", at: 2)
         #expect(lists.opened.isEmpty)
         #expect(lists.saved.map(\.id) == ["s1"])
-        lists.recordOpened(name: "x", path: "/", query: ["tags": "OT"], id: "o2", at: 3)
+        lists.recordOpened(name: "x", scene: SceneLink(path: "/", query: ["tags": "OT"]), id: "o2", at: 3)
         let kept = lists.keep("o2", name: "Kept", at: 4)
         #expect(kept?.id == "o2" && kept?.kind == .saved)
         #expect(lists.saved.map(\.id) == ["o2", "s1"] && lists.opened.isEmpty)
@@ -112,8 +112,8 @@ import Testing
 
     @Test func renamesUndeletesAndKeepsABlankNameOut() {
         var lists = BookmarkLists()
-        let old = lists.save(name: "Old", path: "/", query: ["tags": "A"], id: "a", at: 1)
-        lists.save(name: "New", path: "/", query: ["tags": "B"], id: "b", at: 2)
+        let old = lists.save(name: "Old", scene: SceneLink(path: "/", query: ["tags": "A"]), id: "a", at: 1)
+        lists.save(name: "New", scene: SceneLink(path: "/", query: ["tags": "B"]), id: "b", at: 2)
         lists.rename("a", to: "  ")
         lists.rename("b", to: " Home ")
         #expect(lists.saved.map(\.name) == ["Home", "Old"])
@@ -124,8 +124,8 @@ import Testing
     }
 
     @Test func opensWithTheParametersTheLinkCarriedPastIt() {
-        let bookmark = Bookmark(id: "x", kind: .saved, name: "", path: "/ot", query: ["stars": "DeepStar2K", "tags": "OT", "scene": "Sky"], at: 0)
-        let link = bookmark.link(carrying: [LinkQuery.Item(key: "framems", values: ["16"])])
+        let bookmark = Bookmark(id: "x", kind: .saved, name: "", scene: SceneLink(path: "/ot", query: ["stars": "DeepStar2K", "tags": "OT", "scene": "Sky"]), at: 0)
+        let link = bookmark.scene.link(carrying: [LinkQuery.Item(key: "framems", values: ["16"])])
         #expect(link.preset == "ot")
         #expect(link.query.string == "framems=16&tags=OT&scene=Sky&stars=DeepStar2K")
         let query = LinkQuery(parsing: "framems=16&tags=GNSS&tags=OT&utm_source=x&time=2026-10-04T08:52Z")

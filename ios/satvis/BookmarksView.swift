@@ -13,8 +13,9 @@ struct BookmarksView: View {
     @State private var draft = ""
     /// A picture is being taken, which a second tap must not repeat.
     @State private var saving = false
-    /// The last bookmark deleted, while it can be undone.
-    @State private var deleted: Bookmark?
+    /// The bookmarks deleted in the last five seconds, newest last, each with its
+    /// own undo.
+    @State private var deleted: [Bookmark] = []
     @Environment(\.dismiss) private var dismiss
 
     init(session: Session) {
@@ -34,21 +35,20 @@ struct BookmarksView: View {
 
     var body: some View {
         let here = session.here
-        // The saved bookmark of the scene on screen, which Save opens rather than saving it twice.
-        let savedHere = bookmarks.saved.first { $0.opensTheSameScene(as: here) }
+        // Save opens this rather than saving the scene twice.
+        let savedHere = bookmarks.saved.first { $0.scene == here }
         NavigationStack {
             ScrollView {
                 VStack(spacing: 12) {
                     Picker("Bookmarks", selection: $tab) {
                         Text("Demos").tag(Bookmark.Kind.demo)
                         Text(count("Saved", bookmarks.saved.count)).tag(Bookmark.Kind.saved)
-                        // "Recent": the links recent visits started with.
                         Text(count("Recent", bookmarks.opened.count)).tag(Bookmark.Kind.opened)
                     }
                     .pickerStyle(.segmented)
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
                         ForEach(shown) { bookmark in
-                            card(bookmark, isCurrent: bookmark.opensTheSameScene(as: here))
+                            card(bookmark, isCurrent: bookmark.scene == here)
                         }
                     }
                     if shown.isEmpty {
@@ -69,35 +69,41 @@ struct BookmarksView: View {
             // Under the cards with their names, as the web app's footer: the bottom
             // bar's glass shows icons alone.
             .safeAreaInset(edge: .bottom) {
-                HStack {
-                    Button("Default view", systemImage: "arrow.counterclockwise") {
-                        session.openDefaultView()
-                        dismiss()
+                VStack(spacing: 8) {
+                    ForEach(deleted) { bookmark in
+                        undo(bookmark)
                     }
-                    .disabled(here.query.isEmpty)
-                    Spacer()
-                    if let savedHere {
-                        Button("Saved", systemImage: "bookmark.fill") {
-                            tab = .saved
-                            startRename(savedHere)
+                    HStack {
+                        Button("Default view", systemImage: "arrow.counterclockwise") {
+                            session.openDefaultView()
+                            dismiss()
                         }
-                    } else {
-                        Button("Save this view", systemImage: "bookmark") {
-                            Task {
-                                saving = true
-                                defer { saving = false }
-                                let bookmark = await session.saveHere()
+                        .disabled(here.query.isEmpty)
+                        Spacer()
+                        if let savedHere {
+                            Button("Saved", systemImage: "bookmark.fill") {
                                 tab = .saved
-                                startRename(bookmark)
+                                startRename(savedHere)
                             }
+                        } else {
+                            Button("Save this view", systemImage: "bookmark") {
+                                Task {
+                                    saving = true
+                                    defer { saving = false }
+                                    let bookmark = await session.saveHere()
+                                    tab = .saved
+                                    startRename(bookmark)
+                                }
+                            }
+                            .disabled(here.query.isEmpty || saving)
                         }
-                        .disabled(here.query.isEmpty || saving)
                     }
+                    .buttonStyle(.glass)
+                    .controlSize(.large)
                 }
-                .buttonStyle(.glass)
-                .controlSize(.large)
                 .padding(.horizontal)
                 .padding(.bottom, 8)
+                .animation(.snappy, value: deleted)
             }
             .alert(
                 "Name",
@@ -115,26 +121,12 @@ struct BookmarksView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             }
-            .overlay(alignment: .bottom) {
-                if let deleted {
-                    HStack {
-                        Text("Deleted “\(deleted.name)”")
-                            .lineLimit(1)
-                        Spacer()
-                        Button("Undo") {
-                            bookmarks.restore(deleted)
-                            self.deleted = nil
-                        }
-                        .fontWeight(.semibold)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .glassEffect()
-                    .padding()
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+        }
+        // Closed, the sheet's undos go with it.
+        .onDisappear {
+            for bookmark in deleted {
+                bookmarks.release(bookmark.id)
             }
-            .animation(.snappy, value: deleted)
         }
     }
 
@@ -143,47 +135,59 @@ struct BookmarksView: View {
     }
 
     private func card(_ bookmark: Bookmark, isCurrent: Bool) -> some View {
-        Button {
-            session.open(bookmark)
+        let summary = session.summary(bookmark.scene)
+        return Button {
+            session.open(bookmark.scene)
             dismiss()
         } label: {
-            BookmarkCard(
-                bookmark: bookmark, summary: session.summary(bookmark), picture: picture(bookmark), isCurrent: isCurrent)
+            BookmarkCard(bookmark: bookmark, summary: summary, picture: picture(bookmark), isCurrent: isCurrent)
         }
         .buttonStyle(.plain)
         // The name first: read in order, the card starts with its picture's time.
-        .accessibilityLabel(card(label: bookmark))
+        .accessibilityLabel([bookmark.name, summary.what, summary.where, summary.time ?? "Live"].joined(separator: ", "))
         .accessibilityAddTraits(isCurrent ? .isSelected : [])
-        .contextMenu {
-            switch bookmark.kind {
-            case .saved:
-                Button("Rename", systemImage: "pencil") { startRename(bookmark) }
-                Button("Delete", systemImage: "trash", role: .destructive) { delete(bookmark) }
-            case .opened:
-                Button("Save", systemImage: "bookmark") {
-                    if let kept = bookmarks.keep(bookmark.id, name: bookmark.name) {
-                        tab = .saved
-                        startRename(kept)
-                    }
+        .contextMenu { actions(bookmark) }
+        // The long press's actions in sight, where a card has any.
+        .overlay(alignment: .topTrailing) {
+            if bookmark.kind != .demo {
+                Menu {
+                    actions(bookmark)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.footnote.weight(.bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 28, height: 28)
+                        .background(.black.opacity(0.73), in: .circle)
+                        .padding(4)
+                        .contentShape(.rect)
                 }
-                Button("Forget", systemImage: "xmark") { bookmarks.forget(bookmark.id) }
-            case .demo:
-                EmptyView()
+                .accessibilityLabel("Actions for \(bookmark.name)")
             }
         }
     }
 
-    private func card(label bookmark: Bookmark) -> String {
-        let summary = session.summary(bookmark)
-        return [bookmark.name, summary.what, summary.where, summary.time ?? "Live"].joined(separator: ", ")
+    @ViewBuilder private func actions(_ bookmark: Bookmark) -> some View {
+        switch bookmark.kind {
+        case .saved:
+            Button("Rename", systemImage: "pencil") { startRename(bookmark) }
+            Button("Delete", systemImage: "trash", role: .destructive) { delete(bookmark) }
+        case .opened:
+            Button("Save", systemImage: "bookmark") {
+                if let kept = bookmarks.keep(bookmark.id, name: bookmark.name) {
+                    tab = .saved
+                    startRename(kept)
+                }
+            }
+            Button("Forget", systemImage: "xmark") { bookmarks.forget(bookmark.id) }
+        case .demo:
+            EmptyView()
+        }
     }
 
-    /// A demo's picture is on the site; the others' are kept on the device.
-    private func picture(_ bookmark: Bookmark) -> BookmarkCard.Picture {
-        if bookmark.kind == .demo {
-            return .remote { await session.picture(of: bookmark) }
-        }
-        return bookmarks.pictures[bookmark.id].flatMap(UIImage.init(data:)).map(BookmarkCard.Picture.kept) ?? .none
+    /// A demo's picture is the site's, kept once fetched; the others' are the device's.
+    private func picture(_ bookmark: Bookmark) -> UIImage? {
+        let data = bookmark.kind == .demo ? bookmark.thumbnail.flatMap { session.demoPictures[$0] } : bookmarks.pictures[bookmark.id]
+        return data.flatMap(UIImage.init(data:))
     }
 
     private func startRename(_ bookmark: Bookmark) {
@@ -191,14 +195,32 @@ struct BookmarksView: View {
         renaming = bookmark
     }
 
+    private func undo(_ bookmark: Bookmark) -> some View {
+        HStack {
+            Text("Deleted “\(bookmark.name)”")
+                .lineLimit(1)
+            Spacer()
+            Button("Undo") {
+                bookmarks.restore(bookmark)
+                deleted.removeAll { $0.id == bookmark.id }
+            }
+            .fontWeight(.semibold)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .glassEffect()
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
     /// Can be undone for five seconds.
     private func delete(_ bookmark: Bookmark) {
         bookmarks.remove(bookmark.id)
-        deleted = bookmark
+        deleted.append(bookmark)
         Task {
             try? await Task.sleep(for: .seconds(5))
-            if deleted?.id == bookmark.id {
-                deleted = nil
+            if deleted.contains(where: { $0.id == bookmark.id }) {
+                deleted.removeAll { $0.id == bookmark.id }
+                bookmarks.release(bookmark.id)
             }
         }
     }
@@ -207,16 +229,9 @@ struct BookmarksView: View {
 /// One bookmark (BookmarkCard.vue): its picture with the time on it, its name, its
 /// satellites and where the camera is; outlined while it is the scene on screen.
 struct BookmarkCard: View {
-    enum Picture {
-        case none
-        /// Fetched when the card shows.
-        case remote(@MainActor () async -> Data?)
-        case kept(UIImage)
-    }
-
     let bookmark: Bookmark
     let summary: BookmarkSummary
-    let picture: Picture
+    let picture: UIImage?
     let isCurrent: Bool
 
     private static let accent = Color(red: 127 / 255, green: 210 / 255, blue: 234 / 255)
@@ -269,12 +284,9 @@ struct BookmarkCard: View {
     }
 
     @ViewBuilder private var image: some View {
-        switch picture {
-        case .kept(let image):
-            Image(uiImage: image).resizable().scaledToFill()
-        case .remote(let fetch):
-            RemotePicture(id: bookmark.id, fetch: fetch)
-        case .none:
+        if let picture {
+            Image(uiImage: picture).resizable().scaledToFill()
+        } else {
             Image(systemName: "photo").foregroundStyle(.tertiary)
         }
     }
@@ -292,25 +304,5 @@ struct BookmarkCard: View {
             .padding(.vertical, 2)
             .background(.black.opacity(0.73), in: .rect(cornerRadius: 6))
             .padding(5)
-    }
-}
-
-/// A picture fetched when its card shows.
-private struct RemotePicture: View {
-    let id: String
-    let fetch: @MainActor () async -> Data?
-    @State private var image: UIImage?
-
-    var body: some View {
-        Group {
-            if let image {
-                Image(uiImage: image).resizable().scaledToFill()
-            } else {
-                Color.clear
-            }
-        }
-        .task(id: id) {
-            image = await fetch().flatMap(UIImage.init(data:))
-        }
     }
 }

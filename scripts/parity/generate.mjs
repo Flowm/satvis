@@ -508,6 +508,7 @@ try {
     ["default", { scene: "Sky", gs: "46.5935,7.9091" }],
     ["default", { scene: "Sky", gs: "-33.92495,18.42405" }],
     ["default", { scene: "Sky" }],
+    ["default", { scene: "Sky", gs: "" }],
     ["default", { sats: "A,B,C" }],
     ["default", { tags: "", sats: "A,B" }],
     ["default", { tags: "", sats: "A" }],

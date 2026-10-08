@@ -1,3 +1,4 @@
+import CoreLocation
 import XCTest
 
 nonisolated class SatvisUITests: XCTestCase {
@@ -65,22 +66,25 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssertEqual(menuToggle(app).label, UIDevice.current.userInterfaceIdiom == .pad ? "Close menu" : "Menu")
     }
 
-    // The Sky panel picks where to stand, and picking enters the sky view there,
-    // as on the web; Look up leaves it again.
+    // Look up stands where the device is, a location kept as "Geolocation" however
+    // many stations there are, and leaves the sky view again.
     @MainActor
-    func testLooksUpFromALocationPickedInTheSkyPanel() {
-        let app = launch(link: "/?gs=48.1372,11.5756,Munich_47.2692,11.4041,Innsbruck")
-        openMenu(app)
-        app.buttons["Sky"].tap()
-        let lookUp = app.switches["Look up"]
-        XCTAssert(lookUp.waitForExistence(timeout: 5))
-        XCTAssertEqual(lookUp.value as? String, "0")
-        app.buttons["Innsbruck"].tap()
-        XCTAssert(app.buttons["Leave the sky view"].waitForExistence(timeout: 10))
-        XCTAssertEqual(lookUp.value as? String, "1")
-        XCTAssert(app.buttons["Innsbruck"].isSelected)
-        flip(app, "Look up")
-        XCTAssert(app.buttons["Home view"].waitForExistence(timeout: 10))
+    func testLooksUpFromWhereTheDeviceIs() {
+        XCUIDevice.shared.location = XCUILocation(location: CLLocation(latitude: 47.2692, longitude: 11.4041))
+        let app = XCUIApplication()
+        app.resetAuthorizationStatus(for: .location)
+        let launched = launch(link: "/?gs=48.1372,11.5756,Munich")
+        openMenu(launched)
+        launched.buttons["Sky"].tap()
+        flip(launched, "Look up")
+        let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow While Using App"]
+        if allow.waitForExistence(timeout: 10) {
+            allow.tap()
+        }
+        XCTAssert(launched.buttons["Leave the sky view"].waitForExistence(timeout: 20))
+        XCTAssertEqual(launched.switches["Look up"].value as? String, "1")
+        flip(launched, "Look up")
+        XCTAssert(launched.buttons["Home view"].waitForExistence(timeout: 10))
     }
 
     // The sky view holds the camera, keeping a link's camera mode for the globe,

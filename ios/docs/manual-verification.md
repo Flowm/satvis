@@ -388,3 +388,17 @@ where the same tap without typing closed it and return saved the name; not check
 hand. satvis.space answers 404 for `showcase/` until main is deployed, so the demos show
 no picture before then.
 
+## Native app: the branch review's fixes
+
+**Procedure.** A never-used iPhone 18 Pro simulator on iOS 27, the test catalog, the UI
+tests these touch, and a temporary one opening Bookmarks twice: first with the site at a
+local server of the web app's `public/`, then at a worker that does not answer.
+
+**Result, 2026-10-08.** The demos' pictures fetched on the first launch showed on the
+second, with no site to ask. A saved card shows a "…" that opens Rename and Delete, as
+the long press does. The Sky panel holds Look up alone over its note; with the
+simulator's location set to Innsbruck and the permission granted, Look up stood there
+and back. All seven UI tests passed: the menu column, a tap on the globe, a link, the
+Globe panel, bookmarks and Look up from the device. Not checked: a delete's Undo by eye,
+and Look up on a device.
+

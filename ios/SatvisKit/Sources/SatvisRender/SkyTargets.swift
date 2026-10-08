@@ -39,7 +39,7 @@ struct SkyJudgement {
     }
 
     func opacity(of position: SIMD3<Double>, from eye: SIMD3<Double>) -> Double {
-        unseen == .show ? 1 : unseen.opacity(visibility(of: position, from: eye))
+        unseen.opacity(visibility(of: position, from: eye))
     }
 
     /// The shader's share of the verdict (`skyOpacity` in Shaders/Points.msl):
@@ -57,14 +57,16 @@ extension GlobeRenderer {
     /// satellites close together are told apart (ADR 0003).
     public static let captureRadius = 60.0
 
-    /// The satellites above the horizon and on screen, as the last frame drew them.
-    public func skyTargets(viewSize: CGSize) -> [SkyTarget] {
+    /// The satellites above the horizon and on screen, as the last frame drew them,
+    /// within `radius` points of the middle: only they are judged for visibility.
+    public func skyTargets(viewSize: CGSize, within radius: Double = .infinity) -> [SkyTarget] {
         guard isSkySettled, let camera = skyCamera, let lastFrame else {
             return []
         }
         let eye = lastFrame.position
         let (east, north, up) = camera.frame
         let judgement = SkyJudgement(camera: camera, at: lastFrame.time, unseen: unseen)
+        let centre = CGPoint(x: viewSize.width / 2, y: viewSize.height / 2)
         return points.satellites.compactMap { satellite in
             guard let position = satellite.trajectory.position(at: lastFrame.time) else {
                 return nil
@@ -73,7 +75,8 @@ extension GlobeRenderer {
             let range = length(local)
             let elevation = asin(dot(local, up) / range) * 180 / .pi
             guard elevation > 0, let screen = screenPoint(position, viewSize: viewSize),
-                (0...viewSize.width).contains(screen.x), (0...viewSize.height).contains(screen.y)
+                (0...viewSize.width).contains(screen.x), (0...viewSize.height).contains(screen.y),
+                hypot(screen.x - centre.x, screen.y - centre.y) <= radius
             else {
                 return nil
             }
@@ -104,10 +107,9 @@ extension GlobeRenderer {
             return skyCache.lock
         }
         let centre = CGPoint(x: viewSize.width / 2, y: viewSize.height / 2)
-        let reachable = skyTargets(viewSize: viewSize)
+        let reachable = skyTargets(viewSize: viewSize, within: Self.captureRadius)
             .filter { unseen != .hide || $0.visibility == .visible }
             .map { (target: $0, distance: hypot($0.screen.x - centre.x, $0.screen.y - centre.y)) }
-            .filter { $0.distance <= Self.captureRadius }
             .sorted { $0.distance < $1.distance }
         let lock = reachable.first { candidate in
             points.position(of: candidate.target.id, at: lastFrame?.time ?? 0).map { !groundHides(candidate.target.id, at: $0) } ?? false

@@ -7426,6 +7426,18 @@
       {
         "preset": "default",
         "query": {
+          "scene": "Sky",
+          "gs": ""
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Sky view"
+        },
+        "name": "Sky view"
+      },
+      {
+        "preset": "default",
+        "query": {
           "sats": "A,B,C"
         },
         "summary": {

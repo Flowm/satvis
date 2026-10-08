@@ -45,23 +45,6 @@ inline bool satellitePosition(uint index, const device packed_float3 *samples, c
     return true;
 }
 
-/// How a satellite at `position`, `relative` from the eye, is drawn in the sky
-/// view, as `Visibility` and `UnseenMode.opacity` judge it: 1 as usual. Its
-/// constants mirror Visibility.swift's.
-inline float skyOpacity(float3 position, float3 relative, constant FrameUniforms &frame) {
-    if (frame.unseenOpacity >= 1.0) {
-        return 1.0;
-    }
-    if (frame.skyIsDark == 0.0) {
-        return frame.unseenOpacity;
-    }
-    const float shadowRadius = 6371000.0;
-    const float maximumRange = 5e6;
-    float along = dot(position, frame.sunDirection);
-    bool inShadow = along < 0.0 && dot(position, position) - along * along < shadowRadius * shadowRadius;
-    return inShadow || length(relative) > maximumRange ? frame.unseenOpacity : 1.0;
-}
-
 struct PointOut {
     float4 position [[position]];
     float size [[point_size]];

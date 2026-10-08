@@ -137,10 +137,12 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   Compass aiming (`SkyCompass`) is CoreMotion's attitude against true north, or
   magnetic north without a location, so it needs no calibration step; it can
   only be tried on a device, the simulator having no motion sensor. The
-  observer is chosen in the Sky panel, where picking a location or My location
-  enters the sky view there, and Look up stands on the last one stood on, else
-  the first; a link stands on its first station, and only a link with none asks
-  for the device's location. Its own pin is hidden underfoot. What cannot be seen
+  observer is where the device is, kept as the one saved station named
+  "Geolocation" and moved there each time, unlike the web app, whose Sky panel
+  lists the stations to stand on: the Sky panel's Look up stands there, as does a
+  link to the sky view that names no station. A link that names one stands on
+  its first, and a station's panel on that station. Its own pin is hidden
+  underfoot. What cannot be seen
   (ADR 0010) is dimmed or hidden by the point and label shaders, from the frame's
   sun and how dark the observer's sky is (`SkyJudgement`): per satellite on the
   CPU it would cost what the lock costs, every frame. A dimmed 3D model is drawn
@@ -195,12 +197,15 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   come from `web-tables.json`. A bookmark opens through `Session.open`, carrying the
   link's other parameters, and goes live without a `time`. Saved ones and opened
   links are kept in Application Support (`BookmarkStorage`), in backups, and synced
-  nowhere. An opened link is one the system hands over, the About page's, or
+  nowhere; a deleted one's picture stays while its own Undo lasts. A card's
+  actions are a long press, and a "…" on the card shows they are there. An opened link is one the system hands over, the About page's, or
   `SATVIS_LINK`: not the view a last run left, which is a reload. Pictures are the
   renderer's next frame (`GlobeRenderer.snapshot`), read from a drawable asked
-  for readable for that frame alone; an opened link's once everything active is
-  drawn, as the web app waits for its scene. The demos' are the site's
-  `showcase/` pictures, through the tiles' cache. A launch on the test catalog
+  for readable for that frame alone, 480 pixels across where the web app's are
+  320, soft on a card at 3x; an opened link's once everything active is drawn, as
+  the web app waits for its scene. The demos' are the site's `showcase/`
+  pictures, fetched as the star map is (`GroupRepository.image`): revalidated each
+  launch, kept, and shown offline once fetched. A launch on the test catalog
   keeps its bookmarks apart, so every UI test starts with none.
 - The Globe panel's camera mode is the web app's `camera` (`CameraFrame`, kept
   in links): Fixed, or Inertial, where the free camera is turned back each frame

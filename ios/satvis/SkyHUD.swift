@@ -161,7 +161,6 @@ private struct SkyInstruments: View {
     private func card(_ target: SkyTarget) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(target.name).fontWeight(.semibold)
-            // The web app's facts, a name and its value a row, the values right-aligned.
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 1) {
                 ForEach(Self.facts(target), id: \.0) { name, value in
                     GridRow {

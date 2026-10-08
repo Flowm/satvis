@@ -341,61 +341,42 @@ struct GlobePanel: View {
     }
 }
 
-/// Looking up from a location: the web app's Sky panel. Its settings stay in
-/// sight on the globe, disabled where they need the sky view (ADR 0003).
+/// Looking up from where the user is: the web app's Sky panel, less its list of
+/// locations, whose panels look up from them instead. Its settings stay in sight
+/// on the globe, disabled where they need the sky view (ADR 0003).
 struct SkyPanel: View {
     @Bindable var session: Session
     @State private var locating = false
 
     var body: some View {
         let inSky = session.observer != nil
-        PanelSection("Observer") {
-            // Picking where to stand is asking to stand there, the one marked too.
-            if !session.passes.stations.isEmpty {
-                Choices(
-                    selection: Binding {
-                        session.observerStation?.id
-                    } set: { id in
-                        if let id {
-                            session.enterSky(at: id)
-                        }
-                    },
-                    options: session.passes.stations.map { ($0.displayName, Optional($0.id)) })
-            }
-            Button {
-                Task {
-                    locating = true
-                    defer { locating = false }
-                    await session.lookUpFromHere()
-                }
-            } label: {
-                HStack {
-                    Label("My location", systemImage: "location")
-                    if locating {
-                        Spacer()
-                        ProgressView()
-                    }
-                }
-            }
-            .disabled(locating)
-        }
         PanelSection("Sky view") {
-            Toggle(
-                "Look up",
-                isOn: Binding {
-                    inSky
-                } set: { on in
-                    if !on {
-                        session.leaveSky()
-                    } else if let station = session.observerStation {
-                        session.enterSky(at: station.id)
-                    }
+            // The spinner in the switch's place while the position comes back.
+            if locating {
+                HStack {
+                    Text("Look up")
+                    Spacer()
+                    ProgressView()
                 }
-            )
-            .disabled(!inSky && session.observerStation == nil)
-            if session.observerStation == nil {
-                Note("Add a location to look up from.")
+                .accessibilityElement(children: .combine)
+                .accessibilityValue("Finding your location")
+            } else {
+                Toggle(
+                    "Look up",
+                    isOn: Binding {
+                        inSky
+                    } set: { on in
+                        guard on else {
+                            return session.leaveSky()
+                        }
+                        Task {
+                            locating = true
+                            defer { locating = false }
+                            await session.lookUpFromHere()
+                        }
+                    })
             }
+            Note("From where you are. A location's panel looks up from there.")
         }
         PanelSection("Aiming") {
             // The spinner in the switch's place, as the web app's replaces its slider:
@@ -421,20 +402,9 @@ struct SkyPanel: View {
             }
         }
         PanelSection("Out of sight") {
-            Segments(title: "Out of sight", selection: $session.unseen, options: UnseenMode.allCases.map { ($0.title, $0) })
+            Segments(title: "Out of sight", selection: $session.unseen, options: UnseenMode.allCases.map { ($0.rawValue.capitalized, $0) })
                 .disabled(!inSky)
             Note("In Earth's shadow, too far away or during daylight.")
-        }
-    }
-}
-
-extension UnseenMode {
-    /// The web app's names for them (Satvis.vue).
-    fileprivate var title: String {
-        switch self {
-        case .show: "Show"
-        case .dim: "Dim"
-        case .hide: "Hide"
         }
     }
 }

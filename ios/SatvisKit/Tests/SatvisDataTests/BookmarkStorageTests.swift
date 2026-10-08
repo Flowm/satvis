@@ -11,8 +11,8 @@ import Testing
         #expect(storage.lists() == BookmarkLists())
 
         var lists = BookmarkLists()
-        lists.save(name: "Home", path: "/", query: ["tags": "GNSS", "scene": "Sky"], id: "saved-1", at: 1)
-        lists.recordOpened(name: "OT satellites", path: "/ot", query: ["tags": "OT"], id: "opened-1", at: 2)
+        lists.save(name: "Home", scene: SceneLink(path: "/", query: ["tags": "GNSS", "scene": "Sky"]), id: "saved-1", at: 1)
+        lists.recordOpened(name: "OT satellites", scene: SceneLink(path: "/ot", query: ["tags": "OT"]), id: "opened-1", at: 2)
         storage.keep(lists)
         storage.keepPicture(Data([1, 2, 3]), for: "saved-1")
         storage.keepPicture(Data([4]), for: "opened-1")

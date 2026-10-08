@@ -5,12 +5,14 @@ import SatvisData
 
 /// The saved bookmarks and the opened links, and their pictures, kept on the
 /// device (src/stores/bookmarks.ts, ADR 0011). The demos are the web app's and
-/// ship with it.
+/// ship with it. Each edit is `BookmarkLists`', kept at once.
 @Observable
 final class BookmarkModel {
     private(set) var lists: BookmarkLists
-    /// By bookmark id, as JPEG; a demo's is on the site instead.
+    /// By bookmark id, as JPEG; a demo's is the site's (`Session.demoPictures`).
     private(set) var pictures: [String: Data] = [:]
+    /// Deleted bookmarks whose pictures stay while the delete can be undone.
+    @ObservationIgnored private var undoable: Set<String> = []
     @ObservationIgnored private let storage: BookmarkStorage
     /// Tells apart two bookmarks made in the same millisecond.
     @ObservationIgnored private var nextID = 0
@@ -26,9 +28,9 @@ final class BookmarkModel {
     var saved: [Bookmark] { lists.saved }
     var opened: [Bookmark] { lists.opened }
 
-    /// Saves a scene under `name`, and takes its link off the opened ones.
-    func save(name: String, path: String, query: [String: String], picture: Data?) -> Bookmark {
-        let bookmark = lists.save(name: name, path: path, query: query, id: newID(.saved), at: Self.now())
+    /// With its picture, taken before.
+    func save(name: String, scene: SceneLink, picture: Data?) -> Bookmark {
+        let bookmark = lists.save(name: name, scene: scene, id: newID(.saved), at: Self.now())
         if let picture {
             setPicture(bookmark.id, picture)
         }
@@ -36,13 +38,12 @@ final class BookmarkModel {
         return bookmark
     }
 
-    /// Records the link a visit started with.
-    func recordOpened(name: String, path: String, query: [String: String]) -> Bookmark {
+    /// Its picture comes later, by `setPicture`.
+    func recordOpened(name: String, scene: SceneLink) -> Bookmark {
         defer { persist() }
-        return lists.recordOpened(name: name, path: path, query: query, id: newID(.opened), at: Self.now())
+        return lists.recordOpened(name: name, scene: scene, id: newID(.opened), at: Self.now())
     }
 
-    /// Saves an opened link under `name`, keeping its id and picture.
     func keep(_ id: String, name: String) -> Bookmark? {
         defer { persist() }
         return lists.keep(id, name: name, at: Self.now())
@@ -53,14 +54,24 @@ final class BookmarkModel {
         persist()
     }
 
-    /// Deletes a saved bookmark, its picture kept until the panel lets the undo go.
+    /// Its picture stays until `release`, for `restore` to bring back.
     func remove(_ id: String) {
         lists.remove(id)
-        persist(prunes: false)
+        undoable.insert(id)
+        persist()
     }
 
     func restore(_ bookmark: Bookmark) {
         lists.restore(bookmark)
+        undoable.remove(bookmark.id)
+        persist()
+    }
+
+    /// The delete can no longer be undone: its picture goes.
+    func release(_ id: String) {
+        guard undoable.remove(id) != nil else {
+            return
+        }
         persist()
     }
 
@@ -69,7 +80,7 @@ final class BookmarkModel {
         persist()
     }
 
-    /// Gives a bookmark its picture, which an opened link's arrives after it.
+    /// An opened link's picture arrives after it.
     func setPicture(_ id: String, _ data: Data) {
         guard lists.ids.contains(id) else {
             return
@@ -78,11 +89,10 @@ final class BookmarkModel {
         storage.keepPicture(data, for: id)
     }
 
-    private func persist(prunes: Bool = true) {
-        if prunes {
-            pictures = pictures.filter { lists.ids.contains($0.key) }
-        }
-        storage.keep(lists, keepingPictures: prunes ? lists.ids : Set(pictures.keys))
+    private func persist() {
+        let kept = lists.ids.union(undoable)
+        pictures = pictures.filter { kept.contains($0.key) }
+        storage.keep(lists, keepingPictures: kept)
     }
 
     /// Unique within the device's lists, which are all it is compared against.
