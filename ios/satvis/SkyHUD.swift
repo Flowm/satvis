@@ -161,7 +161,7 @@ private struct SkyInstruments: View {
     private func card(_ target: SkyTarget) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(target.name).fontWeight(.semibold)
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 1) {
+            Grid(alignment: .leading, horizontalSpacing: 28, verticalSpacing: 1) {
                 ForEach(Self.facts(target), id: \.0) { name, value in
                     GridRow {
                         Text(name)
@@ -176,7 +176,6 @@ private struct SkyInstruments: View {
         .foregroundStyle(Self.ink)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .frame(minWidth: 220, alignment: .leading)
         .background(Color(red: 0x30 / 255, green: 0x33 / 255, blue: 0x36 / 255).opacity(0.85), in: .rect(cornerRadius: 8))
     }
 
