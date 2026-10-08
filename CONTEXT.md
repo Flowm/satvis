@@ -215,7 +215,7 @@ discussion; sharpen them here when they drift.
   Live by default. The clock is pinned whenever it is more than a minute off the
   present, however it got there (a `time` in the url, a scrub, a pass link, a pause,
   a fast playback speed), and live again once it is back. The deck's Live dot and
-  an absent `time` always agree.
+  an absent `time` always agree, so a url that drops `time` takes the clock live.
 - **Clock deck**: the bottom controls that replace Cesium's animation and
   timeline widgets: pause, playback speed and scrubbing, as a control row over a
   scale row (`ClockDeck.vue`). One row that is either instrument, not a port of
