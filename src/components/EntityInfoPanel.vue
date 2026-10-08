@@ -205,7 +205,7 @@ import { storeToRefs } from "pinia";
 import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 
 import { useController } from "../composables/useController";
-import { useSelectedEntity } from "../composables/useSelectedEntity";
+import { type InfoTab, useSelectedEntity } from "../composables/useSelectedEntity";
 import { externalLinks } from "../config/externalLinks";
 import { ORBIT_CLASS_COLOR } from "../config/orbitClass";
 import { SKY_MODE } from "../config/viewModes";
@@ -257,6 +257,7 @@ const emptyPassText = computed(() => (groundStationAvailable.value ? "No passes 
 
 const satnum = computed(() => (selection.value?.kind === "satellite" ? selection.value.sat.props.satnum : undefined));
 const links = computed(() => (satnum.value ? externalLinks(satnum.value) : []));
+/** Empty for a ground station, or a record with no metadata. */
 const spacecraftRows = computed(() => satelliteInfo.value?.spacecraftRows ?? []);
 /** Only satellites a model manifest lists have one (ADR 0007). */
 const modelFile = computed(() => (selection.value?.kind === "satellite" ? selection.value.sat.props.metadata.modelFile : undefined));
@@ -282,7 +283,7 @@ const nextPassSubject = computed(() => (nextPass.value ? (nextPass.value.groundS
 const showTimeline = computed(() => selection.value?.kind === "satellite");
 
 const tabs = computed(() => {
-  const items: { label: string; slot: string; value: string; badge?: number }[] = [];
+  const items: { label: string; slot: InfoTab; value: InfoTab; badge?: number }[] = [];
   if (satelliteInfo.value || elements.value) {
     items.push({ label: "Orbit", slot: "orbit", value: "orbit" });
   }
@@ -297,7 +298,7 @@ const tabs = computed(() => {
  * Controlled, not left to UTabs: the component is not remounted across selections,
  * and an uncontrolled UTabs keeps a tab the new selection lacks (a ground station has no Orbit).
  */
-const resolvedTab = computed(() => (tabs.value.some((item) => item.value === preferredTab.value) ? preferredTab.value : (tabs.value[0]?.value ?? "passes")));
+const resolvedTab = computed<InfoTab>(() => (tabs.value.some((item) => item.value === preferredTab.value) ? preferredTab.value : (tabs.value[0]?.value ?? "passes")));
 
 /** Pressing the active tab folds the body away; the selection stays. */
 const collapsed = ref(false);
@@ -315,8 +316,11 @@ const activeTab = computed({
       collapsed.value = !collapsed.value;
       return;
     }
-    collapsed.value = false;
-    preferredTab.value = value;
+    const tab = tabs.value.find((item) => item.value === value);
+    if (tab) {
+      collapsed.value = false;
+      preferredTab.value = tab.value;
+    }
   },
 });
 
@@ -436,8 +440,9 @@ function notifyPasses(): void {
   user-select: text;
 }
 
-/* A long press on a tab would select its label. */
-.entity-info-panel :deep([role="tablist"]) {
+/* A long press on a tab or a pass control would select its label. */
+.entity-info-panel :deep([role="tablist"]),
+.passes__bar {
   -webkit-user-select: none;
   user-select: none;
 }

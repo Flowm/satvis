@@ -15,6 +15,7 @@ const ISS = new Orbit(
   )[0] as GpRecord,
 );
 
+/** Both tabs' rows, as the native app lists them. */
 function rowsOf({ orbitRows, spacecraftRows }: SatelliteInfo): [string, string][] {
   return [...orbitRows, ...spacecraftRows];
 }

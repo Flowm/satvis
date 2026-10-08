@@ -1,5 +1,5 @@
-<!-- The info panel's Model tab. Mounted only while the tab shows, so the second
-     WebGL context lives no longer than it is looked at. -->
+<!-- The model on the info panel's Spacecraft tab. Mounted only while the tab shows, so the
+     second WebGL context lives no longer than it is looked at. -->
 <template>
   <div class="model-view" :data-state="state">
     <div ref="containerEl" class="model-view__scene" :aria-label="`3D model of ${name}`" role="img" />
@@ -21,18 +21,26 @@ import { modelUrl } from "../modules/satelliteGraphics";
 const props = defineProps<{
   /** Path under /data/models/, from the satellite's metadata. */
   modelFile: string;
+  /** The satellite's, for the scene's accessible label. */
   name: string;
 }>();
 
+/** Where the Cesium canvas goes. */
 const containerEl = useTemplateRef<HTMLDivElement>("containerEl");
+/** Picks the note over the scene and whether the reset button shows. */
 const state = ref<CloseUpState>("loading");
 /** Not reactive: Cesium objects break under a deep proxy. */
 let closeUp: ModelCloseUp | undefined;
 
 onMounted(() => {
-  closeUp = new ModelCloseUp(containerEl.value!, (next) => {
-    state.value = next;
-  });
+  try {
+    closeUp = new ModelCloseUp(containerEl.value!, (next) => {
+      state.value = next;
+    });
+  } catch {
+    state.value = "failed";
+    return;
+  }
   void closeUp.load(modelUrl(props.modelFile));
 });
 

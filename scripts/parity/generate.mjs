@@ -139,8 +139,7 @@ try {
   });
 
   // The info panel's Orbit and Spacecraft tabs: derived, curated, GCAT and SATCAT facts,
-  // then the element set as the panel shows it. The native app shows the facts as one
-  // list, the two tabs' rows in order.
+  // then the element set as the panel shows it.
   const details = records.map((record, index) => {
     const orbit = new Orbit(parsed[index].name, record);
     const { orbitClass, chips, orbitRows, spacecraftRows } = entityInfo.getSatelliteInfo(orbit, record.metadata.orbitClass, record.metadata);
