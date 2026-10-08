@@ -57,15 +57,9 @@ public struct WebTables: Sendable, Decodable {
 public enum SatelliteDetails {
     /// Label and value rows: the orbit, then curated, GCAT and SATCAT facts.
     public static func facts(_ record: GPRecord, propagator: SGP4Propagator?, tables: WebTables = .shared) -> [(String, String)] {
-        var rows: [(String, String)] = []
-        let regime = record.orbitClass.rawValue
-        if let propagator {
-            let orbit = OrbitFacts(propagator)
-            rows.append(("Orbit", orbit.isSunSynchronous ? "\(regime) · Sun-synchronous" : regime))
-            rows += orbit.rows
-        } else {
-            rows.append(("Orbit", regime))
-        }
+        let orbit = propagator.map(OrbitFacts.init)
+        var rows: [(String, String)] = [("Orbit", regime(record, orbit))]
+        rows += orbit?.rows ?? []
         let metadata = record.metadata
         func label(_ table: [String: String], _ key: String) -> String? {
             metadata[key]?.string.map { table[$0] ?? $0 }
@@ -139,6 +133,20 @@ public enum SatelliteDetails {
     /// most three decimals.
     static func groupedString(_ value: Double) -> String {
         value.formatted(.number.locale(Locale(identifier: "en_US")).precision(.fractionLength(0...3)).rounded(rule: .toNearestOrAwayFromZero))
+    }
+
+    /// What the panel shows under the name, as the web app's `SatelliteInfo.chips`:
+    /// the orbit, then the country and the status where the record has them.
+    public static func chips(_ record: GPRecord, propagator: SGP4Propagator?, tables: WebTables = .shared) -> [String] {
+        let metadata = record.metadata
+        let status = metadata["opsStatus"]?.string.map { tables.satcat.opsStatus[$0] ?? $0 }
+        return [regime(record, propagator.map(OrbitFacts.init)), metadata["country"]?.string, status].compactMap { $0 }
+    }
+
+    /// The orbit class, and whether the orbit is Sun-synchronous where it is known.
+    private static func regime(_ record: GPRecord, _ orbit: OrbitFacts?) -> String {
+        let regime = record.orbitClass.rawValue
+        return orbit?.isSunSynchronous == true ? "\(regime) · Sun-synchronous" : regime
     }
 
     public enum Elements: Sendable, Equatable {

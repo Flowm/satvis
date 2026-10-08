@@ -22,7 +22,7 @@ struct InfoPanel: View {
         NavigationStack {
             List {
                 Section {
-                    chips
+                    chips(propagator)
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         LiveStrip(position: try? propagator?.livePosition(epochMilliseconds: clock.now()))
                     }
@@ -88,18 +88,12 @@ struct InfoPanel: View {
         }
     }
 
-    private var chips: some View {
-        let metadata = entry.record.metadata
-        let tables = WebTables.shared.satcat
-        let country = metadata["country"]?.string
-        let status = metadata["opsStatus"]?.string.map { tables.opsStatus[$0] ?? $0 }
-        return HStack {
-            Chip(text: entry.record.orbitClass.rawValue, color: Color(orbitClass: entry.record.orbitClass))
-            if let country {
-                Chip(text: country, color: .secondary)
-            }
-            if let status {
-                Chip(text: status, color: .secondary)
+    /// The web app's chips: the orbit in its class's colour, then the rest.
+    private func chips(_ propagator: SGP4Propagator?) -> some View {
+        let chips = SatelliteDetails.chips(entry.record, propagator: propagator)
+        return ChipRows {
+            ForEach(Array(chips.enumerated()), id: \.offset) { index, chip in
+                Chip(text: chip, color: index == 0 ? Color(orbitClass: entry.record.orbitClass) : .secondary)
             }
         }
     }
@@ -232,10 +226,50 @@ private struct Chip: View {
     var body: some View {
         Text(text)
             .font(.caption.bold())
+            .lineLimit(1)
             .foregroundStyle(color)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(.quaternary, in: Capsule())
+    }
+}
+
+/// Chips left to right, onto another row where the next does not fit, as the web
+/// app's wrap: "LEO · Sun-synchronous" and two more do not fit one row on a phone.
+private struct ChipRows: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = rows(subviews, width: proposal.width ?? .infinity)
+        let height = rows.map(\.height).reduce(0, +) + spacing * CGFloat(max(rows.count - 1, 0))
+        return CGSize(width: rows.map(\.width).max() ?? 0, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in rows(subviews, width: bounds.width) {
+            var x = bounds.minX
+            for index in row.indices {
+                let size = subviews[index].sizeThatFits(.unspecified)
+                subviews[index].place(at: CGPoint(x: x, y: y + (row.height - size.height) / 2), proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += row.height + spacing
+        }
+    }
+
+    /// The subviews by row, each as wide as fits `width`, and every row's size.
+    private func rows(_ subviews: Subviews, width: CGFloat) -> [(indices: [Int], width: CGFloat, height: CGFloat)] {
+        var rows: [(indices: [Int], width: CGFloat, height: CGFloat)] = []
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            if let last = rows.last, last.width + spacing + size.width <= width {
+                rows[rows.count - 1] = (last.indices + [index], last.width + spacing + size.width, max(last.height, size.height))
+            } else {
+                rows.append(([index], size.width, size.height))
+            }
+        }
+        return rows
     }
 }
 

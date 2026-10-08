@@ -15,7 +15,14 @@ import Testing
             let rows: [[String]]?
         }
 
-        let facts: [[String]]
+        /// The web app's `SatelliteInfo`.
+        struct Facts: Decodable {
+            let orbitClass: String
+            let chips: [String]
+            let rows: [[String]]
+        }
+
+        let facts: Facts
         let elements: Elements
     }
 
@@ -29,7 +36,9 @@ import Testing
         for (record, expected) in zip(records, fixture.details) {
             let propagator = try SGP4Propagator(record.meanElements)
             let facts = SatelliteDetails.facts(record, propagator: propagator).map { [$0.0, $0.1] }
-            #expect(facts == expected.facts, "\(record.name)")
+            #expect(facts == expected.facts.rows, "\(record.name)")
+            #expect(SatelliteDetails.chips(record, propagator: propagator) == expected.facts.chips, "\(record.name)")
+            #expect(record.orbitClass.rawValue == expected.facts.orbitClass, "\(record.name)")
 
             #expect(abs(SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate) - expected.elements.epochMs) < 1, "\(record.name)")
             switch SatelliteDetails.elements(record, epochJulianDate: propagator.epochJulianDate) {
