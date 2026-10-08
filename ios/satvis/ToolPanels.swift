@@ -161,6 +161,8 @@ struct ToolPanelView<Content: View>: View {
     var fillsWidth = false
     let onClose: () -> Void
     @ViewBuilder let content: Content
+    /// The column's rows', so that the two rules meet.
+    @ScaledMetric(relativeTo: .body) private var scale = 1.0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -172,12 +174,13 @@ struct ToolPanelView<Content: View>: View {
                     .labelStyle(.iconOnly)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.secondary)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 44 * scale, height: 44 * scale)
                     .contentShape(.rect)
             }
             .padding(.leading, 16)
             .padding(.trailing, 4)
-            .padding(.vertical, 4)
+            // The column's inset over its toggle's row, and none under it.
+            .padding(.top, 4)
             Divider()
             ViewThatFits(in: .vertical) {
                 padded(content)
