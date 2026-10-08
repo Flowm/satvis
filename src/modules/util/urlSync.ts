@@ -142,17 +142,8 @@ function applyQuery(entry: Registration, query: Query, defaults: Record<string, 
  * late store still reads its url.
  */
 function buildQuery(router: Router, hydrated: Registration[]): LocationQuery {
-  const current = router.currentRoute.value.query;
   const owned = new Set(hydrated.flatMap((entry) => entry.specs.map(paramOf)));
-
-  const next: LocationQuery = {};
-  for (const [param, value] of Object.entries(current)) {
-    if (!owned.has(param)) {
-      next[param] = value;
-    }
-  }
-  Object.assign(next, encodeState(hydrated));
-  return next;
+  return { ...foreignParams(router.currentRoute.value.query, owned), ...encodeState(hydrated) };
 }
 
 /** The owned parameters that differ from their defaults. */
@@ -310,6 +301,11 @@ export async function urlHydrated(): Promise<void> {
 /** The parameters the synced stores own. Everything else in a url is foreign. */
 export function syncedParams(): ReadonlySet<string> {
   return new Set([...registry.values()].flatMap((entry) => entry.specs.map(paramOf)));
+}
+
+/** The parameters of `query` that `owned` leaves out, such as `framems`, untouched. */
+export function foreignParams(query: LocationQuery, owned: ReadonlySet<string> = syncedParams()): LocationQuery {
+  return Object.fromEntries(Object.entries(query).filter(([param]) => !owned.has(param)));
 }
 
 /** The state as the url states it: owned parameters only, defaults left out. */

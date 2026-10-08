@@ -53,6 +53,7 @@ const thumbnailUrl = computed(() => {
   return thumbnail && !thumbnail.startsWith("data:") ? `${import.meta.env.BASE_URL}${thumbnail}` : thumbnail;
 });
 
+/** The icon of the Sky, Globe or tracking camera. */
 const whereIcon = computed(() => (props.summary.where.startsWith("Sky") ? "lucide:telescope" : props.summary.where.startsWith("Following") ? "lucide:crosshair" : "lucide:globe"));
 
 const nameInput = ref<HTMLInputElement>();
@@ -73,7 +74,7 @@ watch(
 
 /**
  * Leaving the field keeps the name, unless for the control that saves it (`data-saves-name`),
- * which would otherwise find the edit already over. Enter keeps it too; Escape keeps the old one.
+ * which would otherwise find the edit already over.
  */
 function onBlur(event: FocusEvent): void {
   if (props.renaming && !(event.relatedTarget as HTMLElement | null)?.closest("[data-saves-name]")) {

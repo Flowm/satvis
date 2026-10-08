@@ -2,7 +2,7 @@
 // recording the link a visit started with (docs/adr/0011-bookmarks.md).
 
 import { computed, reactive, ref } from "vue";
-import { type LocationQuery, type Router, useRouter } from "vue-router";
+import { type Router, useRouter } from "vue-router";
 
 import { DEMO_BOOKMARKS } from "../config/bookmarks";
 import { presetNameOf, presetPath, resolvePreset } from "../config/presets";
@@ -11,7 +11,7 @@ import { type Bookmark, type BookmarkSummary, defaultName, type Link, sameLink, 
 import { DeviceDetect } from "../modules/util/DeviceDetect";
 import { captureThumbnail, sceneSettled } from "../modules/util/thumbnail";
 import type { Query } from "../modules/util/urlCodec";
-import { syncedParams, syncedQuery, urlHydrated } from "../modules/util/urlSync";
+import { foreignParams, syncedParams, syncedQuery, urlHydrated } from "../modules/util/urlSync";
 import { useBookmarkStore } from "../stores/bookmarks";
 import { useController } from "./useController";
 
@@ -34,19 +34,17 @@ function defaultsFor(path: string): Query {
 const routePath = ref(presetPath(presetNameOf(window.location.pathname)));
 void resolvePreset().then(({ name }) => (routePath.value = presetPath(name)));
 
-/** The parameters of `query` that belong to no store, such as `framems`. A bookmark keeps them as they are. */
-function foreign(query: LocationQuery): LocationQuery {
-  const owned = syncedParams();
-  return Object.fromEntries(Object.entries(query).filter(([param]) => !owned.has(param)));
-}
-
+/**
+ * The Bookmarks panel's model: the three lists, which one is on screen, and the actions.
+ * Parameters no store owns, such as `framems`, stay as they are through every navigation.
+ */
 export function useBookmarks() {
   const cc = useController();
   const router = useRouter();
   const store = useBookmarkStore();
 
   const route = computed(() => router.currentRoute.value);
-  /** The scene's own parameters, as the url states them. */
+  // The scene's own parameters, as the url states them.
   const current = computed<Query>(() => {
     const owned = syncedParams();
     return Object.fromEntries(Object.entries(route.value.query).flatMap(([param, value]) => (owned.has(param) && typeof value === "string" ? [[param, value]] : [])));
@@ -55,8 +53,10 @@ export function useBookmarks() {
   /** The scene on screen as a link. */
   const here = computed<Link>(() => ({ path: routePath.value, query: current.value }));
 
+  /** Whether `bookmark` is the scene on screen. */
   const isCurrent = (bookmark: Bookmark): boolean => sameLink(bookmark, here.value);
 
+  /** What a bookmark's card says, read against the bookmark's own preset. */
   const summary = (bookmark: Bookmark): BookmarkSummary => summarize(bookmark.query, defaultsFor(bookmark.path));
 
   /**
@@ -64,7 +64,7 @@ export function useBookmarks() {
    * sync reads the route's preset defaults only once, at startup.
    */
   function open(bookmark: Bookmark): void {
-    const query = { ...foreign(route.value.query), ...bookmark.query };
+    const query = { ...foreignParams(route.value.query), ...bookmark.query };
     if (bookmark.path === routePath.value) {
       // A paused or fast clock stays off `time` for its first minute, so a url without
       // one would leave it paused or fast: a bookmark without `time` is live.
@@ -80,7 +80,7 @@ export function useBookmarks() {
   /** The route's preset as it opens: every scene parameter dropped, the clock live. */
   function openDefault(): void {
     cc.goLive();
-    void router.push({ query: foreign(route.value.query) });
+    void router.push({ query: foreignParams(route.value.query) });
   }
 
   /** Saves the scene on screen, named after what it shows. */
@@ -90,7 +90,25 @@ export function useBookmarks() {
     return store.save(name, here.value, thumbnail);
   }
 
-  return { demos: DEMO_BOOKMARKS, saved: computed(() => store.saved), opened: computed(() => store.opened), isDefault, isCurrent, summary, open, openDefault, saveCurrent, store };
+  return {
+    demos: DEMO_BOOKMARKS,
+    /** Newest first. */
+    saved: computed(() => store.saved),
+    /** Newest first. */
+    opened: computed(() => store.opened),
+    /** Whether the scene on screen is the route's preset as it opens. */
+    isDefault,
+    isCurrent,
+    summary,
+    open,
+    openDefault,
+    saveCurrent,
+    rename: store.rename,
+    keep: store.keep,
+    remove: store.remove,
+    restore: store.restore,
+    forget: store.forget,
+  };
 }
 
 /**

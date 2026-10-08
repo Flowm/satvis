@@ -29,6 +29,7 @@ export function captureThumbnail(scene: Scene): Promise<string | undefined> {
   });
 }
 
+/** `source` scaled to the thumbnail width on the backdrop, or undefined for an empty canvas. */
 function drawThumbnail(source: HTMLCanvasElement): string | undefined {
   if (source.width === 0 || source.height === 0) {
     return undefined;

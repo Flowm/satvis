@@ -18,6 +18,7 @@ function storage(): Storage | undefined {
   }
 }
 
+/** What is stored of `kind`, or none when storage is out of reach. */
 function load(kind: keyof typeof STORAGE_KEY): Bookmark[] {
   try {
     return parseBookmarks(storage()?.getItem(STORAGE_KEY[kind]) ?? null, kind);
@@ -27,7 +28,7 @@ function load(kind: keyof typeof STORAGE_KEY): Bookmark[] {
 }
 
 /** A full quota drops the pictures before the bookmarks. */
-function store(kind: keyof typeof STORAGE_KEY, bookmarks: readonly Bookmark[]): void {
+function persist(kind: keyof typeof STORAGE_KEY, bookmarks: readonly Bookmark[]): void {
   const target = storage();
   if (!target) {
     return;
@@ -43,17 +44,20 @@ function store(kind: keyof typeof STORAGE_KEY, bookmarks: readonly Bookmark[]): 
   }
 }
 
+/** Tells apart two bookmarks made in the same millisecond. */
 let nextId = 0;
+/** Unique within a browser's lists, which are all it is compared against. */
 const newId = (kind: BookmarkKind): string => `${kind}-${Date.now().toString(36)}-${(nextId++).toString(36)}`;
 
+/** The saved bookmarks and the opened links, persisted per browser. */
 export const useBookmarkStore = defineStore("bookmarks", () => {
   /** Newest first. */
   const saved = ref<Bookmark[]>(load("saved"));
   /** Newest first, at most `OPENED_LIMIT`. */
   const opened = ref<Bookmark[]>(load("opened"));
 
-  watch(saved, (bookmarks) => store("saved", bookmarks), { deep: true });
-  watch(opened, (bookmarks) => store("opened", bookmarks), { deep: true });
+  watch(saved, (bookmarks) => persist("saved", bookmarks), { deep: true });
+  watch(opened, (bookmarks) => persist("opened", bookmarks), { deep: true });
 
   // Another tab's change arrives as a storage event. Writing the same value back fires none, so tabs do not echo.
   globalThis.addEventListener?.("storage", (event: StorageEvent) => {
@@ -64,7 +68,7 @@ export const useBookmarkStore = defineStore("bookmarks", () => {
     }
   });
 
-  /** Saves a scene under `name`, and returns the bookmark. */
+  /** Saves a scene under `name`, and takes its link off the opened ones. */
   function save(name: string, { path, query }: Link, thumbnail?: string): Bookmark {
     const bookmark: Bookmark = { id: newId("saved"), kind: "saved", name, path, query: { ...query }, thumbnail, at: Date.now() };
     saved.value = [bookmark, ...saved.value];
@@ -100,6 +104,7 @@ export const useBookmarkStore = defineStore("bookmarks", () => {
     }
   }
 
+  /** Gives a saved bookmark or an opened link its picture, which arrives after it. */
   function setThumbnail(id: string, thumbnail: string): void {
     const bookmark = [...saved.value, ...opened.value].find((candidate) => candidate.id === id);
     if (bookmark) {
@@ -107,7 +112,7 @@ export const useBookmarkStore = defineStore("bookmarks", () => {
     }
   }
 
-  /** Deletes a saved bookmark. */
+  /** Deletes a saved bookmark; `restore` undoes it. */
   function remove(id: string): void {
     saved.value = saved.value.filter((bookmark) => bookmark.id !== id);
   }

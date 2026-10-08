@@ -16,8 +16,11 @@ export interface Link {
 
 /** A link, with what a card needs to show it. */
 export interface Bookmark extends Link {
+  /** Unique among the bookmarks of one browser. */
   id: string;
+  /** Which list it is on. */
   kind: BookmarkKind;
+  /** The user's, or one drawn from the scene (`defaultName`). */
   name: string;
   /** A data url, or a path for a demo. */
   thumbnail?: string;
@@ -60,8 +63,10 @@ export function withOpened(opened: readonly Bookmark[], link: Bookmark): Bookmar
   return [link, ...opened.filter((other) => !sameLink(other, link))].slice(0, OPENED_LIMIT);
 }
 
+/** A string-list parameter's members; empty for an empty or absent one. */
 const list = (value: string | undefined): string[] => (value ? value.split(",") : []);
 
+/** "A", "A and B", "A, B and C". */
 function joinNames(names: readonly string[]): string {
   return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }
@@ -88,6 +93,7 @@ function timeLabel(iso: string, now: Date): string {
   return `${date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year, timeZone: "UTC" })}, ${date.toISOString().slice(11, 16)} UTC`;
 }
 
+/** The globe's projections by their `scene` value. */
 const PROJECTION: Readonly<Record<string, string>> = { "3D": "Globe", "2D": "Flat map", Columbus: "Columbus view" };
 
 /**

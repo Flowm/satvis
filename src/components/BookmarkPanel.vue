@@ -55,6 +55,7 @@ import { useBookmarks } from "../composables/useBookmarks";
 import type { Bookmark } from "../modules/util/bookmarks";
 import BookmarkCard from "./BookmarkCard.vue";
 
+/** The kind of bookmark a tab lists. */
 type Tab = "demo" | "saved" | "opened";
 
 /** "Recent" on screen: opened links are the links recent visits started with. */
@@ -64,17 +65,21 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "opened", label: "Recent" },
 ];
 
+/** What an empty tab says. Demos are never empty. */
 const EMPTY: Record<Tab, string> = {
   demo: "",
   saved: "Save this view to come back to it.",
   opened: "Links you open show up here.",
 };
 
-const { demos, saved, opened, isDefault, isCurrent, summary, open, openDefault, saveCurrent, store } = useBookmarks();
+const { demos, saved, opened, isDefault, isCurrent, summary, open, openDefault, saveCurrent, rename, keep, remove, restore, forget } = useBookmarks();
 const toast = useToast();
 
+/** Opens on Saved for a visitor who has saved something. */
 const tab = ref<Tab>(saved.value.length > 0 ? "saved" : "demo");
+/** The open tab's bookmarks. */
 const shown = computed(() => (tab.value === "demo" ? demos : tab.value === "saved" ? saved.value : opened.value));
+/** The badge on a tab; demos have none. */
 const count = (key: Tab): number => (key === "saved" ? saved.value.length : key === "opened" ? opened.value.length : 0);
 
 /** The saved bookmark of the scene on screen, if there is one. */
@@ -83,13 +88,16 @@ const savedCurrent = computed(() => saved.value.find(isCurrent));
 /** The bookmark whose name is being edited, and the name as typed so far. */
 const renaming = ref<string>();
 const draft = ref("");
+/** A picture is being taken, which a second press must not repeat. */
 const saving = ref(false);
 
+/** Opens `bookmark`'s name for editing. */
 function startRename(bookmark: Bookmark): void {
   draft.value = bookmark.name;
   renaming.value = bookmark.id;
 }
 
+/** Shows a saved bookmark with its name open. */
 function showSaved(bookmark: Bookmark): void {
   tab.value = "saved";
   startRename(bookmark);
@@ -98,7 +106,7 @@ function showSaved(bookmark: Bookmark): void {
 /** A blank name keeps the old one (the store's `rename`). */
 function commitRename(): void {
   if (renaming.value !== undefined) {
-    store.rename(renaming.value, draft.value);
+    rename(renaming.value, draft.value);
     renaming.value = undefined;
   }
 }
@@ -115,8 +123,9 @@ async function onSave(): Promise<void> {
   }
 }
 
+/** Saves an opened link, keeping its name for the visitor to change. */
 function onKeep(bookmark: Bookmark): void {
-  const kept = store.keep(bookmark.id, bookmark.name);
+  const kept = keep(bookmark.id, bookmark.name);
   if (kept) {
     tab.value = "saved";
     startRename(kept);
@@ -126,14 +135,14 @@ function onKeep(bookmark: Bookmark): void {
 /** Deleting a saved bookmark can be undone; forgetting an opened link needs no undo. */
 function onRemove(bookmark: Bookmark): void {
   if (bookmark.kind === "opened") {
-    store.forget(bookmark.id);
+    forget(bookmark.id);
     return;
   }
-  store.remove(bookmark.id);
+  remove(bookmark.id);
   toast.add({
     title: `Deleted “${bookmark.name}”`,
     duration: 5000,
-    actions: [{ label: "Undo", color: "neutral", variant: "outline", onClick: () => store.restore(bookmark) }],
+    actions: [{ label: "Undo", color: "neutral", variant: "outline", onClick: () => restore(bookmark) }],
   });
 }
 </script>
