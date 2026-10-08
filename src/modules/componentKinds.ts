@@ -57,19 +57,17 @@ export interface SatelliteBatches {
   tracks: PolylineBatch;
 }
 
-/** What a kind may ask of the satellite it draws. */
-/**
- * How the sky view draws a satellite by its visibility (CONTEXT.md); "normal" outside it.
- * "muted" is daylight's, "dimmed" the dark sky's.
- */
-export type SkyAppearance = "normal" | "muted" | "dimmed" | "hidden";
+/** How the sky view draws a satellite by its visibility (CONTEXT.md); "normal" outside it. */
+export type SkyAppearance = "normal" | "dimmedDaylight" | "dimmedDark" | "hidden";
 
+/** What a kind may ask of the satellite it draws. */
 export interface ComponentHost {
   readonly viewer: Viewer;
   readonly props: SatelliteProperties;
   readonly batches: SatelliteBatches;
   readonly isTracked: boolean;
   readonly model: ModelSize;
+  /** Set by the sky view each frame. */
   readonly skyAppearance: SkyAppearance;
   /** An entity named after the satellite, framed for tracking. */
   entity(key: string, graphics: unknown, position: unknown, moving: boolean): Entity;
@@ -102,7 +100,6 @@ export interface ComponentKind {
 /** Converted once and shared by every point, like Cesium's own Color constants. */
 const POINT_COLOR = Object.fromEntries(Object.entries(ORBIT_CLASS_COLOR).map(([orbitClass, hex]) => [orbitClass, Color.fromCssColorString(hex)])) as Record<OrbitClass, Color>;
 
-/** A sky appearance's colours. */
 interface Palette {
   point: Record<OrbitClass, Color>;
   outline: Color;
@@ -110,6 +107,7 @@ interface Palette {
   model: Color | undefined;
 }
 
+/** The normal colours, or all of them at `alpha`. */
 function palette(alpha?: number): Palette {
   if (alpha === undefined) {
     return { point: POINT_COLOR, outline: Color.DIMGREY, model: undefined };
@@ -127,7 +125,7 @@ function palette(alpha?: number): Palette {
  * bright as a visible grey one. Daylight dims every satellite alike, so it needs no
  * contrast, and 0.22 vanished against the blue.
  */
-const PALETTES: Record<Exclude<SkyAppearance, "hidden">, Palette> = { normal: palette(), muted: palette(0.6), dimmed: palette(0.3) };
+const PALETTES: Record<Exclude<SkyAppearance, "hidden">, Palette> = { normal: palette(), dimmedDaylight: palette(0.6), dimmedDark: palette(0.3) };
 
 /**
  * CSS pixels, the orbit's and the orbit track's. At 2 px the orbits bunched around a
@@ -260,7 +258,7 @@ function atSatellite(host: ComponentHost, key: string, graphics: unknown): Entit
   return host.entity(key, graphics, host.props.trajectory.entityPosition, true);
 }
 
-/** `restyle` sets the graphics' colours from the appearance's palette. */
+/** Shows or hides the entity, and has `restyle` colour its graphics. */
 function appearAtSatellite(component: Component, host: ComponentHost, restyle: (entity: Entity, colors: Palette) => void): void {
   if (component instanceof Entity) {
     const appearance = host.skyAppearance;

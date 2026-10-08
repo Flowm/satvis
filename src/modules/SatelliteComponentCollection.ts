@@ -79,11 +79,11 @@ export class SatelliteComponentCollection implements ComponentHost {
     }
   }
 
+  /** Written by the sky view each frame, so an unchanged value returns at once. */
   get skyAppearance(): SkyAppearance {
     return this.#skyAppearance;
   }
 
-  /** Written by the sky view each frame, so an unchanged value returns at once. */
   set skyAppearance(appearance: SkyAppearance) {
     if (appearance === this.#skyAppearance) {
       return;

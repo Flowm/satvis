@@ -387,7 +387,7 @@ describe("SatelliteComponentCollection sky appearance", () => {
     const label = sat.components.Label as Entity;
     const time = viewer.clock.currentTime;
 
-    sat.skyAppearance = "dimmed";
+    sat.skyAppearance = "dimmedDark";
     expect(alpha(point.point!.color, time)).toBeLessThan(1);
     expect(alpha(label.label!.fillColor, time)).toBeLessThan(1);
     expect(point.show).toBe(true);
@@ -397,19 +397,19 @@ describe("SatelliteComponentCollection sky appearance", () => {
     expect(alpha(label.label!.fillColor, time)).toBe(1);
   });
 
-  test("mutes in daylight less than it dims on a dark sky", async () => {
+  test("dims less in daylight than on a dark sky", async () => {
     const { sat, viewer } = await setup({ modelFile: null });
     sat.show(["Point"]);
     const point = sat.components.Point as Entity;
     const time = viewer.clock.currentTime;
 
-    sat.skyAppearance = "muted";
-    const muted = alpha(point.point!.color, time);
-    sat.skyAppearance = "dimmed";
-    const dimmed = alpha(point.point!.color, time);
+    sat.skyAppearance = "dimmedDaylight";
+    const daylight = alpha(point.point!.color, time);
+    sat.skyAppearance = "dimmedDark";
+    const dark = alpha(point.point!.color, time);
 
-    expect(muted).toBeLessThan(1);
-    expect(dimmed).toBeLessThan(muted);
+    expect(daylight).toBeLessThan(1);
+    expect(dark).toBeLessThan(daylight);
   });
 
   test("hides the point, the label and the model, and shows them again", async () => {

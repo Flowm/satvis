@@ -28,6 +28,7 @@ export interface SkyTarget extends LookAngles {
   position: Cartesian3;
   /** In CSS pixels; undefined when behind the camera. */
   window: Cartesian2 | undefined;
+  /** Whether it could be seen by eye, now, from the observer. */
   visibility: Visibility;
 }
 
@@ -42,8 +43,7 @@ export function lookAngles(frame: ObserverFrame, target: Cartesian3): LookAngles
   }
   const local = Matrix3.multiplyByVector(frame.fixedToEnu, delta, new Cartesian3());
   const azimuth = normalizeAzimuth(CesiumMath.toDegrees(Math.atan2(local.x, local.y)));
-  const elevation = CesiumMath.toDegrees(Math.asin(CesiumMath.clamp(local.z / range, -1, 1)));
-  return { azimuth, elevation, rangeKm: range / 1000 };
+  return { azimuth, elevation: elevationOf(local, range), rangeKm: range / 1000 };
 }
 
 export function directionToWorld(frame: ObserverFrame, azimuth: number, elevation: number, distance = DIRECTION_DISTANCE): Cartesian3 {
@@ -55,8 +55,12 @@ export function directionToWorld(frame: ObserverFrame, azimuth: number, elevatio
 
 /** Degrees above the observer's horizon; `sun` is a unit vector from `sunDirection`. */
 export function sunElevation(frame: ObserverFrame, sun: Cartesian3): number {
-  const local = Matrix3.multiplyByVector(frame.fixedToEnu, sun, new Cartesian3());
-  return CesiumMath.toDegrees(Math.asin(CesiumMath.clamp(local.z, -1, 1)));
+  return elevationOf(Matrix3.multiplyByVector(frame.fixedToEnu, sun, new Cartesian3()), 1);
+}
+
+/** Degrees above the horizon of an east-north-up vector of length `length`. */
+function elevationOf(local: Cartesian3, length: number): number {
+  return CesiumMath.toDegrees(Math.asin(CesiumMath.clamp(local.z / length, -1, 1)));
 }
 
 /** Where a direction from the observer lands on screen, in CSS pixels. */

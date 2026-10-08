@@ -1,4 +1,4 @@
-// Whether the sky view aims by the device's compass. Module scope: the View menu toggle and
+// Whether the sky view aims by the device's compass. Module scope: the Sky panel's toggle and
 // the HUD note live in different subtrees. `no-heading` is a refusal (ADR 0004).
 
 import { readonly, type Ref, ref } from "vue";

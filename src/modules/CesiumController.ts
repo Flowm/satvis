@@ -529,8 +529,8 @@ export class CesiumController {
     useCesiumStore().pickMode = false;
   }
 
-  /** `observe` also makes the new station the sky view's observer. */
-  async setGroundStationFromGeolocation({ observe = false }: { observe?: boolean } = {}): Promise<void> {
+  /** `observe` also makes the new station the sky view's observer. Whether a fix came back. */
+  async setGroundStationFromGeolocation({ observe = false }: { observe?: boolean } = {}): Promise<boolean> {
     const fix = await currentPosition();
     if (!fix) {
       useToastProxy().add({
@@ -538,9 +538,10 @@ export class CesiumController {
         description: "No position came back. Check this site's location permission, and note that geolocation needs a secure context.",
         color: "warning",
       });
-      return;
+      return false;
     }
     this.addGroundStation(fix.lat, fix.lon, "Geolocation", observe);
+    return true;
   }
 
   setGroundStationFromLatLon(lat: number, lon: number): void {

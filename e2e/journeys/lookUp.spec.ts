@@ -143,3 +143,13 @@ test("picking a location on the globe enters the sky view there, even the one al
   await menuSwitch(page, "Innsbruck").click();
   await expect.poll(() => page.evaluate(() => window.cc!.skyView.observer?.lat)).toBe(47.2692);
 });
+
+test("my location enters the sky view even where that location is already listed", async ({ page }) => {
+  await openApp(page, "gs=47.2692,11.4041,Innsbruck_48.1372,11.5756,Geolocation");
+  await openMenu(page, "Sky");
+
+  await page.getByRole("region", { name: "Sky" }).getByRole("button", { name: "My location" }).click();
+  await waitForSky(page);
+  expect(await page.evaluate(() => window.cc!.skyView.observer)).toEqual({ lat: MUNICH.latitude, lon: MUNICH.longitude });
+  expect(new URL(page.url()).searchParams.get("gs")).toBe("47.2692,11.4041,Innsbruck_48.1372,11.5756,Geolocation");
+});

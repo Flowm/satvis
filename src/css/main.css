@@ -287,7 +287,6 @@ body {
   white-space: nowrap;
 }
 
-/* A row of buttons under a list: actions, where the switches are settings. */
 .toolbarActions {
   display: flex;
   flex-wrap: wrap;

@@ -27,7 +27,7 @@ test("after dusk, the sky view tells what can be seen from what cannot", async (
 
   const noon = await sky(page);
   expect(noon.length).toBeGreaterThan(0);
-  expect(noon.every((target) => target.visibility === "daylight" && target.appearance === "muted")).toBe(true);
+  expect(noon.every((target) => target.visibility === "daylight" && target.appearance === "dimmedDaylight")).toBe(true);
 
   await setClock(page, "2026-10-05T17:45:00Z");
   await waitTicks(page, 3);
@@ -36,7 +36,7 @@ test("after dusk, the sky view tells what can be seen from what cannot", async (
   expect(seen.length, "a lit satellite well above the horizon").toBeGreaterThan(0);
   // The weather group's geostationary satellites, 38,000 km away.
   expect(dusk.some((target) => target.visibility === "far")).toBe(true);
-  expect(dusk.every((target) => target.appearance === (target.visibility === "visible" ? "normal" : "dimmed"))).toBe(true);
+  expect(dusk.every((target) => target.appearance === (target.visibility === "visible" ? "normal" : "dimmedDark"))).toBe(true);
 
   // Aimed straight at it, the crosshair locks on and the card gives the verdict.
   const target = seen[0]!;

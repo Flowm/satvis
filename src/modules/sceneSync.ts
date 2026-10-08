@@ -191,7 +191,7 @@ export function startSceneSync(cc: SceneTarget): void {
       // Otherwise the radio just moves back, which reads as a broken control.
       useToastProxy().add({
         title: "Sky view needs a location",
-        description: "Allow Geolocation or set a location from the Ground station menu.",
+        description: "Allow Geolocation or add a location from the Locations menu.",
         color: "warning",
       });
       refusedAt = performance.now();

@@ -92,8 +92,8 @@
       <toolbar-panel v-show="menu.globe" title="Globe" @close="closePanel('globe')">
         <div class="toolbarTitle">Projection</div>
         <!-- None is checked in the sky view: a checked projection read as the active one. -->
-        <label v-for="name in globeModes" :key="name" class="toolbarSwitch">
-          <input type="radio" name="globeMode" :checked="!inSkyView && sceneMode === name" @change="sceneMode = name" />
+        <label v-for="name in projections" :key="name" class="toolbarSwitch">
+          <input type="radio" name="projection" :checked="!inSkyView && sceneMode === name" @change="sceneMode = name" />
           <span class="slider"></span>
           {{ name }}
         </label>
@@ -143,7 +143,7 @@
         <label v-for="mode in UNSEEN_MODES" :key="mode" class="toolbarSwitch">
           <input v-model="unseen" type="radio" :value="mode" :disabled="!inSkyView" />
           <span class="slider"></span>
-          {{ UNSEEN_LABELS[mode] }}
+          {{ UNSEEN_LABEL[mode] }}
         </label>
         <div class="toolbarNote">In Earth's shadow, too far away or during daylight.</div>
       </toolbar-panel>
@@ -354,38 +354,36 @@ const compassOffered = compassAvailable();
 const { active: compassActive, pending: compassPending, toggle: toggleCompass } = useSkyCompass(cc);
 const inSkyView = computed(() => sceneMode.value === SKY_MODE);
 
-const UNSEEN_LABELS: Record<UnseenMode, string> = { show: "Show", dim: "Dim", hide: "Hide" };
-const globeModes = cc.sceneModes.filter((mode) => mode !== SKY_MODE);
+const UNSEEN_LABEL: Record<UnseenMode, string> = { show: "Show", dim: "Dim", hide: "Hide" };
+const projections = cc.sceneModes.filter((mode) => mode !== SKY_MODE);
 
 /** The projection the Sky switch returns to. Not in the url, which holds only the view mode. */
-const globeMode = ref(inSkyView.value ? "3D" : sceneMode.value);
+const returnProjection = ref(inSkyView.value ? "3D" : sceneMode.value);
 watch(sceneMode, (mode) => {
   if (mode !== SKY_MODE) {
-    globeMode.value = mode;
+    returnProjection.value = mode;
   }
 });
 
 const { groundStations, observerStation } = storeToRefs(satStore);
 const { pending: locating, locate } = useGeolocation(cc);
 
-/** Picking where to stand is asking to stand there. */
+/** Designates the station and enters the sky view there, or moves a live one. */
 function lookUpFrom(index: number): void {
   satStore.setObserverStation(index);
   sceneMode.value = SKY_MODE;
 }
 
-/** A refused or failed fix adds no station, and enters nothing. */
+/** Enters on any fix, including one the store merges into a station already listed. */
 async function lookUpFromHere(): Promise<void> {
-  const before = groundStations.value.length;
-  await locate({ observe: true });
-  if (groundStations.value.length > before) {
+  if (await locate({ observe: true })) {
     sceneMode.value = SKY_MODE;
   }
 }
 
 /** The box follows the store, not the click: a link's entry can still be refused. */
 function onSkyToggle(event: Event): void {
-  sceneMode.value = (event.target as HTMLInputElement).checked ? SKY_MODE : globeMode.value;
+  sceneMode.value = (event.target as HTMLInputElement).checked ? SKY_MODE : returnProjection.value;
   (event.target as HTMLInputElement).checked = inSkyView.value;
 }
 

@@ -53,6 +53,7 @@ export class SkyInteraction {
 
   #locked: SkyTarget | undefined;
 
+  /** See `unseen`. */
   #unseen: UnseenMode = "dim";
 
   /** Every satellite given a sky appearance, so `stop` can restore them all. */
@@ -199,6 +200,7 @@ export class SkyInteraction {
     this.#setLocked(nearestTarget(lockable, this.#center(), CAPTURE_RADIUS, (target) => groundHides(scene, frame, target.position)));
   }
 
+  /** Daylight dims every satellite alike, so it dims less than a dark sky (`PALETTES`). */
   #appearance(target: SkyTarget): SkyAppearance {
     if (target.visibility === "visible" || this.#unseen === "show") {
       return "normal";
@@ -206,7 +208,7 @@ export class SkyInteraction {
     if (this.#unseen === "hide") {
       return "hidden";
     }
-    return target.visibility === "daylight" ? "muted" : "dimmed";
+    return target.visibility === "daylight" ? "dimmedDaylight" : "dimmedDark";
   }
 
   #setLocked(target: SkyTarget | undefined): void {

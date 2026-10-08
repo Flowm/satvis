@@ -14,8 +14,9 @@ export interface Vector3 {
 /** See visibility in CONTEXT.md. */
 export type Visibility = "visible" | "shadow" | "daylight" | "far";
 
-/** What the sky view does with the satellites that are not visible. */
+/** What the sky view does with the satellites that are not visible: `?unseen=`. */
 export const UNSEEN_MODES = ["show", "dim", "hide"] as const;
+/** One of `UNSEEN_MODES`. */
 export type UnseenMode = (typeof UNSEEN_MODES)[number];
 
 /**
@@ -38,6 +39,7 @@ export const MAX_VISIBLE_RANGE_KM = 5000;
  */
 const EARTH_RADIUS = 6_371_000;
 
+// Julian dates, for the almanac's days since J2000.
 const MS_PER_DAY = 86_400_000;
 const UNIX_EPOCH_JULIAN_DATE = 2440587.5;
 const J2000_JULIAN_DATE = 2451545;
