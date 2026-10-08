@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, watch } from "vue";
 
-import { type Bookmark, type BookmarkKind, parseBookmarks, withOpened } from "../modules/util/bookmarks";
+import { type Bookmark, type BookmarkKind, parseBookmarks, sameQuery, withOpened } from "../modules/util/bookmarks";
 
 /** Per browser, not in the url: a bookmark is a link to a scene, not part of one (docs/adr/0011-bookmarks.md). */
 const STORAGE_KEY: Record<Exclude<BookmarkKind, "demo">, string> = {
@@ -68,6 +68,8 @@ export const useBookmarkStore = defineStore("bookmarks", () => {
   function save(name: string, path: string, query: Bookmark["query"], thumbnail?: string): Bookmark {
     const bookmark: Bookmark = { id: newId("saved"), kind: "saved", name, path, query: { ...query }, thumbnail, at: Date.now() };
     saved.value = [bookmark, ...saved.value];
+    // Saved, a link is no longer only a recent one.
+    opened.value = opened.value.filter((link) => link.path !== path || !sameQuery(link.query, query));
     return bookmark;
   }
 

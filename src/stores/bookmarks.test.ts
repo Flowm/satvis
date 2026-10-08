@@ -61,6 +61,14 @@ describe("bookmarks store", () => {
     expect(store.saved[0]!.thumbnail).toBe("data:image/webp;base64,AA");
   });
 
+  test("saving a scene takes its link off the recent ones", () => {
+    const store = useBookmarkStore();
+    store.recordOpened("Starlink satellites", "/", { tags: "Starlink" });
+    store.recordOpened("GNSS satellites", "/", { tags: "GNSS" });
+    store.save("Shells", "/", { tags: "Starlink" });
+    expect(store.opened.map((link) => link.query.tags)).toEqual(["GNSS"]);
+  });
+
   test("a deleted bookmark comes back in its place", () => {
     const store = useBookmarkStore();
     vi.spyOn(Date, "now").mockReturnValueOnce(1).mockReturnValueOnce(2).mockReturnValueOnce(3);

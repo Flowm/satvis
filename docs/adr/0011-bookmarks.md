@@ -31,7 +31,9 @@ demo is the default preset's weather globe, so it is also the default view. A
 started with, so a shared link can be found again after wandering off it. Only a
 navigation counts: a reload, Back or Forward reopens the visitor's own scene, an
 embedded page is someone else's, and a link already among the demos or saved
-bookmarks is not recorded twice. The newest eight are kept, each once.
+bookmarks is not recorded twice; saving one takes it off Recent. The newest eight are
+kept, each once. Nor is a scene saved twice: while the scene on screen is saved,
+"Save this view" reads "Saved" and opens that bookmark's name.
 
 **Kept in `localStorage`, per browser, never in the url or on the worker.** It is the
 app's first local state. A private window or blocked site data leaves bookmarks

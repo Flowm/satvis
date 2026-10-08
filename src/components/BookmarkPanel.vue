@@ -39,6 +39,8 @@
       <!-- While a name is open the button saves it, not a new bookmark. Pressing it keeps the focus
            in the field, or Safari, which focuses no clicked button, would end the edit first. -->
       <button v-if="renaming" type="button" class="bookmarkPanel__primary" data-saves-name @pointerdown.prevent @click="commitRename"><UIcon name="lucide:check" />Save</button>
+      <!-- A scene saved already opens its name rather than saving it twice. -->
+      <button v-else-if="savedCurrent" type="button" class="bookmarkPanel__primary" @click="showSaved(savedCurrent)"><UIcon name="lucide:bookmark-check" />Saved</button>
       <button v-else type="button" class="bookmarkPanel__primary" :disabled="isDefault || saving" @click="void onSave()">
         <UIcon name="lucide:bookmark-plus" />Save this view
       </button>
@@ -75,6 +77,9 @@ const tab = ref<Tab>(saved.value.length > 0 ? "saved" : "demo");
 const shown = computed(() => (tab.value === "demo" ? demos : tab.value === "saved" ? saved.value : opened.value));
 const count = (key: Tab): number => (key === "saved" ? saved.value.length : key === "opened" ? opened.value.length : 0);
 
+/** The saved bookmark of the scene on screen, if there is one. */
+const savedCurrent = computed(() => saved.value.find(isCurrent));
+
 /** The bookmark whose name is being edited, and the name as typed so far. */
 const renaming = ref<string>();
 const draft = ref("");
@@ -83,6 +88,11 @@ const saving = ref(false);
 function startRename(bookmark: Bookmark): void {
   draft.value = bookmark.name;
   renaming.value = bookmark.id;
+}
+
+function showSaved(bookmark: Bookmark): void {
+  tab.value = "saved";
+  startRename(bookmark);
 }
 
 /** A blank name keeps the old one (the store's `rename`). */
