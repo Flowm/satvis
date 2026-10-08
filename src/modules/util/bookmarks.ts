@@ -6,15 +6,19 @@ import type { Query } from "./urlCodec";
 /** A demo ships with the app, a saved one was named by the user, an opened one is a link that started a visit. */
 export type BookmarkKind = "demo" | "saved" | "opened";
 
-/** A link, with what a card needs to show it. */
-export interface Bookmark {
-  id: string;
-  kind: BookmarkKind;
-  name: string;
-  /** The route it was made on, whose preset decides what an absent parameter means. */
+/** A scene as a url: a route and the parameters on it. */
+export interface Link {
+  /** The path that opens the route's preset (`presetPath`), whose defaults decide what an absent parameter means. */
   path: string;
   /** The url parameters the stores own (ADR 0001), defaults left out. */
   query: Query;
+}
+
+/** A link, with what a card needs to show it. */
+export interface Bookmark extends Link {
+  id: string;
+  kind: BookmarkKind;
+  name: string;
   /** A data url, or a path for a demo. */
   thumbnail?: string;
   /** When it was saved or opened, in epoch ms; 0 for a demo. */
@@ -48,9 +52,12 @@ export function withoutTime({ time: _time, ...rest }: Query): Query {
   return rest;
 }
 
+/** Whether two links open the same scene. */
+export const sameLink = (a: Link, b: Link): boolean => a.path === b.path && sameQuery(a.query, b.query);
+
 /** Records a link a visit started with: newest first, once each, at most `OPENED_LIMIT`. */
 export function withOpened(opened: readonly Bookmark[], link: Bookmark): Bookmark[] {
-  return [link, ...opened.filter((other) => other.path !== link.path || !sameQuery(other.query, link.query))].slice(0, OPENED_LIMIT);
+  return [link, ...opened.filter((other) => !sameLink(other, link))].slice(0, OPENED_LIMIT);
 }
 
 const list = (value: string | undefined): string[] => (value ? value.split(",") : []);

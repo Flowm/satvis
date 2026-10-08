@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { type Bookmark, defaultName, OPENED_LIMIT, parseBookmarks, sameQuery, summarize, timeAgo, withOpened, withoutTime } from "./bookmarks";
+import { type Bookmark, defaultName, OPENED_LIMIT, parseBookmarks, sameLink, sameQuery, summarize, timeAgo, withOpened, withoutTime } from "./bookmarks";
 
 const NOW = new Date("2026-10-08T12:00:00Z");
 /** The `/` preset's. */
@@ -78,6 +78,11 @@ describe("withOpened", () => {
 
 test("withoutTime keeps the rest of the scene", () => {
   expect(withoutTime({ tags: "GNSS", time: "2026-10-05T11:00Z" })).toEqual({ tags: "GNSS" });
+});
+
+test("sameLink needs the same route and the same query", () => {
+  expect(sameLink({ path: "/", query: { a: "1", b: "2" } }, { path: "/", query: { b: "2", a: "1" } })).toBe(true);
+  expect(sameLink({ path: "/", query: { a: "1" } }, { path: "/ot", query: { a: "1" } })).toBe(false);
 });
 
 test("sameQuery ignores order", () => {

@@ -50,8 +50,9 @@ view and every bookmark without `time` also go live directly.
 
 **A bookmark from another preset opens with a page load.** The url sync reads the
 route's preset defaults once, at startup, and a query means something else under
-another preset (ADR 0001, Defaults). A bookmark records its path, and its card is
-described against that path's preset.
+another preset (ADR 0001, Defaults). A bookmark records its preset's path (`/`, `/ot`),
+however the page was reached, so `/index.html` or a path naming no preset is the route
+it opens; its card is described against that preset. Foreign parameters go along.
 
 **A gallery of cards, from a prototype of three panels.** A sectioned list read like
 settings; a panel of one chip per changed setting, each undoable alone, explained the
