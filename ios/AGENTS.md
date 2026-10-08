@@ -258,7 +258,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
 ## Tasks
 
 `make` in `ios/` runs them: `build`, `test`, `test-kit`, `run`, `logs`, `format`,
-`lint`, `screenshots`, `clean`. `DEVICE="iPad Pro 13-inch (M5)"` picks
+`lint`, `screenshots`, `upload-screenshots`, `clean`. `DEVICE="iPad Pro 13-inch (M5)"` picks
 the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 (default `iPhone 17`); `UDID=…` picks one exactly.
 `make run` opens no simulator window; follow the app with `make logs`.
@@ -271,12 +271,28 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
   satellite browser, find a satellite there, and open its panel from there.
 - **`run API=…`** installs and launches against another worker, e.g. a local one
   at `http://localhost:8080` (`pnpm dev:worker` at the repository root).
-- **`screenshots`** erases one simulator per App Store size and writes
-  `screenshots/`. Upload them to App Store Connect by hand. It takes the about
-  page's demo views by their links (`about.html`), each paused at its link's
-  minute, from the site `BASE_URL` names (satvis.space by default). Labels are
-  not drawn past 200 active satellites, so the sky view's has none where the
-  web's does.
+- **`screenshots`** erases one simulator per App Store size (the required 6.3"
+  iPhone 18 Pro, creating it if missing, the 6.9" Pro Max and the 13" iPad) and
+  writes `screenshots/raw/`, then `scripts/caption.swift` puts each one's caption,
+  kept in `scripts/screenshots.sh`, above it in `screenshots/`, at the same pixel
+  size and without the alpha channel App Store Connect rejects. It takes the about
+  page's demo views (`about.html`) in the order globe, sky, ISS, since the first
+  three are what a search result shows, each paused at its link's minute, from
+  the site `BASE_URL` names (satvis.space by default). Their links differ from the
+  page's where the app can show more: the globe on VersaTiles, the sky with every
+  active satellite, since labels are not drawn past 200 anyway, and the ISS with
+  its panel closed. Each shot is taken on its own, under a status bar reading its
+  link's minute and date, as the clock deck does. `SHOTS=2Sky` retakes only the
+  shots it names, for one whose tiles had not loaded.
+- **`upload-screenshots`** replaces the screenshots of the version being prepared
+  with `screenshots/*.png` through the App Store Connect API
+  (`scripts/upload-screenshots.swift`), in the app's primary language, each file
+  to the display type its width names. It needs an API key with the App Manager
+  role: `ASC_KEY_ID`, `ASC_ISSUER_ID`, and the `.p8`, at `ASC_KEY_PATH` or
+  base64-encoded in the login keychain (the script's header has the command).
+  `DRY_RUN=1` says what it would replace. App Store Connect then checks each file,
+  which took from seconds to over 20 minutes a file on 2026-10-08; the script
+  waits 10 minutes and names the files it is still on, which stay uploaded.
 
 ## The worker
 
