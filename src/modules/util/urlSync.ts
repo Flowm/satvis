@@ -53,6 +53,8 @@ interface Registration {
 
 /** Every synced store, so one write can rebuild the whole query. */
 const registry = new Map<string, Registration>();
+/** Per store, settled once it has read the opening url. */
+const hydrations = new Map<string, Promise<void>>();
 let watching = false;
 
 const CLOCK_PARAM = "time";
@@ -143,6 +145,18 @@ function buildQuery(router: Router, hydrated: Registration[]): LocationQuery {
   const current = router.currentRoute.value.query;
   const owned = new Set(hydrated.flatMap((entry) => entry.specs.map(paramOf)));
 
+  const next: LocationQuery = {};
+  for (const [param, value] of Object.entries(current)) {
+    if (!owned.has(param)) {
+      next[param] = value;
+    }
+  }
+  Object.assign(next, encodeState(hydrated));
+  return next;
+}
+
+/** The owned parameters that differ from their defaults. */
+function encodeState(hydrated: Registration[]): Record<string, string> {
   const state: Record<string, unknown> = {};
   const defaults: Record<string, unknown> = {};
   const schema: FieldSpec[] = [];
@@ -154,15 +168,7 @@ function buildQuery(router: Router, hydrated: Registration[]): LocationQuery {
     }
     Object.assign(defaults, baseline(entry));
   }
-
-  const next: LocationQuery = {};
-  for (const [param, value] of Object.entries(current)) {
-    if (!owned.has(param)) {
-      next[param] = value;
-    }
-  }
-  Object.assign(next, encode(state, defaults, schema));
-  return next;
+  return encode(state, defaults, schema);
 }
 
 function writeQuery(router: Router, mode: "push" | "replace"): void {
@@ -249,7 +255,10 @@ function createUrlSync({ options, store }: PiniaPluginContext): void {
   };
   registry.set(store.$id, entry);
 
-  void Promise.all([router.isReady(), extended.presetDefaults ?? {}]).then(([, presetDefaults]) => hydrate(entry, router, presetDefaults));
+  hydrations.set(
+    store.$id,
+    Promise.all([router.isReady(), extended.presetDefaults ?? {}]).then(([, presetDefaults]) => hydrate(entry, router, presetDefaults)),
+  );
 
   // Not $subscribe: guarded keys are computeds over private refs outside $state,
   // so $subscribe never sees them change.
@@ -291,6 +300,21 @@ export function adjustUrlDefault(storeId: string, key: string, adjust: ((baselin
     entry.adjust.delete(name);
   }
   writeQuery(entry.store.router, "replace");
+}
+
+/** Settles once every store synced so far has read the opening url. */
+export async function urlHydrated(): Promise<void> {
+  await Promise.all(hydrations.values());
+}
+
+/** The parameters the synced stores own. Everything else in a url is foreign. */
+export function syncedParams(): ReadonlySet<string> {
+  return new Set([...registry.values()].flatMap((entry) => entry.specs.map(paramOf)));
+}
+
+/** The state as the url states it: owned parameters only, defaults left out. */
+export function syncedQuery(): Query {
+  return encodeState(hydratedEntries());
 }
 
 export default createUrlSync;

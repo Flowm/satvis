@@ -209,6 +209,19 @@ discussion; sharpen them here when they drift.
   Levels 0–3 are precached, so it is the only basemap guaranteed with no network;
   levels 4–5 are cached as they are viewed.
 
+## Bookmarks
+
+- **Bookmark**: a link to a scene, kept under a name with a picture: a route and the
+  url parameters the stores own, never a camera position. Opening one navigates to
+  the link. Kept per browser (`docs/adr/0011-bookmarks.md`). Not a preset, which is
+  where a route starts, and not a view mode.
+- **Demo**: a bookmark that ships with the app, one of the about page's showcase
+  links.
+- **Opened link**: a link a visit started with, kept so it can be found again. A
+  reload, Back or Forward is not one. "Recent" on screen.
+- **Default view**: the route's preset with no scene parameter, which the Bookmarks
+  panel returns to in one step.
+
 ## Time
 
 - **Live vs pinned time**: whether the clock shows the present or another moment.

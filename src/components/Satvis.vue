@@ -32,6 +32,10 @@
           </button>
         </nav>
       </div>
+      <!-- v-if: the cards' pictures load only when it opens. -->
+      <toolbar-panel v-if="menu.bookmarks" title="Bookmarks" wide @close="closePanel('bookmarks')">
+        <bookmark-panel />
+      </toolbar-panel>
       <!-- v-if, not v-show: the virtualized list measures its scroll element on mount,
            and a hidden mount measures 0. Search and expansion state survive remounts in useSatelliteBrowser. -->
       <toolbar-panel v-if="menu.cat" title="Satellites" wide class="toolbarSwitches--catalog" @close="closePanel('cat')">
@@ -235,6 +239,7 @@ import { UNSEEN_MODES, type UnseenMode } from "../modules/util/visibility";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 import AboutDialog from "./AboutDialog.vue";
+import BookmarkPanel from "./BookmarkPanel.vue";
 import ClockDeck from "./ClockDeck.vue";
 import EntityInfoPanel from "./EntityInfoPanel.vue";
 import GroundStationList from "./GroundStationList.vue";
@@ -242,7 +247,7 @@ import SatelliteBrowser from "./SatelliteBrowser.vue";
 import SkyHud from "./SkyHud.vue";
 import ToolbarPanel from "./ToolbarPanel.vue";
 
-type MenuKey = "cat" | "sat" | "gs" | "map" | "globe" | "sky" | "render";
+type MenuKey = "bookmarks" | "cat" | "sat" | "gs" | "map" | "globe" | "sky" | "render";
 
 /** Async, so the benchmark stays out of the main bundle. */
 const BenchmarkPanel = defineAsyncComponent(() => import("./BenchmarkPanel.vue"));
@@ -250,6 +255,7 @@ const BenchmarkPanel = defineAsyncComponent(() => import("./BenchmarkPanel.vue")
 const cc = useController();
 
 const menu = reactive<Record<MenuKey, boolean>>({
+  bookmarks: false,
   cat: false,
   sat: false,
   gs: false,
@@ -271,6 +277,7 @@ const menuExpanded = ref(!isNarrow());
 
 /** `hint` is the hover text, saying what is behind an entry. */
 const menuItems: { key: MenuKey; label: string; icon: string; hint: string }[] = [
+  { key: "bookmarks", label: "Bookmarks", icon: "lucide:bookmark", hint: "Demos, saved views and links you opened, and the way back to the default view" },
   { key: "cat", label: "Satellites", icon: "lucide:orbit", hint: "Search and pick which satellites to show" },
   { key: "sat", label: "Components", icon: "lucide:satellite", hint: "Orbits, ground tracks, labels and sensor cones" },
   { key: "map", label: "Map", icon: "lucide:layers", hint: "Basemap, overlays, terrain and stars" },
