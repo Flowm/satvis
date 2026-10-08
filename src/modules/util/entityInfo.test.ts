@@ -15,12 +15,17 @@ const ISS = new Orbit(
   )[0] as GpRecord,
 );
 
-function labels({ rows }: SatelliteInfo): string[] {
-  return rows.map(([label]) => label);
+/** Both tabs' rows, as the native app lists them. */
+function rowsOf({ orbitRows, spacecraftRows }: SatelliteInfo): [string, string][] {
+  return [...orbitRows, ...spacecraftRows];
 }
 
-function valueOf({ rows }: SatelliteInfo, label: string): string | undefined {
-  return rows.find(([rowLabel]) => rowLabel === label)?.[1];
+function labels(info: SatelliteInfo): string[] {
+  return rowsOf(info).map(([label]) => label);
+}
+
+function valueOf(info: SatelliteInfo, label: string): string | undefined {
+  return rowsOf(info).find(([rowLabel]) => rowLabel === label)?.[1];
 }
 
 describe("formatEpoch", () => {
@@ -66,6 +71,12 @@ describe("getSatelliteInfo", () => {
   test("reports the derived rows even with no metadata, class first", () => {
     expect(labels(getSatelliteInfo(ISS, "LEO", {}))).toEqual(["Orbit", "Apogee / Perigee"]);
     expect(valueOf(getSatelliteInfo(ISS, "LEO", {}), "Orbit")).toBe("LEO");
+  });
+
+  test("splits where it flies from what it is", () => {
+    const info = getSatelliteInfo(ISS, "LEO", { swathStarboardKm: 50, swathPortKm: 50, bus: "77KS", orbitType: "DOC" });
+    expect(info.orbitRows.map(([label]) => label)).toEqual(["Orbit", "Apogee / Perigee"]);
+    expect(info.spacecraftRows.map(([label]) => label)).toEqual(["Swath", "Bus", "Orbit type"]);
   });
 
   test("omits every row the record does not carry, rather than showing defaults", () => {

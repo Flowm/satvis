@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import type { Page } from "@playwright/test";
 
 import { openApp, waitTicks } from "../support/app";
@@ -5,6 +7,9 @@ import { expect, test } from "../support/test";
 import { DEVICES, showInfo } from "../support/ui";
 
 const ISS = "ISS (ZARYA)";
+
+/** CI checks out no models submodule, so every model is this cube. */
+const CUBE = readFileSync(new URL("../fixtures/models/cube.glb", import.meta.url));
 
 /** Metres from the camera to the tracked satellite, and where the satellite is. */
 const trackingGap = (page: Page) =>
@@ -20,7 +25,12 @@ for (const [device, options] of Object.entries(DEVICES)) {
     test.use(options);
 
     test("search for the ISS, read its details, and follow it", async ({ page }) => {
-      await openApp(page, "", { live: true });
+      await openApp(page, "", {
+        live: true,
+        setup: async (setupPage) => {
+          await setupPage.route("**/data/models/*.glb", (route) => route.fulfill({ contentType: "model/gltf-binary", body: CUBE }));
+        },
+      });
 
       await showInfo(page, ISS);
       // On a phone the catalog and the menu column make way for the info panel.
@@ -32,23 +42,35 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await expect(panel.locator(".head__chips")).toContainText("USA");
       await expect.poll(() => new URL(page.url()).searchParams.get("sats")).toContain(ISS);
 
-      await expect(panel.getByRole("tab", { name: "Details" })).toHaveAttribute("aria-selected", "true");
+      await expect(panel.getByRole("tab", { name: "Orbit" })).toHaveAttribute("aria-selected", "true");
+      await expect(panel.getByRole("row", { name: /Apogee/ })).toBeVisible();
+
+      // The model close-up is a second scene, which lives only while its tab shows.
+      await panel.getByRole("tab", { name: "Spacecraft" }).click();
+      await expect(panel.locator(".model-view")).toHaveAttribute("data-state", "ready");
       await expect(panel.getByRole("row", { name: /Launched/ })).toContainText("1998-11-20");
       // GCAT's facts beside SATCAT's (ADR 0008): named by the worker, labelled here.
       await expect(panel.getByRole("row", { name: /Country/ })).toContainText("USA");
       await expect(panel.getByRole("row", { name: /Purpose/ })).toContainText("Human spaceflight");
       await expect(panel.getByRole("row", { name: /Size/ })).toContainText("12.6 × ~4.2 m, span 23.9 m");
+      // The page turns text selection off; the panel's facts can still be copied.
+      await panel
+        .getByRole("row", { name: /Operator/ })
+        .getByRole("cell")
+        .click({ clickCount: 3 });
+      expect(await page.evaluate(() => getSelection()?.toString())).toContain("NASA Johnson Space Flight Center");
       await panel.getByRole("tab", { name: /Passes/ }).click();
       await expect(panel).toContainText("No ground station set");
-      await panel.getByRole("tab", { name: "Details" }).click();
-      await expect(panel.getByRole("row", { name: /Launched/ })).toBeVisible();
+      await expect(panel.locator(".model-view")).toHaveCount(0);
+      await panel.getByRole("tab", { name: "Orbit" }).click();
+      await expect(panel.getByRole("row", { name: /Apogee/ })).toBeVisible();
 
       // Pressing the active tab folds the body; pressing it again unfolds it.
-      await panel.getByRole("tab", { name: "Details" }).click();
-      await expect(panel.getByRole("row", { name: /Launched/ })).toBeHidden();
+      await panel.getByRole("tab", { name: "Orbit" }).click();
+      await expect(panel.getByRole("row", { name: /Apogee/ })).toBeHidden();
       await expect(panel.locator(".head__name")).toBeVisible();
-      await panel.getByRole("tab", { name: "Details" }).click();
-      await expect(panel.getByRole("row", { name: /Launched/ })).toBeVisible();
+      await panel.getByRole("tab", { name: "Orbit" }).click();
+      await expect(panel.getByRole("row", { name: /Apogee/ })).toBeVisible();
 
       // Following: the ISS moves on while the camera keeps its distance.
       await panel.getByRole("button", { name: "Track entity" }).click();

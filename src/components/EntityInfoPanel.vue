@@ -1,5 +1,5 @@
-<!-- The header and the position strip are always visible; passes and details are
-     tabs, because stacking all four overflowed a 500 px window by almost 900 px. -->
+<!-- The header and the position strip are always visible; the orbit, the spacecraft and
+     the passes are tabs, because stacking them overflowed a 500 px window by almost 900 px. -->
 <template>
   <div v-if="selection" class="entity-info-panel">
     <UCard :ui="{ root: 'bg-[#303336]/95 text-[#edffff] divide-neutral-600', header: 'p-2 sm:px-3', body: 'p-0 sm:p-0' }">
@@ -146,23 +146,16 @@
           </div>
         </template>
 
-        <template #details>
+        <template #orbit>
           <div class="tab-body__pad">
             <table v-if="satelliteInfo" class="info-table info-table--facts">
               <tbody>
-                <tr v-for="[label, value] in satelliteInfo.rows" :key="label">
+                <tr v-for="[label, value] in satelliteInfo.orbitRows" :key="label">
                   <th>{{ label }}</th>
                   <td class="right">{{ value }}</td>
                 </tr>
               </tbody>
             </table>
-
-            <template v-if="links.length > 0">
-              <div class="section">Links</div>
-              <div class="links">
-                <a v-for="link in links" :key="link.label" class="links__item" :href="link.href" :title="link.title" target="_blank" rel="noopener">{{ link.label }}</a>
-              </div>
-            </template>
 
             <template v-if="elements">
               <div class="section">{{ elements.kind === "tle" ? "TLE" : "Elements" }} · epoch {{ elements.epoch }}</div>
@@ -178,6 +171,28 @@
             </template>
           </div>
         </template>
+
+        <template #spacecraft>
+          <div class="tab-body__pad">
+            <satellite-model-view v-if="modelFile && !collapsed" :model-file="modelFile" :name="name" />
+
+            <table v-if="spacecraftRows.length > 0" class="info-table info-table--facts" :class="{ 'info-table--below-model': modelFile }">
+              <tbody>
+                <tr v-for="[label, value] in spacecraftRows" :key="label">
+                  <th>{{ label }}</th>
+                  <td class="right">{{ value }}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <template v-if="links.length > 0">
+              <div class="section">Links</div>
+              <div class="links">
+                <a v-for="link in links" :key="link.label" class="links__item" :href="link.href" :title="link.title" target="_blank" rel="noopener">{{ link.label }}</a>
+              </div>
+            </template>
+          </div>
+        </template>
       </UTabs>
     </UCard>
   </div>
@@ -190,7 +205,7 @@ import { storeToRefs } from "pinia";
 import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 
 import { useController } from "../composables/useController";
-import { useSelectedEntity } from "../composables/useSelectedEntity";
+import { type InfoTab, useSelectedEntity } from "../composables/useSelectedEntity";
 import { externalLinks } from "../config/externalLinks";
 import { ORBIT_CLASS_COLOR } from "../config/orbitClass";
 import { SKY_MODE } from "../config/viewModes";
@@ -198,6 +213,7 @@ import { formatCountdown, passSummary, type Pass } from "../modules/PassPredicto
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 import PassTimeline from "./PassTimeline.vue";
+import SatelliteModelView from "./SatelliteModelView.vue";
 
 const cc = useController();
 const toast = useToast();
@@ -241,6 +257,10 @@ const emptyPassText = computed(() => (groundStationAvailable.value ? "No passes 
 
 const satnum = computed(() => (selection.value?.kind === "satellite" ? selection.value.sat.props.satnum : undefined));
 const links = computed(() => (satnum.value ? externalLinks(satnum.value) : []));
+/** Empty for a ground station, or a record with no metadata. */
+const spacecraftRows = computed(() => satelliteInfo.value?.spacecraftRows ?? []);
+/** Only satellites a model manifest lists have one (ADR 0007). */
+const modelFile = computed(() => (selection.value?.kind === "satellite" ? selection.value.sat.props.metadata.modelFile : undefined));
 
 const orbitClass = computed(() => satelliteInfo.value?.orbitClass);
 const orbitColor = computed(() => (orbitClass.value ? ORBIT_CLASS_COLOR[orbitClass.value] : "transparent"));
@@ -263,9 +283,12 @@ const nextPassSubject = computed(() => (nextPass.value ? (nextPass.value.groundS
 const showTimeline = computed(() => selection.value?.kind === "satellite");
 
 const tabs = computed(() => {
-  const items: { label: string; slot: string; value: string; badge?: number }[] = [];
+  const items: { label: string; slot: InfoTab; value: InfoTab; badge?: number }[] = [];
   if (satelliteInfo.value || elements.value) {
-    items.push({ label: "Details", slot: "details", value: "details" });
+    items.push({ label: "Orbit", slot: "orbit", value: "orbit" });
+  }
+  if (modelFile.value || spacecraftRows.value.length > 0 || links.value.length > 0) {
+    items.push({ label: "Spacecraft", slot: "spacecraft", value: "spacecraft" });
   }
   items.push({ label: "Passes", slot: "passes", value: "passes", ...(passRows.value.length > 0 ? { badge: passRows.value.length } : {}) });
   return items;
@@ -273,9 +296,9 @@ const tabs = computed(() => {
 
 /**
  * Controlled, not left to UTabs: the component is not remounted across selections,
- * and an uncontrolled UTabs keeps a tab the new selection lacks (a ground station has no Details).
+ * and an uncontrolled UTabs keeps a tab the new selection lacks (a ground station has no Orbit).
  */
-const resolvedTab = computed(() => (tabs.value.some((item) => item.value === preferredTab.value) ? preferredTab.value : (tabs.value[0]?.value ?? "passes")));
+const resolvedTab = computed<InfoTab>(() => (tabs.value.some((item) => item.value === preferredTab.value) ? preferredTab.value : (tabs.value[0]?.value ?? "passes")));
 
 /** Pressing the active tab folds the body away; the selection stays. */
 const collapsed = ref(false);
@@ -293,8 +316,11 @@ const activeTab = computed({
       collapsed.value = !collapsed.value;
       return;
     }
-    collapsed.value = false;
-    preferredTab.value = value;
+    const tab = tabs.value.find((item) => item.value === value);
+    if (tab) {
+      collapsed.value = false;
+      preferredTab.value = tab.value;
+    }
   },
 });
 
@@ -409,6 +435,16 @@ function notifyPasses(): void {
   max-width: 540px;
   z-index: 5;
   font-size: 14px;
+  /* The body turns selection off for the globe; the name, position and facts are worth copying. Safari needs the prefix. */
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* A long press on a tab or a pass control would select its label. */
+.entity-info-panel :deep([role="tablist"]),
+.passes__bar {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* dvh, not vh: an installed iOS app reports vh as the full screen, taller than the viewport it paints. */
@@ -635,6 +671,10 @@ function notifyPasses(): void {
 
 .info-table tbody tr:nth-child(odd) {
   background: #ffffff08;
+}
+
+.info-table--below-model {
+  margin-top: 10px;
 }
 
 .info-table--facts tbody th {

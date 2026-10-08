@@ -43,17 +43,17 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   await addStationHere(page, "Munich");
   await closeMenuPanel(page, "Locations");
 
-  // A satellite's panel opens on Details. A station has no Details, so clicking its pin
+  // A satellite's panel opens on Orbit. A station has no Orbit, so clicking its pin
   // must switch the panel to Passes rather than leave the body empty.
   await showInfo(page, "ISS (ZARYA)");
   await closeMenuPanel(page, "Satellites");
   const panel = page.locator(".entity-info-panel");
-  await expect(panel.getByRole("tab", { name: "Details" })).toHaveAttribute("aria-selected", "true");
+  await expect(panel.getByRole("tab", { name: "Orbit" })).toHaveAttribute("aria-selected", "true");
 
   await clickEntity(page, "Munich");
   await expect(panel.locator(".head__name")).toHaveText("Munich");
   await expect(panel.getByRole("tab", { name: /Passes/ })).toHaveAttribute("aria-selected", "true");
-  await expect(panel.getByRole("tab", { name: "Details" })).toHaveCount(0);
+  await expect(panel.getByRole("tab", { name: "Orbit" })).toHaveCount(0);
   await panel.getByRole("button", { name: "View the sky from this ground station" }).click();
   await waitForSky(page);
   await expect(page.locator(".sky-hud--settled")).toBeVisible();

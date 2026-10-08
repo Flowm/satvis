@@ -138,11 +138,12 @@ try {
     };
   });
 
-  // The info panel's Details tab: derived, curated, GCAT and SATCAT facts, then the
-  // element set as the panel shows it.
+  // The info panel's Orbit and Spacecraft tabs: derived, curated, GCAT and SATCAT facts,
+  // then the element set as the panel shows it.
   const details = records.map((record, index) => {
     const orbit = new Orbit(parsed[index].name, record);
-    return { facts: entityInfo.getSatelliteInfo(orbit, record.metadata.orbitClass, record.metadata), elements: entityInfo.getElementsInfo(orbit) };
+    const { orbitClass, chips, orbitRows, spacecraftRows } = entityInfo.getSatelliteInfo(orbit, record.metadata.orbitClass, record.metadata);
+    return { facts: { orbitClass, chips, rows: [...orbitRows, ...spacecraftRows] }, elements: entityInfo.getElementsInfo(orbit) };
   });
 
   // Passes over each station from the minute after the epoch, in both modes: the

@@ -25,13 +25,19 @@ const JD_UNIX_EPOCH = 2440587.5;
  */
 export const STALE_ELEMENTS_DAYS = 10;
 
-/** What the info panel shows of a satellite: a header, and the facts as rows. */
+/**
+ * What the info panel shows of a satellite: a header, and the facts as rows for its Orbit
+ * and Spacecraft tabs. The two lists in order are the single list the native app shows.
+ */
 export interface SatelliteInfo {
   /** The dot's colour. */
   orbitClass: OrbitClass;
   /** Under the name: the orbit, then the country and the status where known. */
   chips: string[];
-  rows: [string, string][];
+  /** Where it flies: the regime and what the element set gives. */
+  orbitRows: [string, string][];
+  /** What it is: payload footprint, owner, hardware and life, from the record's metadata. */
+  spacecraftRows: [string, string][];
 }
 
 /**
@@ -43,11 +49,12 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
   const regime = orbitRegimeLabel(orbitClass, orbit);
   const status = metadata.opsStatus === undefined ? undefined : satcatLabel(SATCAT_OPS_STATUS, metadata.opsStatus);
   const chips = [regime, metadata.country, status].filter((chip): chip is string => chip !== undefined);
-  return { orbitClass, chips, rows: satelliteRows(orbit, regime, metadata, status) };
+  return { orbitClass, chips, orbitRows: [["Orbit", regime], ...derivedOrbitRows(orbit)], spacecraftRows: spacecraftRows(metadata, status) };
 }
 
-function satelliteRows(orbit: Orbit, regime: string, metadata: SatelliteMetadata, status: string | undefined): [string, string][] {
-  const rows: [string, string][] = [["Orbit", regime], ...derivedOrbitRows(orbit)];
+/** "Orbit type" stays here: SATCAT's codes say docked, landed or impacted, a state of the spacecraft. */
+function spacecraftRows(metadata: SatelliteMetadata, status: string | undefined): [string, string][] {
+  const rows: [string, string][] = [];
 
   const { coneFovDeg, missionType, country, operator, category, class: ownerClass, manufacturer, bus, massKg, launchDate, launchSite, orbitType, decayDate } = metadata;
   const extents = swathExtentsOf(metadata);
