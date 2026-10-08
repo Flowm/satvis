@@ -9,6 +9,7 @@ import { CAMERA_MODES, SCENE_MODES } from "../config/viewModes";
 import { baseLayerNames, imageryProviderNames, terrainProviderNames } from "../modules/CesiumLayerProviders";
 import { sameValue } from "../modules/util/equality";
 import { boolean, enumString, layerList, timestamp, toMinuteIso } from "../modules/util/urlCodec";
+import { UNSEEN_MODES, type UnseenMode } from "../modules/util/visibility";
 
 export const useCesiumStore = defineStore(
   "cesium",
@@ -18,6 +19,8 @@ export const useCesiumStore = defineStore(
     const surfaceModel = ref("None");
     const starMap = ref<string>(BUILTIN_STAR_MAP);
     const sceneMode = ref("3D");
+    /** In the sky view, what to do with the satellites that cannot be seen. */
+    const unseen = ref<UnseenMode>("dim");
     const cameraMode = ref("Fixed");
     /** `native` is the display's own ratio. */
     const pixelRatio = ref<string>("native");
@@ -77,6 +80,7 @@ export const useCesiumStore = defineStore(
       surfaceModel,
       starMap,
       sceneMode,
+      unseen,
       cameraMode,
       pixelRatio,
       msaa,
@@ -97,6 +101,7 @@ export const useCesiumStore = defineStore(
         { name: "surfaceModel", url: "surface", kind: enumString(SURFACE_MODELS) },
         { name: "starMap", url: "stars", kind: enumString([...STAR_MAPS]) },
         { name: "sceneMode", url: "scene", kind: enumString(SCENE_MODES) },
+        { name: "unseen", url: "unseen", kind: enumString([...UNSEEN_MODES]) },
         { name: "cameraMode", url: "camera", kind: enumString(CAMERA_MODES) },
         { name: "pixelRatio", url: "pixelratio", kind: enumString([...PIXEL_RATIOS]) },
         { name: "msaa", url: "msaa", kind: enumString([...MSAA_RATES]) },

@@ -172,8 +172,15 @@ discussion; sharpen them here when they drift.
   control or when a drag takes the aim back, because the sensor rewrites the aim
   on every reading.
 - **Lock**: the satellite the crosshair holds: the nearest one in the crosshair's
-  reach that the observer can see (above the horizon, not behind the ground). A
-  tap acts on it, and the detail card and on-sky track describe it.
+  reach that the observer can see (above the horizon, not behind the ground, and
+  not hidden for its visibility). A tap acts on it, and the detail card and on-sky
+  track describe it.
+- **Visibility**: whether a satellite in the sky view could be seen by eye, from
+  geometry alone: visible (lit by the sun, in a dark sky, within 5,000 km), in
+  Earth's shadow, in daylight (the sun above -6°), or too far. Not brightness: a
+  dark-coated satellite in sunlight is visible here. The sky view dims the
+  satellites that are not visible by default, or shows or hides them (`?unseen`)
+  (`src/modules/util/visibility.ts`, `docs/adr/0010-sky-visibility.md`).
 - **Ground height source**: where the sky view's eye height is measured from when
   the globe cannot say. The globe answers from loaded tiles every frame; a surface
   model is asked once per observer and answers with the top of whatever stands

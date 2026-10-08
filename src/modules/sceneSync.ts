@@ -17,6 +17,7 @@ import type { Observer } from "./SkyView";
 import { isOffPresent } from "./util/clockDeck";
 import { toMinuteIso } from "./util/urlCodec";
 import { adjustUrlDefault, arrivalParam } from "./util/urlSync";
+import type { UnseenMode } from "./util/visibility";
 
 /** Enough to keep a fast clock multiplier from hammering the history api. */
 const MIN_CLOCK_WRITE_MS = 1000;
@@ -57,6 +58,7 @@ export interface SceneTarget {
     exit(): Promise<void>;
   };
   readonly skyInteraction: {
+    unseen: UnseenMode;
     start(): void;
     stop(): void;
     onObserverMove(callback: (observer: Observer) => void): void;
@@ -127,6 +129,13 @@ export function startSceneSync(cc: SceneTarget): void {
     () => [cesiumStore.surfaceModel, cesiumStore.sceneMode] as const,
     ([surfaceModel, viewMode]) => {
       void cc.applySurfaceModel(surfaceModel, viewMode);
+    },
+    { immediate: true },
+  );
+  watch(
+    () => cesiumStore.unseen,
+    (mode) => {
+      cc.skyInteraction.unseen = mode;
     },
     { immediate: true },
   );

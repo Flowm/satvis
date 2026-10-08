@@ -7,12 +7,15 @@
 
 import { Cartesian2, type JulianDate, type Scene, type ScreenSpaceEventHandler, ScreenSpaceEventType } from "@cesium/engine";
 
+import type { SkyAppearance } from "./componentKinds";
 import { browserOrientationEvents, CompassAiming, type CompassCalibration, type CompassOutcome } from "./DeviceAim";
+import type { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import type { SatelliteManager } from "./SatelliteManager";
 import { type GestureIntent, lookAfterDrag, SkyGestures } from "./skyGestures";
 import { SkyMovement } from "./SkyMovement";
 import { groundHides, nearestTarget, type SkyTarget, skyTargets } from "./SkyTargets";
 import type { Observer, SkyView } from "./SkyView";
+import type { UnseenMode } from "./util/visibility";
 
 /** In CSS pixels. */
 export const CAPTURE_RADIUS = 60;
@@ -49,6 +52,11 @@ export class SkyInteraction {
   #targets: SkyTarget[] = [];
 
   #locked: SkyTarget | undefined;
+
+  #unseen: UnseenMode = "dim";
+
+  /** Every satellite given a sky appearance, so `stop` can restore them all. */
+  readonly #styled = new Set<SatelliteComponentCollection>();
 
   readonly movement: SkyMovement;
 
@@ -106,6 +114,16 @@ export class SkyInteraction {
     return this.#locked;
   }
 
+  /** What to do with the satellites that cannot be seen; hidden ones are also off the crosshair. */
+  get unseen(): UnseenMode {
+    return this.#unseen;
+  }
+
+  set unseen(mode: UnseenMode) {
+    this.#unseen = mode;
+    this.#options.scene.requestRender();
+  }
+
   start(): void {
     if (this.#canvas) {
       return;
@@ -153,6 +171,10 @@ export class SkyInteraction {
     this.#gestures.reset();
     this.#targets = [];
     this.#setLocked(undefined);
+    for (const sat of this.#styled) {
+      sat.skyAppearance = "normal";
+    }
+    this.#styled.clear();
   }
 
   /** In CSS pixels. */
@@ -168,8 +190,23 @@ export class SkyInteraction {
       return;
     }
     this.#targets = skyTargets(scene, frame, sats.activeSatellites, time);
+    for (const target of this.#targets) {
+      target.sat.skyAppearance = this.#appearance(target);
+      this.#styled.add(target.sat);
+    }
     // The picture already hides what the ground hides.
-    this.#setLocked(nearestTarget(this.#targets, this.#center(), CAPTURE_RADIUS, (target) => groundHides(scene, frame, target.position)));
+    const lockable = this.#unseen === "hide" ? this.#targets.filter((target) => target.visibility === "visible") : this.#targets;
+    this.#setLocked(nearestTarget(lockable, this.#center(), CAPTURE_RADIUS, (target) => groundHides(scene, frame, target.position)));
+  }
+
+  #appearance(target: SkyTarget): SkyAppearance {
+    if (target.visibility === "visible" || this.#unseen === "show") {
+      return "normal";
+    }
+    if (this.#unseen === "hide") {
+      return "hidden";
+    }
+    return target.visibility === "daylight" ? "muted" : "dimmed";
   }
 
   #setLocked(target: SkyTarget | undefined): void {

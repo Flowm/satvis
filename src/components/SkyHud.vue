@@ -64,6 +64,7 @@ import { useSkyCompass } from "../composables/useSkyCompass";
 import { useSkyHud, type TapeTick } from "../composables/useSkyHud";
 import { SKY_MODE } from "../config/viewModes";
 import { compassPoint } from "../modules/SkyTargets";
+import type { Visibility } from "../modules/util/visibility";
 import { useCesiumStore } from "../stores/cesium";
 
 /**
@@ -82,6 +83,13 @@ const { active: compassActive } = useSkyCompass(cc);
 const { sceneMode } = storeToRefs(useCesiumStore());
 const visible = computed(() => sceneMode.value === SKY_MODE);
 
+const VISIBILITY_LABEL: Record<Visibility, string> = {
+  visible: "Could be seen",
+  shadow: "In Earth's shadow",
+  daylight: "Daylight",
+  far: "Too far",
+};
+
 const facts = computed<[string, string][]>(() => {
   const target = locked.value;
   if (!target) {
@@ -92,6 +100,7 @@ const facts = computed<[string, string][]>(() => {
     ["Azimuth", `${target.azimuth.toFixed(1)}° ${compassPoint(target.azimuth)}`],
     ["Range", `${Math.round(target.rangeKm).toLocaleString()} km`],
     ["Altitude", `${Math.round(target.altitudeKm).toLocaleString()} km`],
+    ["Visibility", VISIBILITY_LABEL[target.visibility]],
   ];
 });
 

@@ -2,7 +2,7 @@ import { CallbackProperty, Camera, Cartesian3, Entity, EntityView, GeometryInsta
 import type { Viewer } from "@cesium/widgets";
 
 import { clearPassHighlights, setPassHighlights } from "../composables/usePassHighlights";
-import { type Component, type ComponentHost, componentKind, ModelSize, type SatelliteBatches } from "./componentKinds";
+import { type Component, type ComponentHost, componentKind, ModelSize, type SatelliteBatches, type SkyAppearance } from "./componentKinds";
 import type { GroundStation } from "./PassPredictor";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import { SatelliteProperties } from "./SatelliteProperties";
@@ -43,6 +43,9 @@ export class SatelliteComponentCollection implements ComponentHost {
 
   #components: Record<string, Component> = {};
 
+  /** Kept across components, so one created in the sky view is born dimmed or hidden. */
+  #skyAppearance: SkyAppearance = "normal";
+
   /** What a click or a track acts on: the first Entity created. */
   defaultEntity: Entity | undefined;
 
@@ -74,6 +77,22 @@ export class SatelliteComponentCollection implements ComponentHost {
       // The tracked satellite still needs the window for its ground-station link.
       predictor.passes(time);
     }
+  }
+
+  get skyAppearance(): SkyAppearance {
+    return this.#skyAppearance;
+  }
+
+  /** Written by the sky view each frame, so an unchanged value returns at once. */
+  set skyAppearance(appearance: SkyAppearance) {
+    if (appearance === this.#skyAppearance) {
+      return;
+    }
+    this.#skyAppearance = appearance;
+    for (const [name, component] of Object.entries(this.#components)) {
+      componentKind(name)?.appear?.(component, this);
+    }
+    this.#requestFrameIfPaused();
   }
 
   get components(): Readonly<Record<string, Component>> {
@@ -190,6 +209,9 @@ export class SatelliteComponentCollection implements ComponentHost {
         return;
       }
       this.#components[name] = component;
+      if (this.#skyAppearance !== "normal") {
+        kind.appear?.(component, this);
+      }
       this.#bind(name, component, false);
       this.#requestFrameIfPaused();
     }
