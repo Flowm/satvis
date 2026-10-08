@@ -1,13 +1,28 @@
 import { Cartesian2, Cartesian3, Math as CesiumMath } from "@cesium/engine";
 import { describe, expect, test } from "vitest";
 
-import { compassPoint, directionToWorld, lookAngles, nearestTarget, observerFrame, type SkyTarget } from "./SkyTargets";
+import { compassPoint, directionToWorld, lookAngles, nearestTarget, observerFrame, type SkyTarget, sunElevation } from "./SkyTargets";
+import { sunDirection } from "./util/visibility";
 
 const MUNICH = { lat: 48.14, lon: 11.58 };
 const frameAt = (lat: number, lon: number, height = 2) => observerFrame(Cartesian3.fromDegrees(lon, lat, height));
 
 /** Signed, in (-180, 180]: due north can come back as 0 or 359.999…. */
 const azimuthError = (actual: number, expected: number): number => Math.abs(((((actual - expected) % 360) + 540) % 360) - 180);
+
+describe("sunElevation", () => {
+  const frame = frameAt(MUNICH.lat, MUNICH.lon);
+  const at = (epochMs: number) => sunElevation(frame, sunDirection(epochMs, new Cartesian3()));
+
+  test("is 90° less the latitude plus the declination at noon on the June solstice", () => {
+    // Local solar noon at 11.58° E, with the equation of time near -1.6 min.
+    expect(at(Date.UTC(2026, 5, 21, 11, 15))).toBeCloseTo(90 - MUNICH.lat + 23.436, 0);
+  });
+
+  test("is below the horizon at midnight", () => {
+    expect(at(Date.UTC(2026, 5, 21, 23, 15))).toBeLessThan(-15);
+  });
+});
 
 describe("lookAngles", () => {
   const frame = frameAt(MUNICH.lat, MUNICH.lon);
@@ -69,7 +84,7 @@ describe("lookAngles", () => {
 describe("nearestTarget", () => {
   const center = new Cartesian2(640, 360);
   const target = (name: string, x: number, y: number, elevation = 45): SkyTarget =>
-    ({ name, azimuth: 0, elevation, rangeKm: 1000, altitudeKm: 800, window: new Cartesian2(x, y), sat: { props: { name } } }) as unknown as SkyTarget;
+    ({ name, azimuth: 0, elevation, rangeKm: 1000, altitudeKm: 800, window: new Cartesian2(x, y), visibility: "visible", sat: { props: { name } } }) as unknown as SkyTarget;
 
   test("takes the genuinely nearest, not the first in range", () => {
     const targets = [target("far", 640, 410), target("near", 650, 360), target("mid", 660, 380)];

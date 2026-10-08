@@ -4,10 +4,11 @@
 // `(azimuth - heading) * pixelsPerDegree` breaks at the zenith, where the derived
 // heading flips by 180°, and cannot express roll.
 
-import { Cartesian2, Cartesian3, Cartographic, Math as CesiumMath, type JulianDate, Matrix3, Ray, type Scene, SceneTransforms } from "@cesium/engine";
+import { Cartesian2, Cartesian3, Cartographic, Math as CesiumMath, JulianDate, Matrix3, Ray, type Scene, SceneTransforms } from "@cesium/engine";
 
 import type { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { enuDirection, normalizeAzimuth, type ObserverFrame } from "./skyGeometry";
+import { inEarthShadow, sunDirection, type Visibility, visibility } from "./util/visibility";
 
 export { type ObserverFrame, observerFrame } from "./skyGeometry";
 
@@ -27,6 +28,8 @@ export interface SkyTarget extends LookAngles {
   position: Cartesian3;
   /** In CSS pixels; undefined when behind the camera. */
   window: Cartesian2 | undefined;
+  /** Whether it could be seen by eye, now, from the observer. */
+  visibility: Visibility;
 }
 
 /** In metres. Any distance works if it dwarfs the eye height. */
@@ -40,8 +43,7 @@ export function lookAngles(frame: ObserverFrame, target: Cartesian3): LookAngles
   }
   const local = Matrix3.multiplyByVector(frame.fixedToEnu, delta, new Cartesian3());
   const azimuth = normalizeAzimuth(CesiumMath.toDegrees(Math.atan2(local.x, local.y)));
-  const elevation = CesiumMath.toDegrees(Math.asin(CesiumMath.clamp(local.z / range, -1, 1)));
-  return { azimuth, elevation, rangeKm: range / 1000 };
+  return { azimuth, elevation: elevationOf(local, range), rangeKm: range / 1000 };
 }
 
 export function directionToWorld(frame: ObserverFrame, azimuth: number, elevation: number, distance = DIRECTION_DISTANCE): Cartesian3 {
@@ -51,6 +53,16 @@ export function directionToWorld(frame: ObserverFrame, azimuth: number, elevatio
   return Cartesian3.add(frame.position, offset, offset);
 }
 
+/** Degrees above the observer's horizon; `sun` is a unit vector from `sunDirection`. */
+export function sunElevation(frame: ObserverFrame, sun: Cartesian3): number {
+  return elevationOf(Matrix3.multiplyByVector(frame.fixedToEnu, sun, new Cartesian3()), 1);
+}
+
+/** Degrees above the horizon of an east-north-up vector of length `length`. */
+function elevationOf(local: Cartesian3, length: number): number {
+  return CesiumMath.toDegrees(Math.asin(CesiumMath.clamp(local.z / length, -1, 1)));
+}
+
 /** Where a direction from the observer lands on screen, in CSS pixels. */
 export function directionToWindow(scene: Scene, frame: ObserverFrame, azimuth: number, elevation: number): Cartesian2 | undefined {
   return SceneTransforms.worldToWindowCoordinates(scene, directionToWorld(frame, azimuth, elevation));
@@ -58,6 +70,8 @@ export function directionToWindow(scene: Scene, frame: ObserverFrame, azimuth: n
 
 /** Positions come from the entity's sampled property, so a target is where Cesium draws it. */
 export function skyTargets(scene: Scene, frame: ObserverFrame, satellites: readonly SatelliteComponentCollection[], time: JulianDate): SkyTarget[] {
+  const sun = sunDirection(JulianDate.toDate(time).getTime(), new Cartesian3());
+  const elevationOfSun = sunElevation(frame, sun);
   const targets: SkyTarget[] = [];
   for (const sat of satellites) {
     const position = sat.props.trajectory.position(time);
@@ -74,6 +88,7 @@ export function skyTargets(scene: Scene, frame: ObserverFrame, satellites: reado
       // latitude, a ~12 km bias.
       altitudeKm: (Cartographic.fromCartesian(position)?.height ?? 0) / 1000,
       window: SceneTransforms.worldToWindowCoordinates(scene, position),
+      visibility: visibility(elevationOfSun, !inEarthShadow(position, sun), angles.rangeKm),
     });
   }
   return targets;

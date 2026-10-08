@@ -121,11 +121,11 @@ discussion; sharpen them here when they drift.
 
 - **Ground station**: a named point on the ground that passes are computed
   against. The list order is presentation only: which station the sky view stands
-  at is a separate designation (`sat.observerStation`), not a rank. The ground
-  station panel edits the list in place and marks the observer; the mark is the
-  control that moves it. Every edit goes through the sat store's station edits
-  (`addGroundStation`, `moveGroundStation`, ...), which keep the designation on its
-  station.
+  at is a separate designation (`sat.observerStation`), not a rank. The menu calls
+  the list Locations; its panel edits the list in place and marks the observer, and
+  the mark is the control that moves it, as is the Sky panel's list. Every edit
+  goes through the sat store's station edits (`addGroundStation`,
+  `moveGroundStation`, ...), which keep the designation on its station.
 - **Pass**: a time range in which a satellite serves a ground station, by
   line-of-sight elevation ("elevation" mode) or sensor footprint overlap ("swath"
   mode). In swath mode the side of the ground track the station is on matters,
@@ -149,8 +149,10 @@ discussion; sharpen them here when they drift.
   surface model (a roof, where a building stands at the observer).
 - **Observer**: the point the sky view looks up from: the designated ground
   station, the first by default. Not a separate location, so passes are already
-  computed against it. With no ground station, the device location becomes one
-  and is designated; if that is refused, the sky view does not open. The movement
+  computed against it. Chosen in the Sky panel, where picking a station enters the
+  sky view there, and which cannot enter without one. Only a link to the sky view
+  with no ground station turns the device location into one, designated; if that
+  is refused, the sky view does not open. The movement
   keys walk the observer, and the designated station follows once they stop
   (`SkyMovement`), keeping its name and list position. Designating another station
   while the view is up moves the view there.
@@ -172,8 +174,15 @@ discussion; sharpen them here when they drift.
   control or when a drag takes the aim back, because the sensor rewrites the aim
   on every reading.
 - **Lock**: the satellite the crosshair holds: the nearest one in the crosshair's
-  reach that the observer can see (above the horizon, not behind the ground). A
-  tap acts on it, and the detail card and on-sky track describe it.
+  reach that the observer can see (above the horizon, not behind the ground, and
+  not hidden for its visibility). A tap acts on it, and the detail card and on-sky
+  track describe it.
+- **Visibility**: whether a satellite in the sky view could be seen by eye, from
+  geometry alone: visible (lit by the sun, in a dark sky, within 5,000 km), in
+  Earth's shadow, in daylight (the sun above -6°), or too far. Not brightness: a
+  dark-coated satellite in sunlight is visible here. The sky view dims the
+  satellites that are not visible by default, or shows or hides them (`?unseen`)
+  (`src/modules/util/visibility.ts`, `docs/adr/0010-sky-visibility.md`).
 - **Ground height source**: where the sky view's eye height is measured from when
   the globe cannot say. The globe answers from loaded tiles every frame; a surface
   model is asked once per observer and answers with the top of whatever stands

@@ -17,6 +17,7 @@ import type { Observer } from "./SkyView";
 import { isOffPresent } from "./util/clockDeck";
 import { toMinuteIso } from "./util/urlCodec";
 import { adjustUrlDefault, arrivalParam } from "./util/urlSync";
+import type { UnseenMode } from "./util/visibility";
 
 /** Enough to keep a fast clock multiplier from hammering the history api. */
 const MIN_CLOCK_WRITE_MS = 1000;
@@ -57,6 +58,7 @@ export interface SceneTarget {
     exit(): Promise<void>;
   };
   readonly skyInteraction: {
+    unseen: UnseenMode;
     start(): void;
     stop(): void;
     onObserverMove(callback: (observer: Observer) => void): void;
@@ -130,6 +132,13 @@ export function startSceneSync(cc: SceneTarget): void {
     },
     { immediate: true },
   );
+  watch(
+    () => cesiumStore.unseen,
+    (mode) => {
+      cc.skyInteraction.unseen = mode;
+    },
+    { immediate: true },
+  );
   // "Sky" needs an observer, so entering it can fail, and a refusal puts the mode back.
   let viewModeGeneration = 0;
 
@@ -182,7 +191,7 @@ export function startSceneSync(cc: SceneTarget): void {
       // Otherwise the radio just moves back, which reads as a broken control.
       useToastProxy().add({
         title: "Sky view needs a location",
-        description: "Allow Geolocation or set a location from the Ground station menu.",
+        description: "Allow Geolocation or add a location from the Locations menu.",
         color: "warning",
       });
       refusedAt = performance.now();

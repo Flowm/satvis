@@ -8,7 +8,7 @@ import { expect, test } from "../support/test";
 
 const CONTROLS = {
   "menu toggle": "#toolbarLeft .menuColumn__toggle",
-  "toolbar Map": "#toolbarLeft .menuColumn__item:nth-child(4)",
+  "toolbar Locations": "#toolbarLeft .menuColumn__item:nth-child(4)",
   "toolbar eye": "#toolbarRight button",
   "cesium credits": ".cesium-credit-logoContainer",
   "clock deck controls": ".cluster",
@@ -16,7 +16,7 @@ const CONTROLS = {
   "entity info panel": ".entity-info-panel",
 };
 
-// At 563 px the expanded column's Map entry lands over the entity panel. At 1106 px
+// At 563 px the expanded column's fourth entry, Locations, lands over the entity panel. At 1106 px
 // #toolbarLeft once had pointer-events none.
 test("every control takes clicks in the sky view", async ({ page }) => {
   await page.setViewportSize({ width: 563, height: 900 });

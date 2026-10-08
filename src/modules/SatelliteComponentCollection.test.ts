@@ -376,3 +376,61 @@ describe("SatelliteComponentCollection tracking a model", () => {
     expect(viewer.trackedEntity).toBe(sat.components.Point);
   });
 });
+
+describe("SatelliteComponentCollection sky appearance", () => {
+  const alpha = (property: Property | undefined, time: JulianDate) => (property!.getValue(time) as { alpha: number }).alpha;
+
+  test("dims the point and the label, and restores them", async () => {
+    const { sat, viewer } = await setup({ modelFile: null });
+    sat.show(["Point", "Label"]);
+    const point = sat.components.Point as Entity;
+    const label = sat.components.Label as Entity;
+    const time = viewer.clock.currentTime;
+
+    sat.skyAppearance = "dimmedDark";
+    expect(alpha(point.point!.color, time)).toBeLessThan(1);
+    expect(alpha(label.label!.fillColor, time)).toBeLessThan(1);
+    expect(point.show).toBe(true);
+
+    sat.skyAppearance = "normal";
+    expect(alpha(point.point!.color, time)).toBe(1);
+    expect(alpha(label.label!.fillColor, time)).toBe(1);
+  });
+
+  test("dims less in daylight than on a dark sky", async () => {
+    const { sat, viewer } = await setup({ modelFile: null });
+    sat.show(["Point"]);
+    const point = sat.components.Point as Entity;
+    const time = viewer.clock.currentTime;
+
+    sat.skyAppearance = "dimmedDaylight";
+    const daylight = alpha(point.point!.color, time);
+    sat.skyAppearance = "dimmedDark";
+    const dark = alpha(point.point!.color, time);
+
+    expect(daylight).toBeLessThan(1);
+    expect(dark).toBeLessThan(daylight);
+  });
+
+  test("hides the point, the label and the model, and shows them again", async () => {
+    const { sat } = await setup();
+    sat.show(["Point", "Label", "3D model"]);
+    const entities = ["Point", "Label", "3D model"].map((name) => sat.components[name] as Entity);
+
+    sat.skyAppearance = "hidden";
+    expect(entities.map((entity) => entity.show)).toEqual([false, false, false]);
+
+    sat.skyAppearance = "normal";
+    expect(entities.map((entity) => entity.show)).toEqual([true, true, true]);
+  });
+
+  test("applies to a component created while it holds", async () => {
+    const { sat } = await setup({ modelFile: null });
+    sat.show(["Point"]);
+    sat.skyAppearance = "hidden";
+
+    sat.show(["Label"]);
+
+    expect((sat.components.Label as Entity).show).toBe(false);
+  });
+});

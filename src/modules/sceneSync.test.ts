@@ -75,6 +75,7 @@ function fakeTarget() {
       },
     },
     skyInteraction: {
+      unseen: "dim",
       start: () => {
         calls.interactionStarts += 1;
       },
@@ -151,11 +152,13 @@ describe("startSceneSync", () => {
     store.cameraMode = "Inertial";
     store.showFps = true;
     store.background = false;
+    store.unseen = "hide";
     await nextTick();
 
     expect(target.terrainProvider).toBe("CesiumWorldTerrain");
     expect(target.cameraMode).toBe("Inertial");
     expect(target.showFps).toBe(true);
+    expect(target.skyInteraction.unseen).toBe("hide");
   });
 
   test("the star map is installed on request, and not before", async () => {

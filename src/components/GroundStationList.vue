@@ -67,13 +67,13 @@
       <button type="button" class="gsList__remove" title="Remove" @click="removeAt(index)">×</button>
     </div>
 
-    <div class="gsList__actions">
+    <div class="toolbarActions">
       <button type="button" :class="{ 'gsList__action--on': pickMode }" :aria-pressed="pickMode" @click="pickMode = !pickMode">
         <UIcon name="lucide:crosshair" />
         {{ pickMode ? "Cancel pick" : "Pick on globe" }}
       </button>
       <button type="button" :disabled="locating" @click="void locate()">
-        <span v-if="locating" class="toolbarSpinner gsList__spinner"></span>
+        <span v-if="locating" class="toolbarSpinner"></span>
         My location
       </button>
     </div>
@@ -343,41 +343,9 @@ function offsetOf(index: number): number {
   opacity: 1;
 }
 
-.gsList__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 4px 0 2px;
-}
-
-.gsList__actions button {
-  align-items: center;
-  background-color: #464b50;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: #edffff;
-  cursor: pointer;
-  display: flex;
-  flex: 1 1 auto;
-  font-size: 11px;
-  gap: 4px;
-  justify-content: center;
-  padding: 4px 6px;
-  white-space: nowrap;
-}
-
-.gsList__actions button:hover:not(:disabled) {
-  background-color: #5a6167;
-}
-
-.gsList__actions button:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
-
 /* Pick mode stays on until a click on the globe. */
-.gsList__actions .gsList__action--on,
-.gsList__actions .gsList__action--on:hover:not(:disabled) {
+.toolbarActions .gsList__action--on,
+.toolbarActions .gsList__action--on:hover:not(:disabled) {
   background-color: #4ade80;
   color: #14281b;
   font-weight: 600;
@@ -386,10 +354,5 @@ function offsetOf(index: number): number {
 .gsList__pickNote {
   color: #4ade80;
   opacity: 1;
-}
-
-.gsList__spinner {
-  height: 10px;
-  width: 10px;
 }
 </style>

@@ -10,6 +10,7 @@ import {
   Cartesian3,
   Color,
   ColorGeometryInstanceAttribute,
+  ConstantProperty,
   CornerType,
   CorridorGraphics,
   DistanceDisplayCondition,
@@ -56,6 +57,9 @@ export interface SatelliteBatches {
   tracks: PolylineBatch;
 }
 
+/** How the sky view draws a satellite by its visibility (CONTEXT.md); "normal" outside it. */
+export type SkyAppearance = "normal" | "dimmedDaylight" | "dimmedDark" | "hidden";
+
 /** What a kind may ask of the satellite it draws. */
 export interface ComponentHost {
   readonly viewer: Viewer;
@@ -63,6 +67,8 @@ export interface ComponentHost {
   readonly batches: SatelliteBatches;
   readonly isTracked: boolean;
   readonly model: ModelSize;
+  /** Set by the sky view each frame. */
+  readonly skyAppearance: SkyAppearance;
   /** An entity named after the satellite, framed for tracking. */
   entity(key: string, graphics: unknown, position: unknown, moving: boolean): Entity;
   /** The station of the pass containing `time`, else the first station. */
@@ -87,10 +93,39 @@ export interface ComponentKind {
   fits?(component: Component, host: ComponentHost): boolean;
   /** Whether the drawn component has caught up with its last positions; undefined if it cannot say. */
   settled?(component: Component, host: ComponentHost): boolean | undefined;
+  /** Applies `host.skyAppearance`: on creation unless it is "normal", and on every change. */
+  appear?(component: Component, host: ComponentHost): void;
 }
 
 /** Converted once and shared by every point, like Cesium's own Color constants. */
 const POINT_COLOR = Object.fromEntries(Object.entries(ORBIT_CLASS_COLOR).map(([orbitClass, hex]) => [orbitClass, Color.fromCssColorString(hex)])) as Record<OrbitClass, Color>;
+
+interface Palette {
+  point: Record<OrbitClass, Color>;
+  outline: Color;
+  /** Multiplied into the model's own colours, the default blend; undefined leaves them. */
+  model: Color | undefined;
+}
+
+/** The normal colours, or all of them at `alpha`. */
+function palette(alpha?: number): Palette {
+  if (alpha === undefined) {
+    return { point: POINT_COLOR, outline: Color.DIMGREY, model: undefined };
+  }
+  return {
+    point: Object.fromEntries(Object.entries(POINT_COLOR).map(([orbitClass, color]) => [orbitClass, color.withAlpha(alpha)])) as Record<OrbitClass, Color>,
+    outline: Color.DIMGREY.withAlpha(alpha),
+    model: Color.WHITE.withAlpha(alpha),
+  };
+}
+
+/**
+ * An unseen satellite stays visible enough to lock onto, not to look for. On a dark sky
+ * it must stand apart from the visible ones: at 0.5 a dimmed orange GEO point was as
+ * bright as a visible grey one. Daylight dims every satellite alike, so it needs no
+ * contrast, and 0.22 vanished against the blue.
+ */
+const PALETTES: Record<Exclude<SkyAppearance, "hidden">, Palette> = { normal: palette(), dimmedDaylight: palette(0.6), dimmedDark: palette(0.3) };
 
 /**
  * CSS pixels, the orbit's and the orbit track's. At 2 px the orbits bunched around a
@@ -223,6 +258,15 @@ function atSatellite(host: ComponentHost, key: string, graphics: unknown): Entit
   return host.entity(key, graphics, host.props.trajectory.entityPosition, true);
 }
 
+/** Shows or hides the entity, and has `restyle` colour its graphics. */
+function appearAtSatellite(component: Component, host: ComponentHost, restyle: (entity: Entity, colors: Palette) => void): void {
+  if (component instanceof Entity) {
+    const appearance = host.skyAppearance;
+    component.show = appearance !== "hidden";
+    restyle(component, PALETTES[appearance === "hidden" ? "normal" : appearance]);
+  }
+}
+
 /** The tracked satellite's lines are paths, which follow it; outside 3D every one is, as a batch draws only there. */
 function drawnAsPath(host: ComponentHost): boolean {
   return orbitUsesPathGraphic(host.isTracked, host.viewer.scene.mode === SceneMode.SCENE3D);
@@ -282,6 +326,13 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
         }),
       ),
     bind: bindAtSatellite,
+    appear: (component, host) =>
+      appearAtSatellite(component, host, ({ point }, colors) => {
+        if (point) {
+          point.color = new ConstantProperty(colors.point[host.props.orbitClass]);
+          point.outlineColor = new ConstantProperty(colors.outline);
+        }
+      }),
   },
 
   /** The LEO point's grey, not white: white labels outshouted the points they named. */
@@ -309,6 +360,13 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
         }),
       ),
     bind: bindAtSatellite,
+    appear: (component, host) =>
+      appearAtSatellite(component, host, ({ label }, colors) => {
+        if (label) {
+          label.fillColor = new ConstantProperty(colors.point.LEO);
+          label.outlineColor = new ConstantProperty(colors.outline);
+        }
+      }),
   },
 
   /** The only component drawn in the inertial frame. Batched in 3D, a path otherwise and for the tracked satellite. */
@@ -476,6 +534,12 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
       return atSatellite(host, "model", model);
     },
     bind: bindAtSatellite,
+    appear: (component, host) =>
+      appearAtSatellite(component, host, ({ model }, colors) => {
+        if (model) {
+          model.color = colors.model && new ConstantProperty(colors.model);
+        }
+      }),
   },
 
   "Ground station link": {
