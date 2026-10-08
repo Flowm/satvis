@@ -82,6 +82,7 @@ export interface SceneTarget {
   releaseCameraMode(): void;
   morphTo(mode: string): void;
   setTime(time: string): void;
+  goLive(): void;
 }
 
 export function startSceneSync(cc: SceneTarget): void {
@@ -356,10 +357,16 @@ export function startSceneSync(cc: SceneTarget): void {
   // shows what the sender saw.
   const clockMinute = (): string | undefined => toMinuteIso(JulianDate.toDate(cc.viewer.clock.currentTime));
 
+  // Only a url without `time` (Back, a bookmark) clears it off the present: the clock clears it
+  // only once at the present. Without going live the clock would write `time` straight back.
   watch(
     () => cesiumStore.time,
     (pinned) => {
-      if (pinned !== null && pinned !== (clockMinute() ?? null)) {
+      if (pinned === null) {
+        if (isOffPresent(JulianDate.toDate(cc.viewer.clock.currentTime).getTime(), Date.now())) {
+          cc.goLive();
+        }
+      } else if (pinned !== (clockMinute() ?? null)) {
         cc.setTime(pinned);
       }
     },

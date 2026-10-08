@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { fetchGpIndex, type GpIndex } from "../modules/util/gpSource";
-import { presetNameOf, resolvePreset } from "./presets";
+import { presetNameOf, presetPath, resolvePreset } from "./presets";
 
 vi.mock("../modules/util/gpSource", () => ({ fetchGpIndex: vi.fn() }));
 
@@ -35,6 +35,12 @@ describe("presetNameOf", () => {
   ])("%s names %s", (path, name) => {
     expect(presetNameOf(path)).toBe(name);
   });
+});
+
+test("presetPath opens the preset it names", () => {
+  expect(presetPath("default")).toBe("/");
+  expect(presetPath("ot")).toBe("/ot");
+  expect(presetNameOf(presetPath("ot"))).toBe("ot");
 });
 
 describe("resolvePreset", () => {

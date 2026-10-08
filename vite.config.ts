@@ -123,6 +123,8 @@ export default defineConfig({
           "cesium/Assets/**/*.{jpg,png,xml,json}",
           "data/imagery/NaturalEarthII/{0,1,2,3}/**/*.webp",
           "data/imagery/NaturalEarthII/tilemapresource.xml",
+          // The demo bookmarks' cards, so the Bookmarks panel works offline.
+          "showcase/*-card.jpg",
         ],
         globIgnores: ["cesium/ThirdParty/**/*", "cesium/Widgets/**/*", "cesium/Workers/**/*", "cesium/Assets/Textures/maki/*", "**/*.map", "data/privacy.html"],
         sourcemap: true,

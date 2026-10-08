@@ -209,13 +209,26 @@ discussion; sharpen them here when they drift.
   Levels 0–3 are precached, so it is the only basemap guaranteed with no network;
   levels 4–5 are cached as they are viewed.
 
+## Bookmarks
+
+- **Bookmark**: a link to a scene, kept under a name with a picture: a route and the
+  url parameters the stores own, never a camera position. Opening one navigates to
+  the link. Kept per browser (`docs/adr/0011-bookmarks.md`). Not a preset, which is
+  where a route starts, and not a view mode.
+- **Demo**: a bookmark that ships with the app: a scene of the about page's
+  showcase, live and with a group or a single satellite.
+- **Opened link**: a link a visit started with, kept so it can be found again. A
+  reload, Back or Forward is not one. "Recent" on screen.
+- **Default view**: the route's preset with no scene parameter, which the Bookmarks
+  panel returns to in one step.
+
 ## Time
 
 - **Live vs pinned time**: whether the clock shows the present or another moment.
   Live by default. The clock is pinned whenever it is more than a minute off the
   present, however it got there (a `time` in the url, a scrub, a pass link, a pause,
   a fast playback speed), and live again once it is back. The deck's Live dot and
-  an absent `time` always agree.
+  an absent `time` always agree, so a url that drops `time` takes the clock live.
 - **Clock deck**: the bottom controls that replace Cesium's animation and
   timeline widgets: pause, playback speed and scrubbing, as a control row over a
   scale row (`ClockDeck.vue`). One row that is either instrument, not a port of

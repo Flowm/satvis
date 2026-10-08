@@ -4,6 +4,7 @@ import { createPinia } from "pinia";
 import { createApp, markRaw } from "vue";
 
 import App from "./App.vue";
+import { recordOpenedLink } from "./composables/useBookmarks";
 import { controllerKey } from "./composables/useController";
 import { usePWAUpdate } from "./composables/usePWAUpdate";
 import { ionAccessToken } from "./config/ion";
@@ -54,6 +55,8 @@ startSceneSync(cc);
 
 setupRouterGuards(router, cc);
 app.use(router);
+
+void recordOpenedLink(cc, router);
 
 app.use(ui);
 

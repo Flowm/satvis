@@ -487,6 +487,17 @@ export class CesiumController {
     this.viewer.clock.currentTime = JulianDate.fromIso8601(dayjs.utc(current).toISOString());
   }
 
+  /**
+   * Back to the present, playing at real time, with the window rebuilt around it.
+   * Paused or at any other speed the clock would leave the present again.
+   */
+  goLive(): void {
+    this.viewer.clockViewModel.multiplier = 1;
+    this.viewer.clockViewModel.shouldAnimate = true;
+    this.setTime(new Date());
+    this.viewer.scene.requestRender();
+  }
+
   createInputHandler(): void {
     // The Viewer's own click handler selects what a click hits and clears the selection on a miss.
     const viewerHandler = this.viewer.screenSpaceEventHandler;

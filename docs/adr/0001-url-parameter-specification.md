@@ -217,7 +217,9 @@ a pass link, a pause, or a fast playback speed. Back within the minute it is liv
 again and `time` goes, so an absent `time` and the deck's Live dot always agree
 (`offPresent` in `src/modules/util/clockDeck.ts`). While pinned, `time` follows the
 clock at minute granularity, so a shared link reproduces the moment the sharer saw.
-A link without `time` opens at the recipient's present.
+A link without `time` opens at the recipient's present, and arriving at a url without
+it while the clock is pinned (Back, a bookmark) takes the clock live, at real time, as
+the deck's "Back to now" does (`startSceneSync`).
 
 Pinning only on a deliberate act, the earlier rule, left the url saying "live" while
 the clock showed another moment: after a pass link, or at 600× after "Back to now",

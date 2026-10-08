@@ -38,6 +38,11 @@ export function presetNameOf(path: string): string {
   return (path.split("/").pop() ?? "").replace(/\.html$/, "") || DEFAULT_PRESET;
 }
 
+/** The path that opens preset `name`: `/` for the default one. */
+export function presetPath(name: string): string {
+  return name === DEFAULT_PRESET ? "/" : `/${name}`;
+}
+
 export async function resolvePreset(path: string = window.location.pathname): Promise<Preset> {
   shellTitle ??= document.title;
   const { groups, presets } = await fetchGpIndex();

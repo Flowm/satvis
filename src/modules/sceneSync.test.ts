@@ -36,6 +36,7 @@ function fakeTarget() {
     reconciled: [] as DesiredScene[],
     surfaceModels: [] as [string, string][],
     starMaps: [] as string[],
+    wentLive: 0,
   };
 
   const unavailableStarMaps = new Set<string>();
@@ -116,6 +117,10 @@ function fakeTarget() {
       calls.morphedTo.push(mode);
     },
     setTime: () => {},
+    goLive: () => {
+      calls.wentLive += 1;
+      clock.currentTime = JulianDate.fromDate(new Date());
+    },
   };
 
   /** One frame of the viewer's clock. */
@@ -609,6 +614,38 @@ describe("startSceneSync", () => {
       clock.currentTime = JulianDate.fromIso8601("2026-01-01T00:00:02Z");
       tick();
       expect(store.time).toBeNull();
+    });
+
+    test("a url that drops a pinned time takes the clock back to the present", async () => {
+      const { target, calls, clock, tick } = fakeTarget();
+      startSceneSync(target);
+      const store = useCesiumStore();
+      clock.currentTime = JulianDate.fromIso8601("2025-12-31T21:00:00Z");
+      store.setTime("2025-12-31T21:00Z");
+      await nextTick();
+
+      // Back to a link without `time`, or a bookmark without one.
+      store.setTime(null);
+      await nextTick();
+      expect(calls.wentLive).toBe(1);
+      vi.advanceTimersByTime(2000);
+      tick();
+      expect(store.time).toBeNull();
+    });
+
+    test("the clock clearing the time at the present does not restart it", async () => {
+      const { target, calls, clock, tick } = fakeTarget();
+      startSceneSync(target);
+      const store = useCesiumStore();
+      store.setTime("2025-12-31T21:00Z");
+      await nextTick();
+
+      vi.advanceTimersByTime(2000);
+      clock.currentTime = JulianDate.fromIso8601("2026-01-01T00:00:30Z");
+      tick();
+      await nextTick();
+      expect(store.time).toBeNull();
+      expect(calls.wentLive).toBe(0);
     });
 
     test("a clock within a minute of the present stays live", () => {
