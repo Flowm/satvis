@@ -53,6 +53,12 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await expect(panel.getByRole("row", { name: /Country/ })).toContainText("USA");
       await expect(panel.getByRole("row", { name: /Purpose/ })).toContainText("Human spaceflight");
       await expect(panel.getByRole("row", { name: /Size/ })).toContainText("12.6 × ~4.2 m, span 23.9 m");
+      // The page turns text selection off; the panel's facts can still be copied.
+      await panel
+        .getByRole("row", { name: /Operator/ })
+        .getByRole("cell")
+        .click({ clickCount: 3 });
+      expect(await page.evaluate(() => getSelection()?.toString())).toContain("NASA Johnson Space Flight Center");
       await panel.getByRole("tab", { name: /Passes/ }).click();
       await expect(panel).toContainText("No ground station set");
       await expect(panel.locator(".model-view")).toHaveCount(0);

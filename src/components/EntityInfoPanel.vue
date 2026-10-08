@@ -431,6 +431,15 @@ function notifyPasses(): void {
   max-width: 540px;
   z-index: 5;
   font-size: 14px;
+  /* The body turns selection off for the globe; the name, position and facts are worth copying. Safari needs the prefix. */
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* A long press on a tab would select its label. */
+.entity-info-panel :deep([role="tablist"]) {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* dvh, not vh: an installed iOS app reports vh as the full screen, taller than the viewport it paints. */

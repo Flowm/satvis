@@ -55,6 +55,9 @@ onBeforeUnmount(() => {
   overflow: hidden;
   border-radius: 4px;
   background: radial-gradient(circle at 50% 40%, #15181d, #040506 75%);
+  /* A drag turns the model; it must not select the panel's text. */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .model-view__scene {
