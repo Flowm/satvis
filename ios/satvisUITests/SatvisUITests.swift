@@ -5,42 +5,226 @@ nonisolated class SatvisUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // With no worker to answer, the groups come from the copy on disk or the
+    // test catalog, so the test needs no network.
     @MainActor
-    func testBasicUI() {
-        let app = XCUIApplication()
-        app.launchEnvironment["URL"] = "https://satvis.space/?time=2019-07-15T15:52&layers=ArcGis&tags=Weather&elements=Point,Label,Orbit"
-        app.launch()
-
-        SpringboardHelper.allowSystemAlerts()
-
-        // The clock deck appears once the page has rendered
-        XCTAssert(clockDeck(app).waitForExistence(timeout: 60))
+    func testFindsASatelliteWithoutTheWorker() {
+        _ = search("METOP-C")
     }
 
-    // The App Store screenshots: the about page's three views, at the same urls
+    // A search result's info button switches it on and opens its panel.
+    @MainActor
+    func testOpensASatelliteFromTheBrowser() {
+        let app = search("METOP-C")
+        app.buttons["Details of METOP-C"].tap()
+        XCTAssert(app.navigationBars["METOP-C"].waitForExistence(timeout: 10))
+        XCTAssert(app.buttons["Track"].exists)
+    }
+
+    // A link opens on what it names, as on the web: the satellite enabled and
+    // tracked, its panel open.
+    @MainActor
+    func testOpensALink() {
+        let app = launch(link: "/?tags=&sats=METOP-B&track=METOP-B&elements=Point,Label,Orbit")
+        XCTAssert(app.navigationBars["METOP-B"].waitForExistence(timeout: 20))
+        XCTAssert(app.buttons["Stop tracking"].firstMatch.exists)
+    }
+
+    // The web app's menu column unfolds from the menu button, folded on a phone
+    // and open from the start on an iPad, and the menus among it open.
+    @MainActor
+    func testOpensTheToolsFromTheMenu() {
+        let app = launch()
+        let toggle = menuToggle(app)
+        XCTAssert(toggle.waitForExistence(timeout: 30))
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            XCTAssertEqual(toggle.label, "Close menu")
+        } else {
+            XCTAssertFalse(app.buttons["Map"].exists)
+            toggle.tap()
+        }
+        for entry in ["Satellites", "Components", "Ground station", "Map", "View", "Graphics"] {
+            XCTAssert(app.buttons[entry].waitForExistence(timeout: 5), "No \(entry) in the menu")
+        }
+        app.buttons["Components"].tap()
+        XCTAssert(app.descendants(matching: .any)["Orbit track"].waitForExistence(timeout: 5))
+    }
+
+    // A tap on the globe puts the menu back as it starts, as on the web: the panel
+    // closed, and on a phone the column folded.
+    @MainActor
+    func testClosesTheMenuOnATapOnTheGlobe() {
+        let app = launch()
+        openMenu(app)
+        app.buttons["Components"].tap()
+        let panel = app.descendants(matching: .any)["Orbit track"]
+        XCTAssert(panel.waitForExistence(timeout: 5))
+        // Space beside the globe, clear of the menu, the buttons and the clock.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.62)).tap()
+        XCTAssert(panel.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(menuToggle(app).label, UIDevice.current.userInterfaceIdiom == .pad ? "Close menu" : "Menu")
+    }
+
+    // The about page's demos open in the app: the first pins the clock at its minute.
+    @MainActor
+    func testOpensADemoFromAbout() {
+        let app = launch()
+        XCTAssert(app.buttons["About Satvis"].waitForExistence(timeout: 30))
+        app.buttons["About Satvis"].tap()
+        let demo = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Open it'")).firstMatch
+        XCTAssert(demo.waitForExistence(timeout: 5))
+        demo.tap()
+        let stamp = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UTC'")).firstMatch
+        XCTAssert(stamp.waitForExistence(timeout: 10))
+        let pinned = NSPredicate(format: "label CONTAINS '08:5'")
+        expectation(for: pinned, evaluatedWith: stamp)
+        waitForExpectations(timeout: 10)
+    }
+
+    // The credits open from the link beside the clock.
+    @MainActor
+    func testOpensTheAttribution() {
+        let app = launch()
+        XCTAssert(app.buttons["Attribution"].waitForExistence(timeout: 30))
+        app.buttons["Attribution"].tap()
+        XCTAssert(app.buttons["Done"].waitForExistence(timeout: 5))
+    }
+
+    // Paused, the clock falls behind the present, and the deck offers the way back
+    // without anything else being touched.
+    @MainActor
+    func testOffersBackToNowOncePaused() {
+        let app = launch()
+        let stamp = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UTC'")).firstMatch
+        XCTAssert(stamp.waitForExistence(timeout: 30))
+        stamp.tap()
+        XCTAssert(app.buttons["Pause"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Back to now"].exists)
+        app.buttons["Pause"].tap()
+        // A minute off the present (`SimulationClock.presentTolerance`) and a tick.
+        XCTAssert(app.buttons["Back to now"].waitForExistence(timeout: 75))
+    }
+
+    // UTC on a 24-hour clock, in a locale whose own clock has 12 hours.
+    @MainActor
+    func testReadsUTCOnA24HourClock() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-AppleLocale", "en_US", "-AppleLanguages", "(en)"]
+        app.launchEnvironment["SATVIS_API"] = "http://127.0.0.1:9"
+        app.launchEnvironment["SATVIS_TEST_CATALOG"] = "1"
+        app.launchEnvironment["SATVIS_LINK"] = "/"
+        app.launchEnvironment["SATVIS_TIME"] = "2026-10-04T19:22:00Z"
+        app.launch()
+        let stamp = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UTC'")).firstMatch
+        XCTAssert(stamp.waitForExistence(timeout: 30))
+        XCTAssert(stamp.label.contains("19:22"), "The clock read \(stamp.label)")
+    }
+
+    // The web app's `fps=true` shows the performance overlay; the Graphics menu's
+    // FPS switches it off.
+    @MainActor
+    func testShowsPerformanceFromALink() {
+        let app = launch(link: "/?fps=true")
+        let overlay = app.descendants(matching: .any)["Performance"]
+        XCTAssert(overlay.waitForExistence(timeout: 30))
+        openMenu(app)
+        app.buttons["Graphics"].tap()
+        flip(app, "FPS")
+        XCTAssert(overlay.waitForNonExistence(timeout: 5))
+    }
+
+    // The web app's `bench=true` opens the benchmark panel; Close puts it away,
+    // and the Graphics menu brings it back.
+    @MainActor
+    func testOpensTheBenchmarkFromALink() {
+        let app = launch(link: "/?bench=true")
+        let start = app.buttons["Start"]
+        XCTAssert(start.waitForExistence(timeout: 30))
+        app.buttons["Close"].firstMatch.tap()
+        XCTAssert(start.waitForNonExistence(timeout: 5))
+        openMenu(app)
+        app.buttons["Graphics"].tap()
+        flip(app, "Benchmark")
+        XCTAssert(start.waitForExistence(timeout: 5))
+    }
+
+    /// The menu column's toggle, named for what a tap on it does: "Menu" folded,
+    /// "Close menu" open.
+    @MainActor
+    private func menuToggle(_ app: XCUIApplication) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label IN {'Menu', 'Close menu'}")).firstMatch
+    }
+
+    /// Flips a panel's switch by the switch itself: a tap in the middle of the row
+    /// lands on its name, which does not.
+    @MainActor
+    private func flip(_ app: XCUIApplication, _ name: String) {
+        let row = app.switches[name]
+        XCTAssert(row.waitForExistence(timeout: 5))
+        let control = row.switches.firstMatch
+        (control.exists ? control : row).tap()
+    }
+
+    /// Unfolds the menu column, unless it is open already, as on an iPad.
+    @MainActor
+    private func openMenu(_ app: XCUIApplication) {
+        let toggle = menuToggle(app)
+        XCTAssert(toggle.waitForExistence(timeout: 30))
+        if toggle.label == "Menu" {
+            toggle.tap()
+            // Its rows take no taps while they fade in, and one reaches the globe.
+            sleep(1)
+        }
+    }
+
+    /// Launches with no worker to answer, on the app's fixed test catalog
+    /// (`TestCatalog`), on a link: by default the plain site, rather than the view
+    /// an earlier run left.
+    @MainActor
+    private func launch(link: String = "/") -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["SATVIS_API"] = "http://127.0.0.1:9"
+        app.launchEnvironment["SATVIS_TEST_CATALOG"] = "1"
+        app.launchEnvironment["SATVIS_LINK"] = link
+        app.launch()
+        return app
+    }
+
+    /// Launches and searches the satellite browser.
+    @MainActor
+    private func search(_ name: String) -> XCUIApplication {
+        let app = launch()
+
+        openMenu(app)
+        app.buttons["Satellites"].tap()
+        let search = app.searchFields["Search satellites"]
+        XCTAssert(search.waitForExistence(timeout: 10))
+        search.tap()
+        search.typeText(name)
+        XCTAssert(app.buttons[name].waitForExistence(timeout: 10))
+        return app
+    }
+
+    // The App Store screenshots: the about page's three views, by the same links
     // (about.html) and in this order, so the web and every device show one set.
     // Only scripts/screenshots.sh takes them, against BASE_URL.
 
     @MainActor
     func testScreenshot1Globe() throws {
-        _ = try open("/?time=2026-10-04T08:52Z")
+        try open("/?time=2026-10-04T08:52Z")
         screenshot("1Globe")
     }
 
     @MainActor
     func testScreenshot2ISS() throws {
-        _ = try open("/?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model&layers=VersaTiles&time=2026-10-04T02:07Z")
+        try open("/?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model&layers=VersaTiles&time=2026-10-04T02:07Z")
         screenshot("2ISS")
     }
 
-    // Night in the Lauterbrunnen valley. The satellites were chosen so that in the
-    // web, iPhone and iPad frames alike no two labels touch, none sits under the
-    // chrome or crosses a ridge, and nothing is close enough to the crosshair to
-    // open its card; the iPhone's narrow frame is what limits them to seven.
-    // Moving satellites keep that for 20 s from the pinned minute.
+    // Night in the Lauterbrunnen valley, standing on the link's station.
     @MainActor
     func testScreenshot3Sky() throws {
-        _ = try open(
+        try open(
             "/?scene=Sky&gs=46.5935,7.9091&terrain=ReEarth&layers=VersaTiles&stars=DeepStar2K&time=2026-10-04T19:22Z&tags=GNSS,Weather,OneWeb&elements=Point,Label"
                 + excluding([
                     "COSMOS 2500 (755)", "GSAT0220 (GALILEO 24)", "METEOSAT-11 (MSG-4)", "BEIDOU-3 M27 (C49)", "SES-5 (EGNOS/PRN 136)",
@@ -56,62 +240,25 @@ nonisolated class SatvisUITests: XCTestCase {
         "&xsats=" + names.map { $0.replacingOccurrences(of: " ", with: "+") }.joined(separator: ",")
     }
 
-    /// Launch on a path of BASE_URL and wait for the tiles, with the clock
-    /// stopped as soon as the page is up so every device shows the same moment.
-    ///
-    /// Relaunches when the take is spoiled: a cold simulator can be slow enough
-    /// that the clock runs past the window the sky layouts hold for, and its
-    /// WebGL now and then fails a shader compile. A warm second launch is not.
+    /// Launches on a link of BASE_URL's site, its clock stopped at the link's
+    /// minute so that every device shows the same moment, and waits for the tiles.
     @MainActor
-    func open(_ path: String) throws -> XCUIApplication {
+    func open(_ path: String) throws {
         let environment = ProcessInfo.processInfo.environment
         guard environment["SCREENSHOTS"] != nil else {
             throw XCTSkip("Taken by scripts/screenshots.sh")
         }
         let app = XCUIApplication()
-        app.launchEnvironment["URL"] = (environment["BASE_URL"] ?? "https://satvis.space") + path
-        for attempt in 1...3 {
-            app.launch()
-            SpringboardHelper.allowSystemAlerts()
-            XCTAssert(clockDeck(app).waitForExistence(timeout: 60))
-            pauseClock(app)
-            guard let seconds = clockSeconds(app), seconds <= 20 else {
-                print("Attempt \(attempt): the clock stopped too late")
-                continue
-            }
-            sleep(30)
-            if app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "An error occurred while rendering")).firstMatch.exists {
-                print("Attempt \(attempt): Cesium stopped rendering")
-                continue
-            }
-            return app
+        if let site = environment["BASE_URL"] {
+            app.launchEnvironment["SATVIS_API"] = site
         }
-        XCTFail("No clean take of \(path)")
-        return app
-    }
-
-    /// The seconds past the minute on the clock deck, which leads its label.
-    @MainActor
-    func clockSeconds(_ app: XCUIApplication) -> Int? {
-        Int(clockDeck(app).label.prefix(8).suffix(2))
-    }
-
-    /// Opening the deck if it is folded, as it is on a phone, and folding it again.
-    @MainActor
-    func pauseClock(_ app: XCUIApplication) {
-        let folded = clockDeck(app).label.hasSuffix("Show clock controls")
-        if folded {
-            clockDeck(app).tap()
+        app.launchEnvironment["SATVIS_LINK"] = path
+        if let time = path.firstMatch(of: /time=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})Z/) {
+            app.launchEnvironment["SATVIS_TIME"] = "\(time.1):00Z"
         }
-        app.buttons["Pause"].tap()
-        if folded {
-            clockDeck(app).tap()
-        }
-    }
-
-    @MainActor
-    func clockDeck(_ app: XCUIApplication) -> XCUIElement {
-        app.buttons.matching(NSPredicate(format: "label ENDSWITH %@", "clock controls")).firstMatch
+        app.launch()
+        XCTAssert(menuToggle(app).waitForExistence(timeout: 30))
+        sleep(20)
     }
 
     @MainActor

@@ -1,0 +1,100 @@
+// Ground stations as pins standing on the globe, as the web app's billboards are:
+// the same artwork, scaled from 0.4 at 100 m to 0.22 at 40,000 km, its tip on the
+// spot. From 56 pt rather than the web's 96 px, which stood too tall over a
+// phone-sized globe. And the ground station link: a line from a satellite to the
+// station it is passing, drawn while the pass lasts, five pixels wide in forest
+// green with Cesium's PolylineGlowMaterial at a glow power of 0.5.
+//
+// The glow is ported from CesiumJS (Shaders/Materials/PolylineGlowMaterial.glsl).
+// Copyright 2011-2024 CesiumJS Contributors. Licensed under the Apache License,
+// Version 2.0: LICENSE.CesiumJS.md beside this file. Changed for satvis:
+// translated from GLSL to the Metal Shading Language, without the taper.
+
+// Mirrors StationInstance in StationMarkers.swift. Positions are relative to the
+// eye, subtracted in double precision on the CPU.
+struct StationInstance {
+    packed_float3 position;
+    float distance;
+};
+
+struct StationOut {
+    float4 position [[position]];
+    float2 uv;
+};
+
+vertex StationOut stationVertex(uint vid [[vertex_id]], uint iid [[instance_id]], constant FrameUniforms &frame [[buffer(1)]],
+                                const device StationInstance *stations [[buffer(2)]]) {
+    StationInstance station = stations[iid];
+    StationOut out;
+    float4 clip = frame.viewProjection * float4(float3(station.position), 1.0);
+    float t = clamp((station.distance - 1e2) / (4e7 - 1e2), 0.0, 1.0);
+    float size = 56.0 * mix(0.4, 0.22, t) * frame.pixelScale;
+    float2 corner = float2(vid & 1, vid >> 1);
+    // The artwork's tip is at the bottom centre.
+    float2 offset = float2((corner.x - 0.5) * size, (1.0 - corner.y) * size);
+    clip.xy += offset * 2.0 / frame.viewportSize * clip.w;
+    out.position = clip.w > 0.0 ? clip : float4(0.0, 0.0, -2.0, 1.0);
+    out.uv = corner;
+    return out;
+}
+
+fragment float4 stationFragment(StationOut in [[stage_in]], texture2d<float> pin [[texture(0)]]) {
+    constexpr sampler linear(filter::linear, mip_filter::linear);
+    float4 texel = pin.sample(linear, in.uv);
+    if (texel.a <= 0.0) {
+        discard_fragment();
+    }
+    float3 color = gammaCorrect(texel.rgb / texel.a);
+    return float4(color * texel.a, texel.a);
+}
+
+// Mirrors LinkInstance in StationMarkers.swift.
+struct LinkInstance {
+    packed_float3 satellite;
+    packed_float3 station;
+};
+
+struct LinkOut {
+    float4 position [[position]];
+    float across;
+};
+
+vertex LinkOut linkVertex(uint vid [[vertex_id]], uint iid [[instance_id]], constant FrameUniforms &frame [[buffer(1)]],
+                          const device LinkInstance *links [[buffer(2)]]) {
+    LinkInstance link = links[iid];
+    float4 a = frame.viewProjection * float4(float3(link.satellite), 1.0);
+    float4 b = frame.viewProjection * float4(float3(link.station), 1.0);
+    LinkOut out;
+    // An end behind the eye is brought forward along the line to just in front of it.
+    const float nearW = 1.0;
+    if (a.w < nearW && b.w < nearW) {
+        out.position = float4(0.0, 0.0, -2.0, 1.0);
+        out.across = 0.0;
+        return out;
+    }
+    if (a.w < nearW) {
+        a = mix(a, b, (nearW - a.w) / (b.w - a.w));
+    } else if (b.w < nearW) {
+        b = mix(b, a, (nearW - b.w) / (a.w - b.w));
+    }
+    float2 toScreen = frame.viewportSize * 0.5;
+    float2 direction = (b.xy / b.w - a.xy / a.w) * toScreen;
+    direction = length(direction) > 0.0 ? normalize(direction) : float2(1.0, 0.0);
+    float2 normal = float2(-direction.y, direction.x);
+    float4 clip = (vid >> 1) ? b : a;
+    float side = (vid & 1) ? 1.0 : -1.0;
+    clip.xy += normal * side * 2.5 * frame.pixelScale / toScreen * clip.w;
+    out.position = clip;
+    out.across = (vid & 1) ? 1.0 : 0.0;
+    return out;
+}
+
+fragment float4 linkFragment(LinkOut in [[stage_in]]) {
+    const float glowPower = 0.5;
+    const float3 forestGreen = float3(34.0, 139.0, 34.0) / 255.0;
+    float glow = glowPower / abs(in.across - 0.5) - (glowPower / 0.5);
+    float3 emission = max(float3(glow - 1.0) + forestGreen, forestGreen);
+    // GLSL's clamp(0.0, 1.0, glow), with its arguments as Cesium passes them.
+    float alpha = min(1.0, glow);
+    return float4(gammaCorrect(emission), max(alpha, 0.0));
+}

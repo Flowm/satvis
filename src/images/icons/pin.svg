@@ -1,6 +1,7 @@
 <!--
   The ground station marker. Lucide's `map-pin` geometry, so the billboard on the
   globe and the toolbar button that configures it are visibly the same object.
+  Lucide's licence notice ships at /licences/lucide.txt, linked from the about page.
 
   `width` and `height` are explicit and must stay that way: Cesium loads billboard
   images through an `Image` and draws them into a texture atlas via canvas, and an

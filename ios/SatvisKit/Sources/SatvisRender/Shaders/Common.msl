@@ -1,0 +1,173 @@
+// Ported from CesiumJS (Shaders/Builtin/Functions/computeScattering.glsl, computeAtmosphereColor.glsl,
+// raySphereIntersectionInterval.glsl, approximateTanh.glsl, saturation.glsl,
+// translateRelativeToEye.glsl) with Scene/Atmosphere.js's defaults.
+// Copyright 2011-2024 CesiumJS Contributors. Licensed under the Apache License,
+// Version 2.0, with the third-party notices it carries: LICENSE.CesiumJS.md
+// beside this file. Changed for satvis: translated from GLSL to the Metal
+// Shading Language, reduced to the branches the web app's settings take, and fed
+// by FrameUniforms instead of Cesium's automatic uniforms.
+//
+// Shared by every pass, so that the globe looks as it does on the web.
+//
+// Compiled at run time (GlobeRenderer), so these are .msl rather than .metal.
+
+#include <metal_stdlib>
+using namespace metal;
+
+// Mirrors FrameUniforms.swift field for field.
+struct FrameUniforms {
+    float4x4 viewProjection;
+    float4x4 inverseViewProjection;
+    float3x3 fixedToTEME;
+    float3 cameraHigh;
+    float3 cameraLow;
+    float3 cameraPosition;
+    float3 sunDirection;
+    float2 viewportSize;
+    float eyeHeight;
+    float cameraDistance;
+    float pointSize;
+    /// Pixels per point: what a CSS pixel on the web is here.
+    float pixelScale;
+};
+
+constant float3 ellipsoidRadii = float3(6378137.0, 6378137.0, 6356752.3142451793);
+constant float atmosphereThickness = 111e3;
+constant float3 rayleighCoefficient = float3(5.5e-6, 13.0e-6, 28.4e-6);
+constant float3 mieCoefficient = float3(21e-6);
+constant float rayleighScaleHeight = 10000.0;
+constant float mieScaleHeight = 3200.0;
+constant float mieAnisotropy = 0.9;
+
+struct RaySegment {
+    float start;
+    float stop;
+};
+
+inline bool isEmpty(RaySegment segment) {
+    return segment.start == -INFINITY;
+}
+
+inline RaySegment raySphereIntersection(float3 origin, float3 direction, float radius) {
+    float a = dot(direction, direction);
+    float b = 2.0 * dot(direction, origin);
+    float c = dot(origin, origin) - radius * radius;
+    float det = b * b - 4.0 * a * c;
+    if (det < 0.0) {
+        return RaySegment{-INFINITY, -INFINITY};
+    }
+    float sqrtDet = sqrt(det);
+    return RaySegment{(-b - sqrtDet) / (2.0 * a), (-b + sqrtDet) / (2.0 * a)};
+}
+
+inline float approximateTanh(float x) {
+    float x2 = x * x;
+    return max(-1.0, min(1.0, x * (27.0 + x2) / (27.0 + 9.0 * x2)));
+}
+
+void computeScattering(float3 rayOrigin, float3 rayDirection, float primaryRayLength, float3 lightDirection, float atmosphereInnerRadius,
+                       thread float3 &rayleighColor, thread float3 &mieColor, thread float &opacity) {
+    const int PRIMARY_STEPS_MAX = 16;
+    const int LIGHT_STEPS_MAX = 4;
+
+    rayleighColor = float3(0.0);
+    mieColor = float3(0.0);
+    opacity = 0.0;
+
+    float atmosphereOuterRadius = atmosphereInnerRadius + atmosphereThickness;
+    RaySegment primary = raySphereIntersection(rayOrigin, rayDirection, atmosphereOuterRadius);
+    if (isEmpty(primary)) {
+        return;
+    }
+
+    float x = 1e-7 * primary.stop / abs(primaryRayLength);
+    float w_stop_gt_lprl = 0.5 * (1.0 + approximateTanh(x));
+    float start_0 = primary.start;
+    primary.start = max(primary.start, 0.0);
+    primary.stop = min(primary.stop, abs(primaryRayLength));
+
+    float x_o_a = start_0 - atmosphereThickness;
+    float w_inside_atmosphere = 1.0 - 0.5 * (1.0 + approximateTanh(x_o_a));
+
+    int PRIMARY_STEPS = PRIMARY_STEPS_MAX - int(w_inside_atmosphere * 12.0);
+    int LIGHT_STEPS = LIGHT_STEPS_MAX - int(w_inside_atmosphere * 2.0);
+
+    float rayPositionLength = primary.start;
+    float totalRayLength = primary.stop - rayPositionLength;
+    float rayStepLengthIncrease = w_inside_atmosphere * ((1.0 - w_stop_gt_lprl) * totalRayLength / (float(PRIMARY_STEPS * (PRIMARY_STEPS + 1)) / 2.0));
+    float rayStepLength = max(1.0 - w_inside_atmosphere, w_stop_gt_lprl) * totalRayLength / max(7.0 * w_inside_atmosphere, float(PRIMARY_STEPS));
+
+    float3 rayleighAccumulation = float3(0.0);
+    float3 mieAccumulation = float3(0.0);
+    float2 opticalDepth = float2(0.0);
+    float2 heightScale = float2(rayleighScaleHeight, mieScaleHeight);
+
+    for (int i = 0; i < PRIMARY_STEPS_MAX; ++i) {
+        if (i >= PRIMARY_STEPS) {
+            break;
+        }
+        float3 samplePosition = rayOrigin + rayDirection * (rayPositionLength + rayStepLength);
+        float sampleHeight = length(samplePosition) - atmosphereInnerRadius;
+        float2 sampleDensity = exp(-sampleHeight / heightScale) * rayStepLength;
+        opticalDepth += sampleDensity;
+
+        RaySegment lightSegment = raySphereIntersection(samplePosition, lightDirection, atmosphereOuterRadius);
+        float lightStepLength = lightSegment.stop / float(LIGHT_STEPS);
+        float lightPositionLength = 0.0;
+        float2 lightOpticalDepth = float2(0.0);
+        for (int j = 0; j < LIGHT_STEPS_MAX; ++j) {
+            if (j >= LIGHT_STEPS) {
+                break;
+            }
+            float3 lightPosition = samplePosition + lightDirection * (lightPositionLength + lightStepLength * 0.5);
+            float lightHeight = length(lightPosition) - atmosphereInnerRadius;
+            lightOpticalDepth += exp(-lightHeight / heightScale) * lightStepLength;
+            lightPositionLength += lightStepLength;
+        }
+
+        float3 attenuation = exp(-((mieCoefficient * (opticalDepth.y + lightOpticalDepth.y)) + (rayleighCoefficient * (opticalDepth.x + lightOpticalDepth.x))));
+        rayleighAccumulation += sampleDensity.x * attenuation;
+        mieAccumulation += sampleDensity.y * attenuation;
+
+        rayStepLength += rayStepLengthIncrease;
+        rayPositionLength += rayStepLength;
+    }
+
+    rayleighColor = rayleighCoefficient * rayleighAccumulation;
+    mieColor = mieCoefficient * mieAccumulation;
+    opacity = length(exp(-((mieCoefficient * opticalDepth.y) + (rayleighCoefficient * opticalDepth.x))));
+}
+
+float4 computeAtmosphereColor(float3 viewDirection, float3 lightDirection, float3 rayleighColor, float3 mieColor, float opacity, float lightIntensity) {
+    float cosAngle = dot(viewDirection, lightDirection);
+    float cosAngleSq = cosAngle * cosAngle;
+    float G = mieAnisotropy;
+    float GSq = G * G;
+    float rayleighPhase = 3.0 / 50.2654824574 * (1.0 + cosAngleSq);
+    float miePhase = 3.0 / 25.1327412287 * ((1.0 - GSq) * (cosAngleSq + 1.0)) / (pow(1.0 + GSq - 2.0 * cosAngle * G, 1.5) * (2.0 + GSq));
+    float3 color = (rayleighPhase * rayleighColor + miePhase * mieColor) * lightIntensity;
+    return float4(color, opacity);
+}
+
+inline float3 gammaCorrect(float3 color) {
+    return pow(color, float3(2.2));
+}
+
+inline float3 saturation(float3 rgb, float adjustment) {
+    float3 intensity = float3(dot(rgb, float3(0.2125, 0.7154, 0.0721)));
+    return mix(intensity, rgb, adjustment);
+}
+
+struct FullscreenOut {
+    float4 position [[position]];
+    float2 uv;
+};
+
+/// One triangle covering the screen.
+vertex FullscreenOut fullscreenVertex(uint vid [[vertex_id]]) {
+    float2 corner = float2((vid << 1) & 2, vid & 2);
+    FullscreenOut out;
+    out.position = float4(corner * 2.0 - 1.0, 0.0, 1.0);
+    out.uv = float2(corner.x, 1.0 - corner.y);
+    return out;
+}

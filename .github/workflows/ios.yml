@@ -1,0 +1,64 @@
+name: iOS
+
+# The native app's checks, on macOS: only where a change can reach it. The parity
+# fixtures run the web app's own code, so its sources count.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ios/**"
+      - "src/**"
+      - "scripts/parity/**"
+      - "data/imagery/NaturalEarthII/2/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/ios.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "ios/**"
+      - "src/**"
+      - "scripts/parity/**"
+      - "data/imagery/NaturalEarthII/2/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/ios.yml"
+
+jobs:
+  ios:
+    # SatvisKit needs the iOS 26 / macOS 26 SDKs, which only Xcode 26 and later carry.
+    runs-on: macos-26
+    # A UI test that fails can leave xcodebuild waiting for ever.
+    timeout-minutes: 45
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # The image's default Xcode can lag its newest; the app is developed on the newest.
+      - name: Select the newest Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          xcodebuild -version
+          swift format --version
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm ci
+      # A change to the web app's propagation, details or tables must not reach
+      # the native app unnoticed. New files count too: git diff ignores them.
+      - name: Check the parity fixtures and shared tables are current
+        run: |
+          pnpm update-parity-fixtures
+          git diff --exit-code -- ios/SatvisKit
+          test -z "$(git status --porcelain -- ios/SatvisKit)"
+      - name: Test SatvisKit
+        run: swift test --package-path ios/SatvisKit
+      - name: Lint the Swift sources
+        run: make -C ios lint
+      # The app target and the UI tests compile only here: swift test builds the
+      # package alone. Xcode Cloud runs the UI tests on a simulator.
+      - name: Build the app and its UI tests
+        run: xcodebuild -project ios/satvis.xcodeproj -scheme satvis -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build/ci CODE_SIGNING_ALLOWED=NO build-for-testing

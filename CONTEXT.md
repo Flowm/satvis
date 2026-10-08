@@ -213,3 +213,15 @@ discussion; sharpen them here when they drift.
 - **Rung**: one detent of the speed ladder, from Cesium's shuttle-ring ticks (1×
   to 86400× in both directions, `SPEED_TICKS`). The ladder rests on a rung, never
   between two.
+
+## Apps
+
+- **Native app**: the iOS app that draws the globe and its controls itself, with
+  no web view, and reads the same worker endpoints as the web app
+  (`docs/adr/0009-native-ios-app.md`). It replaces the **WebView app**, the
+  earlier iOS app that showed satvis.space in a web view, kept only as the tag
+  `ios-webview-final`. "The iOS app" means the native app.
+- **Parity fixture**: an output of the web app's own code for a fixed element
+  set: a position, a pass, a url round trip. The native app's tests must
+  reproduce it, so the fixtures are regenerated from the web code, never edited
+  by hand.

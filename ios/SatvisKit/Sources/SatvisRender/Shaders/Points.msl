@@ -1,0 +1,79 @@
+// Satellites as points. Each one interpolates its own position from its sampled
+// trajectory, with the six-node Lagrange basis the web app's GridPositionProperty
+// uses, so the CPU does no per-satellite work beyond finding the stencil.
+
+// Mirrors PointInstance in SatellitePoints.swift.
+struct PointInstance {
+    float4 color;
+    uint sampleStart;
+    uint sampleCount;
+    float stepSeconds;
+};
+
+// Mirrors PointFrame: where this frame's stencil starts, and how far into it the
+// instant is, in steps. A negative offset hides the satellite.
+struct PointFrame {
+    uint stencilStart;
+    float offset;
+    /// How wide its 3D model is drawn, in points; 0 without one.
+    float modelPoints;
+};
+
+/// Below this across, a model is too small to stand in for its point
+/// (MODEL_MARKER_PIXELS on the web).
+constant float modelMarkerPoints = 10.0;
+
+/// Where a satellite is this frame, in the fixed frame. False when it is outside
+/// its window until the next refill.
+inline bool satellitePosition(uint index, const device packed_float3 *samples, const device PointInstance *instances, const device PointFrame *frames,
+                              thread float3 &position) {
+    PointFrame state = frames[index];
+    if (state.offset < 0.0) {
+        return false;
+    }
+    float u = state.offset;
+    float d0 = u, d1 = u - 1.0, d2 = u - 2.0, d3 = u - 3.0, d4 = u - 4.0, d5 = u - 5.0;
+    float b[6] = {
+        -(d1 * d2 * d3 * d4 * d5) / 120.0, (d0 * d2 * d3 * d4 * d5) / 24.0, -(d0 * d1 * d3 * d4 * d5) / 12.0,
+        (d0 * d1 * d2 * d4 * d5) / 12.0, -(d0 * d1 * d2 * d3 * d5) / 24.0, (d0 * d1 * d2 * d3 * d4) / 120.0,
+    };
+    uint start = instances[index].sampleStart + state.stencilStart;
+    position = float3(0.0);
+    for (int k = 0; k < 6; ++k) {
+        position += float3(samples[start + k]) * b[k];
+    }
+    return true;
+}
+
+struct PointOut {
+    float4 position [[position]];
+    float size [[point_size]];
+    float4 color;
+};
+
+vertex PointOut pointVertex(uint iid [[vertex_id]], const device packed_float3 *samples [[buffer(0)]], constant FrameUniforms &frame [[buffer(1)]],
+                            const device PointInstance *instances [[buffer(2)]], const device PointFrame *frames [[buffer(3)]]) {
+    PointOut out;
+    out.color = instances[iid].color;
+    out.size = frame.pointSize;
+    float3 position;
+    if (!satellitePosition(iid, samples, instances, frames, position) || frames[iid].modelPoints >= modelMarkerPoints) {
+        out.position = float4(0.0, 0.0, -2.0, 1.0);
+        out.size = 0.0;
+        return out;
+    }
+    float3 relative = (position - frame.cameraHigh) - frame.cameraLow;
+    out.position = frame.viewProjection * float4(relative, 1.0);
+    return out;
+}
+
+/// A 5 px disc in the orbit class colour inside a 1 px dim grey rim, as the web
+/// app's PointGraphics draws it: pointSize is the 7 px across both.
+fragment float4 pointFragment(PointOut in [[stage_in]], float2 pointCoord [[point_coord]]) {
+    float r = length(pointCoord * 2.0 - 1.0);
+    if (r > 1.0) {
+        discard_fragment();
+    }
+    float3 color = r > 5.0 / 7.0 ? float3(0.41) : in.color.rgb;
+    return float4(gammaCorrect(color), 1.0);
+}

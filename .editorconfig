@@ -7,3 +7,10 @@ indent_size = 2
 end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
+
+# Vendored as published (ios/SatvisKit/Sources/SGP4/vallado/VENDOR.md).
+[ios/SatvisKit/Sources/SGP4/vallado/SGP4.{cpp,h}]
+end_of_line = unset
+indent_style = unset
+indent_size = unset
+trim_trailing_whitespace = false

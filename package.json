@@ -24,6 +24,7 @@
     "lint:fix": "pnpm lint:fix:web && pnpm lint:fix:worker",
     "lint:fix:web": "oxlint --disable-nested-config --fix && oxfmt --disable-nested-config --write",
     "lint:fix:worker": "pnpm --filter satvis-worker lint:fix",
+    "update-parity-fixtures": "node scripts/parity/generate.mjs",
     "update-gp": "pnpm --filter satvis-worker generate-groups && node worker/scripts/update-static-gp.mjs",
     "update-imagery": "bash scripts/generate.sh imagery",
     "update-starmap": "bash scripts/generate.sh starmap",

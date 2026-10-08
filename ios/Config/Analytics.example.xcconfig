@@ -1,0 +1,5 @@
+// Copied to Analytics.xcconfig, which git ignores, a Release build on satvis.space
+// counts usage in this PostHog project. "//" starts a comment here, so a URL's is
+// written "/$()/".
+POSTHOG_PROJECT_TOKEN = phc_your_project_key
+POSTHOG_HOST = https:/$()/eu.i.posthog.com

@@ -1,0 +1,103 @@
+// Ported from CesiumJS (Shaders/SkyBoxVS.glsl, SkyBoxFS.glsl, SkyAtmosphereVS.glsl,
+// SkyAtmosphereFS.glsl, SkyAtmosphereCommon.glsl) with Scene/SkyAtmosphere.js's
+// defaults.
+// Copyright 2011-2024 CesiumJS Contributors. Licensed under the Apache License,
+// Version 2.0, with the third-party notices it carries: LICENSE.CesiumJS.md
+// beside this file. Changed for satvis: translated from GLSL to the Metal
+// Shading Language, reduced to the branches the web app's settings take, and fed
+// by FrameUniforms instead of Cesium's automatic uniforms.
+//
+// Behind the globe: the star background and the sky atmosphere around the limb.
+
+/// satvis's star map, a cube map in TEME, so it turns with the sidereal time.
+fragment float4 skyBoxFragment(FullscreenOut in [[stage_in]], constant FrameUniforms &frame [[buffer(1)]], texturecube<float> stars [[texture(0)]],
+                               sampler starSampler [[sampler(0)]]) {
+    float2 ndc = float2(in.uv.x * 2.0 - 1.0, 1.0 - in.uv.y * 2.0);
+    float4 world = frame.inverseViewProjection * float4(ndc, 0.5, 1.0);
+    float3 direction = frame.fixedToTEME * normalize(world.xyz / world.w);
+    return float4(gammaCorrect(stars.sample(starSampler, direction).rgb), 1.0);
+}
+
+struct SkyOut {
+    float4 position [[position]];
+    float3 positionWC;
+    float3 rayleighColor;
+    float3 mieColor;
+    float opacity;
+};
+
+constant float skyAtmosphereLightIntensity = 50.0;
+
+/// SkyAtmosphereVS.glsl, per vertex: the colours along the ray from the eye to
+/// `positionWC` on the shell.
+inline SkyOut skyAtmosphere(float3 positionWC, constant FrameUniforms &frame) {
+    float3 light = normalize(frame.sunDirection);
+
+    float ellipsoidRadiiDifference = ellipsoidRadii.x - ellipsoidRadii.z;
+    float distanceAdjustMin = ellipsoidRadii.x / 4.0;
+    float distanceAdjustMax = ellipsoidRadii.x;
+    float distanceAdjustModifier = ellipsoidRadiiDifference / 2.0;
+    float distanceAdjust = distanceAdjustModifier * clamp((frame.eyeHeight - distanceAdjustMin) / (distanceAdjustMax - distanceAdjustMin), 0.0, 1.0);
+    float radiusAdjust = (ellipsoidRadiiDifference / 4.0) + distanceAdjust;
+    float atmosphereInnerRadius = (length(frame.cameraPosition) - frame.eyeHeight) - radiusAdjust;
+
+    float3 cameraToPosition = positionWC - frame.cameraPosition;
+    float rayLength = length(cameraToPosition);
+    SkyOut out;
+    computeScattering(frame.cameraPosition, cameraToPosition / rayLength, rayLength, light, atmosphereInnerRadius, out.rayleighColor, out.mieColor, out.opacity);
+
+    float cameraHeight = frame.eyeHeight + atmosphereInnerRadius;
+    float atmosphereOuterRadius = atmosphereInnerRadius + atmosphereThickness;
+    out.opacity = clamp((atmosphereOuterRadius - cameraHeight) / (atmosphereOuterRadius - atmosphereInnerRadius), 0.0, 1.0);
+    float nightAlpha = clamp(dot(normalize(positionWC), light), 0.0, 1.0);
+    out.opacity *= pow(nightAlpha, 0.5);
+
+    out.positionWC = positionWC;
+    out.position = frame.viewProjection * float4(cameraToPosition, 1.0);
+    return out;
+}
+
+/// The inside of a shell 2.5 % outside the ellipsoid (SkyAtmosphere.js).
+vertex SkyOut skyAtmosphereVertex(uint vid [[vertex_id]], const device float4 *positions [[buffer(0)]], constant FrameUniforms &frame [[buffer(1)]]) {
+    return skyAtmosphere(positions[vid].xyz, frame);
+}
+
+// Mirrors skyRingColumns and skyRingRows in GlobeRenderer.swift.
+constant int skyRingColumns = 512;
+constant int skyRingRows = 16;
+
+/// The same shell, from outside it, where all of it that shows is a ring round
+/// the globe: only that ring, where the eye's rays between the globe's limb and
+/// the shell's meet the shell's far side, in 512 pieces around and 16 across.
+/// Coloured per vertex, the 128 by 64 shell drew its facets as bumps along the
+/// limb, and a 256 by 256 one, as CesiumJS's, cost an iPad mini 3 ms of GPU a
+/// frame.
+/// `vid` counts along the rows, `skyRingColumns + 1` vertices to a row.
+vertex SkyOut skyRingVertex(uint vid [[vertex_id]], constant FrameUniforms &frame [[buffer(1)]]) {
+    int column = int(vid) % (skyRingColumns + 1);
+    int row = int(vid) / (skyRingColumns + 1);
+    // Scaled so that the shell is the unit sphere, and the ellipsoid a sphere
+    // inside it.
+    float3 shellRadii = 1.025 * ellipsoidRadii;
+    float3 eye = frame.cameraPosition / shellRadii;
+    float distance = length(eye);
+    float3 axis = -eye / distance;
+    float3 u = normalize(cross(axis, abs(axis.z) < 0.9 ? float3(0.0, 0.0, 1.0) : float3(1.0, 0.0, 0.0)));
+    float3 v = cross(axis, u);
+    // Across, by the sine of the ray's angle off the axis: from 1 % inside the
+    // globe's limb, which the globe hides, to the shell's.
+    float sine = mix(0.99 / (1.025 * distance), 1.0 / distance, float(row) / float(skyRingRows));
+    float cosine = sqrt(1.0 - sine * sine);
+    float around = 2.0 * M_PI_F * float(column) / float(skyRingColumns);
+    float3 direction = cosine * axis + sine * (cos(around) * u + sin(around) * v);
+    float far = distance * cosine + sqrt(max(1.0 - distance * distance * sine * sine, 0.0));
+    return skyAtmosphere((eye + far * direction) * shellRadii, frame);
+}
+
+fragment float4 skyAtmosphereFragment(SkyOut in [[stage_in]], constant FrameUniforms &frame [[buffer(1)]]) {
+    float3 light = normalize(frame.sunDirection);
+    float3 viewDirection = normalize(in.positionWC - frame.cameraPosition);
+    float4 color = computeAtmosphereColor(viewDirection, light, in.rayleighColor, in.mieColor, in.opacity, skyAtmosphereLightIntensity);
+    color.a = mix(color.b, 1.0, color.a);
+    return color;
+}

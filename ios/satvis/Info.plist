@@ -2,6 +2,33 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>org.frcy.app.satvis.passes</string>
+	</array>
+	<!-- From Config/Base.xcconfig: empty unless Config/Analytics.xcconfig, which git
+	     ignores, sets them. -->
+	<key>PostHogHost</key>
+	<string>$(POSTHOG_HOST)</string>
+	<key>PostHogProjectToken</key>
+	<string>$(POSTHOG_PROJECT_TOKEN)</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<!-- One window: the app has one session, and a second window would run it
+	     twice and take its globe over. Written here, with the generated scene
+	     manifest switched off in the build settings, which would say otherwise. -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+	</dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>
@@ -9,10 +36,5 @@
 		<key>UIImageName</key>
 		<string>space-shuttle</string>
 	</dict>
-	<key>WKAppBoundDomains</key>
-	<array>
-		<string>satvis.space</string>
-		<string>localhost</string>
-	</array>
 </dict>
 </plist>

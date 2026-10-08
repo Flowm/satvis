@@ -1,0 +1,40 @@
+// Ported from CesiumJS (Shaders/PostProcessStages/AcesTonemappingStage.glsl,
+// Builtin/Functions/acesTonemapping.glsl).
+// Copyright 2011-2024 CesiumJS Contributors. Licensed under the Apache License,
+// Version 2.0, with the third-party notices it carries: LICENSE.CesiumJS.md
+// beside this file. Changed for satvis: translated from GLSL to the Metal
+// Shading Language, with the exposure fixed at 1.
+//
+// HDR to the screen, as Cesium does it at exposure 1.
+
+inline float3 acesTonemapping(float3 color) {
+    float g = 0.985;
+    float a = 0.065;
+    float b = 0.0001;
+    float c = 0.433;
+    float d = 0.238;
+    color = (color * (color + a) - b) / (color * (g * color + c) + d);
+    return clamp(color, 0.0, 1.0);
+}
+
+inline float4 toScreen(float3 color) {
+    return float4(pow(acesTonemapping(color), float3(1.0 / 2.2)), 1.0);
+}
+
+fragment float4 tonemapFragment(FullscreenOut in [[stage_in]], texture2d<float> hdr [[texture(0)]]) {
+    constexpr sampler nearest(filter::nearest);
+    return toScreen(hdr.sample(nearest, in.uv).rgb);
+}
+
+#if defined(__HAVE_COLOR_ARGUMENTS__)
+struct ScreenOut {
+    float4 color [[color(1)]];
+};
+
+/// The same, as the scene pass's last draw on a GPU that reads its own render
+/// targets: the HDR pixel straight from tile memory, so the HDR image is never
+/// written out and read back, 27 MB a frame on an iPad mini.
+fragment ScreenOut tonemapTileFragment(FullscreenOut in [[stage_in]], float4 hdr [[color(0)]]) {
+    return {toScreen(hdr.rgb)};
+}
+#endif

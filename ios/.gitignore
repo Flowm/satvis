@@ -4,6 +4,10 @@
 build/
 DerivedData/
 
+## Swift Package Manager
+.build/
+.swiftpm/
+
 ## Various settings
 *.pbxuser
 !default.pbxuser
@@ -36,3 +40,6 @@ Carthage/Build
 
 # App Store screenshots (scripts/screenshots.sh)
 screenshots/
+
+# PostHog key and host (Config/Base.xcconfig)
+Config/Analytics.xcconfig

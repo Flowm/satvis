@@ -1,0 +1,8 @@
+// The app target's settings that stay out of the project file. PostHog's project
+// key and host are not committed, as the web app's VITE_POSTHOG_KEY is not: the
+// gitignored Analytics.xcconfig sets them (see Analytics.example.xcconfig), and
+// Xcode Cloud writes it from its environment (ci_scripts/ci_post_clone.sh). A
+// build without it counts nothing.
+POSTHOG_PROJECT_TOKEN =
+POSTHOG_HOST =
+#include? "Analytics.xcconfig"

@@ -1,0 +1,127 @@
+{
+  "generatedBy": "scripts/parity/generate.mjs",
+  "satcat": {
+    "launchSite": {
+      "AFETR": "Cape Canaveral, Florida",
+      "AFWTR": "Vandenberg, California",
+      "ALCLC": "Alcântara, Brazil",
+      "ANDSP": "Andøya Spaceport, Norway",
+      "BOS": "Bowen Orbital Spaceport, Australia",
+      "CAS": "Canaries Airspace",
+      "DLS": "Dombarovskiy, Russia",
+      "ERAS": "Eastern Range Airspace",
+      "FRGUI": "Kourou, French Guiana",
+      "HGSTR": "Hammaguira, Algeria",
+      "JJSLA": "Jeju Island Sea Launch Area",
+      "JSC": "Jiuquan, China",
+      "KODAK": "Kodiak, Alaska",
+      "KSCUT": "Uchinoura, Japan",
+      "KWAJ": "Kwajalein Atoll",
+      "KYMSC": "Kapustin Yar, Russia",
+      "NSC": "Naro, Republic of Korea",
+      "PLMSC": "Plesetsk, Russia",
+      "RLLB": "Mahia Peninsula, New Zealand",
+      "SCSLA": "South China Sea Launch Area",
+      "SEAL": "Sea Launch Platform",
+      "SEMLS": "Semnan, Iran",
+      "SMTS": "Shahrud, Iran",
+      "SNMLP": "San Marco Platform, Kenya",
+      "SPKII": "Space Port Kii, Japan",
+      "SRILR": "Satish Dhawan, India",
+      "SUBL": "Submarine Launch Platform",
+      "SVOBO": "Svobodnyy, Russia",
+      "TAISC": "Taiyuan, China",
+      "TANSC": "Tanegashima, Japan",
+      "TYMSC": "Baikonur, Kazakhstan",
+      "UNK": "Unknown",
+      "VOSTO": "Vostochny, Russia",
+      "WLPIS": "Wallops Island, Virginia",
+      "WOMRA": "Woomera, Australia",
+      "WRAS": "Western Range Airspace",
+      "WSC": "Wenchang, China",
+      "XICLF": "Xichang, China",
+      "YAVNE": "Yavne, Israel",
+      "YSLA": "Yellow Sea Launch Area",
+      "YUN": "Yunsong, North Korea"
+    },
+    "opsStatus": {
+      "+": "Operational",
+      "-": "Nonoperational",
+      "P": "Partially operational",
+      "B": "Backup/standby",
+      "S": "Spare",
+      "X": "Extended mission",
+      "D": "Decayed",
+      "?": "Unknown"
+    },
+    "orbitType": {
+      "ORB": "Orbiting",
+      "LAN": "Landed",
+      "IMP": "Impacted",
+      "DOC": "Docked",
+      "R/T": "Roundtrip"
+    }
+  },
+  "gcat": {
+    "category": {
+      "AST": "Astronomy",
+      "BIO": "Life sciences",
+      "CAL": "Calibration",
+      "COM": "Communications",
+      "EDU": "Education",
+      "EOSCI": "Earth science",
+      "EW": "Missile early warning",
+      "GEOD": "Geodesy",
+      "IMG": "Imaging",
+      "IMG-R": "Radar imaging",
+      "INF": "Infrastructure",
+      "MET": "Meteorology",
+      "MET-RO": "Radio occultation",
+      "MGRAV": "Microgravity",
+      "MISC": "Miscellaneous",
+      "NAV": "Navigation",
+      "PLAN": "Deep space",
+      "RB": "Rocket body",
+      "RV": "Reentry vehicle",
+      "SCI": "Science",
+      "SIG": "Signals intelligence",
+      "SS": "Human spaceflight",
+      "TARG": "Target",
+      "TECH": "Technology",
+      "WEAPON": "Weapon"
+    },
+    "class": {
+      "A": "Amateur or academic",
+      "B": "Commercial",
+      "C": "Civil government",
+      "D": "Military"
+    }
+  },
+  "externalLinks": [
+    {
+      "label": "CelesTrak",
+      "title": "CelesTrak SATCAT entry — the catalog this app's data comes from",
+      "href": "https://celestrak.org/satcat/table-satcat.php?CATNR={satnum}"
+    },
+    {
+      "label": "Satcat",
+      "title": "satcat.com — mass, radar cross section, conjunctions",
+      "href": "https://www.satcat.com/sats/{satnum}"
+    },
+    {
+      "label": "n2yo",
+      "title": "n2yo.com — live tracking and pass predictions",
+      "href": "https://www.n2yo.com/satellite/?s={satnum}"
+    },
+    {
+      "label": "Heavens-Above",
+      "title": "heavens-above.com — orbit diagrams and ground track",
+      "href": "https://heavens-above.com/orbit.aspx?satid={satnum}"
+    },
+    {
+      "label": "KeepTrack",
+      "title": "app.keeptrack.space — 3D orbital analysis",
+      "href": "https://app.keeptrack.space/?sat={satnum}"
+    }
+  ]
+}

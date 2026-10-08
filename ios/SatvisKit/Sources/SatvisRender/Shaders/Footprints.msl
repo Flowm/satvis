@@ -1,0 +1,167 @@
+// What a satellite's sensor covers, as the web app draws it for low orbits: the
+// ground track, a corridor as wide as the swath from the subpoint now to where it
+// will be in five minutes, dark red at 25 %; and the sensor cone, gold at 15 %, a
+// kilometre-long cone around nadir with a gold line where it meets the ground.
+//
+// The corridors are drawn into a cube map around the Earth's centre (the ground
+// overlay), which the globe samples by direction. So they follow the ground,
+// terrain included, whatever the number of satellites costs, and a cube has no
+// seam at the antimeridian and no singularity at the poles that an
+// equirectangular texture would.
+
+/// Where a direction from the Earth's centre falls on a face of the overlay, in
+/// clip space: the cube map's own face layout, x across and y up the face. Behind
+/// the face, w is negative and the rasterizer clips it.
+inline float4 overlayClip(float3 v, uint face) {
+    switch (face) {
+    case 0: return float4(-v.z, v.y, 0.0, v.x);
+    case 1: return float4(v.z, v.y, 0.0, -v.x);
+    case 2: return float4(v.x, -v.z, 0.0, v.y);
+    case 3: return float4(v.x, v.z, 0.0, -v.y);
+    case 4: return float4(v.x, v.y, 0.0, v.z);
+    default: return float4(-v.x, v.y, 0.0, -v.z);
+    }
+}
+
+struct OverlayOut {
+    float4 position [[position]];
+};
+
+vertex OverlayOut overlayVertex(uint vid [[vertex_id]], const device packed_float3 *directions [[buffer(0)]], constant uint &face [[buffer(1)]]) {
+    OverlayOut out;
+    out.position = overlayClip(float3(directions[vid]), face);
+    return out;
+}
+
+/// Each corridor covers a quarter more of what is under it, as the web app's
+/// translucent corridors darken where they overlap.
+fragment float4 overlayFragment(OverlayOut in [[stage_in]]) {
+    return float4(0.25);
+}
+
+// Mirrors ConeInstance in Footprints.swift.
+struct ConeInstance {
+    uint satellite;
+    float halfAngle;
+};
+
+constant int coneSides = 48;
+constant float coneLength = 1e6;
+
+/// The cone's axis and two directions across it, at a satellite: nadir, as the
+/// web app points it.
+inline void coneBasis(float3 position, thread float3 &axis, thread float3 &across, thread float3 &up) {
+    axis = -normalize(position);
+    float3 reference = abs(axis.z) < 0.9 ? float3(0.0, 0.0, 1.0) : float3(1.0, 0.0, 0.0);
+    across = normalize(cross(axis, reference));
+    up = cross(axis, across);
+}
+
+/// How far from `origin` along `direction` the ellipsoid is, or `limit` when it is
+/// not hit sooner.
+inline float distanceToGround(float3 origin, float3 direction, float limit) {
+    float3 o = origin / ellipsoidRadii;
+    float3 d = direction / ellipsoidRadii;
+    float a = dot(d, d);
+    float b = 2.0 * dot(o, d);
+    float c = dot(o, o) - 1.0;
+    float discriminant = b * b - 4.0 * a * c;
+    if (discriminant < 0.0) {
+        return limit;
+    }
+    float t = (-b - sqrt(discriminant)) / (2.0 * a);
+    return t > 0.0 ? min(t, limit) : limit;
+}
+
+/// Where the edge of the cone ends on side `k`: on the ground, or at its length.
+inline float3 coneEdge(float3 apex, float halfAngle, int k, thread bool &grounded) {
+    float3 axis, across, up;
+    coneBasis(apex, axis, across, up);
+    float phi = 2.0 * M_PI_F * float(k % coneSides) / float(coneSides);
+    float3 direction = cos(halfAngle) * axis + sin(halfAngle) * (cos(phi) * across + sin(phi) * up);
+    float reach = distanceToGround(apex, direction, coneLength);
+    grounded = reach < coneLength;
+    return apex + direction * reach;
+}
+
+struct ConeOut {
+    float4 position [[position]];
+};
+
+/// The cone's surface, a fan from the satellite to where each edge meets the ground.
+vertex ConeOut coneVertex(uint vid [[vertex_id]], uint iid [[instance_id]], const device packed_float3 *samples [[buffer(0)]],
+                          constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
+                          const device PointFrame *frames [[buffer(3)]], const device ConeInstance *cones [[buffer(4)]]) {
+    ConeInstance cone = cones[iid];
+    ConeOut out;
+    float3 apex;
+    if (!satellitePosition(cone.satellite, samples, instances, frames, apex)) {
+        out.position = float4(0.0, 0.0, -2.0, 1.0);
+        return out;
+    }
+    uint corner = vid % 3;
+    bool grounded;
+    float3 position = corner == 0 ? apex : coneEdge(apex, cone.halfAngle, int(vid / 3) + int(corner) - 1, grounded);
+    out.position = frame.viewProjection * float4((position - frame.cameraHigh) - frame.cameraLow, 1.0);
+    return out;
+}
+
+fragment float4 coneFragment(ConeOut in [[stage_in]]) {
+    // Color.GOLD at 15 %.
+    return float4(gammaCorrect(float3(1.0, 0.843, 0.0)), 0.15);
+}
+
+struct RimOut {
+    float4 position [[position]];
+    float visible;
+};
+
+/// Where the cone meets the ground, a line a pixel wide, hidden where it is beyond
+/// the horizon.
+vertex RimOut coneRimVertex(uint vid [[vertex_id]], uint iid [[instance_id]], const device packed_float3 *samples [[buffer(0)]],
+                            constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
+                            const device PointFrame *frames [[buffer(3)]], const device ConeInstance *cones [[buffer(4)]]) {
+    ConeInstance cone = cones[iid];
+    RimOut out;
+    out.position = float4(0.0, 0.0, -2.0, 1.0);
+    out.visible = 0.0;
+    float3 apex;
+    if (!satellitePosition(cone.satellite, samples, instances, frames, apex)) {
+        return out;
+    }
+    int k = int(vid / 6);
+    uint corner = vid % 6;
+    bool groundedA, groundedB;
+    float3 a = coneEdge(apex, cone.halfAngle, k, groundedA);
+    float3 b = coneEdge(apex, cone.halfAngle, k + 1, groundedB);
+    if (!groundedA || !groundedB) {
+        return out;
+    }
+    // Two triangles a segment: a−, b−, b+ and a−, b+, a+.
+    bool atB = corner == 1 || corner == 2 || corner == 4;
+    float3 point = atB ? b : a;
+    float4 clipA = frame.viewProjection * float4((a - frame.cameraHigh) - frame.cameraLow, 1.0);
+    float4 clipB = frame.viewProjection * float4((b - frame.cameraHigh) - frame.cameraLow, 1.0);
+    if (clipA.w <= 0.0 || clipB.w <= 0.0) {
+        return out;
+    }
+    float2 toScreen = frame.viewportSize * 0.5;
+    float2 direction = (clipB.xy / clipB.w - clipA.xy / clipA.w) * toScreen;
+    direction = length(direction) > 0.0 ? normalize(direction) : float2(1.0, 0.0);
+    float2 normal = float2(-direction.y, direction.x);
+    float side = (corner == 0 || corner == 1 || corner == 3) ? -1.0 : 1.0;
+    float4 clip = atB ? clipB : clipA;
+    clip.xy += normal * side * 0.5 * frame.pixelScale / toScreen * clip.w;
+    out.position = clip;
+    // On the far side of the Earth from the eye, the ground hides it.
+    float3 surfaceNormal = point / (ellipsoidRadii * ellipsoidRadii);
+    out.visible = dot(surfaceNormal, frame.cameraPosition - point) > 0.0 ? 1.0 : 0.0;
+    return out;
+}
+
+fragment float4 coneRimFragment(RimOut in [[stage_in]]) {
+    if (in.visible < 0.5) {
+        discard_fragment();
+    }
+    return float4(gammaCorrect(float3(1.0, 0.843, 0.0)), 0.3);
+}

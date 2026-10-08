@@ -6,6 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		57A0C0DE000000000000000C /* SatvisCore in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE000000000000000A /* SatvisCore */; };
+		57A0C0DE000000000000000D /* SatvisData in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE000000000000000B /* SatvisData */; };
+		57A0C0DE000000000000000F /* SatvisRender in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE000000000000000E /* SatvisRender */; };
+		57A0C0DE0000000000000012 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 57A0C0DE0000000000000011 /* PostHog */; };
+		57A0C0DE0000000000000014 /* 2 in Copy Natural Earth */ = {isa = PBXBuildFile; fileRef = 57A0C0DE0000000000000013 /* 2 */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		570DD92C22B5BA980078A4A1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -16,7 +24,23 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		57A0C0DE0000000000000015 /* Copy Natural Earth */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = NaturalEarthII;
+			dstSubfolderSpec = 7;
+			files = (
+				57A0C0DE0000000000000014 /* 2 in Copy Natural Earth */,
+			);
+			name = "Copy Natural Earth";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		57A0C0DE0000000000000016 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Base.xcconfig; path = Config/Base.xcconfig; sourceTree = "<group>"; };
+		57A0C0DE0000000000000013 /* 2 */ = {isa = PBXFileReference; lastKnownFileType = folder; name = 2; path = ../data/imagery/NaturalEarthII/2; sourceTree = SOURCE_ROOT; };
 		570DD92722B5BA980078A4A1 /* satvisUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = satvisUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		579DA870218C123A00B417CB /* satvis.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = satvis.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -59,6 +83,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				57A0C0DE000000000000000C /* SatvisCore in Frameworks */,
+				57A0C0DE000000000000000D /* SatvisData in Frameworks */,
+				57A0C0DE000000000000000F /* SatvisRender in Frameworks */,
+				57A0C0DE0000000000000012 /* PostHog in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,6 +98,8 @@
 			children = (
 				57A0C0DE0000000000000006 /* satvis */,
 				57A0C0DE0000000000000007 /* satvisUITests */,
+				57A0C0DE0000000000000013 /* 2 */,
+				57A0C0DE0000000000000016 /* Base.xcconfig */,
 				579DA871218C123A00B417CB /* Products */,
 			);
 			sourceTree = "<group>";
@@ -114,6 +144,7 @@
 				579DA86C218C123A00B417CB /* Sources */,
 				579DA86D218C123A00B417CB /* Frameworks */,
 				579DA86E218C123A00B417CB /* Resources */,
+				57A0C0DE0000000000000015 /* Copy Natural Earth */,
 			);
 			buildRules = (
 			);
@@ -123,6 +154,12 @@
 				57A0C0DE0000000000000006 /* satvis */,
 			);
 			name = satvis;
+			packageProductDependencies = (
+				57A0C0DE000000000000000A /* SatvisCore */,
+				57A0C0DE000000000000000B /* SatvisData */,
+				57A0C0DE000000000000000E /* SatvisRender */,
+				57A0C0DE0000000000000011 /* PostHog */,
+			);
 			productName = satvis;
 			productReference = 579DA870218C123A00B417CB /* satvis.app */;
 			productType = "com.apple.product-type.application";
@@ -155,6 +192,10 @@
 				Base,
 			);
 			mainGroup = 579DA867218C123A00B417CB;
+			packageReferences = (
+				57A0C0DE0000000000000009 /* XCLocalSwiftPackageReference "SatvisKit" */,
+				57A0C0DE0000000000000010 /* XCRemoteSwiftPackageReference "posthog-ios" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 579DA871218C123A00B417CB /* Products */;
 			projectDirPath = "";
@@ -214,7 +255,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -236,7 +277,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -377,27 +418,30 @@
 		};
 		579DA883218C123C00B417CB /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 57A0C0DE0000000000000016 /* Base.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = satvis.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = satvis/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SatVis;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Set ground station location from geolocation";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Your location lets Satvis tell you when satellites pass over you, and show what is in the sky above you.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arm64;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.frcy.app.satvis;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -410,27 +454,31 @@
 		};
 		579DA884218C123C00B417CB /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 57A0C0DE0000000000000016 /* Base.xcconfig */;
 			buildSettings = {
+				EXCLUDED_SOURCE_FILE_NAMES = UITestCatalog.json;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = satvis.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = satvis/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SatVis;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Set ground station location from geolocation";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Your location lets Satvis tell you when satellites pass over you, and show what is in the sky above you.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arm64;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.frcy.app.satvis;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -472,6 +520,44 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		57A0C0DE0000000000000009 /* XCLocalSwiftPackageReference "SatvisKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = SatvisKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		57A0C0DE0000000000000010 /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.56.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		57A0C0DE000000000000000A /* SatvisCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SatvisCore;
+		};
+		57A0C0DE000000000000000B /* SatvisData */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SatvisData;
+		};
+		57A0C0DE000000000000000E /* SatvisRender */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SatvisRender;
+		};
+		57A0C0DE0000000000000011 /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 57A0C0DE0000000000000010 /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 579DA868218C123A00B417CB /* Project object */;
 }
