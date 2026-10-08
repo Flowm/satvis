@@ -19,6 +19,7 @@ struct GlobeView: View {
     var mayDrag: (CGSize) -> Bool = { _ in true }
     /// Drawable pixels per point, the web app's `pixelratio`; nil for the screen's own.
     var pixelRatio: Double?
+    var frameRate = 60
 
     @State private var renderer: GlobeRenderer?
     @State private var lastTranslation = CGSize.zero
@@ -28,7 +29,7 @@ struct GlobeView: View {
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            MetalView(pixelRatio: pixelRatio) { renderer in
+            MetalView(pixelRatio: pixelRatio, frameRate: frameRate) { renderer in
                 self.renderer = renderer
                 onRenderer(renderer)
             }
@@ -73,12 +74,14 @@ struct GlobeView: View {
 /// The MTKView the renderer draws into, and nothing else.
 private struct MetalView: UIViewRepresentable {
     let pixelRatio: Double?
+    let frameRate: Int
     let onRenderer: (GlobeRenderer) -> Void
 
     func makeUIView(context: Context) -> ScaledMTKView {
         let view = ScaledMTKView(frame: .zero, device: MTLCreateSystemDefaultDevice())
         view.pixelRatio = pixelRatio
-        view.preferredFramesPerSecond = 60
+        // Over 60 on an iPhone only with CADisableMinimumFrameDuration in Info.plist.
+        view.preferredFramesPerSecond = frameRate
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         Task {
             do {
@@ -94,6 +97,9 @@ private struct MetalView: UIViewRepresentable {
 
     func updateUIView(_ view: ScaledMTKView, context: Context) {
         view.pixelRatio = pixelRatio
+        if view.preferredFramesPerSecond != frameRate {
+            view.preferredFramesPerSecond = frameRate
+        }
     }
 }
 

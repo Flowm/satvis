@@ -118,6 +118,15 @@ final class Session {
     /// `native` for the screen's own. Fewer pixels for frames the GPU finishes in
     /// time; kept in links as on the web.
     var pixelRatio = "native"
+    /// Frames a second the globe is drawn at, at most: 30, 60 or 120, where the
+    /// screen has them. Not in links, which the web app has no parameter for,
+    /// but kept between launches, as the device's own choice.
+    var frameRate = UserDefaults.standard.object(forKey: "frameRate") as? Int ?? 60 {
+        didSet {
+            UserDefaults.standard.set(frameRate, forKey: "frameRate")
+        }
+    }
+    static let frameRates = [30, 60, 120]
     /// The benchmark panel, the web app's `bench=true`, kept in the link the same
     /// way; open through a run, whose scenes' links do not carry it.
     private(set) var showsBenchmark = false

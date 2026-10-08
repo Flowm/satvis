@@ -322,6 +322,7 @@ final class Benchmark {
             "device_memory_gb": NSDecimalNumber(string: String(format: "%.1f", Double(ProcessInfo.processInfo.physicalMemory) / 1_073_741_824)),
             "device_low_power_mode": ProcessInfo.processInfo.isLowPowerModeEnabled,
             "app_pixel_ratio": session.pixelRatio,
+            "app_frame_rate": session.frameRate,
             "device_thermal_state_start": name(ProcessInfo.processInfo.thermalState),
         ]
         if let screen {

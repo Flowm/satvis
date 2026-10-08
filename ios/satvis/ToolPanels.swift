@@ -466,5 +466,24 @@ struct GraphicsPanel: View {
                     (ratio == "native" ? String(format: "%.1fx (Native)", displayScale) : String(format: "%.1fx", Double(ratio) ?? 0), ratio)
                 })
         }
+        // Only the rates the screen can show; a rate kept from a faster screen, as a
+        // restored backup brings, reads as the fastest here.
+        let rates = Session.frameRates.filter { $0 <= maximumFrameRate }
+        PanelSection("Frame rate") {
+            Segments(
+                title: "Frame rate",
+                selection: Binding {
+                    rates.last { $0 <= session.frameRate } ?? rates[0]
+                } set: {
+                    session.frameRate = $0
+                },
+                options: rates.map { ("\($0) fps", $0) })
+            Note("Fewer frames save battery.")
+        }
+    }
+
+    /// 120 on a ProMotion screen, never under 60.
+    private var maximumFrameRate: Int {
+        max((UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.maximumFramesPerSecond ?? 60, 60)
     }
 }

@@ -243,6 +243,14 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   shaders took fast math, the default view took 10.5 ms of GPU a frame at native,
   6.7 at 1.5 and 2.8 at 1. A benchmark runs
   at the ratio it began at and records it.
+- The Graphics menu's "Frame rate" caps the globe at 30, 60 or 120 frames a second
+  (`preferredFramesPerSecond`), offering only what the screen shows: 120 on a
+  ProMotion screen, which an iPhone gives an app only with
+  `CADisableMinimumFrameDuration` in `Info.plist`. The simulator reports 60
+  whatever it models. The web app has no such parameter, so the rate is kept in
+  `UserDefaults`, not links; a benchmark records it as `app_frame_rate`. The
+  globe is drawn every frame: unlike CesiumJS's `requestRenderMode`, nothing
+  skips a frame when nothing has changed.
 - The Graphics menu's "Benchmark" is the web app's `bench=true`, kept in links
   the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): eight scenes opened
   by their links in turn, each waited for until everything active is drawn,

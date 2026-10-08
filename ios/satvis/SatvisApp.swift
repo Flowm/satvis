@@ -81,7 +81,8 @@ struct ContentView: View {
             },
             onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) },
             mayDrag: session.mayDrag,
-            pixelRatio: Double(session.pixelRatio)
+            pixelRatio: Double(session.pixelRatio),
+            frameRate: session.frameRate
         )
         .ignoresSafeArea()
         .background(.black)
