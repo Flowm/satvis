@@ -23,8 +23,9 @@ view, and "preset" the route's starting configuration, so neither could name a s
 link without a qualifier.
 
 **Three kinds.** A **demo** ships with the app: the scenes of the about page's
-showcase, each live and with a whole group rather than a list of satellites, so it
-shows the present and reads at a glance. The about page's own links stay pinned to
+showcase, each live and with a group or a single satellite rather than a list, so it
+shows the present and reads at a glance. The ISS is followed alone: the rest of the
+Stations group crowds the close-up. The about page's own links stay pinned to
 the moment of their pictures, which the App Store screenshots reproduce. The first
 demo is the default preset's weather globe, so it is also the default view. A
 **saved** bookmark is one the visitor named. An **opened link** is a link a visit

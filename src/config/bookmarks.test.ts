@@ -7,11 +7,11 @@ import { DEMO_BOOKMARKS } from "./bookmarks";
 
 const root = (path: string): string => fileURLToPath(new URL(`../../${path}`, import.meta.url));
 
-test("every demo is live and shows whole groups", () => {
+test("every demo is live and shows a group or a single satellite, never a list", () => {
   for (const demo of DEMO_BOOKMARKS) {
     expect(demo.query, demo.name).not.toHaveProperty("time");
-    expect(demo.query, demo.name).not.toHaveProperty("sats");
     expect(demo.query, demo.name).not.toHaveProperty("xsats");
+    expect(demo.query.sats?.split(",").length ?? 0, demo.name).toBeLessThanOrEqual(1);
   }
 });
 

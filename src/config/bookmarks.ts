@@ -1,6 +1,6 @@
-// The demo bookmarks: the scenes of the about page's showcase, live and with a whole
-// group each, so they show the present. The about page's own links pin the moment
-// its pictures were taken.
+// The demo bookmarks: the scenes of the about page's showcase, live and with a group
+// or a single satellite, so they show the present. The about page's own links pin the
+// moment its pictures were taken.
 
 import type { Bookmark } from "../modules/util/bookmarks";
 
@@ -23,7 +23,8 @@ export const DEMO_BOOKMARKS: readonly Bookmark[] = [
     path: "/",
     thumbnail: "showcase/iss-card.jpg",
     at: 0,
-    query: { tags: "Stations", track: "ISS (ZARYA)", elements: "Point,Label,Orbit,3D model", layers: "VersaTiles" },
+    // The ISS alone: the rest of the Stations group crowds the close-up.
+    query: { tags: "", sats: "ISS (ZARYA)", track: "ISS (ZARYA)", elements: "Point,Label,Orbit,3D model", layers: "VersaTiles" },
   },
   {
     id: "demo-sky",
