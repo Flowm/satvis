@@ -96,8 +96,8 @@ const facts = computed<[string, string][]>(() => {
     return [];
   }
   return [
-    ["Elevation", `${target.elevation.toFixed(1)}°`],
     ["Azimuth", `${target.azimuth.toFixed(1)}° ${compassPoint(target.azimuth)}`],
+    ["Elevation", `${target.elevation.toFixed(1)}°`],
     ["Range", `${Math.round(target.rangeKm).toLocaleString()} km`],
     ["Altitude", `${Math.round(target.altitudeKm).toLocaleString()} km`],
     ["Visibility", VISIBILITY_LABEL[target.visibility]],
