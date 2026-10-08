@@ -48,10 +48,9 @@ export interface FlightPath {
    * sign as the ground height arrives.
    */
   turn: number;
+  /** `from`'s attitude in the frame of the aim at the start, less `turn`: what the lock-on eases away. */
+  swing: Quaternion;
 }
-
-/** `to` and `over` must already describe the destination. */
-export const flightPath = (from: Pose, to: Pose, over: Pose): FlightPath => ({ from, to, over, turn: headingTurn(from, to, over) });
 
 /** Close to Cesium's own flight length; shorter and the descent and the rise blur together. */
 export const FLIGHT_MS = 2200;
@@ -95,13 +94,14 @@ export function flightPosition(from: Cartesian3, to: Cartesian3, overhead: numbe
     // The geocentre has no direction to rotate. Unreachable from a real camera.
     return Cartesian3.lerp(from, to, drop, result);
   }
-  const radius = descentRadius(fromRadius, toRadius, drop);
+  const height = fromRadius - toRadius;
+  const left = heightLeft(height, drop);
+  const radius = toRadius + left * height;
   // The way left round also shrinks with the height left, so the camera closes in
   // along the line of sight and the destination's angle off the vertical only
   // shrinks. Otherwise the geometric descent is low while still far off, and the
   // aim whips round to hold the destination (700°/s measured).
-  const height = fromRadius - toRadius;
-  const sweep = height > 0 ? 1 - (1 - overhead) * ((radius - toRadius) / height) : overhead;
+  const sweep = 1 - (1 - overhead) * left;
   const fromUnit = Cartesian3.divideByScalar(from, fromRadius, scratchFromUnit);
   const toUnit = Cartesian3.divideByScalar(to, toRadius, scratchToUnit);
 
@@ -126,14 +126,13 @@ export function flightPosition(from: Cartesian3, to: Cartesian3, overhead: numbe
  */
 const LANDING_METRES = 3000;
 
-/** Never outside the endpoints' radii, so never underground. */
-function descentRadius(fromRadius: number, toRadius: number, drop: number): number {
-  const height = fromRadius - toRadius;
+/** The fraction of `height` still to come down, in [0, 1], so never underground. */
+function heightLeft(height: number, drop: number): number {
   if (height <= 0) {
     // Leaving for a globe camera lower than the eye: no zoom to pace.
-    return CesiumMath.lerp(fromRadius, toRadius, drop);
+    return 1 - drop;
   }
-  return toRadius + (height + LANDING_METRES) ** (1 - drop) * LANDING_METRES ** drop - LANDING_METRES;
+  return ((height + LANDING_METRES) ** (1 - drop) * LANDING_METRES ** drop - LANDING_METRES) / height;
 }
 
 /** Antipodal inputs have no unique axis, so any perpendicular is used. */
@@ -158,15 +157,12 @@ export function poseRotation(pose: Pick<Pose, "direction" | "up" | "right">, res
 const scratchLine = new Cartesian3();
 const scratchAimAxis = new Cartesian3();
 const scratchVertical = new Cartesian3();
-const scratchShown = new Cartesian3();
 const scratchOverRotation = new Quaternion();
 const scratchYaw = new Quaternion();
 const scratchNadir = new Quaternion();
 const scratchSight = new Quaternion();
 const scratchAimed = new Quaternion();
-const scratchStartYaw = new Quaternion();
-const scratchStartAimed = new Quaternion();
-const scratchOffset = new Quaternion();
+const scratchSwing = new Quaternion();
 const scratchFromRotation = new Quaternion();
 const scratchToRotation = new Quaternion();
 const scratchLocked = new Quaternion();
@@ -194,22 +190,20 @@ function sightTurn(down: Cartesian3, target: Cartesian3, eye: Cartesian3, result
 }
 
 /**
- * What `flightPath` stores as `turn`: the heading that leaves the globe's screen-up
- * where it is once the view has locked on, so the lock-on swings without rolling.
- * Without it, an aim facing the equator from the northern hemisphere rolled the
- * view 180° in the lock-on's 0.66 s.
+ * `to` and `over` must already describe the destination. The start's offset from
+ * the aim splits into a twist about the view axis, which is straight down at the
+ * aim, so a turn about the vertical, and the swing left over. Without the split,
+ * an aim facing the equator from the northern hemisphere rolled the view 180° in
+ * the lock-on's 0.66 s.
  */
-function headingTurn(from: Pose, to: Pose, over: Pose): number {
-  const vertical = Cartesian3.negate(over.direction, scratchVertical);
-  // The globe's screen-up, carried back from the line of sight to straight down.
-  const back = Quaternion.conjugate(sightTurn(over.direction, to.position, from.position, scratchSight), scratchSight);
-  const shown = Matrix3.multiplyByVector(Matrix3.fromQuaternion(back, scratchBasis), from.up, scratchShown);
-  Cartesian3.subtract(shown, Cartesian3.multiplyByScalar(vertical, Cartesian3.dot(shown, vertical), scratchLine), shown);
-  if (Cartesian3.magnitudeSquared(shown) < 0.01) {
-    // The globe was looking well away from the destination: no heading to keep.
-    return 0;
-  }
-  return Math.atan2(Cartesian3.dot(Cartesian3.cross(over.up, shown, scratchLine), vertical), Cartesian3.dot(over.up, shown));
+export function flightPath(from: Pose, to: Pose, over: Pose): FlightPath {
+  const aimed = Quaternion.multiply(sightTurn(over.direction, to.position, from.position, scratchSight), poseRotation(over, scratchOverRotation), scratchAimed);
+  const offset = Quaternion.multiply(Quaternion.conjugate(aimed, aimed), poseRotation(from, scratchFromRotation), new Quaternion());
+  // The short way round: `offset` and its negation are the same rotation.
+  const sign = offset.w < 0 ? -1 : 1;
+  const turn = 2 * Math.atan2(sign * offset.z, sign * offset.w);
+  const twist = Quaternion.fromAxisAngle(Cartesian3.UNIT_Z, turn, scratchYaw);
+  return { from, to, over, turn, swing: Quaternion.multiply(Quaternion.conjugate(twist, twist), offset, offset) };
 }
 
 /**
@@ -217,7 +211,7 @@ function headingTurn(from: Pose, to: Pose, over: Pose): number {
  * must not be a member of `path`.
  */
 export function flightPose(path: FlightPath, t: number, result: Pose): Pose {
-  const { from, to, over, turn } = path;
+  const { from, to, over, turn, swing } = path;
 
   // The camera is overhead exactly when the rise starts, so the aim is already
   // straight down and the rise changes no roll.
@@ -236,15 +230,10 @@ export function flightPose(path: FlightPath, t: number, result: Pose): Pose {
   // destination at screen centre during the descent.
   const aimed = Quaternion.multiply(sightTurn(over.direction, to.position, result.position, scratchSight), nadir, scratchAimed);
 
-  // The swing eases the start's offset from the aim, in the camera's own frame, so
-  // the destination's place on screen depends on the swing alone. Blending towards
-  // the moving aim overshot it by 6° as the camera swept round.
-  const startYaw = Quaternion.fromAxisAngle(vertical, turn, scratchStartYaw);
-  const startNadir = Quaternion.multiply(startYaw, poseRotation(over, scratchOverRotation), scratchStartAimed);
-  const startAimed = Quaternion.multiply(sightTurn(over.direction, to.position, from.position, scratchSight), startNadir, scratchStartAimed);
-  const offset = Quaternion.multiply(Quaternion.conjugate(startAimed, startAimed), poseRotation(from, scratchFromRotation), scratchOffset);
-  const swing = Quaternion.slerp(offset, Quaternion.IDENTITY, easeFlight(t / LOCK_ON), scratchOffset);
-  const locked = Quaternion.multiply(aimed, swing, scratchLocked);
+  // Eased in the camera's own frame, so the destination's place on screen depends on
+  // the lock-on alone. Blending towards the moving aim overshot it by 6° as the
+  // camera swept round.
+  const locked = Quaternion.multiply(aimed, Quaternion.slerp(swing, Quaternion.IDENTITY, easeFlight(t / LOCK_ON), scratchSwing), scratchLocked);
   const arriving = Quaternion.multiply(yaw, poseRotation(to, scratchToRotation), scratchToRotation);
   const blended = Quaternion.slerp(locked, arriving, easeFlight((t - (1 - TIP_UP)) / TIP_UP), scratchBlended);
 
