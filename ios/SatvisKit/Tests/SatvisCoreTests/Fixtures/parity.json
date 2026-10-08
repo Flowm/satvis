@@ -1412,56 +1412,64 @@
   ],
   "details": [
     {
-      "facts": [
-        [
-          "Orbit",
-          "LEO"
-        ],
-        [
-          "Apogee / Perigee",
-          "426 / 416 km"
-        ],
-        [
-          "Country",
-          "USA"
-        ],
-        [
-          "Operator",
-          "NASA Johnson Space Flight Center"
-        ],
-        [
-          "Purpose",
-          "Human spaceflight"
-        ],
-        [
-          "Class",
-          "Civil government"
-        ],
-        [
-          "Manufacturer",
-          "Khrunichev State Research and Production Center"
-        ],
-        [
-          "Bus",
-          "77KS"
-        ],
-        [
-          "Mass",
-          "20,281 kg"
-        ],
-        [
-          "Size",
-          "12.6 × ~4.2 m, span 23.9 m"
-        ],
-        [
-          "Launched",
-          "1998-11-20 · Baikonur, Kazakhstan"
-        ],
-        [
-          "Status",
+      "facts": {
+        "orbitClass": "LEO",
+        "chips": [
+          "LEO",
+          "USA",
           "Operational"
+        ],
+        "rows": [
+          [
+            "Orbit",
+            "LEO"
+          ],
+          [
+            "Apogee / Perigee",
+            "426 / 416 km"
+          ],
+          [
+            "Country",
+            "USA"
+          ],
+          [
+            "Operator",
+            "NASA Johnson Space Flight Center"
+          ],
+          [
+            "Purpose",
+            "Human spaceflight"
+          ],
+          [
+            "Class",
+            "Civil government"
+          ],
+          [
+            "Manufacturer",
+            "Khrunichev State Research and Production Center"
+          ],
+          [
+            "Bus",
+            "77KS"
+          ],
+          [
+            "Mass",
+            "20,281 kg"
+          ],
+          [
+            "Size",
+            "12.6 × ~4.2 m, span 23.9 m"
+          ],
+          [
+            "Launched",
+            "1998-11-20 · Baikonur, Kazakhstan"
+          ],
+          [
+            "Status",
+            "Operational"
+          ]
         ]
-      ],
+      },
       "elements": {
         "kind": "omm",
         "epoch": "2026-10-02 11:10:18",
@@ -1507,64 +1515,72 @@
       }
     },
     {
-      "facts": [
-        [
-          "Orbit",
-          "LEO · Sun-synchronous"
-        ],
-        [
-          "Apogee / Perigee",
-          "818 / 817 km"
-        ],
-        [
-          "LTAN / LTDN",
-          "21:28 / 09:28"
-        ],
-        [
-          "Swath",
-          "2900 km"
-        ],
-        [
-          "Country",
-          "EUMETSAT"
-        ],
-        [
-          "Operator",
-          "EUMETSAT"
-        ],
-        [
-          "Purpose",
-          "Meteorology / Earth science"
-        ],
-        [
-          "Class",
-          "Civil government"
-        ],
-        [
-          "Manufacturer",
-          "Airbus Defence and Space / Thales Alenia Space"
-        ],
-        [
-          "Bus",
-          "Metop"
-        ],
-        [
-          "Mass",
-          "~4,085 kg"
-        ],
-        [
-          "Size",
-          "span ~17.6 m"
-        ],
-        [
-          "Launched",
-          "2018-11-07 · Kourou, French Guiana"
-        ],
-        [
-          "Status",
+      "facts": {
+        "orbitClass": "LEO",
+        "chips": [
+          "LEO · Sun-synchronous",
+          "EUMETSAT",
           "Operational"
+        ],
+        "rows": [
+          [
+            "Orbit",
+            "LEO · Sun-synchronous"
+          ],
+          [
+            "Apogee / Perigee",
+            "818 / 817 km"
+          ],
+          [
+            "LTAN / LTDN",
+            "21:28 / 09:28"
+          ],
+          [
+            "Swath",
+            "2900 km"
+          ],
+          [
+            "Country",
+            "EUMETSAT"
+          ],
+          [
+            "Operator",
+            "EUMETSAT"
+          ],
+          [
+            "Purpose",
+            "Meteorology / Earth science"
+          ],
+          [
+            "Class",
+            "Civil government"
+          ],
+          [
+            "Manufacturer",
+            "Airbus Defence and Space / Thales Alenia Space"
+          ],
+          [
+            "Bus",
+            "Metop"
+          ],
+          [
+            "Mass",
+            "~4,085 kg"
+          ],
+          [
+            "Size",
+            "span ~17.6 m"
+          ],
+          [
+            "Launched",
+            "2018-11-07 · Kourou, French Guiana"
+          ],
+          [
+            "Status",
+            "Operational"
+          ]
         ]
-      ],
+      },
       "elements": {
         "kind": "omm",
         "epoch": "2026-10-02 13:12:07",
@@ -1610,48 +1626,56 @@
       }
     },
     {
-      "facts": [
-        [
-          "Orbit",
-          "MEO"
-        ],
-        [
-          "Apogee / Perigee",
-          "20494 / 19871 km"
-        ],
-        [
-          "Country",
-          "USA"
-        ],
-        [
-          "Operator",
-          "US Space Force"
-        ],
-        [
-          "Purpose",
-          "Navigation"
-        ],
-        [
-          "Class",
-          "Military"
-        ],
-        [
-          "Mass",
-          "2,032 kg"
-        ],
-        [
-          "Size",
-          "1.9 m"
-        ],
-        [
-          "Launched",
-          "2000-07-16 · Cape Canaveral, Florida"
-        ],
-        [
-          "Status",
+      "facts": {
+        "orbitClass": "MEO",
+        "chips": [
+          "MEO",
+          "USA",
           "Operational"
+        ],
+        "rows": [
+          [
+            "Orbit",
+            "MEO"
+          ],
+          [
+            "Apogee / Perigee",
+            "20494 / 19871 km"
+          ],
+          [
+            "Country",
+            "USA"
+          ],
+          [
+            "Operator",
+            "US Space Force"
+          ],
+          [
+            "Purpose",
+            "Navigation"
+          ],
+          [
+            "Class",
+            "Military"
+          ],
+          [
+            "Mass",
+            "2,032 kg"
+          ],
+          [
+            "Size",
+            "1.9 m"
+          ],
+          [
+            "Launched",
+            "2000-07-16 · Cape Canaveral, Florida"
+          ],
+          [
+            "Status",
+            "Operational"
+          ]
         ]
-      ],
+      },
       "elements": {
         "kind": "omm",
         "epoch": "2026-10-02 05:51:49",
@@ -1697,44 +1721,52 @@
       }
     },
     {
-      "facts": [
-        [
-          "Orbit",
-          "GEO"
-        ],
-        [
-          "Apogee / Perigee",
-          "35792 / 35784 km"
-        ],
-        [
-          "Country",
-          "USA"
-        ],
-        [
-          "Operator",
-          "NOAA"
-        ],
-        [
-          "Purpose",
-          "Meteorology?"
-        ],
-        [
-          "Class",
-          "Civil government"
-        ],
-        [
-          "Mass",
-          "2,857.123 kg"
-        ],
-        [
-          "Launched",
-          "2024-06-25 · Cape Canaveral, Florida"
-        ],
-        [
-          "Status",
+      "facts": {
+        "orbitClass": "GEO",
+        "chips": [
+          "GEO",
+          "USA",
           "Operational"
+        ],
+        "rows": [
+          [
+            "Orbit",
+            "GEO"
+          ],
+          [
+            "Apogee / Perigee",
+            "35792 / 35784 km"
+          ],
+          [
+            "Country",
+            "USA"
+          ],
+          [
+            "Operator",
+            "NOAA"
+          ],
+          [
+            "Purpose",
+            "Meteorology?"
+          ],
+          [
+            "Class",
+            "Civil government"
+          ],
+          [
+            "Mass",
+            "2,857.123 kg"
+          ],
+          [
+            "Launched",
+            "2024-06-25 · Cape Canaveral, Florida"
+          ],
+          [
+            "Status",
+            "Operational"
+          ]
         ]
-      ],
+      },
       "elements": {
         "kind": "omm",
         "epoch": "2026-10-02 10:54:17",
@@ -1780,36 +1812,43 @@
       }
     },
     {
-      "facts": [
-        [
-          "Orbit",
-          "HEO"
-        ],
-        [
-          "Apogee / Perigee",
-          "52415 / 5808 km"
-        ],
-        [
-          "Purpose",
-          "Science?"
-        ],
-        [
-          "Class",
-          "Commercial / Military"
-        ],
-        [
-          "Size",
-          "2.4 m"
-        ],
-        [
-          "Launched",
-          "1996-02-24 · Vandenberg, California"
-        ],
-        [
-          "Status",
+      "facts": {
+        "orbitClass": "HEO",
+        "chips": [
+          "HEO",
           "Partially operational"
+        ],
+        "rows": [
+          [
+            "Orbit",
+            "HEO"
+          ],
+          [
+            "Apogee / Perigee",
+            "52415 / 5808 km"
+          ],
+          [
+            "Purpose",
+            "Science?"
+          ],
+          [
+            "Class",
+            "Commercial / Military"
+          ],
+          [
+            "Size",
+            "2.4 m"
+          ],
+          [
+            "Launched",
+            "1996-02-24 · Vandenberg, California"
+          ],
+          [
+            "Status",
+            "Partially operational"
+          ]
         ]
-      ],
+      },
       "elements": {
         "kind": "omm",
         "epoch": "2026-09-25 22:32:31",
@@ -1855,16 +1894,22 @@
       }
     },
     {
-      "facts": [
-        [
-          "Orbit",
+      "facts": {
+        "orbitClass": "MEO",
+        "chips": [
           "MEO"
         ],
-        [
-          "Apogee / Perigee",
-          "3863 / 651 km"
+        "rows": [
+          [
+            "Orbit",
+            "MEO"
+          ],
+          [
+            "Apogee / Perigee",
+            "3863 / 651 km"
+          ]
         ]
-      ],
+      },
       "elements": {
         "kind": "tle",
         "epoch": "2000-06-27 18:50:19",
