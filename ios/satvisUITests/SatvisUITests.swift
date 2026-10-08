@@ -43,7 +43,7 @@ nonisolated class SatvisUITests: XCTestCase {
             XCTAssertFalse(app.buttons["Map"].exists)
             toggle.tap()
         }
-        for entry in ["Satellites", "Components", "Map", "Locations", "Globe", "Sky", "Graphics"] {
+        for entry in ["Bookmarks", "Satellites", "Components", "Map", "Locations", "Globe", "Sky", "Graphics"] {
             XCTAssert(app.buttons[entry].waitForExistence(timeout: 5), "No \(entry) in the menu")
         }
         app.buttons["Components"].tap()
@@ -104,6 +104,42 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(camera.isEnabled && inertial.isSelected)
         app.buttons["Fixed"].tap()
         XCTAssert(app.buttons["Fixed"].isSelected)
+    }
+
+    // A link the app opens with is kept under Recent; saving it moves it to Saved,
+    // under the name given, and it opens again from there after the default view.
+    @MainActor
+    func testSavesAndReopensABookmark() {
+        let app = launch(link: "/?tags=&sats=METOP-B&elements=Point,Label")
+        openMenu(app)
+        app.buttons["Bookmarks"].tap()
+        XCTAssert(app.buttons["Recent 1"].waitForExistence(timeout: 10))
+        app.buttons["Save this view"].tap()
+        let name = app.alerts.textFields.firstMatch
+        XCTAssert(name.waitForExistence(timeout: 10))
+        // Over the name drawn from the scene.
+        name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 40) + "Mine\n")
+        XCTAssert(app.alerts.firstMatch.waitForNonExistence(timeout: 5))
+        XCTAssert(app.buttons["Saved 1"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Recent 1"].exists)
+        XCTAssert(app.buttons["Saved"].exists)
+
+        let sheet = app.navigationBars["Bookmarks"]
+        app.buttons["Default view"].tap()
+        XCTAssert(sheet.waitForNonExistence(timeout: 5))
+        openMenu(app)
+        app.buttons["Bookmarks"].tap()
+        let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Mine'")).firstMatch
+        XCTAssert(card.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["Default view"].isEnabled)
+        XCTAssertFalse(card.isSelected)
+        card.tap()
+        XCTAssert(sheet.waitForNonExistence(timeout: 5))
+        openMenu(app)
+        app.buttons["Bookmarks"].tap()
+        XCTAssert(card.waitForExistence(timeout: 10))
+        XCTAssert(card.isSelected)
+        XCTAssert(app.buttons["Default view"].isEnabled)
     }
 
     // The about page's demos open in the app: the first pins the clock at its minute.

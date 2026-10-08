@@ -1,8 +1,8 @@
 import Foundation
 
 /// The tables the native app reads from the web app rather than keeping its own:
-/// SATCAT and GCAT code labels and the external links (Shared/web-tables.json,
-/// written by scripts/parity/generate.mjs).
+/// SATCAT and GCAT code labels, the external links and the bookmark tables
+/// (Shared/web-tables.json, written by scripts/parity/generate.mjs).
 public struct WebTables: Sendable, Decodable {
     public struct Satcat: Sendable, Decodable {
         public var launchSite: [String: String]
@@ -42,9 +42,17 @@ public struct WebTables: Sendable, Decodable {
         }
     }
 
+    /// The web app's demo bookmarks (src/config/bookmarks.ts), and the url
+    /// parameters its stores own, which a bookmark keeps.
+    public struct BookmarkTables: Sendable, Decodable {
+        public var demos: [Bookmark]
+        public var ownedParams: [String]
+    }
+
     public var satcat: Satcat
     public var gcat: Gcat
     public var externalLinks: [Link]
+    public var bookmarks: BookmarkTables
 
     public static let shared: WebTables = {
         let url = Bundle.module.url(forResource: "web-tables", withExtension: "json", subdirectory: "Shared")!

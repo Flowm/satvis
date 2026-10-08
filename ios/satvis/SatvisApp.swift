@@ -50,6 +50,7 @@ struct SatvisApp: App {
 /// selected, and the clock deck. Views only: what they do is the session's.
 struct ContentView: View {
     @Bindable var session: Session
+    @State private var showsBookmarks = false
     @State private var showsBrowser = false
     @State private var showsStations = false
     @State private var showsAttribution = false
@@ -137,6 +138,11 @@ struct ContentView: View {
                 HStack(alignment: .top, spacing: 8) {
                     ToolMenu(isOpen: $showsTools) {
                         // The web app's menu column: its entries, icons, order and hints.
+                        ToolEntry(
+                            title: "Bookmarks", image: .lucideBookmark, hint: "Demos, saved views and links you opened, and the way back to the default view"
+                        ) {
+                            showsBookmarks = true
+                        }
                         ToolEntry(title: "Satellites", image: .lucideOrbit, hint: "Search and pick which satellites to show") {
                             showsBrowser = true
                         }
@@ -235,7 +241,7 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .onChange(of: showsBrowser || showsStations) { _, presenting in
+        .onChange(of: showsBookmarks || showsBrowser || showsStations) { _, presenting in
             if presenting {
                 panel = nil
                 if sizeClass != .regular {
@@ -243,11 +249,14 @@ struct ContentView: View {
                 }
             }
         }
+        .sheet(isPresented: $showsBookmarks) {
+            BookmarksView(session: session)
+        }
         .sheet(isPresented: $showsBrowser) {
             BrowserView(catalog: session.catalog) { session.selection = .satellite($0.id) }
         }
         .sheet(isPresented: $showsAbout) {
-            AboutView(onOpen: { session.open($0) }, privacyPolicy: session.privacyPolicy)
+            AboutView(onOpen: { session.open($0, records: true) }, privacyPolicy: session.privacyPolicy)
         }
         .sheet(isPresented: $showsAttribution) {
             AttributionView(map: session.mapCredits, privacyPolicy: session.privacyPolicy, analytics: session.analytics)
@@ -291,7 +300,7 @@ struct ContentView: View {
             await session.run()
         }
         // A satvis.space link the system hands over, universal link or not.
-        .onOpenURL { session.open(Link($0.absoluteString)) }
+        .onOpenURL { session.open(Link($0.absoluteString), records: true) }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active: session.becameActive()

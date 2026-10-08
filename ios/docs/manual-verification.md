@@ -370,3 +370,21 @@ the globe with 3D ticked and Inertial still chosen, now enabled. The sky card li
 Azimuth, Elevation, Range, Altitude and Visibility a row each, the values right-aligned.
 Not checked by eye: the Earth turning under the inertial camera, 15° an hour at the
 real-time clock; `InertialCameraTests` holds the camera still against TEME.
+
+## Native app: bookmarks
+
+**Procedure.** A never-used iPhone 18 Pro simulator on iOS 27, the test catalog, a temporary
+UI test opened on `/?tags=&sats=METOP-B,METOP-C&elements=Point,Label,Orbit&time=2026-10-05T17:45Z`
+with the site pointed at a local server of the web app's `public/`, so the demos' pictures
+load; the Bookmarks sheet opened after 15 s on Recent, Demos, and after Save this view.
+
+**Result, 2026-10-08.** The column leads with Bookmarks. Recent held the link, pictured
+from the renderer's frame with its orbits, "5 Oct, 17:45 UTC" on the picture and "just
+now" over it, outlined as the scene on screen; the demos showed the site's three showcase
+pictures with "● Live". Save this view moved it to Saved, opened its name, and turned the
+button to Saved. `testSavesAndReopensABookmark` then names it, returns to the default view
+and opens it again. In that test a tap on the name's Save after typing left the alert up,
+where the same tap without typing closed it and return saved the name; not checked by
+hand. satvis.space answers 404 for `showcase/` until main is deployed, so the demos show
+no picture before then.
+

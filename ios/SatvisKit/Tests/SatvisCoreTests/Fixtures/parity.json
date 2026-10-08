@@ -7348,6 +7348,485 @@
       }
     ]
   },
+  "bookmarks": {
+    "now": "2026-10-08T12:00:00Z",
+    "summaries": [
+      {
+        "preset": "default",
+        "query": {},
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": "",
+          "sats": "ISS (ZARYA)",
+          "track": "ISS (ZARYA)",
+          "time": "2026-10-04T02:07Z"
+        },
+        "summary": {
+          "what": "ISS (ZARYA)",
+          "where": "Following it",
+          "time": "4 Oct, 02:07 UTC"
+        },
+        "name": "Following ISS (ZARYA)"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Sky",
+          "gs": "46.5935,7.9091,Lauterbrunnen_48.1,11.5",
+          "tags": "GNSS,Weather,OneWeb"
+        },
+        "summary": {
+          "what": "GNSS, Weather and OneWeb",
+          "where": "Sky over Lauterbrunnen"
+        },
+        "name": "Sky over Lauterbrunnen"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Sky",
+          "gs": "46.5935,7.9091"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Sky over 46.59°, 7.91°"
+        },
+        "name": "Sky over 46.59°, 7.91°"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Sky",
+          "gs": "-33.92495,18.42405"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Sky over -33.92°, 18.42°"
+        },
+        "name": "Sky over -33.92°, 18.42°"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Sky"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Sky view"
+        },
+        "name": "Sky view"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "sats": "A,B,C"
+        },
+        "summary": {
+          "what": "Weather satellites + 3 satellites",
+          "where": "Globe"
+        },
+        "name": "Weather satellites + 3 satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": "",
+          "sats": "A,B"
+        },
+        "summary": {
+          "what": "A and B",
+          "where": "Globe"
+        },
+        "name": "A and B"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": "",
+          "sats": "A"
+        },
+        "summary": {
+          "what": "A",
+          "where": "Globe"
+        },
+        "name": "A"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": ""
+        },
+        "summary": {
+          "what": "No satellites",
+          "where": "Globe"
+        },
+        "name": "No satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "2D",
+          "tags": "Science"
+        },
+        "summary": {
+          "what": "Science satellites",
+          "where": "Flat map"
+        },
+        "name": "Science satellites, flat map"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Columbus"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Columbus view"
+        },
+        "name": "Weather satellites, columbus view"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Bogus"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Bogus"
+        },
+        "name": "Weather satellites, bogus"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "track": "NOAA 19"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Following NOAA 19"
+        },
+        "name": "Following NOAA 19"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": "Stations",
+          "track": "ISS (ZARYA)"
+        },
+        "summary": {
+          "what": "Stations",
+          "where": "Following ISS (ZARYA)"
+        },
+        "name": "Following ISS (ZARYA)"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": "GNSS"
+        },
+        "summary": {
+          "what": "GNSS satellites",
+          "where": "Globe"
+        },
+        "name": "GNSS satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": "OT",
+          "sats": "X"
+        },
+        "summary": {
+          "what": "OT satellites + X",
+          "where": "Globe"
+        },
+        "name": "OT satellites + X"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2025-12-31T23:59Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "31 Dec 2025, 23:59 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "not a time"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "not a time"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-01-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Jan, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-02-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Feb, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-03-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Mar, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-04-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Apr, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-05-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 May, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-06-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Jun, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-07-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Jul, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-08-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Aug, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-09-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Sept, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-10-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Oct, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-11-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Nov, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "time": "2026-12-09T07:05Z"
+        },
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe",
+          "time": "9 Dec, 07:05 UTC"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "demo",
+        "query": {},
+        "summary": {
+          "what": "GNSS satellites",
+          "where": "Globe"
+        },
+        "name": "GNSS satellites"
+      },
+      {
+        "preset": "demo",
+        "query": {
+          "scene": "Sky",
+          "gs": "1,2,Home"
+        },
+        "summary": {
+          "what": "GNSS satellites",
+          "where": "Sky over Home"
+        },
+        "name": "Sky over Home"
+      },
+      {
+        "preset": "default",
+        "query": {},
+        "summary": {
+          "what": "Weather satellites",
+          "where": "Globe"
+        },
+        "name": "Weather satellites"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "tags": "",
+          "sats": "ISS (ZARYA)",
+          "track": "ISS (ZARYA)",
+          "elements": "Point,Label,Orbit,3D model",
+          "layers": "VersaTiles"
+        },
+        "summary": {
+          "what": "ISS (ZARYA)",
+          "where": "Following it"
+        },
+        "name": "Following ISS (ZARYA)"
+      },
+      {
+        "preset": "default",
+        "query": {
+          "scene": "Sky",
+          "gs": "46.5935,7.9091,Lauterbrunnen",
+          "terrain": "ReEarth",
+          "layers": "VersaTiles",
+          "stars": "DeepStar2K",
+          "tags": "GNSS"
+        },
+        "summary": {
+          "what": "GNSS satellites",
+          "where": "Sky over Lauterbrunnen"
+        },
+        "name": "Sky over Lauterbrunnen"
+      }
+    ],
+    "ages": [
+      {
+        "ago": 0,
+        "text": "just now"
+      },
+      {
+        "ago": 30000,
+        "text": "just now"
+      },
+      {
+        "ago": 59999,
+        "text": "just now"
+      },
+      {
+        "ago": 60000,
+        "text": "1 min ago"
+      },
+      {
+        "ago": 300000,
+        "text": "5 min ago"
+      },
+      {
+        "ago": 3540000,
+        "text": "59 min ago"
+      },
+      {
+        "ago": 3600000,
+        "text": "1 h ago"
+      },
+      {
+        "ago": 10800000,
+        "text": "3 h ago"
+      },
+      {
+        "ago": 86340000,
+        "text": "23 h ago"
+      },
+      {
+        "ago": 180000000,
+        "text": "2 d ago"
+      },
+      {
+        "ago": -60000,
+        "text": "just now"
+      }
+    ],
+    "openedLimit": 8
+  },
   "links": {
     "vocabulary": {
       "components": [

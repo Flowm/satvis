@@ -170,7 +170,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   required-reason API and every data type collected, and keep the App Store
   privacy label in step with it.
 - The menu column is the web app's (`Satvis.vue`'s `menuItems`): a Menu toggle
-  over Satellites, Components, Map, Locations, Globe, Sky and Graphics, with their
+  over Bookmarks, Satellites, Components, Map, Locations, Globe, Sky and Graphics, with their
   Lucide icons, names and order, and their hover hints, trimmed to what the
   app has, as VoiceOver hints, one glass panel
   whose rows each hold an icon and its name, folded on a phone and open on an
@@ -182,12 +182,26 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   not hidden. On a phone the column folds to its icons beside a panel, which
   covers the top-right buttons, as the web's does below 640 px. Not system
   menus: iOS 26 grows one out of its control, in the column's place, and it holds
-  ticked lists alone. Satellites and Locations are sheets: long lists.
+  ticked lists alone. Bookmarks, Satellites and Locations are sheets: long lists.
   A tap on the globe closes the panel and on a phone folds the column, as on
   the web, and a miss that did so keeps the selection.
   What the app does not draw is left out: Map's overlays, surface and star map;
   Globe's 2D and Columbus projections; Sky's keyboard note; Graphics' scene
   effects and MSAA.
+- Bookmarks are the web app's (ADR 0011, `BookmarksView.swift`): the same records,
+  a preset's path and the parameters the web app's stores own, so the code that
+  describes and names them (`Bookmarks` in SatvisCore) is held to its
+  `bookmarks.ts` by the parity fixtures, and the demos and the owned parameters
+  come from `web-tables.json`. A bookmark opens through `Session.open`, carrying the
+  link's other parameters, and goes live without a `time`. Saved ones and opened
+  links are kept in Application Support (`BookmarkStorage`), in backups, and synced
+  nowhere. An opened link is one the system hands over, the About page's, or
+  `SATVIS_LINK`: not the view a last run left, which is a reload. Pictures are the
+  renderer's next frame (`GlobeRenderer.snapshot`), read from a drawable asked
+  for readable for that frame alone; an opened link's once everything active is
+  drawn, as the web app waits for its scene. The demos' are the site's
+  `showcase/` pictures, through the tiles' cache. A launch on the test catalog
+  keeps its bookmarks apart, so every UI test starts with none.
 - The Globe panel's camera mode is the web app's `camera` (`CameraFrame`, kept
   in links): Fixed, or Inertial, where the free camera is turned back each frame
   by as far as the Earth has turned (`OrbitCamera.holdInertial`, the Greenwich

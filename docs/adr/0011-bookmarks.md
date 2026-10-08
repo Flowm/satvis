@@ -72,8 +72,9 @@ are small copies of the showcase pictures, precached so the panel works offline.
 
 ## Consequences
 
-- **The native app has no bookmarks yet.** Its links already decode the same query,
-  so a port stores the same records; nothing on the worker changes.
+- **The native app keeps the same records**, per device (`ios/AGENTS.md`): its links
+  decode the same query, and the demos and the parameters the stores own reach it
+  through the parity script's `web-tables.json`. Nothing on the worker changes.
 - **A demo's picture is the about page's, not the present.** The sky demo shows a
   night sky on its card and a daylight one at noon.
 - **A bookmark's meaning can drift** with its preset's defaults, as any link's can.

@@ -496,6 +496,46 @@ try {
     [10, true, 36_000],
   ].map(([sunElevation, sunlit, rangeKm]) => ({ sunElevation, sunlit, rangeKm, visibility: sky.visibility(sunElevation, sunlit, rangeKm) }));
 
+  // Bookmarks (ADR 0011): what a card says of a scene, and the name a scene is given,
+  // against the default preset's defaults and the demo preset's.
+  const bookmarks = await runner.import("/src/modules/util/bookmarks.ts");
+  const { DEMO_BOOKMARKS } = await runner.import("/src/config/bookmarks.ts");
+  const BOOKMARK_NOW = "2026-10-08T12:00:00Z";
+  const BOOKMARK_CASES = [
+    ["default", {}],
+    ["default", { tags: "", sats: "ISS (ZARYA)", track: "ISS (ZARYA)", time: "2026-10-04T02:07Z" }],
+    ["default", { scene: "Sky", gs: "46.5935,7.9091,Lauterbrunnen_48.1,11.5", tags: "GNSS,Weather,OneWeb" }],
+    ["default", { scene: "Sky", gs: "46.5935,7.9091" }],
+    ["default", { scene: "Sky", gs: "-33.92495,18.42405" }],
+    ["default", { scene: "Sky" }],
+    ["default", { sats: "A,B,C" }],
+    ["default", { tags: "", sats: "A,B" }],
+    ["default", { tags: "", sats: "A" }],
+    ["default", { tags: "" }],
+    ["default", { scene: "2D", tags: "Science" }],
+    ["default", { scene: "Columbus" }],
+    ["default", { scene: "Bogus" }],
+    ["default", { track: "NOAA 19" }],
+    ["default", { tags: "Stations", track: "ISS (ZARYA)" }],
+    ["default", { tags: "GNSS" }],
+    ["default", { tags: "OT", sats: "X" }],
+    ["default", { time: "2025-12-31T23:59Z" }],
+    ["default", { time: "not a time" }],
+    ...Array.from({ length: 12 }, (_, month) => ["default", { time: `2026-${String(month + 1).padStart(2, "0")}-09T07:05Z` }]),
+    ["demo", {}],
+    ["demo", { scene: "Sky", gs: "1,2,Home" }],
+    ...DEMO_BOOKMARKS.map((demo) => ["default", demo.query]),
+  ];
+  const summaries = BOOKMARK_CASES.map(([preset, query]) => {
+    const summary = bookmarks.summarize(query, PRESETS[preset], new Date(BOOKMARK_NOW));
+    return { preset, query, summary, name: bookmarks.defaultName(summary) };
+  });
+  const bookmarkNow = Date.parse(BOOKMARK_NOW);
+  const ages = [0, 30_000, 59_999, 60_000, 5 * 60_000, 59 * 60_000, 3_600_000, 3 * 3_600_000, 23 * 3_600_000 + 59 * 60_000, 50 * 3_600_000, -60_000].map((ago) => ({
+    ago,
+    text: bookmarks.timeAgo(bookmarkNow - ago, bookmarkNow),
+  }));
+
   const output = {
     generatedBy: "scripts/parity/generate.mjs",
     parsed,
@@ -510,6 +550,7 @@ try {
     compassPoints,
     greenwichHourAngle: hourAngles,
     visibility: { sunDirections, shadows, verdicts },
+    bookmarks: { now: BOOKMARK_NOW, summaries, ages, openedLimit: bookmarks.OPENED_LIMIT },
     links: { vocabulary, presets: PRESETS, defaults: globalDefaults, fieldKinds, cases: links, sanitized },
   };
   fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
@@ -524,6 +565,15 @@ try {
     gcat: { category: gcatCodes.GCAT_CATEGORY, class: gcatCodes.GCAT_CLASS },
     // `{satnum}` stands where the catalog number goes.
     externalLinks: externalLinks("{satnum}"),
+    bookmarks: {
+      demos: DEMO_BOOKMARKS,
+      // The parameters the web app's stores own, which a bookmark keeps and the rest
+      // of a link carries past it. Read from the stores' urlsync configs: creating the
+      // stores here would need the router and the globe.
+      ownedParams: ["sat", "cesium"].flatMap((store) =>
+        [...fs.readFileSync(path.join(repoRoot, `src/stores/${store}.ts`), "utf8").matchAll(/\burl: "([a-z]+)"/g)].map((match) => match[1]),
+      ),
+    },
   };
   fs.mkdirSync(path.dirname(tablesPath), { recursive: true });
   fs.writeFileSync(tablesPath, `${JSON.stringify(tables, null, 2)}\n`);

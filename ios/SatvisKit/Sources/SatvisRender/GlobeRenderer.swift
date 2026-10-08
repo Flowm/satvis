@@ -236,6 +236,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The size the last frame was drawn at, in pixels.
     public var drawableSize: CGSize? { lastFrame.map { CGSize(width: $0.size.x, height: $0.size.y) } }
     private var pointFrameBuffers: [MTLBuffer?]
+    /// A picture asked for of the next frame that can be read: its width in pixels,
+    /// and who waits for it.
+    private var snapshotRequest: (id: Int, width: Int, continuation: CheckedContinuation<Data?, Never>)?
+    private var snapshotCount = 0
     private var frameIndex = 0
     private let inFlight = DispatchSemaphore(value: framesInFlight)
 
@@ -765,7 +769,33 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         depth = target(Self.depthFormat)
     }
 
+    /// The next frame as a JPEG `width` pixels across, for a bookmark's card; nil
+    /// where none comes within two seconds, as in the background.
+    public func snapshot(width: Int) async -> Data? {
+        snapshotCount += 1
+        let id = snapshotCount
+        return await withCheckedContinuation { continuation in
+            snapshotRequest?.continuation.resume(returning: nil)
+            snapshotRequest = (id, width, continuation)
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                finishSnapshot(id, nil)
+            }
+        }
+    }
+
+    private func finishSnapshot(_ id: Int, _ data: Data?) {
+        guard let request = snapshotRequest, request.id == id else {
+            return
+        }
+        snapshotRequest = nil
+        request.continuation.resume(returning: data)
+    }
+
     public func draw(in view: MTKView) {
+        // A drawable can be read only from a view asked for readable ones, which
+        // cannot keep them in tile memory: asked for one frame, and back after.
+        view.framebufferOnly = snapshotRequest == nil
         guard var orbitCamera, let hdr, let depth else {
             return
         }
@@ -983,6 +1013,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             encoder.setFragmentTexture(hdr, index: 0)
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             encoder.endEncoding()
+        }
+        if let request = snapshotRequest, !drawable.texture.isFramebufferOnly,
+            let copy = Snapshot.encodeCopy(of: drawable.texture, into: commands, device: device)
+        {
+            commands.addCompletedHandler { _ in
+                let data = copy.jpeg(width: request.width)
+                Task { @MainActor in self.finishSnapshot(request.id, data) }
+            }
         }
         commands.present(drawable)
         commands.commit()

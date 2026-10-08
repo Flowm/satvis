@@ -123,5 +123,71 @@
       "title": "app.keeptrack.space — 3D orbital analysis",
       "href": "https://app.keeptrack.space/?sat={satnum}"
     }
-  ]
+  ],
+  "bookmarks": {
+    "demos": [
+      {
+        "id": "demo-globe",
+        "kind": "demo",
+        "name": "Weather satellites",
+        "path": "/",
+        "thumbnail": "showcase/globe-card.jpg",
+        "at": 0,
+        "query": {}
+      },
+      {
+        "id": "demo-iss",
+        "kind": "demo",
+        "name": "Follow the ISS",
+        "path": "/",
+        "thumbnail": "showcase/iss-card.jpg",
+        "at": 0,
+        "query": {
+          "tags": "",
+          "sats": "ISS (ZARYA)",
+          "track": "ISS (ZARYA)",
+          "elements": "Point,Label,Orbit,3D model",
+          "layers": "VersaTiles"
+        }
+      },
+      {
+        "id": "demo-sky",
+        "kind": "demo",
+        "name": "Sky over Lauterbrunnen",
+        "path": "/",
+        "thumbnail": "showcase/sky-card.jpg",
+        "at": 0,
+        "query": {
+          "scene": "Sky",
+          "gs": "46.5935,7.9091,Lauterbrunnen",
+          "terrain": "ReEarth",
+          "layers": "VersaTiles",
+          "stars": "DeepStar2K",
+          "tags": "GNSS"
+        }
+      }
+    ],
+    "ownedParams": [
+      "elements",
+      "sats",
+      "xsats",
+      "tags",
+      "gs",
+      "track",
+      "overpass",
+      "layers",
+      "terrain",
+      "surface",
+      "stars",
+      "scene",
+      "unseen",
+      "camera",
+      "pixelratio",
+      "msaa",
+      "fps",
+      "bench",
+      "bg",
+      "time"
+    ]
+  }
 }

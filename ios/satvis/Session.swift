@@ -79,6 +79,14 @@ final class Session {
     /// GIBS's days; nil, GIBS's latest, until they are known.
     @ObservationIgnored private var imageryFrame: String?
     let analytics = Analytics()
+    let bookmarks: BookmarkModel = {
+        #if DEBUG
+            if let storage = TestCatalog.bookmarkStorage() {
+                return BookmarkModel(storage: storage)
+            }
+        #endif
+        return BookmarkModel()
+    }()
 
     /// What the map is drawn from now, to credit: with the terrain the sky view
     /// always stands on, whatever the Map menu says.
@@ -92,8 +100,9 @@ final class Session {
     /// When the data was last asked for again, so that the scene turning active
     /// twice in a row does not ask twice.
     @ObservationIgnored private var revalidated = Date.distantPast
-    /// A link that came before there was a catalog to open it on.
-    @ObservationIgnored private var pendingLink: Link?
+    /// A link that came before there was a catalog to open it on, and whether it
+    /// is one to keep among the opened links.
+    @ObservationIgnored private var pendingLink: (link: Link, records: Bool)?
     /// Counts the links applied, so that one superseded while it waited stops
     /// there rather than finish over the newer one.
     @ObservationIgnored private var linkGeneration = 0
@@ -218,9 +227,14 @@ final class Session {
                 }
             }
             started = true
-            if let link = pendingLink ?? Self.launchLink ?? UserDefaults.standard.string(forKey: Self.viewKey).map(Link.init) {
+            // The view a last run left is the user's own, as a reload is on the web:
+            // not an opened link.
+            if let (link, records) = pendingLink ?? Self.launchLink.map({ ($0, true) }) ?? UserDefaults.standard.string(forKey: Self.viewKey).map({ (Link($0), false) }) {
                 pendingLink = nil
                 await apply(link, settings: true)
+                if records {
+                    Task { await recordOpened() }
+                }
             } else {
                 // The first launch: the default preset, and the map as the
                 // settings before links kept it.
@@ -296,13 +310,20 @@ final class Session {
 
     private static let benchmarkKey = "bench"
 
-    /// Opens a link: what it shows replaces what is shown, as on the web.
-    func open(_ link: Link) {
+    /// Opens a link: what it shows replaces what is shown, as on the web. `records`
+    /// keeps it among the opened links (ADR 0011): one the system hands over, or the
+    /// about page's, as a visit starts with on the web.
+    func open(_ link: Link, records: Bool = false) {
         guard started else {
-            pendingLink = link
+            pendingLink = (link, records)
             return
         }
-        Task { await apply(link, settings: true) }
+        Task {
+            await apply(link, settings: true)
+            if records {
+                await recordOpened()
+            }
+        }
     }
 
     /// The view as a link, as the web app's address bar would hold it. Of the
@@ -431,6 +452,83 @@ final class Session {
             counted = view
             analytics.pageview(link(sharing: false).url(site: source.site))
         }
+    }
+
+    // MARK: Bookmarks
+
+    /// The scene on screen as a bookmark would keep it: its preset's path and the
+    /// parameters the web app's stores own.
+    var here: Bookmark {
+        Bookmark(
+            id: "here", kind: .saved, name: "", path: Bookmarks.path(preset: catalog.presetName),
+            query: Bookmarks.ownedQuery(of: link(sharing: false).query), at: 0)
+    }
+
+    /// What a bookmark's card says, read against its own preset's defaults.
+    func summary(_ bookmark: Bookmark) -> BookmarkSummary {
+        Bookmarks.summarize(bookmark.query, presetDefaults: source.index?.value.preset(named: bookmark.preset)?.defaults ?? [:])
+    }
+
+    /// Opens a bookmark, carrying the link's parameters no store owns. Without a
+    /// `time` it is live: a paused or fast clock at the present has none either.
+    func open(_ bookmark: Bookmark) {
+        let carried = Bookmarks.carriedItems(of: link(sharing: false).query)
+        if bookmark.query["time"] == nil, ViewerClock.launchTime == nil {
+            clock.goLive()
+        }
+        open(bookmark.link(carrying: carried))
+    }
+
+    /// The preset as it opens: every scene parameter dropped, the clock live.
+    func openDefaultView() {
+        open(Bookmark(id: "default", kind: .demo, name: "", path: here.path, query: [:], at: 0))
+    }
+
+    /// Saves the scene on screen, named after what it shows, with its picture.
+    func saveHere() async -> Bookmark {
+        let scene = here
+        let picture = await renderer?.snapshot(width: Self.pictureWidth)
+        return bookmarks.save(name: Bookmarks.defaultName(summary(scene)), path: scene.path, query: scene.query, picture: picture)
+    }
+
+    /// A demo's picture from the site, through the tiles' cache, which serves it
+    /// offline once seen: the web app precaches its own.
+    func picture(of demo: Bookmark) async -> Data? {
+        guard let path = demo.thumbnail else {
+            return nil
+        }
+        return try? await tiles.tile(source.site.appending(path: path), contentType: "image/jpeg")
+    }
+
+    /// Pixels across a bookmark's picture: a card two columns wide at 3x.
+    private static let pictureWidth = 480
+
+    /// Keeps the link just opened among the opened ones, unless it shows the
+    /// preset as it opens or is among the demos and saved bookmarks, and pictures
+    /// it once it has loaded: everything active drawn, the sky view landed, and
+    /// three seconds for the tiles. Not if the user has moved on by then.
+    private func recordOpened() async {
+        let opened = here
+        guard !opened.query.isEmpty, !(Bookmarks.demos + bookmarks.saved).contains(where: { $0.opensTheSameScene(as: opened) }) else {
+            return
+        }
+        let link = bookmarks.recordOpened(name: Bookmarks.defaultName(summary(opened)), path: opened.path, query: opened.query)
+        let start = ContinuousClock.now
+        try? await Task.sleep(for: .seconds(3))
+        while ContinuousClock.now - start < .seconds(20) {
+            let drawn = renderer.map { $0.satelliteCount == catalog.activeEntries.count && (observer == nil || $0.isSkySettled) } ?? false
+            if drawn {
+                break
+            }
+            try? await Task.sleep(for: .milliseconds(250))
+        }
+        let now = here
+        guard now.path == opened.path, Bookmarks.withoutTime(now.query) == Bookmarks.withoutTime(opened.query),
+            let picture = await renderer?.snapshot(width: Self.pictureWidth)
+        else {
+            return
+        }
+        bookmarks.setPicture(link.id, picture)
     }
 
     // MARK: Sky view
