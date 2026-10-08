@@ -205,45 +205,43 @@ nonisolated class SatvisUITests: XCTestCase {
         return app
     }
 
-    // The App Store screenshots: the about page's three views, by the same links
-    // (about.html) and in this order, so the web and every device show one set.
-    // Only scripts/screenshots.sh takes them, against BASE_URL.
+    // The App Store screenshots: the about page's three views (about.html), each
+    // made to show more where the web's would crowd. Globe, sky, ISS: the first
+    // three are the search result's. Only scripts/screenshots.sh takes them,
+    // against BASE_URL.
 
     @MainActor
     func testScreenshot1Globe() throws {
-        try open("/?time=2026-10-04T08:52Z")
+        try open("/?layers=VersaTiles&time=2026-10-04T08:52Z")
         screenshot("1Globe")
     }
 
+    // Night in the Lauterbrunnen valley, standing on the link's station: every
+    // active satellite, as past 200 none is labelled.
     @MainActor
-    func testScreenshot2ISS() throws {
-        try open("/?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model&layers=VersaTiles&time=2026-10-04T02:07Z")
-        screenshot("2ISS")
-    }
-
-    // Night in the Lauterbrunnen valley, standing on the link's station.
-    @MainActor
-    func testScreenshot3Sky() throws {
+    func testScreenshot2Sky() throws {
         try open(
-            "/?scene=Sky&gs=46.5935,7.9091&terrain=ReEarth&layers=VersaTiles&stars=DeepStar2K&time=2026-10-04T19:22Z&tags=GNSS,Weather,OneWeb&elements=Point,Label"
-                + excluding([
-                    "COSMOS 2500 (755)", "GSAT0220 (GALILEO 24)", "METEOSAT-11 (MSG-4)", "BEIDOU-3 M27 (C49)", "SES-5 (EGNOS/PRN 136)",
-                    "EUTELSAT 5 WEST B (EGNOS/PRN 121)", "BEIDOU-3 M21 (C43)", "METEOSAT-12 (MTG-I1)", "METEOSAT-10 (MSG-3)", "MTG-I2",
-                    "LUCH 5B (SDCM/PRN 125)", "BEIDOU-3 M8 (C28)", "ONEWEB-0169", "ONEWEB-0336", "BEIDOU-3 M11 (C25)", "ONEWEB-0112",
-                    "ONEWEB-0628", "GSAT-8 (GAGAN/PRN 127)", "BEIDOU-2 G5 (C05)", "TIANMU-1 10", "TIANMU-1 13",
-                ]))
-        screenshot("3Sky")
+            "/?scene=Sky&gs=46.5935,7.9091&terrain=ReEarth&layers=VersaTiles&stars=DeepStar2K&time=2026-10-04T19:22Z&tags=Active,GNSS,Weather&elements=Point"
+        )
+        screenshot("2Sky")
     }
 
-    /// The `xsats` parameter for these satellite names.
-    func excluding(_ names: [String]) -> String {
-        "&xsats=" + names.map { $0.replacingOccurrences(of: " ", with: "+") }.joined(separator: ",")
+    // A phone's sheet would hide the station; closing it keeps the station tracked.
+    @MainActor
+    func testScreenshot3ISS() throws {
+        let app = try open("/?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model&layers=VersaTiles&time=2026-10-04T02:07Z")
+        if UIDevice.current.userInterfaceIdiom == .phone {
+            app.buttons["Close"].firstMatch.tap()
+            sleep(2)
+        }
+        screenshot("3ISS")
     }
 
     /// Launches on a link of BASE_URL's site, its clock stopped at the link's
     /// minute so that every device shows the same moment, and waits for the tiles.
     @MainActor
-    func open(_ path: String) throws {
+    @discardableResult
+    func open(_ path: String) throws -> XCUIApplication {
         let environment = ProcessInfo.processInfo.environment
         guard environment["SCREENSHOTS"] != nil else {
             throw XCTSkip("Taken by scripts/screenshots.sh")
@@ -259,6 +257,7 @@ nonisolated class SatvisUITests: XCTestCase {
         app.launch()
         XCTAssert(menuToggle(app).waitForExistence(timeout: 30))
         sleep(20)
+        return app
     }
 
     @MainActor
