@@ -296,26 +296,23 @@ nonisolated class SatvisUITests: XCTestCase {
         return app
     }
 
-    // The App Store screenshots: the about page's three views (about.html), each
-    // made to show more where the web's would crowd. Globe, sky, ISS: the first
-    // three are the search result's. Only scripts/screenshots.sh takes them,
-    // against BASE_URL.
+    // The App Store screenshots: the Bookmarks sheet's three demos, opened from
+    // their cards as anyone would, so they show what a demo shows. Globe, sky,
+    // ISS: the first three are the search result's. Only scripts/screenshots.sh
+    // takes them, against BASE_URL.
 
     @MainActor
     func testScreenshot1Globe() throws {
-        try open("/?layers=VersaTiles&time=2026-10-04T08:52Z")
+        try openDemo("Weather satellites", at: "2026-10-04T08:52")
         screenshot("1Globe")
     }
 
-    // Night in the Lauterbrunnen valley, standing on the link's station: every
-    // active satellite, as past 200 none is labelled. The terrain refines a level
-    // at a time from an empty cache, a few seconds a tile, on three simulators at
-    // once: 30 s left an iPad's cliffs coarse.
+    // Night in the Lauterbrunnen valley. The terrain refines a level at a time
+    // from an empty cache, a few seconds a tile, on three simulators at once: 30 s
+    // left an iPad's cliffs coarse.
     @MainActor
     func testScreenshot2Sky() throws {
-        try open(
-            "/?scene=Sky&gs=46.5935,7.9091&terrain=ReEarth&layers=VersaTiles&stars=DeepStar2K&time=2026-10-04T19:22Z&tags=Active,GNSS,Weather&elements=Point",
-            wait: 60)
+        try openDemo("Sky over Lauterbrunnen", at: "2026-10-04T19:22", wait: 60)
         screenshot("2Sky")
     }
 
@@ -323,18 +320,19 @@ nonisolated class SatvisUITests: XCTestCase {
     // iPad, and closing it keeps the station tracked.
     @MainActor
     func testScreenshot3ISS() throws {
-        let app = try open("/?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model&layers=VersaTiles&time=2026-10-04T02:07Z")
+        let app = try openDemo("Follow the ISS", at: "2026-10-04T02:07")
         app.buttons["Close"].firstMatch.tap()
         sleep(2)
         screenshot("3ISS")
     }
 
-    /// Launches on a link of BASE_URL's site, its clock stopped at the link's
-    /// minute so that every device shows the same moment, and waits `wait`
-    /// seconds for the tiles.
+    /// Launches on BASE_URL's site with its clock stopped at `minute` (UTC), so
+    /// that every device shows the same moment, opens the demo of that name from
+    /// the Bookmarks sheet, which leaves a stopped clock where it is, and waits
+    /// `wait` seconds for the tiles.
     @MainActor
     @discardableResult
-    func open(_ path: String, wait: UInt32 = 20) throws -> XCUIApplication {
+    func openDemo(_ name: String, at minute: String, wait: UInt32 = 20) throws -> XCUIApplication {
         let environment = ProcessInfo.processInfo.environment
         guard environment["SCREENSHOTS"] != nil else {
             throw XCTSkip("Taken by scripts/screenshots.sh")
@@ -343,12 +341,17 @@ nonisolated class SatvisUITests: XCTestCase {
         if let site = environment["BASE_URL"] {
             app.launchEnvironment["SATVIS_API"] = site
         }
-        app.launchEnvironment["SATVIS_LINK"] = path
-        if let time = path.firstMatch(of: /time=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})Z/) {
-            app.launchEnvironment["SATVIS_TIME"] = "\(time.1):00Z"
-        }
+        // The default view, not the one the last shot left.
+        app.launchEnvironment["SATVIS_LINK"] = "/"
+        app.launchEnvironment["SATVIS_TIME"] = "\(minute):00Z"
         app.launch()
-        XCTAssert(menuToggle(app).waitForExistence(timeout: 30))
+        openMenu(app)
+        app.buttons["Bookmarks"].tap()
+        // Labelled by its name first, then what it shows.
+        let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "\(name), ")).firstMatch
+        XCTAssert(card.waitForExistence(timeout: 30))
+        card.tap()
+        XCTAssert(app.navigationBars["Bookmarks"].waitForNonExistence(timeout: 10))
         sleep(wait)
         return app
     }

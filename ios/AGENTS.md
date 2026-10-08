@@ -325,15 +325,14 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
   iPhone 18 Pro, creating it if missing, the 6.9" Pro Max and the 13" iPad) and
   writes `screenshots/raw/`, then `scripts/caption.swift` puts each one's caption,
   kept in `scripts/screenshots.sh`, above it in `screenshots/`, at the same pixel
-  size and without the alpha channel App Store Connect rejects. It takes the about
-  page's demo views (`about.html`) in the order globe, sky, ISS, since the first
-  three are what a search result shows, each paused at its link's minute, from
-  the site `BASE_URL` names (satvis.space by default). Their links differ from the
-  page's where the app can show more: the globe on VersaTiles, the sky with every
-  active satellite, since labels are not drawn past 200 anyway, and the ISS with
-  its panel closed. Each shot is taken on its own, under a status bar reading its
-  link's minute and date, as the clock deck does. `SHOTS=2Sky` retakes only the
-  shots it names, for one whose tiles had not loaded.
+  size and without the alpha channel App Store Connect rejects. It takes the
+  Bookmarks sheet's demos, opened from their cards, in the order globe, sky, ISS,
+  since the first three are what a search result shows, each with the clock
+  stopped at the minute its test names (`SATVIS_TIME`, which opening a bookmark
+  leaves stopped), from the site `BASE_URL` names (satvis.space by default). Only
+  the ISS's panel is closed after. Each shot is taken on its own, under a status
+  bar reading its minute and date, as the clock deck does. `SHOTS=2Sky` retakes
+  only the shots it names, for one whose tiles had not loaded.
 - **`upload-screenshots`** replaces the screenshots of the version being prepared
   with `screenshots/*.png` through the App Store Connect API
   (`scripts/upload-screenshots.swift`), in the app's primary language, each file
