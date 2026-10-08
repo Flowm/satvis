@@ -40,6 +40,11 @@ describe("summarize", () => {
     expect(defaultName(summarize({ track: "NOAA 19" }, DEFAULTS, NOW))).toBe("Following NOAA 19");
   });
 
+  test("a group named in the plural takes no noun", () => {
+    expect(summarize({ tags: "Stations", track: "ISS (ZARYA)" }, DEFAULTS, NOW)).toMatchObject({ what: "Stations", where: "Following ISS (ZARYA)" });
+    expect(summarize({ tags: "GNSS" }, DEFAULTS, NOW).what).toBe("GNSS satellites");
+  });
+
   test("the preset fills what the query leaves out", () => {
     expect(summarize({}, { tags: "OT", scene: "2D" }, NOW)).toMatchObject({ what: "OT satellites", where: "Flat map" });
   });

@@ -54,6 +54,9 @@ function joinNames(names: readonly string[]): string {
   return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }
 
+/** "Weather satellites", "GNSS satellites", but "Stations": a tag already in the plural needs no noun. */
+const groupNoun = (tag: string): string => (/[a-z]s$/.test(tag) ? tag : `${tag} satellites`);
+
 /** Up to two names, or a count. */
 const satellitesNamed = (names: readonly string[]): string => (names.length <= 2 ? joinNames(names) : `${names.length} satellites`);
 
@@ -89,7 +92,7 @@ export function summarize(query: Query, presetDefaults: Query, now = new Date())
   if (tags.length === 0) {
     what = sats.length === 0 ? "No satellites" : satellitesNamed(sats);
   } else {
-    what = tags.length === 1 ? `${tags[0]} satellites` : joinNames(tags);
+    what = tags.length === 1 ? groupNoun(tags[0]!) : joinNames(tags);
     if (sats.length > 0) {
       what += ` + ${satellitesNamed(sats)}`;
     }

@@ -22,8 +22,11 @@ which the native app's url codec could not follow.
 view, and "preset" the route's starting configuration, so neither could name a stored
 link without a qualifier.
 
-**Three kinds.** A **demo** ships with the app: the about page's three showcase
-links, which `src/config/bookmarks.test.ts` keeps in step with `about.html`. A
+**Three kinds.** A **demo** ships with the app: the scenes of the about page's
+showcase, each live and with a whole group rather than a list of satellites, so it
+shows the present and reads at a glance. The about page's own links stay pinned to
+the moment of their pictures, which the App Store screenshots reproduce. The first
+demo is the default preset's weather globe, so it is also the default view. A
 **saved** bookmark is one the visitor named. An **opened link** is a link a visit
 started with, so a shared link can be found again after wandering off it. Only a
 navigation counts: a reload, Back or Forward reopens the visitor's own scene, an
@@ -65,6 +68,6 @@ are small copies of the showcase pictures, precached so the panel works offline.
 
 - **The native app has no bookmarks yet.** Its links already decode the same query,
   so a port stores the same records; nothing on the worker changes.
-- **A demo shows the scene its link pins**, including its time, so a demo opened
-  later shows the same sky as the about page's picture, not tonight's.
+- **A demo's picture is the about page's, not the present.** The sky demo shows a
+  night sky on its card and a daylight one at noon.
 - **A bookmark's meaning can drift** with its preset's defaults, as any link's can.
