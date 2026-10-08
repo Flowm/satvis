@@ -40,10 +40,18 @@ final class Session {
     var isPicking = false
     /// The station the sky view stands on, while it is open (ADR 0003).
     private(set) var observer: UUID?
+    /// The station the Sky panel marks, which Look up stands on: the last one the
+    /// sky view stood on, while it is listed.
+    private var designated: UUID?
     /// In the sky view, how the satellites that cannot be seen are drawn (ADR
     /// 0010). Kept in links as `unseen`.
     var unseen = UnseenMode.dim {
         didSet { renderer?.unseen = unseen }
+    }
+    /// The Globe panel's camera mode, kept in links as `camera`. The sky view
+    /// holds the camera, and keeps the choice for the way back.
+    var cameraFrame = CameraFrame.fixed {
+        didSet { renderer?.cameraFrame = cameraFrame }
     }
     let compass = SkyCompass()
     /// A word for the user that goes by itself: how switching the compass on went.
@@ -162,6 +170,7 @@ final class Session {
         renderer.setImagery(baseLayer, site: source.site, frame: imageryFrame)
         renderer.setTerrain(terrain)
         renderer.unseen = unseen
+        renderer.cameraFrame = cameraFrame
         renderer.setStations(shownMarkers)
         // What a link opened on before the renderer was there to be told: the
         // sky view, with no globe to fly from yet, or something followed.
@@ -326,6 +335,7 @@ final class Session {
             terrain: terrain ? "ReEarth" : "None",
             scene: observer == nil ? "3D" : "Sky",
             unseen: unseen.rawValue,
+            camera: cameraFrame.rawValue,
             pixelRatio: pixelRatio,
             // Whenever the clock is off the present, as the deck's Live dot says
             // (`sceneSync.ts`), so a shared link shows what the sender saw.
@@ -379,6 +389,7 @@ final class Session {
             }
         }
         unseen = UnseenMode(rawValue: state.unseen) ?? .dim
+        cameraFrame = CameraFrame(rawValue: state.camera) ?? .fixed
         passes.setVisiting(state.gs.map { GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) })
         await catalog.open(
             preset: preset,
@@ -398,6 +409,10 @@ final class Session {
             let station = first.map { place in passes.stations.first { GroundStations.Place($0) == place } } ?? passes.saved.first
             if let station {
                 enterSky(at: station.id)
+            } else if let here = await stationHere(), generation == linkGeneration {
+                // The one entry that asks for the location: opening the link is
+                // asking what is over the device now (ADR 0003).
+                enterSky(at: here)
             }
         } else if !state.track.isEmpty, let entry = await catalog.entry(named: state.track), generation == linkGeneration {
             track(entry.id, true)
@@ -420,8 +435,9 @@ final class Session {
 
     // MARK: Sky view
 
-    /// Stands on a ground station and looks up. Nothing is followed from the
-    /// ground: a camera cannot both chase a satellite and stand still.
+    /// Stands on a ground station and looks up, and marks it in the Sky panel; in
+    /// the sky view already, moves there. Nothing is followed from the ground: a
+    /// camera cannot both chase a satellite and stand still.
     func enterSky(at id: UUID) {
         guard let station = passes.station(id) else {
             return
@@ -429,6 +445,7 @@ final class Session {
         if let tracked {
             track(tracked, false)
         }
+        designated = id
         observer = id
         // Without a renderer yet, `attach` stands it there. Reduced motion cuts.
         renderer?.enterSky(SkyCamera(latitude: station.latitude, longitude: station.longitude), animated: !UIAccessibility.isReduceMotionEnabled)
@@ -454,21 +471,29 @@ final class Session {
         renderer?.flyHome(animated: !UIAccessibility.isReduceMotionEnabled)
     }
 
-    /// Looks up from the selected station, else the first saved one, else where
-    /// the device is, which becomes a station. Without one of those it does not
-    /// open: a sky at a place nobody chose looks like a working view and is not.
-    func viewTheSky() async {
-        if case .station(let id) = selection {
-            return enterSky(at: id)
+    /// The station Look up stands on: the one the sky view last stood on, else
+    /// the first listed. Nil without a station, and the sky view does not open: a
+    /// sky at a place nobody chose looks like a working view and is not.
+    var observerStation: GroundStation? {
+        designated.flatMap(passes.station) ?? passes.stations.first
+    }
+
+    /// Looks up from where the device is, which becomes a station, or is the one
+    /// already listed there.
+    func lookUpFromHere() async {
+        if let id = await stationHere() {
+            enterSky(at: id)
         }
-        if let first = passes.saved.first ?? passes.stations.first {
-            return enterSky(at: first.id)
-        }
+    }
+
+    /// The station where the device is, added unless it is listed; nil, and a
+    /// word why, where no position comes back.
+    private func stationHere() async -> UUID? {
         guard let location = await currentLocation(), let id = passes.add(latitude: location.latitude, longitude: location.longitude, name: "Geolocation") else {
-            show("The sky view needs a place to stand: allow your location, or add a ground station.")
-            return
+            show("The sky view needs a location: allow your location, or add one under Locations.")
+            return nil
         }
-        enterSky(at: id)
+        return id
     }
 
     /// Aims the sky view with the device, or hands the aim back.

@@ -88,6 +88,15 @@ public enum CameraMode: Sendable, Equatable {
     case sky
 }
 
+/// What the globe's free camera holds still in: the web app's camera modes, by
+/// the names its links give them.
+public enum CameraFrame: String, Sendable, CaseIterable {
+    /// The Earth: the globe stands still on the screen.
+    case fixed = "Fixed"
+    /// The stars: the Earth turns under the camera, once a sidereal day.
+    case inertial = "Inertial"
+}
+
 /// Draws the globe, the sky around it, the ground stations on it and the
 /// satellites over it, for one MTKView.
 @MainActor
@@ -120,6 +129,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The terrain as the Map menu has it; the sky view stands on it regardless.
     private var terrainSetting = false
     public var components: SatelliteComponents = [.point, .label]
+    /// What the free camera holds still in. Tracking keeps the satellite's own
+    /// frame, and the sky view the observer's, so it waits while either is up:
+    /// the free camera does not turn meanwhile.
+    public var cameraFrame = CameraFrame.fixed {
+        didSet { inertialAngle = nil }
+    }
+    /// The Greenwich hour angle the free camera was last turned to, while inertial.
+    private var inertialAngle: Double?
     /// In the sky view, how the satellites that cannot be seen are drawn (ADR 0010).
     public var unseen = UnseenMode.dim {
         didSet {
@@ -765,6 +782,18 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             if t >= 1 || cameraMode != .orbit {
                 homeFlight = nil
             }
+        }
+        if cameraFrame == .inertial, cameraMode == .orbit {
+            // Turned back by as far as the Earth has turned since, in whichever
+            // direction the clock went; not mid-flight home, which sets the camera.
+            let angle = greenwichHourAngle(epochMilliseconds: now)
+            if let last = inertialAngle, homeFlight == nil {
+                orbitCamera.holdInertial(from: last, to: angle)
+                self.orbitCamera = orbitCamera
+            }
+            inertialAngle = angle
+        } else {
+            inertialAngle = nil
         }
         var pose = orbitCamera.pose()
         frameModel()

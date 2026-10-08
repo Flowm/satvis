@@ -346,3 +346,27 @@ entry cyan while its panel is open. On the phone the column folds to its icons a
 panel runs to the margin over Share and the globe button; beside them at 280 pt, they had
 peeked out past it. On the iPad the names stay. The column opens and closes in about 0.2 s,
 the rows uncovered by the growing panel rather than showing ahead of it.
+
+## Native app: the Sky panel, and dimming what cannot be seen
+
+**Procedure.** A never-used iPhone 18 Pro simulator on iOS 27, opened on
+`/?gs=48.1372,11.5756,Munich&scene=Sky&elements=Point,Label` with
+`SATVIS_TIME=2026-10-05T17:45:00Z`, the sun about 9° down in Munich; then a temporary UI
+test opening the menu and the Sky panel on the globe and again after picking Munich.
+
+**Result, 2026-10-08.** The column reads Menu, Satellites, Components, Map, Locations,
+Globe, Sky, Graphics. On the globe the Sky panel lists the two locations with the first ticked,
+My location under them, Look up off, and Use compass and Out of sight dimmed and
+disabled. Picking Munich flew into the sky view and turned Look up on. After dusk the
+geostationary satellites to the south were drawn dimmed, their labels too, and the crosshair
+on METEOSAT-11 gave its card in the web's order, azimuth first, ending "Too far". Not
+checked: the compass, which needs a device, and a dimmed 3D model, the ISS not overhead
+at that minute.
+
+Then the same link with `camera=Inertial`, the Globe panel opened from the sky view and
+3D picked. In the sky view 3D was unticked, under "In the sky view. Pick 3D to return to
+the globe.", and the Camera control dimmed with Inertial chosen; picking 3D flew back to
+the globe with 3D ticked and Inertial still chosen, now enabled. The sky card lists
+Azimuth, Elevation, Range, Altitude and Visibility a row each, the values right-aligned.
+Not checked by eye: the Earth turning under the inertial camera, 15° an hour at the
+real-time clock; `InertialCameraTests` holds the camera still against TEME.

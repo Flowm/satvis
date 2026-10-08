@@ -141,11 +141,12 @@ struct ContentView: View {
                             showsBrowser = true
                         }
                         entry(.components, image: .lucideSatellite, hint: "Orbits, ground tracks, labels and sensor cones")
-                        ToolEntry(title: "Ground station", image: .lucideMapPin, hint: "Your location, for pass predictions") {
+                        entry(.map, image: .lucideLayers, hint: "Basemap and terrain")
+                        ToolEntry(title: "Locations", image: .lucideMapPin, hint: "Ground stations, for pass predictions and the sky view") {
                             showsStations = true
                         }
-                        entry(.map, image: .lucideLayers, hint: "Basemap and terrain")
-                        entry(.view, image: .lucideTelescope, hint: "Globe or sky view, and the compass")
+                        entry(.globe, image: .lucideGlobe, hint: "The globe's projection, and the camera")
+                        entry(.sky, image: .lucideTelescope, hint: "Look up from a ground station and see what passes over")
                         entry(.graphics, image: .lucideGauge, hint: "Quality and performance")
                     }
                     .environment(\.toolNamesFolded, !roomy && panel != nil)
@@ -154,7 +155,8 @@ struct ContentView: View {
                             switch panel {
                             case .components: ComponentsPanel(catalog: session.catalog)
                             case .map: MapPanel(session: session)
-                            case .view: ViewPanel(session: session)
+                            case .globe: GlobePanel(session: session)
+                            case .sky: SkyPanel(session: session)
                             case .graphics: GraphicsPanel(session: session)
                             }
                         }
@@ -172,6 +174,12 @@ struct ContentView: View {
         // A panel goes with the column.
         .onChange(of: showsTools) { _, open in
             if !open {
+                panel = nil
+            }
+        }
+        // Out of the way of the sky the compass now aims, as on the web.
+        .onChange(of: session.compass.isAiming && !session.compass.isProbing) { _, aiming in
+            if aiming, panel == .sky {
                 panel = nil
             }
         }

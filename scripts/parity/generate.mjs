@@ -265,6 +265,7 @@ try {
   const { parseQuery, stringifyQuery } = await runner.import("vue-router");
   const { PIXEL_RATIOS } = await runner.import("/src/config/rendering.ts");
   const { UNSEEN_MODES } = await runner.import("/src/modules/util/visibility.ts");
+  const { CAMERA_MODES } = await runner.import("/src/config/viewModes.ts");
   const vocabulary = {
     components: ["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model", "Ground station link"],
     layers: ["NaturalEarth", "VersaTiles", "BlackMarble", "VIIRS"],
@@ -272,6 +273,7 @@ try {
     overpass: ["elevation", "swath"],
     scenes: ["3D", "Sky"],
     unseen: [...UNSEEN_MODES],
+    cameras: [...CAMERA_MODES],
     pixelRatios: [...PIXEL_RATIOS],
   };
   const kinds = {
@@ -383,6 +385,7 @@ try {
     { name: "terrain", kind: codec.enumString(vocabulary.terrain) },
     { name: "scene", kind: codec.enumString(vocabulary.scenes) },
     { name: "unseen", kind: codec.enumString(vocabulary.unseen) },
+    { name: "camera", kind: codec.enumString(vocabulary.cameras) },
     { name: "pixelratio", kind: codec.enumString(vocabulary.pixelRatios) },
     { name: "time", kind: kinds.timestamp },
   ];
@@ -399,6 +402,7 @@ try {
     terrain: "None",
     scene: "3D",
     unseen: "dim",
+    camera: "Fixed",
     pixelratio: "native",
     time: null,
   };
@@ -420,6 +424,9 @@ try {
     ["default", "scene=Sky&track=ISS+(ZARYA)"],
     ["default", "scene=Sky&unseen=hide&gs=48.1372,11.5756,Munich"],
     ["default", "unseen=show"],
+    ["default", "camera=Inertial&scene=Sky&gs=48.1372,11.5756"],
+    ["default", "camera=inertial"],
+    ["demo", "camera=Fixed"],
     ["default", "unseen=dim&unseen=Hide"],
     ["default", "layers=NaturalEarth,VersaTiles_0.50,BlackMarble"],
     ["default", "pixelratio=1.5&tags=Starlink"],

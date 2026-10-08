@@ -7383,6 +7383,10 @@
         "dim",
         "hide"
       ],
+      "cameras": [
+        "Fixed",
+        "Inertial"
+      ],
       "pixelRatios": [
         "1",
         "1.5",
@@ -7417,6 +7421,7 @@
       "terrain": "None",
       "scene": "3D",
       "unseen": "dim",
+      "camera": "Fixed",
       "pixelratio": "native",
       "time": null
     },
@@ -8070,6 +8075,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8098,6 +8104,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8124,6 +8131,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8154,6 +8162,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8189,6 +8198,7 @@
           "terrain": "ReEarth",
           "scene": "Sky",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": "2026-10-04T19:22Z"
         },
@@ -8223,6 +8233,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8256,6 +8267,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8289,6 +8301,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8314,6 +8327,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8347,6 +8361,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8377,6 +8392,7 @@
           "terrain": "None",
           "scene": "Sky",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8411,6 +8427,7 @@
           "terrain": "None",
           "scene": "Sky",
           "unseen": "hide",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8439,11 +8456,107 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "show",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
         "invalid": [],
         "written": "unseen=show"
+      },
+      {
+        "preset": "default",
+        "query": "camera=Inertial&scene=Sky&gs=48.1372,11.5756",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [
+            {
+              "lat": 48.1372,
+              "lon": 11.5756
+            }
+          ],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "Sky",
+          "unseen": "dim",
+          "camera": "Inertial",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": "gs=48.1372,11.5756&scene=Sky&camera=Inertial"
+      },
+      {
+        "preset": "default",
+        "query": "camera=inertial",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [
+          "camera"
+        ],
+        "written": ""
+      },
+      {
+        "preset": "demo",
+        "query": "camera=Fixed",
+        "state": {
+          "elements": [
+            "Point",
+            "Orbit",
+            "Ground track"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "GNSS"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "swath",
+          "layers": [
+            "VersaTiles"
+          ],
+          "terrain": "None",
+          "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": ""
       },
       {
         "preset": "default",
@@ -8467,6 +8580,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8497,6 +8611,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8525,6 +8640,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "1.5",
           "time": null
         },
@@ -8553,6 +8669,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8581,6 +8698,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8614,6 +8732,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8643,6 +8762,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8672,6 +8792,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8701,6 +8822,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },
@@ -8729,6 +8851,7 @@
           "terrain": "None",
           "scene": "3D",
           "unseen": "dim",
+          "camera": "Fixed",
           "pixelratio": "native",
           "time": null
         },

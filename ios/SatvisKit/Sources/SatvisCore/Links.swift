@@ -123,6 +123,9 @@ public struct LinkState: Sendable, Hashable {
     /// In the sky view, how the satellites that cannot be seen are drawn: `show`,
     /// `dim` or `hide` (ADR 0010).
     public var unseen: String
+    /// `Fixed` to the Earth, or `Inertial`: the globe's free camera held still
+    /// against the stars while the Earth turns under it.
+    public var camera: String
     /// Drawable pixels per point: `1`, `1.5`, or `native` for the screen's own.
     public var pixelRatio: String
     /// The minute the clock is pinned at (`2026-10-04T20:46Z`), nil while live.
@@ -131,11 +134,12 @@ public struct LinkState: Sendable, Hashable {
     /// The web app's defaults before any preset (src/stores).
     public static let global = LinkState(
         elements: ["Point", "Label"], sats: [], xsats: [], tags: [], gs: [], track: "", overpass: "elevation", layers: ["NaturalEarth"], terrain: "None",
-        scene: "3D", unseen: "dim", pixelRatio: "native", time: nil)
+        scene: "3D", unseen: "dim", camera: "Fixed", pixelRatio: "native", time: nil)
 
     public init(
         elements: [String], sats: [String], xsats: [String], tags: [String], gs: [LinkStation], track: String, overpass: String, layers: [String],
-        terrain: String, scene: String = "3D", unseen: String = "dim", pixelRatio: String = "native", time: String?
+        terrain: String, scene: String = "3D", unseen: String = "dim", camera: String = "Fixed", pixelRatio: String = "native",
+        time: String?
     ) {
         self.elements = elements
         self.sats = sats
@@ -148,6 +152,7 @@ public struct LinkState: Sendable, Hashable {
         self.terrain = terrain
         self.scene = scene
         self.unseen = unseen
+        self.camera = camera
         self.pixelRatio = pixelRatio
         self.time = time
     }
@@ -165,6 +170,8 @@ public enum LinkCodec {
     public static let scenes = ["3D", "Sky"]
     /// The web app's `UNSEEN_MODES` (src/modules/util/visibility.ts).
     public static let unseenModes = UnseenMode.allCases.map(\.rawValue)
+    /// The web app's `CAMERA_MODES` (src/config/viewModes.ts).
+    public static let cameras = ["Fixed", "Inertial"]
     /// The web app's `PIXEL_RATIOS` (src/config/rendering.ts).
     public static let pixelRatios = ["1", "1.5", "native"]
 
@@ -206,6 +213,7 @@ public enum LinkCodec {
         Field("terrain", \.terrain, .oneOf(terrains)),
         Field("scene", \.scene, .oneOf(scenes)),
         Field("unseen", \.unseen, .oneOf(unseenModes)),
+        Field("camera", \.camera, .oneOf(cameras)),
         Field("pixelratio", \.pixelRatio, .oneOf(pixelRatios)),
         Field("time", \.time, .timestamp),
     ]

@@ -25,6 +25,9 @@ final class SkyCompass {
     }
 
     private(set) var isAiming = false
+    /// Waiting for the sensor to speak, within `probeSeconds`: aiming, but not
+    /// yet known to work.
+    private(set) var isProbing = false
     @ObservationIgnored private let motion = CMMotionManager()
     @ObservationIgnored private var receivedSample = false
     @ObservationIgnored private var generation = 0
@@ -50,6 +53,12 @@ final class SkyCompass {
         let mine = generation
         receivedSample = false
         isAiming = true
+        isProbing = true
+        defer {
+            if generation == mine {
+                isProbing = false
+            }
+        }
         motion.deviceMotionUpdateInterval = 1.0 / 60
         motion.showsDeviceMovementDisplay = true
         motion.startDeviceMotionUpdates(using: frame, to: .main) { [weak self, weak renderer] sample, _ in
@@ -78,6 +87,7 @@ final class SkyCompass {
             return
         }
         isAiming = false
+        isProbing = false
         generation += 1
         motion.stopDeviceMotionUpdates()
         renderer?.levelSky()

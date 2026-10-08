@@ -43,7 +43,7 @@ nonisolated class SatvisUITests: XCTestCase {
             XCTAssertFalse(app.buttons["Map"].exists)
             toggle.tap()
         }
-        for entry in ["Satellites", "Components", "Ground station", "Map", "View", "Graphics"] {
+        for entry in ["Satellites", "Components", "Map", "Locations", "Globe", "Sky", "Graphics"] {
             XCTAssert(app.buttons[entry].waitForExistence(timeout: 5), "No \(entry) in the menu")
         }
         app.buttons["Components"].tap()
@@ -63,6 +63,47 @@ nonisolated class SatvisUITests: XCTestCase {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.62)).tap()
         XCTAssert(panel.waitForNonExistence(timeout: 5))
         XCTAssertEqual(menuToggle(app).label, UIDevice.current.userInterfaceIdiom == .pad ? "Close menu" : "Menu")
+    }
+
+    // The Sky panel picks where to stand, and picking enters the sky view there,
+    // as on the web; Look up leaves it again.
+    @MainActor
+    func testLooksUpFromALocationPickedInTheSkyPanel() {
+        let app = launch(link: "/?gs=48.1372,11.5756,Munich_47.2692,11.4041,Innsbruck")
+        openMenu(app)
+        app.buttons["Sky"].tap()
+        let lookUp = app.switches["Look up"]
+        XCTAssert(lookUp.waitForExistence(timeout: 5))
+        XCTAssertEqual(lookUp.value as? String, "0")
+        app.buttons["Innsbruck"].tap()
+        XCTAssert(app.buttons["Leave the sky view"].waitForExistence(timeout: 10))
+        XCTAssertEqual(lookUp.value as? String, "1")
+        XCTAssert(app.buttons["Innsbruck"].isSelected)
+        flip(app, "Look up")
+        XCTAssert(app.buttons["Home view"].waitForExistence(timeout: 10))
+    }
+
+    // The sky view holds the camera, keeping a link's camera mode for the globe,
+    // and the Globe panel's projection takes the view back there.
+    @MainActor
+    func testReturnsToTheGlobeFromTheGlobePanel() {
+        let app = launch(link: "/?gs=48.1372,11.5756,Munich&scene=Sky&camera=Inertial")
+        openMenu(app)
+        app.buttons["Globe"].tap()
+        let projection = app.buttons["3D"]
+        XCTAssert(projection.waitForExistence(timeout: 5))
+        XCTAssertFalse(projection.isSelected)
+        // A disabled picker's segments read as enabled; the control does not.
+        let camera = app.segmentedControls.firstMatch
+        let inertial = camera.buttons["Inertial"]
+        XCTAssert(inertial.isSelected)
+        XCTAssertFalse(camera.isEnabled)
+        projection.tap()
+        XCTAssert(app.buttons["Home view"].waitForExistence(timeout: 10))
+        XCTAssert(projection.isSelected)
+        XCTAssert(camera.isEnabled && inertial.isSelected)
+        app.buttons["Fixed"].tap()
+        XCTAssert(app.buttons["Fixed"].isSelected)
     }
 
     // The about page's demos open in the app: the first pins the clock at its minute.

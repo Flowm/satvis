@@ -105,6 +105,13 @@ public struct OrbitCamera: Sendable, Equatable {
         altitude = min(max(altitude / scale, Self.minimumAltitude), Self.maximumAltitude)
     }
 
+    /// Keeps the camera where it was against the stars while the Earth turns from
+    /// one Greenwich hour angle to another: back by as far, whichever way the
+    /// clock went.
+    public mutating func holdInertial(from last: Double, to angle: Double) {
+        longitude = remainder(longitude - remainder(angle - last, 2 * .pi), 2 * .pi)
+    }
+
     /// A twist of `radians` clockwise on the screen turns the globe with the fingers.
     public mutating func rotate(by radians: Double) {
         heading += radians
