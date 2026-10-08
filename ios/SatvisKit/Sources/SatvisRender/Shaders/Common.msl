@@ -35,6 +35,12 @@ struct FrameUniforms {
     /// Whether the observer's sky is dark, so that each satellite is judged by
     /// its own light and range; in daylight none can be seen.
     float skyIsDark;
+    /// The tracked satellite from the eye, worked out in double precision as the
+    /// camera following it is: interpolated in float from samples thousands of
+    /// kilometres out, it shook by metres against the camera close up.
+    float3 focusRelative;
+    /// Its index, or -1.
+    int focus;
 };
 
 /// How a satellite at `position`, `relative` from the eye, is drawn in the sky

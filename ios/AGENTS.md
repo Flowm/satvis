@@ -75,7 +75,13 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   bumps along the limb and a shell fine enough to hide them cost 3 ms a frame.
   Satellites are points the vertex shader interpolates from each one's sampled
   trajectory, with the web app's quintic; the CPU only finds each stencil.
-  An orbit is half a period either side of the satellite, closed into a loop as
+  That sum is in float, metres out at 7,000 km, so the tracked satellite is
+  placed instead by its position from the eye, which the CPU works out in double
+  precision for the camera anyway (`FrameUniforms.focus`): close up, the point
+  and the cone shook against the camera.
+  An orbit is half a period either side of the satellite, through where it is
+  now, as CesiumJS's path is: its samples are 50 s apart for a low orbit, and
+  their chord passes 2 km under the satellite. It is closed into a loop as
   the web app's `positionsForNextOrbit` closes it: the drift one period brings
   (J2: 31 km for the ISS) is ramped out over the quarter furthest behind it.
   Orbits behind the Earth are drawn with no width, so the GPU drops their

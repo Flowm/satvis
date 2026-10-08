@@ -40,47 +40,91 @@ inline bool behindEarth(float3 p, float3 eye) {
     return !isEmpty(hit) && hit.start > 0.0 && hit.start < 1.0;
 }
 
+/// Point `index` of a satellite's line, from the eye and in the fixed frame: its
+/// samples, with where it is now between the one at or before the instant and
+/// the next, as CesiumJS's path includes the current position. Without it the
+/// line was a chord of samples 50 s apart, which passes 2 km under a low
+/// satellite: off the screen, close up.
+inline void linePoint(int index, int kind, int first, int current, float nowNode, PointInstance instance, const device packed_float3 *samples,
+                      float3 drift, float3 satellite, float3 satelliteRelative, constant FrameUniforms &frame, thread float3 &position,
+                      thread float3 &relative) {
+    if (index == current - first + 1) {
+        position = satellite;
+        relative = satelliteRelative;
+        return;
+    }
+    int node = first + index - (index > current - first ? 1 : 0);
+    position = lineNode(node, kind, nowNode, instance, samples);
+    if (kind == 0) {
+        // The first node moved on by the drift is the last: the loop closes.
+        position += drift * clamp(float(driftRampNodes - (node - first)) / float(driftRampNodes), 0.0, 1.0);
+    }
+    relative = (position - frame.cameraHigh) - frame.cameraLow;
+}
+
+/// Whether a point is beyond the near plane, which the reversed-Z projection puts
+/// at w = z.
+inline bool inFront(float4 clip) {
+    return clip.w > clip.z;
+}
+
+/// Where the segment from `behind` to `front` crosses the near plane, just in front
+/// of it: clip space is linear along the segment.
+inline float4 nearCrossing(float4 behind, float4 front) {
+    float w = behind.z * 1.001;
+    return mix(behind, front, (w - behind.w) / (front.w - behind.w));
+}
+
 vertex LineOut lineVertex(uint vid [[vertex_id]], uint satellite [[instance_id]], const device packed_float3 *samples [[buffer(0)]],
                           constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
                           const device PointFrame *frames [[buffer(3)]], constant int &kind [[buffer(5)]]) {
     LineOut out;
     out.across = 0.0;
-    PointFrame state = frames[satellite];
     PointInstance instance = instances[satellite];
-    if (state.offset < 0.0) {
+    float3 now, nowRelative;
+    if (!satellitePosition(satellite, samples, instances, frames, frame, now, nowRelative)) {
         out.position = float4(0.0, 0.0, -2.0, 1.0);
         return out;
     }
     // The stencil's third node is the one at or before the instant.
+    PointFrame state = frames[satellite];
     float nowNode = float(state.stencilStart) + state.offset;
-    int first = int(floor(nowNode)) - (kind == 0 ? (lineNodes - 1) / 2 : 0);
-    int node = first + int(vid / 2);
+    int current = int(state.stencilStart) + 2;
+    int first = current - (kind == 0 ? (lineNodes - 1) / 2 : 0);
+    float3 drift = kind == 0 ? lineNode(first + lineNodes - 1, kind, nowNode, instance, samples) - lineNode(first, kind, nowNode, instance, samples) : float3(0.0);
+    int index = int(vid / 2);
     float side = (vid & 1) ? 1.0 : -1.0;
 
-    float3 here = lineNode(node, kind, nowNode, instance, samples);
-    float3 before = lineNode(node - 1, kind, nowNode, instance, samples);
-    float3 after = lineNode(node + 1, kind, nowNode, instance, samples);
-    if (kind == 0) {
-        // The first node moved on by the drift is the last: the loop closes.
-        float3 drift = lineNode(first + lineNodes - 1, kind, nowNode, instance, samples) - lineNode(first, kind, nowNode, instance, samples);
-        float3 shifted[3] = {before, here, after};
-        for (int i = 0; i < 3; ++i) {
-            float weight = clamp(float(driftRampNodes - (node - 1 + i - first)) / float(driftRampNodes), 0.0, 1.0);
-            if (weight > 0.0) {
-                shifted[i] += drift * weight;
-            }
-        }
-        before = shifted[0];
-        here = shifted[1];
-        after = shifted[2];
-    }
-    float4 clip = frame.viewProjection * float4((here - frame.cameraHigh) - frame.cameraLow, 1.0);
-    float4 previous = frame.viewProjection * float4((before - frame.cameraHigh) - frame.cameraLow, 1.0);
-    float4 next = frame.viewProjection * float4((after - frame.cameraHigh) - frame.cameraLow, 1.0);
+    float3 here, before, after, hereRelative, beforeRelative, afterRelative;
+    linePoint(index, kind, first, current, nowNode, instance, samples, drift, now, nowRelative, frame, here, hereRelative);
+    linePoint(index - 1, kind, first, current, nowNode, instance, samples, drift, now, nowRelative, frame, before, beforeRelative);
+    linePoint(index + 1, kind, first, current, nowNode, instance, samples, drift, now, nowRelative, frame, after, afterRelative);
+    float4 clip = frame.viewProjection * float4(hereRelative, 1.0);
+    float4 previous = frame.viewProjection * float4(beforeRelative, 1.0);
+    float4 next = frame.viewProjection * float4(afterRelative, 1.0);
     // NaN is a node SGP4 refused (SampledTrajectory): the line stops there.
-    if (clip.w <= 0.0 || previous.w <= 0.0 || next.w <= 0.0 || any(isnan(clip)) || any(isnan(previous)) || any(isnan(next))) {
+    if (any(isnan(clip)) || any(isnan(previous)) || any(isnan(next))) {
         out.position = float4(0.0, 0.0, -2.0, 1.0);
         return out;
+    }
+    // A segment through the near plane is cut where it crosses it: dropped, the
+    // nodes either side of a satellite close up took its line with them, as one
+    // is behind the eye.
+    bool hereInFront = inFront(clip), previousInFront = inFront(previous), nextInFront = inFront(next);
+    if (!hereInFront) {
+        if (nextInFront && !previousInFront) {
+            clip = nearCrossing(clip, next);
+            previous = clip;
+        } else if (previousInFront && !nextInFront) {
+            clip = nearCrossing(clip, previous);
+            next = clip;
+        } else {
+            out.position = float4(0.0, 0.0, -2.0, 1.0);
+            return out;
+        }
+    } else {
+        previous = previousInFront ? previous : nearCrossing(previous, clip);
+        next = nextInFront ? next : nearCrossing(next, clip);
     }
     float2 toScreen = frame.viewportSize * 0.5;
     float2 direction = (next.xy / next.w - previous.xy / previous.w) * toScreen;

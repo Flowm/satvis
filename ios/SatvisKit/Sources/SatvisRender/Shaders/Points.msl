@@ -45,6 +45,17 @@ inline bool satellitePosition(uint index, const device packed_float3 *samples, c
     return true;
 }
 
+/// Where a satellite is this frame from the eye, and in the fixed frame: the
+/// tracked one as the camera has it.
+inline bool satellitePosition(uint index, const device packed_float3 *samples, const device PointInstance *instances, const device PointFrame *frames,
+                              constant FrameUniforms &frame, thread float3 &position, thread float3 &relative) {
+    if (!satellitePosition(index, samples, instances, frames, position)) {
+        return false;
+    }
+    relative = int(index) == frame.focus ? frame.focusRelative : (position - frame.cameraHigh) - frame.cameraLow;
+    return true;
+}
+
 struct PointOut {
     float4 position [[position]];
     float size [[point_size]];
@@ -56,13 +67,12 @@ vertex PointOut pointVertex(uint iid [[vertex_id]], const device packed_float3 *
     PointOut out;
     out.color = instances[iid].color;
     out.size = frame.pointSize;
-    float3 position;
-    if (!satellitePosition(iid, samples, instances, frames, position) || frames[iid].modelPoints >= modelMarkerPoints) {
+    float3 position, relative;
+    if (!satellitePosition(iid, samples, instances, frames, frame, position, relative) || frames[iid].modelPoints >= modelMarkerPoints) {
         out.position = float4(0.0, 0.0, -2.0, 1.0);
         out.size = 0.0;
         return out;
     }
-    float3 relative = (position - frame.cameraHigh) - frame.cameraLow;
     out.color.a *= skyOpacity(position, relative, frame);
     if (out.color.a <= 0.0) {
         out.position = float4(0.0, 0.0, -2.0, 1.0);

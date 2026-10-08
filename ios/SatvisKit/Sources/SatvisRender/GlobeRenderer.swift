@@ -876,6 +876,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         // From the ground, once it has landed, as the instruments wait to.
         let judgement = isSkySettled ? skyCamera.map { SkyJudgement(camera: $0, at: now, unseen: unseen) } : nil
         var frame = uniforms(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now, judgement: judgement)
+        if case .tracking(let id) = cameraMode, let index = points.index(of: id), let target = points.position(of: id, at: now) {
+            frame.focus = Int32(index)
+            frame.focusRelative = SIMD3<Float>(target - pose.position)
+        }
         let placements =
             components.contains(.model) ? modelPlacements(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now, judgement: judgement) : []
         lastModelPoints = Dictionary(placements.map { ($0.index, $0.points) }, uniquingKeysWith: max)
@@ -967,7 +971,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                     encoder.setRenderPipelineState(linePipeline)
                     encoder.setVertexBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
                     encoder.setFragmentBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
-                    encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 2 * 121, instanceCount: points.count)
+                    encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 2 * (121 + 1), instanceCount: points.count)
                 }
                 if components.contains(.point) {
                     encoder.setRenderPipelineState(pointPipeline)

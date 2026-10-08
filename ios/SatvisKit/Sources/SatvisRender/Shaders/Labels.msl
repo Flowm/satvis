@@ -43,14 +43,13 @@ vertex LabelOut labelVertex(uint vid [[vertex_id]], uint iid [[instance_id]], co
                             constant int &occludedByEarth [[buffer(5)]]) {
     LabelInstance label = labels[iid];
     LabelOut out;
-    float3 position;
+    float3 position, relative;
     out.position = float4(0.0, 0.0, -2.0, 1.0);
     out.alpha = 0.0;
     out.uv = float2(0.0);
-    if (!satellitePosition(label.satellite, samples, instances, frames, position)) {
+    if (!satellitePosition(label.satellite, samples, instances, frames, frame, position, relative)) {
         return out;
     }
-    float3 relative = (position - frame.cameraHigh) - frame.cameraLow;
     float distance = length(relative);
     if (distance < 2000.0 || distance > 8e7 || (occludedByEarth != 0 && isBehindEarth(frame.cameraPosition, relative))) {
         return out;

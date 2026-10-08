@@ -195,6 +195,11 @@ final class SatellitePoints {
         indexByID[id].map { satellites[$0] }
     }
 
+    /// A satellite's place in the buffers the shaders index.
+    func index(of id: String) -> Int? {
+        indexByID[id]
+    }
+
     /// Where a satellite is, by the same interpolation the shader does.
     func position(of id: String, at epochMilliseconds: Double) -> SIMD3<Double>? {
         indexByID[id].flatMap { satellites[$0].trajectory.position(at: epochMilliseconds) }

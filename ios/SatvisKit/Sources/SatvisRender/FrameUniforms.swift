@@ -21,6 +21,11 @@ struct FrameUniforms {
     var unseenOpacity: Float = 1
     /// Whether the observer's sky is dark, 1 or 0.
     var skyIsDark: Float = 0
+    /// The tracked satellite from the eye, in double precision as the camera
+    /// following it is.
+    var focusRelative = SIMD3<Float>()
+    /// Its index, or -1.
+    var focus: Int32 = -1
 }
 
 /// A double split into two floats whose sum keeps most of its precision: the high
