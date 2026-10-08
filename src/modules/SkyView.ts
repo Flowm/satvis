@@ -11,7 +11,7 @@
 
 import { Cartesian3, Cartographic, Math as CesiumMath, type LabelCollection, Matrix3, Matrix4, PerspectiveFrustum, type Scene, SceneMode, Transforms } from "@cesium/engine";
 
-import { flightDuration, type FlightPath, flightPose, newPose, type Pose } from "./skyFlight";
+import { flightDuration, type FlightPath, flightPath, flightPose, newPose, type Pose } from "./skyFlight";
 import { type Aim, enuDirection, type Observer, type ObserverFrame, observerFrame, rollBasis } from "./skyGeometry";
 
 export type { Aim, Observer } from "./skyGeometry";
@@ -437,12 +437,20 @@ export class SkyView {
     // Turning around resumes the progress already made, so the camera retraces
     // the path from where it is.
     const covered = previous ? CesiumMath.clamp((performance.now() - previous.startedAt) / previous.durationMs, 0, 1) : 1;
-    const path: FlightPath = previous?.path ?? { from: this.#savedPose(), to: this.#sky, over: this.#over };
+    const path = previous?.path ?? this.#newPath();
     this.#flight = beginFlight(path, phase === "leaving", durationMs, durationMs * (1 - covered));
     // After the new flight is in place: whoever awaited the old one checks the
     // state as soon as it resolves.
     previous?.finish();
     return this.#flight.finished;
+  }
+
+  #newPath(): FlightPath {
+    // On entry `#apply` has not yet drawn the destination the path is measured against.
+    if (this.#observer) {
+      this.#skyPose(this.#observer);
+    }
+    return flightPath(this.#savedPose(), this.#sky, this.#over);
   }
 
   /** Only called with `#saved` present. */

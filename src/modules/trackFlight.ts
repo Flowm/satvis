@@ -1,6 +1,8 @@
 import { Cartesian3, type Camera, type Entity } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
+import { smootherstep } from "./util/easing";
+
 export interface CameraPose {
   destination: Cartesian3;
   direction: Cartesian3;
@@ -21,7 +23,8 @@ function currentView(camera: Camera): CameraPose {
 }
 
 function flyTo(viewer: Viewer, pose: CameraPose, callbacks?: { complete: () => void; cancel: () => void }): void {
-  viewer.camera.flyTo({ destination: pose.destination, orientation: { direction: pose.direction, up: pose.up }, ...callbacks });
+  // Cesium's own easing started a flight down to a satellite at 150°/s, and whipped the one back up to 270°/s.
+  viewer.camera.flyTo({ destination: pose.destination, orientation: { direction: pose.direction, up: pose.up }, easingFunction: smootherstep, ...callbacks });
 }
 
 /**

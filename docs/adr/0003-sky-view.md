@@ -200,8 +200,9 @@ hundred milliseconds, the globe leaves the frame, and the rest of the descent sh
 empty sky while the position travels. So one clock drives three legs:
 
 1. **Lock on** (first 30%). The view swings onto the observer. Early, because this
-   leg answers "where is this going", and the position has barely moved, so it reads
-   as a pan.
+   leg answers "where is this going". The swing eases the start's offset from the
+   line of sight, not the attitude, so the observer slides to the centre without
+   overshooting while the camera moves.
 2. **Descend** (to 55%). The observer stays at the exact centre of the screen and
    grows as the camera closes in, ending **directly overhead**, looking down. The
    observer's map pin is already drawn there, so the destination is labelled.
@@ -215,9 +216,37 @@ before the legs were split). Arriving vertically lets the descent's aim reach
 straight down smoothly, which is where the rise starts.
 
 So the rise is `skyBasis` at a pitch of −90°, not any convenient nadir. Built from the
-same aim, the whole leg is a change of pitch only: no roll creeps in, and the view
-arrives facing the way it faced during the descent. `skyBasis` is continuous through
-straight down (the zenith tests pin this), so −90° is an aim like any other.
+same aim, the leg changes pitch and heading only: no roll creeps in. `skyBasis` is
+continuous through straight down (the zenith tests pin this), so −90° is an aim like
+any other.
+
+### The heading turns under all three legs
+
+The globe is usually north-up, and the aim faces the equator, so north of it the
+flight must turn round. Turning in the lock-on rolled the globe over by 180° in
+0.66 s, at 1,300°/s. Instead the flight starts on the heading the globe shows as up
+and turns to the aim's about the observer's vertical across the whole 2.2 s. A turn
+about the vertical never tilts the horizon: on the way down it rotates the map round
+the pin, and in the rise it pans. The angle is fixed when the flight starts, because
+a half turn could otherwise flip direction as the ground height arrives.
+
+### The pace is set for the eye, not the clock
+
+Every leg eases with smootherstep (zero rate and acceleration at both ends, peaking at
+1.9 times the mean). Cesium's `QUINTIC_IN_OUT` peaks at 5 times: long standstills, then
+a 600°/s whip through the rise.
+
+The descent is geometric in the height down to about 3 km, then linear, so the ground
+grows at a steady rate instead of rushing up at touchdown (21 e-folds per second at
+most above 100 m, against 54 with a straight lerp of the radius). A lower knee is
+steadier still but keeps the camera skimming ground the default base map has no
+detail for. Because a geometric descent is low early, the way round the globe shrinks
+with the height as well, so the camera closes in along the line of sight and the aim
+never whips round to hold a destination it is about to pass.
+
+Measured over the whole flight, the fastest turn fell from 1,300°/s to about 260°/s
+from a north-up globe to Munich, and to about 320°/s for a destination on the far side
+of the planet (`src/modules/skyFlight.test.ts` holds 300°/s for the turn-round case).
 
 The aim is built by turning the straight-down attitude onto the line of sight, not by
 crossing the view axis with an up vector. A cross-product look-at has no answer when
