@@ -193,7 +193,7 @@ element sets: satellite.js positions, `PassPredictor` passes, `urlCodec` round
 trips and `orbitFacts`. A Node script writes them. The Swift tests compare against
 them: a position must agree to within 1 m, and a pass start or end to within 1 s.
 
-A GitHub Actions job on `macos-26` runs the package tests and regenerates the
+A GitHub Actions job on GitHub's `xcode-27` image runs the package tests and regenerates the
 fixtures. It fails if the fixtures changed, so a change to the web's propagation
 cannot break parity unnoticed. It also lints the Swift sources and builds the app
 and its UI tests. Xcode Cloud builds the app, runs its UI tests against a worker

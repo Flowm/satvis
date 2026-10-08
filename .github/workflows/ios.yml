@@ -26,17 +26,19 @@ on:
 
 jobs:
   ios:
-    # SatvisKit needs the iOS 26 / macOS 26 SDKs, which only Xcode 26 and later carry.
-    runs-on: macos-26
+    # The app is developed on Xcode 27, and Xcode 26's compiler rejects some of
+    # what 27's accepts. GitHub's Xcode 27 image is a public preview, on macOS 27.
+    runs-on: xcode-27
     # A UI test that fails can leave xcodebuild waiting for ever.
     timeout-minutes: 45
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      # The image's default Xcode can lag its newest; the app is developed on the newest.
-      - name: Select the newest Xcode
+      # The release the app is developed on, not the newest: the image carries
+      # betas beside it (27.2 at the time of writing).
+      - name: Select Xcode 27.0
         run: |
-          sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          sudo xcode-select -s /Applications/Xcode_27.0.app
           xcodebuild -version
           swift format --version
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
