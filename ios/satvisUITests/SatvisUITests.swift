@@ -66,8 +66,8 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssertEqual(menuToggle(app).label, UIDevice.current.userInterfaceIdiom == .pad ? "Close menu" : "Menu")
     }
 
-    // Look up stands where the device is, a location kept as "Geolocation" however
-    // many stations there are, and leaves the sky view again.
+    // Look up stands where the device is, kept as "Geolocation", first in the list,
+    // and leaves the sky view again.
     @MainActor
     func testLooksUpFromWhereTheDeviceIs() {
         XCUIDevice.shared.location = XCUILocation(location: CLLocation(latitude: 47.2692, longitude: 11.4041))
@@ -83,8 +83,18 @@ nonisolated class SatvisUITests: XCTestCase {
         }
         XCTAssert(launched.buttons["Leave the sky view"].waitForExistence(timeout: 20))
         XCTAssertEqual(launched.switches["Look up"].value as? String, "1")
-        flip(launched, "Look up")
-        XCTAssert(launched.buttons["Home view"].waitForExistence(timeout: 10))
+        // Touches soon after the location prompt are lost on the iOS 27 simulator,
+        // sometimes more than one (ios/docs/manual-verification.md): up to three tries.
+        for _ in 0..<3 where !launched.buttons["Home view"].exists {
+            flip(launched, "Look up")
+            _ = launched.buttons["Home view"].waitForExistence(timeout: 5)
+        }
+        XCTAssert(launched.buttons["Home view"].exists)
+        // Kept first in the list, as on the web.
+        launched.buttons["Locations"].tap()
+        let first = launched.textFields.firstMatch
+        XCTAssert(first.waitForExistence(timeout: 5))
+        XCTAssertEqual(first.value as? String, "Geolocation")
     }
 
     // The sky view holds the camera, keeping a link's camera mode for the globe,

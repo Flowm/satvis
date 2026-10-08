@@ -341,9 +341,8 @@ struct GlobePanel: View {
     }
 }
 
-/// Looking up from where the user is: the web app's Sky panel, less its list of
-/// locations, whose panels look up from them instead. Its settings stay in sight
-/// on the globe, disabled where they need the sky view (ADR 0003).
+/// Looking up from where the user is: the web app's Sky panel. Its settings stay in
+/// sight on the globe, disabled where they need the sky view (ADR 0003).
 struct SkyPanel: View {
     @Bindable var session: Session
     @State private var locating = false
@@ -351,60 +350,68 @@ struct SkyPanel: View {
     var body: some View {
         let inSky = session.observer != nil
         PanelSection("Sky view") {
-            // The spinner in the switch's place while the position comes back.
-            if locating {
-                HStack {
-                    Text("Look up")
-                    Spacer()
-                    ProgressView()
+            // Disabled while the position comes back, the spinner beside its name.
+            Toggle(
+                isOn: Binding {
+                    inSky
+                } set: { on in
+                    guard on else {
+                        return session.leaveSky()
+                    }
+                    Task {
+                        locating = true
+                        defer { locating = false }
+                        await session.lookUpFromHere()
+                    }
                 }
-                .accessibilityElement(children: .combine)
-                .accessibilityValue("Finding your location")
-            } else {
-                Toggle(
-                    "Look up",
-                    isOn: Binding {
-                        inSky
-                    } set: { on in
-                        guard on else {
-                            return session.leaveSky()
-                        }
-                        Task {
-                            locating = true
-                            defer { locating = false }
-                            await session.lookUpFromHere()
-                        }
-                    })
+            ) {
+                Waiting("Look up", while: locating, as: "Finding your location")
             }
-            Note("From where you are. A location's panel looks up from there.")
+            .disabled(locating)
+            Note("Start sky view from your current location. To look up elsewhere, use a location pin’s sky view button.")
         }
         PanelSection("Aiming") {
-            // The spinner in the switch's place, as the web app's replaces its slider:
-            // waiting on the sensor, a second tap must not start a second probe.
-            if session.compass.isProbing {
-                HStack {
-                    Text("Use compass")
-                    Spacer()
-                    ProgressView()
+            // Waiting on the sensor, a second tap must not start a second probe.
+            Toggle(
+                isOn: Binding {
+                    session.compass.isAiming && !session.compass.isProbing
+                } set: { _ in
+                    session.toggleCompass()
                 }
-                .accessibilityElement(children: .combine)
-                .accessibilityValue("Waiting for the motion sensor")
-            } else {
-                Toggle(
-                    "Use compass",
-                    isOn: Binding {
-                        session.compass.isAiming
-                    } set: { _ in
-                        session.toggleCompass()
-                    }
-                )
-                .disabled(!inSky)
+            ) {
+                Waiting("Use compass", while: session.compass.isProbing, as: "Waiting for the motion sensor")
             }
+            .disabled(!inSky || session.compass.isProbing)
         }
         PanelSection("Out of sight") {
             Segments(title: "Out of sight", selection: $session.unseen, options: UnseenMode.allCases.map { ($0.rawValue.capitalized, $0) })
                 .disabled(!inSky)
             Note("In Earth's shadow, too far away or during daylight.")
+        }
+    }
+}
+
+/// A switch's name, with a spinner beside it while it waits, as the web app's
+/// replaces the slider.
+private struct Waiting: View {
+    let title: LocalizedStringKey
+    let waiting: Bool
+    /// What VoiceOver hears of the spinner.
+    let what: LocalizedStringKey
+
+    init(_ title: LocalizedStringKey, while waiting: Bool, as what: LocalizedStringKey) {
+        self.title = title
+        self.waiting = waiting
+        self.what = what
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+            if waiting {
+                ProgressView()
+                    .accessibilityLabel(Text(what))
+            }
         }
     }
 }

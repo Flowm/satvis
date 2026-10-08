@@ -3,7 +3,17 @@ import { computed, ref } from "vue";
 
 import { SATELLITE_COMPONENTS } from "../config/components";
 import { sameValue } from "../modules/util/equality";
-import { moved, observerAfterMove, observerAfterRemoval, relocated, renamed, repositioned, without } from "../modules/util/groundStationEdits";
+import {
+  moved,
+  observerAfterGeolocation,
+  observerAfterMove,
+  observerAfterRemoval,
+  relocated,
+  renamed,
+  repositioned,
+  withGeolocation,
+  without,
+} from "../modules/util/groundStationEdits";
 import { closedStringList, enumString, groundStationList, plainString, stringList, tildeEscapedStringList } from "../modules/util/urlCodec";
 
 export interface SerializedGroundStation {
@@ -128,9 +138,19 @@ export const useSatStore = defineStore(
     // The edits a person makes. Each keeps the observer on the station it designates
     // (CONTEXT.md, Observer), so no caller pairs a list edit with a designation edit.
 
-    /** Appended; `observe` designates it. */
-    function addGroundStation(station: SerializedGroundStation, { observe = false } = {}): void {
-      replaceStations([...stations.value, station], observe ? stations.value.length : observerStation.value);
+    /** Appended, the observer where it was. */
+    function addGroundStation(station: SerializedGroundStation): void {
+      replaceStations([...stations.value, station], observerStation.value);
+    }
+
+    /** My location's: the Geolocation station where the device is (`withGeolocation`), the observer where it was. */
+    function placeGeolocation(lat: number, lon: number): void {
+      replaceStations(withGeolocation(stations.value, lat, lon), observerAfterGeolocation(stations.value, observerStation.value));
+    }
+
+    /** Look up's: as `placeGeolocation`, and the observer there. */
+    function observeGeolocation(lat: number, lon: number): void {
+      replaceStations(withGeolocation(stations.value, lat, lon), 0);
     }
 
     /** Removing the observer hands it to the first station. */
@@ -174,6 +194,8 @@ export const useSatStore = defineStore(
       setGroundStations,
       setObserverStation,
       addGroundStation,
+      observeGeolocation,
+      placeGeolocation,
       removeGroundStation,
       moveGroundStation,
       renameGroundStation,

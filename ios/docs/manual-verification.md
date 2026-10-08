@@ -402,3 +402,16 @@ and back. All seven UI tests passed: the menu column, a tap on the globe, a link
 Globe panel, bookmarks and Look up from the device. Not checked: a delete's Undo by eye,
 and Look up on a device.
 
+## Native app: My location and Look up keep one Geolocation station first
+
+**Procedure.** An erased iPhone 18 Pro simulator on iOS 27, `testLooksUpFromWhereTheDeviceIs`
+run three times, with the simulator's location at Innsbruck and the prompt answered by
+the test; the switch's handler and the sky view's entry and exit logged meanwhile.
+
+**Result, 2026-10-08.** Look up stood at Innsbruck, and Locations then listed Geolocation
+first. Touches soon after the location prompt were lost: the Look up switch, tapped
+to leave, never called its handler, in every run, while a later tap did; one run of
+four lost two. The test flips the switch up to three times. Not checked: whether a
+device loses them too, which would leave a user's first taps after allowing the
+location unanswered.
+

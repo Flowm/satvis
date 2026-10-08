@@ -85,13 +85,17 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   await expect.poll(() => Number(stations(page)[0]![0]), { message: "the station walked south" }).toBeLessThan(Number(start![0]));
   expect(stations(page)[0]![2]).toBe("Munich");
 
+  // Look up stands where the device is now, kept as Geolocation, first in the list.
   await page.context().setGeolocation({ latitude: 47.27, longitude: 11.39 });
-  await addStationHere(page, "Innsbruck");
-  const rows = page.locator(".gsList__row");
-  await rows.nth(1).getByRole("button", { name: "2" }).click();
-  await expect(rows.nth(1).locator(".gsList__rank")).toHaveText("◉");
+  await openMenu(page, "Sky");
+  await menuSwitch(page, "Look up").click();
+  await expect(page.locator(".sky-hud")).toBeHidden();
+  await menuSwitch(page, "Look up").click();
+  await waitForSky(page);
   await expect.poll(() => page.evaluate(() => window.cc!.skyView.observer?.lat)).toBe(47.27);
-  expect(stations(page).map((station) => station[2])).toEqual(["Munich", "Innsbruck"]);
+  expect(stations(page).map((station) => station[2])).toEqual(["Geolocation", "Munich"]);
+  await openMenu(page, "Locations");
+  await expect(page.locator(".gsList__row").first().locator(".gsList__rank")).toHaveText("◉");
 
   await openMenu(page, "Globe");
   await menuSwitch(page, "3D").click();
@@ -119,37 +123,25 @@ test("the sky view returns to the projection it was entered from, and holds the 
   await expect(menuSwitch(page, "Inertial").locator("input")).toBeEnabled();
 });
 
-test("with no location yet, the sky view waits for one to be chosen", async ({ page }) => {
-  await openApp(page, "");
+test("look up stands where the device is, listed first, so a reload stands there again", async ({ page }) => {
+  await openApp(page, "gs=47.2692,11.4041,Innsbruck");
   await openMenu(page, "Sky");
-  await expect(menuSwitch(page, "Look up").locator("input")).toBeDisabled();
-  await expect(page.getByText("Add a location to look up from.")).toBeVisible();
+  await menuSwitch(page, "Look up").click();
+  await waitForSky(page);
+  expect(await page.evaluate(() => window.cc!.skyView.observer)).toEqual({ lat: MUNICH.latitude, lon: MUNICH.longitude });
+  await expect.poll(() => new URL(page.url()).searchParams.get("gs")).toBe("48.1372,11.5756,Geolocation_47.2692,11.4041,Innsbruck");
 
-  // Picking where to stand enters the sky view there.
-  await page.getByRole("region", { name: "Sky" }).getByRole("button", { name: "My location" }).click();
-  await expect(menuSwitch(page, "Geolocation").locator("input")).toBeChecked();
+  await page.reload();
   await waitForSky(page);
   expect(await page.evaluate(() => window.cc!.skyView.observer)).toEqual({ lat: MUNICH.latitude, lon: MUNICH.longitude });
 });
 
-test("picking a location on the globe enters the sky view there, even the one already picked", async ({ page }) => {
-  await openApp(page, "gs=48.1372,11.5756,Munich_47.2692,11.4041,Innsbruck");
+test("look up moves the Geolocation station rather than adding another", async ({ page }) => {
+  await openApp(page, "gs=47.2692,11.4041,Innsbruck_1,2,Geolocation");
   await openMenu(page, "Sky");
 
-  await menuSwitch(page, "Munich").click();
-  await waitForSky(page);
-  expect(await page.evaluate(() => window.cc!.skyView.observer?.lat)).toBe(48.1372);
-
-  await menuSwitch(page, "Innsbruck").click();
-  await expect.poll(() => page.evaluate(() => window.cc!.skyView.observer?.lat)).toBe(47.2692);
-});
-
-test("my location enters the sky view even where that location is already listed", async ({ page }) => {
-  await openApp(page, "gs=47.2692,11.4041,Innsbruck_48.1372,11.5756,Geolocation");
-  await openMenu(page, "Sky");
-
-  await page.getByRole("region", { name: "Sky" }).getByRole("button", { name: "My location" }).click();
+  await menuSwitch(page, "Look up").click();
   await waitForSky(page);
   expect(await page.evaluate(() => window.cc!.skyView.observer)).toEqual({ lat: MUNICH.latitude, lon: MUNICH.longitude });
-  expect(new URL(page.url()).searchParams.get("gs")).toBe("47.2692,11.4041,Innsbruck_48.1372,11.5756,Geolocation");
+  await expect.poll(() => new URL(page.url()).searchParams.get("gs")).toBe("48.1372,11.5756,Geolocation_47.2692,11.4041,Innsbruck");
 });

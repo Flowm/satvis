@@ -25,15 +25,18 @@ export async function openClockDeck(page: Page): Promise<void> {
   }
 }
 
-/** Adds a station at the browser's geolocation through the Locations panel. */
+/**
+ * Adds a station at the browser's geolocation through the Locations panel: My location's
+ * Geolocation station, first in the list, renamed. Expects no Geolocation station yet.
+ */
 export async function addStationHere(page: Page, name: string): Promise<void> {
   await openMenu(page, "Locations");
   const rows = page.locator(".gsList__row");
   const before = await rows.count();
   await page.getByRole("button", { name: "My location" }).click();
-  // The fix arrives asynchronously; renaming `.last()` before it would rename the previous row.
+  // The fix arrives asynchronously; renaming the first row before it would rename another station.
   await expect(rows).toHaveCount(before + 1);
-  const station = rows.nth(before);
+  const station = rows.first();
   await station.getByLabel("Name").fill(name);
   await station.getByLabel("Name").press("Enter");
 }

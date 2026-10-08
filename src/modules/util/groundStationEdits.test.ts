@@ -14,6 +14,8 @@ import {
   renamed,
   repositioned,
   without,
+  withGeolocation,
+  observerAfterGeolocation,
 } from "./groundStationEdits";
 
 const list = (): SerializedGroundStation[] => [
@@ -125,6 +127,35 @@ describe("moved", () => {
     const after = moved(before, 1, -1);
     expect(after[1]).not.toBe(before[0]);
     expect(after[1]).toEqual(before[0]);
+  });
+});
+
+describe("observerAfterGeolocation", () => {
+  const geolocation = { lat: 1, lon: 2, name: "Geolocation" };
+  const stations = [geolocation, { lat: 3, lon: 4, name: "A" }, { ...geolocation, lat: 5 }, { lat: 7, lon: 8, name: "B" }];
+
+  test("follows its station past every Geolocation station dropped before it", () => {
+    expect(withGeolocation(stations, 9, 9).map((station) => station.name)).toEqual(["Geolocation", "A", "B"]);
+    expect(observerAfterGeolocation(stations, 3)).toBe(2);
+    expect(observerAfterGeolocation(stations, 1)).toBe(1);
+  });
+
+  test("lands on the Geolocation station from any station of that name", () => {
+    expect(observerAfterGeolocation(stations, 0)).toBe(0);
+    expect(observerAfterGeolocation(stations, 2)).toBe(0);
+  });
+
+  test("shifts by one where no Geolocation station was listed", () => {
+    expect(observerAfterGeolocation([{ lat: 3, lon: 4, name: "A" }], 0)).toBe(1);
+  });
+});
+
+describe("withGeolocation", () => {
+  test("adds the device's position first, and moves the one already there instead of adding another", () => {
+    const munich = { lat: 48.1, lon: 11.6, name: "Munich" };
+    const added = withGeolocation([munich], 47.27, 11.4);
+    expect(added).toEqual([{ lat: 47.27, lon: 11.4, name: "Geolocation" }, munich]);
+    expect(withGeolocation([munich, ...added.slice(0, 1)], 48.2, 16.37)).toEqual([{ lat: 48.2, lon: 16.37, name: "Geolocation" }, munich]);
   });
 });
 

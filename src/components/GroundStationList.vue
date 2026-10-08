@@ -5,20 +5,13 @@
       v-for="(station, index) in stations"
       :key="index"
       class="gsList__row"
-      :class="{ 'gsList__row--observer': index === observerStation, 'gsList__row--dragged': drag?.from === index, 'gsList__row--settling': settling }"
+      :class="{ 'gsList__row--observer': observing(index), 'gsList__row--dragged': drag?.from === index, 'gsList__row--settling': settling }"
       :style="{ transform: `translateY(${offsetOf(index)}px)` }"
     >
-      <!-- The mark is also the control that moves the sky view's observer. -->
-      <button
-        type="button"
-        class="gsList__rank"
-        :class="{ 'gsList__rank--observer': index === observerStation }"
-        :title="index === observerStation ? 'The sky view stands here' : 'Stand the sky view here'"
-        :aria-pressed="index === observerStation"
-        @click="satStore.setObserverStation(index)"
-      >
-        {{ index === observerStation ? "◉" : index + 1 }}
-      </button>
+      <!-- Where the sky view stands, while it is up: Look up and a location's panel choose it. -->
+      <span class="gsList__rank" :class="{ 'gsList__rank--observer': observing(index) }" :title="observing(index) ? 'The sky view stands here' : undefined">
+        {{ observing(index) ? "◉" : index + 1 }}
+      </span>
       <!-- Keyboard-operable as well as draggable: dragging is the only other way to reorder. -->
       <span
         class="gsList__grip"
@@ -79,7 +72,7 @@
     </div>
 
     <div v-if="pickMode" class="toolbarNote gsList__pickNote">Choose a spot on the globe for the station.</div>
-    <div class="toolbarNote">The sky view stands at ◉, click a number to move it.</div>
+    <div v-if="sceneMode === SKY_MODE" class="toolbarNote">The sky view stands at ◉.</div>
   </div>
 </template>
 
@@ -89,6 +82,7 @@ import { nextTick, ref, watch } from "vue";
 
 import { useController } from "../composables/useController";
 import { useGeolocation } from "../composables/useGeolocation";
+import { SKY_MODE } from "../config/viewModes";
 import { dragShift, dropIndex, MAX_LATITUDE, MAX_LONGITUDE, parseCoordinate } from "../modules/util/groundStationEdits";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
@@ -96,7 +90,10 @@ import { useSatStore } from "../stores/sat";
 const cc = useController();
 const satStore = useSatStore();
 const { groundStations: stations, observerStation } = storeToRefs(satStore);
-const { pickMode } = storeToRefs(useCesiumStore());
+const { pickMode, sceneMode } = storeToRefs(useCesiumStore());
+
+/** Whether the sky view is up and stands on station `index`. */
+const observing = (index: number): boolean => sceneMode.value === SKY_MODE && index === observerStation.value;
 // The canvas, not a class on the page: Cesium's own widgets keep their cursors.
 watch(pickMode, (on) => {
   cc.viewer.scene.canvas.style.cursor = on ? "crosshair" : "";
@@ -245,9 +242,6 @@ function offsetOf(index: number): number {
 .gsList__rank {
   color: #4ade8099;
   flex: none;
-  padding: 0;
-  cursor: pointer;
-  background: none;
   font-size: 11px;
   line-height: 24px;
   text-align: center;
@@ -255,13 +249,8 @@ function offsetOf(index: number): number {
   width: 12px;
 }
 
-.gsList__rank:hover {
-  color: #4ade80;
-}
-
 .gsList__rank--observer {
   color: #4ade80;
-  cursor: default;
 }
 
 .gsList__grip {

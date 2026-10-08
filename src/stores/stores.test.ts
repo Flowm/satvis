@@ -184,14 +184,38 @@ describe("ground station edits", () => {
     expect(observed()).toBe("Munich");
   });
 
-  test("an added station is designated only when asked, even if it duplicates one already there", () => {
+  test("an added station leaves the observer where it was", () => {
     const { sat, observed } = stations("Berlin");
     sat.addGroundStation({ lat: 0, lon: 0 });
     expect(observed()).toBe("Berlin");
+  });
 
-    sat.addGroundStation(PARIS, { observe: true });
-    expect(sat.groundStations).toHaveLength(4);
-    expect(observed()).toBe("Paris");
+  test("looking up from the device moves the one Geolocation station there, first, and stands on it", () => {
+    const { sat, observed } = stations("Berlin");
+    sat.observeGeolocation(47.26921, 11.40409);
+    expect(sat.groundStations.map((station) => station.name)).toEqual(["Geolocation", "Munich", "Berlin", "Paris"]);
+    expect(sat.groundStations[0]).toEqual({ lat: 47.2692, lon: 11.4041, name: "Geolocation" });
+    expect(observed()).toBe("Geolocation");
+
+    sat.setObserverStation(2);
+    sat.observeGeolocation(48.2, 16.37);
+    expect(sat.groundStations.map((station) => station.name)).toEqual(["Geolocation", "Munich", "Berlin", "Paris"]);
+    expect(sat.groundStations[0]).toEqual({ lat: 48.2, lon: 16.37, name: "Geolocation" });
+    expect(sat.observerStation).toBe(0);
+  });
+
+  test("my location moves the Geolocation station first, keeping the observer on its station", () => {
+    const { sat, observed } = stations("Berlin");
+    sat.placeGeolocation(47.27, 11.4);
+    expect(sat.groundStations.map((station) => station.name)).toEqual(["Geolocation", "Munich", "Berlin", "Paris"]);
+    expect(observed()).toBe("Berlin");
+
+    sat.moveGroundStation(0, 3);
+    sat.setObserverStation(3);
+    sat.placeGeolocation(48.2, 16.37);
+    expect(sat.groundStations.map((station) => station.name)).toEqual(["Geolocation", "Munich", "Berlin", "Paris"]);
+    expect(sat.groundStations[0]).toEqual({ lat: 48.2, lon: 16.37, name: "Geolocation" });
+    expect(observed()).toBe("Geolocation");
   });
 
   test("a walk moves the observer's station, keeping its name and place", () => {

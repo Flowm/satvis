@@ -41,8 +41,8 @@ app's own view vocabulary, three of whose members match Cesium's.
 ### The menu splits the views; the parameter does not
 
 One value does not mean one control. The menu has a Globe panel (the projections and
-the camera mode) and a Sky panel (the observer, a switch that enters the sky view,
-compass aiming, which satellites to show). A single View panel
+the camera mode) and a Sky panel (a switch that enters the sky view, compass aiming,
+which satellites to show). A single View panel
 hid the sky view among the projections and made half its rows appear and disappear
 with the mode.
 
@@ -71,19 +71,28 @@ designation is not a url parameter: a link carries the stations and the view mod
 and its observer is the first station. A parameter would extend ADR 0001 and is a
 separate decision.
 
-Entry is an action gated on an observer existing, not a watcher. The menu makes the
-observer an explicit choice: the Sky panel lists the ground stations to stand at and
-offers the device's location as a new one. Picking either enters the sky view there,
-because choosing where to stand is asking to stand there; the panel's switch enters
-at the designated station and cannot enter without one.
-Entering on whichever station happened to be first, or on a location prompt the
-switch raised as a side effect, hid what the view stands on.
+Entry is an action gated on an observer existing, not a watcher. The observer is
+where the device is, unless the entry names a place. The Sky panel's switch, Look up,
+asks for the device's position and stands there, as does `?scene=Sky` with no ground
+station, because either is the request "what is over me now". A station's info panel
+stands on that station, and a link with stations on its first one. The device's
+position is the one station named Geolocation, moved there each time rather than
+added again, and listed first, by Look up and by the Locations panel's My location
+alike (`observeGeolocation`, `placeGeolocation` in `src/stores/sat.ts`): a link's
+observer is its first station, so a reload or a bookmark of the view stands where the
+device was. If the device gives no position the sky view does not open: a sky full of
+satellites at coordinates the user never chose looks like a working feature, which is
+worse than not opening.
 
-A link is the one implicit entry: `?scene=Sky` with no ground station turns the
-device's location into one, because opening that link is the request ("what is over
-me now"). If that is refused the sky view does not open. A sky full of satellites at
-coordinates the user never chose looks like a working feature, which is worse than
-not opening.
+Listing it first has two costs. My location in the sky view moves the Geolocation
+station, and the view with it when it stands there. And while the view stands on
+another station, My location puts Geolocation first, so a reload or a bookmark of
+that view then stands at Geolocation instead.
+
+An earlier menu made the observer a choice: the Sky panel listed the stations to
+stand at, and the Locations panel's mark moved the designation. It answered "where do
+I stand" in three places, and the switch stood wherever the last choice left it, often
+not where the user was.
 
 ### Walking moves the ground station, once the keys stop
 
