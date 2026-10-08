@@ -76,16 +76,16 @@ final class PassModel {
     }
 
     /// The device's position as the one saved station named "Geolocation", first in
-    /// the list as on the web (src/modules/util/groundStationEdits.ts): moved there,
-    /// keeping its id, or added. Each look from where the user stands would
-    /// otherwise leave a station behind.
+    /// the list as on the web (src/modules/util/groundStationEdits.ts): the first of
+    /// that name moved there, keeping its id, or one added, and any others of the
+    /// name, which an edit can leave, dropped. Each look from where the user stands
+    /// would otherwise leave a station behind.
     @discardableResult
     func setGeolocation(latitude: Double, longitude: Double) -> UUID? {
         var station = saved.first { $0.name == Self.geolocation } ?? GroundStation(latitude: latitude, longitude: longitude, name: Self.geolocation)
         station.latitude = latitude
         station.longitude = longitude
-        setStations([station] + saved.filter { $0.id != station.id })
-        // Only one station has the name, so moving it duplicates none.
+        setStations([station] + saved.filter { $0.name != Self.geolocation })
         return saved.contains { $0.id == station.id } ? station.id : nil
     }
 

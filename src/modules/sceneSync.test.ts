@@ -224,6 +224,21 @@ describe("startSceneSync", () => {
     expect(cesiumStore.sceneMode).toBe("Sky");
   });
 
+  test("with no ground station the sky view stands where the device is, kept first as Geolocation", async () => {
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition: (ok: (position: unknown) => void) => ok({ coords: { latitude: 47.26921, longitude: 11.40409 } }) } });
+    const { target, calls } = fakeTarget();
+    startSceneSync(target);
+    const satStore = useSatStore();
+
+    useCesiumStore().sceneMode = "Sky";
+    await settle();
+
+    expect(satStore.groundStations).toEqual([{ lat: 47.2692, lon: 11.4041, name: "Geolocation" }]);
+    expect(satStore.observerStation).toBe(0);
+    expect(calls.entered).toEqual([{ lat: 47.2692, lon: 11.4041 }]);
+    vi.unstubAllGlobals();
+  });
+
   test("with no observer available the sky view is refused and the mode goes back", async () => {
     vi.stubGlobal("navigator", { geolocation: { getCurrentPosition: (_ok: unknown, fail: (e: unknown) => void) => fail(new Error("denied")) } });
     const { target, calls } = fakeTarget();

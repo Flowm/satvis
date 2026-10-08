@@ -161,11 +161,14 @@ export function withGeolocation(stations: readonly SerializedGroundStation[], la
   return [{ lat, lon, name: GEOLOCATION }, ...copies(stations.filter((station) => station.name !== GEOLOCATION))];
 }
 
-/** Where `observer` lands once `withGeolocation` has put the station first. */
+/**
+ * Where `observer` lands once `withGeolocation` has put the station first: on it if it
+ * was on any station of that name, as a link or a rename can leave several.
+ */
 export function observerAfterGeolocation(stations: readonly SerializedGroundStation[], observer: number): number {
-  const at = stations.findIndex((station) => station.name === GEOLOCATION);
-  if (observer === at) {
+  if (stations[observer]?.name === GEOLOCATION) {
     return 0;
   }
-  return at === -1 || observer < at ? observer + 1 : observer;
+  const dropped = stations.slice(0, observer).filter((station) => station.name === GEOLOCATION).length;
+  return observer - dropped + 1;
 }

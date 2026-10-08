@@ -188,7 +188,7 @@ export function startSceneSync(cc: SceneTarget): void {
     }
     if (!observer) {
       console.warn("Sky view needs an observer: no ground station, and no location from the device");
-      // Otherwise the radio just moves back, which reads as a broken control.
+      // Otherwise the Look up switch just turns back off, which reads as a broken control.
       useToastProxy().add({
         title: "Sky view needs a location",
         description: "Allow Geolocation, or look up from a location's panel.",

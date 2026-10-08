@@ -409,8 +409,9 @@ run three times, with the simulator's location at Innsbruck and the prompt answe
 the test; the switch's handler and the sky view's entry and exit logged meanwhile.
 
 **Result, 2026-10-08.** Look up stood at Innsbruck, and Locations then listed Geolocation
-first. The first touch after the location prompt was lost: the Look up switch, tapped
-to leave, never called its handler, in every run, while a second tap did. The test
-spends one touch on the panel's title first. Not checked: whether a device loses that
-touch too, which would leave a user's first tap after allowing the location unanswered.
+first. Touches soon after the location prompt were lost: the Look up switch, tapped
+to leave, never called its handler, in every run, while a later tap did; one run of
+four lost two. The test flips the switch up to three times. Not checked: whether a
+device loses them too, which would leave a user's first taps after allowing the
+location unanswered.
 

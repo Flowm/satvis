@@ -341,9 +341,8 @@ struct GlobePanel: View {
     }
 }
 
-/// Looking up from where the user is: the web app's Sky panel, less its list of
-/// locations, whose panels look up from them instead. Its settings stay in sight
-/// on the globe, disabled where they need the sky view (ADR 0003).
+/// Looking up from where the user is: the web app's Sky panel. Its settings stay in
+/// sight on the globe, disabled where they need the sky view (ADR 0003).
 struct SkyPanel: View {
     @Bindable var session: Session
     @State private var locating = false
@@ -366,7 +365,7 @@ struct SkyPanel: View {
                     }
                 }
             ) {
-                Waiting("Look up", while: locating)
+                Waiting("Look up", while: locating, as: "Finding your location")
             }
             .disabled(locating)
             Note("Start sky view from your current location. To look up elsewhere, use a location pin’s sky view button.")
@@ -380,7 +379,7 @@ struct SkyPanel: View {
                     session.toggleCompass()
                 }
             ) {
-                Waiting("Use compass", while: session.compass.isProbing)
+                Waiting("Use compass", while: session.compass.isProbing, as: "Waiting for the motion sensor")
             }
             .disabled(!inSky || session.compass.isProbing)
         }
@@ -397,10 +396,13 @@ struct SkyPanel: View {
 private struct Waiting: View {
     let title: LocalizedStringKey
     let waiting: Bool
+    /// What VoiceOver hears of the spinner.
+    let what: LocalizedStringKey
 
-    init(_ title: LocalizedStringKey, while waiting: Bool) {
+    init(_ title: LocalizedStringKey, while waiting: Bool, as what: LocalizedStringKey) {
         self.title = title
         self.waiting = waiting
+        self.what = what
     }
 
     var body: some View {
@@ -408,6 +410,7 @@ private struct Waiting: View {
             Text(title)
             if waiting {
                 ProgressView()
+                    .accessibilityLabel(Text(what))
             }
         }
     }

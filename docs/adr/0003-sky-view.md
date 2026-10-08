@@ -80,14 +80,19 @@ position is the one station named Geolocation, moved there each time rather than
 added again, and listed first, by Look up and by the Locations panel's My location
 alike (`observeGeolocation`, `placeGeolocation` in `src/stores/sat.ts`): a link's
 observer is its first station, so a reload or a bookmark of the view stands where the
-device was.
+device was. If the device gives no position the sky view does not open: a sky full of
+satellites at coordinates the user never chose looks like a working feature, which is
+worse than not opening.
+
+Listing it first has two costs. My location in the sky view moves the Geolocation
+station, and the view with it when it stands there. And while the view stands on
+another station, My location puts Geolocation first, so a reload or a bookmark of
+that view then stands at Geolocation instead.
 
 An earlier menu made the observer a choice: the Sky panel listed the stations to
 stand at, and the Locations panel's mark moved the designation. It answered "where do
 I stand" in three places, and the switch stood wherever the last choice left it, often
-not where the user was. If the device gives no position the sky view does not open. A sky full of satellites at
-coordinates the user never chose looks like a working feature, which is worse than
-not opening.
+not where the user was.
 
 ### Walking moves the ground station, once the keys stop
 

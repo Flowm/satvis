@@ -83,11 +83,13 @@ nonisolated class SatvisUITests: XCTestCase {
         }
         XCTAssert(launched.buttons["Leave the sky view"].waitForExistence(timeout: 20))
         XCTAssertEqual(launched.switches["Look up"].value as? String, "1")
-        // After the location prompt the first touch is lost, here on the iOS 27
-        // simulator (ios/docs/manual-verification.md): one spent on the panel's title.
-        launched.staticTexts["Sky view"].tap()
-        flip(launched, "Look up")
-        XCTAssert(launched.buttons["Home view"].waitForExistence(timeout: 10))
+        // Touches soon after the location prompt are lost on the iOS 27 simulator,
+        // sometimes more than one (ios/docs/manual-verification.md): up to three tries.
+        for _ in 0..<3 where !launched.buttons["Home view"].exists {
+            flip(launched, "Look up")
+            _ = launched.buttons["Home view"].waitForExistence(timeout: 5)
+        }
+        XCTAssert(launched.buttons["Home view"].exists)
         // Kept first in the list, as on the web.
         launched.buttons["Locations"].tap()
         let first = launched.textFields.firstMatch

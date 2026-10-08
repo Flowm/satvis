@@ -15,6 +15,7 @@ import {
   repositioned,
   without,
   withGeolocation,
+  observerAfterGeolocation,
 } from "./groundStationEdits";
 
 const list = (): SerializedGroundStation[] => [
@@ -126,6 +127,26 @@ describe("moved", () => {
     const after = moved(before, 1, -1);
     expect(after[1]).not.toBe(before[0]);
     expect(after[1]).toEqual(before[0]);
+  });
+});
+
+describe("observerAfterGeolocation", () => {
+  const geolocation = { lat: 1, lon: 2, name: "Geolocation" };
+  const stations = [geolocation, { lat: 3, lon: 4, name: "A" }, { ...geolocation, lat: 5 }, { lat: 7, lon: 8, name: "B" }];
+
+  test("follows its station past every Geolocation station dropped before it", () => {
+    expect(withGeolocation(stations, 9, 9).map((station) => station.name)).toEqual(["Geolocation", "A", "B"]);
+    expect(observerAfterGeolocation(stations, 3)).toBe(2);
+    expect(observerAfterGeolocation(stations, 1)).toBe(1);
+  });
+
+  test("lands on the Geolocation station from any station of that name", () => {
+    expect(observerAfterGeolocation(stations, 0)).toBe(0);
+    expect(observerAfterGeolocation(stations, 2)).toBe(0);
+  });
+
+  test("shifts by one where no Geolocation station was listed", () => {
+    expect(observerAfterGeolocation([{ lat: 3, lon: 4, name: "A" }], 0)).toBe(1);
   });
 });
 

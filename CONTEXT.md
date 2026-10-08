@@ -124,9 +124,9 @@ discussion; sharpen them here when they drift.
   at is a separate designation (`sat.observerStation`), not a rank. The menu calls
   the list Locations; its panel edits the list in place and, while the sky view is
   up, marks the observer. Its My location moves the one station named Geolocation
-  to where the device is, or adds it, first in the list (`placeGeolocation`). Every edit goes through the sat store's station edits
-  (`addGroundStation`, `moveGroundStation`, ...), which keep the designation on its
-  station.
+  to where the device is, or adds it, first in the list (`placeGeolocation`). Every
+  edit goes through the sat store's station edits (`addGroundStation`,
+  `moveGroundStation`, ...), which keep the designation on its station.
 - **Pass**: a time range in which a satellite serves a ground station, by
   line-of-sight elevation ("elevation" mode) or sensor footprint overlap ("swath"
   mode). In swath mode the side of the ground track the station is on matters,
