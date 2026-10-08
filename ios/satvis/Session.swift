@@ -40,6 +40,11 @@ final class Session {
     var isPicking = false
     /// The station the sky view stands on, while it is open (ADR 0003).
     private(set) var observer: UUID?
+    /// In the sky view, how the satellites that cannot be seen are drawn (ADR
+    /// 0010). Kept in links as `unseen`.
+    var unseen = UnseenMode.dim {
+        didSet { renderer?.unseen = unseen }
+    }
     let compass = SkyCompass()
     /// A word for the user that goes by itself: how switching the compass on went.
     private(set) var notice: String?
@@ -156,6 +161,7 @@ final class Session {
         }
         renderer.setImagery(baseLayer, site: source.site, frame: imageryFrame)
         renderer.setTerrain(terrain)
+        renderer.unseen = unseen
         renderer.setStations(shownMarkers)
         // What a link opened on before the renderer was there to be told: the
         // sky view, with no globe to fly from yet, or something followed.
@@ -319,6 +325,7 @@ final class Session {
             layers: [baseLayer.rawValue],
             terrain: terrain ? "ReEarth" : "None",
             scene: observer == nil ? "3D" : "Sky",
+            unseen: unseen.rawValue,
             pixelRatio: pixelRatio,
             // Whenever the clock is off the present, as the deck's Live dot says
             // (`sceneSync.ts`), so a shared link shows what the sender saw.
@@ -371,6 +378,7 @@ final class Session {
                 }
             }
         }
+        unseen = UnseenMode(rawValue: state.unseen) ?? .dim
         passes.setVisiting(state.gs.map { GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) })
         await catalog.open(
             preset: preset,

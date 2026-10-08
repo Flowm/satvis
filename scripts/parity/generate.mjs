@@ -264,12 +264,14 @@ try {
   const codec = await runner.import("/src/modules/util/urlCodec.ts");
   const { parseQuery, stringifyQuery } = await runner.import("vue-router");
   const { PIXEL_RATIOS } = await runner.import("/src/config/rendering.ts");
+  const { UNSEEN_MODES } = await runner.import("/src/modules/util/visibility.ts");
   const vocabulary = {
     components: ["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model", "Ground station link"],
     layers: ["NaturalEarth", "VersaTiles", "BlackMarble", "VIIRS"],
     terrain: ["None", "ReEarth"],
     overpass: ["elevation", "swath"],
     scenes: ["3D", "Sky"],
+    unseen: [...UNSEEN_MODES],
     pixelRatios: [...PIXEL_RATIOS],
   };
   const kinds = {
@@ -380,6 +382,7 @@ try {
     { name: "layers", kind: kinds.layers },
     { name: "terrain", kind: codec.enumString(vocabulary.terrain) },
     { name: "scene", kind: codec.enumString(vocabulary.scenes) },
+    { name: "unseen", kind: codec.enumString(vocabulary.unseen) },
     { name: "pixelratio", kind: codec.enumString(vocabulary.pixelRatios) },
     { name: "time", kind: kinds.timestamp },
   ];
@@ -395,6 +398,7 @@ try {
     layers: ["NaturalEarth"],
     terrain: "None",
     scene: "3D",
+    unseen: "dim",
     pixelratio: "native",
     time: null,
   };
@@ -414,6 +418,9 @@ try {
     ["default", "track=&gs=&elements="],
     ["default", "scene=Columbus&gs=46.5935,7.9091"],
     ["default", "scene=Sky&track=ISS+(ZARYA)"],
+    ["default", "scene=Sky&unseen=hide&gs=48.1372,11.5756,Munich"],
+    ["default", "unseen=show"],
+    ["default", "unseen=dim&unseen=Hide"],
     ["default", "layers=NaturalEarth,VersaTiles_0.50,BlackMarble"],
     ["default", "pixelratio=1.5&tags=Starlink"],
     ["default", "pixelratio=native"],
@@ -454,6 +461,34 @@ try {
 
   const hourAngles = HOUR_ANGLE_INSTANTS.map((instant) => ({ instant, radians: greenwichHourAngle(Date.parse(instant)) }));
 
+  // The sky view's verdict on what could be seen (ADR 0010): the sun, Earth's
+  // shadow, and the verdict at the edges of its cut-offs.
+  const sky = await runner.import("/src/modules/util/visibility.ts");
+  const sunDirections = HOUR_ANGLE_INSTANTS.map((instant) => ({ instant, direction: sky.sunDirection(Date.parse(instant), { x: 0, y: 0, z: 0 }) }));
+  const shadowSun = sky.sunDirection(Date.parse("2026-10-05T17:45:00Z"), { x: 0, y: 0, z: 0 });
+  const shadows = [
+    [-7e6, 0, 0],
+    [7e6, 0, 0],
+    [0, 7e6, 0],
+    [-7e6, 6.3e6, 0],
+    [-7e6, 6.4e6, 0],
+    [-42e6, 0, 1e6],
+    [-7e6, 0, 6.5e6],
+  ].map(([x, y, z]) => {
+    const position = { x, y, z };
+    return { position, sun: shadowSun, inShadow: sky.inEarthShadow(position, shadowSun) };
+  });
+  const verdicts = [
+    [sky.DARK_SKY_SUN_ELEVATION, true, 1000],
+    [sky.DARK_SKY_SUN_ELEVATION + 0.001, true, 1000],
+    [-20, true, sky.MAX_VISIBLE_RANGE_KM],
+    [-20, true, sky.MAX_VISIBLE_RANGE_KM + 0.001],
+    [-20, false, 1000],
+    [-20, false, 36_000],
+    [10, false, 1000],
+    [10, true, 36_000],
+  ].map(([sunElevation, sunlit, rangeKm]) => ({ sunElevation, sunlit, rangeKm, visibility: sky.visibility(sunElevation, sunlit, rangeKm) }));
+
   const output = {
     generatedBy: "scripts/parity/generate.mjs",
     parsed,
@@ -467,6 +502,7 @@ try {
     countdowns,
     compassPoints,
     greenwichHourAngle: hourAngles,
+    visibility: { sunDirections, shadows, verdicts },
     links: { vocabulary, presets: PRESETS, defaults: globalDefaults, fieldKinds, cases: links, sanitized },
   };
   fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);

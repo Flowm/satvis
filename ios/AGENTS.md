@@ -138,7 +138,11 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   magnetic north without a location, so it needs no calibration step; it can
   only be tried on a device, the simulator having no motion sensor. The
   observer is a link's first station, and the station whose panel opened it,
-  and its own pin is hidden underfoot.
+  and its own pin is hidden underfoot. What cannot be seen
+  (ADR 0010) is dimmed or hidden by the point and label shaders, from the frame's
+  sun and how dark the observer's sky is (`SkyJudgement`): per satellite on the
+  CPU it would cost what the lock costs, every frame. A dimmed 3D model is drawn
+  blended whole; the card's verdict is the same `Visibility`, in double precision.
 - The globe's gestures are SwiftUI's, not UIKit recognizers on the MTKView, so the
   controls laid over it take the touches that land on them. They go to the
   renderer, which steers whichever camera its `CameraMode` says is in use: the free
@@ -323,7 +327,7 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 
 `SatvisKit/Tests/SatvisCoreTests/Fixtures/parity.json` is what the web app's own
 code answers for the element sets in `parity-input.json`: positions, the sampling
-grid, the info panel's details, and passes over three ground stations in both
+grid, the sun and the sky view's visibility verdict, the info panel's details, and passes over three ground stations in both
 overpass modes, with the rows, headline and timeline strip the panel makes of
 them. It also holds the URL codec's answers (`urlCodec.ts`, with vue-router's
 query parser and serializer): each kind of parameter on awkward input, and whole

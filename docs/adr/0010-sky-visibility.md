@@ -76,4 +76,7 @@ every satellite it styled.
 - **Visible passes** can import the same module in the pass worker: a pass's visible
   window is where it is lit in a dark sky, with the shadow boundary found by
   bisection.
-- **The native app** does not dim yet. Its `Sun.swift` is the same formula.
+- **The native app** dims the same way, with the same verdict (`Visibility.swift`,
+  held to this module by the parity fixtures). It judges in its shaders rather than
+  per satellite on the CPU: the frame's sun and how dark the observer's sky is are
+  uniforms, and each point and label tests its own shadow and range.

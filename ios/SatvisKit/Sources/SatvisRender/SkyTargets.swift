@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import SatvisCore
 import simd
 
 /// A satellite as the sky view sees it from the eye (src/modules/SkyTargets.ts).
@@ -14,6 +15,40 @@ public struct SkyTarget: Sendable, Equatable {
     public let altitude: Double
     /// Where it is drawn, in points.
     public let screen: CGPoint
+    /// Whether it could be seen by eye, now, from the observer.
+    public let visibility: Visibility
+}
+
+/// The sky at the observer at one instant: what judges whether each satellite
+/// could be seen (ADR 0010).
+struct SkyJudgement {
+    /// A unit vector toward the sun, Earth-fixed.
+    let sun: SIMD3<Double>
+    /// Degrees above the observer's horizon.
+    let sunElevation: Double
+    let unseen: UnseenMode
+
+    init(camera: SkyCamera, at epochMilliseconds: Double, unseen: UnseenMode) {
+        sun = Sun.directionFixed(epochMilliseconds: epochMilliseconds)
+        sunElevation = asin(min(max(dot(sun, camera.frame.up), -1), 1)) * 180 / .pi
+        self.unseen = unseen
+    }
+
+    func visibility(of position: SIMD3<Double>, from eye: SIMD3<Double>) -> Visibility {
+        Visibility(sunElevation: sunElevation, sunlit: !Visibility.inEarthShadow(position, sun: sun), range: distance(position, eye) / 1000)
+    }
+
+    func opacity(of position: SIMD3<Double>, from eye: SIMD3<Double>) -> Double {
+        unseen == .show ? 1 : unseen.opacity(visibility(of: position, from: eye))
+    }
+
+    /// The shader's share of the verdict (`skyOpacity` in Shaders/Points.msl):
+    /// the opacity of a satellite that cannot be seen, and whether the sky is
+    /// dark enough to tell them apart.
+    var uniforms: (unseenOpacity: Float, skyIsDark: Float) {
+        let dark = sunElevation <= Visibility.darkSkySunElevation
+        return (Float(unseen.opacity(dark ? .shadow : .daylight)), dark ? 1 : 0)
+    }
 }
 
 extension GlobeRenderer {
@@ -29,6 +64,7 @@ extension GlobeRenderer {
         }
         let eye = lastFrame.position
         let (east, north, up) = camera.frame
+        let judgement = SkyJudgement(camera: camera, at: lastFrame.time, unseen: unseen)
         return points.satellites.compactMap { satellite in
             guard let position = satellite.trajectory.position(at: lastFrame.time) else {
                 return nil
@@ -47,12 +83,13 @@ extension GlobeRenderer {
             }
             return SkyTarget(
                 id: satellite.id, name: satellite.name, azimuth: azimuth, elevation: elevation, range: range / 1000, altitude: heightAboveEllipsoid(position) / 1000,
-                screen: screen)
+                screen: screen, visibility: judgement.visibility(of: position, from: eye))
         }
     }
 
     /// What the crosshair holds: the satellite nearest the middle of the screen,
-    /// within reach, that the ground does not hide. The ground is asked nearest
+    /// within reach, that the ground does not hide, and that is drawn: one hidden
+    /// for its visibility is passed over. The ground is asked nearest
     /// first, and only until one is in sight. Worked out fifteen times a second,
     /// not every frame: it places every satellite drawn, which with thousands of
     /// them cost the main thread more than drawing the frame did.
@@ -68,6 +105,7 @@ extension GlobeRenderer {
         }
         let centre = CGPoint(x: viewSize.width / 2, y: viewSize.height / 2)
         let reachable = skyTargets(viewSize: viewSize)
+            .filter { unseen != .hide || $0.visibility == .visible }
             .map { (target: $0, distance: hypot($0.screen.x - centre.x, $0.screen.y - centre.y)) }
             .filter { $0.distance <= Self.captureRadius }
             .sorted { $0.distance < $1.distance }

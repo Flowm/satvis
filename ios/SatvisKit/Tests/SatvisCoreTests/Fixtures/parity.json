@@ -7153,6 +7153,201 @@
       "radians": 9.718420233815436
     }
   ],
+  "visibility": {
+    "sunDirections": [
+      {
+        "instant": "2000-01-01T12:00:00.000Z",
+        "direction": {
+          "x": 0.9201812787170598,
+          "y": 0.013254132517245554,
+          "z": -0.3912681206920037
+        }
+      },
+      {
+        "instant": "2016-12-31T23:59:59.000Z",
+        "direction": {
+          "x": -0.9203944343672057,
+          "y": -0.013878365470195941,
+          "z": -0.390744771120161
+        }
+      },
+      {
+        "instant": "2017-01-01T00:00:00.000Z",
+        "direction": {
+          "x": -0.920395447354323,
+          "y": -0.013811454495870928,
+          "z": -0.3907447558370351
+        }
+      },
+      {
+        "instant": "2026-10-04T11:59:59.999Z",
+        "direction": {
+          "x": 0.995759940359589,
+          "y": -0.04912508601296259,
+          "z": -0.07777446302795427
+        }
+      },
+      {
+        "instant": "2026-10-04T12:00:00.000Z",
+        "direction": {
+          "x": 0.9957599367803212,
+          "y": -0.04912515844069126,
+          "z": -0.07777446310600622
+        }
+      },
+      {
+        "instant": "2049-06-30T18:30:15.250Z",
+        "direction": {
+          "x": -0.10552098303777113,
+          "y": -0.913761672989949,
+          "z": 0.39230718463131914
+        }
+      }
+    ],
+    "shadows": [
+      {
+        "position": {
+          "x": -7000000,
+          "y": 0,
+          "z": 0
+        },
+        "sun": {
+          "x": 0.014465361159475526,
+          "y": -0.9961841174833254,
+          "z": -0.08606949169417684
+        },
+        "inShadow": false
+      },
+      {
+        "position": {
+          "x": 7000000,
+          "y": 0,
+          "z": 0
+        },
+        "sun": {
+          "x": 0.014465361159475526,
+          "y": -0.9961841174833254,
+          "z": -0.08606949169417684
+        },
+        "inShadow": false
+      },
+      {
+        "position": {
+          "x": 0,
+          "y": 7000000,
+          "z": 0
+        },
+        "sun": {
+          "x": 0.014465361159475526,
+          "y": -0.9961841174833254,
+          "z": -0.08606949169417684
+        },
+        "inShadow": true
+      },
+      {
+        "position": {
+          "x": -7000000,
+          "y": 6300000,
+          "z": 0
+        },
+        "sun": {
+          "x": 0.014465361159475526,
+          "y": -0.9961841174833254,
+          "z": -0.08606949169417684
+        },
+        "inShadow": false
+      },
+      {
+        "position": {
+          "x": -7000000,
+          "y": 6400000,
+          "z": 0
+        },
+        "sun": {
+          "x": 0.014465361159475526,
+          "y": -0.9961841174833254,
+          "z": -0.08606949169417684
+        },
+        "inShadow": false
+      },
+      {
+        "position": {
+          "x": -42000000,
+          "y": 0,
+          "z": 1000000
+        },
+        "sun": {
+          "x": 0.014465361159475526,
+          "y": -0.9961841174833254,
+          "z": -0.08606949169417684
+        },
+        "inShadow": false
+      },
+      {
+        "position": {
+          "x": -7000000,
+          "y": 0,
+          "z": 6500000
+        },
+        "sun": {
+          "x": 0.014465361159475526,
+          "y": -0.9961841174833254,
+          "z": -0.08606949169417684
+        },
+        "inShadow": false
+      }
+    ],
+    "verdicts": [
+      {
+        "sunElevation": -6,
+        "sunlit": true,
+        "rangeKm": 1000,
+        "visibility": "visible"
+      },
+      {
+        "sunElevation": -5.999,
+        "sunlit": true,
+        "rangeKm": 1000,
+        "visibility": "daylight"
+      },
+      {
+        "sunElevation": -20,
+        "sunlit": true,
+        "rangeKm": 5000,
+        "visibility": "visible"
+      },
+      {
+        "sunElevation": -20,
+        "sunlit": true,
+        "rangeKm": 5000.001,
+        "visibility": "far"
+      },
+      {
+        "sunElevation": -20,
+        "sunlit": false,
+        "rangeKm": 1000,
+        "visibility": "shadow"
+      },
+      {
+        "sunElevation": -20,
+        "sunlit": false,
+        "rangeKm": 36000,
+        "visibility": "far"
+      },
+      {
+        "sunElevation": 10,
+        "sunlit": false,
+        "rangeKm": 1000,
+        "visibility": "daylight"
+      },
+      {
+        "sunElevation": 10,
+        "sunlit": true,
+        "rangeKm": 36000,
+        "visibility": "daylight"
+      }
+    ]
+  },
   "links": {
     "vocabulary": {
       "components": [
@@ -7182,6 +7377,11 @@
       "scenes": [
         "3D",
         "Sky"
+      ],
+      "unseen": [
+        "show",
+        "dim",
+        "hide"
       ],
       "pixelRatios": [
         "1",
@@ -7216,6 +7416,7 @@
       ],
       "terrain": "None",
       "scene": "3D",
+      "unseen": "dim",
       "pixelratio": "native",
       "time": null
     },
@@ -7868,6 +8069,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -7895,6 +8097,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -7920,6 +8123,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -7949,6 +8153,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -7983,6 +8188,7 @@
           ],
           "terrain": "ReEarth",
           "scene": "Sky",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": "2026-10-04T19:22Z"
         },
@@ -8016,6 +8222,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -8048,6 +8255,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -8080,6 +8288,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -8104,6 +8313,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -8136,6 +8346,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -8165,11 +8376,102 @@
           ],
           "terrain": "None",
           "scene": "Sky",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
         "invalid": [],
         "written": "track=ISS+(ZARYA)&scene=Sky"
+      },
+      {
+        "preset": "default",
+        "query": "scene=Sky&unseen=hide&gs=48.1372,11.5756,Munich",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [
+            {
+              "lat": 48.1372,
+              "lon": 11.5756,
+              "name": "Munich"
+            }
+          ],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "Sky",
+          "unseen": "hide",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": "gs=48.1372,11.5756,Munich&scene=Sky&unseen=hide"
+      },
+      {
+        "preset": "default",
+        "query": "unseen=show",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "3D",
+          "unseen": "show",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": "unseen=show"
+      },
+      {
+        "preset": "default",
+        "query": "unseen=dim&unseen=Hide",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "scene": "3D",
+          "unseen": "dim",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": ""
       },
       {
         "preset": "default",
@@ -8194,6 +8496,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -8221,6 +8524,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "1.5",
           "time": null
         },
@@ -8248,6 +8552,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -8275,6 +8580,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -8307,6 +8613,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -8335,6 +8642,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -8363,6 +8671,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -8391,6 +8700,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },
@@ -8418,6 +8728,7 @@
           ],
           "terrain": "None",
           "scene": "3D",
+          "unseen": "dim",
           "pixelratio": "native",
           "time": null
         },

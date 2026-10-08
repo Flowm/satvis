@@ -45,6 +45,23 @@ inline bool satellitePosition(uint index, const device packed_float3 *samples, c
     return true;
 }
 
+/// How a satellite at `position`, `relative` from the eye, is drawn in the sky
+/// view, as `Visibility` and `UnseenMode.opacity` judge it: 1 as usual. Its
+/// constants mirror Visibility.swift's.
+inline float skyOpacity(float3 position, float3 relative, constant FrameUniforms &frame) {
+    if (frame.unseenOpacity >= 1.0) {
+        return 1.0;
+    }
+    if (frame.skyIsDark == 0.0) {
+        return frame.unseenOpacity;
+    }
+    const float shadowRadius = 6371000.0;
+    const float maximumRange = 5e6;
+    float along = dot(position, frame.sunDirection);
+    bool inShadow = along < 0.0 && dot(position, position) - along * along < shadowRadius * shadowRadius;
+    return inShadow || length(relative) > maximumRange ? frame.unseenOpacity : 1.0;
+}
+
 struct PointOut {
     float4 position [[position]];
     float size [[point_size]];
@@ -63,17 +80,24 @@ vertex PointOut pointVertex(uint iid [[vertex_id]], const device packed_float3 *
         return out;
     }
     float3 relative = (position - frame.cameraHigh) - frame.cameraLow;
+    out.color.a *= skyOpacity(position, relative, frame);
+    if (out.color.a <= 0.0) {
+        out.position = float4(0.0, 0.0, -2.0, 1.0);
+        out.size = 0.0;
+        return out;
+    }
     out.position = frame.viewProjection * float4(relative, 1.0);
     return out;
 }
 
 /// A 5 px disc in the orbit class colour inside a 1 px dim grey rim, as the web
-/// app's PointGraphics draws it: pointSize is the 7 px across both.
+/// app's PointGraphics draws it: pointSize is the 7 px across both. Both fade
+/// with the colour's alpha, as the sky view dims them.
 fragment float4 pointFragment(PointOut in [[stage_in]], float2 pointCoord [[point_coord]]) {
     float r = length(pointCoord * 2.0 - 1.0);
     if (r > 1.0) {
         discard_fragment();
     }
     float3 color = r > 5.0 / 7.0 ? float3(0.41) : in.color.rgb;
-    return float4(gammaCorrect(color), 1.0);
+    return float4(gammaCorrect(color), in.color.a);
 }

@@ -16,6 +16,11 @@ struct FrameUniforms {
     var pointSize: Float
     /// Pixels per point: what a CSS pixel on the web is here.
     var pixelScale: Float
+    /// How a satellite that cannot be seen is drawn in the sky view: 1 as usual,
+    /// 0 hidden; 1 off the sky view too.
+    var unseenOpacity: Float = 1
+    /// Whether the observer's sky is dark, 1 or 0.
+    var skyIsDark: Float = 0
 }
 
 /// A double split into two floats whose sum keeps most of its precision: the high

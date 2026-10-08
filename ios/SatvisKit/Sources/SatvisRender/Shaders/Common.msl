@@ -29,6 +29,12 @@ struct FrameUniforms {
     float pointSize;
     /// Pixels per point: what a CSS pixel on the web is here.
     float pixelScale;
+    /// How a satellite that cannot be seen is drawn in the sky view: 1 as usual,
+    /// 0 hidden; 1 off the sky view too (Visibility.swift, ADR 0010).
+    float unseenOpacity;
+    /// Whether the observer's sky is dark, so that each satellite is judged by
+    /// its own light and range; in daylight none can be seen.
+    float skyIsDark;
 };
 
 constant float3 ellipsoidRadii = float3(6378137.0, 6378137.0, 6356752.3142451793);
