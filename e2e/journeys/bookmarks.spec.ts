@@ -5,7 +5,8 @@ import { clockMs, FIXTURE_TIME, openApp, waitForScene } from "../support/app";
 import { expect, test } from "../support/test";
 import { openMenu } from "../support/ui";
 
-test.use({ viewport: { width: 1280, height: 800 } });
+// The ISS demo's street map asks for hosts the fixture network cuts off.
+test.use({ viewport: { width: 1280, height: 800 }, allowConsoleErrors: /ERR_BLOCKED_BY_CLIENT/ });
 
 const LINK = "tags=Science&scene=2D&time=2026-10-05T11:00Z";
 
@@ -27,6 +28,17 @@ test("back to the default view, back to the link, and keep it", async ({ page })
   // The link's pinned hour is gone with it: the clock is at the present again.
   expect(Math.abs((await clockMs(page)) - Date.parse(FIXTURE_TIME))).toBeLessThan(5 * 60_000);
   await expect(panel.getByRole("button", { name: "Default view" })).toBeDisabled();
+
+  // Paused at the present, the url carries no `time` for a minute; Default view still sets the clock going.
+  await panel.getByRole("tab", { name: /Demos/ }).click();
+  await cards.filter({ hasText: "Follow the ISS" }).getByRole("button").first().click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("track")).toBe("ISS (ZARYA)");
+  await page.evaluate(() => {
+    window.cc!.viewer.clockViewModel.shouldAnimate = false;
+  });
+  await panel.getByRole("button", { name: "Default view" }).click();
+  await expect.poll(() => page.evaluate(() => window.cc!.viewer.clock.shouldAnimate)).toBe(true);
+  await panel.getByRole("tab", { name: /Recent/ }).click();
 
   await opened.getByRole("button").first().click();
   await expect.poll(() => Object.fromEntries(new URL(page.url()).searchParams)).toEqual({ tags: "Science", scene: "2D", time: "2026-10-05T11:00Z" });

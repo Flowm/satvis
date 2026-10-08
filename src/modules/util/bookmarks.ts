@@ -43,6 +43,11 @@ export function sameQuery(a: Query, b: Query): boolean {
   return JSON.stringify(entries(a)) === JSON.stringify(entries(b));
 }
 
+/** The query without `time`, which a pinned clock rewrites every minute while the scene stays the same. */
+export function withoutTime({ time: _time, ...rest }: Query): Query {
+  return rest;
+}
+
 /** Records a link a visit started with: newest first, once each, at most `OPENED_LIMIT`. */
 export function withOpened(opened: readonly Bookmark[], link: Bookmark): Bookmark[] {
   return [link, ...opened.filter((other) => other.path !== link.path || !sameQuery(other.query, link.query))].slice(0, OPENED_LIMIT);

@@ -42,7 +42,9 @@ syncs between devices.
 parameters such as `framems` stay. A url without `time` used to clear the store and
 leave the clock where it was, which then wrote `time` back, so neither this nor Back
 returned to live. `startSceneSync` now takes a clock that is off the present live
-when `time` goes, as the deck's "Back to now" does (`CesiumController.goLive`).
+when `time` goes, as the deck's "Back to now" does (`CesiumController.goLive`). A clock
+paused or fast at the present carries no `time` for its first minute, so the default
+view and every bookmark without `time` also go live directly.
 
 **A bookmark from another preset opens with a page load.** The url sync reads the
 route's preset defaults once, at startup, and a query means something else under

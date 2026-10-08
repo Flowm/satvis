@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { type Bookmark, defaultName, OPENED_LIMIT, parseBookmarks, sameQuery, summarize, timeAgo, withOpened } from "./bookmarks";
+import { type Bookmark, defaultName, OPENED_LIMIT, parseBookmarks, sameQuery, summarize, timeAgo, withOpened, withoutTime } from "./bookmarks";
 
 const NOW = new Date("2026-10-08T12:00:00Z");
 /** The `/` preset's. */
@@ -74,6 +74,10 @@ describe("withOpened", () => {
     expect(links).toHaveLength(OPENED_LIMIT);
     expect(links[0]!.query.sats).toBe(`SAT ${OPENED_LIMIT + 2}`);
   });
+});
+
+test("withoutTime keeps the rest of the scene", () => {
+  expect(withoutTime({ tags: "GNSS", time: "2026-10-05T11:00Z" })).toEqual({ tags: "GNSS" });
 });
 
 test("sameQuery ignores order", () => {

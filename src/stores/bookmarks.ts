@@ -78,14 +78,16 @@ export const useBookmarkStore = defineStore("bookmarks", () => {
     return bookmark;
   }
 
-  /** Saves an opened link under `name`, and takes it off the opened list. */
+  /** Saves an opened link under `name`, keeping its id: its picture may still be on the way. */
   function keep(id: string, name: string): Bookmark | undefined {
     const link = opened.value.find((bookmark) => bookmark.id === id);
     if (!link) {
       return undefined;
     }
     forget(id);
-    return save(name, link.path, link.query, link.thumbnail);
+    const bookmark: Bookmark = { ...link, kind: "saved", name, at: Date.now() };
+    saved.value = [bookmark, ...saved.value];
+    return bookmark;
   }
 
   /** A blank name keeps the old one. */

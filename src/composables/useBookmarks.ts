@@ -7,7 +7,7 @@ import { type LocationQuery, type Router, useRouter } from "vue-router";
 import { DEMO_BOOKMARKS } from "../config/bookmarks";
 import { presetNameOf, resolvePreset } from "../config/presets";
 import type { CesiumController } from "../modules/CesiumController";
-import { type Bookmark, type BookmarkSummary, defaultName, sameQuery, summarize } from "../modules/util/bookmarks";
+import { type Bookmark, type BookmarkSummary, defaultName, sameQuery, summarize, withoutTime } from "../modules/util/bookmarks";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
 import { captureThumbnail, sceneSettled } from "../modules/util/thumbnail";
 import type { Query } from "../modules/util/urlCodec";
@@ -56,14 +56,20 @@ export function useBookmarks() {
    */
   function open(bookmark: Bookmark): void {
     if (presetNameOf(bookmark.path) === presetNameOf(route.value.path)) {
+      // A paused or fast clock stays off `time` for its first minute, so a url without
+      // one would leave it paused or fast: a bookmark without `time` is live.
+      if (bookmark.query.time === undefined) {
+        cc.goLive();
+      }
       void router.push({ query: { ...foreign(route.value.query), ...bookmark.query } });
     } else {
       window.location.assign(router.resolve({ path: bookmark.path, query: bookmark.query }).href);
     }
   }
 
-  /** The route's preset as it opens: every scene parameter dropped. A pinned clock goes live (`startSceneSync`). */
+  /** The route's preset as it opens: every scene parameter dropped, the clock live. */
   function openDefault(): void {
+    cc.goLive();
     void router.push({ query: foreign(route.value.query) });
   }
 
@@ -100,7 +106,7 @@ export async function recordOpenedLink(cc: CesiumController, router: Router): Pr
 
   await sceneSettled(cc.viewer.scene, { minMs: 3000, maxMs: 20_000, ready: () => !cc.sats.building && (!cc.skyView.active || cc.skyView.settled) });
   // A visitor who moved on would leave a picture of something else.
-  if (!sameQuery(syncedQuery(), query)) {
+  if (!sameQuery(withoutTime(syncedQuery()), withoutTime(query))) {
     return;
   }
   const thumbnail = await captureThumbnail(cc.viewer.scene);

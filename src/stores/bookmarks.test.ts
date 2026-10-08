@@ -53,6 +53,14 @@ describe("bookmarks store", () => {
     expect(store.saved).toMatchObject([{ kind: "saved", name: "Shells", query: { tags: "Starlink" }, thumbnail: "data:image/webp;base64,AA" }]);
   });
 
+  test("a link kept before its picture arrives still gets it", () => {
+    const store = useBookmarkStore();
+    const link = store.recordOpened("Starlink satellites", "/", { tags: "Starlink" });
+    store.keep(link.id, "Shells");
+    store.setThumbnail(link.id, "data:image/webp;base64,AA");
+    expect(store.saved[0]!.thumbnail).toBe("data:image/webp;base64,AA");
+  });
+
   test("a deleted bookmark comes back in its place", () => {
     const store = useBookmarkStore();
     vi.spyOn(Date, "now").mockReturnValueOnce(1).mockReturnValueOnce(2).mockReturnValueOnce(3);
