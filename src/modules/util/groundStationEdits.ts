@@ -148,3 +148,24 @@ export function repositioned(stations: readonly SerializedGroundStation[], index
   }
   return next;
 }
+
+/** The name the device's position is kept under. */
+export const GEOLOCATION = "Geolocation";
+
+/**
+ * The device's position as the one station named `GEOLOCATION`, moved there and listed
+ * first: a link's sky view stands on its first station, so a reload or a bookmark of
+ * the view stands where the device was.
+ */
+export function withGeolocation(stations: readonly SerializedGroundStation[], lat: number, lon: number): SerializedGroundStation[] {
+  return [{ lat, lon, name: GEOLOCATION }, ...copies(stations.filter((station) => station.name !== GEOLOCATION))];
+}
+
+/** Where `observer` lands once `withGeolocation` has put the station first. */
+export function observerAfterGeolocation(stations: readonly SerializedGroundStation[], observer: number): number {
+  const at = stations.findIndex((station) => station.name === GEOLOCATION);
+  if (observer === at) {
+    return 0;
+  }
+  return at === -1 || observer < at ? observer + 1 : observer;
+}

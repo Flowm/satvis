@@ -98,6 +98,9 @@ test("a running clock holds for the flight and runs again on landing", async ({ 
 });
 
 test("the sky view takes the camera from a flight: nothing tracked, the clock running", async ({ page }) => {
+  // Look up stands where the device is.
+  await page.context().grantPermissions(["geolocation"]);
+  await page.context().setGeolocation({ latitude: 48.1372, longitude: 11.5756 });
   await openApp(page, `${QUERY}&gs=48.1372,11.5756,Munich`);
   await recordTracking(page);
   await openMenu(page, "Sky");

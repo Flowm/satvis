@@ -14,6 +14,7 @@ import {
   renamed,
   repositioned,
   without,
+  withGeolocation,
 } from "./groundStationEdits";
 
 const list = (): SerializedGroundStation[] => [
@@ -125,6 +126,15 @@ describe("moved", () => {
     const after = moved(before, 1, -1);
     expect(after[1]).not.toBe(before[0]);
     expect(after[1]).toEqual(before[0]);
+  });
+});
+
+describe("withGeolocation", () => {
+  test("adds the device's position first, and moves the one already there instead of adding another", () => {
+    const munich = { lat: 48.1, lon: 11.6, name: "Munich" };
+    const added = withGeolocation([munich], 47.27, 11.4);
+    expect(added).toEqual([{ lat: 47.27, lon: 11.4, name: "Geolocation" }, munich]);
+    expect(withGeolocation([munich, ...added.slice(0, 1)], 48.2, 16.37)).toEqual([{ lat: 48.2, lon: 16.37, name: "Geolocation" }, munich]);
   });
 });
 

@@ -122,10 +122,11 @@ discussion; sharpen them here when they drift.
 - **Ground station**: a named point on the ground that passes are computed
   against. The list order is presentation only: which station the sky view stands
   at is a separate designation (`sat.observerStation`), not a rank. The menu calls
-  the list Locations; its panel edits the list in place and marks the observer, and
-  the mark is the control that moves it, as is the Sky panel's list. Every edit
-  goes through the sat store's station edits (`addGroundStation`,
-  `moveGroundStation`, ...), which keep the designation on its station.
+  the list Locations; its panel edits the list in place and, while the sky view is
+  up, marks the observer. Its My location moves the one station named Geolocation
+  to where the device is, or adds it, first in the list (`placeGeolocation`). Every edit goes through the sat store's station edits
+  (`addGroundStation`, `moveGroundStation`, ...), which keep the designation on its
+  station.
 - **Pass**: a time range in which a satellite serves a ground station, by
   line-of-sight elevation ("elevation" mode) or sensor footprint overlap ("swath"
   mode). In swath mode the side of the ground track the station is on matters,
@@ -148,11 +149,12 @@ discussion; sharpen them here when they drift.
   while it is up. It stands on whatever surface is there: terrain, or the top of a
   surface model (a roof, where a building stands at the observer).
 - **Observer**: the point the sky view looks up from: the designated ground
-  station, the first by default. Not a separate location, so passes are already
-  computed against it. Chosen in the Sky panel, where picking a station enters the
-  sky view there, and which cannot enter without one. Only a link to the sky view
-  with no ground station turns the device location into one, designated; if that
-  is refused, the sky view does not open. The movement
+  station. Not a separate location, so passes are already computed against it.
+  Where the device is, unless something names a place: the Sky panel's Look up,
+  and a link to the sky view with no ground station, move the station named
+  Geolocation there, or add it, first in the list (`observeGeolocation`); a
+  station's info panel stands on that station, and any other link on its first
+  station. If the device gives no position, the sky view does not open. The movement
   keys walk the observer, and the designated station follows once they stop
   (`SkyMovement`), keeping its name and list position. Designating another station
   while the view is up moves the view there.

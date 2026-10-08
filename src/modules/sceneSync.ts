@@ -161,9 +161,8 @@ export function startSceneSync(cc: SceneTarget): void {
     if (!fix) {
       return undefined;
     }
-    // The location becomes a ground station and the observer. Read it back rather
-    // than reuse `fix`, so the observer is the rounded value the url holds.
-    satStore.addGroundStation({ ...fix, name: "Geolocation" }, { observe: true });
+    // Read it back rather than reuse `fix`, so the observer is the rounded value the url holds.
+    satStore.observeGeolocation(fix.lat, fix.lon);
     const created = satStore.groundStations[satStore.observerStation];
     return created ? { lat: created.lat, lon: created.lon } : undefined;
   }
@@ -192,7 +191,7 @@ export function startSceneSync(cc: SceneTarget): void {
       // Otherwise the radio just moves back, which reads as a broken control.
       useToastProxy().add({
         title: "Sky view needs a location",
-        description: "Allow Geolocation or add a location from the Locations menu.",
+        description: "Allow Geolocation, or look up from a location's panel.",
         color: "warning",
       });
       refusedAt = performance.now();

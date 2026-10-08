@@ -111,38 +111,25 @@
         <div v-if="inSkyView" class="toolbarNote">The sky view holds the camera.</div>
       </toolbar-panel>
       <toolbar-panel v-show="menu.sky" title="Sky" @close="closePanel('sky')">
-        <div class="toolbarTitle">Observer</div>
-        <!-- The same designation as the ◉ in Locations. A click, not a change: picking the designated one still enters. -->
-        <label v-for="(station, index) in groundStations" :key="`${index}|${station.lat}|${station.lon}`" class="toolbarSwitch">
-          <input type="radio" name="observer" :checked="index === observerStation" @click="lookUpFrom(index)" />
-          <span class="slider"></span>
-          {{ station.name || `${station.lat}, ${station.lon}` }}
-        </label>
-        <div class="toolbarActions">
-          <button type="button" :disabled="locating" @click="void lookUpFromHere()">
-            <span v-if="locating" class="toolbarSpinner"></span>
-            My location
-          </button>
-        </div>
         <div class="toolbarTitle">Sky view</div>
         <label class="toolbarSwitch">
-          <input type="checkbox" :checked="inSkyView" :disabled="!inSkyView && groundStations.length === 0" @change="onSkyToggle" />
-          <span class="slider"></span>
+          <input type="checkbox" :checked="inSkyView" :disabled="locating" @change="onSkyToggle" />
+          <!-- The spinner replaces the slider while the device's position comes back. -->
+          <span v-if="locating" class="toolbarSpinner"></span>
+          <span v-else class="slider"></span>
           Look up
         </label>
-        <div v-if="groundStations.length === 0" class="toolbarNote">Add a location to look up from.</div>
+        <div class="toolbarNote">Start sky view from your current location. To look up elsewhere, use a location pin’s sky view button.</div>
+        <div v-if="compassOffered || !cc.minimalUI" class="toolbarTitle">Aiming</div>
+        <label v-if="compassOffered" class="toolbarSwitch">
+          <input type="checkbox" :checked="compassActive" :disabled="compassPending || !inSkyView" @change="onCompassToggle" />
+          <!-- The spinner replaces the slider: both occupy the row's left gutter. -->
+          <span v-if="compassPending" class="toolbarSpinner"></span>
+          <span v-else class="slider"></span>
+          Use compass
+        </label>
         <!-- Hidden in minimalUI (iOS, iframe), where there is no keyboard. -->
         <div v-if="!cc.minimalUI" class="toolbarNote">WASD walks the observer, Q and E change height.</div>
-        <template v-if="compassOffered">
-          <div class="toolbarTitle">Aiming</div>
-          <label class="toolbarSwitch">
-            <input type="checkbox" :checked="compassActive" :disabled="compassPending || !inSkyView" @change="onCompassToggle" />
-            <!-- The spinner replaces the slider: both occupy the row's left gutter. -->
-            <span v-if="compassPending" class="toolbarSpinner"></span>
-            <span v-else class="slider"></span>
-            Use compass
-          </label>
-        </template>
         <div class="toolbarTitle">Out of sight</div>
         <label v-for="mode in UNSEEN_MODES" :key="mode" class="toolbarSwitch">
           <input v-model="unseen" type="radio" :value="mode" :disabled="!inSkyView" />
@@ -372,26 +359,21 @@ watch(sceneMode, (mode) => {
   }
 });
 
-const { groundStations, observerStation } = storeToRefs(satStore);
 const { pending: locating, locate } = useGeolocation(cc);
 
-/** Designates the station and enters the sky view there, or moves a live one. */
-function lookUpFrom(index: number): void {
-  satStore.setObserverStation(index);
-  sceneMode.value = SKY_MODE;
-}
-
-/** Enters on any fix, including one the store merges into a station already listed. */
-async function lookUpFromHere(): Promise<void> {
-  if (await locate({ observe: true })) {
+/**
+ * Look up stands where the device is; only a location's panel stands somewhere else.
+ * The box follows the store, not the click: the device may give no position.
+ */
+async function onSkyToggle(event: Event): Promise<void> {
+  const box = event.target as HTMLInputElement;
+  const on = box.checked;
+  box.checked = inSkyView.value;
+  if (!on) {
+    sceneMode.value = returnProjection.value;
+  } else if (await locate({ observe: true })) {
     sceneMode.value = SKY_MODE;
   }
-}
-
-/** The box follows the store, not the click: a link's entry can still be refused. */
-function onSkyToggle(event: Event): void {
-  sceneMode.value = (event.target as HTMLInputElement).checked ? SKY_MODE : returnProjection.value;
-  (event.target as HTMLInputElement).checked = inSkyView.value;
 }
 
 /**
