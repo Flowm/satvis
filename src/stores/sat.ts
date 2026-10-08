@@ -143,7 +143,7 @@ export const useSatStore = defineStore(
       replaceStations(moved(stations.value, index, by), observerAfterMove(observerStation.value, index, by, stations.value.length));
     }
 
-    /** An empty name removes it. */
+    /** An empty name leaves the station unnamed. */
     function renameGroundStation(index: number, name: string): void {
       replaceStations(renamed(stations.value, index, name), observerStation.value);
     }

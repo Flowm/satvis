@@ -28,7 +28,7 @@ export function drawablePositions(positions: readonly (Cartesian3 | undefined)[]
 }
 
 /** Cesium builds a line or a corridor from no fewer distinct positions. */
-export const MIN_DRAWABLE_POSITIONS = 2;
+const MIN_DRAWABLE_POSITIONS = 2;
 
 /** `positions` as Cesium keeps them, or undefined when it would build nothing from them. */
 export function drawable(positions: readonly (Cartesian3 | undefined)[]): Cartesian3[] | undefined {

@@ -12,7 +12,7 @@ import { loadUpstream } from "./upstream.ts";
 type Bags = Record<string, Record<string, unknown>>;
 
 /** What an upstream table gives the satellite table: one bag per normalized satnum. */
-export interface Contribution {
+interface Contribution {
   name: string;
   bags: Bags;
 }
@@ -39,11 +39,9 @@ export class SatelliteTable {
   readonly rows: Readonly<Record<string, number>>;
 
   /**
-   * Upstream bags first, whose order sets no precedence: each field has one upstream
-   * owner (ADR 0008, gcat.test.ts); then the curated rows over them field by field, so a row with only a swath keeps
-   * SATCAT's launch date; then the bus models where no model is named yet: a NORAD id a
-   * manifest lists is a claim about that satellite, the bus a claim about its family,
-   * and the specific one wins (ADR 0007).
+   * Upstream bags first, in no particular order: each field has one owner (ADR 0008).
+   * Curated rows extend them field by field, and a bus model fills in only where no
+   * model is named (ADR 0007).
    */
   constructor(contributions: readonly Contribution[], entries: readonly SatelliteEntry[] = [], modelBuses: Readonly<Record<string, string>> = {}) {
     this.#entries = entries;
@@ -79,10 +77,6 @@ export class SatelliteTable {
       contributions.push({ name, bags: await load(store) });
     }
     return new SatelliteTable(contributions, config.satellites, config.modelBuses);
-  }
-
-  get size(): number {
-    return this.#facts.size;
   }
 
   /**

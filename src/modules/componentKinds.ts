@@ -1,6 +1,6 @@
 // What each component kind is: how it is created, follows the trajectory, is re-cut as
 // time passes, and which representation fits the scene. The satellite's collection
-// (SatelliteComponentCollection) holds them and asks; it knows no kind by name.
+// (SatelliteComponentCollection) holds them and asks.
 
 import {
   ArcType,
@@ -69,7 +69,7 @@ export interface ComponentHost {
   groundStationAt(time: JulianDate): Cartesian3 | undefined;
 }
 
-/** A kind of component. Every method but `create` is optional. */
+/** A kind of component. Only `create` and `bind` are required. */
 export interface ComponentKind {
   /** Undefined when the satellite cannot draw it: no model file, not LEO, too few positions. */
   create(host: ComponentHost): Component | undefined;
@@ -331,12 +331,10 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
     batch: (host) => host.batches.orbits,
     bind: (component, host, refilled) => {
       if (component instanceof Entity) {
-        // An Orbit exists, so `create` has already required the frame.
         host.props.trajectory.requireInertial();
         component.position = host.props.trajectory.inertial;
         return undefined;
       }
-      // A geometry cannot be edited in place.
       return refilled ? "recreate" : undefined;
     },
     fits: fitsDrawing,

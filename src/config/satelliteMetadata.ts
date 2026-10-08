@@ -1,6 +1,6 @@
 // Static facts a GP record carries beside its element set (ADR 0002, 0006, 0008). Every
 // field has one owner: curated rows (satvis.core.yaml, plugins, model manifests), SATCAT,
-// or GCAT, and curated rows may override an upstream field (mergeSatelliteTables).
+// or GCAT, and curated rows may override an upstream field (SatelliteTable).
 // `orbitClass` is derived here. A curated field needs no worker change, except the swath
 // pair, whose both-or-neither rule the generator enforces; an upstream field is mapped
 // by its parser (worker/src/gp/satcat.ts, gcat.ts). Cesium-free: node-env vitest exercises it.

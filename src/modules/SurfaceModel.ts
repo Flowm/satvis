@@ -257,11 +257,9 @@ export class SurfaceModel {
   }
 
   /**
-   * The top of the tileset at the observer, so a building gives its roof (ADR 0005).
-   * Undefined without a model, depth-texture support or tileset geometry there, where
-   * the terrain answers instead. Only tileset hits count: `clampToHeight` takes the
-   * first geometry of any kind, and the globe answers from whatever tile has loaded,
-   * 558 m or -429 m in a Munich street while World Terrain streamed.
+   * The top of the tileset at the observer, so a building gives its roof (ADR 0005);
+   * undefined where the tileset has nothing. Not `clampToHeight`, which also hits the
+   * streaming globe: 558 m or -429 m in a Munich street.
    */
   async surfaceHeight(observer: Observer): Promise<number | undefined> {
     const { scene } = this.#deps;

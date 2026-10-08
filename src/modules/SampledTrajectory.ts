@@ -407,7 +407,7 @@ export class SampledTrajectory {
 
   /**
    * A gap abandons the grid rather than interpolating across 45 s. The next refresh
-   * rebinds the entities (see updatedSampledPositionForComponents).
+   * rebinds the entities (SatelliteComponentCollection's `#bindAll`).
    */
   #addToGrid(chunk: SampleChunk, fixedFlat: Float64Array, hadGaps: boolean): void {
     if (!this.#gridUsable) {

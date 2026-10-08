@@ -103,7 +103,9 @@ consequences:
   any kind, and the globe under OSM Buildings answers from whatever tile has loaded,
   so the measurement drills down the ray for the first tileset hit
   (`SurfaceModel.surfaceHeight`, through a private Cesium method). Where the tileset
-  has nothing, a street under OSM Buildings, the terrain answers.
+  has nothing, a street under OSM Buildings, the terrain answers. Should that method
+  go, the logged fallback is the clamp, where a satellite's 3D model passing overhead
+  is scene geometry too, so the plausibility guard still matters.
 
 The source is permanent and covers every case (surface model, terrain, bare
 ellipsoid), and it is asked again whenever what the observer stands on changes. The

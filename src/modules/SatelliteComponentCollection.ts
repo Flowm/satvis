@@ -58,7 +58,7 @@ export class SatelliteComponentCollection implements ComponentHost {
     this.batches = batches;
     this.model = new ModelSize(viewer, () => this.#components["3D model"]);
     this.props.trajectory.adopt(opening);
-    this.props.trajectory.follow(viewer, () => this.#bindAll(true));
+    this.props.trajectory.follow(viewer, () => this.#bindAll());
   }
 
   /**
@@ -280,12 +280,12 @@ export class SatelliteComponentCollection implements ComponentHost {
       if (this.isTracked) {
         this.artificiallyTrack();
       }
-      this.refit();
+      this.#refit();
     });
   }
 
   /** Recreates every component whose representation no longer suits the scene mode or the tracking. */
-  refit(): void {
+  #refit(): void {
     for (const [name, component] of Object.entries(this.#components)) {
       const fits = componentKind(name)?.fits;
       if (fits && !fits(component, this)) {
@@ -308,11 +308,11 @@ export class SatelliteComponentCollection implements ComponentHost {
   }
 
   /** Every component, after the trajectory refilled. */
-  #bindAll(refilled: boolean): void {
+  #bindAll(): void {
     // Not the inertial frame or the sampled property: both exist only when a component asks.
     if (!this.props.trajectory.entityPosition) return;
     for (const [name, component] of Object.entries(this.#components)) {
-      this.#bind(name, component, refilled);
+      this.#bind(name, component, true);
     }
     this.#requestFrameIfPaused();
   }

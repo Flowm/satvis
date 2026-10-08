@@ -125,15 +125,15 @@ export class CompassCalibration {
  */
 export type CompassOutcome =
   | "aiming"
-  // Aiming, but north waits on the phone being held flat once.
+  /** Aiming, but north waits on the phone being held flat once. */
   | "aiming-uncalibrated"
   | "unsupported"
   | "denied"
-  // Granted, but never fired. Desktop browsers do this.
+  /** Granted, but never fired. Desktop browsers do this. */
   | "silent"
-  // Orientation works, but nothing on this device knows north.
+  /** Orientation works, but nothing on this device knows north. */
   | "no-heading"
-  // The user took the aim back by hand during the probe. Nothing to report, but the control must hear it.
+  /** The user took the aim back by hand during the probe. Nothing to report, but the control must hear it. */
   | "taken-back";
 
 /** One orientation event, as the browser's `deviceorientation` and `deviceorientationabsolute` carry it. */

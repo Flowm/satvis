@@ -644,8 +644,7 @@ export class SatelliteManager {
     }
   }
 
-  /** `index` is its place in the store's list. */
-  createGroundstation(position: GroundStationPositionData, name: string, index = 0): GroundStationEntity {
+  createGroundstation(position: GroundStationPositionData, name: string, index: number): GroundStationEntity {
     const groundStation = new GroundStationEntity(this.viewer, this, position, name, index);
     groundStation.show();
     return groundStation;

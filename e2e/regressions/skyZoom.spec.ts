@@ -40,7 +40,7 @@ test("the wheel clamps the field of view and reads line deltas", async ({ page }
   await page.mouse.wheel(0, Math.log(75 / 100) / WHEEL_ZOOM_RATE);
   await expect.poll(async () => (await view(page)).fovy).toBeCloseTo(75, 4);
 
-  // Firefox scrolls in lines (deltaMode 1), which SkyInteraction counts as 16 px.
+  // Firefox scrolls in lines (deltaMode 1), which skyGestures counts as 16 px.
   await page.evaluate(() => window.cc!.viewer.scene.canvas.dispatchEvent(new WheelEvent("wheel", { deltaY: -3, deltaMode: 1, cancelable: true })));
   expect((await view(page)).fovy).toBeCloseTo(75 * Math.exp(-48 * WHEEL_ZOOM_RATE), 4);
 });
