@@ -837,11 +837,15 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 skyCamera = camera
             }
             pose = camera.pose()
-            if let flight = skyFlight {
+            if var flight = skyFlight {
                 let uptime = ProcessInfo.processInfo.systemUptime
                 var over = SkyCamera(latitude: camera.latitude, longitude: camera.longitude, azimuth: camera.azimuth, pitch: -.pi / 2)
                 over.groundHeight = camera.groundHeight
-                pose = SkyFlight.pose(from: flight.globe, to: pose, over: over.pose(), t: flight.progress(at: uptime))
+                let overPose = over.pose()
+                let offset = flight.offset ?? SkyFlight.offset(from: flight.globe, to: pose, over: overPose)
+                flight.offset = offset
+                skyFlight = flight
+                pose = SkyFlight.pose(from: flight.globe, to: pose, over: overPose, offset: offset, t: flight.progress(at: uptime))
                 if flight.isOver(at: uptime) {
                     if flight.entering {
                         skyFlight = nil
