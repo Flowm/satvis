@@ -49,6 +49,7 @@
 </template>
 
 <script setup lang="ts">
+import { useToast } from "@nuxt/ui/composables/useToast";
 import { computed, ref } from "vue";
 
 import { useBookmarks } from "../composables/useBookmarks";
