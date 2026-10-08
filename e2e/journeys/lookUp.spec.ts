@@ -41,7 +41,7 @@ const stations = (page: Page) => (new URL(page.url()).searchParams.get("gs") ?? 
 test("from my station, look up, find a satellite, walk, and stand somewhere else", async ({ page }) => {
   await openApp(page, "", { live: true });
   await addStationHere(page, "Munich");
-  await closeMenuPanel(page, "Ground station");
+  await closeMenuPanel(page, "Locations");
 
   // A satellite's panel opens on Details. A station has no Details, so clicking its pin
   // must switch the panel to Passes rather than leave the body empty.
@@ -93,8 +93,53 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   await expect.poll(() => page.evaluate(() => window.cc!.skyView.observer?.lat)).toBe(47.27);
   expect(stations(page).map((station) => station[2])).toEqual(["Munich", "Innsbruck"]);
 
-  await openMenu(page, "View");
+  await openMenu(page, "Globe");
   await menuSwitch(page, "3D").click();
   await expect(page.locator(".sky-hud")).toBeHidden();
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.scene.mode)).toBe(3);
+});
+
+test("the sky view returns to the projection it was entered from, and holds the camera meanwhile", async ({ page }) => {
+  await openApp(page, "gs=48.1372,11.5756,Munich&scene=2D");
+  await openMenu(page, "Sky");
+  await menuSwitch(page, "Look up").click();
+  await waitForSky(page);
+
+  await openMenu(page, "Globe");
+  for (const projection of ["3D", "2D", "Columbus"]) {
+    await expect(menuSwitch(page, projection).locator("input")).not.toBeChecked();
+  }
+  await expect(menuSwitch(page, "Inertial").locator("input")).toBeDisabled();
+
+  await openMenu(page, "Sky");
+  await menuSwitch(page, "Look up").click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("scene")).toBe("2D");
+  await expect.poll(() => page.evaluate(() => window.cc!.viewer.scene.mode)).toBe(2);
+  await openMenu(page, "Globe");
+  await expect(menuSwitch(page, "Inertial").locator("input")).toBeEnabled();
+});
+
+test("with no location yet, the sky view waits for one to be chosen", async ({ page }) => {
+  await openApp(page, "");
+  await openMenu(page, "Sky");
+  await expect(menuSwitch(page, "Look up").locator("input")).toBeDisabled();
+  await expect(page.getByText("Add a location to look up from.")).toBeVisible();
+
+  // Picking where to stand enters the sky view there.
+  await page.getByRole("region", { name: "Sky" }).getByRole("button", { name: "My location" }).click();
+  await expect(menuSwitch(page, "Geolocation").locator("input")).toBeChecked();
+  await waitForSky(page);
+  expect(await page.evaluate(() => window.cc!.skyView.observer)).toEqual({ lat: MUNICH.latitude, lon: MUNICH.longitude });
+});
+
+test("picking a location on the globe enters the sky view there, even the one already picked", async ({ page }) => {
+  await openApp(page, "gs=48.1372,11.5756,Munich_47.2692,11.4041,Innsbruck");
+  await openMenu(page, "Sky");
+
+  await menuSwitch(page, "Munich").click();
+  await waitForSky(page);
+  expect(await page.evaluate(() => window.cc!.skyView.observer?.lat)).toBe(48.1372);
+
+  await menuSwitch(page, "Innsbruck").click();
+  await expect.poll(() => page.evaluate(() => window.cc!.skyView.observer?.lat)).toBe(47.2692);
 });

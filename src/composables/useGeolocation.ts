@@ -29,14 +29,14 @@ export async function currentPosition(): Promise<Observer | undefined> {
 const pending = ref(false);
 
 /** `pending` is module scope: there is one device. */
-export function useGeolocation(cc: CesiumController): { pending: Readonly<Ref<boolean>>; locate: () => Promise<void> } {
-  async function locate(): Promise<void> {
+export function useGeolocation(cc: CesiumController): { pending: Readonly<Ref<boolean>>; locate: (options?: { observe?: boolean }) => Promise<void> } {
+  async function locate(options?: { observe?: boolean }): Promise<void> {
     if (pending.value) {
       return;
     }
     pending.value = true;
     try {
-      await cc.setGroundStationFromGeolocation();
+      await cc.setGroundStationFromGeolocation(options);
     } finally {
       pending.value = false;
     }

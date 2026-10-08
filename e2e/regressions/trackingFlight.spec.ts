@@ -100,9 +100,9 @@ test("a running clock holds for the flight and runs again on landing", async ({ 
 test("the sky view takes the camera from a flight: nothing tracked, the clock running", async ({ page }) => {
   await openApp(page, `${QUERY}&gs=48.1372,11.5756,Munich`);
   await recordTracking(page);
-  await openMenu(page, "View");
+  await openMenu(page, "Sky");
   await track(page, ISS);
-  await menuSwitch(page, "Sky").click();
+  await menuSwitch(page, "Look up").click();
   await waitForSky(page);
   await waitTicks(page, 20);
   expect(await tracked(page)).toBeUndefined();

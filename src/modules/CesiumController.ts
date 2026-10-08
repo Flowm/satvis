@@ -529,7 +529,8 @@ export class CesiumController {
     useCesiumStore().pickMode = false;
   }
 
-  async setGroundStationFromGeolocation(): Promise<void> {
+  /** `observe` also makes the new station the sky view's observer. */
+  async setGroundStationFromGeolocation({ observe = false }: { observe?: boolean } = {}): Promise<void> {
     const fix = await currentPosition();
     if (!fix) {
       useToastProxy().add({
@@ -539,7 +540,7 @@ export class CesiumController {
       });
       return;
     }
-    this.addGroundStation(fix.lat, fix.lon, "Geolocation");
+    this.addGroundStation(fix.lat, fix.lon, "Geolocation", observe);
   }
 
   setGroundStationFromLatLon(lat: number, lon: number): void {
@@ -549,9 +550,9 @@ export class CesiumController {
   /**
    * sceneSync turns the store's ground stations into entities. Do not truth-test: 0 is a valid coordinate.
    */
-  private addGroundStation(lat: number, lon: number, name = ""): void {
+  private addGroundStation(lat: number, lon: number, name = "", observe = false): void {
     const satStore = useSatStore();
-    satStore.addGroundStation({ lat, lon, ...(name ? { name } : {}) });
+    satStore.addGroundStation({ lat, lon, ...(name ? { name } : {}) }, { observe });
   }
 
   /** Cesium's own chrome is only the fullscreen button. */

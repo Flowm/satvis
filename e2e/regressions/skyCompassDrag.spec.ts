@@ -28,7 +28,7 @@ test.beforeEach(async ({ page }) => {
   const { cx, cy } = await canvasBox(page);
   centre = { x: cx, y: cy };
   await startSensor(page);
-  await openMenu(page, "View");
+  await openMenu(page, "Sky");
 });
 
 async function aimByCompass(page: Page) {

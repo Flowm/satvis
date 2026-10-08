@@ -36,7 +36,7 @@ for (const [device, options] of Object.entries(DEVICES)) {
 
       await expect(page.getByRole("button", { name: "Open menu" })).toBeVisible({ visible: device === "phone" });
       await openMenu(page, "Satellites");
-      for (const entry of ["Satellites", "Components", "Ground station", "Map", "View"]) {
+      for (const entry of ["Satellites", "Components", "Map", "Locations", "Globe", "Sky"]) {
         await expect(page.getByRole("button", { name: entry, exact: true })).toBeVisible();
       }
       await expect(page.locator(".browser-summary")).toContainText(`1 group · ${weather} satellites active`);

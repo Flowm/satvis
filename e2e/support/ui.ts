@@ -25,9 +25,9 @@ export async function openClockDeck(page: Page): Promise<void> {
   }
 }
 
-/** Adds a station at the browser's geolocation through the Ground station panel. */
+/** Adds a station at the browser's geolocation through the Locations panel. */
 export async function addStationHere(page: Page, name: string): Promise<void> {
-  await openMenu(page, "Ground station");
+  await openMenu(page, "Locations");
   const rows = page.locator(".gsList__row");
   const before = await rows.count();
   await page.getByRole("button", { name: "My location" }).click();

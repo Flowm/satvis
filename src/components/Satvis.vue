@@ -45,7 +45,7 @@
           {{ componentName }}
         </label>
       </toolbar-panel>
-      <toolbar-panel v-show="menu.gs" title="Ground station" @close="closePanel('gs')">
+      <toolbar-panel v-show="menu.gs" title="Locations" @close="closePanel('gs')">
         <ground-station-list />
       </toolbar-panel>
       <toolbar-panel v-show="menu.map" title="Map" @close="closePanel('map')">
@@ -88,31 +88,64 @@
           {{ name }}
         </label>
       </toolbar-panel>
-      <toolbar-panel v-show="menu.view" title="View" @close="closePanel('view')">
-        <div class="toolbarTitle">View mode</div>
-        <label v-for="name in cc.sceneModes" :key="name" class="toolbarSwitch">
-          <input v-model="sceneMode" type="radio" :value="name" />
+      <!-- Two panels, one `scene` parameter (docs/adr/0003-sky-view.md): each view's settings stay visible, disabled where the other view is up. -->
+      <toolbar-panel v-show="menu.globe" title="Globe" @close="closePanel('globe')">
+        <div class="toolbarTitle">Projection</div>
+        <!-- None is checked in the sky view: a checked projection read as the active one. -->
+        <label v-for="name in globeModes" :key="name" class="toolbarSwitch">
+          <input type="radio" name="globeMode" :checked="!inSkyView && sceneMode === name" @change="sceneMode = name" />
           <span class="slider"></span>
           {{ name }}
         </label>
-        <!-- Hidden in minimalUI (iOS, iframe), where there is no keyboard. -->
-        <div v-if="inSkyView && !cc.minimalUI" class="toolbarNote">WASD walks the observer, Q and E change height.</div>
+        <div v-if="inSkyView" class="toolbarNote">In the sky view. Pick one to return to the globe.</div>
         <div class="toolbarTitle">Camera</div>
         <label v-for="name in cc.cameraModes" :key="name" class="toolbarSwitch">
-          <input v-model="cameraMode" type="radio" :value="name" />
+          <input v-model="cameraMode" type="radio" :value="name" :disabled="inSkyView" />
           <span class="slider"></span>
           {{ name }}
         </label>
-        <template v-if="inSkyView && compassOffered">
+        <div v-if="inSkyView" class="toolbarNote">The sky view holds the camera.</div>
+      </toolbar-panel>
+      <toolbar-panel v-show="menu.sky" title="Sky" @close="closePanel('sky')">
+        <div class="toolbarTitle">Observer</div>
+        <!-- The same designation as the ◉ in Locations. A click, not a change: picking the designated one still enters. -->
+        <label v-for="(station, index) in groundStations" :key="`${index}|${station.lat}|${station.lon}`" class="toolbarSwitch">
+          <input type="radio" name="observer" :checked="index === observerStation" @click="lookUpFrom(index)" />
+          <span class="slider"></span>
+          {{ station.name || `${station.lat}, ${station.lon}` }}
+        </label>
+        <div class="toolbarActions">
+          <button type="button" :disabled="locating" @click="void lookUpFromHere()">
+            <span v-if="locating" class="toolbarSpinner"></span>
+            My location
+          </button>
+        </div>
+        <div class="toolbarTitle">Sky view</div>
+        <label class="toolbarSwitch">
+          <input type="checkbox" :checked="inSkyView" :disabled="!inSkyView && groundStations.length === 0" @change="onSkyToggle" />
+          <span class="slider"></span>
+          Look up
+        </label>
+        <div v-if="groundStations.length === 0" class="toolbarNote">Add a location to look up from.</div>
+        <!-- Hidden in minimalUI (iOS, iframe), where there is no keyboard. -->
+        <div v-if="!cc.minimalUI" class="toolbarNote">WASD walks the observer, Q and E change height.</div>
+        <template v-if="compassOffered">
           <div class="toolbarTitle">Aiming</div>
           <label class="toolbarSwitch">
-            <input type="checkbox" :checked="compassActive" :disabled="compassPending" @change="onCompassToggle" />
+            <input type="checkbox" :checked="compassActive" :disabled="compassPending || !inSkyView" @change="onCompassToggle" />
             <!-- The spinner replaces the slider: both occupy the row's left gutter. -->
             <span v-if="compassPending" class="toolbarSpinner"></span>
             <span v-else class="slider"></span>
             Use compass
           </label>
         </template>
+        <div class="toolbarTitle">Out of sight</div>
+        <label v-for="mode in UNSEEN_MODES" :key="mode" class="toolbarSwitch">
+          <input v-model="unseen" type="radio" :value="mode" :disabled="!inSkyView" />
+          <span class="slider"></span>
+          {{ UNSEEN_LABELS[mode] }}
+        </label>
+        <div class="toolbarNote">In Earth's shadow, too far away or during daylight.</div>
       </toolbar-panel>
       <toolbar-panel v-show="menu.render" title="Graphics" @close="closePanel('render')">
         <div class="toolbarTitle">Measurement</div>
@@ -187,9 +220,10 @@
 
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 
 import { useController } from "../composables/useController";
+import { useGeolocation } from "../composables/useGeolocation";
 import { compassAvailable, useSkyCompass } from "../composables/useSkyCompass";
 import { layerProvider } from "../config/layers";
 import { MSAA_RATES, pixelRatiosFor } from "../config/rendering";
@@ -197,6 +231,7 @@ import { availableStarMaps, BUILTIN_STAR_MAP, type StarMapName } from "../config
 import { type MapGroup, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, viewModeNote } from "../config/surfaceModels";
 import { SKY_MODE } from "../config/viewModes";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
+import { UNSEEN_MODES, type UnseenMode } from "../modules/util/visibility";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 import AboutDialog from "./AboutDialog.vue";
@@ -207,7 +242,7 @@ import SatelliteBrowser from "./SatelliteBrowser.vue";
 import SkyHud from "./SkyHud.vue";
 import ToolbarPanel from "./ToolbarPanel.vue";
 
-type MenuKey = "cat" | "sat" | "gs" | "map" | "view" | "render";
+type MenuKey = "cat" | "sat" | "gs" | "map" | "globe" | "sky" | "render";
 
 /** Async, so the benchmark stays out of the main bundle. */
 const BenchmarkPanel = defineAsyncComponent(() => import("./BenchmarkPanel.vue"));
@@ -219,7 +254,8 @@ const menu = reactive<Record<MenuKey, boolean>>({
   sat: false,
   gs: false,
   map: false,
-  view: false,
+  globe: false,
+  sky: false,
   render: false,
 });
 const anyMenuOpen = computed(() => Object.values(menu).some(Boolean));
@@ -237,14 +273,15 @@ const menuExpanded = ref(!isNarrow());
 const menuItems: { key: MenuKey; label: string; icon: string; hint: string }[] = [
   { key: "cat", label: "Satellites", icon: "lucide:orbit", hint: "Search and pick which satellites to show" },
   { key: "sat", label: "Components", icon: "lucide:satellite", hint: "Orbits, ground tracks, labels and sensor cones" },
-  { key: "gs", label: "Ground station", icon: "lucide:map-pin", hint: "Your location, for pass predictions" },
   { key: "map", label: "Map", icon: "lucide:layers", hint: "Basemap, overlays, terrain and stars" },
-  { key: "view", label: "View", icon: "lucide:telescope", hint: "Globe, flat map or sky view, and the camera" },
+  { key: "gs", label: "Locations", icon: "lucide:map-pin", hint: "Ground stations, for pass predictions and the sky view" },
+  { key: "globe", label: "Globe", icon: "lucide:globe", hint: "Globe, flat map or Columbus view, and the camera" },
+  { key: "sky", label: "Sky", icon: "lucide:telescope", hint: "Look up from a ground station and see what passes over" },
   { key: "render", label: "Graphics", icon: "lucide:gauge", hint: "Quality, effects and performance" },
 ];
 
 const cesiumStore = useCesiumStore();
-const { layers, terrainProvider, surfaceModel, starMap, sceneMode, cameraMode, pixelRatio, msaa, showFps, showBenchmark, requestRenderMode } = storeToRefs(cesiumStore);
+const { layers, terrainProvider, surfaceModel, starMap, sceneMode, unseen, cameraMode, pixelRatio, msaa, showFps, showBenchmark, requestRenderMode } = storeToRefs(cesiumStore);
 
 /** Starts with the builtin map, and widens once per page when the probes answer. */
 const starMapOptions = ref<StarMapName[]>([BUILTIN_STAR_MAP]);
@@ -317,6 +354,41 @@ const compassOffered = compassAvailable();
 const { active: compassActive, pending: compassPending, toggle: toggleCompass } = useSkyCompass(cc);
 const inSkyView = computed(() => sceneMode.value === SKY_MODE);
 
+const UNSEEN_LABELS: Record<UnseenMode, string> = { show: "Show", dim: "Dim", hide: "Hide" };
+const globeModes = cc.sceneModes.filter((mode) => mode !== SKY_MODE);
+
+/** The projection the Sky switch returns to. Not in the url, which holds only the view mode. */
+const globeMode = ref(inSkyView.value ? "3D" : sceneMode.value);
+watch(sceneMode, (mode) => {
+  if (mode !== SKY_MODE) {
+    globeMode.value = mode;
+  }
+});
+
+const { groundStations, observerStation } = storeToRefs(satStore);
+const { pending: locating, locate } = useGeolocation(cc);
+
+/** Picking where to stand is asking to stand there. */
+function lookUpFrom(index: number): void {
+  satStore.setObserverStation(index);
+  sceneMode.value = SKY_MODE;
+}
+
+/** A refused or failed fix adds no station, and enters nothing. */
+async function lookUpFromHere(): Promise<void> {
+  const before = groundStations.value.length;
+  await locate({ observe: true });
+  if (groundStations.value.length > before) {
+    sceneMode.value = SKY_MODE;
+  }
+}
+
+/** The box follows the store, not the click: a link's entry can still be refused. */
+function onSkyToggle(event: Event): void {
+  sceneMode.value = (event.target as HTMLInputElement).checked ? SKY_MODE : globeMode.value;
+  (event.target as HTMLInputElement).checked = inSkyView.value;
+}
+
 /**
  * iOS raises the permission prompt only from inside the click, so the box flips first and is corrected
  * by hand: Vue re-syncs a checkbox only when its bound value changes, and a refusal leaves it unchanged.
@@ -326,7 +398,7 @@ async function onCompassToggle(event: Event): Promise<void> {
   (event.target as HTMLInputElement).checked = compassActive.value;
   // On success, close the panel so it does not cover the sky.
   if (compassActive.value) {
-    menu.view = false;
+    menu.sky = false;
   }
 }
 

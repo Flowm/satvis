@@ -280,9 +280,59 @@ body {
   display: none;
 }
 
+/* The rows have a fixed height, so a long label is cut short rather than wrapped into the next. */
+.toolbarSwitch {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A row of buttons under a list: actions, where the switches are settings. */
+.toolbarActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0 2px;
+}
+
+.toolbarActions button {
+  align-items: center;
+  background-color: #464b50;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #edffff;
+  cursor: pointer;
+  display: flex;
+  flex: 1 1 auto;
+  font-size: 11px;
+  gap: 4px;
+  justify-content: center;
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+
+.toolbarActions button:hover:not(:disabled) {
+  background-color: #5a6167;
+}
+
+.toolbarActions button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.toolbarActions .toolbarSpinner {
+  height: 10px;
+  width: 10px;
+}
+
 /* Waiting on a location fix or sensor probe; a second tap must not queue a second request. */
 .toolbarSwitch:has(input:disabled) {
   cursor: default;
+}
+
+/* Not applicable in the current view; a spinner's row is waiting, not off. */
+.toolbarSwitch:has(input:disabled):not(:has(.toolbarSpinner)) {
+  opacity: 0.3;
 }
 
 /* Positioned over the slider's dot so it costs no width; a wider row reflows the menu. */

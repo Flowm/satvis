@@ -25,18 +25,34 @@ The alternative was a separate `skyView` store key on a new `view` parameter,
 orthogonal to `scene`, on the grounds that "which projection" and "where am I
 standing" are different questions. They are, but they are not _independent_: a
 ground-level camera in a 2D projection is meaningless, so two parameters would need a
-rule forbidding half their combinations. One radio group cannot express an illegal
+rule forbidding half their combinations. One value cannot express an illegal
 combination.
 
 Reusing `scene` also wires the mode for free. `SCENE_MODES` feeds the store's
-`enumString` and the radio group's `cc.sceneModes`, so the parameter, its validation
-and its control are one tuple edit, and `?scene=banana` falls back to the default.
+`enumString` and the menu's `cc.sceneModes`, so the parameter, its validation and its
+controls are one tuple edit, and `?scene=banana` falls back to the default.
 
 The cost is that `cesiumStore.sceneMode` no longer names a Cesium `SceneMode`: in sky
 view the store says `Sky` while `viewer.scene.mode` is `SCENE3D`. That is harmless,
 because every `SCENE3D` test in the codebase reads Cesium's enum and none reads the
 store string, and it is correct, because the sky view _is_ 3D. `viewModes.ts` is the
 app's own view vocabulary, three of whose members match Cesium's.
+
+### The menu splits the views; the parameter does not
+
+One value does not mean one control. The menu has a Globe panel (the projections and
+the camera mode) and a Sky panel (the observer, a switch that enters the sky view,
+compass aiming, which satellites to show). A single View panel
+hid the sky view among the projections and made half its rows appear and disappear
+with the mode.
+
+Both panels write `sceneMode`, and neither hides a row: a setting that does not apply
+to the current view is disabled with a note. The camera mode is disabled in the sky
+view because the view suppresses it (below), not because the choice is lost. No
+projection is checked in the sky view: a checked one read as the active view. Leaving
+by the Sky switch returns to the projection the sky view was entered from, held in
+memory, not in the url: a link carries the view mode, and a link to the sky view
+returns to 3D.
 
 ### The observer is a ground station, designated
 
@@ -55,10 +71,19 @@ designation is not a url parameter: a link carries the stations and the view mod
 and its observer is the first station. A parameter would extend ADR 0001 and is a
 separate decision.
 
-Entry is an action gated on an observer existing, not a watcher. With no ground
-station, the device's location becomes one, and if that is refused the sky view does
-not open. A sky full of satellites at coordinates the user never chose looks like a
-working feature, which is worse than not opening.
+Entry is an action gated on an observer existing, not a watcher. The menu makes the
+observer an explicit choice: the Sky panel lists the ground stations to stand at and
+offers the device's location as a new one. Picking either enters the sky view there,
+because choosing where to stand is asking to stand there; the panel's switch enters
+at the designated station and cannot enter without one.
+Entering on whichever station happened to be first, or on a location prompt the
+switch raised as a side effect, hid what the view stands on.
+
+A link is the one implicit entry: `?scene=Sky` with no ground station turns the
+device's location into one, because opening that link is the request ("what is over
+me now"). If that is refused the sky view does not open. A sky full of satellites at
+coordinates the user never chose looks like a working feature, which is worse than
+not opening.
 
 ### Walking moves the ground station, once the keys stop
 

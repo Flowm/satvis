@@ -52,8 +52,10 @@ opacity, to stand apart from the visible ones (at 50%, a dimmed orange GEO point
 as bright as a visible grey one). In daylight they drop to 60%: daylight dims every
 satellite alike, so nothing needs to stand apart, and 22% vanished against the blue.
 A daylight sky emptied by default would look broken. `?unseen=hide` hides them
-instead, and the crosshair skips them; `?unseen=show` draws them like the rest.
-Only the point, the label and the 3D model change; orbits and tracks do not.
+instead, and the crosshair skips them; `?unseen=show` draws them like the rest. The
+Sky panel offers the three under "Out of sight", disabled on the globe, where nothing
+is judged. Only the point, the label and the 3D model change; orbits and tracks do
+not.
 
 **The appearance is the satellite's, written only when it changes.** The sky view
 writes each satellite's `skyAppearance` every frame, and the satellite restyles its
