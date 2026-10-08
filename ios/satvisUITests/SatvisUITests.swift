@@ -127,15 +127,15 @@ nonisolated class SatvisUITests: XCTestCase {
         let app = launch(link: "/?tags=&sats=METOP-B&elements=Point,Label")
         openMenu(app)
         app.buttons["Bookmarks"].tap()
-        XCTAssert(app.buttons["Recent 1"].waitForExistence(timeout: 10))
+        XCTAssert(app.buttons["Recent (1)"].waitForExistence(timeout: 10))
         app.buttons["Save this view"].tap()
         let name = app.alerts.textFields.firstMatch
         XCTAssert(name.waitForExistence(timeout: 10))
         // Over the name drawn from the scene.
         name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 40) + "Mine\n")
         XCTAssert(app.alerts.firstMatch.waitForNonExistence(timeout: 5))
-        XCTAssert(app.buttons["Saved 1"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["Recent 1"].exists)
+        XCTAssert(app.buttons["Saved (1)"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Recent (1)"].exists)
         XCTAssert(app.buttons["Saved"].exists)
 
         let sheet = app.navigationBars["Bookmarks"]

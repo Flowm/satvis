@@ -131,7 +131,7 @@ struct BookmarksView: View {
     }
 
     private func count(_ title: String, _ count: Int) -> String {
-        count > 0 ? "\(title) \(count)" : title
+        count > 0 ? "\(title) (\(count))" : title
     }
 
     private func card(_ bookmark: Bookmark, isCurrent: Bool) -> some View {
