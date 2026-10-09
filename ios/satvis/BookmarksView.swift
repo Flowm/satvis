@@ -332,11 +332,12 @@ struct BookmarkCard: View {
 
 /// The system's share sheet with the link itself, not an item provider's promise of
 /// it, over the Bookmarks sheet; on iPad a popover pointing at `rect`, in the
-/// window's coordinates.
+/// sheet's coordinates: SwiftUI's global space inside a sheet starts at the
+/// sheet's corner, not the window's, where the popover pointed at first.
 private enum ShareSheet {
     static func present(_ url: URL, from rect: CGRect) {
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
-        guard let window = scene?.keyWindow, var top = window.rootViewController else {
+        guard var top = scene?.keyWindow?.rootViewController else {
             return
         }
         while let presented = top.presentedViewController, !presented.isBeingDismissed {
@@ -344,7 +345,7 @@ private enum ShareSheet {
         }
         let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
         if let popover = sheet.popoverPresentationController {
-            popover.sourceView = window
+            popover.sourceView = top.view
             popover.sourceRect = rect
         }
         top.present(sheet, animated: true)
