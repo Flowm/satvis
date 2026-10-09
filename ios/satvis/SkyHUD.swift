@@ -39,6 +39,7 @@ private struct SkyInstruments: View {
     let trailingInset: CGFloat
     let size: CGSize
     let date: Date
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     private static let ink = Color(red: 0xED / 255, green: 1, blue: 1)
     private static let lockColor = Color(red: 0x4A / 255, green: 0xDE / 255, blue: 0x80 / 255)
@@ -158,29 +159,67 @@ private struct SkyInstruments: View {
         }
     }
 
+    /// The web app's card: a fact a row. On a phone, where it hid a third of the
+    /// sky, two a row and the hint beside the name, four lines where there were seven.
+    /// As wide whatever it holds: sized to its facts, it jumped as the crosshair
+    /// went from one satellite to the next.
     private func card(_ target: SkyTarget) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(target.name).fontWeight(.semibold)
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 1) {
-                ForEach(Self.facts(target), id: \.0) { name, value in
-                    GridRow {
-                        Text(name)
-                        Text(value).gridColumnAlignment(.trailing)
-                    }
+        let facts = Self.facts(target)
+        let compact = sizeClass == .compact
+        return VStack(alignment: .leading, spacing: 1) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(target.name).fontWeight(.semibold).lineLimit(1)
+                if compact {
+                    Spacer(minLength: 0)
+                    hint
                 }
             }
-            .monospacedDigit()
-            Text("Tap to open").font(.caption2).opacity(0.7)
+            .padding(.bottom, 2)
+            if compact {
+                HStack(spacing: 20) {
+                    fact(facts[0])
+                    fact(facts[1])
+                }
+                HStack(spacing: 20) {
+                    fact(facts[2])
+                    fact(facts[3])
+                }
+                fact(facts[4])
+            } else {
+                ForEach(facts, id: \.0) { fact($0) }
+                hint.padding(.top, 2)
+            }
         }
+        .monospacedDigit()
         .font(.footnote)
         .foregroundStyle(Self.ink)
+        .frame(width: compact ? compactCardWidth : cardWidth, alignment: .leading)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .frame(minWidth: 220, alignment: .leading)
         .background(Color(red: 0x30 / 255, green: 0x33 / 255, blue: 0x36 / 255).opacity(0.85), in: .rect(cornerRadius: 8))
     }
 
-    /// What the card says of a satellite, in the web app's order (SkyHud.vue).
+    /// A fact's name at the card's leading edge and its value at the trailing one.
+    private func fact(_ fact: (name: String, value: String)) -> some View {
+        HStack(spacing: 8) {
+            Text(fact.name)
+            Spacer(minLength: 0)
+            Text(fact.value).lineLimit(1)
+        }
+    }
+
+    /// Points inside the padding: room for the widest values, "In Earth's
+    /// shadow" and a five-digit range, at the default text size.
+    @ScaledMetric(relativeTo: .footnote) private var cardWidth = 230.0
+    @ScaledMetric(relativeTo: .footnote) private var compactCardWidth = 300.0
+
+    /// The lock opens the satellite's panel; the card only says so.
+    private var hint: some View {
+        Text("Tap to open").font(.caption2).opacity(0.7)
+    }
+
+    /// What the card says of a satellite, in the web app's order (SkyHud.vue):
+    /// azimuth, elevation, range, altitude, visibility.
     private static func facts(_ target: SkyTarget) -> [(String, String)] {
         let degrees = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(1))
         return [

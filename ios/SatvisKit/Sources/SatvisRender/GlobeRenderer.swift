@@ -115,6 +115,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// satellite's radius, in metres.
     private static let fallbackModelRadius = 2.5
     private static let homeFlightDuration = 1.5
+    /// A line's triangle strip, two vertices a point: `lineNodes` samples in
+    /// Shaders/Lines.msl, and where the satellite is now between two of them.
+    private static let lineVertices = 2 * (121 + 1)
     /// The pose of the last frame, which a flight sets off from.
     private var lastPose: CameraPose?
     /// The terrain as the Map menu has it; the sky view stands on it regardless.
@@ -837,11 +840,15 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 skyCamera = camera
             }
             pose = camera.pose()
-            if let flight = skyFlight {
+            if var flight = skyFlight {
                 let uptime = ProcessInfo.processInfo.systemUptime
                 var over = SkyCamera(latitude: camera.latitude, longitude: camera.longitude, azimuth: camera.azimuth, pitch: -.pi / 2)
                 over.groundHeight = camera.groundHeight
-                pose = SkyFlight.pose(from: flight.globe, to: pose, over: over.pose(), t: flight.progress(at: uptime))
+                let overPose = over.pose()
+                let offset = flight.offset ?? SkyFlight.offset(from: flight.globe, to: pose, over: overPose)
+                flight.offset = offset
+                skyFlight = flight
+                pose = SkyFlight.pose(from: flight.globe, to: pose, over: overPose, offset: offset, t: flight.progress(at: uptime))
                 if flight.isOver(at: uptime) {
                     if flight.entering {
                         skyFlight = nil
@@ -872,6 +879,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         // From the ground, once it has landed, as the instruments wait to.
         let judgement = isSkySettled ? skyCamera.map { SkyJudgement(camera: $0, at: now, unseen: unseen) } : nil
         var frame = uniforms(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now, judgement: judgement)
+        if case .tracking(let id) = cameraMode, let index = points.index(of: id), let target = points.position(of: id, at: now) {
+            frame.focus = Int32(index)
+            frame.focusRelative = SIMD3<Float>(target - pose.position)
+        }
         let placements =
             components.contains(.model) ? modelPlacements(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now, judgement: judgement) : []
         lastModelPoints = Dictionary(placements.map { ($0.index, $0.points) }, uniquingKeysWith: max)
@@ -963,7 +974,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                     encoder.setRenderPipelineState(linePipeline)
                     encoder.setVertexBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
                     encoder.setFragmentBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
-                    encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 2 * 121, instanceCount: points.count)
+                    encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: Self.lineVertices, instanceCount: points.count)
                 }
                 if components.contains(.point) {
                     encoder.setRenderPipelineState(pointPipeline)
@@ -1207,7 +1218,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             viewportSize: SIMD2<Float>(size),
             eyeHeight: Float(pose.eyeHeight),
             cameraDistance: Float(length(position)),
-            pointSize: Float(7 * pixelScale),
+            pointSize: Float(6 * pixelScale),
             pixelScale: Float(pixelScale),
             unseenOpacity: judgement?.uniforms.unseenOpacity ?? 1,
             skyIsDark: judgement?.uniforms.skyIsDark ?? 0)

@@ -53,7 +53,7 @@ struct ContentView: View {
     @State private var showsBookmarks = false
     @State private var showsBrowser = false
     @State private var showsStations = false
-    @State private var showsAttribution = false
+    @State private var showsAcknowledgements = false
     @State private var showsAbout = false
     @State private var showsTools = false
     /// The panel open beside the menu column, if any.
@@ -81,7 +81,8 @@ struct ContentView: View {
             },
             onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) },
             mayDrag: session.mayDrag,
-            pixelRatio: Double(session.pixelRatio)
+            pixelRatio: Double(session.pixelRatio),
+            frameRate: session.frameRate
         )
         .ignoresSafeArea()
         .background(.black)
@@ -93,10 +94,10 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .top) {
-            // Between the menu and Share, level with them where there is room for
-            // it; on a phone under them, the "Menu" pill reaching into the middle.
-            // Under the menu panel too, which covers it while open. The benchmark
-            // panel shows its own measurements in its place.
+            // Between the menu and the corner's buttons, level with them where there
+            // is room for it; on a phone under them, the "Menu" pill reaching into
+            // the middle. Under the menu panel too, which covers it while open. The
+            // benchmark panel shows its own measurements in its place.
             if session.showsPerformance, !session.showsBenchmark, let renderer = session.renderer {
                 PerformanceOverlay(renderer: renderer)
                     .padding(.top, sizeClass == .regular ? 16 : 76)
@@ -104,14 +105,8 @@ struct ContentView: View {
         }
         .overlay(alignment: .topTrailing) {
             VStack {
-                // Made when tapped, so that a pinned clock gives its minute then.
-                Button("Share", systemImage: "square.and.arrow.up") {
-                    ShareSheet.present(session.link(sharing: true).url(site: session.source.site), trailingInset: cardInset)
-                }
                 // Always there, so the way back is where it always is.
                 Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
-                // The web app's About button.
-                Button("About Satvis", systemImage: "info") { showsAbout = true }
                 if session.observer != nil {
                     Button(
                         session.compass.isAiming ? "Stop aiming by compass" : "Aim by compass",
@@ -154,6 +149,11 @@ struct ContentView: View {
                         entry(.globe, image: .lucideGlobe, hint: "The globe's projection, and the camera")
                         entry(.sky, image: .lucideTelescope, hint: "Look up from a ground station and see what passes over")
                         entry(.graphics, image: .lucideGauge, hint: "Quality and performance")
+                        // The web app's About button, kept off the corner, which holds
+                        // the ways back alone.
+                        ToolEntry(title: "About", image: .lucideInfo, hint: "What Satvis is, what it does, where its data comes from, and its credits") {
+                            showsAbout = true
+                        }
                     }
                     .environment(\.toolNamesFolded, !roomy && panel != nil)
                     if let panel {
@@ -219,29 +219,13 @@ struct ContentView: View {
                 }
                 // Flush with the bottom edge, as on the web.
                 ClockDeck(clock: session.clock, passes: session.passes, satellite: session.selectedSatellite) {
-                    // Where the web app has its credit line: the map's sources are owed
-                    // a link in sight of the map.
-                    Button {
-                        showsAttribution = true
-                    } label: {
-                        // Tappable over the row's height, not just the small text's.
-                        Text("Attribution")
-                            .frame(maxHeight: .infinity)
-                            .contentShape(.rect)
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.8))
-                    .shadow(color: .black, radius: 2)
-                    .padding(.leading, 8)
-                    .lineLimit(1)
-                    // Larger text, up to the room left of the play button.
-                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                    .minimumScaleFactor(0.6)
+                    // Where the web app has its credit line.
+                    OpenStreetMapCredit(isOwed: session.mapCredits.contains(.openStreetMap)) { showsAcknowledgements = true }
                 }
                 .frame(maxWidth: .infinity)
             }
         }
-        .onChange(of: showsBookmarks || showsBrowser || showsStations) { _, presenting in
+        .onChange(of: showsBookmarks || showsBrowser || showsStations || showsAbout) { _, presenting in
             if presenting {
                 panel = nil
                 if sizeClass != .regular {
@@ -256,11 +240,17 @@ struct ContentView: View {
             BrowserView(catalog: session.catalog) { session.selection = .satellite($0.id) }
         }
         .sheet(isPresented: $showsAbout) {
-            AboutView(onOpen: { session.open($0, records: true) }, privacyPolicy: session.privacyPolicy)
+            AboutView(map: session.mapCredits, privacyPolicy: session.privacyPolicy, analytics: session.analytics)
         }
-        .sheet(isPresented: $showsAttribution) {
-            AttributionView(map: session.mapCredits, privacyPolicy: session.privacyPolicy, analytics: session.analytics)
-                .presentationDetents([.medium, .large])
+        .sheet(isPresented: $showsAcknowledgements) {
+            NavigationStack {
+                AcknowledgementsView(map: session.mapCredits)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showsAcknowledgements = false }
+                        }
+                    }
+            }
         }
         .sheet(isPresented: $showsStations) {
             GroundStationsView(passes: session.passes, onPick: { session.isPicking = true }, onSelect: { session.selection = .station($0) })
@@ -353,25 +343,48 @@ struct ContentView: View {
     }
 }
 
-/// The system's share sheet, over whatever is presented, so that the info panel
-/// stays open beneath it; from the top-right corner, where the button is, as a
-/// popover on iPad.
-private enum ShareSheet {
-    /// `trailingInset` is the info card's, which the Share button moves aside for.
-    static func present(_ url: URL, trailingInset: CGFloat) {
-        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
-        guard var top = scene?.keyWindow?.rootViewController else {
-            return
+/// OpenStreetMap's name in sight of the map, as the OpenStreetMap Foundation's
+/// attribution guidelines ask, while the map draws its data: shown as that starts,
+/// at launch or later, and faded after five seconds, as they allow. After that,
+/// About's Acknowledgements has it, as they also allow. A tap opens them now.
+private struct OpenStreetMapCredit: View {
+    /// Whether the terrain, which uses OpenStreetMap's data, is drawn.
+    let isOwed: Bool
+    /// Opens the Acknowledgements.
+    let onOpen: () -> Void
+    /// Until five seconds after it became owed.
+    @State private var isShown = false
+
+    var body: some View {
+        Group {
+            if isShown {
+                Button(action: onOpen) {
+                    // Tappable over the row's height, not just the small text's.
+                    Text("© OpenStreetMap")
+                        .frame(maxHeight: .infinity)
+                        .contentShape(.rect)
+                }
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.8))
+                .shadow(color: .black, radius: 2)
+                .padding(.leading, 8)
+                .lineLimit(1)
+                // Larger text, up to the room left of the play button.
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                .minimumScaleFactor(0.6)
+                .transition(.opacity)
+            }
         }
-        while let presented = top.presentedViewController, !presented.isBeingDismissed {
-            top = presented
+        .task(id: isOwed) {
+            withAnimation { isShown = isOwed }
+            guard isOwed else {
+                return
+            }
+            // Cancelled when it stops being owed, which hides it anyway.
+            guard (try? await Task.sleep(for: .seconds(5))) != nil else {
+                return
+            }
+            withAnimation { isShown = false }
         }
-        let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        if let popover = sheet.popoverPresentationController, let window = scene?.keyWindow {
-            popover.sourceView = window
-            popover.sourceRect = CGRect(
-                x: window.bounds.maxX - window.safeAreaInsets.right - trailingInset - 44, y: window.safeAreaInsets.top + 44, width: 1, height: 1)
-        }
-        top.present(sheet, animated: true)
     }
 }

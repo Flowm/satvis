@@ -33,6 +33,7 @@ export const DEMO_BOOKMARKS: readonly Bookmark[] = [
     path: "/",
     thumbnail: "showcase/sky-card.jpg",
     at: 0,
-    query: { scene: "Sky", gs: "46.5935,7.9091,Lauterbrunnen", terrain: "ReEarth", layers: "VersaTiles", stars: "DeepStar2K", tags: "GNSS" },
+    // Every active satellite, as many as the sky holds: past the label budget, points alone.
+    query: { scene: "Sky", gs: "46.5935,7.9091,Lauterbrunnen", terrain: "ReEarth", layers: "VersaTiles", stars: "DeepStar2K", tags: "Active" },
   },
 ];

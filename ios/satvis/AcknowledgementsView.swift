@@ -1,12 +1,47 @@
 import SatvisRender
 import SwiftUI
 
-/// What the app is built from and owes credit for, beyond the map and satellite
-/// sources the attribution lists: the code it carries, under its licences, and
-/// the data it ships.
+/// What the app is built from and owes credit for, opened from About and from the
+/// map's OpenStreetMap credit: what the map is drawn from now, where the
+/// satellites come from, the data it ships or fetches, and the code it carries,
+/// under its licences.
 struct AcknowledgementsView: View {
+    /// The map's sources as drawn now, which change with the base map and terrain.
+    let map: [Credit]
+
     var body: some View {
         List {
+            Section("Map") {
+                ForEach(map, id: \.self) { credit in
+                    if let link = credit.link {
+                        Link(credit.text, destination: link)
+                    } else {
+                        Text(credit.text)
+                    }
+                }
+            }
+            Section("Satellites") {
+                Link(destination: Credit.elementSets.link!) {
+                    entry("CelesTrak", "The element sets the satellites are propagated from.")
+                }
+                Link(destination: URL(string: "https://planet4589.org/space/gcat/")!) {
+                    entry("GCAT", "What each satellite is: its country, operator, manufacturer, bus, mass and size. Data from J. McDowell, planet4589.org, under CC BY 4.0.")
+                }
+            }
+            Section("Data") {
+                // As the models repository's manifest credits each model.
+                Link(destination: URL(string: "https://nasa3d.arc.nasa.gov")!) {
+                    entry(
+                        "3D models",
+                        "From NASA 3D Resources, not subject to US copyright; NASA's insignia are not free to use, and their use implies no endorsement. The generic CubeSats, communications satellites and constellation buses are satvis's own, built from published dimensions, under the MIT licence."
+                    )
+                }
+                Link(destination: URL(string: "https://svs.gsfc.nasa.gov/4851")!) {
+                    entry(
+                        "Deep Star Maps 2020",
+                        "The stars: NASA/Goddard Space Flight Center Scientific Visualization Studio, from Hipparcos-2, Tycho-2 and Gaia DR2.")
+                }
+            }
             Section("Software") {
                 NavigationLink {
                     LicenceText(title: "CesiumJS", text: Notices.cesium)
@@ -39,26 +74,6 @@ struct AcknowledgementsView: View {
                     LicenceText(title: "libwebp", text: Self.bundled("libwebp"))
                 } label: {
                     entry("libwebp", "Part of PostHog for iOS. BSD 3-Clause License, with Google's patent grant.")
-                }
-            }
-            Section("Data") {
-                // As the models repository's manifest credits each model.
-                Link(destination: URL(string: "https://nasa3d.arc.nasa.gov")!) {
-                    entry(
-                        "3D models",
-                        "From NASA 3D Resources, not subject to US copyright; NASA's insignia are not free to use, and their use implies no endorsement. The generic CubeSats, communications satellites and constellation buses are satvis's own, built from published dimensions, under the MIT licence."
-                    )
-                }
-                Link(destination: URL(string: "https://planet4589.org/space/gcat/")!) {
-                    entry("GCAT", "What each satellite is: its country, operator, manufacturer, bus, mass and size. Data from J. McDowell, planet4589.org, under CC BY 4.0.")
-                }
-                Link(destination: URL(string: "https://www.naturalearthdata.com")!) {
-                    entry("Natural Earth", "The base map shipped in the app. Public domain.")
-                }
-                Link(destination: URL(string: "https://svs.gsfc.nasa.gov/4851")!) {
-                    entry(
-                        "Deep Star Maps 2020",
-                        "The stars: NASA/Goddard Space Flight Center Scientific Visualization Studio, from Hipparcos-2, Tycho-2 and Gaia DR2.")
                 }
             }
         }

@@ -73,7 +73,8 @@ inline float distanceToGround(float3 origin, float3 direction, float limit) {
     return t > 0.0 ? min(t, limit) : limit;
 }
 
-/// Where the edge of the cone ends on side `k`: on the ground, or at its length.
+/// Where the edge of the cone ends on side `k`, from the apex: on the ground, or
+/// at its length.
 inline float3 coneEdge(float3 apex, float halfAngle, int k, thread bool &grounded) {
     float3 axis, across, up;
     coneBasis(apex, axis, across, up);
@@ -81,7 +82,7 @@ inline float3 coneEdge(float3 apex, float halfAngle, int k, thread bool &grounde
     float3 direction = cos(halfAngle) * axis + sin(halfAngle) * (cos(phi) * across + sin(phi) * up);
     float reach = distanceToGround(apex, direction, coneLength);
     grounded = reach < coneLength;
-    return apex + direction * reach;
+    return direction * reach;
 }
 
 struct ConeOut {
@@ -94,15 +95,15 @@ vertex ConeOut coneVertex(uint vid [[vertex_id]], uint iid [[instance_id]], cons
                           const device PointFrame *frames [[buffer(3)]], const device ConeInstance *cones [[buffer(4)]]) {
     ConeInstance cone = cones[iid];
     ConeOut out;
-    float3 apex;
-    if (!satellitePosition(cone.satellite, samples, instances, frames, apex)) {
+    float3 apex, relative;
+    if (!satellitePosition(cone.satellite, samples, instances, frames, frame, apex, relative)) {
         out.position = float4(0.0, 0.0, -2.0, 1.0);
         return out;
     }
     uint corner = vid % 3;
     bool grounded;
-    float3 position = corner == 0 ? apex : coneEdge(apex, cone.halfAngle, int(vid / 3) + int(corner) - 1, grounded);
-    out.position = frame.viewProjection * float4((position - frame.cameraHigh) - frame.cameraLow, 1.0);
+    float3 position = corner == 0 ? relative : relative + coneEdge(apex, cone.halfAngle, int(vid / 3) + int(corner) - 1, grounded);
+    out.position = frame.viewProjection * float4(position, 1.0);
     return out;
 }
 
@@ -125,8 +126,8 @@ vertex RimOut coneRimVertex(uint vid [[vertex_id]], uint iid [[instance_id]], co
     RimOut out;
     out.position = float4(0.0, 0.0, -2.0, 1.0);
     out.visible = 0.0;
-    float3 apex;
-    if (!satellitePosition(cone.satellite, samples, instances, frames, apex)) {
+    float3 apex, relative;
+    if (!satellitePosition(cone.satellite, samples, instances, frames, frame, apex, relative)) {
         return out;
     }
     int k = int(vid / 6);
@@ -139,9 +140,9 @@ vertex RimOut coneRimVertex(uint vid [[vertex_id]], uint iid [[instance_id]], co
     }
     // Two triangles a segment: a−, b−, b+ and a−, b+, a+.
     bool atB = corner == 1 || corner == 2 || corner == 4;
-    float3 point = atB ? b : a;
-    float4 clipA = frame.viewProjection * float4((a - frame.cameraHigh) - frame.cameraLow, 1.0);
-    float4 clipB = frame.viewProjection * float4((b - frame.cameraHigh) - frame.cameraLow, 1.0);
+    float3 point = apex + (atB ? b : a);
+    float4 clipA = frame.viewProjection * float4(relative + a, 1.0);
+    float4 clipB = frame.viewProjection * float4(relative + b, 1.0);
     if (clipA.w <= 0.0 || clipB.w <= 0.0) {
         return out;
     }

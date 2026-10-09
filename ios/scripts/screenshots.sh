@@ -14,7 +14,7 @@ devices="iPhone 18 Pro
 iPhone 18 Pro Max
 iPad Pro 13-inch (M5)"
 
-# Each screenshot: its test's name, the minute its link pins the clock at (UTC),
+# Each screenshot: its test's name, the minute its test stops the clock at (UTC),
 # and its caption.
 shots="1Globe 2026-10-04T08:52 Watch satellites orbit live
 2Sky 2026-10-04T19:22 Find satellites in your sky
@@ -50,7 +50,7 @@ EOF
 xcodebuild build-for-testing -project satvis.xcodeproj -scheme satvis "$@"
 
 # One shot at a time, on every device at once, under a status bar showing its
-# link's minute, as the clock deck does. The status bar shows the Mac's time
+# test's minute, as the clock deck does. The status bar shows the Mac's time
 # zone, so it is given the instant whose local time reads that minute, and on
 # its own: given with any other override, an iPad shows the weekday the date had
 # in 2000 (Wed 4 Oct). Only the screenshot tests: one that fails leaves

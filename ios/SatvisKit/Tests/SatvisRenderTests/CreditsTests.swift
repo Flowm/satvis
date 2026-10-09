@@ -14,6 +14,15 @@ import Testing
         #expect(terrain.contains("OpenStreetMap"))
     }
 
+    // Owed in sight of the map with the terrain alone: the VersaTiles imagery uses
+    // none of OpenStreetMap's data.
+    @Test func owesOpenStreetMapForTheTerrainAlone() {
+        for layer in BaseLayer.allCases {
+            #expect(!Credit.map(baseLayer: layer, terrain: false).contains(.openStreetMap))
+            #expect(Credit.map(baseLayer: layer, terrain: true).contains(.openStreetMap))
+        }
+    }
+
     @Test func linksEveryMapCreditToItsSource() {
         for layer in BaseLayer.allCases {
             for credit in Credit.map(baseLayer: layer, terrain: true) {

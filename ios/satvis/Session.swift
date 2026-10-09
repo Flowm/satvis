@@ -118,6 +118,17 @@ final class Session {
     /// `native` for the screen's own. Fewer pixels for frames the GPU finishes in
     /// time; kept in links as on the web.
     var pixelRatio = "native"
+    /// Frames a second the globe is drawn at, at most: 30, 60 or 120, where the
+    /// screen has them. Not in links, which the web app has no parameter for,
+    /// but kept between launches, as the device's own choice.
+    var frameRate = UserDefaults.standard.object(forKey: frameRateKey) as? Int ?? 60 {
+        didSet {
+            UserDefaults.standard.set(frameRate, forKey: Self.frameRateKey)
+        }
+    }
+    private static let frameRateKey = "frameRate"
+    /// What the Graphics panel offers, of which a screen shows those up to its own.
+    static let frameRates = [30, 60, 120]
     /// The benchmark panel, the web app's `bench=true`, kept in the link the same
     /// way; open through a run, whose scenes' links do not carry it.
     private(set) var showsBenchmark = false
@@ -435,7 +446,7 @@ final class Session {
                 enterSky(at: here)
             }
         } else if !state.track.isEmpty, let entry = await catalog.entry(named: state.track), generation == linkGeneration {
-            track(entry.id, true)
+            track(entry.id, true, selects: false)
         }
     }
 
@@ -688,8 +699,9 @@ final class Session {
     /// Follows a satellite or a station, or lets it go. Tracking keeps a satellite
     /// active even when its group is switched off, as on the web. `animated`
     /// flies the camera, as the web app's Track button does, unless reduced
-    /// motion is asked for; a link or a double tap cuts.
-    func track(_ id: String, _ follow: Bool, animated: Bool = false) {
+    /// motion is asked for; a link or a double tap cuts. `selects` opens its panel
+    /// too; a link's `track` does not, as on the web, where it follows alone.
+    func track(_ id: String, _ follow: Bool, animated: Bool = false, selects: Bool = true) {
         let animated = animated && !UIAccessibility.isReduceMotionEnabled
         let isStation = PassModel.stationID(id) != nil
         // Nothing is followed from the ground (ADR 0003).
@@ -703,7 +715,9 @@ final class Session {
                 catalog.setTracked(nil)
             }
             tracked = id
-            selection = PassModel.stationID(id).map(Selection.station) ?? .satellite(id)
+            if selects {
+                selection = PassModel.stationID(id).map(Selection.station) ?? .satellite(id)
+            }
             renderer?.track(id, animated: animated)
         } else {
             renderer?.stopTracking(animated: animated)
@@ -751,7 +765,8 @@ final class Session {
         for await (tracked, selected) in Observations({ (self.missing(self.tracked), self.missing(self.selectedSatellite)) }) {
             if let tracked {
                 if let next = successor(of: tracked) {
-                    track(next, true)
+                    // Opened only if it was, below.
+                    track(next, true, selects: false)
                 } else {
                     track(tracked, false)
                 }

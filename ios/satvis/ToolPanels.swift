@@ -161,6 +161,9 @@ struct ToolPanelView<Content: View>: View {
     var fillsWidth = false
     let onClose: () -> Void
     @ViewBuilder let content: Content
+    /// Dynamic Type's scale, as the menu column's rows take it, so that the title
+    /// row is as tall as the column's first and the two rules meet.
+    @ScaledMetric(relativeTo: .body) private var scale = 1.0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -172,12 +175,13 @@ struct ToolPanelView<Content: View>: View {
                     .labelStyle(.iconOnly)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.secondary)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 44 * scale, height: 44 * scale)
                     .contentShape(.rect)
             }
             .padding(.leading, 16)
             .padding(.trailing, 4)
-            .padding(.vertical, 4)
+            // The column's inset over its toggle's row, and none under it.
+            .padding(.top, 4)
             Divider()
             ViewThatFits(in: .vertical) {
                 padded(content)
@@ -463,5 +467,24 @@ struct GraphicsPanel: View {
                     (ratio == "native" ? String(format: "%.1fx (Native)", displayScale) : String(format: "%.1fx", Double(ratio) ?? 0), ratio)
                 })
         }
+        // Only the rates the screen can show; a rate kept from a faster screen, as a
+        // restored backup brings, reads as the fastest here.
+        let rates = Session.frameRates.filter { $0 <= maximumFrameRate }
+        PanelSection("Frame rate") {
+            Segments(
+                title: "Frame rate",
+                selection: Binding {
+                    rates.last { $0 <= session.frameRate } ?? rates[0]
+                } set: {
+                    session.frameRate = $0
+                },
+                options: rates.map { ("\($0) fps", $0) })
+            Note("Fewer frames save battery.")
+        }
+    }
+
+    /// 120 on a ProMotion screen, never under 60.
+    private var maximumFrameRate: Int {
+        max((UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.maximumFramesPerSecond ?? 60, 60)
     }
 }

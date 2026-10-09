@@ -95,7 +95,7 @@ final class Analytics {
         config.setDefaultPersonProperties = false
         config.rageClickConfig.enabled = false
         config.captureAutocaptureElementText = false
-        config.propertiesSanitizer = GroundStationSanitizer()
+        config.setBeforeSend(Self.sanitized)
         PostHogSDK.shared.setup(config)
         if optingIn {
             PostHogSDK.shared.optIn()
@@ -114,6 +114,16 @@ final class Analytics {
                 PostHogSDK.shared.register(["distribution": distribution(transaction.unsafePayloadValue.environment)])
             }
         }
+    }
+
+    /// The web app's `sanitizePostHogEvent`: every string property holding a link
+    /// has its ground stations cut to the whole degree. PostHog calls it on its
+    /// own queue, so it is none of the main actor's.
+    private nonisolated static func sanitized(_ event: PostHogEvent) -> PostHogEvent? {
+        event.properties = event.properties.mapValues { value in
+            (value as? String).map(sanitizedForAnalytics) ?? value
+        }
+        return event
     }
 
     /// A view, as the web app counts one: its link, by `$current_url`.
@@ -142,16 +152,6 @@ final class Analytics {
         case .sandbox: "testflight"
         case .xcode: "xcode"
         default: environment.rawValue
-        }
-    }
-}
-
-/// The web app's `sanitizePostHogEvent`: every string property holding a link
-/// has its ground stations cut to the whole degree.
-private final class GroundStationSanitizer: NSObject, PostHogPropertiesSanitizer {
-    func sanitize(_ properties: [String: Any]) -> [String: Any] {
-        properties.mapValues { value in
-            (value as? String).map(sanitizedForAnalytics) ?? value
         }
     }
 }

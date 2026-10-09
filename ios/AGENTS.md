@@ -49,15 +49,21 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   Re:Earth no more than the web app does. ADR 0009 has why. The texture budget
   is soft: a low, oblique view can use more tiles than it, and evicting tiles in
   use only starts the refinement over.
-- About, in the top-right column, is the web app's About dialog (`AboutView.swift`):
-  what Satvis is, the about page's three demos (opened in the app, by their links),
-  what it does and where its data comes from, written for the app. Keep the demos'
-  links in step with `about.html`'s.
-- The attribution is the web app's credit display: an "Attribution" link above
-  the clock deck opens what the map is drawn from now (`Credit.map`), the
-  element sets' source, and the site's privacy policy. The terrain's sources are
-  copied from Re:Earth's `layer.json`, which CesiumJS reads at run time; check
-  them against it when the terrain changes. The licences the app owes are M6's.
+- About, the menu column's last entry, is the web app's About dialog (`AboutView.swift`):
+  what Satvis is, what it does and where its data comes from, written for the app.
+  The about page's demos are the Bookmarks sheet's, so About has none of its own.
+- The credits are one screen, About's Acknowledgements (`AcknowledgementsView`):
+  what the map is drawn from now (`Credit.map`), the web app's credit display;
+  where the satellites come from; the data the app fetches; and the code it
+  carries, under its licences. Only OpenStreetMap wants its name in sight of the
+  map (the OpenStreetMap Foundation's attribution guidelines, for the ODbL), and
+  of the maps only the terrain uses its data, the VersaTiles imagery being
+  photography: while the terrain is drawn, in the sky view too, "© OpenStreetMap"
+  stands left of the clock deck from when that starts, opens the
+  Acknowledgements, and fades after five seconds, as the guidelines allow when
+  an About entry still leads to it. The terrain's sources are copied from
+  Re:Earth's `layer.json`, which CesiumJS reads at run time; check them against
+  it when the terrain changes. The licences the app owes are M6's.
 - The star map is the web app's `DeepStar1K`, fetched from the site
   (`data/starmap/`) and kept like the GP data, not shipped: it is generated with
   Docker by `pnpm update-starmap`, and committing it here would be a second copy.
@@ -75,7 +81,13 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   bumps along the limb and a shell fine enough to hide them cost 3 ms a frame.
   Satellites are points the vertex shader interpolates from each one's sampled
   trajectory, with the web app's quintic; the CPU only finds each stencil.
-  An orbit is half a period either side of the satellite, closed into a loop as
+  That sum is in float, metres out at 7,000 km, so the tracked satellite is
+  placed instead by its position from the eye, which the CPU works out in double
+  precision for the camera anyway (`FrameUniforms.focus`): close up, the point
+  and the cone shook against the camera.
+  An orbit is half a period either side of the satellite, through where it is
+  now, as CesiumJS's path is: its samples are 50 s apart for a low orbit, and
+  their chord passes 2 km under the satellite. It is closed into a loop as
   the web app's `positionsForNextOrbit` closes it: the drift one period brings
   (J2: 31 km for the ISS) is ramped out over the quarter furthest behind it.
   Orbits behind the Earth are drawn with no width, so the GPU drops their
@@ -119,8 +131,11 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   visit: they are shown and predicted for, but saved only on the user's word, and
   have no alerts until then. A shared link carries the visiting stations and the
   selected one, never the rest of the saved ones, which are often where the user
-  lives. Share makes the link when tapped, so a pinned clock gives its minute
-  then. satvis.space links open the app as universal links: the site's
+  lives. Sharing is the Bookmarks sheet's: its Share button shares the view on
+  screen and a card's Share its bookmark, so the top-right corner holds only
+  the ways back. The link is made when tapped, so a pinned clock gives its
+  minute then, and handed to the system's share sheet as itself, which shows
+  the site's own preview. satvis.space links open the app as universal links: the site's
   `public/.well-known/apple-app-site-association` claims `/ot` and `/` with a
   query, and `satvis.entitlements` the `applinks:satvis.space` domain, which
   needs the Associated Domains capability on the App ID. The simulator builds
@@ -134,6 +149,10 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   wait for it to land, and reduced motion cuts. The crosshair, the tapes, the
   trace and the card read the renderer's last frame (`SkyTargets.swift`), and
   the lock is the tap: from the ground a tap opens what the crosshair holds.
+  The lock's card is the web app's, a fact a row, except on a phone, where it
+  hid a third of the sky: two facts a row, four lines where there were seven. Its
+  width is fixed, scaled with the text, so it holds still as the crosshair moves
+  from one satellite to the next.
   Compass aiming (`SkyCompass`) is CoreMotion's attitude against true north, or
   magnetic north without a location, so it needs no calibration step; it can
   only be tried on a device, the simulator having no motion sensor. The
@@ -174,7 +193,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   required-reason API and every data type collected, and keep the App Store
   privacy label in step with it.
 - The menu column is the web app's (`Satvis.vue`'s `menuItems`): a Menu toggle
-  over Bookmarks, Satellites, Components, Map, Locations, Globe, Sky and Graphics, with their
+  over Bookmarks, Satellites, Components, Map, Locations, Globe, Sky and Graphics,
+  then About, which the web app keeps as a corner button, with their
   Lucide icons, names and order, and their hover hints, trimmed to what the
   app has, as VoiceOver hints, one glass panel
   whose rows each hold an icon and its name, folded on a phone and open on an
@@ -184,7 +204,9 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   switches, a segmented control where the choices are short, ticked rows where
   they are long; a setting that needs the sky view is disabled on the globe,
   not hidden. On a phone the column folds to its icons beside a panel, which
-  covers the top-right buttons, as the web's does below 640 px. Not system
+  covers the top-right buttons, as the web's does below 640 px. Those buttons
+  are the ways back alone: home or out of the sky view, the compass, and the
+  end of tracking. Not system
   menus: iOS 26 grows one out of its control, in the column's place, and it holds
   ticked lists alone. Bookmarks, Satellites and Locations are sheets: long lists.
   A tap on the globe closes the panel and on a phone folds the column, as on
@@ -200,7 +222,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   link's other parameters, and goes live without a `time`. Saved ones and opened
   links are kept in Application Support (`BookmarkStorage`), in backups, and synced
   nowhere; a deleted one's picture stays while its own Undo lasts. A card's
-  actions are a long press, and a "…" on the card shows they are there. An opened link is one the system hands over, the About page's, or
+  actions are a long press, and a "…" on the card shows they are there: Share on
+  every card, a demo's included. An opened link is one the system hands over, or
   `SATVIS_LINK`: not the view a last run left, which is a reload. Pictures are the
   renderer's next frame (`GlobeRenderer.snapshot`), read from a drawable asked
   for readable for that frame alone, 480 pixels across where the web app's are
@@ -237,6 +260,14 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   shaders took fast math, the default view took 10.5 ms of GPU a frame at native,
   6.7 at 1.5 and 2.8 at 1. A benchmark runs
   at the ratio it began at and records it.
+- The Graphics menu's "Frame rate" caps the globe at 30, 60 or 120 frames a second
+  (`preferredFramesPerSecond`), offering only what the screen shows: 120 on a
+  ProMotion screen, which an iPhone gives an app only with
+  `CADisableMinimumFrameDuration` in `Info.plist`. The simulator reports 60
+  whatever it models. The web app has no such parameter, so the rate is kept in
+  `UserDefaults`, not links; a benchmark records it as `app_frame_rate`. The
+  globe is drawn every frame: unlike CesiumJS's `requestRenderMode`, nothing
+  skips a frame when nothing has changed.
 - The Graphics menu's "Benchmark" is the web app's `bench=true`, kept in links
   the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): eight scenes opened
   by their links in turn, each waited for until everything active is drawn,
@@ -265,7 +296,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   Cloud's `ci_scripts/ci_post_clone.sh` writes that file from the workflow's
   `POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST`. So development, the UI tests, a
   local worker and a checkout without the file count nothing; check a change with a Release build in the simulator,
-  whose events carry `$is_emulator`. "Share usage data", beside the privacy policy in the Attribution sheet, opts
+  whose events carry `$is_emulator`. "Share usage data", beside the privacy policy in About, opts
   out; the web app has no switch, and so no menu entry to keep it in.
   The app keeps that choice (`shareUsageData` in `UserDefaults`), not PostHog:
   opted out, PostHog is not set up at all, so nothing is sent, not even its
@@ -311,15 +342,13 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
   iPhone 18 Pro, creating it if missing, the 6.9" Pro Max and the 13" iPad) and
   writes `screenshots/raw/`, then `scripts/caption.swift` puts each one's caption,
   kept in `scripts/screenshots.sh`, above it in `screenshots/`, at the same pixel
-  size and without the alpha channel App Store Connect rejects. It takes the about
-  page's demo views (`about.html`) in the order globe, sky, ISS, since the first
-  three are what a search result shows, each paused at its link's minute, from
-  the site `BASE_URL` names (satvis.space by default). Their links differ from the
-  page's where the app can show more: the globe on VersaTiles, the sky with every
-  active satellite, since labels are not drawn past 200 anyway, and the ISS with
-  its panel closed. Each shot is taken on its own, under a status bar reading its
-  link's minute and date, as the clock deck does. `SHOTS=2Sky` retakes only the
-  shots it names, for one whose tiles had not loaded.
+  size and without the alpha channel App Store Connect rejects. It takes the
+  Bookmarks sheet's demos, opened from their cards, in the order globe, sky, ISS,
+  since the first three are what a search result shows, each with the clock
+  stopped at the minute its test names (`SATVIS_TIME`, which opening a bookmark
+  leaves stopped), from the site `BASE_URL` names (satvis.space by default). Each shot is taken on its own, under a status
+  bar reading its minute and date, as the clock deck does. `SHOTS=2Sky` retakes
+  only the shots it names, for one whose tiles had not loaded.
 - **`upload-screenshots`** replaces the screenshots of the version being prepared
   with `screenshots/*.png` through the App Store Connect API
   (`scripts/upload-screenshots.swift`), in the app's primary language, each file

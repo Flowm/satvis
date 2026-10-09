@@ -415,3 +415,67 @@ four lost two. The test flips the switch up to three times. Not checked: whether
 device loses them too, which would leave a user's first taps after allowing the
 location unanswered.
 
+
+## Native app: the smoothed flight into the sky view
+
+**Procedure.** The iPhone 17e simulator on iOS 27, the globe north up, then the Sky over
+Lauterbrunnen demo opened from Bookmarks; the flight recorded with `simctl io
+recordVideo` and read a quarter of a second at a time.
+
+**Result, 2026-10-09.** The view locked on to the valley, the map turned round under
+the camera on the way down rather than rolling over, the camera came down to standing
+height overhead and the view rose to the south. No frame jumped. The package tests hold
+the rest: under 300°/s throughout, under 25 e-folds of height a second.
+
+## Native app: a tracked satellite close up
+
+**Procedure.** The iPhone 17e simulator on iOS 27, `?tags=&sats=SENTINEL-2A&track=SENTINEL-2A`
+with Point, Label, Orbit, Orbit track and Sensor cone, pinched in to about 740 m and
+then about 80 m; at 80 m, ten frames 0.1 s apart cropped around the point.
+
+**Result, 2026-10-09.** Before the fix both lines left the screen from a few kilometres
+in, their chords passing 2 km under the satellite, and the segment by the satellite was
+dropped once the sample behind it was behind the eye. After it both lines run through
+the point at either range, and the point holds the same pixel in all ten frames, with
+the cone's apex and the lines on it. Not checked by eye: the shaking before the fix,
+which the float arithmetic predicts at metres.
+
+## Native app: the corner's buttons, Share in Bookmarks and About in the menu
+
+Replaces the Attribution link of "the attribution follows the map" and "the web app's
+menu column, and the attribution link".
+
+**Procedure.** The iPhone 17e and the iPad Pro 11-inch (M5) simulators on iOS 27:
+Bookmarks' Share, a card's "…" and its Share, Copy from the share sheet and the
+pasteboard read with `simctl pbinfo`; About from the menu, scrolled to its foot, and its
+Acknowledgements; the same link with Terrain on, and off.
+
+**Result, 2026-10-09.** The corner holds the home button alone on the globe, and the
+compass besides in the sky view. The share sheet shows the site's preview and copies a
+URL. On the iPad the popover first pointed at the window's corner; anchored to the sheet
+it points at the button, and a card's at its card. About ends with Privacy, Share usage
+data (disabled in a debug build) and Acknowledgements: Map, Satellites, Data and
+Software. With Terrain on, "© OpenStreetMap" stood left of the clock deck at launch and
+was gone five seconds on; without it, nothing stood there. Not checked: the credit on a
+cold launch over a slow network, where its five seconds can pass before the terrain is
+drawn.
+
+## Native app: the sky view's card
+
+**Procedure.** The iPhone 17e and the iPad Pro 11-inch (M5) simulators on iOS 27, the
+Lauterbrunnen sky with `tags=Active` at `SATVIS_TIME=2026-10-04T19:22:00Z`, the crosshair
+on STARLINK-35803.
+
+**Result, 2026-10-09.** On the phone the card holds four lines, the facts two a row and
+"Tap to open" beside the name, 300 points wide inside its padding; on the iPad the web
+app's seven, 230 points wide. Not checked: a Plus or Pro Max iPhone in landscape, which
+reports a regular width and so gets the iPad's card.
+
+## Native app: the frame rate
+
+**Procedure.** The iPhone 17e and iPad Pro 11-inch (M5) simulators on iOS 27, the
+Graphics panel with FPS on.
+
+**Result, 2026-10-09.** Both offer 30 and 60 fps, the simulator reporting 60 Hz for
+every device it models; at 30 the readout settled at 30 fps. Not checked: 120 fps,
+which needs a ProMotion device.

@@ -23,12 +23,12 @@ nonisolated class SatvisUITests: XCTestCase {
     }
 
     // A link opens on what it names, as on the web: the satellite enabled and
-    // tracked, its panel open.
+    // tracked, its panel closed, as `track` follows alone.
     @MainActor
     func testOpensALink() {
         let app = launch(link: "/?tags=&sats=METOP-B&track=METOP-B&elements=Point,Label,Orbit")
-        XCTAssert(app.navigationBars["METOP-B"].waitForExistence(timeout: 20))
-        XCTAssert(app.buttons["Stop tracking"].firstMatch.exists)
+        XCTAssert(app.buttons["Stop tracking"].firstMatch.waitForExistence(timeout: 20))
+        XCTAssertFalse(app.navigationBars["METOP-B"].exists)
     }
 
     // The web app's menu column unfolds from the menu button, folded on a phone
@@ -44,7 +44,7 @@ nonisolated class SatvisUITests: XCTestCase {
             XCTAssertFalse(app.buttons["Map"].exists)
             toggle.tap()
         }
-        for entry in ["Bookmarks", "Satellites", "Components", "Map", "Locations", "Globe", "Sky", "Graphics"] {
+        for entry in ["Bookmarks", "Satellites", "Components", "Map", "Locations", "Globe", "Sky", "Graphics", "About"] {
             XCTAssert(app.buttons[entry].waitForExistence(timeout: 5), "No \(entry) in the menu")
         }
         app.buttons["Components"].tap()
@@ -127,15 +127,18 @@ nonisolated class SatvisUITests: XCTestCase {
         let app = launch(link: "/?tags=&sats=METOP-B&elements=Point,Label")
         openMenu(app)
         app.buttons["Bookmarks"].tap()
-        XCTAssert(app.buttons["Recent 1"].waitForExistence(timeout: 10))
+        XCTAssert(app.buttons["Recent (1)"].waitForExistence(timeout: 10))
+        // The view is shared from here, the corner holding the ways back alone.
+        XCTAssert(app.buttons["Share this view"].exists)
+        XCTAssertFalse(app.buttons["Share"].exists)
         app.buttons["Save this view"].tap()
         let name = app.alerts.textFields.firstMatch
         XCTAssert(name.waitForExistence(timeout: 10))
         // Over the name drawn from the scene.
         name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 40) + "Mine\n")
         XCTAssert(app.alerts.firstMatch.waitForNonExistence(timeout: 5))
-        XCTAssert(app.buttons["Saved 1"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["Recent 1"].exists)
+        XCTAssert(app.buttons["Saved (1)"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Recent (1)"].exists)
         XCTAssert(app.buttons["Saved"].exists)
 
         let sheet = app.navigationBars["Bookmarks"]
@@ -156,29 +159,50 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Default view"].isEnabled)
     }
 
-    // The about page's demos open in the app: the first pins the clock at its minute.
+    // About opens from the menu, without the about page's demos, which are the
+    // Bookmarks sheet's.
     @MainActor
-    func testOpensADemoFromAbout() {
+    func testOpensAboutFromTheMenu() {
         let app = launch()
-        XCTAssert(app.buttons["About Satvis"].waitForExistence(timeout: 30))
-        app.buttons["About Satvis"].tap()
-        let demo = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Open it'")).firstMatch
-        XCTAssert(demo.waitForExistence(timeout: 5))
-        demo.tap()
-        let stamp = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UTC'")).firstMatch
-        XCTAssert(stamp.waitForExistence(timeout: 10))
-        let pinned = NSPredicate(format: "label CONTAINS '08:5'")
-        expectation(for: pinned, evaluatedWith: stamp)
-        waitForExpectations(timeout: 10)
+        openMenu(app)
+        app.buttons["About"].tap()
+        XCTAssert(app.navigationBars["About Satvis"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["See it in action"].exists)
     }
 
-    // The credits open from the link beside the clock.
+    // The terrain draws OpenStreetMap's data, so its name shows beside the clock
+    // for five seconds, and opens the acknowledgements.
     @MainActor
-    func testOpensTheAttribution() {
+    func testCreditsOpenStreetMapWhileTheTerrainIsDrawn() {
+        let app = launch(link: "/?terrain=ReEarth")
+        let credit = app.buttons["© OpenStreetMap"]
+        XCTAssert(credit.waitForExistence(timeout: 30))
+        credit.tap()
+        XCTAssert(app.navigationBars["Acknowledgements"].waitForExistence(timeout: 5))
+        XCTAssert(app.descendants(matching: .any)["OpenStreetMap"].waitForExistence(timeout: 5))
+        app.buttons["Done"].tap()
+        // Faded after five seconds; About keeps it.
+        XCTAssert(credit.waitForNonExistence(timeout: 10))
+    }
+
+    // Without the terrain no source wants its name over the map: the credits are
+    // About's.
+    @MainActor
+    func testKeepsTheCreditsInAbout() {
         let app = launch()
-        XCTAssert(app.buttons["Attribution"].waitForExistence(timeout: 30))
-        app.buttons["Attribution"].tap()
-        XCTAssert(app.buttons["Done"].waitForExistence(timeout: 5))
+        XCTAssert(menuToggle(app).waitForExistence(timeout: 30))
+        XCTAssertFalse(app.buttons["© OpenStreetMap"].exists)
+        openMenu(app)
+        app.buttons["About"].tap()
+        XCTAssert(app.navigationBars["About Satvis"].waitForExistence(timeout: 5))
+        // At the foot of a lazy list, which has no rows off screen.
+        let sharing = app.switches["Share usage data"]
+        for _ in 0..<6 where !sharing.exists {
+            app.swipeUp()
+        }
+        XCTAssert(sharing.exists)
+        app.buttons["Acknowledgements"].tap()
+        XCTAssert(app.descendants(matching: .any)["Imagery courtesy Natural Earth"].waitForExistence(timeout: 5))
     }
 
     // Paused, the clock falls behind the present, and the deck offers the way back
@@ -296,45 +320,39 @@ nonisolated class SatvisUITests: XCTestCase {
         return app
     }
 
-    // The App Store screenshots: the about page's three views (about.html), each
-    // made to show more where the web's would crowd. Globe, sky, ISS: the first
-    // three are the search result's. Only scripts/screenshots.sh takes them,
-    // against BASE_URL.
+    // The App Store screenshots: the Bookmarks sheet's three demos, opened from
+    // their cards as anyone would, so they show what a demo shows. Globe, sky,
+    // ISS: the first three are the search result's. Only scripts/screenshots.sh
+    // takes them, against BASE_URL.
 
     @MainActor
     func testScreenshot1Globe() throws {
-        try open("/?layers=VersaTiles&time=2026-10-04T08:52Z")
+        try openDemo("Weather satellites", at: "2026-10-04T08:52")
         screenshot("1Globe")
     }
 
-    // Night in the Lauterbrunnen valley, standing on the link's station: every
-    // active satellite, as past 200 none is labelled. The terrain refines a level
-    // at a time from an empty cache, a few seconds a tile, on three simulators at
-    // once: 30 s left an iPad's cliffs coarse.
+    // Night in the Lauterbrunnen valley. The terrain refines a level at a time
+    // from an empty cache, a few seconds a tile, on three simulators at once: 30 s
+    // left an iPad's cliffs coarse.
     @MainActor
     func testScreenshot2Sky() throws {
-        try open(
-            "/?scene=Sky&gs=46.5935,7.9091&terrain=ReEarth&layers=VersaTiles&stars=DeepStar2K&time=2026-10-04T19:22Z&tags=Active,GNSS,Weather&elements=Point",
-            wait: 60)
+        try openDemo("Sky over Lauterbrunnen", at: "2026-10-04T19:22", wait: 60)
         screenshot("2Sky")
     }
 
-    // The station alone: the panel would cover it on a phone and crowd it on an
-    // iPad, and closing it keeps the station tracked.
     @MainActor
     func testScreenshot3ISS() throws {
-        let app = try open("/?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model&layers=VersaTiles&time=2026-10-04T02:07Z")
-        app.buttons["Close"].firstMatch.tap()
-        sleep(2)
+        try openDemo("Follow the ISS", at: "2026-10-04T02:07")
         screenshot("3ISS")
     }
 
-    /// Launches on a link of BASE_URL's site, its clock stopped at the link's
-    /// minute so that every device shows the same moment, and waits `wait`
-    /// seconds for the tiles.
+    /// Launches on BASE_URL's site with its clock stopped at `minute` (UTC), so
+    /// that every device shows the same moment, opens the demo of that name from
+    /// the Bookmarks sheet, which leaves a stopped clock where it is, and waits
+    /// `wait` seconds for the tiles.
     @MainActor
     @discardableResult
-    func open(_ path: String, wait: UInt32 = 20) throws -> XCUIApplication {
+    func openDemo(_ name: String, at minute: String, wait: UInt32 = 20) throws -> XCUIApplication {
         let environment = ProcessInfo.processInfo.environment
         guard environment["SCREENSHOTS"] != nil else {
             throw XCTSkip("Taken by scripts/screenshots.sh")
@@ -343,12 +361,17 @@ nonisolated class SatvisUITests: XCTestCase {
         if let site = environment["BASE_URL"] {
             app.launchEnvironment["SATVIS_API"] = site
         }
-        app.launchEnvironment["SATVIS_LINK"] = path
-        if let time = path.firstMatch(of: /time=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})Z/) {
-            app.launchEnvironment["SATVIS_TIME"] = "\(time.1):00Z"
-        }
+        // The default view, not the one the last shot left.
+        app.launchEnvironment["SATVIS_LINK"] = "/"
+        app.launchEnvironment["SATVIS_TIME"] = "\(minute):00Z"
         app.launch()
-        XCTAssert(menuToggle(app).waitForExistence(timeout: 30))
+        openMenu(app)
+        app.buttons["Bookmarks"].tap()
+        // Labelled by its name first, then what it shows.
+        let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "\(name), ")).firstMatch
+        XCTAssert(card.waitForExistence(timeout: 30))
+        card.tap()
+        XCTAssert(app.navigationBars["Bookmarks"].waitForNonExistence(timeout: 10))
         sleep(wait)
         return app
     }
