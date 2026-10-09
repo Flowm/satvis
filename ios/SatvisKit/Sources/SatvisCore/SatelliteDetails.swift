@@ -202,7 +202,7 @@ public enum SatelliteDetails {
         guard abs(offsetDays) > staleElementsDays else {
             return nil
         }
-        return "Position may be inaccurate, clock \(Int(abs(offsetDays).rounded())) days \(offsetDays > 0 ? "after" : "before") element epoch"
+        return "Position and passes may be inaccurate, clock \(Int(abs(offsetDays).rounded())) days \(offsetDays > 0 ? "after" : "before") element epoch"
     }
 
     static func formatEpoch(julianDate: Double) -> String {

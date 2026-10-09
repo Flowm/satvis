@@ -51,8 +51,8 @@ describe("staleElementsNotice", () => {
   });
 
   test("names the offset and its direction past the threshold", () => {
-    expect(staleElementsNotice(epochMs, epochMs + 30.4 * DAY_MS)).toBe("Position may be inaccurate, clock 30 days after element epoch");
-    expect(staleElementsNotice(epochMs, epochMs - 15 * DAY_MS)).toBe("Position may be inaccurate, clock 15 days before element epoch");
+    expect(staleElementsNotice(epochMs, epochMs + 30.4 * DAY_MS)).toBe("Position and passes may be inaccurate, clock 30 days after element epoch");
+    expect(staleElementsNotice(epochMs, epochMs - 15 * DAY_MS)).toBe("Position and passes may be inaccurate, clock 15 days before element epoch");
   });
 });
 

@@ -62,9 +62,9 @@ import Testing
         #expect(SatelliteDetails.staleElementsNotice(epochMilliseconds: epoch, time: epoch + 10 * day) == nil)
         #expect(SatelliteDetails.staleElementsNotice(epochMilliseconds: epoch, time: epoch - 10 * day) == nil)
         #expect(
-            SatelliteDetails.staleElementsNotice(epochMilliseconds: epoch, time: epoch + 30.4 * day) == "Position may be inaccurate, clock 30 days after element epoch")
+            SatelliteDetails.staleElementsNotice(epochMilliseconds: epoch, time: epoch + 30.4 * day) == "Position and passes may be inaccurate, clock 30 days after element epoch")
         #expect(
-            SatelliteDetails.staleElementsNotice(epochMilliseconds: epoch, time: epoch - 15 * day) == "Position may be inaccurate, clock 15 days before element epoch")
+            SatelliteDetails.staleElementsNotice(epochMilliseconds: epoch, time: epoch - 15 * day) == "Position and passes may be inaccurate, clock 15 days before element epoch")
     }
 
     @Test func writesNumbersAsJavaScriptDoes() {
