@@ -22,6 +22,22 @@ test("back to the default view, back to the link, and keep it", async ({ page })
   await expect(opened).toContainText("Flat map");
   await expect(opened).toContainText("5 Oct, 11:00 UTC");
 
+  // Shared through the system's sheet where there is one, copied where there is none.
+  const share = opened.getByRole("button", { name: "Share Science satellites" });
+  const link = { origin: new URL(page.url()).origin, pathname: "/", params: Object.fromEntries(new URLSearchParams(LINK)) };
+  const read = (url?: string) => url && { origin: new URL(url).origin, pathname: new URL(url).pathname, params: Object.fromEntries(new URL(url).searchParams) };
+  await page.evaluate(() => {
+    navigator.canShare = () => true;
+    navigator.share = async (data) => void (document.body.dataset.shared = data?.url);
+  });
+  await share.click();
+  await expect.poll(async () => read(await page.evaluate(() => document.body.dataset.shared))).toEqual(link);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(() => (navigator.canShare = () => false));
+  await share.click();
+  await expect(page.getByText("Link copied")).toBeVisible();
+  await expect.poll(async () => read(await page.evaluate(() => navigator.clipboard.readText()))).toEqual(link);
+
   await panel.getByRole("button", { name: "Default view" }).click();
   await expect.poll(() => new URL(page.url()).search).toBe("");
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.scene.mode), { message: "the globe is back" }).toBe(3);

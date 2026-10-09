@@ -77,6 +77,9 @@ export function useBookmarks() {
     }
   }
 
+  /** `bookmark` as a url to hand on: its own scene, without the page's foreign parameters. */
+  const link = (bookmark: Bookmark): string => new URL(router.resolve({ path: bookmark.path, query: bookmark.query }).href, window.location.href).href;
+
   /** The route's preset as it opens: every scene parameter dropped, the clock live. */
   function openDefault(): void {
     cc.goLive();
@@ -101,6 +104,7 @@ export function useBookmarks() {
     isCurrent,
     summary,
     open,
+    link,
     openDefault,
     saveCurrent,
     rename: store.rename,
