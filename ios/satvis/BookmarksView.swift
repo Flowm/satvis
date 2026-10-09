@@ -19,6 +19,7 @@ struct BookmarksView: View {
     /// Where the share button and each card are in the window, for a share sheet's
     /// popover to point at on iPad.
     @State private var frames: [String: CGRect] = [:]
+    /// The share button's key among `frames`, beside the cards' ids.
     private static let shareButton = "share"
     @Environment(\.dismiss) private var dismiss
 
@@ -72,11 +73,7 @@ struct BookmarksView: View {
                     Button("Share this view", systemImage: "square.and.arrow.up") {
                         ShareSheet.present(session.link(sharing: true).url(site: session.source.site), from: frames[Self.shareButton] ?? .zero)
                     }
-                    .onGeometryChange(for: CGRect.self) {
-                        $0.frame(in: .global)
-                    } action: {
-                        frames[Self.shareButton] = $0
-                    }
+                    .reportsFrame { frames[Self.shareButton] = $0 }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
@@ -159,11 +156,7 @@ struct BookmarksView: View {
             BookmarkCard(bookmark: bookmark, summary: summary, picture: picture(bookmark), isCurrent: isCurrent)
         }
         .buttonStyle(.plain)
-        .onGeometryChange(for: CGRect.self) {
-            $0.frame(in: .global)
-        } action: {
-            frames[bookmark.id] = $0
-        }
+        .reportsFrame { frames[bookmark.id] = $0 }
         // The name first: read in order, the card starts with its picture's time.
         .accessibilityLabel([bookmark.name, summary.what, summary.where, summary.time ?? "Live"].joined(separator: ", "))
         .accessibilityAddTraits(isCurrent ? .isSelected : [])
@@ -335,6 +328,7 @@ struct BookmarkCard: View {
 /// sheet's coordinates: SwiftUI's global space inside a sheet starts at the
 /// sheet's corner, not the window's, where the popover pointed at first.
 private enum ShareSheet {
+    /// Over whatever is presented, the Bookmarks sheet itself.
     static func present(_ url: URL, from rect: CGRect) {
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
         guard var top = scene?.keyWindow?.rootViewController else {
@@ -349,5 +343,16 @@ private enum ShareSheet {
             popover.sourceRect = rect
         }
         top.present(sheet, animated: true)
+    }
+}
+
+extension View {
+    /// Where the view is, for a share sheet's popover to point at.
+    fileprivate func reportsFrame(_ action: @escaping (CGRect) -> Void) -> some View {
+        onGeometryChange(for: CGRect.self) {
+            $0.frame(in: .global)
+        } action: {
+            action($0)
+        }
     }
 }

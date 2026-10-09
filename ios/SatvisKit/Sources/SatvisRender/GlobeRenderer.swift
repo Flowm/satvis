@@ -115,6 +115,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// satellite's radius, in metres.
     private static let fallbackModelRadius = 2.5
     private static let homeFlightDuration = 1.5
+    /// A line's triangle strip, two vertices a point: `lineNodes` samples in
+    /// Shaders/Lines.msl, and where the satellite is now between two of them.
+    private static let lineVertices = 2 * (121 + 1)
     /// The pose of the last frame, which a flight sets off from.
     private var lastPose: CameraPose?
     /// The terrain as the Map menu has it; the sky view stands on it regardless.
@@ -971,7 +974,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                     encoder.setRenderPipelineState(linePipeline)
                     encoder.setVertexBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
                     encoder.setFragmentBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
-                    encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 2 * (121 + 1), instanceCount: points.count)
+                    encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: Self.lineVertices, instanceCount: points.count)
                 }
                 if components.contains(.point) {
                     encoder.setRenderPipelineState(pointPipeline)

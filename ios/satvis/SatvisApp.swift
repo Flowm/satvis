@@ -348,8 +348,11 @@ struct ContentView: View {
 /// at launch or later, and faded after five seconds, as they allow. After that,
 /// About's Acknowledgements has it, as they also allow. A tap opens them now.
 private struct OpenStreetMapCredit: View {
+    /// Whether the terrain, which uses OpenStreetMap's data, is drawn.
     let isOwed: Bool
+    /// Opens the Acknowledgements.
     let onOpen: () -> Void
+    /// Until five seconds after it became owed.
     @State private var isShown = false
 
     var body: some View {

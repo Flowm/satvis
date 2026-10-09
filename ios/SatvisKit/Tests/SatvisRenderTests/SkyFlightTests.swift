@@ -115,7 +115,6 @@ import simd
         #expect(SkyFlight.ease(0) == 0 && SkyFlight.ease(1) == 1)
         #expect(SkyFlight.ease(-0.5) == 0 && SkyFlight.ease(1.7) == 1)
         #expect(abs(SkyFlight.ease(0.5) - 0.5) < 1e-12)
-        // The peak rate, at the middle, is 1.875 times the mean.
         #expect(abs((SkyFlight.ease(0.5 + 1e-6) - SkyFlight.ease(0.5 - 1e-6)) / 2e-6 - 1.875) < 1e-6)
     }
 }

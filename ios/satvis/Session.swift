@@ -121,11 +121,13 @@ final class Session {
     /// Frames a second the globe is drawn at, at most: 30, 60 or 120, where the
     /// screen has them. Not in links, which the web app has no parameter for,
     /// but kept between launches, as the device's own choice.
-    var frameRate = UserDefaults.standard.object(forKey: "frameRate") as? Int ?? 60 {
+    var frameRate = UserDefaults.standard.object(forKey: frameRateKey) as? Int ?? 60 {
         didSet {
-            UserDefaults.standard.set(frameRate, forKey: "frameRate")
+            UserDefaults.standard.set(frameRate, forKey: Self.frameRateKey)
         }
     }
+    private static let frameRateKey = "frameRate"
+    /// What the Graphics panel offers, of which a screen shows those up to its own.
     static let frameRates = [30, 60, 120]
     /// The benchmark panel, the web app's `bench=true`, kept in the link the same
     /// way; open through a run, whose scenes' links do not carry it.

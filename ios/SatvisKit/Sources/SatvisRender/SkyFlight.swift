@@ -90,7 +90,7 @@ struct SkyFlight {
         // Eased in the camera's own frame, so the destination's place on screen
         // depends on the lock-on alone. Blending towards the moving aim overshot it
         // by 6° as the camera swept round.
-        let locked = aimed * simd_slerp(offset.swing, simd_quatd(ix: 0, iy: 0, iz: 0, r: 1), ease(t / lockOn))
+        let locked = aimed * simd_slerp(offset.swing, identity, ease(t / lockOn))
         let arriving = yaw * attitude(to)
         let blended = simd_slerp(locked, arriving, ease((t - overhead) / (1 - overhead))).normalized
         let basis = simd_double3x3(blended)
@@ -143,12 +143,12 @@ struct SkyFlight {
     private static func sightTurn(down: SIMD3<Double>, target: SIMD3<Double>, eye: SIMD3<Double>) -> simd_quatd {
         let line = target - eye
         guard length(line) > 1 else {
-            return simd_quatd(ix: 0, iy: 0, iz: 0, r: 1)
+            return identity
         }
         let sight = normalize(line)
         let angle = atan2(length(cross(down, sight)), dot(down, sight))
         guard angle > 1e-7 else {
-            return simd_quatd(ix: 0, iy: 0, iz: 0, r: 1)
+            return identity
         }
         return simd_quatd(angle: angle, axis: turnAxis(down, sight))
     }
@@ -169,6 +169,9 @@ struct SkyFlight {
         let t = min(max(t, 0), 1)
         return t * t * t * (t * (t * 6 - 15) + 10)
     }
+
+    /// No turn.
+    private static let identity = simd_quatd(ix: 0, iy: 0, iz: 0, r: 1)
 
     static func attitude(_ pose: CameraPose) -> simd_quatd {
         simd_quatd(simd_double3x3(columns: (pose.right, pose.up, pose.back))).normalized

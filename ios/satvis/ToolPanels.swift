@@ -161,7 +161,8 @@ struct ToolPanelView<Content: View>: View {
     var fillsWidth = false
     let onClose: () -> Void
     @ViewBuilder let content: Content
-    /// The column's rows', so that the two rules meet.
+    /// Dynamic Type's scale, as the menu column's rows take it, so that the title
+    /// row is as tall as the column's first and the two rules meet.
     @ScaledMetric(relativeTo: .body) private var scale = 1.0
 
     var body: some View {

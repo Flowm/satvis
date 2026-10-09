@@ -19,7 +19,8 @@ struct GlobeView: View {
     var mayDrag: (CGSize) -> Bool = { _ in true }
     /// Drawable pixels per point, the web app's `pixelratio`; nil for the screen's own.
     var pixelRatio: Double?
-    var frameRate = 60
+    /// Frames a second at most, the Graphics panel's.
+    let frameRate: Int
 
     @State private var renderer: GlobeRenderer?
     @State private var lastTranslation = CGSize.zero
