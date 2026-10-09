@@ -7782,10 +7782,10 @@
           "terrain": "ReEarth",
           "layers": "VersaTiles",
           "stars": "DeepStar2K",
-          "tags": "GNSS"
+          "tags": "Active"
         },
         "summary": {
-          "what": "GNSS satellites",
+          "what": "Active satellites",
           "where": "Sky over Lauterbrunnen"
         },
         "name": "Sky over Lauterbrunnen"
