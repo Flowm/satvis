@@ -50,9 +50,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   is soft: a low, oblique view can use more tiles than it, and evicting tiles in
   use only starts the refinement over.
 - About, the menu column's last entry, is the web app's About dialog (`AboutView.swift`):
-  what Satvis is, the about page's three demos (opened in the app, by their links),
-  what it does and where its data comes from, written for the app. Keep the demos'
-  links in step with `about.html`'s.
+  what Satvis is, what it does and where its data comes from, written for the app.
+  The about page's demos are the Bookmarks sheet's, so About has none of its own.
 - The attribution is the web app's credit display: an "Attribution" link above
   the clock deck opens what the map is drawn from now (`Credit.map`), the
   element sets' source, and the site's privacy policy. The terrain's sources are
@@ -215,7 +214,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   links are kept in Application Support (`BookmarkStorage`), in backups, and synced
   nowhere; a deleted one's picture stays while its own Undo lasts. A card's
   actions are a long press, and a "…" on the card shows they are there: Share on
-  every card, a demo's included. An opened link is one the system hands over, the About page's, or
+  every card, a demo's included. An opened link is one the system hands over, or
   `SATVIS_LINK`: not the view a last run left, which is a reload. Pictures are the
   renderer's next frame (`GlobeRenderer.snapshot`), read from a drawable asked
   for readable for that frame alone, 480 pixels across where the web app's are

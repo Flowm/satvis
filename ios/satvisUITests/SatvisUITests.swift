@@ -159,21 +159,15 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Default view"].isEnabled)
     }
 
-    // The about page's demos open in the app, from the menu's About: the first pins
-    // the clock at its minute.
+    // About opens from the menu, without the about page's demos, which are the
+    // Bookmarks sheet's.
     @MainActor
-    func testOpensADemoFromAbout() {
+    func testOpensAboutFromTheMenu() {
         let app = launch()
         openMenu(app)
         app.buttons["About"].tap()
-        let demo = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Open it'")).firstMatch
-        XCTAssert(demo.waitForExistence(timeout: 5))
-        demo.tap()
-        let stamp = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UTC'")).firstMatch
-        XCTAssert(stamp.waitForExistence(timeout: 10))
-        let pinned = NSPredicate(format: "label CONTAINS '08:5'")
-        expectation(for: pinned, evaluatedWith: stamp)
-        waitForExpectations(timeout: 10)
+        XCTAssert(app.navigationBars["About Satvis"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["See it in action"].exists)
     }
 
     // The credits open from the link beside the clock.

@@ -256,7 +256,7 @@ struct ContentView: View {
             BrowserView(catalog: session.catalog) { session.selection = .satellite($0.id) }
         }
         .sheet(isPresented: $showsAbout) {
-            AboutView(onOpen: { session.open($0, records: true) }, privacyPolicy: session.privacyPolicy)
+            AboutView(privacyPolicy: session.privacyPolicy)
         }
         .sheet(isPresented: $showsAttribution) {
             AttributionView(map: session.mapCredits, privacyPolicy: session.privacyPolicy, analytics: session.analytics)
