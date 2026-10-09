@@ -35,7 +35,7 @@ struct AboutView: View {
                 }
                 Section("Where the data comes from") {
                     Text(
-                        "Element sets come from CelesTrak through satvis.space, refreshed every six hours, and a copy ships inside the app so that it works offline. Positions and passes are worked out on the device, with David Vallado's reference SGP4, held to the website's results. What each satellite is (its country, operator, manufacturer, bus, mass and size) comes from Jonathan McDowell's GCAT: data from J. McDowell, planet4589.org, under CC BY 4.0."
+                        "Element sets come from CelesTrak through satvis.space, refreshed every six hours. The app keeps the last ones it fetched, so it works offline once it has been online. Positions and passes are worked out on the device, with David Vallado's reference SGP4, held to the website's results. What each satellite is (its country, operator, manufacturer, bus, mass and size) comes from Jonathan McDowell's GCAT: data from J. McDowell, planet4589.org, under CC BY 4.0."
                     )
                 }
                 Section {
