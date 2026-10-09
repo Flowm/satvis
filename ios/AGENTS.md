@@ -52,11 +52,18 @@ the app is developed on. Why it is built this way, and the milestones it is buil
 - About, the menu column's last entry, is the web app's About dialog (`AboutView.swift`):
   what Satvis is, what it does and where its data comes from, written for the app.
   The about page's demos are the Bookmarks sheet's, so About has none of its own.
-- The attribution is the web app's credit display: an "Attribution" link above
-  the clock deck opens what the map is drawn from now (`Credit.map`), the
-  element sets' source, and the site's privacy policy. The terrain's sources are
-  copied from Re:Earth's `layer.json`, which CesiumJS reads at run time; check
-  them against it when the terrain changes. The licences the app owes are M6's.
+- The credits are one screen, About's Acknowledgements (`AcknowledgementsView`):
+  what the map is drawn from now (`Credit.map`), the web app's credit display;
+  where the satellites come from; the data the app fetches; and the code it
+  carries, under its licences. Only OpenStreetMap wants its name in sight of the
+  map (the OpenStreetMap Foundation's attribution guidelines, for the ODbL), and
+  of the maps only the terrain uses its data, the VersaTiles imagery being
+  photography: while the terrain is drawn, in the sky view too, "© OpenStreetMap"
+  stands left of the clock deck from when that starts, opens the
+  Acknowledgements, and fades after five seconds, as the guidelines allow when
+  an About entry still leads to it. The terrain's sources are copied from
+  Re:Earth's `layer.json`, which CesiumJS reads at run time; check them against
+  it when the terrain changes. The licences the app owes are M6's.
 - The star map is the web app's `DeepStar1K`, fetched from the site
   (`data/starmap/`) and kept like the GP data, not shipped: it is generated with
   Docker by `pnpm update-starmap`, and committing it here would be a second copy.
@@ -287,7 +294,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   Cloud's `ci_scripts/ci_post_clone.sh` writes that file from the workflow's
   `POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST`. So development, the UI tests, a
   local worker and a checkout without the file count nothing; check a change with a Release build in the simulator,
-  whose events carry `$is_emulator`. "Share usage data", beside the privacy policy in the Attribution sheet, opts
+  whose events carry `$is_emulator`. "Share usage data", beside the privacy policy in About, opts
   out; the web app has no switch, and so no menu entry to keep it in.
   The app keeps that choice (`shareUsageData` in `UserDefaults`), not PostHog:
   opted out, PostHog is not set up at all, so nothing is sent, not even its

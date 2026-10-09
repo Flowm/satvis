@@ -53,7 +53,7 @@ struct ContentView: View {
     @State private var showsBookmarks = false
     @State private var showsBrowser = false
     @State private var showsStations = false
-    @State private var showsAttribution = false
+    @State private var showsAcknowledgements = false
     @State private var showsAbout = false
     @State private var showsTools = false
     /// The panel open beside the menu column, if any.
@@ -219,24 +219,8 @@ struct ContentView: View {
                 }
                 // Flush with the bottom edge, as on the web.
                 ClockDeck(clock: session.clock, passes: session.passes, satellite: session.selectedSatellite) {
-                    // Where the web app has its credit line: the map's sources are owed
-                    // a link in sight of the map.
-                    Button {
-                        showsAttribution = true
-                    } label: {
-                        // Tappable over the row's height, not just the small text's.
-                        Text("Attribution")
-                            .frame(maxHeight: .infinity)
-                            .contentShape(.rect)
-                    }
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.8))
-                    .shadow(color: .black, radius: 2)
-                    .padding(.leading, 8)
-                    .lineLimit(1)
-                    // Larger text, up to the room left of the play button.
-                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                    .minimumScaleFactor(0.6)
+                    // Where the web app has its credit line.
+                    OpenStreetMapCredit(isOwed: session.mapCredits.contains(.openStreetMap)) { showsAcknowledgements = true }
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -256,11 +240,17 @@ struct ContentView: View {
             BrowserView(catalog: session.catalog) { session.selection = .satellite($0.id) }
         }
         .sheet(isPresented: $showsAbout) {
-            AboutView(privacyPolicy: session.privacyPolicy)
+            AboutView(map: session.mapCredits, privacyPolicy: session.privacyPolicy, analytics: session.analytics)
         }
-        .sheet(isPresented: $showsAttribution) {
-            AttributionView(map: session.mapCredits, privacyPolicy: session.privacyPolicy, analytics: session.analytics)
-                .presentationDetents([.medium, .large])
+        .sheet(isPresented: $showsAcknowledgements) {
+            NavigationStack {
+                AcknowledgementsView(map: session.mapCredits)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showsAcknowledgements = false }
+                        }
+                    }
+            }
         }
         .sheet(isPresented: $showsStations) {
             GroundStationsView(passes: session.passes, onPick: { session.isPicking = true }, onSelect: { session.selection = .station($0) })
@@ -349,6 +339,49 @@ struct ContentView: View {
             }
         case nil:
             EmptyView()
+        }
+    }
+}
+
+/// OpenStreetMap's name in sight of the map, as the OpenStreetMap Foundation's
+/// attribution guidelines ask, while the map draws its data: shown as that starts,
+/// at launch or later, and faded after five seconds, as they allow. After that,
+/// About's Acknowledgements has it, as they also allow. A tap opens them now.
+private struct OpenStreetMapCredit: View {
+    let isOwed: Bool
+    let onOpen: () -> Void
+    @State private var isShown = false
+
+    var body: some View {
+        Group {
+            if isShown {
+                Button(action: onOpen) {
+                    // Tappable over the row's height, not just the small text's.
+                    Text("© OpenStreetMap")
+                        .frame(maxHeight: .infinity)
+                        .contentShape(.rect)
+                }
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.8))
+                .shadow(color: .black, radius: 2)
+                .padding(.leading, 8)
+                .lineLimit(1)
+                // Larger text, up to the room left of the play button.
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                .minimumScaleFactor(0.6)
+                .transition(.opacity)
+            }
+        }
+        .task(id: isOwed) {
+            withAnimation { isShown = isOwed }
+            guard isOwed else {
+                return
+            }
+            // Cancelled when it stops being owed, which hides it anyway.
+            guard (try? await Task.sleep(for: .seconds(5))) != nil else {
+                return
+            }
+            withAnimation { isShown = false }
         }
     }
 }

@@ -27,11 +27,17 @@ public struct Credit: Hashable, Sendable {
                 Credit("Mapterhorn", link: "https://mapterhorn.com/"),
                 Credit("EGM2008 (NGA)", link: "https://earth-info.nga.mil/"),
                 Credit("Protomaps", link: "https://protomaps.com/"),
-                Credit("OpenStreetMap", link: "https://www.openstreetmap.org/copyright"),
+                .openStreetMap,
             ]
         }
         return credits
     }
+
+    /// The one source whose terms want its name in sight of the map, not only in a
+    /// list behind it: the OpenStreetMap Foundation's attribution guidelines, for
+    /// the ODbL. Of the maps the app draws only the terrain uses its data; the
+    /// VersaTiles imagery is satellite and aerial photography.
+    public static let openStreetMap = Credit("OpenStreetMap", link: "https://www.openstreetmap.org/copyright")
 
     /// Where the satellites come from, as the web app credits it.
     public static let elementSets = Credit("Satellite TLE data provided by Celestrak", link: "https://celestrak.org/NORAD/elements/")

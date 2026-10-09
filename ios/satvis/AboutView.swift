@@ -1,10 +1,14 @@
+import SatvisRender
 import SwiftUI
 
 /// The web app's About dialog (`about.html`), for the app: what Satvis is, what it
 /// does and where its data comes from. The about page's demos are the Bookmarks
 /// sheet's.
 struct AboutView: View {
+    /// The map's sources as drawn now, for Acknowledgements.
+    let map: [Credit]
     let privacyPolicy: URL
+    let analytics: Analytics
     @Environment(\.dismiss) private var dismiss
 
     private static let features: [LocalizedStringKey] = [
@@ -38,7 +42,19 @@ struct AboutView: View {
                     Link("satvis.space", destination: URL(string: "https://satvis.space/")!)
                     Link("Source code on GitHub", destination: URL(string: "https://github.com/Flowm/satvis/")!)
                     Link("Privacy", destination: privacyPolicy)
-                    NavigationLink("Acknowledgements") { AcknowledgementsView() }
+                    // Beside the policy it answers to; the web app has no switch.
+                    Toggle(
+                        "Share usage data",
+                        isOn: Binding {
+                            analytics.isSharing
+                        } set: {
+                            analytics.setSharing($0)
+                        }
+                    )
+                    // Nothing is counted where usage may not be at all: not a
+                    // debug build, and not another site than satvis.space.
+                    .disabled(!Analytics.isAvailable)
+                    NavigationLink("Acknowledgements") { AcknowledgementsView(map: map) }
                 } footer: {
                     Text("Created by Florian Mauracher, under the MIT licence.")
                 }

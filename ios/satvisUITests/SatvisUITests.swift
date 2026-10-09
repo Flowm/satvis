@@ -170,13 +170,39 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["See it in action"].exists)
     }
 
-    // The credits open from the link beside the clock.
+    // The terrain draws OpenStreetMap's data, so its name shows beside the clock
+    // for five seconds, and opens the acknowledgements.
     @MainActor
-    func testOpensTheAttribution() {
+    func testCreditsOpenStreetMapWhileTheTerrainIsDrawn() {
+        let app = launch(link: "/?terrain=ReEarth")
+        let credit = app.buttons["© OpenStreetMap"]
+        XCTAssert(credit.waitForExistence(timeout: 30))
+        credit.tap()
+        XCTAssert(app.navigationBars["Acknowledgements"].waitForExistence(timeout: 5))
+        XCTAssert(app.descendants(matching: .any)["OpenStreetMap"].waitForExistence(timeout: 5))
+        app.buttons["Done"].tap()
+        // Faded after five seconds; About keeps it.
+        XCTAssert(credit.waitForNonExistence(timeout: 10))
+    }
+
+    // Without the terrain no source wants its name over the map: the credits are
+    // About's.
+    @MainActor
+    func testKeepsTheCreditsInAbout() {
         let app = launch()
-        XCTAssert(app.buttons["Attribution"].waitForExistence(timeout: 30))
-        app.buttons["Attribution"].tap()
-        XCTAssert(app.buttons["Done"].waitForExistence(timeout: 5))
+        XCTAssert(menuToggle(app).waitForExistence(timeout: 30))
+        XCTAssertFalse(app.buttons["© OpenStreetMap"].exists)
+        openMenu(app)
+        app.buttons["About"].tap()
+        XCTAssert(app.navigationBars["About Satvis"].waitForExistence(timeout: 5))
+        // At the foot of a lazy list, which has no rows off screen.
+        let sharing = app.switches["Share usage data"]
+        for _ in 0..<6 where !sharing.exists {
+            app.swipeUp()
+        }
+        XCTAssert(sharing.exists)
+        app.buttons["Acknowledgements"].tap()
+        XCTAssert(app.descendants(matching: .any)["Imagery courtesy Natural Earth"].waitForExistence(timeout: 5))
     }
 
     // Paused, the clock falls behind the present, and the deck offers the way back
