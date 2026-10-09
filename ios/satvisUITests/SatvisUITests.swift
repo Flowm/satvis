@@ -327,7 +327,7 @@ nonisolated class SatvisUITests: XCTestCase {
 
     @MainActor
     func testScreenshot1Globe() throws {
-        try openDemo("Weather satellites", at: "2026-10-04T08:52")
+        try openDemo("Weather satellites", at: "2026-10-04T08:52:00")
         screenshot("1Globe")
     }
 
@@ -336,23 +336,25 @@ nonisolated class SatvisUITests: XCTestCase {
     // left an iPad's cliffs coarse.
     @MainActor
     func testScreenshot2Sky() throws {
-        try openDemo("Sky over Lauterbrunnen", at: "2026-10-04T19:22", wait: 60)
+        try openDemo("Sky over Lauterbrunnen", at: "2026-10-04T19:22:00", wait: 60)
         screenshot("2Sky")
     }
 
+    // Over the Tyrrhenian Sea, Italy beside it: over desert the station was hard
+    // to make out.
     @MainActor
     func testScreenshot3ISS() throws {
-        try openDemo("Follow the ISS", at: "2026-10-04T02:07")
+        try openDemo("Follow the ISS", at: "2026-10-04T08:17:40")
         screenshot("3ISS")
     }
 
-    /// Launches on BASE_URL's site with its clock stopped at `minute` (UTC), so
+    /// Launches on BASE_URL's site with its clock stopped at `time` (UTC), so
     /// that every device shows the same moment, opens the demo of that name from
     /// the Bookmarks sheet, which leaves a stopped clock where it is, and waits
     /// `wait` seconds for the tiles.
     @MainActor
     @discardableResult
-    func openDemo(_ name: String, at minute: String, wait: UInt32 = 20) throws -> XCUIApplication {
+    func openDemo(_ name: String, at time: String, wait: UInt32 = 20) throws -> XCUIApplication {
         let environment = ProcessInfo.processInfo.environment
         guard environment["SCREENSHOTS"] != nil else {
             throw XCTSkip("Taken by scripts/screenshots.sh")
@@ -363,7 +365,7 @@ nonisolated class SatvisUITests: XCTestCase {
         }
         // The default view, not the one the last shot left.
         app.launchEnvironment["SATVIS_LINK"] = "/"
-        app.launchEnvironment["SATVIS_TIME"] = "\(minute):00Z"
+        app.launchEnvironment["SATVIS_TIME"] = "\(time)Z"
         app.launch()
         openMenu(app)
         app.buttons["Bookmarks"].tap()

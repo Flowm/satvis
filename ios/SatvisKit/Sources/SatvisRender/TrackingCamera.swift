@@ -52,12 +52,14 @@ public struct TrackingCamera: Sendable, Equatable {
     public init() {}
 
     /// Close up on a 3D model, as the web app tracks one while its model is on:
-    /// south-east of it and above, along (9, −10, 5) east-north-up, six model
-    /// radii away, so a cubesat and the ISS fill the screen alike.
+    /// south-east of it and above, along (9, −10, 9) east-north-up, six model
+    /// radii away, so a cubesat and the ISS fill the screen alike. 34° up, past
+    /// the 20–23° a low orbit's horizon dips, so the model is seen against the
+    /// ground.
     static func framing(modelRadius radius: Double) -> TrackingCamera {
         var camera = TrackingCamera()
         camera.heading = atan2(9, -10)
-        camera.pitch = atan2(5, (81.0 + 100).squareRoot())
+        camera.pitch = atan2(9, (81.0 + 100).squareRoot())
         camera.range = 6 * radius
         return camera
     }
