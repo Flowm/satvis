@@ -14,11 +14,11 @@ devices="iPhone 18 Pro
 iPhone 18 Pro Max
 iPad Pro 13-inch (M5)"
 
-# Each screenshot: its test's name, the minute its test stops the clock at (UTC),
+# Each screenshot: its test's name, the time its test stops the clock at (UTC),
 # and its caption.
-shots="1Globe 2026-10-04T08:52 Watch satellites orbit live
-2Sky 2026-10-04T19:22 Find satellites in your sky
-3ISS 2026-10-04T02:07 Follow the ISS in orbit"
+shots="1Globe 2026-10-04T08:52:00 Watch satellites orbit live
+2Sky 2026-10-04T19:22:00 Find satellites in your sky
+3ISS 2026-10-04T08:17:40 Follow the ISS in orbit"
 
 if [ $# -gt 0 ]; then
   shots=$(echo "$shots" | grep -E "^($(echo "$*" | tr ' ' '|')) ")
@@ -50,13 +50,13 @@ EOF
 xcodebuild build-for-testing -project satvis.xcodeproj -scheme satvis "$@"
 
 # One shot at a time, on every device at once, under a status bar showing its
-# test's minute, as the clock deck does. The status bar shows the Mac's time
-# zone, so it is given the instant whose local time reads that minute, and on
+# test's time, as the clock deck does. The status bar shows the Mac's time
+# zone, so it is given the instant whose local time reads that time, and on
 # its own: given with any other override, an iPad shows the weekday the date had
 # in 2000 (Wed 4 Oct). Only the screenshot tests: one that fails leaves
 # xcodebuild hanging (AGENTS.md).
-while read -r name minute caption; do
-  instant=$(date -u -r "$(date -j -f %Y-%m-%dT%H:%M "$minute" +%s)" +%Y-%m-%dT%H:%M:00.000Z)
+while read -r name time caption; do
+  instant=$(date -u -r "$(date -j -f %Y-%m-%dT%H:%M:%S "$time" +%s)" +%Y-%m-%dT%H:%M:%S.000Z)
   for udid in $udids; do
     xcrun simctl status_bar "$udid" override --time "$instant"
   done
