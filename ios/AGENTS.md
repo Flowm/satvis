@@ -329,8 +329,7 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
   Bookmarks sheet's demos, opened from their cards, in the order globe, sky, ISS,
   since the first three are what a search result shows, each with the clock
   stopped at the minute its test names (`SATVIS_TIME`, which opening a bookmark
-  leaves stopped), from the site `BASE_URL` names (satvis.space by default). Only
-  the ISS's panel is closed after. Each shot is taken on its own, under a status
+  leaves stopped), from the site `BASE_URL` names (satvis.space by default). Each shot is taken on its own, under a status
   bar reading its minute and date, as the clock deck does. `SHOTS=2Sky` retakes
   only the shots it names, for one whose tiles had not loaded.
 - **`upload-screenshots`** replaces the screenshots of the version being prepared

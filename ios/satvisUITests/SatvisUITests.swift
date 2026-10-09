@@ -23,12 +23,12 @@ nonisolated class SatvisUITests: XCTestCase {
     }
 
     // A link opens on what it names, as on the web: the satellite enabled and
-    // tracked, its panel open.
+    // tracked, its panel closed, as `track` follows alone.
     @MainActor
     func testOpensALink() {
         let app = launch(link: "/?tags=&sats=METOP-B&track=METOP-B&elements=Point,Label,Orbit")
-        XCTAssert(app.navigationBars["METOP-B"].waitForExistence(timeout: 20))
-        XCTAssert(app.buttons["Stop tracking"].firstMatch.exists)
+        XCTAssert(app.buttons["Stop tracking"].firstMatch.waitForExistence(timeout: 20))
+        XCTAssertFalse(app.navigationBars["METOP-B"].exists)
     }
 
     // The web app's menu column unfolds from the menu button, folded on a phone
@@ -316,13 +316,9 @@ nonisolated class SatvisUITests: XCTestCase {
         screenshot("2Sky")
     }
 
-    // The station alone: the panel would cover it on a phone and crowd it on an
-    // iPad, and closing it keeps the station tracked.
     @MainActor
     func testScreenshot3ISS() throws {
-        let app = try openDemo("Follow the ISS", at: "2026-10-04T02:07")
-        app.buttons["Close"].firstMatch.tap()
-        sleep(2)
+        try openDemo("Follow the ISS", at: "2026-10-04T02:07")
         screenshot("3ISS")
     }
 
