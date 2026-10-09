@@ -41,39 +41,39 @@ struct AcknowledgementsView: View {
                         "Deep Star Maps 2020",
                         "The stars: NASA/Goddard Space Flight Center Scientific Visualization Studio, from Hipparcos-2, Tycho-2 and Gaia DR2.")
                 }
-                Section("Software") {
-                    NavigationLink {
-                        LicenceText(title: "CesiumJS", text: Notices.cesium)
-                    } label: {
-                        entry("CesiumJS", "The atmosphere, lighting and tone mapping, ported to Metal. Apache License 2.0, with its third-party notices.")
-                    }
-                    entry("SGP4", "David Vallado's reference implementation (AIAA 2006-6753), released without restriction.")
-                    NavigationLink {
-                        LicenceText(title: "Draco", text: Self.bundled("draco"))
-                    } label: {
-                        entry("Draco", "Google's mesh decompression, for the satellites' 3D models. Apache License 2.0.")
-                    }
-                    NavigationLink {
-                        LicenceText(title: "Lucide", text: Self.bundled("lucide"))
-                    } label: {
-                        entry("Lucide", "The toolbar's icons and the ground station pin, the web app's own. ISC License.")
-                    }
-                    NavigationLink {
-                        LicenceText(title: "PostHog for iOS", text: Self.bundled("posthog-ios"))
-                    } label: {
-                        entry("PostHog for iOS", "Usage analytics. MIT License.")
-                    }
-                    // Built into PostHog for iOS, which ships them in its binary.
-                    NavigationLink {
-                        LicenceText(title: "PLCrashReporter", text: Self.bundled("plcrashreporter"))
-                    } label: {
-                        entry("PLCrashReporter", "Part of PostHog for iOS. MIT License; its protobuf-c, Apache License 2.0.")
-                    }
-                    NavigationLink {
-                        LicenceText(title: "libwebp", text: Self.bundled("libwebp"))
-                    } label: {
-                        entry("libwebp", "Part of PostHog for iOS. BSD 3-Clause License, with Google's patent grant.")
-                    }
+            }
+            Section("Software") {
+                NavigationLink {
+                    LicenceText(title: "CesiumJS", text: Notices.cesium)
+                } label: {
+                    entry("CesiumJS", "The atmosphere, lighting and tone mapping, ported to Metal. Apache License 2.0, with its third-party notices.")
+                }
+                entry("SGP4", "David Vallado's reference implementation (AIAA 2006-6753), released without restriction.")
+                NavigationLink {
+                    LicenceText(title: "Draco", text: Self.bundled("draco"))
+                } label: {
+                    entry("Draco", "Google's mesh decompression, for the satellites' 3D models. Apache License 2.0.")
+                }
+                NavigationLink {
+                    LicenceText(title: "Lucide", text: Self.bundled("lucide"))
+                } label: {
+                    entry("Lucide", "The toolbar's icons and the ground station pin, the web app's own. ISC License.")
+                }
+                NavigationLink {
+                    LicenceText(title: "PostHog for iOS", text: Self.bundled("posthog-ios"))
+                } label: {
+                    entry("PostHog for iOS", "Usage analytics. MIT License.")
+                }
+                // Built into PostHog for iOS, which ships them in its binary.
+                NavigationLink {
+                    LicenceText(title: "PLCrashReporter", text: Self.bundled("plcrashreporter"))
+                } label: {
+                    entry("PLCrashReporter", "Part of PostHog for iOS. MIT License; its protobuf-c, Apache License 2.0.")
+                }
+                NavigationLink {
+                    LicenceText(title: "libwebp", text: Self.bundled("libwebp"))
+                } label: {
+                    entry("libwebp", "Part of PostHog for iOS. BSD 3-Clause License, with Google's patent grant.")
                 }
             }
         }
