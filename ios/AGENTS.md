@@ -140,6 +140,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   wait for it to land, and reduced motion cuts. The crosshair, the tapes, the
   trace and the card read the renderer's last frame (`SkyTargets.swift`), and
   the lock is the tap: from the ground a tap opens what the crosshair holds.
+  The lock's card is the web app's, a fact a row, except on a phone, where it
+  hid a third of the sky: two facts a row, four lines where there were seven.
   Compass aiming (`SkyCompass`) is CoreMotion's attitude against true north, or
   magnetic north without a location, so it needs no calibration step; it can
   only be tried on a device, the simulator having no motion sensor. The

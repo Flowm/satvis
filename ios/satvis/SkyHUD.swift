@@ -39,6 +39,7 @@ private struct SkyInstruments: View {
     let trailingInset: CGFloat
     let size: CGSize
     let date: Date
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     private static let ink = Color(red: 0xED / 255, green: 1, blue: 1)
     private static let lockColor = Color(red: 0x4A / 255, green: 0xDE / 255, blue: 0x80 / 255)
@@ -158,19 +159,48 @@ private struct SkyInstruments: View {
         }
     }
 
+    /// The web app's card: a fact a row. On a phone, where it hid a third of the
+    /// sky, two a row and the hint beside the name, four lines where there were seven.
     private func card(_ target: SkyTarget) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(target.name).fontWeight(.semibold)
-            Grid(alignment: .leading, horizontalSpacing: 28, verticalSpacing: 1) {
-                ForEach(Self.facts(target), id: \.0) { name, value in
+        let facts = Self.facts(target)
+        let compact = sizeClass == .compact
+        return VStack(alignment: .leading, spacing: 4) {
+            if !compact {
+                Text(target.name).fontWeight(.semibold)
+            }
+            Grid(alignment: .leading, horizontalSpacing: compact ? 10 : 28, verticalSpacing: 1) {
+                if compact {
+                    // In the grid, so the card is as wide as the facts, not the screen.
+                    GridRow(alignment: .firstTextBaseline) {
+                        Text(target.name).fontWeight(.semibold).gridCellColumns(3)
+                        hint.gridCellAnchor(.trailing)
+                    }
+                    .padding(.bottom, 1)
+                    ForEach([0, 2], id: \.self) { row in
+                        GridRow {
+                            Text(facts[row].0)
+                            Text(facts[row].1).gridColumnAlignment(.trailing)
+                            Text(facts[row + 1].0).padding(.leading, 14)
+                            Text(facts[row + 1].1).gridColumnAlignment(.trailing)
+                        }
+                    }
                     GridRow {
-                        Text(name)
-                        Text(value).gridColumnAlignment(.trailing)
+                        Text(facts[4].0)
+                        Text(facts[4].1).gridCellColumns(3).gridCellAnchor(.trailing)
+                    }
+                } else {
+                    ForEach(facts, id: \.0) { name, value in
+                        GridRow {
+                            Text(name)
+                            Text(value).gridColumnAlignment(.trailing)
+                        }
                     }
                 }
             }
             .monospacedDigit()
-            Text("Tap to open").font(.caption2).opacity(0.7)
+            if !compact {
+                hint
+            }
         }
         .font(.footnote)
         .foregroundStyle(Self.ink)
@@ -179,7 +209,12 @@ private struct SkyInstruments: View {
         .background(Color(red: 0x30 / 255, green: 0x33 / 255, blue: 0x36 / 255).opacity(0.85), in: .rect(cornerRadius: 8))
     }
 
-    /// What the card says of a satellite, in the web app's order (SkyHud.vue).
+    private var hint: some View {
+        Text("Tap to open").font(.caption2).opacity(0.7)
+    }
+
+    /// What the card says of a satellite, in the web app's order (SkyHud.vue):
+    /// azimuth, elevation, range, altitude, visibility.
     private static func facts(_ target: SkyTarget) -> [(String, String)] {
         let degrees = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(1))
         return [
