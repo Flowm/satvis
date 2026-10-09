@@ -83,14 +83,14 @@ vertex PointOut pointVertex(uint iid [[vertex_id]], const device packed_float3 *
     return out;
 }
 
-/// A 5 px disc in the orbit class colour inside a 1 px dim grey rim, as the web
-/// app's PointGraphics draws it: pointSize is the 7 px across both. Both fade
+/// A 4 px disc in the orbit class colour inside a 1 px dim grey rim, as the web
+/// app's PointGraphics draws it: pointSize is the 6 px across both. Both fade
 /// with the colour's alpha, as the sky view dims them.
 fragment float4 pointFragment(PointOut in [[stage_in]], float2 pointCoord [[point_coord]]) {
     float r = length(pointCoord * 2.0 - 1.0);
     if (r > 1.0) {
         discard_fragment();
     }
-    float3 color = r > 5.0 / 7.0 ? float3(0.41) : in.color.rgb;
+    float3 color = r > 4.0 / 6.0 ? float3(0.41) : in.color.rgb;
     return float4(gammaCorrect(color), in.color.a);
 }

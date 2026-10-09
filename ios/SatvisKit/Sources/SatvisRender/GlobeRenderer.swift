@@ -1215,7 +1215,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             viewportSize: SIMD2<Float>(size),
             eyeHeight: Float(pose.eyeHeight),
             cameraDistance: Float(length(position)),
-            pointSize: Float(7 * pixelScale),
+            pointSize: Float(6 * pixelScale),
             pixelScale: Float(pixelScale),
             unseenOpacity: judgement?.uniforms.unseenOpacity ?? 1,
             skyIsDark: judgement?.uniforms.skyIsDark ?? 0)
