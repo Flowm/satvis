@@ -123,6 +123,18 @@ export async function waitForSky(page: Page): Promise<void> {
   await expect.poll(() => page.evaluate(() => window.cc!.skyView.settled), { message: "sky view landed" }).toBe(true);
 }
 
+/**
+ * Waits for the opened link's picture. Until it is taken, `recordOpenedLink` asks for a
+ * frame every 500 ms, even with the clock paused, for 3 to 20 s after the page opens.
+ */
+export async function waitForOpenedLinkThumbnail(page: Page): Promise<void> {
+  await expect
+    .poll(() => page.evaluate(() => (JSON.parse(localStorage.getItem("satvis:bookmarks:opened") ?? "[]") as { thumbnail?: string }[]).some((link) => link.thumbnail)), {
+      message: "opened link photographed",
+    })
+    .toBe(true);
+}
+
 /** Selects the active satellite named `name`, or the first one, as a click on it would. */
 export async function selectSatellite(page: Page, name?: string): Promise<void> {
   await page.evaluate((wanted) => {
@@ -215,14 +227,17 @@ export async function steady<T>(page: Page, read: () => Promise<T>): Promise<T> 
 
 /**
  * Returns once `quietTicks` ticks and `quietMs` in a row pass without a render, or
- * after `maxTicks` regardless. Both, because the frames that follow a change come
- * from geometry built in web workers, which finish on wall time, not per frame.
+ * after `maxTicks` and `maxMs` regardless. Both, because the frames that follow a
+ * change come from geometry built in web workers, which finish on wall time, not per
+ * frame. The give-up needs both too: at 60 frames a second, 60 ticks end before 1.5 s
+ * of quiet can.
  */
-export async function waitForQuiet(page: Page, options: { quietTicks: number; quietMs: number; maxTicks: number }): Promise<void> {
+export async function waitForQuiet(page: Page, options: { quietTicks: number; quietMs: number; maxTicks: number; maxMs: number }): Promise<void> {
   await page.evaluate(
-    ({ quietTicks, quietMs, maxTicks }) =>
+    ({ quietTicks, quietMs, maxTicks, maxMs }) =>
       new Promise<void>((resolve) => {
         const { scene, clock } = window.cc!.viewer;
+        const start = performance.now();
         let ticks = 0;
         let quiet = 0;
         let lastRender = performance.now();
@@ -233,7 +248,7 @@ export async function waitForQuiet(page: Page, options: { quietTicks: number; qu
         const offTick = clock.onTick.addEventListener(() => {
           // onTick runs before the frame's render, so it judges the frame before.
           ticks += 1;
-          if ((quiet >= quietTicks && performance.now() - lastRender >= quietMs) || ticks >= maxTicks) {
+          if ((quiet >= quietTicks && performance.now() - lastRender >= quietMs) || (ticks >= maxTicks && performance.now() - start >= maxMs)) {
             offRender();
             offTick();
             resolve();
