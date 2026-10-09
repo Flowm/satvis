@@ -151,7 +151,7 @@ struct ContentView: View {
                         entry(.graphics, image: .lucideGauge, hint: "Quality and performance")
                         // The web app's About button, kept off the corner, which holds
                         // the ways back alone.
-                        ToolEntry(title: "About", image: .lucideInfo, hint: "What Satvis is, its demos and where its data comes from") {
+                        ToolEntry(title: "About", image: .lucideInfo, hint: "What Satvis is, what it does, where its data comes from, and its credits") {
                             showsAbout = true
                         }
                     }
