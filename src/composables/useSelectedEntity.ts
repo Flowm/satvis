@@ -57,7 +57,7 @@ const hasAnyPasses = ref(false);
 const showPastPasses = ref(false);
 const groundStationAvailable = ref(false);
 const elements: ShallowRef<ElementsInfo | null> = shallowRef(null);
-/** Set while the simulation time is far enough from the element epoch that the position may be inaccurate. */
+/** Set while the simulation time is far enough from the element epoch that the position and passes may be inaccurate. */
 const staleNotice = ref<string | undefined>(undefined);
 /** Resolved once per selection: none of it is time-dependent. */
 const satelliteInfo: ShallowRef<SatelliteInfo | undefined> = shallowRef();

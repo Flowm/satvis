@@ -162,7 +162,7 @@ export function staleElementsNotice(epochMs: number, timeMs: number): string | u
     return undefined;
   }
   const days = Math.round(Math.abs(offsetDays));
-  return `Position may be inaccurate, clock ${days} days ${offsetDays > 0 ? "after" : "before"} element epoch`;
+  return `Position and passes may be inaccurate, clock ${days} days ${offsetDays > 0 ? "after" : "before"} element epoch`;
 }
 
 export function formatEpoch(julianDate: number): string {

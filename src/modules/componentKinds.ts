@@ -316,7 +316,7 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
         host,
         "point",
         new PointGraphics({
-          pixelSize: 5,
+          pixelSize: 4,
           color: POINT_COLOR[host.props.orbitClass],
           outlineColor: Color.DIMGREY,
           outlineWidth: 1,
