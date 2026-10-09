@@ -44,7 +44,7 @@ nonisolated class SatvisUITests: XCTestCase {
             XCTAssertFalse(app.buttons["Map"].exists)
             toggle.tap()
         }
-        for entry in ["Bookmarks", "Satellites", "Components", "Map", "Locations", "Globe", "Sky", "Graphics"] {
+        for entry in ["Bookmarks", "Satellites", "Components", "Map", "Locations", "Globe", "Sky", "Graphics", "About"] {
             XCTAssert(app.buttons[entry].waitForExistence(timeout: 5), "No \(entry) in the menu")
         }
         app.buttons["Components"].tap()
@@ -128,6 +128,9 @@ nonisolated class SatvisUITests: XCTestCase {
         openMenu(app)
         app.buttons["Bookmarks"].tap()
         XCTAssert(app.buttons["Recent (1)"].waitForExistence(timeout: 10))
+        // The view is shared from here, the corner holding the ways back alone.
+        XCTAssert(app.buttons["Share this view"].exists)
+        XCTAssertFalse(app.buttons["Share"].exists)
         app.buttons["Save this view"].tap()
         let name = app.alerts.textFields.firstMatch
         XCTAssert(name.waitForExistence(timeout: 10))
@@ -156,12 +159,13 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Default view"].isEnabled)
     }
 
-    // The about page's demos open in the app: the first pins the clock at its minute.
+    // The about page's demos open in the app, from the menu's About: the first pins
+    // the clock at its minute.
     @MainActor
     func testOpensADemoFromAbout() {
         let app = launch()
-        XCTAssert(app.buttons["About Satvis"].waitForExistence(timeout: 30))
-        app.buttons["About Satvis"].tap()
+        openMenu(app)
+        app.buttons["About"].tap()
         let demo = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Open it'")).firstMatch
         XCTAssert(demo.waitForExistence(timeout: 5))
         demo.tap()

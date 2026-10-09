@@ -49,7 +49,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   Re:Earth no more than the web app does. ADR 0009 has why. The texture budget
   is soft: a low, oblique view can use more tiles than it, and evicting tiles in
   use only starts the refinement over.
-- About, in the top-right column, is the web app's About dialog (`AboutView.swift`):
+- About, the menu column's last entry, is the web app's About dialog (`AboutView.swift`):
   what Satvis is, the about page's three demos (opened in the app, by their links),
   what it does and where its data comes from, written for the app. Keep the demos'
   links in step with `about.html`'s.
@@ -125,8 +125,11 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   visit: they are shown and predicted for, but saved only on the user's word, and
   have no alerts until then. A shared link carries the visiting stations and the
   selected one, never the rest of the saved ones, which are often where the user
-  lives. Share makes the link when tapped, so a pinned clock gives its minute
-  then. satvis.space links open the app as universal links: the site's
+  lives. Sharing is the Bookmarks sheet's: its Share button shares the view on
+  screen and a card's Share its bookmark, so the top-right corner holds only
+  the ways back. The link is made when tapped, so a pinned clock gives its
+  minute then, and handed to the system's share sheet as itself, which shows
+  the site's own preview. satvis.space links open the app as universal links: the site's
   `public/.well-known/apple-app-site-association` claims `/ot` and `/` with a
   query, and `satvis.entitlements` the `applinks:satvis.space` domain, which
   needs the Associated Domains capability on the App ID. The simulator builds
@@ -182,7 +185,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   required-reason API and every data type collected, and keep the App Store
   privacy label in step with it.
 - The menu column is the web app's (`Satvis.vue`'s `menuItems`): a Menu toggle
-  over Bookmarks, Satellites, Components, Map, Locations, Globe, Sky and Graphics, with their
+  over Bookmarks, Satellites, Components, Map, Locations, Globe, Sky and Graphics,
+  then About, which the web app keeps as a corner button, with their
   Lucide icons, names and order, and their hover hints, trimmed to what the
   app has, as VoiceOver hints, one glass panel
   whose rows each hold an icon and its name, folded on a phone and open on an
@@ -192,7 +196,9 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   switches, a segmented control where the choices are short, ticked rows where
   they are long; a setting that needs the sky view is disabled on the globe,
   not hidden. On a phone the column folds to its icons beside a panel, which
-  covers the top-right buttons, as the web's does below 640 px. Not system
+  covers the top-right buttons, as the web's does below 640 px. Those buttons
+  are the ways back alone: home or out of the sky view, the compass, and the
+  end of tracking. Not system
   menus: iOS 26 grows one out of its control, in the column's place, and it holds
   ticked lists alone. Bookmarks, Satellites and Locations are sheets: long lists.
   A tap on the globe closes the panel and on a phone folds the column, as on
@@ -208,7 +214,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   link's other parameters, and goes live without a `time`. Saved ones and opened
   links are kept in Application Support (`BookmarkStorage`), in backups, and synced
   nowhere; a deleted one's picture stays while its own Undo lasts. A card's
-  actions are a long press, and a "…" on the card shows they are there. An opened link is one the system hands over, the About page's, or
+  actions are a long press, and a "…" on the card shows they are there: Share on
+  every card, a demo's included. An opened link is one the system hands over, the About page's, or
   `SATVIS_LINK`: not the view a last run left, which is a reload. Pictures are the
   renderer's next frame (`GlobeRenderer.snapshot`), read from a drawable asked
   for readable for that frame alone, 480 pixels across where the web app's are

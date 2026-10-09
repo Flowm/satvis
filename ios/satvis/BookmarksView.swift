@@ -16,6 +16,10 @@ struct BookmarksView: View {
     /// The bookmarks deleted in the last five seconds, newest last, each with its
     /// own undo.
     @State private var deleted: [Bookmark] = []
+    /// Where the share button and each card are in the window, for a share sheet's
+    /// popover to point at on iPad.
+    @State private var frames: [String: CGRect] = [:]
+    private static let shareButton = "share"
     @Environment(\.dismiss) private var dismiss
 
     init(session: Session) {
@@ -62,6 +66,18 @@ struct BookmarksView: View {
             .navigationTitle("Bookmarks")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // The view on screen, where the corner's Share button was; made when
+                // tapped, so that a clock off the present gives its minute then.
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Share this view", systemImage: "square.and.arrow.up") {
+                        ShareSheet.present(session.link(sharing: true).url(site: session.source.site), from: frames[Self.shareButton] ?? .zero)
+                    }
+                    .onGeometryChange(for: CGRect.self) {
+                        $0.frame(in: .global)
+                    } action: {
+                        frames[Self.shareButton] = $0
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
@@ -143,30 +159,37 @@ struct BookmarksView: View {
             BookmarkCard(bookmark: bookmark, summary: summary, picture: picture(bookmark), isCurrent: isCurrent)
         }
         .buttonStyle(.plain)
+        .onGeometryChange(for: CGRect.self) {
+            $0.frame(in: .global)
+        } action: {
+            frames[bookmark.id] = $0
+        }
         // The name first: read in order, the card starts with its picture's time.
         .accessibilityLabel([bookmark.name, summary.what, summary.where, summary.time ?? "Live"].joined(separator: ", "))
         .accessibilityAddTraits(isCurrent ? .isSelected : [])
         .contextMenu { actions(bookmark) }
-        // The long press's actions in sight, where a card has any.
+        // The long press's actions in sight.
         .overlay(alignment: .topTrailing) {
-            if bookmark.kind != .demo {
-                Menu {
-                    actions(bookmark)
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.footnote.weight(.bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 28, height: 28)
-                        .background(.black.opacity(0.73), in: .circle)
-                        .padding(4)
-                        .contentShape(.rect)
-                }
-                .accessibilityLabel("Actions for \(bookmark.name)")
+            Menu {
+                actions(bookmark)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.footnote.weight(.bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 28, height: 28)
+                    .background(.black.opacity(0.73), in: .circle)
+                    .padding(4)
+                    .contentShape(.rect)
             }
+            .accessibilityLabel("Actions for \(bookmark.name)")
         }
     }
 
     @ViewBuilder private func actions(_ bookmark: Bookmark) -> some View {
+        // Its own link, as it opens: live unless it was saved with a time.
+        Button("Share", systemImage: "square.and.arrow.up") {
+            ShareSheet.present(bookmark.scene.link().url(site: session.source.site), from: frames[bookmark.id] ?? .zero)
+        }
         switch bookmark.kind {
         case .saved:
             Button("Rename", systemImage: "pencil") { startRename(bookmark) }
@@ -304,5 +327,26 @@ struct BookmarkCard: View {
             .padding(.vertical, 2)
             .background(.black.opacity(0.73), in: .rect(cornerRadius: 6))
             .padding(5)
+    }
+}
+
+/// The system's share sheet with the link itself, not an item provider's promise of
+/// it, over the Bookmarks sheet; on iPad a popover pointing at `rect`, in the
+/// window's coordinates.
+private enum ShareSheet {
+    static func present(_ url: URL, from rect: CGRect) {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
+        guard let window = scene?.keyWindow, var top = window.rootViewController else {
+            return
+        }
+        while let presented = top.presentedViewController, !presented.isBeingDismissed {
+            top = presented
+        }
+        let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        if let popover = sheet.popoverPresentationController {
+            popover.sourceView = window
+            popover.sourceRect = rect
+        }
+        top.present(sheet, animated: true)
     }
 }
