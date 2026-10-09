@@ -25,12 +25,13 @@
       <span class="bookmarkCard__fact"><UIcon name="lucide:orbit" class="bookmarkCard__icon" />{{ summary.what }}</span>
       <span class="bookmarkCard__fact"><UIcon :name="whereIcon" class="bookmarkCard__icon" />{{ summary.where }}</span>
     </button>
-    <div v-if="bookmark.kind !== 'demo' && !renaming" class="bookmarkCard__tools">
+    <div v-if="!renaming" class="bookmarkCard__tools">
+      <button type="button" :aria-label="`Share ${bookmark.name}`" @click="emit('share')"><UIcon name="lucide:share" /></button>
       <template v-if="bookmark.kind === 'saved'">
         <button type="button" :aria-label="`Rename ${bookmark.name}`" @click="emit('rename')"><UIcon name="lucide:pencil" /></button>
         <button type="button" :aria-label="`Delete ${bookmark.name}`" @click="emit('remove')"><UIcon name="lucide:trash-2" /></button>
       </template>
-      <template v-else>
+      <template v-else-if="bookmark.kind === 'opened'">
         <button type="button" :aria-label="`Save ${bookmark.name}`" @click="emit('keep')"><UIcon name="lucide:bookmark-plus" /></button>
         <button type="button" :aria-label="`Forget ${bookmark.name}`" @click="emit('remove')"><UIcon name="lucide:x" /></button>
       </template>
@@ -45,7 +46,7 @@ import { type Bookmark, type BookmarkSummary, timeAgo } from "../modules/util/bo
 
 /** `draft` is the name being typed, held by the panel, whose footer can save it too. */
 const props = defineProps<{ bookmark: Bookmark; summary: BookmarkSummary; current: boolean; renaming: boolean; draft: string }>();
-const emit = defineEmits<{ open: []; rename: []; "update:draft": [name: string]; commit: []; cancel: []; remove: []; keep: [] }>();
+const emit = defineEmits<{ open: []; rename: []; "update:draft": [name: string]; commit: []; cancel: []; remove: []; keep: []; share: [] }>();
 
 /** A demo's picture is a path under the app's base; a saved one is a data url. */
 const thumbnailUrl = computed(() => {
@@ -154,8 +155,9 @@ function onBlur(event: FocusEvent): void {
   color: #8fe39b;
 }
 
+/* Above the time, clear of the tools, which on a phone span the picture's width. */
 .bookmarkCard__badge--age {
-  top: 5px;
+  bottom: 26px;
 }
 
 .bookmarkCard__name {

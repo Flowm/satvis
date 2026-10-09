@@ -30,6 +30,7 @@
         @cancel="renaming = undefined"
         @remove="onRemove(bookmark)"
         @keep="onKeep(bookmark)"
+        @share="void onShare(bookmark)"
       />
       <p v-if="shown.length === 0" class="bookmarkPanel__empty">{{ EMPTY[tab] }}</p>
     </div>
@@ -73,7 +74,7 @@ const EMPTY: Record<Tab, string> = {
   opened: "Links you open show up here.",
 };
 
-const { demos, saved, opened, isDefault, isCurrent, summary, open, openDefault, saveCurrent, rename, keep, remove, restore, forget } = useBookmarks();
+const { demos, saved, opened, isDefault, isCurrent, summary, open, link, openDefault, saveCurrent, rename, keep, remove, restore, forget } = useBookmarks();
 const toast = useToast();
 
 /** Opens on Saved for a visitor who has saved something. */
@@ -130,6 +131,31 @@ function onKeep(bookmark: Bookmark): void {
   if (kept) {
     tab.value = "saved";
     startRename(kept);
+  }
+}
+
+/**
+ * The system's share sheet where the browser has one and the page may use it (not in an
+ * iframe without `allow="web-share"`), the clipboard otherwise.
+ */
+async function onShare(bookmark: Bookmark): Promise<void> {
+  const url = link(bookmark);
+  if (navigator.canShare?.({ url })) {
+    try {
+      await navigator.share({ url });
+      return;
+    } catch (error) {
+      // Dismissing the sheet rejects too.
+      if ((error as DOMException).name === "AbortError") {
+        return;
+      }
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    toast.add({ title: "Link copied", description: bookmark.name, duration: 3000 });
+  } catch {
+    toast.add({ title: "Could not copy the link", description: url, color: "error" });
   }
 }
 
