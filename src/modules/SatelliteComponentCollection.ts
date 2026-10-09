@@ -16,8 +16,11 @@ type SatelliteComponentName = string;
 
 /** Where tracking starts, east-north-up from the satellite. */
 const VIEW_FROM = new Cartesian3(0, -3600000, 4200000);
-/** South-east of and above the model, in model radii: a cubesat and the ISS differ 300-fold. */
-const VIEW_FROM_MODEL_DIRECTION = Cartesian3.normalize(new Cartesian3(9, -10, 5), new Cartesian3());
+/**
+ * South-east of and above the model, in model radii: a cubesat and the ISS differ 300-fold.
+ * 34° up, past the 20–23° a low orbit's horizon dips, so the model is seen against the ground.
+ */
+const VIEW_FROM_MODEL_DIRECTION = Cartesian3.normalize(new Cartesian3(9, -10, 9), new Cartesian3());
 const VIEW_FROM_MODEL_RADII = 6;
 
 /**
