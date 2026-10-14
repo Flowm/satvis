@@ -325,10 +325,12 @@ the app is developed on. Why it is built this way, and the milestones it is buil
 ## Tasks
 
 `make` in `ios/` runs them: `build`, `test`, `test-kit`, `run`, `logs`, `format`,
-`lint`, `screenshots`, `screenshots-upload`, `screenshots-download`, `clean`;
-`make` alone (`make help`) lists them and the variables they take. `DEVICE="iPad Pro 13-inch (M5)"` picks
-the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
-(default `iPhone 18 Pro`); `UDID=…` picks one exactly.
+`lint`, `screenshots`, `screenshots-upload`, `screenshots-download`,
+`metadata-download`, `metadata-upload`, `clean`;
+`make` alone (`make help`) lists them and the variables they take.
+`DEVICE="iPad Pro 13-inch (M5)"` picks the simulator by name, on `RUNTIME="iOS 27"`
+or the newest runtime that has it (default `iPhone 18 Pro`); `UDID=…` picks one
+exactly.
 `make run` opens no simulator window; follow the app with `make logs`.
 
 - **`test-kit`** runs the package tests on macOS, with no simulator. **`test`** runs
@@ -364,6 +366,16 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
   prepared, else the live one, or `VERSION=1.1`, in the app's primary language,
   to `screenshots/app-store/` under the names they were uploaded with. App Store
   Connect re-encodes them, so they are not the uploaded bytes.
+- **`metadata-download`** replaces `metadata/` with the listing's text, one JSON
+  file per language, indented so that a changed field is a changed line: the
+  name, subtitle and privacy policy in `app-info/`, and the description,
+  keywords, URLs and release notes of the version being prepared, else the live
+  one, or `VERSION=…`, in `version/<version>/`. Categories, age rating, review
+  information and copyright are not in it (`asc metadata --help`).
+- **`metadata-upload`** validates `metadata/` and updates the listing from it: the
+  app info, and the version the one folder in `version/` names, which has to be
+  editable. A field a file leaves out is left as it is. `DRY_RUN=1` lists the
+  changes.
 
 The App Store Connect listing (versions, builds, TestFlight, review) is managed
 with the `asc` CLI (App Store Connect CLI). The Makefile exports the app's id,

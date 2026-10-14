@@ -8,8 +8,9 @@
 ## API       The worker run talks to (default https://satvis.space)
 ## SHOTS     The screenshots to retake alone, e.g. 2Sky
 ## BASE_URL  The site screenshots opens its views on (default https://satvis.space)
-## DRY_RUN   screenshots-upload says what it would replace, and changes nothing
-## VERSION   The App Store version screenshots-download fetches (default the newest)
+## DRY_RUN   The uploads say what they would change, and change nothing
+## VERSION   The App Store version the downloads fetch (default the one being prepared)
+## ASC_*     asc's own settings for the uploads and downloads, e.g. ASC_PROFILE, ASC_READ_ONLY=1
 
 DEVICE ?= iPhone 18 Pro
 RUNTIME ?=
@@ -26,7 +27,7 @@ SOURCES = satvis satvisUITests SatvisKit
 
 .DEFAULT_GOAL := help
 
-.PHONY: build test test-kit run logs format lint screenshots screenshots-upload screenshots-download clean help
+.PHONY: build test test-kit run logs format lint screenshots screenshots-upload screenshots-download metadata-download metadata-upload clean help
 
 build: ## Build the app for the simulator | DEVICE RUNTIME UDID
 	$(XCODEBUILD) build
@@ -60,6 +61,12 @@ screenshots-upload: ## Replace the prepared version's screenshots | DRY_RUN
 
 screenshots-download: ## Download a version's screenshots | VERSION
 	scripts/screenshots-download.sh
+
+metadata-download: ## Download the listing's text to metadata/ | VERSION
+	scripts/metadata-download.sh
+
+metadata-upload: ## Update the listing's text from metadata/ | DRY_RUN
+	scripts/metadata-upload.sh
 
 clean: ## Delete the build and the screenshots
 	rm -rf build screenshots SatvisKit/.build
