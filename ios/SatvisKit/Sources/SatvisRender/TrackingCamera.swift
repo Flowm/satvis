@@ -20,6 +20,11 @@ struct CameraPose {
             verticalFieldOfView: verticalFieldOfView ?? OrbitCamera.verticalFieldOfView(aspectRatio: aspectRatio), aspectRatio: aspectRatio, near: near)
     }
 
+    /// Whether no coordinate is NaN or infinite.
+    var isFinite: Bool {
+        [position, right, up, back].allSatisfy { $0.x.isFinite && $0.y.isFinite && $0.z.isFinite }
+    }
+
     func verticalFieldOfView(aspectRatio: Double) -> Double {
         verticalFieldOfView ?? OrbitCamera.verticalFieldOfView(aspectRatio: aspectRatio)
     }
@@ -75,18 +80,28 @@ public struct TrackingCamera: Sendable, Equatable {
     }
 
     /// Circles the satellite: across turns the heading, up and down the pitch.
+    /// Ignores a gesture that is not finite, as `OrbitCamera.rotate` says why.
     public mutating func orbit(by points: SIMD2<Double>, longerSide: Double) {
+        guard points.isFinite, longerSide > 0 else {
+            return
+        }
         let radiansPerPoint = Double.pi / longerSide
         heading -= points.x * radiansPerPoint
         pitch = min(max(pitch + points.y * radiansPerPoint, 5 * .pi / 180), 89 * .pi / 180)
     }
 
     public mutating func zoom(by scale: Double) {
+        guard scale.isFinite, scale > 0 else {
+            return
+        }
         // CesiumJS's minimumZoomDistance: a metre, near enough for a 3D model.
         range = min(max(range / scale, 1), 100_000_000)
     }
 
     public mutating func rotate(by radians: Double) {
+        guard radians.isFinite else {
+            return
+        }
         heading -= radians
     }
 }

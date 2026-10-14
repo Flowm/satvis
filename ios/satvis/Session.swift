@@ -192,6 +192,12 @@ final class Session {
         renderer.unseen = unseen
         renderer.cameraFrame = cameraFrame
         renderer.setStations(shownMarkers)
+        renderer.onGPUFault = { [weak self, weak renderer] fault in
+            guard let self, let renderer else {
+                return
+            }
+            analytics.gpuFault(fault, satellites: renderer.satelliteCount, view: link(sharing: false).url(site: source.site))
+        }
         // What a link opened on before the renderer was there to be told: the
         // sky view, with no globe to fly from yet, or something followed.
         if let observer, let station = passes.station(observer) {

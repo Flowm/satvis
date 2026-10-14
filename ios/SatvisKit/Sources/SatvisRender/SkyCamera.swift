@@ -91,8 +91,12 @@ public struct SkyCamera: Sendable, Equatable {
 
     /// Turns the camera so the sky follows a drag of `points`, right and down as
     /// UIKit measures them, on a view `height` points tall: a field of view's
-    /// worth of sky per screen height. Levels it.
+    /// worth of sky per screen height. Levels it. Ignores a gesture that is not
+    /// finite, as `OrbitCamera.rotate` says why.
     public mutating func drag(by points: SIMD2<Double>, height: Double) {
+        guard points.isFinite, height > 0 else {
+            return
+        }
         let radiansPerPoint = verticalFieldOfView / height
         let pitch = min(max(pitch + points.y * radiansPerPoint, -.pi / 2), .pi / 2)
         attitude = Self.attitude(azimuth: azimuth - points.x * radiansPerPoint, pitch: pitch)
@@ -100,6 +104,9 @@ public struct SkyCamera: Sendable, Equatable {
 
     /// A pinch: a narrower field of view for a scale above 1.
     public mutating func zoom(by scale: Double) {
+        guard scale.isFinite, scale > 0 else {
+            return
+        }
         verticalFieldOfView = min(max(verticalFieldOfView / scale, Self.fieldOfViewRange.lowerBound), Self.fieldOfViewRange.upperBound)
     }
 

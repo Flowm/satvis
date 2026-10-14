@@ -1,7 +1,10 @@
 import Foundation
 import MetalKit
 import SatvisCore
+import os
 import simd
+
+private let log = Logger(subsystem: "org.frcy.app.satvis", category: "globe")
 
 public enum RendererError: Error {
     case noDevice
@@ -200,6 +203,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// What the sky view's instruments worked out, kept between frames.
     var skyCache = SkyCache()
     private let meter = FrameMeter()
+    private let faults = GPUFaults()
+
+    /// Called with the first frame the GPU fails of each kind, which it logs.
+    public var onGPUFault: (@MainActor @Sendable (GPUFault) -> Void)? {
+        get { faults.onFault }
+        set { faults.onFault = newValue }
+    }
 
     /// Whether frames are measured, for the performance overlay; nothing is
     /// timed while it is off.
@@ -858,6 +868,18 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 }
             }
         }
+        guard pose.isFinite else {
+            // Drawn from, it leaves nothing on screen until the app is relaunched.
+            log.fault("Camera not finite: \(String(describing: orbitCamera), privacy: .public), \(String(describing: self.cameraMode), privacy: .public)")
+            self.orbitCamera = OrbitCamera.home(aspectRatio: Double(hdr.width) / Double(hdr.height))
+            trackingCamera = TrackingCamera()
+            homeFlight = nil
+            poseFlight = nil
+            if cameraMode == .sky {
+                landOnGlobe()
+            }
+            return
+        }
         lastPose = pose
         let waitStarted = measuring ? ProcessInfo.processInfo.systemUptime : 0
         inFlight.wait()
@@ -869,7 +891,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             return
         }
         let semaphore = inFlight
-        commands.addCompletedHandler { _ in semaphore.signal() }
+        let faults = faults
+        commands.addCompletedHandler { buffer in
+            semaphore.signal()
+            if buffer.status == .error {
+                faults.record(buffer.error)
+            }
+        }
         if measuring {
             let meter = meter
             commands.addCompletedHandler { buffer in meter.gpu(seconds: buffer.gpuEndTime - buffer.gpuStartTime) }
