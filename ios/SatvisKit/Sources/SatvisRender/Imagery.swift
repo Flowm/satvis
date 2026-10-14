@@ -164,13 +164,13 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
                 return components?.url
             }
         case .viirs:
-            // GIBS's daily true colour since 2015, as the web app's GibsTimeLayer asks
-            // for it: Web Mercator WMTS, 256-pixel tiles to level 9, a frame a day. A
-            // composite of swaths, so the gaps near the equator are black.
+            // GIBS's daily true colour from NOAA-20 since 2018, as the web app's
+            // GibsTimeLayer asks for it: Web Mercator WMTS, 256-pixel tiles to level 9,
+            // a frame a day. A composite of swaths, so the gaps near the equator are black.
             ImagerySource(projection: .webMercator, tileSize: 256, maximumLevel: 9, contentType: "image/") { key in
                 URL(
                     string:
-                        "\(GIBS.wmts)/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/\(frame ?? "default")/GoogleMapsCompatible_Level9/\(key.level)/\(key.y)/\(key.x).jpg")
+                        "\(GIBS.wmts)/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/\(frame ?? "default")/GoogleMapsCompatible_Level9/\(key.level)/\(key.y)/\(key.x).jpg")
             }
         }
     }
@@ -182,34 +182,53 @@ public enum GIBS {
 
     /// Where VIIRS's frames are listed: the capabilities the web app's
     /// GibsTimeLayer reads its domain from.
-    public static let viirsDomain = URL(string: "\(wmts)/1.0.0/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/GoogleMapsCompatible_Level9/all/all.xml")!
+    public static let viirsDomain = URL(string: "\(wmts)/1.0.0/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/GoogleMapsCompatible_Level9/all/all.xml")!
 
-    /// The first and last day a layer's `<Domain>` lists (`timeDomain.ts`'s
-    /// `parseDomain`, for a daily layer): ranges `start/end/P1D` or single days,
-    /// by commas. Nil where it lists nothing usable.
+    /// The first and last finished day a layer's `<Domain>` lists (`timeDomain.ts`'s
+    /// `parseDomain` and `withoutLatestFrame`, for a daily layer): ranges
+    /// `start/end/P1D` or single days, by commas. GIBS lists a day while it is still
+    /// imaging it, and serves what is missing as opaque black, so the newest is left
+    /// out. Nil where it lists nothing usable.
     public static func days(inDomain xml: String) -> ClosedRange<String>? {
         guard let open = xml.range(of: "<Domain>"), let close = xml.range(of: "</Domain>", range: open.upperBound..<xml.endIndex) else {
             return nil
         }
-        let dates = xml[open.upperBound..<close.lowerBound].split(separator: ",").flatMap { range in
-            range.split(separator: "/").prefix(2).map { String($0.trimmingCharacters(in: .whitespaces).prefix(10)) }
+        let ranges = xml[open.upperBound..<close.lowerBound].split(separator: ",").compactMap { entry -> (start: String, end: String)? in
+            let days = entry.split(separator: "/").prefix(2).map { String($0.trimmingCharacters(in: .whitespaces).prefix(10)) }
+            guard let start = days.first, let end = days.last, days.allSatisfy({ $0.wholeMatch(of: /\d{4}-\d{2}-\d{2}/) != nil }), start <= end else {
+                return nil
+            }
+            return (start, end)
         }
-        .filter { $0.wholeMatch(of: /\d{4}-\d{2}-\d{2}/) != nil }
-        guard let first = dates.min(), let last = dates.max() else {
+        .sorted { $0.start < $1.start }
+        guard let first = ranges.first?.start, let last = ranges.last else {
             return nil
         }
-        return first...last
+        let ends = ranges.dropLast().map(\.end) + (last.start < last.end ? [day(before: last.end)] : [])
+        return ends.max().map { first...$0 }
+    }
+
+    /// The UTC day before `day`, both `yyyy-MM-dd`.
+    static func day(before day: String) -> String {
+        guard let date = try? Date("\(day)T00:00:00Z", strategy: .iso8601) else {
+            return day
+        }
+        return utcDay(of: date.addingTimeInterval(-86_400))
+    }
+
+    /// An instant's UTC date, `yyyy-MM-dd`.
+    static func utcDay(of date: Date) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 1, parts.day ?? 1)
     }
 
     /// The day a daily layer shows at an instant: its UTC date, within the days
     /// GIBS lists; outside them the nearest, as the web app's open-ended first and
     /// last frames show.
     public static func frame(at epochMilliseconds: Double, within days: ClosedRange<String>) -> String {
-        let date = Date(timeIntervalSince1970: epochMilliseconds / 1000)
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
-        let parts = calendar.dateComponents([.year, .month, .day], from: date)
-        let day = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 1, parts.day ?? 1)
+        let day = utcDay(of: Date(timeIntervalSince1970: epochMilliseconds / 1000))
         return min(max(day, days.lowerBound), days.upperBound)
     }
 }

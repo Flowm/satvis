@@ -49,6 +49,16 @@ export function parseDomain(text: string): TimeRange[] {
   return ranges.toSorted((a, b) => a.start - b.start);
 }
 
+/** `ranges` without their latest frame. */
+export function withoutLatestFrame(ranges: readonly TimeRange[]): TimeRange[] {
+  const last = ranges.at(-1);
+  if (!last) {
+    return [];
+  }
+  const rest = ranges.slice(0, -1);
+  return last.step === 0 || last.end - last.step < last.start ? rest : [...rest, { ...last, end: last.end - last.step }];
+}
+
 /**
  * The frame to show at `time`: the latest one at or before it, so a gap holds the
  * frame before it, or the earliest when `time` precedes them all.

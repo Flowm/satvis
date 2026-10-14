@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { formatFrame, frameWindow, parseDomain, snapToFrame } from "./timeDomain";
+import { formatFrame, frameWindow, parseDomain, snapToFrame, withoutLatestFrame } from "./timeDomain";
 
 const at = (iso: string) => Date.parse(iso);
 const TEN_MINUTES = 10 * 60 * 1000;
@@ -20,6 +20,21 @@ describe("parseDomain", () => {
 
   test("skips what it cannot read rather than guessing", () => {
     expect(parseDomain("nonsense,2026-10-05/2026-10-04/PT10M,2026-10-04/2026-10-05/P1Y,2026-10-04/2026-10-05/PT")).toEqual([]);
+  });
+});
+
+describe("withoutLatestFrame", () => {
+  test("ends the last range a step sooner", () => {
+    expect(withoutLatestFrame(parseDomain("2015-11-24/2019-01-01/P1D,2019-01-03/2026-10-06/P1D"))).toEqual([
+      { start: at("2015-11-24"), end: at("2019-01-01"), step: DAY },
+      { start: at("2019-01-03"), end: at("2026-10-05"), step: DAY },
+    ]);
+  });
+
+  test("drops a last range that held one frame", () => {
+    expect(withoutLatestFrame(parseDomain("2026-10-01/2026-10-03/P1D,2026-10-05"))).toEqual(parseDomain("2026-10-01/2026-10-03/P1D"));
+    expect(withoutLatestFrame(parseDomain("2026-10-01/2026-10-03/P1D,2026-10-05/2026-10-05/P1D"))).toEqual(parseDomain("2026-10-01/2026-10-03/P1D"));
+    expect(withoutLatestFrame([])).toEqual([]);
   });
 });
 

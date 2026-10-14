@@ -103,10 +103,11 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
     base: true,
   },
   /**
-   * Daily true colour since 2015. A composite of swaths, so the gaps near the equator are black.
+   * Daily true colour since 2018. A composite of swaths, so the gaps near the equator are
+   * black. NOAA-20 rather than Suomi NPP, whose recent days miss more swaths.
    */
   VIIRS: {
-    create: (context) => createGibsTimeLayer({ layer: "VIIRS_SNPP_CorrectedReflectance_TrueColor", maximumLevel: 9, format: "jpeg", daily: true }, context),
+    create: (context) => createGibsTimeLayer({ layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", maximumLevel: 9, format: "jpeg", daily: true }, context),
     alpha: 1,
     base: true,
   },

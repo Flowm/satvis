@@ -9,7 +9,7 @@ import { menuSwitch, openMenu } from "../support/ui";
 
 const DOMAINS: Record<string, string> = {
   "GOES-East_ABI_Band13_Clean_Infrared": "2026-10-01T00:00:00Z/2026-10-05T23:50:00Z/PT10M",
-  VIIRS_SNPP_CorrectedReflectance_TrueColor: "2026-09-01/2026-10-05/P1D",
+  VIIRS_NOAA20_CorrectedReflectance_TrueColor: "2026-09-01/2026-10-05/P1D",
 };
 
 /** Stubs GIBS, and records the `{Time}` of every tile and the domain requests since the last `clear`. */
@@ -48,16 +48,16 @@ test("the layers request the frame for the clock, and nothing once removed", asy
   await page.evaluate(() => (window.cc!.viewer.clock.shouldAnimate = false));
 
   expect(gibs.times("GOES-East_ABI_Band13_Clean_Infrared")).toEqual(["2026-10-03T15:00:00Z"]);
-  expect(gibs.times("VIIRS_SNPP_CorrectedReflectance_TrueColor")).toEqual(["2026-10-03"]);
+  expect(gibs.times("VIIRS_NOAA20_CorrectedReflectance_TrueColor")).toEqual(["2026-10-03"]);
 
   gibs.clear();
   await setClock(page, "2026-10-03T16:07:00Z");
   await expect.poll(() => gibs.times("GOES-East_ABI_Band13_Clean_Infrared")).toEqual(["2026-10-03T16:00:00Z"]);
 
-  // Past the end of the domain the latest frame holds.
+  // Past the end of the domain the latest finished day holds.
   gibs.clear();
   await setClock(page, "2026-10-09T12:00:00Z");
-  await expect.poll(() => gibs.times("VIIRS_SNPP_CorrectedReflectance_TrueColor")).toEqual(["2026-10-05"]);
+  await expect.poll(() => gibs.times("VIIRS_NOAA20_CorrectedReflectance_TrueColor")).toEqual(["2026-10-04"]);
 
   // NaturalEarth replaces VIIRS as the base map; GOES-IR is an overlay.
   const tickListeners = () => page.evaluate(() => window.cc!.viewer.clock.onTick.numberOfListeners);

@@ -52,7 +52,8 @@ SwiftUI draws all the controls over the `MTKView`.
   texture is baked from the base map's tiles: VersaTiles's and VIIRS's Web
   Mercator ones reprojected on the way, Black Marble's (GIBS's geographic WMS, as
   the web app asks it) and Natural Earth's copied. VIIRS is GIBS's daily true
-  colour: the clock's day within the days GIBS lists, as the web app's
+  colour from NOAA-20: the clock's day within the days GIBS lists, short of the
+  newest, which is still being imaged, as the web app's
   `GibsTimeLayer` shows it, the map baked again when the day changes. A tile still loading is stood in for by the nearest
   ancestor that has loaded, so the globe never waits on the network.
 - Re:Earth terrain (quantized-mesh, geographic grid, levels 0–14, CC BY 4.0) is a
