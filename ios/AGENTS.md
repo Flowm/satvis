@@ -325,7 +325,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
 ## Tasks
 
 `make` in `ios/` runs them: `build`, `test`, `test-kit`, `run`, `logs`, `format`,
-`lint`, `screenshots`, `upload-screenshots`, `clean`. `DEVICE="iPad Pro 13-inch (M5)"` picks
+`lint`, `screenshots`, `screenshots-upload`, `screenshots-download`, `clean`. `DEVICE="iPad Pro 13-inch (M5)"` picks
 the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
 (default `iPhone 17`); `UDID=…` picks one exactly.
 `make run` opens no simulator window; follow the app with `make logs`.
@@ -349,23 +349,29 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
   leaves stopped), from the site `BASE_URL` names (satvis.space by default). Each shot is taken on its own, under a status
   bar reading its time and date, as the clock deck does. `SHOTS=2Sky` retakes
   only the shots it names, for one whose tiles had not loaded.
-- **`upload-screenshots`** replaces the screenshots of the version being prepared
-  with `screenshots/*.png` through the App Store Connect API
-  (`scripts/upload-screenshots.swift`), in the app's primary language, each file
-  to the display type its width names. It needs an API key with the App Manager
-  role: `ASC_KEY_ID`, `ASC_ISSUER_ID`, and the `.p8`, at `ASC_KEY_PATH` or
-  base64-encoded in the login keychain (the script's header has the command).
-  `DRY_RUN=1` says what it would replace. App Store Connect then checks each file,
-  which took from seconds to over 20 minutes a file on 2026-10-08; the script
-  waits 10 minutes and names the files it is still on, which stay uploaded.
+- **`screenshots-upload`** replaces the screenshots of the version being prepared
+  with `screenshots/*.png` through `asc` (`scripts/screenshots-upload.sh`), in
+  the app's primary language, each file to the display type its size fits. It
+  stops before changing anything at a file of no App Store size or a display type
+  with no file, as asc would skip the one and stop halfway at the other. It signs
+  in with asc's profile, whose API key needs the App Manager role. `DRY_RUN=1`
+  says what it would replace.
+  App Store Connect then checks each file, which took from seconds to over 20
+  minutes a file on 2026-10-08; asc waits 10 minutes (`ASC_UPLOAD_TIMEOUT`), and
+  what it uploaded stays, so a run that times out is simply run again.
+- **`screenshots-download`** writes the screenshots of the version being
+  prepared, else the live one, or `VERSION=1.1`, in the app's primary language,
+  to `screenshots/app-store/` under the names they were uploaded with. App Store
+  Connect re-encodes them, so they are not the uploaded bytes.
 
 The App Store Connect listing (versions, builds, TestFlight, review) is managed
-with the `asc` CLI (App Store Connect CLI, the app's id is `1441084766`):
-`asc status --app 1441084766` shows where the release stands, and
-`asc validate` what blocks its submission. `ASC_READ_ONLY=1` refuses every
-change. Its command catalog is `docs/ASC.md`; regenerate it from the repository root with
-`asc init --path ios/docs/ASC.md --link=false --force`, since a bare `asc init`
-writes to the root and appends to the top-level `AGENTS.md`.
+with the `asc` CLI (App Store Connect CLI). The Makefile exports the app's id,
+`ASC_APP_ID=1441084766`, which asc and `scripts/asc.sh` read: `asc status --app
+1441084766` shows where the release stands, and `asc validate` what blocks its
+submission. `ASC_READ_ONLY=1` refuses every change. Its command catalog is
+`docs/ASC.md`; regenerate it from the repository root with `asc init --path
+ios/docs/ASC.md --link=false --force`, since a bare `asc init` writes to the root
+and appends to the top-level `AGENTS.md`.
 
 ## The worker
 

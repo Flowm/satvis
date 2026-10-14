@@ -5,6 +5,9 @@
 DEVICE ?= iPhone 17
 RUNTIME ?=
 API ?=
+# Not ?=, so that an ASC_APP_ID in the environment cannot point the listing
+# tasks at another app.
+export ASC_APP_ID = 1441084766
 
 UDID = $(or $(shell scripts/simulator-udid.sh "$(DEVICE)" "$(RUNTIME)"),$(error No available simulator named "$(DEVICE)" $(RUNTIME)))
 DERIVED_DATA = build/DerivedData
@@ -12,7 +15,7 @@ APP = $(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/satvis.app
 XCODEBUILD = xcodebuild -project satvis.xcodeproj -scheme satvis -derivedDataPath $(DERIVED_DATA) -destination id=$(UDID) CODE_SIGNING_ALLOWED=NO
 SOURCES = satvis satvisUITests SatvisKit
 
-.PHONY: build test test-kit run logs format lint screenshots upload-screenshots clean
+.PHONY: build test test-kit run logs format lint screenshots screenshots-upload screenshots-download clean
 
 build:
 	$(XCODEBUILD) build
@@ -41,8 +44,11 @@ lint:
 screenshots:
 	scripts/screenshots.sh $(SHOTS)
 
-upload-screenshots:
-	swift scripts/upload-screenshots.swift $(if $(DRY_RUN),--dry-run)
+screenshots-upload:
+	scripts/screenshots-upload.sh
+
+screenshots-download:
+	scripts/screenshots-download.sh
 
 clean:
 	rm -rf build screenshots SatvisKit/.build
