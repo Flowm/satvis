@@ -2,7 +2,7 @@
 # notes: a task's note follows its name, then `| ` and the variables it takes;
 # a variable's note is a line of its own.
 
-## DEVICE    The simulator, by name (default iPhone 17)
+## DEVICE    The simulator, by name (default iPhone 18 Pro)
 ## RUNTIME   Its runtime, e.g. "iOS 27" (default the newest that has DEVICE)
 ## UDID      One simulator exactly, in place of DEVICE and RUNTIME
 ## API       The worker run talks to (default https://satvis.space)
@@ -11,7 +11,7 @@
 ## DRY_RUN   screenshots-upload says what it would replace, and changes nothing
 ## VERSION   The App Store version screenshots-download fetches (default the newest)
 
-DEVICE ?= iPhone 17
+DEVICE ?= iPhone 18 Pro
 RUNTIME ?=
 API ?=
 # Not ?=, so that an ASC_APP_ID in the environment cannot point the listing

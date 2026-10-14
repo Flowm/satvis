@@ -328,7 +328,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
 `lint`, `screenshots`, `screenshots-upload`, `screenshots-download`, `clean`;
 `make` alone (`make help`) lists them and the variables they take. `DEVICE="iPad Pro 13-inch (M5)"` picks
 the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
-(default `iPhone 17`); `UDID=…` picks one exactly.
+(default `iPhone 18 Pro`); `UDID=…` picks one exactly.
 `make run` opens no simulator window; follow the app with `make logs`.
 
 - **`test-kit`** runs the package tests on macOS, with no simulator. **`test`** runs
