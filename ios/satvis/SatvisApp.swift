@@ -58,6 +58,9 @@ struct ContentView: View {
     @State private var showsTools = false
     /// The panel open beside the menu column, if any.
     @State private var panel: ToolPanel?
+    /// Where the menu column and the top corner's buttons are, in the window.
+    @State private var menuFrame: CGRect?
+    @State private var cornerFrame: CGRect?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -89,7 +92,7 @@ struct ContentView: View {
         .overlay {
             if session.observer != nil, let renderer = session.renderer {
                 // In the renderer's frame, the whole screen, since it projects into it.
-                SkyHUD(renderer: renderer, tapeTop: 132, trailingInset: cardInset, notice: session.notice)
+                SkyHUD(renderer: renderer, controls: topControls, trailingInset: cardInset, notice: session.notice)
                     .ignoresSafeArea()
             }
         }
@@ -121,6 +124,11 @@ struct ContentView: View {
             .labelStyle(.iconOnly)
             .buttonStyle(.glass)
             .controlSize(.large)
+            .onGeometryChange(for: CGRect.self) {
+                $0.frame(in: .global)
+            } action: {
+                cornerFrame = $0
+            }
             .padding()
         }
         // Over the top-right buttons: where there is no room beside them an open
@@ -156,6 +164,11 @@ struct ContentView: View {
                         }
                     }
                     .environment(\.toolNamesFolded, !roomy && panel != nil)
+                    .onGeometryChange(for: CGRect.self) {
+                        $0.frame(in: .global)
+                    } action: {
+                        menuFrame = $0
+                    }
                     if let panel {
                         ToolPanelView(title: panel.title, fillsWidth: !roomy, onClose: { self.panel = nil }) {
                             switch panel {
@@ -307,6 +320,15 @@ struct ContentView: View {
 
     /// How far the info card reaches in from the trailing edge: its width and its
     /// margin, where it shows.
+    /// For the sky view's tapes. The HUD fills the window, so their frames are
+    /// the window's.
+    private var topControls: TopControls? {
+        guard let menuFrame, let cornerFrame else {
+            return nil
+        }
+        return TopControls(menu: menuFrame, buttons: cornerFrame)
+    }
+
     private var cardInset: CGFloat {
         sizeClass == .regular && session.selection != nil ? Self.cardWidth + 12 : 0
     }

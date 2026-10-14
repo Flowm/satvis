@@ -9,10 +9,12 @@ import SwiftUI
 /// usable, and a tap is the session's.
 struct SkyHUD: View {
     let renderer: GlobeRenderer
-    /// Where the compass tape sits, below the controls along the top.
-    let tapeTop: CGFloat
-    /// How far the info card covers the trailing edge, for the elevation tape and
-    /// the lock's card to stand clear of it.
+    /// The controls along the top, which the tapes run round, never under. Nil
+    /// until laid out, and the tapes with it.
+    let controls: TopControls?
+    /// How far the info card covers the trailing edge, for the lock's card to
+    /// stand clear of it. The elevation tape follows the buttons, which move
+    /// aside for it.
     var trailingInset: CGFloat = 0
     /// The session's word for the user, over the lock's card.
     var notice: String?
@@ -24,7 +26,7 @@ struct SkyHUD: View {
                 let settled = renderer.isSkySettled
                 // Up as the ground arrives: projected against a camera still in
                 // flight, the tapes would swim across the screen.
-                SkyInstruments(renderer: renderer, tapeTop: tapeTop, trailingInset: trailingInset, notice: notice, size: proxy.size, date: context.date)
+                SkyInstruments(renderer: renderer, controls: controls, trailingInset: trailingInset, notice: notice, size: proxy.size, date: context.date)
                     .opacity(settled ? 1 : 0)
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: settled)
             }
@@ -33,11 +35,20 @@ struct SkyHUD: View {
     }
 }
 
+/// The controls along the top, in the HUD's frame: the menu column at the
+/// leading corner and the buttons at the trailing one.
+struct TopControls: Equatable {
+    /// The menu column, open or folded, without a panel beside it.
+    var menu: CGRect
+    /// The corner's buttons: the way home, the compass, the end of tracking.
+    var buttons: CGRect
+}
+
 /// One frame of the instruments. The date is what makes it one: a view whose
 /// inputs have not changed is not drawn again, and the lock would stand still.
 private struct SkyInstruments: View {
     let renderer: GlobeRenderer
-    let tapeTop: CGFloat
+    let controls: TopControls?
     let trailingInset: CGFloat
     let notice: String?
     let size: CGSize
@@ -58,8 +69,10 @@ private struct SkyInstruments: View {
                 if let lock {
                     trace(renderer.skyTrace(of: lock.id, viewSize: size), in: &context)
                 }
-                compassTape(camera, size: size, in: &context)
-                elevationTape(camera, size: size, in: &context)
+                if let controls {
+                    compassTape(camera, around: controls, size: size, in: &context)
+                    elevationTape(camera, around: controls, size: size, in: &context)
+                }
                 reticle(locked: lock != nil, size: size, in: &context)
             }
             // Above the clock deck.
@@ -96,11 +109,30 @@ private struct SkyInstruments: View {
         }
     }
 
+    /// Where the compass tape runs: its rule's height and its ends. Over the
+    /// controls where they stand 60 pt down or more, as under a notch or the
+    /// Dynamic Island, whose status bar keeps to the ears and leaves the band over
+    /// them free. Else, on an iPad or in landscape, between the menu and the
+    /// buttons, level with the buttons, where that leaves 200 pt about the middle.
+    /// Else, on an iPhone with a Home button, under both.
+    private static func compassTape(around controls: TopControls, width: CGFloat) -> (rule: CGFloat, from: CGFloat, to: CGFloat) {
+        let (menu, buttons) = (controls.menu, controls.buttons)
+        if buttons.minY >= 60 {
+            return (buttons.minY - 4, 0, width)
+        }
+        let from = menu.maxX + 16
+        let to = buttons.minX - 16
+        if to - from >= 200, from < width / 2 - 60, to > width / 2 + 60 {
+            return (buttons.minY + 30, from, to)
+        }
+        return (max(menu.maxY, buttons.maxY) + 22, 0, width)
+    }
+
     /// Headings across the top, spaced by the tangent of their angle from the
     /// view's, so the tape holds its scale whatever the pitch.
-    private func compassTape(_ camera: SkyCamera, size: CGSize, in context: inout GraphicsContext) {
-        let y = tapeTop
+    private func compassTape(_ camera: SkyCamera, around controls: TopControls, size: CGSize, in context: inout GraphicsContext) {
         let width = size.width
+        let (rule, from, to) = Self.compassTape(around: controls, width: width)
         let horizontal = 2 * atan(tan(camera.verticalFieldOfView / 2) * width / size.height)
         let heading = camera.azimuth * 180 / .pi
         let step = Self.step(span: horizontal * 180 / .pi)
@@ -112,34 +144,42 @@ private struct SkyInstruments: View {
                 continue
             }
             let x = width / 2 + width / 2 * tan(offset * .pi / 180) / tan(horizontal / 2)
+            // Room for a label either side of the tick.
+            guard x >= from + 16, x <= to - 16 else {
+                continue
+            }
             let wrapped = ((value % 360) + 360) % 360
             ticks.append((x, wrapped, wrapped % (3 * step) == 0 || wrapped % 45 == 0))
         }
-        var rule = Path()
-        rule.move(to: CGPoint(x: 0, y: y + 12))
-        rule.addLine(to: CGPoint(x: width, y: y + 12))
-        context.stroke(rule, with: .color(Self.ink.opacity(0.25)), lineWidth: 1)
+        var line = Path()
+        line.move(to: CGPoint(x: from, y: rule))
+        line.addLine(to: CGPoint(x: to, y: rule))
+        context.stroke(line, with: .color(Self.ink.opacity(0.25)), lineWidth: 1)
         for tick in Self.thinned(ticks, by: \.x, major: \.major) {
             var path = Path()
-            path.move(to: CGPoint(x: tick.x, y: tick.major ? y : y + 6))
-            path.addLine(to: CGPoint(x: tick.x, y: y + 12))
+            path.move(to: CGPoint(x: tick.x, y: rule - (tick.major ? 8 : 4)))
+            path.addLine(to: CGPoint(x: tick.x, y: rule))
             context.stroke(path, with: .color(Self.ink.opacity(tick.major ? 0.9 : 0.5)), lineWidth: tick.major ? 1.5 : 1)
             if tick.major {
                 let text = tick.value % 45 == 0 ? compassPoint(Double(tick.value)) : "\(tick.value)°"
-                label(text, at: CGPoint(x: tick.x, y: y - 9), anchor: .center, in: &context)
+                label(text, at: CGPoint(x: tick.x, y: rule - 15), anchor: .center, in: &context)
             }
         }
+        // Under the rule, between the menu and the corner's buttons.
         var pointer = Path()
-        pointer.move(to: CGPoint(x: width / 2, y: y + 12))
-        pointer.addLine(to: CGPoint(x: width / 2 + 7, y: y + 21))
-        pointer.addLine(to: CGPoint(x: width / 2 - 7, y: y + 21))
+        pointer.move(to: CGPoint(x: width / 2, y: rule))
+        pointer.addLine(to: CGPoint(x: width / 2 + 7, y: rule + 9))
+        pointer.addLine(to: CGPoint(x: width / 2 - 7, y: rule + 9))
         pointer.closeSubpath()
         context.fill(pointer, with: .color(Self.lockColor))
     }
 
-    /// Elevations down the right edge, where the view draws them.
-    private func elevationTape(_ camera: SkyCamera, size: CGSize, in context: inout GraphicsContext) {
-        let left = size.width - trailingInset - 64
+    /// Elevations down the margin right of the corner's buttons, from their top,
+    /// labelled only below them and the compass tape, where a label has room.
+    private func elevationTape(_ camera: SkyCamera, around controls: TopControls, size: CGSize, in context: inout GraphicsContext) {
+        let buttons = controls.buttons
+        let x = buttons.maxX + 4
+        let labelsFrom = max(buttons.maxY, Self.compassTape(around: controls, width: size.width).rule + 9) + 8
         let fieldOfView = camera.verticalFieldOfView * 180 / .pi
         let step = Self.step(span: fieldOfView)
         let pitch = camera.pitch * 180 / .pi
@@ -148,21 +188,21 @@ private struct SkyInstruments: View {
         let high = min(pitch + fieldOfView / 2 + Double(step), 90)
         var ticks: [(y: CGFloat, value: Int, major: Bool)] = []
         for value in stride(from: Int((low / Double(step)).rounded(.up)) * step, through: Int(high), by: step) {
-            if let point = renderer.skyPoint(azimuth: azimuth, elevation: Double(value), viewSize: size), (0...size.height).contains(point.y) {
+            if let point = renderer.skyPoint(azimuth: azimuth, elevation: Double(value), viewSize: size), (buttons.minY...size.height).contains(point.y) {
                 ticks.append((point.y, value, value % (3 * step) == 0))
             }
         }
-        var rule = Path()
-        rule.move(to: CGPoint(x: left + 46, y: 0))
-        rule.addLine(to: CGPoint(x: left + 46, y: size.height))
-        context.stroke(rule, with: .color(Self.ink.opacity(0.25)), lineWidth: 1)
+        var line = Path()
+        line.move(to: CGPoint(x: x, y: buttons.minY))
+        line.addLine(to: CGPoint(x: x, y: size.height))
+        context.stroke(line, with: .color(Self.ink.opacity(0.25)), lineWidth: 1)
         for tick in Self.thinned(ticks, by: \.y, major: \.major) {
             var path = Path()
-            path.move(to: CGPoint(x: left + 46, y: tick.y))
-            path.addLine(to: CGPoint(x: left + (tick.major ? 58 : 52), y: tick.y))
+            path.move(to: CGPoint(x: x, y: tick.y))
+            path.addLine(to: CGPoint(x: x + (tick.major ? 8 : 4), y: tick.y))
             context.stroke(path, with: .color(Self.ink.opacity(tick.major ? 0.9 : 0.5)), lineWidth: tick.major ? 1.5 : 1)
-            if tick.major {
-                label("\(tick.value)°", at: CGPoint(x: left + 41, y: tick.y), anchor: .trailing, in: &context)
+            if tick.major, tick.y >= labelsFrom {
+                label("\(tick.value)°", at: CGPoint(x: x - 5, y: tick.y), anchor: .trailing, in: &context)
             }
         }
     }
