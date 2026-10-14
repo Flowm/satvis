@@ -51,6 +51,13 @@ struct InfoPanel: View {
                     details(propagator)
                 }
             }
+            // Here, where the alert was switched: on a phone the panel is a sheet
+            // over the bottom of the screen, where the session's notices are.
+            .overlay(alignment: .bottom) {
+                if let message = alerts.message {
+                    NoticeBanner(text: message).padding(.bottom, 12)
+                }
+            }
             .navigationTitle(entry.name)
             .navigationSubtitle("#\(entry.satnum)")
             .navigationBarTitleDisplayMode(.inline)
@@ -135,6 +142,11 @@ struct StationPanel: View {
                     }
                 }
                 PassesSections(subject: .station(station, catalog.activeEntries), clock: clock, passes: passes)
+            }
+            .overlay(alignment: .bottom) {
+                if let message = alerts.message {
+                    NoticeBanner(text: message).padding(.bottom, 12)
+                }
             }
             .navigationTitle(station.displayName)
             .navigationBarTitleDisplayMode(.inline)

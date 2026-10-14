@@ -14,6 +14,8 @@ struct SkyHUD: View {
     /// How far the info card covers the trailing edge, for the elevation tape and
     /// the lock's card to stand clear of it.
     var trailingInset: CGFloat = 0
+    /// The session's word for the user, over the lock's card.
+    var notice: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -22,7 +24,7 @@ struct SkyHUD: View {
                 let settled = renderer.isSkySettled
                 // Up as the ground arrives: projected against a camera still in
                 // flight, the tapes would swim across the screen.
-                SkyInstruments(renderer: renderer, tapeTop: tapeTop, trailingInset: trailingInset, size: proxy.size, date: context.date)
+                SkyInstruments(renderer: renderer, tapeTop: tapeTop, trailingInset: trailingInset, notice: notice, size: proxy.size, date: context.date)
                     .opacity(settled ? 1 : 0)
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: settled)
             }
@@ -37,6 +39,7 @@ private struct SkyInstruments: View {
     let renderer: GlobeRenderer
     let tapeTop: CGFloat
     let trailingInset: CGFloat
+    let notice: String?
     let size: CGSize
     let date: Date
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -59,12 +62,17 @@ private struct SkyInstruments: View {
                 elevationTape(camera, size: size, in: &context)
                 reticle(locked: lock != nil, size: size, in: &context)
             }
-            if let lock {
-                // Above the clock deck.
-                card(lock)
-                    .padding(.bottom, 136)
-                    .padding(.trailing, trailingInset)
+            // Above the clock deck.
+            VStack(spacing: 12) {
+                if let notice {
+                    NoticeBanner(text: notice)
+                }
+                if let lock {
+                    card(lock)
+                }
             }
+            .padding(.bottom, 136)
+            .padding(.trailing, trailingInset)
         }
     }
 

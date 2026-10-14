@@ -89,7 +89,7 @@ struct ContentView: View {
         .overlay {
             if session.observer != nil, let renderer = session.renderer {
                 // In the renderer's frame, the whole screen, since it projects into it.
-                SkyHUD(renderer: renderer, tapeTop: 132, trailingInset: cardInset)
+                SkyHUD(renderer: renderer, tapeTop: 132, trailingInset: cardInset, notice: session.notice)
                     .ignoresSafeArea()
             }
         }
@@ -190,15 +190,7 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .top) {
-            if let message = session.notice ?? session.alerts.message {
-                Text(message)
-                    .font(.subheadline)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .glassEffect()
-                    .padding(.top, 72)
-                    .transition(.opacity)
-            } else if session.isPicking {
+            if session.isPicking {
                 HStack {
                     Text("Tap the globe to place a ground station")
                         .font(.subheadline)
@@ -212,6 +204,12 @@ struct ContentView: View {
         }
         .overlay(alignment: .bottom) {
             VStack(spacing: 12) {
+                // Down here, as the web app's toasts are: the top holds the menu,
+                // its panels, the corner's buttons and the sky view's tape. The sky
+                // view shows it over the lock's card instead.
+                if let notice = session.notice, session.observer == nil {
+                    NoticeBanner(text: notice)
+                }
                 // Above the clock, clear of the buttons down either side.
                 if session.showsBenchmark, let renderer = session.renderer {
                     BenchmarkPanel(session: session, renderer: renderer)
@@ -386,5 +384,21 @@ private struct OpenStreetMapCredit: View {
             }
             withAnimation { isShown = false }
         }
+    }
+}
+
+/// A word for the user that goes by itself, on glass.
+struct NoticeBanner: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.subheadline)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .glassEffect(in: .rect(cornerRadius: 20))
+            .padding(.horizontal, 16)
+            .transition(.opacity)
     }
 }
