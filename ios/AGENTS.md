@@ -359,6 +359,14 @@ the simulator by name, on `RUNTIME="iOS 27"` or the newest runtime that has it
   which took from seconds to over 20 minutes a file on 2026-10-08; the script
   waits 10 minutes and names the files it is still on, which stay uploaded.
 
+The App Store Connect listing (versions, builds, TestFlight, review) is managed
+with the `asc` CLI (App Store Connect CLI, the app's id is `1441084766`):
+`asc status --app 1441084766` shows where the release stands, and
+`asc validate` what blocks its submission. `ASC_READ_ONLY=1` refuses every
+change. Its command catalog is `docs/ASC.md`; regenerate it from the repository root with
+`asc init --path ios/docs/ASC.md --link=false --force`, since a bare `asc init`
+writes to the root and appends to the top-level `AGENTS.md`.
+
 ## The worker
 
 - `SATVIS_API` in the launch environment replaces satvis.space: `make run API=…`,
