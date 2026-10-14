@@ -1,0 +1,247 @@
+# asc cli reference
+
+Unofficial CLI for the App Store Connect API. AI-friendly command catalog and
+workflow notes for the asc cli. Use this alongside the asc cli readme
+(examples) and `asc --help` (source of truth). Generate this file in any repo
+with `asc init` (or `asc docs init`).
+
+## Command Discovery (Source of Truth)
+
+```bash
+asc --help
+asc <command> --help
+asc <command> <subcommand> --help
+```
+
+Do not memorize flags. Always use `--help` for the current interface.
+
+## Core Principles
+
+- Explicit flags (prefer `--app` over short flags)
+- TTY-aware output defaults (`table` in terminals, `json` when piped/non-interactive)
+- No interactive prompts (use `--confirm` for destructive actions)
+- Pagination via `--paginate` on list commands
+
+## Common Patterns
+
+- IDs are App Store Connect API resource IDs (use list commands to find them).
+- `--app "APP_ID"` is often required (or set `ASC_APP_ID`).
+- `--paginate` fetches all pages; use `--limit` and `--next` for manual pagination.
+- Output formats: `--output json|table|markdown` and `--pretty` for readable JSON.
+- `ASC_DEFAULT_OUTPUT` can pin the default output mode across contexts.
+- Destructive operations require `--confirm`.
+- Profiles: `--profile "NAME"` and `--strict-auth` for auth resolution safety. `--profile` is accepted before or after the command name; every other global flag must come before it.
+- Debugging: `--debug`, `--api-debug`, `--retry-log`.
+
+## Quick Lookup
+
+| Task | Command |
+|------|---------|
+| Check auth status | `asc auth status` |
+| Run auth doctor | `asc doctor --output json` |
+| Check Apple service health | `asc system-status --service "App Store Connect"` |
+| Check account health | `asc account status` |
+| Generate ASC.md | `asc init` |
+| Create an app (web flow) | `asc web apps create --name "My App" --bundle-id "com.example.app" --sku "SKU123"` |
+| List apps | `asc apps` |
+| List builds | `asc builds list --app "APP_ID"` |
+| List TestFlight groups | `asc testflight groups list --app "APP_ID"` |
+| List internal TestFlight groups | `asc testflight groups list --app "APP_ID" --internal` |
+| Stage a release (pre-submit) | `asc release stage --app "APP_ID" --version "VERSION" --build-id "BUILD_ID" --copy-metadata-from "PREVIOUS_VERSION" --dry-run` |
+| Publish to App Store (canonical) | `asc publish appstore --app "APP_ID" --ipa "./App.ipa" --version "VERSION" --submit --confirm` |
+| Review status | `asc review status --app "APP_ID"` |
+| Review blockers | `asc review doctor --app "APP_ID"` |
+| Submission readiness (canonical) | `asc validate --app "APP_ID" --version "VERSION"` |
+| Apply metadata | `asc metadata apply --app "APP_ID" --version "VERSION" --dir "./metadata" --dry-run` |
+| Weekly insights summary | `asc insights weekly --app "APP_ID" --source analytics --week "YYYY-MM-DD"` |
+| Download localizations | `asc localizations download --version "VERSION_ID" --path "./localizations"` |
+
+## Common Workflows
+
+### Find an App ID and Recent Builds
+
+```bash
+asc apps
+asc builds list --app "APP_ID" --sort -uploadedDate --limit 5
+```
+
+### Stage for Review (high-level: ensure version + copy/apply metadata + attach + validate)
+
+```bash
+# Dry-run the staging plan using metadata carry-forward
+asc release stage --app "APP_ID" --version "1.0.0" --build-id "BUILD_ID" --copy-metadata-from "0.9.0" --dry-run
+
+# Stage the version without submitting it for review yet
+asc release stage --app "APP_ID" --version "1.0.0" --build-id "BUILD_ID" --copy-metadata-from "0.9.0" --confirm
+```
+
+### Publish to the App Store (canonical upload + submit flow)
+
+```bash
+# Optionally stage metadata/build prep without submitting yet
+asc release stage --app "APP_ID" --version "1.0.0" --build-id "BUILD_ID" --copy-metadata-from "0.9.0" --dry-run
+
+# Upload, attach, and submit from an IPA
+asc publish appstore --app "APP_ID" --ipa "./App.ipa" --version "1.0.0" --submit --confirm
+
+# Monitor status after submission
+asc status --app "APP_ID" --watch
+```
+
+Canonical readiness and lower-level submission lifecycle commands remain available for debugging or partial workflows:
+
+```bash
+asc validate --app "APP_ID" --version "1.0.0"
+asc submit status --version-id "VERSION_ID"
+asc submit cancel --version-id "VERSION_ID" --confirm
+```
+
+### Distribute to TestFlight Group
+
+```bash
+asc testflight groups list --app "APP_ID"
+asc publish testflight --app "APP_ID" --ipa "./App.ipa" --group "GROUP_ID" --wait
+asc publish testflight --app "APP_ID" --ipa "./App.ipa" --group "EXTERNAL_GROUP_ID" --wait --submit --confirm
+```
+
+Lower-level alternative:
+
+```bash
+asc builds add-groups --build-id "BUILD_ID" --group "GROUP_ID"
+asc builds add-groups --build-id "BUILD_ID" --group "GROUP_ID" --dry-run
+asc builds add-groups --build-id "BUILD_ID" --group "GROUP_ID" --submit --confirm
+```
+
+### Migrate Metadata (Fastlane)
+
+```bash
+asc migrate validate --fastlane-dir ./metadata
+asc migrate import --app "APP_ID" --version-id "VERSION_ID" --fastlane-dir ./metadata --confirm
+asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./exported-metadata
+```
+
+## Command Groups
+
+Use `asc <command> --help` for subcommands and flags.
+
+- `auth` - Manage authentication for the App Store Connect API.
+- `doctor` - Diagnose authentication configuration issues.
+- `web` - Apple web-session `/iris` workflows. Use `asc web apps create` as the canonical app-creation path in this family.
+- `account` - Inspect account-level health and access signals.
+- `install-skills` - Install the asc skill pack globally for App Store Connect workflows.
+- `init` - Initialize asc helper docs in the current repo.
+- `docs` - Generate asc cli reference docs for a repo.
+- `diff` - Generate deterministic non-mutating diff plans.
+- `system-status` - Check Apple Developer service health without authentication.
+- `capabilities` - Show CLI, API, web-only, and public-API-limited capability coverage.
+- `search` - Search asc commands and examples for agent-oriented command discovery.
+- `status` - Show a release pipeline dashboard for an app.
+- `insights` - Generate weekly insights from App Store data sources.
+- `release-notes` - Generate and manage App Store release notes.
+- `reviews` - List and manage App Store customer reviews.
+- `review` - Manage App Store review details, attachments, and submissions.
+- `analytics` - Request and download analytics and sales reports.
+- `asset-library` - Inspect App Store Asset Library media and specifications.
+- `ads` - Manage Apple Ads API resources.
+- `optimize` - Build cross-API optimization plans.
+- `performance` - Access performance metrics and diagnostic logs.
+- `finance` - Download payments and financial reports.
+- `apps` - List and manage apps in App Store Connect. App creation moved out of `asc apps`; use `asc web apps create` for the web-session path.
+- `app-clips` - Manage App Clip experiences and invocations.
+- `android-ios-mapping` - Manage Android-to-iOS app mapping details.
+- `app-setup` - Post-create app setup automation.
+- `app-tags` - Manage app tags for App Store visibility.
+- `marketplace` - Manage marketplace resources.
+- `alternative-distribution` - Manage alternative distribution resources.
+- `webhooks` - Manage webhooks in App Store Connect.
+- `nominations` - Manage featuring nominations.
+- `bundle-ids` - Manage bundle IDs and capabilities.
+- `merchant-ids` - Manage merchant IDs and certificates.
+- `certificates` - Manage signing certificates.
+- `pass-type-ids` - Manage pass type IDs.
+- `profiles` - Manage provisioning profiles.
+- `users` - Manage users and invitations in App Store Connect.
+- `actors` - Lookup actors (users, API keys) by ID.
+- `devices` - Manage devices in App Store Connect.
+- `testflight` - Manage TestFlight workflows.
+- `builds` - Manage builds (TestFlight/App Store); compile and package iOS apps locally with installed xtool/rcodesign.
+- `build-bundles` - Manage build bundles and App Clip data.
+- `publish` - High-level publish workflows; use `publish testflight` for TestFlight.
+- `release` - Run high-level App Store release workflows.
+- `workflow` - Run multi-step automation workflows.
+- `xcode` - Build, archive, and export with local Xcode on macOS; manage project versions; and plan or apply deterministic signing settings. Planning is cross-platform, while apply fails closed on Windows before changing project or receipt files.
+- `distribute` - Plan, execute, inspect, and publish provider-neutral iOS release-testing bundles.
+- `ipa-info` - Inspect a local IPA without contacting App Store Connect.
+- `pkg-info` - Inspect a local flat package or product archive without contacting Apple.
+- `versions` - Manage App Store versions.
+- `product-pages` - Manage custom product pages and product page experiments.
+- `routing-coverage` - Manage routing app coverage files.
+- `eula` - Manage End User License Agreements (EULA).
+- `agreements` - Manage agreements in App Store Connect.
+- `pricing` - Manage app pricing and availability.
+- `pre-orders` - Manage app pre-orders.
+- `localizations` - Manage App Store localization metadata.
+- `metadata` - Pull, validate, push, and keyword-sync canonical metadata workflows.
+- `screenshots` - Upload and manage App Store screenshots, including local capture, framing, and matrices.
+- `background-assets` - Manage background assets.
+- `build-localizations` - Manage build release notes localizations.
+- `sandbox` - Manage sandbox testers in App Store Connect.
+- `video-previews` - Manage App Store app preview videos.
+- `signing` - Manage signing certificates and profiles.
+- `notarization` - Manage macOS notarization submissions.
+- `iap` - Manage in-app purchases.
+- `storekit` - Manage StoreKit server APIs with dedicated In-App Purchase API keys.
+- `app-events` - Manage App Store in-app events.
+- `subscriptions` - Manage subscription groups and subscriptions.
+- `submit` - Submission lifecycle tools; use `validate` for readiness and `publish appstore --submit` to ship.
+- `xcode-cloud` - Trigger and monitor Xcode Cloud workflows.
+- `categories` - Manage App Store categories.
+- `age-rating` - Manage App Store age rating declarations.
+- `accessibility` - Manage accessibility declarations.
+- `encryption` - Manage app encryption declarations and documents.
+- `migrate` - Migrate metadata from/to fastlane format.
+- `validate` - Run pre-submission metadata and asset validation checks.
+- `notify` - Send notifications to external services.
+- `game-center` - Manage Game Center resources.
+- `version` - Print version information and exit.
+- `completion` - Print shell completion scripts.
+- `schema` - Inspect App Store Connect API endpoint schemas at runtime.
+- `api` - Send an authenticated raw request to the App Store Connect API.
+- `snitch` - Report CLI friction as a GitHub issue.
+- `telemetry` - Manage CLI telemetry settings.
+
+## Global Flags
+
+- `--api-debug` - HTTP request/response logging (redacted)
+- `--debug` - Debug logging
+- `--profile` - Use a named authentication profile (accepted before or after the command name)
+- `--read-only` - Refuse every mutating request before it is sent (see `ASC_READ_ONLY`)
+- `--report` - Report format for CI output
+- `--report-file` - Path to write CI report file
+- `--retry-log` - Enable retry logging
+- `--strict-auth` - Fail on mixed credential sources
+- `--version` - Print version and exit
+
+## Environment Variables (Selected)
+
+- `ASC_APP_ID` - Default app ID
+- `ASC_PROFILE` - Default auth profile
+- `ASC_READ_ONLY` - Refuse every mutating request; refusals exit `6`
+- `ASC_TIMEOUT`, `ASC_TIMEOUT_SECONDS` - Request timeout
+- `ASC_UPLOAD_TIMEOUT`, `ASC_UPLOAD_TIMEOUT_SECONDS` - Upload and streamed download timeout
+- `ASC_DEBUG` - Debug output (`api` enables HTTP logs)
+- `ASC_STOREKIT_KEY_ID`, `ASC_STOREKIT_ISSUER_ID`, `ASC_STOREKIT_PRIVATE_KEY_PATH` - StoreKit In-App Purchase API authentication
+- `ASC_STOREKIT_PRIVATE_KEY`, `ASC_STOREKIT_PRIVATE_KEY_B64` - Inline StoreKit private key alternatives
+- `ASC_STOREKIT_BUNDLE_ID`, `ASC_STOREKIT_ENVIRONMENT`, `ASC_STOREKIT_PROFILE`, `ASC_STOREKIT_STRICT_AUTH` - StoreKit app, environment, profile, and mixed-source auth behavior
+- `ASC_STOREKIT_BYPASS_KEYCHAIN` - Disable StoreKit keychain usage and use config-backed storage
+- Web password environment variable (`ASC_WEB` + `_PASSWORD`) - Password source for `asc web auth login` and `asc web apps create`
+- `ASC_WEB_SESSION_CACHE`, `ASC_WEB_SESSION_CACHE_DIR`, `ASC_WEB_SESSION_CACHE_BACKEND` - Web-session cache controls for web flows
+- `ASC_WEB_SESSION` - Canonical web-session bundle for `--session-from-env` on `web removed-apps list` and `web api-keys list` or `view`; used in memory without persistence
+- `ASC_SPINNER_DISABLED` - Disable interactive stderr spinner
+- `ASC_SKILLS_AUTO_CHECK` - Automatic skills update checks (`true`/`1`/`yes`/`y`/`on` enables, `false`/`0`/`no`/`n`/`off` disables; default enabled)
+
+## API References (Offline)
+
+In the asc cli repo, see:
+- `docs/openapi/latest.json`
+- `docs/openapi/paths.txt`

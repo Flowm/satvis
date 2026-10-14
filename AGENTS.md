@@ -25,8 +25,8 @@ workspace package). One `pnpm install` at the root covers both.
 - **`src/modules/benchmark/README.md`** — the benchmark framework, and how the
   frame cost scales.
 - **`ios/AGENTS.md`** — the native iOS app: building, testing, its worker
-  client, and its parity with the web app. Its manual checks, which no test can
-  run, are `ios/docs/manual-verification.md`.
+  client, its parity with the web app, and its App Store Connect listing. Its
+  manual checks, which no test can run, are `ios/docs/manual-verification.md`.
 
 ## Architecture
 
