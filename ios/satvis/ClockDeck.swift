@@ -53,6 +53,9 @@ struct ClockDeck<Accessory: View>: View {
                 .ignoresSafeArea(edges: isOpen ? [.bottom, .horizontal] : [])
         }
         .frame(maxWidth: 560)
+        // The scale runs down to the home indicator, and a drag along it went to
+        // the system and switched apps.
+        .defersSystemGestures(on: isOpen ? .bottom : [])
     }
 
     /// Three columns, the outer two of a width, so the clock stays on the needle
@@ -375,6 +378,8 @@ private struct Ladder: View {
                         .lineLimit(1)
                         .opacity(index == rung ? 1 : 0.55)
                         .frame(width: Self.rungWidth, height: proxy.size.height)
+                        .contentShape(.rect)
+                        .onTapGesture { withAnimation { rung = index } }
                         .id(index)
                     }
                 }
