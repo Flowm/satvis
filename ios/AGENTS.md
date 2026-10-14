@@ -192,12 +192,14 @@ the app is developed on. Why it is built this way, and the milestones it is buil
 - `satvis/PrivacyInfo.xcprivacy` is the privacy manifest App Store Connect
   requires: no tracking; product interaction collected for analytics, and a
   coarse location (the sky view's station, to the whole degree, in a page view's
-  link), performance data (the benchmark's results, sent by hand) and other
-  diagnostic data (a frame the GPU failed), all linked to no one; `UserDefaults` read by the app alone, and the
-  system uptime the renderer's flights are timed by. The PostHog package brings
-  its own manifest for the APIs it uses. Add to the app's with every
-  required-reason API and every data type collected, and keep the App Store
-  privacy label in step with it.
+  link), and performance data (the benchmark's results, sent by hand, and a
+  frame the GPU failed, a hang as Apple counts one), all linked to no one;
+  `UserDefaults` read by the app alone, and the system uptime the renderer's
+  flights are timed by. The PostHog package brings its own manifest for the APIs
+  it uses and the usage data it sends, and its crash reporter one claiming crash
+  and diagnostic data, which nothing collects: crash capture is off. Add to the
+  app's with every required-reason API and every data type collected, and keep
+  the App Store privacy label in step with it.
 - The menu column is the web app's (`Satvis.vue`'s `menuItems`): a Menu toggle
   over Bookmarks, Satellites, Components, Map, Locations, Globe, Sky and Graphics,
   then About, which the web app keeps as a corner button, with their
