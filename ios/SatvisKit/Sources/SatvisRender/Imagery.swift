@@ -184,12 +184,12 @@ public enum GIBS {
     /// GibsTimeLayer reads its domain from.
     public static let viirsDomain = URL(string: "\(wmts)/1.0.0/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/GoogleMapsCompatible_Level9/all/all.xml")!
 
-    /// The first and last finished day a layer's `<Domain>` lists (`timeDomain.ts`'s
+    /// The finished days a layer's `<Domain>` lists, sorted (`timeDomain.ts`'s
     /// `parseDomain` and `withoutLatestFrame`, for a daily layer): ranges
     /// `start/end/P1D` or single days, by commas. GIBS lists a day while it is still
     /// imaging it, and serves what is missing as opaque black, so the newest is left
     /// out. Nil where it lists nothing usable.
-    public static func days(inDomain xml: String) -> ClosedRange<String>? {
+    public static func days(inDomain xml: String) -> [ClosedRange<String>]? {
         guard let open = xml.range(of: "<Domain>"), let close = xml.range(of: "</Domain>", range: open.upperBound..<xml.endIndex) else {
             return nil
         }
@@ -201,11 +201,12 @@ public enum GIBS {
             return (start, end)
         }
         .sorted { $0.start < $1.start }
-        guard let first = ranges.first?.start, let last = ranges.last else {
+        .map { $0.start...$0.end }
+        guard let last = ranges.last else {
             return nil
         }
-        let ends = ranges.dropLast().map(\.end) + (last.start < last.end ? [day(before: last.end)] : [])
-        return ends.max().map { first...$0 }
+        let finished = ranges.dropLast() + (last.lowerBound < last.upperBound ? [last.lowerBound...day(before: last.upperBound)] : [])
+        return finished.isEmpty ? nil : Array(finished)
     }
 
     /// The UTC day before `day`, both `yyyy-MM-dd`.
@@ -224,12 +225,15 @@ public enum GIBS {
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 1, parts.day ?? 1)
     }
 
-    /// The day a daily layer shows at an instant: its UTC date, within the days
-    /// GIBS lists; outside them the nearest, as the web app's open-ended first and
-    /// last frames show.
-    public static func frame(at epochMilliseconds: Double, within days: ClosedRange<String>) -> String {
+    /// The day a daily layer shows at an instant (`timeDomain.ts`'s `snapToFrame`):
+    /// its UTC date, or the latest listed day before it, so a gap holds the day
+    /// before it; the first day before them all.
+    public static func frame(at epochMilliseconds: Double, within days: [ClosedRange<String>]) -> String {
         let day = utcDay(of: Date(timeIntervalSince1970: epochMilliseconds / 1000))
-        return min(max(day, days.lowerBound), days.upperBound)
+        guard let range = days.last(where: { $0.lowerBound <= day }) else {
+            return days.first?.lowerBound ?? day
+        }
+        return min(day, range.upperBound)
     }
 }
 

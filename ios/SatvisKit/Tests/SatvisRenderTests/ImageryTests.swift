@@ -55,21 +55,25 @@ import Testing
         #expect(BaseLayer.viirs.source(site: site).url(TileKey(level: 0, x: 0, y: 0))?.absoluteString.contains("/default/default/") == true)
     }
 
-    // timeDomain.ts's parseDomain and withoutLatestFrame, for a daily layer: the first
-    // day listed and the last finished one, and the clock's day held within them.
+    // timeDomain.ts's parseDomain and withoutLatestFrame, for a daily layer: the
+    // finished days listed, and its snapToFrame: the clock's day, or the one before
+    // a gap, held within them.
     @Test func readsADailyLayersDays() throws {
-        let xml = "<Dimension><ows:Identifier>Time</ows:Identifier><Domain>2015-11-24/2019-01-01/P1D,2019-01-03/2026-10-06/P1D</Domain></Dimension>"
+        let xml = "<Dimension><ows:Identifier>Time</ows:Identifier><Domain>2019-01-03/2026-10-06/P1D,2015-11-24/2019-01-01/P1D</Domain></Dimension>"
         let days = try #require(GIBS.days(inDomain: xml))
-        #expect(days == "2015-11-24"..."2026-10-05")
-        #expect(GIBS.days(inDomain: "<Domain>2026-09-01/2026-10-01/P1D</Domain>") == "2026-09-01"..."2026-09-30")
-        #expect(GIBS.days(inDomain: "<Domain>2026-10-01/2026-10-03/P1D,2026-10-05</Domain>") == "2026-10-01"..."2026-10-03")
+        #expect(days == ["2015-11-24"..."2019-01-01", "2019-01-03"..."2026-10-05"])
+        #expect(GIBS.days(inDomain: "<Domain>2026-09-01/2026-10-01/P1D</Domain>") == ["2026-09-01"..."2026-09-30"])
+        #expect(GIBS.days(inDomain: "<Domain>2026-10-01/2026-10-03/P1D,2026-10-05</Domain>") == ["2026-10-01"..."2026-10-03"])
         #expect(GIBS.days(inDomain: "<Domain>2026-10-05</Domain>") == nil)
         #expect(GIBS.days(inDomain: "<Domain></Domain>") == nil)
         #expect(GIBS.days(inDomain: "<html>") == nil)
         let day = 86_400_000.0
         let october4 = 1_791_072_000_000.0
+        let january2 = 1_546_387_200_000.0
         #expect(GIBS.frame(at: october4 + 0.5 * day, within: days) == "2026-10-04")
         #expect(GIBS.frame(at: october4 + 10 * day, within: days) == "2026-10-05")
+        #expect(GIBS.frame(at: january2 + 0.5 * day, within: days) == "2019-01-01")
+        #expect(GIBS.frame(at: january2 + 1.5 * day, within: days) == "2019-01-03")
         #expect(GIBS.frame(at: 0, within: days) == "2015-11-24")
     }
 

@@ -73,7 +73,7 @@ final class Session {
     @ObservationIgnored private let tiles = TileFetcher.shared()
     @ObservationIgnored private let keptTiles = KeptTiles.applicationSupport()
     /// The days GIBS has VIIRS for, and when it was last asked.
-    @ObservationIgnored private var viirsDays: ClosedRange<String>?
+    @ObservationIgnored private var viirsDays: [ClosedRange<String>]?
     @ObservationIgnored private var viirsDaysAsked: Date?
     /// A daily base map's day, as the renderer was given it: the clock's, within
     /// GIBS's days; nil, GIBS's latest, until they are known.
