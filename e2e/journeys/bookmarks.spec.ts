@@ -3,7 +3,7 @@
 
 import { clockMs, FIXTURE_TIME, openApp, waitForScene } from "../support/app";
 import { expect, test } from "../support/test";
-import { openMenu } from "../support/ui";
+import { openMenu, toasts } from "../support/ui";
 
 // The ISS demo's street map asks for hosts the fixture network cuts off.
 test.use({ viewport: { width: 1280, height: 800 }, allowConsoleErrors: /ERR_BLOCKED_BY_CLIENT/ });
@@ -35,7 +35,7 @@ test("back to the default view, back to the link, and keep it", async ({ page })
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.evaluate(() => (navigator.canShare = () => false));
   await share.click();
-  await expect(page.getByText("Link copied")).toBeVisible();
+  await expect(toasts(page, "Link copied")).toBeVisible();
   await expect.poll(async () => read(await page.evaluate(() => navigator.clipboard.readText()))).toEqual(link);
 
   await panel.getByRole("button", { name: "Default view" }).click();
