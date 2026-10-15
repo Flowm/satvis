@@ -1,4 +1,5 @@
-import { Cartesian3, Math as CesiumMath, JulianDate, Matrix3, ReferenceFrame, Transforms } from "@cesium/engine";
+import { Cartesian3, Math as CesiumMath, JulianDate, Matrix3, ReferenceFrame } from "@cesium/core";
+import { Transforms } from "@cesium/engine";
 import dayjs from "dayjs";
 import { propagate } from "satellite.js";
 import { beforeEach, describe, expect, test, vi } from "vitest";

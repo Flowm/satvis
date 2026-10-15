@@ -10,7 +10,7 @@
 // Blending the two end poses directly reaches empty sky within a few hundred
 // milliseconds and hides the trip. Leaving plays the path backwards (see `SkyView`).
 
-import { Cartesian3, Math as CesiumMath, Matrix3, Quaternion } from "@cesium/engine";
+import { Cartesian3, Math as CesiumMath, Matrix3, Quaternion } from "@cesium/core";
 
 import { DeviceDetect } from "./util/DeviceDetect";
 import { smootherstep } from "./util/easing";

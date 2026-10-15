@@ -1,14 +1,8 @@
+import { Cartesian3, Cartographic, Color, JulianDate, Math as CesiumMath, Matrix4, PerspectiveFrustum, TimeInterval, defined } from "@cesium/core";
 import {
-  Cartesian3,
-  Cartographic,
   type CesiumWidget,
-  Color,
   Credit,
   ImageryLayer,
-  JulianDate,
-  Math as CesiumMath,
-  Matrix4,
-  PerspectiveFrustum,
   Resource,
   type Scene,
   sampleTerrainMostDetailed,
@@ -17,9 +11,7 @@ import {
   ScreenSpaceEventType,
   SkyBox,
   type TerrainProvider,
-  TimeInterval,
   Transforms,
-  defined,
 } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import dayjs from "dayjs";

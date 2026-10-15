@@ -1,6 +1,6 @@
 // What crosses the store→globe seam, against a fake `SceneTarget`.
 
-import { JulianDate } from "@cesium/engine";
+import { JulianDate } from "@cesium/core";
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { nextTick } from "vue";

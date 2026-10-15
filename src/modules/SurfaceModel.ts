@@ -1,7 +1,8 @@
 // Owns the surface model's tileset. src/config/surfaceModels.ts decides what a
 // selection means; see docs/adr/0005-surface-models.md.
 
-import { Cartesian3, Cartographic, type Cesium3DTileset, createGooglePhotorealistic3DTileset, createOsmBuildingsAsync, Ray, type Scene } from "@cesium/engine";
+import { Cartesian3, Cartographic, Ray } from "@cesium/core";
+import { type Cesium3DTileset, createGooglePhotorealistic3DTileset, createOsmBuildingsAsync, type Scene } from "@cesium/engine";
 
 import { surfaceEffects, type SurfaceTileset } from "../config/surfaceModels";
 import { SKY_MODE } from "../config/viewModes";

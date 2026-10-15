@@ -1,6 +1,6 @@
 // The walk, driven through `press`/`release`/`step` as the frame loop drives it.
 
-import { Cartesian3 } from "@cesium/engine";
+import { Cartesian3 } from "@cesium/core";
 import { describe, expect, test } from "vitest";
 
 import { type Observer, offsetObserver } from "./skyGeometry";

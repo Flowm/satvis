@@ -229,7 +229,7 @@ try {
 
   // How the info panel presents a pass list: the table's rows, the headline's
   // summary, the countdown, and the timeline strip, an hour into the window.
-  const { JulianDate } = await runner.import("@cesium/engine");
+  const { JulianDate } = await runner.import("@cesium/core");
   const passPredictor = await runner.import("/src/modules/PassPredictor.ts");
   const { passTimelineLayout } = await runner.import("/src/modules/util/passTimeline.ts");
   const presentation = passes

@@ -15,6 +15,12 @@ const cesiumEngineSource = "node_modules/@cesium/engine";
 const cesiumWidgetsSource = "node_modules/@cesium/widgets";
 const cesiumBaseUrl = "cesium";
 
+/** Rolldown tests the absolute id, so a bare pattern would also match the checkout's path. */
+const fromPackages =
+  (...names: string[]) =>
+  (id: string) =>
+    names.some((name) => id.includes(`/node_modules/${name}/`));
+
 const buildDate = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 let buildSha = process.env.BUILD_SHA || "dev";
 try {
@@ -60,11 +66,11 @@ export default defineConfig({
       output: {
         codeSplitting: {
           groups: [
-            { name: "vue", test: /@vue|vue-router|pinia|@vueuse/, priority: 60 },
-            { name: "ui", test: /@nuxt\/ui|reka-ui|tailwindcss|@tanstack/, priority: 50 },
-            { name: "icons", test: /@iconify/, priority: 40 },
-            { name: "cesium", test: /@?cesium/, priority: 30 },
-            { name: "analytics", test: /posthog/, priority: 20 },
+            { name: "vue", test: fromPackages("@vue", "vue-router", "pinia", "@vueuse"), priority: 60 },
+            { name: "ui", test: fromPackages("@nuxt/ui", "reka-ui", "tailwindcss", "tailwind-variants", "@tanstack"), priority: 50 },
+            { name: "icons", test: fromPackages("@iconify"), priority: 40 },
+            { name: "cesium", test: fromPackages("@cesium", "cesium", "cesium-sensor-volumes"), priority: 30 },
+            { name: "analytics", test: fromPackages("posthog-js"), priority: 20 },
             { name: "vendor", test: /node_modules/, priority: 10 },
           ],
         },

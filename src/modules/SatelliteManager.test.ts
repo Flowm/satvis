@@ -1,4 +1,4 @@
-import { JulianDate } from "@cesium/engine";
+import { JulianDate } from "@cesium/core";
 import type { Viewer } from "@cesium/widgets";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 

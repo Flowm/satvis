@@ -1,4 +1,5 @@
-import { SampledPositionProperty, binarySearch, JulianDate } from "@cesium/engine";
+import { binarySearch, JulianDate } from "@cesium/core";
+import { SampledPositionProperty } from "@cesium/engine";
 
 declare module "@cesium/engine" {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

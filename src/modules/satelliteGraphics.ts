@@ -1,5 +1,6 @@
-import { HeadingPitchRoll, Math as CesiumMath, SceneMode, Transforms } from "@cesium/engine";
-import type { Cartesian3, Quaternion } from "@cesium/engine";
+import { FixedFrameTransforms, HeadingPitchRoll, Math as CesiumMath } from "@cesium/core";
+import type { Cartesian3, Quaternion } from "@cesium/core";
+import { SceneMode } from "@cesium/engine";
 
 import type { OrbitClass } from "../config/orbitClass";
 
@@ -68,7 +69,7 @@ export function coneOrientation(position: Cartesian3 | undefined): Quaternion | 
   if (!position) {
     return undefined;
   }
-  return Transforms.headingPitchRollQuaternion(position, CONE_HEADING_PITCH_ROLL);
+  return FixedFrameTransforms.headingPitchRollQuaternion(position, CONE_HEADING_PITCH_ROLL);
 }
 
 /** Where a model manifest's file is served, relative to the page. */

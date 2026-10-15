@@ -1,7 +1,8 @@
 // The viewer is faked with a hand-cranked clock. The build itself is not covered:
 // driving a Primitive through its creation states needs a real WebGL context.
 
-import { ArcType, Cartesian3, Color, ColorGeometryInstanceAttribute, GeometryInstance, JulianDate, PolylineColorAppearance, PolylineGeometry, SceneMode } from "@cesium/engine";
+import { ArcType, Cartesian3, Color, ColorGeometryInstanceAttribute, GeometryInstance, JulianDate, PolylineGeometry } from "@cesium/core";
+import { PolylineColorAppearance, SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { describe, expect, test } from "vitest";
 

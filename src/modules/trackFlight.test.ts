@@ -1,4 +1,5 @@
-import { Cartesian3, Entity } from "@cesium/engine";
+import { Cartesian3 } from "@cesium/core";
+import { Entity } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { describe, expect, test } from "vitest";
 

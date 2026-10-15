@@ -1,4 +1,4 @@
-import { Cartesian3, Math as CesiumMath, Matrix3 } from "@cesium/engine";
+import { Cartesian3, Math as CesiumMath, Matrix3 } from "@cesium/core";
 import { describe, expect, test } from "vitest";
 
 import {

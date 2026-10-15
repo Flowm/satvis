@@ -1,4 +1,5 @@
-import { Cartesian3, HeadingPitchRoll, Quaternion, SceneMode, Transforms } from "@cesium/engine";
+import { Cartesian3, FixedFrameTransforms, HeadingPitchRoll, Quaternion } from "@cesium/core";
+import { SceneMode } from "@cesium/engine";
 import { describe, expect, test } from "vitest";
 
 import { SCENE_MODES, SKY_MODE } from "../config/viewModes";
@@ -84,7 +85,7 @@ describe("coneOrientation", () => {
   // If a Cesium upgrade tolerates a missing origin, this fails and the guard can go.
   test("Cesium really does throw on the position the guard withholds", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(() => Transforms.headingPitchRollQuaternion(undefined as any, new HeadingPitchRoll(0, Math.PI, 0))).toThrow(/origin is required/);
+    expect(() => FixedFrameTransforms.headingPitchRollQuaternion(undefined as any, new HeadingPitchRoll(0, Math.PI, 0))).toThrow(/origin is required/);
   });
 });
 

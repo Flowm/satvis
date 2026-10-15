@@ -1,4 +1,5 @@
-import { CallbackProperty, Camera, Cartesian3, Entity, EntityView, GeometryInstance, JulianDate, type Scene, SceneMode, VelocityOrientationProperty } from "@cesium/engine";
+import { Cartesian3, GeometryInstance, JulianDate } from "@cesium/core";
+import { CallbackProperty, Camera, Entity, EntityView, type Scene, SceneMode, VelocityOrientationProperty } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
 import { clearPassHighlights, setPassHighlights } from "../composables/usePassHighlights";

@@ -1,4 +1,4 @@
-import { JulianDate } from "@cesium/engine";
+import { JulianDate } from "@cesium/core";
 import type { Viewer } from "@cesium/widgets";
 
 /** Use `any` for Cesium viewer/event - tightening Cesium types is out of scope. */

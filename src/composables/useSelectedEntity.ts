@@ -6,7 +6,7 @@
 // hides the panel. Cesium objects stay shallowRef/markRaw: a deep proxy breaks the
 // `viewer.selectedEntity === entity` check in `isSelected`.
 
-import { JulianDate } from "@cesium/engine";
+import { JulianDate } from "@cesium/core";
 import { storeToRefs } from "pinia";
 import { computed, markRaw, ref, shallowRef, watch, type Ref, type ShallowRef } from "vue";
 

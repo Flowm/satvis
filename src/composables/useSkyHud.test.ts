@@ -1,4 +1,4 @@
-import { Math as CesiumMath } from "@cesium/engine";
+import { Math as CesiumMath } from "@cesium/core";
 import { describe, expect, test } from "vitest";
 
 import { fovxFromFovy, MAX_FOVY, MIN_FOVY } from "../modules/SkyView";
