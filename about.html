@@ -42,10 +42,9 @@
     <main id="about-content" class="about">
       <h1>Satvis: 3D satellite tracker and pass predictor</h1>
       <p class="about-lede">
-        Satvis is a free, open-source satellite tracker that runs in the browser. It draws more than 12,000 satellites on a 3D globe in real time, across fourteen catalog groups:
-        Starlink, GPS and the other GNSS constellations, weather and Earth-observation craft, the ISS and other crewed stations. Tell it where you are and it works out when each
-        one passes overhead. The sky view then trades the globe for a ground-level camera aimed by your phone's compass and gyroscope. You look for the satellite in the sky rather
-        than on a map of it.
+        Satvis is a free, open-source satellite tracker that runs in the browser. It draws more than 16,000 satellites on a 3D globe in real time: Starlink, GPS, weather
+        satellites, the ISS and many more. Set your location and it predicts when each one passes overhead. The sky view shows the sky from where you stand. Point your phone up to
+        see the satellites in that direction.
       </p>
 
       <h2>See it in action</h2>
@@ -88,14 +87,19 @@
 
       <h2>What it does</h2>
       <ul>
-        <li>Visualize more than 12,000 satellites on a 3D globe in real time, propagated in the browser with SGP4 from CelesTrak GP element sets (OMM/TLE)</li>
-        <li>Draw points, labels, orbits, orbit tracks, ground tracks, sensor cones and 3D models per satellite, coloured by orbit class (LEO, MEO, GEO, HEO)</li>
-        <li>Switch any of the 14 catalog groups on and off (Starlink, GNSS, weather, Earth observation, crewed stations), or search out a single satellite</li>
-        <li>Set ground stations from geolocation or a point you pick on the map, then list their upcoming passes and get a local browser notification before one starts</li>
-        <li>Show the globe in 3D, flattened to 2D or in Columbus view, over a base map, star field and terrain you choose</li>
-        <li>Find a satellite in the sky overhead rather than on a map, in a ground-level sky view aimed by your phone's compass and gyroscope and walked with the movement keys</li>
+        <li>Visualize satellites on a 3D globe in real time, propagated in the browser with SGP4 from CelesTrak GP element sets (OMM/TLE)</li>
+        <li>
+          Show points, labels, orbits, orbit tracks, ground tracks, sensor cones, 3D models and ground station links per satellite, colored by orbit class (LEO, MEO, GEO, HEO)
+        </li>
+        <li>Switch catalog groups on and off (Starlink, GNSS, weather, Earth observation, crewed stations), or search for a single satellite</li>
+        <li>Select a satellite to see its orbit, its next passes over your locations and its spacecraft details: country, operator, manufacturer, bus, mass and size</li>
+        <li>Track a satellite: the camera flies to it and follows it along its orbit</li>
+        <li>Save your location or any point you pick on the map, then list the upcoming passes over it and get a local browser notification before one starts</li>
+        <li>Find satellites overhead in the ground-level sky view, aimed by dragging or by pointing your phone</li>
+        <li>See which satellites you could spot: the sky view dims those in Earth's shadow, too far away or in a daylit sky</li>
+        <li>View the globe in 3D, flattened to 2D or in Columbus view, over a base map, star field and terrain you choose</li>
         <li>Add OpenStreetMap buildings to the globe, or Google's photorealistic tiles under the sky view</li>
-        <li>Share the exact view you are looking at as a link: the url carries the satellites, the components, the ground station and the map layers</li>
+        <li>Start from the demo views, bookmark your own, and share any view as a link: the url carries the satellites, the components, the locations and the map layers</li>
         <li>Install it as a Progressive Web App and keep using it offline, from a cached element-set snapshot and base map</li>
         <li>Deploy it serverless: static files on a CDN, with an optional Cloudflare Worker serving fresh satellite data</li>
       </ul>
@@ -114,9 +118,9 @@
       <p>
         <a href="https://cesiumjs.org" rel="noopener">CesiumJS</a> draws the globe, <a href="https://vuejs.org" rel="noopener">Vue</a> and
         <a href="https://ui.nuxt.com" rel="noopener">Nuxt UI</a> the interface, and <a href="https://developers.google.com/web/tools/workbox" rel="noopener">Workbox</a> the service
-        worker. The icons are <a href="https://lucide.dev" rel="noopener">Lucide</a>'s, under the ISC licence and, for those drawn from Feather, the MIT licence:
+        worker. The icons are <a href="https://lucide.dev" rel="noopener">Lucide</a>'s, under the ISC license and, for those drawn from Feather, the MIT license:
         <a href="/licences/lucide.txt">its notice</a>. Everything but the data API is static files on a CDN, so there is no server to run. Created by Florian Mauracher and
-        maintained on <a href="https://github.com/Flowm/satvis/" rel="noopener">github.com/Flowm/satvis</a> under the MIT licence. An
+        maintained on <a href="https://github.com/Flowm/satvis/" rel="noopener">github.com/Flowm/satvis</a> under the MIT license. An
         <a href="https://apps.apple.com/us/app/satvis/id1441084766" rel="noopener">iOS app</a> draws the same satellites natively, from the same data, and notifies you before a
         pass.
       </p>

@@ -106,7 +106,7 @@ struct GroundStationsView: View {
             .alert("Location unavailable", isPresented: $locationFailed) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("No position came back. Check that SatVis may use your location in Settings.")
+                Text("No position came back. Check that Satvis may use your location in Settings.")
             }
         }
     }

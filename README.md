@@ -3,21 +3,26 @@
 3D satellite tracker and pass predictor.
 
 Satvis is a free, open-source satellite tracker that runs in the browser.
-It draws more than 12,000 satellites on a 3D globe in real time and predicts when each one passes over your ground stations.
-The sky view replaces the globe with a ground-level camera aimed by your phone's compass and gyroscope, so you find the satellite in the sky.
+It draws more than 16,000 satellites on a 3D globe in real time: Starlink, GPS, weather satellites, the ISS and many more.
+Set your location and it predicts when each one passes overhead.
+The sky view shows the sky from where you stand.
+Point your phone up to see the satellites in that direction.
 
 ![Screenshot](https://user-images.githubusercontent.com/1117666/47623704-f0c3e900-db14-11e8-9cf9-7bf13acb267c.png)
 
 ## Features
 
-- Visualize more than 12,000 satellites on a 3D globe in real time, propagated in the browser with SGP4 from CelesTrak GP element sets (OMM/TLE)
-- Draw points, labels, orbits, orbit tracks, ground tracks, sensor cones, 3D models and ground station links per satellite, coloured by orbit class (LEO, MEO, GEO, HEO)
+- Visualize satellites on a 3D globe in real time, propagated in the browser with SGP4 from CelesTrak GP element sets (OMM/TLE)
+- Show points, labels, orbits, orbit tracks, ground tracks, sensor cones, 3D models and ground station links per satellite, colored by orbit class (LEO, MEO, GEO, HEO)
 - Switch catalog groups on and off (Starlink, GNSS, weather, Earth observation, crewed stations), or search for a single satellite
-- Set ground stations from geolocation or a point you pick on the map, then list their upcoming passes and get a local browser notification before one starts
-- Show the globe in 3D, flattened to 2D or in Columbus view, over a base map, star field and terrain you choose
-- Find a satellite in the sky overhead in a ground-level sky view, aimed by your phone's compass and gyroscope and moved with the movement keys
+- Select a satellite to see its orbit, its next passes over your locations and its spacecraft details: country, operator, manufacturer, bus, mass and size
+- Track a satellite: the camera flies to it and follows it along its orbit
+- Save your location or any point you pick on the map, then list the upcoming passes over it and get a local browser notification before one starts
+- Find satellites overhead in the ground-level sky view, aimed by dragging or by pointing your phone
+- See which satellites you could spot: the sky view dims those in Earth's shadow, too far away or in a daylit sky
+- View the globe in 3D, flattened to 2D or in Columbus view, over a base map, star field and terrain you choose
 - Add OpenStreetMap buildings to the globe, or Google's photorealistic tiles under the sky view
-- Share the current view as a link: the url carries the satellites, the components, the ground stations and the map layers
+- Start from the demo views, bookmark your own, and share any view as a link: the url carries the satellites, the components, the locations and the map layers
 - Install it as a Progressive Web App and keep using it offline, from a cached element-set snapshot and base map
 - Deploy it serverless: static files on a CDN, with an optional Cloudflare Worker serving fresh satellite data
 
