@@ -66,6 +66,7 @@ export interface SceneTarget {
   readonly sats: {
     reconcile(desired: DesiredScene): void;
     onTrackedChange(callback: (name: string) => void): void;
+    cancelPendingTrack(): void;
     onCatalogChange(callback: () => void): void;
     readonly catalog: { readonly entries: readonly CatalogEntry[] };
   };
@@ -203,6 +204,8 @@ export function startSceneSync(cc: SceneTarget): void {
     // cleared: there is nothing to come back to (docs/adr/0003-sky-view.md).
     cc.suppressCameraMode();
     satStore.trackedSatellite = "";
+    // Its flight would land on the sky view, and the watch below untrack it again.
+    cc.sats.cancelPendingTrack();
     // Untrack first, so the sky view starts from a pose in world coordinates.
     await nextTick();
     if (generation !== viewModeGeneration) {
