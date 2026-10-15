@@ -2,7 +2,8 @@
 // Positions go through Cesium's projection, never `(azimuth - heading) * pixelsPerDegree`:
 // that shortcut flips the heading by 180° when the camera crosses the zenith.
 
-import { type Cartesian3, Math as CesiumMath, JulianDate, type Scene, SceneTransforms } from "@cesium/engine";
+import { type Cartesian3, Math as CesiumMath, JulianDate } from "@cesium/core";
+import { type Scene, SceneTransforms } from "@cesium/engine";
 import { shallowRef, type ShallowRef } from "vue";
 
 import type { CesiumController } from "../modules/CesiumController";

@@ -9,7 +9,8 @@
 // - `ScreenSpaceCameraController` runs collision detection outside the
 //   `enableInputs` check, so both flags must come off.
 
-import { Cartesian3, Cartographic, Math as CesiumMath, type LabelCollection, Matrix3, Matrix4, PerspectiveFrustum, type Scene, SceneMode, Transforms } from "@cesium/engine";
+import { Cartesian3, Cartographic, FixedFrameTransforms, Math as CesiumMath, Matrix3, Matrix4, PerspectiveFrustum } from "@cesium/core";
+import { type LabelCollection, type Scene, SceneMode } from "@cesium/engine";
 
 import { flightDuration, type FlightPath, flightPath, flightPose, newPose, type Pose } from "./skyFlight";
 import { type Aim, enuDirection, type Observer, type ObserverFrame, observerFrame, rollBasis } from "./skyGeometry";
@@ -542,7 +543,7 @@ export class SkyView {
     // From the observer, never `camera.position`, which is elsewhere mid-flight.
     this.#frame ??= observerFrame(pose.position);
 
-    const enu = Transforms.eastNorthUpToFixedFrame(pose.position, undefined, new Matrix4());
+    const enu = FixedFrameTransforms.eastNorthUpToFixedFrame(pose.position, undefined, new Matrix4());
     const rotation = Matrix4.getMatrix3(enu, new Matrix3());
     this.#orient(rotation, this.#aim, pose);
     pose.fovy = this.#fovy;

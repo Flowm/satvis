@@ -1,4 +1,4 @@
-import { Cartesian3 } from "@cesium/engine";
+import { Cartesian3 } from "@cesium/core";
 import { describe, expect, test } from "vitest";
 
 import { enuDirection, levelBasis, normalizeAzimuth, offsetObserver, rollBasis, rollOf } from "./skyGeometry";

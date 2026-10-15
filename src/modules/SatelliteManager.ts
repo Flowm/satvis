@@ -1,4 +1,4 @@
-import { Cartesian3, JulianDate } from "@cesium/engine";
+import { Cartesian3, JulianDate } from "@cesium/core";
 import type { Viewer } from "@cesium/widgets";
 
 import { SATELLITE_COMPONENTS } from "../config/components";

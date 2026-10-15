@@ -1,4 +1,5 @@
-import { BillboardGraphics, Cartesian3, Entity, HeightReference, HorizontalOrigin, JulianDate, NearFarScalar, VerticalOrigin } from "@cesium/engine";
+import { Cartesian3, JulianDate, NearFarScalar } from "@cesium/core";
+import { BillboardGraphics, Entity, HeightReference, HorizontalOrigin, VerticalOrigin } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
 import icon from "../images/icons/pin.svg";

@@ -1,4 +1,4 @@
-import { getTimestamp } from "@cesium/engine";
+import { getTimestamp } from "@cesium/core";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Scene = any;

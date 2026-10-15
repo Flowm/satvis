@@ -2,24 +2,16 @@
 // east-north-up frame stands for the satellite's: X velocity, Y port, Z zenith.
 
 import "@cesium/widgets/Source/widgets.css";
+import { BoundingSphere, Cartesian2, Cartesian3, Color, DistanceDisplayCondition, FixedFrameTransforms, HeadingPitchRange, Matrix4, PerspectiveFrustum } from "@cesium/core";
 import {
-  BoundingSphere,
-  Cartesian2,
-  Cartesian3,
-  Color,
   DebugModelMatrixPrimitive,
   DirectionalLight,
-  DistanceDisplayCondition,
-  HeadingPitchRange,
   HorizontalOrigin,
   LabelCollection,
   LabelStyle,
-  Matrix4,
   Model,
-  PerspectiveFrustum,
   ScreenSpaceEventType,
   Tonemapper,
-  Transforms,
   VerticalOrigin,
   type Label,
 } from "@cesium/engine";
@@ -115,7 +107,7 @@ interface Entry {
 }
 
 /** Where every model sits: 500 km above 0°N 0°E. */
-const ANCHOR = Transforms.eastNorthUpToFixedFrame(Cartesian3.fromDegrees(0, 0, 500_000));
+const ANCHOR = FixedFrameTransforms.eastNorthUpToFixedFrame(Cartesian3.fromDegrees(0, 0, 500_000));
 const FIT_RADIUS = 1;
 const CELL_PADDING = 1.4;
 /** [heading, pitch] of the camera; heading 0 looks north (port), so sees the starboard side. */
@@ -445,7 +437,7 @@ function frame(sphere: BoundingSphere): void {
   const fovx = 2 * Math.atan(Math.tan(fovy / 2) * (frustum.aspectRatio || 1));
   const range = (sphere.radius / Math.sin(Math.min(fovx, fovy) / 2)) * 1.05;
   const [heading, pitch] = VIEWS[controls.view.value] ?? VIEWS.starboard!;
-  camera.lookAtTransform(Transforms.eastNorthUpToFixedFrame(sphere.center), new HeadingPitchRange(heading, pitch, range));
+  camera.lookAtTransform(FixedFrameTransforms.eastNorthUpToFixedFrame(sphere.center), new HeadingPitchRange(heading, pitch, range));
 }
 
 function select(entry: Entry | undefined): void {

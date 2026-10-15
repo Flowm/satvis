@@ -1,4 +1,5 @@
-import { Cartesian3, Entity, JulianDate, ReferenceFrame, VelocityOrientationProperty } from "@cesium/engine";
+import { Cartesian3, JulianDate, ReferenceFrame } from "@cesium/core";
+import { Entity, VelocityOrientationProperty } from "@cesium/engine";
 import { describe, expect, test } from "vitest";
 
 import { GridPositionProperty } from "./GridPositionProperty";

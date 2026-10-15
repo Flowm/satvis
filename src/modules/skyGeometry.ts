@@ -2,7 +2,7 @@
 // SkyView, DeviceAim and SkyTargets must agree exactly, so there is one copy:
 // composing and decomposing a basis must be each other's inverse.
 
-import { Cartesian3, Cartographic, Math as CesiumMath, Matrix3, Matrix4, Transforms } from "@cesium/engine";
+import { Cartesian3, Cartographic, FixedFrameTransforms, Math as CesiumMath, Matrix3, Matrix4 } from "@cesium/core";
 
 /** See observer in CONTEXT.md. */
 export interface Observer {
@@ -28,7 +28,7 @@ export interface ObserverFrame {
 }
 
 export function observerFrame(position: Cartesian3): ObserverFrame {
-  const enuToFixed = Matrix4.getMatrix3(Transforms.eastNorthUpToFixedFrame(position, undefined, new Matrix4()), new Matrix3());
+  const enuToFixed = Matrix4.getMatrix3(FixedFrameTransforms.eastNorthUpToFixedFrame(position, undefined, new Matrix4()), new Matrix3());
   return {
     position: Cartesian3.clone(position, new Cartesian3()),
     // Orthonormal, so the transpose is the inverse.
@@ -42,7 +42,7 @@ export function observerFrame(position: Cartesian3): ObserverFrame {
  */
 export function offsetObserver(observer: Observer, east: number, north: number): Observer {
   const origin = Cartesian3.fromDegrees(observer.lon, observer.lat);
-  const enuToFixed = Transforms.eastNorthUpToFixedFrame(origin, undefined, new Matrix4());
+  const enuToFixed = FixedFrameTransforms.eastNorthUpToFixedFrame(origin, undefined, new Matrix4());
   const moved = Matrix4.multiplyByPoint(enuToFixed, new Cartesian3(east, north, 0), new Cartesian3());
   const carto = Cartographic.fromCartesian(moved);
   // Only the Earth's centre has no coordinates, which no surface offset reaches.

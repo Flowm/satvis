@@ -1,7 +1,7 @@
 // The one place store state becomes globe state. Only the tracked satellite and the
 // sky view's observer travel back, as callbacks.
 
-import { JulianDate } from "@cesium/engine";
+import { JulianDate } from "@cesium/core";
 import { nextTick, watch } from "vue";
 
 import { currentPosition } from "../composables/useGeolocation";

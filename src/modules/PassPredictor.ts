@@ -1,4 +1,4 @@
-import { JulianDate, TimeInterval, TimeIntervalCollection } from "@cesium/engine";
+import { JulianDate, TimeInterval, TimeIntervalCollection } from "@cesium/core";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 

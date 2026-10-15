@@ -5,7 +5,7 @@
 // The view moves every frame, but `onMove` (a ground station move) waits for the
 // keys to be still; see docs/adr/0003-sky-view.md.
 
-import { Math as CesiumMath } from "@cesium/engine";
+import { Math as CesiumMath } from "@cesium/core";
 
 import type { Aim, Observer } from "./skyGeometry";
 import { offsetObserver } from "./skyGeometry";

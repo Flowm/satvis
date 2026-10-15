@@ -5,7 +5,8 @@
 // Web Mercator: GIBS's EPSG:4326 tile matrices are not powers of two (3×2 at level 1),
 // so they cannot be a Cesium tiling scheme.
 
-import { Clock, Iso8601, JulianDate, TimeInterval, TimeIntervalCollection, WebMapTileServiceImageryProvider, WebMercatorTilingScheme } from "@cesium/engine";
+import { Clock, Iso8601, JulianDate, TimeInterval, TimeIntervalCollection } from "@cesium/core";
+import { WebMapTileServiceImageryProvider, WebMercatorTilingScheme } from "@cesium/engine";
 
 import type { ImageryContext } from "./CesiumLayerProviders";
 import { formatFrame, frameWindow, parseDomain, type TimeRange, withoutLatestFrame } from "./util/timeDomain";

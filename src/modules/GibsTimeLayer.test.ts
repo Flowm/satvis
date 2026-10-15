@@ -1,4 +1,4 @@
-import { Clock, JulianDate, type TimeIntervalCollection } from "@cesium/engine";
+import { Clock, JulianDate, type TimeIntervalCollection } from "@cesium/core";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { ImageryContext } from "./CesiumLayerProviders";

@@ -1,15 +1,5 @@
-import {
-  Cartesian3,
-  ExtrapolationType,
-  JulianDate,
-  LagrangePolynomialApproximation,
-  Matrix3,
-  ReferenceFrame,
-  SampledPositionProperty,
-  TimeInterval,
-  Transforms,
-  defined,
-} from "@cesium/engine";
+import { Cartesian3, ExtrapolationType, JulianDate, LagrangePolynomialApproximation, Matrix3, ReferenceFrame, TimeInterval, defined } from "@cesium/core";
+import { SampledPositionProperty, Transforms } from "@cesium/engine";
 import type { InterpolationAlgorithm } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 

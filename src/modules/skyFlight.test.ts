@@ -1,4 +1,4 @@
-import { Cartesian3, Math as CesiumMath, Quaternion } from "@cesium/engine";
+import { Cartesian3, Math as CesiumMath, Quaternion } from "@cesium/core";
 import { describe, expect, test } from "vitest";
 
 import { easeFlight, FLIGHT_MS, type FlightPath, flightPath, flightPose, flightPosition, LOCK_ON, newPose, type Pose, poseRotation, TIP_UP, TOUCHDOWN } from "./skyFlight";

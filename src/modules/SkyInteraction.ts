@@ -5,7 +5,8 @@
 // would cover Cesium's credits and no z-index could lift them back. What a gesture
 // means lives in ./skyGestures, aiming by compass in ./DeviceAim, walking in ./SkyMovement.
 
-import { Cartesian2, type JulianDate, type Scene, type ScreenSpaceEventHandler, ScreenSpaceEventType } from "@cesium/engine";
+import { Cartesian2, type JulianDate } from "@cesium/core";
+import { type Scene, type ScreenSpaceEventHandler, ScreenSpaceEventType } from "@cesium/engine";
 
 import type { SkyAppearance } from "./componentKinds";
 import { browserOrientationEvents, CompassAiming, type CompassCalibration, type CompassOutcome } from "./DeviceAim";

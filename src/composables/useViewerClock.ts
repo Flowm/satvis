@@ -1,7 +1,7 @@
 // The only place the deck writes the viewer's clock. Scrubbing writes the clock directly and
 // pins on release: `CesiumController.setTime` per pointer event would rebuild the window under the thumb.
 
-import { JulianDate } from "@cesium/engine";
+import { JulianDate } from "@cesium/core";
 import { computed, onUnmounted, ref } from "vue";
 
 import { isOffPresent, rungFor, LADDER } from "../modules/util/clockDeck";

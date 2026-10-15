@@ -8,7 +8,8 @@
 //   transform of itself, so the owner swaps geometry through `replace` and the
 //   coalescing window folds those swaps into one rebuild.
 
-import { type GeometryInstance, type JulianDate, Matrix4, PolylineColorAppearance, Primitive, SceneMode, Transforms, defined } from "@cesium/engine";
+import { type GeometryInstance, type JulianDate, Matrix4, defined } from "@cesium/core";
+import { PolylineColorAppearance, Primitive, SceneMode, Transforms } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
 import { CesiumCallbackHelper } from "./CesiumCallbackHelper";

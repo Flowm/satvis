@@ -1,16 +1,5 @@
-import {
-  type BoundingSphere,
-  type Cartesian2,
-  Cartesian3,
-  Entity,
-  GeometryInstance,
-  JulianDate,
-  Math as CesiumMath,
-  Matrix3,
-  PerspectiveFrustum,
-  type Property,
-  Transforms,
-} from "@cesium/engine";
+import { type BoundingSphere, type Cartesian2, Cartesian3, GeometryInstance, JulianDate, Math as CesiumMath, Matrix3, PerspectiveFrustum } from "@cesium/core";
+import { Entity, type Property, Transforms } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -217,7 +206,9 @@ describe("SatelliteComponentCollection lines and corridors", () => {
 
 describe("SatelliteComponentCollection tracking offset", () => {
   const offset = (sat: SatelliteComponentCollection, viewer: Viewer) =>
-    Cartesian3.magnitude((sat.components.Point as Entity).viewFrom!.getValue(viewer.clock.currentTime) as Cartesian3);
+    // Cesium 1.146 types it a Cartesian3 but returns a Property; fixed in 1.147.
+    // Upstream: https://github.com/CesiumGS/cesium/issues/13880
+    Cartesian3.magnitude(((sat.components.Point as Entity).viewFrom as unknown as Property).getValue(viewer.clock.currentTime) as Cartesian3);
 
   test("stands back for context without a model", async () => {
     const { sat, viewer } = await setup();

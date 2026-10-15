@@ -1,6 +1,6 @@
+import { type Clock } from "@cesium/core";
 import {
   ArcGisMapServerImageryProvider,
-  type Clock,
   ArcGISTiledElevationTerrainProvider,
   CesiumTerrainProvider,
   createWorldTerrainAsync,

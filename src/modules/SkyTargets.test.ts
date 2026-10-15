@@ -1,4 +1,4 @@
-import { Cartesian2, Cartesian3, Math as CesiumMath } from "@cesium/engine";
+import { Cartesian2, Cartesian3, Math as CesiumMath } from "@cesium/core";
 import { describe, expect, test } from "vitest";
 
 import { compassPoint, directionToWorld, lookAngles, nearestTarget, observerFrame, type SkyTarget, sunElevation } from "./SkyTargets";

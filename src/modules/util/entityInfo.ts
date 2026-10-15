@@ -1,4 +1,4 @@
-import { JulianDate } from "@cesium/engine";
+import { JulianDate } from "@cesium/core";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 

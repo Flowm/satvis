@@ -1,6 +1,6 @@
 // The Cesium-bound target: scene requests become reconciles, the render loop becomes frame samples.
 
-import type { JulianDate } from "@cesium/engine";
+import type { JulianDate } from "@cesium/core";
 
 import { useCesiumStore } from "../../stores/cesium";
 import { useSatStore } from "../../stores/sat";

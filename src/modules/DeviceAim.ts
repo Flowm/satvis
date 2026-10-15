@@ -8,7 +8,7 @@
 // The device frame is `deviceorientation`'s: flat, screen up, top edge north, its
 // X/Y/Z are east/north/up, so alpha = beta = gamma = 0 is the identity.
 
-import { Cartesian3, Math as CesiumMath, Matrix3 } from "@cesium/engine";
+import { Cartesian3, Math as CesiumMath, Matrix3 } from "@cesium/core";
 
 import { type Aim, normalizeAzimuth, rollOf } from "./skyGeometry";
 

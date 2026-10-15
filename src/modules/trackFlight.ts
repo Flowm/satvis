@@ -1,4 +1,5 @@
-import { Cartesian3, type Camera, type Entity } from "@cesium/engine";
+import { Cartesian3 } from "@cesium/core";
+import { type Camera, type Entity } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
 import { smootherstep } from "./util/easing";

@@ -13,7 +13,8 @@
 // (38.5). Lowering Cesium's interpolationDegree instead saves under 1 ms of 12 and
 // costs up to 2.5 km.
 
-import { Cartesian3, Event, JulianDate, PositionProperty, ReferenceFrame } from "@cesium/engine";
+import { Cartesian3, Event, JulianDate, ReferenceFrame } from "@cesium/core";
+import { PositionProperty } from "@cesium/engine";
 
 /** Present at runtime but missing from the published typings. */
 const convertToReferenceFrame = (

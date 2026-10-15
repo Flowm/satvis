@@ -2,10 +2,11 @@
 // info panel. The scene's east-north-up frame stands for the satellite's, as on the
 // dev model viewer (src/modelViewer): X velocity, Y port, Z zenith.
 
-import { Cartesian3, CesiumWidget, Color, DirectionalLight, HeadingPitchRange, Model, PerspectiveFrustum, Tonemapper, Transforms } from "@cesium/engine";
+import { Cartesian3, Color, FixedFrameTransforms, HeadingPitchRange, PerspectiveFrustum } from "@cesium/core";
+import { CesiumWidget, DirectionalLight, Model, Tonemapper } from "@cesium/engine";
 
 /** Where the model sits: 500 km above 0°N 0°E. Any point off the Earth's centre would do. */
-const ANCHOR = Transforms.eastNorthUpToFixedFrame(Cartesian3.fromDegrees(0, 0, 500_000));
+const ANCHOR = FixedFrameTransforms.eastNorthUpToFixedFrame(Cartesian3.fromDegrees(0, 0, 500_000));
 /** A three-quarter view from ahead, starboard and above; heading 0 looks north, at the port side. */
 const HEADING = -Math.PI / 4;
 /** Radians below the horizon. */
@@ -143,7 +144,7 @@ export class ModelCloseUp {
     // 0.85 of what fits the bounding sphere: models are rarely round, and the sphere left the ISS a third of the view.
     const range = (sphere.radius / Math.sin(Math.min(fovx, fovy) / 2)) * 0.85;
     // Pinned to the sphere's centre, so dragging orbits the model rather than the Earth.
-    camera.lookAtTransform(Transforms.eastNorthUpToFixedFrame(sphere.center), new HeadingPitchRange(HEADING, PITCH, range));
+    camera.lookAtTransform(FixedFrameTransforms.eastNorthUpToFixedFrame(sphere.center), new HeadingPitchRange(HEADING, PITCH, range));
     const controller = scene.screenSpaceCameraController;
     controller.minimumZoomDistance = sphere.radius * 0.6;
     controller.maximumZoomDistance = range * 4;

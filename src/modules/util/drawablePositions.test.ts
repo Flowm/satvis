@@ -1,4 +1,4 @@
-import { Cartesian3, CorridorGeometry, Math as CesiumMath, PolylineGeometry } from "@cesium/engine";
+import { Cartesian3, CorridorGeometry, Math as CesiumMath, PolylineGeometry } from "@cesium/core";
 import { describe, expect, test } from "vitest";
 
 import { drawablePositions } from "./drawablePositions";

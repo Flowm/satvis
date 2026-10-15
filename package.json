@@ -33,11 +33,12 @@
     "deploy:preview": "pnpm build && pnpm --filter satvis-worker deploy:preview"
   },
   "dependencies": {
-    "@cesium/engine": "^26.3.0",
-    "@cesium/widgets": "^16.2.0",
+    "@cesium/core": "^0.1.0",
+    "@cesium/engine": "^26.4.0",
+    "@cesium/widgets": "^16.3.0",
     "@nuxt/ui": "^4.11.3",
     "@tanstack/vue-virtual": "^3.13.39",
-    "cesium": "^1.145.0",
+    "cesium": "^1.146.0",
     "cesium-sensor-volumes": "github:Flowm/cesium-sensor-volumes#1.140.0",
     "dayjs": "^1.11.23",
     "pinia": "^4.0.3",

@@ -4,7 +4,8 @@
 // `(azimuth - heading) * pixelsPerDegree` breaks at the zenith, where the derived
 // heading flips by 180°, and cannot express roll.
 
-import { Cartesian2, Cartesian3, Cartographic, Math as CesiumMath, JulianDate, Matrix3, Ray, type Scene, SceneTransforms } from "@cesium/engine";
+import { Cartesian2, Cartesian3, Cartographic, Math as CesiumMath, JulianDate, Matrix3, Ray } from "@cesium/core";
+import { type Scene, SceneTransforms } from "@cesium/engine";
 
 import type { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { enuDirection, normalizeAzimuth, type ObserverFrame } from "./skyGeometry";

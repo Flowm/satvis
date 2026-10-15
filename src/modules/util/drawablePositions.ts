@@ -4,7 +4,7 @@
 // `Scene.render`, which stops the render loop for the session. So every line and
 // corridor is built from `drawable(...)`, never from a raw count.
 
-import { Cartesian3, Math as CesiumMath } from "@cesium/engine";
+import { Cartesian3, Math as CesiumMath } from "@cesium/core";
 
 /**
  * Matches `arrayRemoveDuplicates`: consecutive-only, with the relative `EPSILON10`
