@@ -107,7 +107,7 @@ export default defineConfig({
         name: "Satellite Orbit Visualization",
         short_name: "SatVis",
         description:
-          "Track 12,000+ satellites live on a 3D globe, or point your phone at the sky to spot them. Starlink, GPS, the ISS and more. Pass prediction, alerts, offline PWA.",
+          "Track 16,000+ satellites live on a 3D globe, or point your phone at the sky to spot them. Starlink, GPS, the ISS and more. Pass prediction, alerts, offline PWA.",
         start_url: "/",
         scope: "/",
         id: "satvis.space",
