@@ -8,7 +8,7 @@
 import { Clock, Iso8601, JulianDate, TimeInterval, TimeIntervalCollection, WebMapTileServiceImageryProvider, WebMercatorTilingScheme } from "@cesium/engine";
 
 import type { ImageryContext } from "./CesiumLayerProviders";
-import { formatFrame, frameWindow, parseDomain, type TimeRange } from "./util/timeDomain";
+import { formatFrame, frameWindow, parseDomain, type TimeRange, withoutLatestFrame } from "./util/timeDomain";
 
 const GIBS = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best";
 
@@ -17,7 +17,11 @@ export interface GibsTimeLayerOptions {
   /** The layer's `GoogleMapsCompatible_LevelN` set; N is also the deepest level. */
   maximumLevel: number;
   format: "png" | "jpeg";
-  /** Daily layers name frames by date, the rest to the second. */
+  /**
+   * Daily layers name frames by date, the rest to the second. GIBS lists a day while
+   * it is still imaging it, and serves what is missing as opaque black, so a daily
+   * layer shows the newest finished day.
+   */
   daily: boolean;
 }
 
@@ -34,7 +38,8 @@ async function fetchDomain(options: GibsTimeLayerOptions, signal: AbortSignal): 
   try {
     const response = await fetch(`${GIBS}/1.0.0/${options.layer}/default/GoogleMapsCompatible_Level${options.maximumLevel}/all/all.xml`, { signal });
     const domain = response.ok ? /<Domain>([^<]*)<\/Domain>/.exec(await response.text())?.[1] : undefined;
-    const ranges = domain ? parseDomain(domain) : [];
+    const listed = domain ? parseDomain(domain) : [];
+    const ranges = options.daily ? withoutLatestFrame(listed) : listed;
     return ranges.length > 0 ? ranges : undefined;
   } catch {
     return undefined;

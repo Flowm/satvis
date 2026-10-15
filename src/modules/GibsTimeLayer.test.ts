@@ -93,6 +93,15 @@ describe("createGibsTimeLayer", () => {
     await vi.waitFor(() => expect(frameAt(layer.times, clock)).toBe("2026-10-05T11:40:00Z"));
   });
 
+  test("shows a daily layer's newest finished day, not the one GIBS is still imaging", async () => {
+    fetchMock.mockResolvedValueOnce(domainResponse("2026-09-01/2026-10-05/P1D"));
+    const { clock, context, setTime } = harness("2026-10-05T08:00:00Z");
+    const layer = await createGibsTimeLayer({ layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", maximumLevel: 9, format: "jpeg", daily: true }, context);
+    expect(frameAt(layer.times, clock)).toBe("2026-10-04");
+    setTime("2026-10-03T08:00:00Z");
+    expect(frameAt(layer.times, clock)).toBe("2026-10-03");
+  });
+
   test("falls back to GIBS's latest frame when the domain cannot be fetched", async () => {
     fetchMock.mockRejectedValueOnce(new TypeError("offline"));
     vi.spyOn(console, "warn").mockImplementation(() => {});

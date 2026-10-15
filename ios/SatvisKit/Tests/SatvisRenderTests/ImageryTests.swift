@@ -51,22 +51,29 @@ import Testing
         #expect(gibs.contains("layers=VIIRS_Black_Marble") && gibs.contains("bbox=0.0,-90.0,180.0,90.0") && gibs.contains("srs=EPSG:4326"))
         #expect(
             BaseLayer.viirs.source(site: site, frame: "2026-10-04").url(TileKey(level: 3, x: 4, y: 2))?.absoluteString
-                == "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/2026-10-04/GoogleMapsCompatible_Level9/3/2/4.jpg")
+                == "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/2026-10-04/GoogleMapsCompatible_Level9/3/2/4.jpg")
         #expect(BaseLayer.viirs.source(site: site).url(TileKey(level: 0, x: 0, y: 0))?.absoluteString.contains("/default/default/") == true)
     }
 
-    // timeDomain.ts's parseDomain, for a daily layer: the first and last day listed,
-    // and the clock's day held within them.
+    // timeDomain.ts's parseDomain and withoutLatestFrame, for a daily layer: the
+    // finished days listed, and its snapToFrame: the clock's day, or the one before
+    // a gap, held within them.
     @Test func readsADailyLayersDays() throws {
-        let xml = "<Dimension><ows:Identifier>Time</ows:Identifier><Domain>2015-11-24/2019-01-01/P1D,2019-01-03/2026-10-06/P1D</Domain></Dimension>"
+        let xml = "<Dimension><ows:Identifier>Time</ows:Identifier><Domain>2019-01-03/2026-10-06/P1D,2015-11-24/2019-01-01/P1D</Domain></Dimension>"
         let days = try #require(GIBS.days(inDomain: xml))
-        #expect(days == "2015-11-24"..."2026-10-06")
+        #expect(days == ["2015-11-24"..."2019-01-01", "2019-01-03"..."2026-10-05"])
+        #expect(GIBS.days(inDomain: "<Domain>2026-09-01/2026-10-01/P1D</Domain>") == ["2026-09-01"..."2026-09-30"])
+        #expect(GIBS.days(inDomain: "<Domain>2026-10-01/2026-10-03/P1D,2026-10-05</Domain>") == ["2026-10-01"..."2026-10-03"])
+        #expect(GIBS.days(inDomain: "<Domain>2026-10-05</Domain>") == nil)
         #expect(GIBS.days(inDomain: "<Domain></Domain>") == nil)
         #expect(GIBS.days(inDomain: "<html>") == nil)
         let day = 86_400_000.0
         let october4 = 1_791_072_000_000.0
+        let january2 = 1_546_387_200_000.0
         #expect(GIBS.frame(at: october4 + 0.5 * day, within: days) == "2026-10-04")
-        #expect(GIBS.frame(at: october4 + 10 * day, within: days) == "2026-10-06")
+        #expect(GIBS.frame(at: october4 + 10 * day, within: days) == "2026-10-05")
+        #expect(GIBS.frame(at: january2 + 0.5 * day, within: days) == "2019-01-01")
+        #expect(GIBS.frame(at: january2 + 1.5 * day, within: days) == "2019-01-03")
         #expect(GIBS.frame(at: 0, within: days) == "2015-11-24")
     }
 

@@ -51,17 +51,30 @@ struct InfoPanel: View {
                     details(propagator)
                 }
             }
+            // Here, where the alert was switched: on a phone the panel is a sheet
+            // over the bottom of the screen, where the session's notices are.
+            .overlay(alignment: .bottom) {
+                if let message = alerts.message {
+                    NoticeBanner(text: message).padding(.bottom, 12)
+                }
+            }
             .navigationTitle(entry.name)
             .navigationSubtitle("#\(entry.satnum)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     AlertButton(subject: .satellite(entry.id), satellites: [entry], passes: passes, alerts: alerts)
-                    if let onTrack {
+                }
+                if let onTrack {
+                    ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
                             onTrack(!isTracked)
                         }
                     }
+                }
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Close", systemImage: "xmark", action: onClose)
                 }
             }
@@ -130,9 +143,15 @@ struct StationPanel: View {
                 }
                 PassesSections(subject: .station(station, catalog.activeEntries), clock: clock, passes: passes)
             }
+            .overlay(alignment: .bottom) {
+                if let message = alerts.message {
+                    NoticeBanner(text: message).padding(.bottom, 12)
+                }
+            }
             .navigationTitle(station.displayName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // By what they do: the station itself, where to look from, and away.
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     // A station a link brought is the link's until saved: alerts and
                     // names are for the user's own, which persist.
@@ -145,12 +164,18 @@ struct StationPanel: View {
                         }
                         AlertButton(subject: .station(station.id), satellites: catalog.activeEntries, passes: passes, alerts: alerts)
                     }
+                }
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                ToolbarItemGroup(placement: .topBarTrailing) {
                     Button("View the sky from here", systemImage: "binoculars", action: onSky)
                     if let onTrack {
                         Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
                             onTrack(!isTracked)
                         }
                     }
+                }
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Close", systemImage: "xmark", action: onClose)
                 }
             }

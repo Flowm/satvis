@@ -93,6 +93,9 @@ public struct OrbitCamera: Sendable, Equatable {
     /// UIKit measures them, on a view whose longer side is `longerSide` points:
     /// the side the field of view spans.
     public mutating func pan(by points: SIMD2<Double>, longerSide: Double) {
+        guard points.isFinite, longerSide > 0 else {
+            return
+        }
         let radiansPerPoint = 2 * tan(Self.fieldOfView / 2) * altitude / (longerSide * ellipsoidRadii.x)
         let (screenUp, screenRight) = screenAxes
         let target = up - (points.x * screenRight - points.y * screenUp) * radiansPerPoint
@@ -102,6 +105,9 @@ public struct OrbitCamera: Sendable, Equatable {
     }
 
     public mutating func zoom(by scale: Double) {
+        guard scale.isFinite, scale > 0 else {
+            return
+        }
         altitude = min(max(altitude / scale, Self.minimumAltitude), Self.maximumAltitude)
     }
 
@@ -113,7 +119,18 @@ public struct OrbitCamera: Sendable, Equatable {
     }
 
     /// A twist of `radians` clockwise on the screen turns the globe with the fingers.
+    /// SwiftUI's RotateGesture reports NaN once two fingertips meet, and a NaN
+    /// heading drew nothing until the app was relaunched: such a twist is ignored,
+    /// as is a pinch or drag that is not finite.
     public mutating func rotate(by radians: Double) {
+        guard radians.isFinite else {
+            return
+        }
         heading += radians
     }
+}
+
+extension SIMD2 where Scalar == Double {
+    /// Whether neither coordinate is NaN or infinite, as a gesture's should be.
+    var isFinite: Bool { x.isFinite && y.isFinite }
 }

@@ -1,8 +1,10 @@
 import Foundation
+import Metal
 import Observation
 import PostHog
 import SatvisCore
 import SatvisData
+import SatvisRender
 import StoreKit
 import UIKit
 
@@ -133,6 +135,17 @@ final class Analytics {
         }
         PostHogSDK.shared.capture(
             "$pageview", properties: ["$current_url": url.absoluteString, "$host": url.host() ?? "", "$pathname": url.path()])
+    }
+
+    /// A frame the GPU failed, as an exception: iOS draws nothing for the app
+    /// after one, and reports no crash.
+    func gpuFault(_ fault: GPUFault, satellites: Int, view: URL) {
+        guard Self.isSetUp else {
+            return
+        }
+        let error = NSError(domain: MTLCommandBufferErrorDomain, code: fault.code, userInfo: [NSLocalizedDescriptionKey: "GPU \(fault.name): \(fault.description)"])
+        PostHogSDK.shared.captureException(
+            error, properties: ["gpu_fault": fault.name, "gpu_fault_frames": fault.count, "satellites": satellites, "$current_url": view.absoluteString])
     }
 
     /// An event the user sends by hand, as the benchmark's results: false where

@@ -58,6 +58,9 @@ struct ContentView: View {
     @State private var showsTools = false
     /// The panel open beside the menu column, if any.
     @State private var panel: ToolPanel?
+    /// Where the menu column and the top corner's buttons are, in the window.
+    @State private var menuFrame: CGRect?
+    @State private var cornerFrame: CGRect?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -89,7 +92,7 @@ struct ContentView: View {
         .overlay {
             if session.observer != nil, let renderer = session.renderer {
                 // In the renderer's frame, the whole screen, since it projects into it.
-                SkyHUD(renderer: renderer, tapeTop: 132, trailingInset: cardInset)
+                SkyHUD(renderer: renderer, controls: topControls, trailingInset: cardInset, notice: session.notice)
                     .ignoresSafeArea()
             }
         }
@@ -121,6 +124,11 @@ struct ContentView: View {
             .labelStyle(.iconOnly)
             .buttonStyle(.glass)
             .controlSize(.large)
+            .onGeometryChange(for: CGRect.self) {
+                $0.frame(in: .global)
+            } action: {
+                cornerFrame = $0
+            }
             .padding()
         }
         // Over the top-right buttons: where there is no room beside them an open
@@ -156,6 +164,11 @@ struct ContentView: View {
                         }
                     }
                     .environment(\.toolNamesFolded, !roomy && panel != nil)
+                    .onGeometryChange(for: CGRect.self) {
+                        $0.frame(in: .global)
+                    } action: {
+                        menuFrame = $0
+                    }
                     if let panel {
                         ToolPanelView(title: panel.title, fillsWidth: !roomy, onClose: { self.panel = nil }) {
                             switch panel {
@@ -190,15 +203,7 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .top) {
-            if let message = session.notice ?? session.alerts.message {
-                Text(message)
-                    .font(.subheadline)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .glassEffect()
-                    .padding(.top, 72)
-                    .transition(.opacity)
-            } else if session.isPicking {
+            if session.isPicking {
                 HStack {
                     Text("Tap the globe to place a ground station")
                         .font(.subheadline)
@@ -212,6 +217,12 @@ struct ContentView: View {
         }
         .overlay(alignment: .bottom) {
             VStack(spacing: 12) {
+                // Down here, as the web app's toasts are: the top holds the menu,
+                // its panels, the corner's buttons and the sky view's tape. The sky
+                // view shows it over the lock's card instead.
+                if let notice = session.notice, session.observer == nil {
+                    NoticeBanner(text: notice)
+                }
                 // Above the clock, clear of the buttons down either side.
                 if session.showsBenchmark, let renderer = session.renderer {
                     BenchmarkPanel(session: session, renderer: renderer)
@@ -309,6 +320,15 @@ struct ContentView: View {
 
     /// How far the info card reaches in from the trailing edge: its width and its
     /// margin, where it shows.
+    /// For the sky view's tapes. The HUD fills the window, so their frames are
+    /// the window's.
+    private var topControls: TopControls? {
+        guard let menuFrame, let cornerFrame else {
+            return nil
+        }
+        return TopControls(menu: menuFrame, buttons: cornerFrame)
+    }
+
     private var cardInset: CGFloat {
         sizeClass == .regular && session.selection != nil ? Self.cardWidth + 12 : 0
     }
@@ -386,5 +406,21 @@ private struct OpenStreetMapCredit: View {
             }
             withAnimation { isShown = false }
         }
+    }
+}
+
+/// A word for the user that goes by itself, on glass.
+struct NoticeBanner: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.subheadline)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .glassEffect(in: .rect(cornerRadius: 20))
+            .padding(.horizontal, 16)
+            .transition(.opacity)
     }
 }

@@ -19,20 +19,27 @@ struct PassesSections: View {
     @State private var now = ViewerClock.real()
     /// The pass picked off the strip, by start.
     @State private var picked: Double?
+    /// The last settled passes, which `top` stands in while new ones are predicted.
+    @State private var held = Held()
 
     var body: some View {
         let (all, settled, progress) = list
         let visible = all.visible(at: now, past: showsPast)
         let next = visible.first { $0.end >= now }
         let subjects = Set(visible.map(subjectName))
+        let top = top(all, settled: settled)
+        let topVisible = top?.passes.visible(at: now, past: showsPast) ?? []
         Section {
-            if settled, !all.isEmpty, let next {
-                Headline(pass: next, now: now, subject: subjectName(next))
+            Group {
+                if let top, !top.passes.isEmpty, let next = topVisible.first(where: { $0.end >= now }) {
+                    Headline(pass: next, now: now, subject: subjectName(next))
+                }
+                if case .satellite = subject, let top, !top.passes.isEmpty {
+                    TimelineStrip(passes: topVisible, now: now, mode: top.mode, picked: $picked)
+                }
             }
-            if case .satellite = subject, settled, !all.isEmpty {
-                TimelineStrip(passes: visible, now: now, mode: passes.mode, picked: $picked)
-            }
-            HStack {
+            .opacity(settled ? 1 : 0.4)
+            HStack(spacing: 16) {
                 // Here even when the list is empty: swath mode over a station the
                 // ground track misses lists nothing, and this is how to undo it.
                 Picker(
@@ -94,6 +101,19 @@ struct PassesSections: View {
         .onChange(of: subjectID) { picked = nil }
     }
 
+    /// What the headline and the strip show: the settled passes, or until they
+    /// settle, the last settled ones for the same subject. Without them a change
+    /// of mode emptied the section, and the picker under it jumped up and back.
+    private func top(_ passes: [Pass], settled: Bool) -> (passes: [Pass], mode: OverpassMode)? {
+        if settled {
+            held.subject = subjectID
+            held.mode = self.passes.mode
+            held.passes = passes
+            return (passes, self.passes.mode)
+        }
+        return held.subject == subjectID ? (held.passes, held.mode) : nil
+    }
+
     /// The passes so far, whether that is all of them, and for a station, how
     /// many of its satellites are done.
     private var list: (passes: [Pass], settled: Bool, progress: (done: Int, total: Int)?) {
@@ -125,6 +145,13 @@ struct PassesSections: View {
     }
 }
 
+/// The last settled passes. A class, so keeping them from `body` redraws nothing.
+private final class Held {
+    var subject: String?
+    var mode = OverpassMode.elevation
+    var passes: [Pass] = []
+}
+
 /// The ongoing or next pass: how long until it, and what it will be like.
 private struct Headline: View {
     let pass: Pass
@@ -139,13 +166,17 @@ private struct Headline: View {
                 .foregroundStyle(isOngoing ? .green : .secondary)
             Text(pass.countdown(at: now))
                 .font(.title2.monospacedDigit().bold())
+            // One line in either mode, or the picker under it moves on a change.
             Text(pass.summary)
                 .font(.caption)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .foregroundStyle(.secondary)
-            if isOngoing, pass.end > pass.start {
-                ProgressView(value: min(1, max(0, (now - pass.start) / (pass.end - pass.start))))
-                    .tint(.green)
-            }
+            // Held for the next pass too, so the headline is one height either way.
+            ProgressView(value: isOngoing && pass.end > pass.start ? min(1, max(0, (now - pass.start) / (pass.end - pass.start))) : 0)
+                .tint(.green)
+                .opacity(isOngoing ? 1 : 0)
+                .accessibilityHidden(!isOngoing)
         }
         .accessibilityElement(children: .combine)
     }

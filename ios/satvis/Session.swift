@@ -73,7 +73,7 @@ final class Session {
     @ObservationIgnored private let tiles = TileFetcher.shared()
     @ObservationIgnored private let keptTiles = KeptTiles.applicationSupport()
     /// The days GIBS has VIIRS for, and when it was last asked.
-    @ObservationIgnored private var viirsDays: ClosedRange<String>?
+    @ObservationIgnored private var viirsDays: [ClosedRange<String>]?
     @ObservationIgnored private var viirsDaysAsked: Date?
     /// A daily base map's day, as the renderer was given it: the clock's, within
     /// GIBS's days; nil, GIBS's latest, until they are known.
@@ -192,6 +192,12 @@ final class Session {
         renderer.unseen = unseen
         renderer.cameraFrame = cameraFrame
         renderer.setStations(shownMarkers)
+        renderer.onGPUFault = { [weak self, weak renderer] fault in
+            guard let self, let renderer else {
+                return
+            }
+            analytics.gpuFault(fault, satellites: renderer.satelliteCount, view: link(sharing: false).url(site: source.site))
+        }
         // What a link opened on before the renderer was there to be told: the
         // sky view, with no globe to fly from yet, or something followed.
         if let observer, let station = passes.station(observer) {
@@ -793,7 +799,7 @@ final class Session {
 
     /// Keeps a daily base map (VIIRS) on the clock's day, once a second, as the web
     /// app's GibsTimeLayer moves it with the clock, asking GIBS which days it has
-    /// every half hour, as long as GIBS lets its answer be cached.
+    /// finished every half hour, as long as GIBS lets its answer be cached.
     private func followImageryDay() async {
         while !Task.isCancelled {
             if baseLayer.isDaily {
