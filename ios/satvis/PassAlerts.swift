@@ -62,7 +62,7 @@ final class PassAlerts {
     func turnOn(_ subject: Alert.Subject, satellites: [CatalogEntry]) async {
         let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
         guard granted else {
-            show("Notifications are off for SatVis in Settings")
+            show("Notifications are off for Satvis in Settings")
             return
         }
         alerts.removeAll { $0.subject == subject }

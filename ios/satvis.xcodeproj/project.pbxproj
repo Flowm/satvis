@@ -426,7 +426,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = satvis/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = SatVis;
+				INFOPLIST_KEY_CFBundleDisplayName = Satvis;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
@@ -463,7 +463,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = satvis/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = SatVis;
+				INFOPLIST_KEY_CFBundleDisplayName = Satvis;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;

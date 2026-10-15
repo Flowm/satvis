@@ -12,13 +12,13 @@ struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
 
     private static let features: [LocalizedStringKey] = [
-        "Visualize more than 16,000 satellites on a 3D globe in real time, propagated on the device with SGP4 from CelesTrak's element sets",
-        "Show points, labels, orbits, orbit tracks, ground tracks, sensor cones, 3D models and ground station links per satellite, coloured by orbit class (LEO, MEO, GEO, HEO)",
+        "Visualize satellites on a 3D globe in real time, propagated on the device with SGP4 from CelesTrak's element sets",
+        "Show points, labels, orbits, orbit tracks, ground tracks, sensor cones, 3D models and ground station links per satellite, colored by orbit class (LEO, MEO, GEO, HEO)",
         "Switch catalog groups on and off (Starlink, GNSS, weather, Earth observation, crewed stations), or search for a single satellite",
-        "Select a satellite to see its orbit, its next passes and its spacecraft details: country, operator, manufacturer, bus, mass and size",
+        "Select a satellite to see its orbit, its next passes over your locations and its spacecraft details: country, operator, manufacturer, bus, mass and size",
         "Track a satellite: the camera flies to it and follows it along its orbit",
-        "Set ground stations from your location or a point you pick on the map, then list their upcoming passes and get a notification before one starts",
-        "Find satellites in the sky overhead in a ground-level sky view you aim by dragging, or by pointing your phone",
+        "Save your location or any point you pick on the map, then list the upcoming passes over it and get a notification before one starts",
+        "Find satellites overhead in the ground-level sky view, aimed by dragging or by pointing your phone",
         "See which satellites you could spot: the sky view dims those in Earth's shadow, too far away or in a daylit sky",
         "Lay the globe over the base map and terrain you choose: satellite imagery, Earth at night or the day's VIIRS imagery",
         "Start from the demo views, bookmark your own, and share any view as a link: it opens the same view on satvis.space",
@@ -62,7 +62,7 @@ struct AboutView: View {
                     .disabled(!Analytics.isAvailable)
                     NavigationLink("Acknowledgements") { AcknowledgementsView(map: map) }
                 } footer: {
-                    Text("Created by Florian Mauracher, under the MIT licence.")
+                    Text("Created by Florian Mauracher, under the MIT license.")
                 }
             }
             .navigationTitle("About Satvis")

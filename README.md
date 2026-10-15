@@ -12,17 +12,17 @@ Point your phone up to see the satellites in that direction.
 
 ## Features
 
-- Visualize more than 16,000 satellites on a 3D globe in real time, propagated in the browser with SGP4 from CelesTrak GP element sets (OMM/TLE)
-- Show points, labels, orbits, orbit tracks, ground tracks, sensor cones, 3D models and ground station links per satellite, coloured by orbit class (LEO, MEO, GEO, HEO)
+- Visualize satellites on a 3D globe in real time, propagated in the browser with SGP4 from CelesTrak GP element sets (OMM/TLE)
+- Show points, labels, orbits, orbit tracks, ground tracks, sensor cones, 3D models and ground station links per satellite, colored by orbit class (LEO, MEO, GEO, HEO)
 - Switch catalog groups on and off (Starlink, GNSS, weather, Earth observation, crewed stations), or search for a single satellite
-- Select a satellite to see its orbit, its next passes and its spacecraft details: country, operator, manufacturer, bus, mass and size
+- Select a satellite to see its orbit, its next passes over your locations and its spacecraft details: country, operator, manufacturer, bus, mass and size
 - Track a satellite: the camera flies to it and follows it along its orbit
-- Set ground stations from your location or a point you pick on the map, then list their upcoming passes and get a local browser notification before one starts
-- Find satellites in the sky overhead in a ground-level sky view you aim by dragging, or by pointing your phone
+- Save your location or any point you pick on the map, then list the upcoming passes over it and get a local browser notification before one starts
+- Find satellites overhead in the ground-level sky view, aimed by dragging or by pointing your phone
 - See which satellites you could spot: the sky view dims those in Earth's shadow, too far away or in a daylit sky
 - View the globe in 3D, flattened to 2D or in Columbus view, over a base map, star field and terrain you choose
 - Add OpenStreetMap buildings to the globe, or Google's photorealistic tiles under the sky view
-- Start from the demo views, bookmark your own, and share any view as a link: the url carries the satellites, the components, the ground stations and the map layers
+- Start from the demo views, bookmark your own, and share any view as a link: the url carries the satellites, the components, the locations and the map layers
 - Install it as a Progressive Web App and keep using it offline, from a cached element-set snapshot and base map
 - Deploy it serverless: static files on a CDN, with an optional Cloudflare Worker serving fresh satellite data
 
