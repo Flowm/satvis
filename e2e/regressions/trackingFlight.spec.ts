@@ -112,3 +112,24 @@ test("the sky view takes the camera from a flight: nothing tracked, the clock ru
   expect((await trackingChanges(page)).map((change) => change.name).filter(Boolean)).toEqual([]);
   expect(await page.evaluate(() => window.cc!.viewer.clock.shouldAnimate)).toBe(true);
 });
+
+test("the sky view drops a track still waiting on its model", async ({ page }) => {
+  await page.context().grantPermissions(["geolocation"]);
+  await page.context().setGeolocation({ latitude: 48.1372, longitude: 11.5756 });
+  await openApp(page, `${QUERY}&gs=48.1372,11.5756,Munich`);
+  await recordTracking(page);
+  await openMenu(page, "Sky");
+  // A model SwiftShader is still loading: the track waits for it, past the sky view's entry.
+  await page.evaluate((wanted) => {
+    const sat = window.cc!.sats.activeSatellites.find((candidate) => candidate.props.name === wanted)!;
+    const loadedAt = performance.now() + 1500;
+    Object.defineProperty(sat.model, "pending", { get: () => performance.now() < loadedAt });
+  }, ISS);
+  await track(page, ISS);
+  await menuSwitch(page, "Look up").click();
+  await waitForSky(page);
+  // Past the model loading and a whole flight after it.
+  await page.waitForTimeout(4000);
+  await waitTicks(page, 20);
+  expect((await trackingChanges(page)).map((change) => change.name).filter(Boolean)).toEqual([]);
+});

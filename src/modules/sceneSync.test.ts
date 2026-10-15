@@ -92,6 +92,7 @@ function fakeTarget() {
         calls.reconciled.push(desired);
       },
       onTrackedChange: () => {},
+      cancelPendingTrack: () => {},
       onCatalogChange: () => {},
       catalog,
     },

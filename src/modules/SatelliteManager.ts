@@ -9,7 +9,7 @@ import { activeTargetEntries, buildOrder } from "./satelliteActivation";
 import { type CatalogEntry, SatelliteCatalog } from "./SatelliteCatalog";
 import { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { geometryRefreshSeconds } from "./satelliteGraphics";
-import { returnAfterTracking } from "./trackFlight";
+import { cancelPendingTrack, returnAfterTracking } from "./trackFlight";
 import { CesiumCleanupHelper } from "./util/CesiumCleanupHelper";
 import { sameValue } from "./util/equality";
 import { approximatePeriodMinutes, type GpRecord } from "./util/gp";
@@ -190,6 +190,11 @@ export class SatelliteManager {
 
   onTrackedChange(callback: (name: string) => void): void {
     this.#onTrackedChange = callback;
+  }
+
+  /** Drop a track still waiting on its model, which would otherwise start its flight whenever the model loads. */
+  cancelPendingTrack(): void {
+    cancelPendingTrack(this.viewer);
   }
 
   #onCatalogChange: (() => void) | undefined;
