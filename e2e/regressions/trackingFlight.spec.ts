@@ -39,6 +39,17 @@ const tracked = (page: Page) => page.evaluate(() => window.cc!.viewer.trackedEnt
 /** What the Track button calls: an animated track. */
 const track = (page: Page, name: string) => page.evaluate((wanted) => window.cc!.sats.activeSatellites.find((sat) => sat.props.name === wanted)!.track(true), name);
 
+/** Stretches the next camera flight to 30 s: on SwiftShader a click can outlast Cesium's default 3 s. */
+const stretchNextFlight = (page: Page) =>
+  page.evaluate(() => {
+    const viewerCamera = window.cc!.viewer.camera;
+    const flyTo = viewerCamera.flyTo;
+    viewerCamera.flyTo = (options) => {
+      viewerCamera.flyTo = flyTo;
+      flyTo.call(viewerCamera, { ...options, duration: 30 });
+    };
+  });
+
 /** Camera still for `ticks` frames: a flight or a jump would move it. */
 async function cameraHolds(page: Page, ticks = 20): Promise<number> {
   const before = await camera(page);
@@ -104,6 +115,8 @@ test("the sky view takes the camera from a flight: nothing tracked, the clock ru
   await openApp(page, `${QUERY}&gs=48.1372,11.5756,Munich`);
   await recordTracking(page);
   await openMenu(page, "Sky");
+  // Look up must land mid-flight. A flight the sky view failed to cancel still holds the clock, which the last check catches.
+  await stretchNextFlight(page);
   await track(page, ISS);
   await menuSwitch(page, "Look up").click();
   await waitForSky(page);
