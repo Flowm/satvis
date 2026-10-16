@@ -35,10 +35,11 @@ discussion; sharpen them here when they drift.
   curated row may override any field, extending its upstream row rather than
   replacing it (`SatelliteTable`, `docs/adr/0008-gcat-and-field-ownership.md`).
 - **Upstream table**: a catalog stored whole in KV as the file upstream served,
-  gzip-compressed, with a **table status** beside it (`worker/src/gp/upstream.ts`):
-  SATCAT, and GCAT's catalog, organisations and payloads. Stored only by
-  `push-catalog` (`PUT /api/upstream/<name>`) and the Worker's own fetch, each
-  conditional on the stored ETag, and parsed anew by every GP refresh. Not a group
+  gzip-compressed, with its parsed rows and a **table status** beside it
+  (`worker/src/gp/upstream.ts`): SATCAT, and GCAT's catalog, organisations and
+  payloads. Stored only by `push-catalog` (`PUT /api/upstream/<name>`) and the
+  Worker's own fetch, each conditional on the stored ETag; every check parses the
+  file again, and every GP refresh reads the rows. Not a group
   source: it selects nothing and only enriches satellites some group already
   carries, so losing it costs enrichment freshness and no group.
 - **Table status**: when an upstream table was last stored (`updated`) and last

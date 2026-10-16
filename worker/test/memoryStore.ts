@@ -8,6 +8,7 @@ import type { GpRecord, GroupsIndex, UpstreamName, UpstreamStatus } from "../src
 export function memoryStore(previous: GroupsIndex = { updated: "", groups: [] }) {
   const groups = new Map<string, { records: GpRecord[]; metadata: GroupWriteMetadata }>();
   const files = new Map<UpstreamName, Uint8Array>();
+  const rows = new Map<UpstreamName, unknown>();
   const statuses = new Map<UpstreamName, UpstreamStatus>();
   let index: GroupsIndex | undefined;
   const store: GroupStore = {
@@ -33,6 +34,14 @@ export function memoryStore(previous: GroupsIndex = { updated: "", groups: [] })
     async listUpstreams() {
       return new Set(files.keys());
     },
+    async readUpstreamRows(name) {
+      // A copy each way, as KV and disk round-trip through JSON.
+      const stored = rows.get(name);
+      return stored === undefined ? undefined : structuredClone(stored);
+    },
+    async writeUpstreamRows(name, value) {
+      rows.set(name, structuredClone(value));
+    },
     async readStatus(name) {
       return statuses.get(name);
     },
@@ -43,5 +52,5 @@ export function memoryStore(previous: GroupsIndex = { updated: "", groups: [] })
       return Object.fromEntries(statuses);
     },
   };
-  return { store, groups, files, statuses, index: () => index };
+  return { store, groups, files, rows, statuses, index: () => index };
 }

@@ -30,7 +30,7 @@ export async function refreshGroups(config: GroupsConfig, store: GroupStore, fet
   const previous = await store.readIndex();
   const statuses = buildStatuses(defs, evaluated, previous, now);
 
-  // The stored tables, parsed anew, so a parser change applies on the next update (ADR 0008).
+  // The stored tables' rows, as last parsed from their files (ADR 0008).
   const table = await SatelliteTable.load(store, config);
 
   let written = 0;

@@ -66,7 +66,7 @@ describe("recordUnchanged and recordFailure", () => {
     const { store } = memoryStore();
     await storeUpstream(SATCAT, store, SATCAT_CSV, '"abc"', NOW);
 
-    expect(await recordUnchanged("satcat", store, LATER)).toMatchObject({ updated: NOW, checked: LATER, etag: '"abc"', rows: 1 });
+    expect(await recordUnchanged(SATCAT, store, LATER)).toMatchObject({ updated: NOW, checked: LATER, etag: '"abc"', rows: 1 });
     expect(await recordFailure("satcat", store, "HTTP 522", "2026-10-09T00:00:00.000Z")).toMatchObject({ checked: LATER, lastError: "HTTP 522" });
   });
 
@@ -74,9 +74,28 @@ describe("recordUnchanged and recordFailure", () => {
     const { store } = memoryStore();
     await storeUpstream(SATCAT, store, SATCAT_CSV, '"abc"', NOW);
     await recordFailure("satcat", store, "HTTP 522", NOW);
-    const status = await recordUnchanged("satcat", store, LATER);
+    const status = await recordUnchanged(SATCAT, store, LATER);
     expect(status).not.toHaveProperty("lastError");
     expect(status).not.toHaveProperty("lastErrorAt");
+  });
+
+  it("parses the stored file again at a 304, so a parser change reaches the rows at the next check", async () => {
+    const { store } = memoryStore();
+    await storeUpstream(SATCAT, store, SATCAT_CSV, '"abc"', NOW);
+    const newParser = { ...SATCAT, parse: (body: string) => ({ ...SATCAT.parse(body), "99999": { launchSite: "NEW" } }) };
+
+    await recordUnchanged(newParser, store, LATER);
+    expect(await loadUpstream(newParser, store)).toHaveProperty("99999");
+  });
+
+  it("keep the rows when the parser now rejects the stored file, and record why", async () => {
+    const { store } = memoryStore();
+    await storeUpstream(SATCAT, store, SATCAT_CSV, '"abc"', NOW);
+    const status = await recordUnchanged({ ...SATCAT, parse: parseGcatCatalog }, store, LATER);
+
+    expect(status).toMatchObject({ checked: LATER, lastErrorAt: LATER });
+    expect(status.lastError).toMatch(/^stored file unreadable: /);
+    expect(await loadUpstream(SATCAT, store)).toHaveProperty("25544");
   });
 });
 
@@ -162,16 +181,33 @@ describe("refreshUpstream", () => {
 });
 
 describe("loadUpstream", () => {
-  it("answers undefined, not a throw, when nothing is stored or it no longer parses", async () => {
+  it("reads the stored rows, not the file", async () => {
     const { store, files } = memoryStore();
+    await storeUpstream(SATCAT, store, SATCAT_CSV, undefined, NOW);
+    files.set("satcat", new Uint8Array([1, 2, 3]));
+    expect(await loadUpstream(SATCAT, store)).toEqual({ "25544": expect.objectContaining({ launchSite: "TYMSC" }) });
+  });
+
+  it("parses a file stored without rows, and keeps its rows", async () => {
+    const { store, rows } = memoryStore();
+    await storeUpstream(SATCAT, store, SATCAT_CSV, undefined, NOW);
+    rows.clear();
+
+    expect(await loadUpstream(SATCAT, store)).toHaveProperty("25544");
+    expect(rows.get("satcat")).toHaveProperty("25544");
+  });
+
+  it("answers undefined, not a throw, when nothing is stored or a file without rows no longer parses", async () => {
+    const { store, files, rows } = memoryStore();
     expect(await loadUpstream(SATCAT, store)).toBeUndefined();
 
-    // A parser change can reject a stored file; the GP update then enriches without it.
     await storeUpstream(SATCAT, store, SATCAT_CSV, undefined, NOW);
+    rows.clear();
     const gcatParserOnSatcat = { ...SATCAT, parse: parseGcatCatalog };
     expect(await loadUpstream(gcatParserOnSatcat, store)).toBeUndefined();
 
     files.set("satcat", new Uint8Array([1, 2, 3]));
     expect(await loadUpstream(SATCAT, store)).toBeUndefined();
+    expect(rows.size).toBe(0);
   });
 });

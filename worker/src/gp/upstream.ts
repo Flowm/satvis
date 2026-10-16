@@ -1,8 +1,8 @@
 // The tables the satellite table is built from (ADR 0006, 0008): SATCAT, and GCAT's
 // catalog, organisations and payloads. Each is stored as the file upstream served,
-// gzip-compressed, with a status beside it. Two paths store them, PUT /api/upstream/<name>
-// (push-catalog) and the Worker's own fetch; every GP update reads and parses them anew.
-// None is a group source: a missing table costs enrichment and fails no group.
+// gzip-compressed, with its parsed rows and a status beside it. Two paths store them,
+// PUT /api/upstream/<name> (push-catalog) and the Worker's own fetch; every GP update
+// reads the rows. None is a group source: a missing table costs enrichment and fails no group.
 
 import { type FetchImpl, USER_AGENT } from "./evaluate.ts";
 import { type GroupStore, upstreamStatuses } from "./store.ts";
@@ -92,9 +92,11 @@ export async function storeUpstream<T>(
   etag: string | undefined,
   now: string,
 ): Promise<{ stored: boolean; status: UpstreamStatus }> {
+  let parsed: T;
   let rows: number;
   try {
-    rows = Object.keys(spec.parse(body) as object).length;
+    parsed = spec.parse(body);
+    rows = Object.keys(parsed as object).length;
     const stored = (await store.listUpstreams()).has(spec.name) ? (await store.readStatus(spec.name))?.rows : undefined;
     if (stored !== undefined && rows < stored * MIN_ROW_RATIO) {
       throw new Error(`${rows} rows, against ${stored} stored: cut off?`);
@@ -106,20 +108,40 @@ export async function storeUpstream<T>(
   }
   const blob = new Blob([body]);
   await store.writeUpstream(spec.name, await gzip(blob));
+  await store.writeUpstreamRows(spec.name, parsed);
   const status: UpstreamStatus = { updated: now, checked: now, etag, bytes: blob.size, rows };
   await store.writeStatus(spec.name, status);
   console.log(`upstream ${spec.name}: stored ${status.rows} rows, ${status.bytes} bytes`);
   return { stored: true, status };
 }
 
+/** The stored file, decompressed and parsed; undefined when none is stored. Throws when it no longer parses. */
+async function parseStored<T>(spec: UpstreamSpec<T>, store: GroupStore): Promise<T | undefined> {
+  const bytes = await store.readUpstream(spec.name);
+  return bytes === undefined ? undefined : spec.parse(await gunzip(bytes));
+}
+
 /**
  * Upstream answered 304: it still serves the file stored here, so the check is
- * recorded and an earlier error is resolved.
+ * recorded and an earlier error is resolved. The rows are parsed from the stored file
+ * again, so a parser change reaches them at the next check; a file the parser now
+ * rejects keeps its old rows and records the error.
  */
-export async function recordUnchanged(name: UpstreamName, store: GroupStore, now: string): Promise<UpstreamStatus> {
-  const { lastError: _resolved, lastErrorAt: _resolvedAt, ...previous } = (await store.readStatus(name)) ?? {};
-  const status: UpstreamStatus = { ...previous, checked: now };
-  await store.writeStatus(name, status);
+export async function recordUnchanged<T>(spec: UpstreamSpec<T>, store: GroupStore, now: string): Promise<UpstreamStatus> {
+  const { lastError: _resolved, lastErrorAt: _resolvedAt, ...previous } = (await store.readStatus(spec.name)) ?? {};
+  let status: UpstreamStatus = { ...previous, checked: now };
+  let parsed: T | undefined;
+  try {
+    parsed = await parseStored(spec, store);
+  } catch (err) {
+    const message = `stored file unreadable: ${err instanceof Error ? err.message : String(err)}`;
+    console.warn(`upstream ${spec.name}: ${message} (keeping the stored rows)`);
+    status = { ...status, lastError: message, lastErrorAt: now };
+  }
+  if (parsed !== undefined) {
+    await store.writeUpstreamRows(spec.name, parsed);
+  }
+  await store.writeStatus(spec.name, status);
   return status;
 }
 
@@ -149,26 +171,34 @@ export async function refreshUpstream<T>(spec: UpstreamSpec<T>, store: GroupStor
   }
   if (result.notModified) {
     console.log(`upstream ${spec.name}: HTTP 304 in ${result.ms}ms`);
-    return recordUnchanged(spec.name, store, now);
+    return recordUnchanged(spec, store, now);
   }
   console.warn(`upstream ${spec.name}: FAILED after ${result.ms}ms — ${result.error}`);
   return recordFailure(spec.name, store, result.error ?? "fetch failed", now);
 }
 
 /**
- * The stored file, parsed. Undefined when none is stored or it no longer parses, which
- * a parser change could cause: the GP update then enriches without this table.
+ * The stored rows, not the file: parsing all four files put a GP update over the
+ * deployed Worker's 2 s CPU limit now and then (ADR 0008). A file stored before rows were
+ * kept is parsed, and its rows are kept. Undefined when no file is stored or it no longer
+ * parses: the GP update then enriches without this table.
  */
 export async function loadUpstream<T>(spec: UpstreamSpec<T>, store: GroupStore): Promise<T | undefined> {
-  const bytes = await store.readUpstream(spec.name);
-  if (bytes === undefined) {
-    console.warn(`gp refresh: no stored ${spec.name}; enriching without it`);
-    return undefined;
+  const rows = await store.readUpstreamRows(spec.name);
+  if (rows !== undefined) {
+    return rows as T;
   }
+  let parsed: T | undefined;
   try {
-    return spec.parse(await gunzip(bytes));
+    parsed = await parseStored(spec, store);
   } catch (err) {
     console.warn(`gp refresh: stored ${spec.name} unreadable (${err instanceof Error ? err.message : String(err)}); enriching without it`);
     return undefined;
   }
+  if (parsed === undefined) {
+    console.warn(`gp refresh: no stored ${spec.name}; enriching without it`);
+    return undefined;
+  }
+  await store.writeUpstreamRows(spec.name, parsed);
+  return parsed;
 }

@@ -241,7 +241,7 @@ async function handleUpstreamPut(name: string, request: Request, env: Env): Prom
     return jsonResponse({ name, ...(await recordFailure(spec.name, store, failure, now)) }, { headers });
   }
   if (request.headers.get("X-Upstream-Status") === "304") {
-    return jsonResponse({ name, ...(await recordUnchanged(spec.name, store, now)) }, { headers });
+    return jsonResponse({ name, ...(await recordUnchanged(spec, store, now)) }, { headers });
   }
   const body = await request.text();
   if (body === "") {

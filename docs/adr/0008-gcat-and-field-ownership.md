@@ -126,11 +126,22 @@ change its file before it applied, because a 304 reused the parsed rows. Now:
   neither table ever halves. The two paths are not meant to run at once: two stores of
   one table can interleave file and status, and leave the older file under the newer
   ETag until upstream changes again.
-- **Every GP update reads them.** `refreshGroups` decompresses and parses the four
-  files anew, about 160 ms, and enriches from them; it never downloads a table. A
-  parser change applies at the next GP update. A table stored between two GP updates
-  reaches the groups at the next one. A missing or unreadable table means enriching
-  without it, as ADR 0006 has it: a table never fails a group.
+- **Every GP update reads their parsed rows**, kept beside each file under
+  `rows:<name>`, and enriches from them; it never downloads a table. A table stored
+  between two GP updates reaches the groups at the next one. A missing or unreadable
+  table means enriching without it, as ADR 0006 has it: a table never fails a group.
+- **Every check parses the stored file again**, a 304 too, and replaces the rows, so
+  a parser change applies at the next check, at most a day later. A file the new
+  parser rejects keeps its old rows, and its status records the error. A file stored
+  before rows were kept is parsed by the next GP update, which keeps its rows.
+
+  This amends the first version of this decision, in which every GP update decompressed
+  and parsed the four files itself. That was put at 160 ms; it was most of the update's
+  CPU time, and took one push in three or four past the deployed Worker's limit, which
+  stops it at 2 s (`exceededResources`, a 503 to `push-gp`). Replayed in Node with the
+  production tables, an ingest takes 0.2 s of CPU from the rows, against 0.5 s parsing
+  the files; the satellite table's share falls from 0.35 s to under 0.1 s.
+
 - **A status per table**, as KV metadata on its own key, `status:<name>`: `updated`
   (the stored file's time), `checked` (the last time upstream answered with a file or a
   304), the ETag, size and rows, and the last error. `push-catalog` reports a 304 or a
@@ -157,8 +168,8 @@ so the GP sources stay as they are. `push-gp` is back to GP alone, an 8 MB bundl
 
 ### Only payloads still in orbit, and interned strings
 
-A GP update holds the GP bundle twice while it parses it, and now parses the four
-tables beside it, within a Worker's 128 MB. Replayed in Node under a heap cap, with the
+A GP update holds the GP bundle twice while it parses it, and in this decision's first
+version parsed the four tables beside it, within a Worker's 128 MB. Replayed in Node under a heap cap, with the
 real payloads and tables, a full GP update fits under 48 MB without the tables, and
 needs more than 72 MB and less than 80 MB with all four. Node's figures rank the
 options rather than predict workerd's peak. Two things keep the parsed GCAT small:
@@ -222,8 +233,11 @@ panel shows.
   weeks behind on new satellites and on decays.
 - **Keeping SATCAT's `OWNER` as `country`.** Full coverage, but a country row that
   says "SES" or "TBD" for 2.4% of satellites.
-- **Storing the parsed rows**, as SATCAT's snapshot was. A parser change would wait for
-  upstream to change its file, about a week for GCAT.
+- **Storing only the parsed rows**, as SATCAT's snapshot was. A parser change would wait
+  for upstream to change its file, about a week for GCAT. Rows beside the file, parsed
+  again at every check, do not wait.
+- **Parsing the files at every GP update** (this decision's first version). See above:
+  it reached the Worker's CPU limit.
 - **Storing the files uncompressed.** Readable in the dashboard, but GCAT's catalog
   would outgrow KV's 25 MiB value limit in about two years.
 - **The tables in the GP ingest bundle**, trimmed by `push-gp`. It worked, but tied the

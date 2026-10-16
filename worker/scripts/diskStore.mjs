@@ -17,11 +17,12 @@ function readJson(file) {
 }
 
 const STATUS_SUFFIX = ".status.json";
+const ROWS_SUFFIX = ".rows.json";
 
 /**
  * Groups and the index in `dir`, served as they are. The upstream tables in `upstreamDir`,
  * kept outside data/ because everything under data/ ships: `<name>.gz`, the file as
- * downloaded, compressed, and `<name>.status.json`. A group's write metadata is not kept:
+ * downloaded, compressed, `<name>.rows.json`, its parsed rows, and `<name>.status.json`. A group's write metadata is not kept:
  * the snapshot's index carries both its `updated` and its `count`.
  */
 export function diskGroupStore(dir, upstreamDir) {
@@ -55,6 +56,13 @@ export function diskGroupStore(dir, upstreamDir) {
     },
     async listUpstreams() {
       return new Set(filesEndingIn(".gz").map((file) => file.slice(0, -3)));
+    },
+    async readUpstreamRows(name) {
+      return readJson(path.join(upstreamDir, `${name}${ROWS_SUFFIX}`));
+    },
+    async writeUpstreamRows(name, rows) {
+      fs.mkdirSync(upstreamDir, { recursive: true });
+      fs.writeFileSync(path.join(upstreamDir, `${name}${ROWS_SUFFIX}`), JSON.stringify(rows));
     },
     async readStatus(name) {
       return readJson(statusPath(name));

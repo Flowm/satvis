@@ -292,8 +292,9 @@ browser. A satellite in no table carries no metadata and gets the defaults in
 `src/config/satelliteMetadata.ts`.
 
 The four upstream tables (SATCAT, and GCAT's catalog, organisations and payloads)
-are stored in KV as the files upstream served, gzip-compressed, and each GP update
-parses them anew, so a parser change applies at the next update. They are stored
+are stored in KV as the files upstream served, gzip-compressed, beside their parsed
+rows, which each GP update reads. Every check parses the stored file again, a 304
+too, so a parser change applies after the next `push-catalog`. They are stored
 only by `push-catalog` and `POST /api/upstream/refresh`; a new file that does not
 parse is refused and the stored one stands. Each download is conditional on the
 stored `ETag`, so an unchanged table costs a 304. `pnpm update-gp` keeps its copies
