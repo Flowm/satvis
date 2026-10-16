@@ -31,6 +31,14 @@ export const STORE_CONTRACT: Record<string, (store: GroupStore, equal: Equal) =>
     equal([...(await store.listUpstreams())], ["satcat"]);
   },
 
+  "keeps a table's parsed rows apart from its file": async (store, equal) => {
+    equal(await store.readUpstreamRows("satcat"), undefined);
+    await store.writeUpstreamRows("satcat", { "25544": { launchSite: "TYMSC" } });
+    equal(await store.readUpstreamRows("satcat"), { "25544": { launchSite: "TYMSC" } });
+    equal(await store.readUpstreamRows("gcat"), undefined);
+    equal([...(await store.listUpstreams())], []);
+  },
+
   "keeps one status per table, and lists them all": async (store, equal) => {
     await store.writeStatus("satcat", { checked: INDEX.updated, rows: 2 });
     await store.writeStatus("gcat", { lastError: "HTTP 500", lastErrorAt: INDEX.updated });

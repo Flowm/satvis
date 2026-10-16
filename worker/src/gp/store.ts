@@ -10,6 +10,8 @@ const GP_KEY_PREFIX = "gp:";
 const GP_INDEX_KEY = "gp:index";
 /** The stored upstream files, gzip-compressed by upstream.ts. */
 const UPSTREAM_KEY_PREFIX = "upstream:";
+/** Each stored file's rows as its parser returned them, JSON. */
+const ROWS_KEY_PREFIX = "rows:";
 /** One per upstream file, value empty, the status in its metadata, so one list() reads them all. */
 const STATUS_KEY_PREFIX = "status:";
 
@@ -37,6 +39,10 @@ export interface GroupStore {
   writeUpstream(name: UpstreamName, bytes: Uint8Array): Promise<void>;
   /** The tables with a stored file, without reading one. */
   listUpstreams(): Promise<Set<UpstreamName>>;
+  /** A table's parsed rows as written; undefined when none are stored. */
+  readUpstreamRows(name: UpstreamName): Promise<unknown>;
+  /** `rows` is JSON-safe: what a table's parser returns. */
+  writeUpstreamRows(name: UpstreamName, rows: unknown): Promise<void>;
   readStatus(name: UpstreamName): Promise<UpstreamStatus | undefined>;
   writeStatus(name: UpstreamName, status: UpstreamStatus): Promise<void>;
   /** Every stored status, by name. Raw: `upstreamStatuses` is what callers want. */
@@ -134,6 +140,12 @@ export function kvGroupStore(kv: KVNamespace): GroupStore {
     async listUpstreams(): Promise<Set<UpstreamName>> {
       const { keys } = await kv.list({ prefix: UPSTREAM_KEY_PREFIX });
       return new Set(keys.map(({ name }) => name.slice(UPSTREAM_KEY_PREFIX.length) as UpstreamName));
+    },
+    async readUpstreamRows(name: UpstreamName): Promise<unknown> {
+      return (await kv.get(ROWS_KEY_PREFIX + name, "json")) ?? undefined;
+    },
+    async writeUpstreamRows(name: UpstreamName, rows: unknown): Promise<void> {
+      await kv.put(ROWS_KEY_PREFIX + name, JSON.stringify(rows));
     },
     async readStatus(name: UpstreamName): Promise<UpstreamStatus | undefined> {
       const { metadata } = await kv.getWithMetadata<UpstreamStatus>(STATUS_KEY_PREFIX + name);
