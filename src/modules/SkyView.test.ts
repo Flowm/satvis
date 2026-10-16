@@ -230,6 +230,7 @@ describe("the scene state the view borrows", () => {
     mode: SceneMode.SCENE3D,
     requestRenderMode: true,
     globe: { depthTestAgainstTerrain, getHeight: () => 800 },
+    fog: { renderable: true },
     canvas: { clientWidth: 1280, clientHeight: 720 },
     camera: {
       position: Cartesian3.fromDegrees(11.58, 48.14, 1e7),
@@ -257,6 +258,7 @@ describe("the scene state the view borrows", () => {
     const scene = stubScene(false);
     await new SkyView(scene as unknown as Scene).enter({ lat: 47.3879, lon: 12.3077 });
     expect(scene.globe.depthTestAgainstTerrain).toBe(true);
+    expect(scene.fog.renderable).toBe(false);
   });
 
   // Run for both starting states: "put back" and "clear" differ only on one.
@@ -267,6 +269,7 @@ describe("the scene state the view borrows", () => {
     await view.exit();
 
     expect(scene.globe.depthTestAgainstTerrain, `found ${found}`).toBe(found);
+    expect(scene.fog.renderable).toBe(true);
     expect(scene.requestRenderMode).toBe(true);
     expect(scene.screenSpaceCameraController.enableInputs).toBe(true);
     expect(scene.screenSpaceCameraController.enableCollisionDetection).toBe(true);
