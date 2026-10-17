@@ -972,6 +972,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 encoder.setCullMode(.back)
                 encoder.setFragmentTexture(overlay.texture, index: 1)
                 encoder.setFragmentSamplerState(tileSampler, index: 0)
+                var overlayShown = Int32(overlay.hasCoverage ? 1 : 0)
+                encoder.setFragmentBytes(&overlayShown, length: MemoryLayout<Int32>.size, index: 2)
                 for tile in surfaceTiles {
                     var centre = SIMD3<Float>(tile.centre - pose.position)
                     encoder.setVertexBytes(&centre, length: MemoryLayout<SIMD3<Float>>.stride, index: 2)

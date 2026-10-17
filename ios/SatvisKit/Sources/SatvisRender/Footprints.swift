@@ -31,6 +31,11 @@ final class GroundOverlay {
     /// Corridors worked out and not yet drawn, and the instant they are for.
     private var built: (vertices: [(Float, Float, Float)], at: Double)?
 
+    /// Whether the globe has a ground track to sample: not before the first
+    /// corridors are drawn, as the texture holds whatever was in its memory. An
+    /// iPad mini spent 1.4 ms of GPU a frame sampling an empty overlay.
+    var hasCoverage: Bool { drawnAt != nil && !isEmpty }
+
     init?(device: MTLDevice) {
         let descriptor = MTLTextureDescriptor.textureCubeDescriptor(pixelFormat: .r8Unorm, size: Self.size, mipmapped: false)
         descriptor.usage = [.renderTarget, .shaderRead]

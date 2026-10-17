@@ -101,6 +101,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   The ground tracks are drawn once a second into the ground overlay, a cube map
   around the Earth's centre that the globe samples by direction, so they will
   follow terrain; `RendererTests` holds its faces to Metal's own cube lookup. The
+  globe samples it only while it holds a track (`GroundOverlay.hasCoverage`):
+  sampled empty, it cost an iPad mini 1.4 ms of GPU a frame. The
   sensor cones are drawn per frame from the same interpolation, cut where they
   meet the ground. Both are for low orbits only, as on the web.
 - 3D models are the web app's files, fetched from the site's `/data/models/` by
