@@ -54,6 +54,7 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   await expect(panel.locator(".head__name")).toHaveText("Munich");
   await expect(panel.getByRole("tab", { name: /Passes/ })).toHaveAttribute("aria-selected", "true");
   await expect(panel.getByRole("tab", { name: "Orbit" })).toHaveCount(0);
+  await expect(panel.getByRole("tab", { name: "Location" })).toBeVisible();
   await panel.getByRole("button", { name: "View the sky from this ground station" }).click();
   await waitForSky(page);
   await expect(page.locator(".sky-hud--settled")).toBeVisible();

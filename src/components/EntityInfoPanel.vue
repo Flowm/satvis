@@ -1,5 +1,5 @@
-<!-- The header and the position strip are always visible; the orbit, the spacecraft and
-     the passes are tabs, because stacking them overflowed a 500 px window by almost 900 px. -->
+<!-- The header is always visible; the orbit, the spacecraft, the passes and a station's
+     location are tabs, because stacking them overflowed a 500 px window by almost 900 px. -->
 <template>
   <div v-if="selection" class="entity-info-panel">
     <UCard :ui="{ root: 'bg-[#303336]/95 text-[#edffff] divide-neutral-600', header: 'p-2 sm:px-3', body: 'p-0 sm:p-0' }">
@@ -50,13 +50,6 @@
           </div>
         </div>
       </template>
-
-      <div v-if="liveRows.length > 0" class="strip">
-        <span v-for="row in liveRows" :key="row.label" class="strip__cell">
-          <span class="strip__label">{{ row.label.slice(0, 3) }}</span>
-          <span class="strip__value">{{ row.value }}</span>
-        </span>
-      </div>
 
       <div v-if="staleNotice" class="stale" title="Only the latest element set is kept, so positions far from its epoch drift by kilometres to thousands of kilometres.">
         <UIcon name="i-lucide-triangle-alert" class="stale__icon" />
@@ -157,6 +150,18 @@
               </tbody>
             </table>
 
+            <template v-if="orbitPositionRows.length > 0">
+              <div class="section">Position</div>
+              <table class="info-table info-table--facts">
+                <tbody>
+                  <tr v-for="row in orbitPositionRows" :key="row.label">
+                    <th>{{ row.label }}</th>
+                    <td class="right mono">{{ row.value }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </template>
+
             <template v-if="elements">
               <div class="section">{{ elements.kind === "tle" ? "TLE" : "Elements" }} · epoch {{ elements.epoch }}</div>
               <pre v-if="elements.kind === 'tle'" class="info-code"><code>{{ elements.lines }}</code></pre>
@@ -169,6 +174,19 @@
                 </tbody>
               </table>
             </template>
+          </div>
+        </template>
+
+        <template #location>
+          <div class="tab-body__pad">
+            <table class="info-table info-table--facts">
+              <tbody>
+                <tr v-for="row in locationRows" :key="row.label">
+                  <th>{{ row.label }}</th>
+                  <td class="right mono">{{ row.value }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </template>
 
@@ -266,8 +284,9 @@ const orbitClass = computed(() => satelliteInfo.value?.orbitClass);
 const orbitColor = computed(() => (orbitClass.value ? ORBIT_CLASS_COLOR[orbitClass.value] : "transparent"));
 const chips = computed(() => satelliteInfo.value?.chips ?? []);
 
-/** The card title already carries the name. */
-const liveRows = computed(() => position.value.filter((row) => row.label !== "Name"));
+/** A satellite's position sits in its Orbit tab, a ground station's in its Location tab. */
+const orbitPositionRows = computed(() => (selection.value?.kind === "satellite" ? position.value : []));
+const locationRows = computed(() => (selection.value?.kind === "groundstation" ? position.value : []));
 
 const isOngoing = computed(() => !!nextPass.value && nextPass.value.start <= nowMs.value);
 const ongoingFraction = computed(() => {
@@ -284,13 +303,17 @@ const showTimeline = computed(() => selection.value?.kind === "satellite");
 
 const tabs = computed(() => {
   const items: { label: string; slot: InfoTab; value: InfoTab; badge?: number }[] = [];
-  if (satelliteInfo.value || elements.value) {
+  if (satelliteInfo.value || elements.value || orbitPositionRows.value.length > 0) {
     items.push({ label: "Orbit", slot: "orbit", value: "orbit" });
   }
   if (modelFile.value || spacecraftRows.value.length > 0 || links.value.length > 0) {
     items.push({ label: "Spacecraft", slot: "spacecraft", value: "spacecraft" });
   }
   items.push({ label: "Passes", slot: "passes", value: "passes", ...(passRows.value.length > 0 ? { badge: passRows.value.length } : {}) });
+  // After Passes, unlike a satellite's tabs, so a station opens on its first tab.
+  if (locationRows.value.length > 0) {
+    items.push({ label: "Location", slot: "location", value: "location" });
+  }
   return items;
 });
 
@@ -515,36 +538,6 @@ function notifyPasses(): void {
   margin-left: 6px;
   color: #edffff60;
   content: "·";
-}
-
-.strip {
-  display: flex;
-  gap: 1px;
-  background: #ffffff14;
-}
-
-.strip__cell {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  padding: 5px 10px;
-  background: #ffffff08;
-}
-
-.strip__label {
-  color: #edffff80;
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.strip__value {
-  overflow: hidden;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Amber: the app colour for "away from rest", as on the clock's reset. */

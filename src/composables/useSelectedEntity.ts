@@ -23,7 +23,7 @@ import { useSatStore } from "../stores/sat";
 export type Selection = { kind: "satellite"; sat: SatelliteComponentCollection } | { kind: "groundstation"; gs: GroundStationEntity };
 
 /** The info panel's tabs, as UTabs values and slot names. */
-export type InfoTab = "orbit" | "spacecraft" | "passes";
+export type InfoTab = "orbit" | "spacecraft" | "location" | "passes";
 
 export interface PositionRow {
   label: string;
@@ -114,7 +114,6 @@ function refreshData(sel: Selection, time: JulianDate): void {
     const cartographic = props.orbit.positionGeodetic(JulianDate.toDate(time), true);
     position.value = cartographic
       ? [
-          { label: "Name", value: props.name },
           { label: "Latitude", value: `${cartographic.latitude.toFixed(2)}°` },
           { label: "Longitude", value: `${cartographic.longitude.toFixed(2)}°` },
           { label: "Altitude", value: `${(cartographic.height / 1000).toFixed(2)} km` },
