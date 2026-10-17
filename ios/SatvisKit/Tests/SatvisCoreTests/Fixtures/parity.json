@@ -1418,7 +1418,7 @@
           "LEO",
           "USA"
         ],
-        "rows": [
+        "orbitRows": [
           [
             "Orbit",
             "LEO"
@@ -1426,7 +1426,9 @@
           [
             "Apogee / Perigee",
             "426 / 416 km"
-          ],
+          ]
+        ],
+        "spacecraftRows": [
           [
             "Country",
             "USA"
@@ -1520,7 +1522,7 @@
           "LEO (SSO)",
           "EUMETSAT"
         ],
-        "rows": [
+        "orbitRows": [
           [
             "Orbit",
             "LEO (SSO)"
@@ -1532,7 +1534,9 @@
           [
             "LTAN / LTDN",
             "21:28 / 09:28"
-          ],
+          ]
+        ],
+        "spacecraftRows": [
           [
             "Swath",
             "2900 km"
@@ -1630,7 +1634,7 @@
           "MEO",
           "USA"
         ],
-        "rows": [
+        "orbitRows": [
           [
             "Orbit",
             "MEO"
@@ -1638,7 +1642,9 @@
           [
             "Apogee / Perigee",
             "20494 / 19871 km"
-          ],
+          ]
+        ],
+        "spacecraftRows": [
           [
             "Country",
             "USA"
@@ -1724,7 +1730,7 @@
           "GEO",
           "USA"
         ],
-        "rows": [
+        "orbitRows": [
           [
             "Orbit",
             "GEO"
@@ -1732,7 +1738,9 @@
           [
             "Apogee / Perigee",
             "35792 / 35784 km"
-          ],
+          ]
+        ],
+        "spacecraftRows": [
           [
             "Country",
             "USA"
@@ -1814,7 +1822,8 @@
           "HEO",
           "Partially operational"
         ],
-        "rows": [
+        "status": "Partially operational",
+        "orbitRows": [
           [
             "Orbit",
             "HEO"
@@ -1822,7 +1831,9 @@
           [
             "Apogee / Perigee",
             "52415 / 5808 km"
-          ],
+          ]
+        ],
+        "spacecraftRows": [
           [
             "Purpose",
             "Science?"
@@ -1895,7 +1906,7 @@
         "chips": [
           "MEO"
         ],
-        "rows": [
+        "orbitRows": [
           [
             "Orbit",
             "MEO"
@@ -1904,7 +1915,8 @@
             "Apogee / Perigee",
             "3863 / 651 km"
           ]
-        ]
+        ],
+        "spacecraftRows": []
       },
       "elements": {
         "kind": "tle",

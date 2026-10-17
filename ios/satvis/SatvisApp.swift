@@ -333,7 +333,8 @@ struct ContentView: View {
         sizeClass == .regular && session.selection != nil ? Self.cardWidth + 12 : 0
     }
 
-    /// Wide enough for the live strip's four cells and the chips on one line.
+    /// The info panel beside the globe. 400 pt fitted the old four-cell position strip;
+    /// the tab row and the facts fit it too.
     private static let cardWidth: CGFloat = 400
     /// The menu column with its names, a gap and a 280 pt panel, and the margins.
     private static let roomForNames: CGFloat = 520

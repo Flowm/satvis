@@ -3,8 +3,8 @@ import Testing
 
 @testable import SatvisCore
 
-/// The info panel's Details tab, held to what the web app's entityInfo.ts writes
-/// for the same records.
+/// The info panel's header, Orbit and Spacecraft tabs, held to what the web app's
+/// entityInfo.ts writes for the same records.
 @Suite struct SatelliteDetailsTests {
     struct Details: Decodable {
         struct Elements: Decodable {
@@ -19,7 +19,9 @@ import Testing
         struct Facts: Decodable {
             let orbitClass: String
             let chips: [String]
-            let rows: [[String]]
+            let status: String?
+            let orbitRows: [[String]]
+            let spacecraftRows: [[String]]
         }
 
         let facts: Facts
@@ -35,9 +37,10 @@ import Testing
         let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
         for (record, expected) in zip(records, fixture.details) {
             let propagator = try SGP4Propagator(record.meanElements)
-            let facts = SatelliteDetails.facts(record, propagator: propagator).map { [$0.0, $0.1] }
-            #expect(facts == expected.facts.rows, "\(record.name)")
+            #expect(SatelliteDetails.orbitFacts(record, propagator: propagator).map { [$0.0, $0.1] } == expected.facts.orbitRows, "\(record.name)")
+            #expect(SatelliteDetails.spacecraftFacts(record).map { [$0.0, $0.1] } == expected.facts.spacecraftRows, "\(record.name)")
             #expect(SatelliteDetails.chips(record, propagator: propagator) == expected.facts.chips, "\(record.name)")
+            #expect(SatelliteDetails.status(record) == expected.facts.status, "\(record.name)")
             #expect(record.orbitClass.rawValue == expected.facts.orbitClass, "\(record.name)")
 
             #expect(abs(SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate) - expected.elements.epochMs) < 1, "\(record.name)")
