@@ -108,6 +108,7 @@ interface SavedState {
   enableInputs: boolean;
   enableCollisionDetection: boolean;
   depthTestAgainstTerrain: boolean;
+  fogRenderable: boolean;
 }
 
 type Phase = "off" | "entering" | "live" | "leaving";
@@ -334,6 +335,7 @@ export class SkyView {
       enableInputs: controller.enableInputs,
       enableCollisionDetection: controller.enableCollisionDetection,
       depthTestAgainstTerrain: globe.depthTestAgainstTerrain,
+      fogRenderable: this.#scene.fog.renderable,
     };
 
     this.#reset(observer);
@@ -349,6 +351,10 @@ export class SkyView {
     this.#scene.requestRenderMode = false;
     // Cesium's default occludes against an ellipsoid quad, which carries no relief.
     globe.depthTestAgainstTerrain = true;
+    // Cesium fogs a model by its distance from the eye, which from the ground puts
+    // every satellite at 400 km and up fully in the fog: the sky's colour, so black
+    // at night. Not `fog.enabled`, which also culls the far terrain tiles.
+    this.#scene.fog.renderable = false;
 
     const arrival = this.#fly("entering");
     // Re-asserted every frame: the ground height is known only after a render, the
@@ -505,6 +511,7 @@ export class SkyView {
     controller.enableCollisionDetection = saved.enableCollisionDetection;
     this.#scene.requestRenderMode = saved.requestRenderMode;
     this.#scene.globe.depthTestAgainstTerrain = saved.depthTestAgainstTerrain;
+    this.#scene.fog.renderable = saved.fogRenderable;
   }
 
   #aspectRatio(): number {

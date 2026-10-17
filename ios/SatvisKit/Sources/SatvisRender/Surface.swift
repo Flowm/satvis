@@ -50,6 +50,9 @@ final class Surface {
         /// Baked from all it asked for, or waiting on sources still loading or
         /// failed.
         var isComplete = false
+        /// The base map its texture was baked from, as `sourceGeneration` counts
+        /// them: a child must not stand in another map's.
+        var generation = -1
         var needsBake = true
         var lastUsed = 0
         /// The tile's grid laid over the terrain, and the terrain tile it was laid
@@ -367,6 +370,14 @@ final class Surface {
         }
         // The shipped Natural Earth under everything.
         draw(base, bounds: Bounds(west: -180, south: -90, east: 180, north: 90), projection: .geographic)
+        // Then the parent's texture, what was drawn here until now, so refining
+        // never shows less. The sky view's hundreds of tiles evict the source
+        // ancestors, which left a tile with a sharp parent flat green, Natural
+        // Earth's level 2, until its own source came.
+        let parent = tile.key.parent.flatMap { tiles[$0] }
+        if let parent, let texture = parent.texture, parent.generation == sourceGeneration {
+            draw(texture, bounds: parent.bounds, projection: .geographic)
+        }
         var complete = true
         let level = source.level(forSurface: tile.key.level)
         // Natural Earth's shipped level is 2: nothing below 3 to fetch.
@@ -381,6 +392,10 @@ final class Surface {
                 switch sources[key] {
                 case .loading, .failed: complete = false
                 default: break
+                }
+                // A complete parent is as sharp as any ancestor.
+                if parent?.isComplete == true {
+                    continue
                 }
                 // Meanwhile the nearest ancestor that has loaded, if any.
                 var ancestor = key.parent
@@ -399,6 +414,7 @@ final class Surface {
         encoder.endEncoding()
         tile.needsBake = false
         tile.isComplete = complete
+        tile.generation = sourceGeneration
     }
 
     /// Starts loading a source tile, unless it is loading, loaded, or failed in the

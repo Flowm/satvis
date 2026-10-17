@@ -35,7 +35,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   (`Imagery.swift`): Natural Earth's level 2 first, which the app target's "Copy
   Natural Earth" phase copies from the web app's `data/imagery` rather than
   keeping a second copy, then the base map's tiles
-  as they load, the nearest loaded ancestor standing in. A Mercator tile's
+  as they load, the parent tile's texture standing in, and the
+  nearest loaded ancestor where that is not complete. A Mercator tile's
   texture coordinates are worked out in double precision on the CPU, a strip of
   rows at a time: a float cannot place a pixel at level 19. Tiles come through
   `TileFetcher`, a URLSession with its own 500 MB cache in Caches, served from
