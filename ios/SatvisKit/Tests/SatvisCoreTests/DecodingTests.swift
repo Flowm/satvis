@@ -104,6 +104,19 @@ import Testing
             ])
     }
 
+    // Every served epoch is read byte by byte; a leading "+" sends the same instant
+    // through the general reading, which has to agree.
+    @Test func readsCanonicalEpochsAsTheGeneralReadingDoes() throws {
+        for epoch in [
+            "2026-10-02T11:10:18.655680", "2026-10-02T11:10:18.5Z", "2026-10-02T11:10:18", "2024-02-29T24:00:00", "2026-10-02T23:59:60.9999999",
+            "2026-13-02T00:00:00", "0000-10-02T00:00:00",
+        ] {
+            #expect(utcMilliseconds(iso: epoch) == utcMilliseconds(iso: "+" + epoch), "\(epoch)")
+        }
+        #expect(utcMilliseconds(iso: "1970-01-01T00:00:00.001Z") == 1)
+        #expect(utcMilliseconds(iso: "2026-10-02T11:10:18.") == utcMilliseconds(iso: "2026-10-02T11:10:18"))
+    }
+
     // One unusable record must not cost the group the rest.
     @Test func skipsWhatIsNeitherAnOMMNorATLE() throws {
         let payload = #"[42, {"OBJECT_NAME": "NO ELEMENTS"}, {"TLE_LINE1": "1 00005U"}]"#
