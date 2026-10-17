@@ -973,9 +973,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 encoder.setFragmentSamplerState(linearSampler, index: 0)
                 encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             }
-            // The shell's far side, where the globe stands in front of it, fails
-            // the depth test.
-            encoder.setDepthStencilState(depthTest)
+            // At the far plane, as the stars: the shell's far side, where the globe
+            // stands in front of it, fails the depth test.
+            encoder.setDepthStencilState(depthEmpty)
             if simd_length(pose.position) > Self.skyRingDistance {
                 encoder.setRenderPipelineState(skyRingPipeline)
                 encoder.setCullMode(.none)
