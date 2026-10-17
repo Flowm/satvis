@@ -58,10 +58,24 @@ describe("staleElementsNotice", () => {
 
 describe("getSatelliteInfo", () => {
   // 6786907: the chips asked for an "Owner" row that GCAT's Country had replaced.
-  test("heads the panel with the orbit, the country and the status, from the facts themselves", () => {
+  test("heads the panel with the orbit and the country, from the facts themselves", () => {
     const info = getSatelliteInfo(ISS, "LEO", { country: "USA", opsStatus: "+", operator: "NASA" });
     expect(info.orbitClass).toBe("LEO");
-    expect(info.chips).toEqual(["LEO", "USA", "Operational"]);
+    expect(info.chips).toEqual(["LEO", "USA"]);
+    expect(info.status).toBeUndefined();
+  });
+
+  test("leaves out an Unknown status, which says nothing", () => {
+    const info = getSatelliteInfo(ISS, "LEO", { country: "USA", opsStatus: "?" });
+    expect(info.chips).toEqual(["LEO", "USA"]);
+    expect(info.status).toBeUndefined();
+  });
+
+  test("adds the status only when it is not Operational, and still lists Operational as a row", () => {
+    const info = getSatelliteInfo(ISS, "LEO", { country: "USA", opsStatus: "-" });
+    expect(info.chips).toEqual(["LEO", "USA", "Nonoperational"]);
+    expect(info.status).toBe("Nonoperational");
+    expect(valueOf(getSatelliteInfo(ISS, "LEO", { opsStatus: "+" }), "Status")).toBe("Operational");
   });
 
   test("leaves out a chip the record has nothing for", () => {

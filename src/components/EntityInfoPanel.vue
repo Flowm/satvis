@@ -6,7 +6,6 @@
       <template #header>
         <div class="head">
           <div class="head__title">
-            <span v-if="orbitClass" class="dot" :style="{ background: orbitColor }" :title="orbitClass" />
             <input
               v-if="renaming"
               ref="renameEl"
@@ -46,7 +45,14 @@
             <UButton icon="i-lucide-x" variant="ghost" color="neutral" size="xs" aria-label="Close" @click="deselect" />
           </div>
           <div v-if="chips.length > 0" class="head__chips">
-            <span v-for="chip in chips" :key="chip">{{ chip }}</span>
+            <!-- The first chip is the orbit, in the colour the globe and the satellite list draw it. -->
+            <span
+              v-for="(chip, index) in chips"
+              :key="chip"
+              :class="{ 'head__chip--status': chip === satelliteInfo?.status }"
+              :style="index === 0 && orbitColor ? { color: orbitColor } : undefined"
+              >{{ chip }}</span
+            >
           </div>
         </div>
       </template>
@@ -281,7 +287,7 @@ const spacecraftRows = computed(() => satelliteInfo.value?.spacecraftRows ?? [])
 const modelFile = computed(() => (selection.value?.kind === "satellite" ? selection.value.sat.props.metadata.modelFile : undefined));
 
 const orbitClass = computed(() => satelliteInfo.value?.orbitClass);
-const orbitColor = computed(() => (orbitClass.value ? ORBIT_CLASS_COLOR[orbitClass.value] : "transparent"));
+const orbitColor = computed(() => (orbitClass.value ? ORBIT_CLASS_COLOR[orbitClass.value] : undefined));
 const chips = computed(() => satelliteInfo.value?.chips ?? []);
 
 /** A satellite's position sits in its Orbit tab, a ground station's in its Location tab. */
@@ -310,7 +316,7 @@ const tabs = computed(() => {
     items.push({ label: "Spacecraft", slot: "spacecraft", value: "spacecraft" });
   }
   items.push({ label: "Passes", slot: "passes", value: "passes", ...(passRows.value.length > 0 ? { badge: passRows.value.length } : {}) });
-  // After Passes, unlike a satellite's tabs, so a station opens on its first tab.
+  // After Passes, so a station opens on it: a preferred tab the selection lacks falls back to the first.
   if (locationRows.value.length > 0) {
     items.push({ label: "Location", slot: "location", value: "location" });
   }
@@ -518,13 +524,6 @@ function notifyPasses(): void {
   font-variant-numeric: tabular-nums;
 }
 
-.dot {
-  width: 8px;
-  height: 8px;
-  flex-shrink: 0;
-  border-radius: 999px;
-}
-
 .head__chips {
   display: flex;
   flex-wrap: wrap;
@@ -532,6 +531,11 @@ function notifyPasses(): void {
   padding-left: 2px;
   color: #edffffb0;
   font-size: 11px;
+}
+
+/* Amber: the app colour for "away from rest", as on the stale notice. */
+.head__chip--status {
+  color: #ffd479;
 }
 
 .head__chips span:not(:last-child)::after {

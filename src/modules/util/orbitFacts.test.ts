@@ -41,7 +41,7 @@ describe("isSunSynchronous", () => {
 
 describe("orbitRegimeLabel", () => {
   test("appends the note rather than replacing the class", () => {
-    expect(orbitRegimeLabel("LEO", SENTINEL_2A)).toBe("LEO · Sun-synchronous");
+    expect(orbitRegimeLabel("LEO", SENTINEL_2A)).toBe("LEO (SSO)");
   });
 
   test("leaves a satellite that is not sun-synchronous alone", () => {

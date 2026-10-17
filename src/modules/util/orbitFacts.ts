@@ -76,11 +76,12 @@ function nodeCrossingRows(satrec: SatRec): [string, string][] {
   return [["LTAN / LTDN", `${formatHours(ltan)} / ${formatHours(wrapHours(ltan + 12))}`]];
 }
 
+/** Parenthesised, because the chips under the name are already joined by dots. */
 export function orbitRegimeLabel(orbitClass: string, orbit: Orbit): string {
   if (orbit.error !== 0 || !isSunSynchronous(orbit.satrec)) {
     return orbitClass;
   }
-  return `${orbitClass} · Sun-synchronous`;
+  return `${orbitClass} (SSO)`;
 }
 
 export function derivedOrbitRows(orbit: Orbit): [string, string][] {

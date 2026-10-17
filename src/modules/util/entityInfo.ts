@@ -15,6 +15,9 @@ dayjs.extend(utc);
 /** `epochMs` is the element set's epoch in Unix milliseconds; `epoch` is its label. */
 export type ElementsInfo = { kind: "tle"; epoch: string; epochMs: number; lines: string } | { kind: "omm"; epoch: string; epochMs: number; rows: [string, string][] };
 
+/** SATCAT's `OPS_STATUS_CODE`s for Operational and Unknown, which get no chip. */
+const UNREMARKABLE_STATUS = new Set(["+", "?"]);
+
 /** Julian date of the Unix epoch. */
 const JD_UNIX_EPOCH = 2440587.5;
 
@@ -30,10 +33,12 @@ export const STALE_ELEMENTS_DAYS = 10;
  * and Spacecraft tabs. The two lists in order are the single list the native app shows.
  */
 export interface SatelliteInfo {
-  /** The dot's colour. */
+  /** Colours the orbit chip. */
   orbitClass: OrbitClass;
-  /** Under the name: the orbit, then the country and the status where known. */
+  /** Under the name: the orbit, then the country where known, then `status`. */
   chips: string[];
+  /** The status, unless it is Operational, as most satellites are, or Unknown, which says nothing. The panel tints its chip. */
+  status?: string;
   /** Where it flies: the regime and what the element set gives. */
   orbitRows: [string, string][];
   /** What it is: payload footprint, owner, hardware and life, from the record's metadata. */
@@ -48,8 +53,15 @@ export interface SatelliteInfo {
 export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata: SatelliteMetadata): SatelliteInfo {
   const regime = orbitRegimeLabel(orbitClass, orbit);
   const status = metadata.opsStatus === undefined ? undefined : satcatLabel(SATCAT_OPS_STATUS, metadata.opsStatus);
-  const chips = [regime, metadata.country, status].filter((chip): chip is string => chip !== undefined);
-  return { orbitClass, chips, orbitRows: [["Orbit", regime], ...derivedOrbitRows(orbit)], spacecraftRows: spacecraftRows(metadata, status) };
+  const unusualStatus = metadata.opsStatus !== undefined && UNREMARKABLE_STATUS.has(metadata.opsStatus) ? undefined : status;
+  const chips = [regime, metadata.country, unusualStatus].filter((chip): chip is string => chip !== undefined);
+  return {
+    orbitClass,
+    chips,
+    ...(unusualStatus !== undefined && { status: unusualStatus }),
+    orbitRows: [["Orbit", regime], ...derivedOrbitRows(orbit)],
+    spacecraftRows: spacecraftRows(metadata, status),
+  };
 }
 
 /** "Orbit type" stays here: SATCAT's codes say docked, landed or impacted, a state of the spacecraft. */

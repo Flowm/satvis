@@ -144,17 +144,18 @@ public enum SatelliteDetails {
     }
 
     /// What the panel shows under the name, as the web app's `SatelliteInfo.chips`:
-    /// the orbit, then the country and the status where the record has them.
+    /// the orbit, then the country where the record has it, then the status unless
+    /// it is Operational or Unknown.
     public static func chips(_ record: GPRecord, propagator: SGP4Propagator?, tables: WebTables = .shared) -> [String] {
         let metadata = record.metadata
-        let status = metadata["opsStatus"]?.string.map { tables.satcat.opsStatus[$0] ?? $0 }
+        let status = metadata["opsStatus"]?.string.flatMap { ["+", "?"].contains($0) ? nil : $0 }.map { tables.satcat.opsStatus[$0] ?? $0 }
         return [regime(record, propagator.map(OrbitFacts.init)), metadata["country"]?.string, status].compactMap { $0 }
     }
 
     /// The orbit class, and whether the orbit is Sun-synchronous where it is known.
     private static func regime(_ record: GPRecord, _ orbit: OrbitFacts?) -> String {
         let regime = record.orbitClass.rawValue
-        return orbit?.isSunSynchronous == true ? "\(regime) · Sun-synchronous" : regime
+        return orbit?.isSunSynchronous == true ? "\(regime) (SSO)" : regime
     }
 
     public enum Elements: Sendable, Equatable {

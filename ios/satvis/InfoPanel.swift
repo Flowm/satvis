@@ -260,7 +260,7 @@ private struct Chip: View {
 }
 
 /// Chips left to right, onto another row where the next does not fit, as the web
-/// app's wrap: "LEO · Sun-synchronous" and two more do not fit one row on a phone.
+/// app's wrap.
 private struct ChipRows: Layout {
     var spacing: CGFloat = 8
 

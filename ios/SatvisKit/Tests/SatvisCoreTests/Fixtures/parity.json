@@ -1416,8 +1416,7 @@
         "orbitClass": "LEO",
         "chips": [
           "LEO",
-          "USA",
-          "Operational"
+          "USA"
         ],
         "rows": [
           [
@@ -1518,14 +1517,13 @@
       "facts": {
         "orbitClass": "LEO",
         "chips": [
-          "LEO · Sun-synchronous",
-          "EUMETSAT",
-          "Operational"
+          "LEO (SSO)",
+          "EUMETSAT"
         ],
         "rows": [
           [
             "Orbit",
-            "LEO · Sun-synchronous"
+            "LEO (SSO)"
           ],
           [
             "Apogee / Perigee",
@@ -1630,8 +1628,7 @@
         "orbitClass": "MEO",
         "chips": [
           "MEO",
-          "USA",
-          "Operational"
+          "USA"
         ],
         "rows": [
           [
@@ -1725,8 +1722,7 @@
         "orbitClass": "GEO",
         "chips": [
           "GEO",
-          "USA",
-          "Operational"
+          "USA"
         ],
         "rows": [
           [
