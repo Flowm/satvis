@@ -131,6 +131,24 @@ const PROBE_ROUTES: RouteMap = {
   }),
 };
 
+describe("CatalogEntry derived orbit facts", () => {
+  function entry(metadata: GpRecord["metadata"]) {
+    const catalog = new SatelliteCatalog();
+    catalog.addRecords([{ ...ommRecord("ALPHA", 1), metadata }], ["GroupA"]);
+    return catalog.getByName("ALPHA")!;
+  }
+
+  test("takes GCAT's orbit kind, and computes one where GCAT has none", () => {
+    expect(entry({ orbitClass: "LEO", opOrbit: "LLEO/P" }).orbitKind).toEqual({ code: "P", source: "gcat" });
+    // 51° of inclination: GCAT's intermediate band.
+    expect(entry({ orbitClass: "LEO" }).orbitKind).toEqual({ code: "I", source: "computed" });
+  });
+
+  test("reads the epoch off the element set", () => {
+    expect(entry({ orbitClass: "LEO" }).epochMs).toBe(Date.UTC(2026, 6, 4));
+  });
+});
+
 describe("SatelliteCatalog lazy loading", () => {
   afterEach(() => {
     resetGpSource();

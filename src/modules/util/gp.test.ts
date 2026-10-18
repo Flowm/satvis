@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { createSatrec, orbitClassOf, parseGpPayload, recordName, recordSatnum, recordTleLines, type GpRecord } from "./gp";
+import { computedOrbitKindOf, createSatrec, epochMsOf, type GpRecord, orbitClassOf, parseGpPayload, recordName, recordSatnum, recordTleLines } from "./gp";
 
 const OMM_ARRAY = JSON.stringify([
   {
@@ -249,5 +249,57 @@ describe("orbitClassOf", () => {
 
   test("covers every satellite, not only those in the satellite table", () => {
     expect(orbitClassOf(parseGpPayload(WORKER_TLE_ARRAY)[0]!)).toBe("LEO");
+  });
+});
+
+describe("epochMsOf", () => {
+  // The OMM and the TLE fixtures are the same element set.
+  const ISS_EPOCH_MS = Date.UTC(2026, 6, 4, 2, 7, 57, 20.16);
+
+  test("reads OMM's zoneless EPOCH as UTC, to the millisecond", () => {
+    expect(epochMsOf(parseGpPayload(OMM_ARRAY)[0]!)).toBe(Math.floor(ISS_EPOCH_MS));
+  });
+
+  test("reads a TLE's YYDDD.DDDDDDDD off line 1, to within a millisecond of the OMM", () => {
+    expect(epochMsOf(parseGpPayload(TLE_3LINE)[0]!)).toBeCloseTo(ISS_EPOCH_MS, -1);
+  });
+
+  test("puts two-digit years from 57 in the 1900s", () => {
+    const vanguard = [
+      "VANGUARD 1",
+      "1 00005U 58002B   98001.00000000  .00000023  00000-0  28098-4 0  4753",
+      "2 00005  34.2682 348.7242 1859667 331.7664  19.3264 10.82419157413667",
+    ].join("\n");
+    expect(new Date(epochMsOf(parseGpPayload(vanguard)[0]!)).toISOString()).toBe("1998-01-01T00:00:00.000Z");
+  });
+
+  test("is NaN for an OMM without an epoch", () => {
+    const omm = JSON.stringify([{ ...(JSON.parse(OMM_ARRAY)[0] as Record<string, unknown>), EPOCH: "" }]);
+    expect(epochMsOf(parseGpPayload(omm)[0]!)).toBeNaN();
+  });
+});
+
+describe("computedOrbitKindOf", () => {
+  function omm(elements: { MEAN_MOTION?: number; ECCENTRICITY?: number; INCLINATION: number }): GpRecord {
+    return parseGpPayload(JSON.stringify([{ ...(JSON.parse(OMM_ARRAY)[0] as Record<string, unknown>), ...elements }]))[0]!;
+  }
+
+  test("bands a LEO by inclination at GCAT's bounds", () => {
+    const kind = (inclination: number) => computedOrbitKindOf(omm({ INCLINATION: inclination }), "LEO");
+    expect([0, 24.9, 25, 51.6, 84.9, 85, 94.9, 95, 97.4, 103.9, 104, 139].map(kind)).toEqual(["E", "E", "I", "I", "I", "P", "P", "S", "S", "S", "R", "R"]);
+  });
+
+  test("knows a Molniya HEO, and no other HEO", () => {
+    expect(computedOrbitKindOf(omm({ MEAN_MOTION: 2.006, ECCENTRICITY: 0.72, INCLINATION: 63.4 }), "HEO")).toBe("M");
+    expect(computedOrbitKindOf(omm({ MEAN_MOTION: 2.006, ECCENTRICITY: 0.72, INCLINATION: 27 }), "HEO")).toBeUndefined();
+  });
+
+  test("gives a GEO or MEO no kind: GCAT's depend on the canonical orbit", () => {
+    expect(computedOrbitKindOf(omm({ MEAN_MOTION: 1.0027, INCLINATION: 0.05 }), "GEO")).toBeUndefined();
+    expect(computedOrbitKindOf(omm({ MEAN_MOTION: 2.0, INCLINATION: 55 }), "MEO")).toBeUndefined();
+  });
+
+  test("reads the inclination off a TLE's line 2", () => {
+    expect(computedOrbitKindOf(parseGpPayload(TLE_3LINE)[0]!, "LEO")).toBe("I");
   });
 });

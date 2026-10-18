@@ -1,10 +1,10 @@
 // The non-reactive registry of known satellites. Must stay Cesium-free: node-env
 // vitest exercises it.
 
-import type { OrbitClass } from "../config/orbitClass";
+import { type OrbitClass, type OrbitKind, resolveOrbitKind } from "../config/orbitClass";
 import type { ElementsEntry } from "../config/presets";
 import type { SatelliteMetadata } from "../config/satelliteMetadata";
-import { orbitClassOf, parseGpPayload, recordName, recordSatnum, type GpRecord } from "./util/gp";
+import { computedOrbitKindOf, epochMsOf, orbitClassOf, parseGpPayload, recordName, recordSatnum, type GpRecord } from "./util/gp";
 import { fetchGpGroup, fetchGpIndex } from "./util/gpSource";
 
 export class CatalogEntry {
@@ -42,6 +42,19 @@ export class CatalogEntry {
   /** parseGpPayload caches the class; this falls back only for hand-built records. */
   get orbitClass(): OrbitClass {
     return this.metadata.orbitClass ?? orbitClassOf(this.record);
+  }
+
+  #orbitKind: OrbitKind | undefined;
+
+  /** Memoized: the catalog sheet reads every entry on each recompute (ADR 0002). */
+  get orbitKind(): OrbitKind {
+    this.#orbitKind ??= resolveOrbitKind(this.metadata.opOrbit, this.orbitClass, () => computedOrbitKindOf(this.record, this.orbitClass));
+    return this.#orbitKind;
+  }
+
+  /** The element set's epoch, ms since 1970. */
+  get epochMs(): number {
+    return epochMsOf(this.record);
   }
 }
 

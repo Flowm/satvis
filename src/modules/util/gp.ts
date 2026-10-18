@@ -49,14 +49,34 @@ function normalizeSatnum(raw: string): string {
 const MINUTES_PER_DAY = 1440;
 
 /**
- * TLE line 2 columns (1-indexed): eccentricity in 27-33 with an assumed leading
- * decimal point, mean motion (rev/day) in 53-63.
+ * TLE line 2 columns (1-indexed): inclination (°) in 9-16, eccentricity in 27-33 with an
+ * assumed leading decimal point, mean motion (rev/day) in 53-63.
  */
-function classifyingElements(r: GpRecord): { meanMotionRevPerDay: number; eccentricity: number } {
+function classifyingElements(r: GpRecord): { meanMotionRevPerDay: number; eccentricity: number; inclinationDeg: number } {
   if (r.kind === "omm") {
-    return { meanMotionRevPerDay: Number(r.omm.MEAN_MOTION), eccentricity: Number(r.omm.ECCENTRICITY) };
+    return { meanMotionRevPerDay: Number(r.omm.MEAN_MOTION), eccentricity: Number(r.omm.ECCENTRICITY), inclinationDeg: Number(r.omm.INCLINATION) };
   }
-  return { meanMotionRevPerDay: Number(r.line2.substring(52, 63)), eccentricity: Number(`0.${r.line2.substring(26, 33).trim()}`) };
+  return {
+    meanMotionRevPerDay: Number(r.line2.substring(52, 63)),
+    eccentricity: Number(`0.${r.line2.substring(26, 33).trim()}`),
+    inclinationDeg: Number(r.line2.substring(8, 16)),
+  };
+}
+
+/**
+ * The element set's epoch, ms since 1970, without a satrec. OMM's `EPOCH` is UTC without a
+ * zone, to the microsecond; a TLE's is YYDDD.DDDDDDDD in line 1 columns 19-32, where years
+ * from 57 are 1900s. NaN when unreadable.
+ */
+export function epochMsOf(r: GpRecord): number {
+  if (r.kind === "omm") {
+    // Date.parse is only specified for milliseconds.
+    const iso = String(r.omm.EPOCH ?? "").replace(/(\.\d{3})\d+/, "$1");
+    return Date.parse(/[Zz]|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`);
+  }
+  const yy = Number(r.line1.substring(18, 20));
+  const dayOfYear = Number(r.line1.substring(20, 32));
+  return Date.UTC(yy < 57 ? 2000 + yy : 1900 + yy, 0, 1) + (dayOfYear - 1) * 86_400_000;
 }
 
 /**
@@ -91,6 +111,27 @@ export function orbitClassOf(r: GpRecord): OrbitClass {
     return "GEO";
   }
   return "MEO";
+}
+
+/**
+ * GCAT's kind code by GCAT's published bounds, where the elements reproduce it (ADR 0012): a
+ * LEO's inclination band, agreeing with GCAT's codes for 99.99% of the catalog, and Molniya. A
+ * GEO's kind follows GCAT's canonical orbit, which the elements match for 63% only.
+ */
+export function computedOrbitKindOf(r: GpRecord, orbitClass: OrbitClass): string | undefined {
+  const { meanMotionRevPerDay, eccentricity, inclinationDeg } = classifyingElements(r);
+  if (!Number.isFinite(inclinationDeg)) {
+    return undefined;
+  }
+  if (orbitClass === "LEO") {
+    return inclinationDeg < 25 ? "E" : inclinationDeg < 85 ? "I" : inclinationDeg < 95 ? "P" : inclinationDeg < 104 ? "S" : "R";
+  }
+  const periodMin = MINUTES_PER_DAY / meanMotionRevPerDay;
+  // 11:30-12:30 h, 62-64°, e 0.50-0.77.
+  if (orbitClass === "HEO" && periodMin >= 690 && periodMin <= 750 && inclinationDeg >= 62 && inclinationDeg <= 64 && eccentricity >= 0.5 && eccentricity <= 0.77) {
+    return "M";
+  }
+  return undefined;
 }
 
 /**
