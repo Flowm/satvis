@@ -92,6 +92,23 @@ export function approximatePeriodMinutes(r: GpRecord): number {
   return MINUTES_PER_DAY / meanMotionRevPerDay;
 }
 
+/** km³/s², WGS-72 as SGP4 uses it. */
+const MU_KM3_S2 = 398600.8;
+/** km, WGS-72. */
+const EARTH_RADIUS_KM = 6378.135;
+
+/**
+ * Mean altitude (GCAT's "h": semi-major axis less Earth's equatorial radius, km) and
+ * inclination (°), from the Kozai mean motion without a satrec. Within a few km of the
+ * SGP4-recovered axis, which the browser's orbit-shape chart, on a log scale, cannot show.
+ */
+export function orbitShapeOf(r: GpRecord): { altitudeKm: number; inclinationDeg: number } {
+  const { meanMotionRevPerDay, inclinationDeg } = classifyingElements(r);
+  const radPerSecond = (meanMotionRevPerDay * 2 * Math.PI) / 86_400;
+  const semiMajorAxisKm = Math.cbrt(MU_KM3_S2 / (radPerSecond * radPerSecond));
+  return { altitudeKm: semiMajorAxisKm - EARTH_RADIUS_KM, inclinationDeg };
+}
+
 /**
  * Not via a satrec: this runs for every record at parse time, and ~10,000
  * `sgp4init` calls would block the main thread. Eccentricity goes first because
