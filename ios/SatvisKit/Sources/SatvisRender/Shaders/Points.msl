@@ -8,6 +8,7 @@ struct PointInstance {
     uint sampleStart;
     uint sampleCount;
     float stepSeconds;
+    uint mayStep;
 };
 
 // Mirrors PointFrame: where this frame's stencil starts, and how far into it the

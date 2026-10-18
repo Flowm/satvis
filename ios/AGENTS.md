@@ -94,7 +94,10 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   Orbits behind the Earth are drawn with no width, so the GPU drops their
   triangles before sorting them into tiles: with every active satellite's orbit
   that took an iPad mini's GPU from 57 to 33 ms a frame, where cheaper pixels
-  saved 4.
+  saved 4. For the same reason, past 1,000 satellites a near-circular orbit's
+  line steps over 2 or 4 samples while each chord stays within a device pixel
+  of the arc (`lineStride`): the GPU's cost followed the vertices it tiled, not
+  the pixels, and every active orbit went from 36 to 43 frames a second.
   The ground tracks are drawn once a second into the ground overlay, a cube map
   around the Earth's centre that the globe samples by direction, so they will
   follow terrain; `RendererTests` holds its faces to Metal's own cube lookup. The

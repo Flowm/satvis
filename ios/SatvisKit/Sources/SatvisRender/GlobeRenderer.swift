@@ -133,6 +133,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// A line's triangle strip, two vertices a point: `lineNodes` samples in
     /// Shaders/Lines.msl, and where the satellite is now between two of them.
     private static let lineVertices = 2 * (121 + 1)
+    /// Past this many satellites, where one orbit is no longer told from the next,
+    /// a line small on the screen steps over samples (`lineStride` in
+    /// Shaders/Lines.msl): with every active one's orbit on, an iPad mini drew
+    /// 36 frames a second with every sample and 43 with these steps.
+    private static let lineLevelOfDetailSatellites = 1000
     /// The pose of the last frame, which a flight sets off from.
     private var lastPose: CameraPose?
     /// The terrain as the Map menu has it; the sky view stands on it regardless.
@@ -1020,6 +1025,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                     encoder.setRenderPipelineState(linePipeline)
                     encoder.setVertexBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
                     encoder.setFragmentBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
+                    var stepsLines = Int32(points.count > Self.lineLevelOfDetailSatellites ? 1 : 0)
+                    encoder.setVertexBytes(&stepsLines, length: MemoryLayout<Int32>.size, index: 6)
                     encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: Self.lineVertices, instanceCount: points.count)
                 }
                 if components.contains(.point) {
