@@ -230,11 +230,15 @@ final class Benchmark {
                 return nil
             }
             let drawn = renderer.satelliteCount
-            let wanted = session.catalog.activeEntries.count
-            if drawn != last || drawn != wanted {
-                last = drawn
-                steady = drawn == wanted ? .now : nil
+            let complete = session.satellites.draws(session.catalog.activeEntries)
+            // From when it is complete and its count holds, which a set completed
+            // without a change of count, a link shown again, starts as well.
+            if !complete || drawn != last {
+                steady = complete ? .now : nil
+            } else if steady == nil {
+                steady = .now
             }
+            last = drawn
             if let steady, ContinuousClock.now - steady >= .seconds(2) {
                 break
             }
