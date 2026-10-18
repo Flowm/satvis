@@ -113,3 +113,12 @@ public struct PresetGroup: Sendable, Hashable, Decodable {
         searchOnly = (try? container.decodeIfPresent(Bool.self, forKey: .searchOnly)) ?? false
     }
 }
+
+/// Decodes to nil instead of failing, so one bad element cannot sink an array.
+struct Lenient<Value: Decodable>: Decodable {
+    let value: Value?
+
+    init(from decoder: Decoder) throws {
+        value = try? Value(from: decoder)
+    }
+}

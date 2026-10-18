@@ -67,6 +67,56 @@ import Testing
         #expect(try GPRecord.decodePayload(omm(epoch: "2026-10-02T00:00:00")).count == 1)
     }
 
+    // JSONSerialization reads a boolean as a number; the bag keeps them apart.
+    @Test func keepsEveryKindOfMetadata() throws {
+        let payload = #"""
+            [{"OBJECT_NAME": "X", "EPOCH": "2026-10-02T00:00:00", "NORAD_CAT_ID": 42, "MEAN_MOTION": 15.5, "ECCENTRICITY": 0.001,
+              "INCLINATION": 51.6, "RA_OF_ASC_NODE": 0, "ARG_OF_PERICENTER": 0, "MEAN_ANOMALY": 0,
+              "metadata": {"yes": true, "one": 1, "zero": 0, "text": "a", "list": [2, "b", false], "bag": {"none": null}}}]
+            """#
+        let record = try #require(try GPRecord.decodePayload(Data(payload.utf8)).first)
+        #expect(
+            record.metadata == [
+                "yes": .bool(true), "one": .number(1), "zero": .number(0), "text": .string("a"),
+                "list": .array([.number(2), .string("b"), .bool(false)]), "bag": .object(["none": .null]),
+            ])
+        #expect(record.satnum == "42")
+    }
+
+    // A number past a double's range costs its field, as it did under Codable,
+    // not the group: required, its record; optional, its default. In the
+    // metadata it reads as null, either sign, where Codable dropped the bag.
+    @Test func readsANumberPastADoublesRangeAsAbsent() throws {
+        func omm(_ name: String, meanMotion: String = "15.5", bstar: String = "0.0001", metadata: String = "{}") -> String {
+            #"{"OBJECT_NAME": "\#(name)", "EPOCH": "2026-10-02T00:00:00", "NORAD_CAT_ID": 42, "MEAN_MOTION": \#(meanMotion), "ECCENTRICITY": 0.001, "INCLINATION": 51.6, "RA_OF_ASC_NODE": 0, "ARG_OF_PERICENTER": 0, "MEAN_ANOMALY": 0, "BSTAR": \#(bstar), "metadata": \#(metadata)}"#
+        }
+        let many = (0..<20).map { omm("M\($0)", bstar: "1e309") }
+        let odd = [
+            omm("A", bstar: "-1E+400"), omm("B", meanMotion: "1e309"),
+            omm("C", metadata: #"{"big": 1e999, "small": -1e999, "list": [1e999, -1e999, 1], "text": "1e999 \" 1e999"}"#),
+        ]
+        let records = try GPRecord.decodeGroup(Data(("[" + (many + odd).joined(separator: ",") + "]").utf8))
+        #expect(records.map(\.name) == many.indices.map { "M\($0)" } + ["A", "C"])
+        #expect(records.dropLast().allSatisfy { $0.meanElements.bstar == 0 })
+        #expect(
+            records.last?.metadata == [
+                "big": .null, "small": .null, "list": .array([.null, .null, .number(1)]), "text": .string(#"1e999 " 1e999"#),
+            ])
+    }
+
+    // Every served epoch is read byte by byte; a leading "+" sends the same instant
+    // through the general reading, which has to agree.
+    @Test func readsCanonicalEpochsAsTheGeneralReadingDoes() throws {
+        for epoch in [
+            "2026-10-02T11:10:18.655680", "2026-10-02T11:10:18.5Z", "2026-10-02T11:10:18", "2024-02-29T24:00:00", "2026-10-02T23:59:60.9999999",
+            "2026-13-02T00:00:00", "0000-10-02T00:00:00",
+        ] {
+            #expect(utcMilliseconds(iso: epoch) == utcMilliseconds(iso: "+" + epoch), "\(epoch)")
+        }
+        #expect(utcMilliseconds(iso: "1970-01-01T00:00:00.001Z") == 1)
+        #expect(utcMilliseconds(iso: "2026-10-02T11:10:18.") == utcMilliseconds(iso: "2026-10-02T11:10:18"))
+    }
+
     // One unusable record must not cost the group the rest.
     @Test func skipsWhatIsNeitherAnOMMNorATLE() throws {
         let payload = #"[42, {"OBJECT_NAME": "NO ELEMENTS"}, {"TLE_LINE1": "1 00005U"}]"#

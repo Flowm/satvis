@@ -6,8 +6,9 @@ import Synchronization
 /// over half a second.
 public struct FrameStats: Sendable, Equatable {
     public var framesPerSecond: Double
-    /// The renderer's own work on the main thread, a frame: the wait for a buffer
-    /// the GPU still holds left out, the instruments over the view not counted.
+    /// The renderer's own work on the main thread, a frame: the waits for a buffer
+    /// the GPU still holds and for a drawable left out, the instruments over the
+    /// view not counted.
     public var cpuMilliseconds: Double
     /// The GPU's, a frame, by the command buffers' own clock; nil where it reads
     /// nothing, as in the simulator.
@@ -24,12 +25,20 @@ public struct FrameRecording: Sendable, Equatable {
     public var intervals: [Double] = []
     /// The renderer's own work on the main thread, in milliseconds.
     public var cpu: [Double] = []
+    /// The main thread's wait in each frame for a buffer the GPU still holds, in
+    /// milliseconds: the GPU running behind.
+    public var bufferWait: [Double] = []
+    /// Its wait for a drawable the display has given back, in milliseconds.
+    /// Counted in `cpu`, it read 16 ms on an iPad mini where the work took 1.
+    public var drawableWait: [Double] = []
     /// The GPU's, in milliseconds; empty where it reads nothing.
     public var gpu: [Double] = []
 
-    public init(intervals: [Double] = [], cpu: [Double] = [], gpu: [Double] = []) {
+    public init(intervals: [Double] = [], cpu: [Double] = [], bufferWait: [Double] = [], drawableWait: [Double] = [], gpu: [Double] = []) {
         self.intervals = intervals
         self.cpu = cpu
+        self.bufferWait = bufferWait
+        self.drawableWait = drawableWait
         self.gpu = gpu
     }
 
@@ -57,8 +66,15 @@ public struct FrameRecording: Sendable, Equatable {
         intervals.isEmpty ? nil : Double(intervals.filter { $0 > 1.5 * refresh }.count) / Double(intervals.count)
     }
 
-    public var meanCPU: Double? { cpu.isEmpty ? nil : cpu.reduce(0, +) / Double(cpu.count) }
-    public var meanGPU: Double? { gpu.isEmpty ? nil : gpu.reduce(0, +) / Double(gpu.count) }
+    // Means over the recording, in milliseconds; nil where it holds none.
+    public var meanCPU: Double? { Self.mean(cpu) }
+    public var meanBufferWait: Double? { Self.mean(bufferWait) }
+    public var meanDrawableWait: Double? { Self.mean(drawableWait) }
+    public var meanGPU: Double? { Self.mean(gpu) }
+
+    private static func mean(_ values: [Double]) -> Double? {
+        values.isEmpty ? nil : values.reduce(0, +) / Double(values.count)
+    }
 }
 
 /// Collects frames on the main thread and GPU times on Metal's, and publishes
@@ -94,13 +110,15 @@ final class FrameMeter: Sendable {
         }
     }
 
-    func frame(cpuSeconds: Double, at now: Double, satellites: Int) {
+    func frame(cpuSeconds: Double, bufferWaitSeconds: Double, drawableWaitSeconds: Double, at now: Double, satellites: Int) {
         state.withLock { window in
             if window.recording != nil {
                 if let last = window.lastFrame {
                     window.recording?.intervals.append((now - last) * 1000)
                 }
                 window.recording?.cpu.append(cpuSeconds * 1000)
+                window.recording?.bufferWait.append(bufferWaitSeconds * 1000)
+                window.recording?.drawableWait.append(drawableWaitSeconds * 1000)
                 window.lastFrame = now
             }
             guard let start = window.start else {

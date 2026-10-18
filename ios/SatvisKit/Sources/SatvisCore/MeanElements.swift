@@ -106,37 +106,108 @@ extension MeanElements {
 
 /// `YYYY-MM-DDTHH:MM:SS[.ffffff][Z]`, always UTC, to whole milliseconds since 1970.
 func utcMilliseconds(iso text: String) -> Double? {
-    let trimmed = text.hasSuffix("Z") ? String(text.dropLast()) : text
-    let parts = trimmed.split(separator: "T", omittingEmptySubsequences: false)
-    guard parts.count == 2 else {
-        return nil
-    }
-    let date = parts[0].split(separator: "-").compactMap { Int($0) }
-    let clock = parts[1].split(separator: ":", omittingEmptySubsequences: false)
-    guard date.count == 3, clock.count == 3, let hour = Int(clock[0]), let minute = Int(clock[1]) else {
-        return nil
-    }
-    let secondParts = clock[2].split(separator: ".", omittingEmptySubsequences: false)
-    guard let second = Int(secondParts[0]), secondParts.count <= 2 else {
-        return nil
-    }
-    var milliseconds = 0
-    if secondParts.count == 2 {
-        let digits = secondParts[1].prefix(3).padding(toLength: 3, withPad: "0", startingAt: 0)
-        guard secondParts[1].allSatisfy(\.isNumber), let value = Int(digits) else {
+    (EpochFields(canonical: text) ?? EpochFields(general: text))?.utcMilliseconds
+}
+
+/// An epoch's calendar fields, as written, before they are held to a calendar.
+private struct EpochFields {
+    var year: Int
+    var month: Int
+    var day: Int
+    var hour: Int
+    var minute: Int
+    var second: Int
+    var millisecond: Int
+
+    /// Nil out of a calendar's ranges, checked before any arithmetic: a
+    /// JavaScript Date refuses month 13 or hour 99, and a 17-digit year overflowed.
+    var utcMilliseconds: Double? {
+        guard (1...9999).contains(year), (1...12).contains(month), (1...31).contains(day), (0...24).contains(hour), (0...59).contains(minute),
+            (0...60).contains(second)
+        else {
             return nil
         }
-        milliseconds = value
+        let days = daysFromCivil(year: year, month: month, day: day)
+        return Double(days) * msPerDay + Double(((hour * 60 + minute) * 60 + second) * 1000 + millisecond)
     }
-    // Held to a calendar's ranges before any arithmetic: a JavaScript Date refuses
-    // month 13 or hour 99, and a 17-digit year overflowed.
-    guard (1...9999).contains(date[0]), (1...12).contains(date[1]), (1...31).contains(date[2]), (0...24).contains(hour), (0...59).contains(minute),
-        (0...60).contains(second)
-    else {
-        return nil
+
+}
+
+extension EpochFields {
+    /// The form every served epoch takes, ASCII digits in fixed places, read byte
+    /// by byte: splitting it took a quarter of a group's decoding. Nil for any
+    /// other form.
+    init?(canonical text: String) {
+        var text = text
+        guard
+            let fields = text.withUTF8({ bytes -> EpochFields? in
+                var end = bytes.count
+                if end > 0, bytes[end - 1] == UInt8(ascii: "Z") {
+                    end -= 1
+                }
+                func digit(_ index: Int) -> Int? {
+                    let value = Int(bytes[index]) - Int(UInt8(ascii: "0"))
+                    return (0...9).contains(value) ? value : nil
+                }
+                func number(_ start: Int, _ count: Int) -> Int? {
+                    var value = 0
+                    for index in start..<start + count {
+                        guard let digit = digit(index) else {
+                            return nil
+                        }
+                        value = value * 10 + digit
+                    }
+                    return value
+                }
+                guard end >= 19, bytes[4] == UInt8(ascii: "-"), bytes[7] == UInt8(ascii: "-"), bytes[10] == UInt8(ascii: "T"),
+                    bytes[13] == UInt8(ascii: ":"), bytes[16] == UInt8(ascii: ":"), let year = number(0, 4), let month = number(5, 2),
+                    let day = number(8, 2), let hour = number(11, 2), let minute = number(14, 2), let second = number(17, 2)
+                else {
+                    return nil
+                }
+                var millisecond = 0
+                if end > 19 {
+                    guard bytes[19] == UInt8(ascii: "."), end > 20, (20..<end).allSatisfy({ digit($0) != nil }) else {
+                        return nil
+                    }
+                    for index in 20..<23 {
+                        millisecond = millisecond * 10 + (index < end ? digit(index) ?? 0 : 0)
+                    }
+                }
+                return EpochFields(year: year, month: month, day: day, hour: hour, minute: minute, second: second, millisecond: millisecond)
+            })
+        else {
+            return nil
+        }
+        self = fields
     }
-    let days = daysFromCivil(year: date[0], month: date[1], day: date[2])
-    return Double(days) * msPerDay + Double(((hour * 60 + minute) * 60 + second) * 1000 + milliseconds)
+
+    /// Any other form, as splitting it read it before the canonical reading.
+    init?(general text: String) {
+        let trimmed = text.hasSuffix("Z") ? String(text.dropLast()) : text
+        let parts = trimmed.split(separator: "T", omittingEmptySubsequences: false)
+        guard parts.count == 2 else {
+            return nil
+        }
+        let date = parts[0].split(separator: "-").compactMap { Int($0) }
+        let clock = parts[1].split(separator: ":", omittingEmptySubsequences: false)
+        guard date.count == 3, clock.count == 3, let hour = Int(clock[0]), let minute = Int(clock[1]) else {
+            return nil
+        }
+        let secondParts = clock[2].split(separator: ".", omittingEmptySubsequences: false)
+        guard let second = Int(secondParts[0]), secondParts.count <= 2 else {
+            return nil
+        }
+        var millisecond = 0
+        if secondParts.count == 2 {
+            let digits = secondParts[1].prefix(3).padding(toLength: 3, withPad: "0", startingAt: 0)
+            guard secondParts[1].allSatisfy(\.isNumber), let value = Int(digits) else {
+                return nil
+            }
+            millisecond = value
+        }
+        self.init(year: date[0], month: date[1], day: date[2], hour: hour, minute: minute, second: second, millisecond: millisecond)
+    }
 }
 
 /// Days since 1970-01-01 for a proleptic Gregorian date (Hinnant's algorithm).

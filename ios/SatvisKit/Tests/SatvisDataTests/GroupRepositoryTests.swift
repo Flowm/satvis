@@ -64,6 +64,19 @@ private func temporaryStore() -> PayloadStore {
 private let fixedNow = Date(timeIntervalSince1970: 1_790_000_000)
 
 @Suite struct GroupRepositoryTests {
+    // The kept bytes are swapped for ones that do not decode, under the same ETag:
+    // a second decode of what the worker confirms unchanged would fail.
+    @Test func decodesAGroupTheWorkerConfirmsUnchangedOnce() async throws {
+        let worker = StubWorker([.json(weather, etag: #""weather-1""#), .notModified])
+        let store = temporaryStore()
+        let repository = GroupRepository(client: worker.client, store: store, snapshot: nil, now: { fixedNow })
+
+        #expect(try await repository.records(of: "weather").value.map(\.name) == ["METEOR"])
+        try store.write(.group("weather"), data: Data("not json".utf8), etag: #""weather-1""#, confirmed: fixedNow)
+        #expect(await repository.keptRecords(of: "weather")?.value.map(\.name) == ["METEOR"])
+        #expect(try await repository.records(of: "weather").value.map(\.name) == ["METEOR"])
+    }
+
     @Test func keepsWhatTheWorkerSendsAndRevalidatesItWithTheETag() async throws {
         let worker = StubWorker([.json(weather, etag: #"W/"weather-1""#), .notModified])
         let repository = GroupRepository(client: worker.client, store: temporaryStore(), snapshot: nil, now: { fixedNow })

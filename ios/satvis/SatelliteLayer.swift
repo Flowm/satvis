@@ -16,17 +16,40 @@ final class SatelliteLayer {
 
     /// Bumped by every set handed over, so a slow packing never replaces a newer one.
     @ObservationIgnored private var generation = 0
+    /// The entries `show` was last given, as the catalog keeps them.
+    @ObservationIgnored private var shownEntries: [CatalogEntry] = []
+    /// Bumped by every `show`, so that a set made before one is not taken for it.
+    @ObservationIgnored private var showCount = 0
+    /// The `showCount` that `satellites` were made after.
+    @ObservationIgnored private var satellitesShowCount = 0
+    /// The `showCount` that what the renderer draws was made after; -1 before anything.
+    @ObservationIgnored private var drawnShowCount = -1
 
     func attach(_ renderer: GlobeRenderer) {
         self.renderer = renderer
         renderer.components = components
-        Task { await hand(satellites) }
+        Task { await hand(satellites, madeAfter: satellitesShowCount) }
+    }
+
+    /// Whether the renderer draws `entries` as `show` was last given them: every
+    /// one SGP4 can place, which leaves out a satellite long decayed, so the count
+    /// drawn can stay below the count of entries.
+    func draws(_ entries: [CatalogEntry]) -> Bool {
+        guard drawnShowCount == showCount, shownEntries.count == entries.count else {
+            return false
+        }
+        // The catalog's array as it was handed over shares its storage until the
+        // catalog replaces it, which spares comparing 16,000 ids four times a second.
+        let same = shownEntries.withUnsafeBufferPointer { shown in entries.withUnsafeBufferPointer { $0.baseAddress == shown.baseAddress } }
+        return same || shownEntries.elementsEqual(entries) { $0.id == $1.id }
     }
 
     /// The set to draw, and how.
     func show(_ entries: [CatalogEntry], components: SatelliteComponents, at time: Double) async {
         self.components = components
         renderer?.components = components
+        shownEntries = entries
+        showCount += 1
         await store.replace(with: entries.map(\.record))
         await refresh(at: time)
     }
@@ -42,6 +65,9 @@ final class SatelliteLayer {
     }
 
     private func refresh(at time: Double) async {
+        // Before the store is asked: a refresh asked before a `show`'s replacement
+        // returns the set before it.
+        let show = showCount
         guard let entries = await store.refresh(at: time) else {
             return
         }
@@ -51,7 +77,8 @@ final class SatelliteLayer {
                 id: "\($0.record.satnum)|\($0.record.name)", name: $0.record.name, trajectory: $0.trajectory, color: $0.record.orbitClass.color,
                 footprint: Self.footprint($0.record), modelFile: $0.record.metadata["modelFile"]?.string)
         }
-        await hand(satellites)
+        satellitesShowCount = show
+        await hand(satellites, madeAfter: show)
     }
 
     /// The web app's ground track and sensor cone, which it draws for low orbits
@@ -64,7 +91,7 @@ final class SatelliteLayer {
     }
 
     /// Packed off the main thread, then handed to the renderer.
-    private func hand(_ satellites: [PointSatellite]) async {
+    private func hand(_ satellites: [PointSatellite], madeAfter show: Int) async {
         guard let renderer else {
             return
         }
@@ -73,6 +100,7 @@ final class SatelliteLayer {
         let prepared = await renderer.prepare(satellites)
         if mine == generation {
             renderer.setSatellites(prepared)
+            drawnShowCount = show
         }
     }
 }

@@ -546,7 +546,7 @@ final class Session {
         let start = ContinuousClock.now
         try? await Task.sleep(for: .seconds(3))
         while ContinuousClock.now - start < .seconds(20) {
-            let drawn = renderer.map { $0.satelliteCount == catalog.activeEntries.count && (observer == nil || $0.isSkySettled) } ?? false
+            let drawn = renderer.map { satellites.draws(catalog.activeEntries) && (observer == nil || $0.isSkySettled) } ?? false
             if drawn {
                 break
             }

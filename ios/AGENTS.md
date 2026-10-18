@@ -94,10 +94,15 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   Orbits behind the Earth are drawn with no width, so the GPU drops their
   triangles before sorting them into tiles: with every active satellite's orbit
   that took an iPad mini's GPU from 57 to 33 ms a frame, where cheaper pixels
-  saved 4.
+  saved 4. For the same reason, past 1,000 satellites a near-circular orbit's
+  line steps over 2 or 4 samples while each chord stays within a device pixel
+  of the arc (`lineStride`): the GPU's cost followed the vertices it tiled, not
+  the pixels, and every active orbit went from 36 to 43 frames a second.
   The ground tracks are drawn once a second into the ground overlay, a cube map
   around the Earth's centre that the globe samples by direction, so they will
   follow terrain; `RendererTests` holds its faces to Metal's own cube lookup. The
+  globe samples it only while it holds a track (`GroundOverlay.hasCoverage`):
+  sampled empty, it cost an iPad mini 1.4 ms of GPU a frame. The
   sensor cones are drawn per frame from the same interpolation, cut where they
   meet the ground. Both are for low orbits only, as on the web.
 - 3D models are the web app's files, fetched from the site's `/data/models/` by
@@ -282,9 +287,16 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   skips a frame when nothing has changed.
 - The Graphics menu's "Benchmark" is the web app's `bench=true`, kept in links
   the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): eight scenes opened
-  by their links in turn, each waited for until everything active is drawn,
-  settled 3 s and recorded 5 s frame by frame (`FrameRecording`), then the first
-  again for drift, and the view put back. A run counts no page views. "Send
+  by their links in turn, each waited for until everything active is drawn
+  (`SatelliteLayer.draws`: a satellite SGP4 refuses, long decayed, is never drawn,
+  so the count drawn alone never reached the count active and every active
+  satellite waited out the timeout), settled 3 s and recorded 5 s frame by frame
+  (`FrameRecording`), then the first again for drift, and the view put back.
+  `cpu_ms` is the renderer's own work; `buffer_wait_ms` is the main thread
+  blocked on a buffer the GPU still holds, the GPU running behind, and
+  `drawable_wait_ms` on a drawable from the display, which, counted as CPU, read
+  16 ms a frame on an iPad mini where Time Profiler found 1. A run counts no
+  page views. "Send
   results" sends one `benchmark` event, only where usage is shared, its
   properties flat for PostHog's insights: `benchmark_` and `app_` for the run,
   `device_` for the device, system and screen, and `scene_<scene>_<metric>` per

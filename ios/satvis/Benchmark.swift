@@ -83,7 +83,7 @@ final class Benchmark {
             link: "/?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen"),
     ]
     /// Changed when the scenes or the metrics change, so results can be told apart.
-    static let version = 2
+    static let version = 3
 
     /// How long a scene may take to load before it is measured anyway: the
     /// largest groups come from the worker on a first run.
@@ -230,11 +230,15 @@ final class Benchmark {
                 return nil
             }
             let drawn = renderer.satelliteCount
-            let wanted = session.catalog.activeEntries.count
-            if drawn != last || drawn != wanted {
-                last = drawn
-                steady = drawn == wanted ? .now : nil
+            let complete = session.satellites.draws(session.catalog.activeEntries)
+            // From when it is complete and its count holds, which a set completed
+            // without a change of count, a link shown again, starts as well.
+            if !complete || drawn != last {
+                steady = complete ? .now : nil
+            } else if steady == nil {
+                steady = .now
             }
+            last = drawn
             if let steady, ContinuousClock.now - steady >= .seconds(2) {
                 break
             }
@@ -365,6 +369,8 @@ extension Benchmark.Result {
             "frame_p95_ms": rounded(recording.percentile(0.95)),
             "slow_pct": rounded(recording.slowShare(refresh: refreshMilliseconds).map { $0 * 100 }, 1),
             "cpu_ms": rounded(recording.meanCPU),
+            "buffer_wait_ms": rounded(recording.meanBufferWait),
+            "drawable_wait_ms": rounded(recording.meanDrawableWait),
             "gpu_ms": rounded(recording.meanGPU),
             "memory_mb": memoryMegabytes.map { $0 as Any } ?? NSNull(),
         ]

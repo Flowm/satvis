@@ -58,6 +58,9 @@ struct PointInstance {
     var sampleStart: UInt32
     var sampleCount: UInt32
     var stepSeconds: Float
+    /// 1 where its orbit is near enough a circle for its line to step over samples
+    /// (`lineStride` in Shaders/Lines.msl, `PreparedSatellites.circularRadiusRatio`).
+    var mayStep: UInt32
 }
 
 /// What finding a satellite's stencil needs of its trajectory, packed with every
@@ -84,6 +87,12 @@ struct PointFrame {
 /// their labels. Packed off the main thread (`GlobeRenderer.prepare`), because the
 /// samples of ten thousand satellites run to tens of megabytes.
 public struct PreparedSatellites: @unchecked Sendable {
+    /// The most an orbit's radius may vary for its line to step over samples: an
+    /// eccentricity of about 0.03. Samples are a fixed time apart, so at perigee
+    /// each covers 1.06 times a circle's arc there and its chord sags 1.12 times
+    /// as far; near a Molniya orbit's perigee, nine times the arc.
+    static let circularRadiusRatio = 1.06
+
     let satellites: [PointSatellite]
     let samples: MTLBuffer?
     let instances: MTLBuffer?
@@ -121,15 +130,22 @@ public struct PreparedSatellites: @unchecked Sendable {
         var next = 0
         for (index, satellite) in satellites.enumerated() {
             let trajectory = satellite.trajectory
-            instanceList[index] = PointInstance(
-                color: satellite.color, sampleStart: UInt32(next), sampleCount: UInt32(trajectory.positions.count),
-                stepSeconds: Float(trajectory.stepMilliseconds / 1000))
+            let start = next
+            var radii = (lowest: Double.infinity, highest: 0.0)
             for position in trajectory.positions {
                 floats[3 * next] = Float(position.x)
                 floats[3 * next + 1] = Float(position.y)
                 floats[3 * next + 2] = Float(position.z)
+                let radius = (position.x * position.x + position.y * position.y + position.z * position.z).squareRoot()
+                if radius.isFinite {
+                    radii = (min(radii.lowest, radius), max(radii.highest, radius))
+                }
                 next += 1
             }
+            instanceList[index] = PointInstance(
+                color: satellite.color, sampleStart: UInt32(start), sampleCount: UInt32(trajectory.positions.count),
+                stepSeconds: Float(trajectory.stepMilliseconds / 1000),
+                mayStep: radii.highest <= Self.circularRadiusRatio * radii.lowest ? 1 : 0)
         }
         self.samples = samples
         self.instances = instances

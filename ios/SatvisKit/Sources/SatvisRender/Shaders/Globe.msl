@@ -57,7 +57,7 @@ vertex GlobeOut globeVertex(uint vid [[vertex_id]], const device GlobeVertex *ve
 
 fragment float4 globeFragment(GlobeOut in [[stage_in]], constant FrameUniforms &frame [[buffer(1)]], texture2d<float> imagery [[texture(0)]],
                               texturecube<float> overlay [[texture(1)]],
-                              sampler imagerySampler [[sampler(0)]]) {
+                              sampler imagerySampler [[sampler(0)]], constant int &overlayShown [[buffer(2)]]) {
     float3 color = gammaCorrect(imagery.sample(imagerySampler, in.uv).rgb);
     float3 normal = normalize(in.normal);
     float3 light = frame.sunDirection;
@@ -86,7 +86,9 @@ fragment float4 globeFragment(GlobeOut in [[stage_in]], constant FrameUniforms &
     // The ground tracks (Footprints.msl), unlit, over everything as Cesium draws a
     // ground primitive: Color.DARKRED, as opaque as the corridors over this point
     // add up to.
-    float coverage = overlay.sample(imagerySampler, normalize(in.positionWC)).r;
-    result = mix(result, gammaCorrect(float3(139.0 / 255.0, 0.0, 0.0)), coverage);
+    if (overlayShown != 0) {
+        float coverage = overlay.sample(imagerySampler, normalize(in.positionWC)).r;
+        result = mix(result, gammaCorrect(float3(139.0 / 255.0, 0.0, 0.0)), coverage);
+    }
     return float4(result, 1.0);
 }
