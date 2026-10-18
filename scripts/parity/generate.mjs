@@ -106,7 +106,7 @@ try {
       // The same rotation the propagation worker applies (sgp4Worker), in metres.
       const angle = greenwichHourAngle(instantMs);
       const [c, s] = [Math.cos(angle), Math.sin(angle)];
-      // The info panel's live strip.
+      // The Orbit tab's live position.
       const { latitude, longitude, height, velocity } = new Orbit(parsed[index].name, record).positionGeodetic(new Date(instantMs), true);
       return {
         record: index,
@@ -142,8 +142,8 @@ try {
   // then the element set as the panel shows it.
   const details = records.map((record, index) => {
     const orbit = new Orbit(parsed[index].name, record);
-    const { orbitClass, chips, orbitRows, spacecraftRows } = entityInfo.getSatelliteInfo(orbit, record.metadata.orbitClass, record.metadata);
-    return { facts: { orbitClass, chips, rows: [...orbitRows, ...spacecraftRows] }, elements: entityInfo.getElementsInfo(orbit) };
+    const { orbitClass, chips, status, orbitRows, spacecraftRows } = entityInfo.getSatelliteInfo(orbit, record.metadata.orbitClass, record.metadata);
+    return { facts: { orbitClass, chips, status, orbitRows, spacecraftRows }, elements: entityInfo.getElementsInfo(orbit) };
   });
 
   // Passes over each station from the minute after the epoch, in both modes: the

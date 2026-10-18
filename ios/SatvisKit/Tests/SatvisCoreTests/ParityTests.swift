@@ -99,7 +99,7 @@ struct Parity: Decodable {
             #expect(errors.1 < 0.0001, "\(record.name) at \(expected.instant): \(errors.1) m/s")
             #expect(errors.2 < 0.01, "\(record.name) at \(expected.instant): \(errors.2) m in the fixed frame")
 
-            // The info panel's live strip.
+            // The Orbit tab's live position.
             let live = try SGP4Propagator(record.meanElements).livePosition(epochMilliseconds: instant)
             #expect(abs(live.latitude - expected.geodetic.latitude) < 1e-7, "\(record.name)")
             #expect(abs(live.longitude - expected.geodetic.longitude) < 1e-7, "\(record.name)")

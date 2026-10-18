@@ -1,54 +1,62 @@
 import SatvisCore
 import SwiftUI
 
-/// What the web app's EntityInfoPanel shows for a satellite: who it is and where it
-/// is now, then its passes or its details, a tab each.
+/// What the web app's EntityInfoPanel shows for a satellite: who it is, then its
+/// orbit, the spacecraft and its passes, a tab each.
 struct InfoPanel: View {
     let entry: CatalogEntry
     let clock: ViewerClock
     let passes: PassModel
     let alerts: PassAlerts
+    let closeUp: CloseUpContext
     let isTracked: Bool
     /// Nil in the sky view, which follows nothing: the web app hides Track there.
     let onTrack: ((Bool) -> Void)?
     let onClose: () -> Void
-    /// The tab chosen last, kept across selections, as on the web.
-    @AppStorage("infoPanelTab") private var tab = InfoTab.details
+    /// The tab chosen last, kept across selections and shared with the station panel, as on the web.
+    @AppStorage("infoPanelTab") private var tab = InfoTab.orbit
 
     private var propagator: SGP4Propagator? { try? SGP4Propagator(entry.record.meanElements) }
 
     var body: some View {
         let propagator = propagator
+        let spacecraftFacts = SatelliteDetails.spacecraftFacts(entry.record)
+        let links = WebTables.shared.externalLinks.compactMap { link in link.url(satnum: entry.satnum).map { (link, $0) } }
+        // Only satellites a model manifest lists have one (ADR 0007).
+        let modelFile = entry.record.metadata["modelFile"]?.string
+        let tabs: [InfoTab] = modelFile == nil && spacecraftFacts.isEmpty && links.isEmpty ? [.orbit, .passes] : [.orbit, .spacecraft, .passes]
         NavigationStack {
             List {
                 Section {
-                    chips(propagator)
-                    TimelineView(.periodic(from: .now, by: 1)) { _ in
-                        LiveStrip(position: try? propagator?.livePosition(epochMilliseconds: clock.now()))
-                    }
-                    // The web app's notice, amber as the deck's way back to rest.
-                    TimelineView(.periodic(from: .now, by: 1)) { _ in
-                        if let propagator,
-                            let notice = SatelliteDetails.staleElementsNotice(
-                                epochMilliseconds: SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate), time: clock.now())
-                        {
-                            Label(notice, systemImage: "exclamationmark.triangle")
-                                .font(.footnote)
-                                .foregroundStyle(Color.deckAmber)
-                                .accessibilityHint("Only the latest element set is kept, so positions far from its epoch drift by kilometres to thousands of kilometres.")
+                    // One row: the notice's TimelineView took a row of its own even while it was empty.
+                    VStack(alignment: .leading, spacing: 0) {
+                        // The web app's notice, amber as the deck's way back to rest.
+                        TimelineView(.periodic(from: .now, by: 1)) { _ in
+                            if let propagator,
+                                let notice = SatelliteDetails.staleElementsNotice(
+                                    epochMilliseconds: SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate), time: clock.now())
+                            {
+                                Label(notice, systemImage: "exclamationmark.triangle")
+                                    .font(.footnote)
+                                    .foregroundStyle(Color.deckAmber)
+                                    .accessibilityHint("Only the latest element set is kept, so positions far from its epoch drift by kilometres to thousands of kilometres.")
+                                    // The cards' text inset, 16 pt on an iPad Air and an iPhone, which a zero-inset row loses.
+                                    .padding(.horizontal, 16)
+                                    .padding(.bottom, 12)
+                            }
                         }
+                        TabPicker(tabs: tabs, tab: $tab)
                     }
-                    Picker("Tab", selection: $tab) {
-                        ForEach(InfoTab.allCases, id: \.self) { Text($0.rawValue.capitalized) }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
+                    .bareRow()
                 }
-                switch tab {
-                case .passes:
+                .tabHeader()
+                switch InfoTab.resolved(tab, among: tabs) {
+                case .orbit:
+                    orbit(propagator)
+                case .spacecraft:
+                    spacecraft(modelFile: modelFile, facts: spacecraftFacts, links: links)
+                default:
                     PassesSections(subject: .satellite(entry), clock: clock, passes: passes)
-                case .details:
-                    details(propagator)
                 }
             }
             // Here, where the alert was switched: on a phone the panel is a sheet
@@ -59,9 +67,31 @@ struct InfoPanel: View {
                 }
             }
             .navigationTitle(entry.name)
-            .navigationSubtitle("#\(entry.satnum)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // Drawn here: a navigationSubtitle shows one line, and drops the chips' second.
+                ToolbarItem(placement: .title) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(entry.name)
+                            .font(.headline)
+                            // The buttons leave the title less room than the system title had.
+                            .minimumScaleFactor(0.8)
+                        Text("#\(entry.satnum)")
+                            .foregroundStyle(.secondary)
+                        subheading(propagator)
+                    }
+                    .font(.footnote)
+                    .lineLimit(1)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(
+                        "\(entry.name), catalog number \(entry.satnum), \(SatelliteDetails.chips(entry.record, propagator: propagator).joined(separator: ", "))"
+                    )
+                    // A menu rather than text selection, which would copy whichever of the three lines a press lands on.
+                    .contextMenu {
+                        Button("Copy Name", systemImage: "doc.on.doc") { UIPasteboard.general.string = entry.name }
+                        Button("Copy Catalog Number", systemImage: "number") { UIPasteboard.general.string = entry.satnum }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     AlertButton(subject: .satellite(entry.id), satellites: [entry], passes: passes, alerts: alerts)
                 }
@@ -81,43 +111,167 @@ struct InfoPanel: View {
         }
     }
 
-    @ViewBuilder private func details(_ propagator: SGP4Propagator?) -> some View {
-        Section("Details") {
-            ForEach(Array(SatelliteDetails.facts(entry.record, propagator: propagator).enumerated()), id: \.offset) { _, row in
-                LabeledContent(row.0, value: row.1)
+    /// Where it flies, where it is now, and the element set it is propagated from.
+    @ViewBuilder private func orbit(_ propagator: SGP4Propagator?) -> some View {
+        Section {
+            ForEach(Array(SatelliteDetails.orbitFacts(entry.record, propagator: propagator).enumerated()), id: \.offset) { _, row in
+                FactRow(label: row.0, value: row.1)
             }
         }
-        Section("Elsewhere") {
-            ForEach(WebTables.shared.externalLinks, id: \.self) { link in
-                if let url = link.url(satnum: entry.satnum) {
-                    Link(destination: url) {
-                        LabeledContent(link.label, value: link.title)
-                    }
-                }
-            }
-        }
+        PositionSection(satnum: entry.satnum, propagator: propagator, clock: clock)
         if let propagator {
             ElementSetSection(elements: SatelliteDetails.elements(entry.record, epochJulianDate: propagator.epochJulianDate))
         }
     }
 
-    /// The web app's chips: the orbit in its class's colour, then the rest.
-    private func chips(_ propagator: SGP4Propagator?) -> some View {
+    /// What it is, and where else to read about it.
+    @ViewBuilder private func spacecraft(modelFile: String?, facts: [(String, String)], links: [(WebTables.Link, URL)]) -> some View {
+        if let modelFile {
+            Section {
+                SatelliteModelView(modelFile: modelFile, name: entry.name, context: closeUp)
+                    .listRowInsets(EdgeInsets())
+            } footer: {
+                Text("Drag to turn · pinch to zoom")
+            }
+        }
+        if !facts.isEmpty {
+            Section {
+                ForEach(Array(facts.enumerated()), id: \.offset) { _, row in
+                    FactRow(label: row.0, value: row.1)
+                }
+            }
+        }
+        if !links.isEmpty {
+            Section("Links") {
+                ForEach(links, id: \.0) { link, url in
+                    Link(destination: url) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(link.label)
+                                Text(link.title)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "arrow.up.right")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    // A Link paints its label in the tint, through the styles set inside it.
+                    .tint(.primary)
+                }
+            }
+        }
+    }
+
+    /// The web app's chips as one line: the orbit in its class's colour, then the
+    /// country, then a status other than Operational in amber.
+    private func subheading(_ propagator: SGP4Propagator?) -> Text {
+        let status = SatelliteDetails.status(entry.record)
         let chips = SatelliteDetails.chips(entry.record, propagator: propagator)
-        return ChipRows {
-            ForEach(Array(chips.enumerated()), id: \.offset) { index, chip in
-                Chip(text: chip, color: index == 0 ? Color(orbitClass: entry.record.orbitClass) : .secondary)
+        return chips.enumerated().reduce(Text(verbatim: "")) { line, item in
+            let (index, chip) = item
+            let color: Color = index == 0 ? Color(orbitClass: entry.record.orbitClass) : chip == status ? .deckAmber : .secondary
+            let text = Text(chip).foregroundStyle(color)
+            return index == 0 ? text : Text("\(line)\(Text(verbatim: " · ").foregroundStyle(.tertiary))\(text)")
+        }
+    }
+}
+
+/// The panels' tabs, kept by their raw values.
+enum InfoTab: String {
+    case orbit, spacecraft, passes, location
+
+    /// `tab` where `tabs` has it, else the first: the one chosen last may be one this selection lacks.
+    static func resolved(_ tab: InfoTab, among tabs: [InfoTab]) -> InfoTab {
+        tabs.contains(tab) ? tab : tabs[0]
+    }
+}
+
+/// The web app's tab row, over the tabs a selection has.
+private struct TabPicker: View {
+    let tabs: [InfoTab]
+    @Binding var tab: InfoTab
+
+    var body: some View {
+        Picker(
+            "Tab",
+            selection: Binding {
+                InfoTab.resolved(tab, among: tabs)
+            } set: {
+                tab = $0
+            }
+        ) {
+            ForEach(tabs, id: \.self) { Text($0.rawValue.capitalized) }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+    }
+}
+
+extension View {
+    /// A section close under the title and over the tab's cards, as the web app's tab row is.
+    fileprivate func tabHeader() -> some View {
+        listSectionMargins(.top, 0).listSectionSpacing(.compact)
+    }
+
+    /// A row on the panel's background rather than in a card, edge to edge: the tab row heads the cards below.
+    fileprivate func bareRow() -> some View {
+        listRowBackground(Color.clear).listRowSeparator(.hidden).listRowInsets(EdgeInsets())
+    }
+}
+
+/// The Orbit tab's live position, worked out once a second for all four rows, so they
+/// are of one instant. A TimelineView in a List takes a row, so each row had its own.
+private struct PositionSection: View {
+    let satnum: String
+    let propagator: SGP4Propagator?
+    let clock: ViewerClock
+    @State private var position: LivePosition?
+
+    var body: some View {
+        Section("Position") {
+            ForEach(PositionRow.allCases, id: \.self) { row in
+                FactRow(label: row.label, value: position.map(row.value) ?? "–")
+                    .monospacedDigit()
+            }
+        }
+        .task(id: satnum) {
+            while !Task.isCancelled {
+                position = try? propagator?.livePosition(epochMilliseconds: clock.now())
+                try? await Task.sleep(for: .seconds(1))
             }
         }
     }
 }
 
-enum InfoTab: String, CaseIterable {
-    case passes, details
+/// The Orbit tab's live position, to two decimals as on the web.
+private enum PositionRow: CaseIterable {
+    case latitude, longitude, altitude, velocity
+
+    var label: String {
+        switch self {
+        case .latitude: "Latitude"
+        case .longitude: "Longitude"
+        case .altitude: "Altitude"
+        case .velocity: "Velocity"
+        }
+    }
+
+    func value(_ position: LivePosition) -> String {
+        switch self {
+        case .latitude: "\(toFixed2(position.latitude))°"
+        case .longitude: "\(toFixed2(position.longitude))°"
+        case .altitude: "\(toFixed2(position.height / 1000)) km"
+        case .velocity: "\(toFixed2(position.speed)) km/s"
+        }
+    }
 }
 
-/// A ground station's panel: where it is, and every active satellite's passes over
-/// it. A station has no details, so it has no tabs.
+/// A ground station's panel: every active satellite's passes over it, and where it
+/// is, a tab each. Passes come first, so a station opens on them.
 struct StationPanel: View {
     let station: GroundStation
     let clock: ViewerClock
@@ -129,19 +283,30 @@ struct StationPanel: View {
     let onTrack: ((Bool) -> Void)?
     let onSky: () -> Void
     let onClose: () -> Void
+    @AppStorage("infoPanelTab") private var tab = InfoTab.orbit
     @State private var renaming = false
     @State private var draftName = ""
+
+    private static let tabs: [InfoTab] = [.passes, .location]
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    HStack {
-                        value("Latitude", "\(toFixed2(station.latitude))°")
-                        value("Longitude", "\(toFixed2(station.longitude))°")
-                    }
+                    TabPicker(tabs: Self.tabs, tab: $tab)
+                        .bareRow()
                 }
-                PassesSections(subject: .station(station, catalog.activeEntries), clock: clock, passes: passes)
+                .tabHeader()
+                switch InfoTab.resolved(tab, among: Self.tabs) {
+                case .location:
+                    Section {
+                        FactRow(label: "Name", value: station.displayName)
+                        FactRow(label: "Latitude", value: "\(toFixed2(station.latitude))°")
+                        FactRow(label: "Longitude", value: "\(toFixed2(station.longitude))°")
+                    }
+                default:
+                    PassesSections(subject: .station(station, catalog.activeEntries), clock: clock, passes: passes)
+                }
             }
             .overlay(alignment: .bottom) {
                 if let message = alerts.message {
@@ -193,17 +358,6 @@ struct StationPanel: View {
             }
         }
     }
-
-    private func value(_ label: String, _ text: String) -> some View {
-        VStack(alignment: .leading) {
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            Text(text)
-                .font(.footnote.monospacedDigit())
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
 }
 
 /// Notifications for the passes the panel lists, on or off.
@@ -244,82 +398,26 @@ func toFixed2(_ value: Double) -> String {
     String(format: "%.2f", value)
 }
 
-private struct Chip: View {
-    let text: String
-    let color: Color
+/// A fact as the web app's tables show one: the label, and the value right-aligned
+/// beside it, wrapping there. LabeledContent stacked a value too long for its line under
+/// the label, flush left.
+private struct FactRow: View {
+    let label: String
+    let value: String
 
     var body: some View {
-        Text(text)
-            .font(.caption.bold())
-            .lineLimit(1)
-            .foregroundStyle(color)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(.quaternary, in: Capsule())
-    }
-}
-
-/// Chips left to right, onto another row where the next does not fit, as the web
-/// app's wrap: "LEO · Sun-synchronous" and two more do not fit one row on a phone.
-private struct ChipRows: Layout {
-    var spacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let rows = rows(subviews, width: proposal.width ?? .infinity)
-        let height = rows.map(\.height).reduce(0, +) + spacing * CGFloat(max(rows.count - 1, 0))
-        return CGSize(width: rows.map(\.width).max() ?? 0, height: height)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var y = bounds.minY
-        for row in rows(subviews, width: bounds.width) {
-            var x = bounds.minX
-            for index in row.indices {
-                let size = subviews[index].sizeThatFits(.unspecified)
-                subviews[index].place(at: CGPoint(x: x, y: y + (row.height - size.height) / 2), proposal: ProposedViewSize(size))
-                x += size.width + spacing
-            }
-            y += row.height + spacing
-        }
-    }
-
-    /// The subviews by row, each as wide as fits `width`, and every row's size.
-    private func rows(_ subviews: Subviews, width: CGFloat) -> [(indices: [Int], width: CGFloat, height: CGFloat)] {
-        var rows: [(indices: [Int], width: CGFloat, height: CGFloat)] = []
-        for index in subviews.indices {
-            let size = subviews[index].sizeThatFits(.unspecified)
-            if let last = rows.last, last.width + spacing + size.width <= width {
-                rows[rows.count - 1] = (last.indices + [index], last.width + spacing + size.width, max(last.height, size.height))
-            } else {
-                rows.append(([index], size.width, size.height))
-            }
-        }
-        return rows
-    }
-}
-
-/// Latitude, longitude, altitude and speed, to two decimals as on the web.
-private struct LiveStrip: View {
-    let position: LivePosition?
-
-    var body: some View {
-        HStack {
-            value("Latitude", position.map { "\(toFixed2($0.latitude))°" })
-            value("Longitude", position.map { "\(toFixed2($0.longitude))°" })
-            value("Altitude", position.map { "\(toFixed2($0.height / 1000)) km" })
-            value("Velocity", position.map { "\(toFixed2($0.speed)) km/s" })
-        }
-    }
-
-    private func value(_ label: String, _ text: String?) -> some View {
-        VStack(alignment: .leading) {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            // Fixed: a layout priority alone still let a long value squeeze the label away.
             Text(label)
-                .font(.caption2)
+                .fixedSize()
+            Spacer(minLength: 0)
+            Text(value)
                 .foregroundStyle(.secondary)
-            Text(text ?? "–")
-                .font(.footnote.monospacedDigit())
+                .multilineTextAlignment(.trailing)
+                .textSelection(.enabled)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // One element, "<label>, <value>", as LabeledContent read.
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -329,16 +427,19 @@ private struct ElementSetSection: View {
 
     var body: some View {
         switch elements {
+        // The epoch is a row: in the header it wrapped onto a second line.
         case .tle(let epoch, let lines):
-            Section("Element set · epoch \(epoch) UTC") {
+            Section("Element set") {
+                FactRow(label: "Epoch", value: "\(epoch) UTC")
                 Text(lines)
                     .font(.caption.monospaced())
                     .textSelection(.enabled)
             }
         case .omm(let epoch, let rows):
-            Section("Element set · epoch \(epoch) UTC") {
+            Section("Element set") {
+                FactRow(label: "Epoch", value: "\(epoch) UTC")
                 ForEach(rows, id: \.label) { row in
-                    LabeledContent(row.label, value: row.value)
+                    FactRow(label: row.label, value: row.value)
                         .font(.caption.monospaced())
                 }
             }

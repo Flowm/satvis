@@ -1,7 +1,7 @@
 import Foundation
 
-/// Where a satellite is over the Earth and how fast it goes: the info panel's live
-/// strip, as the web app's `Orbit.positionGeodetic` works it out (satellite.js's
+/// Where a satellite is over the Earth and how fast it goes: the Orbit tab's live
+/// position, as the web app's `Orbit.positionGeodetic` works it out (satellite.js's
 /// `gstime` and `eciToGeodetic`, on WGS84).
 public struct LivePosition: Sendable, Equatable {
     /// Degrees.

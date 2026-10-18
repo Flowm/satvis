@@ -106,7 +106,10 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   and WebP textures); Draco is DracoSwift's prebuilt 1.5.7 behind `DracoBridge`.
   Sizes, the point and label around a model and the close-up tracking follow
   `SatelliteComponentCollection.ts`; the lighting is a simple sun, not Cesium's
-  PBR. `ios/scripts/make-model-fixture.mjs` writes the test's cube.
+  PBR. `ios/scripts/make-model-fixture.mjs` writes the test's cube. The info
+  panel's Spacecraft tab shows the model on its own (`ModelCloseUp`), as the web
+  app's `ModelCloseUp.ts` does, with the globe's model shaders rather than
+  RealityKit or SceneKit (ADR 0009), lit from over the viewer's shoulder.
 - `Session`, owned by `SatvisApp`, is one open globe: the models (`ViewerClock`,
   `CatalogModel`, `PassModel`, `SatelliteLayer`, `StarMap`, and `PassAlerts`, which
   the background refresh needs too), what is selected and followed, what a tap
@@ -424,7 +427,7 @@ and appends to the top-level `AGENTS.md`.
 
 `SatvisKit/Tests/SatvisCoreTests/Fixtures/parity.json` is what the web app's own
 code answers for the element sets in `parity-input.json`: positions, the sampling
-grid, the sun and the sky view's visibility verdict, the info panel's details, and passes over three ground stations in both
+grid, the sun and the sky view's visibility verdict, the info panel's facts and chips, and passes over three ground stations in both
 overpass modes, with the rows, headline and timeline strip the panel makes of
 them. It also holds the URL codec's answers (`urlCodec.ts`, with vue-router's
 query parser and serializer): each kind of parameter on awkward input, and whole
@@ -454,8 +457,8 @@ search for their edges and peaks to 10 ms, and agree to that.
   test then runs the previous build: its failures name lines of the old file, and
   the log lacks steps the source has. `touch` the file and run again.
 - **A lazy `List` has no rows off screen**, so a UI test has to scroll a row into
-  view before it can find it. `LabeledContent` reads as one element labelled
-  `"<label>, <value>"`, not as two texts.
+  view before it can find it. The info panel's `FactRow` reads as one element
+  labelled `"<label>, <value>"`, not as two texts.
 - **A simulator keeps its cached launch screen across reinstalls.** Judge
   launch-screen changes on a simulator that never had the app, or after
   `simctl erase`; the screen shows for ~1.5 s, so record it with

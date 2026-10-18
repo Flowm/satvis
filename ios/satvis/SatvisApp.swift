@@ -333,7 +333,8 @@ struct ContentView: View {
         sizeClass == .regular && session.selection != nil ? Self.cardWidth + 12 : 0
     }
 
-    /// Wide enough for the live strip's four cells and the chips on one line.
+    /// The info panel beside the globe. 400 pt fitted the old four-cell position strip;
+    /// the tab row and the facts fit it too.
     private static let cardWidth: CGFloat = 400
     /// The menu column with its names, a gap and a 280 pt panel, and the margins.
     private static let roomForNames: CGFloat = 520
@@ -343,7 +344,8 @@ struct ContentView: View {
         case .satellite(let id):
             if let entry = session.catalog.catalog.entries[id] {
                 InfoPanel(
-                    entry: entry, clock: session.clock, passes: session.passes, alerts: session.alerts, isTracked: session.tracked == id,
+                    entry: entry, clock: session.clock, passes: session.passes, alerts: session.alerts, closeUp: session.closeUpContext,
+                    isTracked: session.tracked == id,
                     onTrack: session.observer != nil ? nil : { session.track(id, $0, animated: true) }, onClose: { session.selection = nil }
                 )
             }

@@ -5,7 +5,7 @@
 export type OrbitClass = "LEO" | "MEO" | "GEO" | "HEO";
 
 /**
- * CSS hex, for both the globe and the browser row. LEO is most of the catalog, so it
+ * CSS hex, for the globe, the browser row and the info panel's orbit chip. LEO is most of the catalog, so it
  * takes the panel's neutral secondary text colour; the others are colour-blind-safe
  * Okabe-Ito hues.
  */

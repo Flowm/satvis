@@ -60,14 +60,19 @@ public struct WebTables: Sendable, Decodable {
     }()
 }
 
-/// What the info panel's Details tab says about a satellite, as the web app's
-/// `getSatelliteInfo` and `getElementsInfo` say it (src/modules/util/entityInfo.ts).
+/// What the info panel's header, Orbit tab and Spacecraft tab say about a satellite,
+/// as the web app's `getSatelliteInfo` and `getElementsInfo` say it
+/// (src/modules/util/entityInfo.ts).
 public enum SatelliteDetails {
-    /// Label and value rows: the orbit, then curated, GCAT and SATCAT facts.
-    public static func facts(_ record: GPRecord, propagator: SGP4Propagator?, tables: WebTables = .shared) -> [(String, String)] {
+    /// The Orbit tab's rows: the regime, then what the element set gives.
+    public static func orbitFacts(_ record: GPRecord, propagator: SGP4Propagator?) -> [(String, String)] {
         let orbit = propagator.map(OrbitFacts.init)
-        var rows: [(String, String)] = [("Orbit", regime(record, orbit))]
-        rows += orbit?.rows ?? []
+        return [("Orbit", regime(record, orbit))] + (orbit?.rows ?? [])
+    }
+
+    /// The Spacecraft tab's rows: curated, GCAT and SATCAT facts, only those the record carries.
+    public static func spacecraftFacts(_ record: GPRecord, tables: WebTables = .shared) -> [(String, String)] {
+        var rows: [(String, String)] = []
         let metadata = record.metadata
         func label(_ table: [String: String], _ key: String) -> String? {
             metadata[key]?.string.map { table[$0] ?? $0 }
@@ -144,17 +149,24 @@ public enum SatelliteDetails {
     }
 
     /// What the panel shows under the name, as the web app's `SatelliteInfo.chips`:
-    /// the orbit, then the country and the status where the record has them.
+    /// the orbit, then the country where the record has it, then `status`.
     public static func chips(_ record: GPRecord, propagator: SGP4Propagator?, tables: WebTables = .shared) -> [String] {
-        let metadata = record.metadata
-        let status = metadata["opsStatus"]?.string.map { tables.satcat.opsStatus[$0] ?? $0 }
-        return [regime(record, propagator.map(OrbitFacts.init)), metadata["country"]?.string, status].compactMap { $0 }
+        [regime(record, propagator.map(OrbitFacts.init)), record.metadata["country"]?.string, status(record, tables: tables)].compactMap { $0 }
     }
+
+    /// The status, unless it is Operational, as most satellites are, or Unknown,
+    /// which says nothing. The panel tints its chip.
+    public static func status(_ record: GPRecord, tables: WebTables = .shared) -> String? {
+        record.metadata["opsStatus"]?.string.flatMap { unremarkableStatus.contains($0) ? nil : $0 }.map { tables.satcat.opsStatus[$0] ?? $0 }
+    }
+
+    /// SATCAT's `OPS_STATUS_CODE`s for Operational and Unknown, the web app's `UNREMARKABLE_STATUS`.
+    private static let unremarkableStatus: Set<String> = ["+", "?"]
 
     /// The orbit class, and whether the orbit is Sun-synchronous where it is known.
     private static func regime(_ record: GPRecord, _ orbit: OrbitFacts?) -> String {
         let regime = record.orbitClass.rawValue
-        return orbit?.isSunSynchronous == true ? "\(regime) · Sun-synchronous" : regime
+        return orbit?.isSunSynchronous == true ? "\(regime) (SSO)" : regime
     }
 
     public enum Elements: Sendable, Equatable {

@@ -30,12 +30,7 @@ enum ShaderLibrary {
     }
 
     static func make(device: MTLDevice) async throws -> Libraries {
-        let source = try files.map { name in
-            guard let url = Bundle.module.url(forResource: name, withExtension: "msl", subdirectory: "Shaders") else {
-                throw RendererError.missingShader(name)
-            }
-            return try String(contentsOf: url, encoding: .utf8)
-        }.joined(separator: "\n")
+        let source = try source(files)
         func options(_ mode: MTLMathMode) -> MTLCompileOptions {
             let options = MTLCompileOptions()
             options.mathMode = mode
@@ -44,6 +39,23 @@ enum ShaderLibrary {
         return Libraries(
             precise: try await device.makeLibrary(source: source, options: options(.safe)),
             fast: try await device.makeLibrary(source: source, options: options(.fast)))
+    }
+
+    /// Only `files`, with fast math throughout: for a pass that places nothing by a
+    /// high/low split, as the info panel's close-up draws its model at the origin.
+    static func makeFast(device: MTLDevice, files: [String]) async throws -> MTLLibrary {
+        let options = MTLCompileOptions()
+        options.mathMode = .fast
+        return try await device.makeLibrary(source: try source(files), options: options)
+    }
+
+    private static func source(_ files: [String]) throws -> String {
+        try files.map { name in
+            guard let url = Bundle.module.url(forResource: name, withExtension: "msl", subdirectory: "Shaders") else {
+                throw RendererError.missingShader(name)
+            }
+            return try String(contentsOf: url, encoding: .utf8)
+        }.joined(separator: "\n")
     }
 }
 
@@ -1133,25 +1145,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         encoder.setRenderPipelineState(blended ? modelBlendPipeline : modelPipeline)
         encoder.setDepthStencilState(blended ? depthTest : depthWrite)
         for placement in placements {
-            encoder.setVertexBuffer(placement.model.vertices, offset: 0, index: 0)
-            for part in placement.model.parts where (part.material.alphaMode == .blend || placement.opacity < 1) == blended {
-                var cutoff: Float = 0
-                if case .mask(let value) = part.material.alphaMode {
-                    cutoff = value
-                }
-                var instance = ModelInstance(
-                    modelViewProjection: float4x4(lastFrame.viewProjection * placement.toEye), rotation: placement.rotation,
-                    modelToEye: float4x4(placement.toEye), baseColor: part.material.baseColor, sunDirection: frame.sunDirection,
-                    hasTexture: part.texture == nil ? 0 : 1, metallic: part.material.metallic, roughness: part.material.roughness, alphaCutoff: cutoff,
-                    opacity: placement.opacity)
-                encoder.setCullMode(part.material.doubleSided ? .none : .back)
-                encoder.setVertexBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
-                encoder.setFragmentBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
-                encoder.setFragmentTexture(part.texture, index: 0)
-                encoder.drawIndexedPrimitives(
-                    type: .triangle, indexCount: part.indexCount, indexType: .uint32, indexBuffer: placement.model.indices,
-                    indexBufferOffset: part.indexStart * MemoryLayout<UInt32>.stride)
-            }
+            let base = ModelInstance(
+                modelViewProjection: float4x4(lastFrame.viewProjection * placement.toEye), rotation: placement.rotation,
+                modelToEye: float4x4(placement.toEye), baseColor: .one, sunDirection: frame.sunDirection, hasTexture: 0, metallic: 0,
+                roughness: 0, alphaCutoff: 0, opacity: placement.opacity)
+            placement.model.encodeParts(blended: blended, wholeBlended: placement.opacity < 1, base: base, encoder: encoder)
         }
         // The frame's uniforms, which the passes after this one read there.
         var frame = frame
@@ -1254,7 +1252,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 }
 
-private func float4x4(_ m: simd_double4x4) -> simd_float4x4 {
+func float4x4(_ m: simd_double4x4) -> simd_float4x4 {
     simd_float4x4(columns: (SIMD4<Float>(m.columns.0), SIMD4<Float>(m.columns.1), SIMD4<Float>(m.columns.2), SIMD4<Float>(m.columns.3)))
 }
 
