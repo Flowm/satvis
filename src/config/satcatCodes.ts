@@ -37,6 +37,7 @@ export const SATCAT_LAUNCH_SITE: Record<string, string> = {
   SNMLP: "San Marco Platform, Kenya",
   SPKII: "Space Port Kii, Japan",
   SRILR: "Satish Dhawan, India",
+  STARB: "Starbase, Texas",
   SUBL: "Submarine Launch Platform",
   SVOBO: "Svobodnyy, Russia",
   TAISC: "Taiyuan, China",
