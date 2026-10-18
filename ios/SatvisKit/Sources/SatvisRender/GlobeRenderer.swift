@@ -895,10 +895,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         lastPose = pose
         let waitStarted = measuring ? ProcessInfo.processInfo.systemUptime : 0
         inFlight.wait()
-        let waited = measuring ? ProcessInfo.processInfo.systemUptime - waitStarted : 0
+        let waitedForBuffer = measuring ? ProcessInfo.processInfo.systemUptime - waitStarted : 0
         // Taken only once a frame is free: taken before, a drawable was held while
         // the main thread waited on a GPU running behind (every orbit on).
-        guard let drawable = view.currentDrawable, let screen = view.currentRenderPassDescriptor, let commands = queue.makeCommandBuffer() else {
+        let drawableStarted = measuring ? ProcessInfo.processInfo.systemUptime : 0
+        let currentDrawable = view.currentDrawable
+        let waitedForDrawable = measuring ? ProcessInfo.processInfo.systemUptime - drawableStarted : 0
+        guard let drawable = currentDrawable, let screen = view.currentRenderPassDescriptor, let commands = queue.makeCommandBuffer() else {
             inFlight.signal()
             return
         }
@@ -1072,7 +1075,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         commands.commit()
         if measuring {
             let ended = ProcessInfo.processInfo.systemUptime
-            meter.frame(cpuSeconds: ended - started - waited, at: ended, satellites: points.count)
+            meter.frame(
+                cpuSeconds: ended - started - waitedForBuffer - waitedForDrawable, bufferWaitSeconds: waitedForBuffer, drawableWaitSeconds: waitedForDrawable,
+                at: ended, satellites: points.count)
         }
     }
 

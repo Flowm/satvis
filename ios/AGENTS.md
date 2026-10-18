@@ -286,7 +286,12 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   (`SatelliteLayer.draws`: a satellite SGP4 refuses, long decayed, is never drawn,
   so the count drawn alone never reached the count active and every active
   satellite waited out the timeout), settled 3 s and recorded 5 s frame by frame
-  (`FrameRecording`), then the first again for drift, and the view put back. A run counts no page views. "Send
+  (`FrameRecording`), then the first again for drift, and the view put back.
+  `cpu_ms` is the renderer's own work; `buffer_wait_ms` is the main thread
+  blocked on a buffer the GPU still holds, the GPU running behind, and
+  `drawable_wait_ms` on a drawable from the display, which, counted as CPU, read
+  16 ms a frame on an iPad mini where Time Profiler found 1. A run counts no
+  page views. "Send
   results" sends one `benchmark` event, only where usage is shared, its
   properties flat for PostHog's insights: `benchmark_` and `app_` for the run,
   `device_` for the device, system and screen, and `scene_<scene>_<metric>` per
