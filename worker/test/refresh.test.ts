@@ -165,9 +165,11 @@ describe("refreshGroups + stored tables", () => {
       diameterM: 4.2,
       spanM: 23.9,
       shape: "Cyl + 2 Pan",
+      opOrbit: "LLEO/I",
       estimated: ["diameterM"],
       category: "SS",
       class: "C",
+      program: "TsM",
     });
     // Nauka is docked, and SATCAT is the only thing that knows it.
     expect(nauka!.metadata).toMatchObject({ orbitType: "DOC", orbitCenter: "25544", country: "Russia", operator: "RKK Energiya" });
