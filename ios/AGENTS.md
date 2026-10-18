@@ -106,7 +106,10 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   and WebP textures); Draco is DracoSwift's prebuilt 1.5.7 behind `DracoBridge`.
   Sizes, the point and label around a model and the close-up tracking follow
   `SatelliteComponentCollection.ts`; the lighting is a simple sun, not Cesium's
-  PBR. `ios/scripts/make-model-fixture.mjs` writes the test's cube.
+  PBR. `ios/scripts/make-model-fixture.mjs` writes the test's cube. The info
+  panel's Spacecraft tab shows the model on its own (`ModelCloseUp`), as the web
+  app's `ModelCloseUp.ts` does, with the globe's model shaders rather than
+  RealityKit or SceneKit (ADR 0009), lit from over the viewer's shoulder.
 - `Session`, owned by `SatvisApp`, is one open globe: the models (`ViewerClock`,
   `CatalogModel`, `PassModel`, `SatelliteLayer`, `StarMap`, and `PassAlerts`, which
   the background refresh needs too), what is selected and followed, what a tap

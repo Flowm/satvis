@@ -8,6 +8,7 @@ struct InfoPanel: View {
     let clock: ViewerClock
     let passes: PassModel
     let alerts: PassAlerts
+    let closeUp: CloseUpContext
     let isTracked: Bool
     /// Nil in the sky view, which follows nothing: the web app hides Track there.
     let onTrack: ((Bool) -> Void)?
@@ -21,7 +22,9 @@ struct InfoPanel: View {
         let propagator = propagator
         let spacecraftFacts = SatelliteDetails.spacecraftFacts(entry.record)
         let links = WebTables.shared.externalLinks.compactMap { link in link.url(satnum: entry.satnum).map { (link, $0) } }
-        let tabs: [InfoTab] = spacecraftFacts.isEmpty && links.isEmpty ? [.orbit, .passes] : [.orbit, .spacecraft, .passes]
+        // Only satellites a model manifest lists have one (ADR 0007).
+        let modelFile = entry.record.metadata["modelFile"]?.string
+        let tabs: [InfoTab] = modelFile == nil && spacecraftFacts.isEmpty && links.isEmpty ? [.orbit, .passes] : [.orbit, .spacecraft, .passes]
         NavigationStack {
             List {
                 Section {
@@ -51,7 +54,7 @@ struct InfoPanel: View {
                 case .orbit:
                     orbit(propagator)
                 case .spacecraft:
-                    spacecraft(spacecraftFacts, links: links)
+                    spacecraft(modelFile: modelFile, facts: spacecraftFacts, links: links)
                 default:
                     PassesSections(subject: .satellite(entry), clock: clock, passes: passes)
                 }
@@ -122,7 +125,15 @@ struct InfoPanel: View {
     }
 
     /// What it is, and where else to read about it.
-    @ViewBuilder private func spacecraft(_ facts: [(String, String)], links: [(WebTables.Link, URL)]) -> some View {
+    @ViewBuilder private func spacecraft(modelFile: String?, facts: [(String, String)], links: [(WebTables.Link, URL)]) -> some View {
+        if let modelFile {
+            Section {
+                SatelliteModelView(modelFile: modelFile, name: entry.name, context: closeUp)
+                    .listRowInsets(EdgeInsets())
+            } footer: {
+                Text("Drag to turn · pinch to zoom")
+            }
+        }
         if !facts.isEmpty {
             Section {
                 ForEach(Array(facts.enumerated()), id: \.offset) { _, row in

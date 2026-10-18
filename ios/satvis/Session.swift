@@ -146,6 +146,30 @@ final class Session {
         catalog = CatalogModel(source: source)
     }
 
+    /// Fetches a 3D model by its path under /data/models/, for the globe and the info
+    /// panel's close-up: the models the site serves for its own globe, cached as the tiles are.
+    var modelLoader: @Sendable (String) async -> Data? {
+        { [tiles, site = source.site] file in
+            let url = site.appending(path: "data/models").appending(path: file)
+            do {
+                return try await tiles.tile(url, contentType: "model/gltf-binary")
+            } catch {
+                log.error("\(url, privacy: .public): \(error, privacy: .public)")
+                return nil
+            }
+        }
+    }
+
+    /// A frame the GPU failed, the globe's or the close-up's, to analytics with the view it failed in.
+    func reportGPUFault(_ fault: GPUFault) {
+        analytics.gpuFault(fault, satellites: renderer?.satelliteCount ?? 0, view: link(sharing: false).url(site: source.site))
+    }
+
+    /// The close-up's model fetcher, frame rate and fault reporting.
+    var closeUpContext: CloseUpContext {
+        CloseUpContext(loader: modelLoader, frameRate: frameRate, onGPUFault: { [weak self] fault in self?.reportGPUFault(fault) })
+    }
+
     /// The selected satellite, whose passes the clock deck marks.
     var selectedSatellite: String? {
         if case .satellite(let id) = selection {
@@ -177,27 +201,13 @@ final class Session {
                 return nil
             }
         }
-        // The models the site serves for its own globe, cached as the tiles are.
-        renderer.modelLoader = { [tiles, site = source.site] file in
-            let url = site.appending(path: "data/models").appending(path: file)
-            do {
-                return try await tiles.tile(url, contentType: "model/gltf-binary")
-            } catch {
-                log.error("\(url, privacy: .public): \(error, privacy: .public)")
-                return nil
-            }
-        }
+        renderer.modelLoader = modelLoader
         renderer.setImagery(baseLayer, site: source.site, frame: imageryFrame)
         renderer.setTerrain(terrain)
         renderer.unseen = unseen
         renderer.cameraFrame = cameraFrame
         renderer.setStations(shownMarkers)
-        renderer.onGPUFault = { [weak self, weak renderer] fault in
-            guard let self, let renderer else {
-                return
-            }
-            analytics.gpuFault(fault, satellites: renderer.satelliteCount, view: link(sharing: false).url(site: source.site))
-        }
+        renderer.onGPUFault = { [weak self] fault in self?.reportGPUFault(fault) }
         // What a link opened on before the renderer was there to be told: the
         // sky view, with no globe to fly from yet, or something followed.
         if let observer, let station = passes.station(observer) {

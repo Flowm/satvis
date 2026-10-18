@@ -344,7 +344,8 @@ struct ContentView: View {
         case .satellite(let id):
             if let entry = session.catalog.catalog.entries[id] {
                 InfoPanel(
-                    entry: entry, clock: session.clock, passes: session.passes, alerts: session.alerts, isTracked: session.tracked == id,
+                    entry: entry, clock: session.clock, passes: session.passes, alerts: session.alerts, closeUp: session.closeUpContext,
+                    isTracked: session.tracked == id,
                     onTrack: session.observer != nil ? nil : { session.track(id, $0, animated: true) }, onClose: { session.selection = nil }
                 )
             }

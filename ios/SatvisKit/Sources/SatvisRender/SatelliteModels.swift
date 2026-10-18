@@ -50,6 +50,44 @@ final class PreparedModel: @unchecked Sendable {
         center = asset.center
         radius = asset.radius
     }
+
+    /// A model file fetched, read and put on the GPU off the main thread; nil if any step fails.
+    static func load(
+        _ file: String, loader: @escaping @Sendable (String) async -> Data?, device: MTLDevice, priority: TaskPriority
+    ) async -> PreparedModel? {
+        await Task.detached(priority: priority) { () -> PreparedModel? in
+            guard let data = await loader(file), let asset = try? ModelAsset(glb: data) else {
+                return nil
+            }
+            return await PreparedModel.prepare(asset, device: device)
+        }.value
+    }
+
+    /// One of the model pass's two passes: the opaque and cut-out parts, writing
+    /// depth, or the blended ones over them, testing it, as CesiumJS draws glTF's
+    /// translucent parts. A model drawn see-through is blended whole. `base`
+    /// holds what the parts share; each part sets its material.
+    func encodeParts(blended: Bool, wholeBlended: Bool, base: ModelInstance, encoder: MTLRenderCommandEncoder) {
+        encoder.setVertexBuffer(vertices, offset: 0, index: 0)
+        for part in parts where (part.material.alphaMode == .blend || wholeBlended) == blended {
+            var instance = base
+            instance.baseColor = part.material.baseColor
+            instance.hasTexture = part.texture == nil ? 0 : 1
+            instance.metallic = part.material.metallic
+            instance.roughness = part.material.roughness
+            instance.alphaCutoff = 0
+            if case .mask(let cutoff) = part.material.alphaMode {
+                instance.alphaCutoff = cutoff
+            }
+            encoder.setCullMode(part.material.doubleSided ? .none : .back)
+            encoder.setVertexBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
+            encoder.setFragmentBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
+            encoder.setFragmentTexture(part.texture, index: 0)
+            encoder.drawIndexedPrimitives(
+                type: .triangle, indexCount: part.indexCount, indexType: .uint32, indexBuffer: indices,
+                indexBufferOffset: part.indexStart * MemoryLayout<UInt32>.stride)
+        }
+    }
 }
 
 /// Mirrors `ModelInstance` in Shaders/Models.msl.
@@ -114,15 +152,7 @@ final class SatelliteModels {
         models[file] = .loading
         let device = device
         Task {
-            let prepared = await Task.detached(priority: .utility) { () -> PreparedModel? in
-                guard let data = await loader(file) else {
-                    return nil
-                }
-                guard let asset = try? ModelAsset(glb: data) else {
-                    return nil
-                }
-                return await PreparedModel.prepare(asset, device: device)
-            }.value
+            let prepared = await PreparedModel.load(file, loader: loader, device: device, priority: .utility)
             models[file] = prepared.map(State.ready) ?? .failed(at: Date())
         }
     }
