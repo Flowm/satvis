@@ -702,7 +702,7 @@ final class Session {
             return nil
         }
         let distance = Measurement(value: metres / 1000, unit: UnitLength.kilometers).formatted(.measurement(width: .abbreviated, usage: .road))
-        let place = station.name == PassModel.geolocation ? "your last location" : station.name ?? "this location"
+        let place = station.name == StationList.geolocation ? "your last location" : station.name ?? "this location"
         return "The satellites are drawn for \(place), \(distance) from you, so they are not where the camera shows them."
     }
 

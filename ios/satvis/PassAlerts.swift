@@ -40,6 +40,9 @@ final class PassAlerts {
     /// What the last change came to, for a moment: "Notifying for 12 passes".
     private(set) var message: String?
     @ObservationIgnored private let source: GPSource
+    /// Where the stations and mode are read from, with no `PassModel` about in a
+    /// background refresh.
+    @ObservationIgnored private let stationStorage: any StationStorage
     @ObservationIgnored private let center = UNUserNotificationCenter.current()
     @ObservationIgnored private let presenter = Presenter()
     @ObservationIgnored private var scheduling: Task<PassNotificationPlan?, Never>?
@@ -47,8 +50,9 @@ final class PassAlerts {
     @ObservationIgnored private var nextRefresh: Date?
     @ObservationIgnored private var clearing: Task<Void, Never>?
 
-    init(source: GPSource) {
+    init(source: GPSource, stationStorage: any StationStorage = UserDefaultsStationStorage()) {
         self.source = source
+        self.stationStorage = stationStorage
         // One at a time, so an alert saved in an older shape drops alone.
         alerts = (UserDefaults.standard.data(forKey: Self.key).flatMap { try? JSONDecoder().decode([MaybeAlert].self, from: $0) } ?? []).compactMap(\.value)
         center.delegate = presenter
@@ -117,7 +121,7 @@ final class PassAlerts {
     /// run out, within four hours, while there is anything to predict.
     func requestRefresh() {
         // Nothing to predict without a saved station either, as `schedule` finds.
-        guard !alerts.isEmpty, !PassModel.storedSettings().stations.isEmpty else {
+        guard !alerts.isEmpty, !stationStorage.passSettings.stations.isEmpty else {
             BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.refreshTaskID)
             return
         }
@@ -131,7 +135,7 @@ final class PassAlerts {
     }
 
     private func schedule() async -> PassNotificationPlan? {
-        let settings = PassModel.storedSettings()
+        let settings = stationStorage.passSettings
         guard !alerts.isEmpty, !settings.stations.isEmpty else {
             await removePending()
             nextRefresh = nil

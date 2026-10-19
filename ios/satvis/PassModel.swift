@@ -9,7 +9,7 @@ import SatvisRender
 /// station is selected or their links are drawn.
 @Observable
 final class PassModel {
-    /// The user's stations, kept and synced.
+    /// The user's stations, kept.
     private(set) var saved: [GroundStation]
     /// Stations a link brought, shown with this view until one is saved.
     private(set) var visiting: [GroundStation] = []
@@ -29,9 +29,9 @@ final class PassModel {
     @ObservationIgnored private(set) var revision = 0
     @ObservationIgnored private var stationCache: (key: StationKey, passes: [Pass])?
     @ObservationIgnored private let store = PassStore()
-    @ObservationIgnored private let storage = GroundStationStorage()
+    @ObservationIgnored private let storage: any StationStorage
+    @ObservationIgnored private var list: StationList
 
-    private static let modeKey = "overpassMode"
     /// Satellites per message to the store: enough to keep every core busy.
     private static let chunk = 512
     /// How often a long prediction publishes what it has so far. Every
@@ -40,64 +40,42 @@ final class PassModel {
     /// Set when the passes are forgotten, for the next refresh to reset the store.
     @ObservationIgnored private var storeIsStale = false
 
-    init() {
-        let stations = storage.load()
-        storage.keepIDs(stations)
-        saved = stations
-        self.stations = stations
-        mode = UserDefaults.standard.string(forKey: Self.modeKey).flatMap(OverpassMode.init(rawValue:)) ?? .elevation
+    init(storage: any StationStorage = UserDefaultsStationStorage()) {
+        self.storage = storage
+        list = StationList(storage: storage)
+        saved = list.saved
+        stations = list.shown
+        mode = storage.mode
     }
 
     var hasStations: Bool { !stations.isEmpty }
 
-    /// The stations and mode as last saved, for predicting with no model about:
-    /// in a background refresh.
-    static func storedSettings() -> PassStore.Settings {
-        PassStore.Settings(
-            stations: GroundStationStorage.stored(),
-            mode: UserDefaults.standard.string(forKey: modeKey).flatMap(OverpassMode.init(rawValue:)) ?? .elevation)
-    }
-
     /// Replaces the saved stations.
     func setStations(_ stations: [GroundStation]) {
-        apply(GroundStations.normalized(stations))
+        edit { $0.setSaved(stations) }
     }
 
     /// Adds a station, and says which it became: the one already there when it
     /// is in the same place under the same name.
     @discardableResult
     func add(latitude: Double, longitude: Double, name: String? = nil) -> UUID? {
-        let added = GroundStation(latitude: latitude, longitude: longitude, name: name)
-        guard let place = GroundStations.normalized([added]).first.map(GroundStations.Place.init) else {
-            return nil
-        }
-        setStations(saved + [added])
-        return saved.first { GroundStations.Place($0) == place }?.id
+        edit { $0.add(latitude: latitude, longitude: longitude, name: name) }
     }
 
-    /// The device's position as the one saved station named "Geolocation", first in
-    /// the list as on the web (src/modules/util/groundStationEdits.ts): the first of
-    /// that name moved there, keeping its id, or one added, and any others of the
-    /// name, which an edit can leave, dropped. Each look from where the user stands
-    /// would otherwise leave a station behind.
+    /// Saves the device's position as the one station named "Geolocation"
+    /// (`StationList.setGeolocation`).
     @discardableResult
     func setGeolocation(latitude: Double, longitude: Double) -> UUID? {
-        var station = saved.first { $0.name == Self.geolocation } ?? GroundStation(latitude: latitude, longitude: longitude, name: Self.geolocation)
-        station.latitude = latitude
-        station.longitude = longitude
-        setStations([station] + saved.filter { $0.name != Self.geolocation })
-        return saved.contains { $0.id == station.id } ? station.id : nil
+        edit { $0.setGeolocation(latitude: latitude, longitude: longitude) }
     }
-
-    /// The name the device's position is saved under, as on the web.
-    static let geolocation = "Geolocation"
 
     /// Shows a link's stations with this view, without saving them.
     func setVisiting(_ stations: [GroundStation]) {
-        visiting = GroundStations.normalized(stations)
-        combine()
+        edit { $0.setVisiting(stations) }
     }
 
+    /// Read from the observed lists, not `list`, so a view asking is redrawn when
+    /// the station is saved.
     func isVisiting(_ id: UUID) -> Bool {
         visiting.contains { $0.id == id } && !saved.contains { $0.id == id }
     }
@@ -105,13 +83,11 @@ final class PassModel {
     /// Keeps a visiting station among the user's own, under the same id, so what
     /// refers to it carries on.
     func save(_ id: UUID) {
-        guard let station = visiting.first(where: { $0.id == id }) else {
-            return
-        }
-        visiting.removeAll { $0.id == id }
-        setStations(saved + [station])
+        edit { $0.save(id) }
     }
 
+    /// Read from the observed `stations`, so a view asking is redrawn when the
+    /// station is renamed or moved.
     func station(_ id: UUID) -> GroundStation? {
         stations.first { $0.id == id }
     }
@@ -121,7 +97,7 @@ final class PassModel {
             return
         }
         self.mode = mode
-        UserDefaults.standard.set(mode.rawValue, forKey: Self.modeKey)
+        storage.saveMode(mode)
         forget()
     }
 
@@ -256,28 +232,21 @@ final class PassModel {
         markerID.hasPrefix("station|") ? UUID(uuidString: String(markerID.dropFirst("station|".count))) : nil
     }
 
-    private func apply(_ stations: [GroundStation]) {
-        guard stations != saved else {
-            return
+    /// Publishes what an edit of the list changed, and only that: a view
+    /// opened with the same stations redraws nothing.
+    private func edit<Result>(_ change: (inout StationList) -> Result) -> Result {
+        let result = change(&list)
+        if list.saved != saved {
+            saved = list.saved
         }
-        saved = stations
-        storage.save(stations)
-        combine()
-    }
-
-    private func combine() {
-        let places = Set(saved.map(GroundStations.Place.init))
-        // A link's station in the place of a saved one is that one, not a visit:
-        // kept as a visit, it would ride along in every link from then on, the
-        // view kept at a background included, which is how a sky view on a saved
-        // station would come back on the next launch.
-        visiting.removeAll { places.contains(GroundStations.Place($0)) }
-        let shown = saved + visiting
-        guard shown != stations else {
-            return
+        if list.visiting != visiting {
+            visiting = list.visiting
         }
-        stations = shown
-        keepStations()
+        if list.shown != stations {
+            stations = list.shown
+            keepStations()
+        }
+        return result
     }
 }
 
@@ -305,38 +274,26 @@ extension Array {
     }
 }
 
-/// The station list, kept on this device and synced nowhere: stations are often
-/// where the user lives.
-final class GroundStationStorage {
-    private static let key = "groundStations"
-    private let defaults = UserDefaults.standard
+/// The stations and mode in `UserDefaults`, under the keys and in the format
+/// existing installs saved them with.
+nonisolated struct UserDefaultsStationStorage: StationStorage {
+    private static let stationsKey = "groundStations"
+    private static let modeKey = "overpassMode"
 
-    func load() -> [GroundStation] {
-        Self.stored()
+    func stationData() -> Data? {
+        UserDefaults.standard.data(forKey: Self.stationsKey)
     }
 
-    /// Saves stations read without ids back with the ids they were given, so that
-    /// an id read once stays theirs.
-    func keepIDs(_ stations: [GroundStation]) {
-        guard let data = defaults.data(forKey: Self.key), !String(decoding: data, as: UTF8.self).contains("\"id\"") else {
-            return
-        }
-        save(stations)
+    func setStationData(_ data: Data) {
+        UserDefaults.standard.set(data, forKey: Self.stationsKey)
     }
 
-    static func stored() -> [GroundStation] {
-        UserDefaults.standard.data(forKey: key).map(decode) ?? []
+    func modeName() -> String? {
+        UserDefaults.standard.string(forKey: Self.modeKey)
     }
 
-    func save(_ stations: [GroundStation]) {
-        guard let data = try? JSONEncoder().encode(stations) else {
-            return
-        }
-        defaults.set(data, forKey: Self.key)
-    }
-
-    private static func decode(_ data: Data) -> [GroundStation] {
-        GroundStations.normalized((try? JSONDecoder().decode([GroundStation].self, from: data)) ?? [])
+    func setModeName(_ name: String) {
+        UserDefaults.standard.set(name, forKey: Self.modeKey)
     }
 }
 
