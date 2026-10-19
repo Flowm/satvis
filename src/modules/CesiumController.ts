@@ -38,7 +38,6 @@ import { SkyInteraction } from "./SkyInteraction";
 import { type Observer, SkyView } from "./SkyView";
 import { SurfaceModel } from "./SurfaceModel";
 import { DeviceDetect } from "./util/DeviceDetect";
-import { PushManager } from "./util/PushManager";
 import { Suppressible } from "./util/Suppressible";
 
 dayjs.extend(utc);
@@ -90,8 +89,6 @@ export class CesiumController {
   skyInteraction!: SkyInteraction;
 
   surface!: SurfaceModel;
-
-  pm!: PushManager;
 
   #uiVisible: boolean = true;
 
@@ -162,8 +159,6 @@ export class CesiumController {
     // makes it the ground: re-measured only on a change of model, the eye stayed at the
     // ellipsoid, 559 m inside the mesh in Munich.
     this.surface.onChange(() => this.skyView.remeasureGround());
-
-    this.pm = new PushManager();
 
     if (!DeviceDetect.inIframe()) {
       this.viewer.creditDisplay.addStaticCredit(new Credit(`<a href="/data/privacy.html" target="_blank"><u>Privacy</u></a>`, true));
