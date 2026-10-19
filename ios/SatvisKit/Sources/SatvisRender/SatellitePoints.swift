@@ -168,6 +168,8 @@ public struct PreparedSatellites: @unchecked Sendable {
 @MainActor
 final class SatellitePoints {
     private(set) var prepared: PreparedSatellites?
+    /// Counts the installs, so what is kept per satellite knows to start over.
+    private(set) var generation = 0
     private var indexByID: [String: Int] = [:]
 
     var satellites: [PointSatellite] { prepared?.satellites ?? [] }
@@ -175,6 +177,7 @@ final class SatellitePoints {
 
     func install(_ prepared: PreparedSatellites) {
         self.prepared = prepared
+        generation += 1
         indexByID = Dictionary(prepared.satellites.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
