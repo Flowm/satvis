@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 import OSLog
 import Observation
@@ -54,6 +55,15 @@ final class Session {
         didSet { renderer?.cameraFrame = cameraFrame }
     }
     let compass = SkyCompass()
+    /// The camera's picture behind the sky view, aimed by the compass (ADR 0013).
+    let passthrough = SkyPassthrough()
+    /// From asking for the camera, the compass first, until it shows or not.
+    private(set) var isStartingCamera = false
+    /// Why the satellites may not be where the camera shows them, while it does:
+    /// the sky is drawn for a place other than where the device is, or where the
+    /// device is cannot be told. A clock away from now is no such reason: the sky
+    /// to come over the place in the picture is a view of its own.
+    private(set) var cameraWarning: String?
     /// A word for the user that goes by itself: how switching the compass on went.
     private(set) var notice: String?
     /// The globe's base map, kept between launches.
@@ -228,6 +238,8 @@ final class Session {
             Task { await watchStations() },
             Task { await watchMode() },
             Task { await watchEntries() },
+            Task { await watchAiming() },
+            Task { await watchCameraPlace() },
             Task { await starMap.load(from: source) },
             Task { await loadDemoPictures() },
             Task { await predictPasses() },
@@ -579,6 +591,8 @@ final class Session {
         renderer?.setStations(shownMarkers)
     }
 
+    /// Back onto the globe, the compass handing the aim back and the camera going
+    /// with it.
     func leaveSky() {
         compass.stop(renderer)
         renderer?.leaveSky(animated: !UIAccessibility.isReduceMotionEnabled)
@@ -617,41 +631,139 @@ final class Session {
         return id
     }
 
-    /// Aims the sky view with the device, or hands the aim back.
+    /// Aims the sky view with the device, or hands the aim back, and the camera's
+    /// picture with it.
     func toggleCompass() {
         guard let renderer else {
             return
         }
         if compass.isAiming {
-            compass.stop(renderer)
-            return
+            return compass.stop(renderer)
         }
         Task {
-            switch await compass.start(renderer) {
-            case .aiming: show("Aiming by compass. Drag at any time to turn it off.")
-            case .unsupported: show("This device has no motion sensor to aim with.")
-            case .noHeading: show("This device cannot tell where north is, so it cannot aim by compass.")
-            case .silent: show("The motion sensor did not answer.")
-            case .takenBack: break
+            let outcome = await compass.start(renderer)
+            show(outcome == .aiming ? "Aiming by compass. \(Self.dragHandsBack)" : Self.words(for: outcome))
+        }
+    }
+
+    /// Shows the camera's picture behind the sky view, aiming by compass first,
+    /// as it has to (ADR 0013), or takes it away and leaves the compass aiming.
+    func togglePassthrough() {
+        guard let renderer, !isStartingCamera else {
+            return
+        }
+        if passthrough.isShowing {
+            return passthrough.stop()
+        }
+        isStartingCamera = true
+        Task {
+            defer { isStartingCamera = false }
+            if !compass.isAiming {
+                let outcome = await compass.start(renderer)
+                guard outcome == .aiming else {
+                    return show(Self.words(for: outcome))
+                }
+            }
+            switch await passthrough.start(renderer) {
+            case .showing: show("Showing the camera, aimed by compass. \(Self.dragHandsBack)")
+            case .noCamera: return show("This device has no camera to show the sky through.")
+            case .denied: return show("Showing the sky through the camera needs access to it. Allow it in Settings.")
+            case .stopped: return
             }
         }
     }
 
-    /// Whether a drag of `translation` so far may turn the view. While the compass
-    /// aims, a drag past a tap's slop takes the aim back (ADR 0004); within it, it
-    /// is a tap's tremor and the compass keeps the aim.
-    func mayDrag(_ translation: CGSize) -> Bool {
+    /// How a drag ends the compass's aiming, and the camera's picture with it.
+    private static let dragHandsBack = "Drag at any time to turn it off."
+
+    /// Why the compass would not aim; nil where it did, or the user took the aim
+    /// back meanwhile and needs telling nothing.
+    private static func words(for outcome: SkyCompass.Outcome) -> String? {
+        switch outcome {
+        case .aiming, .takenBack: nil
+        case .unsupported: "This device has no motion sensor to aim with."
+        case .noHeading: "This device cannot tell where north is, so it cannot aim by compass."
+        case .silent: "The motion sensor did not answer."
+        }
+    }
+
+    /// Metres between the device and the place the sky is drawn for past which
+    /// the camera's picture is warned about: at the ISS's height, 5 km moves a
+    /// satellite overhead by under a degree.
+    private static let cameraWarningDistance = 5_000.0
+
+    /// The station the sky view stands on, while the camera shows: what the
+    /// picture is judged against.
+    private var cameraStation: GroundStation? {
+        passthrough.isShowing ? observer.flatMap(passes.station) : nil
+    }
+
+    /// Judges the camera's place again whenever the station under it changes, it
+    /// moves or the camera comes on: one judgement at a time, so a position that
+    /// takes seconds to come never overwrites a newer one.
+    private func watchCameraPlace() async {
+        var judged: GroundStation?
+        for await station in Observations({ self.cameraStation }) where station != judged {
+            judged = station
+            cameraWarning = nil
+            guard let station else {
+                continue
+            }
+            let warning = await Self.cameraWarning(at: station)
+            // Moved on meanwhile: the next value is judged in turn.
+            if cameraStation == station {
+                cameraWarning = warning
+            }
+        }
+    }
+
+    /// Why the camera may not show `station`'s sky, by where the device is now; nil
+    /// where it does.
+    private static func cameraWarning(at station: GroundStation) async -> String? {
+        guard let here = await currentLocation() else {
+            return "Satvis cannot tell where you are, so the satellites may not be where the camera shows them."
+        }
+        let metres = CLLocation(latitude: here.latitude, longitude: here.longitude).distance(from: CLLocation(latitude: station.latitude, longitude: station.longitude))
+        guard metres > cameraWarningDistance else {
+            return nil
+        }
+        let distance = Measurement(value: metres / 1000, unit: UnitLength.kilometers).formatted(.measurement(width: .abbreviated, usage: .road))
+        let place = station.name == PassModel.geolocation ? "your last location" : station.name ?? "this location"
+        return "The satellites are drawn for \(place), \(distance) from you, so they are not where the camera shows them."
+    }
+
+    /// Whether a drag of `translation` so far, with at most `fingers` down, may
+    /// turn the view. While the compass aims, a drag by one finger past a tap's slop
+    /// takes the aim back (ADR 0004), and the camera goes with it; within the slop,
+    /// it is a tap's tremor. A drag more fingers have been part of never does: a
+    /// pinch's fingers drift as they spread.
+    func mayDrag(_ translation: CGSize, fingers: Int) -> Bool {
         guard compass.isAiming else {
             return true
         }
-        guard hypot(translation.width, translation.height) > 8 else {
+        guard fingers < 2, hypot(translation.width, translation.height) > 8 else {
             return false
         }
         compass.stop(renderer)
         return true
     }
 
-    private func show(_ text: String) {
+    /// Takes a pinch of `scale` while the camera shows: it zooms the camera, and
+    /// the view follows its picture. False where the pinch is the view's, as it is
+    /// while the system has the camera and the sky is drawn without it.
+    func takePinch(_ scale: Double) -> Bool {
+        guard passthrough.isShowing, !passthrough.isInterrupted else {
+            return false
+        }
+        passthrough.zoom(by: scale)
+        return true
+    }
+
+    /// Shows `text` for a few seconds; nothing for nil.
+    private func show(_ text: String?) {
+        guard let text else {
+            return
+        }
         notice = text
         Task {
             try? await Task.sleep(for: .seconds(4))
@@ -770,6 +882,15 @@ final class Session {
             // Alerts are for the saved stations only.
             alerts.forgetStations(except: Set(passes.saved.map(\.id)))
             await alerts.reschedule()
+        }
+    }
+
+    /// Takes the camera's picture away whenever the compass stops aiming, however
+    /// it stopped (ADR 0013): a picture the sky drawn over it does not follow
+    /// looks right and is wrong.
+    private func watchAiming() async {
+        for await aiming in Observations({ self.compass.isAiming }) where !aiming {
+            passthrough.stop()
         }
     }
 

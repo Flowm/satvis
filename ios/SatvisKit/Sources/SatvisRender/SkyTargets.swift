@@ -67,7 +67,14 @@ extension GlobeRenderer {
         let (east, north, up) = camera.frame
         let judgement = SkyJudgement(camera: camera, at: lastFrame.time, unseen: unseen)
         let centre = CGPoint(x: viewSize.width / 2, y: viewSize.height / 2)
-        return points.satellites.compactMap { satellite in
+        var satellites = points.satellites
+        if radius.isFinite, let directions = skyDirections(at: lastFrame.time, from: eye) {
+            let look = camera.look
+            let angle = Self.angle(ofRadius: radius, height: Double(viewSize.height), verticalFieldOfView: camera.verticalFieldOfView)
+            let indices = Self.indices(of: directions, within: angle, of: look.x * east + look.y * north + look.z * up)
+            satellites = indices.map { satellites[$0] }
+        }
+        return satellites.compactMap { satellite in
             guard let position = satellite.trajectory.position(at: lastFrame.time) else {
                 return nil
             }
@@ -90,12 +97,49 @@ extension GlobeRenderer {
         }
     }
 
+    /// The angle out from the middle of a view `height` points tall to `radius`
+    /// points from it, in radians.
+    nonisolated static func angle(ofRadius radius: Double, height: Double, verticalFieldOfView: Double) -> Double {
+        atan(radius * tan(verticalFieldOfView / 2) / (height / 2))
+    }
+
+    /// The satellites whose direction lies within `angle`, and the margin a
+    /// direction kept for `SkyCache.directionsInterval` may have drifted by, of
+    /// `look`.
+    nonisolated static func indices(of directions: [SIMD3<Float>?], within angle: Double, of look: SIMD3<Double>) -> [Int] {
+        let threshold = Float(cos(min(angle + SkyCache.directionsMargin, .pi)))
+        let look = SIMD3<Float>(normalize(look))
+        return directions.indices.filter { directions[$0].map { dot($0, look) >= threshold } ?? false }
+    }
+
+    /// Each satellite's direction from `eye`, kept for up to a second of the
+    /// clock's time: placing every one each time cost the lock 8.6 ms on an iPad
+    /// mini with every active satellite, at each of its 15 a second. A direction is
+    /// nil where the satellite has no position. Nil for all of them while the clock
+    /// runs so fast that a second of its time passes before the next lock: kept,
+    /// they would be worked out again every time, on top of the search.
+    private func skyDirections(at time: Double, from eye: SIMD3<Double>) -> [SIMD3<Float>?]? {
+        let now = ProcessInfo.processInfo.systemUptime
+        if let kept = skyCache.directions, kept.generation == points.generation, distance(kept.eye, eye) < SkyCache.directionsEyeTolerance {
+            if abs(time - kept.time) <= SkyCache.directionsInterval {
+                return kept.list
+            }
+            if now - kept.workedOutAt < 1 {
+                return nil
+            }
+        }
+        let list = points.satellites.map { satellite in satellite.trajectory.position(at: time).map { SIMD3<Float>(normalize($0 - eye)) } }
+        skyCache.directions = (points.generation, time, eye, now, list)
+        return list
+    }
+
     /// What the crosshair holds: the satellite nearest the middle of the screen,
     /// within reach, that the ground does not hide, and that is drawn: one hidden
     /// for its visibility is passed over. The ground is asked nearest
     /// first, and only until one is in sight. Worked out fifteen times a second,
-    /// not every frame: it places every satellite drawn, which with thousands of
-    /// them cost the main thread more than drawing the frame did.
+    /// not every frame, and only for the satellites whose kept direction is near
+    /// the crosshair (`skyDirections`): placing every one each time cost the main
+    /// thread more than drawing the frame did.
     public func skyLock(viewSize: CGSize) -> SkyTarget? {
         guard isSkySettled else {
             skyCache.lock = nil
@@ -259,4 +303,20 @@ struct SkyCache {
     }
     /// The locked satellite's path, where it is in sight, on the grid.
     var trace: (key: TraceKey, samples: [SIMD3<Double>?])?
+
+    /// How long, in milliseconds of the clock's time, each satellite's direction
+    /// is kept for the lock.
+    static let directionsInterval = 1000.0
+    /// How far a kept direction may have drifted, in radians: 5°, where a
+    /// satellite in a retrograde orbit 110 km straight up crosses 4.3° in that
+    /// second, and the rest covers the aim turning between the lock and the frame
+    /// it reads. Anything lower is coming down.
+    static let directionsMargin = 5 * Double.pi / 180
+    /// Metres the eye may settle onto finer terrain before the directions are
+    /// worked out again: 100 m turns a satellite at 400 km by a hundredth of a
+    /// degree.
+    static let directionsEyeTolerance = 100.0
+    /// Each satellite's direction from the eye, what it was worked out for, and
+    /// when, in seconds of uptime.
+    var directions: (generation: Int, time: Double, eye: SIMD3<Double>, workedOutAt: Double, list: [SIMD3<Float>?])?
 }

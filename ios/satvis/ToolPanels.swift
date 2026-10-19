@@ -387,6 +387,19 @@ struct SkyPanel: View {
             }
             .disabled(!inSky || session.compass.isProbing)
         }
+        PanelSection("Camera") {
+            Toggle(
+                isOn: Binding {
+                    session.passthrough.isShowing
+                } set: { _ in
+                    session.togglePassthrough()
+                }
+            ) {
+                Waiting("Show camera", while: session.isStartingCamera, as: "Starting the camera")
+            }
+            .disabled(!inSky || session.isStartingCamera)
+            Note("The sky through the camera, aimed by compass.")
+        }
         PanelSection("Out of sight") {
             Segments(title: "Out of sight", selection: $session.unseen, options: UnseenMode.allCases.map { ($0.rawValue.capitalized, $0) })
                 .disabled(!inSky)

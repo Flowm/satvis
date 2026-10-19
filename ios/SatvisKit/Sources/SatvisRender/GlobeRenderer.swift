@@ -158,6 +158,19 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             skyCache.lockAt = -.infinity
         }
     }
+    /// The camera whose picture the sky view is drawn over, while it is shown
+    /// (ADR 0013): the view is then clear where the scene leaves the sky, the
+    /// ground hides what is behind it without hiding the picture, and the field of
+    /// view is the camera's.
+    public var passthrough: CameraLens? {
+        didSet {
+            // A zoomed camera's can be narrower than the sky view's own narrowest.
+            if passthrough == nil, let fieldOfView = skyCamera?.verticalFieldOfView {
+                let range = SkyCamera.fieldOfViewRange
+                skyCamera?.verticalFieldOfView = min(max(fieldOfView, range.lowerBound), range.upperBound)
+            }
+        }
+    }
     /// The instant to draw, in UTC milliseconds since 1970.
     public var clock: () -> Double = { (Date().timeIntervalSince1970 * 1000).rounded(.down) }
 
@@ -171,6 +184,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let skyAtmospherePipeline: MTLRenderPipelineState
     private let skyRingPipeline: MTLRenderPipelineState
     private let globePipeline: MTLRenderPipelineState
+    /// The globe in depth alone, under the camera's picture.
+    private let groundDepthPipeline: MTLRenderPipelineState
     private let pointPipeline: MTLRenderPipelineState
     private let linePipeline: MTLRenderPipelineState
     private let labelPipeline: MTLRenderPipelineState
@@ -299,6 +314,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         let screenFormat = view.colorPixelFormat
         func pipeline(
             _ vertex: String, _ fragment: String, format: MTLPixelFormat = Self.hdrFormat, depth: Bool = true, blend: Bool = false, premultiplied: Bool = false,
+            writesColor: Bool = true,
             // A vertex function that places nothing by the high/low split may take
             // fast math too.
             fastVertex: Bool = false
@@ -307,6 +323,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             descriptor.vertexFunction = try function(vertex, in: fastVertex ? libraries.fast : libraries.precise)
             descriptor.fragmentFunction = try function(fragment, in: libraries.fast)
             descriptor.colorAttachments[0].pixelFormat = format
+            if !writesColor {
+                descriptor.colorAttachments[0].writeMask = []
+            }
             if tileTonemap != nil, format == Self.hdrFormat, depth {
                 descriptor.colorAttachments[1].pixelFormat = screenFormat
                 descriptor.colorAttachments[1].writeMask = []
@@ -328,10 +347,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         skyAtmospherePipeline = try pipeline("skyAtmosphereVertex", "skyAtmosphereFragment", blend: true, fastVertex: true)
         skyRingPipeline = try pipeline("skyRingVertex", "skyAtmosphereFragment", blend: true, fastVertex: true)
         globePipeline = try pipeline("globeVertex", "globeFragment", fastVertex: true)
+        groundDepthPipeline = try pipeline("globeVertex", "globeFragment", writesColor: false, fastVertex: true)
         // Blended, for the sky view to dim what cannot be seen.
         pointPipeline = try pipeline("pointVertex", "pointFragment", blend: true)
         linePipeline = try pipeline("lineVertex", "lineFragment", blend: true)
-        modelPipeline = try pipeline("modelVertex", "modelFragment")
+        modelPipeline = try pipeline("modelVertex", "modelOpaqueFragment")
         modelBlendPipeline = try pipeline("modelVertex", "modelFragment", blend: true)
         labelPipeline = try pipeline("labelVertex", "labelFragment", blend: true, premultiplied: true)
         stationPipeline = try pipeline("stationVertex", "stationFragment", blend: true, premultiplied: true)
@@ -640,7 +660,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         case .tracking:
             framingModel = nil
             trackingCamera.zoom(by: scale)
-        case .sky where isSkySettled: skyCamera?.zoom(by: scale)
+        case .sky where isSkySettled && passthrough == nil: skyCamera?.zoom(by: scale)
         case .sky: break
         }
     }
@@ -864,8 +884,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             // Up at once out of the ground; down gently onto finer terrain as it loads.
             if let ground = surface.groundHeight(latitude: camera.latitude, longitude: camera.longitude) {
                 camera.groundHeight = ground > camera.groundHeight ? ground : camera.groundHeight + (ground - camera.groundHeight) * 0.1
-                skyCamera = camera
             }
+            // Read again every frame, as the screen turns under the picture.
+            if let passthrough {
+                camera.verticalFieldOfView = passthrough.verticalFieldOfView(viewAspectRatio: Double(hdr.width) / Double(hdr.height))
+            }
+            skyCamera = camera
             pose = camera.pose()
             if var flight = skyFlight {
                 let uptime = ProcessInfo.processInfo.systemUptime
@@ -947,10 +971,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             surfaceTiles = selection.draw.filter { $0.texture != nil }
         }
 
+        // Only once landed: the flight shows the globe from space.
+        let showsCamera = passthrough != nil && isSkySettled
         let scene = MTLRenderPassDescriptor()
         scene.colorAttachments[0].texture = hdr
         scene.colorAttachments[0].loadAction = .clear
-        scene.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
+        scene.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: showsCamera ? 0 : 1)
         scene.colorAttachments[0].storeAction = tonemapTilePipeline == nil ? .store : .dontCare
         if tonemapTilePipeline != nil {
             scene.colorAttachments[1].texture = drawable.texture
@@ -967,7 +993,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             encoder.setFragmentBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
 
             if !surfaceTiles.isEmpty {
-                encoder.setRenderPipelineState(globePipeline)
+                // In depth alone under the camera's picture, which shows the real
+                // ground, and still hides what is behind it.
+                encoder.setRenderPipelineState(showsCamera ? groundDepthPipeline : globePipeline)
                 encoder.setDepthStencilState(depthWrite)
                 encoder.setCullMode(.back)
                 encoder.setFragmentTexture(overlay.texture, index: 1)
@@ -987,7 +1015,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
             // Behind the globe and the models, drawn after them so that only the
             // sky they leave is shaded: half the screen and more, close up.
-            if let stars {
+            if let stars, !showsCamera {
                 encoder.setRenderPipelineState(skyBoxPipeline)
                 encoder.setDepthStencilState(depthEmpty)
                 encoder.setCullMode(.none)
@@ -996,18 +1024,21 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             }
             // At the far plane, as the stars: the shell's far side, where the globe
-            // stands in front of it, fails the depth test.
+            // stands in front of it, fails the depth test. Under the camera's
+            // picture, the real sky stands in for both.
             encoder.setDepthStencilState(depthEmpty)
-            if simd_length(pose.position) > Self.skyRingDistance {
-                encoder.setRenderPipelineState(skyRingPipeline)
-                encoder.setCullMode(.none)
-                encoder.drawIndexedPrimitives(type: .triangle, indexCount: skyRing.count, indexType: .uint32, indexBuffer: skyRing.indices, indexBufferOffset: 0)
-            } else {
-                encoder.setRenderPipelineState(skyAtmospherePipeline)
-                encoder.setCullMode(.front)
-                encoder.setVertexBuffer(skyShell.vertices, offset: 0, index: 0)
-                encoder.drawIndexedPrimitives(
-                    type: .triangle, indexCount: skyShell.count, indexType: .uint32, indexBuffer: skyShell.indices, indexBufferOffset: 0)
+            if !showsCamera {
+                if simd_length(pose.position) > Self.skyRingDistance {
+                    encoder.setRenderPipelineState(skyRingPipeline)
+                    encoder.setCullMode(.none)
+                    encoder.drawIndexedPrimitives(type: .triangle, indexCount: skyRing.count, indexType: .uint32, indexBuffer: skyRing.indices, indexBufferOffset: 0)
+                } else {
+                    encoder.setRenderPipelineState(skyAtmospherePipeline)
+                    encoder.setCullMode(.front)
+                    encoder.setVertexBuffer(skyShell.vertices, offset: 0, index: 0)
+                    encoder.drawIndexedPrimitives(
+                        type: .triangle, indexCount: skyShell.count, indexType: .uint32, indexBuffer: skyShell.indices, indexBufferOffset: 0)
+                }
             }
             // Over the sky: they write no depth, so the stars and the atmosphere,
             // drawn where depth is still clear, would paint over them.
