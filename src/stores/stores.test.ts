@@ -266,3 +266,35 @@ describe("setLayers", () => {
     expect(cesium.layers).toEqual(["NaturalEarth"]);
   });
 });
+
+describe("layer edits", () => {
+  test("a new basemap goes first and replaces the old one with its opacity", () => {
+    const cesium = useCesiumStore();
+    cesium.setLayers(["ArcGis_0.5", "Nextrad"]);
+    cesium.setBaseLayer("OSM");
+    expect(cesium.layers).toEqual(["OSM", "Nextrad"]);
+    expect(cesium.baseLayer).toBe("OSM");
+  });
+
+  test("reads the basemap and overlays by provider, opacity or not", () => {
+    const cesium = useCesiumStore();
+    cesium.setLayers(["ArcGis_0.5", "Nextrad_0.3"]);
+    expect(cesium.baseLayer).toBe("ArcGis");
+    expect(cesium.hasOverlay("Nextrad")).toBe(true);
+  });
+
+  test("an overlay goes on top, and off again with its opacity", () => {
+    const cesium = useCesiumStore();
+    cesium.setLayers(["ArcGis", "Nextrad_0.3"]);
+    cesium.toggleOverlay("Nextrad", false);
+    expect(cesium.layers).toEqual(["ArcGis"]);
+    cesium.toggleOverlay("Nextrad", true);
+    expect(cesium.layers).toEqual(["ArcGis", "Nextrad"]);
+  });
+
+  test("no basemap reads as none", () => {
+    const cesium = useCesiumStore();
+    cesium.setLayers(["Nextrad"]);
+    expect(cesium.baseLayer).toBe("");
+  });
+});

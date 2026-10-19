@@ -45,7 +45,7 @@
       <catalog-sheet v-if="catalogOpen" ref="catalogSheet" @back="closeCatalog(true)" @close="closeCatalog(false)" @show-info="onShowInfo" />
       <!-- "Components", not "elements": an element set is the GP data. -->
       <toolbar-panel v-show="menu.sat" title="Components" @close="closePanel('sat')">
-        <label v-for="componentName in cc.sats.availableComponents" :key="componentName" class="toolbarSwitch">
+        <label v-for="componentName in SATELLITE_COMPONENTS" :key="componentName" class="toolbarSwitch">
           <input v-model="enabledComponents" type="checkbox" :value="componentName" />
           <span class="slider"></span>
           {{ componentName }}
@@ -58,13 +58,13 @@
         <!-- Both groups bind by provider, not token, so a url layer with an opacity
              (`ArcGis_0.5`) still matches. An inert group is dimmed but stays live. -->
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('layers') }">Basemap</div>
-        <label v-for="name in cc.baseLayers" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('layers') }">
+        <label v-for="name in baseLayers" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('layers') }">
           <input type="radio" name="basemap" :value="name" :checked="baseLayer === name" @change="setBaseLayer(name)" />
           <span class="slider"></span>
           {{ name }}
         </label>
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('layers') }">Overlays</div>
-        <label v-for="name in cc.overlayLayers" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('layers') }">
+        <label v-for="name in overlayLayers" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('layers') }">
           <input type="checkbox" :checked="hasOverlay(name)" @change="toggleOverlay(name, ($event.target as HTMLInputElement).checked)" />
           <span class="slider"></span>
           {{ name }}
@@ -73,7 +73,7 @@
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('terrain') }">Terrain</div>
         <!-- `:checked` shows the terrain in force, not the stored choice, which an
              imposing surface model overrides; disabled while imposed. -->
-        <label v-for="name in cc.terrainProviderNames" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('terrain') }">
+        <label v-for="name in terrainNames" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('terrain') }">
           <input type="radio" name="terrain" :value="name" :checked="activeTerrain === name" :disabled="terrainImposed" @change="terrainProvider = name" />
           <span class="slider"></span>
           {{ name }}
@@ -105,7 +105,7 @@
         </label>
         <div v-if="inSkyView" class="toolbarNote">In the sky view. Pick one to return to the globe.</div>
         <div class="toolbarTitle">Camera</div>
-        <label v-for="name in cc.cameraModes" :key="name" class="toolbarSwitch">
+        <label v-for="name in CAMERA_MODES" :key="name" class="toolbarSwitch">
           <input v-model="cameraMode" type="radio" :value="name" :disabled="inSkyView" />
           <span class="slider"></span>
           {{ name }}
@@ -218,11 +218,12 @@ import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, r
 import { useController } from "../composables/useController";
 import { useGeolocation } from "../composables/useGeolocation";
 import { compassAvailable, useSkyCompass } from "../composables/useSkyCompass";
-import { layerProvider } from "../config/layers";
+import { SATELLITE_COMPONENTS } from "../config/components";
 import { MSAA_RATES, pixelRatiosFor } from "../config/rendering";
 import { availableStarMaps, BUILTIN_STAR_MAP, type StarMapName } from "../config/starMaps";
 import { type MapGroup, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, viewModeNote } from "../config/surfaceModels";
-import { SKY_MODE } from "../config/viewModes";
+import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "../config/viewModes";
+import { baseLayerNames, overlayLayerNames, terrainProviderNames } from "../modules/CesiumLayerProviders";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
 import { UNSEEN_MODES, type UnseenMode } from "../modules/util/visibility";
 import { useCesiumStore } from "../stores/cesium";
@@ -278,7 +279,7 @@ const menuItems: { key: MenuKey; label: string; icon: string; hint: string }[] =
 ];
 
 const cesiumStore = useCesiumStore();
-const { layers, terrainProvider, surfaceModel, starMap, sceneMode, unseen, cameraMode, pixelRatio, msaa, showFps, showBenchmark, requestRenderMode } = storeToRefs(cesiumStore);
+const { baseLayer, terrainProvider, surfaceModel, starMap, sceneMode, unseen, cameraMode, pixelRatio, msaa, showFps, showBenchmark, requestRenderMode } = storeToRefs(cesiumStore);
 
 /** Starts with the builtin map, and widens once per page when the probes answer. */
 const starMapOptions = ref<StarMapName[]>([BUILTIN_STAR_MAP]);
@@ -318,31 +319,11 @@ const surfaceUnavailable = computed(() => {
   return viewModeNote(surfaceModel.value);
 });
 
-/**
- * Write `layers` only through `setLayers`, which enforces at most one base layer.
- * List order is z-order: the basemap goes first, overlays last.
- */
-const isBaseToken = (token: string): boolean => {
-  const provider = layerProvider(token);
-  return provider !== undefined && cc.baseLayers.includes(provider);
-};
+const baseLayers = baseLayerNames();
+const overlayLayers = overlayLayerNames();
+const terrainNames = terrainProviderNames();
 
-/** The basemap in the stack, by provider name, or "" when a url left none. */
-const baseLayer = computed(() => {
-  const token = layers.value.find(isBaseToken);
-  return token === undefined ? "" : (layerProvider(token) ?? "");
-});
-
-const hasOverlay = (name: string): boolean => layers.value.some((token) => layerProvider(token) === name);
-
-function setBaseLayer(name: string): void {
-  cesiumStore.setLayers([name, ...layers.value.filter((token) => !isBaseToken(token))]);
-}
-
-function toggleOverlay(name: string, enabled: boolean): void {
-  const without = layers.value.filter((token) => layerProvider(token) !== name);
-  cesiumStore.setLayers(enabled ? [...without, name] : without);
-}
+const { hasOverlay, setBaseLayer, toggleOverlay } = cesiumStore;
 
 const satStore = useSatStore();
 const { enabledComponents } = storeToRefs(satStore);
@@ -352,7 +333,7 @@ const { active: compassActive, pending: compassPending, toggle: toggleCompass } 
 const inSkyView = computed(() => sceneMode.value === SKY_MODE);
 
 const UNSEEN_LABEL: Record<UnseenMode, string> = { show: "Show", dim: "Dim", hide: "Hide" };
-const projections = cc.sceneModes.filter((mode) => mode !== SKY_MODE);
+const projections = SCENE_MODES.filter((mode) => mode !== SKY_MODE);
 
 /** The projection the Sky switch returns to. Not in the url, which holds only the view mode. */
 const returnProjection = ref(inSkyView.value ? "3D" : sceneMode.value);
@@ -362,7 +343,7 @@ watch(sceneMode, (mode) => {
   }
 });
 
-const { pending: locating, locate } = useGeolocation(cc);
+const { pending: locating, locate } = useGeolocation();
 
 /**
  * Look up stands where the device is; only a location's panel stands somewhere else.

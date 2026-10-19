@@ -266,7 +266,7 @@ export function passMinutes(pass: Pass): number {
   return Math.round(pass.duration / 60_000);
 }
 
-export function hhmmUtc(epochMs: number): string {
+function hhmmUtc(epochMs: number): string {
   return dayjs.utc(epochMs).format("HH:mm");
 }
 

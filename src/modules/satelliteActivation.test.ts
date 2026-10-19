@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { activeTargetEntries, buildOrder, hideFromActivation, isEnabledByTag } from "./satelliteActivation";
+import { activeTargetEntries, buildOrder, hideFromActivation, isEnabledByTag, toggledGroup, toggledSatellite } from "./satelliteActivation";
 import { CatalogEntry } from "./SatelliteCatalog";
 import type { GpRecord } from "./util/gp";
 
@@ -15,6 +15,16 @@ const BETA = entry("BETA", "2", ["Weather"]);
 const GAMMA = entry("GAMMA", "3", ["Science"]);
 const DELTA = entry("DELTA", "4", []);
 const ALL = [ALPHA, BETA, GAMMA, DELTA];
+
+const catalog = {
+  entriesWithTag: (tag: string) => ALL.filter((e) => e.tags.includes(tag)),
+  getByName: (name: string) => ALL.find((e) => e.name === name),
+};
+
+/** Lists with nothing enabled, overridden per test. */
+function listsWith(overrides: { enabledTags?: string[]; enabledSatellites?: string[]; disabledSatellites?: string[] } = {}) {
+  return { enabledTags: [], enabledSatellites: [], disabledSatellites: [], ...overrides };
+}
 
 function keys(target: Map<string, CatalogEntry>): string[] {
   return [...target.keys()].toSorted();
@@ -100,11 +110,6 @@ describe("isEnabledByTag", () => {
 });
 
 describe("hideFromActivation", () => {
-  const catalog = {
-    entriesWithTag: (tag: string) => ALL.filter((e) => e.tags.includes(tag)),
-    getByName: (name: string) => ALL.find((e) => e.name === name),
-  };
-
   test("drops a group whose every member is hidden, leaving no exclusions behind", () => {
     const lists = { enabledTags: ["Weather", "Science"], enabledSatellites: [], disabledSatellites: [] };
     expect(hideFromActivation(lists, new Set(["ALPHA", "BETA"]), catalog)).toEqual({ enabledTags: ["Science"], enabledSatellites: [], disabledSatellites: [] });
@@ -118,6 +123,49 @@ describe("hideFromActivation", () => {
   test("drops hidden names from sats=, and every exclusion once no group is left", () => {
     const lists = { enabledTags: ["Science"], enabledSatellites: ["DELTA", "ALPHA"], disabledSatellites: ["OLD"] };
     expect(hideFromActivation(lists, new Set(["GAMMA", "DELTA"]), catalog)).toEqual({ enabledTags: [], enabledSatellites: ["ALPHA"], disabledSatellites: [] });
+  });
+});
+
+describe("toggledGroup", () => {
+  test("turns an off group on", () => {
+    expect(toggledGroup(listsWith(), "Weather", catalog)).toEqual({ enabledTags: ["Weather"] });
+  });
+
+  test("turns a partly excluded group full, keeping other groups' exclusions", () => {
+    expect(toggledGroup(listsWith({ enabledTags: ["Weather", "Science"], disabledSatellites: ["BETA", "GAMMA"] }), "Weather", catalog)).toEqual({ disabledSatellites: ["GAMMA"] });
+  });
+
+  test("turns a full group off and drops the exclusions no group covers any more", () => {
+    // BETA is only in Weather, which is off: a stale exclusion. OLD is unknown, so kept.
+    expect(toggledGroup(listsWith({ enabledTags: ["New", "Science"], disabledSatellites: ["BETA", "OLD"] }), "Science", catalog)).toEqual({
+      enabledTags: ["New"],
+      disabledSatellites: ["OLD"],
+    });
+  });
+
+  test("never writes enabledSatellites", () => {
+    expect(toggledGroup(listsWith({ enabledTags: ["Weather"], enabledSatellites: ["ALPHA"] }), "Weather", catalog)).not.toHaveProperty("enabledSatellites");
+  });
+});
+
+describe("toggledSatellite", () => {
+  test("excludes a member of an enabled group, dropping its redundant enable", () => {
+    expect(toggledSatellite(listsWith({ enabledTags: ["Weather"], enabledSatellites: ["BETA"] }), "BETA", catalog)).toEqual({
+      disabledSatellites: ["BETA"],
+      enabledSatellites: [],
+    });
+  });
+
+  test("brings an excluded member back", () => {
+    expect(toggledSatellite(listsWith({ enabledTags: ["Weather"], disabledSatellites: ["BETA"] }), "BETA", catalog)).toEqual({ disabledSatellites: [] });
+  });
+
+  test("enables a satellite outside the enabled groups, clearing a stale exclusion", () => {
+    expect(toggledSatellite(listsWith({ disabledSatellites: ["GAMMA"] }), "GAMMA", catalog)).toEqual({ enabledSatellites: ["GAMMA"], disabledSatellites: [] });
+  });
+
+  test("disables an individually enabled satellite", () => {
+    expect(toggledSatellite(listsWith({ enabledSatellites: ["GAMMA"] }), "GAMMA", catalog)).toEqual({ enabledSatellites: [] });
   });
 });
 

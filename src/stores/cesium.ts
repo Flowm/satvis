@@ -53,16 +53,18 @@ export const useCesiumStore = defineStore(
       }
     }
 
+    const bases = new Set(baseLayerNames());
+    // By provider, so `ArcGis_0.5` is a basemap too.
+    const isBase = (layer: string): boolean => bases.has(layerProvider(layer) ?? "");
+
     /** Drops unknown providers; the last base layer wins. List order is z-order. */
     function setLayers(next: readonly string[]): void {
       const known = new Set(imageryProviderNames());
-      const bases = new Set(baseLayerNames());
       // An unusable opacity is dropped too: it would reach Cesium as NaN.
       const valid = next.filter((layer) => {
         const provider = layerProvider(layer);
         return provider !== undefined && known.has(provider);
       });
-      const isBase = (layer: string) => bases.has(layerProvider(layer) ?? "");
       const lastBase = valid.reduce((last, layer, index) => (isBase(layer) ? index : last), -1);
       const resolved = valid.filter((layer, index) => !isBase(layer) || index === lastBase);
 
@@ -71,9 +73,35 @@ export const useCesiumStore = defineStore(
       }
     }
 
+    /** The basemap in the stack, by provider name, or "" when a url left none. */
+    const baseLayer = computed(() => {
+      const token = activeLayers.value.find(isBase);
+      return token === undefined ? "" : (layerProvider(token) ?? "");
+    });
+
+    /** By provider, so an overlay with an opacity matches. */
+    function hasOverlay(name: string): boolean {
+      return activeLayers.value.some((token) => layerProvider(token) === name);
+    }
+
+    /** The basemap goes first, under the overlays, replacing the old one and its opacity. */
+    function setBaseLayer(name: string): void {
+      setLayers([name, ...activeLayers.value.filter((token) => !isBase(token))]);
+    }
+
+    /** An overlay goes last, over the others. */
+    function toggleOverlay(name: string, enabled: boolean): void {
+      const without = activeLayers.value.filter((token) => layerProvider(token) !== name);
+      setLayers(enabled ? [...without, name] : without);
+    }
+
     return {
       layers,
       setLayers,
+      baseLayer,
+      hasOverlay,
+      setBaseLayer,
+      toggleOverlay,
       time,
       setTime,
       terrainProvider,

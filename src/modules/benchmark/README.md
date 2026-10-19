@@ -298,5 +298,5 @@ The panel is an async component and the pump is a separate chunk, so neither run
 for a normal visitor. The PWA precache fetches both (about 36 KB), so the panel
 works offline.
 
-`CesiumPerformanceStats` (the `showFps` toggle) is separate. It is an independent
+Cesium's own frame counter (the `showFps` toggle) is separate. It is an independent
 check on the panel's fps, and the panel moves down to keep it visible.

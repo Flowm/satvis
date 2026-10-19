@@ -17,25 +17,19 @@ import type { Viewer } from "@cesium/widgets";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { currentPosition } from "../composables/useGeolocation";
 import { usePostHog } from "../composables/usePostHog";
-import { useToastProxy } from "../composables/useToastProxy";
 import { defaultViewDistance } from "../config/defaultView";
 import { parseLayer } from "../config/layers";
 import { MSAA_RATES, PIXEL_RATIOS, msaaSamplesFor, resolutionScaleFor } from "../config/rendering";
 import { STAR_MAPS, type StarMapSources, starMapSources } from "../config/starMaps";
-import { CAMERA_MODES, SCENE_MODES } from "../config/viewModes";
-import { useCesiumStore } from "../stores/cesium";
-import { useSatStore } from "../stores/sat";
 import {
-  baseLayerNames,
   type ImageryContext,
   type ImageryProviderEntry,
+  imageryProviderNames,
   imageryProviders,
-  overlayLayerNames,
   type TerrainProviderEntry,
+  terrainProviderNames,
   terrainProviders,
-  terrainProviderNames as visibleTerrainProviderNames,
 } from "./CesiumLayerProviders";
 import { BATCHED_COMPONENTS } from "./componentKinds";
 import { cesiumSceneMode } from "./satelliteGraphics";
@@ -43,9 +37,7 @@ import { SatelliteManager } from "./SatelliteManager";
 import { SkyInteraction } from "./SkyInteraction";
 import { type Observer, SkyView } from "./SkyView";
 import { SurfaceModel } from "./SurfaceModel";
-import { CesiumPerformanceStats } from "./util/CesiumPerformanceStats";
 import { DeviceDetect } from "./util/DeviceDetect";
-import { PushManager } from "./util/PushManager";
 import { Suppressible } from "./util/Suppressible";
 
 dayjs.extend(utc);
@@ -98,16 +90,6 @@ export class CesiumController {
 
   surface!: SurfaceModel;
 
-  pm!: PushManager;
-
-  sceneModes: string[] = [];
-
-  cameraModes: string[] = [];
-
-  activeLayers: string[] = [];
-
-  performanceStats: CesiumPerformanceStats | undefined;
-
   #uiVisible: boolean = true;
 
   #removeCameraTrackEci: (() => void) | undefined;
@@ -130,8 +112,15 @@ export class CesiumController {
   /** Set by `keepSelectionOnEmptyClick` for the click being released. */
   #keepSelection = false;
 
+  /** While set, a click on the globe is a pick (`onGlobePick`), not only a selection. */
+  #pickMode = false;
+
+  #onGlobePick: (lat: number, lon: number) => void = () => {};
+
+  #onSurfaceFailure: (name: string, error: unknown) => void = () => {};
+
   constructor(viewer: Viewer) {
-    this.preloadReferenceFrameData();
+    this.#preloadReferenceFrameData();
     this.minimalUI = DeviceDetect.minimalUI();
 
     this.viewer = viewer;
@@ -140,11 +129,8 @@ export class CesiumController {
     this.camera = new Suppressible<string>("Fixed", (mode) => this.#applyCameraMode(mode));
     this.terrain = new Suppressible<string>("None", (name, isCurrent) => this.#applyTerrain(name, isCurrent));
 
-    this.sceneModes = [...SCENE_MODES];
-    this.cameraModes = [...CAMERA_MODES];
-
-    this.createInputHandler();
-    this.addErrorHandler();
+    this.#createInputHandler();
+    this.#addErrorHandler();
     skipUnsizedFrames(this.viewer.cesiumWidget);
 
     this.sats = new SatelliteManager(this.viewer);
@@ -163,18 +149,9 @@ export class CesiumController {
 
     this.surface = new SurfaceModel({
       scene: this.viewer.scene,
-      setTerrainOverride: (name) => (name === undefined ? this.releaseTerrain() : this.suppressTerrain(name)),
+      setTerrainOverride: (name) => (name === undefined ? this.#releaseTerrain() : this.#suppressTerrain(name)),
       skyLanded: () => this.skyView.settled,
-      onFailure: (name, error) => {
-        // Back to None so the radio, the url and the scene agree. The usual cause is
-        // an ion token not valid for this origin, so say so.
-        useCesiumStore().surfaceModel = "None";
-        useToastProxy().add({
-          title: `${name} unavailable`,
-          description: `${error instanceof Error ? error.message : "The tileset could not be loaded"}. Cesium ion needs a token valid for this origin.`,
-          color: "warning",
-        });
-      },
+      onFailure: (name, error) => this.#onSurfaceFailure(name, error),
     });
 
     this.skyView.setGroundHeightSource((observer) => this.#observerGroundHeight(observer));
@@ -183,8 +160,6 @@ export class CesiumController {
     // ellipsoid, 559 m inside the mesh in Munich.
     this.surface.onChange(() => this.skyView.remeasureGround());
 
-    this.pm = new PushManager();
-
     if (!DeviceDetect.inIframe()) {
       this.viewer.creditDisplay.addStaticCredit(new Credit(`<a href="/data/privacy.html" target="_blank"><u>Privacy</u></a>`, true));
     }
@@ -192,11 +167,9 @@ export class CesiumController {
 
     if (this.minimalUI) {
       setTimeout(() => {
-        this.fixLogo();
+        this.#fixLogo();
       }, 2500);
     }
-
-    this.activeLayers = [];
   }
 
   /**
@@ -215,7 +188,7 @@ export class CesiumController {
     camera.setView({ destination: Cartesian3.fromDegrees(DEFAULT_VIEW_LON, DEFAULT_VIEW_LAT, height) });
   }
 
-  preloadReferenceFrameData(): void {
+  #preloadReferenceFrameData(): void {
     const timeInterval = new TimeInterval({
       start: JulianDate.addDays(JulianDate.now(), -60, new JulianDate()),
       stop: JulianDate.addDays(JulianDate.now(), 120, new JulianDate()),
@@ -225,26 +198,14 @@ export class CesiumController {
     });
   }
 
-  get imageryProviderNames(): string[] {
-    return Object.keys(imageryProviders);
-  }
-
-  get baseLayers(): string[] {
-    return baseLayerNames();
-  }
-
-  get overlayLayers(): string[] {
-    return overlayLayerNames();
-  }
-
   set imageryLayers(newLayerNames: string[]) {
-    this.clearImageryLayers();
+    this.#clearImageryLayers();
     newLayerNames.forEach((layerName) => {
       const selection = parseLayer(layerName);
       if (selection === undefined) {
         return;
       }
-      const layer = this.createImageryLayer(selection.provider, selection.alpha);
+      const layer = this.#createImageryLayer(selection.provider, selection.alpha);
       if (layer) {
         this.viewer.scene.imageryLayers.add(layer);
       }
@@ -254,14 +215,14 @@ export class CesiumController {
     this.viewer.scene.requestRender();
   }
 
-  clearImageryLayers(): void {
+  #clearImageryLayers(): void {
     this.#imageryLifetime.abort();
     this.#imageryLifetime = new AbortController();
     this.viewer.scene.imageryLayers.removeAll();
   }
 
-  createImageryLayer(imageryProviderName: string, alpha?: number): ImageryLayer | false {
-    if (!this.imageryProviderNames.includes(imageryProviderName)) {
+  #createImageryLayer(imageryProviderName: string, alpha?: number): ImageryLayer | false {
+    if (!imageryProviderNames().includes(imageryProviderName)) {
       console.error("Unknown imagery layer");
       return false;
     }
@@ -277,12 +238,8 @@ export class CesiumController {
     return layer;
   }
 
-  get terrainProviderNames(): string[] {
-    return visibleTerrainProviderNames();
-  }
-
   set terrainProvider(terrainProviderName: string) {
-    if (!this.terrainProviderNames.includes(terrainProviderName)) {
+    if (!terrainProviderNames().includes(terrainProviderName)) {
       console.error("Unknown terrain provider");
       return;
     }
@@ -295,7 +252,7 @@ export class CesiumController {
   }
 
   /** Accepts any registered provider, including ones a url may not name. */
-  suppressTerrain(terrainProviderName: string): void {
+  #suppressTerrain(terrainProviderName: string): void {
     if (!(terrainProviderName in terrainProviders)) {
       console.error("Unknown terrain provider override");
       return;
@@ -303,7 +260,7 @@ export class CesiumController {
     this.terrain.suppress(terrainProviderName);
   }
 
-  releaseTerrain(): void {
+  #releaseTerrain(): void {
     this.terrain.release();
   }
 
@@ -490,7 +447,7 @@ export class CesiumController {
     this.viewer.scene.requestRender();
   }
 
-  createInputHandler(): void {
+  #createInputHandler(): void {
     // The Viewer's own click handler selects what a click hits and clears the selection on a miss.
     const viewerHandler = this.viewer.screenSpaceEventHandler;
     const select = viewerHandler.getInputAction(ScreenSpaceEventType.LEFT_CLICK) as (event: ScreenSpaceEventHandler.PositionedEvent) => void;
@@ -503,12 +460,26 @@ export class CesiumController {
 
     const handler = new ScreenSpaceEventHandler(this.viewer.scene.canvas);
     handler.setInputAction((event: ScreenSpaceEventHandler.PositionedEvent) => {
-      const { pickMode } = useCesiumStore();
-      if (!pickMode) {
-        return;
+      if (this.#pickMode) {
+        this.#pickGlobe(event);
       }
-      this.setGroundStationFromClickEvent(event);
     }, ScreenSpaceEventType.LEFT_CLICK);
+  }
+
+  /** The canvas shows a crosshair, not a class on the page: Cesium's own widgets keep their cursors. */
+  set pickMode(on: boolean) {
+    this.#pickMode = on;
+    this.viewer.scene.canvas.style.cursor = on ? "crosshair" : "";
+  }
+
+  /** A click in pick mode that hit the globe, in degrees. Do not truth-test: 0 is a valid coordinate. */
+  onGlobePick(callback: (lat: number, lon: number) => void): void {
+    this.#onGlobePick = callback;
+  }
+
+  /** A surface model's tileset failed to load; the scene has already dropped it. */
+  onSurfaceFailure(callback: (name: string, error: unknown) => void): void {
+    this.#onSurfaceFailure = callback;
   }
 
   /**
@@ -522,48 +493,13 @@ export class CesiumController {
     });
   }
 
-  setGroundStationFromClickEvent(event: ScreenSpaceEventHandler.PositionedEvent): void {
+  #pickGlobe(event: ScreenSpaceEventHandler.PositionedEvent): void {
     const cartesian = this.viewer.camera.pickEllipsoid(event.position);
     if (!defined(cartesian)) {
       return;
     }
     const cartographicPosition = Cartographic.fromCartesian(cartesian);
-    this.addGroundStation(CesiumMath.toDegrees(cartographicPosition.latitude), CesiumMath.toDegrees(cartographicPosition.longitude));
-    useCesiumStore().pickMode = false;
-  }
-
-  /**
-   * The Geolocation station where the device is, and with `observe` the sky view's
-   * observer there (`placeGeolocation`, `observeGeolocation`). Whether a fix came back.
-   */
-  async setGroundStationFromGeolocation({ observe = false }: { observe?: boolean } = {}): Promise<boolean> {
-    const fix = await currentPosition();
-    if (!fix) {
-      useToastProxy().add({
-        title: "Location unavailable",
-        description: "No position came back. Check this site's location permission, and note that geolocation needs a secure context.",
-        color: "warning",
-      });
-      return false;
-    }
-    const satStore = useSatStore();
-    if (observe) {
-      satStore.observeGeolocation(fix.lat, fix.lon);
-    } else {
-      satStore.placeGeolocation(fix.lat, fix.lon);
-    }
-    return true;
-  }
-
-  setGroundStationFromLatLon(lat: number, lon: number): void {
-    this.addGroundStation(lat, lon);
-  }
-
-  /**
-   * sceneSync turns the store's ground stations into entities. Do not truth-test: 0 is a valid coordinate.
-   */
-  private addGroundStation(lat: number, lon: number): void {
-    useSatStore().addGroundStation({ lat, lon });
+    this.#onGlobePick(CesiumMath.toDegrees(cartographicPosition.latitude), CesiumMath.toDegrees(cartographicPosition.longitude));
   }
 
   /** Cesium's own chrome is only the fullscreen button. */
@@ -579,7 +515,7 @@ export class CesiumController {
     return this.#uiVisible;
   }
 
-  fixLogo(): void {
+  #fixLogo(): void {
     if (this.minimalUI) {
       this.viewer._bottomContainer.style.left = "5px";
     }
@@ -637,11 +573,6 @@ export class CesiumController {
       console.error("Unknown star map");
       return;
     }
-    // `background: false` removed the sky box on purpose.
-    if (!useCesiumStore().background) {
-      return;
-    }
-
     const generation = ++this.#starMapGeneration;
     const sources = starMapSources(name);
     const faces = sources === undefined ? undefined : await this.loadStarMapFaces(sources);
@@ -690,11 +621,7 @@ export class CesiumController {
     }
   }
 
-  enablePerformanceStats(logContinuously = false): void {
-    this.performanceStats = new CesiumPerformanceStats(this.viewer.scene, logContinuously);
-  }
-
-  addErrorHandler(): void {
+  #addErrorHandler(): void {
     this.viewer.scene.rethrowRenderErrors = true;
     this.viewer.scene.renderError.addEventListener((scene: Scene, error: Error) => {
       console.error(scene, error);

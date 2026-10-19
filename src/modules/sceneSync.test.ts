@@ -37,6 +37,9 @@ function fakeTarget() {
     surfaceModels: [] as [string, string][],
     starMaps: [] as string[],
     wentLive: 0,
+    // A test calls them to simulate a click on the globe, or a tileset that fails.
+    globePicked: undefined as ((lat: number, lon: number) => void) | undefined,
+    surfaceFailed: undefined as ((name: string, error: unknown) => void) | undefined,
   };
 
   const unavailableStarMaps = new Set<string>();
@@ -62,6 +65,7 @@ function fakeTarget() {
     showFps: false,
     requestRenderMode: true,
     background: false,
+    pickMode: false,
     skyView: {
       active: false,
       enter(observer: Observer) {
@@ -107,6 +111,12 @@ function fakeTarget() {
     applyStarMap: (starMap) => {
       calls.starMaps.push(starMap);
       return unavailableStarMaps.has(starMap) ? Promise.reject(new Error("no faces")) : Promise.resolve();
+    },
+    onGlobePick: (callback) => {
+      calls.globePicked = callback;
+    },
+    onSurfaceFailure: (callback) => {
+      calls.surfaceFailed = callback;
     },
     suppressCameraMode: () => {
       calls.suppressCamera += 1;
@@ -194,6 +204,49 @@ describe("startSceneSync", () => {
     // The radio and the url read the store.
     expect(store.starMap).toBe(BUILTIN_STAR_MAP);
     expect(calls.starMaps).toEqual(["DeepStar2K", BUILTIN_STAR_MAP]);
+  });
+
+  test("no star map is installed while the background is off", async () => {
+    const { target, calls } = fakeTarget();
+    startSceneSync(target);
+    const store = useCesiumStore();
+
+    store.background = false;
+    store.starMap = "DeepStar2K";
+    await settle();
+
+    expect(calls.starMaps).toEqual([]);
+  });
+
+  test("a globe click in pick mode adds a station and ends pick mode", async () => {
+    const { target, calls } = fakeTarget();
+    startSceneSync(target);
+    const store = useCesiumStore();
+
+    store.pickMode = true;
+    await nextTick();
+    expect(target.pickMode).toBe(true);
+
+    calls.globePicked?.(0, 11.5);
+    await nextTick();
+
+    expect(useSatStore().groundStations).toMatchObject([{ lat: 0, lon: 11.5 }]);
+    expect(store.pickMode).toBe(false);
+    expect(target.pickMode).toBe(false);
+  });
+
+  test("a surface model that fails goes back to None", async () => {
+    const { target, calls } = fakeTarget();
+    startSceneSync(target);
+    const store = useCesiumStore();
+    store.surfaceModel = "OsmBuildings";
+    await nextTick();
+
+    calls.surfaceFailed?.("OsmBuildings", new Error("401"));
+    await nextTick();
+
+    expect(store.surfaceModel).toBe("None");
+    expect(calls.surfaceModels.at(-1)).toEqual(["None", store.sceneMode]);
   });
 
   test("a projection view mode morphs, and hands the camera back first", async () => {

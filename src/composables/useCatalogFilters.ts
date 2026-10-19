@@ -56,7 +56,7 @@ function sortValue(row: CatalogRow, key: SortKey): string | number | undefined {
 /** The catalog sheet's filters, matches and globe actions. */
 export function useCatalogFilters(catalog: SatelliteCatalog) {
   const satStore = useSatStore();
-  const { catalogRevision, enabledTags, enabledSatellites, disabledSatellites } = storeToRefs(satStore);
+  const { catalogRevision, enabledSatellites } = storeToRefs(satStore);
   const browser = useSatelliteBrowser(catalog);
 
   /** Loads every group, search-only ones too; a failed group is retried on the next call. */
@@ -177,8 +177,7 @@ export function useCatalogFilters(catalog: SatelliteCatalog) {
   }
 
   function hide(matches: readonly CatalogRow[]): void {
-    const lists = { enabledTags: enabledTags.value, enabledSatellites: enabledSatellites.value, disabledSatellites: disabledSatellites.value };
-    satStore.setActivation(hideFromActivation(lists, new Set(matches.map((row) => row.name)), catalog));
+    satStore.setActivation(hideFromActivation(satStore, new Set(matches.map((row) => row.name)), catalog));
   }
 
   return {

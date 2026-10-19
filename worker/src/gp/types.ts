@@ -56,8 +56,11 @@ export interface SatelliteSpec {
   decayed?: boolean;
 }
 
+/** What a group's name must match: generate-groups refuses others, and the API answers them 404. */
+export const GROUP_NAME_RE = /^[a-zA-Z0-9_-]+$/;
+
 export interface GroupDefinition {
-  /** Served at /api/gp/<name>.json; must match ^[a-zA-Z0-9_-]+$. */
+  /** Served at /api/gp/<name>.json; must match GROUP_NAME_RE. */
   name: string;
   sources?: SourceSpec[];
   select?: GroupSelect;

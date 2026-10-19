@@ -1,16 +1,20 @@
-import { withConfig } from "./evaluate.ts";
-import { groupsConfig, ingestAll, type IngestSource, refreshAll, refreshAllUpstreams } from "./refresh.ts";
-import { kvGroupStore, upstreamStatuses } from "./store.ts";
+import { withConfig } from "./groupsIndex.ts";
+import { bundleFetch, parseIngestBundle, readReport } from "./pushProtocol.ts";
+import type { RefreshReport } from "./refresh.ts";
+import { type GroupStore, kvGroupStore, upstreamStatuses } from "./store.ts";
+import { GROUP_NAME_RE } from "./types.ts";
 import { recordFailure, recordUnchanged, storeUpstream } from "./upstream.ts";
 import { UPSTREAMS, upstreamSpec } from "./upstreams.ts";
+import { groupsConfig, refreshAll, refreshAllUpstreams } from "./workerRuntime.ts";
 
-const GROUP_NAME_RE = /^[a-zA-Z0-9_-]+$/;
 /**
  * POST /api/refresh does not re-hit CelesTrak within this window of the last refresh, cron included.
  */
 const REFRESH_COOLDOWN_MS = 60_000;
 /** /api/status marks a group stale after this long without a write; push-gp runs several times a day. */
 const GROUP_STALE_AFTER_MS = 12 * 3600_000;
+
+const NO_STORE = { "Cache-Control": "no-store" };
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(body), {
@@ -24,7 +28,7 @@ function notFound(): Response {
 }
 
 function badRequest(reason: string): Response {
-  return jsonResponse({ error: reason }, { status: 400, headers: { "Cache-Control": "no-store" } });
+  return jsonResponse({ error: reason }, { status: 400, headers: NO_STORE });
 }
 
 /** Null when the caller is authorized. */
@@ -32,37 +36,53 @@ function rejectUnauthorized(request: Request, env: Env): Response | null {
   // `wrangler types` cannot see secrets. An unset secret disables the endpoint rather than leaving it open.
   const expected = (env as Env & { REFRESH_TOKEN?: string }).REFRESH_TOKEN;
   if (!expected) {
-    return jsonResponse({ error: "Refresh is not configured" }, { status: 503, headers: { "Cache-Control": "no-store" } });
+    return jsonResponse({ error: "Refresh is not configured" }, { status: 503, headers: NO_STORE });
   }
   if (request.headers.get("Authorization") !== `Bearer ${expected}`) {
-    return jsonResponse({ error: "Unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } });
+    return jsonResponse({ error: "Unauthorized" }, { status: 401, headers: NO_STORE });
   }
   return null;
 }
 
-async function handleGroup(name: string, request: Request, env: Env): Promise<Response> {
+/** A public, cacheable JSON body, or a 304 when the client holds `etag`. */
+function conditional(request: Request, body: string, etag: string, headers?: Record<string, string>): Response {
+  const all = { "Content-Type": "application/json", "Cache-Control": "public, max-age=300", ETag: etag, ...headers };
+  if (request.headers.get("If-None-Match") === etag) {
+    return new Response(null, { status: 304, headers: all });
+  }
+  return new Response(body, { headers: all });
+}
+
+/** What POST /api/refresh and /api/ingest answer after a run. */
+function reportBody(report: RefreshReport): Record<string, unknown> {
+  return {
+    updatedAt: report.index.updated,
+    durationMs: report.durationMs,
+    written: report.written,
+    skipped: report.skipped,
+    sources: report.sources,
+    groups: report.index.groups,
+  };
+}
+
+async function handleGroup({ request, store, param: encodedName }: RouteContext): Promise<Response> {
+  // Malformed percent-encoding (/api/gp/%zz.json) throws a URIError; answer 404, not 500.
+  let name: string;
+  try {
+    name = decodeURIComponent(encodedName);
+  } catch {
+    return notFound();
+  }
   if (!GROUP_NAME_RE.test(name)) {
     return notFound();
   }
-  const group = await kvGroupStore(env.GP_KV).readGroup(name);
+  const group = await store.readGroup(name);
   if (group === undefined) {
     return notFound();
   }
-
   const updated = group.metadata?.updated;
   const updatedMs = updated ? Date.parse(updated) : Date.now();
-  const etag = `W/"${name}-${updatedMs}"`;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "Cache-Control": "public, max-age=300",
-    ETag: etag,
-    "Last-Modified": new Date(updatedMs).toUTCString(),
-  };
-
-  if (request.headers.get("If-None-Match") === etag) {
-    return new Response(null, { status: 304, headers });
-  }
-  return new Response(group.body, { headers });
+  return conditional(request, group.body, `W/"${name}-${updatedMs}"`, { "Last-Modified": new Date(updatedMs).toUTCString() });
 }
 
 /**
@@ -81,15 +101,9 @@ function fnv1a(text: string): string {
 /**
  * The ETag hashes the body: a refresh or a deploy changes it, and no single timestamp covers both.
  */
-async function handleIndex(request: Request, env: Env): Promise<Response> {
-  const index = withConfig(await kvGroupStore(env.GP_KV).readIndex(), groupsConfig);
-  const body = JSON.stringify(index);
-  const etag = `W/"groups-${fnv1a(body)}"`;
-  const headers: Record<string, string> = { "Content-Type": "application/json", "Cache-Control": "public, max-age=300", ETag: etag };
-  if (request.headers.get("If-None-Match") === etag) {
-    return new Response(null, { status: 304, headers });
-  }
-  return new Response(body, { headers });
+async function handleIndex({ request, store }: RouteContext): Promise<Response> {
+  const body = JSON.stringify(withConfig(await store.readIndex(), groupsConfig));
+  return conditional(request, body, `W/"groups-${fnv1a(body)}"`);
 }
 
 /**
@@ -97,98 +111,24 @@ async function handleIndex(request: Request, env: Env): Promise<Response> {
  * which firewalls by IP (250 MB/day) across Cloudflare's shared egress, hence the
  * token and the cooldown. Within the cooldown it answers 429 with the stored index.
  */
-async function handleRefresh(request: Request, env: Env): Promise<Response> {
-  if (request.method !== "POST") {
-    return jsonResponse({ error: "Method Not Allowed" }, { status: 405, headers: { Allow: "POST" } });
-  }
-
-  const rejection = rejectUnauthorized(request, env);
-  if (rejection) {
-    return rejection;
-  }
-
-  const previous = await kvGroupStore(env.GP_KV).readIndex();
+async function handleRefresh({ store }: RouteContext): Promise<Response> {
+  const previous = await store.readIndex();
   const sinceMs = Date.now() - Date.parse(previous.updated);
   if (Number.isFinite(sinceMs) && sinceMs < REFRESH_COOLDOWN_MS) {
     const retryAfterMs = REFRESH_COOLDOWN_MS - sinceMs;
     return jsonResponse(
       { refreshed: false, reason: "cooldown", updatedAt: previous.updated, retryAfterMs, groups: previous.groups },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)), "Cache-Control": "no-store" } },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)), ...NO_STORE } },
     );
   }
-
-  const report = await refreshAll(env);
-  return jsonResponse(
-    {
-      refreshed: true,
-      updatedAt: report.index.updated,
-      durationMs: report.durationMs,
-      written: report.written,
-      skipped: report.skipped,
-      sources: report.sources,
-      groups: report.index.groups,
-    },
-    { headers: { "Cache-Control": "no-store" } },
-  );
-}
-
-/**
- * Returns the first problem as a string. Strict, because a malformed bundle would
- * otherwise read as an upstream outage.
- */
-function parseIngestBundle(raw: unknown): IngestSource[] | string {
-  if (raw === null || typeof raw !== "object") {
-    return "body must be a JSON object";
-  }
-  const sources = (raw as { sources?: unknown }).sources;
-  if (!Array.isArray(sources)) {
-    return "body.sources must be an array";
-  }
-  if (sources.length === 0) {
-    return "body.sources is empty";
-  }
-  const parsed: IngestSource[] = [];
-  for (let i = 0; i < sources.length; i++) {
-    const entry = sources[i] as Record<string, unknown> | null;
-    if (entry === null || typeof entry !== "object") {
-      return `body.sources[${i}] must be an object`;
-    }
-    const { key, url, status, body, error } = entry;
-    if (typeof key !== "string" || typeof url !== "string") {
-      return `body.sources[${i}] needs string key and url`;
-    }
-    if (status !== undefined && typeof status !== "number") {
-      return `body.sources[${i}].status must be a number`;
-    }
-    if (body !== undefined && typeof body !== "string") {
-      return `body.sources[${i}].body must be a string`;
-    }
-    if (error !== undefined && typeof error !== "string") {
-      return `body.sources[${i}].error must be a string`;
-    }
-    // A 304 carries neither: the stored value already is the payload.
-    if (body === undefined && error === undefined && status !== 304) {
-      return `body.sources[${i}] needs either body or error`;
-    }
-    parsed.push({ key, url, status, body, error });
-  }
-  return parsed;
+  return jsonResponse({ refreshed: true, ...reportBody(await refreshAll(store)) }, { headers: NO_STORE });
 }
 
 /**
  * The scheduled refresh over payloads downloaded off-Worker (scripts/push-gp.mjs), for
  * when CelesTrak firewalls Cloudflare's egress. No cooldown: it spends no CelesTrak budget.
  */
-async function handleIngest(request: Request, env: Env): Promise<Response> {
-  if (request.method !== "POST") {
-    return jsonResponse({ error: "Method Not Allowed" }, { status: 405, headers: { Allow: "POST" } });
-  }
-
-  const rejection = rejectUnauthorized(request, env);
-  if (rejection) {
-    return rejection;
-  }
-
+async function handleIngest({ request, store }: RouteContext): Promise<Response> {
   let raw: unknown;
   try {
     raw = await request.json();
@@ -199,21 +139,8 @@ async function handleIngest(request: Request, env: Env): Promise<Response> {
   if (typeof sources === "string") {
     return badRequest(sources);
   }
-
   console.log(`gp ingest: ${sources.length} source(s) posted`);
-  const report = await ingestAll(env, sources);
-  return jsonResponse(
-    {
-      ingested: true,
-      updatedAt: report.index.updated,
-      durationMs: report.durationMs,
-      written: report.written,
-      skipped: report.skipped,
-      sources: report.sources,
-      groups: report.index.groups,
-    },
-    { headers: { "Cache-Control": "no-store" } },
-  );
+  return jsonResponse({ ingested: true, ...reportBody(await refreshAll(store, bundleFetch(sources))) }, { headers: NO_STORE });
 }
 
 /**
@@ -221,46 +148,30 @@ async function handleIngest(request: Request, env: Env): Promise<Response> {
  * only if it parses; an empty body reports that upstream answered 304
  * (`X-Upstream-Status`) or failed (`X-Upstream-Error`).
  */
-async function handleUpstreamPut(name: string, request: Request, env: Env): Promise<Response> {
-  if (request.method !== "PUT") {
-    return jsonResponse({ error: "Method Not Allowed" }, { status: 405, headers: { Allow: "PUT" } });
-  }
-  const rejection = rejectUnauthorized(request, env);
-  if (rejection) {
-    return rejection;
-  }
+async function handleUpstreamPut({ request, store, param: name }: RouteContext): Promise<Response> {
   const spec = upstreamSpec(name);
   if (spec === undefined) {
     return notFound();
   }
-  const store = kvGroupStore(env.GP_KV);
   const now = new Date().toISOString();
-  const headers = { "Cache-Control": "no-store" };
-  const failure = request.headers.get("X-Upstream-Error");
-  if (failure !== null) {
-    return jsonResponse({ name, ...(await recordFailure(spec.name, store, failure, now)) }, { headers });
+  const report = readReport(request.headers);
+  if ("error" in report) {
+    return jsonResponse({ name, ...(await recordFailure(spec.name, store, report.error, now)) }, { headers: NO_STORE });
   }
-  if (request.headers.get("X-Upstream-Status") === "304") {
-    return jsonResponse({ name, ...(await recordUnchanged(spec, store, now)) }, { headers });
+  if ("notModified" in report) {
+    return jsonResponse({ name, ...(await recordUnchanged(spec, store, now)) }, { headers: NO_STORE });
   }
   const body = await request.text();
   if (body === "") {
     return badRequest("a new file needs a body; report an unchanged one with X-Upstream-Status: 304");
   }
-  const { stored, status } = await storeUpstream(spec, store, body, request.headers.get("X-Upstream-ETag") ?? undefined, now);
-  return jsonResponse({ name, ...status }, { status: stored ? 200 : 422, headers });
+  const { stored, status } = await storeUpstream(spec, store, body, report.etag, now);
+  return jsonResponse({ name, ...status }, { status: stored ? 200 : 422, headers: NO_STORE });
 }
 
 /** The Worker downloads every upstream table itself, each conditional on its stored file. */
-async function handleUpstreamRefresh(request: Request, env: Env): Promise<Response> {
-  if (request.method !== "POST") {
-    return jsonResponse({ error: "Method Not Allowed" }, { status: 405, headers: { Allow: "POST" } });
-  }
-  const rejection = rejectUnauthorized(request, env);
-  if (rejection) {
-    return rejection;
-  }
-  return jsonResponse({ sources: await refreshAllUpstreams(env) }, { headers: { "Cache-Control": "no-store" } });
+async function handleUpstreamRefresh({ store }: RouteContext): Promise<Response> {
+  return jsonResponse({ sources: await refreshAllUpstreams(store) }, { headers: NO_STORE });
 }
 
 /**
@@ -268,8 +179,7 @@ async function handleUpstreamRefresh(request: Request, env: Env): Promise<Respon
  * with `stale` set past a threshold, so an uptime monitor can watch one keyword. Public:
  * nothing in it is secret, and push-catalog reads its ETags here.
  */
-async function handleStatus(env: Env): Promise<Response> {
-  const store = kvGroupStore(env.GP_KV);
+async function handleStatus({ store }: RouteContext): Promise<Response> {
   const [index, statuses] = await Promise.all([store.readIndex(), upstreamStatuses(store)]);
   const now = Date.now();
   const olderThan = (time: string | null | undefined, ms: number): boolean => time === null || time === undefined || now - Date.parse(time) > ms;
@@ -288,47 +198,55 @@ async function handleStatus(env: Env): Promise<Response> {
     stale: olderThan(updated, GROUP_STALE_AFTER_MS),
   }));
   const stale = [...Object.values(sources), ...groups].some((entry) => entry.stale);
-  return jsonResponse({ stale, built: index.updated || null, sources, groups }, { headers: { "Cache-Control": "no-store" } });
+  return jsonResponse({ stale, built: index.updated || null, sources, groups }, { headers: NO_STORE });
 }
+
+/** What a route's handler gets. */
+interface RouteContext {
+  request: Request;
+  store: GroupStore;
+  /** The pattern's capture, if it has one. */
+  param: string;
+}
+
+interface Route {
+  pattern: RegExp;
+  /**
+   * A write: any other method is answered 405, then the refresh token is checked.
+   * Unset: a public read, which answers every method, as it always has.
+   */
+  write?: "POST" | "PUT";
+  handle(context: RouteContext): Promise<Response>;
+}
+
+/** The first match wins. */
+const ROUTES: Route[] = [
+  { pattern: /^\/api\/gp\/([^/]+)\.json$/, handle: handleGroup },
+  { pattern: /^\/api\/groups\.json$/, handle: handleIndex },
+  { pattern: /^\/api\/refresh$/, write: "POST", handle: handleRefresh },
+  { pattern: /^\/api\/ingest$/, write: "POST", handle: handleIngest },
+  { pattern: /^\/api\/status$/, handle: handleStatus },
+  /** Before the table route: no table is called "refresh". */
+  { pattern: /^\/api\/upstream\/refresh$/, write: "POST", handle: handleUpstreamRefresh },
+  { pattern: /^\/api\/upstream\/([a-zA-Z]+)$/, write: "PUT", handle: handleUpstreamPut },
+];
 
 /** Null for non-api paths, which fall through to static assets. */
 export async function handleApi(request: Request, env: Env): Promise<Response | null> {
-  const url = new URL(request.url);
-  const path = url.pathname;
+  const path = new URL(request.url).pathname;
   if (!path.startsWith("/api/")) {
     return null;
   }
-
-  const groupMatch = /^\/api\/gp\/([^/]+)\.json$/.exec(path);
-  if (groupMatch) {
-    // Malformed percent-encoding (/api/gp/%zz.json) throws a URIError; answer 404, not 500.
-    let name: string;
-    try {
-      name = decodeURIComponent(groupMatch[1]!);
-    } catch {
-      return notFound();
+  for (const route of ROUTES) {
+    const match = route.pattern.exec(path);
+    if (match === null) {
+      continue;
     }
-    return handleGroup(name, request, env);
-  }
-  if (path === "/api/groups.json") {
-    return handleIndex(request, env);
-  }
-  if (path === "/api/refresh") {
-    return handleRefresh(request, env);
-  }
-  if (path === "/api/ingest") {
-    return handleIngest(request, env);
-  }
-  if (path === "/api/status") {
-    return handleStatus(env);
-  }
-  // Before the table route: no table is called "refresh".
-  if (path === "/api/upstream/refresh") {
-    return handleUpstreamRefresh(request, env);
-  }
-  const upstreamMatch = /^\/api\/upstream\/([a-zA-Z]+)$/.exec(path);
-  if (upstreamMatch) {
-    return handleUpstreamPut(upstreamMatch[1]!, request, env);
+    if (route.write !== undefined && request.method !== route.write) {
+      return jsonResponse({ error: "Method Not Allowed" }, { status: 405, headers: { Allow: route.write } });
+    }
+    const rejection = route.write === undefined ? null : rejectUnauthorized(request, env);
+    return rejection ?? route.handle({ request, store: kvGroupStore(env.GP_KV), param: match[1] ?? "" });
   }
   return notFound();
 }

@@ -1,14 +1,14 @@
 import { Cartesian3, JulianDate } from "@cesium/core";
 import type { Viewer } from "@cesium/widgets";
 
-import { SATELLITE_COMPONENTS } from "../config/components";
+import { clearPassHighlights, setPassHighlights } from "../composables/usePassHighlights";
 import type { ElementsEntry } from "../config/presets";
 import type { SerializedGroundStation } from "../stores/sat";
 import { GroundStationEntity, type GroundStationPositionData } from "./GroundStationEntity";
+import { RecutSchedule } from "./recutSchedule";
 import { activeTargetEntries, buildOrder } from "./satelliteActivation";
 import { type CatalogEntry, SatelliteCatalog } from "./SatelliteCatalog";
 import { SatelliteComponentCollection } from "./SatelliteComponentCollection";
-import { geometryRefreshSeconds } from "./satelliteGraphics";
 import { cancelPendingTrack, returnAfterTracking } from "./trackFlight";
 import { CesiumCleanupHelper } from "./util/CesiumCleanupHelper";
 import { sameValue } from "./util/equality";
@@ -18,15 +18,6 @@ import { PolylineBatch } from "./util/PolylineBatch";
 import { type SampleChunk, type SampleSource, type SampleSourceStats, WorkerSampleSource } from "./util/sampleSource";
 import { SuppressibleSet } from "./util/Suppressible";
 import { WINDOW_ORBITS_BACK, WINDOW_ORBITS_FORWARD } from "./util/trajectoryWindow";
-
-/**
- * Clock ticks between corridor re-cuts when #groundTracksSettled has no
- * satellite to ask. Cesium rebuilds the corridor batch asynchronously and a
- * re-cut before the last one lands discards it, so re-cutting faster than the
- * rebuild freezes the ground track. The rebuild measured 4 frames at 50
- * corridors and 25 at 1,500.
- */
-const GROUND_TRACK_REFRESH_FRAMES = 30;
 
 /**
  * How long one frame may spend instantiating satellites. Measured at 5,000
@@ -95,28 +86,12 @@ export class SatelliteManager {
   /** Keyed by catalog entry key. Only entries in the activation target have a collection. */
   #active = new Map<string, SatelliteComponentCollection>();
 
-  availableComponents: string[] = [...SATELLITE_COMPONENTS];
-
   pendingTrackedSatellite: string | undefined;
 
   /** Selected the moment it is built. See select(). */
   #pendingSelection: string | undefined;
 
-  /** Simulation time. */
-  #tracksRefreshedAt: JulianDate;
-
-  /** Simulation time. */
-  #groundTracksRefreshedAt: JulianDate;
-
-  /** Clock ticks, not rendered frames. */
-  #frames = 0;
-
-  #groundTracksRefreshedOnFrame = 0;
-
-  /**
-   * Undefined while the re-cut is in flight. Starts landed so a scene's first corridors do not wait.
-   */
-  #groundTracksLandedOnFrame: number | undefined = 0;
+  readonly #recuts: RecutSchedule;
 
   /** The satellite asked whether the corridor batch has caught up. */
   #groundTrackProbe: string | undefined;
@@ -151,12 +126,8 @@ export class SatelliteManager {
     this.#passes = sources.passes ?? new WorkerPassSource();
     this.orbits = new PolylineBatch(viewer, "inertial");
     this.tracks = new PolylineBatch(viewer, "fixed");
-    this.#tracksRefreshedAt = viewer.clock.currentTime;
-    this.#groundTracksRefreshedAt = viewer.clock.currentTime;
-    // Every tick rather than on a grid: a grid makes a declined re-cut wait out the
-    // whole next square, which halved the re-cut rate at ×1.
+    this.#recuts = new RecutSchedule(viewer.clock.currentTime);
     viewer.clock.onTick.addEventListener(() => {
-      this.#frames += 1;
       this.#refreshDerivedGeometry(viewer.clock.currentTime);
     });
 
@@ -171,9 +142,16 @@ export class SatelliteManager {
 
     returnAfterTracking(this.viewer);
 
-    // Any other selection, by click or by select(), supersedes a pending one.
+    // Any other selection, by click or by select(), supersedes a pending one. The
+    // timeline marks the selected satellite's passes; a ground station or nothing clears them.
     this.viewer.selectedEntityChanged.addEventListener(() => {
       this.#pendingSelection = undefined;
+      const selected = this.activeSatellites.find((sat) => sat.isSelected);
+      if (selected) {
+        setPassHighlights(selected.props.passPredictor.passes(this.viewer.clock.currentTime));
+      } else {
+        clearPassHighlights();
+      }
     });
 
     // New entries may fall into the activation target, e.g. a URL-enabled name or
@@ -248,7 +226,7 @@ export class SatelliteManager {
   #applyGroundStations(stations: readonly SerializedGroundStation[]): void {
     this.#stations.forEach((station) => station.hide());
     this.#stations = stations.map((station, index) =>
-      this.createGroundstation(
+      this.#createGroundstation(
         {
           latitude: station.lat,
           longitude: station.lon,
@@ -321,73 +299,32 @@ export class SatelliteManager {
     });
   }
 
-  /**
-   * Re-cut the orbit tracks and ground-track corridors as simulation time passes.
-   * The interval runs from when the last rebuild finished: measured from the
-   * request, 5,000 tracks janked 8.2% of frames against 0.5%. The orbit batch
-   * waits on `pending` and the corridors on `groundTrackSettled`; sharing
-   * `pending` starved the corridors to one re-cut in 7.5 s.
-   */
+  /** Re-cut the orbit tracks and ground-track corridors as simulation time passes (RecutSchedule). */
   #refreshDerivedGeometry(time: JulianDate): void {
-    if (this.#active.size === 0) {
+    const due = this.#recuts.tick(time, {
+      count: this.#active.size,
+      tracksPending: this.tracks.pending,
+      groundTracksSettled: () => this.#groundTracksSettled(),
+    });
+    if (!due.tracks && !due.groundTracks) {
       return;
-    }
-    const due = geometryRefreshSeconds(this.#active.size);
-    const stale = (since: JulianDate): boolean => Math.abs(JulianDate.secondsDifference(time, since)) >= due;
-
-    if (this.tracks.pending) {
-      this.#tracksRefreshedAt = time;
-    }
-    const tracksDue = !this.tracks.pending && stale(this.#tracksRefreshedAt);
-    // Called every frame, not only once stale: it records the frame the rebuild landed
-    // on, and a late first look would overstate the rebuild and stretch the wait.
-    const groundTracksRested = this.#groundTracksRested();
-    const groundTracksDue = groundTracksRested && stale(this.#groundTracksRefreshedAt);
-    if (!tracksDue && !groundTracksDue) {
-      return;
-    }
-    if (tracksDue) {
-      this.#tracksRefreshedAt = time;
-    }
-    if (groundTracksDue) {
-      this.#groundTracksRefreshedAt = time;
-      this.#groundTracksRefreshedOnFrame = this.#frames;
-      this.#groundTracksLandedOnFrame = undefined;
     }
     for (const sat of this.#active.values()) {
-      if (tracksDue) {
+      if (due.tracks) {
         sat.recut("Orbit track", time);
       }
-      if (groundTracksDue) {
+      if (due.groundTracks) {
         sat.recut("Ground track", time);
       }
     }
   }
 
   /**
-   * Whether the last re-cut has landed and then stayed idle for as long again.
-   * Re-cutting the instant one lands measured 6 fps at 1,542 corridors and
-   * ×1000; this rule measured 46 fps. In frames, not milliseconds, so the
-   * interval stretches as the frame rate falls.
+   * Whether the corridors have caught up with their last positions; undefined when no
+   * satellite can answer. One satellite answers for all, since every corridor is in one
+   * batch primitive; it is remembered to avoid walking the activation each frame.
    */
-  #groundTracksRested(): boolean {
-    if (this.#groundTracksLandedOnFrame === undefined) {
-      if (!this.#groundTracksSettled()) {
-        return false;
-      }
-      this.#groundTracksLandedOnFrame = this.#frames;
-    }
-    const rebuild = this.#groundTracksLandedOnFrame - this.#groundTracksRefreshedOnFrame;
-    return this.#frames - this.#groundTracksRefreshedOnFrame >= 2 * rebuild;
-  }
-
-  /**
-   * Whether the corridors have caught up with their last positions. One
-   * satellite answers for all, since every corridor is in one batch primitive;
-   * it is remembered to avoid walking the activation each frame. Falls back to
-   * GROUND_TRACK_REFRESH_FRAMES when no satellite can answer.
-   */
-  #groundTracksSettled(): boolean {
+  #groundTracksSettled(): boolean | undefined {
     const remembered = this.#groundTrackProbe === undefined ? undefined : this.#active.get(this.#groundTrackProbe)?.groundTrackSettled();
     if (remembered !== undefined) {
       return remembered;
@@ -403,7 +340,7 @@ export class SatelliteManager {
       }
     }
     this.#groundTrackProbe = undefined;
-    return this.#frames - this.#groundTracksRefreshedOnFrame >= GROUND_TRACK_REFRESH_FRAMES;
+    return undefined;
   }
 
   #reconcileActive(): void {
@@ -568,15 +505,6 @@ export class SatelliteManager {
     return this.#samples.stats;
   }
 
-  get selectedSatellite(): string {
-    for (const sat of this.#active.values()) {
-      if (sat.isSelected) {
-        return sat.props.name;
-      }
-    }
-    return "";
-  }
-
   /** Derived from Cesium; set it through reconcile. */
   get trackedSatellite(): string {
     for (const sat of this.#active.values()) {
@@ -643,13 +571,7 @@ export class SatelliteManager {
     return this.#stations.length > 0;
   }
 
-  focusGroundStation(): void {
-    if (this.groundStationAvailable) {
-      this.#stations[0]?.track();
-    }
-  }
-
-  createGroundstation(position: GroundStationPositionData, name: string, index: number): GroundStationEntity {
+  #createGroundstation(position: GroundStationPositionData, name: string, index: number): GroundStationEntity {
     const groundStation = new GroundStationEntity(this.viewer, this, position, name, index);
     groundStation.show();
     return groundStation;

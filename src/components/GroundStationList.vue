@@ -78,27 +78,21 @@
 
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
-import { nextTick, ref, watch } from "vue";
+import { nextTick, ref } from "vue";
 
-import { useController } from "../composables/useController";
 import { useGeolocation } from "../composables/useGeolocation";
 import { SKY_MODE } from "../config/viewModes";
 import { dragShift, dropIndex, MAX_LATITUDE, MAX_LONGITUDE, parseCoordinate } from "../modules/util/groundStationEdits";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 
-const cc = useController();
 const satStore = useSatStore();
 const { groundStations: stations, observerStation } = storeToRefs(satStore);
 const { pickMode, sceneMode } = storeToRefs(useCesiumStore());
 
 /** Whether the sky view is up and stands on station `index`. */
 const observing = (index: number): boolean => sceneMode.value === SKY_MODE && index === observerStation.value;
-// The canvas, not a class on the page: Cesium's own widgets keep their cursors.
-watch(pickMode, (on) => {
-  cc.viewer.scene.canvas.style.cursor = on ? "crosshair" : "";
-});
-const { pending: locating, locate } = useGeolocation(cc);
+const { pending: locating, locate } = useGeolocation();
 
 /**
  * Puts back what the store kept (rounded, or the old value if refused). Vue does not:

@@ -2,9 +2,9 @@
 // upstream tables and the curated rows, attached to the GP records at refresh time
 // (ADR 0002, 0007, 0008).
 
-import { enrichmentSatnum } from "./evaluate.ts";
 import { GCAT_CATALOG, GCAT_ORGS, GCAT_PAYLOADS, gcatBags } from "./gcat.ts";
 import { SATCAT } from "./satcat.ts";
+import { enrichmentSatnum } from "./satnum.ts";
 import type { GroupStore } from "./store.ts";
 import type { GpRecord, GroupsConfig, SatelliteEntry } from "./types.ts";
 import { loadUpstream } from "./upstream.ts";

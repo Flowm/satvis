@@ -33,7 +33,7 @@
             </UTooltip>
             <span class="head__id">{{ satnum ? `#${satnum}` : "" }}</span>
             <UTooltip text="Notify for upcoming passes">
-              <UButton icon="i-lucide-bell" variant="ghost" color="neutral" size="xs" aria-label="Notify for upcoming passes" @click="notifyPasses" />
+              <UButton icon="i-lucide-bell" variant="ghost" color="neutral" size="xs" aria-label="Notify for upcoming passes" @click="notifyForPasses" />
             </UTooltip>
             <UTooltip v-if="canEnterSkyView" text="View the sky from here">
               <UButton icon="i-lucide-telescope" variant="ghost" color="neutral" size="xs" aria-label="View the sky from this ground station" @click="enterSkyView" />
@@ -224,7 +224,6 @@
 
 <script setup lang="ts">
 import { useToast } from "@nuxt/ui/composables/useToast";
-import dayjs from "dayjs";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 
@@ -234,6 +233,7 @@ import { externalLinks } from "../config/externalLinks";
 import { ORBIT_CLASS_COLOR } from "../config/orbitClass";
 import { SKY_MODE } from "../config/viewModes";
 import { formatCountdown, passSummary, type Pass } from "../modules/PassPredictor";
+import { notifyPasses } from "../modules/util/passNotifications";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 import PassTimeline from "./PassTimeline.vue";
@@ -412,13 +412,7 @@ function commitRename(): void {
   nextTick(() => cc.sats.groundStations[index]?.select());
 }
 
-function notifyForPass(pass: Pass, aheadMin = 5): void {
-  const start = dayjs(pass.start).startOf("second");
-  cc.pm.notifyAtDate(start.subtract(aheadMin, "minute").toDate(), `${pass.name} pass in ${aheadMin} minutes`);
-  cc.pm.notifyAtDate(start.toDate(), `${pass.name} pass starting now`);
-}
-
-function notifyPasses(): void {
+function notifyForPasses(): void {
   if (!cc.sats.groundStationAvailable) {
     toast.add({
       color: "warning",
@@ -443,7 +437,7 @@ function notifyPasses(): void {
     });
     return;
   }
-  upcoming.forEach((pass) => notifyForPass(pass));
+  notifyPasses(upcoming);
   toast.add({
     color: "success",
     title: "Success",

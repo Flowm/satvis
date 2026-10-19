@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { coerceIndex } from "../src/gp/evaluate.ts";
+import { coerceIndex } from "../src/gp/groupsIndex.ts";
 
 /** Undefined for a missing or corrupt file: as if never written. */
 function readJson(file) {

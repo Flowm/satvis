@@ -3,8 +3,9 @@
 
 import { readonly, type Ref, ref } from "vue";
 
-import type { CesiumController } from "../modules/CesiumController";
 import type { Observer } from "../modules/skyGeometry";
+import { useSatStore } from "../stores/sat";
+import { useToastProxy } from "./useToastProxy";
 
 /** A cold fix takes this long; shorter turns a slow success into a failure. */
 const TIMEOUT_MS = 10_000;
@@ -28,8 +29,31 @@ export async function currentPosition(): Promise<Observer | undefined> {
 
 const pending = ref(false);
 
+/**
+ * The Geolocation station where the device is, and with `observe` the sky view's
+ * observer there (`placeGeolocation`, `observeGeolocation`). Whether a fix came back.
+ */
+async function placeStation({ observe = false }: { observe?: boolean } = {}): Promise<boolean> {
+  const fix = await currentPosition();
+  if (!fix) {
+    useToastProxy().add({
+      title: "Location unavailable",
+      description: "No position came back. Check this site's location permission, and note that geolocation needs a secure context.",
+      color: "warning",
+    });
+    return false;
+  }
+  const satStore = useSatStore();
+  if (observe) {
+    satStore.observeGeolocation(fix.lat, fix.lon);
+  } else {
+    satStore.placeGeolocation(fix.lat, fix.lon);
+  }
+  return true;
+}
+
 /** `pending` is module scope: there is one device. */
-export function useGeolocation(cc: CesiumController): { pending: Readonly<Ref<boolean>>; locate: (options?: { observe?: boolean }) => Promise<boolean> } {
+export function useGeolocation(): { pending: Readonly<Ref<boolean>>; locate: (options?: { observe?: boolean }) => Promise<boolean> } {
   /** Whether a fix came back; false while one is already pending. */
   async function locate(options?: { observe?: boolean }): Promise<boolean> {
     if (pending.value) {
@@ -37,7 +61,7 @@ export function useGeolocation(cc: CesiumController): { pending: Readonly<Ref<bo
     }
     pending.value = true;
     try {
-      return await cc.setGroundStationFromGeolocation(options);
+      return await placeStation(options);
     } finally {
       pending.value = false;
     }

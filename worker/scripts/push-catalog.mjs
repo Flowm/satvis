@@ -12,6 +12,7 @@
 // Exits non-zero when any table ends in an error, upstream's or the Worker's, so a
 // scheduler reports it.
 
+import { reportHeaders } from "../src/gp/pushProtocol.ts";
 import { fetchUpstream } from "../src/gp/upstream.ts";
 import { UPSTREAMS } from "../src/gp/upstreams.ts";
 
@@ -43,26 +44,17 @@ async function report(name, headers, body) {
   return { ok: res.ok, status: res.status, answer: await res.json().catch(() => ({})) };
 }
 
-/** A header value must be ASCII on one line. */
-function headerSafe(text) {
-  return text.replace(/[^\x20-\x7e]/g, "?").slice(0, 400);
-}
-
 /** Downloads one table and reports it; false when either step failed. */
 async function pushTable(spec, etag) {
   const download = await fetchUpstream((url, init) => fetch(url, init), spec, etag);
-  let sent;
+  const sent = await report(spec.name, reportHeaders(download), download.body);
   let ok = true;
   if (download.body !== undefined) {
-    const headers = { "Content-Type": "text/plain; charset=utf-8", ...(download.etag && { "X-Upstream-ETag": download.etag }) };
-    sent = await report(spec.name, headers, download.body);
     const outcome = sent.ok ? `stored ${sent.answer.rows} rows` : `REFUSED (HTTP ${sent.status}: ${sent.answer.lastError ?? sent.answer.error})`;
     process.stdout.write(`push-catalog: ${spec.name} HTTP 200 — ${download.body.length} bytes in ${download.ms}ms, ${outcome}\n`);
   } else if (download.notModified) {
-    sent = await report(spec.name, { "X-Upstream-Status": "304" });
     process.stdout.write(`push-catalog: ${spec.name} 304 not modified (${download.ms}ms)\n`);
   } else {
-    sent = await report(spec.name, { "X-Upstream-Error": headerSafe(download.error ?? "fetch failed") });
     process.stdout.write(`push-catalog: ${spec.name} FAILED after ${download.ms}ms — ${download.error}; the Worker keeps its stored file\n`);
     ok = false;
   }
