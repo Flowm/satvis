@@ -1,0 +1,203 @@
+/* The catalog sheet's palette and the bits its components share; layouts stay per component.
+   The tokens live on the sheet, so every component inside inherits them. */
+.catalogSheet {
+  --cs-bg: #303336f0;
+  --cs-raised: #ffffff0f;
+  --cs-line: #ffffff1f;
+  --cs-text: #edffff;
+  --cs-dim: #b8c4c4;
+  --cs-mute: #8a9797;
+  --cs-accent: #2f9e44;
+  --cs-accent-soft: #2f9e4440;
+  --cs-link: #74c0fc;
+  color: var(--cs-text);
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.catalogSheet *,
+.catalogSheet *::before,
+.catalogSheet *::after {
+  box-sizing: border-box;
+}
+
+.cs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--cs-line);
+  border-radius: 6px;
+  background: none;
+  color: var(--cs-text);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cs-btn:hover:not(:disabled) {
+  background: #ffffff1a;
+}
+
+.cs-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cs-btn--primary {
+  border-color: var(--cs-accent);
+  background: var(--cs-accent);
+}
+
+.cs-btn--primary:hover:not(:disabled) {
+  background: #37b24d;
+}
+
+.cs-iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--cs-dim);
+  cursor: pointer;
+}
+
+.cs-iconBtn:hover {
+  background: #ffffff14;
+  color: var(--cs-text);
+}
+
+.cs-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 4px 0 9px;
+  border: 1px solid #2f9e4499;
+  border-radius: 999px;
+  background: var(--cs-accent-soft);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.cs-chip b {
+  font-weight: 400;
+  color: var(--cs-dim);
+}
+
+.cs-chip button {
+  display: inline-flex;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--cs-dim);
+  cursor: pointer;
+}
+
+.cs-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 2px 0 8px;
+  border: 1px solid var(--cs-line);
+  border-radius: 6px;
+  background: #00000040;
+}
+
+.cs-search:focus-within {
+  border-color: var(--cs-accent);
+}
+
+.cs-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: none;
+  color: var(--cs-text);
+  font-size: 13px;
+  outline: none;
+}
+
+/* A tile's heading: its name, a hint, then reset and the open toggle at the right end. */
+.cs-tileHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cs-dim);
+}
+
+.cs-tileHead .cs-dim,
+.cs-tileHead .cs-mute {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.cs-headEnd {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.cs-reset {
+  border: none;
+  background: none;
+  color: var(--cs-link);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+
+/* A tile measures itself, and drops its hints when narrow. */
+.cs-measured {
+  container-type: inline-size;
+}
+
+@container (max-width: 380px) {
+  .cs-hint {
+    display: none;
+  }
+}
+
+.cs-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.cs-dim {
+  color: var(--cs-dim);
+}
+
+.cs-mute {
+  color: var(--cs-mute);
+}
+
+.cs-scroll {
+  overflow-y: auto;
+  scrollbar-color: #ffffff33 transparent;
+  scrollbar-width: thin;
+}
+
+.cs-check {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--cs-accent);
+  cursor: pointer;
+}
