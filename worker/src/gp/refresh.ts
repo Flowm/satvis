@@ -1,8 +1,10 @@
 // Store-agnostic: the Worker runs it against KV (workerRuntime.ts), scripts/update-static-gp.mjs against disk.
 
 import type { FetchImpl } from "./download.ts";
-import { buildStatuses, collectSources, evaluateGroups, fetchSources, type SourceProbe, toProbe, toRecordsBySource, withConfig } from "./evaluate.ts";
+import { evaluateGroups } from "./evaluate.ts";
+import { buildStatuses, withConfig } from "./groupsIndex.ts";
 import { SatelliteTable } from "./satelliteTable.ts";
+import { collectSources, fetchSources, type SourceProbe, toProbe, toRecordsBySource } from "./sources.ts";
 import type { GroupStore } from "./store.ts";
 import type { GroupsConfig, GroupsIndex, UpstreamName, UpstreamStatus } from "./types.ts";
 import { refreshUpstream } from "./upstream.ts";

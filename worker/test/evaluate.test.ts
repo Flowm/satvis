@@ -1,18 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  buildStatuses,
-  coerceIndex,
-  collectSources,
-  evaluateGroups,
-  fetchSources,
-  type GroupResult,
-  type RecordsBySource,
-  sourceKey,
-  sourceUrl,
-  toProbe,
-  toRecordsBySource,
-} from "../src/gp/evaluate.ts";
+import { evaluateGroups, type GroupResult } from "../src/gp/evaluate.ts";
+import { buildStatuses, coerceIndex } from "../src/gp/groupsIndex.ts";
+import { collectSources, fetchSources, type RecordsBySource, sourceKey, sourceUrl, toProbe, toRecordsBySource } from "../src/gp/sources.ts";
 import type { GroupDefinition, GroupsIndex, OmmRecord } from "../src/gp/types.ts";
 
 function omm(name: string, id: number): OmmRecord {

@@ -2,7 +2,7 @@
 // what a satellite is (country, operator, maker, bus, mass, size, purpose). CC BY 4.0,
 // "Data from J. McDowell, planet4589.org". The download and the stored files are upstream.ts's.
 
-import { normalizeSatnumKey } from "./evaluate.ts";
+import { normalizeSatnumKey } from "./satnum.ts";
 import type { GcatOrgNames, GcatPayloadRows, GcatRow, GcatRows } from "./types.ts";
 import type { UpstreamSpec } from "./upstream.ts";
 

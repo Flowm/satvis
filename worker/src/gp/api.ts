@@ -1,4 +1,4 @@
-import { withConfig } from "./evaluate.ts";
+import { withConfig } from "./groupsIndex.ts";
 import type { IngestSource } from "./refresh.ts";
 import { kvGroupStore, upstreamStatuses } from "./store.ts";
 import { recordFailure, recordUnchanged, storeUpstream } from "./upstream.ts";

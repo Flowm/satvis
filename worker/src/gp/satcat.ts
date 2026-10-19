@@ -1,7 +1,7 @@
 // SATCAT, a contributor to the satellite table (ADR 0006): launch, status and decay.
 // The download and the stored file are upstream.ts's.
 
-import { normalizeSatnumKey } from "./evaluate.ts";
+import { normalizeSatnumKey } from "./satnum.ts";
 import type { SatcatRows } from "./types.ts";
 import type { UpstreamSpec } from "./upstream.ts";
 

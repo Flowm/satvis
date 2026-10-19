@@ -2,7 +2,7 @@
 // below, the disk one in scripts/diskStore.mjs, an in-memory one in test/memoryStore.ts;
 // test/storeContract.ts holds all three to one contract.
 
-import { coerceIndex } from "./evaluate.ts";
+import { coerceIndex } from "./groupsIndex.ts";
 import type { GpRecord, GroupsIndex, UpstreamName, UpstreamStatus } from "./types.ts";
 
 // The KV key layout, which nothing outside the adapter reads.

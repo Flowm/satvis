@@ -2,9 +2,9 @@ import { createExecutionContext, createScheduledController, env, SELF, waitOnExe
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 
 import generatedConfig from "../src/config/satvis.generated.json" with { type: "json" };
-import { collectSources, sourceKey, sourceUrl } from "../src/gp/evaluate.ts";
 import { GCAT_CATALOG_URL } from "../src/gp/gcat.ts";
 import { CATALOG_CRON, GP_CRON } from "../src/gp/schedule.ts";
+import { collectSources, sourceKey, sourceUrl } from "../src/gp/sources.ts";
 import { kvGroupStore } from "../src/gp/store.ts";
 import type { GroupsConfig, GroupsIndex, OmmRecord } from "../src/gp/types.ts";
 import { UPSTREAMS } from "../src/gp/upstreams.ts";

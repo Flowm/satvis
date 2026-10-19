@@ -15,7 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { fetchSources } from "../src/gp/evaluate.ts";
+import { fetchSources } from "../src/gp/sources.ts";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workerDir = path.resolve(scriptDir, "..");
