@@ -90,9 +90,8 @@ struct DrawnFrame {
         return best?.id
     }
 
-    /// Where on the ellipsoid a point on the view lands, in degrees; nil off the
-    /// globe.
-    func groundPoint(at point: CGPoint, viewSize: CGSize) -> (latitude: Double, longitude: Double)? {
+    /// Where on the ellipsoid a point on the view lands; nil off the globe.
+    func groundPoint(at point: CGPoint, viewSize: CGSize) -> GeoCoordinate? {
         guard viewSize.width > 0, viewSize.height > 0 else {
             return nil
         }
@@ -114,7 +113,8 @@ struct DrawnFrame {
         guard t > 0 else {
             return nil
         }
-        return geodetic(eye + t * direction)
+        let place = geodetic(eye + t * direction)
+        return GeoCoordinate(latitude: place.latitude, longitude: place.longitude)
     }
 
     /// Whether the terrain stands between the eye and a point: the line of sight

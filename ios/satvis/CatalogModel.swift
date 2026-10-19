@@ -31,7 +31,8 @@ final class CatalogModel {
     /// What the link being opened names in `elements`: kept through the crossing
     /// its own activation causes.
     @ObservationIgnored private var named: SatelliteComponents = []
-    /// The tracked satellite, by catalog id.
+    /// The tracked satellite, by catalog id: the session's `Focus.trackedSatellite`,
+    /// which stays active.
     private(set) var tracked: String?
     /// The satellites drawn, by name. Kept rather than worked out on every read:
     /// the catalog can hold tens of thousands.

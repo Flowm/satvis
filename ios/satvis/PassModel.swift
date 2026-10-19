@@ -161,14 +161,7 @@ final class PassModel {
     }
 
     var markers: [StationMarker] {
-        stations.map { StationMarker(id: Self.markerID($0.id), latitude: $0.latitude, longitude: $0.longitude) }
-    }
-
-    /// The renderer's id for a station, and back.
-    static func markerID(_ id: UUID) -> String { "station|\(id.uuidString)" }
-
-    static func stationID(_ markerID: String) -> UUID? {
-        markerID.hasPrefix("station|") ? UUID(uuidString: String(markerID.dropFirst("station|".count))) : nil
+        stations.map { StationMarker(id: Selection.station($0.id).rendererID, latitude: $0.latitude, longitude: $0.longitude) }
     }
 
     /// Publishes what an edit of the list changed, and only that: a view

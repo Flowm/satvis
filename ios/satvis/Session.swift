@@ -9,14 +9,6 @@ import UIKit
 
 nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category: "imagery")
 
-/// What the info panel is about.
-enum Selection: Hashable {
-    /// A catalog id.
-    case satellite(String)
-    /// A ground station, by its id.
-    case station(UUID)
-}
-
 /// One open globe and everything it shows: the models, what is selected and
 /// followed, and the work that keeps them in step. Owned by the app rather than a
 /// view, so that whatever opens the app with a state of its own (a link, a
@@ -39,14 +31,17 @@ final class Session {
     /// opened on the sky view, whose instruments wait for it.
     private(set) var renderer: GlobeRenderer?
 
-    var selection: Selection?
-    /// What the camera follows: a satellite's catalog id or a station's marker id.
-    private(set) var tracked: String?
+    /// What is selected, followed and stood on, changed through the methods
+    /// below, which take the renderer and the catalog along.
+    private var focus = Focus()
+    /// What the info panel is about.
+    var selection: Selection? { focus.selection }
+    /// What the camera follows.
+    var tracked: Selection? { focus.tracked }
     /// The next tap on the globe places a ground station.
-    var isPicking = false
-    /// The station the sky view stands on, while it is open (ADR 0003): where the
-    /// device is, unless a link names one or a station's panel opened it.
-    private(set) var observer: UUID?
+    var isPicking: Bool { focus.isPicking }
+    /// The station the sky view stands on, while it is open (`Focus.observer`).
+    var observer: UUID? { focus.observer }
     /// In the sky view, how the satellites that cannot be seen are drawn (ADR
     /// 0010). Kept in links as `unseen`.
     var unseen = UnseenMode.dim {
@@ -186,12 +181,7 @@ final class Session {
     }
 
     /// The selected satellite, whose passes the clock deck marks.
-    var selectedSatellite: String? {
-        if case .satellite(let id) = selection {
-            return id
-        }
-        return nil
-    }
+    var selectedSatellite: String? { focus.selectedSatellite }
 
     /// Takes over a renderer once it exists: it compiles its shaders first.
     func attach(_ renderer: GlobeRenderer) {
@@ -228,7 +218,7 @@ final class Session {
         if let observer, let station = passes.station(observer) {
             renderer.enterSky(SkyCamera(latitude: station.latitude, longitude: station.longitude), animated: false)
         } else if let tracked {
-            renderer.track(tracked)
+            renderer.track(tracked.rendererID)
         }
         // The links went to no renderer at all if they were built before it.
         linksKey = nil
@@ -359,7 +349,7 @@ final class Session {
             selectedStation: selected.map(LinkStation.init),
             sky: observer != nil,
             observer: observer.flatMap(passes.station).map(LinkStation.init),
-            tracked: catalog.tracked.flatMap { catalog.catalog.entries[$0]?.name },
+            tracked: focus.trackedSatellite.flatMap { catalog.catalog.entries[$0]?.name },
             overpassMode: passes.mode,
             layers: [baseLayer.rawValue],
             terrain: terrain,
@@ -393,13 +383,7 @@ final class Session {
         if benchmark.isRunning {
             showsBenchmark = true
         }
-        if let tracked {
-            track(tracked, false)
-        }
-        if observer != nil {
-            leaveSky()
-        }
-        selection = nil
+        perform(focus.clear())
         if settings {
             if let base = scene.layers.compactMap(BaseLayer.init(rawValue:)).last {
                 baseLayer = base
@@ -419,7 +403,7 @@ final class Session {
         }
         unseen = scene.unseen
         cameraFrame = scene.cameraFrame
-        passes.setVisiting(scene.stations.map { GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) })
+        editStations { $0.setVisiting(scene.stations.map { GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) }) }
         await catalog.open(preset: preset, activation: scene.activation, components: scene.components, named: named)
         guard generation == linkGeneration else {
             return
@@ -436,7 +420,7 @@ final class Session {
                 enterSky(at: here)
             }
         } else if let name = scene.tracked, let entry = await catalog.entry(named: name), generation == linkGeneration {
-            track(entry.id, true, selects: false)
+            perform(focus.follow(.satellite(entry.id), selecting: false))
         }
     }
 
@@ -537,41 +521,22 @@ final class Session {
 
     // MARK: Sky view
 
-    /// Stands on a ground station and looks up; in the sky view already, moves
-    /// there. Nothing is followed from the ground: a camera cannot both chase a
-    /// satellite and stand still.
+    /// Stands on a ground station and looks up (`Focus.enterSky`), if it is one.
     func enterSky(at id: UUID) {
-        guard let station = passes.station(id) else {
+        guard passes.station(id) != nil else {
             return
         }
-        if let tracked {
-            track(tracked, false)
-        }
-        observer = id
-        // Without a renderer yet, `attach` stands it there. Reduced motion cuts.
-        renderer?.enterSky(SkyCamera(latitude: station.latitude, longitude: station.longitude), animated: !UIAccessibility.isReduceMotionEnabled)
-        renderer?.setStations(shownMarkers)
+        perform(focus.enterSky(at: id))
     }
 
-    /// Back onto the globe, the compass handing the aim back and the camera going
-    /// with it.
+    /// Back onto the globe, from the sky view.
     func leaveSky() {
-        compass.stop(renderer)
-        renderer?.leaveSky(animated: !UIAccessibility.isReduceMotionEnabled)
-        observer = nil
-        renderer?.setStations(shownMarkers)
+        perform(focus.leaveSky())
     }
 
-    /// The globe button: out of the sky view onto the globe, and from anywhere on
-    /// the globe back to where the app opens, letting go of what is followed.
+    /// The globe button (`Focus.goHome`).
     func goHome() {
-        if observer != nil {
-            return leaveSky()
-        }
-        if let tracked {
-            track(tracked, false, animated: true)
-        }
-        renderer?.flyHome(animated: !UIAccessibility.isReduceMotionEnabled)
+        perform(focus.goHome())
     }
 
     /// Looks up from where the device is: the Sky panel's Look up. A station's
@@ -586,7 +551,7 @@ final class Session {
     /// why, where no position comes back. Without one the sky view does not open:
     /// a sky at a place nobody chose looks like a working view and is not.
     private func stationHere() async -> UUID? {
-        guard let location = await currentLocation(), let id = passes.setGeolocation(latitude: location.latitude, longitude: location.longitude) else {
+        guard let location = await currentLocation(), let id = editStations({ $0.setGeolocation(latitude: location.latitude, longitude: location.longitude) }) else {
             show("The sky view needs your location. Allow it in Settings, or look up from a location's panel.")
             return nil
         }
@@ -738,76 +703,89 @@ final class Session {
     /// The stations' pins, but for the one the sky view stands on, which would be
     /// underfoot.
     private var shownMarkers: [StationMarker] {
-        passes.markers.filter { marker in observer.map { marker.id != PassModel.markerID($0) } ?? true }
+        passes.markers.filter { marker in observer.map { marker.id != Selection.station($0).rendererID } ?? true }
     }
 
-    /// A tap places a station while picking, and otherwise selects what it lands
-    /// on, or nothing unless `keepingSelection`.
+    /// Opens a satellite's or a station's panel, or closes it.
+    func select(_ selection: Selection?) {
+        focus.select(selection)
+    }
+
+    /// The next tap on the globe places a ground station, or no longer does.
+    func setPicking(_ picking: Bool) {
+        focus.setPicking(picking)
+    }
+
+    /// A tap on the globe (`Focus.tap`).
     func tap(at point: CGPoint, viewSize size: CGSize, keepingSelection: Bool = false) {
         guard let renderer else {
             return
         }
-        if isPicking {
-            if let place = renderer.groundPoint(at: point, viewSize: size), let added = passes.add(latitude: place.latitude, longitude: place.longitude) {
-                selection = .station(added)
-            }
-            isPicking = false
-            return
-        }
-        // From the ground the crosshair chooses, not the finger (ADR 0003).
-        if observer != nil {
-            if let lock = renderer.skyLock(viewSize: size) {
-                selection = .satellite(lock.id)
-            }
-            return
-        }
-        let hit = renderer.entity(at: point, viewSize: size)
-        if hit == nil, keepingSelection {
-            return
-        }
-        selection = hit.map { id in
-            PassModel.stationID(id).map(Selection.station) ?? .satellite(id)
+        let passes = passes
+        focus.tap(Self.hits(renderer, at: point, viewSize: size), keepingSelection: keepingSelection) { latitude, longitude in
+            passes.add(latitude: latitude, longitude: longitude)
         }
     }
 
     /// A double tap follows what it lands on.
     func doubleTap(at point: CGPoint, viewSize size: CGSize) {
-        guard observer == nil else {
+        guard let renderer else {
             return
         }
-        if let id = renderer?.entity(at: point, viewSize: size) {
-            track(id, true)
-        }
+        perform(focus.doubleTap(Self.hits(renderer, at: point, viewSize: size)))
     }
 
-    /// Follows a satellite or a station, or lets it go. Tracking keeps a satellite
-    /// active even when its group is switched off, as on the web. `animated`
-    /// flies the camera, as the web app's Track button does, unless reduced
-    /// motion is asked for; a link or a double tap cuts. `selects` opens its panel
-    /// too; a link's `track` does not, as on the web, where it follows alone.
-    func track(_ id: String, _ follow: Bool, animated: Bool = false, selects: Bool = true) {
-        let animated = animated && !UIAccessibility.isReduceMotionEnabled
-        let isStation = PassModel.stationID(id) != nil
-        // Nothing is followed from the ground (ADR 0003).
-        if follow, observer != nil {
-            return
+    /// What the renderer has under `point`, for a tap.
+    private static func hits(_ renderer: GlobeRenderer, at point: CGPoint, viewSize size: CGSize) -> Focus.Tap {
+        Focus.Tap(
+            ground: { renderer.groundPoint(at: point, viewSize: size) },
+            crosshair: { renderer.skyLock(viewSize: size)?.id },
+            entity: { renderer.entity(at: point, viewSize: size) })
+    }
+
+    /// Follows a satellite or a station, and opens its panel (`Focus.follow`).
+    func follow(_ target: Selection, animated: Bool = false) {
+        perform(focus.follow(target, animated: animated))
+    }
+
+    /// Lets go of what is followed.
+    func stopTracking(animated: Bool = false) {
+        perform(focus.stopTracking(animated: animated))
+    }
+
+    /// Edits the stations, and lets go at once of what referred to one the edit
+    /// dropped, rather than when `watchStations` next turns.
+    private func editStations<Result>(_ edit: (PassModel) -> Result) -> Result {
+        let result = edit(passes)
+        perform(focus.stationsChanged(to: Set(passes.stations.map(\.id))))
+        return result
+    }
+
+    /// Does what a change of focus asks of the renderer, and keeps the followed
+    /// satellite active. Reduced motion cuts every flight.
+    private func perform(_ commands: [Focus.Command]) {
+        if catalog.tracked != focus.trackedSatellite {
+            catalog.setTracked(focus.trackedSatellite)
         }
-        if follow {
-            if !isStation {
-                catalog.setTracked(id)
-            } else if catalog.tracked != nil {
-                catalog.setTracked(nil)
-            }
-            tracked = id
-            if selects {
-                selection = PassModel.stationID(id).map(Selection.station) ?? .satellite(id)
-            }
-            renderer?.track(id, animated: animated)
-        } else {
-            renderer?.stopTracking(animated: animated)
-            tracked = nil
-            if !isStation {
-                catalog.setTracked(nil)
+        let motion = !UIAccessibility.isReduceMotionEnabled
+        for command in commands {
+            switch command {
+            case .track(let target, let animated):
+                renderer?.track(target.rendererID, animated: animated && motion)
+            case .stopTracking(let animated):
+                renderer?.stopTracking(animated: animated && motion)
+            case .enterSky(let id, let animated):
+                // Without a renderer yet, `attach` stands it there.
+                if let station = passes.station(id) {
+                    renderer?.enterSky(SkyCamera(latitude: station.latitude, longitude: station.longitude), animated: animated && motion)
+                }
+                renderer?.setStations(shownMarkers)
+            case .leaveSky(let animated):
+                compass.stop(renderer)
+                renderer?.leaveSky(animated: animated && motion)
+                renderer?.setStations(shownMarkers)
+            case .flyHome(let animated):
+                renderer?.flyHome(animated: animated && motion)
             }
         }
     }
@@ -821,20 +799,12 @@ final class Session {
 
     /// Stands the stations on the globe, lets go of one that is gone (and leaves
     /// the sky view standing on it), drops its alerts, and predicts the
-    /// notifications again, whenever the list changes.
+    /// notifications again, whenever the list changes. The edits the session does
+    /// not make, the Locations sheet's and a station panel's, are let go of here.
     private func watchStations() async {
         for await stations in Observations({ self.passes.stations }) {
             renderer?.setStations(shownMarkers)
-            let ids = Set(stations.map(\.id))
-            if let tracked, let station = PassModel.stationID(tracked), !ids.contains(station) {
-                track(tracked, false)
-            }
-            if case .station(let station) = selection, !ids.contains(station) {
-                selection = nil
-            }
-            if let observer, !ids.contains(observer) {
-                leaveSky()
-            }
+            perform(focus.stationsChanged(to: Set(stations.map(\.id))))
             // Alerts are for the saved stations only.
             alerts.forgetStations(except: Set(passes.saved.map(\.id)))
             await alerts.reschedule()
@@ -850,32 +820,12 @@ final class Session {
         }
     }
 
-    /// Follows on, or lets go of, a satellite followed or open whose entry a
-    /// newer copy of its group no longer has: renamed since the copy kept on
-    /// disk, the catalog number kept, or decayed. Left as it was, the camera
-    /// would follow nothing and the gestures steer a camera not drawn.
+    /// Follows on, or lets go of, a satellite followed or open that a newer copy
+    /// of its group no longer has (`Focus.catalogChanged`).
     private func watchEntries() async {
-        for await (tracked, selected) in Observations({ (self.missing(self.tracked), self.missing(self.selectedSatellite)) }) {
-            if let tracked {
-                if let next = catalog.catalog.entry(orSuccessorOf: tracked)?.id {
-                    // Opened only if it was, below.
-                    track(next, true, selects: false)
-                } else {
-                    track(tracked, false)
-                }
-            }
-            if let selected, selectedSatellite == selected {
-                selection = catalog.catalog.entry(orSuccessorOf: selected).map { Selection.satellite($0.id) }
-            }
+        for await lost in Observations({ self.focus.hasLost(in: self.catalog.catalog) }) where lost {
+            perform(focus.catalogChanged(to: catalog.catalog))
         }
-    }
-
-    /// A satellite's id, when the catalog no longer has it.
-    private func missing(_ id: String?) -> String? {
-        guard let id, PassModel.stationID(id) == nil, catalog.catalog.entries[id] == nil else {
-            return nil
-        }
-        return id
     }
 
     /// Keeps a daily base map (VIIRS) on the clock's day, once a second, as the web

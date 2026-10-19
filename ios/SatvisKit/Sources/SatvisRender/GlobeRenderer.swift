@@ -530,9 +530,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             labels: points.prepared?.labels?.atlas.instances)
     }
 
-    /// Where on the ellipsoid a point on the view lands, in degrees; nil off the
-    /// globe.
-    public func groundPoint(at point: CGPoint, viewSize: CGSize) -> (latitude: Double, longitude: Double)? {
+    /// Where on the ellipsoid a point on the view lands; nil off the globe.
+    public func groundPoint(at point: CGPoint, viewSize: CGSize) -> GeoCoordinate? {
         lastFrame?.groundPoint(at: point, viewSize: viewSize)
     }
 

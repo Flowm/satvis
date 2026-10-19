@@ -117,8 +117,9 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   RealityKit or SceneKit (ADR 0009), lit from over the viewer's shoulder.
 - `Session`, owned by `SatvisApp`, is one open globe: the models (`ViewerClock`,
   `CatalogModel`, `PassModel`, `SatelliteLayer`, `StarMap`, and `PassAlerts`, which
-  the background refresh needs too), what is selected and followed, what a tap
-  does, and the work that keeps them in step. It watches the models with
+  the background refresh needs too), what is selected, followed and stood on and
+  what a tap does (`Focus`, in SatvisCore, which says what the camera has to do),
+  and the work that keeps them in step. It watches the models with
   `Observations` rather than taking callbacks, so anything can watch them too.
   The views read it and call it and hold nothing else but what is on screen, so
   that what opens the app with a state of its own (a link, a restored scene) sets

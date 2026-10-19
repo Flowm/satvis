@@ -254,7 +254,7 @@ final class Benchmark {
         // A tracking link selects what it follows; its panel would cover the
         // scene measured and cost its own frames, unless that is what is measured.
         if !scene.keepsPanel {
-            session.selection = nil
+            session.select(nil)
         }
         phase = .settling(index)
         try? await Task.sleep(for: Self.settle)
