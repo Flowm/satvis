@@ -23,6 +23,29 @@ import simd
         }
     }
 
+    // The globe's and the close-up's models share their pipelines: an opaque part
+    // whose texture's alpha was below 1 let the info panel show through the
+    // close-up, as the camera's picture did through the sky view.
+    @MainActor
+    @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func drawsOpaqueModelPartsWithFullCoverage() async throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let libraries = try await ShaderLibrary.make(device: device)
+        let closeUp = try await ShaderLibrary.makeFast(device: device, files: ["Common", "Models"])
+        var uses = [(ModelCloseUp.targets, closeUp, closeUp), (GlobeRenderer.modelTargets(tileTonemap: false), libraries.precise, libraries.fast)]
+        if device.supportsFamily(.apple4) {
+            uses.append((GlobeRenderer.modelTargets(tileTonemap: true), libraries.precise, libraries.fast))
+        }
+        for (targets, vertex, fragment) in uses {
+            let opaque = try ModelPipelines.descriptor(blended: false, vertex: vertex, fragment: fragment, targets: targets)
+            let blended = try ModelPipelines.descriptor(blended: true, vertex: vertex, fragment: fragment, targets: targets)
+            #expect(opaque.fragmentFunction?.name == "modelOpaqueFragment")
+            #expect(!opaque.colorAttachments[0].isBlendingEnabled)
+            #expect(blended.fragmentFunction?.name == "modelFragment")
+            #expect(blended.colorAttachments[0].isBlendingEnabled)
+            _ = try ModelPipelines(device: device, vertex: vertex, fragment: fragment, targets: targets)
+        }
+    }
+
     /// The web app's tiles, which the app target ships.
     static let naturalEarthTiles = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../../../data/imagery/NaturalEarthII").standardized
 

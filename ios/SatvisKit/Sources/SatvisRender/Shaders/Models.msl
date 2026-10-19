@@ -73,8 +73,9 @@ fragment float4 modelFragment(ModelOut in [[stage_in]], bool front [[front_facin
     return shadeModel(in, front, instance, baseTexture, linear);
 }
 
-/// An opaque part in the globe's scene, whose alpha is its coverage: a camera's
-/// picture would show through a part whose alpha it took from the texture.
+/// An opaque part, whose alpha is its coverage: what is under the view, the
+/// camera's picture or the info panel, would show through a part whose alpha it
+/// took from the texture.
 fragment float4 modelOpaqueFragment(ModelOut in [[stage_in]], bool front [[front_facing]], constant ModelInstance &instance [[buffer(1)]],
                                     texture2d<float> baseTexture [[texture(0)]], sampler linear [[sampler(0)]]) {
     return float4(shadeModel(in, front, instance, baseTexture, linear).rgb, 1.0);

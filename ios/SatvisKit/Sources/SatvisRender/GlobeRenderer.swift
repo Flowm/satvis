@@ -176,6 +176,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     private static let hdrFormat = MTLPixelFormat.rgba16Float
     private static let depthFormat = MTLPixelFormat.depth32Float
+    private static let screenFormat = MTLPixelFormat.bgra8Unorm
     private static let framesInFlight = 3
 
     private nonisolated let device: MTLDevice
@@ -193,9 +194,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let linkPipeline: MTLRenderPipelineState
     private let overlayPipeline: MTLRenderPipelineState
     private let conePipeline: MTLRenderPipelineState
-    private let modelPipeline: MTLRenderPipelineState
-    /// For a model's blended parts, after every opaque one.
-    private let modelBlendPipeline: MTLRenderPipelineState
+    /// A model's opaque parts, and its blended ones after every opaque one.
+    private let modelPipelines: ModelPipelines
     private let coneRimPipeline: MTLRenderPipelineState
     private let overlay: GroundOverlay
     private let tonemapPipeline: MTLRenderPipelineState
@@ -296,7 +296,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         self.device = device
         self.queue = queue
         view.device = device
-        view.colorPixelFormat = .bgra8Unorm
+        view.colorPixelFormat = Self.screenFormat
         view.depthStencilPixelFormat = .invalid
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
 
@@ -311,7 +311,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         // image and the depth stay in tile memory, and the screen is the scene
         // pass's second target, written by the tonemap alone.
         let tileTonemap = device.supportsFamily(.apple4) ? libraries.fast.makeFunction(name: "tonemapTileFragment") : nil
-        let screenFormat = view.colorPixelFormat
+        let screenFormat = Self.screenFormat
         func pipeline(
             _ vertex: String, _ fragment: String, format: MTLPixelFormat = Self.hdrFormat, depth: Bool = true, blend: Bool = false, premultiplied: Bool = false,
             writesColor: Bool = true,
@@ -351,8 +351,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         // Blended, for the sky view to dim what cannot be seen.
         pointPipeline = try pipeline("pointVertex", "pointFragment", blend: true)
         linePipeline = try pipeline("lineVertex", "lineFragment", blend: true)
-        modelPipeline = try pipeline("modelVertex", "modelOpaqueFragment")
-        modelBlendPipeline = try pipeline("modelVertex", "modelFragment", blend: true)
+        modelPipelines = try ModelPipelines(
+            device: device, vertex: libraries.precise, fragment: libraries.fast, targets: Self.modelTargets(tileTonemap: tileTonemap != nil))
         labelPipeline = try pipeline("labelVertex", "labelFragment", blend: true, premultiplied: true)
         stationPipeline = try pipeline("stationVertex", "stationFragment", blend: true, premultiplied: true)
         linkPipeline = try pipeline("linkVertex", "linkFragment", blend: true)
@@ -425,6 +425,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         view.delegate = self
         mtkView(view, drawableSizeWillChange: view.drawableSize)
         loadTextures(naturalEarth: naturalEarth)
+    }
+
+    /// What the models draw into in the scene pass: the HDR image and the depth,
+    /// and the screen too where the tonemap reads them in tile memory.
+    static func modelTargets(tileTonemap: Bool) -> ModelPipelines.Targets {
+        ModelPipelines.Targets(color: hdrFormat, screen: tileTonemap ? screenFormat : nil, depth: depthFormat)
     }
 
     /// Decodes off the main thread; the globe is not drawn until it lands.
@@ -837,12 +843,42 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         // A drawable can be read only from a view asked for readable ones, which
         // cannot keep them in tile memory: asked for one frame, and back after.
         view.framebufferOnly = snapshotRequest == nil
-        guard var orbitCamera, let hdr, let depth else {
+        guard let orbitCamera, let hdr, let depth else {
             return
         }
         let measuring = measuresFrames
         let started = measuring ? ProcessInfo.processInfo.systemUptime : 0
         let now = clock()
+        let size = SIMD2(Double(hdr.width), Double(hdr.height))
+        guard let pose = resolvePose(orbitCamera, now: now, size: size) else {
+            return
+        }
+        lastPose = pose
+        guard let target = beginFrame(view, measuring: measuring) else {
+            return
+        }
+        let commands = target.commands
+        let plan = prepareFrame(pose: pose, size: size, now: now, commands: commands)
+        encodeScene(plan, commands: commands, hdr: hdr, depth: depth, screen: target.drawable.texture)
+        if tonemapTilePipeline == nil {
+            encodeTonemapPass(commands, screen: target.screen, hdr: hdr)
+        }
+        encodeSnapshot(of: target.drawable, into: commands)
+        commands.present(target.drawable)
+        commands.commit()
+        if measuring {
+            let ended = ProcessInfo.processInfo.systemUptime
+            meter.frame(
+                cpuSeconds: ended - started - target.waitedForBuffer - target.waitedForDrawable, bufferWaitSeconds: target.waitedForBuffer,
+                drawableWaitSeconds: target.waitedForDrawable, at: ended, satellites: points.count)
+        }
+    }
+
+    /// Where the frame is seen from: the free camera, what is tracked or the sky
+    /// view, partway through any flight between them. Nil, with the cameras put
+    /// back home, where that is not finite.
+    private func resolvePose(_ orbitCamera: OrbitCamera, now: Double, size: SIMD2<Double>) -> CameraPose? {
+        var orbitCamera = orbitCamera
         if let flight = homeFlight {
             // Called off by anything else the camera is asked to do.
             let t = (ProcessInfo.processInfo.systemUptime - flight.start) / Self.homeFlightDuration
@@ -887,7 +923,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             }
             // Read again every frame, as the screen turns under the picture.
             if let passthrough {
-                camera.verticalFieldOfView = passthrough.verticalFieldOfView(viewAspectRatio: Double(hdr.width) / Double(hdr.height))
+                camera.verticalFieldOfView = passthrough.verticalFieldOfView(viewAspectRatio: size.x / size.y)
             }
             skyCamera = camera
             pose = camera.pose()
@@ -912,16 +948,24 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         guard pose.isFinite else {
             // Drawn from, it leaves nothing on screen until the app is relaunched.
             log.fault("Camera not finite: \(String(describing: orbitCamera), privacy: .public), \(String(describing: self.cameraMode), privacy: .public)")
-            self.orbitCamera = OrbitCamera.home(aspectRatio: Double(hdr.width) / Double(hdr.height))
+            self.orbitCamera = OrbitCamera.home(aspectRatio: size.x / size.y)
             trackingCamera = TrackingCamera()
             homeFlight = nil
             poseFlight = nil
             if cameraMode == .sky {
                 landOnGlobe()
             }
-            return
+            return nil
         }
-        lastPose = pose
+        return pose
+    }
+
+    /// A command buffer once one of the frames in flight is free, and the drawable
+    /// it ends on, with how long each was waited for while measuring; nil, the
+    /// frame given back, where either is missing.
+    private func beginFrame(_ view: MTKView, measuring: Bool) -> (
+        commands: MTLCommandBuffer, drawable: CAMetalDrawable, screen: MTLRenderPassDescriptor, waitedForBuffer: Double, waitedForDrawable: Double
+    )? {
         let waitStarted = measuring ? ProcessInfo.processInfo.systemUptime : 0
         inFlight.wait()
         let waitedForBuffer = measuring ? ProcessInfo.processInfo.systemUptime - waitStarted : 0
@@ -932,7 +976,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         let waitedForDrawable = measuring ? ProcessInfo.processInfo.systemUptime - drawableStarted : 0
         guard let drawable = currentDrawable, let screen = view.currentRenderPassDescriptor, let commands = queue.makeCommandBuffer() else {
             inFlight.signal()
-            return
+            return nil
         }
         let semaphore = inFlight
         let faults = faults
@@ -947,30 +991,49 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             commands.addCompletedHandler { buffer in meter.gpu(seconds: buffer.gpuEndTime - buffer.gpuStartTime) }
         }
         frameIndex = (frameIndex + 1) % Self.framesInFlight
+        return (commands, drawable, screen, waitedForBuffer, waitedForDrawable)
+    }
 
+    /// What a frame draws, worked out before its scene pass is encoded.
+    private struct FramePlan {
+        var uniforms: FrameUniforms
+        var pose: CameraPose
+        var now: Double
+        var placements: [ModelPlacement]
+        /// The globe's tiles that have a texture.
+        var surfaceTiles: [Surface.Tile]
+    }
+
+    /// The frame's uniforms and what it places, and the passes ahead of the
+    /// scene's that it samples: the ground overlay and the tiles' textures.
+    private func prepareFrame(pose: CameraPose, size: SIMD2<Double>, now: Double, commands: MTLCommandBuffer) -> FramePlan {
         // From the ground, once it has landed, as the instruments wait to.
         let judgement = isSkySettled ? skyCamera.map { SkyJudgement(camera: $0, at: now, unseen: unseen) } : nil
-        var frame = uniforms(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now, judgement: judgement)
+        var frame = uniforms(pose: pose, size: size, now: now, judgement: judgement)
         if case .tracking(let id) = cameraMode, let index = points.index(of: id), let target = points.position(of: id, at: now) {
             frame.focus = Int32(index)
             frame.focusRelative = SIMD3<Float>(target - pose.position)
         }
-        let placements =
-            components.contains(.model) ? modelPlacements(pose: pose, size: SIMD2(Double(hdr.width), Double(hdr.height)), now: now, judgement: judgement) : []
+        let placements = components.contains(.model) ? modelPlacements(pose: pose, size: size, now: now, judgement: judgement) : []
         lastModelPoints = Dictionary(placements.map { ($0.index, $0.points) }, uniquingKeysWith: max)
         overlay.encode(commands, pipeline: overlayPipeline, satellites: points.satellites, at: now, enabled: components.contains(.groundTrack), device: device)
         var surfaceTiles: [Surface.Tile] = []
         if let imagery, let lastFrame {
             let selection = surface.select(
-                eye: pose.position, viewProjection: lastFrame.viewProjection, viewportHeightPixels: Double(hdr.height),
-                verticalFieldOfView: pose.verticalFieldOfView(aspectRatio: Double(hdr.width) / Double(hdr.height)), pixelsPerPoint: pixelScale)
+                eye: pose.position, viewProjection: lastFrame.viewProjection, viewportHeightPixels: size.y,
+                verticalFieldOfView: pose.verticalFieldOfView(aspectRatio: size.x / size.y), pixelsPerPoint: pixelScale)
             // What is drawn now first, then the children waiting to replace it.
             let drawn = Set(selection.draw.map(\.key))
             let bakes = selection.bake.filter { drawn.contains($0.key) } + selection.bake.filter { !drawn.contains($0.key) }
             surface.encodeBakes(bakes, base: imagery, commands: commands)
             surfaceTiles = selection.draw.filter { $0.texture != nil }
         }
+        return FramePlan(uniforms: frame, pose: pose, now: now, placements: placements, surfaceTiles: surfaceTiles)
+    }
 
+    /// The scene pass, into the HDR image, and into `screen` too where the
+    /// tonemap is its last draw.
+    private func encodeScene(_ plan: FramePlan, commands: MTLCommandBuffer, hdr: MTLTexture, depth: MTLTexture, screen: MTLTexture) {
         // Only once landed: the flight shows the globe from space.
         let showsCamera = passthrough != nil && isSkySettled
         let scene = MTLRenderPassDescriptor()
@@ -979,7 +1042,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         scene.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: showsCamera ? 0 : 1)
         scene.colorAttachments[0].storeAction = tonemapTilePipeline == nil ? .store : .dontCare
         if tonemapTilePipeline != nil {
-            scene.colorAttachments[1].texture = drawable.texture
+            scene.colorAttachments[1].texture = screen
             scene.colorAttachments[1].loadAction = .dontCare
             scene.colorAttachments[1].storeAction = .store
         }
@@ -987,121 +1050,153 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         scene.depthAttachment.loadAction = .clear
         scene.depthAttachment.clearDepth = 0
         scene.depthAttachment.storeAction = .dontCare
-        if let encoder = commands.makeRenderCommandEncoder(descriptor: scene) {
-            encoder.setFrontFacing(.counterClockwise)
-            encoder.setVertexBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
-            encoder.setFragmentBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
+        guard let encoder = commands.makeRenderCommandEncoder(descriptor: scene) else {
+            return
+        }
+        var frame = plan.uniforms
+        encoder.setFrontFacing(.counterClockwise)
+        encoder.setVertexBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
+        encoder.setFragmentBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
 
-            if !surfaceTiles.isEmpty {
-                // In depth alone under the camera's picture, which shows the real
-                // ground, and still hides what is behind it.
-                encoder.setRenderPipelineState(showsCamera ? groundDepthPipeline : globePipeline)
-                encoder.setDepthStencilState(depthWrite)
-                encoder.setCullMode(.back)
-                encoder.setFragmentTexture(overlay.texture, index: 1)
-                encoder.setFragmentSamplerState(tileSampler, index: 0)
-                var overlayShown = Int32(overlay.hasCoverage ? 1 : 0)
-                encoder.setFragmentBytes(&overlayShown, length: MemoryLayout<Int32>.size, index: 2)
-                for tile in surfaceTiles {
-                    var centre = SIMD3<Float>(tile.centre - pose.position)
-                    encoder.setVertexBytes(&centre, length: MemoryLayout<SIMD3<Float>>.stride, index: 2)
-                    encoder.setVertexBuffer(surface.vertices(tile), offset: 0, index: 0)
-                    encoder.setFragmentTexture(tile.texture, index: 0)
-                    encoder.drawIndexedPrimitives(type: .triangle, indexCount: surface.indexCount, indexType: .uint32, indexBuffer: surface.indexBuffer, indexBufferOffset: 0)
-                }
-            }
+        drawGlobe(encoder, tiles: plan.surfaceTiles, eye: plan.pose.position, showsCamera: showsCamera)
+        drawModels(encoder, plan.placements, frame: plan.uniforms, blended: false)
+        // Behind the globe and the models, drawn after them so that only the
+        // sky they leave is shaded: half the screen and more, close up.
+        drawSky(encoder, eye: plan.pose.position, showsCamera: showsCamera)
+        // Over the sky: they write no depth, so the stars and the atmosphere,
+        // drawn where depth is still clear, would paint over them.
+        drawModels(encoder, plan.placements, frame: plan.uniforms, blended: true)
+        // Under the satellites and their names: a pin marks the ground.
+        drawStations(encoder, eye: plan.pose.position, now: plan.now)
+        drawSatellites(encoder, now: plan.now, placements: plan.placements)
+        drawTileTonemap(encoder)
+        encoder.endEncoding()
+    }
 
-            drawModels(encoder, placements, frame: frame, blended: false)
+    /// The globe's tiles, each placed by its centre from the eye, writing depth.
+    private func drawGlobe(_ encoder: MTLRenderCommandEncoder, tiles: [Surface.Tile], eye: SIMD3<Double>, showsCamera: Bool) {
+        guard !tiles.isEmpty else {
+            return
+        }
+        // In depth alone under the camera's picture, which shows the real
+        // ground, and still hides what is behind it.
+        encoder.setRenderPipelineState(showsCamera ? groundDepthPipeline : globePipeline)
+        encoder.setDepthStencilState(depthWrite)
+        encoder.setCullMode(.back)
+        encoder.setFragmentTexture(overlay.texture, index: 1)
+        encoder.setFragmentSamplerState(tileSampler, index: 0)
+        var overlayShown = Int32(overlay.hasCoverage ? 1 : 0)
+        encoder.setFragmentBytes(&overlayShown, length: MemoryLayout<Int32>.size, index: 2)
+        for tile in tiles {
+            var centre = SIMD3<Float>(tile.centre - eye)
+            encoder.setVertexBytes(&centre, length: MemoryLayout<SIMD3<Float>>.stride, index: 2)
+            encoder.setVertexBuffer(surface.vertices(tile), offset: 0, index: 0)
+            encoder.setFragmentTexture(tile.texture, index: 0)
+            encoder.drawIndexedPrimitives(type: .triangle, indexCount: surface.indexCount, indexType: .uint32, indexBuffer: surface.indexBuffer, indexBufferOffset: 0)
+        }
+    }
 
-            // Behind the globe and the models, drawn after them so that only the
-            // sky they leave is shaded: half the screen and more, close up.
-            if let stars, !showsCamera {
-                encoder.setRenderPipelineState(skyBoxPipeline)
-                encoder.setDepthStencilState(depthEmpty)
-                encoder.setCullMode(.none)
-                encoder.setFragmentTexture(stars, index: 0)
-                encoder.setFragmentSamplerState(linearSampler, index: 0)
-                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-            }
-            // At the far plane, as the stars: the shell's far side, where the globe
-            // stands in front of it, fails the depth test. Under the camera's
-            // picture, the real sky stands in for both.
+    /// The stars and the sky atmosphere, where nothing has been drawn; neither
+    /// under the camera's picture.
+    private func drawSky(_ encoder: MTLRenderCommandEncoder, eye: SIMD3<Double>, showsCamera: Bool) {
+        if let stars, !showsCamera {
+            encoder.setRenderPipelineState(skyBoxPipeline)
             encoder.setDepthStencilState(depthEmpty)
-            if !showsCamera {
-                if simd_length(pose.position) > Self.skyRingDistance {
-                    encoder.setRenderPipelineState(skyRingPipeline)
-                    encoder.setCullMode(.none)
-                    encoder.drawIndexedPrimitives(type: .triangle, indexCount: skyRing.count, indexType: .uint32, indexBuffer: skyRing.indices, indexBufferOffset: 0)
-                } else {
-                    encoder.setRenderPipelineState(skyAtmospherePipeline)
-                    encoder.setCullMode(.front)
-                    encoder.setVertexBuffer(skyShell.vertices, offset: 0, index: 0)
-                    encoder.drawIndexedPrimitives(
-                        type: .triangle, indexCount: skyShell.count, indexType: .uint32, indexBuffer: skyShell.indices, indexBufferOffset: 0)
-                }
-            }
-            // Over the sky: they write no depth, so the stars and the atmosphere,
-            // drawn where depth is still clear, would paint over them.
-            drawModels(encoder, placements, frame: frame, blended: true)
-
-            // Under the satellites and their names: a pin marks the ground.
-            drawStations(encoder, eye: pose.position, now: now)
-
-            if let samples = points.prepared?.samples, let instances = points.prepared?.instances, let states = pointFrames(at: now, models: placements) {
-                encoder.setDepthStencilState(depthTest)
-                encoder.setCullMode(.none)
-                encoder.setVertexBuffer(samples, offset: 0, index: 0)
-                encoder.setVertexBuffer(instances, offset: 0, index: 2)
-                encoder.setVertexBuffer(states, offset: 0, index: 3)
-                for (component, kind) in [(SatelliteComponents.orbit, 0), (.orbitTrack, 1)] where components.contains(component) {
-                    var kind = Int32(kind)
-                    encoder.setRenderPipelineState(linePipeline)
-                    encoder.setVertexBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
-                    encoder.setFragmentBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
-                    var stepsLines = Int32(points.count > Self.lineLevelOfDetailSatellites ? 1 : 0)
-                    encoder.setVertexBytes(&stepsLines, length: MemoryLayout<Int32>.size, index: 6)
-                    encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: Self.lineVertices, instanceCount: points.count)
-                }
-                if components.contains(.point) {
-                    encoder.setRenderPipelineState(pointPipeline)
-                    encoder.drawPrimitives(type: .point, vertexStart: 0, vertexCount: points.count)
-                }
-                if components.contains(.sensorCone), let cones = points.prepared?.cones {
-                    // Each side of the translucent cone shows, as Cesium draws it.
-                    encoder.setVertexBuffer(cones.buffer, offset: 0, index: 4)
-                    encoder.setRenderPipelineState(conePipeline)
-                    encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3 * Self.coneSides, instanceCount: cones.count)
-                    encoder.setDepthStencilState(noDepth)
-                    encoder.setRenderPipelineState(coneRimPipeline)
-                    encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6 * Self.coneSides, instanceCount: cones.count)
-                    encoder.setDepthStencilState(depthTest)
-                }
-                if components.contains(.label), let labels = points.prepared?.labels {
-                    // Over the globe, unless the eye is on the ground (Shaders/Labels.msl).
-                    var occludedByEarth = Int32(cameraMode == .sky ? 0 : 1)
-                    encoder.setDepthStencilState(cameraMode == .sky ? depthTest : noDepth)
-                    encoder.setVertexBytes(&occludedByEarth, length: MemoryLayout<Int32>.size, index: 5)
-                    encoder.setRenderPipelineState(labelPipeline)
-                    encoder.setVertexBuffer(labels.instances, offset: 0, index: 4)
-                    encoder.setFragmentTexture(labels.atlas.texture, index: 0)
-                    encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: labels.atlas.instances.count)
-                }
-            }
-            if let tonemapTilePipeline {
-                encoder.setRenderPipelineState(tonemapTilePipeline)
-                encoder.setDepthStencilState(noDepth)
-                encoder.setCullMode(.none)
-                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-            }
-            encoder.endEncoding()
-        }
-
-        if tonemapTilePipeline == nil, let encoder = commands.makeRenderCommandEncoder(descriptor: screen) {
-            encoder.setRenderPipelineState(tonemapPipeline)
-            encoder.setFragmentTexture(hdr, index: 0)
+            encoder.setCullMode(.none)
+            encoder.setFragmentTexture(stars, index: 0)
+            encoder.setFragmentSamplerState(linearSampler, index: 0)
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-            encoder.endEncoding()
         }
+        // At the far plane, as the stars: the shell's far side, where the globe
+        // stands in front of it, fails the depth test. Under the camera's
+        // picture, the real sky stands in for both.
+        encoder.setDepthStencilState(depthEmpty)
+        if !showsCamera {
+            if simd_length(eye) > Self.skyRingDistance {
+                encoder.setRenderPipelineState(skyRingPipeline)
+                encoder.setCullMode(.none)
+                encoder.drawIndexedPrimitives(type: .triangle, indexCount: skyRing.count, indexType: .uint32, indexBuffer: skyRing.indices, indexBufferOffset: 0)
+            } else {
+                encoder.setRenderPipelineState(skyAtmospherePipeline)
+                encoder.setCullMode(.front)
+                encoder.setVertexBuffer(skyShell.vertices, offset: 0, index: 0)
+                encoder.drawIndexedPrimitives(
+                    type: .triangle, indexCount: skyShell.count, indexType: .uint32, indexBuffer: skyShell.indices, indexBufferOffset: 0)
+            }
+        }
+    }
+
+    /// The satellites' orbits, points, sensor cones and labels, as the components
+    /// ask.
+    private func drawSatellites(_ encoder: MTLRenderCommandEncoder, now: Double, placements: [ModelPlacement]) {
+        guard let samples = points.prepared?.samples, let instances = points.prepared?.instances, let states = pointFrames(at: now, models: placements) else {
+            return
+        }
+        encoder.setDepthStencilState(depthTest)
+        encoder.setCullMode(.none)
+        encoder.setVertexBuffer(samples, offset: 0, index: 0)
+        encoder.setVertexBuffer(instances, offset: 0, index: 2)
+        encoder.setVertexBuffer(states, offset: 0, index: 3)
+        for (component, kind) in [(SatelliteComponents.orbit, 0), (.orbitTrack, 1)] where components.contains(component) {
+            var kind = Int32(kind)
+            encoder.setRenderPipelineState(linePipeline)
+            encoder.setVertexBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
+            encoder.setFragmentBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
+            var stepsLines = Int32(points.count > Self.lineLevelOfDetailSatellites ? 1 : 0)
+            encoder.setVertexBytes(&stepsLines, length: MemoryLayout<Int32>.size, index: 6)
+            encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: Self.lineVertices, instanceCount: points.count)
+        }
+        if components.contains(.point) {
+            encoder.setRenderPipelineState(pointPipeline)
+            encoder.drawPrimitives(type: .point, vertexStart: 0, vertexCount: points.count)
+        }
+        if components.contains(.sensorCone), let cones = points.prepared?.cones {
+            // Each side of the translucent cone shows, as Cesium draws it.
+            encoder.setVertexBuffer(cones.buffer, offset: 0, index: 4)
+            encoder.setRenderPipelineState(conePipeline)
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3 * Self.coneSides, instanceCount: cones.count)
+            encoder.setDepthStencilState(noDepth)
+            encoder.setRenderPipelineState(coneRimPipeline)
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6 * Self.coneSides, instanceCount: cones.count)
+            encoder.setDepthStencilState(depthTest)
+        }
+        if components.contains(.label), let labels = points.prepared?.labels {
+            // Over the globe, unless the eye is on the ground (Shaders/Labels.msl).
+            var occludedByEarth = Int32(cameraMode == .sky ? 0 : 1)
+            encoder.setDepthStencilState(cameraMode == .sky ? depthTest : noDepth)
+            encoder.setVertexBytes(&occludedByEarth, length: MemoryLayout<Int32>.size, index: 5)
+            encoder.setRenderPipelineState(labelPipeline)
+            encoder.setVertexBuffer(labels.instances, offset: 0, index: 4)
+            encoder.setFragmentTexture(labels.atlas.texture, index: 0)
+            encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: labels.atlas.instances.count)
+        }
+    }
+
+    /// The tonemap as the scene pass's last draw, where the GPU reads its render
+    /// targets in place; nothing where it cannot.
+    private func drawTileTonemap(_ encoder: MTLRenderCommandEncoder) {
+        guard let tonemapTilePipeline else {
+            return
+        }
+        encoder.setRenderPipelineState(tonemapTilePipeline)
+        encoder.setDepthStencilState(noDepth)
+        encoder.setCullMode(.none)
+        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+    }
+
+    /// The tonemap in a pass of its own, from the HDR image the scene pass stored.
+    private func encodeTonemapPass(_ commands: MTLCommandBuffer, screen: MTLRenderPassDescriptor, hdr: MTLTexture) {
+        guard let encoder = commands.makeRenderCommandEncoder(descriptor: screen) else {
+            return
+        }
+        encoder.setRenderPipelineState(tonemapPipeline)
+        encoder.setFragmentTexture(hdr, index: 0)
+        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+        encoder.endEncoding()
+    }
+
+    /// A copy of the drawable for the picture asked for, where it can be read.
+    private func encodeSnapshot(of drawable: CAMetalDrawable, into commands: MTLCommandBuffer) {
         // Taken off as it is queued: the frames already in flight would copy it again.
         if let request = snapshotRequest, !drawable.texture.isFramebufferOnly,
             let copy = Snapshot.encodeCopy(of: drawable.texture, into: commands, device: device)
@@ -1111,18 +1206,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 request.continuation.resume(returning: copy.jpeg(width: request.width))
             }
         }
-        commands.present(drawable)
-        commands.commit()
-        if measuring {
-            let ended = ProcessInfo.processInfo.systemUptime
-            meter.frame(
-                cpuSeconds: ended - started - waitedForBuffer - waitedForDrawable, bufferWaitSeconds: waitedForBuffer, drawableWaitSeconds: waitedForDrawable,
-                at: ended, satellites: points.count)
-        }
     }
 
-    /// The links of the passes under way, then the pins of the stations facing
-    /// the eye. Few enough to go in with the draw call.
     /// A 3D model where it is drawn this frame.
     private struct ModelPlacement {
         var index: Int
@@ -1187,7 +1272,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             return
         }
         encoder.setFragmentSamplerState(tileSampler, index: 0)
-        encoder.setRenderPipelineState(blended ? modelBlendPipeline : modelPipeline)
+        encoder.setRenderPipelineState(blended ? modelPipelines.blended : modelPipelines.opaque)
         encoder.setDepthStencilState(blended ? depthTest : depthWrite)
         for placement in placements {
             let base = ModelInstance(
@@ -1208,6 +1293,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         min(72, max(20, 23 * cbrt(diameter)))
     }
 
+    /// The links of the passes under way, then the pins of the stations facing
+    /// the eye. Few enough to go in with the draw call.
     private func drawStations(_ encoder: MTLRenderCommandEncoder, eye: SIMD3<Double>, now: Double) {
         func relative(_ position: SIMD3<Double>) -> (Float, Float, Float) {
             let offset = position - eye
