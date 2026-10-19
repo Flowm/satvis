@@ -1,11 +1,11 @@
 import { GROUP_NAME_RE } from "./configValidation.ts";
 import { withConfig } from "./groupsIndex.ts";
-import { parseIngestBundle, readReport } from "./pushProtocol.ts";
+import { bundleFetch, parseIngestBundle, readReport } from "./pushProtocol.ts";
 import type { RefreshReport } from "./refresh.ts";
 import { type GroupStore, kvGroupStore, upstreamStatuses } from "./store.ts";
 import { recordFailure, recordUnchanged, storeUpstream } from "./upstream.ts";
 import { UPSTREAMS, upstreamSpec } from "./upstreams.ts";
-import { groupsConfig, ingestAll, refreshAll, refreshAllUpstreams } from "./workerRuntime.ts";
+import { groupsConfig, refreshAll, refreshAllUpstreams } from "./workerRuntime.ts";
 
 /**
  * POST /api/refresh does not re-hit CelesTrak within this window of the last refresh, cron included.
@@ -65,7 +65,7 @@ function reportBody(report: RefreshReport): Record<string, unknown> {
   };
 }
 
-async function handleGroup(request: Request, store: GroupStore, encodedName: string): Promise<Response> {
+async function handleGroup({ request, store, param: encodedName }: RouteContext): Promise<Response> {
   // Malformed percent-encoding (/api/gp/%zz.json) throws a URIError; answer 404, not 500.
   let name: string;
   try {
@@ -101,7 +101,7 @@ function fnv1a(text: string): string {
 /**
  * The ETag hashes the body: a refresh or a deploy changes it, and no single timestamp covers both.
  */
-async function handleIndex(request: Request, store: GroupStore): Promise<Response> {
+async function handleIndex({ request, store }: RouteContext): Promise<Response> {
   const body = JSON.stringify(withConfig(await store.readIndex(), groupsConfig));
   return conditional(request, body, `W/"groups-${fnv1a(body)}"`);
 }
@@ -111,7 +111,7 @@ async function handleIndex(request: Request, store: GroupStore): Promise<Respons
  * which firewalls by IP (250 MB/day) across Cloudflare's shared egress, hence the
  * token and the cooldown. Within the cooldown it answers 429 with the stored index.
  */
-async function handleRefresh(env: Env, store: GroupStore): Promise<Response> {
+async function handleRefresh({ store }: RouteContext): Promise<Response> {
   const previous = await store.readIndex();
   const sinceMs = Date.now() - Date.parse(previous.updated);
   if (Number.isFinite(sinceMs) && sinceMs < REFRESH_COOLDOWN_MS) {
@@ -121,14 +121,14 @@ async function handleRefresh(env: Env, store: GroupStore): Promise<Response> {
       { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)), ...NO_STORE } },
     );
   }
-  return jsonResponse({ refreshed: true, ...reportBody(await refreshAll(env)) }, { headers: NO_STORE });
+  return jsonResponse({ refreshed: true, ...reportBody(await refreshAll(store)) }, { headers: NO_STORE });
 }
 
 /**
  * The scheduled refresh over payloads downloaded off-Worker (scripts/push-gp.mjs), for
  * when CelesTrak firewalls Cloudflare's egress. No cooldown: it spends no CelesTrak budget.
  */
-async function handleIngest(request: Request, env: Env): Promise<Response> {
+async function handleIngest({ request, store }: RouteContext): Promise<Response> {
   let raw: unknown;
   try {
     raw = await request.json();
@@ -140,7 +140,7 @@ async function handleIngest(request: Request, env: Env): Promise<Response> {
     return badRequest(sources);
   }
   console.log(`gp ingest: ${sources.length} source(s) posted`);
-  return jsonResponse({ ingested: true, ...reportBody(await ingestAll(env, sources)) }, { headers: NO_STORE });
+  return jsonResponse({ ingested: true, ...reportBody(await refreshAll(store, bundleFetch(sources))) }, { headers: NO_STORE });
 }
 
 /**
@@ -148,7 +148,7 @@ async function handleIngest(request: Request, env: Env): Promise<Response> {
  * only if it parses; an empty body reports that upstream answered 304
  * (`X-Upstream-Status`) or failed (`X-Upstream-Error`).
  */
-async function handleUpstreamPut(request: Request, store: GroupStore, name: string): Promise<Response> {
+async function handleUpstreamPut({ request, store, param: name }: RouteContext): Promise<Response> {
   const spec = upstreamSpec(name);
   if (spec === undefined) {
     return notFound();
@@ -169,12 +169,17 @@ async function handleUpstreamPut(request: Request, store: GroupStore, name: stri
   return jsonResponse({ name, ...status }, { status: stored ? 200 : 422, headers: NO_STORE });
 }
 
+/** The Worker downloads every upstream table itself, each conditional on its stored file. */
+async function handleUpstreamRefresh({ store }: RouteContext): Promise<Response> {
+  return jsonResponse({ sources: await refreshAllUpstreams(store) }, { headers: NO_STORE });
+}
+
 /**
  * How fresh everything is: each upstream table's status and each group's last write,
  * with `stale` set past a threshold, so an uptime monitor can watch one keyword. Public:
  * nothing in it is secret, and push-catalog reads its ETags here.
  */
-async function handleStatus(store: GroupStore): Promise<Response> {
+async function handleStatus({ store }: RouteContext): Promise<Response> {
   const [index, statuses] = await Promise.all([store.readIndex(), upstreamStatuses(store)]);
   const now = Date.now();
   const olderThan = (time: string | null | undefined, ms: number): boolean => time === null || time === undefined || now - Date.parse(time) > ms;
@@ -196,31 +201,34 @@ async function handleStatus(store: GroupStore): Promise<Response> {
   return jsonResponse({ stale, built: index.updated || null, sources, groups }, { headers: NO_STORE });
 }
 
+/** What a route's handler gets. */
+interface RouteContext {
+  request: Request;
+  store: GroupStore;
+  /** The pattern's capture, if it has one. */
+  param: string;
+}
+
 interface Route {
   pattern: RegExp;
-  /** Any other method is answered 405. Unset: every method reads, as the public routes always have. */
-  method?: "POST" | "PUT";
-  /** Needs the refresh token; checked after the method. */
-  auth?: true;
-  /** `param` is the pattern's capture, if it has one. */
-  handle(request: Request, env: Env, store: GroupStore, param: string): Promise<Response>;
+  /**
+   * A write: any other method is answered 405, then the refresh token is checked.
+   * Unset: a public read, which answers every method, as it always has.
+   */
+  write?: "POST" | "PUT";
+  handle(context: RouteContext): Promise<Response>;
 }
 
 /** The first match wins. */
 const ROUTES: Route[] = [
-  { pattern: /^\/api\/gp\/([^/]+)\.json$/, handle: (request, _env, store, name) => handleGroup(request, store, name) },
-  { pattern: /^\/api\/groups\.json$/, handle: (request, _env, store) => handleIndex(request, store) },
-  { pattern: /^\/api\/refresh$/, method: "POST", auth: true, handle: (_request, env, store) => handleRefresh(env, store) },
-  { pattern: /^\/api\/ingest$/, method: "POST", auth: true, handle: (request, env) => handleIngest(request, env) },
-  { pattern: /^\/api\/status$/, handle: (_request, _env, store) => handleStatus(store) },
-  // Before the table route: no table is called "refresh". The Worker downloads every table itself.
-  {
-    pattern: /^\/api\/upstream\/refresh$/,
-    method: "POST",
-    auth: true,
-    handle: async (_request, env) => jsonResponse({ sources: await refreshAllUpstreams(env) }, { headers: NO_STORE }),
-  },
-  { pattern: /^\/api\/upstream\/([a-zA-Z]+)$/, method: "PUT", auth: true, handle: (request, _env, store, name) => handleUpstreamPut(request, store, name) },
+  { pattern: /^\/api\/gp\/([^/]+)\.json$/, handle: handleGroup },
+  { pattern: /^\/api\/groups\.json$/, handle: handleIndex },
+  { pattern: /^\/api\/refresh$/, write: "POST", handle: handleRefresh },
+  { pattern: /^\/api\/ingest$/, write: "POST", handle: handleIngest },
+  { pattern: /^\/api\/status$/, handle: handleStatus },
+  /** Before the table route: no table is called "refresh". */
+  { pattern: /^\/api\/upstream\/refresh$/, write: "POST", handle: handleUpstreamRefresh },
+  { pattern: /^\/api\/upstream\/([a-zA-Z]+)$/, write: "PUT", handle: handleUpstreamPut },
 ];
 
 /** Null for non-api paths, which fall through to static assets. */
@@ -234,11 +242,11 @@ export async function handleApi(request: Request, env: Env): Promise<Response | 
     if (match === null) {
       continue;
     }
-    if (route.method !== undefined && request.method !== route.method) {
-      return jsonResponse({ error: "Method Not Allowed" }, { status: 405, headers: { Allow: route.method } });
+    if (route.write !== undefined && request.method !== route.write) {
+      return jsonResponse({ error: "Method Not Allowed" }, { status: 405, headers: { Allow: route.write } });
     }
-    const rejection = route.auth ? rejectUnauthorized(request, env) : null;
-    return rejection ?? route.handle(request, env, kvGroupStore(env.GP_KV), match[1] ?? "");
+    const rejection = route.write === undefined ? null : rejectUnauthorized(request, env);
+    return rejection ?? route.handle({ request, store: kvGroupStore(env.GP_KV), param: match[1] ?? "" });
   }
   return notFound();
 }

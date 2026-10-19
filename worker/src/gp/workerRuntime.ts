@@ -1,23 +1,23 @@
-// The Worker's wiring of the store-agnostic pipeline: the generated config, KV and the
-// global fetch. Scripts wire the same functions to disk instead (scripts/update-static-gp.mjs).
+// The Worker's wiring of the store-agnostic pipeline: the generated config and the global
+// fetch. Scripts wire the same functions to disk instead (scripts/update-static-gp.mjs).
 
 import generatedConfig from "../config/satvis.generated.json" with { type: "json" };
-import { bundleFetch, type IngestSource } from "./pushProtocol.ts";
+import type { FetchImpl } from "./download.ts";
 import { refreshGroups, type RefreshReport, refreshUpstreams } from "./refresh.ts";
-import { kvGroupStore } from "./store.ts";
+import type { GroupStore } from "./store.ts";
 import type { GroupsConfig, UpstreamName, UpstreamStatus } from "./types.ts";
 
 export const groupsConfig = generatedConfig as GroupsConfig;
 
-export async function refreshAll(env: Env): Promise<RefreshReport> {
-  return refreshGroups(groupsConfig, kvGroupStore(env.GP_KV), (url, init) => fetch(url, init));
+/** The Worker's own downloads. */
+const workerFetch: FetchImpl = (url, init) => fetch(url, init);
+
+/** The GP refresh; an ingest passes its bundle's replay (pushProtocol.ts, bundleFetch) as `fetchImpl`. */
+export async function refreshAll(store: GroupStore, fetchImpl: FetchImpl = workerFetch): Promise<RefreshReport> {
+  return refreshGroups(groupsConfig, store, fetchImpl);
 }
 
-/** refreshUpstreams against KV and the real fetch: POST /api/upstream/refresh and the catalog cron. */
-export async function refreshAllUpstreams(env: Env): Promise<Partial<Record<UpstreamName, UpstreamStatus>>> {
-  return refreshUpstreams(kvGroupStore(env.GP_KV), (url, init) => fetch(url, init));
-}
-
-export async function ingestAll(env: Env, sources: IngestSource[]): Promise<RefreshReport> {
-  return refreshGroups(groupsConfig, kvGroupStore(env.GP_KV), bundleFetch(sources));
+/** POST /api/upstream/refresh and the catalog cron. */
+export async function refreshAllUpstreams(store: GroupStore): Promise<Partial<Record<UpstreamName, UpstreamStatus>>> {
+  return refreshUpstreams(store, workerFetch);
 }
