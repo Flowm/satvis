@@ -445,9 +445,10 @@ and appends to the top-level `AGENTS.md`.
 - Work that grows with the number of satellites stays off the main thread, or is
   done only when its input changes: the GPU buffers are packed by
   `GlobeRenderer.prepare`, `CatalogModel.activeEntries` is kept rather than
-  worked out on every read, `PassModel` publishes only what was predicted again,
-  and the station links are rebuilt only when the passes change. Past 500 active
-  satellites the links are not drawn, as the web app switches them off.
+  worked out on every read, `PassModel` publishes `PassStore`'s passes only
+  when they change, and the station links are rebuilt only when the passes
+  change. Past 500 active satellites the links are not drawn, as the web app
+  switches them off.
 - Tags and presets come from the group index, not from the app.
 
 ## Parity with the web app
