@@ -2,7 +2,6 @@ import Foundation
 import Observation
 import SatvisCore
 import SatvisData
-import SatvisRender
 import os
 
 private let log = Logger(subsystem: "org.frcy.app.satvis", category: "catalog")
@@ -28,9 +27,8 @@ final class CatalogModel {
     private(set) var catalog = Catalog()
     private(set) var activation = Activation()
     private(set) var components: SatelliteComponents = [.point, .label]
-    /// The components past their budget for what is active, which links leave
-    /// out of the default for `elements`, so that one naming them keeps them.
-    private(set) var overBudget: SatelliteComponents = []
+    /// What is past its budget for what is active.
+    private var budgets = ComponentBudgets()
     /// What the link being opened names in `elements`: kept through the crossing
     /// its own activation causes.
     @ObservationIgnored private var named: SatelliteComponents = []
@@ -48,6 +46,10 @@ final class CatalogModel {
     init(source: GPSource) {
         self.source = source
     }
+
+    /// The components past their budget for what is active, which links leave
+    /// out of the default for `elements`, so that one naming them keeps them.
+    var overBudget: SatelliteComponents { budgets.over }
 
     /// The preset's defaults, in the url's vocabulary.
     var presetDefaults: [String: String] {
@@ -68,7 +70,7 @@ final class CatalogModel {
         self.components = components
         self.named = named
         // Counted afresh for what this link activates.
-        overBudget = []
+        budgets = ComponentBudgets()
         changed()
         if !activation.enabledSatellites.isEmpty || !activation.disabledSatellites.isEmpty {
             await load(groups)
@@ -225,18 +227,14 @@ final class CatalogModel {
         if active != activeEntries {
             activeEntries = active
         }
-        // Edge-triggered, as the web app's sceneSync: a component switched back on
-        // past its budget stays on until the count drops under and crosses again.
         let modelled = active.count { $0.record.metadata["modelFile"]?.string != nil }
-        for (component, budget) in SatelliteComponents.budgets {
-            if (component == .model ? modelled : active.count) <= budget {
-                overBudget.remove(component)
-            } else if !overBudget.contains(component) {
-                overBudget.insert(component)
-                if !named.contains(component) {
-                    components.remove(component)
-                }
-            }
+        var budgets = budgets
+        let next = budgets.components(components, active: active.count, modelled: modelled, named: named)
+        if budgets != self.budgets {
+            self.budgets = budgets
+        }
+        if next != components {
+            components = next
         }
     }
 }

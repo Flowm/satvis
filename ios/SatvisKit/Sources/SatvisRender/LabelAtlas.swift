@@ -2,6 +2,7 @@ import CoreGraphics
 import CoreText
 import Foundation
 import Metal
+import SatvisCore
 
 /// Mirrors `LabelInstance` in Shaders/Labels.msl.
 struct LabelInstance {

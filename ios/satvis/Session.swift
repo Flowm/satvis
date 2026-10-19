@@ -119,11 +119,11 @@ final class Session {
     @ObservationIgnored private var started = false
     /// What the last link carried that the app does not show (ADR 0001's foreign
     /// parameters), written back into every link the app makes.
-    @ObservationIgnored private var foreign = LinkQuery()
+    private var foreign = SceneState.Foreign()
     /// The web app's FPS switch, which the app shows as its performance overlay.
     /// Kept where the web keeps it, in the link as `fps=true`: a link the app
     /// does not otherwise read, written back as it came.
-    private(set) var showsPerformance = false
+    var showsPerformance: Bool { foreign.showsPerformance }
     /// Drawable pixels per point, the web app's `pixelratio`: `1`, `1.5`, or
     /// `native` for the screen's own. Fewer pixels for frames the GPU finishes in
     /// time; kept in links as on the web.
@@ -140,7 +140,8 @@ final class Session {
     /// What the Graphics panel offers, of which a screen shows those up to its own.
     static let frameRates = [30, 60, 120]
     /// The benchmark panel, the web app's `bench=true`, kept in the link the same
-    /// way; open through a run, whose scenes' links do not carry it.
+    /// way; open through a run, whose scenes' links do not carry it, until the
+    /// view it saved is open again.
     private(set) var showsBenchmark = false
     let benchmark = Benchmark()
 
@@ -328,27 +329,16 @@ final class Session {
     // MARK: Links
 
     func setShowsPerformance(_ shows: Bool) {
-        showsPerformance = shows
-        foreign.items.removeAll { $0.key == Self.performanceKey }
-        if shows {
-            foreign.items.append(LinkQuery.Item(key: Self.performanceKey, values: ["true"]))
-        }
+        foreign.showsPerformance = shows
     }
-
-    private static let performanceKey = "fps"
 
     func setShowsBenchmark(_ shows: Bool) {
         if !shows {
             benchmark.cancel(closing: true)
         }
         showsBenchmark = shows
-        foreign.items.removeAll { $0.key == Self.benchmarkKey }
-        if shows {
-            foreign.items.append(LinkQuery.Item(key: Self.benchmarkKey, values: ["true"]))
-        }
+        foreign.showsBenchmark = shows
     }
-
-    private static let benchmarkKey = "bench"
 
     /// Opens a link: what it shows replaces what is shown, as on the web. `records`
     /// keeps it among the opened links (ADR 0011): one the system hands over, or the
@@ -370,38 +360,27 @@ final class Session {
     /// saved stations only the selected one goes into a link, and only one that
     /// is `sharing`: they are often where the user lives.
     func link(sharing: Bool, withTime: Bool = true) -> Link {
-        var defaults = LinkCodec.defaults(preset: catalog.presetDefaults)
-        // Past a budget the default lacks the component, so a view showing it
-        // anyway says so (ADR 0001).
-        let overBudget = Set(SatelliteComponents.named.filter { catalog.overBudget.contains($0.1) }.map(\.0))
-        defaults.elements.removeAll { overBudget.contains($0) }
-        var stations = passes.visiting
-        if sharing, case .station(let id) = selection, let station = passes.station(id), !stations.contains(where: { $0.id == id }) {
-            stations.append(station)
+        var selected: GroundStation?
+        if case .station(let id) = selection {
+            selected = passes.station(id)
         }
-        // The sky view stands on a link's first station.
-        if let observer, let station = passes.station(observer) {
-            stations = [station] + stations.filter { $0.id != observer }
-        }
-        let activation = catalog.activation
-        let state = LinkState(
-            elements: SatelliteComponents.named.filter { catalog.components.contains($0.1) }.map(\.0),
-            sats: Self.ordered(activation.enabledSatellites, like: defaults.sats),
-            xsats: Self.ordered(activation.disabledSatellites, like: defaults.xsats),
-            tags: Self.ordered(activation.enabledTags, like: defaults.tags),
-            gs: stations.map { LinkStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) },
-            track: catalog.tracked.flatMap { catalog.catalog.entries[$0]?.name } ?? "",
-            overpass: passes.mode.rawValue,
+        let scene = SceneState(
+            activation: catalog.activation,
+            components: catalog.components,
+            stations: passes.visiting.map(LinkStation.init),
+            selectedStation: selected.map(LinkStation.init),
+            sky: observer != nil,
+            observer: observer.flatMap(passes.station).map(LinkStation.init),
+            tracked: catalog.tracked.flatMap { catalog.catalog.entries[$0]?.name },
+            overpassMode: passes.mode,
             layers: [baseLayer.rawValue],
-            terrain: terrain ? "ReEarth" : "None",
-            scene: observer == nil ? "3D" : "Sky",
+            terrain: terrain,
             unseen: unseen,
-            camera: cameraFrame,
+            cameraFrame: cameraFrame,
             pixelRatio: pixelRatio,
-            // Whenever the clock is off the present, as the deck's Live dot says
-            // (`sceneSync.ts`), so a shared link shows what the sender saw.
-            time: withTime && clock.clock.isOffPresent(at: ViewerClock.real()) ? minuteISO(Date(timeIntervalSince1970: clock.now() / 1000)) : nil)
-        return Link(preset: catalog.presetName, query: LinkCodec.write(state, foreign: foreign, defaults: defaults))
+            time: withTime ? SceneState.pinnedTime(of: clock.clock, at: ViewerClock.real()) : nil,
+            foreign: foreign)
+        return scene.link(preset: catalog.presetName, presetDefaults: catalog.presetDefaults, overBudget: catalog.overBudget, sharing: sharing)
     }
 
     /// Shows what a link says, over its preset's defaults. `settings` false leaves
@@ -420,12 +399,12 @@ final class Session {
         }
         let index = source.index?.value
         let preset = link.preset.flatMap { index?.presets[$0] != nil ? $0 : nil }
-        let defaults = LinkCodec.defaults(preset: index?.preset(named: preset)?.defaults ?? [:])
-        let read = LinkCodec.read(link.query, defaults: defaults)
-        let state = read.state
-        foreign = read.foreign
-        showsPerformance = foreign.items.contains { $0.key == Self.performanceKey && $0.values.last == "true" }
-        showsBenchmark = benchmark.isRunning || foreign.items.contains { $0.key == Self.benchmarkKey && $0.values.last == "true" }
+        let (scene, named) = SceneState.read(link.query, presetDefaults: index?.preset(named: preset)?.defaults ?? [:])
+        foreign = scene.foreign
+        showsBenchmark = foreign.showsBenchmark
+        if benchmark.isRunning {
+            showsBenchmark = true
+        }
         if let tracked {
             track(tracked, false)
         }
@@ -434,15 +413,15 @@ final class Session {
         }
         selection = nil
         if settings {
-            if let base = state.layerProviders.compactMap(BaseLayer.init(rawValue:)).last {
+            if let base = scene.layers.compactMap(BaseLayer.init(rawValue:)).last {
                 baseLayer = base
             }
-            terrain = state.terrain == "ReEarth"
-            pixelRatio = state.pixelRatio
-            passes.setMode(OverpassMode(rawValue: state.overpass) ?? .elevation)
+            terrain = scene.terrain
+            pixelRatio = scene.pixelRatio
+            passes.setMode(scene.overpassMode)
             // A clock pinned for a screenshot stays where it was put.
             if ViewerClock.launchTime == nil {
-                if let time = state.time.flatMap(date(minuteISO:)) {
+                if let time = scene.time {
                     clock.pin(at: (time.timeIntervalSince1970 * 1000).rounded(.down))
                 } else if clock.clock.isOffPresent(at: ViewerClock.real()) {
                     // However it left the present, as a link without `time` is live.
@@ -450,22 +429,17 @@ final class Session {
                 }
             }
         }
-        unseen = state.unseen
-        cameraFrame = state.camera
-        passes.setVisiting(state.gs.map { GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) })
-        await catalog.open(
-            preset: preset,
-            activation: Activation(enabledTags: Set(state.tags), enabledSatellites: Set(state.sats), disabledSatellites: Set(state.xsats)),
-            components: SatelliteComponents(SatelliteComponents.named.filter { state.elements.contains($0.0) }.map(\.1)),
-            named: link.query.items.contains { $0.key == "elements" }
-                ? SatelliteComponents(SatelliteComponents.named.filter { state.elements.contains($0.0) }.map(\.1)) : [])
+        unseen = scene.unseen
+        cameraFrame = scene.cameraFrame
+        passes.setVisiting(scene.stations.map { GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) })
+        await catalog.open(preset: preset, activation: scene.activation, components: scene.components, named: named)
         guard generation == linkGeneration else {
             return
         }
-        if state.scene == "Sky" {
+        if scene.sky {
             // On the link's first station, as it was listed; where the device is
             // when it names none, or none the globe can stand on.
-            let first = state.gs.first.flatMap {
+            let first = scene.observer.flatMap {
                 GroundStations.normalized([GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name)]).first.map(GroundStations.Place.init)
             }
             if let station = first.flatMap({ place in passes.stations.first { GroundStations.Place($0) == place } }) {
@@ -473,7 +447,7 @@ final class Session {
             } else if let here = await stationHere(), generation == linkGeneration {
                 enterSky(at: here)
             }
-        } else if !state.track.isEmpty, let entry = await catalog.entry(named: state.track), generation == linkGeneration {
+        } else if let name = scene.tracked, let entry = await catalog.entry(named: name), generation == linkGeneration {
             track(entry.id, true, selects: false)
         }
     }
@@ -777,12 +751,6 @@ final class Session {
     /// underfoot.
     private var shownMarkers: [StationMarker] {
         passes.markers.filter { marker in observer.map { marker.id != PassModel.markerID($0) } ?? true }
-    }
-
-    /// A set in the order its defaults list it, the rest after in name order, so
-    /// that a view at its defaults writes none of them.
-    private static func ordered(_ names: Set<String>, like defaults: [String]) -> [String] {
-        defaults.filter(names.contains) + names.subtracting(defaults).sorted()
     }
 
     /// A tap places a station while picking, and otherwise selects what it lands

@@ -127,16 +127,17 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   selected or the ground station links are drawn. Each prediction holds for a day
   either side of when it was made, as on the web.
 - A link is the view, as on the web (ADR 0001): `LinkCodec` reads one onto its
-  preset's defaults and `Session.open` applies it, replacing what is shown;
-  `Session.link` writes the view back. Parameters the app does not honour (`stars`,
+  preset's defaults, `SceneState` turns that into the app's terms and back, and
+  `Session.open` applies it, replacing what is shown; `Session.link` writes the
+  view back. Parameters the app does not honour (`stars`,
   `surface`…) are kept as they came and written into every link it makes.
   The view is kept as a link when the app goes to the background and reopened
   from it, without its time, so the app reopens live. Past a component's budget
   (labels at 200 active satellites, ground station links at 500, 3D models at 200
-  that have one) it switches off
-  once, on the crossing, unless the link being opened names it, and a link then
-  names it whenever it is on, as on the web (ADR 0001). Labels past 200 are still
-  not drawn, even switched on: their atlas would outgrow a texture. A link's ground stations
+  that have one) it switches off once, on the crossing, unless the link being
+  opened names it (`ComponentBudgets`), and a link then names it whenever it is
+  on, as on the web (ADR 0001). Labels past 200 are still not drawn, even
+  switched on: their atlas would outgrow a texture. A link's ground stations
   visit: they are shown and predicted for, but saved only on the user's word, and
   have no alerts until then. A shared link carries the visiting stations and the
   selected one, never the rest of the saved ones, which are often where the user
@@ -324,7 +325,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   '{"SATVIS_BENCHMARK":"1"}' org.frcy.app.satvis`.
 - Analytics (`Analytics.swift`) is posthog-ios, set up from the app delegate as
   its guide has it, reporting to the web app's project (ADR 0009): a `$pageview`
-  of the view's link whenever the view changes, the clock aside, its ground
+  of the view's link whenever the view changes, the clock aside (toggling the FPS
+  switch or the benchmark panel counts, as it does on the web), its ground
   stations cut to the whole degree as the web's `posthogPrivacy.ts` does
   (`sanitizedForAnalytics`, held to it by the parity fixtures). It reports only
   from a release build on satvis.space with PostHog's project key and host, which
