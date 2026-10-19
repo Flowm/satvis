@@ -23,8 +23,11 @@ final class Session {
     let clock = ViewerClock()
     let catalog: CatalogModel
     let passes = PassModel()
-    @ObservationIgnored let satellites = SatelliteLayer()
-    @ObservationIgnored private let starMap = StarMap()
+    /// What the session sets on the globe, kept for a renderer that arrives late;
+    /// what it asks goes to `renderer`.
+    @ObservationIgnored private let globe = GlobeBinding()
+    @ObservationIgnored let satellites: SatelliteLayer
+    @ObservationIgnored private let starMap: StarMap
     /// The demo bookmarks' pictures by their path on the site, kept once fetched.
     private(set) var demoPictures: [String: Data] = [:]
     /// Observed: it arrives once its shaders compile, possibly after a link has
@@ -32,7 +35,7 @@ final class Session {
     private(set) var renderer: GlobeRenderer?
 
     /// What is selected, followed and stood on, changed through the methods
-    /// below, which take the renderer and the catalog along.
+    /// below, which take the globe and the catalog along.
     private var focus = Focus()
     /// What the info panel is about.
     var selection: Selection? { focus.selection }
@@ -45,12 +48,12 @@ final class Session {
     /// In the sky view, how the satellites that cannot be seen are drawn (ADR
     /// 0010). Kept in links as `unseen`.
     var unseen = UnseenMode.dim {
-        didSet { renderer?.unseen = unseen }
+        didSet { globe.unseen = unseen }
     }
     /// The Globe panel's camera mode, kept in links as `camera`. The sky view
     /// holds the camera, and keeps the choice for the way back.
     var cameraFrame = CameraFrame.fixed {
-        didSet { renderer?.cameraFrame = cameraFrame }
+        didSet { globe.cameraFrame = cameraFrame }
     }
     let compass = SkyCompass()
     /// The camera's picture behind the sky view, aimed by the compass (ADR 0013).
@@ -68,14 +71,14 @@ final class Session {
     var baseLayer: BaseLayer = UserDefaults.standard.string(forKey: "baseLayer").flatMap(BaseLayer.init(rawValue:)) ?? .naturalEarth {
         didSet {
             UserDefaults.standard.set(baseLayer.rawValue, forKey: "baseLayer")
-            renderer?.setImagery(baseLayer, site: site, frame: imageryFrame)
+            globe.setImagery(baseLayer, site: site, frame: imageryFrame)
         }
     }
     /// Whether the globe follows Re:Earth's terrain: off by default, as on the web.
     var terrain = UserDefaults.standard.bool(forKey: "terrain") {
         didSet {
             UserDefaults.standard.set(terrain, forKey: "terrain")
-            renderer?.setTerrain(terrain)
+            globe.terrain = terrain
         }
     }
     @ObservationIgnored private let tiles = TileFetcher.shared()
@@ -83,7 +86,7 @@ final class Session {
     /// The days GIBS has VIIRS for, and when it was last asked.
     @ObservationIgnored private var viirsDays: [ClosedRange<String>]?
     @ObservationIgnored private var viirsDaysAsked: Date?
-    /// A daily base map's day, as the renderer was given it: the clock's, within
+    /// A daily base map's day, as the globe was given it: the clock's, within
     /// GIBS's days; nil, GIBS's latest, until they are known.
     @ObservationIgnored private var imageryFrame: String?
     let analytics = Analytics()
@@ -154,6 +157,9 @@ final class Session {
         repository = loader.repository
         self.alerts = alerts
         catalog = CatalogModel(loader: loader)
+        satellites = SatelliteLayer(globe: globe)
+        starMap = StarMap(globe: globe)
+        bindGlobe()
     }
 
     /// Fetches a 3D model by its path under /data/models/, for the globe and the info
@@ -183,11 +189,10 @@ final class Session {
     /// The selected satellite, whose passes the clock deck marks.
     var selectedSatellite: String? { focus.selectedSatellite }
 
-    /// Takes over a renderer once it exists: it compiles its shaders first.
-    func attach(_ renderer: GlobeRenderer) {
-        self.renderer = renderer
-        renderer.clock = { [clock] in clock.now() }
-        renderer.tileLoader = { [tiles, keptTiles] request in
+    /// Sets what the globe starts from; the properties' `didSet`s keep it in step.
+    private func bindGlobe() {
+        globe.clock = { [clock] in clock.now() }
+        globe.tileLoader = { [tiles, keptTiles] request in
             if request.keeps, let data = keptTiles.read(request.url) {
                 return data
             }
@@ -206,24 +211,19 @@ final class Session {
                 return nil
             }
         }
-        renderer.modelLoader = modelLoader
-        renderer.setImagery(baseLayer, site: site, frame: imageryFrame)
-        renderer.setTerrain(terrain)
-        renderer.unseen = unseen
-        renderer.cameraFrame = cameraFrame
-        renderer.setStations(shownMarkers)
-        renderer.onGPUFault = { [weak self] fault in self?.reportGPUFault(fault) }
-        // What a link opened on before the renderer was there to be told: the
-        // sky view, with no globe to fly from yet, or something followed.
-        if let observer, let station = passes.station(observer) {
-            renderer.enterSky(SkyCamera(latitude: station.latitude, longitude: station.longitude), animated: false)
-        } else if let tracked {
-            renderer.track(tracked.rendererID)
-        }
-        // The links went to no renderer at all if they were built before it.
-        linksKey = nil
-        satellites.attach(renderer)
-        starMap.attach(renderer)
+        globe.modelLoader = modelLoader
+        globe.setImagery(baseLayer, site: site, frame: imageryFrame)
+        globe.terrain = terrain
+        globe.unseen = unseen
+        globe.cameraFrame = cameraFrame
+        globe.stations = shownMarkers
+        globe.onGPUFault = { [weak self] fault in self?.reportGPUFault(fault) }
+    }
+
+    /// Takes over a renderer once it exists: it compiles its shaders first.
+    func attach(_ renderer: GlobeRenderer) {
+        self.renderer = renderer
+        globe.attach(renderer)
     }
 
     /// Loads what there is to show and keeps it in step until cancelled.
@@ -268,9 +268,7 @@ final class Session {
                 setShowsBenchmark(true)
                 Task {
                     // The renderer is attached once the view has a size.
-                    while renderer == nil {
-                        try? await Task.sleep(for: .milliseconds(100))
-                    }
+                    await globe.untilAttached()
                     benchmark.startAtLaunch(on: self)
                 }
             }
@@ -771,21 +769,20 @@ final class Session {
         for command in commands {
             switch command {
             case .track(let target, let animated):
-                renderer?.track(target.rendererID, animated: animated && motion)
+                globe.track(target.rendererID, animated: animated && motion)
             case .stopTracking(let animated):
-                renderer?.stopTracking(animated: animated && motion)
+                globe.stopTracking(animated: animated && motion)
             case .enterSky(let id, let animated):
-                // Without a renderer yet, `attach` stands it there.
                 if let station = passes.station(id) {
-                    renderer?.enterSky(SkyCamera(latitude: station.latitude, longitude: station.longitude), animated: animated && motion)
+                    globe.enterSky(SkyCamera(latitude: station.latitude, longitude: station.longitude), animated: animated && motion)
                 }
-                renderer?.setStations(shownMarkers)
+                globe.stations = shownMarkers
             case .leaveSky(let animated):
                 compass.stop(renderer)
-                renderer?.leaveSky(animated: animated && motion)
-                renderer?.setStations(shownMarkers)
+                globe.leaveSky(animated: animated && motion)
+                globe.stations = shownMarkers
             case .flyHome(let animated):
-                renderer?.flyHome(animated: animated && motion)
+                globe.flyHome(animated: animated && motion)
             }
         }
     }
@@ -803,7 +800,7 @@ final class Session {
     /// not make, the Locations sheet's and a station panel's, are let go of here.
     private func watchStations() async {
         for await stations in Observations({ self.passes.stations }) {
-            renderer?.setStations(shownMarkers)
+            globe.stations = shownMarkers
             perform(focus.stationsChanged(to: Set(stations.map(\.id))))
             // Alerts are for the saved stations only.
             alerts.forgetStations(except: Set(passes.saved.map(\.id)))
@@ -845,7 +842,7 @@ final class Session {
                 let frame = viirsDays.map { GIBS.frame(at: clock.now(), within: $0) }
                 if frame != imageryFrame {
                     imageryFrame = frame
-                    renderer?.setImagery(baseLayer, site: site, frame: frame)
+                    globe.setImagery(baseLayer, site: site, frame: frame)
                 }
             }
             try? await Task.sleep(for: .seconds(1))
@@ -893,7 +890,7 @@ final class Session {
             let links = LinksKey(revision: passes.revision, satellites: showsLinks ? active.map(\.id) : [])
             if links != linksKey {
                 linksKey = links
-                renderer?.setLinks(showsLinks ? passes.links(for: active) : [])
+                globe.links = showsLinks ? passes.links(for: active) : []
             }
             try? await Task.sleep(for: .seconds(1))
         }

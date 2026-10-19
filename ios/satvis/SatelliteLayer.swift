@@ -9,26 +9,16 @@ import SatvisRender
 final class SatelliteLayer {
     private(set) var count = 0
     @ObservationIgnored private let store = TrajectoryStore()
-    @ObservationIgnored private var renderer: GlobeRenderer?
-    /// Kept for a renderer that arrives after them: it compiles its shaders first.
-    @ObservationIgnored private var satellites: [PointSatellite] = []
-    @ObservationIgnored private var components: SatelliteComponents = [.point, .label]
-
-    /// Bumped by every set handed over, so a slow packing never replaces a newer one.
-    @ObservationIgnored private var generation = 0
+    @ObservationIgnored private let globe: GlobeBinding
     /// The entries `show` was last given, as the catalog keeps them.
     @ObservationIgnored private var shownEntries: [CatalogEntry] = []
     /// Bumped by every `show`, so that a set made before one is not taken for it.
     @ObservationIgnored private var showCount = 0
-    /// The `showCount` that `satellites` were made after.
-    @ObservationIgnored private var satellitesShowCount = 0
     /// The `showCount` that what the renderer draws was made after; -1 before anything.
     @ObservationIgnored private var drawnShowCount = -1
 
-    func attach(_ renderer: GlobeRenderer) {
-        self.renderer = renderer
-        renderer.components = components
-        Task { await hand(satellites, madeAfter: satellitesShowCount) }
+    init(globe: GlobeBinding) {
+        self.globe = globe
     }
 
     /// Whether the renderer draws `entries` as `show` was last given them: every
@@ -46,8 +36,7 @@ final class SatelliteLayer {
 
     /// The set to draw, and how.
     func show(_ entries: [CatalogEntry], components: SatelliteComponents, at time: Double) async {
-        self.components = components
-        renderer?.components = components
+        globe.components = components
         shownEntries = entries
         showCount += 1
         await store.replace(with: entries.map(\.record))
@@ -72,13 +61,14 @@ final class SatelliteLayer {
             return
         }
         count = entries.count
-        satellites = entries.map {
+        let satellites = entries.map {
             PointSatellite(
                 id: Catalog.id(of: $0.record), name: $0.record.name, trajectory: $0.trajectory, color: $0.record.orbitClass.color,
                 footprint: Self.footprint($0.record), modelFile: $0.record.metadata["modelFile"]?.string)
         }
-        satellitesShowCount = show
-        await hand(satellites, madeAfter: show)
+        await globe.setSatellites(satellites) { [weak self] in
+            self?.drawnShowCount = show
+        }
     }
 
     /// The web app's ground track and sensor cone, which it draws for low orbits
@@ -88,19 +78,5 @@ final class SatelliteLayer {
             return nil
         }
         return Footprint(swathKm: (SwathExtents(metadata: record.metadata) ?? .default).widthKm, coneHalfAngleDegrees: record.metadata["coneFovDeg"]?.number ?? 10)
-    }
-
-    /// Packed off the main thread, then handed to the renderer.
-    private func hand(_ satellites: [PointSatellite], madeAfter show: Int) async {
-        guard let renderer else {
-            return
-        }
-        generation += 1
-        let mine = generation
-        let prepared = await renderer.prepare(satellites)
-        if mine == generation {
-            renderer.setSatellites(prepared)
-            drawnShowCount = show
-        }
     }
 }
