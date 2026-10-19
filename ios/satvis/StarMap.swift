@@ -1,4 +1,5 @@
 import Foundation
+import SatvisData
 import SatvisRender
 
 /// satvis's star map, fetched from the site rather than shipped, handed to the
@@ -14,12 +15,12 @@ final class StarMap {
     }
 
     /// The kept faces at once, then the site's, if they came back.
-    func load(from source: GPSource) async {
-        if let kept = await source.keptStarMap() {
+    func load(from repository: GroupRepository) async {
+        if let kept = await repository.keptStarMap() {
             faces = kept
             apply()
         }
-        if let fetched = await source.starMap(), fetched != faces {
+        if let fetched = await repository.starMap(), fetched != faces {
             faces = fetched
             apply()
         }

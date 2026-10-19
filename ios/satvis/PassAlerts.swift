@@ -39,7 +39,7 @@ final class PassAlerts {
     private(set) var alerts: [Alert]
     /// What the last change came to, for a moment: "Notifying for 12 passes".
     private(set) var message: String?
-    @ObservationIgnored private let source: GPSource
+    @ObservationIgnored private let loader: GroupLoader
     /// Where the stations and mode are read from, with no `PassModel` about in a
     /// background refresh.
     @ObservationIgnored private let stationStorage: any StationStorage
@@ -50,8 +50,8 @@ final class PassAlerts {
     @ObservationIgnored private var nextRefresh: Date?
     @ObservationIgnored private var clearing: Task<Void, Never>?
 
-    init(source: GPSource, stationStorage: any StationStorage = UserDefaultsStationStorage()) {
-        self.source = source
+    init(loader: GroupLoader, stationStorage: any StationStorage = UserDefaultsStationStorage()) {
+        self.loader = loader
         self.stationStorage = stationStorage
         // One at a time, so an alert saved in an older shape drops alone.
         alerts = (UserDefaults.standard.data(forKey: Self.key).flatMap { try? JSONDecoder().decode([MaybeAlert].self, from: $0) } ?? []).compactMap(\.value)
@@ -141,33 +141,7 @@ final class PassAlerts {
             nextRefresh = nil
             return PassNotificationPlan(passes: [], now: 0, predictedUntil: 0)
         }
-        // All at once: one after another, each with the worker's 15 s timeout, a
-        // network that hangs rather than fails would outlast the 30 s or so iOS
-        // gives a background refresh, every time.
-        let source = source
-        let loaded = await withTaskGroup(of: (String, [GPRecord]?).self) { tasks in
-            for group in Set(alerts.flatMap(\.groups)) {
-                tasks.addTask {
-                    do {
-                        return (group, try await source.records(of: group).value)
-                    } catch {
-                        log.error("Group \(group, privacy: .public) unavailable: \(error, privacy: .public)")
-                        return (group, nil)
-                    }
-                }
-            }
-            var loaded: [(group: String, records: [GPRecord])] = []
-            for await (group, records) in tasks {
-                if let records {
-                    loaded.append((group, records))
-                }
-            }
-            return loaded
-        }
-        var catalog = Catalog()
-        for (group, records) in loaded.sorted(by: { $0.group < $1.group }) {
-            catalog.add(records, tags: [], group: group)
-        }
+        let catalog = await loader.catalog(of: Set(alerts.flatMap(\.groups)))
         let now = Date().timeIntervalSince1970 * 1000
         let jobs = alerts.flatMap { alert in
             let stations: [GroundStation]

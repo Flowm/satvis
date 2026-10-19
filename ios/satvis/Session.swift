@@ -23,7 +23,10 @@ enum Selection: Hashable {
 /// restored scene) can set it here. The views read it and call it.
 @Observable
 final class Session {
-    let source: GPSource
+    /// The site the worker answers at, whose static files (the finer Natural
+    /// Earth levels) the globe streams.
+    let site: URL
+    @ObservationIgnored private let repository: GroupRepository
     let alerts: PassAlerts
     let clock = ViewerClock()
     let catalog: CatalogModel
@@ -70,7 +73,7 @@ final class Session {
     var baseLayer: BaseLayer = UserDefaults.standard.string(forKey: "baseLayer").flatMap(BaseLayer.init(rawValue:)) ?? .naturalEarth {
         didSet {
             UserDefaults.standard.set(baseLayer.rawValue, forKey: "baseLayer")
-            renderer?.setImagery(baseLayer, site: source.site, frame: imageryFrame)
+            renderer?.setImagery(baseLayer, site: site, frame: imageryFrame)
         }
     }
     /// Whether the globe follows Re:Earth's terrain: off by default, as on the web.
@@ -103,7 +106,7 @@ final class Session {
     var mapCredits: [Credit] { Credit.map(baseLayer: baseLayer, terrain: terrain || observer != nil) }
 
     /// The site's privacy policy, which covers the app.
-    var privacyPolicy: URL { source.site.appending(path: "data/privacy.html") }
+    var privacyPolicy: URL { site.appending(path: "data/privacy.html") }
 
     /// What the drawn links were built from.
     @ObservationIgnored private var linksKey: LinksKey?
@@ -151,16 +154,17 @@ final class Session {
     /// a path with its query (`/ot?tags=OT`): for screenshots and tests.
     private static let launchLink = ProcessInfo.processInfo.environment["SATVIS_LINK"].map(Link.init)
 
-    init(source: GPSource, alerts: PassAlerts) {
-        self.source = source
+    init(loader: GroupLoader, site: URL, alerts: PassAlerts) {
+        self.site = site
+        repository = loader.repository
         self.alerts = alerts
-        catalog = CatalogModel(source: source)
+        catalog = CatalogModel(loader: loader)
     }
 
     /// Fetches a 3D model by its path under /data/models/, for the globe and the info
     /// panel's close-up: the models the site serves for its own globe, cached as the tiles are.
     var modelLoader: @Sendable (String) async -> Data? {
-        { [tiles, site = source.site] file in
+        { [tiles, site = self.site] file in
             let url = site.appending(path: "data/models").appending(path: file)
             do {
                 return try await tiles.tile(url, contentType: "model/gltf-binary")
@@ -173,7 +177,7 @@ final class Session {
 
     /// A frame the GPU failed, the globe's or the close-up's, to analytics with the view it failed in.
     func reportGPUFault(_ fault: GPUFault) {
-        analytics.gpuFault(fault, satellites: renderer?.satelliteCount ?? 0, view: link(sharing: false).url(site: source.site))
+        analytics.gpuFault(fault, satellites: renderer?.satelliteCount ?? 0, view: link(sharing: false).url(site: site))
     }
 
     /// The close-up's model fetcher, frame rate and fault reporting.
@@ -213,7 +217,7 @@ final class Session {
             }
         }
         renderer.modelLoader = modelLoader
-        renderer.setImagery(baseLayer, site: source.site, frame: imageryFrame)
+        renderer.setImagery(baseLayer, site: site, frame: imageryFrame)
         renderer.setTerrain(terrain)
         renderer.unseen = unseen
         renderer.cameraFrame = cameraFrame
@@ -241,31 +245,19 @@ final class Session {
             Task { await watchEntries() },
             Task { await watchAiming() },
             Task { await watchCameraPlace() },
-            Task { await starMap.load(from: source) },
+            Task { await starMap.load(from: repository) },
             Task { await loadDemoPictures() },
             Task { await predictPasses() },
             Task { await followImageryDay() },
             Task { await countViews() },
         ]
         await withTaskCancellationHandler {
-            // The kept copy first, so nothing waits on the network that a copy on
-            // disk can show; the worker's answers follow.
-            await source.loadKept()
-            if source.index == nil {
-                await source.refresh()
+            let waiting = String(localized: "No satellites yet. They load once Satvis is online.")
+            await catalog.loadIndex { @MainActor in
+                self.notice = waiting
             }
-            // The app ships no catalog, so a first launch offline shows none until
-            // the worker answers once; after that the kept copy starts it.
-            if source.index == nil {
-                let waiting = String(localized: "No satellites yet. They load once Satvis is online.")
-                while source.index == nil, !Task.isCancelled {
-                    notice = waiting
-                    try? await Task.sleep(for: .seconds(10))
-                    await source.refresh()
-                }
-                if notice == waiting {
-                    notice = nil
-                }
+            if notice == waiting {
+                notice = nil
             }
             started = true
             // The view a last run left is the user's own, as a reload is on the web:
@@ -281,10 +273,7 @@ final class Session {
                 // settings before links kept it.
                 await apply(Link(), settings: false)
             }
-            Task {
-                await source.refresh()
-                await catalog.revalidate(refetching: false)
-            }
+            Task { await catalog.revalidate(refetching: false) }
             if Benchmark.runsAtLaunch {
                 setShowsBenchmark(true)
                 Task {
@@ -311,7 +300,6 @@ final class Session {
         }
         revalidated = Date()
         Task {
-            await source.refresh()
             await catalog.revalidate()
             await alerts.reschedule()
         }
@@ -323,7 +311,7 @@ final class Session {
         // scene: the view the run began from.
         var kept = benchmark.abandon(on: self) ?? link(sharing: false)
         kept.query.items.removeAll { $0.key == "time" }
-        UserDefaults.standard.set(kept.url(site: source.site).absoluteString, forKey: Self.viewKey)
+        UserDefaults.standard.set(kept.url(site: site).absoluteString, forKey: Self.viewKey)
     }
 
     // MARK: Links
@@ -391,15 +379,15 @@ final class Session {
         // A preset the kept index does not know, as the index shipped in the app
         // knows only the default: the worker's may, and the link is read against
         // that preset's defaults, so it waits for it.
-        if let named = link.preset, source.index?.value.presets[named] == nil {
-            await source.refresh()
+        if let named = link.preset, catalog.index?.presets[named] == nil {
+            await catalog.refreshIndex()
             guard generation == linkGeneration else {
                 return
             }
         }
-        let index = source.index?.value
+        let index = catalog.index
         let preset = link.preset.flatMap { index?.presets[$0] != nil ? $0 : nil }
-        let (scene, named) = SceneState.read(link.query, presetDefaults: index?.preset(named: preset)?.defaults ?? [:])
+        let (scene, named) = SceneState.read(link.query, presetDefaults: index?.presetDefaults(named: preset) ?? [:])
         foreign = scene.foreign
         showsBenchmark = foreign.showsBenchmark
         if benchmark.isRunning {
@@ -462,7 +450,7 @@ final class Session {
                 continue
             }
             counted = view
-            analytics.pageview(link(sharing: false).url(site: source.site))
+            analytics.pageview(link(sharing: false).url(site: site))
         }
     }
 
@@ -476,7 +464,7 @@ final class Session {
 
     /// What a bookmark's card says, read against its own preset's defaults.
     func summary(_ scene: SceneLink) -> BookmarkSummary {
-        Bookmarks.summarize(scene.query, presetDefaults: source.index?.value.preset(named: scene.preset)?.defaults ?? [:])
+        Bookmarks.summarize(scene.query, presetDefaults: catalog.index?.presetDefaults(named: scene.preset) ?? [:])
     }
 
     /// Opens a bookmark's scene, carrying the link's parameters no store owns.
@@ -506,10 +494,10 @@ final class Session {
     private func loadDemoPictures() async {
         let paths = Bookmarks.demos.compactMap(\.thumbnail)
         for path in paths {
-            demoPictures[path] = await source.keptImage(path)
+            demoPictures[path] = await repository.keptImage(path)
         }
         for path in paths {
-            if let fetched = await source.image(path), fetched != demoPictures[path] {
+            if let fetched = try? await repository.image(path).value, fetched != demoPictures[path] {
                 demoPictures[path] = fetched
             }
         }
@@ -913,7 +901,7 @@ final class Session {
                 let frame = viirsDays.map { GIBS.frame(at: clock.now(), within: $0) }
                 if frame != imageryFrame {
                     imageryFrame = frame
-                    renderer?.setImagery(baseLayer, site: source.site, frame: frame)
+                    renderer?.setImagery(baseLayer, site: site, frame: frame)
                 }
             }
             try? await Task.sleep(for: .seconds(1))

@@ -134,6 +134,7 @@ import Testing
         let index = try JSONDecoder().decode(GroupIndex.self, from: Data(payload.utf8))
         #expect(index.groups == [GroupStatus(name: "weather", count: 72, tags: ["Weather"])])
         #expect(index.preset(named: nil)?.defaults == ["tags": "Weather"])
+        #expect(GroupIndex().presetDefaults(named: nil).isEmpty)
         #expect(index.preset(named: "ot")?.groups == [PresetGroup(name: "weather"), PresetGroup(name: "starlink", searchOnly: true)])
     }
 

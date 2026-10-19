@@ -14,8 +14,8 @@ struct SatvisApp: App {
 
     init() {
         let site = Self.site
-        let source = GPSource(repository: Self.repository(site: site), site: site)
-        _session = State(initialValue: Session(source: source, alerts: PassAlerts(source: source)))
+        let loader = GroupLoader(repository: Self.repository(site: site))
+        _session = State(initialValue: Session(loader: loader, site: site, alerts: PassAlerts(loader: loader)))
     }
 
     var body: some Scene {

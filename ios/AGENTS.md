@@ -437,11 +437,11 @@ and appends to the top-level `AGENTS.md`.
   asked. The app ships no catalog: a bundled one is weeks out of date by the time
   most people install, and the first answer replaces it anyway. A first launch
   offline shows a note and asks again every 10 s. A 200 that is not JSON counts as no answer: a host
-  without the worker serves its index.html for any path. The app never waits on
-  the worker for what a copy can show: the index and each group come from the
-  kept copy first (`keptIndex`, `keptRecords`), the worker's
-  answer replaces them when it lands, and a return to the foreground asks again
-  for every group loaded. Requests time out after 15 s.
+  without the worker serves its index.html for any path. When each is asked for
+  is `GroupLoader`'s, above it: the app never waits on the worker for what a copy
+  can show, so the index and each group come from the kept copy first, one load a
+  group at a time, the worker's answer replaces them when it lands, and a return
+  to the foreground asks again for every group loaded. Requests time out after 15 s.
 - Work that grows with the number of satellites stays off the main thread, or is
   done only when its input changes: the GPU buffers are packed by
   `GlobeRenderer.prepare`, `CatalogModel.activeEntries` is kept rather than

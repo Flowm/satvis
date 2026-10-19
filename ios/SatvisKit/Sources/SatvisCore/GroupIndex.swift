@@ -31,6 +31,12 @@ public struct GroupIndex: Sendable, Hashable, Decodable {
     public func preset(named name: String?) -> Preset? {
         name.flatMap { presets[$0] } ?? presets[Preset.defaultName]
     }
+
+    /// The defaults of the preset a route opens with, in the url's vocabulary;
+    /// empty without one.
+    public func presetDefaults(named name: String?) -> [String: String] {
+        preset(named: name)?.defaults ?? [:]
+    }
 }
 
 public struct GroupStatus: Sendable, Hashable, Decodable {
