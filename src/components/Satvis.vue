@@ -219,7 +219,6 @@ import { useController } from "../composables/useController";
 import { useGeolocation } from "../composables/useGeolocation";
 import { compassAvailable, useSkyCompass } from "../composables/useSkyCompass";
 import { SATELLITE_COMPONENTS } from "../config/components";
-import { layerProvider } from "../config/layers";
 import { MSAA_RATES, pixelRatiosFor } from "../config/rendering";
 import { availableStarMaps, BUILTIN_STAR_MAP, type StarMapName } from "../config/starMaps";
 import { type MapGroup, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, viewModeNote } from "../config/surfaceModels";
@@ -280,7 +279,7 @@ const menuItems: { key: MenuKey; label: string; icon: string; hint: string }[] =
 ];
 
 const cesiumStore = useCesiumStore();
-const { layers, terrainProvider, surfaceModel, starMap, sceneMode, unseen, cameraMode, pixelRatio, msaa, showFps, showBenchmark, requestRenderMode } = storeToRefs(cesiumStore);
+const { baseLayer, terrainProvider, surfaceModel, starMap, sceneMode, unseen, cameraMode, pixelRatio, msaa, showFps, showBenchmark, requestRenderMode } = storeToRefs(cesiumStore);
 
 /** Starts with the builtin map, and widens once per page when the probes answer. */
 const starMapOptions = ref<StarMapName[]>([BUILTIN_STAR_MAP]);
@@ -324,31 +323,7 @@ const baseLayers = baseLayerNames();
 const overlayLayers = overlayLayerNames();
 const terrainNames = terrainProviderNames();
 
-/**
- * Write `layers` only through `setLayers`, which enforces at most one base layer.
- * List order is z-order: the basemap goes first, overlays last.
- */
-const isBaseToken = (token: string): boolean => {
-  const provider = layerProvider(token);
-  return provider !== undefined && baseLayers.includes(provider);
-};
-
-/** The basemap in the stack, by provider name, or "" when a url left none. */
-const baseLayer = computed(() => {
-  const token = layers.value.find(isBaseToken);
-  return token === undefined ? "" : (layerProvider(token) ?? "");
-});
-
-const hasOverlay = (name: string): boolean => layers.value.some((token) => layerProvider(token) === name);
-
-function setBaseLayer(name: string): void {
-  cesiumStore.setLayers([name, ...layers.value.filter((token) => !isBaseToken(token))]);
-}
-
-function toggleOverlay(name: string, enabled: boolean): void {
-  const without = layers.value.filter((token) => layerProvider(token) !== name);
-  cesiumStore.setLayers(enabled ? [...without, name] : without);
-}
+const { hasOverlay, setBaseLayer, toggleOverlay } = cesiumStore;
 
 const satStore = useSatStore();
 const { enabledComponents } = storeToRefs(satStore);
