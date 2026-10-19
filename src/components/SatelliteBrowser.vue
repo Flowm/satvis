@@ -34,6 +34,7 @@
       <span>{{ groupCount }} group{{ groupCount === 1 ? "" : "s" }} · {{ activeSatCount }} satellite{{ activeSatCount === 1 ? "" : "s" }} active</span>
       <button v-if="hasActiveSelection" type="button" class="browser-clear" @click="clearAll">Clear all</button>
     </div>
+    <button type="button" class="browser-catalog" @click="emit('browse')"><UIcon name="lucide:chart-no-axes-column" /> Browse and filter the catalog</button>
   </div>
 </template>
 
@@ -65,7 +66,7 @@ const {
   clearAll,
 } = useSatelliteBrowser(sats.catalog);
 
-const emit = defineEmits<{ "show-info": [name: string] }>();
+const emit = defineEmits<{ "show-info": [name: string]; browse: [] }>();
 
 function showInfo(name: string): void {
   activateSat(name);
@@ -175,6 +176,25 @@ const totalSize = computed(() => virtualizer.value.getTotalSize());
   cursor: pointer;
   color: #edffff;
   font-size: 12px;
+}
+
+.browser-catalog {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: none;
+  color: #edffff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.browser-catalog:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .browser-clear:hover {

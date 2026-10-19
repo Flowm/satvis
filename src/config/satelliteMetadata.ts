@@ -48,6 +48,10 @@ export interface SatelliteMetadata {
   category?: string;
   /** GCAT owner-type code, labelled by gcatCodes.ts: "B" commercial, "D" military. */
   class?: string;
+  /** GCAT's operational orbit code, "LLEO/S", "GEO/D"; read through `CatalogEntry.orbitKind`. */
+  opOrbit?: string;
+  /** GCAT's programme: "Starlink 2MO S1", "OneWeb", "TsM". Its first word names the constellation. */
+  program?: string;
 
   // Raw SATCAT codes, labelled by satcatCodes.ts; absent when upstream's cell is empty.
 

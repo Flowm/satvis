@@ -329,6 +329,8 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
   const isLoading = computed(() => allGroups.value.length === 0);
 
   return {
+    /** What the globe shows by name, tracking aside. */
+    activeSatNames,
     searchQuery,
     searchLoading,
     setSearchQuery,

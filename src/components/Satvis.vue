@@ -39,8 +39,10 @@
       <!-- v-if, not v-show: the virtualized list measures its scroll element on mount,
            and a hidden mount measures 0. Search and expansion state survive remounts in useSatelliteBrowser. -->
       <toolbar-panel v-if="menu.cat" title="Satellites" wide class="toolbarSwitches--catalog" @close="closePanel('cat')">
-        <satellite-browser @show-info="onShowInfo" />
+        <satellite-browser @show-info="onShowInfo" @browse="openCatalog" />
       </toolbar-panel>
+      <!-- The full catalog grows out of the Satellites panel and takes its place; inside #toolbarLeft so it stacks over the clock. -->
+      <catalog-sheet v-if="catalogOpen" ref="catalogSheet" @back="closeCatalog(true)" @close="closeCatalog(false)" @show-info="onShowInfo" />
       <!-- "Components", not "elements": an element set is the GP data. -->
       <toolbar-panel v-show="menu.sat" title="Components" @close="closePanel('sat')">
         <label v-for="componentName in cc.sats.availableComponents" :key="componentName" class="toolbarSwitch">
@@ -227,6 +229,7 @@ import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 import AboutDialog from "./AboutDialog.vue";
 import BookmarkPanel from "./BookmarkPanel.vue";
+import CatalogSheet from "./catalog/CatalogSheet.vue";
 import ClockDeck from "./ClockDeck.vue";
 import EntityInfoPanel from "./EntityInfoPanel.vue";
 import GroundStationList from "./GroundStationList.vue";
@@ -445,9 +448,11 @@ function onPointerCancel(): void {
   globePress = undefined;
 }
 
+/** Opening a panel also closes the catalog sheet, which otherwise stays over the globe beside it. */
 function toggleMenu(name: MenuKey) {
   const oldState = menu[name];
   closeMenus();
+  catalogOpen.value = false;
   menu[name] = !oldState;
 }
 
@@ -461,7 +466,29 @@ function closeMenus() {
 function onShowInfo(): void {
   if (isNarrow()) {
     closeMenus();
+    catalogOpen.value = false;
     menuExpanded.value = false;
+  }
+}
+
+/** The catalog sheet, opened from the Satellites panel, which it replaces while open. */
+const catalogOpen = ref(false);
+const catalogSheet = ref<InstanceType<typeof CatalogSheet> | null>(null);
+
+/** On a phone the column would cover the sheet's header, so it folds. */
+function openCatalog(): void {
+  closeMenus();
+  if (isNarrow()) {
+    menuExpanded.value = false;
+  }
+  catalogOpen.value = true;
+}
+
+/** `back` returns to the Satellites panel; otherwise everything closes. */
+function closeCatalog(back: boolean): void {
+  catalogOpen.value = false;
+  if (back) {
+    menu.cat = true;
   }
 }
 
@@ -472,7 +499,7 @@ function toggleMenuColumn() {
   }
 }
 
-/** Closes the open panel, then the column. Inputs and an open dialog keep Escape for themselves. */
+/** Closes the catalog sheet's innermost layer, else the open panel, then the column. Inputs and an open dialog keep Escape for themselves. */
 function onEscape(event: KeyboardEvent) {
   if (
     event.key !== "Escape" ||
@@ -481,6 +508,10 @@ function onEscape(event: KeyboardEvent) {
     // Not every [role=dialog]: Cesium's credit lightbox carries the role while hidden.
     document.querySelector('[role="dialog"][data-state="open"]')
   ) {
+    return;
+  }
+  if (catalogOpen.value) {
+    catalogSheet.value?.escape();
     return;
   }
   const open = (Object.keys(menu) as MenuKey[]).find((k) => menu[k]);

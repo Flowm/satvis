@@ -24,6 +24,7 @@ describe("parseGcatCatalog", () => {
       diameterM: 4.2,
       spanM: 23.9,
       shape: "Cyl + 2 Pan",
+      opOrbit: "LLEO/I",
       estimated: ["diameterM"],
     });
   });
@@ -76,8 +77,8 @@ describe("parseGcatCatalog", () => {
 });
 
 describe("parseGcatPayloads", () => {
-  it("keys purpose and owner type by JCAT, as codes", () => {
-    expect(parseGcatPayloads(gcatPayloads(GCAT_PAYLOADS_LINES.ISS))).toEqual({ S25544: { category: "SS", class: "C" } });
+  it("keys purpose and owner type by JCAT, as codes, and the programme by name", () => {
+    expect(parseGcatPayloads(gcatPayloads(GCAT_PAYLOADS_LINES.ISS))).toEqual({ S25544: { category: "SS", class: "C", program: "TsM" } });
   });
 
   it("throws on a body that is not the payload table", () => {
@@ -128,7 +129,7 @@ describe("gcatBags", () => {
 
   it("joins the payload table by JCAT, and serves no JCAT", () => {
     const bags = gcatBags(catalog, orgs, payloads);
-    expect(bags["25544"]).toMatchObject({ category: "SS", class: "C" });
+    expect(bags["25544"]).toMatchObject({ category: "SS", class: "C", program: "TsM", opOrbit: "LLEO/I" });
     expect(bags["25544"]).not.toHaveProperty("jcat");
     // Nauka is not among the fixture's payload rows.
     expect(bags["49044"]).not.toHaveProperty("category");

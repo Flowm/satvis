@@ -87,7 +87,9 @@ export default defineConfig({
     vue(),
     ui({
       ui: { colors: { neutral: "neutral" } },
-      icon: { clientBundle: { scan: true } },
+      // .ts too: the catalog's facets name their icons in data (catalogFacets.ts), and an
+      // icon the scan misses is fetched from api.iconify.design at runtime.
+      icon: { clientBundle: { scan: { globInclude: ["**/*.{vue,ts}"] } } },
     }),
     viteStaticCopy({
       targets: [

@@ -58,15 +58,22 @@ record at refresh time. The new rule is about who may write each field.
 | Design       | `bus`, `manufacturer`, `operator`                               | GCAT                                                             |
 | Physical     | `massKg`, `lengthM`, `diameterM`, `spanM`, `shape`, `estimated` | GCAT                                                             |
 | Purpose      | `category`, `class`                                             | GCAT                                                             |
+| Programme    | `program`                                                       | GCAT (ADR 0012)                                                  |
 | Sensor       | `swathStarboardKm`, `swathPortKm`, `coneFovDeg`                 | curated only                                                     |
 | Mission      | `missionType`                                                   | curated only                                                     |
 | Model        | `modelFile`                                                     | curated (manifest NORAD ids), else derived from `bus` (ADR 0007) |
 | Orbit        | `orbitClass`                                                    | derived, client-side (ADR 0002)                                  |
+| Orbit kind   | `opOrbit`                                                       | GCAT; resolved in `CatalogEntry.orbitKind` (ADR 0012)        |
 
 **No field falls back from one upstream source to another.** A chain such as "GCAT's
 launch date, else SATCAT's" would mix two definitions of the same field, depending on
 the satellite: a reader of a launch date could not tell which launch it means. Where
 GCAT has the better answer, its facet moves to GCAT as a whole, in its own decision.
+
+The orbit kind is the one place two sources meet, and still not in one field. `opOrbit`
+stays GCAT's; a kind computed from the element set is derived, never stored in the bag;
+and `CatalogEntry.orbitKind` alone chooses, GCAT first, and says which it took
+(ADR 0012). A reader of `opOrbit` always reads GCAT.
 
 The ownership is checked, not trusted: each upstream parser declares the keys it
 emits, and a test fails when two declarations share one.

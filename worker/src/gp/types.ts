@@ -153,6 +153,11 @@ export interface GcatRow {
   spanM?: number;
   /** Free text, spaces collapsed: "Box + 2 Pan". */
   shape?: string;
+  /**
+   * `OpOrbit`, GCAT's operational orbit code: a band and a kind, "LLEO/S" (lower LEO,
+   * sun-synchronous), "GEO/D" (drifting). The intended orbit, kept after the object drifts.
+   */
+  opOrbit?: string;
   /** The keys GCAT flags as estimated. */
   estimated?: string[];
 }
@@ -164,7 +169,7 @@ export type GcatRows = Record<string, GcatRow>;
 export type GcatOrgNames = Record<string, string>;
 
 /** JCAT -> the payload table's codes, labelled by the frontend (src/config/gcatCodes.ts). */
-export type GcatPayloadRows = Record<string, { category?: string; class?: string }>;
+export type GcatPayloadRows = Record<string, { category?: string; class?: string; program?: string }>;
 
 /**
  * Stored as KV metadata on `status:<name>`, apart from the file, so a 304 or a failure

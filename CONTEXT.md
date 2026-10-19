@@ -87,6 +87,21 @@ discussion; sharpen them here when they drift.
   contradict its orbit (`orbitClassOf`). It sets the point colour, the badge in
   the satellite browser, and whether the satellite gets a ground track and a
   sensor cone at all.
+- **Orbit kind**: an orbit class's subdivision, as GCAT names it: a LEO's
+  inclination band (equatorial, intermediate, polar, sun-sync, retrograde), a GEO's
+  station keeping, a Molniya HEO. GCAT's `opOrbit` gives it, or, for a satellite GCAT
+  does not list yet, the element set by GCAT's bounds (`CatalogEntry.orbitKind`,
+  ADR 0012). GCAT's "sun-sync" is a 95–104° band, not the info panel's SSO, a
+  precession test.
+- **Programme**: GCAT's name for the project a payload belongs to, often a phase of one
+  ("Starlink 2MO S1"). Upstream metadata, `program`.
+- **Constellation**: the family a programme belongs to, its first word ("Starlink"). The
+  catalog's grouping by what a satellite is part of, unlike a group, which is only how
+  CelesTrak serves it.
+- **Element set age**: the time from an element set's epoch to now. Old ones place a
+  satellite less exactly; an active satellite's is under a day.
+- **Catalog sheet**: the crossfilter over every satellite, opened from the Satellites
+  panel (ADR 0012): every chart is a filter, counted under every filter but its own.
 - **Swath extent**: the cross-track distance from the ground track to the edge of
   a sensor footprint, per side (starboard = velocity bearing + 90°). A swath is a
   pair of extents, not a halved width: the sides differ when a sensor is tilted.

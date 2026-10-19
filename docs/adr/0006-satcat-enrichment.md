@@ -40,8 +40,9 @@ lookup falls back to the raw code: these tables go stale by design, and `SKOR` i
 better cell than a blank one.
 
 `SatelliteMetadata` now has three provenances: **curated** (hand-written, ~19
-satellites), **upstream** (SATCAT, all of them), and **derived** (`orbitClass`,
-computed client-side, see ADR 0002). A reader must know which one a field came from to
+satellites), **upstream** (SATCAT, all of them; GCAT since ADR 0008), and **derived**
+(`orbitClass`, computed client-side, see ADR 0002; the orbit kind computed where GCAT's
+`opOrbit` is missing is derived too, but lives on `CatalogEntry`, not in the bag, ADR 0012). A reader must know which one a field came from to
 know what its absence means. Nothing upstream may use the name `orbitClass`, because
 `cacheOrbitClass` overwrites that key unconditionally.
 

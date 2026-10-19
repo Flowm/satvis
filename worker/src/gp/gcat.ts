@@ -10,7 +10,7 @@ import type { UpstreamSpec } from "./upstream.ts";
 export const GCAT_CATALOG_URL = "https://planet4589.org/space/gcat/tsv/cat/satcat.tsv";
 /** ~0.7 MB: every organisation, country and intergovernmental body a catalog code names. */
 export const GCAT_ORGS_URL = "https://planet4589.org/space/gcat/tsv/tables/orgs.tsv";
-/** ~5 MB: the payloads' purpose (Category) and owner type (Class), keyed by JCAT. */
+/** ~5 MB: the payloads' purpose (Category), owner type (Class) and programme (Program), keyed by JCAT. */
 export const GCAT_PAYLOADS_URL = "https://planet4589.org/space/gcat/tsv/cat/psatcat.tsv";
 
 /** GCAT updates by hand, about weekly; push-catalog checks daily. */
@@ -30,6 +30,7 @@ const TEXT_FIELDS: [string, Exclude<keyof GcatRow, "jcat" | "estimated" | "massK
   ["Manufacturer", "manufacturer"],
   ["Owner", "operator"],
   ["Shape", "shape"],
+  ["OpOrbit", "opOrbit"],
 ];
 
 /** Value column, its `?` flag column, key; units as GCAT gives them, kg and m. */
@@ -40,10 +41,14 @@ const NUMBER_FIELDS: [string, string, "massKg" | "lengthM" | "diameterM" | "span
   ["Span", "SpanFlag", "spanM"],
 ];
 
-/** Payload table column -> key; both travel as codes, labelled by src/config/gcatCodes.ts. */
-const PAYLOAD_FIELDS: [string, "category" | "class"][] = [
+/**
+ * Payload table column -> key. Category and Class travel as codes, labelled by
+ * src/config/gcatCodes.ts; Program is a name ("Starlink 2MO S1").
+ */
+const PAYLOAD_FIELDS: [string, "category" | "class" | "program"][] = [
   ["Category", "category"],
   ["Class", "class"],
+  ["Program", "program"],
 ];
 
 /**
@@ -210,7 +215,7 @@ export function parseGcatOrgs(body: string): GcatOrgNames {
 
 /**
  * JCAT -> purpose and owner type, as codes: `Category` ("IMG/TECH", "COM?") and `Class`
- * ("B", "BD"). Payloads without either are skipped.
+ * ("B", "BD"); and the programme's name, `Program`. Payloads with none are skipped.
  */
 export function parseGcatPayloads(body: string): GcatPayloadRows {
   const { index, rows } = parseTsv(body, ["JCAT", ...PAYLOAD_FIELDS.map(([name]) => name)]);
@@ -283,7 +288,7 @@ export const GCAT_ORGS: UpstreamSpec<GcatOrgNames> = {
   staleAfterMs: GCAT_STALE_AFTER_MS,
 };
 
-/** The payload catalog, for each payload's purpose and owner type. */
+/** The payload catalog, for each payload's purpose, owner type and programme. */
 export const GCAT_PAYLOADS: UpstreamSpec<GcatPayloadRows> = {
   name: "gcatPayloads",
   url: GCAT_PAYLOADS_URL,
