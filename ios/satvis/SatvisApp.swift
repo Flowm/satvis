@@ -83,23 +83,23 @@ struct ContentView: View {
                 session.tap(at: point, viewSize: size, keepingSelection: closesMenu)
             },
             onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) },
-            mayDrag: session.mayDrag(_:fingers:),
-            takePinch: session.takePinch,
-            isTransparent: session.passthrough.isShowing,
+            mayDrag: session.aim.mayDrag(_:fingers:),
+            takePinch: session.aim.takePinch,
+            isTransparent: session.aim.passthrough.isShowing,
             pixelRatio: Double(session.pixelRatio),
             frameRate: session.frameRate
         )
         .ignoresSafeArea()
         .background {
             // Hidden by the opaque globe but while the sky view shows it.
-            CameraPreview(layer: session.passthrough.previewLayer)
+            CameraPreview(layer: session.aim.passthrough.previewLayer)
                 .background(.black)
                 .ignoresSafeArea()
         }
         .overlay {
             if session.observer != nil, let renderer = session.renderer {
                 // In the renderer's frame, the whole screen, since it projects into it.
-                SkyHUD(renderer: renderer, controls: topControls, trailingInset: cardInset, notice: session.notice ?? session.cameraWarning)
+                SkyHUD(renderer: renderer, controls: topControls, trailingInset: cardInset, notice: session.notice ?? session.aim.cameraWarning)
                     .ignoresSafeArea()
             }
         }
@@ -119,14 +119,14 @@ struct ContentView: View {
                 Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
                 if session.observer != nil {
                     Button(
-                        session.compass.isAiming ? "Stop aiming by compass" : "Aim by compass",
-                        systemImage: session.compass.isAiming ? "location.north.circle.fill" : "location.north.circle"
-                    ) { session.toggleCompass() }
+                        session.aim.compass.isAiming ? "Stop aiming by compass" : "Aim by compass",
+                        systemImage: session.aim.compass.isAiming ? "location.north.circle.fill" : "location.north.circle"
+                    ) { session.aim.toggleCompass() }
                     Button(
-                        session.passthrough.isShowing ? "Hide the camera" : "Show the camera",
-                        systemImage: session.passthrough.isShowing ? "camera.fill" : "camera"
-                    ) { session.togglePassthrough() }
-                    .disabled(session.isStartingCamera)
+                        session.aim.passthrough.isShowing ? "Hide the camera" : "Show the camera",
+                        systemImage: session.aim.passthrough.isShowing ? "camera.fill" : "camera"
+                    ) { session.aim.togglePassthrough() }
+                    .disabled(session.aim.isStartingCamera)
                 }
                 // The way out of following something once its panel is closed.
                 if session.tracked != nil {
@@ -209,7 +209,7 @@ struct ContentView: View {
             }
         }
         // Out of the way of the sky the compass now aims, as on the web.
-        .onChange(of: session.compass.isAiming && !session.compass.isProbing) { _, aiming in
+        .onChange(of: session.aim.compass.isAiming && !session.aim.compass.isProbing) { _, aiming in
             if aiming, panel == .sky {
                 panel = nil
             }

@@ -15,6 +15,7 @@ public protocol Globe: AnyObject {
     var unseen: UnseenMode { get set }
     var cameraFrame: CameraFrame { get set }
     var components: SatelliteComponents { get set }
+    var passthrough: CameraLens? { get set }
     func setImagery(_ layer: BaseLayer, site: URL, frame: String?)
     func setTerrain(_ enabled: Bool)
     func setStations(_ stations: [StationMarker])
@@ -91,6 +92,12 @@ public final class GlobeBinding {
     /// Where the camera stands when a globe attaches; nil leaves it where the
     /// globe opens.
     public private(set) var camera: Camera?
+    /// The camera whose picture the sky view is drawn over, while it is drawn
+    /// over (`GlobeRenderer.passthrough`).
+    public var passthrough: CameraLens? {
+        didSet { globe?.passthrough = passthrough }
+    }
+    /// The ground station links to draw (`GlobeRenderer.setLinks`).
     public var links: [StationLink] = [] {
         didSet { globe?.setLinks(links) }
     }
@@ -137,6 +144,7 @@ public final class GlobeBinding {
         case .tracking(let id): globe.track(id, animated: false)
         case nil: break
         }
+        globe.passthrough = passthrough
         globe.setLinks(links)
         globe.components = components
         Task { await handSatellites(to: globe) }

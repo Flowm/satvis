@@ -32,6 +32,9 @@ private final class RecordingGlobe: Globe {
     var components: SatelliteComponents = [] {
         didSet { calls.append("components \(components.rawValue)") }
     }
+    var passthrough: CameraLens? {
+        didSet { calls.append("passthrough \(passthrough.map { "\($0.tanHalfLongSide)" } ?? "-")") }
+    }
     func setImagery(_ layer: BaseLayer, site: URL, frame: String?) { calls.append("imagery \(layer.rawValue) \(frame ?? "-")") }
     func setTerrain(_ enabled: Bool) { calls.append("terrain \(enabled)") }
     func setStations(_ stations: [StationMarker]) { calls.append("stations \(stations.map(\.id))") }
@@ -79,6 +82,7 @@ private final class RecordingGlobe: Globe {
         binding.components = [.point]
         binding.links = [StationLink(satellite: "25544", latitude: 0, longitude: 0, start: 0, end: 1)]
         binding.track("25544", animated: true)
+        binding.passthrough = CameraLens(tanHalfLongSide: 0.5, aspectRatio: 16 / 9, longSideVertical: true)
         await binding.setSatellites([]) { drawn = true }
         binding.stations = [StationMarker(id: "a", latitude: 1, longitude: 2)]
         binding.cameraFrame = .inertial
@@ -93,7 +97,7 @@ private final class RecordingGlobe: Globe {
         #expect(
             Set(globe.calls) == [
                 "clock", "tileLoader", "modelLoader", "imagery VIIRS 2026-10-18", "terrain true", "unseen hide",
-                "cameraFrame Inertial", "stations [\"a\"]", "onGPUFault", "track 25544 false", "links [\"25544\"]",
+                "cameraFrame Inertial", "stations [\"a\"]", "onGPUFault", "track 25544 false", "passthrough 0.5", "links [\"25544\"]",
                 "components \(SatelliteComponents.point.rawValue)", "starMap 6", "prepare 1", "satellites 1",
             ])
         #expect(Set(globe.calls).count == globe.calls.count)

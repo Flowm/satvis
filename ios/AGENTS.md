@@ -192,7 +192,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   leaves the sky, drawing the terrain in depth alone; the renderer takes the
   camera's field of view from its `CameraLens` every frame, a pinch zooms the
   camera and never takes the aim back, and the compass aims it, so whatever stops
-  the compass stops the camera (`Session.watchAiming`). The sky view warns while
+  the compass stops the camera (`SkyAim.watchAiming`). The sky view warns while
   it stands more than 5 km from the device, but not for a clock away from now.
   The simulator has no camera: check it on a device.
 - The globe's gestures are SwiftUI's, not UIKit recognizers on the MTKView, so the

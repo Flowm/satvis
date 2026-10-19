@@ -37,17 +37,17 @@ final class SkyPassthrough {
     @ObservationIgnored private var rotationObservation: NSKeyValueObservation?
     /// The capture session's interruptions and errors, watched for the app's life.
     @ObservationIgnored private var sessionObservers: [NSObjectProtocol] = []
-    /// What the picture is drawn over.
-    @ObservationIgnored private weak var renderer: GlobeRenderer?
+    /// What the picture is drawn over, kept for a renderer that arrives late.
+    @ObservationIgnored private let globe: GlobeBinding
     /// The picture while it shows, which the renderer's field of view follows.
     @ObservationIgnored private var lens: CameraLens? {
-        didSet { updateRenderer() }
+        didSet { updateGlobe() }
     }
     /// Whether the system has taken the camera away for now: another app in Split
     /// View or Stage Manager, a call, or the app in the background. The sky is
     /// drawn as without the camera until it comes back.
     @ObservationIgnored private(set) var isInterrupted = false {
-        didSet { updateRenderer() }
+        didSet { updateGlobe() }
     }
     /// The unzoomed picture's, from its format.
     @ObservationIgnored private var tanHalfLongSide = 0.0
@@ -61,7 +61,8 @@ final class SkyPassthrough {
     static let maximumZoom = 8.0
 
     /// Watches the capture session's interruptions and errors from the start.
-    init() {
+    init(globe: GlobeBinding) {
+        self.globe = globe
         let center = NotificationCenter.default
         let session = capture.session
         sessionObservers = [
@@ -78,9 +79,9 @@ final class SkyPassthrough {
         ]
     }
 
-    /// Shows the camera's picture behind `renderer`'s sky view, asking for access
-    /// the first time.
-    func start(_ renderer: GlobeRenderer) async -> Outcome {
+    /// Shows the camera's picture behind the sky view, asking for access the
+    /// first time.
+    func start() async -> Outcome {
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
             return .noCamera
         }
@@ -92,11 +93,12 @@ final class SkyPassthrough {
                 isStarting = false
             }
         }
-        guard await AVCaptureDevice.requestAccess(for: .video) else {
-            return .denied
-        }
+        let granted = await AVCaptureDevice.requestAccess(for: .video)
         guard generation == mine else {
             return .stopped
+        }
+        guard granted else {
+            return .denied
         }
         if self.device == nil {
             guard configure(device) else {
@@ -115,7 +117,6 @@ final class SkyPassthrough {
         let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
         let degrees = device.isGeometricDistortionCorrectionEnabled ? format.geometricDistortionCorrectedVideoFieldOfView : format.videoFieldOfView
         tanHalfLongSide = tan(Double(degrees) * .pi / 360)
-        self.renderer = renderer
         isShowing = true
         lens = CameraLens(
             tanHalfLongSide: tanHalfLongSide / zoom,
@@ -160,9 +161,9 @@ final class SkyPassthrough {
         lens?.tanHalfLongSide = tanHalfLongSide / factor
     }
 
-    /// Hands the renderer the lens while the picture is there to draw over.
-    private func updateRenderer() {
-        renderer?.passthrough = isInterrupted ? nil : lens
+    /// Hands the globe the lens while the picture is there to draw over.
+    private func updateGlobe() {
+        globe.passthrough = isInterrupted ? nil : lens
     }
 
     /// After a runtime error: started again once the media services are back, as
