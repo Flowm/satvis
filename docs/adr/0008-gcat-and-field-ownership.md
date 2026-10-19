@@ -63,7 +63,7 @@ record at refresh time. The new rule is about who may write each field.
 | Mission      | `missionType`                                                   | curated only                                                     |
 | Model        | `modelFile`                                                     | curated (manifest NORAD ids), else derived from `bus` (ADR 0007) |
 | Orbit        | `orbitClass`                                                    | derived, client-side (ADR 0002)                                  |
-| Orbit kind   | `opOrbit`                                                       | GCAT; resolved in `CatalogEntry.orbitKind` (ADR 0012)        |
+| Orbit kind   | `opOrbit`                                                       | GCAT; resolved in `CatalogEntry.orbitKind` (ADR 0012)            |
 
 **No field falls back from one upstream source to another.** A chain such as "GCAT's
 launch date, else SATCAT's" would mix two definitions of the same field, depending on
