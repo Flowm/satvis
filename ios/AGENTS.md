@@ -309,7 +309,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   (`SatelliteLayer.draws`: a satellite SGP4 refuses, long decayed, is never drawn,
   so the count drawn alone never reached the count active and every active
   satellite waited out the timeout), settled 3 s and recorded 5 s frame by frame
-  (`FrameRecording`), then the first again for drift, and the view put back.
+  (`FrameRecording`), then the first again for drift, and the view put back;
+  `BenchmarkReport` builds the event sent.
   `cpu_ms` is the renderer's own work; `buffer_wait_ms` is the main thread
   blocked on a buffer the GPU still holds, the GPU running behind, and
   `drawable_wait_ms` on a drawable from the display, which, counted as CPU, read

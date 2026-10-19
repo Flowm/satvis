@@ -95,7 +95,7 @@ struct BenchmarkPanel: View {
         }
     }
 
-    private func row(_ scene: Benchmark.Scene, result: Benchmark.Result?, isCurrent: Bool) -> some View {
+    private func row(_ scene: BenchmarkScene, result: BenchmarkResult?, isCurrent: Bool) -> some View {
         let values: [String] =
             result.map {
                 [
