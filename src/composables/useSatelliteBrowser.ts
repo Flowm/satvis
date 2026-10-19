@@ -8,7 +8,7 @@ import { storeToRefs } from "pinia";
 import { computed, ref, shallowRef } from "vue";
 
 import type { OrbitClass } from "../config/orbitClass";
-import { isEnabledByTag } from "../modules/satelliteActivation";
+import { toggledGroup, toggledSatellite } from "../modules/satelliteActivation";
 import type { CatalogEntry, SatelliteCatalog } from "../modules/SatelliteCatalog";
 import { useSatStore } from "../stores/sat";
 
@@ -109,7 +109,6 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
   });
 
   const enabledTagSet = computed(() => new Set(enabledTags.value));
-  const enabledSatSet = computed(() => new Set(enabledSatellites.value));
   const disabledSatSet = computed(() => new Set(disabledSatellites.value));
 
   // Individually selected plus tag members not opted out. Mirrors activeTargetEntries, minus tracking.
@@ -240,66 +239,12 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     return tags.length > 0 ? tags.join(", ") : undefined;
   }
 
-  /**
-   * Drops exclusions no enabled group covers, so re-enabling a group starts full. Names
-   * unknown to the catalog are kept: their group may not have loaded yet.
-   */
-  function prunedExclusions(remainingTags: string[]): string[] {
-    if (disabledSatellites.value.length === 0) {
-      return [];
-    }
-    const tagSet = new Set(remainingTags);
-    return disabledSatellites.value.filter((name) => {
-      const entry = catalog.getByName(name);
-      return entry === undefined || isEnabledByTag(entry, tagSet);
-    });
-  }
-
-  /**
-   * off -> all; some -> all (clears exclusions); all -> off. Never writes enabledSatellites,
-   * so `sats=` cannot explode.
-   */
   function toggleGroup(tag: string): void {
-    if (!enabledTagSet.value.has(tag)) {
-      satStore.setActivation({ enabledTags: [...enabledTags.value, tag] });
-      return;
-    }
-    const memberNames = new Set(catalog.entriesWithTag(tag).map((entry) => entry.name));
-    const hasExcludedMember = disabledSatellites.value.some((name) => memberNames.has(name));
-    if (hasExcludedMember) {
-      satStore.setActivation({ disabledSatellites: disabledSatellites.value.filter((name) => !memberNames.has(name)) });
-      return;
-    }
-    const remaining = enabledTags.value.filter((t) => t !== tag);
-    satStore.setActivation({ enabledTags: remaining, disabledSatellites: prunedExclusions(remaining) });
+    satStore.setActivation(toggledGroup(satStore, tag, catalog));
   }
 
-  /**
-   * A satellite in an enabled group toggles `xsats=`; any other toggles `sats=`. The two stay disjoint.
-   */
   function toggleSat(name: string): void {
-    const entry = catalog.getByName(name);
-    if (entry && isEnabledByTag(entry, enabledTagSet.value)) {
-      if (disabledSatSet.value.has(name)) {
-        satStore.setActivation({ disabledSatellites: disabledSatellites.value.filter((s) => s !== name) });
-      } else {
-        // Drop a redundant individual enable, which would beat the exclusion.
-        satStore.setActivation({
-          disabledSatellites: [...disabledSatellites.value, name],
-          enabledSatellites: enabledSatellites.value.filter((s) => s !== name),
-        });
-      }
-      return;
-    }
-    if (enabledSatSet.value.has(name)) {
-      satStore.setActivation({ enabledSatellites: enabledSatellites.value.filter((s) => s !== name) });
-    } else {
-      // An explicit enable overrides a stale exclusion.
-      satStore.setActivation({
-        enabledSatellites: [...enabledSatellites.value, name],
-        disabledSatellites: disabledSatellites.value.filter((s) => s !== name),
-      });
-    }
+    satStore.setActivation(toggledSatellite(satStore, name, catalog));
   }
 
   /** Never turns a satellite off: opening its info needs it built. */
