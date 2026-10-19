@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { activeTargetEntries, buildOrder, isEnabledByTag } from "./satelliteActivation";
+import { activeTargetEntries, buildOrder, hideFromActivation, isEnabledByTag } from "./satelliteActivation";
 import { CatalogEntry } from "./SatelliteCatalog";
 import type { GpRecord } from "./util/gp";
 
@@ -96,6 +96,28 @@ describe("isEnabledByTag", () => {
 
   test("never matches an entry without tags", () => {
     expect(isEnabledByTag(DELTA, new Set(["Weather", "Science", "New"]))).toBe(false);
+  });
+});
+
+describe("hideFromActivation", () => {
+  const catalog = {
+    entriesWithTag: (tag: string) => ALL.filter((e) => e.tags.includes(tag)),
+    getByName: (name: string) => ALL.find((e) => e.name === name),
+  };
+
+  test("drops a group whose every member is hidden, leaving no exclusions behind", () => {
+    const lists = { enabledTags: ["Weather", "Science"], enabledSatellites: [], disabledSatellites: [] };
+    expect(hideFromActivation(lists, new Set(["ALPHA", "BETA"]), catalog)).toEqual({ enabledTags: ["Science"], enabledSatellites: [], disabledSatellites: [] });
+  });
+
+  test("excludes what a remaining group still covers", () => {
+    const lists = { enabledTags: ["Weather"], enabledSatellites: [], disabledSatellites: [] };
+    expect(hideFromActivation(lists, new Set(["BETA"]), catalog)).toEqual({ enabledTags: ["Weather"], enabledSatellites: [], disabledSatellites: ["BETA"] });
+  });
+
+  test("drops hidden names from sats=, and every exclusion once no group is left", () => {
+    const lists = { enabledTags: ["Science"], enabledSatellites: ["DELTA", "ALPHA"], disabledSatellites: ["OLD"] };
+    expect(hideFromActivation(lists, new Set(["GAMMA", "DELTA"]), catalog)).toEqual({ enabledTags: [], enabledSatellites: ["ALPHA"], disabledSatellites: [] });
   });
 });
 
