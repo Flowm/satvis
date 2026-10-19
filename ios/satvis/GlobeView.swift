@@ -15,8 +15,14 @@ struct GlobeView: View {
     /// Where on the view, and the view's size.
     let onTap: (CGPoint, CGSize) -> Void
     let onDoubleTap: (CGPoint, CGSize) -> Void
-    /// Asked with a drag's translation so far whether it may move the view.
-    var mayDrag: (CGSize) -> Bool = { _ in true }
+    /// Asked with a drag's translation so far, and the most fingers down during
+    /// it, whether it may move the view.
+    var mayDrag: (CGSize, Int) -> Bool = { _, _ in true }
+    /// Offered a pinch's step before the view; true where it took it, and the
+    /// view is left as it is.
+    var takePinch: (Double) -> Bool = { _ in false }
+    /// Clear where the scene leaves the sky, over the camera's picture.
+    var isTransparent = false
     /// Drawable pixels per point, the web app's `pixelratio`; nil for the screen's own.
     var pixelRatio: Double?
     /// Frames a second at most, the Graphics panel's.
@@ -26,11 +32,16 @@ struct GlobeView: View {
     @State private var lastTranslation = CGSize.zero
     @State private var lastMagnification = 1.0
     @State private var lastRotation = Angle.zero
+    /// The most fingers down at once since the first of them touched, counted by
+    /// the touches themselves rather than by when a pinch is recognised, which
+    /// comes after its fingers have drifted. Back to 0 once the last lifts, or the
+    /// system takes the touches.
+    @GestureState private var mostFingers = 0
 
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            MetalView(pixelRatio: pixelRatio, frameRate: frameRate) { renderer in
+            MetalView(pixelRatio: pixelRatio, frameRate: frameRate, isTransparent: isTransparent) { renderer in
                 self.renderer = renderer
                 onRenderer(renderer)
             }
@@ -44,18 +55,26 @@ struct GlobeView: View {
                     .onChanged { value in
                         let delta = SIMD2(Double(value.translation.width - lastTranslation.width), Double(value.translation.height - lastTranslation.height))
                         lastTranslation = value.translation
-                        if mayDrag(value.translation) {
+                        if mayDrag(value.translation, mostFingers) {
                             renderer?.drag(by: delta, viewSize: size)
                         }
                     }
                     .onEnded { _ in lastTranslation = .zero }
             )
             .simultaneousGesture(
+                SpatialEventGesture()
+                    .updating($mostFingers) { events, most, _ in
+                        most = max(most, events.filter { $0.phase == .active }.count)
+                    }
+            )
+            .simultaneousGesture(
                 MagnifyGesture()
                     .onChanged { value in
                         let scale = value.magnification / lastMagnification
                         lastMagnification = value.magnification
-                        renderer?.zoom(by: scale)
+                        if !takePinch(scale) {
+                            renderer?.zoom(by: scale)
+                        }
                     }
                     .onEnded { _ in lastMagnification = 1 }
             )
@@ -76,6 +95,8 @@ struct GlobeView: View {
 private struct MetalView: UIViewRepresentable {
     let pixelRatio: Double?
     let frameRate: Int
+    /// Clear where the scene leaves the sky, over the camera's picture.
+    let isTransparent: Bool
     let onRenderer: (GlobeRenderer) -> Void
 
     func makeUIView(context: Context) -> ScaledMTKView {
@@ -98,6 +119,8 @@ private struct MetalView: UIViewRepresentable {
 
     func updateUIView(_ view: ScaledMTKView, context: Context) {
         view.pixelRatio = pixelRatio
+        // Opaque otherwise, which spares the compositor blending the globe.
+        view.layer.isOpaque = !isTransparent
         if view.preferredFramesPerSecond != frameRate {
             view.preferredFramesPerSecond = frameRate
         }

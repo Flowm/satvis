@@ -12,7 +12,7 @@ import simd
             "fullscreenVertex", "skyBoxFragment", "skyAtmosphereVertex", "skyAtmosphereFragment", "globeVertex", "globeFragment", "pointVertex", "pointFragment",
             "lineVertex", "lineFragment", "labelVertex", "labelFragment", "stationVertex", "stationFragment", "linkVertex", "linkFragment", "overlayVertex", "overlayFragment",
             "coneVertex", "coneFragment", "coneRimVertex", "coneRimFragment", "modelVertex", "modelFragment",
-            "tonemapFragment",
+            "modelOpaqueFragment", "tonemapFragment",
         ] {
             #expect(libraries.precise.makeFunction(name: name) != nil && libraries.fast.makeFunction(name: name) != nil, "\(name)")
         }

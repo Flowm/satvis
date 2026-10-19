@@ -277,8 +277,8 @@ outright: the cut, in full, not a faster version of the movement.
 - **Restore what you changed, and only that.** `set background(false)` destroys the
   sky box, sun, moon and atmosphere for good, so "restore the sky objects" cannot
   work after `?bg=false`. The sky view is to hide them only when camera passthrough
-  is on, since without a camera feed the sky box is the right backdrop. Passthrough
-  is not implemented, so today the sky view never touches them.
+  is on, since without a camera feed the sky box is the right backdrop. The web app
+  has no passthrough, so its sky view never touches them; the native app's is ADR 0013.
 - **No `scene.pick`.** The crosshair takes the nearest satellite within its capture
   radius from projected screen positions, which the HUD computes for the tapes
   anyway, and assigns it to `viewer.selectedEntity`. The pick rectangle is in

@@ -430,6 +430,7 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "The camera shows the sky behind the satellites in the sky view, so you can tell which is which. Nothing it sees is recorded or sent.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Your location lets Satvis tell you when satellites pass over you, and show what is in the sky above you.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -467,6 +468,7 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "The camera shows the sky behind the satellites in the sky view, so you can tell which is which. Nothing it sees is recorded or sent.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Your location lets Satvis tell you when satellites pass over you, and show what is in the sky above you.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

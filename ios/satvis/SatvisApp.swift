@@ -83,16 +83,23 @@ struct ContentView: View {
                 session.tap(at: point, viewSize: size, keepingSelection: closesMenu)
             },
             onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) },
-            mayDrag: session.mayDrag,
+            mayDrag: session.mayDrag(_:fingers:),
+            takePinch: session.takePinch,
+            isTransparent: session.passthrough.isShowing,
             pixelRatio: Double(session.pixelRatio),
             frameRate: session.frameRate
         )
         .ignoresSafeArea()
-        .background(.black)
+        .background {
+            // Hidden by the opaque globe but while the sky view shows it.
+            CameraPreview(layer: session.passthrough.previewLayer)
+                .background(.black)
+                .ignoresSafeArea()
+        }
         .overlay {
             if session.observer != nil, let renderer = session.renderer {
                 // In the renderer's frame, the whole screen, since it projects into it.
-                SkyHUD(renderer: renderer, controls: topControls, trailingInset: cardInset, notice: session.notice)
+                SkyHUD(renderer: renderer, controls: topControls, trailingInset: cardInset, notice: session.notice ?? session.cameraWarning)
                     .ignoresSafeArea()
             }
         }
@@ -115,6 +122,11 @@ struct ContentView: View {
                         session.compass.isAiming ? "Stop aiming by compass" : "Aim by compass",
                         systemImage: session.compass.isAiming ? "location.north.circle.fill" : "location.north.circle"
                     ) { session.toggleCompass() }
+                    Button(
+                        session.passthrough.isShowing ? "Hide the camera" : "Show the camera",
+                        systemImage: session.passthrough.isShowing ? "camera.fill" : "camera"
+                    ) { session.togglePassthrough() }
+                    .disabled(session.isStartingCamera)
                 }
                 // The way out of following something once its panel is closed.
                 if let tracked = session.tracked {

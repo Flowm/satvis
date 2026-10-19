@@ -177,6 +177,14 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   sun and how dark the observer's sky is (`SkyJudgement`): per satellite on the
   CPU it would cost what the lock costs, every frame. A dimmed 3D model is drawn
   blended whole; the card's verdict is the same `Visibility`, in double precision.
+  The camera's picture can show behind it (ADR 0013, `SkyPassthrough`): a preview
+  layer under the globe's view, which turns non-opaque and clears where the scene
+  leaves the sky, drawing the terrain in depth alone; the renderer takes the
+  camera's field of view from its `CameraLens` every frame, a pinch zooms the
+  camera and never takes the aim back, and the compass aims it, so whatever stops
+  the compass stops the camera (`Session.watchAiming`). The sky view warns while
+  it stands more than 5 km from the device, but not for a clock away from now.
+  The simulator has no camera: check it on a device.
 - The globe's gestures are SwiftUI's, not UIKit recognizers on the MTKView, so the
   controls laid over it take the touches that land on them. They go to the
   renderer, which steers whichever camera its `CameraMode` says is in use: the free
@@ -222,8 +230,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   they are long; a setting that needs the sky view is disabled on the globe,
   not hidden. On a phone the column folds to its icons beside a panel, which
   covers the top-right buttons, as the web's does below 640 px. Those buttons
-  are the ways back alone: home or out of the sky view, the compass, and the
-  end of tracking. Not system
+  are the ways back alone: home or out of the sky view, the compass and the
+  camera, and the end of tracking. Not system
   menus: iOS 26 grows one out of its control, in the column's place, and it holds
   ticked lists alone. Bookmarks, Satellites and Locations are sheets: long lists.
   A tap on the globe closes the panel and on a phone folds the column, as on
