@@ -81,9 +81,12 @@ final class Benchmark {
         Scene(
             id: "sky_view", title: "Sky view", subtitle: "Lauterbrunnen", detail: "Looking up from Lauterbrunnen, on terrain, the default preset's satellites",
             link: "/?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen"),
+        Scene(
+            id: "sky_active", title: "Sky view", subtitle: "All active", detail: "Looking up from Lauterbrunnen, on terrain, every active satellite",
+            link: "/?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen&tags=Active"),
     ]
     /// Changed when the scenes or the metrics change, so results can be told apart.
-    static let version = 3
+    static let version = 4
 
     /// How long a scene may take to load before it is measured anyway: the
     /// largest groups come from the worker on a first run.

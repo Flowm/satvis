@@ -294,7 +294,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   globe is drawn every frame: unlike CesiumJS's `requestRenderMode`, nothing
   skips a frame when nothing has changed.
 - The Graphics menu's "Benchmark" is the web app's `bench=true`, kept in links
-  the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): eight scenes opened
+  the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): nine scenes opened
   by their links in turn, each waited for until everything active is drawn
   (`SatelliteLayer.draws`: a satellite SGP4 refuses, long decayed, is never drawn,
   so the count drawn alone never reached the count active and every active
