@@ -29,7 +29,7 @@ rule forbidding half their combinations. One value cannot express an illegal
 combination.
 
 Reusing `scene` also wires the mode for free. `SCENE_MODES` feeds the store's
-`enumString` and the menu's `cc.sceneModes`, so the parameter, its validation and its
+`enumString` and the menu, so the parameter, its validation and its
 controls are one tuple edit, and `?scene=banana` falls back to the default.
 
 The cost is that `cesiumStore.sceneMode` no longer names a Cesium `SceneMode`: in sky

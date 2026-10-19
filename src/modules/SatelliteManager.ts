@@ -1,7 +1,6 @@
 import { Cartesian3, JulianDate } from "@cesium/core";
 import type { Viewer } from "@cesium/widgets";
 
-import { SATELLITE_COMPONENTS } from "../config/components";
 import type { ElementsEntry } from "../config/presets";
 import type { SerializedGroundStation } from "../stores/sat";
 import { GroundStationEntity, type GroundStationPositionData } from "./GroundStationEntity";
@@ -94,8 +93,6 @@ export class SatelliteManager {
 
   /** Keyed by catalog entry key. Only entries in the activation target have a collection. */
   #active = new Map<string, SatelliteComponentCollection>();
-
-  availableComponents: string[] = [...SATELLITE_COMPONENTS];
 
   pendingTrackedSatellite: string | undefined;
 
@@ -248,7 +245,7 @@ export class SatelliteManager {
   #applyGroundStations(stations: readonly SerializedGroundStation[]): void {
     this.#stations.forEach((station) => station.hide());
     this.#stations = stations.map((station, index) =>
-      this.createGroundstation(
+      this.#createGroundstation(
         {
           latitude: station.lat,
           longitude: station.lon,
@@ -568,15 +565,6 @@ export class SatelliteManager {
     return this.#samples.stats;
   }
 
-  get selectedSatellite(): string {
-    for (const sat of this.#active.values()) {
-      if (sat.isSelected) {
-        return sat.props.name;
-      }
-    }
-    return "";
-  }
-
   /** Derived from Cesium; set it through reconcile. */
   get trackedSatellite(): string {
     for (const sat of this.#active.values()) {
@@ -643,13 +631,7 @@ export class SatelliteManager {
     return this.#stations.length > 0;
   }
 
-  focusGroundStation(): void {
-    if (this.groundStationAvailable) {
-      this.#stations[0]?.track();
-    }
-  }
-
-  createGroundstation(position: GroundStationPositionData, name: string, index: number): GroundStationEntity {
+  #createGroundstation(position: GroundStationPositionData, name: string, index: number): GroundStationEntity {
     const groundStation = new GroundStationEntity(this.viewer, this, position, name, index);
     groundStation.show();
     return groundStation;

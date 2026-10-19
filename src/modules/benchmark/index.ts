@@ -144,5 +144,3 @@ export function installBenchmark(cc: CesiumController): BenchmarkHandle {
   console.log("[bench] ready — `bench.quick()`, `bench.run()`, `bench.cumulative()`, `bench.clock()`, `bench.watch()`. See src/modules/benchmark/README.md.");
   return handle;
 }
-
-export const benchmarkHandle = (): BenchmarkHandle | undefined => handle;
