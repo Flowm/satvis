@@ -1,8 +1,8 @@
-import { GROUP_NAME_RE } from "./configValidation.ts";
 import { withConfig } from "./groupsIndex.ts";
 import { bundleFetch, parseIngestBundle, readReport } from "./pushProtocol.ts";
 import type { RefreshReport } from "./refresh.ts";
 import { type GroupStore, kvGroupStore, upstreamStatuses } from "./store.ts";
+import { GROUP_NAME_RE } from "./types.ts";
 import { recordFailure, recordUnchanged, storeUpstream } from "./upstream.ts";
 import { UPSTREAMS, upstreamSpec } from "./upstreams.ts";
 import { groupsConfig, refreshAll, refreshAllUpstreams } from "./workerRuntime.ts";

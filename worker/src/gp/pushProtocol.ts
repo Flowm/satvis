@@ -39,7 +39,7 @@ export function bundleFetch(sources: IngestSource[]): FetchImpl {
 }
 
 /** What push-gp posts. `fetchedAt` is informational; the Worker stamps its own time. */
-export interface IngestBundle {
+interface IngestBundle {
   fetchedAt: string;
   sources: IngestSource[];
 }
@@ -122,7 +122,7 @@ export function reportHeaders(download: UpstreamFetch): Record<string, string> {
 }
 
 /** A report as reportHeaders wrote it; `etag` goes with a new file, which is the body. */
-export type TableReport = { error: string } | { notModified: true } | { etag?: string };
+type TableReport = { error: string } | { notModified: true } | { etag?: string };
 
 export function readReport(headers: Headers): TableReport {
   const error = headers.get("X-Upstream-Error");

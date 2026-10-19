@@ -7,7 +7,7 @@ export const USER_AGENT = "satvis.space (https://github.com/Flowm/satvis)";
 export type FetchImpl = (url: string, init?: { headers?: Record<string, string>; signal?: AbortSignal }) => Promise<FetchResponse>;
 
 /** The part of a Response the pipeline reads. */
-export interface FetchResponse {
+interface FetchResponse {
   status: number;
   /**
    * Optional, so a replayed bundle (pushProtocol.ts, bundleFetch) can omit it. Only the upstream tables read it, for the ETag.
@@ -17,7 +17,7 @@ export interface FetchResponse {
 }
 
 /** `ms` covers the request and `read`; exactly one of `value` and `error` is set. */
-export type Download<T> = { ms: number } & ({ value: T; error?: undefined } | { value?: undefined; error: string });
+type Download<T> = { ms: number } & ({ value: T; error?: undefined } | { value?: undefined; error: string });
 
 /**
  * Never throws. `read` runs before the timer stops, so a body that stalls is aborted

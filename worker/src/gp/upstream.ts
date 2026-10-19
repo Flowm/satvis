@@ -47,19 +47,13 @@ export interface UpstreamFetch {
 /** Never throws. Conditional on `etag`, the stored file's, so an unchanged table costs a 304. */
 export async function fetchUpstream(fetchImpl: FetchImpl, spec: UpstreamSpec<unknown>, etag?: string): Promise<UpstreamFetch> {
   const headers = etag === undefined ? undefined : { "If-None-Match": etag };
-  const { ms, value, error } = await download(fetchImpl, spec.url, { timeoutMs: spec.timeoutMs, headers }, async (res) =>
-    res.status === 200 ? { status: 200, body: await res.text(), etag: res.headers?.get("ETag") ?? undefined } : { status: res.status },
-  );
-  if (value === undefined) {
-    return { ms, error };
-  }
-  if (value.status === 304) {
-    return { status: 304, ms, notModified: true };
-  }
-  if (value.body === undefined) {
-    return { status: value.status, ms, error: `HTTP ${value.status}` };
-  }
-  return { ms, ...value };
+  const { ms, value, error } = await download(fetchImpl, spec.url, { timeoutMs: spec.timeoutMs, headers }, async (res): Promise<Omit<UpstreamFetch, "ms">> => {
+    if (res.status === 200) {
+      return { status: 200, body: await res.text(), etag: res.headers?.get("ETag") ?? undefined };
+    }
+    return res.status === 304 ? { status: 304, notModified: true } : { status: res.status, error: `HTTP ${res.status}` };
+  });
+  return value === undefined ? { ms, error } : { ms, ...value };
 }
 
 /** GCAT's catalog is 18.4 MiB against KV's 25 MiB value limit; gzip makes it 2.6 MiB. */

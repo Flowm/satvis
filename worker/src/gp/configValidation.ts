@@ -2,13 +2,11 @@
 // written. Pure, so the tests reach every rule; the script keeps the YAML and file I/O.
 // No Cloudflare APIs: the script imports it through node type stripping.
 
-import type { PresetDefinition, SatelliteEntry } from "./types.ts";
+import { GROUP_NAME_RE, type PresetDefinition, type SatelliteEntry } from "./types.ts";
 
 /** A config entry as YAML parsed it: nothing about its shape is trusted until it is checked here. */
 type Raw = Record<string, any>;
 
-/** The group name rule, also what /api/gp/<name>.json accepts. */
-export const GROUP_NAME_RE = /^[a-zA-Z0-9_-]+$/;
 /** A preset is reached at /<name>, so its name is a path segment. */
 const PRESET_NAME_RE = /^[a-z0-9-]+$/;
 const DEFAULT_PRESET = "default";
