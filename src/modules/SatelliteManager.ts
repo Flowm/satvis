@@ -1,6 +1,7 @@
 import { Cartesian3, JulianDate } from "@cesium/core";
 import type { Viewer } from "@cesium/widgets";
 
+import { clearPassHighlights, setPassHighlights } from "../composables/usePassHighlights";
 import type { ElementsEntry } from "../config/presets";
 import type { SerializedGroundStation } from "../stores/sat";
 import { GroundStationEntity, type GroundStationPositionData } from "./GroundStationEntity";
@@ -141,9 +142,16 @@ export class SatelliteManager {
 
     returnAfterTracking(this.viewer);
 
-    // Any other selection, by click or by select(), supersedes a pending one.
+    // Any other selection, by click or by select(), supersedes a pending one. The
+    // timeline marks the selected satellite's passes; a ground station or nothing clears them.
     this.viewer.selectedEntityChanged.addEventListener(() => {
       this.#pendingSelection = undefined;
+      const selected = this.activeSatellites.find((sat) => sat.isSelected);
+      if (selected) {
+        setPassHighlights(selected.props.passPredictor.passes(this.viewer.clock.currentTime));
+      } else {
+        clearPassHighlights();
+      }
     });
 
     // New entries may fall into the activation target, e.g. a URL-enabled name or

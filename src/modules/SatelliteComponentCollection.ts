@@ -2,7 +2,7 @@ import { Cartesian3, GeometryInstance, JulianDate } from "@cesium/core";
 import { CallbackProperty, Camera, Entity, EntityView, type Scene, SceneMode, VelocityOrientationProperty } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
-import { clearPassHighlights, setPassHighlights } from "../composables/usePassHighlights";
+import { setPassHighlights } from "../composables/usePassHighlights";
 import { type Component, type ComponentHost, componentKind, ModelSize, type SatelliteBatches, type SkyAppearance } from "./componentKinds";
 import type { GroundStation } from "./PassPredictor";
 import type { CatalogEntry } from "./SatelliteCatalog";
@@ -288,17 +288,6 @@ export class SatelliteComponentCollection implements ComponentHost {
     this.eventListeners.passesChanged = this.props.passPredictor.onChanged(() => {
       if (this.isSelected) {
         setPassHighlights(this.props.passPredictor.passes(this.viewer.clock.currentTime));
-      }
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.eventListeners.selectedEntity = this.viewer.selectedEntityChanged.addEventListener((entity: any) => {
-      if (!entity || entity?.name === "Ground station") {
-        clearPassHighlights();
-        return;
-      }
-      if (this.isSelected) {
-        this.#highlightPasses();
       }
     });
 
