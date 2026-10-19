@@ -368,7 +368,7 @@ watch(sceneMode, (mode) => {
   }
 });
 
-const { pending: locating, locate } = useGeolocation(cc);
+const { pending: locating, locate } = useGeolocation();
 
 /**
  * Look up stands where the device is; only a location's panel stands somewhere else.

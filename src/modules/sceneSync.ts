@@ -1,5 +1,6 @@
-// The one place store state becomes globe state. Only the tracked satellite and the
-// sky view's observer travel back, as callbacks.
+// The one place store state becomes globe state. Only what the globe reports travels
+// back, as callbacks: the tracked satellite, the sky view's observer, a globe pick and a
+// surface model that failed.
 
 import { JulianDate } from "@cesium/core";
 import { nextTick, watch } from "vue";
@@ -52,6 +53,7 @@ export interface SceneTarget {
   showFps: boolean;
   requestRenderMode: boolean;
   background: boolean;
+  pickMode: boolean;
   readonly skyView: {
     readonly active: boolean;
     enter(observer: Observer): Promise<void>;
@@ -79,6 +81,8 @@ export interface SceneTarget {
   };
   applySurfaceModel(surfaceModel: string, viewMode: string): Promise<void>;
   applyStarMap(starMap: string): Promise<void>;
+  onGlobePick(callback: (lat: number, lon: number) => void): void;
+  onSurfaceFailure(callback: (name: string, error: unknown) => void): void;
   suppressCameraMode(): void;
   releaseCameraMode(): void;
   morphTo(mode: string): void;
@@ -114,6 +118,10 @@ export function startSceneSync(cc: SceneTarget): void {
   );
 
   async function applyStarMap(name: string): Promise<void> {
+    // `background: false` removed the sky box on purpose.
+    if (!cesiumStore.background) {
+      return;
+    }
     try {
       await cc.applyStarMap(name);
     } catch (error) {
@@ -126,6 +134,16 @@ export function startSceneSync(cc: SceneTarget): void {
       }
     }
   }
+  // Back to None so the radio, the url and the scene agree. The usual cause is an ion
+  // token not valid for this origin, so say so.
+  cc.onSurfaceFailure((name, error) => {
+    cesiumStore.surfaceModel = "None";
+    useToastProxy().add({
+      title: `${name} unavailable`,
+      description: `${error instanceof Error ? error.message : "The tileset could not be loaded"}. Cesium ion needs a token valid for this origin.`,
+      color: "warning",
+    });
+  });
   // Immediate, because `?surface=` arrives before anything else triggers it.
   watch(
     () => [cesiumStore.surfaceModel, cesiumStore.sceneMode] as const,
@@ -293,6 +311,17 @@ export function startSceneSync(cc: SceneTarget): void {
       cc.background = on;
     },
   );
+  watch(
+    () => cesiumStore.pickMode,
+    (on) => {
+      cc.pickMode = on;
+    },
+    { immediate: true },
+  );
+  cc.onGlobePick((lat, lon) => {
+    satStore.addGroundStation({ lat, lon });
+    cesiumStore.pickMode = false;
+  });
 
   // Asked of the catalog, so it is known before anything is built. Reads
   // catalogRevision so a lazily-loaded group re-runs it. One count per budget, joined

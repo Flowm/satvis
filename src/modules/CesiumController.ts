@@ -17,15 +17,11 @@ import type { Viewer } from "@cesium/widgets";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { currentPosition } from "../composables/useGeolocation";
 import { usePostHog } from "../composables/usePostHog";
-import { useToastProxy } from "../composables/useToastProxy";
 import { defaultViewDistance } from "../config/defaultView";
 import { parseLayer } from "../config/layers";
 import { MSAA_RATES, PIXEL_RATIOS, msaaSamplesFor, resolutionScaleFor } from "../config/rendering";
 import { STAR_MAPS, type StarMapSources, starMapSources } from "../config/starMaps";
-import { useCesiumStore } from "../stores/cesium";
-import { useSatStore } from "../stores/sat";
 import {
   type ImageryContext,
   type ImageryProviderEntry,
@@ -119,6 +115,13 @@ export class CesiumController {
   /** Set by `keepSelectionOnEmptyClick` for the click being released. */
   #keepSelection = false;
 
+  /** While set, a click on the globe is a pick (`onGlobePick`), not only a selection. */
+  #pickMode = false;
+
+  #onGlobePick: (lat: number, lon: number) => void = () => {};
+
+  #onSurfaceFailure: (name: string, error: unknown) => void = () => {};
+
   constructor(viewer: Viewer) {
     this.#preloadReferenceFrameData();
     this.minimalUI = DeviceDetect.minimalUI();
@@ -151,16 +154,7 @@ export class CesiumController {
       scene: this.viewer.scene,
       setTerrainOverride: (name) => (name === undefined ? this.#releaseTerrain() : this.#suppressTerrain(name)),
       skyLanded: () => this.skyView.settled,
-      onFailure: (name, error) => {
-        // Back to None so the radio, the url and the scene agree. The usual cause is
-        // an ion token not valid for this origin, so say so.
-        useCesiumStore().surfaceModel = "None";
-        useToastProxy().add({
-          title: `${name} unavailable`,
-          description: `${error instanceof Error ? error.message : "The tileset could not be loaded"}. Cesium ion needs a token valid for this origin.`,
-          color: "warning",
-        });
-      },
+      onFailure: (name, error) => this.#onSurfaceFailure(name, error),
     });
 
     this.skyView.setGroundHeightSource((observer) => this.#observerGroundHeight(observer));
@@ -471,12 +465,26 @@ export class CesiumController {
 
     const handler = new ScreenSpaceEventHandler(this.viewer.scene.canvas);
     handler.setInputAction((event: ScreenSpaceEventHandler.PositionedEvent) => {
-      const { pickMode } = useCesiumStore();
-      if (!pickMode) {
-        return;
+      if (this.#pickMode) {
+        this.#pickGlobe(event);
       }
-      this.#setGroundStationFromClickEvent(event);
     }, ScreenSpaceEventType.LEFT_CLICK);
+  }
+
+  /** The canvas shows a crosshair, not a class on the page: Cesium's own widgets keep their cursors. */
+  set pickMode(on: boolean) {
+    this.#pickMode = on;
+    this.viewer.scene.canvas.style.cursor = on ? "crosshair" : "";
+  }
+
+  /** A click in pick mode that hit the globe, in degrees. Do not truth-test: 0 is a valid coordinate. */
+  onGlobePick(callback: (lat: number, lon: number) => void): void {
+    this.#onGlobePick = callback;
+  }
+
+  /** A surface model's tileset failed to load; the scene has already dropped it. */
+  onSurfaceFailure(callback: (name: string, error: unknown) => void): void {
+    this.#onSurfaceFailure = callback;
   }
 
   /**
@@ -490,44 +498,13 @@ export class CesiumController {
     });
   }
 
-  #setGroundStationFromClickEvent(event: ScreenSpaceEventHandler.PositionedEvent): void {
+  #pickGlobe(event: ScreenSpaceEventHandler.PositionedEvent): void {
     const cartesian = this.viewer.camera.pickEllipsoid(event.position);
     if (!defined(cartesian)) {
       return;
     }
     const cartographicPosition = Cartographic.fromCartesian(cartesian);
-    this.addGroundStation(CesiumMath.toDegrees(cartographicPosition.latitude), CesiumMath.toDegrees(cartographicPosition.longitude));
-    useCesiumStore().pickMode = false;
-  }
-
-  /**
-   * The Geolocation station where the device is, and with `observe` the sky view's
-   * observer there (`placeGeolocation`, `observeGeolocation`). Whether a fix came back.
-   */
-  async setGroundStationFromGeolocation({ observe = false }: { observe?: boolean } = {}): Promise<boolean> {
-    const fix = await currentPosition();
-    if (!fix) {
-      useToastProxy().add({
-        title: "Location unavailable",
-        description: "No position came back. Check this site's location permission, and note that geolocation needs a secure context.",
-        color: "warning",
-      });
-      return false;
-    }
-    const satStore = useSatStore();
-    if (observe) {
-      satStore.observeGeolocation(fix.lat, fix.lon);
-    } else {
-      satStore.placeGeolocation(fix.lat, fix.lon);
-    }
-    return true;
-  }
-
-  /**
-   * sceneSync turns the store's ground stations into entities. Do not truth-test: 0 is a valid coordinate.
-   */
-  private addGroundStation(lat: number, lon: number): void {
-    useSatStore().addGroundStation({ lat, lon });
+    this.#onGlobePick(CesiumMath.toDegrees(cartographicPosition.latitude), CesiumMath.toDegrees(cartographicPosition.longitude));
   }
 
   /** Cesium's own chrome is only the fullscreen button. */
@@ -601,11 +578,6 @@ export class CesiumController {
       console.error("Unknown star map");
       return;
     }
-    // `background: false` removed the sky box on purpose.
-    if (!useCesiumStore().background) {
-      return;
-    }
-
     const generation = ++this.#starMapGeneration;
     const sources = starMapSources(name);
     const faces = sources === undefined ? undefined : await this.loadStarMapFaces(sources);
