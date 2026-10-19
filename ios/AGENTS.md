@@ -117,9 +117,13 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   RealityKit or SceneKit (ADR 0009), lit from over the viewer's shoulder.
 - `Session`, owned by `SatvisApp`, is one open globe: the models (`ViewerClock`,
   `CatalogModel`, `PassModel`, `SatelliteLayer`, `StarMap`, and `PassAlerts`, which
-  the background refresh needs too), what is selected and followed, what a tap
-  does, and the work that keeps them in step. It watches the models with
-  `Observations` rather than taking callbacks, so anything can watch them too.
+  the background refresh needs too), what is selected, followed and stood on and
+  what a tap does (`Focus`, in SatvisCore, which says what the camera has to do),
+  and the work that keeps them in step. It sets the globe up through
+  `GlobeBinding`, in SatvisRender, which keeps what it was given and replays it
+  to a renderer that arrives late, once its shaders compile. It watches the
+  models with `Observations` rather than taking callbacks, so anything can watch
+  them too.
   The views read it and call it and hold nothing else but what is on screen, so
   that what opens the app with a state of its own (a link, a restored scene) sets
   it in one place. Passes are predicted on demand, once a second, by `PassStore`:
@@ -127,16 +131,17 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   selected or the ground station links are drawn. Each prediction holds for a day
   either side of when it was made, as on the web.
 - A link is the view, as on the web (ADR 0001): `LinkCodec` reads one onto its
-  preset's defaults and `Session.open` applies it, replacing what is shown;
-  `Session.link` writes the view back. Parameters the app does not honour (`stars`,
+  preset's defaults, `SceneState` turns that into the app's terms and back, and
+  `Session.open` applies it, replacing what is shown; `Session.link` writes the
+  view back. Parameters the app does not honour (`stars`,
   `surface`…) are kept as they came and written into every link it makes.
   The view is kept as a link when the app goes to the background and reopened
   from it, without its time, so the app reopens live. Past a component's budget
   (labels at 200 active satellites, ground station links at 500, 3D models at 200
-  that have one) it switches off
-  once, on the crossing, unless the link being opened names it, and a link then
-  names it whenever it is on, as on the web (ADR 0001). Labels past 200 are still
-  not drawn, even switched on: their atlas would outgrow a texture. A link's ground stations
+  that have one) it switches off once, on the crossing, unless the link being
+  opened names it (`ComponentBudgets`), and a link then names it whenever it is
+  on, as on the web (ADR 0001). Labels past 200 are still not drawn, even
+  switched on: their atlas would outgrow a texture. A link's ground stations
   visit: they are shown and predicted for, but saved only on the user's word, and
   have no alerts until then. A shared link carries the visiting stations and the
   selected one, never the rest of the saved ones, which are often where the user
@@ -156,13 +161,13 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   stands on Re:Earth's terrain whatever the Map menu says. `SkyFlight` is the
   web's three-leg flight in and out; the instruments (`SkyHUD`) and the gestures
   wait for it to land, and reduced motion cuts. The crosshair, the tapes, the
-  trace and the card read the renderer's last frame (`SkyTargets.swift`), and
-  the lock is the tap: from the ground a tap opens what the crosshair holds. The
-  lock places only the satellites near the crosshair, by each one's direction kept
-  for a second of the clock: placing all 16,755 active ones cost an iPad mini
-  8.6 ms of the main thread, 15 times a second (14 measured), and with them a
-  Debug build managed 5 frames a second. A clock fast enough to outrun a second
-  between locks searches them all, as before.
+  trace and the card read the renderer's last frame (`DrawnFrame`,
+  `SkyTargets.swift`), and the lock is the tap: from the ground a tap opens what
+  the crosshair holds. The lock places only the satellites near the crosshair, by
+  each one's direction kept for a second of the clock: placing all 16,755 active
+  ones cost an iPad mini 8.6 ms of the main thread, 15 times a second (14
+  measured), and with them a Debug build managed 5 frames a second. A clock fast
+  enough to outrun a second between locks searches them all, as before.
   The lock's card is the web app's, a fact a row, except on a phone, where it
   hid a third of the sky: two facts a row, four lines where there were seven. Its
   width is fixed, scaled with the text, so it holds still as the crosshair moves
@@ -187,7 +192,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   leaves the sky, drawing the terrain in depth alone; the renderer takes the
   camera's field of view from its `CameraLens` every frame, a pinch zooms the
   camera and never takes the aim back, and the compass aims it, so whatever stops
-  the compass stops the camera (`Session.watchAiming`). The sky view warns while
+  the compass stops the camera (`SkyAim.watchAiming`). The sky view warns while
   it stands more than 5 km from the device, but not for a clock away from now.
   The simulator has no camera: check it on a device.
 - The globe's gestures are SwiftUI's, not UIKit recognizers on the MTKView, so the
@@ -304,7 +309,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   (`SatelliteLayer.draws`: a satellite SGP4 refuses, long decayed, is never drawn,
   so the count drawn alone never reached the count active and every active
   satellite waited out the timeout), settled 3 s and recorded 5 s frame by frame
-  (`FrameRecording`), then the first again for drift, and the view put back.
+  (`FrameRecording`), then the first again for drift, and the view put back;
+  `BenchmarkReport` builds the event sent.
   `cpu_ms` is the renderer's own work; `buffer_wait_ms` is the main thread
   blocked on a buffer the GPU still holds, the GPU running behind, and
   `drawable_wait_ms` on a drawable from the display, which, counted as CPU, read
@@ -324,7 +330,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   '{"SATVIS_BENCHMARK":"1"}' org.frcy.app.satvis`.
 - Analytics (`Analytics.swift`) is posthog-ios, set up from the app delegate as
   its guide has it, reporting to the web app's project (ADR 0009): a `$pageview`
-  of the view's link whenever the view changes, the clock aside, its ground
+  of the view's link whenever the view changes, the clock aside (toggling the FPS
+  switch or the benchmark panel counts, as it does on the web), its ground
   stations cut to the whole degree as the web's `posthogPrivacy.ts` does
   (`sanitizedForAnalytics`, held to it by the parity fixtures). It reports only
   from a release build on satvis.space with PostHog's project key and host, which
@@ -435,17 +442,18 @@ and appends to the top-level `AGENTS.md`.
   asked. The app ships no catalog: a bundled one is weeks out of date by the time
   most people install, and the first answer replaces it anyway. A first launch
   offline shows a note and asks again every 10 s. A 200 that is not JSON counts as no answer: a host
-  without the worker serves its index.html for any path. The app never waits on
-  the worker for what a copy can show: the index and each group come from the
-  kept copy first (`keptIndex`, `keptRecords`), the worker's
-  answer replaces them when it lands, and a return to the foreground asks again
-  for every group loaded. Requests time out after 15 s.
+  without the worker serves its index.html for any path. When each is asked for
+  is `GroupLoader`'s, above it: the app never waits on the worker for what a copy
+  can show, so the index and each group come from the kept copy first, one load a
+  group at a time, the worker's answer replaces them when it lands, and a return
+  to the foreground asks again for every group loaded. Requests time out after 15 s.
 - Work that grows with the number of satellites stays off the main thread, or is
   done only when its input changes: the GPU buffers are packed by
   `GlobeRenderer.prepare`, `CatalogModel.activeEntries` is kept rather than
-  worked out on every read, `PassModel` publishes only what was predicted again,
-  and the station links are rebuilt only when the passes change. Past 500 active
-  satellites the links are not drawn, as the web app switches them off.
+  worked out on every read, `PassModel` publishes `PassStore`'s passes only
+  when they change, and the station links are rebuilt only when the passes
+  change. Past 500 active satellites the links are not drawn, as the web app
+  switches them off.
 - Tags and presets come from the group index, not from the app.
 
 ## Parity with the web app

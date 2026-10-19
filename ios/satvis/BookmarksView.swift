@@ -71,7 +71,7 @@ struct BookmarksView: View {
                 // tapped, so that a clock off the present gives its minute then.
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Share this view", systemImage: "square.and.arrow.up") {
-                        ShareSheet.present(session.link(sharing: true).url(site: session.source.site), from: frames[Self.shareButton] ?? .zero)
+                        ShareSheet.present(session.link(sharing: true).url(site: session.site), from: frames[Self.shareButton] ?? .zero)
                     }
                     .reportsFrame { frames[Self.shareButton] = $0 }
                 }
@@ -181,7 +181,7 @@ struct BookmarksView: View {
     @ViewBuilder private func actions(_ bookmark: Bookmark) -> some View {
         // Its own link, as it opens: live unless it was saved with a time.
         Button("Share", systemImage: "square.and.arrow.up") {
-            ShareSheet.present(bookmark.scene.link().url(site: session.source.site), from: frames[bookmark.id] ?? .zero)
+            ShareSheet.present(bookmark.scene.link().url(site: session.site), from: frames[bookmark.id] ?? .zero)
         }
         switch bookmark.kind {
         case .saved:

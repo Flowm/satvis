@@ -160,7 +160,7 @@ public struct LinkState: Sendable, Hashable {
 public enum LinkCodec {
     /// What the app can show of each closed vocabulary. A link naming anything
     /// else loses that member, as a link from another build does on the web.
-    public static let components = ["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model", "Ground station link"]
+    public static let components = SatelliteComponents.named.map(\.0)
     public static let layers = ["NaturalEarth", "VersaTiles", "BlackMarble", "VIIRS"]
     public static let terrains = ["None", "ReEarth"]
     public static let overpassModes = ["elevation", "swath"]

@@ -260,9 +260,8 @@ private struct TimelineScale: View {
         // scale at once; between those, it moves only as fast as the clock does.
         let state = clock.clock
         // The selected satellite's passes, read here too: a prediction landing
-        // has to redraw a paused scale, which nothing else would. Read through
-        // the observed dictionary, as the window that gates them is not.
-        let marked = satellite.flatMap { id in passes.passes[id].flatMap { _ in passes.passes(of: id, at: clock.now()) } } ?? []
+        // has to redraw a paused scale, which nothing else would.
+        let marked = satellite.flatMap { passes.passes(of: $0, at: clock.now()) } ?? []
         TimelineView(.animation(minimumInterval: Self.redrawInterval(multiplier: state.multiplier), paused: !state.isPlaying)) { _ in
             Canvas { context, size in
                 let centre = clock.now()

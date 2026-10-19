@@ -14,8 +14,8 @@ struct SatvisApp: App {
 
     init() {
         let site = Self.site
-        let source = GPSource(repository: Self.repository(site: site), site: site)
-        _session = State(initialValue: Session(source: source, alerts: PassAlerts(source: source)))
+        let loader = GroupLoader(repository: Self.repository(site: site))
+        _session = State(initialValue: Session(loader: loader, site: site, alerts: PassAlerts(loader: loader)))
     }
 
     var body: some Scene {
@@ -83,23 +83,23 @@ struct ContentView: View {
                 session.tap(at: point, viewSize: size, keepingSelection: closesMenu)
             },
             onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) },
-            mayDrag: session.mayDrag(_:fingers:),
-            takePinch: session.takePinch,
-            isTransparent: session.passthrough.isShowing,
+            mayDrag: session.aim.mayDrag(_:fingers:),
+            takePinch: session.aim.takePinch,
+            isTransparent: session.aim.passthrough.isShowing,
             pixelRatio: Double(session.pixelRatio),
             frameRate: session.frameRate
         )
         .ignoresSafeArea()
         .background {
             // Hidden by the opaque globe but while the sky view shows it.
-            CameraPreview(layer: session.passthrough.previewLayer)
+            CameraPreview(layer: session.aim.passthrough.previewLayer)
                 .background(.black)
                 .ignoresSafeArea()
         }
         .overlay {
             if session.observer != nil, let renderer = session.renderer {
                 // In the renderer's frame, the whole screen, since it projects into it.
-                SkyHUD(renderer: renderer, controls: topControls, trailingInset: cardInset, notice: session.notice ?? session.cameraWarning)
+                SkyHUD(renderer: renderer, controls: topControls, trailingInset: cardInset, notice: session.notice ?? session.aim.cameraWarning)
                     .ignoresSafeArea()
             }
         }
@@ -119,18 +119,18 @@ struct ContentView: View {
                 Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
                 if session.observer != nil {
                     Button(
-                        session.compass.isAiming ? "Stop aiming by compass" : "Aim by compass",
-                        systemImage: session.compass.isAiming ? "location.north.circle.fill" : "location.north.circle"
-                    ) { session.toggleCompass() }
+                        session.aim.compass.isAiming ? "Stop aiming by compass" : "Aim by compass",
+                        systemImage: session.aim.compass.isAiming ? "location.north.circle.fill" : "location.north.circle"
+                    ) { session.aim.toggleCompass() }
                     Button(
-                        session.passthrough.isShowing ? "Hide the camera" : "Show the camera",
-                        systemImage: session.passthrough.isShowing ? "camera.fill" : "camera"
-                    ) { session.togglePassthrough() }
-                    .disabled(session.isStartingCamera)
+                        session.aim.passthrough.isShowing ? "Hide the camera" : "Show the camera",
+                        systemImage: session.aim.passthrough.isShowing ? "camera.fill" : "camera"
+                    ) { session.aim.togglePassthrough() }
+                    .disabled(session.aim.isStartingCamera)
                 }
                 // The way out of following something once its panel is closed.
-                if let tracked = session.tracked {
-                    Button("Stop tracking", systemImage: "video.slash") { session.track(tracked, false, animated: true) }
+                if session.tracked != nil {
+                    Button("Stop tracking", systemImage: "video.slash") { session.stopTracking(animated: true) }
                 }
             }
             .labelStyle(.iconOnly)
@@ -209,7 +209,7 @@ struct ContentView: View {
             }
         }
         // Out of the way of the sky the compass now aims, as on the web.
-        .onChange(of: session.compass.isAiming && !session.compass.isProbing) { _, aiming in
+        .onChange(of: session.aim.compass.isAiming && !session.aim.compass.isProbing) { _, aiming in
             if aiming, panel == .sky {
                 panel = nil
             }
@@ -219,7 +219,7 @@ struct ContentView: View {
                 HStack {
                     Text("Tap the globe to place a ground station")
                         .font(.subheadline)
-                    Button("Cancel") { session.isPicking = false }
+                    Button("Cancel") { session.setPicking(false) }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
@@ -260,7 +260,7 @@ struct ContentView: View {
             BookmarksView(session: session)
         }
         .sheet(isPresented: $showsBrowser) {
-            BrowserView(catalog: session.catalog) { session.selection = .satellite($0.id) }
+            BrowserView(catalog: session.catalog) { session.select(.satellite($0.id)) }
         }
         .sheet(isPresented: $showsAbout) {
             AboutView(map: session.mapCredits, privacyPolicy: session.privacyPolicy, analytics: session.analytics)
@@ -276,7 +276,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showsStations) {
-            GroundStationsView(passes: session.passes, onPick: { session.isPicking = true }, onSelect: { session.selection = .station($0) })
+            GroundStationsView(passes: session.passes, onPick: { session.setPicking(true) }, onSelect: { session.select(.station($0)) })
         }
         // A card over the trailing edge where there is room for one, a sheet over
         // the lower half where there is not, leaving the globe to steer either
@@ -302,7 +302,7 @@ struct ContentView: View {
             isPresented: Binding {
                 sizeClass != .regular && session.selection != nil
             } set: {
-                if !$0 { session.selection = nil }
+                if !$0 { session.select(nil) }
             }
         ) {
             infoPanel
@@ -357,22 +357,30 @@ struct ContentView: View {
             if let entry = session.catalog.catalog.entries[id] {
                 InfoPanel(
                     entry: entry, clock: session.clock, passes: session.passes, alerts: session.alerts, closeUp: session.closeUpContext,
-                    isTracked: session.tracked == id,
-                    onTrack: session.observer != nil ? nil : { session.track(id, $0, animated: true) }, onClose: { session.selection = nil }
+                    isTracked: session.tracked == .satellite(id), onTrack: session.observer != nil ? nil : { track(.satellite(id), on: $0) },
+                    onClose: { session.select(nil) }
                 )
             }
         case .station(let stationID):
             if let station = session.passes.station(stationID) {
-                let id = PassModel.markerID(stationID)
                 StationPanel(
                     station: station, clock: session.clock, passes: session.passes, alerts: session.alerts, catalog: session.catalog,
-                    isTracked: session.tracked == id, onTrack: session.observer != nil ? nil : { session.track(id, $0, animated: true) },
+                    isTracked: session.tracked == .station(stationID), onTrack: session.observer != nil ? nil : { track(.station(stationID), on: $0) },
                     onSky: { session.enterSky(at: stationID) },
-                    onClose: { session.selection = nil }
+                    onClose: { session.select(nil) }
                 )
             }
         case nil:
             EmptyView()
+        }
+    }
+
+    /// A panel's Track button: the camera flies there, or back.
+    private func track(_ target: Selection, on: Bool) {
+        if on {
+            session.follow(target, animated: true)
+        } else {
+            session.stopTracking(animated: true)
         }
     }
 }

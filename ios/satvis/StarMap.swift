@@ -1,34 +1,23 @@
 import Foundation
+import SatvisData
 import SatvisRender
 
-/// satvis's star map, fetched from the site rather than shipped, handed to the
-/// renderer once both exist, whichever comes first.
+/// satvis's star map, fetched from the site rather than shipped.
 @MainActor
 final class StarMap {
-    private var renderer: GlobeRenderer?
-    private var faces: [Data]?
+    private let globe: GlobeBinding
 
-    func attach(_ renderer: GlobeRenderer) {
-        self.renderer = renderer
-        apply()
+    init(globe: GlobeBinding) {
+        self.globe = globe
     }
 
     /// The kept faces at once, then the site's, if they came back.
-    func load(from source: GPSource) async {
-        if let kept = await source.keptStarMap() {
-            faces = kept
-            apply()
+    func load(from repository: GroupRepository) async {
+        if let kept = await repository.keptStarMap() {
+            globe.starMap = kept
         }
-        if let fetched = await source.starMap(), fetched != faces {
-            faces = fetched
-            apply()
+        if let fetched = await repository.starMap(), fetched != globe.starMap {
+            globe.starMap = fetched
         }
-    }
-
-    private func apply() {
-        guard let renderer, let faces else {
-            return
-        }
-        renderer.setStarMap(faces: faces)
     }
 }

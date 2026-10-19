@@ -159,7 +159,8 @@ discussion; sharpen them here when they drift.
   vocabulary, not Cesium's: the sky view is not a Cesium scene mode
   (`src/config/viewModes.ts`).
 - **Camera mode**: the reference frame the camera is pinned to: earth-fixed or
-  inertial. Independent of the view mode.
+  inertial. Independent of the view mode. Not the native app's `CameraMode`,
+  which is the camera the view is seen through: orbit, tracking or sky.
 - **Sky view**: the view mode that stands at the observer and looks up, showing
   satellites where they are in that sky. It owns the camera, so nothing is tracked
   while it is up. It stands on whatever surface is there: terrain, or the top of a

@@ -378,26 +378,26 @@ struct SkyPanel: View {
             // Waiting on the sensor, a second tap must not start a second probe.
             Toggle(
                 isOn: Binding {
-                    session.compass.isAiming && !session.compass.isProbing
+                    session.aim.compass.isAiming && !session.aim.compass.isProbing
                 } set: { _ in
-                    session.toggleCompass()
+                    session.aim.toggleCompass()
                 }
             ) {
-                Waiting("Use compass", while: session.compass.isProbing, as: "Waiting for the motion sensor")
+                Waiting("Use compass", while: session.aim.compass.isProbing, as: "Waiting for the motion sensor")
             }
-            .disabled(!inSky || session.compass.isProbing)
+            .disabled(!inSky || session.aim.compass.isProbing)
         }
         PanelSection("Camera") {
             Toggle(
                 isOn: Binding {
-                    session.passthrough.isShowing
+                    session.aim.passthrough.isShowing
                 } set: { _ in
-                    session.togglePassthrough()
+                    session.aim.togglePassthrough()
                 }
             ) {
-                Waiting("Show camera", while: session.isStartingCamera, as: "Starting the camera")
+                Waiting("Show camera", while: session.aim.isStartingCamera, as: "Starting the camera")
             }
-            .disabled(!inSky || session.isStartingCamera)
+            .disabled(!inSky || session.aim.isStartingCamera)
             Note("The sky through the camera, aimed by compass.")
         }
         PanelSection("Out of sight") {

@@ -362,7 +362,7 @@ struct StationPanel: View {
 
 /// Notifications for the passes the panel lists, on or off.
 private struct AlertButton: View {
-    let subject: PassAlerts.Alert.Subject
+    let subject: PassAlert.Subject
     let satellites: [CatalogEntry]
     let passes: PassModel
     let alerts: PassAlerts

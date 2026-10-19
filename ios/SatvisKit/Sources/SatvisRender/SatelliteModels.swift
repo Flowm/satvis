@@ -108,6 +108,60 @@ struct ModelInstance {
     var opacity: Float
 }
 
+/// The model pass's two pipelines, the globe's and the close-up's alike: the
+/// opaque and cut-out parts, whose alpha is their coverage
+/// (`modelOpaqueFragment`), and the blended ones.
+struct ModelPipelines {
+    /// What the pipelines draw into.
+    struct Targets: Equatable {
+        var color: MTLPixelFormat
+        /// A second colour target the models leave unwritten: the screen, where
+        /// the globe tonemaps in tile memory.
+        var screen: MTLPixelFormat?
+        var depth: MTLPixelFormat
+        var sampleCount = 1
+    }
+
+    let opaque: MTLRenderPipelineState
+    let blended: MTLRenderPipelineState
+
+    /// `vertex` and `fragment` are the libraries each stage's function comes from:
+    /// the globe places its models with safe math.
+    init(device: MTLDevice, vertex: MTLLibrary, fragment: MTLLibrary, targets: Targets) throws {
+        opaque = try device.makeRenderPipelineState(descriptor: try Self.descriptor(blended: false, vertex: vertex, fragment: fragment, targets: targets))
+        blended = try device.makeRenderPipelineState(descriptor: try Self.descriptor(blended: true, vertex: vertex, fragment: fragment, targets: targets))
+    }
+
+    /// One of the two, not yet built.
+    static func descriptor(blended: Bool, vertex: MTLLibrary, fragment: MTLLibrary, targets: Targets) throws -> MTLRenderPipelineDescriptor {
+        func function(_ name: String, in library: MTLLibrary) throws -> MTLFunction {
+            guard let function = library.makeFunction(name: name) else {
+                throw RendererError.missingFunction(name)
+            }
+            return function
+        }
+        let descriptor = MTLRenderPipelineDescriptor()
+        descriptor.vertexFunction = try function("modelVertex", in: vertex)
+        descriptor.fragmentFunction = try function(blended ? "modelFragment" : "modelOpaqueFragment", in: fragment)
+        descriptor.colorAttachments[0].pixelFormat = targets.color
+        if let screen = targets.screen {
+            descriptor.colorAttachments[1].pixelFormat = screen
+            descriptor.colorAttachments[1].writeMask = []
+        }
+        descriptor.depthAttachmentPixelFormat = targets.depth
+        descriptor.rasterSampleCount = targets.sampleCount
+        if blended {
+            let attachment = descriptor.colorAttachments[0]!
+            attachment.isBlendingEnabled = true
+            attachment.sourceRGBBlendFactor = .sourceAlpha
+            attachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
+            attachment.sourceAlphaBlendFactor = .one
+            attachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+        }
+        return descriptor
+    }
+}
+
 /// The satellites' 3D models: fetched by file when first drawn, read off the main
 /// thread, and kept for the session. A file that fails is tried again a minute
 /// later.

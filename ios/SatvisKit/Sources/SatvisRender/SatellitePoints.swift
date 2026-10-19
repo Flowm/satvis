@@ -223,4 +223,29 @@ final class SatellitePoints {
     func position(of id: String, at epochMilliseconds: Double) -> SIMD3<Double>? {
         indexByID[id].flatMap { satellites[$0].trajectory.position(at: epochMilliseconds) }
     }
+
+    /// What a drawn frame's queries read of the satellites installed.
+    var installed: InstalledSatellites {
+        InstalledSatellites(satellites: satellites, indexByID: indexByID, generation: generation)
+    }
+}
+
+/// The satellites installed, as a drawn frame's queries read them: the arrays
+/// shared with `SatellitePoints`, not copied.
+struct InstalledSatellites: DrawnSatellites {
+    let satellites: [PointSatellite]
+    let indexByID: [String: Int]
+    let generation: Int
+
+    var count: Int { satellites.count }
+
+    func id(at index: Int) -> String { satellites[index].id }
+
+    func name(at index: Int) -> String { satellites[index].name }
+
+    func position(at index: Int, time: Double) -> SIMD3<Double>? {
+        satellites[index].trajectory.position(at: time)
+    }
+
+    func index(of id: String) -> Int? { indexByID[id] }
 }

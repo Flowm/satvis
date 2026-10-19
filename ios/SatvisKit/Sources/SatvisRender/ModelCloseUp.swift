@@ -28,8 +28,7 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
     private weak var view: MTKView?
     private let device: MTLDevice
     private let commandQueue: MTLCommandQueue
-    private let pipeline: MTLRenderPipelineState
-    private let blendPipeline: MTLRenderPipelineState
+    private let pipelines: ModelPipelines
     private let depthWrite: MTLDepthStencilState
     private let depthTest: MTLDepthStencilState
     private let sampler: MTLSamplerState
@@ -62,6 +61,8 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
     /// One turn a minute.
     private static let turnRadiansPerSecond = 2 * Double.pi / 60
     private static let verticalFieldOfView = 40 * Double.pi / 180
+    /// The view's, which `make` sets it up with.
+    static let targets = ModelPipelines.Targets(color: .bgra8Unorm_srgb, depth: .depth32Float, sampleCount: 4)
 
     /// The models' shaders alone, compiled once for every close-up.
     private static var library: Task<MTLLibrary, Error>?
@@ -72,9 +73,9 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
             throw RendererError.noDevice
         }
         view.device = device
-        view.colorPixelFormat = .bgra8Unorm_srgb
-        view.depthStencilPixelFormat = .depth32Float
-        view.sampleCount = 4
+        view.colorPixelFormat = targets.color
+        view.depthStencilPixelFormat = targets.depth
+        view.sampleCount = targets.sampleCount
         // Clear, over the caller's backdrop: the view itself has to be made transparent too.
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
         let task = library ?? Task { try await ShaderLibrary.makeFast(device: device, files: ["Common", "Models"]) }
@@ -100,25 +101,7 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
         self.view = view
         self.device = device
         self.commandQueue = commandQueue
-        func pipeline(blend: Bool) throws -> MTLRenderPipelineState {
-            let descriptor = MTLRenderPipelineDescriptor()
-            descriptor.vertexFunction = library.makeFunction(name: "modelVertex")
-            descriptor.fragmentFunction = library.makeFunction(name: "modelFragment")
-            descriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
-            descriptor.depthAttachmentPixelFormat = view.depthStencilPixelFormat
-            descriptor.rasterSampleCount = view.sampleCount
-            if blend {
-                let attachment = descriptor.colorAttachments[0]!
-                attachment.isBlendingEnabled = true
-                attachment.sourceRGBBlendFactor = .sourceAlpha
-                attachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
-                attachment.sourceAlphaBlendFactor = .one
-                attachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
-            }
-            return try device.makeRenderPipelineState(descriptor: descriptor)
-        }
-        self.pipeline = try pipeline(blend: false)
-        blendPipeline = try pipeline(blend: true)
+        pipelines = try ModelPipelines(device: device, vertex: library, fragment: library, targets: Self.targets)
         func depthState(write: Bool) -> MTLDepthStencilState? {
             let descriptor = MTLDepthStencilDescriptor()
             descriptor.depthCompareFunction = .less
@@ -265,7 +248,7 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
             sunDirection: light, hasTexture: 0, metallic: 0, roughness: 0, alphaCutoff: 0, opacity: 1)
         encoder.setFragmentSamplerState(sampler, index: 0)
         for blended in [false, true] {
-            encoder.setRenderPipelineState(blended ? blendPipeline : pipeline)
+            encoder.setRenderPipelineState(blended ? pipelines.blended : pipelines.opaque)
             encoder.setDepthStencilState(blended ? depthTest : depthWrite)
             model.encodeParts(blended: blended, wholeBlended: false, base: base, encoder: encoder)
         }
