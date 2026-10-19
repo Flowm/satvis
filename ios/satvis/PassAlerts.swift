@@ -14,29 +14,10 @@ nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category:
 /// predicts them again from the newest element sets, four days ahead.
 @Observable
 final class PassAlerts {
-    /// One thing to be told about: a satellite's passes over every station, or the
-    /// passes over one station of the satellites active when it was asked.
-    struct Alert: Codable, Hashable {
-        enum Subject: Codable, Hashable {
-            /// A catalog id.
-            case satellite(String)
-            /// A ground station's id: renamed or moved, it is still the one asked
-            /// about, and deleted, its alert goes with it.
-            case station(UUID)
-        }
-
-        var subject: Subject
-        /// Catalog ids.
-        var satellites: [String]
-        /// The groups they come in, to load them from without the catalog.
-        var groups: [String]
-    }
-
     static let refreshTaskID = "org.frcy.app.satvis.passes"
     private static let key = "passAlerts"
-    private static let identifierPrefix = "pass|"
 
-    private(set) var alerts: [Alert]
+    private(set) var alerts: [PassAlert]
     /// What the last change came to, for a moment: "Notifying for 12 passes".
     private(set) var message: String?
     @ObservationIgnored private let loader: GroupLoader
@@ -53,29 +34,28 @@ final class PassAlerts {
     init(loader: GroupLoader, stationStorage: any StationStorage = UserDefaultsStationStorage()) {
         self.loader = loader
         self.stationStorage = stationStorage
-        // One at a time, so an alert saved in an older shape drops alone.
-        alerts = (UserDefaults.standard.data(forKey: Self.key).flatMap { try? JSONDecoder().decode([MaybeAlert].self, from: $0) } ?? []).compactMap(\.value)
+        alerts = UserDefaults.standard.data(forKey: Self.key).map(PassAlert.decodeAll) ?? []
         center.delegate = presenter
     }
 
-    func isOn(_ subject: Alert.Subject) -> Bool {
+    func isOn(_ subject: PassAlert.Subject) -> Bool {
         alerts.contains { $0.subject == subject }
     }
 
     /// Asks for permission the first time, then schedules.
-    func turnOn(_ subject: Alert.Subject, satellites: [CatalogEntry]) async {
+    func turnOn(_ subject: PassAlert.Subject, satellites: [CatalogEntry]) async {
         let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
         guard granted else {
             show("Notifications are off for Satvis in Settings")
             return
         }
         alerts.removeAll { $0.subject == subject }
-        alerts.append(Alert(subject: subject, satellites: satellites.map(\.id), groups: Array(Set(satellites.flatMap(\.groups))).sorted()))
+        alerts.append(PassAlert(subject: subject, satellites: satellites))
         save()
         guard let plan = await reschedule() else {
             return
         }
-        show(Self.describe(plan))
+        show(plan.summary)
     }
 
     /// Drops the alerts of stations that are gone.
@@ -92,7 +72,7 @@ final class PassAlerts {
         }
     }
 
-    func turnOff(_ subject: Alert.Subject) async {
+    func turnOff(_ subject: PassAlert.Subject) async {
         alerts.removeAll { $0.subject == subject }
         save()
         await reschedule()
@@ -143,26 +123,10 @@ final class PassAlerts {
         }
         let catalog = await loader.catalog(of: Set(alerts.flatMap(\.groups)))
         let now = Date().timeIntervalSince1970 * 1000
-        let jobs = alerts.flatMap { alert in
-            let stations: [GroundStation]
-            switch alert.subject {
-            case .satellite: stations = settings.stations
-            case .station(let id): stations = settings.stations.filter { $0.id == id }
-            }
-            return alert.satellites.compactMap { Self.entry($0, in: catalog) }.map { ($0, PassStore.Settings(stations: stations, mode: settings.mode)) }
-        }
-        let window = PassWindow(around: now)
-        let prediction = Task.detached(priority: .utility) { await Self.predict(jobs, window: window) }
-        let passes = await withTaskCancellationHandler {
-            await prediction.value
-        } onCancel: {
-            prediction.cancel()
-        }
-        guard !Task.isCancelled else {
+        guard let plan = await PassNotificationPlan.planning(alerts, in: catalog, settings: settings, at: now) else {
             log.notice("Rescheduling cancelled; the pending notifications stay")
             return nil
         }
-        let plan = PassNotificationPlan(passes: passes, now: Date().timeIntervalSince1970 * 1000, predictedUntil: window.predictionEnd)
         // Only now, so that the ones pending keep firing while the groups load,
         // which on a slow network takes a while.
         await removePending()
@@ -174,55 +138,15 @@ final class PassAlerts {
         return plan
     }
 
-    /// Every pass of every job, side by side. Stops early when cancelled.
-    nonisolated private static func predict(_ jobs: [(CatalogEntry, PassStore.Settings)], window: PassWindow) async -> [Pass] {
-        await withTaskGroup(of: [Pass].self) { group in
-            for job in jobs {
-                group.addTask {
-                    Task.isCancelled ? [] : PassStore.predict(job.0, settings: job.1, window: window)
-                }
-            }
-            return await group.reduce(into: []) { $0 += $1 }
-        }
-    }
-
-    /// "Notifying for 12 passes", and until when, when that is short of the four
-    /// days predicted.
-    private static func describe(_ plan: PassNotificationPlan) -> String {
-        let count = plan.passCount
-        guard count > 0 else {
-            return "No passes in the next four days"
-        }
-        let passes = "Notifying for \(count) \(count == 1 ? "pass" : "passes")"
-        guard plan.isCutShort else {
-            return passes
-        }
-        let until = Date(timeIntervalSince1970: plan.coveredUntil / 1000)
-        return "\(passes) until \(until.formatted(.dateTime.weekday().hour().minute()))"
-    }
-
-    /// A satellite by its catalog id, or by its catalog number when it has been
-    /// renamed since: CelesTrak names a new launch "OBJECT A" until it knows.
-    private static func entry(_ id: String, in catalog: Catalog) -> CatalogEntry? {
-        if let entry = catalog.entries[id] {
-            return entry
-        }
-        let satnum = id.split(separator: "|").first.map(String.init)
-        return catalog.entries.values.first { $0.satnum == satnum }
-    }
-
     private func removePending() async {
-        let pending = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(Self.identifierPrefix) }
+        let pending = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(PassNotificationPlan.identifierPrefix) }
         center.removePendingNotificationRequests(withIdentifiers: pending)
     }
 
     private func add(_ notice: PassNotificationPlan.Notice) async {
-        let pass = notice.pass
-        let lead = notice.lead
         let content = UNMutableNotificationContent()
-        content.title = lead > 0 ? "\(pass.satelliteName) pass in \(Int(lead / 60_000)) minutes" : "\(pass.satelliteName) pass starting now"
-        // The title says when; a window in UTC would only make the reader convert it.
-        content.body = "Over \(pass.station) · \(pass.length)"
+        content.title = notice.title
+        content.body = notice.body
         content.sound = .default
         // An interval rather than calendar components, which iOS reads in the
         // device's time zone whatever zone they were taken in.
@@ -231,9 +155,8 @@ final class PassAlerts {
             return
         }
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
-        let identifier = "\(Self.identifierPrefix)\(pass.satellite)|\(pass.stationID.uuidString)|\(Int(pass.start))|\(Int(lead))"
         do {
-            try await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: trigger))
+            try await center.add(UNNotificationRequest(identifier: notice.identifier, content: content, trigger: trigger))
         } catch {
             log.error("Scheduling failed: \(error, privacy: .public)")
         }
@@ -253,15 +176,6 @@ final class PassAlerts {
                 message = nil
             }
         }
-    }
-}
-
-/// An alert, or nil for one that no longer decodes.
-private struct MaybeAlert: Decodable {
-    let value: PassAlerts.Alert?
-
-    init(from decoder: Decoder) throws {
-        value = try? PassAlerts.Alert(from: decoder)
     }
 }
 

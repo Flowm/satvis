@@ -857,7 +857,7 @@ final class Session {
     private func watchEntries() async {
         for await (tracked, selected) in Observations({ (self.missing(self.tracked), self.missing(self.selectedSatellite)) }) {
             if let tracked {
-                if let next = successor(of: tracked) {
+                if let next = catalog.catalog.entry(orSuccessorOf: tracked)?.id {
                     // Opened only if it was, below.
                     track(next, true, selects: false)
                 } else {
@@ -865,7 +865,7 @@ final class Session {
                 }
             }
             if let selected, selectedSatellite == selected {
-                selection = successor(of: selected).map(Selection.satellite)
+                selection = catalog.catalog.entry(orSuccessorOf: selected).map { Selection.satellite($0.id) }
             }
         }
     }
@@ -876,12 +876,6 @@ final class Session {
             return nil
         }
         return id
-    }
-
-    /// The entry under the same catalog number, as a renamed satellite keeps.
-    private func successor(of id: String) -> String? {
-        let satnum = id.prefix { $0 != "|" }
-        return catalog.catalog.entries.values.first { $0.satnum == satnum }?.id
     }
 
     /// Keeps a daily base map (VIIRS) on the clock's day, once a second, as the web

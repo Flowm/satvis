@@ -33,7 +33,7 @@ public actor TrajectoryStore {
         var nextPropagators: [(record: GPRecord, propagator: SGP4Propagator)] = []
         var nextTrajectories: [SampledTrajectory?] = []
         var nextFailedAt: [Int: Double] = [:]
-        for record in records where seen.insert(Self.identity(record)).inserted {
+        for record in records where seen.insert(Catalog.id(of: record)).inserted {
             if let old = kept[Self.key(record)] {
                 if let failed = old.failedAt {
                     nextFailedAt[nextPropagators.count] = failed
@@ -70,14 +70,9 @@ public actor TrajectoryStore {
         return results
     }
 
-    /// The catalog entry a record is drawn for (`CatalogEntry.id`).
-    private static func identity(_ record: GPRecord) -> String {
-        "\(record.satnum)|\(record.name)"
-    }
-
     /// The same satellite with the same element set.
     private static func key(_ record: GPRecord) -> String {
-        "\(identity(record))|\(record.meanElements.epoch.year)|\(record.meanElements.epoch.dayOfYear)"
+        "\(Catalog.id(of: record))|\(record.meanElements.epoch.year)|\(record.meanElements.epoch.dayOfYear)"
     }
 
     /// Resamples every window that no longer covers the instant. Returns the whole

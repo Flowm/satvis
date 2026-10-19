@@ -74,7 +74,7 @@ final class SatelliteLayer {
         count = entries.count
         satellites = entries.map {
             PointSatellite(
-                id: "\($0.record.satnum)|\($0.record.name)", name: $0.record.name, trajectory: $0.trajectory, color: $0.record.orbitClass.color,
+                id: Catalog.id(of: $0.record), name: $0.record.name, trajectory: $0.trajectory, color: $0.record.orbitClass.color,
                 footprint: Self.footprint($0.record), modelFile: $0.record.metadata["modelFile"]?.string)
         }
         satellitesShowCount = show

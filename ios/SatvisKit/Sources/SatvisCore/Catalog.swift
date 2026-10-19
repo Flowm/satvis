@@ -21,6 +21,27 @@ public struct Catalog: Sendable {
 
     public init() {}
 
+    /// An entry's id, `satnum|name`: the web app's identity.
+    public static func id(of record: GPRecord) -> String {
+        "\(record.satnum)|\(record.name)"
+    }
+
+    /// The catalog number an id was made from.
+    static func satnum(of id: String) -> Substring {
+        id.prefix { $0 != "|" }
+    }
+
+    /// The entry for this id, or the one under the same catalog number that
+    /// replaced it, as a renamed satellite keeps: CelesTrak names a new launch
+    /// "OBJECT A" until it knows.
+    public func entry(orSuccessorOf id: String) -> CatalogEntry? {
+        if let entry = entries[id] {
+            return entry
+        }
+        let satnum = Self.satnum(of: id)
+        return entries.values.first { $0.satnum == satnum }
+    }
+
     /// The tags each group was last added with, which its entries carry.
     private var groupTags: [String: Set<String>] = [:]
 
@@ -38,7 +59,7 @@ public struct Catalog: Sendable {
         }
         var served = Set<String>()
         for record in records {
-            let id = "\(record.satnum)|\(record.name)"
+            let id = Self.id(of: record)
             served.insert(id)
             guard var entry = entries[id] else {
                 entries[id] = CatalogEntry(id: id, record: record, tags: Set(tags), groups: group.map { [$0] } ?? [])
