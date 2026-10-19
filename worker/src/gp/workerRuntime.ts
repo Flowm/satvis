@@ -2,7 +2,8 @@
 // global fetch. Scripts wire the same functions to disk instead (scripts/update-static-gp.mjs).
 
 import generatedConfig from "../config/satvis.generated.json" with { type: "json" };
-import { bundleFetch, type IngestSource, refreshGroups, type RefreshReport, refreshUpstreams } from "./refresh.ts";
+import { bundleFetch, type IngestSource } from "./pushProtocol.ts";
+import { refreshGroups, type RefreshReport, refreshUpstreams } from "./refresh.ts";
 import { kvGroupStore } from "./store.ts";
 import type { GroupsConfig, UpstreamName, UpstreamStatus } from "./types.ts";
 

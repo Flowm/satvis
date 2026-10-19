@@ -1,5 +1,6 @@
 import { withConfig } from "./groupsIndex.ts";
-import type { IngestSource, RefreshReport } from "./refresh.ts";
+import { parseIngestBundle, readReport } from "./pushProtocol.ts";
+import type { RefreshReport } from "./refresh.ts";
 import { type GroupStore, kvGroupStore, upstreamStatuses } from "./store.ts";
 import { recordFailure, recordUnchanged, storeUpstream } from "./upstream.ts";
 import { UPSTREAMS, upstreamSpec } from "./upstreams.ts";
@@ -124,49 +125,6 @@ async function handleRefresh(env: Env, store: GroupStore): Promise<Response> {
 }
 
 /**
- * Returns the first problem as a string. Strict, because a malformed bundle would
- * otherwise read as an upstream outage.
- */
-function parseIngestBundle(raw: unknown): IngestSource[] | string {
-  if (raw === null || typeof raw !== "object") {
-    return "body must be a JSON object";
-  }
-  const sources = (raw as { sources?: unknown }).sources;
-  if (!Array.isArray(sources)) {
-    return "body.sources must be an array";
-  }
-  if (sources.length === 0) {
-    return "body.sources is empty";
-  }
-  const parsed: IngestSource[] = [];
-  for (let i = 0; i < sources.length; i++) {
-    const entry = sources[i] as Record<string, unknown> | null;
-    if (entry === null || typeof entry !== "object") {
-      return `body.sources[${i}] must be an object`;
-    }
-    const { key, url, status, body, error } = entry;
-    if (typeof key !== "string" || typeof url !== "string") {
-      return `body.sources[${i}] needs string key and url`;
-    }
-    if (status !== undefined && typeof status !== "number") {
-      return `body.sources[${i}].status must be a number`;
-    }
-    if (body !== undefined && typeof body !== "string") {
-      return `body.sources[${i}].body must be a string`;
-    }
-    if (error !== undefined && typeof error !== "string") {
-      return `body.sources[${i}].error must be a string`;
-    }
-    // A 304 carries neither: the stored value already is the payload.
-    if (body === undefined && error === undefined && status !== 304) {
-      return `body.sources[${i}] needs either body or error`;
-    }
-    parsed.push({ key, url, status, body, error });
-  }
-  return parsed;
-}
-
-/**
  * The scheduled refresh over payloads downloaded off-Worker (scripts/push-gp.mjs), for
  * when CelesTrak firewalls Cloudflare's egress. No cooldown: it spends no CelesTrak budget.
  */
@@ -196,18 +154,18 @@ async function handleUpstreamPut(request: Request, store: GroupStore, name: stri
     return notFound();
   }
   const now = new Date().toISOString();
-  const failure = request.headers.get("X-Upstream-Error");
-  if (failure !== null) {
-    return jsonResponse({ name, ...(await recordFailure(spec.name, store, failure, now)) }, { headers: NO_STORE });
+  const report = readReport(request.headers);
+  if ("error" in report) {
+    return jsonResponse({ name, ...(await recordFailure(spec.name, store, report.error, now)) }, { headers: NO_STORE });
   }
-  if (request.headers.get("X-Upstream-Status") === "304") {
+  if ("notModified" in report) {
     return jsonResponse({ name, ...(await recordUnchanged(spec, store, now)) }, { headers: NO_STORE });
   }
   const body = await request.text();
   if (body === "") {
     return badRequest("a new file needs a body; report an unchanged one with X-Upstream-Status: 304");
   }
-  const { stored, status } = await storeUpstream(spec, store, body, request.headers.get("X-Upstream-ETag") ?? undefined, now);
+  const { stored, status } = await storeUpstream(spec, store, body, report.etag, now);
   return jsonResponse({ name, ...status }, { status: stored ? 200 : 422, headers: NO_STORE });
 }
 

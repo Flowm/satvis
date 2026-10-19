@@ -93,34 +93,3 @@ export async function refreshUpstreams(store: GroupStore, fetchImpl: FetchImpl):
   }
   return statuses;
 }
-
-/**
- * One source downloaded off-Worker. `body` is set on success and `error` on failure;
- * a 304 carries neither.
- */
-export interface IngestSource {
-  key: string;
-  url: string;
-  status?: number;
-  body?: string;
-  error?: string;
-}
-
-/**
- * Replays a downloaded bundle, so an ingest runs the Worker's own fetch path. `url` is only
- * a Map key: a posted bundle cannot make the Worker fetch anything.
- */
-export function bundleFetch(sources: IngestSource[]): FetchImpl {
-  const byUrl = new Map(sources.map((source) => [source.url, source]));
-  return async (url) => {
-    const source = byUrl.get(url);
-    if (source === undefined) {
-      // E.g. an older push-gp against a newer Worker. The group keeps its last-known-good.
-      throw new Error("source absent from the ingest bundle");
-    }
-    if (source.error !== undefined) {
-      throw new Error(source.error);
-    }
-    return { status: source.status ?? 0, text: async () => source.body ?? "" };
-  };
-}

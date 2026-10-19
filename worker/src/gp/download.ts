@@ -10,7 +10,7 @@ export type FetchImpl = (url: string, init?: { headers?: Record<string, string>;
 export interface FetchResponse {
   status: number;
   /**
-   * Optional, so a replayed bundle (bundleFetch) can omit it. Only the upstream tables read it, for the ETag.
+   * Optional, so a replayed bundle (pushProtocol.ts, bundleFetch) can omit it. Only the upstream tables read it, for the ETag.
    */
   headers?: { get: (name: string) => string | null };
   text: () => Promise<string>;

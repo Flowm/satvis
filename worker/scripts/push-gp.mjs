@@ -15,6 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { toIngestBundle } from "../src/gp/pushProtocol.ts";
 import { fetchSources } from "../src/gp/sources.ts";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -37,16 +38,7 @@ async function main() {
   const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
   const fetched = await fetchSources(config.groups, (url, init) => fetch(url, init));
 
-  // fetchSources keeps no raw body, so records travel re-serialized; the Worker
-  // validates them again. A failure travels as its message and becomes the group's lastError.
-  const bundle = {
-    fetchedAt: new Date().toISOString(),
-    sources: fetched.map((source) =>
-      source.records === undefined
-        ? { key: source.key, url: source.url, status: source.status, error: source.error ?? "fetch failed" }
-        : { key: source.key, url: source.url, status: source.status, body: JSON.stringify(source.records) },
-    ),
-  };
+  const bundle = toIngestBundle(fetched, new Date().toISOString());
 
   const ok = fetched.filter((source) => source.records !== undefined).length;
   const body = JSON.stringify(bundle);

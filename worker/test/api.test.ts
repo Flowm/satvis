@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 
 import generatedConfig from "../src/config/satvis.generated.json" with { type: "json" };
 import { GCAT_CATALOG_URL } from "../src/gp/gcat.ts";
+import { toIngestBundle } from "../src/gp/pushProtocol.ts";
 import { CATALOG_CRON, GP_CRON } from "../src/gp/schedule.ts";
 import { collectSources, sourceKey, sourceUrl } from "../src/gp/sources.ts";
 import { kvGroupStore } from "../src/gp/store.ts";
@@ -45,18 +46,16 @@ async function idsOf(group: string): Promise<unknown[]> {
   return (await groupRecords(group))!.map((r) => r.NORAD_CAT_ID);
 }
 
-/** Built like scripts/push-gp.mjs builds it: bundleFetch matches on the sourceUrl() url. */
+/** Every configured source answered with `reply`, bundled as push-gp bundles them. */
 function ingestBundle(reply: (source: string) => unknown, opts?: { status?: number }): string {
   const specs = collectSources((generatedConfig as GroupsConfig).groups);
-  return JSON.stringify({
-    fetchedAt: UPDATED,
-    sources: specs.map((spec) => {
-      const url = sourceUrl(spec);
-      const params = new URL(url).searchParams;
-      const source = params.get("GROUP") ?? params.get("FILE") ?? "";
-      return { key: sourceKey(spec), url, status: opts?.status ?? 200, body: JSON.stringify(reply(source)) };
-    }),
+  const fetched = specs.map((spec) => {
+    const url = sourceUrl(spec);
+    const params = new URL(url).searchParams;
+    const source = params.get("GROUP") ?? params.get("FILE") ?? "";
+    return { key: sourceKey(spec), url, ms: 0, status: opts?.status ?? 200, records: reply(source) as OmmRecord[] };
   });
+  return JSON.stringify(toIngestBundle(fetched, UPDATED));
 }
 
 function postIngest(body: string, headers: Record<string, string> = AUTH): Promise<Response> {
