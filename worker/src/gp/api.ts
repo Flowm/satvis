@@ -1,3 +1,4 @@
+import { GROUP_NAME_RE } from "./configValidation.ts";
 import { withConfig } from "./groupsIndex.ts";
 import { parseIngestBundle, readReport } from "./pushProtocol.ts";
 import type { RefreshReport } from "./refresh.ts";
@@ -6,7 +7,6 @@ import { recordFailure, recordUnchanged, storeUpstream } from "./upstream.ts";
 import { UPSTREAMS, upstreamSpec } from "./upstreams.ts";
 import { groupsConfig, ingestAll, refreshAll, refreshAllUpstreams } from "./workerRuntime.ts";
 
-const GROUP_NAME_RE = /^[a-zA-Z0-9_-]+$/;
 /**
  * POST /api/refresh does not re-hit CelesTrak within this window of the last refresh, cron included.
  */
