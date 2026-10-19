@@ -1,6 +1,6 @@
 import { handleApi } from "./gp/api.ts";
-import { refreshAll, refreshAllUpstreams } from "./gp/refresh.ts";
 import { CATALOG_CRON } from "./gp/schedule.ts";
+import { refreshAll, refreshAllUpstreams } from "./gp/workerRuntime.ts";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {

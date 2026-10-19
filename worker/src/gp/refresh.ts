@@ -1,14 +1,11 @@
-// Store-agnostic: the Worker runs it against KV, scripts/update-static-gp.mjs against disk.
+// Store-agnostic: the Worker runs it against KV (workerRuntime.ts), scripts/update-static-gp.mjs against disk.
 
-import generatedConfig from "../config/satvis.generated.json" with { type: "json" };
 import { buildStatuses, collectSources, evaluateGroups, fetchSources, type FetchImpl, type SourceProbe, toProbe, toRecordsBySource, withConfig } from "./evaluate.ts";
 import { SatelliteTable } from "./satelliteTable.ts";
-import { kvGroupStore, type GroupStore } from "./store.ts";
+import type { GroupStore } from "./store.ts";
 import type { GroupsConfig, GroupsIndex, UpstreamName, UpstreamStatus } from "./types.ts";
 import { refreshUpstream } from "./upstream.ts";
 import { UPSTREAMS } from "./upstreams.ts";
-
-export const groupsConfig = generatedConfig as GroupsConfig;
 
 export interface RefreshReport {
   index: GroupsIndex;
@@ -73,10 +70,6 @@ export async function refreshGroups(config: GroupsConfig, store: GroupStore, fet
   return { index, sources: fetched.map(toProbe), written, skipped, durationMs };
 }
 
-export async function refreshAll(env: Env): Promise<RefreshReport> {
-  return refreshGroups(groupsConfig, kvGroupStore(env.GP_KV), (url, init) => fetch(url, init));
-}
-
 /**
  * The Worker's own fetch of every upstream table, one after another, each conditional
  * on its stored file. The groups pick them up at the next GP update. A table whose
@@ -96,11 +89,6 @@ export async function refreshUpstreams(store: GroupStore, fetchImpl: FetchImpl):
     }
   }
   return statuses;
-}
-
-/** refreshUpstreams against KV and the real fetch: POST /api/upstream/refresh and the catalog cron. */
-export async function refreshAllUpstreams(env: Env): Promise<Partial<Record<UpstreamName, UpstreamStatus>>> {
-  return refreshUpstreams(kvGroupStore(env.GP_KV), (url, init) => fetch(url, init));
 }
 
 /**
@@ -132,8 +120,4 @@ export function bundleFetch(sources: IngestSource[]): FetchImpl {
     }
     return { status: source.status ?? 0, text: async () => source.body ?? "" };
   };
-}
-
-export async function ingestAll(env: Env, sources: IngestSource[]): Promise<RefreshReport> {
-  return refreshGroups(groupsConfig, kvGroupStore(env.GP_KV), bundleFetch(sources));
 }

@@ -1,8 +1,9 @@
 import { withConfig } from "./evaluate.ts";
-import { groupsConfig, ingestAll, type IngestSource, refreshAll, refreshAllUpstreams } from "./refresh.ts";
+import type { IngestSource } from "./refresh.ts";
 import { kvGroupStore, upstreamStatuses } from "./store.ts";
 import { recordFailure, recordUnchanged, storeUpstream } from "./upstream.ts";
 import { UPSTREAMS, upstreamSpec } from "./upstreams.ts";
+import { groupsConfig, ingestAll, refreshAll, refreshAllUpstreams } from "./workerRuntime.ts";
 
 const GROUP_NAME_RE = /^[a-zA-Z0-9_-]+$/;
 /**
