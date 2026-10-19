@@ -156,13 +156,13 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   stands on Re:Earth's terrain whatever the Map menu says. `SkyFlight` is the
   web's three-leg flight in and out; the instruments (`SkyHUD`) and the gestures
   wait for it to land, and reduced motion cuts. The crosshair, the tapes, the
-  trace and the card read the renderer's last frame (`SkyTargets.swift`), and
-  the lock is the tap: from the ground a tap opens what the crosshair holds. The
-  lock places only the satellites near the crosshair, by each one's direction kept
-  for a second of the clock: placing all 16,755 active ones cost an iPad mini
-  8.6 ms of the main thread, 15 times a second (14 measured), and with them a
-  Debug build managed 5 frames a second. A clock fast enough to outrun a second
-  between locks searches them all, as before.
+  trace and the card read the renderer's last frame (`DrawnFrame`,
+  `SkyTargets.swift`), and the lock is the tap: from the ground a tap opens what
+  the crosshair holds. The lock places only the satellites near the crosshair, by
+  each one's direction kept for a second of the clock: placing all 16,755 active
+  ones cost an iPad mini 8.6 ms of the main thread, 15 times a second (14
+  measured), and with them a Debug build managed 5 frames a second. A clock fast
+  enough to outrun a second between locks searches them all, as before.
   The lock's card is the web app's, a fact a row, except on a phone, where it
   hid a third of the sky: two facts a row, four lines where there were seven. Its
   width is fixed, scaled with the text, so it holds still as the crosshair moves

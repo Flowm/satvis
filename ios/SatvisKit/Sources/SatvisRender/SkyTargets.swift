@@ -52,30 +52,62 @@ struct SkyJudgement {
 }
 
 extension GlobeRenderer {
-    /// How far from the middle of the screen the crosshair takes a satellite, in
-    /// points: its reach in degrees falls with the zoom, which is how two
-    /// satellites close together are told apart (ADR 0003).
-    public static let captureRadius = 60.0
-
     /// The satellites above the horizon and on screen, as the last frame drew them,
     /// within `radius` points of the middle: only they are judged for visibility.
     public func skyTargets(viewSize: CGSize, within radius: Double = .infinity) -> [SkyTarget] {
         guard isSkySettled, let camera = skyCamera, let lastFrame else {
             return []
         }
-        let eye = lastFrame.position
-        let (east, north, up) = camera.frame
-        let judgement = SkyJudgement(camera: camera, at: lastFrame.time, unseen: unseen)
-        let centre = CGPoint(x: viewSize.width / 2, y: viewSize.height / 2)
-        var satellites = points.satellites
-        if radius.isFinite, let directions = skyDirections(at: lastFrame.time, from: eye) {
-            let look = camera.look
-            let angle = Self.angle(ofRadius: radius, height: Double(viewSize.height), verticalFieldOfView: camera.verticalFieldOfView)
-            let indices = Self.indices(of: directions, within: angle, of: look.x * east + look.y * north + look.z * up)
-            satellites = indices.map { satellites[$0] }
+        return skyCache.targets(
+            in: lastFrame, camera: camera, unseen: unseen, satellites: points.installed, viewSize: viewSize, within: radius,
+            uptime: ProcessInfo.processInfo.systemUptime)
+    }
+
+    /// What the crosshair holds (`SkyCache.lock`); nil until the sky view has
+    /// landed.
+    public func skyLock(viewSize: CGSize) -> SkyTarget? {
+        guard isSkySettled, let camera = skyCamera, let lastFrame else {
+            skyCache.lock = nil
+            skyCache.lockAt = -.infinity
+            return nil
         }
-        return satellites.compactMap { satellite in
-            guard let position = satellite.trajectory.position(at: lastFrame.time) else {
+        return skyCache.lock(
+            in: lastFrame, camera: camera, unseen: unseen, satellites: points.installed, viewSize: viewSize, uptime: ProcessInfo.processInfo.systemUptime,
+            terrain: surface.terrainRevision, groundHeight: { self.surface.groundHeight(latitude: $0.latitude, longitude: $0.longitude) })
+    }
+
+    /// Where a direction in the sky is drawn, in points; nil behind the camera.
+    public func skyPoint(azimuth: Double, elevation: Double, viewSize: CGSize) -> CGPoint? {
+        guard let camera = skyCamera, let lastFrame else {
+            return nil
+        }
+        return lastFrame.skyPoint(azimuth: azimuth, elevation: elevation, camera: camera, viewSize: viewSize)
+    }
+
+    /// A satellite's path across the sky (`SkyCache.trace`).
+    public func skyTrace(of id: String, viewSize: CGSize) -> [[CGPoint]] {
+        guard let camera = skyCamera, let lastFrame else {
+            return []
+        }
+        return skyCache.trace(
+            of: id, in: lastFrame, camera: camera, satellites: points.installed, viewSize: viewSize, terrain: surface.terrainRevision,
+            groundHeight: { self.surface.groundHeight(latitude: $0.latitude, longitude: $0.longitude) })
+    }
+}
+
+extension DrawnFrame {
+    /// The satellites above the horizon of `camera`'s observer and on screen,
+    /// within `radius` points of the middle. `directions`, where given, are each
+    /// satellite's kept direction from the eye (`SkyCache.directions`): only those
+    /// near where `camera` looks are placed.
+    func skyTargets(
+        viewSize: CGSize, within radius: Double, camera: SkyCamera, unseen: UnseenMode, satellites: some DrawnSatellites, directions: [SIMD3<Float>?]?
+    ) -> [SkyTarget] {
+        let (east, north, up) = camera.frame
+        let judgement = SkyJudgement(camera: camera, at: time, unseen: unseen)
+        let centre = CGPoint(x: viewSize.width / 2, y: viewSize.height / 2)
+        func target(_ index: Int) -> SkyTarget? {
+            guard let position = satellites.position(at: index, time: time) else {
                 return nil
             }
             let local = position - eye
@@ -92,189 +124,29 @@ extension GlobeRenderer {
                 azimuth += 360
             }
             return SkyTarget(
-                id: satellite.id, name: satellite.name, azimuth: azimuth, elevation: elevation, range: range / 1000, altitude: heightAboveEllipsoid(position) / 1000,
-                screen: screen, visibility: judgement.visibility(of: position, from: eye))
+                id: satellites.id(at: index), name: satellites.name(at: index), azimuth: azimuth, elevation: elevation, range: range / 1000,
+                altitude: heightAboveEllipsoid(position) / 1000, screen: screen, visibility: judgement.visibility(of: position, from: eye))
         }
+        if radius.isFinite, let directions {
+            // Where the camera looks now, not where it looked for this frame: the
+            // compass may have turned it since, which `SkyCache.directionsMargin`
+            // covers.
+            let look = camera.look
+            let angle = SkyCache.angle(ofRadius: radius, height: Double(viewSize.height), verticalFieldOfView: camera.verticalFieldOfView)
+            return SkyCache.indices(of: directions, within: angle, of: look.x * east + look.y * north + look.z * up).compactMap(target)
+        }
+        return (0..<satellites.count).compactMap(target)
     }
 
-    /// The angle out from the middle of a view `height` points tall to `radius`
-    /// points from it, in radians.
-    nonisolated static func angle(ofRadius radius: Double, height: Double, verticalFieldOfView: Double) -> Double {
-        atan(radius * tan(verticalFieldOfView / 2) / (height / 2))
-    }
-
-    /// The satellites whose direction lies within `angle`, and the margin a
-    /// direction kept for `SkyCache.directionsInterval` may have drifted by, of
-    /// `look`.
-    nonisolated static func indices(of directions: [SIMD3<Float>?], within angle: Double, of look: SIMD3<Double>) -> [Int] {
-        let threshold = Float(cos(min(angle + SkyCache.directionsMargin, .pi)))
-        let look = SIMD3<Float>(normalize(look))
-        return directions.indices.filter { directions[$0].map { dot($0, look) >= threshold } ?? false }
-    }
-
-    /// Each satellite's direction from `eye`, kept for up to a second of the
-    /// clock's time: placing every one each time cost the lock 8.6 ms on an iPad
-    /// mini with every active satellite, at each of its 15 a second. A direction is
-    /// nil where the satellite has no position. Nil for all of them while the clock
-    /// runs so fast that a second of its time passes before the next lock: kept,
-    /// they would be worked out again every time, on top of the search.
-    private func skyDirections(at time: Double, from eye: SIMD3<Double>) -> [SIMD3<Float>?]? {
-        let now = ProcessInfo.processInfo.systemUptime
-        if let kept = skyCache.directions, kept.generation == points.generation, distance(kept.eye, eye) < SkyCache.directionsEyeTolerance {
-            if abs(time - kept.time) <= SkyCache.directionsInterval {
-                return kept.list
-            }
-            if now - kept.workedOutAt < 1 {
-                return nil
-            }
-        }
-        let list = points.satellites.map { satellite in satellite.trajectory.position(at: time).map { SIMD3<Float>(normalize($0 - eye)) } }
-        skyCache.directions = (points.generation, time, eye, now, list)
-        return list
-    }
-
-    /// What the crosshair holds: the satellite nearest the middle of the screen,
-    /// within reach, that the ground does not hide, and that is drawn: one hidden
-    /// for its visibility is passed over. The ground is asked nearest
-    /// first, and only until one is in sight. Worked out fifteen times a second,
-    /// not every frame, and only for the satellites whose kept direction is near
-    /// the crosshair (`skyDirections`): placing every one each time cost the main
-    /// thread more than drawing the frame did.
-    public func skyLock(viewSize: CGSize) -> SkyTarget? {
-        guard isSkySettled else {
-            skyCache.lock = nil
-            skyCache.lockAt = -.infinity
-            return nil
-        }
-        let now = ProcessInfo.processInfo.systemUptime
-        if now - skyCache.lockAt < SkyCache.lockInterval, skyCache.lockSize == viewSize {
-            return skyCache.lock
-        }
-        let centre = CGPoint(x: viewSize.width / 2, y: viewSize.height / 2)
-        let reachable = skyTargets(viewSize: viewSize, within: Self.captureRadius)
-            .filter { unseen != .hide || $0.visibility == .visible }
-            .map { (target: $0, distance: hypot($0.screen.x - centre.x, $0.screen.y - centre.y)) }
-            .sorted { $0.distance < $1.distance }
-        let lock = reachable.first { candidate in
-            points.position(of: candidate.target.id, at: lastFrame?.time ?? 0).map { !groundHides(candidate.target.id, at: $0) } ?? false
-        }?.target
-        skyCache.lock = lock
-        skyCache.lockAt = now
-        skyCache.lockSize = viewSize
-        return lock
-    }
-
-    /// Where a direction in the sky is drawn, in points; nil behind the camera.
-    public func skyPoint(azimuth: Double, elevation: Double, viewSize: CGSize) -> CGPoint? {
-        guard let camera = skyCamera, let lastFrame else {
-            return nil
-        }
+    /// Where a direction in `camera`'s sky is drawn, in points; nil behind the
+    /// camera.
+    func skyPoint(azimuth: Double, elevation: Double, camera: SkyCamera, viewSize: CGSize) -> CGPoint? {
         let (east, north, up) = camera.frame
         let a = azimuth * .pi / 180
         let e = elevation * .pi / 180
         let direction = cos(e) * (sin(a) * east + cos(a) * north) + sin(e) * up
-        return screenPoint(lastFrame.position + 1e7 * direction, viewSize: viewSize)
+        return screenPoint(eye + 1e7 * direction, viewSize: viewSize)
     }
-
-    /// A satellite's path across the sky from four minutes back to eight ahead,
-    /// every 30 s, in the runs that are above the horizon and not behind the
-    /// ground (useSkyHud.ts). On a 30 s grid of the clock, so that where it runs
-    /// and what hides it is worked out once a step rather than every frame, and
-    /// only placed on the screen anew as the view turns.
-    public func skyTrace(of id: String, viewSize: CGSize) -> [[CGPoint]] {
-        guard let camera = skyCamera, let lastFrame else {
-            return []
-        }
-        let step = 30_000.0
-        let grid = (lastFrame.time / step).rounded(.down) * step
-        let key = SkyCache.TraceKey(id: id, grid: grid, eye: lastFrame.position, terrain: surface.terrainRevision)
-        if skyCache.trace?.key != key {
-            let up = camera.frame.up
-            let samples = (-8...16).map { index -> SIMD3<Double>? in
-                guard let position = points.position(of: id, at: grid + Double(index) * step), dot(position - lastFrame.position, up) > 0,
-                    !groundHides(position)
-                else {
-                    return nil
-                }
-                return position
-            }
-            skyCache.trace = (key, samples)
-        }
-        var runs: [[CGPoint]] = [[]]
-        for sample in skyCache.trace?.samples ?? [] {
-            guard let sample, let screen = screenPoint(sample, viewSize: viewSize) else {
-                if !(runs.last?.isEmpty ?? true) {
-                    runs.append([])
-                }
-                continue
-            }
-            runs[runs.count - 1].append(screen)
-        }
-        return runs.filter { $0.count > 1 }
-    }
-
-    /// `groundHides`, kept for a satellite until the eye moves, the clock moves
-    /// on a second or more terrain comes in.
-    private func groundHides(_ id: String, at position: SIMD3<Double>) -> Bool {
-        guard let lastFrame else {
-            return groundHides(position)
-        }
-        let key = SkyCache.HiddenKey(eye: lastFrame.position, second: (lastFrame.time / 1000).rounded(.down), terrain: surface.terrainRevision)
-        if skyCache.hiddenKey != key {
-            skyCache.hiddenKey = key
-            skyCache.hidden = [:]
-        }
-        if let known = skyCache.hidden[id] {
-            return known
-        }
-        let hidden = groundHides(position)
-        skyCache.hidden[id] = hidden
-        return hidden
-    }
-
-    /// Whether the terrain stands between the eye and a point: the line of sight
-    /// is walked out, in steps growing with the distance, until it is higher than
-    /// any mountain.
-    func groundHides(_ position: SIMD3<Double>) -> Bool {
-        guard let lastFrame else {
-            return false
-        }
-        let eye = lastFrame.position
-        let range = simd.distance(position, eye)
-        let direction = (position - eye) / range
-        var distance = 5.0
-        while distance < range {
-            let point = eye + distance * direction
-            let height = heightAboveEllipsoid(point)
-            if height > 9_000 {
-                return false
-            }
-            let place = geodetic(point)
-            if height < surface.groundHeight(latitude: place.latitude, longitude: place.longitude) ?? 0 {
-                return true
-            }
-            distance += max(10, distance * 0.01)
-        }
-        return false
-    }
-
-    /// Where the last frame drew a point, in points; nil behind the camera.
-    private func screenPoint(_ position: SIMD3<Double>, viewSize: CGSize) -> CGPoint? {
-        guard let lastFrame else {
-            return nil
-        }
-        let clip = lastFrame.viewProjection * SIMD4(position - lastFrame.position, 1)
-        guard clip.w > 0 else {
-            return nil
-        }
-        return CGPoint(x: (clip.x / clip.w + 1) / 2 * viewSize.width, y: (1 - clip.y / clip.w) / 2 * viewSize.height)
-    }
-}
-
-/// Metres above the WGS84 ellipsoid along the radius, near enough for a horizon.
-func heightAboveEllipsoid(_ p: SIMD3<Double>) -> Double {
-    let ellipsoid = 1 / sqrt((p.x * p.x + p.y * p.y) / (ellipsoidRadii.x * ellipsoidRadii.x) + p.z * p.z / (ellipsoidRadii.z * ellipsoidRadii.z))
-    return length(p) * (1 - ellipsoid)
 }
 
 /// What the sky view's instruments worked out, kept between frames
@@ -282,6 +154,10 @@ func heightAboveEllipsoid(_ p: SIMD3<Double>) -> Double {
 struct SkyCache {
     /// How often the lock is worked out again.
     static let lockInterval = 1.0 / 15
+    /// How far from the middle of the screen the crosshair takes a satellite, in
+    /// points: its reach in degrees falls with the zoom, which is how two
+    /// satellites close together are told apart (ADR 0003).
+    static let captureRadius = 60.0
 
     var lock: SkyTarget?
     var lockAt = -Double.infinity
@@ -319,4 +195,144 @@ struct SkyCache {
     /// Each satellite's direction from the eye, what it was worked out for, and
     /// when, in seconds of uptime.
     var directions: (generation: Int, time: Double, eye: SIMD3<Double>, workedOutAt: Double, list: [SIMD3<Float>?])?
+}
+
+extension SkyCache {
+    /// The angle out from the middle of a view `height` points tall to `radius`
+    /// points from it, in radians.
+    static func angle(ofRadius radius: Double, height: Double, verticalFieldOfView: Double) -> Double {
+        atan(radius * tan(verticalFieldOfView / 2) / (height / 2))
+    }
+
+    /// The satellites whose direction lies within `angle`, and the margin a
+    /// direction kept for `directionsInterval` may have drifted by, of `look`.
+    static func indices(of directions: [SIMD3<Float>?], within angle: Double, of look: SIMD3<Double>) -> [Int] {
+        let threshold = Float(cos(min(angle + directionsMargin, .pi)))
+        let look = SIMD3<Float>(normalize(look))
+        return directions.indices.filter { directions[$0].map { dot($0, look) >= threshold } ?? false }
+    }
+
+    /// The satellites `frame` drew within `radius` points of the middle, found by
+    /// the directions kept for the lock where the radius is finite.
+    mutating func targets(
+        in frame: DrawnFrame, camera: SkyCamera, unseen: UnseenMode, satellites: some DrawnSatellites, viewSize: CGSize, within radius: Double, uptime: Double
+    ) -> [SkyTarget] {
+        let directions = radius.isFinite ? directions(of: satellites, at: frame.time, from: frame.eye, uptime: uptime) : nil
+        return frame.skyTargets(viewSize: viewSize, within: radius, camera: camera, unseen: unseen, satellites: satellites, directions: directions)
+    }
+
+    /// Each satellite's direction from `eye`, kept for up to a second of the
+    /// clock's time: placing every one each time cost the lock 8.6 ms on an iPad
+    /// mini with every active satellite, at each of its 15 a second. A direction is
+    /// nil where the satellite has no position. Nil for all of them while the clock
+    /// runs so fast that a second of its time passes before the next lock: kept,
+    /// they would be worked out again every time, on top of the search. `uptime`
+    /// is in seconds.
+    mutating func directions(of satellites: some DrawnSatellites, at time: Double, from eye: SIMD3<Double>, uptime: Double) -> [SIMD3<Float>?]? {
+        if let kept = directions, kept.generation == satellites.generation, distance(kept.eye, eye) < Self.directionsEyeTolerance {
+            if abs(time - kept.time) <= Self.directionsInterval {
+                return kept.list
+            }
+            if uptime - kept.workedOutAt < 1 {
+                return nil
+            }
+        }
+        let list = (0..<satellites.count).map { index in satellites.position(at: index, time: time).map { SIMD3<Float>(normalize($0 - eye)) } }
+        directions = (satellites.generation, time, eye, uptime, list)
+        return list
+    }
+
+    /// What the crosshair holds: the satellite nearest the middle of the screen,
+    /// within reach, that the ground does not hide, and that is drawn: one hidden
+    /// for its visibility is passed over. The ground is asked nearest
+    /// first, and only until one is in sight. Worked out again only after
+    /// `lockInterval` of `uptime` or on a new view size, and only for the
+    /// satellites whose kept direction is near the crosshair (`directions`):
+    /// placing every one each time cost the main thread more than drawing the
+    /// frame did.
+    mutating func lock(
+        in frame: DrawnFrame, camera: SkyCamera, unseen: UnseenMode, satellites: some DrawnSatellites, viewSize: CGSize, uptime: Double, terrain: Int,
+        groundHeight: (GeoCoordinate) -> Double?
+    ) -> SkyTarget? {
+        if uptime - lockAt < Self.lockInterval, lockSize == viewSize {
+            return lock
+        }
+        var found: SkyTarget?
+        let centre = CGPoint(x: viewSize.width / 2, y: viewSize.height / 2)
+        let reachable = targets(
+            in: frame, camera: camera, unseen: unseen, satellites: satellites, viewSize: viewSize, within: Self.captureRadius, uptime: uptime
+        )
+        .filter { unseen != .hide || $0.visibility == .visible }
+        .map { (target: $0, distance: hypot($0.screen.x - centre.x, $0.screen.y - centre.y)) }
+        .sorted { $0.distance < $1.distance }
+        for candidate in reachable {
+            guard let index = satellites.index(of: candidate.target.id), let position = satellites.position(at: index, time: frame.time) else {
+                continue
+            }
+            if !groundHides(candidate.target.id, at: position, in: frame, terrain: terrain, groundHeight: groundHeight) {
+                found = candidate.target
+                break
+            }
+        }
+        lock = found
+        lockAt = uptime
+        lockSize = viewSize
+        return found
+    }
+
+    /// A satellite's path across the sky from four minutes back to eight ahead,
+    /// every 30 s, in the runs that are above the horizon and not behind the
+    /// ground (useSkyHud.ts). On a 30 s grid of the clock, so that where it runs
+    /// and what hides it is worked out once a step rather than every frame, and
+    /// only placed on the screen anew as the view turns.
+    mutating func trace(
+        of id: String, in frame: DrawnFrame, camera: SkyCamera, satellites: some DrawnSatellites, viewSize: CGSize, terrain: Int,
+        groundHeight: (GeoCoordinate) -> Double?
+    ) -> [[CGPoint]] {
+        let step = 30_000.0
+        let grid = (frame.time / step).rounded(.down) * step
+        let key = TraceKey(id: id, grid: grid, eye: frame.eye, terrain: terrain)
+        if trace?.key != key {
+            let up = camera.frame.up
+            let index = satellites.index(of: id)
+            let samples = (-8...16).map { offset -> SIMD3<Double>? in
+                guard let index, let position = satellites.position(at: index, time: grid + Double(offset) * step), dot(position - frame.eye, up) > 0,
+                    !frame.groundHides(position, groundHeight: groundHeight)
+                else {
+                    return nil
+                }
+                return position
+            }
+            trace = (key, samples)
+        }
+        var runs: [[CGPoint]] = [[]]
+        for sample in trace?.samples ?? [] {
+            guard let sample, let screen = frame.screenPoint(sample, viewSize: viewSize) else {
+                if !(runs.last?.isEmpty ?? true) {
+                    runs.append([])
+                }
+                continue
+            }
+            runs[runs.count - 1].append(screen)
+        }
+        return runs.filter { $0.count > 1 }
+    }
+
+    /// `DrawnFrame.groundHides`, kept for a satellite until the eye moves, the
+    /// clock moves on a second or more terrain comes in.
+    mutating func groundHides(
+        _ id: String, at position: SIMD3<Double>, in frame: DrawnFrame, terrain: Int, groundHeight: (GeoCoordinate) -> Double?
+    ) -> Bool {
+        let key = HiddenKey(eye: frame.eye, second: (frame.time / 1000).rounded(.down), terrain: terrain)
+        if hiddenKey != key {
+            hiddenKey = key
+            hidden = [:]
+        }
+        if let known = hidden[id] {
+            return known
+        }
+        let isHidden = frame.groundHides(position, groundHeight: groundHeight)
+        hidden[id] = isHidden
+        return isHidden
+    }
 }

@@ -189,11 +189,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The drawable's pixels per point: the screen's, or fewer at a lower pixel
     /// ratio (`pixelratio`). Whatever is sized in points on the screen is drawn by it.
     private var pixelScale: Double
-    /// How wide each 3D model was drawn in the last frame, in points, by
-    /// satellite: for picking.
-    private var lastModelPoints: [Int: Double] = [:]
-    /// What the last frame was drawn from, for picking.
-    private(set) var lastFrame: (viewProjection: simd_double4x4, position: SIMD3<Double>, size: SIMD2<Double>, time: Double)?
+    /// What the last frame was drawn from, which taps and the sky view's
+    /// instruments are answered from.
+    private(set) var lastFrame: DrawnFrame?
     /// What the sky view's instruments worked out, kept between frames.
     var skyCache = SkyCache()
     private let meter = FrameMeter()
@@ -558,104 +556,17 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     /// The ground station or satellite drawn nearest a point on the view, within a
-    /// fingertip of it and not behind the Earth. A satellite is its point and its
-    /// label (`Picking`). A station's pin wins: it is the larger target, and one
-    /// the user put there.
+    /// fingertip of it and not behind the Earth (`DrawnFrame.entity`).
     public func entity(at point: CGPoint, viewSize: CGSize) -> String? {
-        guard let lastFrame, viewSize.width > 0 else {
-            return nil
-        }
-        func screenPoint(_ position: SIMD3<Double>) -> CGPoint? {
-            let clip = lastFrame.viewProjection * SIMD4(position - lastFrame.position, 1)
-            guard clip.w > 0 else {
-                return nil
-            }
-            return CGPoint(x: (clip.x / clip.w + 1) / 2 * viewSize.width, y: (1 - clip.y / clip.w) / 2 * viewSize.height)
-        }
-        var best: (id: String, score: Double)?
-        for station in stations where Self.isAboveHorizon(station.position, from: lastFrame.position) {
-            // The pin's head, a little over half its height above the spot.
-            if let spot = screenPoint(station.position) {
-                let distance = hypot(spot.x - point.x, spot.y - 10 - point.y)
-                if distance < Picking.pointReach, distance < best?.score ?? .infinity {
-                    best = (station.id, distance)
-                }
-            }
-        }
-        if best != nil {
-            return best?.id
-        }
-        guard components.contains(.point) || components.contains(.label) else {
-            return nil
-        }
-        // As Labels.msl places them, in points.
-        let labels = components.contains(.label) ? points.prepared?.labels?.atlas.instances : nil
-        for (index, satellite) in points.satellites.enumerated() {
-            guard let position = satellite.trajectory.position(at: lastFrame.time), !Self.isHiddenByEarth(position, from: lastFrame.position),
-                let spot = screenPoint(position)
-            else {
-                continue
-            }
-            var label: CGRect?
-            let distance = simd.distance(position, lastFrame.position)
-            if let labels, index < labels.count, distance > 2000, distance < 8e7 {
-                let size = labels[index].size
-                let width = Double(size.x)
-                let height = Double(size.y)
-                let gap = max(10, (lastModelPoints[index] ?? 0) / 2 + 4)
-                label = CGRect(x: spot.x + gap, y: spot.y - height / 2, width: width, height: height)
-            }
-            let reach = (lastModelPoints[index] ?? 0) / 2
-            if let score = Picking.score(of: point, point: spot, label: label, reach: reach), score < best?.score ?? .infinity {
-                best = (satellite.id, score)
-            }
-        }
-        return best?.id
+        lastFrame?.entity(
+            at: point, viewSize: viewSize, stations: stations, satellites: points.installed, components: components,
+            labels: points.prepared?.labels?.atlas.instances)
     }
 
     /// Where on the ellipsoid a point on the view lands, in degrees; nil off the
     /// globe.
     public func groundPoint(at point: CGPoint, viewSize: CGSize) -> (latitude: Double, longitude: Double)? {
-        guard let lastFrame, viewSize.width > 0, viewSize.height > 0 else {
-            return nil
-        }
-        let ndc = SIMD2(2 * point.x / viewSize.width - 1, 1 - 2 * point.y / viewSize.height)
-        let inverse = lastFrame.viewProjection.inverse
-        let far = inverse * SIMD4(ndc.x, ndc.y, 0.5, 1)
-        let direction = normalize(SIMD3(far.x, far.y, far.z) / far.w)
-        // In a frame where the ellipsoid is the unit sphere.
-        let origin = lastFrame.position / ellipsoidRadii
-        let scaled = direction / ellipsoidRadii
-        let a = dot(scaled, scaled)
-        let b = 2 * dot(origin, scaled)
-        let c = dot(origin, origin) - 1
-        let discriminant = b * b - 4 * a * c
-        guard discriminant >= 0 else {
-            return nil
-        }
-        let t = (-b - discriminant.squareRoot()) / (2 * a)
-        guard t > 0 else {
-            return nil
-        }
-        return geodetic(lastFrame.position + t * direction)
-    }
-
-    /// Whether a point on the surface faces the eye.
-    private static func isAboveHorizon(_ point: SIMD3<Double>, from eye: SIMD3<Double>) -> Bool {
-        dot(point / (ellipsoidRadii * ellipsoidRadii), eye - point) > 0
-    }
-
-    /// Whether the line of sight to a point passes through the Earth, taken as a
-    /// sphere of its polar radius.
-    private static func isHiddenByEarth(_ point: SIMD3<Double>, from eye: SIMD3<Double>) -> Bool {
-        let direction = point - eye
-        let length = simd.length(direction)
-        let unit = direction / length
-        let closest = -dot(eye, unit)
-        guard closest > 0, closest < length else {
-            return false
-        }
-        return simd.length(eye + closest * unit) < ellipsoidRadii.z
+        lastFrame?.groundPoint(at: point, viewSize: viewSize)
     }
 
     public func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
@@ -780,7 +691,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private struct FramePlan {
         var uniforms: FrameUniforms
         var pose: CameraPose
-        var now: Double
+        var drawn: DrawnFrame
         var placements: [ModelPlacement]
         /// The globe's tiles that have a texture.
         var surfaceTiles: [Surface.Tile]
@@ -791,18 +702,20 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private func prepareFrame(pose: CameraPose, size: SIMD2<Double>, now: Double, commands: MTLCommandBuffer) -> FramePlan {
         // From the ground, once it has landed, as the instruments wait to.
         let judgement = isSkySettled ? skyCamera.map { SkyJudgement(camera: $0, at: now, unseen: unseen) } : nil
-        var frame = uniforms(pose: pose, size: size, now: now, judgement: judgement)
+        let placements = components.contains(.model) ? modelPlacements(pose: pose, size: size, now: now, judgement: judgement) : []
+        let drawnFrame = DrawnFrame(
+            pose: pose, size: size, time: now, modelWidths: Dictionary(placements.map { ($0.index, $0.points) }, uniquingKeysWith: max))
+        lastFrame = drawnFrame
+        var frame = uniforms(drawnFrame, pose: pose, judgement: judgement)
         if case .tracking(let id) = cameraMode, let index = points.index(of: id), let target = points.position(of: id, at: now) {
             frame.focus = Int32(index)
             frame.focusRelative = SIMD3<Float>(target - pose.position)
         }
-        let placements = components.contains(.model) ? modelPlacements(pose: pose, size: size, now: now, judgement: judgement) : []
-        lastModelPoints = Dictionary(placements.map { ($0.index, $0.points) }, uniquingKeysWith: max)
         overlay.encode(commands, pipeline: overlayPipeline, satellites: points.satellites, at: now, enabled: components.contains(.groundTrack), device: device)
         var surfaceTiles: [Surface.Tile] = []
-        if let imagery, let lastFrame {
+        if let imagery {
             let selection = surface.select(
-                eye: pose.position, viewProjection: lastFrame.viewProjection, viewportHeightPixels: size.y,
+                eye: pose.position, viewProjection: drawnFrame.viewProjection, viewportHeightPixels: size.y,
                 verticalFieldOfView: pose.verticalFieldOfView(aspectRatio: size.x / size.y), pixelsPerPoint: pixelScale)
             // What is drawn now first, then the children waiting to replace it.
             let drawn = Set(selection.draw.map(\.key))
@@ -810,7 +723,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             surface.encodeBakes(bakes, base: imagery, commands: commands)
             surfaceTiles = selection.draw.filter { $0.texture != nil }
         }
-        return FramePlan(uniforms: frame, pose: pose, now: now, placements: placements, surfaceTiles: surfaceTiles)
+        return FramePlan(uniforms: frame, pose: pose, drawn: drawnFrame, placements: placements, surfaceTiles: surfaceTiles)
     }
 
     /// The scene pass, into the HDR image, and into `screen` too where the
@@ -841,16 +754,16 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         encoder.setFragmentBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
 
         drawGlobe(encoder, tiles: plan.surfaceTiles, eye: plan.pose.position, showsCamera: showsCamera)
-        drawModels(encoder, plan.placements, frame: plan.uniforms, blended: false)
+        drawModels(encoder, plan.placements, frame: plan.uniforms, viewProjection: plan.drawn.viewProjection, blended: false)
         // Behind the globe and the models, drawn after them so that only the
         // sky they leave is shaded: half the screen and more, close up.
         drawSky(encoder, eye: plan.pose.position, showsCamera: showsCamera)
         // Over the sky: they write no depth, so the stars and the atmosphere,
         // drawn where depth is still clear, would paint over them.
-        drawModels(encoder, plan.placements, frame: plan.uniforms, blended: true)
+        drawModels(encoder, plan.placements, frame: plan.uniforms, viewProjection: plan.drawn.viewProjection, blended: true)
         // Under the satellites and their names: a pin marks the ground.
-        drawStations(encoder, eye: plan.pose.position, now: plan.now)
-        drawSatellites(encoder, now: plan.now, placements: plan.placements)
+        drawStations(encoder, eye: plan.pose.position, now: plan.drawn.time)
+        drawSatellites(encoder, now: plan.drawn.time, placements: plan.placements)
         drawTileTonemap(encoder)
         encoder.endEncoding()
     }
@@ -1049,8 +962,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The opaque and cut-out parts, writing depth, or the blended ones, testing
     /// it, drawn after the opaque scene: as CesiumJS draws glTF's translucent parts.
     /// A model the sky view dims is blended whole.
-    private func drawModels(_ encoder: MTLRenderCommandEncoder, _ placements: [ModelPlacement], frame: FrameUniforms, blended: Bool) {
-        guard !placements.isEmpty, let lastFrame else {
+    private func drawModels(
+        _ encoder: MTLRenderCommandEncoder, _ placements: [ModelPlacement], frame: FrameUniforms, viewProjection: simd_double4x4, blended: Bool
+    ) {
+        guard !placements.isEmpty else {
             return
         }
         encoder.setFragmentSamplerState(tileSampler, index: 0)
@@ -1058,7 +973,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         encoder.setDepthStencilState(blended ? depthTest : depthWrite)
         for placement in placements {
             let base = ModelInstance(
-                modelViewProjection: float4x4(lastFrame.viewProjection * placement.toEye), rotation: placement.rotation,
+                modelViewProjection: float4x4(viewProjection * placement.toEye), rotation: placement.rotation,
                 modelToEye: float4x4(placement.toEye), baseColor: .one, sunDirection: frame.sunDirection, hasTexture: 0, metallic: 0,
                 roughness: 0, alphaCutoff: 0, opacity: placement.opacity)
             placement.model.encodeParts(blended: blended, wholeBlended: placement.opacity < 1, base: base, encoder: encoder)
@@ -1094,7 +1009,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: instances.count)
             }
         }
-        let pins = stations.filter { Self.isAboveHorizon($0.position, from: eye) }.prefix(Self.maximumInlineInstances).map {
+        let pins = stations.filter { isAboveHorizon($0.position, from: eye) }.prefix(Self.maximumInlineInstances).map {
             StationInstance(position: relative($0.position), distance: Float(simd.distance($0.position, eye)))
         }
         if let pin, !pins.isEmpty {
@@ -1141,9 +1056,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         return buffer
     }
 
-    private func uniforms(pose: CameraPose, size: SIMD2<Double>, now: Double, judgement: SkyJudgement?) -> FrameUniforms {
-        let viewProjection = pose.projection(aspectRatio: size.x / size.y) * pose.view()
-        lastFrame = (viewProjection, pose.position, size, now)
+    private func uniforms(_ drawn: DrawnFrame, pose: CameraPose, judgement: SkyJudgement?) -> FrameUniforms {
+        let (viewProjection, size, now) = (drawn.viewProjection, drawn.size, drawn.time)
         let angle = greenwichHourAngle(epochMilliseconds: now)
         let (c, s) = (Float(cos(angle)), Float(sin(angle)))
         let position = pose.position
