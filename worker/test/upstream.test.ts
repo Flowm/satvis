@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { FetchImpl } from "../src/gp/evaluate.ts";
+import type { FetchImpl } from "../src/gp/download.ts";
 import { parseGcatCatalog } from "../src/gp/gcat.ts";
 import { SATCAT, SATCAT_URL } from "../src/gp/satcat.ts";
 import { boundStatus } from "../src/gp/store.ts";

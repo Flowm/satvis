@@ -1,10 +1,9 @@
 // No Cloudflare APIs here: the static generator imports this file through node type stripping.
 
+import { download, type FetchImpl } from "./download.ts";
 import type { GpRecord, GroupDefinition, GroupsConfig, GroupsIndex, GroupStatus, OmmRecord, SatelliteSpec, SourceSpec } from "./types.ts";
 
 const CELESTRAK_BASE = "https://celestrak.org/NORAD/elements/";
-/** Sent with every upstream download, GP sources and tables alike. */
-export const USER_AGENT = "satvis.space (https://github.com/Flowm/satvis)";
 /** CelesTrak asks clients to space out requests. */
 const REQUEST_SPACING_MS = 250;
 /**
@@ -49,18 +48,6 @@ export function collectSources(defs: GroupDefinition[]): SourceSpec[] {
 
 /** A failed source maps to an Error, so it breaks only the groups that use it. */
 export type RecordsBySource = Map<string, OmmRecord[] | Error>;
-
-export type FetchImpl = (
-  url: string,
-  init?: { headers?: Record<string, string>; signal?: AbortSignal },
-) => Promise<{
-  status: number;
-  /**
-   * Optional, so a replayed bundle (bundleFetch) can omit it. Only the upstream tables read it, for the ETag.
-   */
-  headers?: { get: (name: string) => string | null };
-  text: () => Promise<string>;
-}>;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -111,24 +98,17 @@ export interface SourceFetch {
 async function fetchSource(spec: SourceSpec, fetchImpl: FetchImpl): Promise<SourceFetch> {
   const key = sourceKey(spec);
   const url = sourceUrl(spec);
-  const started = Date.now();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(new Error(`timed out after ${REQUEST_TIMEOUT_MS}ms`)), REQUEST_TIMEOUT_MS);
-  try {
-    const res = await fetchImpl(url, { headers: { "User-Agent": USER_AGENT }, signal: controller.signal });
-    const body = await res.text();
-    const ms = Date.now() - started;
-    try {
-      return { key, url, ms, status: res.status, bytes: body.length, records: parseOmmArray(res.status, body) };
-    } catch (parseErr) {
-      // The origin answered with something that is not OMM; the sample makes the logs diagnosable.
-      return { key, url, ms, status: res.status, bytes: body.length, error: parseErr instanceof Error ? parseErr.message : String(parseErr), bodySample: body.slice(0, 120) };
-    }
-  } catch (err) {
+  const { ms, value, error } = await download(fetchImpl, url, { timeoutMs: REQUEST_TIMEOUT_MS }, async (res) => ({ status: res.status, body: await res.text() }));
+  if (value === undefined) {
     // Never reached the origin: DNS, TLS or connection failure, or the abort timer (522-class stalls).
-    return { key, url, ms: Date.now() - started, error: err instanceof Error ? err.message : String(err) };
-  } finally {
-    clearTimeout(timer);
+    return { key, url, ms, error };
+  }
+  const { status, body } = value;
+  try {
+    return { key, url, ms, status, bytes: body.length, records: parseOmmArray(status, body) };
+  } catch (parseErr) {
+    // The origin answered with something that is not OMM; the sample makes the logs diagnosable.
+    return { key, url, ms, status, bytes: body.length, error: parseErr instanceof Error ? parseErr.message : String(parseErr), bodySample: body.slice(0, 120) };
   }
 }
 

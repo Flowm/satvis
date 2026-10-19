@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { FetchImpl } from "../src/gp/evaluate.ts";
+import type { FetchImpl } from "../src/gp/download.ts";
 import { GCAT_CATALOG, GCAT_ORGS, GCAT_PAYLOADS } from "../src/gp/gcat.ts";
 import { refreshGroups, refreshUpstreams } from "../src/gp/refresh.ts";
 import { SATCAT } from "../src/gp/satcat.ts";

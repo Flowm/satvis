@@ -4,7 +4,7 @@
 // PUT /api/upstream/<name> (push-catalog) and the Worker's own fetch; every GP update
 // reads the rows. None is a group source: a missing table costs enrichment and fails no group.
 
-import { type FetchImpl, USER_AGENT } from "./evaluate.ts";
+import { download, type FetchImpl } from "./download.ts";
 import { type GroupStore, upstreamStatuses } from "./store.ts";
 import type { UpstreamName, UpstreamStatus } from "./types.ts";
 
@@ -46,28 +46,20 @@ export interface UpstreamFetch {
 
 /** Never throws. Conditional on `etag`, the stored file's, so an unchanged table costs a 304. */
 export async function fetchUpstream(fetchImpl: FetchImpl, spec: UpstreamSpec<unknown>, etag?: string): Promise<UpstreamFetch> {
-  const started = Date.now();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(new Error(`timed out after ${spec.timeoutMs}ms`)), spec.timeoutMs);
-  const headers: Record<string, string> = { "User-Agent": USER_AGENT };
-  if (etag !== undefined) {
-    headers["If-None-Match"] = etag;
+  const headers = etag === undefined ? undefined : { "If-None-Match": etag };
+  const { ms, value, error } = await download(fetchImpl, spec.url, { timeoutMs: spec.timeoutMs, headers }, async (res) =>
+    res.status === 200 ? { status: 200, body: await res.text(), etag: res.headers?.get("ETag") ?? undefined } : { status: res.status },
+  );
+  if (value === undefined) {
+    return { ms, error };
   }
-  try {
-    const res = await fetchImpl(spec.url, { headers, signal: controller.signal });
-    const ms = Date.now() - started;
-    if (res.status === 304) {
-      return { status: 304, ms, notModified: true };
-    }
-    if (res.status !== 200) {
-      return { status: res.status, ms, error: `HTTP ${res.status}` };
-    }
-    return { status: 200, ms, body: await res.text(), etag: res.headers?.get("ETag") ?? undefined };
-  } catch (err) {
-    return { ms: Date.now() - started, error: err instanceof Error ? err.message : String(err) };
-  } finally {
-    clearTimeout(timer);
+  if (value.status === 304) {
+    return { status: 304, ms, notModified: true };
   }
+  if (value.body === undefined) {
+    return { status: value.status, ms, error: `HTTP ${value.status}` };
+  }
+  return { ms, ...value };
 }
 
 /** GCAT's catalog is 18.4 MiB against KV's 25 MiB value limit; gzip makes it 2.6 MiB. */
