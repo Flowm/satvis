@@ -1,13 +1,19 @@
 <!-- The catalog sheet (ADR 0012): one layout at two sizes, a bottom sheet and full screen. -->
 <template>
-  <section class="catalogSheet" :class="{ 'catalogSheet--full': full }" aria-label="Satellite catalog">
-    <header class="catalogSheet__head" @pointerdown="dragStart" @pointerup="dragEnd" @dblclick="onHeadDoubleClick">
+  <section
+    ref="sheetEl"
+    class="catalogSheet"
+    :class="{ 'catalogSheet--full': full, 'catalogSheet--dragging': dragHeight !== null }"
+    :style="dragHeight === null ? undefined : { height: `${dragHeight}px` }"
+    aria-label="Satellite catalog"
+  >
+    <header class="catalogSheet__head" @pointerdown="dragStart" @dblclick="onHeadDoubleClick">
       <button
         type="button"
         class="catalogSheet__grip"
         :aria-label="full ? 'Shrink to a sheet' : 'Expand to full screen'"
-        :title="full ? 'Shrink (or drag down)' : 'Expand (or drag up)'"
-        @click="full = !full"
+        :title="full ? 'Shrink (or drag down)' : 'Expand (or drag up; drag down to close)'"
+        @click="onGripClick"
       />
       <span class="catalogSheet__title">Catalog</span>
       <span class="catalogSheet__count cs-num" aria-live="polite">{{ sheet.matched.value.length.toLocaleString() }}</span>
@@ -342,22 +348,69 @@ function toggleOpen(key: TileKey): void {
 /** The opened tile's fixed height. */
 const openStyle = (key: TileKey) => (opened.value === key ? { height: `${openHeight.value}px` } : undefined);
 
-// A drag on the header past this switches mode, as a phone's sheet does.
+// A drag on the header resizes the sheet under the pointer; let go past the threshold and it
+// snaps to the next size, or closes below the sheet, as a phone's sheet does.
 const DRAG_THRESHOLD_PX = 60;
-let dragFromY: number | null = null;
+/** Of the window's height: full screen let go below this closes, rather than shrinking. */
+const CLOSE_BELOW = 1 / 3;
+/** Px of movement before a press becomes a drag, so a click on the grip stays a click. */
+const DRAG_SLOP_PX = 4;
+const sheetEl = ref<HTMLElement | null>(null);
+/** Px, the sheet's height while dragged; null otherwise. */
+const dragHeight = ref<number | null>(null);
+/** Where the press began and the sheet's height then. */
+let press: { pointerId: number; fromY: number; height: number } | null = null;
+/** A drag just ended, so the click that follows it is not a click on the grip. */
+let justDragged = false;
 /** A press on a button or an input, which is not a drag. */
 const onControl = (event: Event) => (event.target as HTMLElement).closest("button:not(.catalogSheet__grip), input") !== null;
-/** Starts a header drag, unless it began on a control. */
+/**
+ * Starts a header drag, unless it began on a control. The press is followed on the window: the
+ * grip sits on the header's top edge, so dragging up leaves the header on the first move.
+ */
 function dragStart(event: PointerEvent): void {
-  if (!onControl(event)) dragFromY = event.clientY;
+  if (event.button !== 0 || onControl(event) || !sheetEl.value) return;
+  press = { pointerId: event.pointerId, fromY: event.clientY, height: sheetEl.value.offsetHeight };
+  window.addEventListener("pointermove", dragMove);
+  window.addEventListener("pointerup", dragEnd);
+  window.addEventListener("pointercancel", dragCancel);
 }
-/** Up past the threshold expands, down past it shrinks. */
+/** Past the slop, the sheet's height follows the pointer. */
+function dragMove(event: PointerEvent): void {
+  if (press?.pointerId !== event.pointerId) return;
+  const dy = event.clientY - press.fromY;
+  if (dragHeight.value === null && Math.abs(dy) < DRAG_SLOP_PX) return;
+  dragHeight.value = Math.min(window.innerHeight, Math.max(press.height - dy, 0));
+}
+/** Up past the threshold expands; down past it shrinks full screen, or closes the sheet. */
 function dragEnd(event: PointerEvent): void {
-  if (dragFromY === null) return;
-  const dy = event.clientY - dragFromY;
-  dragFromY = null;
+  if (press?.pointerId !== event.pointerId) return;
+  const dy = event.clientY - press.fromY;
+  const releasedHeight = press.height - dy;
+  const dragged = dragHeight.value !== null;
+  dragCancel();
+  if (!dragged) return;
+  // The click, if any, follows in the same task.
+  justDragged = true;
+  setTimeout(() => (justDragged = false));
   if (dy < -DRAG_THRESHOLD_PX) full.value = true;
-  else if (dy > DRAG_THRESHOLD_PX) full.value = false;
+  else if (dy > DRAG_THRESHOLD_PX) {
+    if (full.value && releasedHeight >= window.innerHeight * CLOSE_BELOW) full.value = false;
+    else emit("close");
+  }
+}
+/** Ends the press; a drag that ends here springs back. */
+function dragCancel(): void {
+  press = null;
+  dragHeight.value = null;
+  window.removeEventListener("pointermove", dragMove);
+  window.removeEventListener("pointerup", dragEnd);
+  window.removeEventListener("pointercancel", dragCancel);
+}
+onBeforeUnmount(dragCancel);
+/** A click on the grip toggles full screen, unless it ends a drag. */
+function onGripClick(): void {
+  if (!justDragged) full.value = !full.value;
 }
 /** A double click on the header toggles full screen, as on a window's title bar. */
 function onHeadDoubleClick(event: MouseEvent): void {
@@ -402,6 +455,10 @@ defineExpose({ escape });
     height 0.3s ease,
     border-radius 0.3s ease,
     background-color 0.3s ease;
+}
+
+.catalogSheet--dragging {
+  transition: none;
 }
 
 .catalogSheet--full {
@@ -490,17 +547,13 @@ defineExpose({ escape });
   display: none;
 }
 
+/* The list's width follows the window, not the mode, so its columns stay put on expanding. */
 .catalogSheet__body {
   display: grid;
   flex: 1;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr) clamp(290px, 40vw, 640px);
   grid-template-rows: minmax(0, 1fr);
   min-height: 0;
-  transition: grid-template-columns 0.3s ease;
-}
-
-.catalogSheet--full .catalogSheet__body {
-  grid-template-columns: minmax(0, 1fr) min(600px, 42vw);
 }
 
 .catalogSheet__chartsWrap {
@@ -526,8 +579,8 @@ defineExpose({ escape });
   gap: 10px;
 }
 
-/* Side by side only where each chart keeps ~300 px; below, they stack. */
-@container charts (max-width: 640px) {
+/* Side by side only where each chart keeps ~270 px; below, they stack. */
+@container charts (max-width: 560px) {
   .catalogSheet__heroes {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -537,7 +590,7 @@ defineExpose({ escape });
 .catalogSheet__facets {
   display: grid;
   grid-auto-flow: row dense;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 10px;
 }
 
@@ -633,17 +686,6 @@ defineExpose({ escape });
   color: var(--cs-text);
 }
 
-/* A tablet: a narrower list beside the charts. */
-@media (max-width: 999px) {
-  .catalogSheet__body {
-    grid-template-columns: minmax(0, 1fr) 290px;
-  }
-
-  .catalogSheet--full .catalogSheet__body {
-    grid-template-columns: minmax(0, 1fr) 46vw;
-  }
-}
-
 /* A phone: an edge-to-edge sheet, the chips on their own row, and tabs instead of two columns. */
 @media (max-width: 699px) {
   .catalogSheet {
@@ -715,8 +757,7 @@ defineExpose({ escape });
     font-size: 11px;
   }
 
-  .catalogSheet__body,
-  .catalogSheet--full .catalogSheet__body {
+  .catalogSheet__body {
     grid-template-columns: minmax(0, 1fr);
   }
 

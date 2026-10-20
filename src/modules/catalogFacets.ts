@@ -143,7 +143,7 @@ export const FACETS: readonly FacetDef[] = [
   { key: "bus", label: "Bus", icon: "lucide:box", values: (row) => [row.bus] },
   { key: "size", label: "Size", icon: "lucide:weight", values: (row) => [row.size], order: [...SIZE_CLASSES, UNKNOWN] },
   { key: "launchSite", label: "Launch site", icon: "lucide:rocket", values: (row) => [row.launchSite] },
-  { key: "model", label: "3D model", icon: "lucide:box-select", values: (row) => [row.model] },
+  { key: "model", label: "3D model", icon: "lucide:rotate-3d", values: (row) => [row.model] },
   { key: "elementSetAge", label: "Element set age", icon: "lucide:clock", values: (row) => [row.elementSetAge], order: AGE_BUCKETS },
 ];
 

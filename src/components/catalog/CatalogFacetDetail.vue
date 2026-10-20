@@ -144,11 +144,11 @@ onMounted(() => searchEl.value?.focus({ preventScroll: true }));
   color: var(--cs-text);
 }
 
-/* As many columns as fit; values fill each row left to right, most first. */
+/* As many columns as fit, one at most the grid's width; values fill each row left to right, most first. */
 .facetDetail__grid {
   display: grid;
   flex: 1;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   align-content: start;
   gap: 1px 16px;
   min-height: 0;
@@ -156,7 +156,7 @@ onMounted(() => searchEl.value?.focus({ preventScroll: true }));
 
 .facetDetail__row {
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) 70px 52px 34px;
+  grid-template-columns: 16px minmax(0, 1fr) 56px 44px 30px;
   align-items: center;
   gap: 6px;
   height: 24px;

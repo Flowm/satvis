@@ -2,7 +2,7 @@
 # per-satellite facts. scripts/generate-groups.mjs merges it with every
 # data/custom/*/satvis.yaml into satvis.generated.json.
 
-# Seven groups are carved out of `active` by name rather than fetched as their own
+# Ten groups are carved out of `active` by name rather than fetched as their own
 # CelesTrak group. Sources are deduped, so this cut a refresh from ~12.2 MB to
 # ~7.2 MB (CelesTrak allows 250 MB/day per IP).
 #
@@ -12,12 +12,17 @@
 #   planet      +1  PELICAN-11/69871
 #   eutelsat    +1  EUTELSAT 53A/40277
 #   spire      +12  recent LEMUR-2s (66680, 67366, 68471-68493)
+# and on 2026-10-17:
+#   kuiper      exact, record for record
+#   qianfan     +1  QIANFAN 16 OBJECT K/100711
+#   guowang    +17  HULIANWANG JISHU SHIYAN test craft; CelesTrak's `hulianwang`
+#                   holds some of them, and names a fresh launch GUOWANG
 # The extras are in `active` but not in the curated group; we serve them.
 #
 # Members without a matching prefix are `satellites` rows, not select.noradIds: a
 # row's upstreamName is checked, so a rename or decay warns in /api/groups.json.
 #
-# `active-remainder` is `active` minus the seven. A group carved from `active` must
+# `active-remainder` is `active` minus the ten. A group carved from `active` must
 # join its exclude list and carry the `Active` tag (the generator checks both), so
 # the pieces are disjoint and no satellite arrives twice.
 #
@@ -30,7 +35,7 @@ groups:
   - name: active-remainder
     tags: [Active]
     sources: [{ celestrak: active }]
-    exclude: [starlink, oneweb, globalstar, iridium-NEXT, planet, spire, eutelsat]
+    exclude: [starlink, oneweb, globalstar, iridium-NEXT, planet, spire, eutelsat, kuiper, qianfan, guowang]
   - name: cubesat
     tags: [Cubesat]
     sources: [{ celestrak: cubesat }]
@@ -88,6 +93,18 @@ groups:
     satellites:
       - { noradId: 39612, upstreamName: EXPRESS-AT1 }
       - { noradId: 39613, upstreamName: EXPRESS-AT2 }
+  - name: kuiper
+    tags: [Kuiper, Active]
+    sources: [{ celestrak: active }]
+    select: { namePattern: "^KUIPER" }
+  - name: qianfan
+    tags: [Qianfan, Active]
+    sources: [{ celestrak: active }]
+    select: { namePattern: "^QIANFAN" }
+  - name: guowang
+    tags: [Guowang, Active]
+    sources: [{ celestrak: active }]
+    select: { namePattern: "^(HULIANWANG|GUOWANG)" }
 
 # A route's starting configuration: `default` at /, any other at /<name>, which
 # also needs a rewrite in public/_redirects.
@@ -114,6 +131,9 @@ presets:
       - stations
       - weather
       - eutelsat
+      - kuiper
+      - qianfan
+      - guowang
       - active-remainder
 
 # Static per-satellite facts, matched by NORAD_CAT_ID alone; `name` is documentation

@@ -90,17 +90,18 @@ interface Column {
 const COLUMN: Record<"name" | "year" | "orbit" | "country" | "launched" | "altitude" | "inclination", Column> = {
   name: { id: "name", label: "Name", sort: "name", track: "minmax(110px, 1.6fr)", cell: (row) => row.name },
   year: { id: "year", label: "Year", sort: "launchDate", track: "44px", number: true, dim: true, cell: (row) => String(row.launchYear ?? "") },
-  orbit: { id: "orbit", label: "Orbit", sort: "orbit", track: "minmax(90px, 1fr)", dim: true, cell: orbitLabel, title: orbitTitle },
+  orbit: { id: "orbit", label: "Orbit", sort: "orbit", track: "minmax(110px, 1fr)", dim: true, cell: orbitLabel, title: orbitTitle },
   country: { id: "country", label: "Country", sort: "country", track: "minmax(60px, 0.7fr)", cell: (row) => row.country },
   launched: { id: "launched", label: "Launched", sort: "launchDate", track: "80px", number: true, cell: (row) => row.launchDate ?? "—" },
   altitude: { id: "altitude", label: "Alt km", sort: "altitudeKm", track: "56px", number: true, cell: (row) => Math.round(row.altitudeKm).toLocaleString() },
   inclination: { id: "inclination", label: "Inc °", sort: "inclinationDeg", track: "44px", number: true, cell: (row) => row.inclinationDeg.toFixed(1) },
 };
 
-/** Px of list width each column set needs, widest first. */
+/** Px of list width each column set needs, widest first: the tracks' minimums, gaps and padding. */
 const COLUMN_SETS: [number, Column[]][] = [
-  [580, [COLUMN.name, COLUMN.orbit, COLUMN.country, COLUMN.launched, COLUMN.altitude, COLUMN.inclination]],
-  [450, [COLUMN.name, COLUMN.orbit, COLUMN.launched, COLUMN.altitude]],
+  [600, [COLUMN.name, COLUMN.orbit, COLUMN.country, COLUMN.launched, COLUMN.altitude, COLUMN.inclination]],
+  [480, [COLUMN.name, COLUMN.orbit, COLUMN.launched, COLUMN.altitude]],
+  [380, [COLUMN.name, COLUMN.orbit, COLUMN.year]],
   [0, [COLUMN.name, COLUMN.year]],
 ];
 
