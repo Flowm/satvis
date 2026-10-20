@@ -144,11 +144,11 @@ onMounted(() => searchEl.value?.focus({ preventScroll: true }));
   color: var(--cs-text);
 }
 
-/* As many columns as fit; values fill each row left to right, most first. */
+/* As many columns as fit, one at most the grid's width; values fill each row left to right, most first. */
 .facetDetail__grid {
   display: grid;
   flex: 1;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   align-content: start;
   gap: 1px 16px;
   min-height: 0;

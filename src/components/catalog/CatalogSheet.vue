@@ -579,8 +579,8 @@ defineExpose({ escape });
   gap: 10px;
 }
 
-/* Side by side only where each chart keeps ~300 px; below, they stack. */
-@container charts (max-width: 640px) {
+/* Side by side only where each chart keeps ~270 px; below, they stack. */
+@container charts (max-width: 560px) {
   .catalogSheet__heroes {
     grid-template-columns: minmax(0, 1fr);
   }
