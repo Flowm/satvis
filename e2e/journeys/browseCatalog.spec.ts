@@ -76,6 +76,22 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await expect.poll(() => page.evaluate(() => window.cc!.sats.activeSatellites.length)).toBe(meteorology);
       await expect(sheet.getByRole("button", { name: /on the globe/ })).toHaveText(`${meteorology} on the globe`);
 
+      // The grip drags: up past the threshold expands, down shrinks. The pointer leaves the
+      // header on the first move, so this fails if the drag is only followed on the header.
+      const dragGrip = async (dy: number) => {
+        const grip = (await sheet.locator(".catalogSheet__grip").boundingBox())!;
+        const x = grip.x + grip.width / 2;
+        const y = grip.y + grip.height / 2;
+        await page.mouse.move(x, y);
+        await page.mouse.down();
+        await page.mouse.move(x, y + dy, { steps: 4 });
+        await page.mouse.up();
+      };
+      await dragGrip(-150);
+      await expect(sheet).toHaveClass(/catalogSheet--full/);
+      await dragGrip(150);
+      await expect(sheet).not.toHaveClass(/catalogSheet--full/);
+
       // Full screen, then a tile opened in place; Escape closes them innermost first.
       await sheet.getByRole("button", { name: "Expand to full screen" }).first().click();
       await expect(sheet).toHaveClass(/catalogSheet--full/);
@@ -100,6 +116,14 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await openMenu(page, "Map");
       await expect(page.getByRole("region", { name: "Map" })).toBeVisible();
       await expect(sheet).toBeHidden();
+
+      // Dragged down from the sheet, it closes, as the close button does.
+      await openMenu(page, "Satellites");
+      await page.getByRole("button", { name: "Browse and filter the catalog" }).click();
+      await expect(sheet).toBeVisible();
+      await dragGrip(150);
+      await expect(sheet).toBeHidden();
+      await expect(page.getByRole("region", { name: "Satellites" })).toBeHidden();
     });
   });
 }

@@ -35,6 +35,8 @@ and the list keep their places; the charts grow, and the list keeps its width.
 - A tile opens in place: full width, twice its height, capped at 520 px and at the column.
   The list's width follows the window, not the sheet's size, and picks its columns, so
   expanding never reshuffles them.
+- The header's grip drags the sheet, which snaps to the next size past 60 px; dragged down
+  from the sheet, or below a third of the window from full screen, it closes.
 - Phones get Filters and Satellites tabs instead of two columns.
 
 **Showing writes names, at most 500.** "Show only these", "add", "hide" and "clear globe"
