@@ -490,17 +490,13 @@ defineExpose({ escape });
   display: none;
 }
 
+/* The list's width follows the window, not the mode, so its columns stay put on expanding. */
 .catalogSheet__body {
   display: grid;
   flex: 1;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr) clamp(290px, 40vw, 640px);
   grid-template-rows: minmax(0, 1fr);
   min-height: 0;
-  transition: grid-template-columns 0.3s ease;
-}
-
-.catalogSheet--full .catalogSheet__body {
-  grid-template-columns: minmax(0, 1fr) min(600px, 42vw);
 }
 
 .catalogSheet__chartsWrap {
@@ -537,7 +533,7 @@ defineExpose({ escape });
 .catalogSheet__facets {
   display: grid;
   grid-auto-flow: row dense;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 10px;
 }
 
@@ -633,17 +629,6 @@ defineExpose({ escape });
   color: var(--cs-text);
 }
 
-/* A tablet: a narrower list beside the charts. */
-@media (max-width: 999px) {
-  .catalogSheet__body {
-    grid-template-columns: minmax(0, 1fr) 290px;
-  }
-
-  .catalogSheet--full .catalogSheet__body {
-    grid-template-columns: minmax(0, 1fr) 46vw;
-  }
-}
-
 /* A phone: an edge-to-edge sheet, the chips on their own row, and tabs instead of two columns. */
 @media (max-width: 699px) {
   .catalogSheet {
@@ -715,8 +700,7 @@ defineExpose({ escape });
     font-size: 11px;
   }
 
-  .catalogSheet__body,
-  .catalogSheet--full .catalogSheet__body {
+  .catalogSheet__body {
     grid-template-columns: minmax(0, 1fr);
   }
 

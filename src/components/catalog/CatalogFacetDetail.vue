@@ -148,7 +148,7 @@ onMounted(() => searchEl.value?.focus({ preventScroll: true }));
 .facetDetail__grid {
   display: grid;
   flex: 1;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   align-content: start;
   gap: 1px 16px;
   min-height: 0;
@@ -156,7 +156,7 @@ onMounted(() => searchEl.value?.focus({ preventScroll: true }));
 
 .facetDetail__row {
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) 70px 52px 34px;
+  grid-template-columns: 16px minmax(0, 1fr) 56px 44px 30px;
   align-items: center;
   gap: 6px;
   height: 24px;

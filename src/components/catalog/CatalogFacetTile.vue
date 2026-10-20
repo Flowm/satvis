@@ -57,7 +57,7 @@ const max = computed(() => Math.max(1, ...props.items.map((item) => item.count))
 
 .facetTile__row {
   display: grid;
-  grid-template-columns: minmax(0, 42%) 1fr 48px;
+  grid-template-columns: minmax(0, 52%) 1fr 44px;
   align-items: center;
   gap: 6px;
   height: 20px;
