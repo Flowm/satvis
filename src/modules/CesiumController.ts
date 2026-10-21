@@ -448,6 +448,10 @@ export class CesiumController {
   }
 
   #createInputHandler(): void {
+    // On a miss the Viewer's click and double-click ask the imagery layers for features. None
+    // serves any the app shows, and outside 3D Cesium's fall-through to `pickFromRay` throws.
+    this.viewer.scene.imageryLayers.pickImageryLayerFeatures = () => undefined;
+
     // The Viewer's own click handler selects what a click hits and clears the selection on a miss.
     const viewerHandler = this.viewer.screenSpaceEventHandler;
     const select = viewerHandler.getInputAction(ScreenSpaceEventType.LEFT_CLICK) as (event: ScreenSpaceEventHandler.PositionedEvent) => void;
