@@ -30,6 +30,10 @@ export function createViewer(container: string | Element, options: { minimalUI: 
     contextOptions: {
       webgl: {
         alpha: true,
+        // The canvas only receives the post-process stage's opaque full-screen copy, so its own
+        // MSAA changes no pixel and costs 69 MiB of GPU memory on an iPad mini 6. `scene.msaaSamples`
+        // antialiases the scene offscreen.
+        antialias: false,
       },
     },
   });
