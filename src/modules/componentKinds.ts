@@ -232,17 +232,30 @@ export class ModelSize {
     return (modelMinimumPixelSize(diameter) * Math.max(pixel.x, pixel.y)) / diameter;
   }
 
-  /** How wide Cesium draws the model's bounding sphere, in CSS pixels; undefined while it is not drawn. */
+  /**
+   * How wide Cesium draws the model's bounding sphere, in CSS pixels, at most the canvas
+   * diagonal; undefined while it is not drawn. Never infinite: the label's pixel offset
+   * reads it, and an infinite offset turns its billboard collection's bounding radius into
+   * NaN (0 × Infinity), which stops rendering in Cesium's frustum split.
+   */
   pixelDiameter(): number | undefined {
     if (this.state() !== "ready") {
       return undefined;
     }
     const sphere = ModelSize.#sphereScratch;
     const diameter = 2 * sphere.radius;
+    if (!(diameter > 0)) {
+      return undefined;
+    }
     const { scene } = this.#viewer;
+    const fillsView = Math.hypot(scene.canvas.clientWidth, scene.canvas.clientHeight);
     const metresPerPixel = scene.camera.getPixelSize(sphere, scene.drawingBufferWidth, scene.drawingBufferHeight);
+    // Zero with the camera inside the sphere, where Cesium measures no distance to it.
+    if (!(metresPerPixel > 0)) {
+      return fillsView;
+    }
     const scale = Math.min(Math.max(1, (modelMinimumPixelSize(diameter) * metresPerPixel) / diameter), this.maximumScale() ?? Infinity);
-    return (scale * diameter) / metresPerPixel;
+    return Math.min((scale * diameter) / metresPerPixel, fillsView);
   }
 }
 
