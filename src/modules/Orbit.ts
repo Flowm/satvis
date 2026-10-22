@@ -308,6 +308,23 @@ export default class Orbit {
     return Math.cbrt(MU_KM3_S2 / (this.satrec.no / 60) ** 2);
   }
 
+  /** Perigee and apogee distance from the Earth's centre (km), from the mean elements. */
+  get radiusRangeKm(): [perigee: number, apogee: number] {
+    const semiMajorAxisKm = this.#semiMajorAxisKm;
+    const eccentricity = this.satrec.ecco;
+    return [semiMajorAxisKm * (1 - eccentricity), semiMajorAxisKm * (1 + eccentricity)];
+  }
+
+  /**
+   * Upper bound on the speed in the Earth-fixed frame (km/s): the speed at perigee plus the
+   * Earth's rotation at apogee, with margin for SGP4's perturbations.
+   */
+  get maxFixedSpeedKmS(): number {
+    const [perigeeKm, apogeeKm] = this.radiusRangeKm;
+    const perigeeSpeedKmS = Math.sqrt((MU_KM3_S2 * (1 + this.satrec.ecco)) / perigeeKm);
+    return 1.1 * (perigeeSpeedKmS + EARTH_ROTATION_RAD_S * apogeeKm);
+  }
+
   /** Short enough that the distance to a station, and the elevation, peak at most once per step. */
   get #scanStepMs(): number {
     return this.orbitalPeriod * 0.1 * 60_000;

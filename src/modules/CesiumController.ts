@@ -32,6 +32,7 @@ import {
   terrainProviders,
 } from "./CesiumLayerProviders";
 import { BATCHED_COMPONENTS } from "./componentKinds";
+import { RenderPacer } from "./renderPacing";
 import { cesiumSceneMode } from "./satelliteGraphics";
 import { SatelliteManager } from "./SatelliteManager";
 import { SkyInteraction } from "./SkyInteraction";
@@ -84,6 +85,9 @@ export class CesiumController {
 
   sats!: SatelliteManager;
 
+  /** Sets how far simulation time may run between renders on demand. */
+  renderPacer!: RenderPacer;
+
   skyView!: SkyView;
 
   skyInteraction!: SkyInteraction;
@@ -134,6 +138,11 @@ export class CesiumController {
     skipUnsizedFrames(this.viewer.cesiumWidget);
 
     this.sats = new SatelliteManager(this.viewer);
+    this.renderPacer = new RenderPacer(this.viewer.scene, {
+      satellites: () => this.sats.activeSatellites,
+      components: () => this.sats.enabledComponents,
+      multiplier: () => this.viewer.clock.multiplier,
+    });
 
     // The satellites' labels, which live in `viewer.entities`' cluster.
     this.skyView = new SkyView(this.viewer.scene, () => this.viewer.dataSourceDisplay.defaultDataSource.clustering._labelCollection);

@@ -4,7 +4,7 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { openApp, waitForScene } from "../support/app";
+import { openApp, waitForScene, waitTicks } from "../support/app";
 import { expect, test } from "../support/test";
 import { openMenu } from "../support/ui";
 
@@ -31,6 +31,8 @@ test(`the default route shows NaturalEarth down to level ${CEILING} and no deepe
     const { camera } = window.cc!.viewer;
     camera.zoomIn(camera.positionCartographic.height - 300_000);
   });
+  // Until a frame draws the zoomed view, `tilesLoaded` still reports the view before it.
+  await waitTicks(page, 2);
   await waitForScene(page);
   expect(Math.max(...levels)).toBe(CEILING);
   expect(new URL(page.url()).searchParams.get("layers")).toBeNull();

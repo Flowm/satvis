@@ -11,6 +11,27 @@ const TLE = "ISS (ZARYA)\n1 25544U 98067A   18342.69352573  .00002284  00000-0  
 describe("Orbit (TLE record)", () => {
   const orbit = new Orbit("ISS", parseGpPayload(TLE)[0] as GpRecord);
 
+  test("bounds the Earth-fixed speed and the radius it reaches over a whole orbit", () => {
+    const start = dayjs("2018-12-01").valueOf();
+    let maxSpeedKmS = 0;
+    let minRadiusKm = Infinity;
+    let maxRadiusKm = 0;
+    for (let seconds = 0; seconds < orbit.orbitalPeriod * 60; seconds += 30) {
+      const a = orbit.positionECF(new Date(start + seconds * 1000))!;
+      const b = orbit.positionECF(new Date(start + seconds * 1000 + 1000))!;
+      maxSpeedKmS = Math.max(maxSpeedKmS, Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z));
+      const radius = Math.hypot(a.x, a.y, a.z);
+      minRadiusKm = Math.min(minRadiusKm, radius);
+      maxRadiusKm = Math.max(maxRadiusKm, radius);
+    }
+    expect(orbit.maxFixedSpeedKmS).toBeGreaterThan(maxSpeedKmS);
+    expect(orbit.maxFixedSpeedKmS).toBeLessThan(1.5 * maxSpeedKmS);
+    const [perigeeKm, apogeeKm] = orbit.radiusRangeKm;
+    // Mean elements: SGP4's short-period terms move the radius a few km either side.
+    expect(perigeeKm - 20).toBeLessThan(minRadiusKm);
+    expect(apogeeKm + 20).toBeGreaterThan(maxRadiusKm);
+  });
+
   test("calculates a plausible satellite position", () => {
     const time = dayjs("2018-12-01").toDate();
 
