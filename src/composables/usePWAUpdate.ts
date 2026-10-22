@@ -57,7 +57,8 @@ export function usePWAUpdate(options: UsePWAUpdateOptions = {}) {
         if (registration && updateInterval > 0 && !intervalId) {
           intervalId = setInterval(() => {
             console.log("PWA: Checking for updates...");
-            registration.update();
+            // Rejects offline, or once the registration is gone; the next check tries again.
+            registration.update().catch((error: unknown) => console.warn("PWA: Update check failed:", error));
           }, updateInterval * 1000);
         }
       },

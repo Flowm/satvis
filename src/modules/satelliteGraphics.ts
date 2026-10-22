@@ -47,12 +47,15 @@ export interface ConeDescription {
   outerHalfAngleRad: number;
 }
 
+/** Metres from the satellite to the end of its sensor cone: all of it lies within this of the satellite. */
+export const CONE_RADIUS_METERS = 1_000_000;
+
 export function coneDescription(orbitClass: OrbitClass, fovDeg: number): ConeDescription | undefined {
   if (!isLeo(orbitClass)) {
     return undefined;
   }
   return {
-    radiusMeters: 1000000,
+    radiusMeters: CONE_RADIUS_METERS,
     innerHalfAngleRad: CesiumMath.toRadians(0),
     outerHalfAngleRad: CesiumMath.toRadians(fovDeg),
   };
