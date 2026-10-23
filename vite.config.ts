@@ -87,6 +87,9 @@ export default defineConfig({
     vue(),
     ui({
       ui: { colors: { neutral: "neutral" } },
+      // Composables are imported. The declarations auto-import writes exist only where Vite
+      // has run, so vue-tsc passed an unimported useToast locally and failed it in CI.
+      autoImport: false,
       // .ts too: the catalog's facets name their icons in data (catalogFacets.ts), and an
       // icon the scan misses is fetched from api.iconify.design at runtime.
       icon: { clientBundle: { scan: { globInclude: ["**/*.{vue,ts}"] } } },
