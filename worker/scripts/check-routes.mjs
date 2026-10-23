@@ -2,7 +2,7 @@
 // public/_redirects. A request that reaches the Worker is a billed invocation; asset
 // traffic must not be one.
 //
-// `wrangler dev`, not vitest-pool-workers: its SELF.fetch goes straight to the Worker,
+// `wrangler dev`, not @cloudflare/vitest-plugin: its SELF.fetch goes straight to the Worker,
 // past the asset router. The site stands in for dist/: the routing config is under
 // test, not the bundle.
 

@@ -1,5 +1,5 @@
 // The disk adapter against the GroupStore contract (test/storeContract.ts). node:test,
-// not vitest-pool-workers: it writes files, which workerd cannot.
+// not @cloudflare/vitest-plugin: it writes files, which workerd cannot.
 
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
