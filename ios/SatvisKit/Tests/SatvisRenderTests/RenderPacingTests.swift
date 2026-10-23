@@ -1,4 +1,5 @@
 import Foundation
+import SatvisCore
 import Testing
 import simd
 
@@ -20,9 +21,11 @@ import simd
     static let molniya = OrbitMotion(lowest: 7_000_000, highest: 46_000_000, farthestStep: 10_000 * 360, step: 360, hasCone: false)!
 
     /// Device pixels a simulation second on the iPad mini's view, what every
-    /// satellite draws `nearest` metres from the camera.
+    /// satellite draws `nearest` metres from the camera, at its orbit's top speed.
     static func pixelRate(_ motions: [OrbitMotion?], at camera: SIMD3<Double> = home, cones: Bool = false, nearest: Double? = 30_000_000) -> Double {
-        RenderPacing.pixelRate(motions, nearest: { _ in nearest }, lines: false, linked: [], cones: cones, camera: camera, pixelsPerRadian: pixelsPerRadian)
+        RenderPacing.pixelRate(
+            motions, nearest: { index in nearest.map { ($0, motions[index]!.speed) } }, lines: false, linked: [], cones: cones, camera: camera,
+            pixelsPerRadian: pixelsPerRadian)
     }
 
     /// The low orbit's rate held to its shell.
@@ -73,7 +76,7 @@ import simd
             Array(repeating: Self.leo, count: 100) + [Self.molniya],
             nearest: {
                 placed.append($0)
-                return 40_000_000
+                return (40_000_000, 10_000)
             }, lines: false, linked: [], cones: false, camera: Self.home, pixelsPerRadian: Self.pixelsPerRadian)
         // The Molniya orbit, whose shell holds the camera, and the first of the rest.
         #expect(placed.count == RenderPacing.placed + 1)
@@ -88,7 +91,7 @@ import simd
             Array(repeating: Self.molniya, count: 100),
             nearest: { _ in
                 placed += 1
-                return 100_000
+                return (100_000, 10_000)
             }, lines: false, linked: [], cones: false, camera: Self.home, pixelsPerRadian: Self.pixelsPerRadian)
         #expect(rate == .infinity)
         #expect(placed == 1)
@@ -107,10 +110,24 @@ import simd
         let camera = SIMD3(Self.earthRadius + 1_000_000, 0, 0)
         func rate(linked: Set<Int>) -> Double {
             RenderPacing.pixelRate(
-                [geo], nearest: { _ in 50_000 }, lines: false, linked: linked, cones: false, camera: camera, pixelsPerRadian: Self.pixelsPerRadian)
+                [geo], nearest: { _ in (50_000, geo.speed) }, lines: false, linked: linked, cones: false, camera: camera, pixelsPerRadian: Self.pixelsPerRadian)
         }
         #expect(rate(linked: []) < RenderPacing.pixels)
         #expect(rate(linked: [0]) == .infinity)
+    }
+
+    @Test func anEccentricOrbitIsSlowFarFromPerigee() {
+        // At apogee, 46,000 km out, a Molniya satellite moves at about 1.5 km/s.
+        let apogee = Self.molniya.speed(atRadius: 46_000_000, turning: false)
+        #expect(apogee < 0.4 * Self.molniya.speed)
+        #expect(apogee > 1.5e3)
+        // At perigee, 7,000 km out, about 10 km/s, a tenth on top; on a circle, its
+        // own speed.
+        #expect(Self.molniya.speed(atRadius: 7_000_000, turning: false) > 1.1 * 9_900)
+        let leo = Self.leo.speed(atRadius: Self.earthRadius + 410_000, turning: false)
+        #expect(leo > 1.1 * 7_660 && leo <= Self.leo.speed)
+        // An orbit's line turns with the Earth at its outer radius.
+        #expect(Self.molniya.speed(atRadius: 46_000_000, turning: true) >= 1.1 * OrbitMotion.earthRotationRate * Self.molniya.outer)
     }
 
     @Test func aConeReachesTowardTheCamera() {
@@ -139,5 +156,42 @@ import simd
         // A refused node is passed over; none at all, nothing is drawn.
         #expect(RenderPacing.lineDistance(node + [SIMD3(repeating: .nan)], start: 0, step: 60, turned: false, chord: 1_000, from: camera) == track)
         #expect(RenderPacing.lineDistance([SIMD3(repeating: .nan)], start: 0, step: 60, turned: false, chord: 0, from: camera) == nil)
+    }
+}
+
+/// The speed bounds held to SGP4's own motion.
+@Suite struct OrbitMotionTests {
+    /// A Molniya orbit and the ISS, as OMM.
+    static let records = try! GPRecord.decodePayload(
+        Data(
+            """
+            [{"OBJECT_NAME": "MOLNIYA", "NORAD_CAT_ID": 99001, "EPOCH": "2026-10-01T00:00:00", "MEAN_MOTION": 2.00609, "ECCENTRICITY": 0.72,
+              "INCLINATION": 63.4, "RA_OF_ASC_NODE": 10, "ARG_OF_PERICENTER": 270, "MEAN_ANOMALY": 30, "BSTAR": 0,
+              "MEAN_MOTION_DOT": 0, "MEAN_MOTION_DDOT": 0},
+             {"OBJECT_NAME": "ISS", "NORAD_CAT_ID": 99002, "EPOCH": "2026-10-01T00:00:00", "MEAN_MOTION": 15.5, "ECCENTRICITY": 0.0005,
+              "INCLINATION": 51.6, "RA_OF_ASC_NODE": 10, "ARG_OF_PERICENTER": 20, "MEAN_ANOMALY": 30, "BSTAR": 0.0001,
+              "MEAN_MOTION_DOT": 0.0001, "MEAN_MOTION_DDOT": 0}]
+            """.utf8))
+
+    // The fixed-frame speed by finite differences, along the whole window,
+    // never past the bound where the satellite is, nor past the orbit's.
+    @Test(arguments: [0, 1]) func holdsSGP4sSpeedWhereverTheSatelliteIs(record: Int) throws {
+        let epoch = try #require(ISO8601DateFormatter().date(from: "2026-10-01T06:00:00Z")).timeIntervalSince1970 * 1000
+        let trajectory = try #require(SampledTrajectory(try SGP4Propagator(Self.records[record].meanElements), around: epoch))
+        let radii = trajectory.positions.map { length($0) }
+        let farthestStep = zip(trajectory.positions, trajectory.positions.dropFirst()).map { distance($0, $1) }.max() ?? 0
+        let motion = try #require(
+            OrbitMotion(
+                lowest: radii.min()!, highest: radii.max()!, farthestStep: farthestStep, step: trajectory.stepMilliseconds / 1000, hasCone: false))
+        let start = trajectory.startMilliseconds + 3 * trajectory.stepMilliseconds
+        let end = trajectory.startMilliseconds + Double(trajectory.positions.count - 4) * trajectory.stepMilliseconds
+        for time in stride(from: start, to: end, by: trajectory.stepMilliseconds / 7) {
+            guard let here = trajectory.position(at: time), let later = trajectory.position(at: time + 500) else {
+                continue
+            }
+            let speed = distance(here, later) / 0.5
+            #expect(speed <= motion.speed(atRadius: length(here), turning: false))
+            #expect(speed <= motion.speed)
+        }
     }
 }

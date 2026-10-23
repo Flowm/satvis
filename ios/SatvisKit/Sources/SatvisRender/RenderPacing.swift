@@ -17,6 +17,8 @@ struct OrbitMotion: Equatable {
 
     /// The Earth's rotation, in radians a second.
     static let earthRotationRate = 7.2921158553e-5
+    /// The Earth's gravitational parameter, in m³/s².
+    static let gravitationalParameter = 3.986004418e14
     /// Metres the interpolation may run outside the samples' radii.
     static let shellMargin = 50_000.0
 
@@ -34,6 +36,20 @@ struct OrbitMotion: Equatable {
         speed = 1.1 * (farthestStep / step + Self.earthRotationRate * outer)
         chord = farthestStep
         self.hasCone = hasCone
+    }
+
+    /// Metres a second at most `radius` from the Earth's centre: vis-viva on the
+    /// samples' semi-major axis and the Earth's rotation, a tenth on top; with
+    /// `turning`, at least an orbit's line's. Never more than `speed`, which far
+    /// from perigee an eccentric orbit is well under.
+    func speed(atRadius radius: Double, turning: Bool) -> Double {
+        let r = max(radius - Self.shellMargin, inner, 1)
+        let inertial = (Self.gravitationalParameter * max(2 / r - 2 / (inner + outer), 0)).squareRoot()
+        var bound = 1.1 * (inertial + Self.earthRotationRate * radius)
+        if turning {
+            bound = max(bound, 1.1 * Self.earthRotationRate * outer)
+        }
+        return min(bound, speed)
     }
 
     /// The shell widened to what else the satellite draws: an orbit's line, inside
@@ -82,28 +98,29 @@ enum RenderPacing {
     /// The most device pixels a simulation second that anything drawn of the
     /// satellites in `motions` can cross the view from `camera` within `ceiling`
     /// of the instant `nearest` is asked for: the metres from the camera to the
-    /// nearest of what a satellite draws then, nil where it draws nothing.
+    /// nearest of what a satellite draws then, and the most metres a second that
+    /// moves; nil where it draws nothing.
     /// Infinite where something could reach the camera, or crosses half a pixel by
     /// the next frame anyway. `lines` draws each orbit's line, `linked` holds the
     /// satellites with a ground station link, and `cones` draws a sensor cone under
     /// those that have one.
     static func pixelRate(
-        _ motions: [OrbitMotion?], nearest: (Int) -> Double?, lines: Bool, linked: Set<Int>, cones: Bool, camera: SIMD3<Double>,
+        _ motions: [OrbitMotion?], nearest: (Int) -> (distance: Double, speed: Double)?, lines: Bool, linked: Set<Int>, cones: Bool, camera: SIMD3<Double>,
         pixelsPerRadian: Double
     ) -> Double {
         let cameraRadius = length(camera)
         // Radians a second.
         let enough = pixels * fastestDisplay / pixelsPerRadian
-        func rate(_ motion: OrbitMotion, distance: Double) -> Double {
+        func rate(_ motion: OrbitMotion, distance: Double, speed: Double? = nil) -> Double {
             let reach = cones && motion.hasCone ? coneLength : 0
             guard distance > reach, motion.inner > 0 else {
                 return .infinity
             }
             // A cone turns with its nadir, at most at the speed over the inner radius.
-            return motion.speed * (1 + reach / motion.inner) / (distance - reach)
+            return (speed ?? motion.speed) * (1 + reach / motion.inner) / (distance - reach)
         }
         func placedRate(_ index: Int, _ motion: OrbitMotion) -> Double? {
-            nearest(index).map { rate(motion, distance: $0 - motion.speed * ceiling) }
+            nearest(index).map { rate(motion, distance: $0.distance - $0.speed * ceiling, speed: $0.speed) }
         }
         // The highest bound of those held to their shells, and those to place, the
         // lowest bound first.

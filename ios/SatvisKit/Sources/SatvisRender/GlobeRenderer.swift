@@ -708,26 +708,24 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 stations[link.satellite, default: []].append(link.station)
             }
         }
-        func nearest(_ index: Int) -> Double? {
+        func nearest(_ index: Int) -> (distance: Double, speed: Double)? {
             let trajectory = satellites[index].trajectory
             // A line is drawn while the satellite is.
-            guard let position = trajectory.position(at: time) else {
+            guard let position = trajectory.position(at: time), let motion = motions[index] else {
                 return nil
             }
-            let linked = (stations[satellites[index].id] ?? []).map { station in
+            var nearest = (stations[satellites[index].id] ?? []).reduce(distance(position, camera)) { nearest, station in
                 let along = position - station
                 let t = min(max(dot(camera - station, along) / length_squared(along), 0), 1)
-                return distance(station + t * along, camera)
-            }
-            guard orbit || track, let chord = motions[index]?.chord else {
-                return linked.reduce(distance(position, camera), min)
+                return min(nearest, distance(station + t * along, camera))
             }
             let start = (trajectory.startMilliseconds - time) / 1000
-            func line(turned: Bool) -> Double {
-                RenderPacing.lineDistance(trajectory.positions, start: start, step: trajectory.stepMilliseconds / 1000, turned: turned, chord: chord, from: camera)
-                    ?? .infinity
+            for turned in [true, false] where turned ? orbit : track {
+                let line = RenderPacing.lineDistance(
+                    trajectory.positions, start: start, step: trajectory.stepMilliseconds / 1000, turned: turned, chord: motion.chord, from: camera)
+                nearest = min(nearest, line ?? .infinity)
             }
-            return linked.reduce(min(orbit ? line(turned: true) : .infinity, track ? line(turned: false) : .infinity), min)
+            return (nearest, motion.speed(atRadius: length(position), turning: orbit))
         }
         return RenderPacing.pixelRate(
             motions, nearest: nearest, lines: orbit || track, linked: Set(stations.keys.compactMap(points.index(of:))),
