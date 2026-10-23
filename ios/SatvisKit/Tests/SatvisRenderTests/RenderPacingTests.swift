@@ -22,7 +22,7 @@ import simd
     /// Device pixels a simulation second on the iPad mini's view, what every
     /// satellite draws `nearest` metres from the camera.
     static func pixelRate(_ motions: [OrbitMotion?], at camera: SIMD3<Double> = home, cones: Bool = false, nearest: Double? = 30_000_000) -> Double {
-        RenderPacing.pixelRate(motions, nearest: { _ in nearest }, lines: false, cones: cones, camera: camera, pixelsPerRadian: pixelsPerRadian)
+        RenderPacing.pixelRate(motions, nearest: { _ in nearest }, lines: false, linked: [], cones: cones, camera: camera, pixelsPerRadian: pixelsPerRadian)
     }
 
     /// The low orbit's rate held to its shell.
@@ -74,7 +74,7 @@ import simd
             nearest: {
                 placed.append($0)
                 return 40_000_000
-            }, lines: false, cones: false, camera: Self.home, pixelsPerRadian: Self.pixelsPerRadian)
+            }, lines: false, linked: [], cones: false, camera: Self.home, pixelsPerRadian: Self.pixelsPerRadian)
         // The Molniya orbit, whose shell holds the camera, and the first of the rest.
         #expect(placed.count == RenderPacing.placed + 1)
         #expect(placed.contains(100))
@@ -89,15 +89,28 @@ import simd
             nearest: { _ in
                 placed += 1
                 return 100_000
-            }, lines: false, cones: false, camera: Self.home, pixelsPerRadian: Self.pixelsPerRadian)
+            }, lines: false, linked: [], cones: false, camera: Self.home, pixelsPerRadian: Self.pixelsPerRadian)
         #expect(rate == .infinity)
         #expect(placed == 1)
     }
 
-    @Test func aLineWidensTheShell() {
+    @Test func aLineOrALinkWidensTheShell() {
         let (inner, outer) = (Self.leo.inner, Self.leo.outer)
-        #expect(Self.leo.shell(lines: false) == (inner, outer))
-        #expect(Self.leo.shell(lines: true) == (inner - Self.leo.chord / 2 - RenderPacing.lineDrift, outer + RenderPacing.lineDrift))
+        #expect(Self.leo.shell(lines: false, linked: false) == (inner, outer))
+        #expect(Self.leo.shell(lines: true, linked: false) == (inner - Self.leo.chord / 2 - RenderPacing.lineDrift, outer + RenderPacing.lineDrift))
+        #expect(Self.leo.shell(lines: false, linked: true) == (RenderPacing.lowestGround, outer))
+    }
+
+    @Test func aLinkedSatelliteIsTakenWhereItsLinkIsUnderItsShell() {
+        // A geostationary satellite, its shell far above a camera 1,000 km up.
+        let geo = OrbitMotion(lowest: 42_164_000, highest: 42_164_000, farthestStep: 0, step: 300, hasCone: false)!
+        let camera = SIMD3(Self.earthRadius + 1_000_000, 0, 0)
+        func rate(linked: Set<Int>) -> Double {
+            RenderPacing.pixelRate(
+                [geo], nearest: { _ in 50_000 }, lines: false, linked: linked, cones: false, camera: camera, pixelsPerRadian: Self.pixelsPerRadian)
+        }
+        #expect(rate(linked: []) < RenderPacing.pixels)
+        #expect(rate(linked: [0]) == .infinity)
     }
 
     @Test func aConeReachesTowardTheCamera() {

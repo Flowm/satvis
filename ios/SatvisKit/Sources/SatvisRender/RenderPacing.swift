@@ -37,12 +37,18 @@ struct OrbitMotion: Equatable {
     }
 
     /// The shell widened to what else the satellite draws: an orbit's line, inside
-    /// its samples by half a chord and off them by `RenderPacing.lineDrift`.
-    func shell(lines: Bool) -> (inner: Double, outer: Double) {
-        guard lines else {
-            return (inner, outer)
+    /// its samples by half a chord and off them by `RenderPacing.lineDrift`, and a
+    /// ground station link, down to the ground.
+    func shell(lines: Bool, linked: Bool) -> (inner: Double, outer: Double) {
+        var (inner, outer) = (self.inner, self.outer)
+        if lines {
+            inner -= chord / 2 + RenderPacing.lineDrift
+            outer += RenderPacing.lineDrift
         }
-        return (max(0, inner - chord / 2 - RenderPacing.lineDrift), outer + RenderPacing.lineDrift)
+        if linked {
+            inner = min(inner, RenderPacing.lowestGround)
+        }
+        return (max(0, inner), outer)
     }
 }
 
@@ -64,6 +70,8 @@ enum RenderPacing {
     /// Metres an orbit's line may lie off its samples, for the drift ramped in to
     /// close the loop (Shaders/Lines.msl): 31 km for the ISS.
     static let lineDrift = 100_000.0
+    /// Metres from the Earth's centre, under the lowest ground a link ends on.
+    static let lowestGround = 6_340_000.0
     /// How many of the satellites whose shells bound the rate most are taken where
     /// they are; all 16,762 active ones took an iPad mini 15 ms a frame.
     static let placed = 32
@@ -76,10 +84,12 @@ enum RenderPacing {
     /// of the instant `nearest` is asked for: the metres from the camera to the
     /// nearest of what a satellite draws then, nil where it draws nothing.
     /// Infinite where something could reach the camera, or crosses half a pixel by
-    /// the next frame anyway. `lines` draws each orbit's line, and `cones` a sensor
-    /// cone under those that have one.
+    /// the next frame anyway. `lines` draws each orbit's line, `linked` holds the
+    /// satellites with a ground station link, and `cones` draws a sensor cone under
+    /// those that have one.
     static func pixelRate(
-        _ motions: [OrbitMotion?], nearest: (Int) -> Double?, lines: Bool, cones: Bool, camera: SIMD3<Double>, pixelsPerRadian: Double
+        _ motions: [OrbitMotion?], nearest: (Int) -> Double?, lines: Bool, linked: Set<Int>, cones: Bool, camera: SIMD3<Double>,
+        pixelsPerRadian: Double
     ) -> Double {
         let cameraRadius = length(camera)
         // Radians a second.
@@ -103,7 +113,7 @@ enum RenderPacing {
             guard let motion else {
                 continue
             }
-            let (inner, outer) = motion.shell(lines: lines)
+            let (inner, outer) = motion.shell(lines: lines, linked: linked.contains(index))
             let shell = rate(motion, distance: distanceToShell(cameraRadius, inner: inner, outer: outer))
             if shell >= enough {
                 fastest = max(fastest, placedRate(index, motion) ?? 0)

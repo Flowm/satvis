@@ -196,7 +196,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var needsDraw = true
     /// What the last frame was drawn from, which the next is skipped against
     /// (`mustDraw`).
-    private var drawnFrom: (pose: CameraPose, time: Double, surface: Int, models: Int, pixelRate: Double)?
+    private var drawnFrom: (pose: CameraPose, time: Double, content: Int, pixelRate: Double, links: Range<Double>)?
+
+    /// Counts what came in for the tiles, the models and the ground tracks, each
+    /// counting up alone.
+    private var contentRevision: Int { surface.revision + models.revision + overlay.revision }
     /// The uptime of the last call to draw a frame, drawn or skipped.
     private var lastDrawCall = -Double.infinity
 
@@ -651,51 +655,83 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Whether a frame has to be drawn, or the last one still shows what this one
     /// would to within `RenderPacing.pixels`: nothing set or loaded since, the same
     /// pose, and no satellite able to have moved that far on the clock since. Every
-    /// frame is drawn while measured, in the sky view and while tracking, and with
-    /// the ground tracks or the ground station links, which the bound does not
-    /// cover, as on the web.
+    /// frame is drawn while measured, in the sky view and while tracking.
     private func mustDraw(pose: CameraPose, time: Double, size: SIMD2<Double>) -> Bool {
         let uptime = ProcessInfo.processInfo.systemUptime
         // Calls stop while the app is in the background, which may drop the picture.
         let resumed = uptime - lastDrawCall > 0.5
         lastDrawCall = uptime
-        let paced =
-            !measuresFrames && snapshotRequest == nil && cameraMode == .orbit && components.isDisjoint(with: [.groundTrack, .groundStationLink])
-        if paced, !needsDraw, !resumed, surface.isSettled, let drawnFrom, drawnFrom.pose == pose, drawnFrom.surface == surface.revision,
-            drawnFrom.models == models.revision, RenderPacing.stands(abs(time - drawnFrom.time) / 1000, pixelRate: drawnFrom.pixelRate)
+        let paced = !measuresFrames && snapshotRequest == nil && cameraMode == .orbit
+        if paced, !needsDraw, !resumed, surface.isSettled, let drawnFrom, drawnFrom.pose == pose, drawnFrom.content == contentRevision,
+            RenderPacing.stands(abs(time - drawnFrom.time) / 1000, pixelRate: drawnFrom.pixelRate), drawnFrom.links.contains(time)
         {
             return false
         }
         needsDraw = false
         // Once a frame drawn, not every time the display asks.
-        drawnFrom = (pose, time, surface.revision, models.revision, paced ? pixelRate(pose: pose, time: time, size: size) : .infinity)
+        drawnFrom = (pose, time, contentRevision, paced ? pixelRate(pose: pose, time: time, size: size) : .infinity, linkSpan(around: time))
         return true
+    }
+
+    /// The instants around `time` within which no ground station link drawn starts
+    /// or ends; a link moves no faster than its satellite, which the pacing bounds.
+    /// Worked out once a frame drawn: checked at every vsync, 2,455 links took a
+    /// quarter of an iPad mini's main thread.
+    private func linkSpan(around time: Double) -> Range<Double> {
+        guard components.contains(.groundStationLink) else {
+            return -Double.infinity..<Double.infinity
+        }
+        var (from, to) = (-Double.infinity, Double.infinity)
+        for link in links {
+            // Drawn up to its end inclusive, it is gone from the next instant on.
+            for instant in [link.start, link.end.nextUp] {
+                if instant <= time {
+                    from = max(from, instant)
+                } else {
+                    to = min(to, instant)
+                }
+            }
+        }
+        return from..<to
     }
 
     /// The most device pixels a simulation second anything on a frame drawn from
     /// `pose` at `time` can move (`RenderPacing.pixelRate`): each satellite where
-    /// it is, or its orbit's lines where their nodes are.
+    /// it is, or its orbit's lines where their nodes are, and its ground station
+    /// links, which move no faster than it does, where they pass nearest.
     private func pixelRate(pose: CameraPose, time: Double, size: SIMD2<Double>) -> Double {
         let (satellites, motions, camera) = (points.satellites, points.prepared?.motions ?? [], pose.position)
         let (orbit, track) = (components.contains(.orbit), components.contains(.orbitTrack))
+        var stations: [String: [SIMD3<Double>]] = [:]
+        if components.contains(.groundStationLink) {
+            for link in links where link.start <= time && time <= link.end {
+                stations[link.satellite, default: []].append(link.station)
+            }
+        }
         func nearest(_ index: Int) -> Double? {
             let trajectory = satellites[index].trajectory
             // A line is drawn while the satellite is.
             guard let position = trajectory.position(at: time) else {
                 return nil
             }
+            let linked = (stations[satellites[index].id] ?? []).map { station in
+                let along = position - station
+                let t = min(max(dot(camera - station, along) / length_squared(along), 0), 1)
+                return distance(station + t * along, camera)
+            }
             guard orbit || track, let chord = motions[index]?.chord else {
-                return distance(position, camera)
+                return linked.reduce(distance(position, camera), min)
             }
             let start = (trajectory.startMilliseconds - time) / 1000
             func line(turned: Bool) -> Double {
                 RenderPacing.lineDistance(trajectory.positions, start: start, step: trajectory.stepMilliseconds / 1000, turned: turned, chord: chord, from: camera)
                     ?? .infinity
             }
-            return min(orbit ? line(turned: true) : .infinity, track ? line(turned: false) : .infinity)
+            return linked.reduce(min(orbit ? line(turned: true) : .infinity, track ? line(turned: false) : .infinity), min)
         }
         return RenderPacing.pixelRate(
-            motions, nearest: nearest, lines: orbit || track, cones: components.contains(.sensorCone), camera: camera,
+            motions, nearest: nearest, lines: orbit || track, linked: Set(stations.keys.compactMap(points.index(of:))),
+            cones: components.contains(.sensorCone), camera: camera,
             pixelsPerRadian: RenderPacing.pixelsPerRadian(width: size.x, height: size.y, verticalFieldOfView: pose.verticalFieldOfView(aspectRatio: size.x / size.y)))
     }
 

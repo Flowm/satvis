@@ -305,9 +305,9 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   nothing has been set or loaded, the camera stands still and no satellite can
   have moved half a device pixel, as the web app paces CesiumJS's render on
   demand (`RenderPacing`; the default view draws 4 frames a second). Whatever
-  changes what is drawn has to say so (`needsDraw`, or the surface's and the
-  models' revisions). The sky view, tracking, the ground tracks, the ground
-  station links, the FPS switch and the benchmark draw every frame.
+  changes what is drawn has to say so (`needsDraw`, or the surface's, the models'
+  and the ground tracks' revisions). The sky view, tracking, the FPS
+  switch and the benchmark draw every frame.
 - The Graphics menu's "Benchmark" is the web app's `bench=true`, kept in links
   the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): nine scenes opened
   by their links in turn, each waited for until everything active is drawn
