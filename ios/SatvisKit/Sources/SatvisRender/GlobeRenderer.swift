@@ -207,15 +207,21 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The frames' averages over the last half second, while measured.
     public var frameStats: FrameStats? { measuresFrames ? meter.stats : nil }
 
-    /// Records every frame until `stopRecordingFrames`, measuring meanwhile.
-    public func startRecordingFrames() {
+    /// Records every frame until `stopRecordingFrames`, measuring meanwhile. A
+    /// measured frame is never skipped, unless `paced`.
+    public func startRecordingFrames(paced: Bool = false) {
         measuresFrames = true
+        recordsPaced = paced
         meter.startRecording()
     }
 
     public func stopRecordingFrames() -> FrameRecording {
-        meter.stopRecording()
+        recordsPaced = false
+        return meter.stopRecording()
     }
+
+    /// Whether the frames recorded are skipped as they are unmeasured.
+    private var recordsPaced = false
 
     /// Satellites handed to the renderer, drawn or not.
     public var satelliteCount: Int { points.count }
@@ -661,7 +667,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         // Calls stop while the app is in the background, which may drop the picture.
         let resumed = uptime - lastDrawCall > 0.5
         lastDrawCall = uptime
-        let paced = !measuresFrames && snapshotRequest == nil && cameraMode == .orbit
+        let paced = (!measuresFrames || recordsPaced) && snapshotRequest == nil && cameraMode == .orbit
         if paced, !needsDraw, !resumed, surface.isSettled, let drawnFrom, drawnFrom.pose == pose, drawnFrom.content == contentRevision,
             RenderPacing.stands(abs(time - drawnFrom.time) / 1000, pixelRate: drawnFrom.pixelRate), drawnFrom.links.contains(time)
         {

@@ -31,6 +31,15 @@ import Testing
         #expect(BenchmarkScene.plan(Self.scenes, only: "nothing").isEmpty)
     }
 
+    // Standing still, every interval is long by design.
+    @Test func countsNoPacedFrameAsSlow() {
+        let paced = BenchmarkResult(
+            id: "default_view_paced", title: "Default view", detail: "Standing still", satellites: 100, loadSeconds: 1, timedOut: false,
+            recording: FrameRecording(intervals: [300, 290, 310]), memoryMegabytes: nil, refreshMilliseconds: 1000.0 / 60, paced: true)
+        #expect(paced.metrics["slow_pct"] is NSNull)
+        #expect(Self.result("default_view").metrics["slow_pct"] is NSDecimalNumber)
+    }
+
     @Test func driftsByTheRepeatsFrameRate() throws {
         // 40 frames a second, then 38.
         let results = [Self.result("default_view"), Self.result("default_view_repeat", intervals: [20, 20, 20, 45.263157894736842])]

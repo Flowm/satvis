@@ -23,11 +23,16 @@ final class Benchmark {
 
     /// The scenes the device runs, cheap to heavy: the web app's axes of count and
     /// component, the 3D model close up and the sky view, which the tests on an
-    /// iPad mini found to differ most (ios/docs/manual-verification.md).
+    /// iPad mini found to differ most (ios/docs/manual-verification.md), and two
+    /// standing still, the frames paced as they are outside the benchmark.
     static let scenes = [
         BenchmarkScene(
             id: "default_view", title: "Default view", subtitle: "Points and labels", detail: "The default preset's satellites, points and labels, on the globe",
             link: "/"),
+        BenchmarkScene(
+            id: "default_view_paced", title: "Default view", subtitle: "Standing still",
+            detail: "The default preset standing still at x1, each frame drawn only once something can have moved half a pixel", link: "/",
+            paced: true),
         BenchmarkScene(
             id: "starlink_points", title: "Starlink", subtitle: "Points", detail: "The Starlink group, points only", link: "/?tags=Starlink&elements=Point"),
         BenchmarkScene(
@@ -36,6 +41,10 @@ final class Benchmark {
             id: "weather_all_components", title: "Weather", subtitle: "Every component",
             detail: "Weather satellites with points, labels, orbits, orbit and ground tracks, and sensor cones",
             link: "/?tags=Weather&elements=Point,Label,Orbit,Orbit+track,Ground+track,Sensor+cone"),
+        BenchmarkScene(
+            id: "weather_all_components_paced", title: "Weather", subtitle: "Standing still",
+            detail: "Weather satellites with every component standing still at x1, each frame drawn only once something can have moved half a pixel",
+            link: "/?tags=Weather&elements=Point,Label,Orbit,Orbit+track,Ground+track,Sensor+cone", paced: true),
         BenchmarkScene(
             id: "active_orbits", title: "All active", subtitle: "Orbits", detail: "Every active satellite with its orbit, 121 nodes each",
             link: "/?tags=Active&elements=Point,Orbit"),
@@ -54,7 +63,7 @@ final class Benchmark {
             link: "/?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen&tags=Active"),
     ]
     /// Changed when the scenes or the metrics change, so results can be told apart.
-    static let version = 4
+    static let version = 5
 
     /// How long a scene may take to load before it is measured anyway: the
     /// largest groups come from the worker on a first run.
@@ -222,7 +231,7 @@ final class Benchmark {
         phase = .settling(index)
         try? await Task.sleep(for: Self.settle)
         phase = .measuring(index)
-        renderer.startRecordingFrames()
+        renderer.startRecordingFrames(paced: scene.paced)
         try? await Task.sleep(for: Self.measure)
         let recording = renderer.stopRecordingFrames()
         guard !Task.isCancelled else {
@@ -232,7 +241,8 @@ final class Benchmark {
             id: scene.id, title: scene.title, detail: scene.detail,
             satellites: renderer.satelliteCount, loadSeconds: max(loaded / .seconds(1), 0),
             timedOut: timedOut, recording: recording, memoryMegabytes: MemoryFootprint.megabytes(),
-            refreshMilliseconds: 1000 / Double((UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.maximumFramesPerSecond ?? 60))
+            refreshMilliseconds: 1000 / Double((UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.maximumFramesPerSecond ?? 60),
+            paced: scene.paced)
     }
 
     /// The first scene against its repeat at the end (`BenchmarkReport.drift`).
