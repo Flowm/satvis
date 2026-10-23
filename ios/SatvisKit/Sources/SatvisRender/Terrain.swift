@@ -164,11 +164,11 @@ struct QuantizedMesh: Sendable {
         init(_ mesh: QuantizedMesh) {
             buckets = Array(repeating: [], count: Self.size * Self.size)
             for triangle in 0..<mesh.triangles.count / 3 {
-                let corners = (0..<3).map { Int(mesh.triangles[3 * triangle + $0]) }
-                let us = corners.map { mesh.u[$0] }
-                let vs = corners.map { mesh.v[$0] }
-                for row in Self.cell(vs.min()!)...Self.cell(vs.max()!) {
-                    for column in Self.cell(us.min()!)...Self.cell(us.max()!) {
+                let (a, b, c) = (Int(mesh.triangles[3 * triangle]), Int(mesh.triangles[3 * triangle + 1]), Int(mesh.triangles[3 * triangle + 2]))
+                let (ua, ub, uc) = (mesh.u[a], mesh.u[b], mesh.u[c])
+                let (va, vb, vc) = (mesh.v[a], mesh.v[b], mesh.v[c])
+                for row in Self.cell(min(va, vb, vc))...Self.cell(max(va, vb, vc)) {
+                    for column in Self.cell(min(ua, ub, uc))...Self.cell(max(ua, ub, uc)) {
                         buckets[row * Self.size + column].append(triangle)
                     }
                 }
@@ -185,15 +185,23 @@ struct QuantizedMesh: Sendable {
     }
 }
 
+/// Little-endian values read off a tile's bytes in turn. Loaded from an array:
+/// copied out of the `Data` value by value, a tile took an iPad mini 5.3 ms.
 private struct Reader {
-    let data: Data
+    /// The tile, copied out of its `Data` once.
+    let bytes: [UInt8]
     var offset = 0
 
-    var isAtEnd: Bool { offset >= data.count }
-    var remaining: Int { data.count - offset }
+    /// Reads `data` from its first byte.
+    init(data: Data) {
+        bytes = [UInt8](data)
+    }
+
+    var isAtEnd: Bool { offset >= bytes.count }
+    var remaining: Int { bytes.count - offset }
 
     mutating func skip(_ count: Int) throws(QuantizedMesh.DecodingError) {
-        guard offset + count <= data.count else {
+        guard offset + count <= bytes.count else {
             throw .truncated
         }
         offset += count
@@ -207,13 +215,10 @@ private struct Reader {
 
     private mutating func read<T: FixedWidthInteger>(_: T.Type) throws(QuantizedMesh.DecodingError) -> T {
         let size = MemoryLayout<T>.size
-        guard offset + size <= data.count else {
+        guard offset + size <= bytes.count else {
             throw .truncated
         }
-        var value: T = 0
-        withUnsafeMutableBytes(of: &value) { buffer in
-            data.copyBytes(to: buffer.bindMemory(to: UInt8.self), from: (data.startIndex + offset)..<(data.startIndex + offset + size))
-        }
+        let value = bytes.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: offset, as: T.self) }
         offset += size
         return T(littleEndian: value)
     }
