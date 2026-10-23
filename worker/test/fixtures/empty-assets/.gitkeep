@@ -1,1 +1,1 @@
-test fixture: empty assets dir so vitest-pool-workers does not walk the real ../dist
+test fixture: empty assets dir so @cloudflare/vitest-plugin does not walk the real ../dist

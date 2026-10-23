@@ -1,7 +1,7 @@
 [tools]
 node = "24"
-pnpm = "11"
-prek = "0.3.10"
+pnpm = "12"
+prek = "0.5.7"
 
 [tasks.setup]
 description = "Install the git hooks"
