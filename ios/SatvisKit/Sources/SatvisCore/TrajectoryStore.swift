@@ -81,6 +81,13 @@ public actor TrajectoryStore {
     /// repacked all 16,762 active satellites every second or two.
     static let batchMilliseconds = 600_000.0
 
+    /// `refresh(at:)`, each entry made into what the caller draws, still off the
+    /// main thread: for 16,762 satellites that held an iPad mini's main thread for
+    /// up to 32 ms.
+    public func refresh<Drawn: Sendable>(at epochMilliseconds: Double, as drawn: @Sendable (Entry) -> Drawn) -> [Drawn]? {
+        refresh(at: epochMilliseconds)?.map(drawn)
+    }
+
     /// Resamples every window that no longer covers the instant, and with them
     /// those about to stop (`batchMilliseconds`). Returns the whole set when
     /// anything changed, nil when nothing did.
