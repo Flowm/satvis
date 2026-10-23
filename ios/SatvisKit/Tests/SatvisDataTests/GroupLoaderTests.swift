@@ -29,36 +29,6 @@ private final class Delivered: Sendable {
     var names: [[String]] { groups.withLock { $0.map(\.names) } }
 }
 
-/// Holds every request until opened, so a load can be caught while it is in flight.
-private final class Gate: Sendable {
-    private let state = Mutex<(open: Bool, waiting: [CheckedContinuation<Void, Never>])>((false, []))
-
-    func pass() async {
-        await withCheckedContinuation { continuation in
-            let open = state.withLock {
-                if !$0.open {
-                    $0.waiting.append(continuation)
-                }
-                return $0.open
-            }
-            if open {
-                continuation.resume()
-            }
-        }
-    }
-
-    func open() {
-        let waiting = state.withLock {
-            $0.open = true
-            defer { $0.waiting = [] }
-            return $0.waiting
-        }
-        for continuation in waiting {
-            continuation.resume()
-        }
-    }
-}
-
 @Suite struct GroupLoaderTests {
     // The app ships no catalog: offline, nothing until the worker answers once.
     @Test func asksAgainForAnIndexUntilTheWorkerAnswersOnAFirstLaunchOffline() async throws {
@@ -121,12 +91,15 @@ private final class Gate: Sendable {
     @Test func handsOverTheKeptCopyThenReplacesAStaleOneWithTheWorkers() async throws {
         let store = temporaryStore()
         try store.write(.group("weather"), data: Data(weather("OLD").utf8), etag: "a", confirmed: .distantPast)
-        let worker = StubWorker([.json(weather("NEW"), etag: "b")])
+        let gate = Gate()
+        let worker = StubWorker([.json(weather("NEW"), etag: "b")], gate: gate)
         let loader = GroupLoader(repository: GroupRepository(client: worker.client, store: store, snapshot: nil))
         let delivered = Delivered()
 
+        // An answer the worker has ready could be handed over before `load` returns.
         await loader.load(["weather"], deliver: delivered.deliver)
         #expect(delivered.names == [["OLD"]])
+        gate.open()
         while delivered.names.count < 2 {
             await Task.yield()
         }

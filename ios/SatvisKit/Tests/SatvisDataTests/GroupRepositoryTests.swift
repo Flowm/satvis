@@ -5,7 +5,8 @@ import Testing
 
 @testable import SatvisData
 
-/// A worker that answers from a script, and remembers what it was asked.
+/// A worker that answers from a script, behind `gate` if given, and remembers what
+/// it was asked.
 final class StubWorker: Sendable {
     enum Reply: Sendable {
         case json(String, etag: String?)
@@ -17,15 +18,18 @@ final class StubWorker: Sendable {
     }
 
     private let replies: Mutex<[Reply]>
+    private let gate: Gate?
     let requests = Mutex<[URLRequest]>([])
 
-    init(_ replies: [Reply]) {
+    init(_ replies: [Reply], gate: Gate? = nil) {
         self.replies = Mutex(replies)
+        self.gate = gate
     }
 
     var client: WorkerClient {
         WorkerClient(baseURL: URL(string: "https://satvis.test/")!) { request in
             self.requests.withLock { $0.append(request) }
+            await self.gate?.pass()
             let reply = self.replies.withLock { $0.isEmpty ? .offline : $0.removeFirst() }
             func response(_ status: Int, _ headers: [String: String]) -> HTTPURLResponse {
                 HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers)!
@@ -48,6 +52,36 @@ final class StubWorker: Sendable {
             case .offline:
                 throw URLError(.notConnectedToInternet)
             }
+        }
+    }
+}
+
+/// Holds every request until opened, so a load can be caught while it is in flight.
+final class Gate: Sendable {
+    private let state = Mutex<(open: Bool, waiting: [CheckedContinuation<Void, Never>])>((false, []))
+
+    func pass() async {
+        await withCheckedContinuation { continuation in
+            let open = state.withLock {
+                if !$0.open {
+                    $0.waiting.append(continuation)
+                }
+                return $0.open
+            }
+            if open {
+                continuation.resume()
+            }
+        }
+    }
+
+    func open() {
+        let waiting = state.withLock {
+            $0.open = true
+            defer { $0.waiting = [] }
+            return $0.waiting
+        }
+        for continuation in waiting {
+            continuation.resume()
         }
     }
 }
