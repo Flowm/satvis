@@ -68,6 +68,24 @@ import simd
         let later = try #require(await store.refresh(at: now + 0.6 * records[0].approximatePeriodMinutes * 60_000))
         #expect(later.count == records.count)
     }
+
+    // METOP-C, sampled three minutes after the ISS, would go stale seven minutes
+    // after it: it is resampled with the ISS rather than on its own.
+    @Test func resamplesTheWindowsAboutToGoStaleWithOneThatHas() async throws {
+        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let (iss, metop) = (records[0], records[1])
+        let store = TrajectoryStore()
+        let minute = 60_000.0
+        let now = (try SGP4Propagator(iss.meanElements).epochJulianDate - 2440587.5) * 86_400_000
+        await store.replace(with: [iss])
+        _ = await store.refresh(at: now)
+        await store.replace(with: [iss, metop])
+        let before = try #require(await store.refresh(at: now + 3 * minute))
+
+        let batch = try #require(await store.refresh(at: now + 50 * minute))
+        #expect(batch[1].trajectory.firstIndex > before[1].trajectory.firstIndex)
+        #expect(await store.refresh(at: now + 57 * minute) == nil)
+    }
 }
 
 @Suite struct TrajectoryStoreReplaceTests {
