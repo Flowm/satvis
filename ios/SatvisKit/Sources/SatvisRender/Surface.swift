@@ -33,6 +33,12 @@ final class Surface {
     /// Counts the terrain tiles that came in, for what is worked out from the
     /// ground to know it is out of date.
     private(set) var terrainRevision = 0
+    /// Counts the imagery and terrain tiles that came in or failed: a frame drawn
+    /// before one may no longer be what the surface would draw.
+    private(set) var revision = 0
+    /// Whether the last selection left nothing to bake or lay over the terrain,
+    /// so that the next frame would draw the same tiles until `revision` moves.
+    private(set) var isSettled = false
     /// CesiumJS's for an ellipsoid of 65-sample tiles, two at level 0.
     private static let levelZeroGeometricError = 6_378_137.0 * 2 * .pi * 0.25 / (65 * 2)
 
@@ -219,6 +225,7 @@ final class Surface {
         visit(TileKey(level: 0, x: 0, y: 0))
         visit(TileKey(level: 0, x: 1, y: 0))
         evict()
+        isSettled = bake.isEmpty && drapes < Self.drapesPerFrame
         return (draw, bake)
     }
 
@@ -322,12 +329,20 @@ final class Surface {
             guard case .loading(let current, _) = terrainTiles[key], current == work else {
                 return
             }
+            revision += 1
             if let source {
                 terrainTiles[key] = .ready(source)
                 terrainRevision += 1
             } else {
                 log.error("Terrain \(key, privacy: .public) unavailable")
                 terrainTiles[key] = .failed(at: Date())
+                // Asked for again by the first frame drawn once the retry interval
+                // is up: with the clock stopped and the camera still, that frame
+                // waits for this.
+                try? await Task.sleep(for: .seconds(Self.retryInterval))
+                if case .failed = terrainTiles[key] {
+                    revision += 1
+                }
             }
         }
     }
@@ -451,6 +466,7 @@ final class Surface {
                 log.error("Tile \(key, privacy: .public) of \(layer.rawValue, privacy: .public) unavailable")
             }
             sources[key] = texture.map { .ready($0, lastUsed: frame) } ?? .failed(at: Date())
+            revision += 1
             if texture != nil {
                 markForBake(covering: key)
             } else {
@@ -463,6 +479,7 @@ final class Surface {
                         return
                     }
                     markForBake(covering: key)
+                    revision += 1
                 }
             }
         }

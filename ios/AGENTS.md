@@ -300,9 +300,14 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   ProMotion screen, which an iPhone gives an app only with
   `CADisableMinimumFrameDuration` in `Info.plist`. The simulator reports 60
   whatever it models. The web app has no such parameter, so the rate is kept in
-  `UserDefaults`, not links; a benchmark records it as `app_frame_rate`. The
-  globe is drawn every frame: unlike CesiumJS's `requestRenderMode`, nothing
-  skips a frame when nothing has changed.
+  `UserDefaults`, not links; a benchmark records it as `app_frame_rate`. That
+  rate is a cap: a frame is skipped, and the last one left on screen, while
+  nothing has been set or loaded, the camera stands still and no satellite can
+  have moved half a device pixel, as the web app paces CesiumJS's render on
+  demand (`RenderPacing`; the default view draws 4 frames a second). Whatever
+  changes what is drawn has to say so (`needsDraw`, or the surface's and the
+  models' revisions). The sky view, tracking, the ground tracks, the ground
+  station links, the FPS switch and the benchmark draw every frame.
 - The Graphics menu's "Benchmark" is the web app's `bench=true`, kept in links
   the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): nine scenes opened
   by their links in turn, each waited for until everything active is drawn

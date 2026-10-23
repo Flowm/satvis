@@ -103,6 +103,9 @@ public struct PreparedSatellites: @unchecked Sendable {
     let modelled: [Int]
     /// Each satellite's, in the same order.
     let windows: [StencilWindow]
+    /// How fast what each satellite draws can move, in the same order; nil for one
+    /// with no sample.
+    let motions: [OrbitMotion?]
 
     init(_ satellites: [PointSatellite], device: MTLDevice, labelScale: Double) {
         self.satellites = satellites
@@ -122,16 +125,21 @@ public struct PreparedSatellites: @unchecked Sendable {
             self.instances = nil
             labels = nil
             cones = nil
+            motions = []
             return
         }
         // Written in place: no intermediate array of the whole set.
         let floats = samples.contents().bindMemory(to: Float.self, capacity: sampleCount * 3)
         let instanceList = instances.contents().bindMemory(to: PointInstance.self, capacity: satellites.count)
         var next = 0
+        var motions: [OrbitMotion?] = []
+        motions.reserveCapacity(satellites.count)
         for (index, satellite) in satellites.enumerated() {
             let trajectory = satellite.trajectory
             let start = next
             var radii = (lowest: Double.infinity, highest: 0.0)
+            var farthestStep = 0.0
+            var previous: SIMD3<Double>?
             for position in trajectory.positions {
                 floats[3 * next] = Float(position.x)
                 floats[3 * next + 1] = Float(position.y)
@@ -139,9 +147,19 @@ public struct PreparedSatellites: @unchecked Sendable {
                 let radius = (position.x * position.x + position.y * position.y + position.z * position.z).squareRoot()
                 if radius.isFinite {
                     radii = (min(radii.lowest, radius), max(radii.highest, radius))
+                    if let previous {
+                        farthestStep = max(farthestStep, distance(previous, position))
+                    }
+                    previous = position
+                } else {
+                    previous = nil
                 }
                 next += 1
             }
+            motions.append(
+                OrbitMotion(
+                    lowest: radii.lowest, highest: radii.highest, farthestStep: farthestStep, step: trajectory.stepMilliseconds / 1000,
+                    hasCone: satellite.footprint != nil))
             instanceList[index] = PointInstance(
                 color: satellite.color, sampleStart: UInt32(start), sampleCount: UInt32(trajectory.positions.count),
                 stepSeconds: Float(trajectory.stepMilliseconds / 1000),
@@ -149,6 +167,7 @@ public struct PreparedSatellites: @unchecked Sendable {
         }
         self.samples = samples
         self.instances = instances
+        self.motions = motions
         let coneList = satellites.enumerated().compactMap { index, satellite in
             satellite.footprint.map { ConeInstance(satellite: UInt32(index), halfAngle: Float($0.coneHalfAngleDegrees * .pi / 180)) }
         }
