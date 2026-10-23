@@ -270,8 +270,9 @@ enum Terrain {
 }
 
 /// A terrain tile, decoded, for the surface tiles over it to take their heights
-/// from.
-struct TerrainSource: Sendable {
+/// from. A class: copied out of the surface's table for every tile it lies under,
+/// every frame, its ten arrays were retained and released each time.
+final class TerrainSource: Sendable {
     let mesh: QuantizedMesh
     let grid: QuantizedMesh.TriangleGrid
     let bounds: Bounds
