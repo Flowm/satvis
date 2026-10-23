@@ -667,17 +667,36 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             return false
         }
         needsDraw = false
-        var pixelRate = Double.infinity
-        if paced {
-            // Once a frame drawn, not every time the display asks.
-            let satellites = points.satellites
-            pixelRate = RenderPacing.pixelRate(
-                points.prepared?.motions ?? [], position: { satellites[$0].trajectory.position(at: time) },
-                lines: !components.isDisjoint(with: [.orbit, .orbitTrack]), cones: components.contains(.sensorCone), camera: pose.position,
-                pixelsPerRadian: RenderPacing.pixelsPerRadian(width: size.x, height: size.y, verticalFieldOfView: pose.verticalFieldOfView(aspectRatio: size.x / size.y)))
-        }
-        drawnFrom = (pose, time, surface.revision, models.revision, pixelRate)
+        // Once a frame drawn, not every time the display asks.
+        drawnFrom = (pose, time, surface.revision, models.revision, paced ? pixelRate(pose: pose, time: time, size: size) : .infinity)
         return true
+    }
+
+    /// The most device pixels a simulation second anything on a frame drawn from
+    /// `pose` at `time` can move (`RenderPacing.pixelRate`): each satellite where
+    /// it is, or its orbit's lines where their nodes are.
+    private func pixelRate(pose: CameraPose, time: Double, size: SIMD2<Double>) -> Double {
+        let (satellites, motions, camera) = (points.satellites, points.prepared?.motions ?? [], pose.position)
+        let (orbit, track) = (components.contains(.orbit), components.contains(.orbitTrack))
+        func nearest(_ index: Int) -> Double? {
+            let trajectory = satellites[index].trajectory
+            // A line is drawn while the satellite is.
+            guard let position = trajectory.position(at: time) else {
+                return nil
+            }
+            guard orbit || track, let chord = motions[index]?.chord else {
+                return distance(position, camera)
+            }
+            let start = (trajectory.startMilliseconds - time) / 1000
+            func line(turned: Bool) -> Double {
+                RenderPacing.lineDistance(trajectory.positions, start: start, step: trajectory.stepMilliseconds / 1000, turned: turned, chord: chord, from: camera)
+                    ?? .infinity
+            }
+            return min(orbit ? line(turned: true) : .infinity, track ? line(turned: false) : .infinity)
+        }
+        return RenderPacing.pixelRate(
+            motions, nearest: nearest, lines: orbit || track, cones: components.contains(.sensorCone), camera: camera,
+            pixelsPerRadian: RenderPacing.pixelsPerRadian(width: size.x, height: size.y, verticalFieldOfView: pose.verticalFieldOfView(aspectRatio: size.x / size.y)))
     }
 
     /// A command buffer once one of the frames in flight is free, and the drawable
