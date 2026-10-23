@@ -23,7 +23,7 @@ final class Surface {
     /// Source tiles kept decoded for baking.
     private static let maximumSources = 64
     private static let bakesPerFrame = 12
-    /// Terrain tiles kept decoded: about 30 MB.
+    /// Terrain tiles kept decoded, about 30 MB, unless more are in use.
     private static let maximumTerrainTiles = 96
     /// Tiles laid over the terrain a frame, a few hundred lookups each.
     private static let drapesPerFrame = 16
@@ -615,7 +615,10 @@ final class Surface {
             }
         }
         if ready.count > Self.maximumTerrainTiles {
-            for key in ready.sorted(by: { terrainUsed[$0, default: 0] < terrainUsed[$1, default: 0] }).prefix(ready.count - Self.maximumTerrainTiles) {
+            // Never one this frame uses: the sky view lays 118, and dropping those
+            // in use decoded them again, 44 a second on an iPad mini.
+            let unused = ready.filter { terrainUsed[$0, default: 0] < frame }
+            for key in unused.sorted(by: { terrainUsed[$0, default: 0] < terrainUsed[$1, default: 0] }).prefix(ready.count - Self.maximumTerrainTiles) {
                 terrainTiles[key] = nil
             }
         }

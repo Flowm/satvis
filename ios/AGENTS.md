@@ -48,8 +48,9 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   terrain tile; a surface tile's grid is laid over the terrain tile log₂(screen
   scale) levels coarser, the level the web app would ask for, so the app asks
   Re:Earth no more than the web app does. ADR 0009 has why. The texture budget
-  is soft: a low, oblique view can use more tiles than it, and evicting tiles in
-  use only starts the refinement over.
+  is soft, as is the terrain's: a low, oblique view can use more tiles than it,
+  and evicting tiles in use only starts the refinement over, or decodes them
+  again and again.
 - About, the menu column's last entry, is the web app's About dialog (`AboutView.swift`):
   what Satvis is, what it does and where its data comes from, written for the app.
   The about page's demos are the Bookmarks sheet's, so About has none of its own.
