@@ -280,11 +280,42 @@ private struct SkyInstruments: View {
     }
 
     private func label(_ text: String, at point: CGPoint, anchor: UnitPoint, in context: inout GraphicsContext) {
-        let resolved = context.resolve(Text(text).font(.system(size: 11).monospacedDigit()).foregroundStyle(Self.ink))
-        // An outline, so a label reads over bright ground and sky alike.
-        var outline = context
-        outline.addFilter(.shadow(color: .black, radius: 1.5))
-        outline.draw(resolved, at: point, anchor: anchor)
+        // The image's margin is beyond the text's trailing edge.
+        let x = point.x + (anchor == .trailing ? Self.labelMargin : 0)
+        if let image = Self.labelImage(text, scale: context.environment.displayScale) {
+            context.draw(image, at: CGPoint(x: x, y: point.y), anchor: anchor)
+        }
+    }
+
+    /// Points round a label's text, for its outline.
+    private static let labelMargin = 4.0
+    /// The labels drawn so far, by scale and text.
+    private static var labelImages: [String: Image] = [:]
+
+    /// A tape's label with its outline, drawn once and kept: resolving the text and
+    /// blurring the outline for every label, every frame, took an iPad mini 1.5 ms
+    /// of the main thread a frame, a quarter of it in the sky view.
+    private static func labelImage(_ text: String, scale: CGFloat) -> Image? {
+        let key = "\(scale) \(text)"
+        if let image = labelImages[key] {
+            return image
+        }
+        let label = Text(text).font(.system(size: 11).monospacedDigit()).foregroundStyle(ink)
+        let measure = ImageRenderer(content: label)
+        measure.scale = scale
+        let size = measure.cgImage.map { CGSize(width: CGFloat($0.width) / scale, height: CGFloat($0.height) / scale) } ?? .zero
+        let renderer = ImageRenderer(
+            content: Canvas { context, size in
+                // An outline, so a label reads over bright ground and sky alike.
+                var outline = context
+                outline.addFilter(.shadow(color: .black, radius: 1.5))
+                outline.draw(context.resolve(label), at: CGPoint(x: size.width / 2, y: size.height / 2), anchor: .center)
+            }
+            .frame(width: size.width + 2 * labelMargin, height: size.height + 2 * labelMargin))
+        renderer.scale = scale
+        let image = renderer.cgImage.map { Image(decorative: $0, scale: scale) }
+        labelImages[key] = image
+        return image
     }
 
     /// The first spacing that puts at least three ticks across a span of degrees.
