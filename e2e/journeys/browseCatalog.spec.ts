@@ -79,6 +79,9 @@ for (const [device, options] of Object.entries(DEVICES)) {
       // The grip drags: up past the threshold expands, down shrinks. The pointer leaves the
       // header on the first move, so this fails if the drag is only followed on the header.
       const dragGrip = async (dy: number) => {
+        // The sheet eases to its new size for 0.3 s; read before then, the grip is where the
+        // last drag let go, and the press lands in the sheet's body.
+        await sheet.evaluate((element) => Promise.allSettled(element.getAnimations().map((animation) => animation.finished)));
         const grip = (await sheet.locator(".catalogSheet__grip").boundingBox())!;
         const x = grip.x + grip.width / 2;
         const y = grip.y + grip.height / 2;
