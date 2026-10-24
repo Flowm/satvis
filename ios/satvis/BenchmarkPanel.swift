@@ -24,7 +24,7 @@ struct BenchmarkPanel: View {
         }
         .padding(14)
         .frame(maxWidth: 440)
-        .panel(cornerRadius: 20)
+        .panel()
         .onAppear { renderer.measuresFrames = true }
         .onDisappear { renderer.measuresFrames = session.showsPerformance }
     }

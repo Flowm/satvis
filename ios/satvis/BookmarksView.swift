@@ -223,7 +223,7 @@ struct BookmarksView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .panel(cornerRadius: 20)
+        .panel()
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 

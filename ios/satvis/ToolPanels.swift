@@ -61,7 +61,7 @@ struct ToolMenu<Tools: View>: View {
         .fixedSize()
         .labelStyle(ToolLabelStyle())
         .padding(.vertical, 4)
-        .clipShape(.rect(cornerRadius: 26))
+        .clipShape(.rect(cornerRadius: 16))
         .panel()
         .animation(.snappy(duration: 0.2), value: isOpen)
     }

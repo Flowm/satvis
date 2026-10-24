@@ -222,7 +222,7 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .panel(cornerRadius: 20)
+                .panel()
                 .padding(.top, 72)
             }
         }
@@ -440,7 +440,7 @@ struct NoticeBanner: View {
             .multilineTextAlignment(.center)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .panel(cornerRadius: 20)
+            .panel()
             .padding(.horizontal, 16)
             .transition(.opacity)
     }

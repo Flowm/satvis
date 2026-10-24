@@ -29,9 +29,11 @@ extension View {
         .overlay(shape.strokeBorder(PanelEdge.gradient, lineWidth: 1))
     }
 
-    /// Floating over the globe, its corners `cornerRadius` points round: the menu
-    /// column's and the tool panels' 26 unless told otherwise.
-    func panel(cornerRadius: CGFloat = 26) -> some View {
+    /// Floating over the globe, its corners `cornerRadius` points round: every
+    /// panel's 16 unless told otherwise, the buttons' 12 and the 4 points the menu
+    /// column sets its rows in, so the column folded to its toggle is a button's
+    /// shape, not a capsule.
+    func panel(cornerRadius: CGFloat = 16) -> some View {
         panel(in: .rect(cornerRadius: cornerRadius))
     }
 }

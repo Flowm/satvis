@@ -243,7 +243,7 @@ private struct SkyInstruments: View {
         .frame(width: compact ? compactCardWidth : cardWidth, alignment: .leading)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .panel(cornerRadius: 8)
+        .panel()
     }
 
     /// A fact's name at the card's leading edge and its value at the trailing one.
