@@ -44,10 +44,10 @@ struct ClockDeck<Accessory: View>: View {
         }
         // Held when the row goes, so the clock does not drop as the deck folds.
         .padding(.bottom, isOpen ? 0 : Metrics.scaleHeight)
-        .foregroundStyle(Color.deckInk)
+        .foregroundStyle(Color.panelInk)
         .background {
             DeckShape(left: leftExtent, right: rightExtent, tabHeight: Metrics.rowHeight, radius: Metrics.radius, isOpen: isOpen)
-                .fill(Color.deckSurface)
+                .fill(Color.panelSurface.opacity(0.85))
                 .shadow(color: .black.opacity(isOpen ? 0.5 : 0.65), radius: 10, y: isOpen ? -2 : 4)
                 .padding(.bottom, isOpen ? 0 : Metrics.scaleHeight)
                 .ignoresSafeArea(edges: isOpen ? [.bottom, .horizontal] : [])
@@ -70,9 +70,9 @@ struct ClockDeck<Accessory: View>: View {
                     } label: {
                         Image(systemName: clock.clock.isPlaying ? "pause.fill" : "play.fill")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Color.deckNight)
+                            .foregroundStyle(Color.panelSurface)
                             .frame(width: Metrics.playDisc, height: Metrics.playDisc)
-                            .background(Color.deckInk, in: .circle)
+                            .background(Color.panelInk, in: .circle)
                             .frame(width: Metrics.playBox, height: Metrics.playBox)
                             .contentShape(.rect)
                     }
@@ -115,7 +115,7 @@ struct ClockDeck<Accessory: View>: View {
                     // Before the reset, so it holds still as the reset comes and goes.
                     chip(
                         onLadder ? "Show timeline" : "Set playback speed", symbol: onLadder ? "clock" : "gauge.with.dots.needle.67percent",
-                        fill: .white.opacity(onLadder ? 0.18 : 0.08), tint: Color.deckInk
+                        fill: .white.opacity(onLadder ? 0.18 : 0.08), tint: Color.panelInk
                     ) {
                         onLadder.toggle()
                     }
@@ -291,7 +291,7 @@ private struct TimelineScale: View {
                             ? date.formatted(Date.FormatStyle(timeZone: .gmt).weekday(.abbreviated).day(.twoDigits).month(.abbreviated))
                             : UTCClock.hourMinute(date)
                         context.draw(
-                            Text(label).font(.system(size: 10)).foregroundStyle(Color.deckInk.opacity(0.6)),
+                            Text(label).font(.system(size: 10)).foregroundStyle(Color.panelInk.opacity(0.6)),
                             at: CGPoint(x: x, y: size.height - 19), anchor: .bottom)
                     }
                     at += Self.minor
@@ -414,11 +414,8 @@ private struct Ladder: View {
 }
 
 extension Color {
-    fileprivate static let deckInk = Color(red: 0xED / 255, green: 1, blue: 1)
     /// The app's colour for "not where it rests": the needle and the reset.
     static let deckAmber = Color(red: 1, green: 0xD4 / 255, blue: 0x79 / 255)
-    fileprivate static let deckNight = Color(red: 0x14 / 255, green: 0x18 / 255, blue: 0x1C / 255)
-    fileprivate static let deckSurface = deckNight.opacity(0.92)
 }
 
 /// The web app's sizes (ClockDeck.vue), shared by the layout and the surface.

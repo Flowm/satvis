@@ -24,14 +24,7 @@ struct BenchmarkPanel: View {
         }
         .padding(14)
         .frame(maxWidth: 440)
-        .background {
-            // No glass while measuring: blurring the globe behind it costs the
-            // GPU about 2 ms a frame on an iPad mini, which the scenes would carry.
-            if benchmark.isRunning {
-                RoundedRectangle(cornerRadius: 20).fill(.black.opacity(0.75))
-            }
-        }
-        .glassEffect(benchmark.isRunning ? .identity : .regular, in: .rect(cornerRadius: 20))
+        .panel(cornerRadius: 20)
         .onAppear { renderer.measuresFrames = true }
         .onDisappear { renderer.measuresFrames = session.showsPerformance }
     }
@@ -46,7 +39,7 @@ struct BenchmarkPanel: View {
             Spacer(minLength: 0)
             Button("Close", systemImage: "xmark") { session.setShowsBenchmark(false) }
                 .labelStyle(.iconOnly)
-                .buttonStyle(.glass)
+                .buttonStyle(PanelButtonStyle())
         }
     }
 
@@ -137,16 +130,16 @@ struct BenchmarkPanel: View {
                 switch benchmark.phase {
                 case .idle, .cancelled:
                     Button("Start") { benchmark.start(on: session) }
-                        .buttonStyle(.glassProminent)
+                        .buttonStyle(PanelButtonStyle(prominent: true))
                 case .loading, .settling, .measuring:
                     Button("Cancel", role: .cancel) { benchmark.cancel() }
-                        .buttonStyle(.glass)
+                        .buttonStyle(PanelButtonStyle())
                 case .done:
                     Button(benchmark.submitted ? "Sent" : "Send results") { benchmark.submit(with: session.analytics) }
-                        .buttonStyle(.glassProminent)
+                        .buttonStyle(PanelButtonStyle(prominent: true))
                         .disabled(benchmark.submitted || !session.analytics.isSharing)
                     Button("Run again") { benchmark.start(on: session) }
-                        .buttonStyle(.glass)
+                        .buttonStyle(PanelButtonStyle())
                 }
             }
             Text(caption)

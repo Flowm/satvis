@@ -12,7 +12,8 @@ public struct BenchmarkScene: Identifiable, Hashable, Sendable {
     public let detail: String
     /// What the app opens, a path and query on the web app's site.
     public let link: String
-    /// Whether the info panel a tracking link opens stays open, glass and all.
+    /// Whether the info panel a tracking link opens stays open, its cost measured
+    /// with the scene's.
     public var keepsPanel = false
     /// Whether frames are skipped as they are outside the benchmark, standing
     /// still: its frame rate is then the frames drawn.

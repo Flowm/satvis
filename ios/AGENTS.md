@@ -232,7 +232,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   over Bookmarks, Satellites, Components, Map, Locations, Globe, Sky and Graphics,
   then About, which the web app keeps as a corner button, with their
   Lucide icons, names and order, and their hover hints, trimmed to what the
-  app has, as VoiceOver hints, one glass panel
+  app has, as VoiceOver hints, one panel (`PanelStyle.swift`, drawn rather than
+  Liquid Glass, whose blur cost the compositor 5 ms of GPU a frame)
   whose rows each hold an icon and its name, folded on a phone and open on an
   iPad, as the web's is on a desktop. Components, Map, Globe, Sky
   and Graphics open the web's panels beside it (`ToolPanels.swift`): a title and a
@@ -330,8 +331,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   properties flat for PostHog's insights: `benchmark_` and `app_` for the run,
   `device_` for the device, system and screen, and `scene_<scene>_<metric>` per
   scene (`_repeat` for the drift check). Bump `Benchmark.version` when the scenes
-  or the metrics change. The panel drops its glass while measuring: blurring the
-  globe cost the GPU 2 ms a frame on an iPad mini. `SATVIS_BENCHMARK` in the
+  or the metrics change. `SATVIS_BENCHMARK` in the
   launch environment runs it at once, sends the results itself and prints them
   as JSON, for a device driven from the Mac; `SATVIS_BENCHMARK=print` only
   prints them, and `SATVIS_BENCHMARK_SCENES` (scene ids by commas) runs only

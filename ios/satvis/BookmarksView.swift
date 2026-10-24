@@ -111,8 +111,7 @@ struct BookmarksView: View {
                             .disabled(here.query.isEmpty || saving)
                         }
                     }
-                    .buttonStyle(.glass)
-                    .controlSize(.large)
+                    .buttonStyle(PanelButtonStyle())
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 8)
@@ -224,7 +223,7 @@ struct BookmarksView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .glassEffect()
+        .panel(cornerRadius: 20)
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
@@ -250,12 +249,11 @@ struct BookmarkCard: View {
     let picture: UIImage?
     let isCurrent: Bool
 
-    private static let accent = Color(red: 127 / 255, green: 210 / 255, blue: 234 / 255)
     private static let live = Color(red: 0x8F / 255, green: 0xE3 / 255, blue: 0x9B / 255)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Color(red: 0x0B / 255, green: 0x0F / 255, blue: 0x14 / 255)
+            Color.black
                 .aspectRatio(16 / 10, contentMode: .fit)
                 .overlay { image }
                 .clipped()
@@ -292,9 +290,9 @@ struct BookmarkCard: View {
         }
         .padding(.bottom, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(red: 0x1F / 255, green: 0x22 / 255, blue: 0x25 / 255), in: .rect(cornerRadius: 8))
+        .background(Color.panelRaised, in: .rect(cornerRadius: 8))
         .overlay {
-            RoundedRectangle(cornerRadius: 8).strokeBorder(Self.accent, lineWidth: isCurrent ? 2 : 0)
+            RoundedRectangle(cornerRadius: 8).strokeBorder(Color.panelAccent, lineWidth: isCurrent ? 2 : 0)
         }
         .contentShape(.rect(cornerRadius: 8))
     }

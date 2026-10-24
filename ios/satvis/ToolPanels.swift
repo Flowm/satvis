@@ -25,9 +25,6 @@ extension EnvironmentValues {
     @Entry var toolNamesFolded = false
 }
 
-/// The web app's cyan for the entry whose panel is open, and for what is chosen.
-private let toolAccent = Color(red: 127 / 255, green: 210 / 255, blue: 234 / 255)
-
 /// The web app's menu column: one panel, the Menu toggle over a rule and the
 /// entries under it, each its icon and its name, folding to the toggle alone so
 /// that a phone's width is left to the globe.
@@ -65,9 +62,7 @@ struct ToolMenu<Tools: View>: View {
         .labelStyle(ToolLabelStyle())
         .padding(.vertical, 4)
         .clipShape(.rect(cornerRadius: 26))
-        // The glass the system draws around a large `.glass` button, around the
-        // whole panel instead.
-        .glassEffect(.regular, in: .rect(cornerRadius: 26))
+        .panel()
         .animation(.snappy(duration: 0.2), value: isOpen)
     }
 }
@@ -102,7 +97,7 @@ private struct ToolLabelStyle: LabelStyle {
 
 private struct ToolLabel: View {
     let configuration: LabelStyleConfiguration
-    // Scaled with the text, icon and all, as the system's glass buttons are.
+    /// Scaled with the text, icon and all, as the system's controls are.
     @ScaledMetric(relativeTo: .body) private var scale = 1.0
     @Environment(\.toolNamesFolded) private var folded
 
@@ -121,7 +116,7 @@ private struct ToolLabel: View {
 }
 
 /// A row of the column, across its width, a fingertip tall: with the column's
-/// inset, the toggle's middle is level with the large glass buttons' opposite.
+/// inset, the toggle's middle is level with the corner buttons' opposite.
 private struct ToolRowStyle: ButtonStyle {
     var isSelected = false
 
@@ -138,7 +133,7 @@ private struct ToolRow: View {
 
     var body: some View {
         configuration.label
-            .foregroundStyle(isSelected ? toolAccent : .primary)
+            .foregroundStyle(isSelected ? Color.panelAccent : .primary)
             .padding(.leading, 4)
             .padding(.trailing, folded ? 4 : 18)
             .frame(maxWidth: .infinity, minHeight: 44 * scale, alignment: .leading)
@@ -191,7 +186,7 @@ struct ToolPanelView<Content: View>: View {
             }
         }
         .frame(maxWidth: fillsWidth ? .infinity : 280)
-        .glassEffect(.regular, in: .rect(cornerRadius: 26))
+        .panel()
     }
 
     private func padded(_ content: Content) -> some View {
@@ -260,7 +255,7 @@ private struct Choices<Value: Hashable>: View {
                         if selection == value {
                             Image(systemName: "checkmark")
                                 .fontWeight(.semibold)
-                                .foregroundStyle(toolAccent)
+                                .foregroundStyle(Color.panelAccent)
                         }
                     }
                     .frame(minHeight: 40)

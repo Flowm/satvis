@@ -21,7 +21,7 @@ struct PerformanceOverlay: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .glassEffect(in: .rect(cornerRadius: 10))
+            .panel(cornerRadius: 10)
         }
         .allowsHitTesting(false)
         .accessibilityElement(children: .combine)

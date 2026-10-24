@@ -55,7 +55,6 @@ private struct SkyInstruments: View {
     let date: Date
     @Environment(\.horizontalSizeClass) private var sizeClass
 
-    private static let ink = Color(red: 0xED / 255, green: 1, blue: 1)
     private static let lockColor = Color(red: 0x4A / 255, green: 0xDE / 255, blue: 0x80 / 255)
     private static let traceColor = Color(red: 0x7D / 255, green: 0xD3 / 255, blue: 0xFC / 255)
 
@@ -98,7 +97,7 @@ private struct SkyInstruments: View {
             path.move(to: CGPoint(x: c.x + 14 * dx, y: c.y + 14 * dy))
             path.addLine(to: CGPoint(x: c.x + 26 * dx, y: c.y + 26 * dy))
         }
-        context.stroke(path, with: .color(locked ? Self.lockColor : Self.ink.opacity(0.55)), lineWidth: 2)
+        context.stroke(path, with: .color(locked ? Self.lockColor : Color.panelInk.opacity(0.55)), lineWidth: 2)
     }
 
     private func trace(_ runs: [[CGPoint]], in context: inout GraphicsContext) {
@@ -154,12 +153,12 @@ private struct SkyInstruments: View {
         var line = Path()
         line.move(to: CGPoint(x: from, y: rule))
         line.addLine(to: CGPoint(x: to, y: rule))
-        context.stroke(line, with: .color(Self.ink.opacity(0.25)), lineWidth: 1)
+        context.stroke(line, with: .color(Color.panelInk.opacity(0.25)), lineWidth: 1)
         for tick in Self.thinned(ticks, by: \.x, major: \.major) {
             var path = Path()
             path.move(to: CGPoint(x: tick.x, y: rule - (tick.major ? 8 : 4)))
             path.addLine(to: CGPoint(x: tick.x, y: rule))
-            context.stroke(path, with: .color(Self.ink.opacity(tick.major ? 0.9 : 0.5)), lineWidth: tick.major ? 1.5 : 1)
+            context.stroke(path, with: .color(Color.panelInk.opacity(tick.major ? 0.9 : 0.5)), lineWidth: tick.major ? 1.5 : 1)
             if tick.major {
                 let text = tick.value % 45 == 0 ? compassPoint(Double(tick.value)) : "\(tick.value)°"
                 label(text, at: CGPoint(x: tick.x, y: rule - 15), anchor: .center, in: &context)
@@ -195,12 +194,12 @@ private struct SkyInstruments: View {
         var line = Path()
         line.move(to: CGPoint(x: x, y: buttons.minY))
         line.addLine(to: CGPoint(x: x, y: size.height))
-        context.stroke(line, with: .color(Self.ink.opacity(0.25)), lineWidth: 1)
+        context.stroke(line, with: .color(Color.panelInk.opacity(0.25)), lineWidth: 1)
         for tick in Self.thinned(ticks, by: \.y, major: \.major) {
             var path = Path()
             path.move(to: CGPoint(x: x, y: tick.y))
             path.addLine(to: CGPoint(x: x + (tick.major ? 8 : 4), y: tick.y))
-            context.stroke(path, with: .color(Self.ink.opacity(tick.major ? 0.9 : 0.5)), lineWidth: tick.major ? 1.5 : 1)
+            context.stroke(path, with: .color(Color.panelInk.opacity(tick.major ? 0.9 : 0.5)), lineWidth: tick.major ? 1.5 : 1)
             if tick.major, tick.y >= labelsFrom {
                 label("\(tick.value)°", at: CGPoint(x: x - 5, y: tick.y), anchor: .trailing, in: &context)
             }
@@ -240,11 +239,11 @@ private struct SkyInstruments: View {
         }
         .monospacedDigit()
         .font(.footnote)
-        .foregroundStyle(Self.ink)
+        .foregroundStyle(Color.panelInk)
         .frame(width: compact ? compactCardWidth : cardWidth, alignment: .leading)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color(red: 0x30 / 255, green: 0x33 / 255, blue: 0x36 / 255).opacity(0.85), in: .rect(cornerRadius: 8))
+        .panel(cornerRadius: 8)
     }
 
     /// A fact's name at the card's leading edge and its value at the trailing one.
@@ -300,7 +299,7 @@ private struct SkyInstruments: View {
         if let image = labelImages[key] {
             return image
         }
-        let label = Text(text).font(.system(size: 11).monospacedDigit()).foregroundStyle(ink)
+        let label = Text(text).font(.system(size: 11).monospacedDigit()).foregroundStyle(Color.panelInk)
         let measure = ImageRenderer(content: label)
         measure.scale = scale
         let size = measure.cgImage.map { CGSize(width: CGFloat($0.width) / scale, height: CGFloat($0.height) / scale) } ?? .zero
