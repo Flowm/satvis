@@ -1,6 +1,6 @@
 <!-- A panel opened from the menu column: its name, a close button, and the controls. -->
 <template>
-  <section class="toolbarSwitches toolbarPanel" :class="wide ? 'toolbarPanel--wide' : 'toolbarPanel--fixed'" :aria-label="title">
+  <section class="toolbarSwitches toolbarPanel panelSurface" :class="wide ? 'toolbarPanel--wide' : 'toolbarPanel--fixed'" :aria-label="title">
     <header class="toolbarPanel__header">
       <span>{{ title }}</span>
       <button type="button" class="toolbarPanel__close" aria-label="Close panel" @click="emit('close')"><UIcon name="lucide:x" /></button>
@@ -73,12 +73,12 @@ const emit = defineEmits<{ close: [] }>();
   background: none;
   border: none;
   border-radius: 6px;
-  color: #edffff;
+  color: var(--panel-ink);
   cursor: pointer;
 }
 
 .toolbarPanel__close:focus-visible {
-  outline: 2px solid #7fd2ea;
+  outline: 2px solid var(--panel-accent);
   outline-offset: -2px;
 }
 

@@ -189,7 +189,7 @@ function onRemove(bookmark: Bookmark): void {
   flex: none;
   gap: 2px;
   padding: 2px;
-  background: #1f2225;
+  background: var(--panel-raised);
   border-radius: 8px;
 }
 
@@ -199,19 +199,19 @@ function onRemove(bookmark: Bookmark): void {
   background: none;
   border: none;
   border-radius: 6px;
-  color: #edffff;
+  color: var(--panel-ink);
   font-size: 13px;
   opacity: 0.7;
   cursor: pointer;
 }
 
 .bookmarkPanel__tabs .bookmarkPanel__tab--on {
-  background: #464b50;
+  background: var(--panel-selected);
   opacity: 1;
 }
 
 .bookmarkPanel__tabs button:focus-visible {
-  outline: 2px solid #7fd2ea;
+  outline: 2px solid var(--panel-accent);
   outline-offset: -2px;
 }
 
@@ -258,10 +258,10 @@ function onRemove(bookmark: Bookmark): void {
   justify-content: center;
   gap: 6px;
   padding: 7px 0;
-  background: #464b50;
+  background: var(--panel-raised);
   border: none;
   border-radius: 6px;
-  color: #edffff;
+  color: var(--panel-ink);
   font-size: 13px;
   cursor: pointer;
 }
@@ -276,6 +276,6 @@ function onRemove(bookmark: Bookmark): void {
 }
 
 .bookmarkPanel__footer button:focus-visible {
-  outline: 2px solid #7fd2ea;
+  outline: 2px solid var(--panel-accent);
 }
 </style>

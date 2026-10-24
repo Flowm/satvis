@@ -40,9 +40,9 @@
     </div>
 
     <!-- North is unknown until the phone has been flat once. Unlike the toast, this cannot be dismissed. -->
-    <div v-if="compassActive && !calibrated" class="sky-hud__warn">Hold the phone flat to set north</div>
+    <div v-if="compassActive && !calibrated" class="sky-hud__warn panelSurface">Hold the phone flat to set north</div>
 
-    <div v-if="locked" class="sky-hud__card">
+    <div v-if="locked" class="sky-hud__card panelSurface">
       <div class="sky-hud__name">{{ locked.name }}</div>
       <dl class="sky-hud__facts">
         <template v-for="fact in facts" :key="fact[0]">
@@ -133,7 +133,7 @@ onUnmounted(() => {
   inset: 0;
   z-index: 4;
   pointer-events: none;
-  color: #edffff;
+  color: var(--panel-ink);
   font-variant-numeric: tabular-nums;
   opacity: 0;
   transition: opacity 400ms ease-out;
@@ -173,13 +173,13 @@ onUnmounted(() => {
 }
 
 .sky-hud__tape-rule {
-  stroke: #edffff;
+  stroke: var(--panel-ink);
   stroke-width: 1;
   opacity: 0.25;
 }
 
 .sky-hud__tick {
-  stroke: #edffff;
+  stroke: var(--panel-ink);
   stroke-width: 1;
   opacity: 0.5;
 }
@@ -190,7 +190,7 @@ onUnmounted(() => {
 }
 
 .sky-hud__label {
-  fill: #edffff;
+  fill: var(--panel-ink);
   font-size: 11px;
   opacity: 0.9;
   paint-order: stroke;
@@ -223,7 +223,7 @@ onUnmounted(() => {
 .sky-hud__reticle :deep(circle),
 .sky-hud__reticle :deep(line) {
   fill: none;
-  stroke: #edffff;
+  stroke: var(--panel-ink);
   stroke-width: 2;
   opacity: 0.55;
 }
@@ -242,7 +242,6 @@ onUnmounted(() => {
   max-width: 200px;
   padding: 6px 8px;
   border-radius: 8px;
-  background-color: #303336d9;
   font-size: 12px;
   text-align: right;
 }
@@ -255,7 +254,6 @@ onUnmounted(() => {
   min-width: 220px;
   padding: 8px 12px;
   border-radius: 8px;
-  background-color: #303336d9;
   font-size: 13px;
   text-align: center;
 }

@@ -14,7 +14,7 @@ body,
   position: fixed;
   overflow: hidden;
   font-family: sans-serif;
-  color: #edffff;
+  color: var(--panel-ink);
   background-color: black;
 }
 
@@ -51,6 +51,26 @@ body {
   --toolbar-row: 32px;
   /* From the menu column's border to an icon. */
   --menu-inset: 5px;
+
+  /* The panels' palette, shared with the iOS app (ios/satvis/PanelStyle.swift): Apple's
+     dark grouped backgrounds, which its lists' rows already are. */
+  --panel-surface: #1c1c1e;
+  /* What floats over the globe. */
+  --panel-surface-float: #1c1c1ed9;
+  /* Where globe labels must not bleed through a dense list. */
+  --panel-surface-dense: #1c1c1ef0;
+  /* A card or a control on a panel. */
+  --panel-raised: #2c2c2e;
+  --panel-raised-hover: #3a3a3c;
+  /* What is chosen, over a panel or a control. */
+  --panel-selected: #ffffff1f;
+  /* Along a floating panel's top, where Liquid Glass is lit. */
+  --panel-glow: linear-gradient(#ffffff0d, transparent 35%);
+  --panel-ink: #edffff;
+  --panel-muted: #9aa5a8;
+  --panel-accent: #7fd2ea;
+  /* "Not where it rests", as the iOS app's: the clock deck's reset, a stale element set. */
+  --panel-amber: #ffd479;
 }
 
 /* A finger needs 44px. The icons move in to keep the column square when collapsed. */
@@ -87,35 +107,66 @@ body {
   z-index: 6;
 }
 
-/* On iOS a tap leaves `:hover` and `:focus` on the last button touched. */
-#toolbarRight .cesium-button:focus {
-  border-color: #444;
+/* Floating over the globe, as the iOS app's `panel`: a glow along the top, and a light
+   edge where Liquid Glass has its rim, brightest at the top left and the bottom right.
+   The edge is a masked pseudo-element, as a border cannot take a gradient round a
+   rounded corner; inside the element's own clip, so a panel has no border. */
+.panelSurface,
+#toolbarRight .cesium-button {
+  position: relative;
+  border: none;
+  background: var(--panel-glow), var(--panel-surface-float);
 }
 
-@media (hover: none) {
+.panelSurface::before,
+#toolbarRight .cesium-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(to bottom right, #ffffff54, #ffffff0d 45% 60%, #ffffff2e);
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+
+/* The iOS app's buttons, lit and grown while pressed where Cesium's turn blue: its
+   corners 12 pt of a 44 pt button, so 9 px of a 32 px one. */
+#toolbarRight .cesium-button {
+  border-radius: calc(var(--toolbar-row) * 12 / 44);
+  color: var(--panel-ink);
+  fill: var(--panel-ink);
+  box-shadow: none;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (hover: hover) {
   #toolbarRight .cesium-button:hover {
-    background: #303336;
-    border-color: #444;
-    color: #edffff;
-    fill: #edffff;
-    box-shadow: none;
+    background: linear-gradient(#ffffff14, #ffffff14), var(--panel-glow), var(--panel-surface-float);
   }
+}
+
+#toolbarRight .cesium-button:active {
+  background: linear-gradient(#ffffff2e, #ffffff2e), var(--panel-surface-float);
+  transform: scale(1.08);
 }
 
 /* Cesium's `outline: none` leaves keyboard focus with nothing to show for it. */
 #toolbarRight .cesium-button:focus-visible {
-  outline: 2px solid #7fd2ea;
+  outline: 2px solid var(--panel-accent);
   outline-offset: 2px;
 }
 
-/* Cesium's button margin, level with the top-right buttons. */
+/* Cesium's button margin, level with the top-right buttons. The padding stands in for
+   the border the edge replaced. */
 .menuColumn {
   display: flex;
   flex-direction: column;
   margin: 2px 3px;
-  background: #303336e6;
-  border: 1px solid #444;
-  border-radius: 8px;
+  padding: 1px;
+  border-radius: 20px;
   overflow: hidden;
 }
 
@@ -127,7 +178,7 @@ body {
   padding: 0 10px 0 var(--menu-inset);
   background: none;
   border: none;
-  color: #edffff;
+  color: var(--panel-ink);
   font-size: 14px;
   text-align: left;
   cursor: pointer;
@@ -158,13 +209,13 @@ body {
 
 .menuColumn__toggle:focus-visible,
 .menuColumn__item:focus-visible {
-  outline: 2px solid #7fd2ea;
+  outline: 2px solid var(--panel-accent);
   outline-offset: -2px;
 }
 
 .menuColumn__item--open {
-  background: #3d4348;
-  color: #7fd2ea;
+  background: var(--panel-selected);
+  color: var(--panel-accent);
 }
 
 .menuColumn__list {
@@ -198,7 +249,7 @@ body {
    and the panel is opaque over the top-right buttons. */
 @media (max-width: 639px) {
   #toolbarLeft .toolbarPanel {
-    background-color: #303336;
+    background: var(--panel-surface);
   }
 
   .toolbarLeft--panelOpen .menuColumn__label {
@@ -218,19 +269,18 @@ body {
   display: flex;
   flex-direction: column;
   margin: 2px 3px;
-  background-color: #303336d9;
-  border-radius: 8px;
+  border-radius: 20px;
 }
 
 /* More opaque, so globe labels do not bleed through the dense list. */
 .toolbarSwitches--catalog {
-  background-color: #303336e6;
+  background: var(--panel-glow), var(--panel-surface-dense);
 }
 
 /* A section heading, quieter than the panel title and aligned with it. */
 .toolbarTitle {
   margin: 10px 4px 3px;
-  color: #9aa5a8;
+  color: var(--panel-muted);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -264,7 +314,7 @@ body {
 
 .toolbarSwitch {
   /* Lighter than the panel, or the rows merge into it. */
-  background-color: #464b50;
+  background-color: var(--panel-raised);
   border-radius: 8px;
   cursor: pointer;
   display: inline-block;
@@ -296,10 +346,10 @@ body {
 
 .toolbarActions button {
   align-items: center;
-  background-color: #464b50;
+  background-color: var(--panel-raised);
   border: 1px solid transparent;
   border-radius: 6px;
-  color: #edffff;
+  color: var(--panel-ink);
   cursor: pointer;
   display: flex;
   flex: 1 1 auto;
@@ -311,7 +361,7 @@ body {
 }
 
 .toolbarActions button:hover:not(:disabled) {
-  background-color: #5a6167;
+  background-color: var(--panel-raised-hover);
 }
 
 .toolbarActions button:disabled {

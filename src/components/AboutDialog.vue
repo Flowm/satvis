@@ -1,5 +1,9 @@
 <template>
-  <UModal v-model:open="open" title="About Satvis" :ui="{ content: 'bg-[#303336]/95 text-[#edffff] divide-neutral-600 max-w-2xl', header: 'p-2 sm:px-3', body: 'p-3 sm:p-3' }">
+  <UModal
+    v-model:open="open"
+    title="About Satvis"
+    :ui="{ content: 'bg-(--panel-surface)/95 text-(--panel-ink) divide-neutral-600 max-w-2xl', header: 'p-2 sm:px-3', body: 'p-3 sm:p-3' }"
+  >
     <UTooltip text="About">
       <!-- A link, not a button: it is the only reference crawlers find to /about, and middle-click opens the page. -->
       <a class="cesium-button cesium-toolbar-button" href="/about" aria-label="About Satvis" @click.prevent>

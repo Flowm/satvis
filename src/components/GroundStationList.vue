@@ -205,7 +205,7 @@ function offsetOf(index: number): number {
 
 .gsList__row {
   align-items: center;
-  background-color: #464b50;
+  background-color: var(--panel-raised);
   border-radius: 6px;
   display: flex;
   gap: 3px;
@@ -278,7 +278,7 @@ function offsetOf(index: number): number {
   background: none;
   border: none;
   border-bottom: 1px solid #edffff26;
-  color: #edffff;
+  color: var(--panel-ink);
   min-width: 0;
   padding: 0 1px;
 }
@@ -297,7 +297,7 @@ function offsetOf(index: number): number {
 }
 
 .gsList__name::placeholder {
-  color: #edffff;
+  color: var(--panel-ink);
   font-style: italic;
   opacity: 0.35;
 }
@@ -312,7 +312,7 @@ function offsetOf(index: number): number {
 .gsList__remove {
   background: none;
   border: none;
-  color: #edffff;
+  color: var(--panel-ink);
   cursor: pointer;
   flex: none;
   font-size: 15px;

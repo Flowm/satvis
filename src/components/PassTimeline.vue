@@ -146,7 +146,7 @@ function titleOf(startMs: number): string {
 /* Not the next-pass green: a pass can be both picked and next. */
 .timeline__pass.is-picked {
   opacity: 1;
-  outline: 2px solid #edffff;
+  outline: 2px solid var(--panel-ink);
   outline-offset: 1px;
 }
 

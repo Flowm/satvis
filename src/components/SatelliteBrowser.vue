@@ -124,7 +124,7 @@ const totalSize = computed(() => virtualizer.value.getTotalSize());
 }
 
 .browser-search-clear:hover {
-  color: #edffff;
+  color: var(--panel-ink);
 }
 
 .browser-list {
@@ -174,7 +174,7 @@ const totalSize = computed(() => virtualizer.value.getTotalSize());
   border-radius: 6px;
   padding: 2px 8px;
   cursor: pointer;
-  color: #edffff;
+  color: var(--panel-ink);
   font-size: 12px;
 }
 
@@ -188,7 +188,7 @@ const totalSize = computed(() => virtualizer.value.getTotalSize());
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
   background: none;
-  color: #edffff;
+  color: var(--panel-ink);
   font-size: 12px;
   cursor: pointer;
 }

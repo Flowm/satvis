@@ -2,7 +2,7 @@
      location are tabs, because stacking them overflowed a 500 px window by almost 900 px. -->
 <template>
   <div v-if="selection" class="entity-info-panel">
-    <UCard :ui="{ root: 'bg-[#303336]/95 text-[#edffff] divide-neutral-600', header: 'p-2 sm:px-3', body: 'p-0 sm:p-0' }">
+    <UCard :ui="{ root: 'bg-(--panel-surface)/95 text-(--panel-ink) divide-neutral-600', header: 'p-2 sm:px-3', body: 'p-0 sm:p-0' }">
       <template #header>
         <div class="head">
           <div class="head__title">
@@ -529,7 +529,7 @@ function notifyForPasses(): void {
 
 /* Amber: the app colour for "away from rest", as on the stale notice. */
 .head__chip--status {
-  color: #ffd479;
+  color: var(--panel-amber);
 }
 
 .head__chips span:not(:last-child)::after {
@@ -545,7 +545,7 @@ function notifyForPasses(): void {
   gap: 6px;
   padding: 4px 10px;
   background: #ffd47914;
-  color: #ffd479;
+  color: var(--panel-amber);
   font-size: 11px;
 }
 
@@ -621,12 +621,12 @@ function notifyForPasses(): void {
 }
 
 .modes__option:hover {
-  color: #edffff;
+  color: var(--panel-ink);
 }
 
 .modes__option--on {
   background: #4caf5033;
-  color: #edffff;
+  color: var(--panel-ink);
 }
 
 .passes__bar {
@@ -690,13 +690,13 @@ function notifyForPasses(): void {
 
 .info-table tbody tr.is-picked {
   background: #edffff1f;
-  box-shadow: inset -3px 0 #edffff;
+  box-shadow: inset -3px 0 var(--panel-ink);
 }
 
 .info-table tbody tr.is-picked.is-next {
   box-shadow:
     inset 3px 0 #4caf50,
-    inset -3px 0 #edffff;
+    inset -3px 0 var(--panel-ink);
 }
 
 .num,

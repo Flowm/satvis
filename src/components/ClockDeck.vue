@@ -243,7 +243,7 @@ onUnmounted(() => {
   --safe: max(6px, var(--safe-bottom, 0px));
   /* Shared by the clock's corners, the scale row's, and the fillets between them. */
   --radius: 16px;
-  color: #edffff;
+  color: var(--panel-ink);
   font-variant-numeric: tabular-nums;
   /* main.css sets the cap, and places the credits at the same breakpoint. */
   margin: 0 auto;
@@ -279,7 +279,7 @@ onUnmounted(() => {
   bottom: 0;
   z-index: -1;
   border-radius: var(--radius) var(--radius) 0 0;
-  background: #14181ceb;
+  background: var(--panel-surface-float);
   box-shadow: 0 -2px 20px #00000080;
 }
 
@@ -313,7 +313,7 @@ onUnmounted(() => {
   height: 44px;
   width: 44px;
   justify-self: end;
-  color: #14181c;
+  color: var(--panel-surface);
   font-size: 17px;
 }
 
@@ -325,7 +325,7 @@ onUnmounted(() => {
   height: 34px;
   width: 34px;
   border-radius: 50%;
-  background: #edffff;
+  background: var(--panel-ink);
 }
 
 /* Fixed width: the side tracks derive from it. */
@@ -411,7 +411,7 @@ onUnmounted(() => {
 /* Amber: the app colour for "away from rest". */
 .reset__circle {
   background: #ffd4791f;
-  color: #ffd479;
+  color: var(--panel-amber);
 }
 
 /* The safe area is inside the height, or a strip of globe shows below the ticks. */
@@ -421,7 +421,7 @@ onUnmounted(() => {
   height: calc(42px + var(--safe));
   padding-bottom: var(--safe);
   border-radius: var(--radius) var(--radius) 0 0;
-  background: #14181ceb;
+  background: var(--panel-surface-float);
 }
 
 /* Fillets where the clock's surface meets the row. They sit above the row, so the row
@@ -438,12 +438,12 @@ onUnmounted(() => {
 
 .scale-row::before {
   left: calc(var(--surface-left, 0px) - var(--radius));
-  background: radial-gradient(circle at 0 0, transparent calc(var(--radius) - 0.5px), #14181ceb calc(var(--radius) + 0.5px));
+  background: radial-gradient(circle at 0 0, transparent calc(var(--radius) - 0.5px), var(--panel-surface-float) calc(var(--radius) + 0.5px));
 }
 
 .scale-row::after {
   right: calc(var(--surface-right, 0px) - var(--radius));
-  background: radial-gradient(circle at 100% 0, transparent calc(var(--radius) - 0.5px), #14181ceb calc(var(--radius) + 0.5px));
+  background: radial-gradient(circle at 100% 0, transparent calc(var(--radius) - 0.5px), var(--panel-surface-float) calc(var(--radius) + 0.5px));
 }
 
 .timeline {
@@ -496,7 +496,7 @@ onUnmounted(() => {
   bottom: 0;
   width: 2px;
   margin-left: -1px;
-  background: #ffd479;
+  background: var(--panel-amber);
   pointer-events: none;
 }
 
