@@ -51,6 +51,10 @@ body {
   --toolbar-row: 32px;
   /* From the menu column's border to an icon. */
   --menu-inset: 5px;
+  /* The iOS app's 16 and 12 points of a 44-point row: a panel's corners, and a button's,
+     so the menu column folded to its toggle is a button's shape, not a capsule. */
+  --panel-radius: calc(var(--toolbar-row) * 16 / 44);
+  --button-radius: calc(var(--toolbar-row) * 12 / 44);
 
   /* The panels' palette, shared with the iOS app (ios/satvis/PanelStyle.swift): Apple's
      dark grouped backgrounds, which its lists' rows already are. */
@@ -132,10 +136,9 @@ body {
   pointer-events: none;
 }
 
-/* The iOS app's buttons, lit and grown while pressed where Cesium's turn blue: its
-   corners 12 pt of a 44 pt button, so 9 px of a 32 px one. */
+/* The iOS app's buttons, lit and grown while pressed where Cesium's turn blue. */
 #toolbarRight .cesium-button {
-  border-radius: calc(var(--toolbar-row) * 12 / 44);
+  border-radius: var(--button-radius);
   color: var(--panel-ink);
   fill: var(--panel-ink);
   box-shadow: none;
@@ -166,7 +169,7 @@ body {
   flex-direction: column;
   margin: 2px 3px;
   padding: 1px;
-  border-radius: 20px;
+  border-radius: var(--panel-radius);
   overflow: hidden;
 }
 
@@ -269,7 +272,7 @@ body {
   display: flex;
   flex-direction: column;
   margin: 2px 3px;
-  border-radius: 20px;
+  border-radius: var(--panel-radius);
 }
 
 /* More opaque, so globe labels do not bleed through the dense list. */

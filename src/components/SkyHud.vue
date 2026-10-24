@@ -241,7 +241,7 @@ onUnmounted(() => {
   bottom: max(calc(64px + var(--safe-bottom, 0px)), calc(var(--clock-deck-height, 0px) + 8px));
   max-width: 200px;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: var(--panel-radius);
   font-size: 12px;
   text-align: right;
 }
@@ -253,7 +253,7 @@ onUnmounted(() => {
   transform: translateX(-50%);
   min-width: 220px;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--panel-radius);
   font-size: 13px;
   text-align: center;
 }
