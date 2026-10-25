@@ -321,7 +321,13 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   changes what is drawn has to say so (`needsDraw`, or the surface's, the models'
   and the ground tracks' revisions). The sky view, tracking, the FPS
   switch and the benchmark draw every frame, but for the benchmark's idle
-  scenes.
+  scenes. A frame is drawn for the instant it will be shown
+  (`FramePresentation`): the clock and the flights, not a drag. Every active
+  orbit on an iPad mini, shown
+  16.7 or 33.3 ms apart, then moves by the screen's steps in 99 % of the
+  frames rather than 30 %. The rate stays the one chosen, not a steady divisor
+  below it: at 45 fps the eye trails a satellite 12.6 ms on average, at 30
+  16.7.
 - The Graphics menu's "Benchmark" is the web app's `bench=true`, kept in links
   the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): eleven scenes opened
   by their links in turn, each waited for until everything active is drawn

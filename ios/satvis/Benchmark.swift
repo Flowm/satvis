@@ -239,7 +239,7 @@ final class Benchmark {
         guard !Task.isCancelled else {
             return nil
         }
-        let maximumRate = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.maximumFramesPerSecond ?? 60
+        let maximumRate = GlobeRenderer.displayMaximumFramesPerSecond
         return BenchmarkResult(
             id: scene.id, title: scene.title, detail: scene.detail,
             satellites: renderer.satelliteCount, loadSeconds: max(loaded / .seconds(1), 0),

@@ -8,7 +8,7 @@ public protocol Globe: AnyObject {
     /// Satellites packed for drawing.
     associatedtype Prepared: Sendable
 
-    var clock: () -> Double { get set }
+    var clock: (_ ahead: Double) -> Double { get set }
     var tileLoader: (@Sendable (TileRequest) async -> Data?)? { get set }
     var modelLoader: (@Sendable (String) async -> Data?)? { get set }
     var onGPUFault: (@MainActor @Sendable (GPUFault) -> Void)? { get set }
@@ -54,8 +54,8 @@ public final class GlobeBinding {
     /// Those waiting in `untilAttached`.
     private var waiting: [CheckedContinuation<Void, Never>] = []
 
-    /// The instant to draw, in UTC milliseconds since 1970.
-    public var clock: () -> Double = { (Date().timeIntervalSince1970 * 1000).rounded(.down) } {
+    /// The instant to draw `ahead` seconds from now, in UTC milliseconds since 1970.
+    public var clock: (_ ahead: Double) -> Double = GlobeRenderer.wallClock {
         didSet { globe?.clock = clock }
     }
     /// What fetches a map tile's bytes.

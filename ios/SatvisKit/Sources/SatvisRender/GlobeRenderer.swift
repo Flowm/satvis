@@ -112,10 +112,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             needsDraw = true
         }
     }
-    /// The instant to draw, in UTC milliseconds since 1970.
-    public var clock: () -> Double = { (Date().timeIntervalSince1970 * 1000).rounded(.down) } {
+    /// The instant to draw `ahead` seconds from now, in UTC milliseconds since
+    /// 1970: a frame is drawn for when it will be shown (`FramePresentation`).
+    public var clock: (_ ahead: Double) -> Double = wallClock {
         didSet { needsDraw = true }
     }
+
+    /// The device's own clock, for `clock`.
+    public static let wallClock: @Sendable (_ ahead: Double) -> Double = { (Date().timeIntervalSince1970 + $0) * 1000 }
 
     private static let hdrFormat = MTLPixelFormat.rgba16Float
     private static let depthFormat = MTLPixelFormat.depth32Float
@@ -248,6 +252,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var snapshotCount = 0
     private var frameIndex = 0
     private let inFlight = DispatchSemaphore(value: framesInFlight)
+    /// When the frames begun are shown, which their content is timed to.
+    private let presentation = FramePresentation()
 
     /// Compiles the shaders, which takes a second or two, without holding up the
     /// main thread, then takes over drawing the view. `naturalEarth` is the folder
@@ -643,7 +649,17 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         request.continuation.resume(returning: data)
     }
 
+    /// The most frames a second the screen shows.
+    public static var displayMaximumFramesPerSecond: Int {
+        #if canImport(UIKit)
+            (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.maximumFramesPerSecond ?? 60
+        #else
+            60
+        #endif
+    }
+
     public func draw(in view: MTKView) {
+        let interval = 1 / Double(max(1, view.preferredFramesPerSecond))
         // A drawable can be read only from a view asked for readable ones, which
         // cannot keep them in tile memory: asked for one frame, and back after.
         view.framebufferOnly = snapshotRequest == nil
@@ -651,11 +667,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             return
         }
         let measuring = measuresFrames
-        let started = measuring ? ProcessInfo.processInfo.systemUptime : 0
-        let now = clock()
+        let started = ProcessInfo.processInfo.systemUptime
+        // Flights and the clock as they stand when the frame is shown; drags as the
+        // touches stand now.
+        let shown = presentation.predict(at: started, refresh: 1 / Double(Self.displayMaximumFramesPerSecond), interval: interval)
+        let now = clock(shown - ProcessInfo.processInfo.systemUptime)
         let size = SIMD2(Double(hdr.width), Double(hdr.height))
         let pose = rig.pose(
-            uptime: ProcessInfo.processInfo.systemUptime, time: now, aspectRatio: size.x / size.y, model: { self.trackedModel($0) },
+            uptime: shown, time: now, aspectRatio: size.x / size.y, model: { self.trackedModel($0) },
             target: { self.position(of: $0, at: now) }, groundHeight: { self.surface.groundHeight(latitude: $0.latitude, longitude: $0.longitude) })
         guard let pose, mustDraw(pose: pose, time: now, size: size) else {
             if measuring {
@@ -674,6 +693,16 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             encodeTonemapPass(commands, screen: target.screen, hdr: hdr)
         }
         encodeSnapshot(of: target.drawable, into: commands)
+        let committed = ProcessInfo.processInfo.systemUptime
+        let cpu = committed - started - target.waitedForBuffer - target.waitedForDrawable
+        let id = presentation.began(committed: committed, cpu: cpu, shown: shown)
+        commands.addCompletedHandler { [presentation, meter] buffer in
+            let (start, end) = (buffer.gpuStartTime, buffer.gpuEndTime)
+            presentation.done(id, start: start, end: end)
+            if measuring {
+                meter.gpu(start: start, end: end)
+            }
+        }
         commands.present(target.drawable)
         commands.commit()
         if measuring {
@@ -783,6 +812,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             inFlight.signal()
             return nil
         }
+        // The simulator's drawables have no presented handler: a frame there is
+        // timed to the refresh after it begins.
+        #if !targetEnvironment(simulator)
+            let presentation = presentation
+            drawable.addPresentedHandler { presentation.shown(at: $0.presentedTime) }
+        #endif
         let semaphore = inFlight
         let faults = faults
         commands.addCompletedHandler { buffer in
@@ -790,10 +825,6 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             if buffer.status == .error {
                 faults.record(buffer.error)
             }
-        }
-        if measuring {
-            let meter = meter
-            commands.addCompletedHandler { buffer in meter.gpu(start: buffer.gpuStartTime, end: buffer.gpuEndTime) }
         }
         frameIndex = (frameIndex + 1) % Self.framesInFlight
         return (commands, drawable, screen, waitedForBuffer, waitedForDrawable)

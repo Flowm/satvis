@@ -664,6 +664,6 @@ struct GraphicsPanel: View {
 
     /// 120 on a ProMotion screen, never under 60.
     private var maximumFrameRate: Int {
-        max((UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.maximumFramesPerSecond ?? 60, 60)
+        max(GlobeRenderer.displayMaximumFramesPerSecond, 60)
     }
 }

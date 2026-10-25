@@ -11,7 +11,7 @@ private final class RecordingGlobe: Globe {
     /// How many sets were packed, which each packed set carries.
     private var packed = 0
 
-    var clock: () -> Double = { 0 } {
+    var clock: (_ ahead: Double) -> Double = { _ in 0 } {
         didSet { calls.append("clock") }
     }
     var tileLoader: (@Sendable (TileRequest) async -> Data?)? {
