@@ -3,7 +3,7 @@ import SatvisRender
 import SwiftUI
 
 /// What the menu column opens beside it, as the web app's toolbar panels
-/// (`ToolbarPanel.vue`). The satellite browser and the locations are sheets
+/// (`ToolbarPanel.vue`). The satellite browser and the bookmarks are sheets
 /// instead: lists too long for a panel.
 enum ToolPanel: Hashable {
     case components, map, locations, globe, sky, graphics
@@ -339,9 +339,11 @@ private struct CircleToggleStyle: ToggleStyle {
         }
         .buttonStyle(PanelRowStyle())
         .accessibilityRepresentation {
+            // A switch's own style, or the panel's would draw this one too.
             Toggle(isOn: configuration.$isOn) {
                 configuration.label
             }
+            .toggleStyle(.switch)
         }
     }
 }
@@ -473,11 +475,14 @@ struct SkyPanel: View {
                     Place(Text(verbatim: station.displayName), image: .lucideMapPin, isHere: here?.id == station.id) {
                         session.enterSky(at: station.id)
                     }
+                    // A fix in flight would move the view after this tap.
+                    .disabled(locating)
                 }
                 if inSky {
                     Place(Text("Back to the globe"), image: .lucideGlobe, isMuted: true) {
                         session.leaveSky()
                     }
+                    .disabled(locating)
                 }
             }
             if places.isEmpty {

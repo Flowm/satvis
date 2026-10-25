@@ -161,6 +161,13 @@ private struct StationRow: View {
             }
         }
         .onSubmit { focused = nil }
+        // The panel closes for the globe, Show passes and Pick on globe alike,
+        // before the field is left.
+        .onDisappear {
+            if let focused {
+                commit(focused)
+            }
+        }
     }
 
     /// Dragged to reorder, in the selection circle's column; VoiceOver moves the
@@ -182,6 +189,7 @@ private struct StationRow: View {
             .accessibilityAction(named: "Move down") { onMove(station.id, 1) }
     }
 
+    /// A latitude or longitude field, typed with a sign.
     private func coordinate(_ label: String, text: Binding<String>, field: Field) -> some View {
         TextField(label, text: text)
             .keyboardType(.numbersAndPunctuation)
@@ -198,6 +206,7 @@ private struct StationRow: View {
         longitude = javaScriptString(station.longitude)
     }
 
+    /// Keeps what `field` holds, if it changed and, for a coordinate, is one.
     private func commit(_ field: Field) {
         var edited = station
         switch field {

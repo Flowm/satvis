@@ -256,9 +256,6 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        // A sheet folds the column on a phone and unfolds it again as it closes,
-        // unless what was done in it is on the globe now: a panel opened there
-        // would be under the column, and picking a spot needs the globe.
         .onChange(of: session.isPicking) { _, picking in
             if !picking, let selection = pickingFromLocations {
                 pickingFromLocations = nil
@@ -268,6 +265,9 @@ struct ContentView: View {
                 }
             }
         }
+        // A sheet folds the column on a phone and unfolds it again as it closes,
+        // unless what was done in it is on the globe now: a panel opened there
+        // would be under the column.
         .onChange(of: showsBookmarks || showsBrowser || showsAbout) { _, presenting in
             if presenting {
                 panel = nil
@@ -277,7 +277,7 @@ struct ContentView: View {
                 }
             } else if let selection = foldedFor {
                 foldedFor = nil
-                if session.selection == selection, !session.isPicking {
+                if session.selection == selection {
                     showsTools = true
                 }
             }
@@ -346,7 +346,6 @@ struct ContentView: View {
         }
     }
 
-    /// An entry that opens its panel, or closes it if it is open.
     /// Starts picking a spot from the Locations panel, out of the globe's way.
     private func pickFromLocations() {
         pickingFromLocations = .some(session.selection)
@@ -363,6 +362,7 @@ struct ContentView: View {
         }
     }
 
+    /// An entry that opens its panel, or closes it if it is open.
     private func entry(_ which: ToolPanel, image: ImageResource, hint: LocalizedStringKey) -> some View {
         ToolEntry(title: which.title, image: image, hint: hint, isSelected: panel == which) {
             panel = panel == which ? nil : which

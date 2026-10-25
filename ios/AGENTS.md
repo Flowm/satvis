@@ -244,7 +244,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   switch and a choice alike, as the web app gives its checkboxes and radio
   buttons one left-aligned mark (`CircleToggleStyle` keeps a switch a switch to
   VoiceOver); a segmented control where the choices are short; a setting that
-  needs the sky view is disabled on the globe, not hidden. On a phone the column folds to its icons beside a panel, which
+  needs the sky view is disabled on the globe, not hidden. On a phone the column
+  folds to its icons beside a panel, which
   covers the top-right buttons, as the web's does below 640 px. Those buttons
   are the ways back alone: home or out of the sky view, the compass and the
   camera, and the end of tracking. Not system

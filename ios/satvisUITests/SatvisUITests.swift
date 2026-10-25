@@ -73,7 +73,8 @@ nonisolated class SatvisUITests: XCTestCase {
     // A sheet opened from the menu column and closed again leaves the column as it
     // was: on a phone it folds under the sheet and unfolds as the sheet goes.
     @MainActor
-    func testReopensTheMenuAfterASheet() {
+    func testReopensTheMenuAfterASheet() throws {
+        try XCTSkipIf(UIDevice.current.userInterfaceIdiom == .pad, "An iPad's column never folds")
         let app = launch()
         openMenu(app)
         for entry in ["Satellites", "Bookmarks"] {

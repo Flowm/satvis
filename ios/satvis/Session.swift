@@ -545,7 +545,7 @@ final class Session {
     /// a sky at a place nobody chose looks like a working view and is not.
     private func stationHere() async -> UUID? {
         guard let location = await currentLocation(), let id = editStations({ $0.setGeolocation(latitude: location.latitude, longitude: location.longitude) }) else {
-            show("The sky view needs your location. Allow it in Settings, or look up from a location's panel.")
+            show("The sky view needs your location. Allow it in Settings, or look up from one of your locations.")
             return nil
         }
         return id
