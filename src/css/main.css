@@ -430,13 +430,18 @@ body {
 }
 
 @media (hover: hover) {
-  .toolbarPlace:hover:not(:disabled) {
+  .toolbarPlace:hover:not(:disabled, [aria-current]) {
     background: #ffffff10;
   }
 }
 
 .toolbarPlace:disabled {
   cursor: default;
+}
+
+/* Waiting on My location's fix; the row with the spinner is the one waiting. */
+.toolbarPlace:disabled:not(:has(.toolbarSpinner)) {
+  opacity: 0.3;
 }
 
 .toolbarPlace:focus-visible {

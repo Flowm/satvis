@@ -47,14 +47,14 @@ made half its rows appear and disappear with the mode.
 
 Both panels write `sceneMode`, and neither hides a setting: one that does not apply
 to the current view is disabled with a note. Only the ways in and out come and go.
-The camera mode is disabled in the sky
-view because the view suppresses it (below), not because the choice is lost. No
-projection is checked in the sky view: a checked one read as the active view. The
-Globe panel lists Sky view after them instead, only while it is up, checked and
-disabled: it is entered from the Sky panel, which names a place, and it replaces a
-note that said the same in words. Leaving by the Sky panel's Back to the globe
-returns to the projection the sky view was entered from, held in memory, not in the
-url: a link carries the view mode, and a link to the sky view returns to 3D.
+The camera mode is disabled in the sky view because the view suppresses it (below),
+not because the choice is lost. No projection is checked in the sky view: a checked
+one read as the active view. The Globe panel lists Sky view after them instead, only
+while it is up, checked and disabled: it is entered from the Sky panel, which names a
+place, and it replaces a note that said the same in words. Leaving by the Sky panel's
+Back to the globe returns to the projection the sky view was entered from, held in
+memory, not in the url: a link carries the view mode, and a link to the sky view
+returns to 3D.
 
 ### The observer is a ground station, designated
 
@@ -74,17 +74,17 @@ and its observer is the first station. A parameter would extend ADR 0001 and is 
 separate decision.
 
 Entry is an action gated on an observer existing, not a watcher. The observer is
-where the device is, unless the entry names a place. The Sky panel lists the places to
-look up from, and each row enters the sky view standing there, or moves a view
+where the device is, unless the entry names a place. The Sky panel lists the places
+to look up from, and each row enters the sky view standing there, or moves a view
 already up. Its first row, My location, asks for the device's position and stands
 there, as does `?scene=Sky` with no ground station, because either is the request
 "what is over me now". The station rows, a station's info panel and a link with
-stations stand on a station: the row's, the panel's, and the link's first. The device's
-position is the one station named Geolocation, moved there each time rather than
-added again, and listed first, by both panels' My location alike (`observeGeolocation`,
-`placeGeolocation` in `src/stores/sat.ts`): a link's
-observer is its first station, so a reload or a bookmark of the view stands where the
-device was. If the device gives no position the sky view does not open: a sky full of
+stations stand on a station: the row's, the panel's, and the link's first. The
+device's position is the one station named Geolocation, moved there each time rather
+than added again, and listed first, by both panels' My location alike
+(`observeGeolocation`, `placeGeolocation` in `src/stores/sat.ts`): a link's observer
+is its first station, so a reload or a bookmark of the view stands where the device
+was. If the device gives no position the sky view does not open: a sky full of
 satellites at coordinates the user never chose looks like a working feature, which is
 worse than not opening.
 

@@ -109,7 +109,8 @@
         <div v-if="inSkyView" class="toolbarNote">The sky view holds the camera.</div>
       </toolbar-panel>
       <toolbar-panel v-show="menu.sky" title="Sky" @close="closePanel('sky')">
-        <!-- Each row enters the sky view standing there, or moves a view already up (docs/adr/0003-sky-view.md). -->
+        <!-- Each row enters the sky view standing there, or moves a view already up (docs/adr/0003-sky-view.md).
+             Every row waits for a fix in flight, which would otherwise move the view after a later tap. -->
         <div class="toolbarTitle">Look up from</div>
         <button type="button" class="toolbarPlace" :aria-current="standingAtGeolocation ? 'location' : undefined" :disabled="locating" @click="lookUpFromHere">
           <!-- The spinner replaces the icon while the device's position comes back. -->
@@ -129,7 +130,6 @@
           <UIcon name="lucide:map-pin" class="toolbarPlace__icon" />
           <span class="toolbarPlace__label">{{ place.label }}</span>
         </button>
-        <!-- Every row waits for a fix in flight, which would otherwise move the view after a later tap. -->
         <button v-if="inSkyView" type="button" class="toolbarPlace toolbarPlace--leave" :disabled="locating" @click="leaveSkyView">
           <UIcon name="lucide:globe" class="toolbarPlace__icon" />
           <span class="toolbarPlace__label">Back to the globe</span>
@@ -226,6 +226,7 @@ import { availableStarMaps, BUILTIN_STAR_MAP, type StarMapName } from "../config
 import { type MapGroup, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, viewModeNote } from "../config/surfaceModels";
 import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "../config/viewModes";
 import { baseLayerNames, overlayLayerNames, terrainProviderNames } from "../modules/CesiumLayerProviders";
+import { stationLabel } from "../modules/GroundStationEntity";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
 import { GEOLOCATION } from "../modules/util/groundStationEdits";
 import { UNSEEN_MODES, type UnseenMode } from "../modules/util/visibility";
@@ -350,9 +351,7 @@ const { pending: locating, locate } = useGeolocation();
 
 /** Every station but Geolocation, which My location stands for, by its index in the list. */
 const skyPlaces = computed(() =>
-  groundStations.value.flatMap((station, index) =>
-    station.name === GEOLOCATION ? [] : [{ index, label: station.name || `${station.lat.toFixed(2)}, ${station.lon.toFixed(2)}` }],
-  ),
+  groundStations.value.flatMap((station, index) => (station.name === GEOLOCATION ? [] : [{ index, label: stationLabel(station.name, station.lat, station.lon) }])),
 );
 const standingAtGeolocation = computed(() => inSkyView.value && groundStations.value[observerStation.value]?.name === GEOLOCATION);
 
