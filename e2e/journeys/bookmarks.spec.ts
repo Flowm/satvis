@@ -23,18 +23,27 @@ test("back to the default view, back to the link, and keep it", async ({ page })
   await expect(opened).toContainText("5 Oct, 11:00 UTC");
 
   // Shared through the system's sheet where there is one, copied where there is none.
-  const share = opened.getByRole("button", { name: "Share Science satellites" });
+  const actions = opened.getByRole("button", { name: "Actions for Science satellites" });
+  const share = async () => {
+    await actions.click();
+    await page.getByRole("menuitem", { name: "Share" }).click();
+  };
+  // Escape closes the menu, not the panel under it.
+  await actions.click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toBeHidden();
+  await expect(actions).toBeFocused();
   const link = { origin: new URL(page.url()).origin, pathname: "/", params: Object.fromEntries(new URLSearchParams(LINK)) };
   const read = (url?: string) => url && { origin: new URL(url).origin, pathname: new URL(url).pathname, params: Object.fromEntries(new URL(url).searchParams) };
   await page.evaluate(() => {
     navigator.canShare = () => true;
     navigator.share = async (data) => void (document.body.dataset.shared = data?.url);
   });
-  await share.click();
+  await share();
   await expect.poll(async () => read(await page.evaluate(() => document.body.dataset.shared))).toEqual(link);
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.evaluate(() => (navigator.canShare = () => false));
-  await share.click();
+  await share();
   await expect(toasts(page, "Link copied")).toBeVisible();
   await expect.poll(async () => read(await page.evaluate(() => navigator.clipboard.readText()))).toEqual(link);
 
@@ -63,7 +72,8 @@ test("back to the default view, back to the link, and keep it", async ({ page })
   // Saved from Recent, the name opens with the footer's button saving it, not a new bookmark.
   const name = panel.getByLabel("Bookmark name");
   const save = panel.getByRole("button", { name: "Save this view" });
-  await opened.getByRole("button", { name: "Save Science satellites" }).click();
+  await actions.click();
+  await page.getByRole("menuitem", { name: "Save" }).click();
   await expect(panel.getByRole("tab", { name: /Saved/ })).toHaveAttribute("aria-selected", "true");
   await expect(name).toBeFocused();
   await expect(save).toBeHidden();

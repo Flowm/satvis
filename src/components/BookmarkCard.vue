@@ -1,48 +1,44 @@
 <!-- One bookmark: its picture, name, satellites and camera; the time on the picture. -->
 <template>
-  <div class="bookmarkCard" :class="{ 'bookmarkCard--current': current }">
-    <form v-if="renaming" class="bookmarkCard__rename" @submit.prevent="emit('commit')">
-      <img v-if="thumbnailUrl" :src="thumbnailUrl" alt="" class="bookmarkCard__thumb" />
-      <span v-else class="bookmarkCard__thumb bookmarkCard__thumb--none"><UIcon name="lucide:image-off" /></span>
-      <input
-        ref="nameInput"
-        :value="draft"
-        type="text"
-        aria-label="Bookmark name"
-        @input="emit('update:draft', ($event.target as HTMLInputElement).value)"
-        @keydown.esc.stop.prevent="emit('cancel')"
-        @blur="onBlur"
-      />
-    </form>
-    <button v-else type="button" class="bookmarkCard__open" :aria-current="current || undefined" @click="emit('open')">
-      <span class="bookmarkCard__media">
-        <img v-if="thumbnailUrl" :src="thumbnailUrl" alt="" class="bookmarkCard__thumb" loading="lazy" />
+  <UContextMenu v-model:open="pressMenuOpen" :items="actions" :disabled="renaming" :content="menuContent" :ui="menuUi" :size="menuSize">
+    <div class="bookmarkCard" :class="{ 'bookmarkCard--current': current }">
+      <form v-if="renaming" class="bookmarkCard__rename" @submit.prevent="emit('commit')">
+        <img v-if="thumbnailUrl" :src="thumbnailUrl" alt="" class="bookmarkCard__thumb" />
         <span v-else class="bookmarkCard__thumb bookmarkCard__thumb--none"><UIcon name="lucide:image-off" /></span>
-        <span class="bookmarkCard__badge bookmarkCard__badge--time" :class="{ 'bookmarkCard__badge--live': !summary.time }">{{ summary.time ?? "● Live" }}</span>
-        <span v-if="bookmark.kind === 'opened'" class="bookmarkCard__badge bookmarkCard__badge--age">{{ timeAgo(bookmark.at) }}</span>
-      </span>
-      <span class="bookmarkCard__name">{{ bookmark.name }}</span>
-      <span class="bookmarkCard__fact"><UIcon name="lucide:orbit" class="bookmarkCard__icon" />{{ summary.what }}</span>
-      <span class="bookmarkCard__fact"><UIcon :name="whereIcon" class="bookmarkCard__icon" />{{ summary.where }}</span>
-    </button>
-    <div v-if="!renaming" class="bookmarkCard__tools">
-      <button type="button" :aria-label="`Share ${bookmark.name}`" @click="emit('share')"><UIcon name="lucide:share" /></button>
-      <template v-if="bookmark.kind === 'saved'">
-        <button type="button" :aria-label="`Rename ${bookmark.name}`" @click="emit('rename')"><UIcon name="lucide:pencil" /></button>
-        <button type="button" :aria-label="`Delete ${bookmark.name}`" @click="emit('remove')"><UIcon name="lucide:trash-2" /></button>
-      </template>
-      <template v-else-if="bookmark.kind === 'opened'">
-        <button type="button" :aria-label="`Save ${bookmark.name}`" @click="emit('keep')"><UIcon name="lucide:bookmark-plus" /></button>
-        <button type="button" :aria-label="`Forget ${bookmark.name}`" @click="emit('remove')"><UIcon name="lucide:x" /></button>
-      </template>
+        <input
+          ref="nameInput"
+          :value="draft"
+          type="text"
+          aria-label="Bookmark name"
+          @input="emit('update:draft', ($event.target as HTMLInputElement).value)"
+          @keydown.esc.stop.prevent="emit('cancel')"
+          @blur="onBlur"
+        />
+      </form>
+      <button v-else type="button" class="bookmarkCard__open" :aria-current="current || undefined" @click="pressMenuOpen || emit('open')">
+        <span class="bookmarkCard__media">
+          <img v-if="thumbnailUrl" :src="thumbnailUrl" alt="" class="bookmarkCard__thumb" loading="lazy" />
+          <span v-else class="bookmarkCard__thumb bookmarkCard__thumb--none"><UIcon name="lucide:image-off" /></span>
+          <span class="bookmarkCard__badge bookmarkCard__badge--time" :class="{ 'bookmarkCard__badge--live': !summary.time }">{{ summary.time ?? "● Live" }}</span>
+          <span v-if="bookmark.kind === 'opened'" class="bookmarkCard__badge bookmarkCard__badge--age">{{ timeAgo(bookmark.at) }}</span>
+        </span>
+        <span class="bookmarkCard__name">{{ bookmark.name }}</span>
+        <span class="bookmarkCard__fact"><UIcon name="lucide:orbit" class="bookmarkCard__icon" />{{ summary.what }}</span>
+        <span class="bookmarkCard__fact"><UIcon :name="whereIcon" class="bookmarkCard__icon" />{{ summary.where }}</span>
+      </button>
+      <UDropdownMenu v-if="!renaming" :items="actions" :content="{ align: 'end', ...menuContent }" :ui="menuUi" :size="menuSize">
+        <button type="button" class="bookmarkCard__more" :aria-label="`Actions for ${bookmark.name}`"><UIcon name="lucide:ellipsis" /></button>
+      </UDropdownMenu>
     </div>
-  </div>
+  </UContextMenu>
 </template>
 
 <script setup lang="ts">
+import type { DropdownMenuItem } from "@nuxt/ui";
 import { computed, nextTick, ref, watch } from "vue";
 
 import { type Bookmark, type BookmarkSummary, timeAgo } from "../modules/util/bookmarks";
+import { DeviceDetect } from "../modules/util/DeviceDetect";
 
 /** `draft` is the name being typed, held by the panel, whose footer can save it too. */
 const props = defineProps<{ bookmark: Bookmark; summary: BookmarkSummary; current: boolean; renaming: boolean; draft: string }>();
@@ -56,6 +52,41 @@ const thumbnailUrl = computed(() => {
 
 /** The icon of the Sky, Globe or tracking camera. */
 const whereIcon = computed(() => (props.summary.where.startsWith("Sky") ? "lucide:telescope" : props.summary.where.startsWith("Following") ? "lucide:crosshair" : "lucide:globe"));
+
+/**
+ * The native app's actions, its labels, order and icons (BookmarksView.swift), behind "…" and, as
+ * there, a long press; a right click too.
+ */
+const actions = computed<DropdownMenuItem[]>(() => [
+  { label: "Share", icon: "lucide:share", onSelect: () => emit("share") },
+  ...(props.bookmark.kind === "saved"
+    ? [
+        { label: "Rename", icon: "lucide:pencil", onSelect: () => emit("rename") },
+        { label: "Delete", icon: "lucide:trash-2", color: "error" as const, onSelect: () => emit("remove") },
+      ]
+    : props.bookmark.kind === "opened"
+      ? [
+          { label: "Save", icon: "lucide:bookmark", onSelect: () => emit("keep") },
+          { label: "Forget", icon: "lucide:x", onSelect: () => emit("remove") },
+        ]
+      : []),
+]);
+
+/** The menu a long press opened, which the click of the finger lifting must leave open, not the bookmark. */
+const pressMenuOpen = ref(false);
+
+/** Rename and Save open the name, which the menu would otherwise take the focus back from. */
+const menuContent = {
+  onCloseAutoFocus: (event: Event) => {
+    if (props.renaming) {
+      event.preventDefault();
+    }
+  },
+};
+/** The menu on the panel's own surface; `dark` as `#app` is, which the menu is portalled out of. */
+const menuUi = { content: "dark bg-(--panel-surface)/95 text-(--panel-ink) ring-white/10" };
+/** Rows a finger can hit, as the native app's are. */
+const menuSize = DeviceDetect.hasTouch() ? "xl" : "md";
 
 const nameInput = ref<HTMLInputElement>();
 
@@ -155,9 +186,8 @@ function onBlur(event: FocusEvent): void {
   color: #8fe39b;
 }
 
-/* Above the time, clear of the tools, which on a phone span the picture's width. */
 .bookmarkCard__badge--age {
-  bottom: 26px;
+  top: 5px;
 }
 
 .bookmarkCard__name {
@@ -196,31 +226,30 @@ function onBlur(event: FocusEvent): void {
   font-size: 13px;
 }
 
-.bookmarkCard__tools {
+/* The native app's: 28 px round, its hit area 36. */
+.bookmarkCard__more {
   position: absolute;
-  top: 5px;
-  right: 5px;
-  display: flex;
-  gap: 3px;
-}
-
-.bookmarkCard__tools button {
+  top: 4px;
+  right: 4px;
   display: inline-flex;
-  padding: 4px;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   background: #000b;
   border: none;
-  border-radius: 6px;
-  color: var(--panel-ink);
+  border-radius: 50%;
+  color: #fff;
   cursor: pointer;
 }
 
-.bookmarkCard__tools button:focus-visible {
-  outline: 2px solid var(--panel-accent);
+.bookmarkCard__more::before {
+  position: absolute;
+  inset: -4px;
+  content: "";
 }
 
-@media (pointer: coarse) {
-  .bookmarkCard__tools button {
-    padding: 7px;
-  }
+.bookmarkCard__more:focus-visible {
+  outline: 2px solid var(--panel-accent);
 }
 </style>
