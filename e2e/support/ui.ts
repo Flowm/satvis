@@ -14,8 +14,8 @@ export async function openMenu(page: Page, entry: string): Promise<void> {
 /** Closes the menu panel titled `title` with its own close button. */
 export const closeMenuPanel = (page: Page, title: string) => page.getByRole("region", { name: title }).getByRole("button", { name: "Close panel" }).click();
 
-/** A labelled switch, radio or checkbox in a menu panel. */
-export const menuSwitch = (page: Page, label: string) => page.locator("label.toolbarSwitch", { hasText: new RegExp(`^\\s*${label}\\s*$`) });
+/** A labelled switch, radio or checkbox in a menu panel, or an option of a segmented control. */
+export const menuSwitch = (page: Page, label: string) => page.locator("label.toolbarSwitch, label.segments__option", { hasText: new RegExp(`^\\s*${label}\\s*$`) });
 
 /** A row of the Sky panel: My location, a station's name, or Back to the globe. */
 export const skyPlace = (page: Page, label: string) => page.getByRole("region", { name: "Sky" }).getByRole("button", { name: label, exact: true });

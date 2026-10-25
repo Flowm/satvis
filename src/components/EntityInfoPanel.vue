@@ -94,19 +94,7 @@
 
             <!-- Outside the empty branches: swath mode can empty the list, and the switch back must stay reachable. -->
             <div class="passes__bar">
-              <div class="modes" role="group" aria-label="Overpass calculation">
-                <button
-                  v-for="option in OVERPASS_MODES"
-                  :key="option.value"
-                  type="button"
-                  class="modes__option"
-                  :class="{ 'modes__option--on': overpassMode === option.value }"
-                  :aria-pressed="overpassMode === option.value"
-                  @click="overpassMode = option.value"
-                >
-                  {{ option.label }}
-                </button>
-              </div>
+              <segmented-control v-model="overpassMode" class="passes__modes" label="Overpass calculation" :options="OVERPASS_MODES" />
               <USwitch v-model="showPastPasses" label="Past" size="xs" />
             </div>
 
@@ -238,6 +226,7 @@ import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 import PassTimeline from "./PassTimeline.vue";
 import SatelliteModelView from "./SatelliteModelView.vue";
+import SegmentedControl from "./SegmentedControl.vue";
 
 const cc = useController();
 const toast = useToast();
@@ -604,40 +593,19 @@ function notifyForPasses(): void {
 }
 
 /* A pair rather than a switch: "Swath: off" is not what the other mode is called. */
-.modes {
-  display: flex;
-  overflow: hidden;
-  border: 1px solid #ffffff2b;
-  border-radius: 999px;
-}
-
-.modes__option {
-  padding: 1px 8px;
-  cursor: pointer;
-  color: #edffff90;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.modes__option:hover {
-  color: var(--panel-ink);
-}
-
-.modes__option--on {
-  background: #4caf5033;
-  color: var(--panel-ink);
+.passes__modes {
+  flex: 0 1 200px;
+  margin: 0;
 }
 
 .passes__bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin: 8px 0 6px;
   color: #edffff90;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 13px;
 }
 
 .section {
