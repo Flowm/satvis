@@ -1,5 +1,6 @@
 import Foundation
 import Metal
+import SatvisCore
 import simd
 
 /// Mirrors `ConeInstance` in Shaders/Footprints.msl.
@@ -10,8 +11,8 @@ struct ConeInstance {
 
 /// The ground overlay: a cube map around the Earth's centre into which the ground
 /// tracks are drawn, for the globe to sample by direction (Shaders/Footprints.msl).
-/// About 5 km a texel. Redrawn once a second of the clock, as the web app moves
-/// its corridors on a timer, or when the satellites change.
+/// About 5 km a texel. Redrawn once a second of the clock, or when the satellites
+/// change.
 @MainActor
 final class GroundOverlay {
     static let size = 2048
@@ -113,8 +114,8 @@ final class GroundOverlay {
     }
 
     /// Each satellite's ground track as triangles, in directions from the Earth's
-    /// centre: a corridor as wide as its swath along the great circle from its
-    /// subpoint now to its subpoint five minutes on.
+    /// centre: a corridor out to each edge of its swath along the great circle from
+    /// its subpoint now to its subpoint five minutes on.
     nonisolated static func corridors(_ satellites: [PointSatellite], at now: Double) -> [(Float, Float, Float)] {
         var vertices: [(Float, Float, Float)] = []
         for satellite in satellites {
@@ -124,28 +125,32 @@ final class GroundOverlay {
             else {
                 continue
             }
-            vertices += corridor(from: subpoint(start), to: subpoint(end), widthKm: footprint.swathKm)
+            vertices += corridor(from: subpoint(start), to: subpoint(end), starboardKm: footprint.swath.starboardKm, portKm: footprint.swath.portKm)
         }
         return vertices
     }
 
-    /// A corridor between two points on the ground, as triangles of directions.
-    nonisolated static func corridor(from start: SIMD3<Double>, to end: SIMD3<Double>, widthKm: Double, segments: Int = 4) -> [(Float, Float, Float)] {
+    /// A corridor between two points on the ground, as triangles of directions,
+    /// reaching `starboardKm` to the right of the way from `start` to `end` and
+    /// `portKm` to the left.
+    nonisolated static func corridor(from start: SIMD3<Double>, to end: SIMD3<Double>, starboardKm: Double, portKm: Double, segments: Int = 4) -> [(Float, Float, Float)] {
         let a = normalize(start)
         let b = normalize(end)
         let across = cross(a, b)
         guard length(across) > 1e-9 else {
             return []
         }
+        // To port: the start's direction crossed with the way on.
         let pole = normalize(across)
-        // Half the width as an angle at the mean radius, as the web app's corridor
-        // measures it on the ground.
-        let halfAngle = widthKm * 500 / 6_371_000
+        // Each side as an angle at the mean radius, as the web app's ribbon measures
+        // it on the ground.
+        let portAngle = portKm * 1000 / 6_371_000
+        let starboardAngle = starboardKm * 1000 / 6_371_000
         let angle = acos(min(max(dot(a, b), -1), 1))
         let edges = (0...segments).map { step -> (SIMD3<Double>, SIMD3<Double>) in
             let t = Double(step) / Double(segments)
             let centre = (sin((1 - t) * angle) * a + sin(t * angle) * b) / sin(angle)
-            return (centre * cos(halfAngle) + pole * sin(halfAngle), centre * cos(halfAngle) - pole * sin(halfAngle))
+            return (centre * cos(portAngle) + pole * sin(portAngle), centre * cos(starboardAngle) - pole * sin(starboardAngle))
         }
         func float(_ v: SIMD3<Double>) -> (Float, Float, Float) { (Float(v.x), Float(v.y), Float(v.z)) }
         var triangles: [(Float, Float, Float)] = []

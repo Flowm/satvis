@@ -79,6 +79,6 @@ final class SatelliteLayer {
         guard record.orbitClass == .leo else {
             return nil
         }
-        return Footprint(swathKm: (SwathExtents(metadata: record.metadata) ?? .default).widthKm, coneHalfAngleDegrees: record.metadata["coneFovDeg"]?.number ?? 10)
+        return Footprint(swath: SwathExtents(metadata: record.metadata) ?? .default, coneHalfAngleDegrees: record.metadata["coneFovDeg"]?.number ?? 10)
     }
 }
