@@ -30,6 +30,19 @@
             <UIcon :name="item.icon" class="menuColumn__icon" />
             <span class="menuColumn__label">{{ item.label }}</span>
           </button>
+          <about-dialog>
+            <!-- A link, not a button: it is the only reference crawlers find to /about, and middle-click opens the page. -->
+            <a
+              class="menuColumn__item"
+              href="/about"
+              aria-label="About"
+              title="What Satvis is, what it does, where its data comes from, and its credits"
+              @click.prevent="closeMenus"
+            >
+              <UIcon name="lucide:info" class="menuColumn__icon" />
+              <span class="menuColumn__label">About</span>
+            </a>
+          </about-dialog>
         </nav>
       </div>
       <!-- v-if: the cards' pictures load only when it opens. -->
@@ -197,7 +210,6 @@
       </toolbar-panel>
     </div>
     <div id="toolbarRight">
-      <about-dialog v-if="showUI" />
       <UTooltip :text="showUI ? 'Hide UI' : 'Show UI'">
         <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="showUI ? 'Hide UI' : 'Show UI'" @click="toggleUI">
           <UIcon :name="showUI ? 'lucide:eye' : 'lucide:eye-off'" />
