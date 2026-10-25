@@ -141,7 +141,7 @@
                 :def="def"
                 :items="itemsOf(def)"
                 :picked="sheet.pickedFacets[def.key]"
-                :top="full ? 10 : 6"
+                :top="full ? 10 : 8"
                 @toggle="sheet.toggle(def.key, $event)"
                 @clear="sheet.clearFacet(def.key)"
                 @toggle-open="open(def.key)"
@@ -299,7 +299,7 @@ const full = ref(false);
 /** Which half a phone shows; wider screens show both and ignore it. */
 const pane = ref<"charts" | "list">("charts");
 /** Px, the hero charts' height, taller in full screen. */
-const heroHeight = computed(() => (full.value ? 230 : 96));
+const heroHeight = computed(() => (full.value ? 230 : 120));
 
 /** Full screen hides the globe, so showing shrinks back to the sheet to reveal it. */
 function show(): void {
