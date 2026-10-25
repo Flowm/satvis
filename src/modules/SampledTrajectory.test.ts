@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import Orbit from "./Orbit";
 import { SampledTrajectory } from "./SampledTrajectory";
-import { drawablePositions } from "./util/drawablePositions";
 import { createSatrec, parseGpPayload, type GpRecord } from "./util/gp";
 import { InlineSampleSource, type SampleChunk, type TrajectorySampler } from "./util/sampleSource";
 
@@ -104,13 +103,15 @@ describe("SampledTrajectory", () => {
     expect(positions.at(-1)).toBe(positions[0]);
   });
 
-  test("groundTrack samples positions around the given time", async () => {
+  test("samplesBetween returns the raw samples in the span, with their times", async () => {
     const { trajectory } = issTrajectory();
     await trajectory.ensure(T0);
 
-    const track = trajectory.groundTrack(T0, 2, 1);
-    expect(track).toHaveLength(4);
-    expect(track.every((position) => position !== undefined)).toBe(true);
+    const { times, positions } = trajectory.samplesBetween(T0, JulianDate.addSeconds(T0, 600, new JulianDate()));
+    expect(times.length).toBeGreaterThan(5);
+    expect(positions).toHaveLength(times.length);
+    expect(JulianDate.secondsDifference(times[0]!, T0)).toBeGreaterThanOrEqual(0);
+    expect(JulianDate.secondsDifference(times.at(-1)!, T0)).toBeLessThanOrEqual(600);
   });
 
   // Callers see this from the position count alone; a degenerate pair stopped Cesium's
@@ -122,8 +123,7 @@ describe("SampledTrajectory", () => {
     const far = JulianDate.addSeconds(T0, periodSeconds * 100, new JulianDate());
 
     expect(trajectory.positionsForTrack(far).length).toBeLessThan(2);
-    // What the ground track's corridor is built from, via #groundTrackPositions.
-    expect(drawablePositions(trajectory.groundTrack(far)).length).toBeLessThan(2);
+    expect(trajectory.samplesBetween(far, JulianDate.addSeconds(far, 600, new JulianDate())).positions).toHaveLength(0);
   });
 
   test("the inertial frame is not sampled until something asks for it", async () => {

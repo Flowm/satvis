@@ -243,10 +243,11 @@ no more than one line.
   reading of them. `enableCollision` stays at Cesium's default `true`: with the globe
   hidden, the mesh is the only thing that stops the camera dropping through the
   ground.
-- **Ground-clamped overlays still work under the mesh.** Verified: the ground-track
-  corridor's `classificationType` defaults to `BOTH`, and with no globe depth it drapes
-  onto the tileset, following the street and occluded by the buildings. Where the mesh
-  has no coverage there is nothing to drape on, and no globe either.
+- **The ground track does not drape onto the mesh.** The ground-clamped corridor did:
+  its `classificationType` defaulted to `BOTH`, and with no globe depth it followed the
+  street, occluded by the buildings. Since October 2026 it is a ribbon 3 km above the
+  ellipsoid, clipped to the clock in its shader (`GroundTrackBatch`), which a clamped
+  primitive's shaders cannot carry; it is drawn above the mesh.
 - **Ground-station pins are clamped.** Stations are placed at height 0, so the pin sat
   below any real surface. That was already wrong under terrain; the mesh made it
   obvious.

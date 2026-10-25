@@ -236,16 +236,17 @@ export class SampledTrajectory {
     return drawablePositions([this.position(start), ...this.#positionsBetween(start, end)]);
   }
 
-  groundTrack(julianDate: JulianDate, samplesFwd = 1, samplesBwd = 0, interval = 300): (Cartesian3 | undefined)[] {
-    const groundTrack: (Cartesian3 | undefined)[] = [];
-
-    const startTime = -samplesBwd * interval;
-    const stopTime = samplesFwd * interval;
-    for (let time = startTime; time <= stopTime; time += interval) {
-      const timestamp = JulianDate.addSeconds(julianDate, time, new JulianDate());
-      groundTrack.push(this.position(timestamp));
+  /** The raw fixed-frame samples from `start` to `end`, for the ground track's ribbon. */
+  samplesBetween(start: JulianDate, end: JulianDate): { times: JulianDate[]; positions: Cartesian3[] } {
+    if (this.#gridUsable && this.#gridFixed.length > 0) {
+      return this.#gridFixed.samplesBetween(start, end);
     }
-    return groundTrack;
+    const fixed = this.#data?.fixed;
+    if (!fixed) {
+      return { times: [], positions: [] };
+    }
+    const { times, values } = fixed.getRawSamples(start, end);
+    return { times, positions: values as Cartesian3[] };
   }
 
   /**

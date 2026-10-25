@@ -9,20 +9,18 @@ import {
   Cartesian3,
   Color,
   ColorGeometryInstanceAttribute,
-  CornerType,
   DistanceDisplayCondition,
   GeometryInstance,
   type JulianDate,
   NearFarScalar,
   PerspectiveFrustum,
   PolylineGeometry,
+  TimeInterval,
 } from "@cesium/core";
 import {
   CallbackProperty,
   ConstantProperty,
-  CorridorGraphics,
   Entity,
-  HeightReference,
   HorizontalOrigin,
   LabelGraphics,
   LabelStyle,
@@ -41,22 +39,30 @@ import CesiumSensorVolumes from "cesium-sensor-volumes";
 import type { SATELLITE_COMPONENTS } from "../config/components";
 import { defaultViewDistance } from "../config/defaultView";
 import { ORBIT_CLASS_COLOR, type OrbitClass } from "../config/orbitClass";
-import { coneDescription, coneOrientation, groundTrackDescription, modelUrl, orbitPathTimes, orbitTrackTimes, orbitUsesPathGraphic } from "./satelliteGraphics";
+import { coneDescription, coneOrientation, groundTrackSwath, modelUrl, orbitPathTimes, orbitTrackTimes, orbitUsesPathGraphic } from "./satelliteGraphics";
 import type { SatelliteProperties } from "./SatelliteProperties";
 import { drawable } from "./util/drawablePositions";
+import { GroundTrack, type GroundTrackBatch } from "./util/GroundTrackBatch";
 import type { PolylineBatch } from "./util/PolylineBatch";
 
-/** A GeometryInstance when merged into a shared orbit batch. */
-export type Component = Entity | GeometryInstance;
+/** A GeometryInstance when merged into a shared orbit batch, a GroundTrack in the ground-track batch. */
+export type Component = Entity | GeometryInstance | GroundTrack;
 
 export type ComponentName = (typeof SATELLITE_COMPONENTS)[number];
 
-/** The shared polyline batches a satellite draws its orbit lines into. */
+/** The shared batches a satellite draws its orbit lines and its ground track into. */
 export interface SatelliteBatches {
   /** Inertial: the Orbit component's closed ellipse. */
   orbits: PolylineBatch;
   /** Fixed: the Orbit track component's Earth-relative path. */
   tracks: PolylineBatch;
+  groundTracks: GroundTrackBatch;
+}
+
+/** A shared batch, which draws the components it holds. */
+export interface ComponentBatch {
+  add(component: Component): void;
+  remove(component: Component): void;
 }
 
 /** How the sky view draws a satellite by its visibility (CONTEXT.md); "normal" outside it. */
@@ -81,8 +87,8 @@ export interface ComponentHost {
 export interface ComponentKind {
   /** Undefined when the satellite cannot draw it: no model file, not LEO, too few positions. */
   create(host: ComponentHost): Component | undefined;
-  /** The batch a GeometryInstance of this kind is drawn into. */
-  batch?(host: ComponentHost): PolylineBatch;
+  /** The batch a component of this kind that is no Entity is drawn into. */
+  batch?(host: ComponentHost): ComponentBatch;
   /**
    * Binds the component to the trajectory's current properties, once on creation and
    * after every top-up (`refilled`). "recreate" when it cannot follow in place, "recut"
@@ -93,8 +99,6 @@ export interface ComponentKind {
   recut?(component: Component, host: ComponentHost, time: JulianDate): Component;
   /** Whether the component still suits the scene mode and the tracking, else it is recreated. */
   fits?(component: Component, host: ComponentHost): boolean;
-  /** Whether the drawn component has caught up with its last positions; undefined if it cannot say. */
-  settled?(component: Component, host: ComponentHost): boolean | undefined;
   /** Applies `host.skyAppearance`: on creation unless it is "normal", and on every change. */
   appear?(component: Component, host: ComponentHost): void;
 }
@@ -164,18 +168,6 @@ function boundingSphereLookup(viewer: Viewer): BoundingSphereLookup | undefined 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const display = viewer.dataSourceDisplay as any;
   return typeof display?.getBoundingSphere === "function" ? (display.getBoundingSphere.bind(display) as BoundingSphereLookup) : undefined;
-}
-
-let reportedMissingBoundingSphere = false;
-
-const settledScratch = new BoundingSphere();
-
-function reportMissingBoundingSphere(): void {
-  if (reportedMissingBoundingSphere) {
-    return;
-  }
-  reportedMissingBoundingSphere = true;
-  console.error("Cesium DataSourceDisplay has no getBoundingSphere; pacing ground tracks on a fixed schedule instead. Cesium internals have moved — see groundTrackSettled.");
 }
 
 /** How large a satellite's 3D model is drawn, which its point, label and tracking defer to. */
@@ -309,14 +301,6 @@ function polylineInstance(positions: Cartesian3[], color: Color, id: string): Ge
 function orbitTrackInstance(host: ComponentHost, time: JulianDate): GeometryInstance | undefined {
   const positions = drawable(host.props.trajectory.positionsForTrack(time));
   return positions && polylineInstance(positions, Color.GOLD.withAlpha(0.15), host.props.name);
-}
-
-/**
- * Outside the sample window `GridPositionProperty` clamps to the edge sample, so the
- * duplicates `drawable` drops do arrive.
- */
-function groundTrackPositions(host: ComponentHost, time: JulianDate): Cartesian3[] | undefined {
-  return drawable(host.props.trajectory.groundTrack(time));
 }
 
 /** Keyed by the config list, so a component without a kind is a compile error. */
@@ -457,49 +441,21 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
     fits: fitsDrawing,
   },
 
-  /**
-   * Constant positions re-assigned by `recut`, not a CallbackProperty: a non-constant
-   * property puts the corridor on Cesium's dynamic-geometry path, which re-tessellates
-   * every frame at about 90 µs per corridor.
-   */
+  /** A ribbon in the shared GroundTrackBatch, whose shader clips it to the clock every frame. */
   "Ground track": {
     create: (host) => {
-      const description = groundTrackDescription(host.props.orbitClass, host.props.swath);
-      const positions = description && groundTrackPositions(host, host.viewer.clock.currentTime);
-      if (!description || !positions) {
+      const swath = groundTrackSwath(host.props.orbitClass, host.props.swathExtents);
+      const interval = host.props.trajectory.interval;
+      if (!swath || !interval || !TimeInterval.contains(interval, host.viewer.clock.currentTime)) {
         return undefined;
       }
-      const corridor = new CorridorGraphics({
-        cornerType: CornerType.MITERED,
-        height: 1000,
-        heightReference: HeightReference.CLAMP_TO_GROUND,
-        material: Color.DARKRED.withAlpha(0.25),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        positions: positions as any,
-        width: description.widthMeters,
-      });
-      return atSatellite(host, "corridor", corridor);
+      return new GroundTrack(host.props.name, host.props.trajectory, swath);
     },
-    bind: bindAtSatellite,
-    recut: (component, host, time) => {
-      const positions = component instanceof Entity && component.corridor ? groundTrackPositions(host, time) : undefined;
-      if (component instanceof Entity && component.corridor && positions) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        component.corridor.positions = positions as any;
+    batch: (host) => host.batches.groundTracks,
+    bind: (component, host, refilled) => {
+      if (refilled && component instanceof GroundTrack) {
+        host.batches.groundTracks.refilled(component);
       }
-      return component;
-    },
-    /** That private Cesium method reports PENDING while the batch primitive is unfinished. */
-    settled: (component, host) => {
-      if (!(component instanceof Entity) || !component.corridor) {
-        return undefined;
-      }
-      const lookup = boundingSphereLookup(host.viewer);
-      if (!lookup) {
-        reportMissingBoundingSphere();
-        return undefined;
-      }
-      return lookup(component, false, settledScratch) !== BOUNDING_SPHERE_PENDING;
     },
   },
 

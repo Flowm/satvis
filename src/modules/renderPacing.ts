@@ -44,8 +44,8 @@ const RECOMPUTE_MS = 250;
 const CAMERA_RECOMPUTE_MS = 50;
 
 /**
- * The components the bound covers. Any other keeps the floor: ground tracks are rebuilt in
- * workers that Cesium advances only on rendered frames, and links are drawn across the view.
+ * The components the bound covers. Any other keeps the floor: ground tracks lie on the
+ * ground, nearer the camera than the shell the bound measures, and links are drawn across the view.
  * Of the sessions in October 2026, about 97% drew only these.
  */
 const PACED_COMPONENTS = new Set(["Point", "Label", "Orbit", "Orbit track", "Sensor cone", "3D model"]);

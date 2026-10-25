@@ -8,6 +8,7 @@ import type { GroundStation } from "./PassPredictor";
 import { CatalogEntry } from "./SatelliteCatalog";
 import { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { parseGpPayload, type GpRecord } from "./util/gp";
+import { GroundTrackBatch } from "./util/GroundTrackBatch";
 import { InlinePassSource } from "./util/passSource";
 import { PolylineBatch } from "./util/PolylineBatch";
 import { InlineSampleSource } from "./util/sampleSource";
@@ -32,6 +33,7 @@ function fakeViewer() {
     },
     scene: {
       requestRender: () => {},
+      preRender: { addEventListener: () => () => {} },
       primitives: { add: () => {}, remove: () => true },
       mode: 3,
       // A desktop window: Cesium's 60° is then the horizontal angle.
@@ -89,7 +91,7 @@ async function setup({ modelFile = "ISS-(ZARYA).glb" }: { modelFile?: string | n
   const entry = new CatalogEntry({ key: "25544|ISS", name: "ISS", nameUpper: "ISS", satnum: "25544", tags: [], record });
   const sampler = new InlineSampleSource().samplerFor(entry.satnum, entry.record);
   const predictor = new InlinePassSource().predictorFor(entry.satnum, entry.record);
-  const batches = { orbits: new PolylineBatch(viewer, "inertial"), tracks: new PolylineBatch(viewer, "fixed") };
+  const batches = { orbits: new PolylineBatch(viewer, "inertial"), tracks: new PolylineBatch(viewer, "fixed"), groundTracks: new GroundTrackBatch(viewer) };
   const nowMs = JulianDate.toDate(viewer.clock.currentTime).getTime();
   const opening = (await sampler.samples(nowMs - 3600_000, nowMs + 3600_000))!;
   const sat = new SatelliteComponentCollection(viewer, entry, batches, sampler, predictor, opening);
@@ -169,7 +171,7 @@ describe("SatelliteComponentCollection lifetime", () => {
   });
 });
 
-describe("SatelliteComponentCollection lines and corridors", () => {
+describe("SatelliteComponentCollection lines and ground tracks", () => {
   beforeEach(() => {
     // The ICRF transform needs async-loaded IAU data that Node lacks.
     vi.spyOn(Transforms, "computeFixedToIcrfMatrix").mockImplementation(() => Matrix3.clone(Matrix3.IDENTITY));

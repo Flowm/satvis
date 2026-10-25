@@ -13,6 +13,7 @@ import { PolylineColorAppearance, Primitive, SceneMode, Transforms } from "@cesi
 import type { Viewer } from "@cesium/widgets";
 
 import { CesiumCallbackHelper } from "./CesiumCallbackHelper";
+import { driveBuild } from "./driveBuild";
 
 /** Ticks to coalesce over, so a hundred satellites arriving cost one rebuild. */
 const COALESCE_TICKS = 30;
@@ -23,17 +24,6 @@ const FRAME_UPDATE_SECONDS = 0.5;
 export type BatchFrame = "inertial" | "fixed";
 
 export class PolylineBatch {
-  /** Report once, not on every tick. */
-  static #reportedMissingState = false;
-
-  static #reportMissingState(): void {
-    if (PolylineBatch.#reportedMissingState) {
-      return;
-    }
-    PolylineBatch.#reportedMissingState = true;
-    console.error("Cesium Primitive has no _state; driving it every tick instead. Cesium internals have moved — see PolylineBatch.");
-  }
-
   #viewer: Viewer;
 
   readonly #frame: BatchFrame;
@@ -147,41 +137,25 @@ export class PolylineBatch {
       appearance: new PolylineColorAppearance(),
     });
 
-    // Drive the creation states by hand, so the finished primitive replaces the old
-    // one in a single frame, with no gap.
-    let lastState = -1;
-    const readyCallback = this.#viewer.clock.onTick.addEventListener(() => {
-      if (!primitive.ready) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const state = (primitive as any)._state;
-        if (state === undefined) {
-          // `_state` is Cesium-internal. Without it, `update` would run once and
-          // `#building` would stick, silently hanging every scene morph. Report it and
-          // drive the primitive anyway.
-          PolylineBatch.#reportMissingState();
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (primitive as any).update(this.#viewer.scene.frameState);
-          return;
-        }
-        if (state !== lastState) {
-          lastState = state;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (primitive as any).update(this.#viewer.scene.frameState);
-        }
-        return;
-      }
-      // Oriented before it goes in, so it is never drawn a frame behind.
-      this.#orient(primitive, this.#viewer.clock.currentTime);
-      this.#clear();
-      this.#viewer.scene.primitives.add(primitive);
-      this.#primitive = primitive;
-      this.#viewer.scene.requestRender();
-      this.#building = false;
-      readyCallback();
-      if (!this.pending) {
-        this.#resolveSettled();
-      }
+    driveBuild(this.#viewer, primitive, {
+      ready: () => {
+        // Oriented before it goes in, so it is never drawn a frame behind.
+        this.#orient(primitive, this.#viewer.clock.currentTime);
+        this.#clear();
+        this.#viewer.scene.primitives.add(primitive);
+        this.#primitive = primitive;
+        this.#viewer.scene.requestRender();
+        this.#finished();
+      },
+      failed: () => this.#finished(),
     });
+  }
+
+  #finished(): void {
+    this.#building = false;
+    if (!this.pending) {
+      this.#resolveSettled();
+    }
   }
 
   #applyInertialFrame(time: JulianDate): void {

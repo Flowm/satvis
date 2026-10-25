@@ -7,7 +7,7 @@ import {
   cesiumSceneMode,
   coneDescription,
   coneOrientation,
-  groundTrackDescription,
+  groundTrackSwath,
   isLeo,
   modelUrl,
   orbitPathTimes,
@@ -42,13 +42,13 @@ describe("orbit path times", () => {
   });
 });
 
-describe("groundTrackDescription", () => {
-  test("converts the swath width to meters", () => {
-    expect(groundTrackDescription("LEO", 290)).toEqual({ widthMeters: 290000 });
+describe("groundTrackSwath", () => {
+  test("keeps each side's extent, in metres", () => {
+    expect(groundTrackSwath("LEO", { starboardKm: 200, portKm: 90 })).toEqual({ starboardMeters: 200000, portMeters: 90000 });
   });
 
   test("is unavailable for non-LEO satellites", () => {
-    expect(groundTrackDescription("GEO", 290)).toBeUndefined();
+    expect(groundTrackSwath("GEO", { starboardKm: 145, portKm: 145 })).toBeUndefined();
   });
 });
 

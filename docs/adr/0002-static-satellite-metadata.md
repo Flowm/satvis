@@ -51,21 +51,14 @@ footprints), and JSON cannot carry a comment.
 - **`/api/metadata.json` is gone**, with the browser-side matcher, the revision
   counter and the per-entry memo.
 
-## The rendered swath and the predicted swath disagree
+## The rendered swath and the predicted swath agree
 
-Pass containment uses the two sides separately. The ground track does not: it stays
-a Cesium corridor of one width, `starboard + port`, centred on the track. So for
-Sentinel-3A/B the corridor extends 750 km per side while passes use +1000/−500, and
-a station inside the corridor on the port side gets no pass.
-
-This is deliberate. Drawing it correctly needs a polygon with per-side vertex
-offsets, a change to `Orbit`, `satelliteGraphics` and
-`SatelliteComponentCollection` that is separate from getting the data right. Only two
-satellites are affected, the corridor is within 250 km of truth on each side, and
-the pass list, which people act on, is correct. The corridor is for orientation.
-
-Revisit when a third asymmetric satellite appears, or when someone reports a missing
-pass.
+Pass containment uses the two sides separately, and so does the ground track: its
+ribbon is offset by each side's own extent (`src/modules/util/groundTrackRibbon.ts`).
+Until October 2026 it was a Cesium corridor of one width, `starboard + port`, centred
+on the track, so for Sentinel-3A/B it reached 750 km per side while passes used
++1000/−500. That was accepted as orientation only; the ribbon that replaced the
+corridor to stop the track lagging the satellite took the per-side offsets with it.
 
 ## Why containment compares distance, not cross-track offset
 

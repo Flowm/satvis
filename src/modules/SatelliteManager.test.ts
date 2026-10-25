@@ -21,7 +21,7 @@ function fakeViewer() {
   };
   const viewer = {
     clock: { currentTime: JulianDate.fromIso8601("2018-12-08T00:00:00Z"), shouldAnimate: false, onTick: listeners() },
-    scene: { requestRender: () => {}, primitives: { add: () => {}, remove: () => true }, postRender: listeners(), mode: 3 },
+    scene: { requestRender: () => {}, primitives: { add: () => {}, remove: () => true }, preRender: listeners(), postRender: listeners(), mode: 3 },
     camera: { cancelFlight: () => {} },
     entities: { add: (e: unknown) => entities.add(e) && e, remove: (e: unknown) => entities.delete(e), contains: (e: unknown) => entities.has(e), size: () => entities.size },
     selectedEntity: undefined,
