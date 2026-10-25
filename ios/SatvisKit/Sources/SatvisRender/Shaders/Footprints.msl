@@ -1,5 +1,5 @@
 // What a satellite's sensor covers, as the web app draws it for low orbits: the
-// ground track, a corridor as wide as the swath from the subpoint now to where it
+// ground track, a corridor out to each swath edge from the subpoint now to where it
 // will be in five minutes, dark red at 25 %; and the sensor cone, gold at 15 %, a
 // kilometre-long cone around nadir with a gold line where it meets the ground.
 //
@@ -34,7 +34,7 @@ vertex OverlayOut overlayVertex(uint vid [[vertex_id]], const device packed_floa
 }
 
 /// Each corridor covers a quarter more of what is under it, as the web app's
-/// translucent corridors darken where they overlap.
+/// translucent ribbons darken where they overlap.
 fragment float4 overlayFragment(OverlayOut in [[stage_in]]) {
     return float4(0.25);
 }

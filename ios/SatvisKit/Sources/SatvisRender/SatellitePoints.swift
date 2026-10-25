@@ -29,13 +29,13 @@ public struct PointSatellite: Sendable {
 
 /// What a satellite's sensor sees, for its ground track and its sensor cone.
 public struct Footprint: Sendable, Hashable {
-    /// The ground track's width: both sides of the swath together, in km.
-    public var swathKm: Double
+    /// How far the ground track reaches either side of the flight direction.
+    public var swath: SwathExtents
     /// The sensor cone's half angle, in degrees.
     public var coneHalfAngleDegrees: Double
 
-    public init(swathKm: Double, coneHalfAngleDegrees: Double) {
-        self.swathKm = swathKm
+    public init(swath: SwathExtents, coneHalfAngleDegrees: Double) {
+        self.swath = swath
         self.coneHalfAngleDegrees = coneHalfAngleDegrees
     }
 }

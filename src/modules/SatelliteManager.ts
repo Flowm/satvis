@@ -13,6 +13,7 @@ import { cancelPendingTrack, returnAfterTracking } from "./trackFlight";
 import { CesiumCleanupHelper } from "./util/CesiumCleanupHelper";
 import { sameValue } from "./util/equality";
 import { approximatePeriodMinutes, type GpRecord } from "./util/gp";
+import { GroundTrackBatch } from "./util/GroundTrackBatch";
 import { type PassSource, WorkerPassSource } from "./util/passSource";
 import { PolylineBatch } from "./util/PolylineBatch";
 import { type SampleChunk, type SampleSource, type SampleSourceStats, WorkerSampleSource } from "./util/sampleSource";
@@ -83,6 +84,9 @@ export class SatelliteManager {
   /** The same for the Orbit track, which is Earth-fixed and needs its own model matrix. */
   readonly tracks: PolylineBatch;
 
+  /** Every ground track, clipped to the clock in its shader. */
+  readonly groundTracks: GroundTrackBatch;
+
   /** Keyed by catalog entry key. Only entries in the activation target have a collection. */
   #active = new Map<string, SatelliteComponentCollection>();
 
@@ -92,9 +96,6 @@ export class SatelliteManager {
   #pendingSelection: string | undefined;
 
   readonly #recuts: RecutSchedule;
-
-  /** The satellite asked whether the corridor batch has caught up. */
-  #groundTrackProbe: string | undefined;
 
   readonly #samples: SampleSource;
 
@@ -126,6 +127,7 @@ export class SatelliteManager {
     this.#passes = sources.passes ?? new WorkerPassSource();
     this.orbits = new PolylineBatch(viewer, "inertial");
     this.tracks = new PolylineBatch(viewer, "fixed");
+    this.groundTracks = new GroundTrackBatch(viewer);
     this.#recuts = new RecutSchedule(viewer.clock.currentTime);
     viewer.clock.onTick.addEventListener(() => {
       this.#refreshDerivedGeometry(viewer.clock.currentTime);
@@ -299,48 +301,14 @@ export class SatelliteManager {
     });
   }
 
-  /** Re-cut the orbit tracks and ground-track corridors as simulation time passes (RecutSchedule). */
+  /** Re-cut the orbit tracks as simulation time passes (RecutSchedule). */
   #refreshDerivedGeometry(time: JulianDate): void {
-    const due = this.#recuts.tick(time, {
-      count: this.#active.size,
-      tracksPending: this.tracks.pending,
-      groundTracksSettled: () => this.#groundTracksSettled(),
-    });
-    if (!due.tracks && !due.groundTracks) {
+    if (!this.#recuts.tick(time, { count: this.#active.size, tracksPending: this.tracks.pending })) {
       return;
     }
     for (const sat of this.#active.values()) {
-      if (due.tracks) {
-        sat.recut("Orbit track", time);
-      }
-      if (due.groundTracks) {
-        sat.recut("Ground track", time);
-      }
+      sat.recut("Orbit track", time);
     }
-  }
-
-  /**
-   * Whether the corridors have caught up with their last positions; undefined when no
-   * satellite can answer. One satellite answers for all, since every corridor is in one
-   * batch primitive; it is remembered to avoid walking the activation each frame.
-   */
-  #groundTracksSettled(): boolean | undefined {
-    const remembered = this.#groundTrackProbe === undefined ? undefined : this.#active.get(this.#groundTrackProbe)?.groundTrackSettled();
-    if (remembered !== undefined) {
-      return remembered;
-    }
-    if (!this.#effectiveComponents().includes("Ground track")) {
-      return true;
-    }
-    for (const [key, sat] of this.#active) {
-      const settled = sat.groundTrackSettled();
-      if (settled !== undefined) {
-        this.#groundTrackProbe = key;
-        return settled;
-      }
-    }
-    this.#groundTrackProbe = undefined;
-    return undefined;
   }
 
   #reconcileActive(): void {
@@ -472,7 +440,7 @@ export class SatelliteManager {
     const sat = new SatelliteComponentCollection(
       this.viewer,
       entry,
-      { orbits: this.orbits, tracks: this.tracks },
+      { orbits: this.orbits, tracks: this.tracks, groundTracks: this.groundTracks },
       this.#samples.samplerFor(entry.satnum, entry.record),
       this.#passes.predictorFor(entry.satnum, entry.record),
       chunk,

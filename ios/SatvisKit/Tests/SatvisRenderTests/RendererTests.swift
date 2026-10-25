@@ -151,7 +151,7 @@ import simd
         // A corridor across `direction`, 200 km wide.
         let centre = normalize(direction)
         let along = normalize(cross(centre, SIMD3(0, 0, 1) + SIMD3(0.3, 0, 0)))
-        let vertices = GroundOverlay.corridor(from: centre - 0.01 * along, to: centre + 0.01 * along, widthKm: 200)
+        let vertices = GroundOverlay.corridor(from: centre - 0.01 * along, to: centre + 0.01 * along, starboardKm: 100, portKm: 100)
         let buffer = try #require(vertices.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) })
         let commands = try #require(queue.makeCommandBuffer())
         overlay.drawForTest(commands, pipeline: pipeline, vertices: buffer, count: vertices.count)

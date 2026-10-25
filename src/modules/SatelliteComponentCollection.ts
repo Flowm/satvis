@@ -1,4 +1,4 @@
-import { Cartesian3, GeometryInstance, JulianDate } from "@cesium/core";
+import { Cartesian3, JulianDate } from "@cesium/core";
 import { CallbackProperty, Camera, Entity, EntityView, type Scene, SceneMode, VelocityOrientationProperty } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
@@ -238,7 +238,7 @@ export class SatelliteComponentCollection implements ComponentHost {
     const component = this.#components[name];
     if (component instanceof Entity) {
       this.viewer.entities.remove(component);
-    } else if (component instanceof GeometryInstance) {
+    } else if (component) {
       componentKind(name)?.batch?.(this).remove(component);
     }
     delete this.#components[name];
@@ -358,12 +358,6 @@ export class SatelliteComponentCollection implements ComponentHost {
     if (component && recut) {
       this.#components[name] = recut(component, this, time);
     }
-  }
-
-  /** Whether the ground track has caught up with its last positions; undefined without one or without Cesium's answer. */
-  groundTrackSettled(): boolean | undefined {
-    const component = this.#components["Ground track"];
-    return component && componentKind("Ground track")?.settled?.(component, this);
   }
 
   /** The station of the pass containing `time`, else the first station. */

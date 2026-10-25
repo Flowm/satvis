@@ -1,4 +1,4 @@
-import { Cartesian3, CorridorGeometry, Math as CesiumMath, PolylineGeometry } from "@cesium/core";
+import { Cartesian3, Math as CesiumMath, PolylineGeometry } from "@cesium/core";
 import { describe, expect, test } from "vitest";
 
 import { drawablePositions } from "./drawablePositions";
@@ -51,14 +51,6 @@ describe("drawablePositions", () => {
 describe("what Cesium does with the positions this module rejects", () => {
   const KM = 200000;
   const along = Cartesian3.add(SURFACE, new Cartesian3(0, KM, 0), new Cartesian3());
-
-  test("a corridor from two of a point builds nothing", () => {
-    const degenerate = CorridorGeometry.createGeometry(new CorridorGeometry({ positions: [SURFACE, SURFACE], width: 10000 }));
-    expect(degenerate).toBeUndefined();
-
-    const real = CorridorGeometry.createGeometry(new CorridorGeometry({ positions: [SURFACE, along], width: 10000 }));
-    expect(real).toBeDefined();
-  });
 
   test("a polyline from two of a point builds nothing", () => {
     const degenerate = PolylineGeometry.createGeometry(new PolylineGeometry({ positions: [SURFACE, SURFACE], width: 2 }));

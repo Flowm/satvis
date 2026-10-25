@@ -3,6 +3,8 @@ import type { Cartesian3, Quaternion } from "@cesium/core";
 import { SceneMode } from "@cesium/engine";
 
 import type { OrbitClass } from "../config/orbitClass";
+import type { SwathExtents } from "../config/satelliteMetadata";
+import type { RibbonSwath } from "./util/groundTrackRibbon";
 
 // Pure geometry decisions for the satellite components, testable without a Cesium scene.
 
@@ -30,15 +32,12 @@ export function orbitTrackTimes(orbitalPeriodMin: number): OrbitPathTimes {
   return { leadTime: orbitalPeriodMin * 60, trailTime: 0 };
 }
 
-export interface GroundTrackDescription {
-  widthMeters: number;
-}
-
-export function groundTrackDescription(orbitClass: OrbitClass, swathKm: number): GroundTrackDescription | undefined {
+/** Each side's extent in metres; undefined off LEO. */
+export function groundTrackSwath(orbitClass: OrbitClass, swath: SwathExtents): RibbonSwath | undefined {
   if (!isLeo(orbitClass)) {
     return undefined;
   }
-  return { widthMeters: swathKm * 1000 };
+  return { starboardMeters: swath.starboardKm * 1000, portMeters: swath.portKm * 1000 };
 }
 
 export interface ConeDescription {
@@ -104,10 +103,9 @@ export const GEOMETRY_REFRESH_MIN_SECONDS = 1;
 export const GEOMETRY_REFRESH_MAX_SECONDS = 10;
 
 /**
- * Re-cut interval for the batched orbit tracks and ground-track corridors. The
- * satellite runs ahead of its geometry at about 7.5 km/s in LEO until the next
- * re-cut. At 5,000 orbit tracks, 3 s instead of 10 s took the worst frame from
- * 43 ms to 250 ms.
+ * Re-cut interval for the batched orbit tracks. The satellite runs ahead of its
+ * geometry at about 7.5 km/s in LEO until the next re-cut. At 5,000 orbit tracks,
+ * 3 s instead of 10 s took the worst frame from 43 ms to 250 ms.
  */
 export function geometryRefreshSeconds(count: number): number {
   return Math.min(GEOMETRY_REFRESH_MAX_SECONDS, Math.max(GEOMETRY_REFRESH_MIN_SECONDS, count / 100));
