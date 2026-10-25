@@ -53,18 +53,26 @@ private enum PanelEdge {
 /// The button: on the panel, its corners 12 points round, growing and lit while
 /// pressed, as Liquid Glass's are. At least 44 points a side, so an icon alone is a
 /// square. `prominent` takes the web app's cyan for the action a panel offers first.
+/// `square` makes an icon the folded menu column's twin, for the corner's buttons:
+/// as tall, as round, and as wide whichever icon it holds.
 struct PanelButtonStyle: ButtonStyle {
     var prominent = false
+    var square = false
     @Environment(\.isEnabled) private var isEnabled
+    /// Dynamic Type's scale, as the menu column's rows take it.
+    @ScaledMetric(relativeTo: .body) private var scale = 1.0
 
     func makeBody(configuration: Configuration) -> some View {
+        // The folded column: a 44 pt row and its 4 pt inset over and under it.
+        let side = square ? 44 * scale + 8 : 44
+        let radius: CGFloat = square ? 16 : 12
         configuration.label
-            .padding(.horizontal, 12)
-            .frame(minWidth: 44, minHeight: 44)
+            .padding(.horizontal, square ? 0 : 12)
+            .frame(minWidth: side, minHeight: side)
             .foregroundStyle(!isEnabled ? Color(white: 0x64 / 255) : prominent ? .panelAccent : .panelInk)
-            .background(configuration.isPressed ? .white.opacity(0.18) : .clear, in: .rect(cornerRadius: 12))
-            .panel(cornerRadius: 12)
-            .contentShape(.rect(cornerRadius: 12))
+            .background(configuration.isPressed ? .white.opacity(0.18) : .clear, in: .rect(cornerRadius: radius))
+            .panel(cornerRadius: radius)
+            .contentShape(.rect(cornerRadius: radius))
             .scaleEffect(configuration.isPressed ? 1.08 : 1)
             .animation(.spring(duration: 0.25, bounce: 0.4), value: configuration.isPressed)
     }

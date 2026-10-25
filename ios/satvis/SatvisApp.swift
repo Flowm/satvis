@@ -120,7 +120,8 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            VStack {
+            // The menu column's gap to a panel beside it.
+            VStack(spacing: 8) {
                 // Always there, so the way back is where it always is.
                 Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
                 if session.observer != nil {
@@ -140,7 +141,9 @@ struct ContentView: View {
                 }
             }
             .labelStyle(.iconOnly)
-            .buttonStyle(PanelButtonStyle())
+            // The menu toggle's name's weight, for strokes as heavy as its icon's.
+            .font(.body.weight(.medium))
+            .buttonStyle(PanelButtonStyle(square: true))
             .onGeometryChange(for: CGRect.self) {
                 $0.frame(in: .global)
             } action: {
