@@ -151,6 +151,7 @@ export class PolylineBatch {
     });
   }
 
+  /** The build is over, swapped in or failed. */
   #finished(): void {
     this.#building = false;
     if (!this.pending) {

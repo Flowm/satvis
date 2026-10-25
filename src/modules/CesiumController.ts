@@ -376,7 +376,7 @@ export class CesiumController {
       this.viewer.scene.morphComplete.addEventListener(release);
 
       // Batches rebuild asynchronously; morphing first rebuilds them into the old projection.
-      void Promise.all([this.sats.orbits.settled(), this.sats.tracks.settled(), this.sats.groundTracks.settled()]).then(() => {
+      void Promise.all([this.sats.orbits.settled(), this.sats.tracks.settled()]).then(() => {
         morph();
         // Cesium refuses some morphs (mid-morph, notably) and then raises no completion.
         if (this.viewer.scene.mode !== SceneMode.MORPHING) {

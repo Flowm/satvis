@@ -247,7 +247,8 @@ no more than one line.
   its `classificationType` defaulted to `BOTH`, and with no globe depth it followed the
   street, occluded by the buildings. Since October 2026 it is a ribbon 3 km above the
   ellipsoid, clipped to the clock in its shader (`GroundTrackBatch`), which a clamped
-  primitive's shaders cannot carry; it is drawn above the mesh.
+  primitive's shaders cannot carry. It is drawn above the mesh, and hidden while the
+  camera is below 6 km, where it would read as a ceiling.
 - **Ground-station pins are clamped.** Stations are placed at height 0, so the pin sat
   below any real surface. That was already wrong under terrain; the mesh made it
   obvious.

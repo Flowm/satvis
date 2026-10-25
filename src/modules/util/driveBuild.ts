@@ -8,6 +8,7 @@ import type { Viewer } from "@cesium/widgets";
 /** Report once, not on every tick. */
 let reportedMissingState = false;
 
+/** Once a session, so the error does not flood the console. */
 function reportMissingState(): void {
   if (reportedMissingState) {
     return;
@@ -18,7 +19,9 @@ function reportMissingState(): void {
 
 /** What becomes of a build: the primitive for the caller to add to the scene, or nothing. */
 export interface BuildOutcome {
+  /** The primitive is built, for the caller to add to the scene. */
   ready(): void;
+  /** The primitive failed and is destroyed. */
   failed(): void;
 }
 

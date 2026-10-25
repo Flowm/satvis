@@ -56,12 +56,15 @@ export interface SatelliteBatches {
   orbits: PolylineBatch;
   /** Fixed: the Orbit track component's Earth-relative path. */
   tracks: PolylineBatch;
+  /** Fixed: the Ground track component's ribbons, clipped to the clock in the shader. */
   groundTracks: GroundTrackBatch;
 }
 
 /** A shared batch, which draws the components it holds. */
 export interface ComponentBatch {
+  /** Drawn from the batch's next build. */
   add(component: Component): void;
+  /** Gone with the batch's next build. */
   remove(component: Component): void;
 }
 
@@ -75,6 +78,8 @@ export interface ComponentHost {
   readonly batches: SatelliteBatches;
   readonly isTracked: boolean;
   readonly model: ModelSize;
+  /** What a click selects: the first Entity created. */
+  readonly defaultEntity: Entity | undefined;
   /** Set by the sky view each frame. */
   readonly skyAppearance: SkyAppearance;
   /** An entity named after the satellite, framed for tracking. */
@@ -449,7 +454,7 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
       if (!swath || !interval || !TimeInterval.contains(interval, host.viewer.clock.currentTime)) {
         return undefined;
       }
-      return new GroundTrack(host.props.name, host.props.trajectory, swath);
+      return new GroundTrack(host.props.trajectory, swath, () => host.defaultEntity ?? host.props.name);
     },
     batch: (host) => host.batches.groundTracks,
     bind: (component, host, refilled) => {
@@ -535,8 +540,13 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
   },
 };
 
-/** Drawn into a shared batch in 3D, so a scene morph has to recreate them. */
-export const BATCHED_COMPONENTS = (Object.keys(COMPONENT_KINDS) as ComponentName[]).filter((name) => COMPONENT_KINDS[name].batch !== undefined);
+/**
+ * Drawn into a shared batch in 3D and as entities elsewhere, so a scene morph has to
+ * recreate them. The ground track's batch draws in every scene mode.
+ */
+export const BATCHED_COMPONENTS = (Object.keys(COMPONENT_KINDS) as ComponentName[]).filter(
+  (name) => COMPONENT_KINDS[name].batch !== undefined && COMPONENT_KINDS[name].fits !== undefined,
+);
 
 export function componentKind(name: string): ComponentKind | undefined {
   return (COMPONENT_KINDS as Record<string, ComponentKind | undefined>)[name];

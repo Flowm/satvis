@@ -1,15 +1,15 @@
 // Cesium's geometry constructors drop consecutive duplicates (`arrayRemoveDuplicates`)
 // and return `undefined` below two positions, but the instance stays in the batch:
 // `recomputeBoundingSpheres` then dereferences the missing bounding sphere inside
-// `Scene.render`, which stops the render loop for the session. So every line and
-// corridor is built from `drawable(...)`, never from a raw count.
+// `Scene.render`, which stops the render loop for the session. So every line is built
+// from `drawable(...)`, never from a raw count; the ground track's ribbon has its own
+// guard (`groundTrackRibbon`).
 
 import { Cartesian3, Math as CesiumMath } from "@cesium/core";
 
 /**
  * Matches `arrayRemoveDuplicates`: consecutive-only, with the relative `EPSILON10`
- * (about a millimetre at Earth radius). Corridors dedupe after projecting onto the
- * ellipsoid, which only purely radial motion would trip.
+ * (about a millimetre at Earth radius).
  */
 export function drawablePositions(positions: readonly (Cartesian3 | undefined)[]): Cartesian3[] {
   const kept: Cartesian3[] = [];
@@ -27,7 +27,7 @@ export function drawablePositions(positions: readonly (Cartesian3 | undefined)[]
   return kept;
 }
 
-/** Cesium builds a line or a corridor from no fewer distinct positions. */
+/** Cesium builds a line from no fewer distinct positions. */
 const MIN_DRAWABLE_POSITIONS = 2;
 
 /** `positions` as Cesium keeps them, or undefined when it would build nothing from them. */

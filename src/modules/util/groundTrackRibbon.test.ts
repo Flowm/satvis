@@ -11,6 +11,7 @@ function northbound(samples: number): { seconds: number[]; positions: Cartesian3
   return { seconds, positions };
 }
 
+/** The ribbon's vertices on the ground, and their times. */
 function vertices(geometry: NonNullable<ReturnType<typeof groundTrackRibbon>>): { points: Cartographic[]; seconds: Float32Array } {
   const values = geometry.attributes.position!.values as Float64Array;
   const points: Cartographic[] = [];

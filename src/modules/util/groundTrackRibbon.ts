@@ -18,9 +18,11 @@ const MIN_STEP_METERS = 1;
 /** The name the shader reads the vertex times by. */
 export const TRACK_SECONDS_ATTRIBUTE = "trackSeconds";
 
+/** How far the ribbon reaches either side of the ground track. */
 export interface RibbonSwath {
   /** To the right of the flight direction, metres. */
   starboardMeters: number;
+  /** To the left, metres. */
   portMeters: number;
 }
 
@@ -30,7 +32,8 @@ export interface RibbonSwath {
  * sub-satellite points: a geometry without a bounding sphere stops Cesium's render
  * loop (see `drawablePositions`).
  */
-export function groundTrackRibbon(seconds: readonly number[], positions: readonly Cartesian3[], swath: RibbonSwath, ellipsoid = Ellipsoid.WGS84): Geometry | undefined {
+export function groundTrackRibbon(seconds: readonly number[], positions: readonly Cartesian3[], swath: RibbonSwath): Geometry | undefined {
+  const ellipsoid = Ellipsoid.WGS84;
   const centre = centreLine(seconds, positions, ellipsoid);
   const rows = centre.points.length;
   if (rows < 2) {
@@ -46,8 +49,10 @@ export function groundTrackRibbon(seconds: readonly number[], positions: readonl
   const up = new Cartesian3();
   const starboard = new Cartesian3();
   const radial = new Cartesian3();
+  const alongRadial = new Cartesian3();
   const point = new Cartesian3();
-  const lift = new Cartesian3();
+  const across = new Cartesian3();
+  const normal = new Cartesian3();
   for (let row = 0; row < rows; row += 1) {
     const here = centre.points[row]!;
     Cartesian3.subtract(centre.points[Math.min(row + 1, rows - 1)]!, centre.points[Math.max(row - 1, 0)]!, tangent);
@@ -56,12 +61,12 @@ export function groundTrackRibbon(seconds: readonly number[], positions: readonl
     // Across the track along a great circle, so a wide swath bends with the Earth.
     const radius = Cartesian3.magnitude(here);
     Cartesian3.normalize(here, radial);
-    Cartesian3.normalize(Cartesian3.subtract(starboard, Cartesian3.multiplyByScalar(radial, Cartesian3.dot(starboard, radial), point), starboard), starboard);
+    Cartesian3.normalize(Cartesian3.subtract(starboard, Cartesian3.multiplyByScalar(radial, Cartesian3.dot(starboard, radial), alongRadial), starboard), starboard);
     for (let column = 0; column < perRow; column += 1) {
       const angle = (-swath.portMeters + (column * width) / columns) / radius;
-      Cartesian3.add(Cartesian3.multiplyByScalar(radial, Math.cos(angle) * radius, point), Cartesian3.multiplyByScalar(starboard, Math.sin(angle) * radius, lift), point);
+      Cartesian3.add(Cartesian3.multiplyByScalar(radial, Math.cos(angle) * radius, point), Cartesian3.multiplyByScalar(starboard, Math.sin(angle) * radius, across), point);
       ellipsoid.scaleToGeodeticSurface(point, point);
-      Cartesian3.add(point, Cartesian3.multiplyByScalar(ellipsoid.geodeticSurfaceNormal(point, lift), RIBBON_HEIGHT_METERS, lift), point);
+      Cartesian3.add(point, Cartesian3.multiplyByScalar(ellipsoid.geodeticSurfaceNormal(point, normal), RIBBON_HEIGHT_METERS, normal), point);
       const vertex = row * perRow + column;
       Cartesian3.pack(point, vertexPositions as unknown as number[], vertex * 3);
       vertexSeconds[vertex] = centre.seconds[row]!;

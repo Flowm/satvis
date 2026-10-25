@@ -5,13 +5,13 @@
 // the satellite at x100: Cesium rebuilt them in workers, frames behind the clock.
 
 import { Color, GeometryInstance, JulianDate, TimeInterval } from "@cesium/core";
-import { Appearance, BlendingState, Material, Primitive } from "@cesium/engine";
+import { Appearance, BlendingState, Material, Primitive, type Scene, SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
 import type { SampledTrajectory } from "../SampledTrajectory";
 import { CesiumCallbackHelper } from "./CesiumCallbackHelper";
 import { driveBuild } from "./driveBuild";
-import { groundTrackRibbon, type RibbonSwath, TRACK_SECONDS_ATTRIBUTE } from "./groundTrackRibbon";
+import { groundTrackRibbon, RIBBON_HEIGHT_METERS, type RibbonSwath, TRACK_SECONDS_ATTRIBUTE } from "./groundTrackRibbon";
 
 /** How far ahead of the satellite its ground track reaches. Simulation seconds. */
 export const LEAD_SECONDS = 300;
@@ -19,21 +19,37 @@ export const LEAD_SECONDS = 300;
 /** Ticks to coalesce over, so a hundred satellites arriving cost one rebuild. */
 const COALESCE_TICKS = 30;
 
-/**
- * Simulation seconds a cut reaches past the drawn stretch, either way. Within the
- * trajectory's window: a refill every quarter orbit keeps 1,320 s behind at 88 minutes.
- */
+// Simulation seconds a cut reaches past the drawn stretch, either way. Within the
+// trajectory's window: a refill every quarter orbit keeps 1,320 s behind at 88 minutes.
+// The reach stops growing from x600. A clock or a scrub that crosses the rest of it while
+// a build is in flight outruns the cut, and the drawn stretch shortens until the next lands.
+
+/** At rest, and up to x300. */
 const MIN_REACH_SECONDS = 600;
+
+/** The most the trajectory's window holds either side. */
 const MAX_REACH_SECONDS = 1200;
 
 /** Wall seconds of clock a cut should outlast, so a fast clock cuts farther. */
 const REACH_WALL_SECONDS = 2;
 
+/** Per tick, how much of the peak clock rate is kept: half of it is gone after 14 ticks. */
+const RATE_DECAY = 0.95;
+
+/**
+ * Metres above the ellipsoid. Below this the camera looks up at the ribbon, which reads
+ * as a ceiling: the sky view's eye is 2 m up, and a surface model is seen from street
+ * level.
+ */
+const HIDDEN_BELOW_METERS = 2 * RIBBON_HEIGHT_METERS;
+
 /** The share of the reach the clock may cover before the next cut; the rest is for the build. */
 const RECUT_SHARE = 1 / 3;
 
+/** The corridor's colour before it. */
 const COLOR = Color.DARKRED.withAlpha(0.25);
 
+/** Shaped like Cesium's PerInstanceFlatColorAppearanceVS, which `Primitive` rewrites for 2D and morphs. */
 const VERTEX_SHADER = `
 in vec3 position3DHigh;
 in vec3 position3DLow;
@@ -50,6 +66,7 @@ void main()
 }
 `;
 
+/** Discards what is behind the clock or past the lead. */
 const FRAGMENT_SHADER = `
 in float v_trackSeconds;
 
@@ -94,59 +111,70 @@ function passThroughWorkerPath(): string {
   return passThroughWorker;
 }
 
-/** Simulation seconds a cut reaches past the drawn stretch at this clock multiplier. */
-export function reachSeconds(multiplier: number): number {
-  return Math.min(MAX_REACH_SECONDS, Math.max(MIN_REACH_SECONDS, Math.abs(multiplier) * REACH_WALL_SECONDS));
+/** Simulation seconds a cut reaches past the drawn stretch, for a clock moving `rate` simulation seconds a wall second. */
+export function reachSeconds(rate: number): number {
+  return Math.min(MAX_REACH_SECONDS, Math.max(MIN_REACH_SECONDS, rate * REACH_WALL_SECONDS));
 }
 
 /** One satellite's ground track: the component the "Ground track" kind hands its collection. */
 export class GroundTrack {
-  readonly id: string;
-
-  readonly #trajectory: SampledTrajectory;
+  /** The samples the ribbon is cut from. */
+  readonly #trajectory: Pick<SampledTrajectory, "interval" | "samplesBetween">;
 
   readonly #swath: RibbonSwath;
 
-  /** Whether the last cut found samples over all of its reach; a refill re-cuts only one that did not. */
-  complete = false;
+  /** What a click on the ribbon picks, read at every cut: the satellite's entity selects it. */
+  readonly #pickId: () => unknown;
 
-  constructor(id: string, trajectory: SampledTrajectory, swath: RibbonSwath) {
-    this.id = id;
+  #coversReach = false;
+
+  constructor(trajectory: Pick<SampledTrajectory, "interval" | "samplesBetween">, swath: RibbonSwath, pickId: () => unknown) {
     this.#trajectory = trajectory;
     this.#swath = swath;
+    this.#pickId = pickId;
   }
 
-  /** The vertex times count from `time`. */
-  cut(time: JulianDate, reach: number): GeometryInstance | undefined {
-    const start = JulianDate.addSeconds(time, -reach, new JulianDate());
-    const stop = JulianDate.addSeconds(time, LEAD_SECONDS + reach, new JulianDate());
+  /** Whether the last cut found samples over all of its reach; a refill re-cuts only one that did not. */
+  get coversReach(): boolean {
+    return this.#coversReach;
+  }
+
+  /** Simulation seconds `reach` either side of the drawn stretch; the vertex times count from `epoch`. */
+  cut(epoch: JulianDate, reach: number): GeometryInstance | undefined {
+    const start = JulianDate.addSeconds(epoch, -reach, new JulianDate());
+    const stop = JulianDate.addSeconds(epoch, LEAD_SECONDS + reach, new JulianDate());
     const interval = this.#trajectory.interval;
-    this.complete = interval !== undefined && TimeInterval.contains(interval, start) && TimeInterval.contains(interval, stop);
+    this.#coversReach = interval !== undefined && TimeInterval.contains(interval, start) && TimeInterval.contains(interval, stop);
     const { times, positions } = this.#trajectory.samplesBetween(start, stop);
-    const seconds = times.map((sampleTime) => JulianDate.secondsDifference(sampleTime, time));
+    const seconds = times.map((sampleTime) => JulianDate.secondsDifference(sampleTime, epoch));
     const geometry = groundTrackRibbon(seconds, positions, this.#swath);
     if (!geometry) {
       return undefined;
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (geometry as any)._workerPath = passThroughWorkerPath();
-    return new GeometryInstance({ geometry, id: this.id });
+    return new GeometryInstance({ geometry, id: this.#pickId() });
   }
 }
 
+/** One build of the batch. */
 interface Cut {
   primitive: Primitive;
+  /** Holds the clock uniform. */
   material: Material;
   /** The time the vertex times count from. */
-  at: JulianDate;
+  epoch: JulianDate;
+  /** Simulation seconds. */
   reach: number;
 }
 
+/** The shared primitive every ground track is drawn into, in every scene mode. */
 export class GroundTrackBatch {
   readonly #viewer: Viewer;
 
   readonly #tracks = new Set<GroundTrack>();
 
+  /** In the scene. */
   #shown: Cut | undefined;
 
   /** Being built, not in the scene yet. */
@@ -155,28 +183,26 @@ export class GroundTrackBatch {
   /** A rebuild is queued and waiting out the coalescing window. */
   #scheduled = false;
 
-  #settledWaiters: Array<() => void> = [];
+  /** Simulation seconds a wall second, decaying from its peak, so a scrub cuts as far as a fast clock. */
+  #rate = 0;
+
+  /** The tick before, for `#rate`. */
+  #lastTick: { time: JulianDate; wallMs: number } | undefined;
 
   constructor(viewer: Viewer) {
     this.#viewer = viewer;
     // Permanent, like the batch.
-    viewer.clock.onTick.addEventListener(() => this.#recutIfDue());
-    viewer.scene.preRender.addEventListener((_scene, time: JulianDate) => this.#clip(this.#shown, time));
+    viewer.clock.onTick.addEventListener(() => this.#tick());
+    viewer.scene.preRender.addEventListener((scene: Scene, time: JulianDate) => this.#clip(this.#shown, scene, time));
   }
 
-  get pending(): boolean {
-    return this.#scheduled || this.#building !== undefined;
-  }
-
-  get size(): number {
-    return this.#tracks.size;
-  }
-
+  /** Drawn from the next build. */
   add(track: GroundTrack): void {
     this.#tracks.add(track);
     this.#schedule();
   }
 
+  /** Gone with the next build. */
   remove(track: GroundTrack): void {
     this.#tracks.delete(track);
     this.#schedule();
@@ -184,43 +210,42 @@ export class GroundTrackBatch {
 
   /** The track's samples moved. One cut whole needs no rebuild; the clock decides when it is due. */
   refilled(track: GroundTrack): void {
-    if (!track.complete) {
+    if (!track.coversReach) {
       this.#schedule();
     }
   }
 
-  /** Resolves once the batch matches its tracks. The scene morph waits on it, as on the PolylineBatch. */
-  settled(): Promise<void> {
-    if (!this.pending) {
-      return Promise.resolve();
-    }
-    return new Promise((resolve) => {
-      this.#settledWaiters.push(resolve);
-    });
+  get #pending(): boolean {
+    return this.#scheduled || this.#building !== undefined;
   }
 
-  #resolveSettled(): void {
-    const waiters = this.#settledWaiters;
-    this.#settledWaiters = [];
-    waiters.forEach((resolve) => resolve());
-  }
-
-  #clip(cut: Cut | undefined, time: JulianDate): void {
-    if (cut) {
-      cut.material.uniforms.clockSeconds = JulianDate.secondsDifference(time, cut.at);
-    }
-  }
-
-  #recutIfDue(): void {
-    const shown = this.#shown;
-    if (!shown || this.pending) {
+  /** Sets the clock uniform to the time the frame is drawn at, which every entity is drawn at too. */
+  #clip(cut: Cut | undefined, scene: Scene, time: JulianDate): void {
+    if (!cut) {
       return;
     }
-    if (Math.abs(JulianDate.secondsDifference(this.#viewer.clock.currentTime, shown.at)) >= shown.reach * RECUT_SHARE) {
+    cut.material.uniforms.clockSeconds = JulianDate.secondsDifference(time, cut.epoch);
+    cut.primitive.show = scene.mode !== SceneMode.SCENE3D || scene.camera.positionCartographic.height >= HIDDEN_BELOW_METERS;
+  }
+
+  /** Measures the clock's rate and starts a build once the clock has used its share of the reach. */
+  #tick(): void {
+    const time = this.#viewer.clock.currentTime;
+    const wallMs = performance.now();
+    const last = this.#lastTick;
+    if (last && wallMs > last.wallMs) {
+      const rate = Math.abs(JulianDate.secondsDifference(time, last.time)) / ((wallMs - last.wallMs) / 1000);
+      this.#rate = Math.max(rate, this.#rate * RATE_DECAY);
+    }
+    this.#lastTick = { time: JulianDate.clone(time, last?.time), wallMs };
+
+    const shown = this.#shown;
+    if (shown && !this.#pending && Math.abs(JulianDate.secondsDifference(time, shown.epoch)) >= shown.reach * RECUT_SHARE) {
       this.#build();
     }
   }
 
+  /** Builds once the coalescing window has passed and no build is in flight. */
   #schedule(): void {
     if (this.#scheduled) {
       return;
@@ -237,6 +262,7 @@ export class GroundTrackBatch {
     });
   }
 
+  /** Takes the shown cut out of the scene; `PrimitiveCollection.remove` destroys it. */
   #clear(): void {
     if (!this.#shown) {
       return;
@@ -246,13 +272,13 @@ export class GroundTrackBatch {
     this.#viewer.scene.requestRender();
   }
 
+  /** Cuts every track at the clock and swaps the build in once it is ready; the shown cut draws until then. */
   #build(): void {
-    const at = JulianDate.clone(this.#viewer.clock.currentTime);
-    const reach = reachSeconds(this.#viewer.clock.multiplier);
-    const instances = [...this.#tracks].flatMap((track) => track.cut(at, reach) ?? []);
+    const epoch = JulianDate.clone(this.#viewer.clock.currentTime);
+    const reach = reachSeconds(this.#rate);
+    const instances = [...this.#tracks].flatMap((track) => track.cut(epoch, reach) ?? []);
     if (instances.length === 0) {
       this.#clear();
-      this.#finished();
       return;
     }
     const material = new Material({
@@ -271,25 +297,20 @@ export class GroundTrackBatch {
         renderState: { depthTest: { enabled: true }, depthMask: false, blending: BlendingState.ALPHA_BLEND },
       }),
     });
-    const cut: Cut = { primitive, material, at, reach };
+    const cut: Cut = { primitive, material, epoch, reach };
     this.#building = cut;
     driveBuild(this.#viewer, primitive, {
       ready: () => {
-        this.#clip(cut, this.#viewer.clock.currentTime);
+        this.#clip(cut, this.#viewer.scene, this.#viewer.clock.currentTime);
         this.#clear();
         this.#viewer.scene.primitives.add(primitive);
         this.#shown = cut;
+        this.#building = undefined;
         this.#viewer.scene.requestRender();
-        this.#finished();
       },
-      failed: () => this.#finished(),
+      failed: () => {
+        this.#building = undefined;
+      },
     });
-  }
-
-  #finished(): void {
-    this.#building = undefined;
-    if (!this.pending) {
-      this.#resolveSettled();
-    }
   }
 }
