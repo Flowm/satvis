@@ -51,7 +51,6 @@ struct LocationsPanel: View {
         PanelSection("Add") {
             PanelCard {
                 Place(Text("Pick on globe"), image: .lucideCrosshair, action: onPick)
-                // Disabled while the position comes back, the spinner in the icon's place.
                 Place(Text("My location"), image: .lucideLocateFixed, waitingFor: locating ? "Finding your location" : nil) {
                     Task {
                         locating = true
@@ -249,7 +248,7 @@ private struct VisitingRow: View {
                         .frame(width: iconSize, height: iconSize)
                         .frame(width: markWidth)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(station.displayName)
+                        Text(verbatim: station.displayName)
                             .lineLimit(1)
                         // An unnamed one is shown by its coordinates already.
                         if station.name != nil {

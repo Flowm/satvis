@@ -462,7 +462,6 @@ struct SkyPanel: View {
         let places = session.passes.stations.filter { $0.name != StationList.geolocation }
         PanelSection("Look up from") {
             PanelCard {
-                // Disabled while the position comes back, the spinner in the icon's place.
                 Place(Text("My location"), image: .lucideLocateFixed, isHere: here?.name == StationList.geolocation, waitingFor: locating ? "Finding your location" : nil) {
                     Task {
                         locating = true

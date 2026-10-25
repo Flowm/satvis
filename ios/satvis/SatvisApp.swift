@@ -344,6 +344,10 @@ struct ContentView: View {
             default: break
             }
         }
+        // The keyboard rose under the clock deck into a panel being edited, and
+        // shortened the panel past fitting, swapping in a scrolling one: a new
+        // view, which dropped the field's focus. The sheets keep their own room.
+        .ignoresSafeArea(.keyboard)
     }
 
     /// Starts picking a spot from the Locations panel, out of the globe's way.

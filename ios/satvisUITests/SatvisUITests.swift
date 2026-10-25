@@ -93,7 +93,17 @@ nonisolated class SatvisUITests: XCTestCase {
     // crosses, and a pick on the globe that is cancelled opens it again.
     @MainActor
     func testEditsLocationsInTheirPanel() {
-        let app = launch(link: "/?gs=48.1372,11.5756,Testhausen_47.2692,11.4041,Probeburg")
+        // A link's stations are saved ones if an interrupted run left them saved.
+        var app = launch()
+        openMenu(app)
+        app.buttons["Locations"].tap()
+        XCTAssert(app.buttons["Pick on globe"].waitForExistence(timeout: 5))
+        for name in ["Testhausen", "Probeburg"] where app.buttons["Remove \(name)"].exists {
+            app.buttons["Remove \(name)"].tap()
+        }
+        app.terminate()
+
+        app = launch(link: "/?gs=48.1372,11.5756,Testhausen_47.2692,11.4041,Probeburg")
         openMenu(app)
         app.buttons["Locations"].tap()
         for _ in 0..<2 {
