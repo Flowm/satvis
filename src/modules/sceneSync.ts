@@ -210,7 +210,7 @@ export function startSceneSync(cc: SceneTarget): void {
       // Otherwise My location in the Sky panel does nothing, which reads as a broken control.
       useToastProxy().add({
         title: "Sky view needs a location",
-        description: "Allow Geolocation, or look up from a location's panel.",
+        description: "Allow Geolocation, or look up from one of your locations.",
         color: "warning",
       });
       refusedAt = performance.now();

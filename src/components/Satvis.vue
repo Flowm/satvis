@@ -91,8 +91,8 @@
       <!-- Two panels, one `scene` parameter (docs/adr/0003-sky-view.md): each view's settings stay visible, disabled where the other view is up. -->
       <toolbar-panel v-show="menu.globe" title="Globe" @close="closePanel('globe')">
         <div class="toolbarTitle">Projection</div>
-        <!-- In the sky view no projection is checked, as a checked one read as the active view.
-             The view is chosen there instead, but greyed: it is entered from the Sky panel, which names a place. -->
+        <!-- No projection is checked in the sky view, as a checked one read as the active view;
+             Sky view is, greyed, as the Sky panel enters it. -->
         <label v-for="name in projections" :key="name" class="toolbarSwitch">
           <input type="radio" name="projection" :checked="!inSkyView && sceneMode === name" @change="sceneMode = name" />
           {{ name }}
@@ -123,12 +123,14 @@
           type="button"
           class="toolbarPlace"
           :aria-current="inSkyView && observerStation === place.index ? 'location' : undefined"
+          :disabled="locating"
           @click="lookUpFrom(place.index)"
         >
           <UIcon name="lucide:map-pin" class="toolbarPlace__icon" />
           <span class="toolbarPlace__label">{{ place.label }}</span>
         </button>
-        <button v-if="inSkyView" type="button" class="toolbarPlace toolbarPlace--leave" @click="leaveSkyView">
+        <!-- Every row waits for a fix in flight, which would otherwise move the view after a later tap. -->
+        <button v-if="inSkyView" type="button" class="toolbarPlace toolbarPlace--leave" :disabled="locating" @click="leaveSkyView">
           <UIcon name="lucide:globe" class="toolbarPlace__icon" />
           <span class="toolbarPlace__label">Back to the globe</span>
         </button>

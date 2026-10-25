@@ -46,7 +46,8 @@ satellites to show). A single View panel hid the sky view among the projections 
 made half its rows appear and disappear with the mode.
 
 Both panels write `sceneMode`, and neither hides a setting: one that does not apply
-to the current view is disabled with a note. Only the ways in and out come and go. The camera mode is disabled in the sky
+to the current view is disabled with a note. Only the ways in and out come and go.
+The camera mode is disabled in the sky
 view because the view suppresses it (below), not because the choice is lost. No
 projection is checked in the sky view: a checked one read as the active view. The
 Globe panel lists Sky view after them instead, only while it is up, checked and
@@ -80,7 +81,8 @@ there, as does `?scene=Sky` with no ground station, because either is the reques
 "what is over me now". The station rows, a station's info panel and a link with
 stations stand on a station: the row's, the panel's, and the link's first. The device's
 position is the one station named Geolocation, moved there each time rather than
-added again, and listed first, by both panels' My location alike (`observeGeolocation`, `placeGeolocation` in `src/stores/sat.ts`): a link's
+added again, and listed first, by both panels' My location alike (`observeGeolocation`,
+`placeGeolocation` in `src/stores/sat.ts`): a link's
 observer is its first station, so a reload or a bookmark of the view stands where the
 device was. If the device gives no position the sky view does not open: a sky full of
 satellites at coordinates the user never chose looks like a working feature, which is
