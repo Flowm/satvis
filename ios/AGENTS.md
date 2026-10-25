@@ -318,8 +318,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   demand (`RenderPacing`; the default view draws 4 frames a second). Whatever
   changes what is drawn has to say so (`needsDraw`, or the surface's, the models'
   and the ground tracks' revisions). The sky view, tracking, the FPS
-  switch and the benchmark draw every frame, but for the benchmark's scenes
-  standing still.
+  switch and the benchmark draw every frame, but for the benchmark's idle
+  scenes.
 - The Graphics menu's "Benchmark" is the web app's `bench=true`, kept in links
   the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): eleven scenes opened
   by their links in turn, each waited for until everything active is drawn
@@ -327,10 +327,10 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   so the count drawn alone never reached the count active and every active
   satellite waited out the timeout), settled 3 s and recorded 5 s frame by frame
   (`FrameRecording`), then the first again for drift, and the view put back;
-  `BenchmarkReport` builds the event sent. Two scenes stand still with the
-  pacing on (`BenchmarkScene.paced`): their `fps` is the frames drawn, which
-  rises to 60 when something keeps every frame drawn, and they count none as
-  slow.
+  `BenchmarkReport` builds the event sent. The two idle scenes
+  (`BenchmarkScene.idle`) are paced: their `fps` is the frames drawn and none
+  counts as slow; their load is what they cost. `cpu_busy_pct` counts the calls
+  that drew nothing too.
   `cpu_ms` is the renderer's own work; `buffer_wait_ms` is the main thread
   blocked on a buffer the GPU still holds, the GPU running behind, and
   `drawable_wait_ms` on a drawable from the display, which, counted as CPU, read

@@ -33,13 +33,26 @@ public struct FrameRecording: Sendable, Equatable {
     public var drawableWait: [Double] = []
     /// The GPU's, in milliseconds; empty where it reads nothing.
     public var gpu: [Double] = []
+    /// The renderer's work on each call it drew nothing on, paced, in
+    /// milliseconds: deciding to skip a frame, sixty times a second.
+    public var skippedCPU: [Double] = []
+    /// From the start of the recording to its end, in milliseconds.
+    public var duration: Double?
+    /// How long the GPU had a frame in hand, in milliseconds (`GPUSpans`).
+    public var gpuActive: Double?
 
-    public init(intervals: [Double] = [], cpu: [Double] = [], bufferWait: [Double] = [], drawableWait: [Double] = [], gpu: [Double] = []) {
+    public init(
+        intervals: [Double] = [], cpu: [Double] = [], bufferWait: [Double] = [], drawableWait: [Double] = [], gpu: [Double] = [], skippedCPU: [Double] = [],
+        duration: Double? = nil, gpuActive: Double? = nil
+    ) {
         self.intervals = intervals
         self.cpu = cpu
         self.bufferWait = bufferWait
         self.drawableWait = drawableWait
         self.gpu = gpu
+        self.skippedCPU = skippedCPU
+        self.duration = duration
+        self.gpuActive = gpuActive
     }
 
     /// Frames a second over the whole recording.
@@ -66,6 +79,27 @@ public struct FrameRecording: Sendable, Equatable {
         intervals.isEmpty ? nil : Double(intervals.filter { $0 > 1.5 * refresh }.count) / Double(intervals.count)
     }
 
+    /// The share of the recording the main thread spent on the renderer's work,
+    /// frames drawn and skipped, in percent.
+    public var cpuBusy: Double? {
+        duration.flatMap { $0 > 0 ? (cpu.reduce(0, +) + skippedCPU.reduce(0, +)) / $0 * 100 : nil }
+    }
+
+    /// The share of the recording the GPU had a frame in hand, in percent; nil
+    /// where it reads nothing.
+    public var gpuBusy: Double? {
+        guard !gpu.isEmpty, let gpuActive, let duration, duration > 0 else {
+            return nil
+        }
+        return min(gpuActive / duration * 100, 100)
+    }
+
+    /// The busier side's share, in percent. The two work on different frames at
+    /// once, so they do not add up.
+    public var load: Double? {
+        [cpuBusy, gpuBusy].compactMap { $0 }.max()
+    }
+
     // Means over the recording, in milliseconds; nil where it holds none.
     public var meanCPU: Double? { Self.mean(cpu) }
     public var meanBufferWait: Double? { Self.mean(bufferWait) }
@@ -74,6 +108,19 @@ public struct FrameRecording: Sendable, Equatable {
 
     private static func mean(_ values: [Double]) -> Double? {
         values.isEmpty ? nil : values.reduce(0, +) / Double(values.count)
+    }
+}
+
+/// The GPU's frame spans, joined where they overlap: a frame's vertices run under
+/// the last one's fragments, and summed, a GPU-bound iPhone read 153 % busy.
+struct GPUSpans {
+    /// Where the latest span ended, by the GPU's clock, in seconds.
+    private(set) var end = -Double.infinity
+
+    /// The seconds from `start` to `end` that no span before covered.
+    mutating func join(start: Double, end: Double) -> Double {
+        defer { self.end = max(self.end, end) }
+        return max(0, end - max(start, self.end))
     }
 }
 
@@ -88,7 +135,9 @@ final class FrameMeter: Sendable {
         var gpuFrames = 0
         var published: FrameStats?
         var recording: FrameRecording?
+        var recordingStart: Double?
         var lastFrame: Double?
+        var spans = GPUSpans()
     }
 
     private static let window = 0.5
@@ -96,18 +145,29 @@ final class FrameMeter: Sendable {
 
     var stats: FrameStats? { state.withLock { $0.published } }
 
-    func startRecording() {
+    func startRecording(at now: Double) {
         state.withLock {
-            $0.recording = FrameRecording()
+            $0.recording = FrameRecording(gpuActive: 0)
+            $0.recordingStart = now
             $0.lastFrame = nil
+            $0.spans = GPUSpans()
         }
     }
 
-    func stopRecording() -> FrameRecording {
+    func stopRecording(at now: Double) -> FrameRecording {
         state.withLock { window in
             defer { window.recording = nil }
-            return window.recording ?? FrameRecording()
+            guard var recording = window.recording, let start = window.recordingStart else {
+                return FrameRecording()
+            }
+            recording.duration = (now - start) * 1000
+            return recording
         }
+    }
+
+    /// A call that drew no frame, paced.
+    func skipped(cpuSeconds: Double) {
+        state.withLock { $0.recording?.skippedCPU.append(cpuSeconds * 1000) }
     }
 
     func frame(cpuSeconds: Double, bufferWaitSeconds: Double, drawableWaitSeconds: Double, at now: Double, satellites: Int) {
@@ -135,18 +195,25 @@ final class FrameMeter: Sendable {
             window.published = FrameStats(
                 framesPerSecond: frames / elapsed, cpuMilliseconds: window.cpu / frames * 1000,
                 gpuMilliseconds: window.gpuFrames > 0 ? window.gpu / Double(window.gpuFrames) * 1000 : nil, satellites: satellites)
-            window = Window(start: now, published: window.published, recording: window.recording, lastFrame: window.lastFrame)
+            window = Window(
+                start: now, published: window.published, recording: window.recording, recordingStart: window.recordingStart, lastFrame: window.lastFrame,
+                spans: window.spans)
         }
     }
 
-    func gpu(seconds: Double) {
+    /// A frame's span on the GPU, by its clock, in seconds. Spans arrive in the
+    /// order their command buffers were committed, on one queue.
+    func gpu(start: Double, end: Double) {
+        let seconds = end - start
         guard seconds > 0 else {
             return
         }
         state.withLock { window in
             window.gpu += seconds
             window.gpuFrames += 1
+            let joined = window.spans.join(start: start, end: end)
             window.recording?.gpu.append(seconds * 1000)
+            window.recording?.gpuActive? += joined * 1000
         }
     }
 

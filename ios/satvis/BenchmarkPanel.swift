@@ -13,7 +13,9 @@ struct BenchmarkPanel: View {
     private var benchmark: Benchmark { session.benchmark }
 
     /// The metric columns, wide enough for their widest figure ("43.7", "655").
-    private static let columns: [(title: String, width: CGFloat)] = [("fps", 30), ("p95", 38), ("CPU", 36), ("GPU", 38), ("MB", 34)]
+    /// Load, not a frame time, beside the frame rate: an idle scene's frame
+    /// rate is low by design, and only its load says what it costs.
+    private static let columns: [(title: String, width: CGFloat)] = [("fps", 30), ("CPU", 36), ("GPU", 38), ("Load", 36), ("MB", 34)]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -92,8 +94,8 @@ struct BenchmarkPanel: View {
         let values: [String] =
             result.map {
                 [
-                    number($0.recording.framesPerSecond, digits: 0), number($0.recording.percentile(0.95), digits: 1),
-                    number($0.recording.meanCPU, digits: 1), number($0.recording.meanGPU, digits: 1),
+                    number($0.recording.framesPerSecond, digits: 0), number($0.recording.meanCPU, digits: 1),
+                    number($0.recording.meanGPU, digits: 1), $0.recording.load.map { String(format: "%.0f%%", $0) } ?? "–",
                     $0.memoryMegabytes.map(String.init) ?? "–",
                 ]
             } ?? Array(repeating: isCurrent ? "…" : "–", count: Self.columns.count)
@@ -102,9 +104,10 @@ struct BenchmarkPanel: View {
                 Text(scene.title)
                     .font(.caption.weight(isCurrent ? .semibold : .regular))
                     .foregroundStyle(isCurrent ? Color.accentColor : .primary)
-                // The count once measured, where the subtitle stood before.
+                // The count once measured, but for an idle scene: without "Idle",
+                // its few frames a second read as the scene's.
                 Group {
-                    if let result {
+                    if let result, !scene.idle {
                         Text("^[\(result.satellites) satellite](inflect: true)\(result.timedOut ? ", still loading" : "")")
                     } else {
                         Text(scene.subtitle)
@@ -152,7 +155,7 @@ struct BenchmarkPanel: View {
     private var caption: String {
         switch benchmark.phase {
         case .idle, .cancelled:
-            "Measures each scene for \(Int(Benchmark.measure.components.seconds)) s once loaded. Times in ms, memory in MB."
+            "Measures each scene for \(Int(Benchmark.measure.components.seconds)) s once loaded. Times in ms a frame, load in % busy, memory in MB."
         case .loading, .settling, .measuring:
             "Keep the app in front. Your view comes back at the end."
         case .done:

@@ -15,18 +15,18 @@ public struct BenchmarkScene: Identifiable, Hashable, Sendable {
     /// Whether the info panel a tracking link opens stays open, its cost measured
     /// with the scene's.
     public var keepsPanel = false
-    /// Whether frames are skipped as they are outside the benchmark, standing
-    /// still: its frame rate is then the frames drawn.
-    public var paced = false
+    /// Whether it is idle, paced as outside the benchmark: its frame rate is then
+    /// the frames drawn.
+    public var idle = false
 
-    public init(id: String, title: String, subtitle: String, detail: String, link: String, keepsPanel: Bool = false, paced: Bool = false) {
+    public init(id: String, title: String, subtitle: String, detail: String, link: String, keepsPanel: Bool = false, idle: Bool = false) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
         self.detail = detail
         self.link = link
         self.keepsPanel = keepsPanel
-        self.paced = paced
+        self.idle = idle
     }
 
     /// The scenes a run measures, and the first again, last: the drift check.
@@ -63,13 +63,12 @@ public struct BenchmarkResult: Identifiable, Sendable {
     public let memoryMegabytes: Int?
     /// The display's interval between refreshes, which slow frames are counted by.
     public let refreshMilliseconds: Double
-    /// Whether frames were skipped as they are outside the benchmark
-    /// (`BenchmarkScene.paced`), so that none counts as slow.
-    public let paced: Bool
+    /// The scene's `idle`: none of its frames counts as slow.
+    public let idle: Bool
 
     public init(
         id: String, title: String, detail: String, satellites: Int, loadSeconds: Double, timedOut: Bool, recording: FrameRecording, memoryMegabytes: Int?,
-        refreshMilliseconds: Double, paced: Bool = false
+        refreshMilliseconds: Double, idle: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -80,7 +79,7 @@ public struct BenchmarkResult: Identifiable, Sendable {
         self.recording = recording
         self.memoryMegabytes = memoryMegabytes
         self.refreshMilliseconds = refreshMilliseconds
-        self.paced = paced
+        self.idle = idle
     }
 
     /// As PostHog takes them: numbers rounded to what the measurement holds.
@@ -97,11 +96,13 @@ public struct BenchmarkResult: Identifiable, Sendable {
             "fps": rounded(recording.framesPerSecond, 1),
             "frame_p50_ms": rounded(recording.percentile(0.5)),
             "frame_p95_ms": rounded(recording.percentile(0.95)),
-            "slow_pct": paced ? NSNull() : rounded(recording.slowShare(refresh: refreshMilliseconds).map { $0 * 100 }, 1),
+            "slow_pct": idle ? NSNull() : rounded(recording.slowShare(refresh: refreshMilliseconds).map { $0 * 100 }, 1),
             "cpu_ms": rounded(recording.meanCPU),
             "buffer_wait_ms": rounded(recording.meanBufferWait),
             "drawable_wait_ms": rounded(recording.meanDrawableWait),
             "gpu_ms": rounded(recording.meanGPU),
+            "cpu_busy_pct": rounded(recording.cpuBusy, 1),
+            "gpu_busy_pct": rounded(recording.gpuBusy, 1),
             "memory_mb": memoryMegabytes.map { $0 as Any } ?? NSNull(),
         ]
     }

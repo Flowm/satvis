@@ -13,7 +13,8 @@ import Testing
     private static func result(_ id: String, intervals: [Double] = [16, 16, 16, 52]) -> BenchmarkResult {
         BenchmarkResult(
             id: id, title: "Default view", detail: "The default preset", satellites: 100, loadSeconds: 1.26, timedOut: false,
-            recording: FrameRecording(intervals: intervals, cpu: [1, 2], bufferWait: [0.5, 0.3], drawableWait: [], gpu: [8, 9]), memoryMegabytes: 512,
+            recording: FrameRecording(intervals: intervals, cpu: [1, 2], bufferWait: [0.5, 0.3], drawableWait: [], gpu: [8, 9], duration: 100, gpuActive: 17),
+            memoryMegabytes: 512,
             refreshMilliseconds: 1000.0 / 60)
     }
 
@@ -31,12 +32,12 @@ import Testing
         #expect(BenchmarkScene.plan(Self.scenes, only: "nothing").isEmpty)
     }
 
-    // Standing still, every interval is long by design.
-    @Test func countsNoPacedFrameAsSlow() {
-        let paced = BenchmarkResult(
-            id: "default_view_paced", title: "Default view", detail: "Standing still", satellites: 100, loadSeconds: 1, timedOut: false,
-            recording: FrameRecording(intervals: [300, 290, 310]), memoryMegabytes: nil, refreshMilliseconds: 1000.0 / 60, paced: true)
-        #expect(paced.metrics["slow_pct"] is NSNull)
+    // Idle, every interval is long by design.
+    @Test func countsNoIdleFrameAsSlow() {
+        let idle = BenchmarkResult(
+            id: "default_view_idle", title: "Default view", detail: "Idle", satellites: 100, loadSeconds: 1, timedOut: false,
+            recording: FrameRecording(intervals: [300, 290, 310]), memoryMegabytes: nil, refreshMilliseconds: 1000.0 / 60, idle: true)
+        #expect(idle.metrics["slow_pct"] is NSNull)
         #expect(Self.result("default_view").metrics["slow_pct"] is NSDecimalNumber)
     }
 
@@ -53,7 +54,7 @@ import Testing
         let properties = BenchmarkReport.properties(environment: ["app_version": "1.2", "device_kind": "iPhone"], version: 4, results: results, planned: 2)
         let metrics = [
             "description", "satellites", "load_s", "timed_out", "frames", "fps", "frame_p50_ms", "frame_p95_ms", "slow_pct", "cpu_ms", "buffer_wait_ms",
-            "drawable_wait_ms", "gpu_ms", "memory_mb",
+            "drawable_wait_ms", "gpu_ms", "cpu_busy_pct", "gpu_busy_pct", "memory_mb",
         ]
         let sceneKeys = ["default_view", "default_view_repeat"].flatMap { scene in metrics.map { "scene_\(scene)_\($0)" } }
         #expect(
@@ -70,7 +71,7 @@ import Testing
         #expect(properties["scene_default_view_drawable_wait_ms"] is NSNull)
         let decimals = [
             "load_s": "1.3", "fps": "40.0", "frame_p50_ms": "16.00", "frame_p95_ms": "52.00", "slow_pct": "25.0", "cpu_ms": "1.50", "buffer_wait_ms": "0.40",
-            "gpu_ms": "8.50",
+            "gpu_ms": "8.50", "cpu_busy_pct": "3.0", "gpu_busy_pct": "17.0",
         ]
         for (metric, value) in decimals {
             #expect(properties["scene_default_view_\(metric)"] as? NSDecimalNumber == NSDecimalNumber(string: value), "\(metric)")
