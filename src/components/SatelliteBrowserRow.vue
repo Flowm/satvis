@@ -90,7 +90,7 @@ watch(() => (props.row.kind === "group" ? props.row.state : undefined), syncInde
 }
 
 .browser-chevron:hover {
-  color: #edffff;
+  color: var(--panel-ink);
 }
 
 .browser-checkbox {
@@ -153,7 +153,7 @@ watch(() => (props.row.kind === "group" ? props.row.state : undefined), syncInde
 }
 
 .browser-info:hover {
-  color: #edffff;
+  color: var(--panel-ink);
 }
 
 .browser-groups {

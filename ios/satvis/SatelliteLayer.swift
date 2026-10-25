@@ -57,23 +57,25 @@ final class SatelliteLayer {
         // Before the store is asked: a refresh asked before a `show`'s replacement
         // returns the set before it.
         let show = showCount
-        guard let entries = await store.refresh(at: time) else {
+        guard let satellites = await store.refresh(at: time, as: Self.satellite) else {
             return
         }
-        count = entries.count
-        let satellites = entries.map {
-            PointSatellite(
-                id: Catalog.id(of: $0.record), name: $0.record.name, trajectory: $0.trajectory, color: $0.record.orbitClass.color,
-                footprint: Self.footprint($0.record), modelFile: $0.record.metadata["modelFile"]?.string)
-        }
+        count = satellites.count
         await globe.setSatellites(satellites) { [weak self] in
             self?.drawnShowCount = show
         }
     }
 
+    /// What the renderer draws of an entry.
+    private nonisolated static func satellite(_ entry: TrajectoryStore.Entry) -> PointSatellite {
+        PointSatellite(
+            id: Catalog.id(of: entry.record), name: entry.record.name, trajectory: entry.trajectory, color: entry.record.orbitClass.color,
+            footprint: footprint(entry.record), modelFile: entry.record.metadata["modelFile"]?.string)
+    }
+
     /// The web app's ground track and sensor cone, which it draws for low orbits
     /// only: the record's swath or 200 km, and its field of view or 10°.
-    private static func footprint(_ record: GPRecord) -> Footprint? {
+    private nonisolated static func footprint(_ record: GPRecord) -> Footprint? {
         guard record.orbitClass == .leo else {
             return nil
         }

@@ -48,8 +48,9 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   terrain tile; a surface tile's grid is laid over the terrain tile log₂(screen
   scale) levels coarser, the level the web app would ask for, so the app asks
   Re:Earth no more than the web app does. ADR 0009 has why. The texture budget
-  is soft: a low, oblique view can use more tiles than it, and evicting tiles in
-  use only starts the refinement over.
+  is soft, as is the terrain's: a low, oblique view can use more tiles than it,
+  and evicting tiles in use only starts the refinement over, or decodes them
+  again and again.
 - About, the menu column's last entry, is the web app's About dialog (`AboutView.swift`):
   what Satvis is, what it does and where its data comes from, written for the app.
   The about page's demos are the Bookmarks sheet's, so About has none of its own.
@@ -231,7 +232,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   over Bookmarks, Satellites, Components, Map, Locations, Globe, Sky and Graphics,
   then About, which the web app keeps as a corner button, with their
   Lucide icons, names and order, and their hover hints, trimmed to what the
-  app has, as VoiceOver hints, one glass panel
+  app has, as VoiceOver hints, one panel (`PanelStyle.swift`, drawn rather than
+  Liquid Glass, whose blur cost the compositor 5 ms of GPU a frame)
   whose rows each hold an icon and its name, folded on a phone and open on an
   iPad, as the web's is on a desktop. Components, Map, Globe, Sky
   and Graphics open the web's panels beside it (`ToolPanels.swift`): a title and a
@@ -300,17 +302,26 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   ProMotion screen, which an iPhone gives an app only with
   `CADisableMinimumFrameDuration` in `Info.plist`. The simulator reports 60
   whatever it models. The web app has no such parameter, so the rate is kept in
-  `UserDefaults`, not links; a benchmark records it as `app_frame_rate`. The
-  globe is drawn every frame: unlike CesiumJS's `requestRenderMode`, nothing
-  skips a frame when nothing has changed.
+  `UserDefaults`, not links; a benchmark records it as `app_frame_rate`. That
+  rate is a cap: a frame is skipped, and the last one left on screen, while
+  nothing has been set or loaded, the camera stands still and no satellite can
+  have moved half a device pixel, as the web app paces CesiumJS's render on
+  demand (`RenderPacing`; the default view draws 4 frames a second). Whatever
+  changes what is drawn has to say so (`needsDraw`, or the surface's, the models'
+  and the ground tracks' revisions). The sky view, tracking, the FPS
+  switch and the benchmark draw every frame, but for the benchmark's scenes
+  standing still.
 - The Graphics menu's "Benchmark" is the web app's `bench=true`, kept in links
-  the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): nine scenes opened
+  the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): eleven scenes opened
   by their links in turn, each waited for until everything active is drawn
   (`SatelliteLayer.draws`: a satellite SGP4 refuses, long decayed, is never drawn,
   so the count drawn alone never reached the count active and every active
   satellite waited out the timeout), settled 3 s and recorded 5 s frame by frame
   (`FrameRecording`), then the first again for drift, and the view put back;
-  `BenchmarkReport` builds the event sent.
+  `BenchmarkReport` builds the event sent. Two scenes stand still with the
+  pacing on (`BenchmarkScene.paced`): their `fps` is the frames drawn, which
+  rises to 60 when something keeps every frame drawn, and they count none as
+  slow.
   `cpu_ms` is the renderer's own work; `buffer_wait_ms` is the main thread
   blocked on a buffer the GPU still holds, the GPU running behind, and
   `drawable_wait_ms` on a drawable from the display, which, counted as CPU, read
@@ -320,8 +331,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   properties flat for PostHog's insights: `benchmark_` and `app_` for the run,
   `device_` for the device, system and screen, and `scene_<scene>_<metric>` per
   scene (`_repeat` for the drift check). Bump `Benchmark.version` when the scenes
-  or the metrics change. The panel drops its glass while measuring: blurring the
-  globe cost the GPU 2 ms a frame on an iPad mini. `SATVIS_BENCHMARK` in the
+  or the metrics change. `SATVIS_BENCHMARK` in the
   launch environment runs it at once, sends the results itself and prints them
   as JSON, for a device driven from the Mac; `SATVIS_BENCHMARK=print` only
   prints them, and `SATVIS_BENCHMARK_SCENES` (scene ids by commas) runs only

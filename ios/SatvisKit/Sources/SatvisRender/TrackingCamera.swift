@@ -3,7 +3,7 @@ import simd
 
 /// Where the camera is and which way it faces, in the Earth-fixed frame: what one
 /// frame is drawn from, whichever camera produced it.
-struct CameraPose {
+struct CameraPose: Equatable {
     var position: SIMD3<Double>
     var right: SIMD3<Double>
     var up: SIMD3<Double>

@@ -30,6 +30,8 @@ final class GroundOverlay {
     private var isBuilding = false
     /// Corridors worked out and not yet drawn, and the instant they are for.
     private var built: (vertices: [(Float, Float, Float)], at: Double)?
+    /// Counts the corridors worked out, for the frame that draws them.
+    private(set) var revision = 0
 
     /// Whether the globe has a ground track to sample: not before the first
     /// corridors are drawn, as the texture holds whatever was in its memory. An
@@ -78,6 +80,7 @@ final class GroundOverlay {
             await MainActor.run {
                 self?.built = (vertices, now)
                 self?.isBuilding = false
+                self?.revision += 1
             }
         }
     }

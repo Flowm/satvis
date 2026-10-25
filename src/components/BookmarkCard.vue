@@ -88,13 +88,13 @@ function onBlur(event: FocusEvent): void {
 .bookmarkCard {
   position: relative;
   overflow: hidden;
-  background: #1f2225;
+  background: var(--panel-raised);
   border: 2px solid transparent;
   border-radius: 8px;
 }
 
 .bookmarkCard--current {
-  border-color: #7fd2ea;
+  border-color: var(--panel-accent);
 }
 
 .bookmarkCard__open,
@@ -105,7 +105,7 @@ function onBlur(event: FocusEvent): void {
   padding: 0 0 7px;
   background: none;
   border: none;
-  color: #edffff;
+  color: var(--panel-ink);
   text-align: left;
 }
 
@@ -114,7 +114,7 @@ function onBlur(event: FocusEvent): void {
 }
 
 .bookmarkCard__open:focus-visible {
-  outline: 2px solid #7fd2ea;
+  outline: 2px solid var(--panel-accent);
   outline-offset: -2px;
 }
 
@@ -127,7 +127,7 @@ function onBlur(event: FocusEvent): void {
   width: 100%;
   aspect-ratio: 16 / 10;
   object-fit: cover;
-  background: #0b0f14;
+  background: #000;
 }
 
 .bookmarkCard__thumb--none {
@@ -189,10 +189,10 @@ function onBlur(event: FocusEvent): void {
 .bookmarkCard__rename input {
   margin: 5px 5px 0;
   padding: 3px 5px;
-  background: #0b0f14;
-  border: 1px solid #7fd2ea;
+  background: #000;
+  border: 1px solid var(--panel-accent);
   border-radius: 5px;
-  color: #edffff;
+  color: var(--panel-ink);
   font-size: 13px;
 }
 
@@ -210,12 +210,12 @@ function onBlur(event: FocusEvent): void {
   background: #000b;
   border: none;
   border-radius: 6px;
-  color: #edffff;
+  color: var(--panel-ink);
   cursor: pointer;
 }
 
 .bookmarkCard__tools button:focus-visible {
-  outline: 2px solid #7fd2ea;
+  outline: 2px solid var(--panel-accent);
 }
 
 @media (pointer: coarse) {

@@ -77,17 +77,23 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Shaders/Lines.msl): with every active one's orbit on, an iPad mini drew
     /// 36 frames a second with every sample and 43 with these steps.
     private static let lineLevelOfDetailSatellites = 1000
-    public var components: SatelliteComponents = [.point, .label]
+    public var components: SatelliteComponents = [.point, .label] {
+        didSet { needsDraw = true }
+    }
     /// What the free camera holds still in. Tracking keeps the satellite's own
     /// frame, and the sky view the observer's, so it waits while either is up:
     /// the free camera does not turn meanwhile.
     public var cameraFrame: CameraFrame {
         get { rig.cameraFrame }
-        set { rig.cameraFrame = newValue }
+        set {
+            rig.cameraFrame = newValue
+            needsDraw = true
+        }
     }
     /// In the sky view, how the satellites that cannot be seen are drawn (ADR 0010).
     public var unseen = UnseenMode.dim {
         didSet {
+            needsDraw = true
             // The crosshair passes over hidden ones: judged again at once.
             skyCache.lockAt = -.infinity
         }
@@ -98,10 +104,15 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// view is the camera's.
     public var passthrough: CameraLens? {
         get { rig.passthrough }
-        set { rig.passthrough = newValue }
+        set {
+            rig.passthrough = newValue
+            needsDraw = true
+        }
     }
     /// The instant to draw, in UTC milliseconds since 1970.
-    public var clock: () -> Double = { (Date().timeIntervalSince1970 * 1000).rounded(.down) }
+    public var clock: () -> Double = { (Date().timeIntervalSince1970 * 1000).rounded(.down) } {
+        didSet { needsDraw = true }
+    }
 
     private static let hdrFormat = MTLPixelFormat.rgba16Float
     private static let depthFormat = MTLPixelFormat.depth32Float
@@ -180,18 +191,37 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
     }
 
+    /// Something drawn has changed since the last frame, which the next has to
+    /// show whatever the pacing.
+    private var needsDraw = true
+    /// What the last frame was drawn from, which the next is skipped against
+    /// (`mustDraw`).
+    private var drawnFrom: (pose: CameraPose, time: Double, content: Int, pixelRate: Double, links: Range<Double>)?
+
+    /// Counts what came in for the tiles, the models and the ground tracks, each
+    /// counting up alone.
+    private var contentRevision: Int { surface.revision + models.revision + overlay.revision }
+    /// The uptime of the last call to draw a frame, drawn or skipped.
+    private var lastDrawCall = -Double.infinity
+
     /// The frames' averages over the last half second, while measured.
     public var frameStats: FrameStats? { measuresFrames ? meter.stats : nil }
 
-    /// Records every frame until `stopRecordingFrames`, measuring meanwhile.
-    public func startRecordingFrames() {
+    /// Records every frame until `stopRecordingFrames`, measuring meanwhile. A
+    /// measured frame is never skipped, unless `paced`.
+    public func startRecordingFrames(paced: Bool = false) {
         measuresFrames = true
+        recordsPaced = paced
         meter.startRecording()
     }
 
     public func stopRecordingFrames() -> FrameRecording {
-        meter.stopRecording()
+        recordsPaced = false
+        return meter.stopRecording()
     }
+
+    /// Whether the frames recorded are skipped as they are unmeasured.
+    private var recordsPaced = false
 
     /// Satellites handed to the renderer, drawn or not.
     public var satelliteCount: Int { points.count }
@@ -366,6 +396,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             let imagery = naturalEarth.flatMap(Textures.naturalEarth(at:))
             await MainActor.run {
                 self.imagery = imagery.flatMap { Textures.texture2D($0, device: self.device, queue: self.queue) }
+                self.needsDraw = true
             }
         }
     }
@@ -378,6 +409,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             let bitmaps = Textures.cubeFaces(faces)
             await MainActor.run {
                 self.stars = bitmaps.flatMap { Textures.textureCube($0, device: self.device, queue: self.queue) }
+                self.needsDraw = true
             }
         }
     }
@@ -395,17 +427,20 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     public func setSatellites(_ prepared: PreparedSatellites) {
         points.install(prepared)
         overlay.isStale = true
+        needsDraw = true
     }
 
     /// The base map, the site the shipped one's finer levels come from, and a
     /// daily one's day (`GIBS.frame`).
     public func setImagery(_ layer: BaseLayer, site: URL, frame: String? = nil) {
         surface.setLayer(layer, site: site, frame: frame)
+        needsDraw = true
     }
 
     /// Whether the globe follows Re:Earth's terrain. Off by default, as on the web.
     public func setTerrain(_ enabled: Bool) {
         rig.terrainSetting = enabled
+        needsDraw = true
     }
 
     /// Stands on the ground at the camera's observer and looks up from there,
@@ -460,12 +495,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The ground stations to stand pins on.
     public func setStations(_ stations: [StationMarker]) {
         self.stations = stations
+        needsDraw = true
     }
 
     /// The ground station links, each drawn while its pass lasts and the component
     /// is on.
     public func setLinks(_ links: [StationLink]) {
         self.links = links
+        needsDraw = true
     }
 
     /// Follows a satellite or a ground station from where the web app's tracking
@@ -557,6 +594,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         hdr = target(Self.hdrFormat)
         depth = target(Self.depthFormat)
+        needsDraw = true
     }
 
     /// The next frame as a JPEG `width` pixels across, for a bookmark's card; nil
@@ -596,10 +634,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         let pose = rig.pose(
             uptime: ProcessInfo.processInfo.systemUptime, time: now, aspectRatio: size.x / size.y, model: { self.trackedModel($0) },
             target: { self.position(of: $0, at: now) }, groundHeight: { self.surface.groundHeight(latitude: $0.latitude, longitude: $0.longitude) })
-        guard let pose else {
+        guard let pose, mustDraw(pose: pose, time: now, size: size) else {
             return
         }
         guard let target = beginFrame(view, measuring: measuring) else {
+            needsDraw = true
             return
         }
         let commands = target.commands
@@ -617,6 +656,87 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 cpuSeconds: ended - started - target.waitedForBuffer - target.waitedForDrawable, bufferWaitSeconds: target.waitedForBuffer,
                 drawableWaitSeconds: target.waitedForDrawable, at: ended, satellites: points.count)
         }
+    }
+
+    /// Whether a frame has to be drawn, or the last one still shows what this one
+    /// would to within `RenderPacing.pixels`: nothing set or loaded since, the same
+    /// pose, and no satellite able to have moved that far on the clock since. Every
+    /// frame is drawn while measured, in the sky view and while tracking.
+    private func mustDraw(pose: CameraPose, time: Double, size: SIMD2<Double>) -> Bool {
+        let uptime = ProcessInfo.processInfo.systemUptime
+        // Calls stop while the app is in the background, which may drop the picture.
+        let resumed = uptime - lastDrawCall > 0.5
+        lastDrawCall = uptime
+        let paced = (!measuresFrames || recordsPaced) && snapshotRequest == nil && cameraMode == .orbit
+        if paced, !needsDraw, !resumed, surface.isSettled, let drawnFrom, drawnFrom.pose == pose, drawnFrom.content == contentRevision,
+            RenderPacing.stands(abs(time - drawnFrom.time) / 1000, pixelRate: drawnFrom.pixelRate), drawnFrom.links.contains(time)
+        {
+            return false
+        }
+        needsDraw = false
+        // Once a frame drawn, not every time the display asks.
+        drawnFrom = (pose, time, contentRevision, paced ? pixelRate(pose: pose, time: time, size: size) : .infinity, linkSpan(around: time))
+        return true
+    }
+
+    /// The instants around `time` within which no ground station link drawn starts
+    /// or ends; a link moves no faster than its satellite, which the pacing bounds.
+    /// Worked out once a frame drawn: checked at every vsync, 2,455 links took a
+    /// quarter of an iPad mini's main thread.
+    private func linkSpan(around time: Double) -> Range<Double> {
+        guard components.contains(.groundStationLink) else {
+            return -Double.infinity..<Double.infinity
+        }
+        var (from, to) = (-Double.infinity, Double.infinity)
+        for link in links {
+            // Drawn up to its end inclusive, it is gone from the next instant on.
+            for instant in [link.start, link.end.nextUp] {
+                if instant <= time {
+                    from = max(from, instant)
+                } else {
+                    to = min(to, instant)
+                }
+            }
+        }
+        return from..<to
+    }
+
+    /// The most device pixels a simulation second anything on a frame drawn from
+    /// `pose` at `time` can move (`RenderPacing.pixelRate`): each satellite where
+    /// it is, or its orbit's lines where their nodes are, and its ground station
+    /// links, which move no faster than it does, where they pass nearest.
+    private func pixelRate(pose: CameraPose, time: Double, size: SIMD2<Double>) -> Double {
+        let (satellites, motions, camera) = (points.satellites, points.prepared?.motions ?? [], pose.position)
+        let (orbit, track) = (components.contains(.orbit), components.contains(.orbitTrack))
+        var stations: [String: [SIMD3<Double>]] = [:]
+        if components.contains(.groundStationLink) {
+            for link in links where link.start <= time && time <= link.end {
+                stations[link.satellite, default: []].append(link.station)
+            }
+        }
+        func nearest(_ index: Int) -> (distance: Double, speed: Double)? {
+            let trajectory = satellites[index].trajectory
+            // A line is drawn while the satellite is.
+            guard let position = trajectory.position(at: time), let motion = motions[index] else {
+                return nil
+            }
+            var nearest = (stations[satellites[index].id] ?? []).reduce(distance(position, camera)) { nearest, station in
+                let along = position - station
+                let t = min(max(dot(camera - station, along) / length_squared(along), 0), 1)
+                return min(nearest, distance(station + t * along, camera))
+            }
+            let start = (trajectory.startMilliseconds - time) / 1000
+            for turned in [true, false] where turned ? orbit : track {
+                let line = RenderPacing.lineDistance(
+                    trajectory.positions, start: start, step: trajectory.stepMilliseconds / 1000, turned: turned, chord: motion.chord, from: camera)
+                nearest = min(nearest, line ?? .infinity)
+            }
+            return (nearest, motion.speed(atRadius: length(position), turning: orbit))
+        }
+        return RenderPacing.pixelRate(
+            motions, nearest: nearest, lines: orbit || track, linked: Set(stations.keys.compactMap(points.index(of:))),
+            cones: components.contains(.sensorCone), camera: camera,
+            pixelsPerRadian: RenderPacing.pixelsPerRadian(width: size.x, height: size.y, verticalFieldOfView: pose.verticalFieldOfView(aspectRatio: size.x / size.y)))
     }
 
     /// A command buffer once one of the frames in flight is free, and the drawable

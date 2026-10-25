@@ -104,11 +104,16 @@ public struct SampledTrajectory: Sendable {
         return sum
     }
 
+    /// The instant of `positions[0]`, in UTC milliseconds.
+    public var startMilliseconds: Double {
+        anchorMilliseconds + Double(firstIndex) * stepMilliseconds
+    }
+
     /// Whether the window still has a full half orbit behind and an orbit ahead of
     /// this instant. Refill it when not.
     public func isFresh(at epochMilliseconds: Double) -> Bool {
         let period = stepMilliseconds * Self.samplesPerOrbit
-        let start = anchorMilliseconds + Double(firstIndex) * stepMilliseconds
+        let start = startMilliseconds
         let end = start + Double(positions.count - 1) * stepMilliseconds
         return epochMilliseconds >= start + 0.25 * period && epochMilliseconds <= end - period
     }

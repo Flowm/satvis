@@ -1,10 +1,10 @@
 /* The catalog sheet's palette and the bits its components share; layouts stay per component.
    The tokens live on the sheet, so every component inside inherits them. */
 .catalogSheet {
-  --cs-bg: #303336f0;
+  --cs-bg: var(--panel-surface-dense);
   --cs-raised: #ffffff0f;
   --cs-line: #ffffff1f;
-  --cs-text: #edffff;
+  --cs-text: var(--panel-ink);
   --cs-dim: #b8c4c4;
   --cs-mute: #8a9797;
   --cs-accent: #2f9e44;

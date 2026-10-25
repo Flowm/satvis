@@ -134,8 +134,7 @@ struct ContentView: View {
                 }
             }
             .labelStyle(.iconOnly)
-            .buttonStyle(.glass)
-            .controlSize(.large)
+            .buttonStyle(PanelButtonStyle())
             .onGeometryChange(for: CGRect.self) {
                 $0.frame(in: .global)
             } action: {
@@ -223,7 +222,7 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .glassEffect()
+                .panel()
                 .padding(.top, 72)
             }
         }
@@ -431,7 +430,7 @@ private struct OpenStreetMapCredit: View {
     }
 }
 
-/// A word for the user that goes by itself, on glass.
+/// A word for the user that goes by itself, on a panel.
 struct NoticeBanner: View {
     let text: String
 
@@ -441,7 +440,7 @@ struct NoticeBanner: View {
             .multilineTextAlignment(.center)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .glassEffect(in: .rect(cornerRadius: 20))
+            .panel()
             .padding(.horizontal, 16)
             .transition(.opacity)
     }

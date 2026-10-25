@@ -23,7 +23,7 @@ final class Surface {
     /// Source tiles kept decoded for baking.
     private static let maximumSources = 64
     private static let bakesPerFrame = 12
-    /// Terrain tiles kept decoded: about 30 MB.
+    /// Terrain tiles kept decoded, about 30 MB, unless more are in use.
     private static let maximumTerrainTiles = 96
     /// Tiles laid over the terrain a frame, a few hundred lookups each.
     private static let drapesPerFrame = 16
@@ -33,6 +33,12 @@ final class Surface {
     /// Counts the terrain tiles that came in, for what is worked out from the
     /// ground to know it is out of date.
     private(set) var terrainRevision = 0
+    /// Counts the imagery and terrain tiles that came in or failed: a frame drawn
+    /// before one may no longer be what the surface would draw.
+    private(set) var revision = 0
+    /// Whether the last selection left nothing to bake or lay over the terrain,
+    /// so that the next frame would draw the same tiles until `revision` moves.
+    private(set) var isSettled = false
     /// CesiumJS's for an ellipsoid of 65-sample tiles, two at level 0.
     private static let levelZeroGeometricError = 6_378_137.0 * 2 * .pi * 0.25 / (65 * 2)
 
@@ -101,6 +107,8 @@ final class Surface {
     let indexCount: Int
     private let sampler: MTLSamplerState
     private var tiles: [TileKey: Tile] = [:]
+    /// The tiles past the roots that hold a texture.
+    private var texturedTiles = 0
     private var sources: [TileKey: Source] = [:]
     private var terrainTiles: [TileKey: TerrainTile] = [:]
     /// When each terrain tile was last wanted, by frame.
@@ -198,17 +206,27 @@ final class Surface {
             let distance = max(simd.distance(eye, nearest), 1)
             let error = Self.levelZeroGeometricError / Double(1 << key.level) * sseFactor / distance
             if error > Self.maximumScreenSpaceError, key.level < maximumLevel {
-                let children = key.children.map(self.tile)
-                for child in children {
+                // Loops: a main-actor method passed to `map` checks its executor
+                // at every call.
+                var children: [Tile] = []
+                var ready = true
+                for childKey in key.children {
+                    let child = self.tile(childKey)
                     child.lastUsed = frame
+                    // Asked of each child, so each starts loading its terrain.
+                    let hasGeometry = hasGeometry(child)
+                    ready = ready && hasGeometry && child.texture != nil
+                    children.append(child)
                 }
-                // Asked of each child, so each starts loading its terrain.
-                let ready = children.map(hasGeometry)
-                if zip(children, ready).allSatisfy({ $0.texture != nil && $1 }) {
-                    key.children.forEach(visit)
+                if ready {
+                    for child in children {
+                        visit(child.key)
+                    }
                     return
                 }
-                bake += children.filter { $0.texture == nil }
+                for child in children where child.texture == nil {
+                    bake.append(child)
+                }
             }
             _ = hasGeometry(tile)
             draw.append(tile)
@@ -219,6 +237,7 @@ final class Surface {
         visit(TileKey(level: 0, x: 0, y: 0))
         visit(TileKey(level: 0, x: 1, y: 0))
         evict()
+        isSettled = bake.isEmpty && drapes < Self.drapesPerFrame
         return (draw, bake)
     }
 
@@ -322,12 +341,20 @@ final class Surface {
             guard case .loading(let current, _) = terrainTiles[key], current == work else {
                 return
             }
+            revision += 1
             if let source {
                 terrainTiles[key] = .ready(source)
                 terrainRevision += 1
             } else {
                 log.error("Terrain \(key, privacy: .public) unavailable")
                 terrainTiles[key] = .failed(at: Date())
+                // Asked for again by the first frame drawn once the retry interval
+                // is up: with the clock stopped and the camera still, that frame
+                // waits for this.
+                try? await Task.sleep(for: .seconds(Self.retryInterval))
+                if case .failed = terrainTiles[key] {
+                    revision += 1
+                }
             }
         }
     }
@@ -338,6 +365,9 @@ final class Surface {
         for tile in tiles.prefix(Self.bakesPerFrame) {
             guard let texture = tile.texture ?? makeTexture() else {
                 continue
+            }
+            if tile.texture == nil, tile.key.level > 0 {
+                texturedTiles += 1
             }
             tile.texture = texture
             bake(tile, into: texture, base: base, commands: commands)
@@ -451,6 +481,7 @@ final class Surface {
                 log.error("Tile \(key, privacy: .public) of \(layer.rawValue, privacy: .public) unavailable")
             }
             sources[key] = texture.map { .ready($0, lastUsed: frame) } ?? .failed(at: Date())
+            revision += 1
             if texture != nil {
                 markForBake(covering: key)
             } else {
@@ -463,6 +494,7 @@ final class Surface {
                         return
                     }
                     markForBake(covering: key)
+                    revision += 1
                 }
             }
         }
@@ -519,19 +551,24 @@ final class Surface {
     }
 
     /// Drops the textures, then the tiles, used longest ago, past the budgets. The
-    /// roots stay, and so does whatever this frame uses.
+    /// roots stay, and so does whatever this frame uses. The textures as soon as
+    /// they are past theirs; the rest every 30 frames, as going through every tile
+    /// every frame took the sky view 0.4 ms of each.
     private func evict() {
-        let textured = tiles.values.filter { $0.texture != nil && $0.key.level > 0 }
-        if textured.count > Self.maximumTextures {
+        if texturedTiles > Self.maximumTextures {
             // Never one this frame uses: a view that needs more than the budget
             // keeps them, rather than losing the tiles it refines into and starting over.
-            let unused = textured.filter { $0.lastUsed < frame }
-            for tile in unused.sorted(by: { $0.lastUsed < $1.lastUsed }).prefix(textured.count - Self.maximumTextures) {
+            let unused = tiles.values.filter { $0.texture != nil && $0.key.level > 0 && $0.lastUsed < frame }
+            for tile in unused.sorted(by: { $0.lastUsed < $1.lastUsed }).prefix(texturedTiles - Self.maximumTextures) {
                 tile.texture = nil
                 tile.needsBake = true
                 tile.isComplete = false
                 tile.draped = nil
+                texturedTiles -= 1
             }
+        }
+        guard frame % 30 == 0 else {
+            return
         }
         if tiles.count > 4 * Self.maximumTextures {
             for tile in tiles.values.filter({ $0.texture == nil && $0.lastUsed < frame - 60 }) {
@@ -555,9 +592,6 @@ final class Surface {
     /// flown past to be sent, as the terrain's are cancelled; and forgets the
     /// failures past their retry interval, which are asked for again anyway.
     private func evictSources() {
-        guard frame % 30 == 0 else {
-            return
-        }
         let waiting = tiles.values.filter { !$0.isComplete && $0.lastUsed >= frame - 60 }
         for (key, state) in sources {
             switch state {
@@ -582,9 +616,6 @@ final class Surface {
     /// requests for those nothing has wanted for a second, so that a zoom does not
     /// leave a queue of tiles flown past to be sent.
     private func evictTerrain() {
-        guard frame % 30 == 0 else {
-            return
-        }
         var ready: [TileKey] = []
         for (key, state) in terrainTiles {
             switch state {
@@ -598,7 +629,10 @@ final class Surface {
             }
         }
         if ready.count > Self.maximumTerrainTiles {
-            for key in ready.sorted(by: { terrainUsed[$0, default: 0] < terrainUsed[$1, default: 0] }).prefix(ready.count - Self.maximumTerrainTiles) {
+            // Never one this frame uses: the sky view lays 118, and dropping those
+            // in use decoded them again, 44 a second on an iPad mini.
+            let unused = ready.filter { terrainUsed[$0, default: 0] < frame }
+            for key in unused.sorted(by: { terrainUsed[$0, default: 0] < terrainUsed[$1, default: 0] }).prefix(ready.count - Self.maximumTerrainTiles) {
                 terrainTiles[key] = nil
             }
         }

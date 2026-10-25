@@ -1,7 +1,7 @@
 <template>
   <div class="cesium">
     <div v-show="showUI" id="toolbarLeft" :class="{ 'toolbarLeft--panelOpen': anyMenuOpen }">
-      <div class="menuColumn">
+      <div class="menuColumn panelSurface">
         <button
           ref="menuToggle"
           type="button"

@@ -177,6 +177,8 @@ final class SatelliteModels {
     /// fetcher, nil when it has none.
     var loader: (@Sendable (String) async -> Data?)?
     private var models: [String: State] = [:]
+    /// Counts the models that loaded or failed, for the frame that shows them.
+    private(set) var revision = 0
     private let device: MTLDevice
     private static let retryInterval: TimeInterval = 60
 
@@ -208,6 +210,13 @@ final class SatelliteModels {
         Task {
             let prepared = await PreparedModel.load(file, loader: loader, device: device, priority: .utility)
             models[file] = prepared.map(State.ready) ?? .failed(at: Date())
+            revision += 1
+            if prepared == nil {
+                // Asked for again by the first frame drawn after this, which a
+                // stopped clock and a still camera wait for.
+                try? await Task.sleep(for: .seconds(Self.retryInterval))
+                revision += 1
+            }
         }
     }
 }
