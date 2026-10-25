@@ -20,6 +20,10 @@ nonisolated class SatvisUITests: XCTestCase {
         app.buttons["Details of METOP-C"].tap()
         XCTAssert(app.navigationBars["METOP-C"].waitForExistence(timeout: 10))
         XCTAssert(app.buttons["Track"].exists)
+        // On a phone the column stays folded, clear of the satellite's panel.
+        if UIDevice.current.userInterfaceIdiom != .pad {
+            XCTAssertEqual(menuToggle(app).label, "Menu")
+        }
     }
 
     // A link opens on what it names, as on the web: the satellite enabled and
@@ -64,6 +68,23 @@ nonisolated class SatvisUITests: XCTestCase {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.62)).tap()
         XCTAssert(panel.waitForNonExistence(timeout: 5))
         XCTAssertEqual(menuToggle(app).label, UIDevice.current.userInterfaceIdiom == .pad ? "Close menu" : "Menu")
+    }
+
+    // A sheet opened from the menu column and closed again leaves the column as it
+    // was: on a phone it folds under the sheet and unfolds as the sheet goes.
+    @MainActor
+    func testReopensTheMenuAfterASheet() {
+        let app = launch()
+        openMenu(app)
+        for entry in ["Satellites", "Locations"] {
+            app.buttons[entry].tap()
+            let done = app.buttons["Done"]
+            XCTAssert(done.waitForExistence(timeout: 10), "No \(entry) sheet")
+            done.tap()
+            XCTAssert(done.waitForNonExistence(timeout: 5))
+            XCTAssert(app.buttons[entry].waitForExistence(timeout: 5), "The menu stayed folded after \(entry)")
+            XCTAssertEqual(menuToggle(app).label, "Close menu")
+        }
     }
 
     // My location stands where the device is, kept as "Geolocation", first in the

@@ -56,6 +56,9 @@ struct ContentView: View {
     @State private var showsAcknowledgements = false
     @State private var showsAbout = false
     @State private var showsTools = false
+    /// What was selected when a sheet folded the column on a phone, to unfold it
+    /// again when the sheet closes; nil while no sheet folded it.
+    @State private var foldedFor: Selection??
     /// The panel open beside the menu column, if any.
     @State private var panel: ToolPanel?
     /// Where the menu column and the top corner's buttons are, in the window.
@@ -247,11 +250,20 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
             }
         }
+        // A sheet folds the column on a phone and unfolds it again as it closes,
+        // unless what was done in it is on the globe now: a panel opened there
+        // would be under the column, and picking a spot needs the globe.
         .onChange(of: showsBookmarks || showsBrowser || showsStations || showsAbout) { _, presenting in
             if presenting {
                 panel = nil
-                if sizeClass != .regular {
+                if sizeClass != .regular, showsTools {
                     showsTools = false
+                    foldedFor = .some(session.selection)
+                }
+            } else if let selection = foldedFor {
+                foldedFor = nil
+                if session.selection == selection, !session.isPicking {
+                    showsTools = true
                 }
             }
         }
