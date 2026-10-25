@@ -532,8 +532,8 @@ final class Session {
         perform(focus.goHome())
     }
 
-    /// Looks up from where the device is: the Sky panel's Look up. A station's
-    /// panel looks up from that station instead.
+    /// Looks up from where the device is: the Sky panel's My location. Its other
+    /// rows and a station's panel look up from a station instead.
     func lookUpFromHere() async {
         if let id = await stationHere() {
             enterSky(at: id)

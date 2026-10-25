@@ -178,8 +178,10 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   only be tried on a device, the simulator having no motion sensor. The
   observer is where the device is, kept as the one saved station named
   "Geolocation" and moved there each time, as on the web (ADR 0003): the Sky
-  panel's Look up stands there, as does a link to the sky view that names no
-  station. It is listed first, by Look up and by Locations' My location alike, as
+  panel's My location stands there, as does a link to the sky view that names no
+  station. The panel's other rows are the other stations, each standing there,
+  and Back to the globe while the view is up; the Globe panel then lists Sky view,
+  ticked and greyed. It is listed first, by both panels' My location alike, as
   on the web, where a link's stations are its list and its sky view stands on
   the first; the app also writes the observer first into the links it makes. A link that names one stands on
   its first, and a station's panel on that station. Its own pin is hidden

@@ -240,6 +240,8 @@ private struct Segments<Value: Hashable>: View {
 private struct Choices<Value: Hashable>: View {
     @Binding var selection: Value
     let options: [(String, Value)]
+    /// Shown but not offered, greyed as the web app's disabled rows.
+    var disabled: Set<Value> = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -262,6 +264,8 @@ private struct Choices<Value: Hashable>: View {
                     .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
+                .disabled(disabled.contains(value))
+                .opacity(disabled.contains(value) ? 0.4 : 1)
                 .accessibilityAddTraits(selection == value ? .isSelected : [])
             }
         }
@@ -310,7 +314,9 @@ struct MapPanel: View {
 
 /// The globe's projection and camera: the web app's Globe panel, less the 2D and
 /// Columbus projections the app does not draw. It writes the same view as the
-/// Sky panel, so in the sky view no projection is ticked (ADR 0003).
+/// Sky panel, so in the sky view no projection is ticked; Sky view is, listed only
+/// then and greyed, as it is entered from the Sky panel, which names a place
+/// (ADR 0003).
 struct GlobePanel: View {
     @Bindable var session: Session
 
@@ -319,16 +325,14 @@ struct GlobePanel: View {
         PanelSection("Projection") {
             Choices(
                 selection: Binding {
-                    inSky ? nil : "3D"
+                    inSky ? "Sky" : "3D"
                 } set: { _ in
                     if inSky {
                         session.leaveSky()
                     }
                 },
-                options: [("3D", Optional("3D"))])
-            if inSky {
-                Note("In the sky view. Pick 3D to return to the globe.")
-            }
+                options: inSky ? [("3D", "3D"), ("Sky view", "Sky")] : [("3D", "3D")],
+                disabled: ["Sky"])
         }
         PanelSection("Camera") {
             Segments(title: "Camera", selection: $session.cameraFrame, options: CameraFrame.allCases.map { ($0.rawValue, $0) })
@@ -340,7 +344,8 @@ struct GlobePanel: View {
     }
 }
 
-/// Looking up from where the user is: the web app's Sky panel. Its settings stay in
+/// Looking up from a place: the web app's Sky panel. Each place's row enters the
+/// sky view standing there, or moves a view already up; its settings stay in
 /// sight on the globe, disabled where they need the sky view (ADR 0003).
 struct SkyPanel: View {
     @Bindable var session: Session
@@ -348,26 +353,36 @@ struct SkyPanel: View {
 
     var body: some View {
         let inSky = session.observer != nil
-        PanelSection("Sky view") {
-            // Disabled while the position comes back, the spinner beside its name.
-            Toggle(
-                isOn: Binding {
-                    inSky
-                } set: { on in
-                    guard on else {
-                        return session.leaveSky()
-                    }
+        let here = session.observer.flatMap { id in session.passes.stations.first { $0.id == id } }
+        // The Geolocation station is My location's, so it has no row of its own.
+        let places = session.passes.stations.filter { $0.name != StationList.geolocation }
+        PanelSection("Look up from") {
+            VStack(spacing: 0) {
+                // Disabled while the position comes back, the spinner in the icon's place.
+                Place(Text("My location"), image: .lucideLocateFixed, isHere: here?.name == StationList.geolocation, waitingFor: locating ? "Finding your location" : nil) {
                     Task {
                         locating = true
                         defer { locating = false }
                         await session.lookUpFromHere()
                     }
                 }
-            ) {
-                Waiting("Look up", while: locating, as: "Finding your location")
+                .disabled(locating)
+                ForEach(places) { station in
+                    Place(Text(verbatim: station.displayName), image: .lucideMapPin, isHere: here?.id == station.id) {
+                        session.enterSky(at: station.id)
+                    }
+                }
+                if inSky {
+                    Place(Text("Back to the globe"), image: .lucideGlobe, isMuted: true) {
+                        session.leaveSky()
+                    }
+                }
             }
-            .disabled(locating)
-            Note("Start sky view from your current location. To look up elsewhere, use a location pin’s sky view button.")
+            // The rows' highlight reaches past the section's edge, their icons level with its title.
+            .padding(.horizontal, -8)
+            if places.isEmpty {
+                Note("Locations you add are listed here too.")
+            }
         }
         PanelSection("Aiming") {
             // Waiting on the sensor, a second tap must not start a second probe.
@@ -400,6 +415,58 @@ struct SkyPanel: View {
                 .disabled(!inSky)
             Note("In Earth's shadow, too far away or during daylight.")
         }
+    }
+}
+
+/// A row that acts rather than chooses, the web app's `toolbarPlace`: an icon, or a
+/// spinner while it waits, and a name, marked where the sky view stands.
+private struct Place: View {
+    let title: Text
+    let image: ImageResource
+    let isHere: Bool
+    let isMuted: Bool
+    /// What VoiceOver hears of the spinner, shown while there is one.
+    let waitingFor: LocalizedStringKey?
+    let action: () -> Void
+    @ScaledMetric(relativeTo: .body) private var iconSize = 18.0
+
+    init(_ title: Text, image: ImageResource, isHere: Bool = false, isMuted: Bool = false, waitingFor: LocalizedStringKey? = nil, action: @escaping () -> Void) {
+        self.title = title
+        self.image = image
+        self.isHere = isHere
+        self.isMuted = isMuted
+        self.waitingFor = waitingFor
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Group {
+                    if let waitingFor {
+                        ProgressView()
+                            .controlSize(.small)
+                            .accessibilityLabel(Text(waitingFor))
+                    } else {
+                        Image(image)
+                            .resizable()
+                            .scaledToFit()
+                    }
+                }
+                .frame(width: iconSize, height: iconSize)
+                // Cut short rather than wrapped, as the web app's rows are.
+                title
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(isHere ? Color.panelAccent : isMuted ? .secondary : .primary)
+            .padding(.horizontal, 8)
+            .frame(minHeight: 40)
+            .background(.white.opacity(isHere ? 0.1 : 0), in: .rect(cornerRadius: 8))
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isHere ? .isSelected : [])
     }
 }
 
