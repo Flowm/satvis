@@ -248,7 +248,7 @@ function onRemove(bookmark: Bookmark): void {
   flex: none;
   gap: 6px;
   padding-top: 8px;
-  border-top: 1px solid #ffffff1f;
+  border-top: 1px solid var(--panel-hairline);
 }
 
 .bookmarkPanel__footer button {

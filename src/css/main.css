@@ -57,24 +57,31 @@ body {
   --button-radius: calc(var(--toolbar-row) * 12 / 44);
 
   /* The panels' palette, shared with the iOS app (ios/satvis/PanelStyle.swift): Apple's
-     dark grouped backgrounds, which its lists' rows already are. */
+     dark grouped backgrounds, which its lists' rows already are. Nothing blurs the globe:
+     on an iPad mini a blur cost the compositor 1.2 to 5 ms of GPU a frame. */
   --panel-surface: #1c1c1e;
-  /* What floats over the globe. */
+  /* The menu column, the corner buttons, the clock deck and the sky view's cards: a few
+     large glyphs, which the globe can show through. */
   --panel-surface-float: #1c1c1ed9;
-  /* Where globe labels must not bleed through a dense list. */
-  --panel-surface-dense: #1c1c1ef0;
+  /* The panels and the info panel, whose rows of small text globe labels must not bleed
+     through. Solid only over the corner buttons and in dialogs. */
+  --panel-surface-dense: #1c1c1ef2;
   /* A card or a control on a panel. */
   --panel-raised: #2c2c2e;
   --panel-raised-hover: #3a3a3c;
   /* What is chosen, over a panel or a control. */
   --panel-selected: #ffffff1f;
+  /* Apple's separator. */
+  --panel-hairline: #54545899;
   /* Along a floating panel's top, where Liquid Glass is lit. */
   --panel-glow: linear-gradient(#ffffff0d, transparent 35%);
   --panel-ink: #edffff;
-  --panel-muted: #9aa5a8;
+  --panel-muted: #edffff99;
   --panel-accent: #7fd2ea;
   /* "Not where it rests", as the iOS app's: the clock deck's reset, a stale element set. */
   --panel-amber: #ffd479;
+  /* Apple's dark red, for what removes or forgets. */
+  --panel-destructive: #ff453a;
 }
 
 /* A finger needs 44px. The icons move in to keep the column square when collapsed. */
@@ -232,7 +239,7 @@ body {
   display: flex;
   flex-direction: column;
   padding-bottom: 3px;
-  border-top: 1px solid #ffffff1f;
+  border-top: 1px solid var(--panel-hairline);
 }
 
 .menuColumn__toggleIcon {
@@ -280,11 +287,6 @@ body {
   flex-direction: column;
   margin: 2px 3px;
   border-radius: var(--panel-radius);
-}
-
-/* More opaque, so globe labels do not bleed through the dense list. */
-.toolbarSwitches--catalog {
-  background: var(--panel-glow), var(--panel-surface-dense);
 }
 
 /* A section heading, quieter than the panel title, level with the rows' marks. */
