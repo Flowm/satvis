@@ -8,7 +8,7 @@ import { computedOrbitKindOf, epochMsOf, orbitClassOf, parseGpPayload, recordNam
 import { fetchGpGroup, fetchGpIndex } from "./util/gpSource";
 
 export class CatalogEntry {
-  /** satnum + "|" + name. */
+  /** satnum + "|" + name, after a source's prefix if it has one. */
   readonly key: string;
 
   readonly name: string;
@@ -167,13 +167,13 @@ export class SatelliteCatalog {
     }
   }
 
-  /** Returns the entries that were added or whose tags changed. */
-  addRecords(records: GpRecord[], tags: string[]): CatalogEntry[] {
+  /** Returns the entries that were added or whose tags changed. `keyPrefix` keeps them apart from other sources'. */
+  addRecords(records: GpRecord[], tags: string[], keyPrefix = ""): CatalogEntry[] {
     const changed: CatalogEntry[] = [];
     for (const record of records) {
       const name = recordName(record);
       const satnum = recordSatnum(record);
-      const key = `${satnum}|${name}`;
+      const key = `${keyPrefix}${satnum}|${name}`;
       const existing = this.#byKey.get(key);
       if (existing) {
         const before = existing.tags.length;
@@ -204,6 +204,40 @@ export class SatelliteCatalog {
       changed.push(entry);
     }
     return changed;
+  }
+
+  /** Removes `entries`; a name one of them held passes to another entry of that name, if any. */
+  remove(entries: readonly CatalogEntry[]): void {
+    const orphanedNames = new Set<string>();
+    for (const entry of entries) {
+      this.#byKey.delete(entry.key);
+      const sameSatnum = (this.#bySatnum.get(entry.satnum) ?? []).filter((e) => e !== entry);
+      if (sameSatnum.length > 0) {
+        this.#bySatnum.set(entry.satnum, sameSatnum);
+      } else {
+        this.#bySatnum.delete(entry.satnum);
+      }
+      for (const tag of entry.tags) {
+        const tagged = this.#byTag.get(tag);
+        tagged?.delete(entry);
+        // An empty set would still list its tag as a group.
+        if (tagged?.size === 0) {
+          this.#byTag.delete(tag);
+        }
+      }
+      if (this.#byName.get(entry.name) === entry) {
+        this.#byName.delete(entry.name);
+        orphanedNames.add(entry.name);
+      }
+    }
+    // One pass for every orphaned name: a scan per entry cost 1 s for 5,000.
+    if (orphanedNames.size > 0) {
+      for (const entry of this.#byKey.values()) {
+        if (orphanedNames.has(entry.name) && !this.#byName.has(entry.name)) {
+          this.#byName.set(entry.name, entry);
+        }
+      }
+    }
   }
 
   #indexTags(entry: CatalogEntry): void {

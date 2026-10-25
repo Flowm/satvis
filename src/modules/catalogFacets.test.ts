@@ -19,6 +19,7 @@ import {
   pickedFirst,
   UNKNOWN,
 } from "./catalogFacets";
+import { CUSTOM_KEY_PREFIX, CUSTOM_TAG } from "./customSatellites";
 import { SatelliteCatalog } from "./SatelliteCatalog";
 import type { GpRecord } from "./util/gp";
 
@@ -91,6 +92,16 @@ describe("catalogRows", () => {
     const [row, ...rest] = catalogRows(catalog.entries, new Set(["SearchOnly"]), NOW);
     expect(rest).toEqual([]);
     expect(row).toMatchObject({ name: "REAL NAME", groups: ["Weather"] });
+  });
+
+  test("lists a custom satellite apart from the catalog satellite whose NORAD id it shares", () => {
+    const catalog = new SatelliteCatalog();
+    catalog.addRecords([record("MY COPY", 7, {})], [CUSTOM_TAG], CUSTOM_KEY_PREFIX);
+    catalog.addRecords([record("REAL NAME", 7, {})], ["Weather"]);
+    expect(catalogRows(catalog.entries, new Set(), NOW).map((row) => [row.name, row.groups])).toEqual([
+      ["MY COPY", [CUSTOM_TAG]],
+      ["REAL NAME", ["Weather"]],
+    ]);
   });
 
   test("measures altitude from the semi-major axis", () => {

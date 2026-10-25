@@ -98,6 +98,7 @@ function fakeTarget() {
       onTrackedChange: () => {},
       cancelPendingTrack: () => {},
       onCatalogChange: () => {},
+      setCustomRecords: () => {},
       catalog,
     },
     viewer: {

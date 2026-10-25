@@ -11,12 +11,14 @@ import { satelliteModel } from "../config/satelliteMetadata";
 import { BUILTIN_STAR_MAP, starMapRecovery } from "../config/starMaps";
 import { SKY_MODE } from "../config/viewModes";
 import { useCesiumStore } from "../stores/cesium";
+import { useCustomSatelliteStore } from "../stores/customSatellites";
 import { useSatStore } from "../stores/sat";
 import { activeTargetEntries } from "./satelliteActivation";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import type { DesiredScene } from "./SatelliteManager";
 import type { Observer } from "./SkyView";
 import { isOffPresent } from "./util/clockDeck";
+import type { GpRecord } from "./util/gp";
 import { toMinuteIso } from "./util/urlCodec";
 import { adjustUrlDefault, arrivalParam } from "./util/urlSync";
 import type { UnseenMode } from "./util/visibility";
@@ -71,6 +73,7 @@ export interface SceneTarget {
     onTrackedChange(callback: (name: string) => void): void;
     cancelPendingTrack(): void;
     onCatalogChange(callback: () => void): void;
+    setCustomRecords(records: readonly GpRecord[]): void;
     readonly catalog: { readonly entries: readonly CatalogEntry[] };
   };
   readonly viewer: {
@@ -94,6 +97,7 @@ export interface SceneTarget {
 export function startSceneSync(cc: SceneTarget): void {
   const cesiumStore = useCesiumStore();
   const satStore = useSatStore();
+  const customStore = useCustomSatelliteStore();
 
   // Immediate: the viewer has no base layer until this. Nothing may correct the stack
   // later, or it races the route preset's hydration (e2e/regressions/baseMap.spec.ts).
@@ -437,4 +441,15 @@ export function startSceneSync(cc: SceneTarget): void {
   cc.sats.onCatalogChange(() => {
     satStore.catalogRevision += 1;
   });
+
+  // Immediate, so the stored custom satellites are in the catalog before the route's groups
+  // load: a `sats=` name the catalog lacks loads every group to look for it. Sync, so one just
+  // added can be selected at once.
+  watch(
+    () => customStore.records,
+    (records) => {
+      cc.sats.setCustomRecords(records);
+    },
+    { immediate: true, flush: "sync" },
+  );
 }

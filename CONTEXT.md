@@ -18,9 +18,14 @@ discussion; sharpen them here when they drift.
 - **Search-only**: a group a preset registers with `searchOnly: true`. Its
   satellites are in the catalog and can be enabled one by one, but its tags get no
   group row.
+- **Custom satellite**: an element set a visitor pastes into the catalog sheet (TLE, or OMM as
+  JSON, CSV, XML or KVN), tagged `Custom` and kept in that browser's storage, never in the url
+  or on the worker. Its name may not be a catalog satellite's; its NORAD id may, so it has a
+  catalog row and a propagation key of its own (`src/modules/customSatellites.ts`, ADR 0014).
 - **Tag**: a label a group attaches to its satellites, and the unit the user
   enables ("enable Weather"). A tag belongs to the group in the config, not to a
-  preset or a client, so it means the same everywhere. A satellite can carry tags
+  preset or a client, so it means the same everywhere; the one exception is
+  `Custom`, which the browser gives its custom satellites. A satellite can carry tags
   from several groups. Tag names must not contain a comma.
 - **Preset**: the starting configuration of a route: a title, the groups to
   register, and default url parameters. Defined in the worker config and served

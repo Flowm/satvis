@@ -39,6 +39,20 @@ describe("SatelliteCatalog", () => {
     expect(alpha?.tags).toEqual(["GroupA", "GroupB"]);
   });
 
+  test("removes entries, passing a name to the entry left with it", () => {
+    const catalog = new SatelliteCatalog();
+    catalog.addRecords([ommRecord("ALPHA", 1), ommRecord("BETA", 2)], ["Custom"]);
+    catalog.addRecords([ommRecord("BETA", 3)], ["GroupA"]);
+
+    catalog.remove(catalog.entriesWithTag("Custom"));
+
+    expect(catalog.entries.map((entry) => [entry.name, entry.satnum, entry.tags])).toEqual([["BETA", "3", ["GroupA"]]]);
+    expect(catalog.entriesWithTag("Custom")).toEqual([]);
+    expect(catalog.groups.map((group) => group.tag)).toEqual(["GroupA"]);
+    expect(catalog.getByName("ALPHA")).toBeUndefined();
+    expect(catalog.getByName("BETA")?.satnum).toBe("3");
+  });
+
   test("first-wins byName", () => {
     const catalog = new SatelliteCatalog();
     // Same name, different satnums → distinct keys, but getByName returns first.

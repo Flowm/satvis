@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, watch } from "vue";
 
 import { type Bookmark, type BookmarkKind, type Link, parseBookmarks, sameLink, withOpened } from "../modules/util/bookmarks";
+import { localStorageOrNone } from "../modules/util/localStorage";
 
 /** Per browser, not in the url: a bookmark is a link to a scene, not part of one (docs/adr/0011-bookmarks.md). */
 const STORAGE_KEY: Record<Exclude<BookmarkKind, "demo">, string> = {
@@ -9,19 +10,10 @@ const STORAGE_KEY: Record<Exclude<BookmarkKind, "demo">, string> = {
   opened: "satvis:bookmarks:opened",
 };
 
-/** Private windows and blocked site data throw on access, so storage is optional. */
-function storage(): Storage | undefined {
-  try {
-    return globalThis.localStorage ?? undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 /** What is stored of `kind`, or none when storage is out of reach. */
 function load(kind: keyof typeof STORAGE_KEY): Bookmark[] {
   try {
-    return parseBookmarks(storage()?.getItem(STORAGE_KEY[kind]) ?? null, kind);
+    return parseBookmarks(localStorageOrNone()?.getItem(STORAGE_KEY[kind]) ?? null, kind);
   } catch {
     return [];
   }
@@ -29,7 +21,7 @@ function load(kind: keyof typeof STORAGE_KEY): Bookmark[] {
 
 /** A full quota drops the pictures before the bookmarks. */
 function persist(kind: keyof typeof STORAGE_KEY, bookmarks: readonly Bookmark[]): void {
-  const target = storage();
+  const target = localStorageOrNone();
   if (!target) {
     return;
   }
