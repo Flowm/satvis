@@ -63,6 +63,16 @@ import Testing
         #expect(abs(steps.reduce(0, +) * Self.refresh / Double(steps.count) - 0.022) < 0.002)
     }
 
+    // The busier side's work a frame, once one is done: what the drawable gate
+    // reads for whether the frames fall behind.
+    @Test func averagesTheBusierSidesWork() throws {
+        let frames = FramePresentation()
+        #expect(frames.perFrame == nil)
+        let id = frames.began(committed: 0.001, cpu: 0.001, shown: Self.refresh)
+        frames.done(id, start: 0.002, end: 0.024)
+        #expect(abs(try #require(frames.perFrame) - 0.022) < 1e-9)
+    }
+
     // A frame begun is timed a refresh after the one before, whatever the screen
     // reports meanwhile; one only foretold, turned away or skipped, holds back none.
     @Test func neverRunsBackwards() {

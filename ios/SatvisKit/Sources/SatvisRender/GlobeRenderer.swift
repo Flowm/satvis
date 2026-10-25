@@ -252,6 +252,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var snapshotCount = 0
     private var frameIndex = 0
     private let inFlight = DispatchSemaphore(value: framesInFlight)
+    private let drawables = DrawableGate()
     /// When the frames begun are shown, which their content is timed to.
     private let presentation = FramePresentation()
 
@@ -658,8 +659,18 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         #endif
     }
 
+    /// Whether the app is in front, where the GPU is the app's.
+    private static var isActive: Bool {
+        #if canImport(UIKit)
+            UIApplication.shared.applicationState == .active
+        #else
+            true
+        #endif
+    }
+
     public func draw(in view: MTKView) {
         let interval = 1 / Double(max(1, view.preferredFramesPerSecond))
+        drawables.setBehind((presentation.perFrame ?? 0) > interval)
         // A drawable can be read only from a view asked for readable ones, which
         // cannot keep them in tile memory: asked for one frame, and back after.
         view.framebufferOnly = snapshotRequest == nil
@@ -683,6 +694,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             return
         }
         guard let target = beginFrame(view, measuring: measuring) else {
+            if measuring {
+                meter.skipped(cpuSeconds: ProcessInfo.processInfo.systemUptime - started)
+            }
             needsDraw = true
             return
         }
@@ -796,27 +810,50 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// A command buffer once one of the frames in flight is free, and the drawable
     /// it ends on, with how long each was waited for while measuring; nil, the
-    /// frame given back, where either is missing.
+    /// frame given back, where either is missing or no drawable is free yet.
     private func beginFrame(_ view: MTKView, measuring: Bool) -> (
         commands: MTLCommandBuffer, drawable: CAMetalDrawable, screen: MTLRenderPassDescriptor, waitedForBuffer: Double, waitedForDrawable: Double
     )? {
+        // The simulator's drawables say nothing of being presented, so there
+        // every frame takes one, as MTKView's own loop does.
+        #if !targetEnvironment(simulator)
+            let maximumDrawables = (view.layer as? CAMetalLayer)?.maximumDrawableCount ?? 3
+            guard drawables.mayTake(maximum: maximumDrawables, at: ProcessInfo.processInfo.systemUptime) else {
+                return nil
+            }
+        #endif
         let waitStarted = measuring ? ProcessInfo.processInfo.systemUptime : 0
         inFlight.wait()
         let waitedForBuffer = measuring ? ProcessInfo.processInfo.systemUptime - waitStarted : 0
         // Taken only once a frame is free: taken before, a drawable was held while
         // the main thread waited on a GPU running behind (every orbit on).
-        let drawableStarted = measuring ? ProcessInfo.processInfo.systemUptime : 0
+        let drawableStarted = ProcessInfo.processInfo.systemUptime
         let currentDrawable = view.currentDrawable
-        let waitedForDrawable = measuring ? ProcessInfo.processInfo.systemUptime - drawableStarted : 0
+        let waitedForDrawable = ProcessInfo.processInfo.systemUptime - drawableStarted
+        if currentDrawable != nil {
+            drawables.drawableTaken(waited: waitedForDrawable, interval: 1 / Double(max(1, view.preferredFramesPerSecond)))
+        }
         guard let drawable = currentDrawable, let screen = view.currentRenderPassDescriptor, let commands = queue.makeCommandBuffer() else {
+            if currentDrawable != nil {
+                drawables.drawableUnused()
+            }
             inFlight.signal()
             return nil
         }
-        // The simulator's drawables have no presented handler: a frame there is
-        // timed to the refresh after it begins.
         #if !targetEnvironment(simulator)
+            let gate = drawables
             let presentation = presentation
-            drawable.addPresentedHandler { presentation.shown(at: $0.presentedTime) }
+            drawable.addPresentedHandler { [weak view] presented in
+                presentation.shown(at: presented.presentedTime)
+                if gate.beginsTurnedAwayFrame(afterPresenting: presented.presentedTime > 0) {
+                    // Drawn outside MTKView's loop, which stops in the background.
+                    Task { @MainActor in
+                        if Self.isActive {
+                            view?.draw()
+                        }
+                    }
+                }
+            }
         #endif
         let semaphore = inFlight
         let faults = faults

@@ -62,6 +62,12 @@ final class FramePresentation: Sendable {
         var count = 0
     }
 
+    /// The busier side's seconds a frame lately, the main thread's or the GPU's;
+    /// nil before a frame is done.
+    var perFrame: Double? {
+        state.withLock { state in state.gpu.map { max($0, state.cpu) } }
+    }
+
     /// The weight of a frame's measure in the averages.
     static let weight = 0.1
     private let state = Mutex(State())
