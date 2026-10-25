@@ -226,6 +226,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Whether the frames recorded are skipped as they are unmeasured.
     private var recordsIdle = false
 
+    /// What the Metal device holds for the app, in megabytes.
+    public var gpuMemoryMegabytes: Int { device.currentAllocatedSize / 1_048_576 }
+
     /// Satellites handed to the renderer, drawn or not.
     public var satelliteCount: Int { points.count }
 

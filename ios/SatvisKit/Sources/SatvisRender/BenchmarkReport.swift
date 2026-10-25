@@ -61,14 +61,20 @@ public struct BenchmarkResult: Identifiable, Sendable {
     public let recording: FrameRecording
     /// The app's memory footprint once measured; nil where the system does not say.
     public let memoryMegabytes: Int?
-    /// The display's interval between refreshes, which slow frames are counted by.
+    /// Of that, what the app's Metal device holds: textures, meshes, buffers.
+    public let gpuMemoryMegabytes: Int?
+    /// The whole app's CPU time over the recording, every thread's, in percent of
+    /// one core: SwiftUI's drawing too, which `recording` does not see.
+    public let processCPUPercent: Double?
+    /// The interval the frame rate chosen asks for, which slow frames are counted
+    /// by: at 30 fps, a frame every other refresh is on time.
     public let refreshMilliseconds: Double
     /// The scene's `idle`: none of its frames counts as slow.
     public let idle: Bool
 
     public init(
         id: String, title: String, detail: String, satellites: Int, loadSeconds: Double, timedOut: Bool, recording: FrameRecording, memoryMegabytes: Int?,
-        refreshMilliseconds: Double, idle: Bool = false
+        gpuMemoryMegabytes: Int? = nil, processCPUPercent: Double? = nil, refreshMilliseconds: Double, idle: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -78,6 +84,8 @@ public struct BenchmarkResult: Identifiable, Sendable {
         self.timedOut = timedOut
         self.recording = recording
         self.memoryMegabytes = memoryMegabytes
+        self.gpuMemoryMegabytes = gpuMemoryMegabytes
+        self.processCPUPercent = processCPUPercent
         self.refreshMilliseconds = refreshMilliseconds
         self.idle = idle
     }
@@ -103,7 +111,9 @@ public struct BenchmarkResult: Identifiable, Sendable {
             "gpu_ms": rounded(recording.meanGPU),
             "cpu_busy_pct": rounded(recording.cpuBusy, 1),
             "gpu_busy_pct": rounded(recording.gpuBusy, 1),
+            "process_cpu_pct": rounded(processCPUPercent, 1),
             "memory_mb": memoryMegabytes.map { $0 as Any } ?? NSNull(),
+            "gpu_memory_mb": gpuMemoryMegabytes.map { $0 as Any } ?? NSNull(),
         ]
     }
 }

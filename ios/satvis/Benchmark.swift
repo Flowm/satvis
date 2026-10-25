@@ -62,7 +62,7 @@ final class Benchmark {
             link: "/?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen&tags=Active"),
     ]
     /// Changed when the scenes or the metrics change, so results can be told apart.
-    static let version = 6
+    static let version = 7
 
     /// How long a scene may take to load before it is measured anyway: the
     /// largest groups come from the worker on a first run.
@@ -230,18 +230,30 @@ final class Benchmark {
         phase = .settling(index)
         try? await Task.sleep(for: Self.settle)
         phase = .measuring(index)
+        let (cpuBefore, wallBefore) = (Self.processCPUSeconds(), ContinuousClock.now)
         renderer.startRecordingFrames(idle: scene.idle)
         try? await Task.sleep(for: Self.measure)
         let recording = renderer.stopRecordingFrames()
+        let processCPU = Self.processCPUSeconds() - cpuBefore
+        let wall = (ContinuousClock.now - wallBefore) / .seconds(1)
         guard !Task.isCancelled else {
             return nil
         }
+        let maximumRate = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.maximumFramesPerSecond ?? 60
         return BenchmarkResult(
             id: scene.id, title: scene.title, detail: scene.detail,
             satellites: renderer.satelliteCount, loadSeconds: max(loaded / .seconds(1), 0),
-            timedOut: timedOut, recording: recording, memoryMegabytes: MemoryFootprint.megabytes(),
-            refreshMilliseconds: 1000 / Double((UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.maximumFramesPerSecond ?? 60),
+            timedOut: timedOut, recording: recording, memoryMegabytes: MemoryFootprint.megabytes(), gpuMemoryMegabytes: renderer.gpuMemoryMegabytes,
+            processCPUPercent: wall > 0 ? processCPU / wall * 100 : nil, refreshMilliseconds: 1000 / Double(min(session.frameRate, maximumRate)),
             idle: scene.idle)
+    }
+
+    /// The CPU time every thread of the app has used, in seconds.
+    private static func processCPUSeconds() -> Double {
+        var usage = rusage()
+        getrusage(RUSAGE_SELF, &usage)
+        func seconds(_ time: timeval) -> Double { Double(time.tv_sec) + Double(time.tv_usec) / 1e6 }
+        return seconds(usage.ru_utime) + seconds(usage.ru_stime)
     }
 
     /// The first scene against its repeat at the end (`BenchmarkReport.drift`).

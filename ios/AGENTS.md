@@ -331,7 +331,12 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   `BenchmarkReport` builds the event sent. The two idle scenes
   (`BenchmarkScene.idle`) are paced: their `fps` is the frames drawn and none
   counts as slow; their load is what they cost. `cpu_busy_pct` counts the calls
-  that drew nothing too.
+  that drew nothing too; `process_cpu_pct` is every thread's, SwiftUI's
+  included, which the sky view's instruments spend more of than its renderer.
+  `gpu_memory_mb` sits inside `memory_mb`, and both carry what earlier scenes
+  left cached. A frame is slow past one and a half of the chosen rate's
+  interval. A frame's GPU span includes other work the GPU does meanwhile, such
+  as SwiftUI drawing the sky view's instruments.
   `cpu_ms` is the renderer's own work; `buffer_wait_ms` is the main thread
   blocked on a buffer the GPU still holds, the GPU running behind, and
   `drawable_wait_ms` on a drawable from the display, which, counted as CPU, read
