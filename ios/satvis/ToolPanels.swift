@@ -154,7 +154,7 @@ private struct ToolRow: View {
             .padding(.leading, 4)
             .padding(.trailing, folded ? 4 : 18)
             .frame(maxWidth: .infinity, minHeight: 44 * scale, alignment: .leading)
-            .background(.white.opacity(configuration.isPressed ? 0.12 : isSelected ? 0.1 : 0))
+            .background(.white.opacity(configuration.isPressed || isSelected ? 0.12 : 0))
             // Changed at once, the press's and the open panel's alike: the panel's
             // animation faded the latter in after the former had gone, a flicker.
             .animation(nil, value: configuration.isPressed)
@@ -203,6 +203,8 @@ struct ToolPanelView<Content: View>: View {
         }
         .frame(maxWidth: width ?? .infinity)
         .panel()
+        // Rows of small text, which the globe's labels showed through.
+        .environment(\.panelDensity, .dense)
     }
 
     private func padded(_ content: Content) -> some View {

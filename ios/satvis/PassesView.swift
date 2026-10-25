@@ -216,7 +216,7 @@ private struct PassRow: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .listRowBackground(isPicked ? Color.timelineHigh.opacity(0.2) : nil)
+        .listRowBackground(isPicked ? Color.timelineHigh.opacity(0.2) : Color.panelRaised)
         .accessibilityHint("Moves the clock to the start of the pass")
     }
 }

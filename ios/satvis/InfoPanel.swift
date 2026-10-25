@@ -38,7 +38,7 @@ struct InfoPanel: View {
                             {
                                 Label(notice, systemImage: "exclamationmark.triangle")
                                     .font(.footnote)
-                                    .foregroundStyle(Color.deckAmber)
+                                    .foregroundStyle(Color.panelAmber)
                                     .accessibilityHint("Only the latest element set is kept, so positions far from its epoch drift by kilometres to thousands of kilometres.")
                                     // The cards' text inset, 16 pt on an iPad Air and an iPhone, which a zero-inset row loses.
                                     .padding(.horizontal, 16)
@@ -50,15 +50,19 @@ struct InfoPanel: View {
                     .bareRow()
                 }
                 .tabHeader()
-                switch InfoTab.resolved(tab, among: tabs) {
-                case .orbit:
-                    orbit(propagator)
-                case .spacecraft:
-                    spacecraft(modelFile: modelFile, facts: spacecraftFacts, links: links)
-                default:
-                    PassesSections(subject: .satellite(entry), clock: clock, passes: passes)
+                Group {
+                    switch InfoTab.resolved(tab, among: tabs) {
+                    case .orbit:
+                        orbit(propagator)
+                    case .spacecraft:
+                        spacecraft(modelFile: modelFile, facts: spacecraftFacts, links: links)
+                    default:
+                        PassesSections(subject: .satellite(entry), clock: clock, passes: passes)
+                    }
                 }
+                .raisedRows()
             }
+            .panelList()
             // Here, where the alert was switched: on a phone the panel is a sheet
             // over the bottom of the screen, where the session's notices are.
             .overlay(alignment: .bottom) {
@@ -173,7 +177,7 @@ struct InfoPanel: View {
         let chips = SatelliteDetails.chips(entry.record, propagator: propagator)
         return chips.enumerated().reduce(Text(verbatim: "")) { line, item in
             let (index, chip) = item
-            let color: Color = index == 0 ? Color(orbitClass: entry.record.orbitClass) : chip == status ? .deckAmber : .secondary
+            let color: Color = index == 0 ? Color(orbitClass: entry.record.orbitClass) : chip == status ? .panelAmber : .secondary
             let text = Text(chip).foregroundStyle(color)
             return index == 0 ? text : Text("\(line)\(Text(verbatim: " · ").foregroundStyle(.tertiary))\(text)")
         }
@@ -220,6 +224,12 @@ extension View {
     /// A row on the panel's background rather than in a card, edge to edge: the tab row heads the cards below.
     fileprivate func bareRow() -> some View {
         listRowBackground(Color.clear).listRowSeparator(.hidden).listRowInsets(EdgeInsets())
+    }
+
+    /// The tab's cards raised off the panel, as a sheet's are: the iPad's card is
+    /// not a sheet, and its rows were the panel's own colour.
+    fileprivate func raisedRows() -> some View {
+        listRowBackground(Color.panelRaised)
     }
 }
 
@@ -297,17 +307,21 @@ struct StationPanel: View {
                         .bareRow()
                 }
                 .tabHeader()
-                switch InfoTab.resolved(tab, among: Self.tabs) {
-                case .location:
-                    Section {
-                        FactRow(label: "Name", value: station.displayName)
-                        FactRow(label: "Latitude", value: "\(toFixed2(station.latitude))°")
-                        FactRow(label: "Longitude", value: "\(toFixed2(station.longitude))°")
+                Group {
+                    switch InfoTab.resolved(tab, among: Self.tabs) {
+                    case .location:
+                        Section {
+                            FactRow(label: "Name", value: station.displayName)
+                            FactRow(label: "Latitude", value: "\(toFixed2(station.latitude))°")
+                            FactRow(label: "Longitude", value: "\(toFixed2(station.longitude))°")
+                        }
+                    default:
+                        PassesSections(subject: .station(station, catalog.activeEntries), clock: clock, passes: passes)
                     }
-                default:
-                    PassesSections(subject: .station(station, catalog.activeEntries), clock: clock, passes: passes)
                 }
+                .raisedRows()
             }
+            .panelList()
             .overlay(alignment: .bottom) {
                 if let message = alerts.message {
                     NoticeBanner(text: message).padding(.bottom, 12)
