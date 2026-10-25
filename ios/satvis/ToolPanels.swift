@@ -193,6 +193,7 @@ struct ToolPanelView<Content: View>: View {
         VStack(alignment: .leading, spacing: 20) {
             content
         }
+        .toggleStyle(CircleToggleStyle())
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -235,8 +236,117 @@ private struct Segments<Value: Hashable>: View {
     }
 }
 
-/// One of several, a row each with the chosen one ticked: the web app's radio
-/// buttons, where the names are long.
+/// Rows on an inset card, as Settings groups them, a hairline between each two
+/// from the names' edge: a panel's switches, choices and places.
+private struct PanelCard<Content: View>: View {
+    @ViewBuilder let content: Content
+    @ScaledMetric(relativeTo: .body) private var markWidth = PanelRowMetrics.markWidth
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Group(subviews: content) { rows in
+                ForEach(rows.indices, id: \.self) { index in
+                    rows[index]
+                        .overlay(alignment: .top) {
+                            if index > 0 {
+                                Divider()
+                                    .padding(.leading, PanelRowMetrics.inset + markWidth + PanelRowMetrics.spacing)
+                            }
+                        }
+                }
+            }
+        }
+        .background(Color.panelRaised)
+        .clipShape(.rect(cornerRadius: 12))
+    }
+}
+
+/// Where a card's row puts its mark and name, in points at the default text size,
+/// which the card's hairlines start level with.
+private enum PanelRowMetrics {
+    static let markWidth: CGFloat = 24
+    static let inset: CGFloat = 14
+    static let spacing: CGFloat = 12
+}
+
+/// A card's row: a mark in a column of its own, so the names line up, and the name,
+/// cut short rather than wrapped, as the web app's rows are.
+private struct PanelRow<Mark: View, Title: View>: View {
+    @ViewBuilder let mark: Mark
+    @ViewBuilder let title: Title
+    @ScaledMetric(relativeTo: .body) private var markWidth = PanelRowMetrics.markWidth
+    @ScaledMetric(relativeTo: .body) private var height = 44.0
+
+    var body: some View {
+        HStack(spacing: PanelRowMetrics.spacing) {
+            mark
+                .frame(width: markWidth)
+            title
+                .lineLimit(1)
+            Spacer(minLength: 8)
+        }
+        .padding(.horizontal, PanelRowMetrics.inset)
+        .frame(minHeight: height)
+        .contentShape(.rect)
+    }
+}
+
+/// A row pressed lit, and greyed while it is disabled, as the web app's rows.
+private struct PanelRowStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        PanelRowBody(configuration: configuration)
+    }
+}
+
+private struct PanelRowBody: View {
+    let configuration: ButtonStyleConfiguration
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        configuration.label
+            .background(.white.opacity(configuration.isPressed ? 0.12 : 0))
+            .opacity(isEnabled ? 1 : 0.4)
+    }
+}
+
+/// iOS's selection circle, empty or filled with a tick: one mark for a switch and a
+/// choice alike, as the web app gives both one language.
+private struct SelectionCircle: View {
+    let isOn: Bool
+
+    var body: some View {
+        Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+            .font(.title3)
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(isOn ? Color.panelSurface : .white.opacity(0.35), Color.panelAccent)
+            .accessibilityHidden(true)
+    }
+}
+
+/// A switch as a card's row, led by the selection circle; still a switch to
+/// VoiceOver and to the UI tests.
+private struct CircleToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button {
+            configuration.isOn.toggle()
+        } label: {
+            PanelRow {
+                SelectionCircle(isOn: configuration.isOn)
+            } title: {
+                configuration.label
+            }
+        }
+        .buttonStyle(PanelRowStyle())
+        .accessibilityRepresentation {
+            Toggle(isOn: configuration.$isOn) {
+                configuration.label
+            }
+        }
+    }
+}
+
+/// One of several, a row each with the chosen one's circle filled: the web app's
+/// radio buttons, where the names are long.
 private struct Choices<Value: Hashable>: View {
     @Binding var selection: Value
     let options: [(String, Value)]
@@ -244,28 +354,19 @@ private struct Choices<Value: Hashable>: View {
     var disabled: Set<Value> = []
 
     var body: some View {
-        VStack(spacing: 0) {
+        PanelCard {
             ForEach(options, id: \.1) { name, value in
                 Button {
                     selection = value
                 } label: {
-                    HStack {
-                        // Cut short rather than wrapped, as the web app's rows are.
+                    PanelRow {
+                        SelectionCircle(isOn: selection == value)
+                    } title: {
                         Text(name)
-                            .lineLimit(1)
-                        Spacer(minLength: 8)
-                        if selection == value {
-                            Image(systemName: "checkmark")
-                                .fontWeight(.semibold)
-                                .foregroundStyle(Color.panelAccent)
-                        }
                     }
-                    .frame(minHeight: 40)
-                    .contentShape(.rect)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PanelRowStyle())
                 .disabled(disabled.contains(value))
-                .opacity(disabled.contains(value) ? 0.4 : 1)
                 .accessibilityAddTraits(selection == value ? .isSelected : [])
             }
         }
@@ -277,7 +378,7 @@ struct ComponentsPanel: View {
     let catalog: CatalogModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        PanelCard {
             ForEach(SatelliteComponents.named, id: \.0) { name, component in
                 Toggle(
                     name,
@@ -357,7 +458,7 @@ struct SkyPanel: View {
         // The Geolocation station is My location's, so it has no row of its own.
         let places = session.passes.stations.filter { $0.name != StationList.geolocation }
         PanelSection("Look up from") {
-            VStack(spacing: 0) {
+            PanelCard {
                 // Disabled while the position comes back, the spinner in the icon's place.
                 Place(Text("My location"), image: .lucideLocateFixed, isHere: here?.name == StationList.geolocation, waitingFor: locating ? "Finding your location" : nil) {
                     Task {
@@ -378,36 +479,38 @@ struct SkyPanel: View {
                     }
                 }
             }
-            // The rows' highlight reaches past the section's edge, their icons level with its title.
-            .padding(.horizontal, -8)
             if places.isEmpty {
                 Note("Locations you add are listed here too.")
             }
         }
         PanelSection("Aiming") {
             // Waiting on the sensor, a second tap must not start a second probe.
-            Toggle(
-                isOn: Binding {
-                    session.aim.compass.isAiming && !session.aim.compass.isProbing
-                } set: { _ in
-                    session.aim.toggleCompass()
+            PanelCard {
+                Toggle(
+                    isOn: Binding {
+                        session.aim.compass.isAiming && !session.aim.compass.isProbing
+                    } set: { _ in
+                        session.aim.toggleCompass()
+                    }
+                ) {
+                    Waiting("Use compass", while: session.aim.compass.isProbing, as: "Waiting for the motion sensor")
                 }
-            ) {
-                Waiting("Use compass", while: session.aim.compass.isProbing, as: "Waiting for the motion sensor")
+                .disabled(!inSky || session.aim.compass.isProbing)
             }
-            .disabled(!inSky || session.aim.compass.isProbing)
         }
         PanelSection("Camera") {
-            Toggle(
-                isOn: Binding {
-                    session.aim.passthrough.isShowing
-                } set: { _ in
-                    session.aim.togglePassthrough()
+            PanelCard {
+                Toggle(
+                    isOn: Binding {
+                        session.aim.passthrough.isShowing
+                    } set: { _ in
+                        session.aim.togglePassthrough()
+                    }
+                ) {
+                    Waiting("Show camera", while: session.aim.isStartingCamera, as: "Starting the camera")
                 }
-            ) {
-                Waiting("Show camera", while: session.aim.isStartingCamera, as: "Starting the camera")
+                .disabled(!inSky || session.aim.isStartingCamera)
             }
-            .disabled(!inSky || session.aim.isStartingCamera)
             Note("The sky through the camera, aimed by compass.")
         }
         PanelSection("Out of sight") {
@@ -418,8 +521,9 @@ struct SkyPanel: View {
     }
 }
 
-/// A row that acts rather than chooses, the web app's `toolbarPlace`: an icon, or a
-/// spinner while it waits, and a name, marked where the sky view stands.
+/// A card's row that acts rather than chooses, the web app's `toolbarPlace`: an icon
+/// in the circle's place, or a spinner while it waits, and a name, lit where the sky
+/// view stands.
 private struct Place: View {
     let title: Text
     let image: ImageResource
@@ -428,7 +532,7 @@ private struct Place: View {
     /// What VoiceOver hears of the spinner, shown while there is one.
     let waitingFor: LocalizedStringKey?
     let action: () -> Void
-    @ScaledMetric(relativeTo: .body) private var iconSize = 18.0
+    @ScaledMetric(relativeTo: .body) private var iconSize = 20.0
 
     init(_ title: Text, image: ImageResource, isHere: Bool = false, isMuted: Bool = false, waitingFor: LocalizedStringKey? = nil, action: @escaping () -> Void) {
         self.title = title
@@ -441,37 +545,30 @@ private struct Place: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                Group {
-                    if let waitingFor {
-                        ProgressView()
-                            .controlSize(.small)
-                            .accessibilityLabel(Text(waitingFor))
-                    } else {
-                        Image(image)
-                            .resizable()
-                            .scaledToFit()
-                    }
+            PanelRow {
+                if let waitingFor {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel(Text(waitingFor))
+                } else {
+                    Image(image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: iconSize, height: iconSize)
                 }
-                .frame(width: iconSize, height: iconSize)
-                // Cut short rather than wrapped, as the web app's rows are.
+            } title: {
                 title
-                    .lineLimit(1)
-                Spacer(minLength: 0)
             }
             .foregroundStyle(isHere ? Color.panelAccent : isMuted ? .secondary : .primary)
-            .padding(.horizontal, 8)
-            .frame(minHeight: 40)
-            .background(.white.opacity(isHere ? 0.1 : 0), in: .rect(cornerRadius: 8))
-            .contentShape(.rect)
+            .background(.white.opacity(isHere ? 0.08 : 0))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PanelRowStyle())
         .accessibilityAddTraits(isHere ? .isSelected : [])
     }
 }
 
 /// A switch's name, with a spinner beside it while it waits, as the web app's
-/// replaces the slider.
+/// replaces the mark.
 private struct Waiting: View {
     let title: LocalizedStringKey
     let waiting: Bool
@@ -518,20 +615,22 @@ struct GraphicsPanel: View {
 
     var body: some View {
         PanelSection("Measurement") {
-            Toggle(
-                "FPS",
-                isOn: Binding {
-                    session.showsPerformance
-                } set: {
-                    session.setShowsPerformance($0)
-                })
-            Toggle(
-                "Benchmark",
-                isOn: Binding {
-                    session.showsBenchmark
-                } set: {
-                    session.setShowsBenchmark($0)
-                })
+            PanelCard {
+                Toggle(
+                    "FPS",
+                    isOn: Binding {
+                        session.showsPerformance
+                    } set: {
+                        session.setShowsPerformance($0)
+                    })
+                Toggle(
+                    "Benchmark",
+                    isOn: Binding {
+                        session.showsBenchmark
+                    } set: {
+                        session.setShowsBenchmark($0)
+                    })
+            }
         }
         // The web app's ladder (src/config/rendering.ts): the fixed rungs below
         // the screen's own ratio, then the screen's, so it only offers savings.
