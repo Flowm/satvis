@@ -50,7 +50,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   Re:Earth no more than the web app does. ADR 0009 has why. The texture budget
   is soft, as is the terrain's: a low, oblique view can use more tiles than it,
   and evicting tiles in use only starts the refinement over, or decodes them
-  again and again.
+  again and again. iOS's memory warning drops what the last frame does not use
+  (`GlobeRenderer.trimMemory`), about 175 MB after the sky view.
 - About, the menu column's last entry, is the web app's About dialog (`AboutView.swift`):
   what Satvis is, what it does and where its data comes from, written for the app.
   The about page's demos are the Bookmarks sheet's, so About has none of its own.

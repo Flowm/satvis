@@ -226,6 +226,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Whether the frames recorded are skipped as they are unmeasured.
     private var recordsIdle = false
 
+    /// Lets go of what is kept only for later: the surface's tiles and terrain
+    /// out of view, and its decoded sources. For iOS's memory warning.
+    public func trimMemory() {
+        surface.trim()
+        needsDraw = true
+    }
+
     /// What the Metal device holds for the app, in megabytes.
     public var gpuMemoryMegabytes: Int { device.currentAllocatedSize / 1_048_576 }
 

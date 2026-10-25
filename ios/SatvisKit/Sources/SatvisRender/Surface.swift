@@ -610,6 +610,27 @@ final class Surface {
         evictTerrain()
     }
 
+    /// Drops the tiles, decoded sources and terrain the frame last chosen does not
+    /// draw from, which the budgets otherwise keep for coming back.
+    func trim() {
+        for tile in tiles.values where tile.key.level > 0 && tile.lastUsed < frame {
+            if tile.texture != nil {
+                texturedTiles -= 1
+            }
+            tiles[tile.key] = nil
+        }
+        sources = sources.filter { _, state in
+            if case .ready = state { false } else { true }
+        }
+        terrainTiles = terrainTiles.filter { key, state in
+            if case .ready = state { terrainUsed[key, default: 0] >= frame } else { true }
+        }
+        terrainUsed = terrainUsed.filter { terrainTiles[$0.key] != nil }
+    }
+
+    /// The tiles kept, textured or not.
+    var tileCount: Int { tiles.count }
+
     /// Cancels the source tiles nothing drawn in the last second is waiting for,
     /// so that a fast pan or zoom does not leave hundreds of requests for tiles
     /// flown past to be sent, as the terrain's are cancelled; and forgets the
