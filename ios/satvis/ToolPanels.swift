@@ -6,12 +6,13 @@ import SwiftUI
 /// (`ToolbarPanel.vue`). The satellite browser and the locations are sheets
 /// instead: lists too long for a panel.
 enum ToolPanel: Hashable {
-    case components, map, globe, sky, graphics
+    case components, map, locations, globe, sky, graphics
 
     var title: LocalizedStringKey {
         switch self {
         case .components: "Components"
         case .map: "Map"
+        case .locations: "Locations"
         case .globe: "Globe"
         case .sky: "Sky"
         case .graphics: "Graphics"
@@ -200,7 +201,7 @@ struct ToolPanelView<Content: View>: View {
 }
 
 /// A group of a panel under a small title, as the web app's panels head theirs.
-private struct PanelSection<Content: View>: View {
+struct PanelSection<Content: View>: View {
     let title: LocalizedStringKey
     @ViewBuilder let content: Content
 
@@ -238,7 +239,7 @@ private struct Segments<Value: Hashable>: View {
 
 /// Rows on an inset card, as Settings groups them, a hairline between each two
 /// from the names' edge: a panel's switches, choices and places.
-private struct PanelCard<Content: View>: View {
+struct PanelCard<Content: View>: View {
     @ViewBuilder let content: Content
     @ScaledMetric(relativeTo: .body) private var markWidth = PanelRowMetrics.markWidth
 
@@ -263,7 +264,7 @@ private struct PanelCard<Content: View>: View {
 
 /// Where a card's row puts its mark and name, in points at the default text size,
 /// which the card's hairlines start level with.
-private enum PanelRowMetrics {
+enum PanelRowMetrics {
     static let markWidth: CGFloat = 24
     static let inset: CGFloat = 14
     static let spacing: CGFloat = 12
@@ -271,7 +272,7 @@ private enum PanelRowMetrics {
 
 /// A card's row: a mark in a column of its own, so the names line up, and the name,
 /// cut short rather than wrapped, as the web app's rows are.
-private struct PanelRow<Mark: View, Title: View>: View {
+struct PanelRow<Mark: View, Title: View>: View {
     @ViewBuilder let mark: Mark
     @ViewBuilder let title: Title
     @ScaledMetric(relativeTo: .body) private var markWidth = PanelRowMetrics.markWidth
@@ -292,7 +293,7 @@ private struct PanelRow<Mark: View, Title: View>: View {
 }
 
 /// A row pressed lit, and greyed while it is disabled, as the web app's rows.
-private struct PanelRowStyle: ButtonStyle {
+struct PanelRowStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         PanelRowBody(configuration: configuration)
     }
@@ -524,7 +525,7 @@ struct SkyPanel: View {
 /// A card's row that acts rather than chooses, the web app's `toolbarPlace`: an icon
 /// in the circle's place, or a spinner while it waits, and a name, lit where the sky
 /// view stands.
-private struct Place: View {
+struct Place: View {
     let title: Text
     let image: ImageResource
     let isHere: Bool
@@ -593,7 +594,7 @@ private struct Waiting: View {
 }
 
 /// A line under a panel's settings, as the web app's `toolbarNote`.
-private struct Note: View {
+struct Note: View {
     let text: LocalizedStringKey
 
     init(_ text: LocalizedStringKey) {

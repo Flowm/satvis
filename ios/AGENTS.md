@@ -237,7 +237,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   app has, as VoiceOver hints, one panel (`PanelStyle.swift`, drawn rather than
   Liquid Glass, whose blur cost the compositor 5 ms of GPU a frame)
   whose rows each hold an icon and its name, folded on a phone and open on an
-  iPad, as the web's is on a desktop. Components, Map, Globe, Sky
+  iPad, as the web's is on a desktop. Components, Map, Locations, Globe, Sky
   and Graphics open the web's panels beside it (`ToolPanels.swift`): a title and a
   close button over a rule level with the column's, sections under small titles,
   their rows on inset cards (`PanelCard`) and led by iOS's selection circle, a
@@ -249,7 +249,11 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   are the ways back alone: home or out of the sky view, the compass and the
   camera, and the end of tracking. Not system
   menus: iOS 26 grows one out of its control, in the column's place, and it holds
-  ticked lists alone. Bookmarks, Satellites and Locations are sheets: long lists.
+  ticked lists alone. Bookmarks and Satellites are sheets: long lists. Locations
+  (`LocationsPanel`) is a panel, as both ways out of it are on the globe: its few
+  stations are edited in place on a card, each removed by its cross and dragged
+  by its grip, which VoiceOver moves a place at a time; picking a spot closes it,
+  and a cancelled pick opens it again.
   A tap on the globe closes the panel and on a phone folds the column, as on
   the web, and a miss that did so keeps the selection.
   What the app does not draw is left out: Map's overlays, surface and star map;

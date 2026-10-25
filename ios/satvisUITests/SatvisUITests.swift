@@ -76,7 +76,7 @@ nonisolated class SatvisUITests: XCTestCase {
     func testReopensTheMenuAfterASheet() {
         let app = launch()
         openMenu(app)
-        for entry in ["Satellites", "Locations"] {
+        for entry in ["Satellites", "Bookmarks"] {
             app.buttons[entry].tap()
             let done = app.buttons["Done"]
             XCTAssert(done.waitForExistence(timeout: 10), "No \(entry) sheet")
@@ -85,6 +85,42 @@ nonisolated class SatvisUITests: XCTestCase {
             XCTAssert(app.buttons[entry].waitForExistence(timeout: 5), "The menu stayed folded after \(entry)")
             XCTAssertEqual(menuToggle(app).label, "Close menu")
         }
+    }
+
+    // Locations is a panel beside the menu, as on the web: a link's stations are
+    // saved from it, dragged into place by their grips and removed by their
+    // crosses, and a pick on the globe that is cancelled opens it again.
+    @MainActor
+    func testEditsLocationsInTheirPanel() {
+        let app = launch(link: "/?gs=48.1372,11.5756,Testhausen_47.2692,11.4041,Probeburg")
+        openMenu(app)
+        app.buttons["Locations"].tap()
+        for _ in 0..<2 {
+            let save = app.buttons["Save"].firstMatch
+            XCTAssert(save.waitForExistence(timeout: 5))
+            save.tap()
+        }
+        let names = { app.textFields.allElementsBoundByIndex.compactMap { $0.value as? String } }
+        XCTAssert(app.textFields["Name"].waitForExistence(timeout: 5))
+        XCTAssertLessThan(names().firstIndex(of: "Testhausen") ?? .max, names().firstIndex(of: "Probeburg") ?? .min)
+
+        let grip = app.descendants(matching: .any)["Reorder Probeburg"]
+        grip.press(forDuration: 1, thenDragTo: app.descendants(matching: .any)["Reorder Testhausen"])
+        let moved = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in (names().firstIndex(of: "Probeburg") ?? .max) < (names().firstIndex(of: "Testhausen") ?? .min) },
+            object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [moved], timeout: 5), .completed, "Probeburg was not dragged above Testhausen")
+
+        app.buttons["Remove Testhausen"].tap()
+        app.buttons["Remove Probeburg"].tap()
+        XCTAssert(app.buttons["Remove Probeburg"].waitForNonExistence(timeout: 5))
+        XCTAssertFalse(names().contains("Testhausen"))
+
+        app.buttons["Pick on globe"].tap()
+        XCTAssert(app.staticTexts["Tap the globe to place a ground station"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Pick on globe"].exists)
+        app.buttons["Cancel"].tap()
+        XCTAssert(app.buttons["Pick on globe"].waitForExistence(timeout: 5))
     }
 
     // My location stands where the device is, kept as "Geolocation", first in the
