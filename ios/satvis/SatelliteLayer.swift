@@ -16,6 +16,9 @@ final class SatelliteLayer {
     @ObservationIgnored private var showCount = 0
     /// The `showCount` that what the renderer draws was made after; -1 before anything.
     @ObservationIgnored private var drawnShowCount = -1
+    /// Components a `show` gave with a set not drawn yet, handed over with it: given
+    /// at once, 3D models for the set still drawn loaded 77 models, 490 MB.
+    @ObservationIgnored private var pendingComponents: (components: SatelliteComponents, show: Int)?
 
     init(globe: GlobeBinding) {
         self.globe = globe
@@ -25,7 +28,12 @@ final class SatelliteLayer {
     /// one SGP4 can place, which leaves out a satellite long decayed, so the count
     /// drawn can stay below the count of entries.
     func draws(_ entries: [CatalogEntry]) -> Bool {
-        guard drawnShowCount == showCount, shownEntries.count == entries.count else {
+        drawnShowCount == showCount && isShown(entries)
+    }
+
+    /// Whether `show` was last given `entries`.
+    private func isShown(_ entries: [CatalogEntry]) -> Bool {
+        guard shownEntries.count == entries.count else {
             return false
         }
         // The catalog's array as it was handed over shares its storage until the
@@ -34,9 +42,15 @@ final class SatelliteLayer {
         return same || shownEntries.elementsEqual(entries) { $0.id == $1.id }
     }
 
-    /// The set to draw, and how.
+    /// The set to draw, and how: the components at once for the set drawn,
+    /// else with the set once drawn.
     func show(_ entries: [CatalogEntry], components: SatelliteComponents, at time: Double) async {
-        globe.components = components
+        if draws(entries) {
+            pendingComponents = nil
+            globe.components = components
+        } else {
+            pendingComponents = (components, showCount + 1)
+        }
         shownEntries = entries
         showCount += 1
         await store.replace(with: entries.map(\.record))
@@ -61,8 +75,15 @@ final class SatelliteLayer {
             return
         }
         count = satellites.count
-        await globe.setSatellites(satellites) { [weak self] in
-            self?.drawnShowCount = show
+        let components = pendingComponents.flatMap { show >= $0.show ? $0.components : nil }
+        await globe.setSatellites(satellites, components: components) { [weak self] in
+            guard let self else {
+                return
+            }
+            drawnShowCount = show
+            if let pending = pendingComponents, show >= pending.show {
+                pendingComponents = nil
+            }
         }
     }
 

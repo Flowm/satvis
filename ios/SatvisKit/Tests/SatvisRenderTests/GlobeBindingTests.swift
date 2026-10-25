@@ -126,6 +126,19 @@ private final class RecordingGlobe: Globe {
         #expect(drawn)
     }
 
+    // Components that come with a new set reach the renderer with it, after its
+    // packing: before, a 3D model asked for the set still drawn loaded every
+    // model of it.
+    @Test func givesComponentsWithTheirSatellites() async {
+        let binding = GlobeBinding()
+        let globe = RecordingGlobe()
+        binding.attach(globe)
+        globe.calls = []
+
+        await binding.setSatellites([], components: [.point, .model]) {}
+        #expect(globe.calls == ["prepare 1", "components \(SatelliteComponents([.point, .model]).rawValue)", "satellites 1"])
+    }
+
     // A new renderer gets the state as it is now: the camera where the last
     // commands left it, not where it first was.
     @Test func givesASecondGlobeTheCurrentState() async {

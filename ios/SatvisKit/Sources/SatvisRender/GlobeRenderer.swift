@@ -78,7 +78,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// 36 frames a second with every sample and 43 with these steps.
     private static let lineLevelOfDetailSatellites = 1000
     public var components: SatelliteComponents = [.point, .label] {
-        didSet { needsDraw = true }
+        didSet {
+            keepModelsInUse()
+            needsDraw = true
+        }
     }
     /// What the free camera holds still in. Tracking keeps the satellite's own
     /// frame, and the sky view the observer's, so it waits while either is up:
@@ -426,8 +429,18 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     public func setSatellites(_ prepared: PreparedSatellites) {
         points.install(prepared)
+        keepModelsInUse()
         overlay.isStale = true
         needsDraw = true
+    }
+
+    /// Keeps only the models of the satellites drawn with theirs.
+    private func keepModelsInUse() {
+        guard components.contains(.model), let prepared = points.prepared else {
+            models.keep(only: [])
+            return
+        }
+        models.keep(only: Set(prepared.modelled.compactMap { prepared.satellites[$0].modelFile }))
     }
 
     /// The base map, the site the shipped one's finer levels come from, and a

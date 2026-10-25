@@ -177,6 +177,9 @@ final class SatelliteModels {
     /// fetcher, nil when it has none.
     var loader: (@Sendable (String) async -> Data?)?
     private var models: [String: State] = [:]
+    /// The files `keep` last left, which a load landing after is kept only if
+    /// among; nil, every file.
+    private var wanted: Set<String>?
     /// Counts the models that loaded or failed, for the frame that shows them.
     private(set) var revision = 0
     private let device: MTLDevice
@@ -201,6 +204,13 @@ final class SatelliteModels {
         }
     }
 
+    /// Lets go of every model but `files`, loaded or on its way: each holds its
+    /// meshes and textures on the GPU for good otherwise, the ISS 128 MB.
+    func keep(only files: Set<String>) {
+        wanted = files
+        models = models.filter { files.contains($0.key) }
+    }
+
     private func load(_ file: String) {
         guard let loader else {
             return
@@ -209,6 +219,9 @@ final class SatelliteModels {
         let device = device
         Task {
             let prepared = await PreparedModel.load(file, loader: loader, device: device, priority: .utility)
+            guard wanted?.contains(file) ?? true else {
+                return
+            }
             models[file] = prepared.map(State.ready) ?? .failed(at: Date())
             revision += 1
             if prepared == nil {
