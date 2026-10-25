@@ -93,6 +93,12 @@ discussion; sharpen them here when they drift.
   does not list yet, the element set by GCAT's bounds (`CatalogEntry.orbitKind`,
   ADR 0012). GCAT's "sun-sync" is a 95–104° band, not the info panel's SSO, a
   precession test.
+- **LTAN**: the local time of the ascending node, the mean solar time at which a
+  satellite crosses the equator northbound; the LTDN, southbound, is 12 hours off. A
+  sun-sync orbit holds both (`ltanHoursOf`).
+- **Daylit crossing**: whichever node of a sun-sync orbit falls between 06:00 and 18:00,
+  with its direction: what "a 10:30 orbit" means. The catalog's chart counts each
+  satellite once there (`daylitCrossingOf`, ADR 0012).
 - **Programme**: GCAT's name for the project a payload belongs to, often a phase of one
   ("Starlink 2MO S1"). Upstream metadata, `program`.
 - **Constellation**: the family a programme belongs to, its first word ("Starlink"). The

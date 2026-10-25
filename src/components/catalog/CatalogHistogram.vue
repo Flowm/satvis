@@ -1,62 +1,79 @@
-<!-- Launches per year, with axes; dragging across the bars picks a range of years. -->
+<!-- Counts per bin on a square-root scale, with axes; dragging across the bars picks a range of bins, and a series' legend entry picks the series. -->
 <template>
   <div ref="rootEl" class="histogram cs-measured">
     <div class="cs-tileHead">
-      <UIcon name="lucide:rocket" class="cs-mute" /> Launches per year
-      <span class="cs-mute cs-hint" title="Square-root scale, so the 2020s do not flatten the years before">√ scale</span>
-      <span v-if="range" class="cs-dim cs-num">{{ range[0] }}–{{ range[1] }}</span>
-      <span v-else class="cs-mute cs-hint">drag to pick years</span>
+      <UIcon :name="icon" class="cs-mute" /> <span :title="titleHint">{{ title }}</span>
+      <span class="cs-mute cs-hint" title="Square-root scale, so the tallest bars do not flatten the rest">√ scale</span>
+      <span v-if="range" class="cs-dim cs-num">{{ formatRange(range) }}</span>
+      <span v-else class="cs-mute cs-hint">{{ pickHint }}</span>
       <span class="cs-headEnd">
-        <button v-if="range" type="button" class="cs-reset" @click="emit('update:range', null)">reset</button>
-        <catalog-tile-toggle :open="open" label="launches per year" @click="emit('toggle-open')" />
+        <button v-if="range || picked" type="button" class="cs-reset" @click="reset">reset</button>
+        <catalog-tile-toggle :open="open" :label="title.charAt(0).toLowerCase() + title.slice(1)" @click="emit('toggle-open')" />
       </span>
     </div>
-    <div v-if="open" class="histogram__stats cs-num">
-      <span
-        ><b>{{ stats.total.toLocaleString() }}</b> launched, under the other filters</span
+    <div v-if="open" class="histogram__stats cs-num"><slot name="stats" /></div>
+    <div v-if="series.length > 1" class="histogram__legend">
+      <button
+        v-for="(s, i) in series"
+        :key="s.label"
+        type="button"
+        :aria-pressed="picked === s.label"
+        :class="{ 'histogram__legend--off': picked && picked !== s.label }"
+        :title="s.hint"
+        @click="emit('update:picked', picked === s.label ? null : s.label)"
       >
-      <span v-if="stats.peak"
-        >peak <b>{{ stats.peak[0] }}</b> with {{ stats.peak[1].toLocaleString() }}</span
-      >
-      <span>{{ stats.recentShare }}% since {{ RECENT_FROM }}</span>
+        <i :style="{ background: colorOf(i) }" />{{ s.label }}
+      </button>
     </div>
     <div class="histogram__chart">
-      <div class="histogram__yAxis cs-num" :style="{ height: `${height}px` }">
+      <div class="histogram__yAxis cs-num" :class="{ 'histogram__yAxis--banded': bands?.length }" :style="{ height: `${height}px` }">
         <span v-for="tick in yTicks" :key="tick.value" :style="{ bottom: `${tick.height}%` }">{{ tick.label }}</span>
       </div>
       <div class="histogram__plot">
+        <!-- Above the bars, which reach the top. -->
+        <div v-if="bands?.length" class="histogram__bandLabels">
+          <span v-for="band in bands" :key="band.at" :style="{ left: `${((band.at + band.width / 2) / bins.length) * 100}%` }">{{ band.label }}</span>
+        </div>
         <svg
           ref="svgEl"
           class="histogram__bars"
           :style="{ height: `${height}px` }"
-          :viewBox="`0 0 ${YEARS.length} 100`"
+          :viewBox="`0 0 ${bins.length} 100`"
           preserveAspectRatio="none"
           role="img"
-          :aria-label="`Launches per year since ${FIRST_YEAR}`"
+          :aria-label="chartLabel"
           @pointerdown="brushStart"
           @pointermove="brushMove"
           @pointerup="brushEnd"
-          @pointerleave="hoverYear = null"
+          @pointerleave="hoverIndex = null"
         >
-          <line v-for="tick in yTicks" :key="tick.value" x1="0" :x2="YEARS.length" :y1="100 - tick.height" :y2="100 - tick.height" class="histogram__grid" />
-          <rect v-if="hoverYear !== null" :x="hoverYear - FIRST_YEAR" width="1" y="0" height="100" class="histogram__hover" />
-          <rect
-            v-for="(year, i) in YEARS"
-            :key="year"
-            :x="i + 0.1"
-            width="0.8"
-            :y="100 - barHeight(year)"
-            :height="barHeight(year)"
-            :class="inRange(year) ? (range ? 'histogram__bar--picked' : 'histogram__bar') : 'histogram__bar--out'"
-          />
+          <rect v-for="band in bands" :key="band.at" :x="band.at" :width="band.width" y="0" height="100" class="histogram__band" />
+          <line v-for="tick in yTicks" :key="tick.value" x1="0" :x2="bins.length" :y1="100 - tick.height" :y2="100 - tick.height" class="histogram__grid" />
+          <rect v-if="hoverIndex !== null" :x="hoverIndex" width="1" y="0" height="100" class="histogram__hover" />
+          <template v-for="(bin, i) in bins" :key="bin">
+            <rect
+              v-for="segment in segmentsOf(bin)"
+              :key="segment.series"
+              :x="i + 0.1"
+              width="0.8"
+              :y="100 - segment.top"
+              :height="segment.height"
+              :class="segmentClass(bin, segment.series)"
+              :style="segmentStyle(bin, segment.series)"
+            />
+          </template>
         </svg>
-        <span v-if="hoverYear !== null" class="histogram__tip cs-num" :style="{ left: `${xPercent(hoverYear)}%` }"
-          ><b>{{ hoverYear }}</b> {{ (launches.get(hoverYear) ?? 0).toLocaleString() }}</span
+        <span v-if="hoverIndex !== null" class="histogram__tip cs-num" :style="{ left: `${((hoverIndex + 0.5) / bins.length) * 100}%` }"
+          ><b>{{ formatBin(bins[hoverIndex]!) }}</b> {{ tipOf(bins[hoverIndex]!) }}</span
         >
         <div class="histogram__xAxis cs-num">
-          <span v-for="year in xTicks" :key="year" :class="{ 'histogram__tick--labelled': year % labelEvery === 0 }" :style="{ left: `${xPercent(year)}%` }">{{
-            year % labelEvery === 0 ? year : ""
-          }}</span>
+          <span
+            v-for="tick in xTicks"
+            :key="tick.at"
+            :class="{ 'histogram__tick--labelled': tick.label !== '', 'histogram__tick--start': tick.at === 0, 'histogram__tick--end': tick.at === bins.length }"
+            :style="{ left: `${(tick.at / bins.length) * 100}%` }"
+            >{{ tick.label }}</span
+          >
         </div>
       </div>
     </div>
@@ -68,24 +85,70 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 import CatalogTileToggle from "./CatalogTileToggle.vue";
 
+/** An x axis tick, `at` in bins from the left edge; an empty label is a minor tick. */
+export interface HistogramTick {
+  at: number;
+  label: string;
+}
+
+/** A shaded span behind the bars, `at` and `width` in bins. */
+export interface HistogramBand {
+  at: number;
+  width: number;
+  label: string;
+}
+
+/** One stacked part of every bar. */
+export interface HistogramSeries {
+  /** In the legend, and what picking the series emits. */
+  label: string;
+  /** In the tooltip; the label where missing. */
+  short?: string;
+  /** What the series means, on hover over its legend entry. */
+  hint?: string;
+  /** Bin key -> satellites, under every filter but the chart's own. */
+  counts: Map<number, number>;
+}
+
+/** The series' colours, in order; one series alone takes the theme's link and accent instead. */
+const SERIES_COLORS = ["#74c0fc", "#ffa94d"];
+
 const props = defineProps<{
-  /** Launch year -> satellites, under every filter but the year range. */
-  launches: Map<number, number>;
+  /** A lucide icon name. */
+  icon: string;
+  title: string;
+  /** What the title means, on hover. */
+  titleHint?: string;
+  /** Shown in the heading while nothing is picked. */
+  pickHint: string;
+  /** The chart's accessible name. */
+  chartLabel: string;
+  /** Every bin's key, left to right. */
+  bins: readonly number[];
+  /** Stacked bottom up. */
+  series: readonly HistogramSeries[];
+  /** The series picked in the legend, by label. */
+  picked?: string | null;
+  /** Inclusive bin keys. */
   range: [number, number] | null;
+  formatBin: (bin: number) => string;
+  formatRange: (range: [number, number]) => string;
+  /** The x axis ticks for the chart's width in px. */
+  ticks: (width: number) => readonly HistogramTick[];
+  bands?: readonly HistogramBand[];
   /** Px, the bars' height. */
   height: number;
   open: boolean;
 }>();
-const emit = defineEmits<{ "update:range": [range: [number, number] | null]; "toggle-open": [] }>();
+const emit = defineEmits<{ "update:range": [range: [number, number] | null]; "update:picked": [label: string | null]; "toggle-open": [] }>();
 
-/** Sputnik. */
-const FIRST_YEAR = 1957;
-/** Every year from Sputnik to now. */
-const YEARS = Array.from({ length: new Date().getFullYear() - FIRST_YEAR + 1 }, (_, i) => FIRST_YEAR + i);
-/** Where the stats' recent share starts: the decade the megaconstellations launched in. */
-const RECENT_FROM = 2020;
+/** Clears the range and the picked series. */
+function reset(): void {
+  emit("update:range", null);
+  if (props.picked) emit("update:picked", null);
+}
 
-// The chart's width, which decides how many years get a label.
+// The chart's width, which decides how many ticks get a label.
 const rootEl = ref<HTMLElement | null>(null);
 const width = ref(600);
 let observer: ResizeObserver | undefined;
@@ -97,20 +160,53 @@ onMounted(() => {
 });
 onBeforeUnmount(() => observer?.disconnect());
 
-// Below ~380 px a decade's label meets the next; opened wide, every fifth year fits.
-const narrow = computed(() => width.value < 380);
-const wide = computed(() => props.open && width.value >= 900);
-const labelEvery = computed(() => (narrow.value ? 20 : wide.value ? 5 : 10));
-const xTicks = computed(() => YEARS.filter((year) => year % (narrow.value ? 10 : wide.value ? 1 : 5) === 0));
-/** A year's bar centre, % of the plot's width. */
-const xPercent = (year: number) => ((year - FIRST_YEAR + 0.5) / YEARS.length) * 100;
+const xTicks = computed(() => props.ticks(width.value));
 
+/** Each bin's count across the series. */
+const totals = computed(() => {
+  const result = new Map<number, number>();
+  for (const { counts } of props.series) {
+    for (const [bin, count] of counts) result.set(bin, (result.get(bin) ?? 0) + count);
+  }
+  return result;
+});
 /** The tallest bar's count. */
-const max = computed(() => Math.max(1, ...props.launches.values()));
-// Square root: the Starlink years would flatten every year before 2019.
-const barHeight = (year: number) => (Math.sqrt(props.launches.get(year) ?? 0) / Math.sqrt(max.value)) * 96;
-/** Inside the picked years, or no years are picked. */
-const inRange = (year: number) => !props.range || (year >= props.range[0] && year <= props.range[1]);
+const max = computed(() => Math.max(1, ...totals.value.values()));
+/** Inside the picked bins, or no bins are picked. */
+const inRange = (bin: number) => !props.range || (bin >= props.range[0] && bin <= props.range[1]);
+const colorOf = (series: number) => SERIES_COLORS[series % SERIES_COLORS.length];
+
+/**
+ * A bar's parts, bottom up. The bar is as tall as its total on the square-root scale, and each
+ * series takes its share of that height: stacked square roots would overstate the total.
+ */
+function segmentsOf(bin: number): { series: number; top: number; height: number }[] {
+  const total = totals.value.get(bin) ?? 0;
+  const barHeight = (Math.sqrt(total) / Math.sqrt(max.value)) * 96;
+  let top = 0;
+  return props.series.flatMap(({ counts }, series) => {
+    const count = counts.get(bin) ?? 0;
+    if (count === 0) return [];
+    const height = (barHeight * count) / total;
+    top += height;
+    return [{ series, top, height }];
+  });
+}
+/** Out of the range or the picked series: grey. One series alone is the link colour, or the accent within a range. */
+function segmentClass(bin: number, series: number): string {
+  if (!inRange(bin) || (props.picked && props.series[series]!.label !== props.picked)) return "histogram__bar--out";
+  if (props.series.length > 1) return "";
+  return props.range ? "histogram__bar--picked" : "histogram__bar";
+}
+/** A series' colour, where its class gives none. */
+function segmentStyle(bin: number, series: number) {
+  return props.series.length > 1 && segmentClass(bin, series) === "" ? { fill: colorOf(series) } : undefined;
+}
+/** "12", or "↓ 12 · ↑ 3" for several series. */
+function tipOf(bin: number): string {
+  if (props.series.length === 1) return (props.series[0]!.counts.get(bin) ?? 0).toLocaleString();
+  return props.series.map((s) => `${s.short ?? s.label} ${(s.counts.get(bin) ?? 0).toLocaleString()}`).join(" · ");
+}
 
 /** 1-2-5 steps up to the tallest bar, thinned so their labels stay ~14 px apart on the square-root scale. */
 const yTicks = computed(() => {
@@ -130,41 +226,29 @@ const yTicks = computed(() => {
   return ticks;
 });
 
-/** The opened chart's totals, under the other filters. */
-const stats = computed(() => {
-  let total = 0;
-  let recent = 0;
-  let peak: [number, number] | undefined;
-  for (const [year, count] of props.launches) {
-    total += count;
-    if (year >= RECENT_FROM) recent += count;
-    if (!peak || count > peak[1]) peak = [year, count];
-  }
-  return { total, peak, recentShare: total ? Math.round((recent / total) * 100) : 0 };
-});
-
-// The brush: the year under the pointer, and where a drag began.
+// The brush: the bin under the pointer, and where a drag began.
 const svgEl = ref<SVGSVGElement | null>(null);
-const hoverYear = ref<number | null>(null);
+const hoverIndex = ref<number | null>(null);
 let brushFrom: number | null = null;
 
-/** The year whose bar is under the pointer. */
-function yearAt(event: PointerEvent): number {
+/** The index of the bin under the pointer. */
+function indexAt(event: PointerEvent): number {
   const rect = svgEl.value!.getBoundingClientRect();
-  const i = Math.floor(((event.clientX - rect.left) / rect.width) * YEARS.length);
-  return FIRST_YEAR + Math.max(0, Math.min(YEARS.length - 1, i));
+  const i = Math.floor(((event.clientX - rect.left) / rect.width) * props.bins.length);
+  return Math.max(0, Math.min(props.bins.length - 1, i));
 }
-/** Starts a range at the year pressed. */
+/** Starts a range at the bin pressed. */
 function brushStart(event: PointerEvent): void {
   svgEl.value?.setPointerCapture(event.pointerId);
-  brushFrom = yearAt(event);
+  brushFrom = props.bins[indexAt(event)]!;
   emit("update:range", [brushFrom, brushFrom]);
 }
-/** Tracks the hovered year, and stretches the range while dragging. */
+/** Tracks the hovered bin, and stretches the range while dragging. */
 function brushMove(event: PointerEvent): void {
-  const year = yearAt(event);
-  hoverYear.value = year;
-  if (brushFrom !== null) emit("update:range", [Math.min(brushFrom, year), Math.max(brushFrom, year)]);
+  const i = indexAt(event);
+  hoverIndex.value = i;
+  const bin = props.bins[i]!;
+  if (brushFrom !== null) emit("update:range", [Math.min(brushFrom, bin), Math.max(brushFrom, bin)]);
 }
 /** Ends the drag; the range stays. */
 function brushEnd(): void {
@@ -182,9 +266,45 @@ function brushEnd(): void {
   color: var(--cs-dim);
 }
 
-.histogram__stats b {
+.histogram__stats :deep(b) {
   font-weight: 600;
   color: var(--cs-text);
+}
+
+.histogram__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  margin: -4px 0 4px;
+  font-size: 11px;
+}
+
+.histogram__legend button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--cs-dim);
+}
+
+.histogram__legend button:hover {
+  background: #ffffff10;
+}
+
+.histogram__legend button[aria-pressed="true"] {
+  color: var(--cs-text);
+  box-shadow: inset 0 0 0 1px var(--cs-line);
+}
+
+.histogram__legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.histogram__legend .histogram__legend--off {
+  opacity: 0.5;
 }
 
 .histogram__chart {
@@ -226,6 +346,29 @@ function brushEnd(): void {
   stroke: #ffffff14;
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
+}
+
+.histogram__band {
+  fill: #ffffff0a;
+}
+
+.histogram__bandLabels {
+  position: relative;
+  height: 13px;
+  font-size: 10px;
+  line-height: 13px;
+  color: var(--cs-mute);
+}
+
+.histogram__bandLabels span {
+  position: absolute;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* Down by the band labels' strip, to stay level with the bars. */
+.histogram__yAxis--banded {
+  margin-top: 13px;
 }
 
 .histogram__bar {
@@ -276,7 +419,7 @@ function brushEnd(): void {
   transform: translateX(-50%);
 }
 
-/* The tick mark; a labelled year gets a longer one. */
+/* The tick mark; a labelled tick gets a longer one. */
 .histogram__xAxis span::before {
   content: "";
   position: absolute;
@@ -290,5 +433,23 @@ function brushEnd(): void {
 .histogram__xAxis .histogram__tick--labelled::before {
   height: 5px;
   background: #ffffff80;
+}
+
+/* The ticks at the plot's ends keep their labels inside it. */
+.histogram__xAxis .histogram__tick--start {
+  transform: none;
+}
+
+.histogram__xAxis .histogram__tick--start::before {
+  left: 0;
+}
+
+.histogram__xAxis .histogram__tick--end {
+  transform: translateX(-100%);
+}
+
+.histogram__xAxis .histogram__tick--end::before {
+  left: auto;
+  right: 0;
 }
 </style>

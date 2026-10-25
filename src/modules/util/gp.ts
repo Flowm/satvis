@@ -98,15 +98,26 @@ const MU_KM3_S2 = 398600.8;
 const EARTH_RADIUS_KM = 6378.135;
 
 /**
- * Mean altitude (GCAT's "h": semi-major axis less Earth's equatorial radius, km) and
- * inclination (°), from the Kozai mean motion without a satrec. Within a few km of the
- * SGP4-recovered axis, which the browser's orbit-shape chart, on a log scale, cannot show.
+ * Mean altitude (GCAT's "h": semi-major axis less Earth's equatorial radius, km), perigee and
+ * apogee altitudes (km, likewise) and inclination (°), from the Kozai mean motion without a
+ * satrec. Within a few km of the SGP4-recovered axis, which the catalog's charts, on log
+ * scales, cannot show.
  */
-export function orbitShapeOf(r: GpRecord): { altitudeKm: number; inclinationDeg: number } {
-  const { meanMotionRevPerDay, inclinationDeg } = classifyingElements(r);
+export function orbitShapeOf(r: GpRecord): { altitudeKm: number; perigeeKm: number; apogeeKm: number; inclinationDeg: number } {
+  const { meanMotionRevPerDay, eccentricity, inclinationDeg } = classifyingElements(r);
   const radPerSecond = (meanMotionRevPerDay * 2 * Math.PI) / 86_400;
   const semiMajorAxisKm = Math.cbrt(MU_KM3_S2 / (radPerSecond * radPerSecond));
-  return { altitudeKm: semiMajorAxisKm - EARTH_RADIUS_KM, inclinationDeg };
+  return {
+    altitudeKm: semiMajorAxisKm - EARTH_RADIUS_KM,
+    perigeeKm: semiMajorAxisKm * (1 - eccentricity) - EARTH_RADIUS_KM,
+    apogeeKm: semiMajorAxisKm * (1 + eccentricity) - EARTH_RADIUS_KM,
+    inclinationDeg,
+  };
+}
+
+/** The right ascension of the ascending node (°), in TLE line 2 columns 18-25. */
+export function ascendingNodeDegOf(r: GpRecord): number {
+  return r.kind === "omm" ? Number(r.omm.RA_OF_ASC_NODE) : Number(r.line2.substring(17, 25));
 }
 
 /**

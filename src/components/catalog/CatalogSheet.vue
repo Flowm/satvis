@@ -54,7 +54,7 @@
           <!-- An opened tile spans the full width at twice its height, capped; the rest flow around it. -->
           <div class="catalogSheet__heroes">
             <div :ref="tileRef('launch')" class="catalogSheet__tile" :class="{ 'catalogSheet__tile--open': opened === 'launch' }" :style="openStyle('launch')">
-              <catalog-histogram
+              <catalog-launch-histogram
                 v-model:range="sheet.launchYears.value"
                 :launches="sheet.result.value.launches"
                 :height="opened === 'launch' ? openHeight - 86 : heroHeight"
@@ -70,6 +70,26 @@
                 :height="opened === 'shape' ? openHeight - 80 : heroHeight + 18"
                 :open="opened === 'shape'"
                 @toggle-open="toggleOpen('shape')"
+              />
+            </div>
+            <div :ref="tileRef('crossing')" class="catalogSheet__tile" :class="{ 'catalogSheet__tile--open': opened === 'crossing' }" :style="openStyle('crossing')">
+              <catalog-crossing-histogram
+                v-model:range="sheet.crossingHours.value"
+                v-model:direction="sheet.crossingDirection.value"
+                :crossings="sheet.result.value.crossings"
+                :height="opened === 'crossing' ? openHeight - 119 : heroHeight - 15"
+                :open="opened === 'crossing'"
+                @toggle-open="toggleOpen('crossing')"
+              />
+            </div>
+            <div :ref="tileRef('apsides')" class="catalogSheet__tile" :class="{ 'catalogSheet__tile--open': opened === 'apsides' }" :style="openStyle('apsides')">
+              <catalog-apsis-plot
+                v-model:box="sheet.apsides.value"
+                :rows="sheet.rows.value"
+                :bright-rows="sheet.result.value.apsisRows"
+                :height="opened === 'apsides' ? openHeight - 80 : heroHeight + 18"
+                :open="opened === 'apsides'"
+                @toggle-open="toggleOpen('apsides')"
               />
             </div>
           </div>
@@ -191,10 +211,12 @@ import { useController } from "../../composables/useController";
 import { ORBIT_CLASS_HINT, orbitColor, orbitKindHint, SUN_SYNC_COLOR } from "../../config/orbitClass";
 import { FACET_BY_KEY, FACETS, type FacetDef, type FacetKey, facetBranches, facetItems, NO_KIND, NO_PROGRAM, parseOrbitLeaf } from "../../modules/catalogFacets";
 import { useSatStore } from "../../stores/sat";
+import CatalogApsisPlot from "./CatalogApsisPlot.vue";
+import CatalogCrossingHistogram from "./CatalogCrossingHistogram.vue";
 import CatalogFacetDetail from "./CatalogFacetDetail.vue";
 import CatalogFacetTile from "./CatalogFacetTile.vue";
 import CatalogFacetTree from "./CatalogFacetTree.vue";
-import CatalogHistogram from "./CatalogHistogram.vue";
+import CatalogLaunchHistogram from "./CatalogLaunchHistogram.vue";
 import CatalogList from "./CatalogList.vue";
 import CatalogShapePlot from "./CatalogShapePlot.vue";
 
@@ -298,7 +320,7 @@ function showInfo(name: string): void {
 }
 
 /** A tile: a hero chart or a facet. */
-type TileKey = "launch" | "shape" | FacetKey;
+type TileKey = "launch" | "shape" | "apsides" | "crossing" | FacetKey;
 
 /** The tile opened large, if any. */
 const opened = ref<TileKey | null>(null);

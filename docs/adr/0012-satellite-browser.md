@@ -29,7 +29,8 @@ toggles and search, so its tests and the native app's browser are untouched.
   is no new endpoint, and no metadata the frontend reads only here.
 
 **One layout at two sizes.** The sheet sits over the lower globe and grows to full screen
-and back. The header, the hero charts (launches per year, orbit shape), the facet tiles
+and back. The header, the hero charts (launches per year and orbit shape, then the sun-sync
+crossing and apogee × perigee, two by two), the facet tiles
 and the list keep their places; the charts grow, and the list keeps its width.
 
 - A tile opens in place: full width, twice its height, capped at 520 px and at the column.
@@ -81,6 +82,35 @@ status, maker, bus, launch site and 3D model come straight from the bag. So do t
 buckets: size by launch mass, and element set age from the epoch, worked out without a
 satrec (`epochMsOf`).
 
+**Apogee × perigee beside orbit shape.** The orbit shape plot puts a satellite at its mean
+altitude, so a Molniya sits among the MEOs. Perigee against apogee, on the same log axis,
+lines circular orbits up on the diagonal and stands GTO, Molniya, HEO science and decaying
+orbits above it. In today's catalog only about 250 satellites are more than 100 km off the
+diagonal, which is why it sits beside the shape plot rather than replacing it.
+
+- Both scatters are one component (`CatalogScatter.vue`); each is a dimension of its own.
+- A box dragged to an axis's end takes in everything drawn there, beyond the axis too:
+  every retrograde orbit past 120°, a perigee under 150 km.
+
+**The sun-sync crossing chart.** A histogram of the daylit equator
+crossing: its local time, 06:00 to 18:00 in 15-minute bins, and its direction, stacked. It
+is what sets an Earth observation orbit apart: dawn-dusk, morning, afternoon. Times are
+brushed like the launch years; a direction is picked in the legend.
+
+- Each satellite counts once, at the node between 06:00 and 18:00, where the equator is in
+  daylight in every season: southbound at the descending node, northbound at the ascending
+  node (`daylitCrossingOf`). Planet's Flocks land at 10:00-12:00, where they image. On a
+  24-hour LTAN axis they sat at 22:00-24:00.
+- The direction stays, because a pass away from the equator comes earlier or later than the
+  node: by about an hour at 60° latitude, the opposite way for the two directions.
+- Only the orbit tree's sun-sync gets a crossing, GCAT's band, so the chart and the tree
+  count the same satellites. Outside sun-sync the node drifts through the day, and its time
+  says nothing about the orbit.
+- Mean solar time at the element set's epoch, by the info panel's own formula
+  (`ltanHoursOf`), so both show a satellite at the same time. Operators quote mean time; the
+  apparent time is up to 16 minutes off. It reproduces Sentinel-1 at 18:00, Sentinel-2 at 10:30 and NOAA-20 at 13:30.
+- A dawn-dusk orbit lands at either end, by which side of 06:00 or 18:00 its nodes fall.
+
 ## Consequences
 
 - Showing a satellite's info shrinks the sheet; on a phone, where even the sheet covers most
@@ -109,5 +139,9 @@ satrec (`epochMsOf`).
   one tree, two definitions of "sun-sync" would contradict each other.
 - **Bounds fitted to GCAT's codes.** They reached the same agreement, but GCAT publishes its
   own, and a satellite should land in the same kind whichever source classified it.
+- **Both nodes on a 24-hour axis.** The second node is the first plus 12 hours, so it adds
+  no information, counts every satellite twice, and a brush over 10:00-12:00 would mix
+  morning orbits with the orbits whose night crossing falls there. A switch between LTAN
+  and LTDN puts half the catalog at night whichever it shows.
 - **A large tile over the whole charts column.** It hid the charts it was filtering
   against. Opening in place keeps them beside it.

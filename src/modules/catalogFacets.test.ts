@@ -7,10 +7,12 @@ import {
   catalogRows,
   constellationOf,
   crossfilter,
+  daylitCrossingOf,
   FACET_BY_KEY,
   facetBranches,
   facetItems,
   filterChips,
+  formatLocalTime,
   leavesByParent,
   NO_PROGRAM,
   parseOrbitLeaf,
@@ -22,7 +24,7 @@ import type { GpRecord } from "./util/gp";
 
 const NOW = Date.UTC(2026, 9, 18);
 
-function record(name: string, satnum: number, elements: { meanMotion?: number; inclination?: number; epoch?: string }, metadata: SatelliteMetadata = {}): GpRecord {
+function record(name: string, satnum: number, elements: { meanMotion?: number; inclination?: number; epoch?: string; node?: number }, metadata: SatelliteMetadata = {}): GpRecord {
   return {
     kind: "omm",
     omm: {
@@ -32,7 +34,7 @@ function record(name: string, satnum: number, elements: { meanMotion?: number; i
       MEAN_MOTION: elements.meanMotion ?? 15.2,
       ECCENTRICITY: 0.0002,
       INCLINATION: elements.inclination ?? 53,
-      RA_OF_ASC_NODE: 0,
+      RA_OF_ASC_NODE: elements.node ?? 0,
       ARG_OF_PERICENTER: 0,
       MEAN_ANOMALY: 0,
       NORAD_CAT_ID: satnum,
@@ -58,7 +60,7 @@ function rows(): CatalogRow[] {
         { inclination: 97.4, epoch: "2026-09-01T00:00:00.000000" },
         { opOrbit: "LEO/S", program: "Sentinel", category: "IMG", country: "ESA", launchDate: "2019-01-01", massKg: 1200 },
       ),
-      record("NEWBIE", 4, { inclination: 97.6 }, {}),
+      record("NEWBIE", 4, { inclination: 97.6, node: 150 }, {}),
     ],
     ["Active"],
   );
@@ -70,7 +72,7 @@ function rows(): CatalogRow[] {
 }
 
 function filter(patch: Partial<CatalogFilter> = {}): CatalogFilter {
-  return { facets: {}, launchYears: null, shape: null, query: "", activeOnly: false, ...patch };
+  return { facets: {}, launchYears: null, shape: null, apsides: null, crossingHours: null, crossingDirection: null, query: "", activeOnly: false, ...patch };
 }
 
 describe("catalogRows", () => {
@@ -129,6 +131,31 @@ describe("crossfilter", () => {
     const shaped = crossfilter(all, filter({ shape: { altitudeKm: [300, 2000], inclinationDeg: [95, 104] } }), new Set());
     expect(shaped.matched.map((row) => row.name)).toEqual(["IMAGER", "NEWBIE"]);
     expect(shaped.shapeRows).toHaveLength(5);
+  });
+
+  test("brushes the apsides as a dimension of their own", () => {
+    const all = rows();
+    const geosat = all.find((row) => row.name === "GEOSAT")!;
+    expect(geosat.apogeeKm - geosat.perigeeKm).toBeCloseTo(2 * 0.0002 * (geosat.altitudeKm + 6378.135), 6);
+    const low = crossfilter(all, filter({ apsides: { perigeeKm: [-Infinity, 1000], apogeeKm: [-Infinity, 1000] } }), new Set());
+    expect(low.matched).toHaveLength(4);
+    expect(low.apsisRows).toHaveLength(5);
+  });
+
+  test("gives the sun-sync rows alone a daylit crossing, and filters it as a dimension of its own", () => {
+    const all = rows();
+    // IMAGER's ascending node is at 01:19, so it crosses in daylight southbound at 13:19; NEWBIE's is at 08:16.
+    expect(all.filter((row) => row.crossing !== undefined).map((row) => `${row.name} ${row.crossing!.direction}`)).toEqual(["IMAGER southbound", "NEWBIE northbound"]);
+
+    const morning = crossfilter(all, filter({ crossingHours: [6, 12], facets: { orbit: new Set(["LEO/S"]) } }), new Set());
+    expect(morning.matched.map((row) => row.name)).toEqual(["NEWBIE"]);
+    expect([...morning.crossings.southbound]).toEqual([[29, 1]]);
+    expect([...morning.crossings.northbound]).toEqual([[9, 1]]);
+    expect(morning.counts.orbit.get("LEO/S")).toBe(1);
+
+    const southbound = crossfilter(all, filter({ crossingDirection: "southbound" }), new Set());
+    expect(southbound.matched.map((row) => row.name)).toEqual(["IMAGER"]);
+    expect(southbound.crossings.northbound.size).toBe(1);
   });
 
   test("gates every count by the query and by what the globe shows", () => {
@@ -194,7 +221,38 @@ describe("filterChips", () => {
   });
 
   test("adds the ranges, the query and the globe toggle", () => {
-    const chips = filterChips(filter({ launchYears: [2019, 2024], query: " iss ", activeOnly: true }), {});
-    expect(chips.map((chip) => chip.value)).toEqual(["2019–2024", "iss", "On the globe"]);
+    const chips = filterChips(filter({ launchYears: [2019, 2024], crossingHours: [10, 11.25], crossingDirection: "southbound", query: " iss ", activeOnly: true }), {});
+    expect(chips.map((chip) => chip.value)).toEqual(["2019–2024", "10:00–11:15 southbound", "iss", "On the globe"]);
+  });
+
+  test("names a box that reaches past its plot's axis open-ended", () => {
+    const chips = filterChips(
+      filter({ shape: { altitudeKm: [-Infinity, 2000], inclinationDeg: [95, Infinity] }, apsides: { perigeeKm: [-Infinity, Infinity], apogeeKm: [20_000, Infinity] } }),
+      {},
+    );
+    expect(chips.map((chip) => chip.value)).toEqual(["under 2,000 km, 95–180°", "perigee any, apogee over 20,000 km"]);
   });
 });
+
+describe("daylitCrossingOf", () => {
+  test("takes the node in daylight", () => {
+    expect(daylitCrossingOf(22.5)).toEqual({ hours: 10.5, direction: "southbound" });
+    expect(daylitCrossingOf(13.5)).toEqual({ hours: 13.5, direction: "northbound" });
+    expect(daylitCrossingOf(5.75)).toEqual({ hours: 17.75, direction: "southbound" });
+    expect(daylitCrossingOf(6)).toEqual({ hours: 6, direction: "northbound" });
+  });
+
+  test("puts a 10:30 orbit at 10:30 southbound", () => {
+    // Sentinel-2A's element set of 2026-10-24.
+    const [row] = catalogRows(sentinel2a(), new Set(), NOW);
+    expect(formatLocalTime(row!.crossing!.hours)).toBe("10:30");
+    expect(row!.crossing!.direction).toBe("southbound");
+  });
+});
+
+function sentinel2a() {
+  const catalog = new SatelliteCatalog();
+  const s2a = record("SENTINEL-2A", 40697, { meanMotion: 14.30818, inclination: 98.5683, epoch: "2026-10-24T07:19:55.678656", node: 10.2687 }, { opOrbit: "LEO/S" });
+  catalog.addRecords([s2a], ["Active"]);
+  return catalog.entries;
+}
