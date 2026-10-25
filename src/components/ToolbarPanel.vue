@@ -38,10 +38,6 @@ const emit = defineEmits<{ close: [] }>();
   overflow-y: auto;
 }
 
-.toolbarPanel--fixed :deep(.toolbarSwitch) {
-  padding-right: 12px;
-}
-
 /* With the divider, level with the divider under the Menu row. */
 .toolbarPanel__header {
   flex: none;

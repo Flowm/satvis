@@ -47,7 +47,6 @@
       <toolbar-panel v-show="menu.sat" title="Components" @close="closePanel('sat')">
         <label v-for="componentName in SATELLITE_COMPONENTS" :key="componentName" class="toolbarSwitch">
           <input v-model="enabledComponents" type="checkbox" :value="componentName" />
-          <span class="slider"></span>
           {{ componentName }}
         </label>
       </toolbar-panel>
@@ -60,13 +59,11 @@
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('layers') }">Basemap</div>
         <label v-for="name in baseLayers" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('layers') }">
           <input type="radio" name="basemap" :value="name" :checked="baseLayer === name" @change="setBaseLayer(name)" />
-          <span class="slider"></span>
           {{ name }}
         </label>
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('layers') }">Overlays</div>
         <label v-for="name in overlayLayers" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('layers') }">
           <input type="checkbox" :checked="hasOverlay(name)" @change="toggleOverlay(name, ($event.target as HTMLInputElement).checked)" />
-          <span class="slider"></span>
           {{ name }}
         </label>
         <div v-if="inertReason('layers')" class="toolbarNote">{{ inertReason("layers") }}</div>
@@ -75,14 +72,12 @@
              imposing surface model overrides; disabled while imposed. -->
         <label v-for="name in terrainNames" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('terrain') }">
           <input type="radio" name="terrain" :value="name" :checked="activeTerrain === name" :disabled="terrainImposed" @change="terrainProvider = name" />
-          <span class="slider"></span>
           {{ name }}
         </label>
         <div v-if="inertReason('terrain')" class="toolbarNote">{{ inertReason("terrain") }}</div>
         <div class="toolbarTitle">Surface</div>
         <label v-for="name in SURFACE_MODELS" :key="name" class="toolbarSwitch">
           <input v-model="surfaceModel" type="radio" :value="name" />
-          <span class="slider"></span>
           {{ name }}
         </label>
         <div v-if="surfaceUnavailable" class="toolbarNote">{{ surfaceUnavailable }}</div>
@@ -90,44 +85,61 @@
         <div class="toolbarTitle">Star map</div>
         <label v-for="name in starMapOptions" :key="name" class="toolbarSwitch">
           <input v-model="starMap" type="radio" :value="name" />
-          <span class="slider"></span>
           {{ name }}
         </label>
       </toolbar-panel>
       <!-- Two panels, one `scene` parameter (docs/adr/0003-sky-view.md): each view's settings stay visible, disabled where the other view is up. -->
       <toolbar-panel v-show="menu.globe" title="Globe" @close="closePanel('globe')">
         <div class="toolbarTitle">Projection</div>
-        <!-- None is checked in the sky view: a checked projection read as the active one. -->
+        <!-- No projection is checked in the sky view, as a checked one read as the active view;
+             Sky view is, greyed, as the Sky panel enters it. -->
         <label v-for="name in projections" :key="name" class="toolbarSwitch">
           <input type="radio" name="projection" :checked="!inSkyView && sceneMode === name" @change="sceneMode = name" />
-          <span class="slider"></span>
           {{ name }}
         </label>
-        <div v-if="inSkyView" class="toolbarNote">In the sky view. Pick one to return to the globe.</div>
+        <label v-if="inSkyView" class="toolbarSwitch">
+          <input type="radio" name="projection" checked disabled />
+          Sky view
+        </label>
         <div class="toolbarTitle">Camera</div>
         <label v-for="name in CAMERA_MODES" :key="name" class="toolbarSwitch">
           <input v-model="cameraMode" type="radio" :value="name" :disabled="inSkyView" />
-          <span class="slider"></span>
           {{ name }}
         </label>
         <div v-if="inSkyView" class="toolbarNote">The sky view holds the camera.</div>
       </toolbar-panel>
       <toolbar-panel v-show="menu.sky" title="Sky" @close="closePanel('sky')">
-        <div class="toolbarTitle">Sky view</div>
-        <label class="toolbarSwitch">
-          <input type="checkbox" :checked="inSkyView" :disabled="locating" @change="onSkyToggle" />
-          <!-- The spinner replaces the slider while the device's position comes back. -->
+        <!-- Each row enters the sky view standing there, or moves a view already up (docs/adr/0003-sky-view.md).
+             Every row waits for a fix in flight, which would otherwise move the view after a later tap. -->
+        <div class="toolbarTitle">Look up from</div>
+        <button type="button" class="toolbarPlace" :aria-current="standingAtGeolocation ? 'location' : undefined" :disabled="locating" @click="lookUpFromHere">
+          <!-- The spinner replaces the icon while the device's position comes back. -->
           <span v-if="locating" class="toolbarSpinner"></span>
-          <span v-else class="slider"></span>
-          Look up
-        </label>
-        <div class="toolbarNote">Start sky view from your current location. To look up elsewhere, use a location pin’s sky view button.</div>
+          <UIcon v-else name="lucide:locate-fixed" class="toolbarPlace__icon" />
+          <span class="toolbarPlace__label">My location</span>
+        </button>
+        <button
+          v-for="place in skyPlaces"
+          :key="place.index"
+          type="button"
+          class="toolbarPlace"
+          :aria-current="inSkyView && observerStation === place.index ? 'location' : undefined"
+          :disabled="locating"
+          @click="lookUpFrom(place.index)"
+        >
+          <UIcon name="lucide:map-pin" class="toolbarPlace__icon" />
+          <span class="toolbarPlace__label">{{ place.label }}</span>
+        </button>
+        <button v-if="inSkyView" type="button" class="toolbarPlace toolbarPlace--leave" :disabled="locating" @click="leaveSkyView">
+          <UIcon name="lucide:globe" class="toolbarPlace__icon" />
+          <span class="toolbarPlace__label">Back to the globe</span>
+        </button>
+        <div v-if="skyPlaces.length === 0" class="toolbarNote">Locations you add are listed here too.</div>
         <div v-if="compassOffered || !cc.minimalUI" class="toolbarTitle">Aiming</div>
         <label v-if="compassOffered" class="toolbarSwitch">
           <input type="checkbox" :checked="compassActive" :disabled="compassPending || !inSkyView" @change="onCompassToggle" />
-          <!-- The spinner replaces the slider: both occupy the row's left gutter. -->
+          <!-- The spinner replaces the mark while the sensor is probed. -->
           <span v-if="compassPending" class="toolbarSpinner"></span>
-          <span v-else class="slider"></span>
           Use compass
         </label>
         <!-- Hidden in minimalUI (iOS, iframe), where there is no keyboard. -->
@@ -135,7 +147,6 @@
         <div class="toolbarTitle">Out of sight</div>
         <label v-for="mode in UNSEEN_MODES" :key="mode" class="toolbarSwitch">
           <input v-model="unseen" type="radio" :value="mode" :disabled="!inSkyView" />
-          <span class="slider"></span>
           {{ UNSEEN_LABEL[mode] }}
         </label>
         <div class="toolbarNote">In Earth's shadow, too far away or during daylight.</div>
@@ -144,52 +155,43 @@
         <div class="toolbarTitle">Measurement</div>
         <label class="toolbarSwitch">
           <input v-model="showFps" type="checkbox" />
-          <span class="slider"></span>
           FPS
         </label>
         <label class="toolbarSwitch">
           <input v-model="showBenchmark" type="checkbox" />
-          <span class="slider"></span>
           Benchmark
         </label>
         <!-- Under Measurement: with render-on-demand on, frame gaps measure idleness, not scene cost. -->
         <label class="toolbarSwitch">
           <input v-model="requestRenderMode" type="checkbox" />
-          <span class="slider"></span>
           RequestRender
         </label>
         <div class="toolbarTitle">Scene effects</div>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.fog.enabled" type="checkbox" />
-          <span class="slider"></span>
           Fog
         </label>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.globe.enableLighting" type="checkbox" />
-          <span class="slider"></span>
           Lighting
         </label>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.highDynamicRange" type="checkbox" />
-          <span class="slider"></span>
           HDR
         </label>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.globe.showGroundAtmosphere" type="checkbox" />
-          <span class="slider"></span>
           Atmosphere
         </label>
         <!-- Ladders rather than switches; see src/config/rendering.ts. -->
         <div class="toolbarTitle">Pixel ratio</div>
         <label v-for="ratio in pixelRatioOptions" :key="ratio" class="toolbarSwitch">
           <input v-model="pixelRatio" type="radio" :value="ratio" />
-          <span class="slider"></span>
           {{ ratio === "native" ? `${devicePixelRatio.toFixed(1)}x (Native)` : `${Number(ratio).toFixed(1)}x` }}
         </label>
         <div class="toolbarTitle">Antialiasing (MSAA)</div>
         <label v-for="rate in MSAA_RATES" :key="rate" class="toolbarSwitch">
           <input v-model="msaa" type="radio" :value="rate" />
-          <span class="slider"></span>
           {{ rate === "off" ? "Off" : `${rate}x` }}
         </label>
       </toolbar-panel>
@@ -224,7 +226,9 @@ import { availableStarMaps, BUILTIN_STAR_MAP, type StarMapName } from "../config
 import { type MapGroup, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, viewModeNote } from "../config/surfaceModels";
 import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "../config/viewModes";
 import { baseLayerNames, overlayLayerNames, terrainProviderNames } from "../modules/CesiumLayerProviders";
+import { stationLabel } from "../modules/GroundStationEntity";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
+import { GEOLOCATION } from "../modules/util/groundStationEdits";
 import { UNSEEN_MODES, type UnseenMode } from "../modules/util/visibility";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
@@ -326,7 +330,7 @@ const terrainNames = terrainProviderNames();
 const { hasOverlay, setBaseLayer, toggleOverlay } = cesiumStore;
 
 const satStore = useSatStore();
-const { enabledComponents } = storeToRefs(satStore);
+const { enabledComponents, groundStations, observerStation } = storeToRefs(satStore);
 
 const compassOffered = compassAvailable();
 const { active: compassActive, pending: compassPending, toggle: toggleCompass } = useSkyCompass(cc);
@@ -335,7 +339,7 @@ const inSkyView = computed(() => sceneMode.value === SKY_MODE);
 const UNSEEN_LABEL: Record<UnseenMode, string> = { show: "Show", dim: "Dim", hide: "Hide" };
 const projections = SCENE_MODES.filter((mode) => mode !== SKY_MODE);
 
-/** The projection the Sky switch returns to. Not in the url, which holds only the view mode. */
+/** The projection Back to the globe returns to. Not in the url, which holds only the view mode. */
 const returnProjection = ref(inSkyView.value ? "3D" : sceneMode.value);
 watch(sceneMode, (mode) => {
   if (mode !== SKY_MODE) {
@@ -345,19 +349,28 @@ watch(sceneMode, (mode) => {
 
 const { pending: locating, locate } = useGeolocation();
 
-/**
- * Look up stands where the device is; only a location's panel stands somewhere else.
- * The box follows the store, not the click: the device may give no position.
- */
-async function onSkyToggle(event: Event): Promise<void> {
-  const box = event.target as HTMLInputElement;
-  const on = box.checked;
-  box.checked = inSkyView.value;
-  if (!on) {
-    sceneMode.value = returnProjection.value;
-  } else if (await locate({ observe: true })) {
+/** Every station but Geolocation, which My location stands for, by its index in the list. */
+const skyPlaces = computed(() =>
+  groundStations.value.flatMap((station, index) => (station.name === GEOLOCATION ? [] : [{ index, label: stationLabel(station.name, station.lat, station.lon) }])),
+);
+const standingAtGeolocation = computed(() => inSkyView.value && groundStations.value[observerStation.value]?.name === GEOLOCATION);
+
+/** Stands where the device is, which may give no position, and then nothing opens. */
+async function lookUpFromHere(): Promise<void> {
+  if (await locate({ observe: true })) {
     sceneMode.value = SKY_MODE;
   }
+}
+
+/** Designates the station, without reordering the list; a view already up moves there. */
+function lookUpFrom(index: number): void {
+  satStore.setObserverStation(index);
+  sceneMode.value = SKY_MODE;
+}
+
+/** Returns to the projection the sky view was entered from. */
+function leaveSkyView(): void {
+  sceneMode.value = returnProjection.value;
 }
 
 /**

@@ -20,6 +20,10 @@ nonisolated class SatvisUITests: XCTestCase {
         app.buttons["Details of METOP-C"].tap()
         XCTAssert(app.navigationBars["METOP-C"].waitForExistence(timeout: 10))
         XCTAssert(app.buttons["Track"].exists)
+        // On a phone the column stays folded, clear of the satellite's panel.
+        if UIDevice.current.userInterfaceIdiom != .pad {
+            XCTAssertEqual(menuToggle(app).label, "Menu")
+        }
     }
 
     // A link opens on what it names, as on the web: the satellite enabled and
@@ -66,8 +70,72 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssertEqual(menuToggle(app).label, UIDevice.current.userInterfaceIdiom == .pad ? "Close menu" : "Menu")
     }
 
-    // Look up stands where the device is, kept as "Geolocation", first in the list,
-    // and leaves the sky view again.
+    // A sheet opened from the menu column and closed again leaves the column as it
+    // was: on a phone it folds under the sheet and unfolds as the sheet goes.
+    @MainActor
+    func testReopensTheMenuAfterASheet() throws {
+        try XCTSkipIf(UIDevice.current.userInterfaceIdiom == .pad, "An iPad's column never folds")
+        let app = launch()
+        openMenu(app)
+        for entry in ["Satellites", "Bookmarks"] {
+            app.buttons[entry].tap()
+            let done = app.buttons["Done"]
+            XCTAssert(done.waitForExistence(timeout: 10), "No \(entry) sheet")
+            done.tap()
+            XCTAssert(done.waitForNonExistence(timeout: 5))
+            XCTAssert(app.buttons[entry].waitForExistence(timeout: 5), "The menu stayed folded after \(entry)")
+            XCTAssertEqual(menuToggle(app).label, "Close menu")
+        }
+    }
+
+    // Locations is a panel beside the menu, as on the web: a link's stations are
+    // saved from it, dragged into place by their grips and removed by their
+    // crosses, and a pick on the globe that is cancelled opens it again.
+    @MainActor
+    func testEditsLocationsInTheirPanel() {
+        // A link's stations are saved ones if an interrupted run left them saved.
+        var app = launch()
+        openMenu(app)
+        app.buttons["Locations"].tap()
+        XCTAssert(app.buttons["Pick on globe"].waitForExistence(timeout: 5))
+        for name in ["Testhausen", "Probeburg"] where app.buttons["Remove \(name)"].exists {
+            app.buttons["Remove \(name)"].tap()
+        }
+        app.terminate()
+
+        app = launch(link: "/?gs=48.1372,11.5756,Testhausen_47.2692,11.4041,Probeburg")
+        openMenu(app)
+        app.buttons["Locations"].tap()
+        for _ in 0..<2 {
+            let save = app.buttons["Save"].firstMatch
+            XCTAssert(save.waitForExistence(timeout: 5))
+            save.tap()
+        }
+        let names = { app.textFields.allElementsBoundByIndex.compactMap { $0.value as? String } }
+        XCTAssert(app.textFields["Name"].waitForExistence(timeout: 5))
+        XCTAssertLessThan(names().firstIndex(of: "Testhausen") ?? .max, names().firstIndex(of: "Probeburg") ?? .min)
+
+        let grip = app.descendants(matching: .any)["Reorder Probeburg"]
+        grip.press(forDuration: 1, thenDragTo: app.descendants(matching: .any)["Reorder Testhausen"])
+        let moved = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in (names().firstIndex(of: "Probeburg") ?? .max) < (names().firstIndex(of: "Testhausen") ?? .min) },
+            object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [moved], timeout: 5), .completed, "Probeburg was not dragged above Testhausen")
+
+        app.buttons["Remove Testhausen"].tap()
+        app.buttons["Remove Probeburg"].tap()
+        XCTAssert(app.buttons["Remove Probeburg"].waitForNonExistence(timeout: 5))
+        XCTAssertFalse(names().contains("Testhausen"))
+
+        app.buttons["Pick on globe"].tap()
+        XCTAssert(app.staticTexts["Tap the globe to place a ground station"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Pick on globe"].exists)
+        app.buttons["Cancel"].tap()
+        XCTAssert(app.buttons["Pick on globe"].waitForExistence(timeout: 5))
+    }
+
+    // My location stands where the device is, kept as "Geolocation", first in the
+    // list, and Back to the globe leaves the sky view again.
     @MainActor
     func testLooksUpFromWhereTheDeviceIs() {
         XCUIDevice.shared.location = XCUILocation(location: CLLocation(latitude: 47.2692, longitude: 11.4041))
@@ -76,17 +144,22 @@ nonisolated class SatvisUITests: XCTestCase {
         let launched = launch(link: "/?gs=48.1372,11.5756,Munich")
         openMenu(launched)
         launched.buttons["Sky"].tap()
-        flip(launched, "Look up")
+        let here = launched.buttons["My location"]
+        XCTAssert(here.waitForExistence(timeout: 5))
+        here.tap()
         let allow = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Allow While Using App"]
         if allow.waitForExistence(timeout: 10) {
             allow.tap()
         }
         XCTAssert(launched.buttons["Leave the sky view"].waitForExistence(timeout: 20))
-        XCTAssertEqual(launched.switches["Look up"].value as? String, "1")
+        XCTAssert(here.isSelected)
         // Touches soon after the location prompt are lost on the iOS 27 simulator,
         // sometimes more than one (ios/docs/manual-verification.md): up to three tries.
+        let back = launched.buttons["Back to the globe"]
         for _ in 0..<3 where !launched.buttons["Home view"].exists {
-            flip(launched, "Look up")
+            if back.exists {
+                back.tap()
+            }
             _ = launched.buttons["Home view"].waitForExistence(timeout: 5)
         }
         XCTAssert(launched.buttons["Home view"].exists)
@@ -95,6 +168,25 @@ nonisolated class SatvisUITests: XCTestCase {
         let first = launched.textFields.firstMatch
         XCTAssert(first.waitForExistence(timeout: 5))
         XCTAssertEqual(first.value as? String, "Geolocation")
+    }
+
+    // A location's row in the Sky panel stands there, marked, without the device's
+    // position, and Back to the globe leaves.
+    @MainActor
+    func testLooksUpFromALocation() {
+        let app = launch(link: "/?gs=48.1372,11.5756,Munich")
+        openMenu(app)
+        app.buttons["Sky"].tap()
+        let munich = app.buttons["Munich"]
+        XCTAssert(munich.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Back to the globe"].exists)
+        munich.tap()
+        XCTAssert(app.buttons["Leave the sky view"].waitForExistence(timeout: 20))
+        XCTAssert(munich.isSelected)
+        XCTAssertFalse(app.buttons["My location"].isSelected)
+        app.buttons["Back to the globe"].tap()
+        XCTAssert(app.buttons["Home view"].waitForExistence(timeout: 10))
+        XCTAssertFalse(munich.isSelected)
     }
 
     // The sky view holds the camera, keeping a link's camera mode for the globe,
@@ -107,6 +199,10 @@ nonisolated class SatvisUITests: XCTestCase {
         let projection = app.buttons["3D"]
         XCTAssert(projection.waitForExistence(timeout: 5))
         XCTAssertFalse(projection.isSelected)
+        // The sky view is chosen there, but greyed: the Sky panel enters it.
+        let sky = app.buttons["Sky view"]
+        XCTAssert(sky.isSelected)
+        XCTAssertFalse(sky.isEnabled)
         // A disabled picker's segments read as enabled; the control does not.
         let camera = app.segmentedControls.firstMatch
         let inertial = camera.buttons["Inertial"]
@@ -115,6 +211,7 @@ nonisolated class SatvisUITests: XCTestCase {
         projection.tap()
         XCTAssert(app.buttons["Home view"].waitForExistence(timeout: 10))
         XCTAssert(projection.isSelected)
+        XCTAssertFalse(sky.exists)
         XCTAssert(camera.isEnabled && inertial.isSelected)
         app.buttons["Fixed"].tap()
         XCTAssert(app.buttons["Fixed"].isSelected)

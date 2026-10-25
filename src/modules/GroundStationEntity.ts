@@ -14,6 +14,11 @@ export interface GroundStationPositionData {
 }
 
 /** A named position on the ground, drawn as one pin. */
+/** A station's name, or its coordinates to two decimals where it has none. */
+export function stationLabel(name: string | undefined, latitude: number, longitude: number): string {
+  return name || `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+}
+
 export class GroundStationEntity {
   readonly #viewer: Viewer;
 
@@ -84,10 +89,7 @@ export class GroundStationEntity {
   }
 
   get name(): string {
-    if (this.givenName) {
-      return this.givenName;
-    }
-    return `${this.position.latitude.toFixed(2)}°, ${this.position.longitude.toFixed(2)}°`;
+    return stationLabel(this.givenName, this.position.latitude, this.position.longitude);
   }
 
   passes(time: JulianDate, deltaHours = 48): Pass[] {

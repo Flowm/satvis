@@ -287,9 +287,9 @@ body {
   background: var(--panel-glow), var(--panel-surface-dense);
 }
 
-/* A section heading, quieter than the panel title and aligned with it. */
+/* A section heading, quieter than the panel title, level with the rows' marks. */
 .toolbarTitle {
-  margin: 10px 4px 3px;
+  margin: 12px 8px 2px;
   color: var(--panel-muted);
   font-size: 11px;
   font-weight: 600;
@@ -302,7 +302,7 @@ body {
   margin: 5px;
 }
 
-/* Opacity only: `grayscale` drains the red/green dot, the only state a row shows. */
+/* Opacity only, so a chosen row keeps its accent mark. */
 .toolbarSwitch--inert {
   opacity: 0.3;
 }
@@ -322,26 +322,150 @@ body {
   opacity: 0.6;
 }
 
+/* A checkbox or radio row, its mark leading and its label muted while off. The rows
+   have a fixed height, so a long label is cut short rather than wrapped into the next. */
 .toolbarSwitch {
-  /* Lighter than the panel, or the rows merge into it. */
-  background-color: var(--panel-raised);
-  border-radius: 8px;
-  cursor: pointer;
-  display: inline-block;
-  height: 24px;
-  line-height: 24px;
-  margin: 1px 0px 1px 0px;
-  opacity: 0.85;
-  padding-left: 50px;
   position: relative;
+  display: block;
+  height: 30px;
+  padding: 0 8px 0 32px;
+  border-radius: 7px;
+  color: var(--panel-muted);
+  font-size: 14px;
+  line-height: 30px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
 }
 
+@media (pointer: coarse) {
+  .toolbarSwitch {
+    height: 36px;
+    line-height: 36px;
+  }
+}
+
+.toolbarSwitch:has(input:checked) {
+  color: var(--panel-ink);
+}
+
+@media (hover: hover) {
+  .toolbarSwitch:hover:not(:has(input:disabled)) {
+    background: #ffffff10;
+    color: var(--panel-ink);
+  }
+}
+
+/* The input is the mark, so it keeps the keyboard focus and the native semantics. */
 .toolbarSwitch input {
-  display: none;
+  appearance: none;
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0;
+  border: 1.5px solid #ffffff59;
+  border-radius: 4.5px;
+  background: transparent center / 12px no-repeat;
+  cursor: inherit;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
 }
 
-/* The rows have a fixed height, so a long label is cut short rather than wrapped into the next. */
-.toolbarSwitch {
+.toolbarSwitch input[type="radio"] {
+  border-radius: 50%;
+}
+
+.toolbarSwitch input:checked {
+  border-color: var(--panel-accent);
+  background-color: var(--panel-accent);
+}
+
+/* The stroke is --panel-surface, which a data url cannot read. */
+.toolbarSwitch input[type="checkbox"]:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%231c1c1e' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.toolbarSwitch input[type="radio"]:checked {
+  background-image: radial-gradient(circle, var(--panel-surface) 0 3px, transparent 3.5px);
+}
+
+.toolbarSwitch input:focus-visible {
+  outline: 2px solid var(--panel-accent);
+  outline-offset: 2px;
+}
+
+/* A row that acts rather than chooses: the Sky panel's places. Laid out as a switch
+   row, with an icon in the mark's place. */
+.toolbarPlace {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--panel-ink);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+@media (pointer: coarse) {
+  .toolbarPlace {
+    height: 36px;
+  }
+}
+
+@media (hover: hover) {
+  .toolbarPlace:hover:not(:disabled, [aria-current]) {
+    background: #ffffff10;
+  }
+}
+
+.toolbarPlace:disabled {
+  cursor: default;
+}
+
+/* Waiting on My location's fix; the row with the spinner is the one waiting. */
+.toolbarPlace:disabled:not(:has(.toolbarSpinner)) {
+  opacity: 0.3;
+}
+
+.toolbarPlace:focus-visible {
+  outline: 2px solid var(--panel-accent);
+  outline-offset: -2px;
+}
+
+/* Where the sky view stands. */
+.toolbarPlace[aria-current] {
+  background: var(--panel-selected);
+  color: var(--panel-accent);
+}
+
+.toolbarPlace--leave {
+  color: var(--panel-muted);
+}
+
+.toolbarPlace__icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.toolbarPlace__label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -394,18 +518,27 @@ body {
   opacity: 0.3;
 }
 
-/* Positioned over the slider's dot so it costs no width; a wider row reflows the menu. */
 .toolbarSpinner {
-  position: absolute;
-  left: 4px;
-  bottom: 4px;
   box-sizing: border-box;
+  flex: none;
   height: 16px;
   width: 16px;
   border: 2px solid #ffffff40;
   border-top-color: #ffffff;
   border-radius: 50%;
   animation: toolbarSpin 0.8s linear infinite;
+}
+
+/* In the mark's place, so it costs no width; a wider row reflows the menu. */
+.toolbarSwitch .toolbarSpinner {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  margin-top: -8px;
+}
+
+.toolbarSwitch:has(.toolbarSpinner) input {
+  visibility: hidden;
 }
 
 @keyframes toolbarSpin {
@@ -418,23 +551,12 @@ body {
   .toolbarSpinner {
     animation: none;
   }
-}
 
-.slider::before {
-  position: absolute;
-  content: "";
-  height: 16px;
-  width: 16px;
-  left: 4px;
-  bottom: 4px;
-  border-radius: 50%;
-  background-color: red;
-  transition: 0.4s;
-}
-
-input:checked + .slider::before {
-  background-color: green;
-  transform: translateX(20px);
+  .toolbarSwitch,
+  .toolbarSwitch input,
+  .toolbarPlace {
+    transition: none;
+  }
 }
 
 .cesium-toolbar-button {

@@ -178,8 +178,10 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   only be tried on a device, the simulator having no motion sensor. The
   observer is where the device is, kept as the one saved station named
   "Geolocation" and moved there each time, as on the web (ADR 0003): the Sky
-  panel's Look up stands there, as does a link to the sky view that names no
-  station. It is listed first, by Look up and by Locations' My location alike, as
+  panel's My location stands there, as does a link to the sky view that names no
+  station. The panel's other rows are the other stations, each standing there,
+  and Back to the globe while the view is up; the Globe panel then lists Sky view,
+  ticked and greyed. It is listed first, by both panels' My location alike, as
   on the web, where a link's stations are its list and its sky view stands on
   the first; the app also writes the observer first into the links it makes. A link that names one stands on
   its first, and a station's panel on that station. Its own pin is hidden
@@ -235,17 +237,24 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   app has, as VoiceOver hints, one panel (`PanelStyle.swift`, drawn rather than
   Liquid Glass, whose blur cost the compositor 5 ms of GPU a frame)
   whose rows each hold an icon and its name, folded on a phone and open on an
-  iPad, as the web's is on a desktop. Components, Map, Globe, Sky
+  iPad, as the web's is on a desktop. Components, Map, Locations, Globe, Sky
   and Graphics open the web's panels beside it (`ToolPanels.swift`): a title and a
   close button over a rule level with the column's, sections under small titles,
-  switches, a segmented control where the choices are short, ticked rows where
-  they are long; a setting that needs the sky view is disabled on the globe,
-  not hidden. On a phone the column folds to its icons beside a panel, which
-  covers the top-right buttons, as the web's does below 640 px. Those buttons
+  their rows on inset cards (`PanelCard`) and led by iOS's selection circle, a
+  switch and a choice alike, as the web app gives its checkboxes and radio
+  buttons one left-aligned mark (`CircleToggleStyle` keeps a switch a switch to
+  VoiceOver); a segmented control where the choices are short; a setting that
+  needs the sky view is disabled on the globe, not hidden. On a phone the column
+  folds to its icons beside a panel, which covers the top-right buttons, as the
+  web's does below 640 px. Those buttons
   are the ways back alone: home or out of the sky view, the compass and the
   camera, and the end of tracking. Not system
   menus: iOS 26 grows one out of its control, in the column's place, and it holds
-  ticked lists alone. Bookmarks, Satellites and Locations are sheets: long lists.
+  ticked lists alone. Bookmarks and Satellites are sheets: long lists. Locations
+  (`LocationsPanel`) is a panel, as both ways out of it are on the globe: its few
+  stations are edited in place on a card, each removed by its cross and dragged
+  by its grip, which VoiceOver moves a place at a time; picking a spot closes it,
+  and a cancelled pick opens it again.
   A tap on the globe closes the panel and on a phone folds the column, as on
   the web, and a miss that did so keeps the selection.
   What the app does not draw is left out: Map's overlays, surface and star map;

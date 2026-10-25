@@ -52,10 +52,16 @@ struct ContentView: View {
     @Bindable var session: Session
     @State private var showsBookmarks = false
     @State private var showsBrowser = false
-    @State private var showsStations = false
     @State private var showsAcknowledgements = false
     @State private var showsAbout = false
     @State private var showsTools = false
+    /// What was selected when a sheet folded the column on a phone, to unfold it
+    /// again when the sheet closes; nil while no sheet folded it.
+    @State private var foldedFor: Selection??
+    /// What was selected when picking a spot started from the Locations panel,
+    /// which opens again if the pick is cancelled; a placed station opens its own
+    /// panel instead. Nil while no pick started there.
+    @State private var pickingFromLocations: Selection??
     /// The panel open beside the menu column, if any.
     @State private var panel: ToolPanel?
     /// Where the menu column and the top corner's buttons are, in the window.
@@ -162,9 +168,7 @@ struct ContentView: View {
                         }
                         entry(.components, image: .lucideSatellite, hint: "Orbits, ground tracks, labels and sensor cones")
                         entry(.map, image: .lucideLayers, hint: "Basemap and terrain")
-                        ToolEntry(title: "Locations", image: .lucideMapPin, hint: "Ground stations, for pass predictions and the sky view") {
-                            showsStations = true
-                        }
+                        entry(.locations, image: .lucideMapPin, hint: "Ground stations, for pass predictions and the sky view")
                         entry(.globe, image: .lucideGlobe, hint: "The globe's projection, and the camera")
                         entry(.sky, image: .lucideTelescope, hint: "Look up from a ground station and see what passes over")
                         entry(.graphics, image: .lucideGauge, hint: "Quality and performance")
@@ -185,6 +189,11 @@ struct ContentView: View {
                             switch panel {
                             case .components: ComponentsPanel(catalog: session.catalog)
                             case .map: MapPanel(session: session)
+                            case .locations:
+                                LocationsPanel(passes: session.passes, onPick: pickFromLocations) {
+                                    session.select(.station($0))
+                                    clearTheGlobe()
+                                }
                             case .globe: GlobePanel(session: session)
                             case .sky: SkyPanel(session: session)
                             case .graphics: GraphicsPanel(session: session)
@@ -247,11 +256,29 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .onChange(of: showsBookmarks || showsBrowser || showsStations || showsAbout) { _, presenting in
+        .onChange(of: session.isPicking) { _, picking in
+            if !picking, let selection = pickingFromLocations {
+                pickingFromLocations = nil
+                if session.selection == selection {
+                    showsTools = true
+                    panel = .locations
+                }
+            }
+        }
+        // A sheet folds the column on a phone and unfolds it again as it closes,
+        // unless what was done in it is on the globe now: a panel opened there
+        // would be under the column.
+        .onChange(of: showsBookmarks || showsBrowser || showsAbout) { _, presenting in
             if presenting {
                 panel = nil
-                if sizeClass != .regular {
+                if sizeClass != .regular, showsTools {
                     showsTools = false
+                    foldedFor = .some(session.selection)
+                }
+            } else if let selection = foldedFor {
+                foldedFor = nil
+                if session.selection == selection {
+                    showsTools = true
                 }
             }
         }
@@ -273,9 +300,6 @@ struct ContentView: View {
                         }
                     }
             }
-        }
-        .sheet(isPresented: $showsStations) {
-            GroundStationsView(passes: session.passes, onPick: { session.setPicking(true) }, onSelect: { session.select(.station($0)) })
         }
         // A card over the trailing edge where there is room for one, a sheet over
         // the lower half where there is not, leaving the globe to steer either
@@ -319,6 +343,26 @@ struct ContentView: View {
             case .background: session.enteredBackground()
             default: break
             }
+        }
+        // The keyboard rose under the clock deck into a panel being edited, and
+        // shortened the panel past fitting, swapping in a scrolling one: a new
+        // view, which dropped the field's focus. The sheets keep their own room.
+        .ignoresSafeArea(.keyboard)
+    }
+
+    /// Starts picking a spot from the Locations panel, out of the globe's way.
+    private func pickFromLocations() {
+        pickingFromLocations = .some(session.selection)
+        clearTheGlobe()
+        session.setPicking(true)
+    }
+
+    /// Closes the panel, and on a phone folds the column, for what happens next on
+    /// the globe: a panel opened there would be under the column.
+    private func clearTheGlobe() {
+        panel = nil
+        if sizeClass != .regular {
+            showsTools = false
         }
     }
 

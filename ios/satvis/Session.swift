@@ -532,8 +532,8 @@ final class Session {
         perform(focus.goHome())
     }
 
-    /// Looks up from where the device is: the Sky panel's Look up. A station's
-    /// panel looks up from that station instead.
+    /// Looks up from where the device is: the Sky panel's My location. Its other
+    /// rows and a station's panel look up from a station instead.
     func lookUpFromHere() async {
         if let id = await stationHere() {
             enterSky(at: id)
@@ -545,7 +545,7 @@ final class Session {
     /// a sky at a place nobody chose looks like a working view and is not.
     private func stationHere() async -> UUID? {
         guard let location = await currentLocation(), let id = editStations({ $0.setGeolocation(latitude: location.latitude, longitude: location.longitude) }) else {
-            show("The sky view needs your location. Allow it in Settings, or look up from a location's panel.")
+            show("The sky view needs your location. Allow it in Settings, or look up from one of your locations.")
             return nil
         }
         return id
