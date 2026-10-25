@@ -49,7 +49,8 @@ workspace package). One `pnpm install` at the root covers both.
   the bag or the frontend applies its defaults (`src/config/satelliteMetadata.ts`).
 - A satellite's 3D model is the `modelFile` its model manifest gives it
   (`data/models/models.yaml`, `data/custom/*/models.yaml`), by NORAD id or by GCAT
-  bus, never its name.
+  bus, never its name. Records carry it as `model`, with its lower-detail copies,
+  and as `modelFile` for apps released before `model`.
 - The html entrypoints are the MPA inputs in `vite.config.ts`.
 
 ## Commands

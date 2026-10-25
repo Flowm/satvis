@@ -78,6 +78,10 @@ function validateMetadata(metadata: Raw, where: string): void {
   if (given.length === 1) {
     throw new Error(`${where}: swath needs both "swathStarboardKm" and "swathPortKm" (got only ${JSON.stringify(given[0])})`);
   }
+  // The refresh derives it from modelFile (ADR 0007), so a row's would reach only new apps.
+  if (metadata.model !== undefined) {
+    throw new Error(`${where}: "model" is derived from "modelFile"; name the file there`);
+  }
 }
 
 /** Every other key of a table entry is metadata, so a new field needs no code change. */

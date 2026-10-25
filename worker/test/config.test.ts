@@ -36,6 +36,18 @@ describe("the generated config", () => {
     }
   });
 
+  // The app puts copies under ./data/models/ too, and draws the smallest that fits.
+  it("lists every model file's copies as .glb paths with falling maxPoints", () => {
+    for (const [modelFile, lods] of Object.entries((generated as GroupsConfig).modelLods ?? {})) {
+      expect(lods.length, modelFile).toBeGreaterThan(0);
+      lods.reduce((previous, { file, maxPoints }) => {
+        expect(file, modelFile).toMatch(/^(?!\/)(?!.*\.\.).*\.glb$/);
+        expect(maxPoints, file).toBeLessThan(previous);
+        return maxPoints;
+      }, Infinity);
+    }
+  });
+
   it("has a default preset", () => {
     expect(presets.map((preset) => preset.name)).toContain("default");
   });

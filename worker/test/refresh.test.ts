@@ -231,8 +231,8 @@ describe("refreshGroups + model buses", () => {
     await refreshGroups(config, store, okFetch(RECORDS));
 
     const [iss, nauka] = groups.get("stations")!.records as OmmRecord[];
-    expect(iss!.metadata).toMatchObject({ bus: "77KS", modelFile: "BUS-77KS.glb" });
-    expect(nauka!.metadata).toMatchObject({ bus: "Almaz", modelFile: "NAUKA.glb" });
+    expect(iss!.metadata).toMatchObject({ bus: "77KS", modelFile: "BUS-77KS.glb", model: { file: "BUS-77KS.glb" } });
+    expect(nauka!.metadata).toMatchObject({ bus: "Almaz", modelFile: "NAUKA.glb", model: { file: "NAUKA.glb" } });
   });
 
   it("gives no model without a GCAT bus", async () => {

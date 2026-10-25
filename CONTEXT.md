@@ -69,8 +69,15 @@ discussion; sharpen them here when they drift.
   depicts, by NORAD id or by GCAT **bus**: the `data/models` submodule's, and any
   plugin's. The generator turns a NORAD id into that satellite's `modelFile`, and a
   bus into an entry of a map the refresh applies to every satellite of that bus; a
-  listed NORAD id wins. A satellite matched by neither has no model; models are never
-  looked up by name (`docs/adr/0007-model-manifest.md`).
+  listed NORAD id wins. The refresh gives every satellite with a model file a `model`
+  object, the file and its lower-detail copies, which apps read; `modelFile` stays for
+  apps released before it. A satellite matched by neither has no model; models are
+  never looked up by name (`docs/adr/0007-model-manifest.md`).
+- **Lower-detail copy**: a model file simplified for a small size, which a manifest
+  lists under its model's `lods` with the largest on-screen size it is drawn at
+  (`maxPoints`). It reaches a record as `model.lods`, beside the file the record ends
+  with, and an app draws it while the model is that small and untracked.
+  A model's **levels** number its file 0 and its copies from 1, most detailed first.
 - **Group store**: the persistence seam of the GP refresh pipeline (groups, the index,
   the upstream files and their statuses), with a Workers KV adapter (API, ingest and
   Docker schedule, `worker/src/gp/store.ts`) and a disk adapter for the static

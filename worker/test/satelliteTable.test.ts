@@ -39,6 +39,31 @@ describe("SatelliteTable", () => {
     expect(metadataOf(three!)).not.toHaveProperty("modelFile");
   });
 
+  it("gives no bus model to a satellite whose curated row names none", () => {
+    const table = new SatelliteTable([gcat({ "1": { bus: "Starlink V2M" } })], [{ noradId: 1, metadata: { modelFile: null } }], { "Starlink V2M": "starlink.glb" });
+    expect(metadataOf(table.enrich([omm("A", 1)])[0]!)).not.toHaveProperty("model");
+  });
+
+  it("gives every satellite with a model file its model, with the file's lower-detail copies, by NORAD id or by bus", () => {
+    const lods = [{ file: "starlink-low.glb", maxPoints: 100 }];
+    const table = new SatelliteTable(
+      [gcat({ "1": { bus: "Starlink V2M" }, "3": { bus: "A2100" } })],
+      [
+        { noradId: 2, metadata: { modelFile: "starlink.glb" } },
+        { noradId: 4, metadata: { modelFile: "special.glb" } },
+      ],
+      { "Starlink V2M": "starlink.glb" },
+      { "starlink.glb": lods },
+    );
+    const [one, two, three, four] = table.enrich([omm("A", 1), omm("B", 2), omm("C", 3), omm("D", 4)]);
+
+    expect(metadataOf(one!)).toMatchObject({ modelFile: "starlink.glb", model: { file: "starlink.glb", lods } });
+    expect(metadataOf(two!)).toMatchObject({ modelFile: "starlink.glb", model: { file: "starlink.glb", lods } });
+    expect(metadataOf(three!)).not.toHaveProperty("model");
+    expect(metadataOf(four!)).toMatchObject({ modelFile: "special.glb", model: { file: "special.glb" } });
+    expect((metadataOf(four!) as { model: object }).model).not.toHaveProperty("lods");
+  });
+
   it("counts the rows each upstream table gave", () => {
     const table = new SatelliteTable([satcat({ "1": {}, "2": {} }), gcat({})]);
     expect(table.rows).toEqual({ satcat: 2, gcat: 0 });
