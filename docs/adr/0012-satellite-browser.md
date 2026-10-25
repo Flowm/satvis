@@ -110,6 +110,8 @@ brushed like the launch years; a direction is picked in the legend.
   (`ltanHoursOf`), so both show a satellite at the same time. Operators quote mean time; the
   apparent time is up to 16 minutes off. It reproduces Sentinel-1 at 18:00, Sentinel-2 at 10:30 and NOAA-20 at 13:30.
 - A dawn-dusk orbit lands at either end, by which side of 06:00 or 18:00 its nodes fall.
+  "Dawn-dusk" has no agreed bound; the bands take a crossing within an hour of either, where
+  the catalog thins out: 663 satellites within the hour, 89 in the next quarter.
 
 ## Consequences
 

@@ -47,7 +47,12 @@
           @pointerup="brushEnd"
           @pointerleave="hoverIndex = null"
         >
-          <rect v-for="band in bands" :key="band.at" :x="band.at" :width="band.width" y="0" height="100" class="histogram__band" />
+          <template v-for="band in bands" :key="band.at">
+            <rect :x="band.at" :width="band.width" y="0" height="100" class="histogram__band" />
+            <!-- Edges, so bands that meet stay apart. -->
+            <line :x1="band.at" :x2="band.at" y1="0" y2="100" class="histogram__bandEdge" />
+            <line :x1="band.at + band.width" :x2="band.at + band.width" y1="0" y2="100" class="histogram__bandEdge" />
+          </template>
           <line v-for="tick in yTicks" :key="tick.value" x1="0" :x2="bins.length" :y1="100 - tick.height" :y2="100 - tick.height" class="histogram__grid" />
           <rect v-if="hoverIndex !== null" :x="hoverIndex" width="1" y="0" height="100" class="histogram__hover" />
           <template v-for="(bin, i) in bins" :key="bin">
@@ -344,6 +349,12 @@ function brushEnd(): void {
 
 .histogram__grid {
   stroke: #ffffff14;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.histogram__bandEdge {
+  stroke: #ffffff2e;
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
