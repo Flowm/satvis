@@ -9,7 +9,7 @@ interface UsePWAUpdateOptions {
 }
 
 /** Runtime caches renamed in vite.config.ts; Workbox deletes only outdated precaches. */
-const RETIRED_CACHES = ["satellite-model-cache"];
+const RETIRED_CACHES = ["satellite-model-cache", "satellite-model-cache-v2"];
 
 const needRefresh = ref(false);
 const offlineReady = ref(false);
