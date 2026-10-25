@@ -21,8 +21,8 @@
             :ref="(el) => (entryButtons[item.key] = el as HTMLButtonElement | null)"
             type="button"
             class="menuColumn__item"
-            :class="{ 'menuColumn__item--open': menu[item.key] }"
-            :aria-expanded="menu[item.key]"
+            :class="{ 'menuColumn__item--open': menu[item.key] || (item.key === 'cat' && catalogOpen) }"
+            :aria-expanded="menu[item.key] || (item.key === 'cat' && catalogOpen)"
             :aria-label="item.label"
             :title="item.hint"
             @click="toggleMenu(item.key)"
@@ -429,11 +429,13 @@ function onPointerCancel(): void {
   globePress = undefined;
 }
 
-/** Opening a panel also closes the catalog sheet, which otherwise stays over the globe beside it. */
+/** A panel opens over the catalog sheet, which stays open; the Satellites entry takes the sheet back to the panel it grew from. */
 function toggleMenu(name: MenuKey) {
   const oldState = menu[name];
   closeMenus();
-  catalogOpen.value = false;
+  if (name === "cat") {
+    catalogOpen.value = false;
+  }
   menu[name] = !oldState;
 }
 
@@ -480,7 +482,7 @@ function toggleMenuColumn() {
   }
 }
 
-/** Closes the catalog sheet's innermost layer, else the open panel, then the column. Inputs and an open dialog keep Escape for themselves. */
+/** Closes the open panel, which lies over the catalog sheet, else the sheet's innermost layer, then the column. Inputs and an open dialog keep Escape for themselves. */
 function onEscape(event: KeyboardEvent) {
   if (
     event.key !== "Escape" ||
@@ -491,13 +493,11 @@ function onEscape(event: KeyboardEvent) {
   ) {
     return;
   }
-  if (catalogOpen.value) {
-    catalogSheet.value?.escape();
-    return;
-  }
   const open = (Object.keys(menu) as MenuKey[]).find((k) => menu[k]);
   if (open) {
     closePanel(open);
+  } else if (catalogOpen.value) {
+    catalogSheet.value?.escape();
   } else {
     const focusInList = !!document.activeElement?.closest(".menuColumn__list");
     menuExpanded.value = false;

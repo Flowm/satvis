@@ -104,6 +104,13 @@ body {
   pointer-events: auto;
 }
 
+/* Over the catalog sheet at its half size, which stays open under a menu panel; at full
+   screen it covers them (CatalogSheet.vue). */
+#toolbarLeft > .menuColumn,
+#toolbarLeft > .toolbarPanel {
+  z-index: 21;
+}
+
 #toolbarRight {
   position: absolute;
   top: calc(5px + var(--safe-top));

@@ -483,7 +483,9 @@ defineExpose({ escape });
   transition: none;
 }
 
+/* Over the menu column and its panels, which the half sheet lies under (main.css). */
 .catalogSheet--full {
+  z-index: 22;
   right: 0;
   bottom: 0;
   left: 0;

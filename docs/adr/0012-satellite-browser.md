@@ -115,7 +115,11 @@ brushed like the launch years; a direction is picked in the legend.
 
 - Showing a satellite's info shrinks the sheet; on a phone, where even the sheet covers most
   of the screen, it closes it. Escape goes through the app's own handler, so an open dialog or
-  an input keeps it, and opening any menu panel closes the sheet.
+  an input keeps it.
+- A menu panel opens over the half sheet, which stays open beneath it, so a basemap or a
+  component can change while the sheet filters; Escape closes the panel first. The
+  Satellites entry alone closes the sheet, back to the panel it grew from. At full screen the
+  sheet covers the menu.
 - The icon bundle's scan reads `.ts` as well: the facets name their icons in data, and an icon
   it misses would be fetched from api.iconify.design at runtime.
 - Each record grows by about 20 bytes, for `opOrbit` and `program`; KV picks them up at
