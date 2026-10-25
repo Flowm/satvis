@@ -17,6 +17,9 @@ export const closeMenuPanel = (page: Page, title: string) => page.getByRole("reg
 /** A labelled switch, radio or checkbox in a menu panel. */
 export const menuSwitch = (page: Page, label: string) => page.locator("label.toolbarSwitch", { hasText: new RegExp(`^\\s*${label}\\s*$`) });
 
+/** A row of the Sky panel: My location, a station's name, or Back to the globe. */
+export const skyPlace = (page: Page, label: string) => page.getByRole("region", { name: "Sky" }).getByRole("button", { name: label, exact: true });
+
 /** Opens the clock deck's controls where they start folded. */
 export async function openClockDeck(page: Page): Promise<void> {
   const stamp = page.locator(".stamp");

@@ -4,7 +4,7 @@ import type { Page } from "@playwright/test";
 
 import { openApp, selectSatellite, waitForSky, waitTicks } from "../support/app";
 import { expect, test } from "../support/test";
-import { menuSwitch, openMenu } from "../support/ui";
+import { openMenu, skyPlace } from "../support/ui";
 
 const ISS = "ISS (ZARYA)";
 const CSS = "CSS (TIANHE)";
@@ -109,16 +109,16 @@ test("a running clock holds for the flight and runs again on landing", async ({ 
 });
 
 test("the sky view takes the camera from a flight: nothing tracked, the clock running", async ({ page }) => {
-  // Look up stands where the device is.
+  // My location stands where the device is.
   await page.context().grantPermissions(["geolocation"]);
   await page.context().setGeolocation({ latitude: 48.1372, longitude: 11.5756 });
   await openApp(page, `${QUERY}&gs=48.1372,11.5756,Munich`);
   await recordTracking(page);
   await openMenu(page, "Sky");
-  // Look up must land mid-flight. A flight the sky view failed to cancel still holds the clock, which the last check catches.
+  // My location must land mid-flight. A flight the sky view failed to cancel still holds the clock, which the last check catches.
   await stretchNextFlight(page);
   await track(page, ISS);
-  await menuSwitch(page, "Look up").click();
+  await skyPlace(page, "My location").click();
   await waitForSky(page);
   await waitTicks(page, 20);
   expect(await tracked(page)).toBeUndefined();
@@ -139,7 +139,7 @@ test("the sky view drops a track still waiting on its model", async ({ page }) =
     Object.defineProperty(sat.model, "pending", { get: () => performance.now() < loadedAt });
   }, ISS);
   await track(page, ISS);
-  await menuSwitch(page, "Look up").click();
+  await skyPlace(page, "My location").click();
   await waitForSky(page);
   // Past the model loading and a whole flight after it.
   await page.waitForTimeout(4000);

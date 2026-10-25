@@ -4,7 +4,7 @@ import type { Page } from "@playwright/test";
 
 import { canvasBox, openApp, waitForSky } from "../support/app";
 import { expect, test } from "../support/test";
-import { addStationHere, clickEntity, closeMenuPanel, menuSwitch, openMenu, showInfo } from "../support/ui";
+import { addStationHere, clickEntity, closeMenuPanel, menuSwitch, openMenu, showInfo, skyPlace } from "../support/ui";
 
 const MUNICH = { latitude: 48.1372, longitude: 11.5756 };
 const TARGET = "METEOSAT-12 (MTG-I1)";
@@ -86,12 +86,12 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   await expect.poll(() => Number(stations(page)[0]![0]), { message: "the station walked south" }).toBeLessThan(Number(start![0]));
   expect(stations(page)[0]![2]).toBe("Munich");
 
-  // Look up stands where the device is now, kept as Geolocation, first in the list.
+  // My location stands where the device is now, kept as Geolocation, first in the list.
   await page.context().setGeolocation({ latitude: 47.27, longitude: 11.39 });
   await openMenu(page, "Sky");
-  await menuSwitch(page, "Look up").click();
+  await skyPlace(page, "Back to the globe").click();
   await expect(page.locator(".sky-hud")).toBeHidden();
-  await menuSwitch(page, "Look up").click();
+  await skyPlace(page, "My location").click();
   await waitForSky(page);
   await expect.poll(() => page.evaluate(() => window.cc!.skyView.observer?.lat)).toBe(47.27);
   expect(stations(page).map((station) => station[2])).toEqual(["Geolocation", "Munich"]);
@@ -107,27 +107,31 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
 test("the sky view returns to the projection it was entered from, and holds the camera meanwhile", async ({ page }) => {
   await openApp(page, "gs=48.1372,11.5756,Munich&scene=2D");
   await openMenu(page, "Sky");
-  await menuSwitch(page, "Look up").click();
+  await skyPlace(page, "Munich").click();
   await waitForSky(page);
+  await expect(skyPlace(page, "Munich")).toHaveAttribute("aria-current", "location");
 
   await openMenu(page, "Globe");
   for (const projection of ["3D", "2D", "Columbus"]) {
     await expect(menuSwitch(page, projection).locator("input")).not.toBeChecked();
   }
+  await expect(menuSwitch(page, "Sky view").locator("input")).toBeChecked();
+  await expect(menuSwitch(page, "Sky view").locator("input")).toBeDisabled();
   await expect(menuSwitch(page, "Inertial").locator("input")).toBeDisabled();
 
   await openMenu(page, "Sky");
-  await menuSwitch(page, "Look up").click();
+  await skyPlace(page, "Back to the globe").click();
   await expect.poll(() => new URL(page.url()).searchParams.get("scene")).toBe("2D");
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.scene.mode)).toBe(2);
   await openMenu(page, "Globe");
   await expect(menuSwitch(page, "Inertial").locator("input")).toBeEnabled();
+  await expect(menuSwitch(page, "Sky view")).toHaveCount(0);
 });
 
 test("look up stands where the device is, listed first, so a reload stands there again", async ({ page }) => {
   await openApp(page, "gs=47.2692,11.4041,Innsbruck");
   await openMenu(page, "Sky");
-  await menuSwitch(page, "Look up").click();
+  await skyPlace(page, "My location").click();
   await waitForSky(page);
   expect(await page.evaluate(() => window.cc!.skyView.observer)).toEqual({ lat: MUNICH.latitude, lon: MUNICH.longitude });
   await expect.poll(() => new URL(page.url()).searchParams.get("gs")).toBe("48.1372,11.5756,Geolocation_47.2692,11.4041,Innsbruck");
@@ -141,7 +145,7 @@ test("look up moves the Geolocation station rather than adding another", async (
   await openApp(page, "gs=47.2692,11.4041,Innsbruck_1,2,Geolocation");
   await openMenu(page, "Sky");
 
-  await menuSwitch(page, "Look up").click();
+  await skyPlace(page, "My location").click();
   await waitForSky(page);
   expect(await page.evaluate(() => window.cc!.skyView.observer)).toEqual({ lat: MUNICH.latitude, lon: MUNICH.longitude });
   await expect.poll(() => new URL(page.url()).searchParams.get("gs")).toBe("48.1372,11.5756,Geolocation_47.2692,11.4041,Innsbruck");

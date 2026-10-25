@@ -148,7 +148,7 @@ export const useSatStore = defineStore(
       replaceStations(withGeolocation(stations.value, lat, lon), observerAfterGeolocation(stations.value, observerStation.value));
     }
 
-    /** Look up's: as `placeGeolocation`, and the observer there. */
+    /** The Sky panel's My location: as `placeGeolocation`, and the observer there. */
     function observeGeolocation(lat: number, lon: number): void {
       replaceStations(withGeolocation(stations.value, lat, lon), 0);
     }

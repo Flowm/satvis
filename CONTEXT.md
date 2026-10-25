@@ -173,7 +173,7 @@ discussion; sharpen them here when they drift.
   surface model (a roof, where a building stands at the observer).
 - **Observer**: the point the sky view looks up from: the designated ground
   station. Not a separate location, so passes are already computed against it.
-  Where the device is, unless something names a place: the Sky panel's Look up,
+  Where the device is, unless something names a place: the Sky panel's My location,
   and a link to the sky view with no ground station, move the station named
   Geolocation there, or add it, first in the list (`observeGeolocation`); a
   station's info panel stands on that station, and any other link on its first

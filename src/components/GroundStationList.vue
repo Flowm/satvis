@@ -8,7 +8,7 @@
       :class="{ 'gsList__row--observer': observing(index), 'gsList__row--dragged': drag?.from === index, 'gsList__row--settling': settling }"
       :style="{ transform: `translateY(${offsetOf(index)}px)` }"
     >
-      <!-- Where the sky view stands, while it is up: Look up and a location's panel choose it. -->
+      <!-- Where the sky view stands, while it is up: the Sky panel and a location's panel choose it. -->
       <span class="gsList__rank" :class="{ 'gsList__rank--observer': observing(index) }" :title="observing(index) ? 'The sky view stands here' : undefined">
         {{ observing(index) ? "◉" : index + 1 }}
       </span>

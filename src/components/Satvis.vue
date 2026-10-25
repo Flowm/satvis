@@ -91,12 +91,16 @@
       <!-- Two panels, one `scene` parameter (docs/adr/0003-sky-view.md): each view's settings stay visible, disabled where the other view is up. -->
       <toolbar-panel v-show="menu.globe" title="Globe" @close="closePanel('globe')">
         <div class="toolbarTitle">Projection</div>
-        <!-- None is checked in the sky view: a checked projection read as the active one. -->
+        <!-- In the sky view no projection is checked, as a checked one read as the active view.
+             The view is chosen there instead, but greyed: it is entered from the Sky panel, which names a place. -->
         <label v-for="name in projections" :key="name" class="toolbarSwitch">
           <input type="radio" name="projection" :checked="!inSkyView && sceneMode === name" @change="sceneMode = name" />
           {{ name }}
         </label>
-        <div v-if="inSkyView" class="toolbarNote">In the sky view. Pick one to return to the globe.</div>
+        <label v-if="inSkyView" class="toolbarSwitch">
+          <input type="radio" name="projection" checked disabled />
+          Sky view
+        </label>
         <div class="toolbarTitle">Camera</div>
         <label v-for="name in CAMERA_MODES" :key="name" class="toolbarSwitch">
           <input v-model="cameraMode" type="radio" :value="name" :disabled="inSkyView" />
@@ -105,14 +109,30 @@
         <div v-if="inSkyView" class="toolbarNote">The sky view holds the camera.</div>
       </toolbar-panel>
       <toolbar-panel v-show="menu.sky" title="Sky" @close="closePanel('sky')">
-        <div class="toolbarTitle">Sky view</div>
-        <label class="toolbarSwitch">
-          <input type="checkbox" :checked="inSkyView" :disabled="locating" @change="onSkyToggle" />
-          <!-- The spinner replaces the mark while the device's position comes back. -->
+        <!-- Each row enters the sky view standing there, or moves a view already up (docs/adr/0003-sky-view.md). -->
+        <div class="toolbarTitle">Look up from</div>
+        <button type="button" class="toolbarPlace" :aria-current="standingAtGeolocation ? 'location' : undefined" :disabled="locating" @click="lookUpFromHere">
+          <!-- The spinner replaces the icon while the device's position comes back. -->
           <span v-if="locating" class="toolbarSpinner"></span>
-          Look up
-        </label>
-        <div class="toolbarNote">Start sky view from your current location. To look up elsewhere, use a location pin’s sky view button.</div>
+          <UIcon v-else name="lucide:locate-fixed" class="toolbarPlace__icon" />
+          <span class="toolbarPlace__label">My location</span>
+        </button>
+        <button
+          v-for="place in skyPlaces"
+          :key="place.index"
+          type="button"
+          class="toolbarPlace"
+          :aria-current="inSkyView && observerStation === place.index ? 'location' : undefined"
+          @click="lookUpFrom(place.index)"
+        >
+          <UIcon name="lucide:map-pin" class="toolbarPlace__icon" />
+          <span class="toolbarPlace__label">{{ place.label }}</span>
+        </button>
+        <button v-if="inSkyView" type="button" class="toolbarPlace toolbarPlace--leave" @click="leaveSkyView">
+          <UIcon name="lucide:globe" class="toolbarPlace__icon" />
+          <span class="toolbarPlace__label">Back to the globe</span>
+        </button>
+        <div v-if="skyPlaces.length === 0" class="toolbarNote">Locations you add are listed here too.</div>
         <div v-if="compassOffered || !cc.minimalUI" class="toolbarTitle">Aiming</div>
         <label v-if="compassOffered" class="toolbarSwitch">
           <input type="checkbox" :checked="compassActive" :disabled="compassPending || !inSkyView" @change="onCompassToggle" />
@@ -205,6 +225,7 @@ import { type MapGroup, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, v
 import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "../config/viewModes";
 import { baseLayerNames, overlayLayerNames, terrainProviderNames } from "../modules/CesiumLayerProviders";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
+import { GEOLOCATION } from "../modules/util/groundStationEdits";
 import { UNSEEN_MODES, type UnseenMode } from "../modules/util/visibility";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
@@ -306,7 +327,7 @@ const terrainNames = terrainProviderNames();
 const { hasOverlay, setBaseLayer, toggleOverlay } = cesiumStore;
 
 const satStore = useSatStore();
-const { enabledComponents } = storeToRefs(satStore);
+const { enabledComponents, groundStations, observerStation } = storeToRefs(satStore);
 
 const compassOffered = compassAvailable();
 const { active: compassActive, pending: compassPending, toggle: toggleCompass } = useSkyCompass(cc);
@@ -315,7 +336,7 @@ const inSkyView = computed(() => sceneMode.value === SKY_MODE);
 const UNSEEN_LABEL: Record<UnseenMode, string> = { show: "Show", dim: "Dim", hide: "Hide" };
 const projections = SCENE_MODES.filter((mode) => mode !== SKY_MODE);
 
-/** The projection the Sky switch returns to. Not in the url, which holds only the view mode. */
+/** The projection Back to the globe returns to. Not in the url, which holds only the view mode. */
 const returnProjection = ref(inSkyView.value ? "3D" : sceneMode.value);
 watch(sceneMode, (mode) => {
   if (mode !== SKY_MODE) {
@@ -325,19 +346,30 @@ watch(sceneMode, (mode) => {
 
 const { pending: locating, locate } = useGeolocation();
 
-/**
- * Look up stands where the device is; only a location's panel stands somewhere else.
- * The box follows the store, not the click: the device may give no position.
- */
-async function onSkyToggle(event: Event): Promise<void> {
-  const box = event.target as HTMLInputElement;
-  const on = box.checked;
-  box.checked = inSkyView.value;
-  if (!on) {
-    sceneMode.value = returnProjection.value;
-  } else if (await locate({ observe: true })) {
+/** Every station but Geolocation, which My location stands for, by its index in the list. */
+const skyPlaces = computed(() =>
+  groundStations.value.flatMap((station, index) =>
+    station.name === GEOLOCATION ? [] : [{ index, label: station.name || `${station.lat.toFixed(2)}, ${station.lon.toFixed(2)}` }],
+  ),
+);
+const standingAtGeolocation = computed(() => inSkyView.value && groundStations.value[observerStation.value]?.name === GEOLOCATION);
+
+/** Stands where the device is, which may give no position, and then nothing opens. */
+async function lookUpFromHere(): Promise<void> {
+  if (await locate({ observe: true })) {
     sceneMode.value = SKY_MODE;
   }
+}
+
+/** Designates the station, without reordering the list; a view already up moves there. */
+function lookUpFrom(index: number): void {
+  satStore.setObserverStation(index);
+  sceneMode.value = SKY_MODE;
+}
+
+/** Returns to the projection the sky view was entered from. */
+function leaveSkyView(): void {
+  sceneMode.value = returnProjection.value;
 }
 
 /**

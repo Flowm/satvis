@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test";
 
 import { openApp, setClock, waitForSky, waitTicks } from "../support/app";
 import { expect, test } from "../support/test";
-import { menuSwitch, openMenu } from "../support/ui";
+import { menuSwitch, openMenu, skyPlace } from "../support/ui";
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
@@ -61,7 +61,7 @@ test("after dusk, the sky view tells what can be seen from what cannot", async (
   ).toBe(true);
 
   // Leaving restores every satellite the sky view styled.
-  await menuSwitch(page, "Look up").click();
+  await skyPlace(page, "Back to the globe").click();
   await expect(page.locator(".sky-hud")).toBeHidden();
   const restored = await page.evaluate(() => window.cc!.sats.activeSatellites.every((sat) => sat.skyAppearance === "normal"));
   expect(restored).toBe(true);

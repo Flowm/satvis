@@ -402,6 +402,70 @@ body {
   outline-offset: 2px;
 }
 
+/* A row that acts rather than chooses: the Sky panel's places. Laid out as a switch
+   row, with an icon in the mark's place. */
+.toolbarPlace {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--panel-ink);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+@media (pointer: coarse) {
+  .toolbarPlace {
+    height: 36px;
+  }
+}
+
+@media (hover: hover) {
+  .toolbarPlace:hover:not(:disabled) {
+    background: #ffffff10;
+  }
+}
+
+.toolbarPlace:disabled {
+  cursor: default;
+}
+
+.toolbarPlace:focus-visible {
+  outline: 2px solid var(--panel-accent);
+  outline-offset: -2px;
+}
+
+/* Where the sky view stands. */
+.toolbarPlace[aria-current] {
+  background: var(--panel-selected);
+  color: var(--panel-accent);
+}
+
+.toolbarPlace--leave {
+  color: var(--panel-muted);
+}
+
+.toolbarPlace__icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.toolbarPlace__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .toolbarActions {
   display: flex;
   flex-wrap: wrap;
@@ -484,7 +548,8 @@ body {
   }
 
   .toolbarSwitch,
-  .toolbarSwitch input {
+  .toolbarSwitch input,
+  .toolbarPlace {
     transition: none;
   }
 }
