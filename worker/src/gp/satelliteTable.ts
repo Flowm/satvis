@@ -6,7 +6,7 @@ import { GCAT_CATALOG, GCAT_ORGS, GCAT_PAYLOADS, gcatBags } from "./gcat.ts";
 import { SATCAT } from "./satcat.ts";
 import { enrichmentSatnum } from "./satnum.ts";
 import type { GroupStore } from "./store.ts";
-import type { GpRecord, GroupsConfig, SatelliteEntry } from "./types.ts";
+import type { GpRecord, GroupsConfig, ModelLod, SatelliteEntry, SatelliteModel } from "./types.ts";
 import { loadUpstream } from "./upstream.ts";
 
 type Bags = Record<string, Record<string, unknown>>;
@@ -41,9 +41,15 @@ export class SatelliteTable {
   /**
    * Upstream bags first, in no particular order: each field has one owner (ADR 0008).
    * Curated rows extend them field by field, and a bus model fills in only where no
-   * model is named (ADR 0007).
+   * model is named (ADR 0007). Whatever file a satellite ends with becomes its `model`,
+   * with that file's lower-detail copies; `modelFile` stays for apps released before.
    */
-  constructor(contributions: readonly Contribution[], entries: readonly SatelliteEntry[] = [], modelBuses: Readonly<Record<string, string>> = {}) {
+  constructor(
+    contributions: readonly Contribution[],
+    entries: readonly SatelliteEntry[] = [],
+    modelBuses: Readonly<Record<string, string>> = {},
+    modelLods: Readonly<Record<string, ModelLod[]>> = {},
+  ) {
     this.#entries = entries;
     const facts = new Map<string, Record<string, unknown>>();
     const rows: Record<string, number> = {};
@@ -60,9 +66,12 @@ export class SatelliteTable {
       facts.set(satnum, upstream === undefined ? entry.metadata : { ...upstream, ...entry.metadata });
     }
     for (const [satnum, metadata] of facts) {
-      const modelFile = typeof metadata.bus === "string" ? modelBuses[metadata.bus] : undefined;
-      if (modelFile !== undefined && metadata.modelFile === undefined) {
-        facts.set(satnum, { ...metadata, modelFile });
+      // A curated null stands against the bus's model.
+      const modelFile = metadata.modelFile !== undefined ? metadata.modelFile : typeof metadata.bus === "string" ? modelBuses[metadata.bus] : undefined;
+      if (typeof modelFile === "string") {
+        const lods = modelLods[modelFile];
+        const model: SatelliteModel = { file: modelFile, ...(lods && { lods }) };
+        facts.set(satnum, { ...metadata, modelFile, model });
       }
     }
     this.#facts = facts;
@@ -76,7 +85,7 @@ export class SatelliteTable {
       // eslint-disable-next-line no-await-in-loop -- one table in memory at a time; GCAT's file is 19 MB
       contributions.push({ name, bags: await load(store) });
     }
-    return new SatelliteTable(contributions, config.satellites, config.modelBuses);
+    return new SatelliteTable(contributions, config.satellites, config.modelBuses, config.modelLods);
   }
 
   /**

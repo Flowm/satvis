@@ -91,7 +91,7 @@ final class SatelliteLayer {
     private nonisolated static func satellite(_ entry: TrajectoryStore.Entry) -> PointSatellite {
         PointSatellite(
             id: Catalog.id(of: entry.record), name: entry.record.name, trajectory: entry.trajectory, color: entry.record.orbitClass.color,
-            footprint: footprint(entry.record), modelFile: entry.record.metadata["modelFile"]?.string)
+            footprint: footprint(entry.record), model: entry.record.model)
     }
 
     /// The web app's ground track and sensor cone, which it draws for low orbits

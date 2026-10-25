@@ -49,7 +49,8 @@ workspace package). One `pnpm install` at the root covers both.
   the bag or the frontend applies its defaults (`src/config/satelliteMetadata.ts`).
 - A satellite's 3D model is the `modelFile` its model manifest gives it
   (`data/models/models.yaml`, `data/custom/*/models.yaml`), by NORAD id or by GCAT
-  bus, never its name.
+  bus, never its name. Records carry it as `model`, with its lower-detail copies,
+  and as `modelFile` for apps released before `model`.
 - The html entrypoints are the MPA inputs in `vite.config.ts`.
 
 ## Commands
@@ -70,8 +71,8 @@ workspace package). One `pnpm install` at the root covers both.
   sampling grid, element-set parsing, pass prediction, the info panel's details
   and passes, the URL codec, the sky view's visibility (`visibility.ts`), the
   analytics sanitising (`posthogPrivacy.ts`), the pixel ratios
-  (`config/rendering.ts`), or those tables; CI fails while the committed output
-  is stale.
+  (`config/rendering.ts`), the model levels (`config/modelLevels.ts`), or those
+  tables; CI fails while the committed output is stale.
 - `pnpm test:e2e` renders with SwiftShader, as a GPU-less CI runner does;
   `pnpm test:e2e:gpu` runs the same specs about four times faster on a Mac.
 - The full e2e suite takes 10+ minutes even on the GPU, so run it only when

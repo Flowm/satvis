@@ -218,7 +218,7 @@ final class CatalogModel {
         if active != activeEntries {
             activeEntries = active
         }
-        let modelled = active.count { $0.record.metadata["modelFile"]?.string != nil }
+        let modelled = active.count { $0.record.model != nil }
         var budgets = budgets
         let next = budgets.components(components, active: active.count, modelled: modelled, named: named)
         if budgets != self.budgets {

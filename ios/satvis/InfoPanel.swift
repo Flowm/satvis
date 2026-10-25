@@ -23,7 +23,7 @@ struct InfoPanel: View {
         let spacecraftFacts = SatelliteDetails.spacecraftFacts(entry.record)
         let links = WebTables.shared.externalLinks.compactMap { link in link.url(satnum: entry.satnum).map { (link, $0) } }
         // Only satellites a model manifest lists have one (ADR 0007).
-        let modelFile = entry.record.metadata["modelFile"]?.string
+        let modelFile = entry.record.model?.file
         let tabs: [InfoTab] = modelFile == nil && spacecraftFacts.isEmpty && links.isEmpty ? [.orbit, .passes] : [.orbit, .spacecraft, .passes]
         NavigationStack {
             List {

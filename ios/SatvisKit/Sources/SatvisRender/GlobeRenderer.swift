@@ -81,6 +81,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         didSet {
             keepModelsInUse()
             needsDraw = true
+            // Models switched off come back from their coarsest copies, as on the web.
+            if !components.contains(.model) {
+                modelLevels = [:]
+            }
         }
     }
     /// What the free camera holds still in. Tracking keeps the satellite's own
@@ -445,6 +449,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     public func setSatellites(_ prepared: PreparedSatellites) {
+        let ids = Set(prepared.satellites.map(\.id))
+        modelLevels = modelLevels.filter { ids.contains($0.key) }
         points.install(prepared)
         keepModelsInUse()
         overlay.isStale = true
@@ -457,7 +463,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             models.keep(only: [])
             return
         }
-        models.keep(only: Set(prepared.modelled.compactMap { prepared.satellites[$0].modelFile }))
+        // Every level's file: one asked for later is dropped on arrival unless kept.
+        models.keep(only: Set(prepared.modelled.flatMap { prepared.satellites[$0].model?.files ?? [] }))
     }
 
     /// The base map, the site the shipped one's finer levels come from, and a
@@ -549,10 +556,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         guard let satellite = points.satellite(id) else {
             return .notDrawn
         }
-        guard components.contains(.model), let file = satellite.modelFile else {
+        guard components.contains(.model), let model = satellite.model else {
             return .noModel
         }
-        return models.model(file).map { .loaded(radius: Double($0.radius)) } ?? .loading
+        // Framed by what is drawn: a copy, until the file it switches to has loaded.
+        let level = min(modelLevels[id] ?? model.lods.count, model.lods.count)
+        return models.model(model.files[level]).map { .loaded(radius: Double($0.radius)) } ?? .loading
     }
 
     /// Lets go, and goes back to the view tracking began from, as the web app
@@ -1083,6 +1092,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
     }
 
+    /// The level each modelled satellite with copies is drawn at, by its id: 0 its
+    /// file, `i + 1` its copy `i` (ADR 0007). Kept across frames for the hysteresis.
+    private var modelLevels: [String: Int] = [:]
+
     /// A 3D model where it is drawn this frame.
     private struct ModelPlacement {
         var index: Int
@@ -1114,9 +1127,30 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         let homeMetresPerPoint = 2 * OrbitCamera.home(aspectRatio: aspectRatio).radius * tangent / heightPoints
         return prepared.modelled.compactMap { index in
             let satellite = prepared.satellites[index]
-            guard let file = satellite.modelFile, let model = models.model(file), let position = satellite.trajectory.position(at: now),
+            guard let satelliteModel = satellite.model, let position = satellite.trajectory.position(at: now),
                 let before = satellite.trajectory.position(at: now - 1000), let after = satellite.trajectory.position(at: now + 1000)
             else {
+                return nil
+            }
+            let metresPerPoint = 2 * simd.distance(position, pose.position) * tangent / heightPoints
+            // How large the model is drawn: its scale, and its bounding sphere's diameter in points.
+            func size(of model: PreparedModel) -> (scale: Double, points: Double) {
+                let diameter = 2 * Double(model.radius)
+                let minimum = Self.modelMinimumPoints(diameter: diameter)
+                let scale = min(max(1, minimum * metresPerPoint / diameter), minimum * homeMetresPerPoint / diameter)
+                return (scale, diameter * scale / metresPerPoint)
+            }
+            // The file, then its copies (ADR 0007).
+            let files = satelliteModel.files
+            var level = 0
+            if files.count > 1 {
+                level = Self.chooseModelLevel(
+                    current: modelLevels[satellite.id], lods: satelliteModel.lods, tracked: cameraMode == .tracking(satellite.id),
+                    failed: { models.failed(files[$0]) }, points: { models.model(files[$0]).map { size(of: $0).points } },
+                    loaded: { models.model(files[$0]) != nil })
+                modelLevels[satellite.id] = level
+            }
+            guard let model = models.model(files[level]) else {
                 return nil
             }
             let opacity = judgement?.opacity(of: position, from: pose.position) ?? 1
@@ -1127,16 +1161,32 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             let surfaceUp = normalize(position / (ellipsoidRadii * ellipsoidRadii))
             let port = normalize(cross(surfaceUp, forward))
             let up = cross(forward, port)
-            let diameter = 2 * Double(model.radius)
-            let minimum = Self.modelMinimumPoints(diameter: diameter)
-            let metresPerPoint = 2 * simd.distance(position, pose.position) * tangent / heightPoints
-            let scale = min(max(1, minimum * metresPerPoint / diameter), minimum * homeMetresPerPoint / diameter)
+            let (scale, drawnPoints) = size(of: model)
             return ModelPlacement(
                 index: index, model: model,
                 toEye: simd_double4x4(columns: (SIMD4(port * scale, 0), SIMD4(up * scale, 0), SIMD4(forward * scale, 0), SIMD4(position - pose.position, 1))),
                 rotation: simd_float3x3(columns: (SIMD3<Float>(port), SIMD3<Float>(up), SIMD3<Float>(forward))),
-                points: diameter * scale / metresPerPoint, opacity: Float(opacity))
+                points: drawnPoints, opacity: Float(opacity))
         }
+    }
+
+    /// The level a satellite with copies is drawn at this frame, 0 its file and `i + 1`
+    /// its copy `i`, from the level drawn last, else the coarsest. A copy that cannot
+    /// load gives way to the next finer level; then the file while tracked, else the
+    /// level the drawn one's size asks for, once that has loaded. `points` is nil for a
+    /// level not loaded; `loaded` asks for the level it is given.
+    static func chooseModelLevel(
+        current: Int?, lods: [ModelLod], tracked: Bool, failed: (Int) -> Bool, points: (Int) -> Double?, loaded: (Int) -> Bool
+    ) -> Int {
+        var level = min(current ?? lods.count, lods.count)
+        while level > 0, failed(level) {
+            level -= 1
+        }
+        guard let drawn = points(level) else {
+            return level
+        }
+        let wanted = tracked ? 0 : ModelLevel.level(diameter: drawn, current: level, lods: lods)
+        return wanted != level && !failed(wanted) && loaded(wanted) ? wanted : level
     }
 
     /// The opaque and cut-out parts, writing depth, or the blended ones, testing
@@ -1166,7 +1216,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// The web app's smallest size for a model on screen, by its bounding sphere's
     /// diameter in metres: a cubesat at 20 points, Landsat at 55, the ISS at 72.
-    static func modelMinimumPoints(diameter: Double) -> Double {
+    nonisolated static func modelMinimumPoints(diameter: Double) -> Double {
         min(72, max(20, 23 * cbrt(diameter)))
     }
 

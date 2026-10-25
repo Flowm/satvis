@@ -211,6 +211,14 @@ final class SatelliteModels {
         models = models.filter { files.contains($0.key) }
     }
 
+    /// Whether the file failed to load and is not due to be tried again yet.
+    func failed(_ file: String) -> Bool {
+        if case .failed(let at) = models[file] {
+            return Date().timeIntervalSince(at) < Self.retryInterval
+        }
+        return false
+    }
+
     private func load(_ file: String) {
         guard let loader else {
             return

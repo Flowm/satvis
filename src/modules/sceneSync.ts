@@ -7,6 +7,7 @@ import { nextTick, watch } from "vue";
 
 import { currentPosition } from "../composables/useGeolocation";
 import { useToastProxy } from "../composables/useToastProxy";
+import { satelliteModel } from "../config/satelliteMetadata";
 import { BUILTIN_STAR_MAP, starMapRecovery } from "../config/starMaps";
 import { SKY_MODE } from "../config/viewModes";
 import { useCesiumStore } from "../stores/cesium";
@@ -40,7 +41,7 @@ interface ComponentBudget {
 const COMPONENT_BUDGETS: Record<string, ComponentBudget> = {
   Label: { limit: 200 },
   "Ground station link": { limit: 500 },
-  "3D model": { limit: 200, counts: (entry) => entry.metadata.modelFile !== undefined },
+  "3D model": { limit: 200, counts: (entry) => satelliteModel(entry.metadata) !== undefined },
 };
 
 /** The part of `CesiumController` this file uses, so a test can stand in without WebGL. */

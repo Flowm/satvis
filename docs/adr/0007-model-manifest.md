@@ -164,3 +164,70 @@ terminals that tell them apart are invisible at the size satvis draws them.
   is a guess, and it would draw the first V3s as V2 minis. If the gap matters, GCAT's
   launch list is the better fallback source: it is current, and it codes each launch's
   generation (`V2MO 17-46 (24 Ku)`).
+
+## Lower-detail copies
+
+satvis draws up to 200 models at once, most at their minimum of 20 to 72 points, and a
+model costs its vertex work at any size. The ISS's 447,638 triangles cost an iPad mini 6
+about 3 ms of GPU a frame whether it filled the screen or was 72 points wide, and the
+native app held it as 128 MB of GPU memory. A copy simplified for that size, 42,109
+triangles, looks the same there.
+
+### Decision
+
+**The manifest lists a model's copies beside its file**, most detailed first, each with
+the largest on-screen size it is drawn at: its bounding sphere's diameter in points,
+which both renderers already compute.
+
+```yaml
+- file: ISS-(ZARYA).glb
+  lods:
+    - { file: ISS-(ZARYA)-low.glb, maxPoints: 100 }
+```
+
+The models build writes them (data/models README). A copy is a fact about the file, as
+the satellites it depicts are, so it lives in the manifest too.
+
+**They travel in a `model` object, beside `modelFile`.** The generator writes a model
+file → copies map into the generated config (`modelLods`), and the worker gives every
+record with a model a `model`: whatever file it ends with, by NORAD id, by bus or from a
+curated row, and that file's copies. The bus map stays a map of files.
+
+```json
+"modelFile": "ISS-(ZARYA).glb",
+"model": { "file": "ISS-(ZARYA).glb", "lods": [{ "file": "ISS-(ZARYA)-low.glb", "maxPoints": 100 }] }
+```
+
+The record keeps `modelFile`, the same file, for the apps released before `model`: the
+iOS builds in users' hands and the web builds service workers have cached read only
+that. An app from now on reads `model`, and `modelFile` only in a payload cached before
+`model` existed. `modelFile` can go once no supported app reads it.
+
+**An app draws a copy while the model is small, and the file once it is not.** It
+measures the copy it draws, which is within half a percent of the full model's sphere,
+so the full model is not loaded at all while every satellite drawing it is small. Up,
+it keeps the copy until the file has loaded; down, it waits for 0.8 of `maxPoints`, so a
+model at the boundary does not flicker. The info panel's close-up always draws the file.
+
+### Consequences
+
+- An app released before `model` reads `modelFile` and draws the file at every size, as
+  before.
+- Every record with a model names its file twice until `modelFile` goes: about 40 bytes
+  on each of some 13,000 records, before compression. Only the six models with copies
+  today add `lods`.
+- Both fields come from the satellite table, so they cannot disagree. A curated row
+  still names `modelFile`; nothing authors `model`.
+- Copies reach the app on the next worker deploy or `pnpm update-gp`, as `modelFile` does.
+
+### Alternatives rejected
+
+- **A `modelLods` field beside `modelFile`.** Fewer bytes, but one model in two fields,
+  each read on its own, and a third for anything a model gains next.
+- **Replacing `modelFile` with `model`.** Every shipped app would draw no models.
+- **A table of copies served apart from the records.** One fetch less per record, but
+  an endpoint and a manifest that ships, which this ADR rules out.
+- **A naming rule**, `<file>-low.glb` at a fixed 100 points. It hides the threshold,
+  which each copy's simplification follows, from the manifest.
+- **Changing the model entity's `uri`** in the web app. Cesium destroys the model and
+  loads the other, so it vanishes at every switch.

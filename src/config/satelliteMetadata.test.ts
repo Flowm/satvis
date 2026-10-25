@@ -5,7 +5,7 @@ import { SatelliteProperties } from "../modules/SatelliteProperties";
 import type { GpRecord } from "../modules/util/gp";
 import { InlinePassSource } from "../modules/util/passSource";
 import { InlineSampleSource } from "../modules/util/sampleSource";
-import type { SatelliteMetadata } from "./satelliteMetadata";
+import { satelliteModel, type SatelliteMetadata } from "./satelliteMetadata";
 
 /** Minimal OMM record, with metadata attached as the worker does it. */
 function ommRecord(name: string, satnum: number, metadata?: SatelliteMetadata): GpRecord {
@@ -76,5 +76,17 @@ describe("swath resolution", () => {
 
   test("cone FOV comes from the record when given", () => {
     expect(propertiesFor({ coneFovDeg: 45 }).coneFovDeg).toBe(45);
+  });
+});
+
+describe("satelliteModel", () => {
+  test("reads the model, with its lower-detail copies", () => {
+    const model = { file: "ISS-(ZARYA).glb", lods: [{ file: "ISS-(ZARYA)-low.glb", maxPoints: 100 }] };
+    expect(satelliteModel({ modelFile: "ISS-(ZARYA).glb", model })).toBe(model);
+  });
+
+  test("falls back to modelFile in a payload from before the model, and is absent without either", () => {
+    expect(satelliteModel({ modelFile: "ISS-(ZARYA).glb" })).toEqual({ file: "ISS-(ZARYA).glb" });
+    expect(satelliteModel({})).toBeUndefined();
   });
 });

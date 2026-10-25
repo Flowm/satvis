@@ -3,7 +3,7 @@ import { CallbackProperty, Camera, Entity, EntityView, type Scene, SceneMode, Ve
 import type { Viewer } from "@cesium/widgets";
 
 import { setPassHighlights } from "../composables/usePassHighlights";
-import { type Component, type ComponentHost, componentKind, ModelSize, type SatelliteBatches, type SkyAppearance } from "./componentKinds";
+import { type Component, type ComponentHost, componentKind, modelCopies, ModelSize, type SatelliteBatches, type SkyAppearance } from "./componentKinds";
 import type { GroundStation } from "./PassPredictor";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import { SatelliteProperties } from "./SatelliteProperties";
@@ -47,6 +47,9 @@ export class SatelliteComponentCollection implements ComponentHost {
 
   #components: Record<string, Component> = {};
 
+  /** The "3D model"'s lower-detail copies (ADR 0007), added, bound and styled with it. */
+  #modelCopies: Entity[] = [];
+
   /** Kept across components, so one created in the sky view is born dimmed or hidden. */
   #skyAppearance: SkyAppearance = "normal";
 
@@ -63,7 +66,15 @@ export class SatelliteComponentCollection implements ComponentHost {
     this.viewer = viewer;
     this.props = new SatelliteProperties(entry, sampler, passes);
     this.batches = batches;
-    this.model = new ModelSize(viewer, () => this.#components["3D model"]);
+    this.model = new ModelSize(
+      viewer,
+      () => {
+        const model = this.#components["3D model"];
+        return model instanceof Entity ? [model, ...this.#modelCopies] : [];
+      },
+      () => this.props.model?.lods ?? [],
+      () => this.isTracked,
+    );
     this.props.trajectory.adopt(opening);
     this.props.trajectory.follow(viewer, () => this.#bindAll());
   }
@@ -94,7 +105,9 @@ export class SatelliteComponentCollection implements ComponentHost {
     }
     this.#skyAppearance = appearance;
     for (const [name, component] of Object.entries(this.#components)) {
-      componentKind(name)?.appear?.(component, this);
+      for (const drawn of [component, ...this.#modelCopiesOf(name)]) {
+        componentKind(name)?.appear?.(drawn, this);
+      }
     }
     this.#requestFrameIfPaused();
   }
@@ -112,11 +125,16 @@ export class SatelliteComponentCollection implements ComponentHost {
   }
 
   get isSelected(): boolean {
-    return Object.values(this.#components).some((component) => this.viewer.selectedEntity === component);
+    return this.#pickable().some((component) => this.viewer.selectedEntity === component);
   }
 
   get isTracked(): boolean {
-    return Object.values(this.#components).some((component) => this.viewer.trackedEntity === component);
+    return this.#pickable().some((component) => this.viewer.trackedEntity === component);
+  }
+
+  /** Everything a pick can land on: the components and the model's copies. */
+  #pickable(): Component[] {
+    return [...Object.values(this.#components), ...this.#modelCopies];
   }
 
   show(componentNames: string[] = this.componentNames): void {
@@ -213,16 +231,22 @@ export class SatelliteComponentCollection implements ComponentHost {
         return;
       }
       this.#components[name] = component;
+      if (name === "3D model") {
+        this.#modelCopies = modelCopies(this);
+      }
       if (this.#skyAppearance !== "normal") {
         kind.appear?.(component, this);
+        this.#modelCopiesOf(name).forEach((copy) => kind.appear?.(copy, this));
       }
       this.#bind(name, component, false);
       this.#requestFrameIfPaused();
     }
 
     if (component instanceof Entity) {
-      if (!this.viewer.entities.contains(component)) {
-        this.viewer.entities.add(component);
+      for (const entity of [component, ...this.#modelCopiesOf(name)]) {
+        if (!this.viewer.entities.contains(entity)) {
+          this.viewer.entities.add(entity);
+        }
       }
       this.defaultEntity ??= component;
     } else {
@@ -243,6 +267,9 @@ export class SatelliteComponentCollection implements ComponentHost {
     }
     delete this.#components[name];
     if (name === "3D model") {
+      this.#modelCopies.forEach((copy) => this.viewer.entities.remove(copy));
+      this.#modelCopies = [];
+      this.model.reset();
       this.#setViewFrom();
     }
 
@@ -261,6 +288,11 @@ export class SatelliteComponentCollection implements ComponentHost {
     this.enableComponent(name);
   }
 
+  /** The copies that come and go with component `name`: the model's, for "3D model". */
+  #modelCopiesOf(name: SatelliteComponentName): Entity[] {
+    return name === "3D model" ? this.#modelCopies : [];
+  }
+
   #viewFrom(): Cartesian3 | CallbackProperty {
     return "3D model" in this.#components ? this.#modelViewFrom : VIEW_FROM;
   }
@@ -275,7 +307,7 @@ export class SatelliteComponentCollection implements ComponentHost {
 
   /** Read when tracking starts, so a camera already following the satellite stays put. */
   #setViewFrom(): void {
-    for (const component of Object.values(this.#components)) {
+    for (const component of this.#pickable()) {
       if (component instanceof Entity) {
         component.viewFrom = this.#viewFrom() as unknown as typeof component.viewFrom;
       }
@@ -292,11 +324,26 @@ export class SatelliteComponentCollection implements ComponentHost {
     });
 
     this.eventListeners.trackedEntity = this.viewer.trackedEntityChanged.addEventListener(() => {
+      // A copy hides once the tracked model grows, and Cesium follows only what it can measure.
+      if (this.#isModelCopy(this.viewer.trackedEntity)) {
+        this.viewer.trackedEntity = this.#components["3D model"] as Entity;
+        return;
+      }
       if (this.isTracked) {
         this.artificiallyTrack();
       }
       this.#refit();
     });
+    this.eventListeners.selectedEntity = this.viewer.selectedEntityChanged.addEventListener(() => {
+      if (this.#isModelCopy(this.viewer.selectedEntity)) {
+        this.viewer.selectedEntity = this.#components["3D model"] as Entity;
+      }
+    });
+  }
+
+  /** Whether `entity` is one of the model's copies, which a pick may land on in its place. */
+  #isModelCopy(entity: Entity | undefined): boolean {
+    return entity !== undefined && this.#modelCopies.includes(entity);
   }
 
   /** Recreates every component whose representation no longer suits the scene mode or the tracking. */
@@ -343,6 +390,7 @@ export class SatelliteComponentCollection implements ComponentHost {
   }
 
   #bind(name: SatelliteComponentName, component: Component, refilled: boolean): void {
+    this.#modelCopiesOf(name).forEach((copy) => componentKind(name)?.bind(copy, this, refilled));
     const outcome = componentKind(name)?.bind(component, this, refilled);
     if (outcome === "recreate") {
       this.#recreate(name);

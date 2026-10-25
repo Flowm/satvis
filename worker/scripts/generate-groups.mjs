@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Merge the core config with every data/custom/*/satvis.yaml, inline each
-// extraRecordsFile, give each listed satellite its model manifest `modelFile` and
-// each named GCAT bus its model, validate, and write
+// extraRecordsFile, give each listed satellite its model manifest `modelFile`,
+// each named GCAT bus its model and each model file its lower-detail copies, validate, and write
 // worker/src/config/satvis.generated.json. Works without plugins too.
 
 import fs from "node:fs";
@@ -20,6 +20,7 @@ import {
   validateSatelliteTable,
 } from "../src/gp/configValidation.ts";
 import { isGcatBusName, modelsByBus } from "../src/gp/modelBuses.ts";
+import { isModelPath, modelLodsByFile, parseModelLods } from "../src/gp/modelLods.ts";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workerDir = path.resolve(scriptDir, "..");
@@ -134,6 +135,7 @@ function discoverModelManifests() {
 function modelAssignments(manifestPath) {
   const satellites = [];
   const buses = [];
+  const lods = [];
   const source = path.relative(repoRoot, manifestPath);
   const dir = path.dirname(manifestPath);
   const { models } = readYaml(manifestPath) ?? {};
@@ -141,16 +143,22 @@ function modelAssignments(manifestPath) {
     throw new Error(`${source}: expected a top-level "models" list`);
   }
   models.forEach((model, i) => {
-    if (typeof model?.file !== "string" || !model.file.endsWith(".glb") || model.file.startsWith("/") || model.file.includes("..")) {
+    if (!isModelPath(model?.file)) {
       throw new Error(`${source}: models[${i}].file must be a .glb path under /data/models/ (got ${JSON.stringify(model?.file)})`);
     }
+    const modelLods = parseModelLods(model.lods, `${source}: ${model.file}`);
     // A plugin's sync script decides its layout, so public/ is only a guess there: warn.
-    if (!fs.existsSync(path.join(dir, "public", model.file))) {
-      const message = `${source}: ${model.file} is not in ${path.relative(repoRoot, path.join(dir, "public"))}`;
-      if (manifestPath === modelsManifestPath) {
-        throw new Error(message);
+    for (const file of [model.file, ...modelLods.map((lod) => lod.file)]) {
+      if (!fs.existsSync(path.join(dir, "public", file))) {
+        const message = `${source}: ${file} is not in ${path.relative(repoRoot, path.join(dir, "public"))}`;
+        if (manifestPath === modelsManifestPath) {
+          throw new Error(message);
+        }
+        process.stderr.write(`warning: ${message}\n`);
       }
-      process.stderr.write(`warning: ${message}\n`);
+    }
+    if (modelLods.length > 0) {
+      lods.push({ modelFile: model.file, lods: modelLods, origin: `${source} ${model.file}` });
     }
     if (model.satellites !== undefined && !Array.isArray(model.satellites)) {
       throw new Error(`${source}: ${model.file} has a "satellites" that is not a list`);
@@ -173,7 +181,7 @@ function modelAssignments(manifestPath) {
       buses.push({ bus, modelFile: model.file, origin: `${source} ${model.file}` });
     }
   });
-  return { satellites, buses };
+  return { satellites, buses, lods };
 }
 
 function main() {
@@ -209,20 +217,23 @@ function main() {
   }
   // Through the same table, so a plugin's different modelFile is a conflict, not an override.
   const busAssignments = [];
+  const lodClaims = [];
   for (const manifestPath of discoverModelManifests()) {
-    const { satellites, buses } = modelAssignments(manifestPath);
+    const { satellites, buses, lods } = modelAssignments(manifestPath);
     for (const { noradId, modelFile, origin } of satellites) {
       table.add(noradId, { metadata: { modelFile } }, origin);
     }
     busAssignments.push(...buses);
+    lodClaims.push(...lods);
   }
   const satellites = table.entries();
   const modelBuses = modelsByBus(busAssignments);
+  const modelLods = modelLodsByFile(lodClaims);
 
-  const generated = { groups, presets, satellites, modelBuses };
+  const generated = { groups, presets, satellites, modelBuses, modelLods };
   fs.writeFileSync(outPath, `${JSON.stringify(generated, null, 2)}\n`);
   process.stdout.write(
-    `Wrote ${path.relative(repoRoot, outPath)} (${groups.length} groups, ${presets.length} presets, ${satellites.length} satellites, ${Object.keys(modelBuses).length} model buses)\n`,
+    `Wrote ${path.relative(repoRoot, outPath)} (${groups.length} groups, ${presets.length} presets, ${satellites.length} satellites, ${Object.keys(modelBuses).length} model buses, ${Object.keys(modelLods).length} models with lower-detail copies)\n`,
   );
 }
 

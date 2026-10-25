@@ -1,5 +1,13 @@
 import type { OrbitClass } from "../config/orbitClass";
-import { DEFAULT_CONE_FOV_DEG, DEFAULT_SWATH_KM, swathExtentsOf, type SatelliteMetadata, type SwathExtents } from "../config/satelliteMetadata";
+import {
+  DEFAULT_CONE_FOV_DEG,
+  DEFAULT_SWATH_KM,
+  satelliteModel,
+  swathExtentsOf,
+  type SatelliteMetadata,
+  type SatelliteModel,
+  type SwathExtents,
+} from "../config/satelliteMetadata";
 import Orbit from "./Orbit";
 import { PassPredictor } from "./PassPredictor";
 import { SampledTrajectory } from "./SampledTrajectory";
@@ -43,6 +51,11 @@ export class SatelliteProperties {
 
   get orbitClass(): OrbitClass {
     return this.entry.orbitClass;
+  }
+
+  /** Its 3D model, if a model manifest gives it one (ADR 0007). */
+  get model(): SatelliteModel | undefined {
+    return satelliteModel(this.metadata);
   }
 
   /** Per-side cross-track swath extents (km). Defaults to a symmetric split of DEFAULT_SWATH_KM. */

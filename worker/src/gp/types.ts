@@ -207,6 +207,33 @@ export interface GroupsConfig {
    * refresh time to a satellite whose GCAT bus is listed and no manifest lists by NORAD id.
    */
   modelBuses?: Record<string, string>;
+  /**
+   * modelFile -> its lower-detail copies, from the model manifests' `lods`. Applied at
+   * refresh time, as `model.lods`, to every satellite with that modelFile, however it got it.
+   */
+  modelLods?: Record<string, ModelLod[]>;
+}
+
+/**
+ * A satellite's 3D model, as a record's `model` carries it (ADR 0007): its file and the
+ * copies drawn while it is small. The record's `modelFile` repeats `file` for apps
+ * released before `model`.
+ */
+export interface SatelliteModel {
+  /** Under /data/models/. */
+  file: string;
+  /** Most detailed first; absent for a model without copies. */
+  lods?: ModelLod[];
+}
+
+/**
+ * A lower-detail copy of a model, drawn while the model's bounding sphere spans at most
+ * `maxPoints` on screen (data/models README).
+ */
+export interface ModelLod {
+  /** Under /data/models/, as modelFile is. */
+  file: string;
+  maxPoints: number;
 }
 
 /** Stored in the KV index (gp:index). */

@@ -192,7 +192,7 @@ export default defineConfig({
             handler: "CacheFirst",
             options: {
               // Versioned: cache-first would keep serving the models replaced under the same names.
-              cacheName: "satellite-model-cache-v2",
+              cacheName: "satellite-model-cache-v3",
               expiration: {
                 maxAgeSeconds: 30 * 24 * 60 * 60,
                 maxEntries: 50,

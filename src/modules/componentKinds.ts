@@ -38,7 +38,9 @@ import CesiumSensorVolumes from "cesium-sensor-volumes";
 
 import type { SATELLITE_COMPONENTS } from "../config/components";
 import { defaultViewDistance } from "../config/defaultView";
+import { modelLevel } from "../config/modelLevels";
 import { ORBIT_CLASS_COLOR, type OrbitClass } from "../config/orbitClass";
+import type { ModelLod } from "../config/satelliteMetadata";
 import { coneDescription, coneOrientation, groundTrackSwath, modelUrl, orbitPathTimes, orbitTrackTimes, orbitUsesPathGraphic } from "./satelliteGraphics";
 import type { SatelliteProperties } from "./SatelliteProperties";
 import { drawable } from "./util/drawablePositions";
@@ -175,25 +177,54 @@ function boundingSphereLookup(viewer: Viewer): BoundingSphereLookup | undefined 
   return typeof display?.getBoundingSphere === "function" ? (display.getBoundingSphere.bind(display) as BoundingSphereLookup) : undefined;
 }
 
-/** How large a satellite's 3D model is drawn, which its point, label and tracking defer to. */
+/**
+ * How large a satellite's 3D model is drawn, which its point, label and tracking defer
+ * to, and which of its files draws it (ADR 0007): a lower-detail copy while it is small,
+ * its file once it is not or while it is tracked. It measures the level drawn, so the
+ * file is not loaded while the model stays small.
+ */
 export class ModelSize {
   static readonly #sphereScratch = new BoundingSphere();
   static readonly #pixelScratch = new Cartesian2();
 
   readonly #viewer: Viewer;
 
-  readonly #model: () => Component | undefined;
+  /** The model's entity, then one per copy, most detailed first; empty without a model. */
+  readonly #levels: () => readonly Entity[];
 
-  constructor(viewer: Viewer, model: () => Component | undefined) {
+  readonly #lods: () => readonly ModelLod[];
+
+  readonly #tracked: () => boolean;
+
+  /** The level measured and drawn; the coarsest until the model has been measured. */
+  #drawn: number | undefined;
+
+  /** The level the size asks for, shown so it loads; `#drawn` stays shown until it has. */
+  #wanted: number | undefined;
+
+  /**
+   * The levels whose own entities were shown. Cesium answers FAILED for a model entity it
+   * has not created, as it creates none while hidden, and evaluates the entities' show
+   * callbacks in no fixed order: only a level its own callback showed can have failed.
+   */
+  #tried = new Set<number>();
+
+  constructor(viewer: Viewer, levels: () => readonly Entity[], lods: () => readonly ModelLod[], tracked: () => boolean) {
     this.#viewer = viewer;
-    this.#model = model;
+    this.#levels = levels;
+    this.#lods = lods;
+    this.#tracked = tracked;
   }
 
-  /** "ready" leaves the model's bounding sphere in #sphereScratch. */
+  /** "ready" leaves the drawn level's bounding sphere in #sphereScratch. */
   state(): "none" | "loading" | "ready" | "failed" {
-    const model = this.#model();
+    const levels = this.#levels();
+    return this.#stateOf(levels[Math.min(this.#drawn ?? levels.length - 1, levels.length - 1)]);
+  }
+
+  #stateOf(model: Entity | undefined): "none" | "loading" | "ready" | "failed" {
     const lookup = boundingSphereLookup(this.#viewer);
-    if (!(model instanceof Entity) || !lookup) {
+    if (!model || !lookup) {
       return "none";
     }
     try {
@@ -205,8 +236,60 @@ export class ModelSize {
     }
   }
 
+  /**
+   * Whether `level`, 0 for the file and `i + 1` for copy `i`, is shown now: the level
+   * the size asks for, and the one drawn until that has loaded. A hidden model is never
+   * loaded, so the one asked for is shown while it loads.
+   */
+  shows(level: number): boolean {
+    const levels = this.#levels();
+    if (levels.length <= 1) {
+      return true;
+    }
+    this.#drawn ??= levels.length - 1;
+    // A copy that cannot load gives way to the next finer level, at worst the file.
+    while (this.#drawn > 0 && this.#failed(levels, this.#drawn)) {
+      this.#drawn -= 1;
+      this.#wanted = this.#drawn;
+    }
+    const diameter = this.pixelDiameter();
+    const asked = this.#tracked() ? 0 : diameter === undefined ? (this.#wanted ?? this.#drawn) : modelLevel(diameter, this.#drawn, this.#lods());
+    const capped = Math.min(asked, levels.length - 1);
+    this.#wanted = this.#failed(levels, capped) ? this.#drawn : capped;
+    if (this.#wanted !== this.#drawn && this.#stateOf(levels[this.#wanted]) === "ready") {
+      this.#drawn = this.#wanted;
+    }
+    const shown = level === this.#wanted || level === this.#drawn;
+    if (shown) {
+      this.#tried.add(level);
+    }
+    return shown;
+  }
+
+  /** The level measured and drawn now; undefined until the model is first shown. */
+  get drawnLevel(): number | undefined {
+    return this.#drawn;
+  }
+
+  /** Whether `level` was shown and its model failed to load. */
+  #failed(levels: readonly Entity[], level: number): boolean {
+    return this.#tried.has(level) && this.#stateOf(levels[level]) === "failed";
+  }
+
+  /** Forgets the levels of a model removed, so it comes back from the coarsest. */
+  reset(): void {
+    this.#drawn = undefined;
+    this.#wanted = undefined;
+    this.#tried.clear();
+  }
+
+  /** Whether the level drawn or the one asked for is still loading, which Cesium does only on rendered frames. */
   get pending(): boolean {
-    return this.state() === "loading";
+    if (this.state() === "loading") {
+      return true;
+    }
+    const wanted = this.#wanted === undefined || this.#wanted === this.#drawn ? undefined : this.#levels()[this.#wanted];
+    return wanted !== undefined && this.#stateOf(wanted) === "loading";
   }
 
   radius(): number {
@@ -254,6 +337,24 @@ export class ModelSize {
     const scale = Math.min(Math.max(1, (modelMinimumPixelSize(diameter) * metresPerPixel) / diameter), this.maximumScale() ?? Infinity);
     return Math.min((scale * diameter) / metresPerPixel, fillsView);
   }
+}
+
+/** One level of a satellite's model: 0 its file, `i + 1` its copy `i`. */
+function modelGraphics(host: ComponentHost, file: string, level: number): ModelGraphics {
+  return new ModelGraphics({
+    uri: modelUrl(file),
+    minimumPixelSize: new CallbackProperty(() => modelMinimumPixelSize(2 * host.model.radius()), false),
+    maximumScale: new CallbackProperty(() => host.model.maximumScale(), false),
+    ...(host.props.model?.lods?.length && { show: new CallbackProperty(() => host.model.shows(level), false) }),
+  });
+}
+
+/**
+ * The entities of the model's lower-detail copies (ADR 0007), most detailed first, which
+ * the satellite adds, binds and styles with its "3D model". A pick on one stands for it.
+ */
+export function modelCopies(host: ComponentHost): Entity[] {
+  return (host.props.model?.lods ?? []).map((lod, i) => atSatellite(host, "model", modelGraphics(host, lod.file, i + 1)));
 }
 
 /** Follows the satellite, facing along its velocity. */
@@ -324,7 +425,7 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
           color: POINT_COLOR[host.props.orbitClass],
           outlineColor: Color.DIMGREY,
           outlineWidth: 1,
-          ...(host.props.entry.metadata.modelFile && {
+          ...(host.props.model && {
             show: new CallbackProperty(() => (host.model.pixelDiameter() ?? 0) < MODEL_MARKER_PIXELS, false),
           }),
         }),
@@ -353,7 +454,7 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
           outlineColor: Color.DIMGREY,
           outlineWidth: 2,
           horizontalOrigin: HorizontalOrigin.LEFT,
-          pixelOffset: host.props.entry.metadata.modelFile
+          pixelOffset: host.props.model
             ? new CallbackProperty(
                 (_time, result?: Cartesian2) => Cartesian2.fromElements(Math.max(LABEL_OFFSET, (host.model.pixelDiameter() ?? 0) / 2 + LABEL_MODEL_GAP), 0, result),
                 false,
@@ -498,16 +599,11 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
   /** Only satellites a model manifest lists have one (ADR 0007). */
   "3D model": {
     create: (host) => {
-      const { modelFile } = host.props.entry.metadata;
-      if (!modelFile) {
+      const model = host.props.model;
+      if (!model) {
         return undefined;
       }
-      const model = new ModelGraphics({
-        uri: modelUrl(modelFile),
-        minimumPixelSize: new CallbackProperty(() => modelMinimumPixelSize(2 * host.model.radius()), false),
-        maximumScale: new CallbackProperty(() => host.model.maximumScale(), false),
-      });
-      return atSatellite(host, "model", model);
+      return atSatellite(host, "model", modelGraphics(host, model.file, 0));
     },
     bind: bindAtSatellite,
     appear: (component, host) =>

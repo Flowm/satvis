@@ -35,6 +35,7 @@ describe("validateGroups", () => {
   it("refuses half a swath and metadata without a NORAD id", () => {
     expect(() => validateGroups([{ name: "a", satellites: [{ noradId: 1, metadata: { swathPortKm: 10 } }] }])).toThrow("swath needs both");
     expect(() => validateGroups([{ name: "a", satellites: [{ upstreamName: "X", metadata: { missionType: "EO" } }] }])).toThrow('"metadata" requires a "noradId"');
+    expect(() => validateGroups([{ name: "a", satellites: [{ noradId: 1, metadata: { model: { file: "a.glb" } } }] }])).toThrow('"model" is derived from "modelFile"');
   });
 });
 
