@@ -284,7 +284,7 @@ const links = computed(() => (satnum.value ? externalLinks(satnum.value) : []));
 /** Empty for a ground station, or a record with no metadata. */
 const spacecraftRows = computed(() => satelliteInfo.value?.spacecraftRows ?? []);
 /** Only satellites a model manifest lists have one (ADR 0007). */
-const modelFile = computed(() => (selection.value?.kind === "satellite" ? selection.value.sat.props.metadata.modelFile : undefined));
+const modelFile = computed(() => (selection.value?.kind === "satellite" ? selection.value.sat.props.model?.file : undefined));
 
 const orbitClass = computed(() => satelliteInfo.value?.orbitClass);
 const orbitColor = computed(() => (orbitClass.value ? ORBIT_CLASS_COLOR[orbitClass.value] : undefined));

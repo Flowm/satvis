@@ -3,6 +3,7 @@ import { Entity, type Property, Transforms } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import type { ModelLod } from "../config/satelliteMetadata";
 import { modelMinimumPixelSize } from "./componentKinds";
 import type { GroundStation } from "./PassPredictor";
 import { CatalogEntry } from "./SatelliteCatalog";
@@ -24,6 +25,7 @@ function fakeViewer() {
   const entities = new Set<unknown>();
   const postRender = new Set<() => void>();
   const trackedListeners = new Set<() => void>();
+  const selectedListeners = new Set<() => void>();
   const removed: unknown[] = [];
   const viewer = {
     clock: {
@@ -53,7 +55,14 @@ function fakeViewer() {
       remove: (e: unknown) => removed.push(e) && entities.delete(e),
       contains: (e: unknown) => entities.has(e),
     },
-    selectedEntity: undefined,
+    selected: undefined as unknown,
+    get selectedEntity() {
+      return viewer.selected;
+    },
+    set selectedEntity(entity: unknown) {
+      viewer.selected = entity;
+      [...selectedListeners].forEach((listener) => listener());
+    },
     tracked: undefined as unknown,
     get trackedEntity() {
       return viewer.tracked;
@@ -62,15 +71,21 @@ function fakeViewer() {
       viewer.tracked = entity;
       [...trackedListeners].forEach((listener) => listener());
     },
-    selectedEntityChanged: { addEventListener: () => () => {} },
+    selectedEntityChanged: { addEventListener: (listener: () => void) => (selectedListeners.add(listener), () => selectedListeners.delete(listener)) },
     trackedEntityChanged: { addEventListener: (listener: () => void) => (trackedListeners.add(listener), () => trackedListeners.delete(listener)) },
     // A model measures `modelRadius` once loaded; until then Cesium reports PENDING (1).
     modelRadius: undefined as number | undefined,
+    // Models still loading although `modelRadius` is set, and models that failed (FAILED, 2).
+    loading: new Set<Entity>(),
+    failed: new Set<Entity>(),
     // Metres per CSS pixel at the satellite; the default view's is 18.3 km on this canvas.
     metresPerPixel: 1000,
     dataSourceDisplay: {
-      getBoundingSphere(_entity: Entity, _partial: boolean, result: BoundingSphere): number {
-        if (viewer.modelRadius === undefined) {
+      getBoundingSphere(entity: Entity, _partial: boolean, result: BoundingSphere): number {
+        if (viewer.failed.has(entity)) {
+          return 2;
+        }
+        if (viewer.modelRadius === undefined || viewer.loading.has(entity)) {
           return 1;
         }
         result.radius = viewer.modelRadius;
@@ -81,12 +96,15 @@ function fakeViewer() {
   return { viewer: viewer as unknown as Viewer, entities, removed };
 }
 
-/** The ISS, with the model its manifest entry gives it unless `modelFile` is null. */
-async function setup({ modelFile = "ISS-(ZARYA).glb" }: { modelFile?: string | null } = {}) {
+/**
+ * The ISS, with the model its manifest entry gives it unless `modelFile` is null: as a
+ * worker before `model` wrote it, `modelFile` alone, unless it has `lods`.
+ */
+async function setup({ modelFile = "ISS-(ZARYA).glb", lods }: { modelFile?: string | null; lods?: ModelLod[] } = {}) {
   const { viewer, entities, removed } = fakeViewer();
   const record = parseGpPayload(TLE)[0] as GpRecord;
   if (modelFile !== null) {
-    record.metadata = { modelFile };
+    record.metadata = { modelFile, ...(lods && { model: { file: modelFile, lods } }) };
   }
   const entry = new CatalogEntry({ key: "25544|ISS", name: "ISS", nameUpper: "ISS", satnum: "25544", tags: [], record });
   const sampler = new InlineSampleSource().samplerFor(entry.satnum, entry.record);
@@ -269,6 +287,133 @@ describe("SatelliteComponentCollection 3D model", () => {
     // Tracking does not wait for a model that will never load.
     sat.track();
     expect(viewer.trackedEntity).toBe(sat.components.Point);
+  });
+});
+
+describe("SatelliteComponentCollection 3D model with a lower-detail copy", () => {
+  const ISS_LOW = [{ file: "ISS-(ZARYA)-low.glb", maxPoints: 100 }];
+
+  async function withCopy() {
+    const setUp = await setup({ lods: ISS_LOW });
+    setUp.sat.show(["Point", "3D model"]);
+    const model = setUp.sat.components["3D model"] as Entity;
+    const copy = [...setUp.entities].find((entity) => entity !== model && (entity as Entity).model) as Entity;
+    const shown = (entity: Entity) => entity.model!.show!.getValue(setUp.viewer.clock.currentTime) as boolean;
+    const { loading, failed } = setUp.viewer as unknown as { loading: Set<Entity>; failed: Set<Entity> };
+    return { ...setUp, model, copy, shown, loading, failed };
+  }
+
+  test("adds the copy beside the model, and removes it with the model", async () => {
+    const { sat, model, copy, removed } = await withCopy();
+    expect(copy.model?.uri?.getValue(JulianDate.now())).toBe("./data/models/ISS-(ZARYA)-low.glb");
+    sat.hide(["3D model"]);
+    expect(removed).toEqual(expect.arrayContaining([model, copy]));
+  });
+
+  test("draws the copy while the model is small, and does not load the file", async () => {
+    const { model, copy, shown, setModelRadius } = await withCopy();
+    setModelRadius(65);
+    // At the default view's 1 km a pixel, the ISS is drawn at its 72 px minimum.
+    expect(shown(copy)).toBe(true);
+    expect(shown(model)).toBe(false);
+  });
+
+  test("loads the file once the model is large, and keeps the copy until it has", async () => {
+    const { model, copy, shown, loading, setModelRadius, setMetresPerPixel } = await withCopy();
+    setModelRadius(65);
+    shown(copy);
+    setMetresPerPixel(0.5);
+    loading.add(model);
+    expect(shown(model)).toBe(true);
+    expect(shown(copy)).toBe(true);
+    loading.delete(model);
+    expect(shown(model)).toBe(true);
+    expect(shown(copy)).toBe(false);
+  });
+
+  test("goes back to the copy only once the model is well below its maxPoints", async () => {
+    const { model, copy, shown, setModelRadius, setMetresPerPixel } = await withCopy();
+    setModelRadius(65);
+    setMetresPerPixel(0.5);
+    shown(model);
+    // 130 m across: 1.4 m a pixel is 93 px, inside the copy's 100 but above 80.
+    setMetresPerPixel(1.4);
+    expect(shown(model)).toBe(true);
+    setMetresPerPixel(2);
+    expect(shown(copy)).toBe(true);
+    expect(shown(model)).toBe(false);
+  });
+
+  test("draws the file of a tracked satellite, however small", async () => {
+    const { sat, viewer, model, shown, setModelRadius } = await withCopy();
+    setModelRadius(65);
+    viewer.trackedEntity = model;
+    expect(sat.isTracked).toBe(true);
+    expect(shown(model)).toBe(true);
+  });
+
+  test("selects and tracks the model when a pick lands on its copy", async () => {
+    const { sat, viewer, model, copy } = await withCopy();
+    viewer.selectedEntity = copy;
+    expect(viewer.selectedEntity).toBe(model);
+    expect(sat.isSelected).toBe(true);
+    viewer.trackedEntity = copy;
+    expect(viewer.trackedEntity).toBe(model);
+  });
+
+  test("asks for the file once tracked, though Cesium calls a model it never created failed", async () => {
+    const { viewer, model, copy, shown, failed, setModelRadius } = await withCopy();
+    setModelRadius(65);
+    failed.add(model);
+    expect(shown(model)).toBe(false);
+    viewer.trackedEntity = model;
+    // Cesium evaluates the copy's callback first as often as not, before it creates the file's model.
+    shown(copy);
+    expect(shown(model)).toBe(true);
+  });
+
+  test("keeps rendering while the file loads behind a copy, as Cesium loads only on rendered frames", async () => {
+    const { sat, model, copy, shown, loading, setModelRadius, setMetresPerPixel } = await withCopy();
+    setModelRadius(65);
+    shown(copy);
+    expect(sat.model.pending).toBe(false);
+    setMetresPerPixel(0.5);
+    loading.add(model);
+    shown(model);
+    expect(sat.model.pending).toBe(true);
+    loading.delete(model);
+    shown(model);
+    expect(sat.model.pending).toBe(false);
+  });
+
+  test("draws the file when the copy cannot load", async () => {
+    const { model, copy, shown, failed, setModelRadius } = await withCopy();
+    setModelRadius(65);
+    shown(copy);
+    failed.add(copy);
+    expect(shown(model)).toBe(true);
+    expect(shown(copy)).toBe(false);
+  });
+
+  test("comes back from the copy when shown again, whatever it was drawn at before", async () => {
+    const { sat, viewer, shown, setModelRadius, setMetresPerPixel } = await withCopy();
+    setModelRadius(65);
+    setMetresPerPixel(0.5);
+    shown(sat.components["3D model"] as Entity);
+    sat.hide(["3D model"]);
+    sat.show(["3D model"]);
+    setMetresPerPixel(1000);
+    const model = sat.components["3D model"] as Entity;
+    (viewer as unknown as { loading: Set<Entity> }).loading.add(model);
+    expect(shown(model)).toBe(false);
+  });
+
+  test("measures the copy it draws, so the label and point follow it", async () => {
+    const { sat, model, loading, setModelRadius } = await withCopy();
+    loading.add(model);
+    setModelRadius(65);
+    expect(sat.model.state()).toBe("ready");
+    expect(sat.model.radius()).toBe(65);
   });
 });
 

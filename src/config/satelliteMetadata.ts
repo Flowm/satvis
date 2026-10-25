@@ -7,6 +7,21 @@
 
 import type { OrbitClass } from "./orbitClass";
 
+/** Worker `SatelliteModel` (worker/src/gp/types.ts): a satellite's 3D model and the copies drawn while it is small (ADR 0007). */
+export interface SatelliteModel {
+  /** Under /data/models/. */
+  file: string;
+  /** Most detailed first. */
+  lods?: ModelLod[];
+}
+
+/** Worker `ModelLod`: a lower-detail copy, drawn while its model's bounding sphere spans at most `maxPoints` points, CSS pixels here. */
+export interface ModelLod {
+  /** Under /data/models/, as the model's file is. */
+  file: string;
+  maxPoints: number;
+}
+
 /** Every field is optional; a consumer applies its default (DEFAULT_*, SatelliteProperties). */
 export interface SatelliteMetadata {
   /**
@@ -16,7 +31,9 @@ export interface SatelliteMetadata {
   swathStarboardKm?: number;
   swathPortKm?: number;
   coneFovDeg?: number;
-  /** Path under /data/models/, from a model manifest (ADR 0007). */
+  /** From the model manifests (ADR 0007); read through satelliteModel(). */
+  model?: SatelliteModel;
+  /** `model.file`, for apps released before `model`, and all a record cached before it carries. */
   modelFile?: string;
   /** Curated, display-only free text. */
   missionType?: string;
@@ -72,6 +89,11 @@ export interface SatelliteMetadata {
    * `cacheOrbitClass` overwrites it, so no served field may use the name.
    */
   orbitClass?: OrbitClass;
+}
+
+/** The satellite's model: `model`, else the `modelFile` a payload from before `model` carries alone. */
+export function satelliteModel(metadata: SatelliteMetadata): SatelliteModel | undefined {
+  return metadata.model ?? (metadata.modelFile === undefined ? undefined : { file: metadata.modelFile });
 }
 
 /** Total width, not per side. */

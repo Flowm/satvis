@@ -4,6 +4,7 @@
 import { gcatCategoryLabel, gcatClassLabel } from "../config/gcatCodes";
 import { ORBIT_KINDS, type OrbitClass, orbitKindLabel } from "../config/orbitClass";
 import { SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, satcatLabel } from "../config/satcatCodes";
+import { satelliteModel } from "../config/satelliteMetadata";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import { ascendingNodeDegOf, orbitShapeOf } from "./util/gp";
 import { ltanHoursOf } from "./util/orbitFacts";
@@ -244,7 +245,7 @@ function rowOf(entry: CatalogEntry, groups: string[], nowMs: number): CatalogRow
     status: m.opsStatus === undefined ? UNKNOWN : satcatLabel(SATCAT_OPS_STATUS, m.opsStatus),
     launchSite: m.launchSite === undefined ? UNKNOWN : satcatLabel(SATCAT_LAUNCH_SITE, m.launchSite),
     size: bucket(m.massKg, SIZE_BOUNDS_KG, SIZE_CLASSES),
-    model: m.modelFile === undefined ? "Point only" : "Has a 3D model",
+    model: satelliteModel(m) === undefined ? "Point only" : "Has a 3D model",
     elementSetAge: bucket(ageDays, AGE_BOUNDS_DAYS, AGE_BUCKETS),
     program: m.program ?? NO_PROGRAM,
     launchDate: m.launchDate,
