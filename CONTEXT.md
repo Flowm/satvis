@@ -277,3 +277,16 @@ discussion; sharpen them here when they drift.
   set: a position, a pass, a url round trip. The native app's tests must
   reproduce it, so the fixtures are regenerated from the web code, never edited
   by hand.
+
+## Rendering
+
+- **Render pacing**: drawing a frame only when it would differ from the last:
+  something set or loaded, the camera moved, or a satellite able to have moved
+  half a device pixel. The web app's CesiumJS render on demand, the native app's
+  `RenderPacing`. The sky view and tracking are never paced.
+- **Idle**: the app on screen with nobody touching it and the clock at ×1, its
+  frames paced. A benchmark's idle scene measures what that costs, as **load**,
+  not how fast it draws: its frame rate is low by design.
+- **Load**: the share of each second the busier of the CPU and the GPU spends on
+  the frames. Near 100 % that side bounds the frame rate; idle, it is what render
+  pacing saves.

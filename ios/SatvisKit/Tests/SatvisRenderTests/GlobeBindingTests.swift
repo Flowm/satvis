@@ -11,7 +11,7 @@ private final class RecordingGlobe: Globe {
     /// How many sets were packed, which each packed set carries.
     private var packed = 0
 
-    var clock: () -> Double = { 0 } {
+    var clock: (_ ahead: Double) -> Double = { _ in 0 } {
         didSet { calls.append("clock") }
     }
     var tileLoader: (@Sendable (TileRequest) async -> Data?)? {
@@ -124,6 +124,19 @@ private final class RecordingGlobe: Globe {
         await binding.setSatellites([]) { drawn = true }
         #expect(globe.calls == ["terrain true", "enterSky 48.0 true", "stopTracking false", "prepare 1", "satellites 1"])
         #expect(drawn)
+    }
+
+    // Components that come with a new set reach the renderer with it, after its
+    // packing: before, a 3D model asked for the set still drawn loaded every
+    // model of it.
+    @Test func givesComponentsWithTheirSatellites() async {
+        let binding = GlobeBinding()
+        let globe = RecordingGlobe()
+        binding.attach(globe)
+        globe.calls = []
+
+        await binding.setSatellites([], components: [.point, .model]) {}
+        #expect(globe.calls == ["prepare 1", "components \(SatelliteComponents([.point, .model]).rawValue)", "satellites 1"])
     }
 
     // A new renderer gets the state as it is now: the camera where the last

@@ -102,7 +102,7 @@ private struct MetalView: UIViewRepresentable {
     func makeUIView(context: Context) -> ScaledMTKView {
         let view = ScaledMTKView(frame: .zero, device: MTLCreateSystemDefaultDevice())
         view.pixelRatio = pixelRatio
-        // Over 60 on an iPhone only with CADisableMinimumFrameDuration in Info.plist.
+        // Over 60 on an iPhone only with CADisableMinimumFrameDurationOnPhone in Info.plist.
         view.preferredFramesPerSecond = frameRate
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         Task {

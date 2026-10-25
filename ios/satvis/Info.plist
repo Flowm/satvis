@@ -14,7 +14,7 @@
 	<string>$(POSTHOG_PROJECT_TOKEN)</string>
 	<!-- Lets the globe draw at 120 fps on an iPhone's ProMotion screen, which
 	     otherwise holds an app to 60; iPads need no key. -->
-	<key>CADisableMinimumFrameDuration</key>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>

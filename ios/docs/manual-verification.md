@@ -479,3 +479,14 @@ Graphics panel with FPS on.
 **Result, 2026-10-09.** Both offer 30 and 60 fps, the simulator reporting 60 Hz for
 every device it models; at 30 the readout settled at 30 fps. Not checked: 120 fps,
 which needs a ProMotion device.
+
+**Procedure, 120 fps.** A Release build on an iPhone 16 Pro, the rate preset from
+the launch arguments, as a key in `UserDefaults`' argument domain, and the
+benchmark run at once: `xcrun devicectl device process launch --console
+--environment-variables '{"SATVIS_BENCHMARK":"print","SATVIS_LINK":"/?bench=true"}'
+-- org.frcy.app.satvis -frameRate '<integer>120</integer>'`.
+
+**Result, 2026-10-25.** With the key `CADisableMinimumFrameDuration` the default view
+held exactly 60 fps (`app_frame_rate` 120, `device_max_fps` 120); with
+`CADisableMinimumFrameDurationOnPhone`, 120 fps at 2.2 ms of GPU a frame, and every
+active satellite's orbit 89 fps with the GPU busy throughout.

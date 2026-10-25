@@ -1,5 +1,7 @@
 import Foundation
+import Metal
 import Testing
+import simd
 
 @testable import SatvisRender
 
@@ -83,4 +85,26 @@ import Testing
         #expect(SurfaceMesh.indices().max() == UInt32(17 * 17 + 63))
         #expect(mesh.radius > 0 && mesh.samples.count == 9)
     }
+
+    // A memory warning drops the tiles the last choice left out, and keeps those it
+    // draws from: refined from afar, then nothing in view, the children go.
+    @MainActor
+    @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func trimsWhatTheLastChoiceLeftOut() async throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let libraries = try await ShaderLibrary.make(device: device)
+        let surface = try Surface(device: device, library: libraries.precise, site: URL(string: "https://satvis.space/")!)
+        let eye = SIMD3<Double>(2e7, 0, 0)
+        // Metres from the eye to clip space: the whole globe in view.
+        let wholeGlobe = simd_double4x4(diagonal: SIMD4(3e-8, 3e-8, 3e-8, 1))
+        _ = surface.select(eye: eye, viewProjection: wholeGlobe, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2)
+        let refined = surface.tileCount
+        #expect(refined > 2)
+        surface.trim()
+        #expect(surface.tileCount == refined)
+        // Unscaled, the globe is far outside clip space: only the roots are visited.
+        _ = surface.select(eye: eye, viewProjection: matrix_identity_double4x4, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2)
+        surface.trim()
+        #expect(surface.tileCount == 2)
+    }
+
 }

@@ -337,6 +337,9 @@ struct ContentView: View {
         }
         // A satvis.space link the system hands over, universal link or not.
         .onOpenURL { session.open(Link($0.absoluteString), records: true) }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            session.renderer?.trimMemory()
+        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active: session.becameActive()

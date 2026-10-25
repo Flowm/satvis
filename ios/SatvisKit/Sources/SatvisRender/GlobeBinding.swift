@@ -8,7 +8,7 @@ public protocol Globe: AnyObject {
     /// Satellites packed for drawing.
     associatedtype Prepared: Sendable
 
-    var clock: () -> Double { get set }
+    var clock: (_ ahead: Double) -> Double { get set }
     var tileLoader: (@Sendable (TileRequest) async -> Data?)? { get set }
     var modelLoader: (@Sendable (String) async -> Data?)? { get set }
     var onGPUFault: (@MainActor @Sendable (GPUFault) -> Void)? { get set }
@@ -54,8 +54,8 @@ public final class GlobeBinding {
     /// Those waiting in `untilAttached`.
     private var waiting: [CheckedContinuation<Void, Never>] = []
 
-    /// The instant to draw, in UTC milliseconds since 1970.
-    public var clock: () -> Double = { (Date().timeIntervalSince1970 * 1000).rounded(.down) } {
+    /// The instant to draw `ahead` seconds from now, in UTC milliseconds since 1970.
+    public var clock: (_ ahead: Double) -> Double = GlobeRenderer.wallClock {
         didSet { globe?.clock = clock }
     }
     /// What fetches a map tile's bytes.
@@ -105,8 +105,9 @@ public final class GlobeBinding {
     public var components: SatelliteComponents = [.point, .label] {
         didSet { globe?.components = components }
     }
-    /// The last satellites given, and who is told once a globe draws them.
-    private var satellites: (list: [PointSatellite], onDrawn: @MainActor () -> Void)?
+    /// The last satellites given, the components they come with, and who is told
+    /// once a globe draws them.
+    private var satellites: (list: [PointSatellite], components: SatelliteComponents?, onDrawn: @MainActor () -> Void)?
     /// Bumped by every set handed over, so a slow packing never replaces a newer one.
     private var satellitesGeneration = 0
     /// The star map's six faces (`GlobeRenderer.setStarMap`); nil until fetched.
@@ -172,11 +173,14 @@ public final class GlobeBinding {
         globe?.setImagery(layer, site: site, frame: frame)
     }
 
-    /// The satellites to draw, packed off the main thread first. `onDrawn` is
-    /// called once a globe draws them, now or when one attaches, unless a newer
-    /// set has come meanwhile. Waits for the packing while a globe is attached.
-    public func setSatellites(_ satellites: [PointSatellite], onDrawn: @escaping @MainActor () -> Void) async {
-        self.satellites = (satellites, onDrawn)
+    /// The satellites to draw, packed off the main thread first, and the
+    /// `components` they are drawn with from then on, if new. `onDrawn` is called
+    /// once a globe draws them, now or when one attaches, unless a newer set has
+    /// come meanwhile. Waits for the packing while a globe is attached.
+    public func setSatellites(
+        _ satellites: [PointSatellite], components: SatelliteComponents? = nil, onDrawn: @escaping @MainActor () -> Void
+    ) async {
+        self.satellites = (satellites, components, onDrawn)
         if let globe {
             await handSatellites(to: globe)
         }
@@ -192,6 +196,9 @@ public final class GlobeBinding {
         let mine = satellitesGeneration
         let prepared = await globe.prepare(satellites.list)
         if mine == satellitesGeneration {
+            if let components = satellites.components {
+                self.components = components
+            }
             globe.setSatellites(prepared)
             satellites.onDrawn()
         }

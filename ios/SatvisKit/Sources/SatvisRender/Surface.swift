@@ -116,6 +116,21 @@ final class Surface {
     private var terrainOffset = 0
     private var drapes = 0
     private var frame = 0
+    /// What the last settled selection was made from, and what it chose: the
+    /// same again while none of it moves. Walking some 1,300 tiles took the sky
+    /// view 3 ms of an iPad mini's main thread a frame, standing still.
+    private var lastSelection: (inputs: SelectionInputs, draw: [Tile])?
+
+    private struct SelectionInputs: Equatable {
+        var eye: SIMD3<Double>
+        var viewProjection: simd_double4x4
+        var viewportHeightPixels: Double
+        var verticalFieldOfView: Double
+        var pixelsPerPoint: Double
+        var revision: Int
+        var sourceGeneration: Int
+        var terrainEnabled: Bool
+    }
 
     init(device: MTLDevice, library: MTLLibrary, site: URL) throws {
         self.device = device
@@ -180,6 +195,13 @@ final class Surface {
     func select(eye: SIMD3<Double>, viewProjection: simd_double4x4, viewportHeightPixels: Double, verticalFieldOfView: Double, pixelsPerPoint: Double) -> (
         draw: [Tile], bake: [Tile]
     ) {
+        let inputs = SelectionInputs(
+            eye: eye, viewProjection: viewProjection, viewportHeightPixels: viewportHeightPixels, verticalFieldOfView: verticalFieldOfView,
+            pixelsPerPoint: pixelsPerPoint, revision: revision, sourceGeneration: sourceGeneration, terrainEnabled: terrainEnabled)
+        // Without a new frame: the tiles chosen last stay in use for `evict`.
+        if let lastSelection, lastSelection.inputs == inputs {
+            return (lastSelection.draw, [])
+        }
         frame += 1
         drapes = 0
         terrainOffset = Terrain.offset(pixelsPerPoint: pixelsPerPoint)
@@ -238,6 +260,7 @@ final class Surface {
         visit(TileKey(level: 0, x: 1, y: 0))
         evict()
         isSettled = bake.isEmpty && drapes < Self.drapesPerFrame
+        lastSelection = isSettled ? (inputs, draw) : nil
         return (draw, bake)
     }
 
@@ -586,6 +609,27 @@ final class Surface {
         evictSources()
         evictTerrain()
     }
+
+    /// Drops the tiles, decoded sources and terrain the frame last chosen does not
+    /// draw from, which the budgets otherwise keep for coming back.
+    func trim() {
+        for tile in tiles.values where tile.key.level > 0 && tile.lastUsed < frame {
+            if tile.texture != nil {
+                texturedTiles -= 1
+            }
+            tiles[tile.key] = nil
+        }
+        sources = sources.filter { _, state in
+            if case .ready = state { false } else { true }
+        }
+        terrainTiles = terrainTiles.filter { key, state in
+            if case .ready = state { terrainUsed[key, default: 0] >= frame } else { true }
+        }
+        terrainUsed = terrainUsed.filter { terrainTiles[$0.key] != nil }
+    }
+
+    /// The tiles kept, textured or not.
+    var tileCount: Int { tiles.count }
 
     /// Cancels the source tiles nothing drawn in the last second is waiting for,
     /// so that a fast pan or zoom does not leave hundreds of requests for tiles

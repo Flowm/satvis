@@ -50,7 +50,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   Re:Earth no more than the web app does. ADR 0009 has why. The texture budget
   is soft, as is the terrain's: a low, oblique view can use more tiles than it,
   and evicting tiles in use only starts the refinement over, or decodes them
-  again and again.
+  again and again. iOS's memory warning drops what the last frame does not use
+  (`GlobeRenderer.trimMemory`), about 175 MB after the sky view.
 - About, the menu column's last entry, is the web app's About dialog (`AboutView.swift`):
   what Satvis is, what it does and where its data comes from, written for the app.
   The about page's demos are the Bookmarks sheet's, so About has none of its own.
@@ -309,7 +310,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
 - The Graphics menu's "Frame rate" caps the globe at 30, 60 or 120 frames a second
   (`preferredFramesPerSecond`), offering only what the screen shows: 120 on a
   ProMotion screen, which an iPhone gives an app only with
-  `CADisableMinimumFrameDuration` in `Info.plist`. The simulator reports 60
+  `CADisableMinimumFrameDurationOnPhone` in `Info.plist` (without `OnPhone`
+  it is ignored, and held 120 to 60). The simulator reports 60
   whatever it models. The web app has no such parameter, so the rate is kept in
   `UserDefaults`, not links; a benchmark records it as `app_frame_rate`. That
   rate is a cap: a frame is skipped, and the last one left on screen, while
@@ -318,8 +320,17 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   demand (`RenderPacing`; the default view draws 4 frames a second). Whatever
   changes what is drawn has to say so (`needsDraw`, or the surface's, the models'
   and the ground tracks' revisions). The sky view, tracking, the FPS
-  switch and the benchmark draw every frame, but for the benchmark's scenes
-  standing still.
+  switch and the benchmark draw every frame, but for the benchmark's idle
+  scenes. While the frames fall behind, a frame begins only once a drawable is
+  free (`DrawableGate`): MTKView's `currentDrawable` blocked the main thread
+  20 ms a frame with every active orbit. A `CAMetalDisplayLink` dropped 2 % of
+  the sky view's frames, called after SwiftUI's redraw of its instruments. A
+  frame is drawn for the instant it will be shown (`FramePresentation`): the
+  clock and the flights, not a drag. Every active orbit on an iPad mini, shown
+  16.7 or 33.3 ms apart, then moves by the screen's steps in 99 % of the
+  frames rather than 30 %. The rate stays the one chosen, not a steady divisor
+  below it: at 45 fps the eye trails a satellite 12.6 ms on average, at 30
+  16.7.
 - The Graphics menu's "Benchmark" is the web app's `bench=true`, kept in links
   the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): eleven scenes opened
   by their links in turn, each waited for until everything active is drawn
@@ -327,10 +338,15 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   so the count drawn alone never reached the count active and every active
   satellite waited out the timeout), settled 3 s and recorded 5 s frame by frame
   (`FrameRecording`), then the first again for drift, and the view put back;
-  `BenchmarkReport` builds the event sent. Two scenes stand still with the
-  pacing on (`BenchmarkScene.paced`): their `fps` is the frames drawn, which
-  rises to 60 when something keeps every frame drawn, and they count none as
-  slow.
+  `BenchmarkReport` builds the event sent. The two idle scenes
+  (`BenchmarkScene.idle`) are paced: their `fps` is the frames drawn and none
+  counts as slow; their load is what they cost. `cpu_busy_pct` counts the calls
+  that drew nothing too; `process_cpu_pct` is every thread's, SwiftUI's
+  included, which the sky view's instruments spend more of than its renderer.
+  `gpu_memory_mb` sits inside `memory_mb`, and both carry what earlier scenes
+  left cached. A frame is slow past one and a half of the chosen rate's
+  interval. A frame's GPU span includes other work the GPU does meanwhile, such
+  as SwiftUI drawing the sky view's instruments.
   `cpu_ms` is the renderer's own work; `buffer_wait_ms` is the main thread
   blocked on a buffer the GPU still holds, the GPU running behind, and
   `drawable_wait_ms` on a drawable from the display, which, counted as CPU, read

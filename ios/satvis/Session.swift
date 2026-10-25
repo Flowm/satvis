@@ -185,7 +185,7 @@ final class Session {
 
     /// Sets what the globe starts from; the properties' `didSet`s keep it in step.
     private func bindGlobe() {
-        globe.clock = { [clock] in clock.now() }
+        globe.clock = { [clock] in clock.instant(ahead: $0) }
         globe.tileLoader = { [tiles, keptTiles] request in
             if request.keeps, let data = keptTiles.read(request.url) {
                 return data

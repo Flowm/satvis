@@ -33,6 +33,12 @@ final class ViewerClock {
         clock.time(at: Self.real())
     }
 
+    /// The instant to draw a frame shown `ahead` seconds from now, unrounded, as
+    /// frames are not a whole number of milliseconds apart.
+    func instant(ahead: Double) -> Double {
+        clock.time(at: (Date().timeIntervalSince1970 + ahead) * 1000)
+    }
+
     func togglePlaying() {
         clock.setPlaying(!clock.isPlaying, at: Self.real())
     }
