@@ -5,8 +5,10 @@ import { storeToRefs } from "pinia";
 import { computed, reactive, ref, shallowRef } from "vue";
 
 import {
+  type ApsisBox,
   type CatalogFilter,
   type CatalogRow,
+  type CrossingDirection,
   catalogRows,
   crossfilter,
   FACET_BY_KEY,
@@ -35,6 +37,12 @@ const pickedFacets = reactive(Object.fromEntries(FACETS.map((def) => [def.key, n
 const launchYears = ref<[number, number] | null>(null);
 /** The box dragged on the orbit-shape plot. */
 const shape = ref<ShapeBox | null>(null);
+/** The box dragged on the apogee-perigee plot. */
+const apsides = ref<ApsisBox | null>(null);
+/** Hours of the sun-sync daylit crossing, brushed on its chart, from inclusive to exclusive. */
+const crossingHours = ref<[number, number] | null>(null);
+/** The crossing direction picked in the chart's legend. */
+const crossingDirection = ref<CrossingDirection | null>(null);
 /** Name or NORAD id. */
 const query = ref("");
 /** Lists only what the globe shows. */
@@ -42,6 +50,13 @@ const activeOnly = ref(false);
 /** The list's sort, by name at first. */
 const sortKey = ref<SortKey>("name");
 const sortDescending = ref(false);
+
+/** A histogram's scale. */
+export type HistogramScale = "linear" | "sqrt" | "log";
+/** Square root, so the Starlink years do not flatten the rest. */
+const launchScale = ref<HistogramScale>("sqrt");
+/** Linear: no bin vanishes, and the directions compare across bars (ADR 0012). */
+const crossingScale = ref<HistogramScale>("linear");
 /** The full-catalog load, while in flight. */
 const loading = shallowRef<Promise<void> | undefined>();
 
@@ -78,7 +93,16 @@ export function useCatalogFilters(catalog: SatelliteCatalog) {
     return catalogRows(catalog.entries, searchOnly, Date.now());
   });
 
-  const filter = computed<CatalogFilter>(() => ({ facets: pickedFacets, launchYears: launchYears.value, shape: shape.value, query: query.value, activeOnly: activeOnly.value }));
+  const filter = computed<CatalogFilter>(() => ({
+    facets: pickedFacets,
+    launchYears: launchYears.value,
+    shape: shape.value,
+    apsides: apsides.value,
+    crossingHours: crossingHours.value,
+    crossingDirection: crossingDirection.value,
+    query: query.value,
+    activeOnly: activeOnly.value,
+  }));
 
   const result = computed(() => crossfilter(rows.value, filter.value, browser.activeSatNames.value));
 
@@ -136,15 +160,24 @@ export function useCatalogFilters(catalog: SatelliteCatalog) {
     const { clears } = chip;
     if (clears === "launch") launchYears.value = null;
     else if (clears === "shape") shape.value = null;
+    else if (clears === "apsides") apsides.value = null;
+    else if (clears === "crossing") clearCrossing();
     else if (clears === "query") query.value = "";
     else if (clears === "activeOnly") activeOnly.value = false;
     else clears.values.forEach((value) => pickedFacets[clears.facet].delete(value));
+  }
+
+  function clearCrossing(): void {
+    crossingHours.value = null;
+    crossingDirection.value = null;
   }
 
   function clearFilters(): void {
     FACETS.forEach((def) => pickedFacets[def.key].clear());
     launchYears.value = null;
     shape.value = null;
+    apsides.value = null;
+    clearCrossing();
     query.value = "";
     activeOnly.value = false;
   }
@@ -184,15 +217,20 @@ export function useCatalogFilters(catalog: SatelliteCatalog) {
     pickedFacets,
     launchYears,
     shape,
+    apsides,
+    crossingHours,
+    crossingDirection,
     query,
     activeOnly,
     sortKey,
     sortDescending,
+    launchScale,
+    crossingScale,
     /** The full catalog is loading. */
     isLoading: computed(() => loading.value !== undefined),
     loadAll,
     rows,
-    /** Per-facet counts, launches per year, the plot's bright rows. */
+    /** Per-facet counts, launches per year, the plots' bright rows, daylit crossings per bin. */
     result,
     /** The matches, sorted. */
     matched,

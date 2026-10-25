@@ -21,8 +21,8 @@
             :ref="(el) => (entryButtons[item.key] = el as HTMLButtonElement | null)"
             type="button"
             class="menuColumn__item"
-            :class="{ 'menuColumn__item--open': menu[item.key] }"
-            :aria-expanded="menu[item.key]"
+            :class="{ 'menuColumn__item--open': entryOpen(item.key) }"
+            :aria-expanded="entryOpen(item.key)"
             :aria-label="item.label"
             :title="item.hint"
             @click="toggleMenu(item.key)"
@@ -42,7 +42,7 @@
         <satellite-browser @show-info="onShowInfo" @browse="openCatalog" />
       </toolbar-panel>
       <!-- The full catalog grows out of the Satellites panel and takes its place; inside #toolbarLeft so it stacks over the clock. -->
-      <catalog-sheet v-if="catalogOpen" ref="catalogSheet" @back="closeCatalog(true)" @close="closeCatalog(false)" @show-info="onShowInfo" />
+      <catalog-sheet v-if="catalogOpen" ref="catalogSheet" @back="closeCatalog(true)" @close="closeCatalog(false)" @expand="closeMenus" @show-info="onShowInfo" />
       <!-- "Components", not "elements": an element set is the GP data. -->
       <toolbar-panel v-show="menu.sat" title="Components" @close="closePanel('sat')">
         <label v-for="componentName in SATELLITE_COMPONENTS" :key="componentName" class="toolbarSwitch">
@@ -429,11 +429,13 @@ function onPointerCancel(): void {
   globePress = undefined;
 }
 
-/** Opening a panel also closes the catalog sheet, which otherwise stays over the globe beside it. */
+/** A panel opens over the catalog sheet, which stays open; the Satellites entry takes the sheet back to the panel it grew from. */
 function toggleMenu(name: MenuKey) {
   const oldState = menu[name];
   closeMenus();
-  catalogOpen.value = false;
+  if (name === "cat") {
+    catalogOpen.value = false;
+  }
   menu[name] = !oldState;
 }
 
@@ -454,6 +456,8 @@ function onShowInfo(): void {
 
 /** The catalog sheet, opened from the Satellites panel, which it replaces while open. */
 const catalogOpen = ref(false);
+/** A menu entry's panel is open; the Satellites entry's too while the sheet grown from it is. */
+const entryOpen = (key: MenuKey) => menu[key] || (key === "cat" && catalogOpen.value);
 const catalogSheet = ref<InstanceType<typeof CatalogSheet> | null>(null);
 
 /** On a phone the column would cover the sheet's header, so it folds. */
@@ -480,7 +484,7 @@ function toggleMenuColumn() {
   }
 }
 
-/** Closes the catalog sheet's innermost layer, else the open panel, then the column. Inputs and an open dialog keep Escape for themselves. */
+/** Closes the open panel, which lies over the catalog sheet, else the sheet's innermost layer, then the column. Inputs and an open dialog keep Escape for themselves. */
 function onEscape(event: KeyboardEvent) {
   if (
     event.key !== "Escape" ||
@@ -491,13 +495,11 @@ function onEscape(event: KeyboardEvent) {
   ) {
     return;
   }
-  if (catalogOpen.value) {
-    catalogSheet.value?.escape();
-    return;
-  }
   const open = (Object.keys(menu) as MenuKey[]).find((k) => menu[k]);
   if (open) {
     closePanel(open);
+  } else if (catalogOpen.value) {
+    catalogSheet.value?.escape();
   } else {
     const focusInList = !!document.activeElement?.closest(".menuColumn__list");
     menuExpanded.value = false;

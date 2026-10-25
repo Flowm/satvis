@@ -54,8 +54,9 @@
           <!-- An opened tile spans the full width at twice its height, capped; the rest flow around it. -->
           <div class="catalogSheet__heroes">
             <div :ref="tileRef('launch')" class="catalogSheet__tile" :class="{ 'catalogSheet__tile--open': opened === 'launch' }" :style="openStyle('launch')">
-              <catalog-histogram
+              <catalog-launch-histogram
                 v-model:range="sheet.launchYears.value"
+                v-model:scale="sheet.launchScale.value"
                 :launches="sheet.result.value.launches"
                 :height="opened === 'launch' ? openHeight - 86 : heroHeight"
                 :open="opened === 'launch'"
@@ -70,6 +71,28 @@
                 :height="opened === 'shape' ? openHeight - 80 : heroHeight + 18"
                 :open="opened === 'shape'"
                 @toggle-open="toggleOpen('shape')"
+              />
+            </div>
+            <!-- Shorter bars than the launches' by its legend and band labels, so the row's tiles stay level. -->
+            <div :ref="tileRef('crossing')" class="catalogSheet__tile" :class="{ 'catalogSheet__tile--open': opened === 'crossing' }" :style="openStyle('crossing')">
+              <catalog-crossing-histogram
+                v-model:range="sheet.crossingHours.value"
+                v-model:direction="sheet.crossingDirection.value"
+                v-model:scale="sheet.crossingScale.value"
+                :crossings="sheet.result.value.crossings"
+                :height="opened === 'crossing' ? openHeight - 119 : heroHeight - 15"
+                :open="opened === 'crossing'"
+                @toggle-open="toggleOpen('crossing')"
+              />
+            </div>
+            <div :ref="tileRef('apsides')" class="catalogSheet__tile" :class="{ 'catalogSheet__tile--open': opened === 'apsides' }" :style="openStyle('apsides')">
+              <catalog-apsis-plot
+                v-model:box="sheet.apsides.value"
+                :rows="sheet.rows.value"
+                :bright-rows="sheet.result.value.apsisRows"
+                :height="opened === 'apsides' ? openHeight - 80 : heroHeight + 18"
+                :open="opened === 'apsides'"
+                @toggle-open="toggleOpen('apsides')"
               />
             </div>
           </div>
@@ -121,7 +144,7 @@
                 :def="def"
                 :items="itemsOf(def)"
                 :picked="sheet.pickedFacets[def.key]"
-                :top="full ? 10 : 6"
+                :top="full ? 10 : 8"
                 @toggle="sheet.toggle(def.key, $event)"
                 @clear="sheet.clearFacet(def.key)"
                 @toggle-open="open(def.key)"
@@ -191,14 +214,16 @@ import { useController } from "../../composables/useController";
 import { ORBIT_CLASS_HINT, orbitColor, orbitKindHint, SUN_SYNC_COLOR } from "../../config/orbitClass";
 import { FACET_BY_KEY, FACETS, type FacetDef, type FacetKey, facetBranches, facetItems, NO_KIND, NO_PROGRAM, parseOrbitLeaf } from "../../modules/catalogFacets";
 import { useSatStore } from "../../stores/sat";
+import CatalogApsisPlot from "./CatalogApsisPlot.vue";
+import CatalogCrossingHistogram from "./CatalogCrossingHistogram.vue";
 import CatalogFacetDetail from "./CatalogFacetDetail.vue";
 import CatalogFacetTile from "./CatalogFacetTile.vue";
 import CatalogFacetTree from "./CatalogFacetTree.vue";
-import CatalogHistogram from "./CatalogHistogram.vue";
+import CatalogLaunchHistogram from "./CatalogLaunchHistogram.vue";
 import CatalogList from "./CatalogList.vue";
 import CatalogShapePlot from "./CatalogShapePlot.vue";
 
-const emit = defineEmits<{ back: []; close: []; "show-info": [name: string] }>();
+const emit = defineEmits<{ back: []; close: []; expand: []; "show-info": [name: string] }>();
 
 // The catalog, the sheet's state, and the revision that grows as groups load.
 const { sats } = useController();
@@ -274,10 +299,12 @@ const anyShown = computed(() => sheet.matched.value.some((row) => sheet.active.v
 
 /** Full screen, rather than the sheet. */
 const full = ref(false);
+// Full screen covers the menu, so a panel left open under it would take the next Escape.
+watch(full, (value) => value && emit("expand"));
 /** Which half a phone shows; wider screens show both and ignore it. */
 const pane = ref<"charts" | "list">("charts");
 /** Px, the hero charts' height, taller in full screen. */
-const heroHeight = computed(() => (full.value ? 230 : 96));
+const heroHeight = computed(() => (full.value ? 230 : 120));
 
 /** Full screen hides the globe, so showing shrinks back to the sheet to reveal it. */
 function show(): void {
@@ -298,7 +325,7 @@ function showInfo(name: string): void {
 }
 
 /** A tile: a hero chart or a facet. */
-type TileKey = "launch" | "shape" | FacetKey;
+type TileKey = "launch" | "shape" | "apsides" | "crossing" | FacetKey;
 
 /** The tile opened large, if any. */
 const opened = ref<TileKey | null>(null);
@@ -461,7 +488,9 @@ defineExpose({ escape });
   transition: none;
 }
 
+/* Over the menu column and its panels, which the half sheet lies under (main.css). */
 .catalogSheet--full {
+  z-index: 22;
   right: 0;
   bottom: 0;
   left: 0;

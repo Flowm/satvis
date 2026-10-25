@@ -54,13 +54,22 @@ function apsideRows(satrec: SatRec): [string, string][] {
 }
 
 /**
- * Local mean solar time of the node crossings at epoch, with no sun ephemeris:
+ * Local mean solar time of the ascending node in hours, from the node's right ascension
+ * (radians) at a Julian date, with no sun ephemeris:
  *
  *   LTAN = UT + (Ω − GMST) / 15°/h
  *
  * Mean, not apparent, solar time is what mission specs quote. Only sun-synchronous
- * orbits hold these times; the ISS drifts through every local time in about two months.
+ * orbits hold it; the ISS drifts through every local time in about two months.
  */
+export function ltanHoursOf(nodeRad: number, jd: number): number {
+  // A Julian day starts at noon, so the half-day offset turns the fraction into UT.
+  const utHours = ((((jd + 0.5) % 1) + 1) % 1) * 24;
+  const nodeLongitudeDeg = (nodeRad - gstime(jd)) * RAD_TO_DEG;
+  return wrapHours(utHours + nodeLongitudeDeg * HOURS_PER_DEGREE);
+}
+
+/** The LTAN / LTDN row. */
 function nodeCrossingRows(satrec: SatRec): [string, string][] {
   if (!isSunSynchronous(satrec)) {
     return [];
@@ -69,10 +78,7 @@ function nodeCrossingRows(satrec: SatRec): [string, string][] {
   if (!Number.isFinite(jd)) {
     return [];
   }
-  // A Julian day starts at noon, so the half-day offset turns the fraction into UT.
-  const utHours = ((((jd + 0.5) % 1) + 1) % 1) * 24;
-  const nodeLongitudeDeg = (satrec.nodeo - gstime(jd)) * RAD_TO_DEG;
-  const ltan = wrapHours(utHours + nodeLongitudeDeg * HOURS_PER_DEGREE);
+  const ltan = ltanHoursOf(satrec.nodeo, jd);
   return [["LTAN / LTDN", `${formatHours(ltan)} / ${formatHours(wrapHours(ltan + 12))}`]];
 }
 

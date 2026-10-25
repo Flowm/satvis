@@ -5,7 +5,8 @@ import { gcatCategoryLabel, gcatClassLabel } from "../config/gcatCodes";
 import { ORBIT_KINDS, type OrbitClass, orbitKindLabel } from "../config/orbitClass";
 import { SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, satcatLabel } from "../config/satcatCodes";
 import type { CatalogEntry } from "./SatelliteCatalog";
-import { orbitShapeOf } from "./util/gp";
+import { ascendingNodeDegOf, orbitShapeOf } from "./util/gp";
+import { ltanHoursOf } from "./util/orbitFacts";
 
 /** A facet value for a field GCAT or SATCAT leaves empty. */
 export const UNKNOWN = "Unknown";
@@ -19,6 +20,11 @@ const SIZE_BOUNDS_KG = [10, 100, 500, 1000, 5000];
 export const AGE_BUCKETS = ["Under 1 day", "1–3 days", "3–7 days", "1–2 weeks", "2–4 weeks", "1–3 months", "Over 3 months"] as const;
 /** Days, the upper bound of each age bucket but the last. */
 const AGE_BOUNDS_DAYS = [1, 3, 7, 14, 28, 91];
+
+/** Hours, the crossing chart's bin width. */
+export const CROSSING_BIN_HOURS = 0.25;
+/** Hours, where a daylit crossing's day starts; it ends 12 hours later. */
+export const CROSSING_FROM_HOURS = 6;
 
 /** The orbit tree's leaf for satellites whose class has no kind. */
 export const NO_KIND = "Other";
@@ -55,9 +61,28 @@ export interface CatalogRow {
   massKg: number | undefined;
   /** Km, semi-major axis less Earth's equatorial radius. */
   altitudeKm: number;
+  /** Km above Earth's equatorial radius, likewise. */
+  perigeeKm: number;
+  /** Likewise. */
+  apogeeKm: number;
   inclinationDeg: number;
   /** Days from the element set's epoch to when the rows were built. */
   ageDays: number;
+  /** Sun-sync rows only. */
+  crossing: DaylitCrossing | undefined;
+}
+
+/** Which node an orbit crosses the equator at in daylight. */
+export type CrossingDirection = "southbound" | "northbound";
+
+/**
+ * A sun-sync orbit's daylit equator crossing: its local time, 06:00 to 18:00, at the element
+ * set's epoch. The other node is 12 hours off, at night.
+ */
+export interface DaylitCrossing {
+  /** Hours of mean solar time. */
+  hours: number;
+  direction: CrossingDirection;
 }
 
 /** The orbit facet's value for a row: "LEO/S", or "GEO/" for a class without a kind. */
@@ -159,6 +184,32 @@ function orderRank(def: FacetDef, value: string): number {
   return i === -1 ? (def.order?.length ?? 0) : i;
 }
 
+// The node in radians and the epoch as a Julian date, as ltanHoursOf takes them.
+/** Radians per degree. */
+const DEGREES = Math.PI / 180;
+/** Ms per day. */
+const MS_PER_DAY = 86_400_000;
+/** The Julian date of 1970-01-01. */
+const UNIX_EPOCH_JULIAN_DATE = 2440587.5;
+
+/** The node between 06:00 and 18:00, where the equator is in daylight in every season. */
+export function daylitCrossingOf(ltanHours: number): DaylitCrossing {
+  const daylit = ltanHours >= CROSSING_FROM_HOURS && ltanHours < CROSSING_FROM_HOURS + 12;
+  return daylit ? { hours: ltanHours, direction: "northbound" } : { hours: (ltanHours + 12) % 24, direction: "southbound" };
+}
+
+/** "550", "20.2k", "171k": km, short enough for a chart's axis. */
+export function formatKm(km: number): string {
+  if (km >= 100_000) return `${Math.round(km / 1000)}k`;
+  return km >= 1000 ? `${Math.round(km / 100) / 10}k` : String(Math.round(km));
+}
+
+/** "22:30"; 24:00 for the end of the day. */
+export function formatLocalTime(hours: number): string {
+  const minutes = Math.round(hours * 60);
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
 /** The bucket a value falls in, by the buckets' upper bounds; UNKNOWN for none. */
 function bucket(value: number | undefined, bounds: readonly number[], buckets: readonly string[]): string {
   if (value === undefined || !Number.isFinite(value)) {
@@ -172,9 +223,11 @@ function bucket(value: number | undefined, bounds: readonly number[], buckets: r
 function rowOf(entry: CatalogEntry, groups: string[], nowMs: number): CatalogRow {
   const m = entry.metadata;
   const { code, source } = entry.orbitKind;
-  const { altitudeKm, inclinationDeg } = orbitShapeOf(entry.record);
-  const ageDays = (nowMs - entry.epochMs) / 86_400_000;
+  const { altitudeKm, perigeeKm, apogeeKm, inclinationDeg } = orbitShapeOf(entry.record);
+  const ageDays = (nowMs - entry.epochMs) / MS_PER_DAY;
   const launchYear = m.launchDate === undefined ? undefined : Number(m.launchDate.slice(0, 4));
+  // The tree's sun-sync, GCAT's inclination band, so the chart and the tree count the same satellites.
+  const ltanHours = entry.orbitClass === "LEO" && code === "S" ? ltanHoursOf(ascendingNodeDegOf(entry.record) * DEGREES, entry.epochMs / MS_PER_DAY + UNIX_EPOCH_JULIAN_DATE) : NaN;
   return {
     name: entry.name,
     satnum: entry.satnum,
@@ -198,8 +251,12 @@ function rowOf(entry: CatalogEntry, groups: string[], nowMs: number): CatalogRow
     launchYear: Number.isFinite(launchYear) ? launchYear : undefined,
     massKg: m.massKg,
     altitudeKm,
+    perigeeKm,
+    apogeeKm,
     inclinationDeg,
     ageDays,
+    // An unreadable epoch or node has no crossing, rather than one in no bin.
+    crossing: Number.isFinite(ltanHours) ? daylitCrossingOf(ltanHours) : undefined,
   };
 }
 
@@ -234,6 +291,12 @@ export interface ShapeBox {
   inclinationDeg: [number, number];
 }
 
+/** A box on the apogee-perigee plot. */
+export interface ApsisBox {
+  perigeeKm: [number, number];
+  apogeeKm: [number, number];
+}
+
 /** Everything the catalog sheet filters by. */
 export interface CatalogFilter {
   /** An empty or missing set filters nothing. */
@@ -241,6 +304,12 @@ export interface CatalogFilter {
   /** Inclusive; a satellite without a launch date is out while set. */
   launchYears: [number, number] | null;
   shape: ShapeBox | null;
+  /** The box on the apogee-perigee plot. */
+  apsides: ApsisBox | null;
+  /** Hours of the daylit crossing, from inclusive to exclusive; a satellite without one is out while set. */
+  crossingHours: [number, number] | null;
+  /** Likewise. */
+  crossingDirection: CrossingDirection | null;
   /** Name or satnum, case-insensitive. */
   query: string;
   /** Only what the globe shows. */
@@ -248,7 +317,7 @@ export interface CatalogFilter {
 }
 
 /** The dimensions a crossfilter counts apart. */
-type Dimension = FacetKey | "launch" | "shape";
+type Dimension = FacetKey | "launch" | "shape" | "apsides" | "crossing";
 
 /** A crossfilter's matches and its charts' counts. */
 export interface Crossfilter {
@@ -259,11 +328,32 @@ export interface Crossfilter {
   launches: Map<number, number>;
   /** Rows passing every filter but the shape box: the plot's bright points. */
   shapeRows: CatalogRow[];
+  /** Rows passing every filter but the apsis box: that plot's bright points. */
+  apsisRows: CatalogRow[];
+  /** Per direction, crossing bin (from CROSSING_FROM_HOURS) -> rows passing every filter but the crossing. */
+  crossings: Record<CrossingDirection, Map<number, number>>;
 }
+
+/** Outside an inclusive range. */
+const outside = (value: number, [from, to]: [number, number]) => value < from || value > to;
 
 /** Outside the box on either axis. */
 function outsideShape(row: CatalogRow, box: ShapeBox): boolean {
-  return row.altitudeKm < box.altitudeKm[0] || row.altitudeKm > box.altitudeKm[1] || row.inclinationDeg < box.inclinationDeg[0] || row.inclinationDeg > box.inclinationDeg[1];
+  return outside(row.altitudeKm, box.altitudeKm) || outside(row.inclinationDeg, box.inclinationDeg);
+}
+
+/** Outside the box on either axis. */
+function outsideApsides(row: CatalogRow, box: ApsisBox): boolean {
+  return outside(row.perigeeKm, box.perigeeKm) || outside(row.apogeeKm, box.apogeeKm);
+}
+
+/** Outside the picked hours or direction, or without a crossing at all. */
+function outsideCrossing(crossing: DaylitCrossing | undefined, filter: CatalogFilter): boolean {
+  if (crossing === undefined) {
+    return true;
+  }
+  const hours = filter.crossingHours;
+  return (hours !== null && (crossing.hours < hours[0] || crossing.hours >= hours[1])) || (filter.crossingDirection !== null && crossing.direction !== filter.crossingDirection);
 }
 
 /**
@@ -274,8 +364,10 @@ function outsideShape(row: CatalogRow, box: ShapeBox): boolean {
 export function crossfilter(rows: readonly CatalogRow[], filter: CatalogFilter, active: ReadonlySet<string>): Crossfilter {
   const counts = Object.fromEntries(FACETS.map((def) => [def.key, new Map<string, number>()])) as Record<FacetKey, Map<string, number>>;
   const launches = new Map<number, number>();
+  const crossings: Crossfilter["crossings"] = { southbound: new Map(), northbound: new Map() };
   const matched: CatalogRow[] = [];
   const shapeRows: CatalogRow[] = [];
+  const apsisRows: CatalogRow[] = [];
   const query = filter.query.trim().toUpperCase();
   const pickedFacets = FACETS.filter((def) => (filter.facets[def.key]?.size ?? 0) > 0);
 
@@ -288,6 +380,14 @@ export function crossfilter(rows: readonly CatalogRow[], filter: CatalogFilter, 
   const countLaunch = (row: CatalogRow) => {
     if (row.launchYear !== undefined) {
       launches.set(row.launchYear, (launches.get(row.launchYear) ?? 0) + 1);
+    }
+  };
+
+  const countCrossing = (row: CatalogRow) => {
+    if (row.crossing !== undefined) {
+      const map = crossings[row.crossing.direction];
+      const bin = Math.floor((row.crossing.hours - CROSSING_FROM_HOURS) / CROSSING_BIN_HOURS);
+      map.set(bin, (map.get(bin) ?? 0) + 1);
     }
   };
 
@@ -321,10 +421,20 @@ export function crossfilter(rows: readonly CatalogRow[], filter: CatalogFilter, 
       failed = "shape";
       failures += 1;
     }
+    if (failures < 2 && filter.apsides && outsideApsides(row, filter.apsides)) {
+      failed = "apsides";
+      failures += 1;
+    }
+    if (failures < 2 && (filter.crossingHours || filter.crossingDirection) && outsideCrossing(row.crossing, filter)) {
+      failed = "crossing";
+      failures += 1;
+    }
     if (failures === 0) {
       matched.push(row);
       shapeRows.push(row);
+      apsisRows.push(row);
       countLaunch(row);
+      countCrossing(row);
       for (const def of FACETS) {
         countFacet(def, row);
       }
@@ -333,12 +443,16 @@ export function crossfilter(rows: readonly CatalogRow[], filter: CatalogFilter, 
         countLaunch(row);
       } else if (failed === "shape") {
         shapeRows.push(row);
+      } else if (failed === "apsides") {
+        apsisRows.push(row);
+      } else if (failed === "crossing") {
+        countCrossing(row);
       } else if (failed !== undefined) {
         countFacet(FACET_BY_KEY[failed], row);
       }
     }
   }
-  return { matched, counts, launches, shapeRows };
+  return { matched, counts, launches, shapeRows, apsisRows, crossings };
 }
 
 /** A facet value and its count. */
@@ -408,7 +522,7 @@ export interface FilterChip {
   /** By what: "Sun-sync", "LEO", "2019–2024". */
   value: string;
   /** The facet values, or the filter, removing the chip clears. */
-  clears: { facet: FacetKey; values: string[] } | "launch" | "shape" | "query" | "activeOnly";
+  clears: { facet: FacetKey; values: string[] } | "launch" | "shape" | "apsides" | "crossing" | "query" | "activeOnly";
 }
 
 /** One chip per picked value, a tree's fully picked parent as one chip, then the other filters. */
@@ -439,9 +553,17 @@ export function filterChips(filter: CatalogFilter, leaves: Partial<Record<FacetK
     chips.push({
       id: "shape",
       facet: "Shape",
-      value: `${Math.round(altitudeKm[0])}–${Math.round(altitudeKm[1])} km, ${inclinationDeg[0].toFixed(0)}–${inclinationDeg[1].toFixed(0)}°`,
+      value: `${formatKmRange(altitudeKm)}, ${inclinationDeg[0].toFixed(0)}–${Math.min(inclinationDeg[1], 180).toFixed(0)}°`,
       clears: "shape",
     });
+  }
+  if (filter.apsides) {
+    const { perigeeKm, apogeeKm } = filter.apsides;
+    chips.push({ id: "apsides", facet: "Apsides", value: `perigee ${formatKmRange(perigeeKm)}, apogee ${formatKmRange(apogeeKm)}`, clears: "apsides" });
+  }
+  if (filter.crossingHours || filter.crossingDirection) {
+    const hours = filter.crossingHours && `${formatLocalTime(filter.crossingHours[0])}–${formatLocalTime(filter.crossingHours[1])}`;
+    chips.push({ id: "crossing", facet: "Crossing", value: [hours, filter.crossingDirection].filter(Boolean).join(" "), clears: "crossing" });
   }
   if (filter.query.trim() !== "") {
     chips.push({ id: "query", facet: "Name", value: filter.query.trim(), clears: "query" });
@@ -451,3 +573,14 @@ export function filterChips(filter: CatalogFilter, leaves: Partial<Record<FacetK
   }
   return chips;
 }
+
+/** "300–600 km", or open-ended where a range reaches past its plot's axis ("over 2,000 km"), or "any" past both. */
+export function formatOpenRange([from, to]: [number, number], format: (value: number) => string, unit: string): string {
+  if (from === -Infinity && to === Infinity) return "any";
+  if (to === Infinity) return `over ${format(from)}${unit}`;
+  if (from === -Infinity) return `under ${format(to)}${unit}`;
+  return `${format(from)}–${format(to)}${unit}`;
+}
+
+/** A chip's km range, in whole km with thousands separators. */
+const formatKmRange = (range: [number, number]) => formatOpenRange(range, (km) => Math.round(km).toLocaleString("en-US"), " km");
