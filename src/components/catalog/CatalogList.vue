@@ -21,7 +21,7 @@
       <div :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }">
         <div
           v-for="item in visible"
-          :key="item.row.satnum"
+          :key="item.row.key"
           class="catalogList__row"
           :class="{ 'catalogList__row--shown': active.has(item.row.name) }"
           :style="{ gridTemplateColumns: template, transform: `translateY(${item.start}px)` }"

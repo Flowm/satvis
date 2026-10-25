@@ -1,6 +1,8 @@
 /* The catalog sheet's palette and the bits its components share; layouts stay per component.
-   The tokens live on the sheet, so every component inside inherits them. */
-.catalogSheet {
+   The tokens live on the sheet, so every component inside inherits them, and on the custom
+   satellites dialog, which is teleported out of it. */
+.catalogSheet,
+.catalogCustom {
   --cs-bg: var(--panel-surface-dense);
   --cs-raised: #ffffff0f;
   --cs-line: #ffffff1f;
@@ -17,7 +19,10 @@
 
 .catalogSheet *,
 .catalogSheet *::before,
-.catalogSheet *::after {
+.catalogSheet *::after,
+.catalogCustom *,
+.catalogCustom *::before,
+.catalogCustom *::after {
   box-sizing: border-box;
 }
 

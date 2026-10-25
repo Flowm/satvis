@@ -2,6 +2,7 @@ import { JulianDate } from "@cesium/core";
 import type { Viewer } from "@cesium/widgets";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { type DesiredScene, SatelliteManager } from "./SatelliteManager";
 import { parseGpPayload } from "./util/gp";
 import { InlinePassSource } from "./util/passSource";
@@ -46,7 +47,7 @@ const scene = (desired: Partial<DesiredScene>): DesiredScene => ({
 function setup() {
   const viewer = fakeViewer();
   const sats = new SatelliteManager(viewer, { samples: new InlineSampleSource(), passes: new InlinePassSource() });
-  sats.addCustomRecords(parseGpPayload(TLES), ["Test"]);
+  sats.addRecords(parseGpPayload(TLES), ["Test"]);
   return { sats, entityCount: () => (viewer.entities as unknown as { size: () => number }).size() };
 }
 
@@ -87,5 +88,71 @@ describe("SatelliteManager", () => {
     await sats.buildSettled();
     expect(sats.activeSatellites).toHaveLength(2);
     expect(sats.getSatellite("NOAA 20")?.componentNames).toEqual(["Point"]);
+  });
+
+  test("replaces a custom satellite's elements, and keeps its satrec apart from the satnum's", async () => {
+    const samples = new InlineSampleSource();
+    const samplerFor = vi.spyOn(samples, "samplerFor");
+    const sats = new SatelliteManager(fakeViewer(), { samples, passes: new InlinePassSource() });
+    const [iss] = parseGpPayload(TLES.split("\n").slice(0, 3).join("\n"));
+    const [moved] = parseGpPayload(TLES.split("\n").slice(0, 3).join("\n").replace("51.6407", "60.0000"));
+
+    sats.setCustomRecords([iss!]);
+    sats.reconcile(scene({ enabledSatellites: ["ISS (ZARYA)"] }));
+    await sats.buildSettled();
+    const first = sats.getSatellite("ISS (ZARYA)");
+    expect(first).toBeDefined();
+
+    sats.setCustomRecords([moved!]);
+    await sats.buildSettled();
+    const second = sats.getSatellite("ISS (ZARYA)");
+
+    expect(second).toBeDefined();
+    expect(second).not.toBe(first);
+    expect(sats.catalog.getByName("ISS (ZARYA)")?.record).toBe(moved);
+    const keys = new Set(samplerFor.mock.calls.map(([key]) => key));
+    expect(keys.size).toBe(2);
+    expect(keys.has("25544")).toBe(false);
+
+    sats.setCustomRecords([]);
+    await sats.buildSettled();
+    expect(sats.activeSatellites).toEqual([]);
+    expect(sats.catalog.size).toBe(0);
+  });
+
+  test("keeps a custom satellite apart from a group serving its name and NORAD id later", async () => {
+    const sats = new SatelliteManager(fakeViewer(), { samples: new InlineSampleSource(), passes: new InlinePassSource() });
+    const [custom] = parseGpPayload(TLES.split("\n").slice(0, 3).join("\n"));
+    const [served] = parseGpPayload(TLES.split("\n").slice(0, 3).join("\n"));
+
+    sats.setCustomRecords([custom!]);
+    sats.addRecords([served!], ["Stations"]);
+    expect(sats.catalog.entries.map((entry) => [entry.tags, entry.record === custom])).toEqual([
+      [["Custom"], true],
+      [["Stations"], false],
+    ]);
+
+    sats.setCustomRecords([]);
+    expect(sats.catalog.getByName("ISS (ZARYA)")?.record).toBe(served);
+  });
+
+  test("tracks a custom satellite again once its replacement is built", async () => {
+    const viewer = fakeViewer();
+    const sats = new SatelliteManager(viewer, { samples: new InlineSampleSource(), passes: new InlinePassSource() });
+    const [iss] = parseGpPayload(TLES.split("\n").slice(0, 3).join("\n"));
+    const [moved] = parseGpPayload(TLES.split("\n").slice(0, 3).join("\n").replace("51.6407", "60.0000"));
+    sats.setCustomRecords([iss!]);
+    sats.reconcile(scene({ enabledSatellites: ["ISS (ZARYA)"] }));
+    await sats.buildSettled();
+    viewer.trackedEntity = sats.getSatellite("ISS (ZARYA)")!.defaultEntity;
+    const track = vi.spyOn(SatelliteComponentCollection.prototype, "track");
+
+    sats.setCustomRecords([moved!]);
+    await sats.buildSettled();
+
+    const rebuilt = sats.getSatellite("ISS (ZARYA)");
+    expect(rebuilt?.props.entry.record).toBe(moved);
+    expect(track.mock.contexts).toEqual([rebuilt]);
+    track.mockRestore();
   });
 });

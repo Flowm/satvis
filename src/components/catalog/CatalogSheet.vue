@@ -28,6 +28,9 @@
         <button v-if="sheet.chips.value.length" type="button" class="cs-btn" @click="sheet.clearFilters()">
           <UIcon name="lucide:filter-x" /> <span class="catalogSheet__wide">Reset all</span>
         </button>
+        <button type="button" class="cs-btn" aria-label="Add a custom satellite" title="Add a satellite from its TLE or OMM" @click="customOpen = true">
+          <UIcon name="lucide:satellite" /> <span class="catalogSheet__wide">Add custom</span>
+        </button>
         <button type="button" class="cs-iconBtn" :aria-label="full ? 'Shrink to a sheet' : 'Expand to full screen'" @click="full = !full">
           <UIcon :name="full ? 'lucide:chevrons-down' : 'lucide:chevrons-up'" />
         </button>
@@ -201,6 +204,7 @@
         </div>
       </div>
     </div>
+    <catalog-custom-dialog v-model:open="customOpen" :loading="sheet.isLoading.value" @added="onCustomAdded" />
   </section>
 </template>
 
@@ -216,6 +220,7 @@ import { FACET_BY_KEY, FACETS, type FacetDef, type FacetKey, facetBranches, face
 import { useSatStore } from "../../stores/sat";
 import CatalogApsisPlot from "./CatalogApsisPlot.vue";
 import CatalogCrossingHistogram from "./CatalogCrossingHistogram.vue";
+import CatalogCustomDialog from "./CatalogCustomDialog.vue";
 import CatalogFacetDetail from "./CatalogFacetDetail.vue";
 import CatalogFacetTile from "./CatalogFacetTile.vue";
 import CatalogFacetTree from "./CatalogFacetTree.vue";
@@ -322,6 +327,18 @@ function showInfo(name: string): void {
   sats.select(name);
   full.value = false;
   emit("show-info", name);
+}
+
+/** The custom satellites dialog is open. */
+const customOpen = ref(false);
+/** One satellite added shows its info, as a click on its row would. */
+function onCustomAdded(names: string[]): void {
+  const [only] = names;
+  if (names.length === 1 && only !== undefined) {
+    showInfo(only);
+  } else {
+    full.value = false;
+  }
 }
 
 /** A tile: a hero chart or a facet. */

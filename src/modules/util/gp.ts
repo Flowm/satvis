@@ -173,27 +173,30 @@ function cacheOrbitClass(records: GpRecord[]): GpRecord[] {
   return records;
 }
 
+/** Where a parse reports what it skipped. */
+export type SkipWarning = (message: string, detail?: unknown) => void;
+
 /** Never throws: malformed input is skipped with a warning. */
-export function parseGpPayload(text: string): GpRecord[] {
+export function parseGpPayload(text: string, warn: SkipWarning = console.warn): GpRecord[] {
   const trimmed = text.trimStart();
   const firstChar = trimmed[0];
   if (firstChar === "[" || firstChar === "{") {
-    return cacheOrbitClass(parseJsonPayload(text));
+    return cacheOrbitClass(parseJsonPayload(text, warn));
   }
   // A missing group on an SPA-fallback host answers index.html with a 200.
   if (firstChar === "<") {
-    console.warn("Skipping GP payload that looks like HTML (missing group?)");
+    warn("Skipping GP payload that looks like HTML (missing group?)");
     return [];
   }
-  return cacheOrbitClass(parseTleText(text));
+  return cacheOrbitClass(parseTleText(text, warn));
 }
 
-function parseJsonPayload(text: string): GpRecord[] {
+function parseJsonPayload(text: string, warn: SkipWarning): GpRecord[] {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch (error) {
-    console.warn("Failed to parse GP JSON payload", error);
+    warn("Failed to parse GP JSON payload", error);
     return [];
   }
   const array = Array.isArray(parsed) ? parsed : [parsed];
@@ -207,7 +210,7 @@ function parseJsonPayload(text: string): GpRecord[] {
       const { metadata: _lifted, ...omm } = item as Record<string, unknown>;
       records.push({ kind: "omm", omm: omm as OMMJsonObject, ...metadataOf(item) });
     } else {
-      console.warn("Skipping unrecognized GP record", item);
+      warn("Skipping unrecognized GP record", item);
     }
   }
   return records;
@@ -226,7 +229,7 @@ function metadataOf(item: unknown): { metadata?: SatelliteMetadata } {
  * Near-duplicate of parseTleText in worker/scripts/generate-groups.mjs with the
  * opposite error policy (this one warns and skips, that one throws). Do not unify them.
  */
-function parseTleText(text: string): GpRecord[] {
+function parseTleText(text: string, warn: SkipWarning): GpRecord[] {
   const lines = text.split(/\r?\n/).map((line) => line.trimEnd());
   const records: GpRecord[] = [];
   let i = 0;
@@ -244,7 +247,7 @@ function parseTleText(text: string): GpRecord[] {
         records.push({ kind: "tle", name: satnumFromTleLine(line1), line1, line2 });
         i += 2;
       } else {
-        console.warn(`Skipping malformed TLE block at line ${i}: line 2 missing or invalid`);
+        warn(`Skipping malformed TLE block at line ${i + 1}: line 2 missing or invalid`);
         i += 1;
       }
     } else {
@@ -255,7 +258,7 @@ function parseTleText(text: string): GpRecord[] {
         records.push({ kind: "tle", name: stripNamePrefix(line.trim()), line1, line2 });
         i += 3;
       } else {
-        console.warn(`Skipping malformed TLE block at line ${i}: expected name + 2 TLE lines`);
+        warn(`Skipping malformed TLE block at line ${i + 1}: expected name + 2 TLE lines`);
         i += 1;
       }
     }

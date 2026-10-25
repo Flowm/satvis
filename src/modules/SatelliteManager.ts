@@ -4,6 +4,7 @@ import type { Viewer } from "@cesium/widgets";
 import { clearPassHighlights, setPassHighlights } from "../composables/usePassHighlights";
 import type { ElementsEntry } from "../config/presets";
 import type { SerializedGroundStation } from "../stores/sat";
+import { CUSTOM_KEY_PREFIX, CUSTOM_TAG, isCustom } from "./customSatellites";
 import { GroundStationEntity, type GroundStationPositionData } from "./GroundStationEntity";
 import { RecutSchedule } from "./recutSchedule";
 import { activeTargetEntries, buildOrder } from "./satelliteActivation";
@@ -119,6 +120,15 @@ export class SatelliteManager {
 
   #buildWaiters: Array<() => void> = [];
 
+  /** A satellite being rebuilt while tracked, whose track is not reported lost. */
+  #retracking: string | undefined;
+
+  /** Custom records' `#propagationKey`s. */
+  #propagationKeys = new WeakMap<GpRecord, string>();
+
+  /** Custom records keyed so far, so no key is handed out twice. */
+  #customRecordCount = 0;
+
   /** The sources default to the workers; a test passes the inline ones. */
   constructor(viewer: Viewer, sources: { samples?: SampleSource; passes?: PassSource } = {}) {
     this.viewer = viewer;
@@ -136,6 +146,11 @@ export class SatelliteManager {
     // The user can also start tracking by clicking the globe. Report it rather
     // than reaching for the store, so this class stays free of Pinia.
     this.viewer.trackedEntityChanged.addEventListener(() => {
+      // The gap while a replaced satellite is rebuilt is no change of track.
+      if (this.#retracking !== undefined && !this.trackedSatellite) {
+        return;
+      }
+      this.#retracking = undefined;
       if (this.trackedSatellite) {
         this.getSatellite(this.trackedSatellite)?.show(this.#effectiveComponents());
       }
@@ -250,6 +265,7 @@ export class SatelliteManager {
         this.viewer.trackedEntity = undefined;
       }
       this.pendingTrackedSatellite = undefined;
+      this.#retracking = undefined;
       return;
     }
     if (name === this.trackedSatellite) {
@@ -283,11 +299,34 @@ export class SatelliteManager {
     return Promise.all(loads).then(() => undefined);
   }
 
-  /** For console and test use. */
-  addCustomRecords(records: GpRecord[], tags: string[]): void {
+  /** For tests: records under `tags`, as a group's would load. */
+  addRecords(records: GpRecord[], tags: string[]): void {
     this.catalog.addRecords(records, tags);
     this.#onCatalogChange?.();
     this.#reconcileActive();
+  }
+
+  /** Replaces the custom satellites with `records`; a record kept keeps its satellite. */
+  setCustomRecords(records: readonly GpRecord[]): void {
+    const kept = new Set(records);
+    const present = this.catalog.entriesWithTag(CUSTOM_TAG).filter(isCustom);
+    const presentRecords = new Set(present.map((entry) => entry.record));
+    this.catalog.remove(present.filter((entry) => !kept.has(entry.record)));
+    const fresh = records.filter((record) => !presentRecords.has(record));
+    for (const record of fresh) {
+      this.#propagationKeys.set(record, `custom-${this.#customRecordCount++}`);
+    }
+    this.catalog.addRecords(fresh, [CUSTOM_TAG], CUSTOM_KEY_PREFIX);
+    this.#onCatalogChange?.();
+    this.#reconcileActive();
+  }
+
+  /**
+   * The workers cache one satrec per key, so a custom satellite, which may share a satnum with
+   * another, has a key of its own (ADR 0014).
+   */
+  #propagationKey(entry: CatalogEntry): string {
+    return this.#propagationKeys.get(entry.record) ?? entry.satnum;
   }
 
   #activeTargetEntries(): Map<string, CatalogEntry> {
@@ -316,10 +355,16 @@ export class SatelliteManager {
 
     let disposed = false;
     for (const [key, sat] of this.#active) {
-      if (target.has(key)) {
+      // An entry replaced under its key is built again.
+      if (target.get(key) === sat.props.entry) {
         continue;
       }
       if (sat.isTracked) {
+        // Replaced under its key: tracked again once rebuilt.
+        if (target.has(key)) {
+          this.#retracking = sat.props.name;
+          this.pendingTrackedSatellite = sat.props.name;
+        }
         // Before dispose, so Cesium keeps no dangling trackedEntity.
         this.viewer.trackedEntity = undefined;
       }
@@ -416,11 +461,11 @@ export class SatelliteManager {
       }
       this.#opening += 1;
       void this.#samples
-        .samplerFor(entry.satnum, entry.record)
+        .samplerFor(this.#propagationKey(entry), entry.record)
         .samples(nowMs - periodMs * WINDOW_ORBITS_BACK, nowMs + periodMs * WINDOW_ORBITS_FORWARD)
         .then((chunk) => {
-          // The queue says whether this satellite is still wanted.
-          if (chunk && chunk.positionsFixed.length > 0 && this.#queue.some(([queued]) => queued === key)) {
+          // The queue says whether this satellite is still wanted, and not replaced under its key.
+          if (chunk && chunk.positionsFixed.length > 0 && this.#queue.some(([queued, wanted]) => queued === key && wanted === entry)) {
             this.#ready.push({ key, entry, chunk });
           }
         })
@@ -441,8 +486,8 @@ export class SatelliteManager {
       this.viewer,
       entry,
       { orbits: this.orbits, tracks: this.tracks, groundTracks: this.groundTracks },
-      this.#samples.samplerFor(entry.satnum, entry.record),
-      this.#passes.predictorFor(entry.satnum, entry.record),
+      this.#samples.samplerFor(this.#propagationKey(entry), entry.record),
+      this.#passes.predictorFor(this.#propagationKey(entry), entry.record),
       chunk,
     );
     sat.props.passPredictor.mode = this.#desired.overpassMode;

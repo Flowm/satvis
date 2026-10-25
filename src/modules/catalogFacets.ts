@@ -5,6 +5,7 @@ import { gcatCategoryLabel, gcatClassLabel } from "../config/gcatCodes";
 import { ORBIT_KINDS, type OrbitClass, orbitKindLabel } from "../config/orbitClass";
 import { SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, satcatLabel } from "../config/satcatCodes";
 import { satelliteModel } from "../config/satelliteMetadata";
+import { isCustom } from "./customSatellites";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import { ascendingNodeDegOf, orbitShapeOf } from "./util/gp";
 import { ltanHoursOf } from "./util/orbitFacts";
@@ -34,6 +35,8 @@ export const NO_PROGRAM = "Not in GCAT yet";
 
 /** One satellite, its facets labelled. */
 export interface CatalogRow {
+  /** Unique among the rows: the satnum, or a custom satellite's catalog key. */
+  key: string;
   /** The catalog name, which activation is keyed by. */
   name: string;
   satnum: string;
@@ -221,7 +224,7 @@ function bucket(value: number | undefined, bounds: readonly number[], buckets: r
 }
 
 /** One entry's row, with the groups united across its duplicates. */
-function rowOf(entry: CatalogEntry, groups: string[], nowMs: number): CatalogRow {
+function rowOf(key: string, entry: CatalogEntry, groups: string[], nowMs: number): CatalogRow {
   const m = entry.metadata;
   const { code, source } = entry.orbitKind;
   const { altitudeKm, perigeeKm, apogeeKm, inclinationDeg } = orbitShapeOf(entry.record);
@@ -230,6 +233,7 @@ function rowOf(entry: CatalogEntry, groups: string[], nowMs: number): CatalogRow
   // The tree's sun-sync, GCAT's inclination band, so the chart and the tree count the same satellites.
   const ltanHours = entry.orbitClass === "LEO" && code === "S" ? ltanHoursOf(ascendingNodeDegOf(entry.record) * DEGREES, entry.epochMs / MS_PER_DAY + UNIX_EPOCH_JULIAN_DATE) : NaN;
   return {
+    key,
     name: entry.name,
     satnum: entry.satnum,
     orbitClass: entry.orbitClass,
@@ -263,15 +267,17 @@ function rowOf(entry: CatalogEntry, groups: string[], nowMs: number): CatalogRow
 
 /**
  * One row per satnum. A satellite a search-only group renames keeps a pickable group's name,
- * as the compact browser lists it.
+ * as the compact browser lists it. A custom satellite has a row of its own: its NORAD id may be a
+ * catalog satellite's, under other elements.
  */
 export function catalogRows(entries: readonly CatalogEntry[], searchOnlyTags: ReadonlySet<string>, nowMs: number): CatalogRow[] {
-  const bySatnum = new Map<string, { entry: CatalogEntry; groups: string[] }>();
+  const byRowKey = new Map<string, { entry: CatalogEntry; groups: string[] }>();
   for (const entry of entries) {
     const groups = entry.tags.filter((tag) => !searchOnlyTags.has(tag));
-    const seen = bySatnum.get(entry.satnum);
+    const rowKey = isCustom(entry) ? entry.key : entry.satnum;
+    const seen = byRowKey.get(rowKey);
     if (seen === undefined) {
-      bySatnum.set(entry.satnum, { entry, groups: [...groups] });
+      byRowKey.set(rowKey, { entry, groups: [...groups] });
       continue;
     }
     if (seen.groups.length === 0 && groups.length > 0) {
@@ -283,7 +289,7 @@ export function catalogRows(entries: readonly CatalogEntry[], searchOnlyTags: Re
       }
     }
   }
-  return [...bySatnum.values()].map(({ entry, groups }) => rowOf(entry, groups, nowMs));
+  return [...byRowKey].map(([key, { entry, groups }]) => rowOf(key, entry, groups, nowMs));
 }
 
 /** A box on the orbit-shape plot. */
