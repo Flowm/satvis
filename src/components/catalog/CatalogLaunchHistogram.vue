@@ -7,6 +7,7 @@
     :chart-label="`Launches per year since ${FIRST_YEAR}`"
     :bins="YEARS"
     :series="series"
+    v-model:scale="scale"
     :range="range"
     :format-bin="String"
     :format-range="([from, to]) => `${from}–${to}`"
@@ -31,6 +32,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
+import type { HistogramScale } from "../../composables/useCatalogFilters";
 import CatalogHistogram, { type HistogramTick } from "./CatalogHistogram.vue";
 
 const props = defineProps<{
@@ -42,6 +44,8 @@ const props = defineProps<{
   open: boolean;
 }>();
 const emit = defineEmits<{ "update:range": [range: [number, number] | null]; "toggle-open": [] }>();
+/** The bars' scale, picked in the heading. */
+const scale = defineModel<HistogramScale>("scale", { required: true });
 
 /** Sputnik. */
 const FIRST_YEAR = 1957;

@@ -50,6 +50,13 @@ const activeOnly = ref(false);
 /** The list's sort, by name at first. */
 const sortKey = ref<SortKey>("name");
 const sortDescending = ref(false);
+
+/** A histogram's scale. */
+export type HistogramScale = "linear" | "sqrt" | "log";
+/** Square root, so the Starlink years do not flatten the rest. */
+const launchScale = ref<HistogramScale>("sqrt");
+/** Linear: no bin vanishes, and the directions compare across bars (ADR 0012). */
+const crossingScale = ref<HistogramScale>("linear");
 /** The full-catalog load, while in flight. */
 const loading = shallowRef<Promise<void> | undefined>();
 
@@ -217,6 +224,8 @@ export function useCatalogFilters(catalog: SatelliteCatalog) {
     activeOnly,
     sortKey,
     sortDescending,
+    launchScale,
+    crossingScale,
     /** The full catalog is loading. */
     isLoading: computed(() => loading.value !== undefined),
     loadAll,

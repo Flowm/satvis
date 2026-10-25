@@ -4,7 +4,6 @@
     <div class="cs-tileHead">
       <UIcon :name="icon" class="cs-mute" /> {{ title }}
       <span v-if="box" class="cs-dim cs-num">{{ rangeText(y, box.y) }} · {{ rangeText(x, box.x) }}</span>
-      <span v-else class="cs-mute cs-hint">drag a box to filter</span>
       <span class="cs-headEnd">
         <button v-if="box" type="button" class="cs-reset" @click="emit('update:box', null)">reset</button>
         <catalog-tile-toggle :open="open" :label="title.toLowerCase()" @click="emit('toggle-open')" />
@@ -22,7 +21,7 @@
         ref="plotEl"
         class="scatter__plot"
         role="img"
-        :aria-label="chartLabel"
+        :aria-label="`${chartLabel}; drag a box to filter`"
         @pointerdown="dragStart"
         @pointermove="dragMove"
         @pointerup="dragEnd"
@@ -39,7 +38,7 @@
           >{{ mark.label }}</span
         >
         <span v-if="hover" class="scatter__tip cs-num" :style="{ left: `${hover.px}px`, top: `${hover.py}px` }"
-          >{{ y.format(hover.y) }}{{ y.unit }} · {{ x.format(hover.x) }}{{ x.unit }}</span
+          >{{ y.format(hover.y) }}{{ y.unit }} · {{ x.format(hover.x) }}{{ x.unit }}<span v-if="!box" class="scatter__tipHint">drag a box to filter</span></span
         >
       </div>
     </div>
@@ -375,6 +374,12 @@ const boxStyle = computed(() => {
   white-space: nowrap;
   transform: translate(8px, -120%);
   pointer-events: none;
+}
+
+.scatter__tipHint {
+  display: block;
+  font-size: 10px;
+  color: var(--cs-mute);
 }
 
 .scatter__xAxis {

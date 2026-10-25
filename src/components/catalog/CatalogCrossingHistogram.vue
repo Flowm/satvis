@@ -9,6 +9,7 @@
     chart-label="Sun-sync satellites by the local time and direction of their daylit equator crossing"
     :bins="BINS"
     :series="series"
+    v-model:scale="scale"
     :range="binRange"
     :format-bin="(bin) => `${formatLocalTime(hoursOf(bin))}–${formatLocalTime(hoursOf(bin + 1))}`"
     :format-range="() => `${formatLocalTime(range![0])}–${formatLocalTime(range![1])}`"
@@ -36,6 +37,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
+import type { HistogramScale } from "../../composables/useCatalogFilters";
 import { CROSSING_BIN_HOURS, CROSSING_FROM_HOURS, type CrossingDirection, formatLocalTime } from "../../modules/catalogFacets";
 import CatalogHistogram, { type HistogramBand, type HistogramSeries, type HistogramTick } from "./CatalogHistogram.vue";
 
@@ -49,6 +51,8 @@ const props = defineProps<{
   open: boolean;
 }>();
 const emit = defineEmits<{ "update:range": [range: [number, number] | null]; "toggle-open": [] }>();
+/** The bars' scale, picked in the heading. */
+const scale = defineModel<HistogramScale>("scale", { required: true });
 /** The direction picked in the legend. */
 const direction = defineModel<CrossingDirection | null>("direction", { required: true });
 

@@ -56,6 +56,7 @@
             <div :ref="tileRef('launch')" class="catalogSheet__tile" :class="{ 'catalogSheet__tile--open': opened === 'launch' }" :style="openStyle('launch')">
               <catalog-launch-histogram
                 v-model:range="sheet.launchYears.value"
+                v-model:scale="sheet.launchScale.value"
                 :launches="sheet.result.value.launches"
                 :height="opened === 'launch' ? openHeight - 86 : heroHeight"
                 :open="opened === 'launch'"
@@ -76,6 +77,7 @@
               <catalog-crossing-histogram
                 v-model:range="sheet.crossingHours.value"
                 v-model:direction="sheet.crossingDirection.value"
+                v-model:scale="sheet.crossingScale.value"
                 :crossings="sheet.result.value.crossings"
                 :height="opened === 'crossing' ? openHeight - 119 : heroHeight - 15"
                 :open="opened === 'crossing'"

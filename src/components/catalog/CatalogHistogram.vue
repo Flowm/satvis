@@ -1,13 +1,24 @@
-<!-- Counts per bin on a square-root scale, with axes; dragging across the bars picks a range of bins, and a series' legend entry picks the series. -->
+<!-- Counts per bin on a linear, square-root or log scale, picked in the heading, with axes; dragging across the bars picks a range of bins, and a series' legend entry picks the series. -->
 <template>
   <div ref="rootEl" class="histogram cs-measured">
     <div class="cs-tileHead">
       <UIcon :name="icon" class="cs-mute" /> <span :title="titleHint">{{ title }}</span>
-      <span class="cs-mute cs-hint" title="Square-root scale, so the tallest bars do not flatten the rest">√ scale</span>
       <span v-if="range" class="cs-dim cs-num">{{ formatRange(range) }}</span>
-      <span v-else class="cs-mute cs-hint">{{ pickHint }}</span>
       <span class="cs-headEnd">
         <button v-if="range || picked" type="button" class="cs-reset" @click="reset">reset</button>
+        <span class="histogram__scales" role="group" aria-label="Scale">
+          <button
+            v-for="option in SCALES"
+            :key="option.scale"
+            type="button"
+            :aria-pressed="scale === option.scale"
+            :aria-label="option.name"
+            :title="option.hint"
+            @click="emit('update:scale', option.scale)"
+          >
+            {{ option.label }}
+          </button>
+        </span>
         <catalog-tile-toggle :open="open" :label="title.charAt(0).toLowerCase() + title.slice(1)" @click="emit('toggle-open')" />
       </span>
     </div>
@@ -41,7 +52,7 @@
           :viewBox="`0 0 ${bins.length} 100`"
           preserveAspectRatio="none"
           role="img"
-          :aria-label="chartLabel"
+          :aria-label="`${chartLabel}; ${pickHint}`"
           @pointerdown="brushStart"
           @pointermove="brushMove"
           @pointerup="brushEnd"
@@ -69,7 +80,7 @@
           </template>
         </svg>
         <span v-if="hoverIndex !== null" class="histogram__tip cs-num" :style="{ left: `${((hoverIndex + 0.5) / bins.length) * 100}%` }"
-          ><b>{{ formatBin(bins[hoverIndex]!) }}</b> {{ tipOf(bins[hoverIndex]!) }}</span
+          ><b>{{ formatBin(bins[hoverIndex]!) }}</b> {{ tipOf(bins[hoverIndex]!) }}<span v-if="!range && !picked" class="histogram__tipHint">{{ pickHint }}</span></span
         >
         <div class="histogram__xAxis cs-num">
           <span
@@ -88,6 +99,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
+import type { HistogramScale } from "../../composables/useCatalogFilters";
 import CatalogTileToggle from "./CatalogTileToggle.vue";
 
 /** An x axis tick, `at` in bins from the left edge; an empty label is a minor tick. */
@@ -124,7 +136,7 @@ const props = defineProps<{
   title: string;
   /** What the title means, on hover. */
   titleHint?: string;
-  /** Shown in the heading while nothing is picked. */
+  /** In the tooltip while nothing is picked, and in the accessible name. */
   pickHint: string;
   /** The chart's accessible name. */
   chartLabel: string;
@@ -132,6 +144,7 @@ const props = defineProps<{
   bins: readonly number[];
   /** Stacked bottom up. */
   series: readonly HistogramSeries[];
+  scale: HistogramScale;
   /** The series picked in the legend, by label. */
   picked?: string | null;
   /** Inclusive bin keys. */
@@ -145,7 +158,19 @@ const props = defineProps<{
   height: number;
   open: boolean;
 }>();
-const emit = defineEmits<{ "update:range": [range: [number, number] | null]; "update:picked": [label: string | null]; "toggle-open": [] }>();
+const emit = defineEmits<{
+  "update:range": [range: [number, number] | null];
+  "update:picked": [label: string | null];
+  "update:scale": [scale: HistogramScale];
+  "toggle-open": [];
+}>();
+
+/** The scales to pick from, as the heading names them. */
+const SCALES: { scale: HistogramScale; label: string; name: string; hint: string }[] = [
+  { scale: "linear", label: "lin", name: "Linear scale", hint: "Linear: bars in proportion to their counts" },
+  { scale: "sqrt", label: "√", name: "Square-root scale", hint: "Square root: the tallest bars do not flatten the rest" },
+  { scale: "log", label: "log", name: "Log scale", hint: "Logarithmic, of the count plus one: every power of ten alike, and one still shows" },
+];
 
 /** Clears the range and the picked series. */
 function reset(): void {
@@ -181,13 +206,22 @@ const max = computed(() => Math.max(1, ...totals.value.values()));
 const inRange = (bin: number) => !props.range || (bin >= props.range[0] && bin <= props.range[1]);
 const colorOf = (series: number) => SERIES_COLORS[series % SERIES_COLORS.length];
 
+/** A count on the scale; log takes count + 1, so a bar of one stands above an empty bin. */
+function scaled(count: number): number {
+  if (props.scale === "sqrt") return Math.sqrt(count);
+  return props.scale === "log" ? Math.log1p(count) : count;
+}
+/** % of the plot's height for a count; the tallest bar leaves a little room above it. */
+const heightOf = (count: number) => (scaled(count) / scaled(max.value)) * 96;
+
 /**
- * A bar's parts, bottom up. The bar is as tall as its total on the square-root scale, and each
- * series takes its share of that height: stacked square roots would overstate the total.
+ * A bar's parts, bottom up. The bar is as tall as its total, and each series takes its share
+ * of that height: on the square-root and log scales, stacking each series' own height would
+ * overstate the total.
  */
 function segmentsOf(bin: number): { series: number; top: number; height: number }[] {
   const total = totals.value.get(bin) ?? 0;
-  const barHeight = (Math.sqrt(total) / Math.sqrt(max.value)) * 96;
+  const barHeight = heightOf(total);
   let top = 0;
   return props.series.flatMap(({ counts }, series) => {
     const count = counts.get(bin) ?? 0;
@@ -213,23 +247,39 @@ function tipOf(bin: number): string {
   return props.series.map((s) => `${s.short ?? s.label} ${(s.counts.get(bin) ?? 0).toLocaleString()}`).join(" · ");
 }
 
-/** 1-2-5 steps up to the tallest bar, thinned so their labels stay ~14 px apart on the square-root scale. */
-const yTicks = computed(() => {
+/** The y axis's ticks, by the scale. */
+const yTicks = computed(() => (props.scale === "linear" ? linearTicks() : steppedTicks()));
+
+/** "500", "2k". */
+const tickLabel = (value: number) => (value >= 1000 ? `${value / 1000}k` : String(value));
+
+/** Evenly spaced at the smallest 1-2-5 step that keeps them 16 px apart and at most about eight. */
+function linearTicks(): { value: number; height: number; label: string }[] {
+  const minStep = Math.max((max.value * 16) / (props.height * 0.96), max.value / 8);
+  const magnitude = 10 ** Math.floor(Math.log10(minStep));
+  const step = ([1, 2, 5, 10].find((s) => s * magnitude >= minStep) ?? 10) * magnitude;
+  return Array.from({ length: Math.floor(max.value / step) }, (_, i) => (i + 1) * step).map((value) => ({ value, height: heightOf(value), label: tickLabel(value) }));
+}
+
+/** 1-2-5 steps up to the tallest bar, thinned so their labels stay ~14 px apart: the square-root and log scales crowd the small ones. */
+function steppedTicks(): { value: number; height: number; label: string }[] {
   const ticks: { value: number; height: number; label: string }[] = [];
   const minGap = (14 / props.height) * 100;
+  // A short log axis labels powers of ten alone: thinning 1-2-5 there leaves uneven steps.
+  const steps = props.scale === "log" && props.height < 200 ? [1] : [1, 2, 5];
   let last = 0;
   for (let magnitude = 1; magnitude <= max.value; magnitude *= 10) {
-    for (const step of [1, 2, 5]) {
+    for (const step of steps) {
       const value = step * magnitude;
       if (value > max.value) break;
-      const height = (Math.sqrt(value) / Math.sqrt(max.value)) * 96;
+      const height = heightOf(value);
       if (height - last < minGap) continue;
-      ticks.push({ value, height, label: value >= 1000 ? `${value / 1000}k` : String(value) });
+      ticks.push({ value, height, label: tickLabel(value) });
       last = height;
     }
   }
   return ticks;
-});
+}
 
 // The brush: the bin under the pointer, and where a drag began.
 const svgEl = ref<SVGSVGElement | null>(null);
@@ -409,6 +459,43 @@ function brushEnd(): void {
   white-space: nowrap;
   transform: translateX(-50%);
   pointer-events: none;
+}
+
+.histogram__tipHint {
+  display: block;
+  font-size: 10px;
+  color: var(--cs-mute);
+}
+
+.histogram__scales {
+  display: inline-flex;
+  margin-right: 2px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--cs-line);
+}
+
+.histogram__scales button {
+  min-width: 22px;
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: var(--cs-mute);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.histogram__scales button:hover {
+  color: var(--cs-text);
+}
+
+.histogram__scales button[aria-pressed="true"] {
+  border-radius: 4px;
+  background: #ffffff1a;
+  color: var(--cs-text);
 }
 
 .histogram__tip b {
