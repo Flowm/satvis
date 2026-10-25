@@ -108,7 +108,8 @@ brushed like the launch years; a direction is picked in the legend.
   says nothing about the orbit.
 - Mean solar time at the element set's epoch, by the info panel's own formula
   (`ltanHoursOf`), so both show a satellite at the same time. Operators quote mean time; the
-  apparent time is up to 16 minutes off. It reproduces Sentinel-1 at 18:00, Sentinel-2 at 10:30 and NOAA-20 at 13:30.
+  apparent time is up to 16 minutes off. It reproduces Sentinel-1 at 18:00, Sentinel-2 at
+  10:30 and NOAA-20 at 13:30.
 - A linear scale by default, where launches per year default to a square root: a bin holds
   6 to 267 satellites, so none vanishes, and the directions stack exactly, comparable across
   bars. Launches run from 1 to 4,290 a year, and on a linear scale half the years would not

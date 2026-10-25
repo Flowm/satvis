@@ -21,8 +21,8 @@
             :ref="(el) => (entryButtons[item.key] = el as HTMLButtonElement | null)"
             type="button"
             class="menuColumn__item"
-            :class="{ 'menuColumn__item--open': menu[item.key] || (item.key === 'cat' && catalogOpen) }"
-            :aria-expanded="menu[item.key] || (item.key === 'cat' && catalogOpen)"
+            :class="{ 'menuColumn__item--open': entryOpen(item.key) }"
+            :aria-expanded="entryOpen(item.key)"
             :aria-label="item.label"
             :title="item.hint"
             @click="toggleMenu(item.key)"
@@ -42,7 +42,7 @@
         <satellite-browser @show-info="onShowInfo" @browse="openCatalog" />
       </toolbar-panel>
       <!-- The full catalog grows out of the Satellites panel and takes its place; inside #toolbarLeft so it stacks over the clock. -->
-      <catalog-sheet v-if="catalogOpen" ref="catalogSheet" @back="closeCatalog(true)" @close="closeCatalog(false)" @show-info="onShowInfo" />
+      <catalog-sheet v-if="catalogOpen" ref="catalogSheet" @back="closeCatalog(true)" @close="closeCatalog(false)" @expand="closeMenus" @show-info="onShowInfo" />
       <!-- "Components", not "elements": an element set is the GP data. -->
       <toolbar-panel v-show="menu.sat" title="Components" @close="closePanel('sat')">
         <label v-for="componentName in SATELLITE_COMPONENTS" :key="componentName" class="toolbarSwitch">
@@ -456,6 +456,8 @@ function onShowInfo(): void {
 
 /** The catalog sheet, opened from the Satellites panel, which it replaces while open. */
 const catalogOpen = ref(false);
+/** A menu entry's panel is open; the Satellites entry's too while the sheet grown from it is. */
+const entryOpen = (key: MenuKey) => menu[key] || (key === "cat" && catalogOpen.value);
 const catalogSheet = ref<InstanceType<typeof CatalogSheet> | null>(null);
 
 /** On a phone the column would cover the sheet's header, so it folds. */

@@ -123,6 +123,11 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await page.keyboard.press("Escape");
       await expect(page.getByRole("region", { name: "Map" })).toBeHidden();
       await expect(sheet).toBeVisible();
+      // Full screen covers the menu, so it closes a panel rather than hide it under the sheet.
+      await openMenu(page, "Map");
+      await sheet.getByRole("button", { name: "Expand to full screen" }).last().click();
+      await expect(page.getByRole("region", { name: "Map" })).toBeHidden();
+      await sheet.getByRole("button", { name: "Shrink to a sheet" }).last().click();
       await openMenu(page, "Satellites");
       await expect(sheet).toBeHidden();
       await expect(page.getByRole("region", { name: "Satellites" })).toBeVisible();

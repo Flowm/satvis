@@ -37,7 +37,9 @@ const emit = defineEmits<{ "update:box": [box: ApsisBox | null]; "toggle-open": 
 const KM_RANGE = { min: 150, max: 200_000, log: true } as const;
 /** The ticks for an axis's length in px, every other decade step where short. */
 const kmTicks = (px: number) => (px < 150 ? [200, 1000, 5000, 20_000, 100_000] : [200, 500, 1000, 2000, 5000, 20_000, 100_000]);
+/** The x axis. */
 const PERIGEE: ScatterAxis = { ...KM_RANGE, ticks: kmTicks, format: formatKm, unit: " km", value: (row) => row.perigeeKm };
+/** The y axis. */
 const APOGEE: ScatterAxis = { ...KM_RANGE, ticks: kmTicks, format: formatKm, unit: " km", value: (row) => row.apogeeKm };
 /** GEO on the apogee axis, and the diagonal's name in the empty half below it, where no apogee is under its perigee. */
 const MARKS = [

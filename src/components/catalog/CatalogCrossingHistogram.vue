@@ -63,13 +63,16 @@ const BINS = Array.from({ length: 12 * PER_HOUR }, (_, i) => i);
 /** A bin's start, in hours of the day. */
 const hoursOf = (bin: number) => CROSSING_FROM_HOURS + bin * CROSSING_BIN_HOURS;
 
+/** Both ends' hint: a dawn-dusk orbit lands at either, by which side of 06:00 or 18:00 its nodes fall. */
+const DAWN_DUSK_HINT = "Dawn-dusk: crossing within an hour of 06:00 or 18:00, so the orbit rides the terminator, in sunlight most of the year";
 /** Hours where the orbits Earth observation flies crowd: the band labels, and the opened chart's shares. */
 const REGIMES = [
-  { label: "dawn", hours: [6, 7], hint: "Dawn-dusk: crossing within an hour of 06:00 or 18:00, so the orbit rides the terminator, in sunlight most of the year" },
+  { label: "dawn", hours: [6, 7], hint: DAWN_DUSK_HINT },
   { label: "morning", hours: [9, 12], hint: "Morning orbits, crossing 09:00–12:00" },
   { label: "afternoon", hours: [12, 15], hint: "Afternoon orbits, crossing 12:00–15:00" },
-  { label: "dusk", hours: [17, 18], hint: "Dawn-dusk: crossing within an hour of 06:00 or 18:00, so the orbit rides the terminator, in sunlight most of the year" },
+  { label: "dusk", hours: [17, 18], hint: DAWN_DUSK_HINT },
 ] as const;
+/** The regimes shaded behind the bars. */
 const BANDS: HistogramBand[] = REGIMES.map(({ label, hours: [from, to] }) => ({ at: (from - CROSSING_FROM_HOURS) * PER_HOUR, width: (to - from) * PER_HOUR, label }));
 
 /** The directions, southbound at the bottom: most morning orbits, the busiest. */

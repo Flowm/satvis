@@ -3,7 +3,7 @@
   <div class="scatter cs-measured">
     <div class="cs-tileHead">
       <UIcon :name="icon" class="cs-mute" /> {{ title }}
-      <span v-if="box" class="cs-dim cs-num">{{ rangeText(y, box.y) }} · {{ rangeText(x, box.x) }}</span>
+      <span v-if="box" class="cs-dim cs-num">{{ formatOpenRange(box.y, y.format, y.unit) }} · {{ formatOpenRange(box.x, x.format, x.unit) }}</span>
       <span class="cs-headEnd">
         <button v-if="box" type="button" class="cs-reset" @click="emit('update:box', null)">reset</button>
         <catalog-tile-toggle :open="open" :label="title.toLowerCase()" @click="emit('toggle-open')" />
@@ -52,65 +52,85 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import { ORBIT_CLASS_COLOR, orbitColor, SUN_SYNC_COLOR } from "../../config/orbitClass";
-import type { CatalogRow } from "../../modules/catalogFacets";
+import { type CatalogRow, formatOpenRange } from "../../modules/catalogFacets";
 import CatalogTileToggle from "./CatalogTileToggle.vue";
 
 /** One of the plot's axes. */
 export interface ScatterAxis {
   /** The ends drawn; a value beyond one is drawn at it. */
   min: number;
+  /** Likewise. */
   max: number;
+  /** A log axis, rather than a linear one. */
   log: boolean;
   /** The values a box reaching an end stands for, so it takes in what is drawn there; ±Infinity unless given. */
   limits?: [number, number];
   /** The ticks for the axis's length in px. */
   ticks: (px: number) => readonly number[];
+  /** A value as a tick, the heading and the tooltip show it: "20.2k". */
   format: (value: number) => string;
   /** After a formatted value in the heading and the tooltip: " km", "°". */
   unit: string;
   /** After a tick's label. */
   tickUnit?: string;
+  /** A row's value on the axis. */
   value: (row: CatalogRow) => number;
 }
 
 /** A box in the axes' values. */
 export interface ScatterBox {
+  /** Inclusive, open-ended at ±Infinity. */
   x: [number, number];
+  /** Likewise. */
   y: [number, number];
 }
 
 /** A label at a value on the y axis: at the right edge, or at `x`. */
 export interface ScatterMark {
+  /** The text. */
   label: string;
+  /** On the x axis; the right edge where missing. */
   x?: number;
+  /** On the y axis. */
   y: number;
 }
 
 /** Px from the plot's left and top for each axis's value, and the plot's size. */
 export interface ScatterScale {
+  /** Px from the left for an x value. */
   x: (value: number) => number;
+  /** Px from the top for a y value. */
   y: (value: number) => number;
+  /** Px. */
   width: number;
+  /** Px. */
   height: number;
 }
 
 const props = defineProps<{
   /** A lucide icon name. */
   icon: string;
+  /** The heading. */
   title: string;
   /** The chart's accessible name. */
   chartLabel: string;
+  /** The horizontal axis. */
   x: ScatterAxis;
+  /** The vertical axis. */
   y: ScatterAxis;
+  /** Every row, drawn faint where outside the other filters. */
   rows: readonly CatalogRow[];
   /** The rows passing every filter but the box: drawn bright, the rest faint for context. */
   brightRows: readonly CatalogRow[];
+  /** The picked box, if any. */
   box: ScatterBox | null;
+  /** Labels on the plot. */
   marks?: readonly ScatterMark[];
   /** Draws under the grid and the dots. */
   drawUnder?: (ctx: CanvasRenderingContext2D, scale: ScatterScale) => void;
   /** Px, the plot's height. */
   height: number;
+  /** Opened large, with a legend. */
   open: boolean;
 }>();
 const emit = defineEmits<{ "update:box": [box: ScatterBox | null]; "toggle-open": [] }>();
@@ -135,13 +155,6 @@ function fraction(axis: ScatterAxis, value: number): number {
 function valueAt(axis: ScatterAxis, f: number): number {
   return axis.log ? axis.min * (axis.max / axis.min) ** f : axis.min + f * (axis.max - axis.min);
 }
-/** A picked range, open-ended where it reaches an infinite limit, or "any" at both. */
-function rangeText(axis: ScatterAxis, [from, to]: [number, number]): string {
-  if (from === -Infinity && to === Infinity) return "any";
-  if (to === Infinity) return `over ${axis.format(from)}${axis.unit}`;
-  if (from === -Infinity) return `under ${axis.format(to)}${axis.unit}`;
-  return `${axis.format(from)}–${axis.format(to)}${axis.unit}`;
-}
 
 // The plot area, measured so the canvas draws at its size.
 const plotEl = ref<HTMLElement | null>(null);
@@ -156,7 +169,9 @@ onMounted(() => {
 });
 onBeforeUnmount(() => observer?.disconnect());
 
+/** The x axis's ticks, for the plot's width. */
 const xTicks = computed(() => props.x.ticks(size.value.width));
+/** The y axis's ticks, for its height. */
 const yTicks = computed(() => props.y.ticks(props.height));
 
 /** The bright rows, for a constant-time check while drawing. */

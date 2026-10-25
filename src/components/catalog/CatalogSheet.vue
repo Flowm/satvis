@@ -73,6 +73,7 @@
                 @toggle-open="toggleOpen('shape')"
               />
             </div>
+            <!-- Shorter bars than the launches' by its legend and band labels, so the row's tiles stay level. -->
             <div :ref="tileRef('crossing')" class="catalogSheet__tile" :class="{ 'catalogSheet__tile--open': opened === 'crossing' }" :style="openStyle('crossing')">
               <catalog-crossing-histogram
                 v-model:range="sheet.crossingHours.value"
@@ -222,7 +223,7 @@ import CatalogLaunchHistogram from "./CatalogLaunchHistogram.vue";
 import CatalogList from "./CatalogList.vue";
 import CatalogShapePlot from "./CatalogShapePlot.vue";
 
-const emit = defineEmits<{ back: []; close: []; "show-info": [name: string] }>();
+const emit = defineEmits<{ back: []; close: []; expand: []; "show-info": [name: string] }>();
 
 // The catalog, the sheet's state, and the revision that grows as groups load.
 const { sats } = useController();
@@ -298,6 +299,8 @@ const anyShown = computed(() => sheet.matched.value.some((row) => sheet.active.v
 
 /** Full screen, rather than the sheet. */
 const full = ref(false);
+// Full screen covers the menu, so a panel left open under it would take the next Escape.
+watch(full, (value) => value && emit("expand"));
 /** Which half a phone shows; wider screens show both and ignore it. */
 const pane = ref<"charts" | "list">("charts");
 /** Px, the hero charts' height, taller in full screen. */

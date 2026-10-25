@@ -242,6 +242,13 @@ describe("daylitCrossingOf", () => {
     expect(daylitCrossingOf(6)).toEqual({ hours: 6, direction: "northbound" });
   });
 
+  test("gives an element set with an unreadable epoch no crossing, rather than one in no bin", () => {
+    const catalog = new SatelliteCatalog();
+    catalog.addRecords([record("BAD EPOCH", 9, { inclination: 97.5, epoch: "not a date" }, { opOrbit: "LEO/S" })], ["Active"]);
+    const [row] = catalogRows(catalog.entries, new Set(), NOW);
+    expect(row!.crossing).toBeUndefined();
+  });
+
   test("puts a 10:30 orbit at 10:30 southbound", () => {
     // Sentinel-2A's element set of 2026-10-24.
     const [row] = catalogRows(sentinel2a(), new Set(), NOW);

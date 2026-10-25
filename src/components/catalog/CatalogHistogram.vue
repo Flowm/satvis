@@ -102,16 +102,31 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import type { HistogramScale } from "../../composables/useCatalogFilters";
 import CatalogTileToggle from "./CatalogTileToggle.vue";
 
-/** An x axis tick, `at` in bins from the left edge; an empty label is a minor tick. */
+/** An x axis tick. */
 export interface HistogramTick {
+  /** Bins from the left edge. */
   at: number;
+  /** Empty for a minor tick. */
   label: string;
 }
 
-/** A shaded span behind the bars, `at` and `width` in bins. */
+/** A shaded span behind the bars. */
 export interface HistogramBand {
+  /** Bins from the left edge. */
   at: number;
+  /** In bins. */
   width: number;
+  /** Above the bars. */
+  label: string;
+}
+
+/** A y axis tick. */
+interface YTick {
+  /** A count. */
+  value: number;
+  /** % of the plot's height. */
+  height: number;
+  /** "2k". */
   label: string;
 }
 
@@ -133,6 +148,7 @@ const SERIES_COLORS = ["#74c0fc", "#ffa94d"];
 const props = defineProps<{
   /** A lucide icon name. */
   icon: string;
+  /** The heading. */
   title: string;
   /** What the title means, on hover. */
   titleHint?: string;
@@ -144,18 +160,23 @@ const props = defineProps<{
   bins: readonly number[];
   /** Stacked bottom up. */
   series: readonly HistogramSeries[];
+  /** Picked in the heading. */
   scale: HistogramScale;
   /** The series picked in the legend, by label. */
   picked?: string | null;
   /** Inclusive bin keys. */
   range: [number, number] | null;
+  /** A bin as the tooltip names it. */
   formatBin: (bin: number) => string;
+  /** The picked range as the heading names it. */
   formatRange: (range: [number, number]) => string;
   /** The x axis ticks for the chart's width in px. */
   ticks: (width: number) => readonly HistogramTick[];
+  /** Shaded spans behind the bars. */
   bands?: readonly HistogramBand[];
   /** Px, the bars' height. */
   height: number;
+  /** Opened large, with its stats. */
   open: boolean;
 }>();
 const emit = defineEmits<{
@@ -190,6 +211,7 @@ onMounted(() => {
 });
 onBeforeUnmount(() => observer?.disconnect());
 
+/** The x axis's ticks, for the chart's width. */
 const xTicks = computed(() => props.ticks(width.value));
 
 /** Each bin's count across the series. */
@@ -204,6 +226,7 @@ const totals = computed(() => {
 const max = computed(() => Math.max(1, ...totals.value.values()));
 /** Inside the picked bins, or no bins are picked. */
 const inRange = (bin: number) => !props.range || (bin >= props.range[0] && bin <= props.range[1]);
+/** A series' colour, by its place in the stack. */
 const colorOf = (series: number) => SERIES_COLORS[series % SERIES_COLORS.length];
 
 /** A count on the scale; log takes count + 1, so a bar of one stands above an empty bin. */
@@ -253,17 +276,18 @@ const yTicks = computed(() => (props.scale === "linear" ? linearTicks() : steppe
 /** "500", "2k". */
 const tickLabel = (value: number) => (value >= 1000 ? `${value / 1000}k` : String(value));
 
-/** Evenly spaced at the smallest 1-2-5 step that keeps them 16 px apart and at most about eight. */
-function linearTicks(): { value: number; height: number; label: string }[] {
-  const minStep = Math.max((max.value * 16) / (props.height * 0.96), max.value / 8);
+/** Evenly spaced at the smallest whole 1-2-5 step that keeps them 16 px apart and at most about eight. */
+function linearTicks(): YTick[] {
+  // Counts are whole, so a step under 1 would label 0.5 on a filter that leaves three.
+  const minStep = Math.max(1, (max.value * 16) / (props.height * 0.96), max.value / 8);
   const magnitude = 10 ** Math.floor(Math.log10(minStep));
   const step = ([1, 2, 5, 10].find((s) => s * magnitude >= minStep) ?? 10) * magnitude;
   return Array.from({ length: Math.floor(max.value / step) }, (_, i) => (i + 1) * step).map((value) => ({ value, height: heightOf(value), label: tickLabel(value) }));
 }
 
 /** 1-2-5 steps up to the tallest bar, thinned so their labels stay ~14 px apart: the square-root and log scales crowd the small ones. */
-function steppedTicks(): { value: number; height: number; label: string }[] {
-  const ticks: { value: number; height: number; label: string }[] = [];
+function steppedTicks(): YTick[] {
+  const ticks: YTick[] = [];
   const minGap = (14 / props.height) * 100;
   // A short log axis labels powers of ten alone: thinning 1-2-5 there leaves uneven steps.
   const steps = props.scale === "log" && props.height < 200 ? [1] : [1, 2, 5];

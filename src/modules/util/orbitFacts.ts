@@ -69,7 +69,7 @@ export function ltanHoursOf(nodeRad: number, jd: number): number {
   return wrapHours(utHours + nodeLongitudeDeg * HOURS_PER_DEGREE);
 }
 
-/** The node crossings' local times at epoch, for sun-synchronous orbits alone. */
+/** The LTAN / LTDN row. */
 function nodeCrossingRows(satrec: SatRec): [string, string][] {
   if (!isSunSynchronous(satrec)) {
     return [];

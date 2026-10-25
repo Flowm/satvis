@@ -63,6 +63,7 @@ export interface CatalogRow {
   altitudeKm: number;
   /** Km above Earth's equatorial radius, likewise. */
   perigeeKm: number;
+  /** Likewise. */
   apogeeKm: number;
   inclinationDeg: number;
   /** Days from the element set's epoch to when the rows were built. */
@@ -79,6 +80,7 @@ export type CrossingDirection = "southbound" | "northbound";
  * set's epoch. The other node is 12 hours off, at night.
  */
 export interface DaylitCrossing {
+  /** Hours of mean solar time. */
   hours: number;
   direction: CrossingDirection;
 }
@@ -182,9 +184,12 @@ function orderRank(def: FacetDef, value: string): number {
   return i === -1 ? (def.order?.length ?? 0) : i;
 }
 
+// The node in radians and the epoch as a Julian date, as ltanHoursOf takes them.
+/** Radians per degree. */
 const DEGREES = Math.PI / 180;
-// The element set's epoch as a Julian date.
+/** Ms per day. */
 const MS_PER_DAY = 86_400_000;
+/** The Julian date of 1970-01-01. */
 const UNIX_EPOCH_JULIAN_DATE = 2440587.5;
 
 /** The node between 06:00 and 18:00, where the equator is in daylight in every season. */
@@ -219,10 +224,10 @@ function rowOf(entry: CatalogEntry, groups: string[], nowMs: number): CatalogRow
   const m = entry.metadata;
   const { code, source } = entry.orbitKind;
   const { altitudeKm, perigeeKm, apogeeKm, inclinationDeg } = orbitShapeOf(entry.record);
-  const ageDays = (nowMs - entry.epochMs) / 86_400_000;
+  const ageDays = (nowMs - entry.epochMs) / MS_PER_DAY;
   const launchYear = m.launchDate === undefined ? undefined : Number(m.launchDate.slice(0, 4));
   // The tree's sun-sync, GCAT's inclination band, so the chart and the tree count the same satellites.
-  const sunSync = entry.orbitClass === "LEO" && code === "S";
+  const ltanHours = entry.orbitClass === "LEO" && code === "S" ? ltanHoursOf(ascendingNodeDegOf(entry.record) * DEGREES, entry.epochMs / MS_PER_DAY + UNIX_EPOCH_JULIAN_DATE) : NaN;
   return {
     name: entry.name,
     satnum: entry.satnum,
@@ -250,7 +255,8 @@ function rowOf(entry: CatalogEntry, groups: string[], nowMs: number): CatalogRow
     apogeeKm,
     inclinationDeg,
     ageDays,
-    crossing: sunSync ? daylitCrossingOf(ltanHoursOf(ascendingNodeDegOf(entry.record) * DEGREES, entry.epochMs / MS_PER_DAY + UNIX_EPOCH_JULIAN_DATE)) : undefined,
+    // An unreadable epoch or node has no crossing, rather than one in no bin.
+    crossing: Number.isFinite(ltanHours) ? daylitCrossingOf(ltanHours) : undefined,
   };
 }
 
@@ -298,6 +304,7 @@ export interface CatalogFilter {
   /** Inclusive; a satellite without a launch date is out while set. */
   launchYears: [number, number] | null;
   shape: ShapeBox | null;
+  /** The box on the apogee-perigee plot. */
   apsides: ApsisBox | null;
   /** Hours of the daylit crossing, from inclusive to exclusive; a satellite without one is out while set. */
   crossingHours: [number, number] | null;
@@ -567,11 +574,13 @@ export function filterChips(filter: CatalogFilter, leaves: Partial<Record<FacetK
   return chips;
 }
 
-/** "300–600 km", or open-ended where a box reaches past its plot's axis, or "any" past both. */
-function formatKmRange([from, to]: [number, number]): string {
-  const km = (value: number) => Math.round(value).toLocaleString("en-US");
+/** "300–600 km", or open-ended where a range reaches past its plot's axis ("over 2,000 km"), or "any" past both. */
+export function formatOpenRange([from, to]: [number, number], format: (value: number) => string, unit: string): string {
   if (from === -Infinity && to === Infinity) return "any";
-  if (to === Infinity) return `over ${km(from)} km`;
-  if (from === -Infinity) return `under ${km(to)} km`;
-  return `${km(from)}–${km(to)} km`;
+  if (to === Infinity) return `over ${format(from)}${unit}`;
+  if (from === -Infinity) return `under ${format(to)}${unit}`;
+  return `${format(from)}–${format(to)}${unit}`;
 }
+
+/** A chip's km range, in whole km with thousands separators. */
+const formatKmRange = (range: [number, number]) => formatOpenRange(range, (km) => Math.round(km).toLocaleString("en-US"), " km");
