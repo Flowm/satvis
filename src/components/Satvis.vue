@@ -47,7 +47,6 @@
       <toolbar-panel v-show="menu.sat" title="Components" @close="closePanel('sat')">
         <label v-for="componentName in SATELLITE_COMPONENTS" :key="componentName" class="toolbarSwitch">
           <input v-model="enabledComponents" type="checkbox" :value="componentName" />
-          <span class="slider"></span>
           {{ componentName }}
         </label>
       </toolbar-panel>
@@ -60,13 +59,11 @@
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('layers') }">Basemap</div>
         <label v-for="name in baseLayers" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('layers') }">
           <input type="radio" name="basemap" :value="name" :checked="baseLayer === name" @change="setBaseLayer(name)" />
-          <span class="slider"></span>
           {{ name }}
         </label>
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('layers') }">Overlays</div>
         <label v-for="name in overlayLayers" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('layers') }">
           <input type="checkbox" :checked="hasOverlay(name)" @change="toggleOverlay(name, ($event.target as HTMLInputElement).checked)" />
-          <span class="slider"></span>
           {{ name }}
         </label>
         <div v-if="inertReason('layers')" class="toolbarNote">{{ inertReason("layers") }}</div>
@@ -75,14 +72,12 @@
              imposing surface model overrides; disabled while imposed. -->
         <label v-for="name in terrainNames" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('terrain') }">
           <input type="radio" name="terrain" :value="name" :checked="activeTerrain === name" :disabled="terrainImposed" @change="terrainProvider = name" />
-          <span class="slider"></span>
           {{ name }}
         </label>
         <div v-if="inertReason('terrain')" class="toolbarNote">{{ inertReason("terrain") }}</div>
         <div class="toolbarTitle">Surface</div>
         <label v-for="name in SURFACE_MODELS" :key="name" class="toolbarSwitch">
           <input v-model="surfaceModel" type="radio" :value="name" />
-          <span class="slider"></span>
           {{ name }}
         </label>
         <div v-if="surfaceUnavailable" class="toolbarNote">{{ surfaceUnavailable }}</div>
@@ -90,7 +85,6 @@
         <div class="toolbarTitle">Star map</div>
         <label v-for="name in starMapOptions" :key="name" class="toolbarSwitch">
           <input v-model="starMap" type="radio" :value="name" />
-          <span class="slider"></span>
           {{ name }}
         </label>
       </toolbar-panel>
@@ -100,14 +94,12 @@
         <!-- None is checked in the sky view: a checked projection read as the active one. -->
         <label v-for="name in projections" :key="name" class="toolbarSwitch">
           <input type="radio" name="projection" :checked="!inSkyView && sceneMode === name" @change="sceneMode = name" />
-          <span class="slider"></span>
           {{ name }}
         </label>
         <div v-if="inSkyView" class="toolbarNote">In the sky view. Pick one to return to the globe.</div>
         <div class="toolbarTitle">Camera</div>
         <label v-for="name in CAMERA_MODES" :key="name" class="toolbarSwitch">
           <input v-model="cameraMode" type="radio" :value="name" :disabled="inSkyView" />
-          <span class="slider"></span>
           {{ name }}
         </label>
         <div v-if="inSkyView" class="toolbarNote">The sky view holds the camera.</div>
@@ -116,18 +108,16 @@
         <div class="toolbarTitle">Sky view</div>
         <label class="toolbarSwitch">
           <input type="checkbox" :checked="inSkyView" :disabled="locating" @change="onSkyToggle" />
-          <!-- The spinner replaces the slider while the device's position comes back. -->
+          <!-- The spinner replaces the mark while the device's position comes back. -->
           <span v-if="locating" class="toolbarSpinner"></span>
-          <span v-else class="slider"></span>
           Look up
         </label>
         <div class="toolbarNote">Start sky view from your current location. To look up elsewhere, use a location pin’s sky view button.</div>
         <div v-if="compassOffered || !cc.minimalUI" class="toolbarTitle">Aiming</div>
         <label v-if="compassOffered" class="toolbarSwitch">
           <input type="checkbox" :checked="compassActive" :disabled="compassPending || !inSkyView" @change="onCompassToggle" />
-          <!-- The spinner replaces the slider: both occupy the row's left gutter. -->
+          <!-- The spinner replaces the mark while the sensor is probed. -->
           <span v-if="compassPending" class="toolbarSpinner"></span>
-          <span v-else class="slider"></span>
           Use compass
         </label>
         <!-- Hidden in minimalUI (iOS, iframe), where there is no keyboard. -->
@@ -135,7 +125,6 @@
         <div class="toolbarTitle">Out of sight</div>
         <label v-for="mode in UNSEEN_MODES" :key="mode" class="toolbarSwitch">
           <input v-model="unseen" type="radio" :value="mode" :disabled="!inSkyView" />
-          <span class="slider"></span>
           {{ UNSEEN_LABEL[mode] }}
         </label>
         <div class="toolbarNote">In Earth's shadow, too far away or during daylight.</div>
@@ -144,52 +133,43 @@
         <div class="toolbarTitle">Measurement</div>
         <label class="toolbarSwitch">
           <input v-model="showFps" type="checkbox" />
-          <span class="slider"></span>
           FPS
         </label>
         <label class="toolbarSwitch">
           <input v-model="showBenchmark" type="checkbox" />
-          <span class="slider"></span>
           Benchmark
         </label>
         <!-- Under Measurement: with render-on-demand on, frame gaps measure idleness, not scene cost. -->
         <label class="toolbarSwitch">
           <input v-model="requestRenderMode" type="checkbox" />
-          <span class="slider"></span>
           RequestRender
         </label>
         <div class="toolbarTitle">Scene effects</div>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.fog.enabled" type="checkbox" />
-          <span class="slider"></span>
           Fog
         </label>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.globe.enableLighting" type="checkbox" />
-          <span class="slider"></span>
           Lighting
         </label>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.highDynamicRange" type="checkbox" />
-          <span class="slider"></span>
           HDR
         </label>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.globe.showGroundAtmosphere" type="checkbox" />
-          <span class="slider"></span>
           Atmosphere
         </label>
         <!-- Ladders rather than switches; see src/config/rendering.ts. -->
         <div class="toolbarTitle">Pixel ratio</div>
         <label v-for="ratio in pixelRatioOptions" :key="ratio" class="toolbarSwitch">
           <input v-model="pixelRatio" type="radio" :value="ratio" />
-          <span class="slider"></span>
           {{ ratio === "native" ? `${devicePixelRatio.toFixed(1)}x (Native)` : `${Number(ratio).toFixed(1)}x` }}
         </label>
         <div class="toolbarTitle">Antialiasing (MSAA)</div>
         <label v-for="rate in MSAA_RATES" :key="rate" class="toolbarSwitch">
           <input v-model="msaa" type="radio" :value="rate" />
-          <span class="slider"></span>
           {{ rate === "off" ? "Off" : `${rate}x` }}
         </label>
       </toolbar-panel>
