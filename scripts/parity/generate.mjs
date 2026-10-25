@@ -538,6 +538,23 @@ try {
     text: bookmarks.timeAgo(bookmarkNow - ago, bookmarkNow),
   }));
 
+  // Lower-detail copies (ADR 0007): the level a model is drawn at, from the size of the
+  // level drawn now, either side of each maxPoints and of its hysteresis.
+  const { MODEL_LEVEL_HYSTERESIS, modelLevel } = await runner.import("/src/config/modelLevels.ts");
+  const LOD_SETS = [
+    [],
+    [{ file: "a-low.glb", maxPoints: 100 }],
+    [
+      { file: "a-mid.glb", maxPoints: 300 },
+      { file: "a-low.glb", maxPoints: 100 },
+    ],
+  ];
+  const modelLevels = LOD_SETS.flatMap((lods, set) =>
+    [10, 79.9, 80, 99, 100, 100.1, 239.9, 240, 300, 300.1, 1000].flatMap((diameter) =>
+      [0, 1, 2, 3].map((current) => [set, diameter, current, modelLevel(diameter, current, lods)]),
+    ),
+  );
+
   const output = {
     generatedBy: "scripts/parity/generate.mjs",
     parsed,
@@ -553,6 +570,8 @@ try {
     greenwichHourAngle: hourAngles,
     visibility: { sunDirections, shadows, verdicts },
     bookmarks: { now: BOOKMARK_NOW, summaries, ages, openedLimit: bookmarks.OPENED_LIMIT },
+    // Each case is [lodSets index, diameter, current level, level].
+    modelLevels: { hysteresis: MODEL_LEVEL_HYSTERESIS, lodSets: LOD_SETS, cases: modelLevels },
     links: { vocabulary, presets: PRESETS, defaults: globalDefaults, fieldKinds, cases: links, sanitized },
   };
   fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);

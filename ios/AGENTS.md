@@ -108,7 +108,10 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   sensor cones are drawn per frame from the same interpolation, cut where they
   meet the ground. Both are for low orbits only, as on the web.
 - 3D models are the web app's files, fetched from the site's `/data/models/` by
-  the `modelFile` a record carries and cached as the tiles are. `ModelAsset`
+  the `model` a record carries (`SatelliteModel`, else its `modelFile`) and cached
+  as the tiles are. The model's copies are drawn while it is small and not
+  tracked, chosen by `ModelLevel`, which the parity fixtures hold to the web
+  app's (ADR 0007). `ModelAsset`
   reads only what `data/models` uses (triangles, Draco, base colours, PNG, JPEG
   and WebP textures); Draco is DracoSwift's prebuilt 1.5.7 behind `DracoBridge`.
   Sizes, the point and label around a model and the close-up tracking follow

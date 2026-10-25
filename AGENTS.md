@@ -71,8 +71,8 @@ workspace package). One `pnpm install` at the root covers both.
   sampling grid, element-set parsing, pass prediction, the info panel's details
   and passes, the URL codec, the sky view's visibility (`visibility.ts`), the
   analytics sanitising (`posthogPrivacy.ts`), the pixel ratios
-  (`config/rendering.ts`), or those tables; CI fails while the committed output
-  is stale.
+  (`config/rendering.ts`), the model levels (`config/modelLevels.ts`), or those
+  tables; CI fails while the committed output is stale.
 - `pnpm test:e2e` renders with SwiftShader, as a GPU-less CI runner does;
   `pnpm test:e2e:gpu` runs the same specs about four times faster on a Mac.
 - The full e2e suite takes 10+ minutes even on the GPU, so run it only when
