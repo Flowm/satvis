@@ -339,11 +339,11 @@ private struct CircleToggleStyle: ToggleStyle {
         }
         .buttonStyle(PanelRowStyle())
         .accessibilityRepresentation {
-            // A switch's own style, or the panel's would draw this one too.
+            // Not pinned to `.switch`: that nests a second, unhittable switch in
+            // the row for VoiceOver and the UI tests to stop at.
             Toggle(isOn: configuration.$isOn) {
                 configuration.label
             }
-            .toggleStyle(.switch)
         }
     }
 }
