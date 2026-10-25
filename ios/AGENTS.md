@@ -309,7 +309,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
 - The Graphics menu's "Frame rate" caps the globe at 30, 60 or 120 frames a second
   (`preferredFramesPerSecond`), offering only what the screen shows: 120 on a
   ProMotion screen, which an iPhone gives an app only with
-  `CADisableMinimumFrameDuration` in `Info.plist`. The simulator reports 60
+  `CADisableMinimumFrameDurationOnPhone` in `Info.plist` (without `OnPhone`
+  it is ignored, and held 120 to 60). The simulator reports 60
   whatever it models. The web app has no such parameter, so the rate is kept in
   `UserDefaults`, not links; a benchmark records it as `app_frame_rate`. That
   rate is a cap: a frame is skipped, and the last one left on screen, while
