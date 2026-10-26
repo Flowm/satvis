@@ -196,23 +196,23 @@
     </div>
     <!-- The native app's corner, in its order: the eye first, so it stays put as the others come and go. -->
     <div id="toolbarRight">
-      <UTooltip :text="showUI ? 'Hide UI' : 'Show UI'">
-        <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="showUI ? 'Hide UI' : 'Show UI'" @click="toggleUI">
+      <UTooltip :text="uiLabel">
+        <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="uiLabel" @click="toggleUI">
           <UIcon :name="showUI ? 'lucide:eye' : 'lucide:eye-off'" />
         </button>
       </UTooltip>
       <template v-if="showUI">
-        <UTooltip :text="inSkyView ? 'Leave the sky view' : 'Home view'">
-          <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="inSkyView ? 'Leave the sky view' : 'Home view'" @click="goHome">
+        <UTooltip :text="homeLabel">
+          <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="homeLabel" @click="goHome">
             <UIcon name="lucide:globe" />
           </button>
         </UTooltip>
-        <UTooltip v-if="inSkyView && compassOffered" :text="compassActive ? 'Stop aiming by compass' : 'Aim by compass'">
+        <UTooltip v-if="inSkyView && compassOffered" :text="compassLabel">
           <button
             type="button"
             class="cesium-button cesium-toolbar-button"
             :class="{ 'toolbarRight__button--on': compassActive }"
-            :aria-label="compassActive ? 'Stop aiming by compass' : 'Aim by compass'"
+            :aria-label="compassLabel"
             :disabled="compassPending"
             @click="toggleCompassAim"
           >
@@ -418,6 +418,11 @@ async function onCompassToggle(event: Event): Promise<void> {
   await toggleCompassAim();
   (event.target as HTMLInputElement).checked = compassActive.value;
 }
+
+/** The corner's names, the native app's, for its tooltips and screen readers alike. */
+const uiLabel = computed(() => (showUI.value ? "Hide UI" : "Show UI"));
+const homeLabel = computed(() => (inSkyView.value ? "Leave the sky view" : "Home view"));
+const compassLabel = computed(() => (compassActive.value ? "Stop aiming by compass" : "Aim by compass"));
 
 /** The corner's globe: out of the sky view, else home, letting go of what is followed, as the native app's. */
 function goHome(): void {

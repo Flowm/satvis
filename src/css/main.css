@@ -55,7 +55,6 @@ body {
   /* The iOS app's 16 points of a 44-point row: a panel's corners, and the corner buttons',
      so the menu column folded to its toggle is their twin. */
   --panel-radius: calc(var(--toolbar-row) * 16 / 44);
-  --button-radius: var(--panel-radius);
   /* From the screen's edge, or its safe area, to the menu column and the corner buttons,
      and between those and the entity info panel below them. */
   --edge: 12px;
@@ -184,7 +183,7 @@ body {
 /* The iOS app's buttons, lit and grown while pressed where Cesium's turn blue. */
 #toolbarRight .cesium-button {
   margin: 0;
-  border-radius: var(--button-radius);
+  border-radius: var(--panel-radius);
   color: var(--panel-ink);
   fill: var(--panel-ink);
   box-shadow: none;
