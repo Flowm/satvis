@@ -141,19 +141,25 @@ watch(() => (props.row.kind === "group" ? props.row.state : undefined), syncInde
   font-variant-numeric: tabular-nums;
 }
 
+/* The accent, as the iOS app's tint draws it. */
 .browser-info {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   background: none;
   border: none;
+  border-radius: 4px;
   padding: 0 2px;
   cursor: pointer;
-  color: #8a9797;
+  color: var(--panel-accent);
 }
 
 .browser-info:hover {
   color: var(--panel-ink);
+}
+
+.browser-info:focus-visible {
+  outline: 2px solid var(--panel-accent);
 }
 
 .browser-groups {

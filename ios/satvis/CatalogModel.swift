@@ -118,10 +118,11 @@ final class CatalogModel {
         await loader.revalidate(groups.map(\.name), deliver: deliver(to: groups))
     }
 
-    /// Every tag a browsable group carries, in the preset's order.
+    /// Every tag a browsable group carries, A to Z as the web app's `localeCompare` lists them.
     var tags: [String] {
         var seen = Set<String>()
         return groups.filter { !$0.searchOnly }.flatMap(\.tags).filter { seen.insert($0).inserted }
+            .sorted { $0.localizedCompare($1) == .orderedAscending }
     }
 
     /// Satellites carrying a tag, loading its groups first.
