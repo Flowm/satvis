@@ -2,7 +2,7 @@
      location are tabs, because stacking them overflowed a 500 px window by almost 900 px. -->
 <template>
   <div v-if="selection" class="entity-info-panel">
-    <UCard :ui="{ root: 'bg-(--panel-surface)/95 text-(--panel-ink) divide-neutral-600', header: 'p-2 sm:px-3', body: 'p-0 sm:p-0' }">
+    <UCard :ui="{ root: 'bg-(--panel-surface-dense) text-(--panel-ink) divide-(--panel-hairline)', header: 'p-2 sm:px-3', body: 'p-0 sm:p-0' }">
       <template #header>
         <div class="head">
           <div class="head__title">

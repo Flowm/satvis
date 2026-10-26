@@ -61,6 +61,7 @@ struct BookmarksView: View {
             }
             .navigationTitle("Bookmarks")
             .navigationBarTitleDisplayMode(.inline)
+            .panelSheet()
             .toolbar {
                 // The view on screen, where the corner's Share button was; made when
                 // tapped, so that a clock off the present gives its minute then.

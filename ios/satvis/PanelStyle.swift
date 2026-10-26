@@ -1,32 +1,67 @@
 import SwiftUI
 
-// The app's surfaces, shared with the web app (src/css/main.css): the system's dark
-// grouped backgrounds, whose `#1c1c1e` the lists' rows already are, so a panel over
-// the globe and the info panel beside it are one material. What floats over the
-// globe is the surface at 85 %, with a light edge and a glow along the top where
-// Liquid Glass has its rim. Nothing blurs the globe behind it: the open menu column
-// cost an iPad mini's compositor 5.1 ms of GPU a frame in Liquid Glass, 1.2 ms
-// frosted with `.ultraThinMaterial`, and 0.1 ms so. A shadow under it cost 0.8 ms more.
+// The app's surfaces, shared with the web app (src/css/main.css, `--panel-*`): the
+// system's dark grouped backgrounds, a surface of `#1c1c1e` and on it raised rows of
+// `#2c2c2e`, the system's separator between them, the web app's ink and cyan, and the
+// system's red for what removes. Nothing blurs the globe: the open menu column cost an
+// iPad mini's compositor 5.1 ms of GPU a frame in Liquid Glass, 1.2 ms frosted with
+// `.ultraThinMaterial`, and 0.1 ms drawn. A shadow under it cost 0.8 ms more. Where
+// a panel floats over the globe it has a light edge and a glow along the top where
+// Liquid Glass has its rim, and lets the globe through as `PanelDensity` says.
 
 extension Color {
-    /// What floats over the globe, and the lists' rows: the web app's `#1c1c1e`.
-    static let panelSurface = Color(uiColor: .secondarySystemGroupedBackground)
-    /// A card on a surface: the web app's `#2c2c2e`.
-    static let panelRaised = Color(uiColor: .tertiarySystemGroupedBackground)
-    /// The web app's `#edffff`.
+    /// What floats over the globe, the info panel and the sheets: the web app's
+    /// `#1c1c1e`.
+    static let panelSurface = Color(uiColor: .secondarySystemGroupedBackground.atBaseLevel)
+    /// A row or a card on a surface: the web app's `#2c2c2e`, which a sheet's list
+    /// rows already are.
+    static let panelRaised = Color(uiColor: .tertiarySystemGroupedBackground.atBaseLevel)
+    /// The web app's `#edffff`. The secondary style is this, fainter: the web app's
+    /// muted ink is it at 60 %.
     static let panelInk = Color(red: 0xED / 255, green: 1, blue: 1)
     /// The web app's cyan, `#7fd2ea`, for what is open or chosen.
     static let panelAccent = Color(red: 127 / 255, green: 210 / 255, blue: 234 / 255)
+    /// "Not where it rests", as on the web: the clock deck's reset, a stale element set.
+    static let panelAmber = Color(red: 1, green: 0xD4 / 255, blue: 0x79 / 255)
+}
+
+extension UIColor {
+    /// Resolved at the base level wherever it is drawn: a sheet's elevated level
+    /// lifts the grouped backgrounds a step, `#2c2c2e` and `#3a3a3c`.
+    fileprivate var atBaseLevel: UIColor {
+        UIColor { traits in
+            self.resolvedColor(with: traits.modifyingTraits { $0.userInterfaceLevel = .base })
+        }
+    }
+}
+
+/// How much of the globe a surface over it hides: the web app's
+/// `--panel-surface-float` and `--panel-surface-dense`.
+enum PanelDensity {
+    /// The menu column, the corner buttons, the clock deck and the sky view's card:
+    /// a few large glyphs, which the globe can show through.
+    case float
+    /// The tool panels, the info panel and the sheets: rows of small text, which
+    /// the globe and its labels show behind faintly, and do not bleed through.
+    case dense
+
+    var opacity: Double {
+        switch self {
+        case .float: 0.85
+        case .dense: 0.9
+        }
+    }
+}
+
+extension EnvironmentValues {
+    /// How dense the panels under it are.
+    @Entry var panelDensity = PanelDensity.float
 }
 
 extension View {
-    /// Floating over the globe, in `shape`.
+    /// Floating over the globe, in `shape`, in the panels' ink.
     func panel(in shape: some InsettableShape) -> some View {
-        background {
-            shape.fill(Color.panelSurface.opacity(0.85))
-                .overlay(shape.fill(LinearGradient(colors: [.white.opacity(0.05), .clear], startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.35))))
-        }
-        .overlay(shape.strokeBorder(PanelEdge.gradient, lineWidth: 1))
+        modifier(PanelBackground(shape: shape))
     }
 
     /// Floating over the globe, its corners `cornerRadius` points round: every
@@ -35,6 +70,36 @@ extension View {
     /// shape, not a capsule.
     func panel(cornerRadius: CGFloat = 16) -> some View {
         panel(in: .rect(cornerRadius: cornerRadius))
+    }
+
+    /// A navigation stack's list on what is behind it, the info panel's surface:
+    /// the list's background and the stack's cleared, which were black on an iPad.
+    func panelList() -> some View {
+        scrollContentBackground(.hidden)
+            .containerBackground(.clear, for: .navigation)
+    }
+
+    /// A sheet on the dense surface, as the info panel: the system's is solid, or
+    /// Liquid Glass, which blurs the globe behind it every frame.
+    func panelSheet() -> some View {
+        panelList()
+            .presentationBackground(Color.panelSurface.opacity(PanelDensity.dense.opacity))
+    }
+}
+
+/// The surface of `panel(in:)`, as dense as the environment says.
+private struct PanelBackground<S: InsettableShape>: ViewModifier {
+    let shape: S
+    @Environment(\.panelDensity) private var density
+
+    func body(content: Content) -> some View {
+        content
+            .foregroundStyle(Color.panelInk)
+            .background {
+                shape.fill(Color.panelSurface.opacity(density.opacity))
+                    .overlay(shape.fill(LinearGradient(colors: [.white.opacity(0.05), .clear], startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.35))))
+            }
+            .overlay(shape.strokeBorder(PanelEdge.gradient, lineWidth: 1))
     }
 }
 

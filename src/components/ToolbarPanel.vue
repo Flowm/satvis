@@ -18,6 +18,7 @@ const emit = defineEmits<{ close: [] }>();
 <style scoped>
 .toolbarPanel {
   padding-bottom: 4px;
+  background: var(--panel-glow), var(--panel-surface-dense);
 }
 
 .toolbarPanel--fixed {
@@ -49,7 +50,7 @@ const emit = defineEmits<{ close: [] }>();
   height: var(--toolbar-row);
   margin-bottom: 4px;
   padding-left: 4px;
-  border-bottom: 1px solid #ffffff1f;
+  border-bottom: 1px solid var(--panel-hairline);
   font-size: 15px;
   font-weight: 600;
 }

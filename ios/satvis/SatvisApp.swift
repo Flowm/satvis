@@ -22,6 +22,7 @@ struct SatvisApp: App {
         WindowGroup {
             ContentView(session: session)
                 .preferredColorScheme(.dark)
+                .tint(Color.panelAccent)
         }
         // Element sets drift, and the four days ahead move on: predict the pass
         // notifications again from the newest. The next refresh is asked for
@@ -324,9 +325,10 @@ struct ContentView: View {
             if sizeClass == .regular, session.selection != nil {
                 infoPanel
                     .frame(width: Self.cardWidth)
-                    // Opaque: glass this large, blurring a globe that changes every
-                    // frame, costs the compositor as much as the inspector did.
-                    .background(Color(uiColor: .systemBackground))
+                    // Dense, not glass: glass this large, blurring a globe that
+                    // changes every frame, costs the compositor as much as the
+                    // inspector did.
+                    .background(Color.panelSurface.opacity(PanelDensity.dense.opacity))
                     .clipShape(.rect(cornerRadius: 28))
                     .padding([.vertical, .trailing], 12)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -340,7 +342,10 @@ struct ContentView: View {
                 if !$0 { session.select(nil) }
             }
         ) {
+            // Dense, as the card: Liquid Glass showed the globe behind it
+            // magnified and blurred, under the name and the first rows.
             infoPanel
+                .presentationBackground(Color.panelSurface.opacity(PanelDensity.dense.opacity))
                 .presentationDetents([.medium, .large])
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }

@@ -51,7 +51,7 @@
       </toolbar-panel>
       <!-- v-if, not v-show: the virtualized list measures its scroll element on mount,
            and a hidden mount measures 0. Search and expansion state survive remounts in useSatelliteBrowser. -->
-      <toolbar-panel v-if="menu.cat" title="Satellites" wide class="toolbarSwitches--catalog" @close="closePanel('cat')">
+      <toolbar-panel v-if="menu.cat" title="Satellites" wide @close="closePanel('cat')">
         <satellite-browser @show-info="onShowInfo" @browse="openCatalog" />
       </toolbar-panel>
       <!-- The full catalog grows out of the Satellites panel and takes its place; inside #toolbarLeft so it stacks over the clock. -->

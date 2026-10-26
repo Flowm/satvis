@@ -5,7 +5,7 @@
 .catalogCustom {
   --cs-bg: var(--panel-surface-dense);
   --cs-raised: #ffffff0f;
-  --cs-line: #ffffff1f;
+  --cs-line: var(--panel-hairline);
   --cs-text: var(--panel-ink);
   --cs-dim: #b8c4c4;
   --cs-mute: #8a9797;

@@ -47,7 +47,7 @@ struct ClockDeck<Accessory: View>: View {
         .foregroundStyle(Color.panelInk)
         .background {
             DeckShape(left: leftExtent, right: rightExtent, tabHeight: Metrics.rowHeight, radius: Metrics.radius, isOpen: isOpen)
-                .fill(Color.panelSurface.opacity(0.85))
+                .fill(Color.panelSurface.opacity(PanelDensity.float.opacity))
                 .shadow(color: .black.opacity(isOpen ? 0.5 : 0.65), radius: 10, y: isOpen ? -2 : 4)
                 .padding(.bottom, isOpen ? 0 : Metrics.scaleHeight)
                 .ignoresSafeArea(edges: isOpen ? [.bottom, .horizontal] : [])
@@ -120,7 +120,7 @@ struct ClockDeck<Accessory: View>: View {
                         onLadder.toggle()
                     }
                     if resettable {
-                        chip(onLadder ? "Back to real time" : "Back to now", symbol: "arrow.counterclockwise", fill: Color.deckAmber.opacity(0.12), tint: Color.deckAmber) {
+                        chip(onLadder ? "Back to real time" : "Back to now", symbol: "arrow.counterclockwise", fill: Color.panelAmber.opacity(0.12), tint: Color.panelAmber) {
                             if onLadder {
                                 clock.setMultiplier(1)
                             } else {
@@ -302,7 +302,7 @@ private struct TimelineScale: View {
         // The needle runs on down to the bottom edge, with the surface.
         .overlay {
             Rectangle()
-                .fill(Color.deckAmber)
+                .fill(Color.panelAmber)
                 .frame(width: 2)
                 .ignoresSafeArea(edges: .bottom)
                 .allowsHitTesting(false)
@@ -411,11 +411,6 @@ private struct Ladder: View {
         .accessibilityLabel("Playback speed")
         .accessibilityValue(SimulationClock.rateLabel(clock.clock.multiplier))
     }
-}
-
-extension Color {
-    /// The app's colour for "not where it rests": the needle and the reset.
-    static let deckAmber = Color(red: 1, green: 0xD4 / 255, blue: 0x79 / 255)
 }
 
 /// The web app's sizes (ClockDeck.vue), shared by the layout and the surface.

@@ -322,7 +322,7 @@ function offsetOf(index: number): number {
 }
 
 .gsList__remove:hover {
-  color: #fca5a5;
+  color: var(--panel-destructive);
   opacity: 1;
 }
 

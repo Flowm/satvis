@@ -67,6 +67,7 @@ struct AboutView: View {
             }
             .navigationTitle("About Satvis")
             .navigationBarTitleDisplayMode(.inline)
+            .panelSheet()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
