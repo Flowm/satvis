@@ -129,7 +129,7 @@ struct ContentView: View {
             // benchmark panel shows its own measurements in its place.
             if session.showsPerformance, !session.showsBenchmark, let renderer = session.renderer {
                 PerformanceOverlay(renderer: renderer)
-                    .padding(.top, sizeClass == .regular ? 12 : 64)
+                    .padding(.top, sizeClass == .regular ? PanelMetrics.edge : PanelMetrics.underTopRow)
             }
         }
         .overlay(alignment: .topTrailing) {
@@ -191,7 +191,7 @@ struct ContentView: View {
                             infoHeight = height
                         }
                         .frame(width: frame.width, height: frame.height)
-                        .clipShape(.rect(cornerRadius: 16))
+                        .clipShape(.rect(cornerRadius: PanelMetrics.radius))
                         // The panels' surface, dense as the tool panels', but not
                         // their ink, which would light the lists' section headers.
                         .background {
@@ -302,7 +302,7 @@ struct ContentView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .panel()
-                .padding(.top, 64)
+                .padding(.top, PanelMetrics.underTopRow)
             }
         }
         .overlay(alignment: .bottom) {
@@ -466,9 +466,9 @@ struct ContentView: View {
             return nil
         }
         let room = proxy.frame(in: .global)
-        var width = max(min(Self.cardMaxWidth, cornerFrame.maxX - (menuFrame?.maxX ?? room.minX) - 8), Self.cardMinWidth)
+        var width = max(min(Self.cardMaxWidth, cornerFrame.maxX - (menuFrame?.maxX ?? room.minX) - PanelMetrics.gap), Self.cardMinWidth)
         let top = cornerFrame.minY
-        var bottom = min(deckFrame?.minY ?? room.maxY, room.maxY) - 8
+        var bottom = min(deckFrame?.minY ?? room.maxY, room.maxY) - PanelMetrics.gap
         if session.tracked != nil || session.observer != nil {
             // The globe's view fills the window, safe area and all. Narrower where
             // that leaves the card its width, as in landscape; else shorter.

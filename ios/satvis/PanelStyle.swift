@@ -68,7 +68,7 @@ extension View {
     /// panel's 16 unless told otherwise, the buttons' 12 and the 4 points the menu
     /// column sets its rows in, so the column folded to its toggle is a button's
     /// shape, not a capsule.
-    func panel(cornerRadius: CGFloat = 16) -> some View {
+    func panel(cornerRadius: CGFloat = PanelMetrics.radius) -> some View {
         panel(in: .rect(cornerRadius: cornerRadius))
     }
 
@@ -165,4 +165,9 @@ enum PanelMetrics {
     static let edge: CGFloat = 12
     /// Between the menu column and its panel, and between the corner's buttons.
     static let gap: CGFloat = 8
+    /// From the safe area's top to what sits under the menu toggle and the corner's
+    /// first button.
+    static let underTopRow = edge + row + gap
+    /// A panel's corners, a card's and the info card's.
+    static let radius: CGFloat = 16
 }

@@ -121,7 +121,7 @@ private struct ToolLabel: View {
         HStack(spacing: 4) {
             configuration.icon
                 .scaleEffect(scale)
-                .frame(width: 44 * scale)
+                .frame(width: PanelMetrics.row * scale)
             if !folded {
                 configuration.title
                     .font(.subheadline.weight(.medium))

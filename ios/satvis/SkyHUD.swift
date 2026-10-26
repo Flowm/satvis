@@ -82,7 +82,7 @@ private struct SkyInstruments: View {
                 }
             }
             .padding(.bottom, 136)
-            .padding(.trailing, infoCard.map { $0.maxY > size.height / 2 ? size.width - $0.minX + 8 : 0 } ?? 0)
+            .padding(.trailing, infoCard.map { $0.maxY > size.height / 2 ? size.width - $0.minX + PanelMetrics.gap : 0 } ?? 0)
         }
     }
 
