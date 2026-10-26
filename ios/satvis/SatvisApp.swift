@@ -56,6 +56,9 @@ struct ContentView: View {
     @State private var showsAcknowledgements = false
     @State private var showsAbout = false
     @State private var showsTools = false
+    /// The corner's eye, as the web app's Hide UI: off, the menu column, its panel,
+    /// the clock deck and the corner's other buttons hide, for a picture of the globe.
+    @State private var showsUI = true
     /// What was selected when a sheet folded the column on a phone, to unfold it
     /// again when the sheet closes; nil while no sheet folded it.
     @State private var foldedFor: Selection??
@@ -123,24 +126,28 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .topTrailing) {
+            // The web app's corner, in its order: the eye first, so it stays put as the
+            // others come and go, then the way home, then what the view in front offers.
             // The menu column's gap to a panel beside it.
             VStack(spacing: PanelMetrics.gap) {
-                // Always there, so the way back is where it always is.
-                Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
-                if session.observer != nil {
-                    Button(
-                        session.aim.compass.isAiming ? "Stop aiming by compass" : "Aim by compass",
-                        systemImage: session.aim.compass.isAiming ? "location.north.circle.fill" : "location.north.circle"
-                    ) { session.aim.toggleCompass() }
-                    Button(
-                        session.aim.passthrough.isShowing ? "Hide the camera" : "Show the camera",
-                        systemImage: session.aim.passthrough.isShowing ? "camera.fill" : "camera"
-                    ) { session.aim.togglePassthrough() }
-                    .disabled(session.aim.isStartingCamera)
-                }
-                // The way out of following something once its panel is closed.
-                if session.tracked != nil {
-                    Button("Stop tracking", systemImage: "video.slash") { session.stopTracking(animated: true) }
+                Button(showsUI ? "Hide UI" : "Show UI", systemImage: showsUI ? "eye" : "eye.slash") { showsUI.toggle() }
+                if showsUI {
+                    Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
+                    if session.observer != nil {
+                        Button(
+                            session.aim.compass.isAiming ? "Stop aiming by compass" : "Aim by compass",
+                            systemImage: session.aim.compass.isAiming ? "location.north.circle.fill" : "location.north.circle"
+                        ) { session.aim.toggleCompass() }
+                        Button(
+                            session.aim.passthrough.isShowing ? "Hide the camera" : "Show the camera",
+                            systemImage: session.aim.passthrough.isShowing ? "camera.fill" : "camera"
+                        ) { session.aim.togglePassthrough() }
+                        .disabled(session.aim.isStartingCamera)
+                    }
+                    // The way out of following something once its panel is closed.
+                    if session.tracked != nil {
+                        Button("Stop tracking", systemImage: "video.slash") { session.stopTracking(animated: true) }
+                    }
                 }
             }
             .labelStyle(.iconOnly)
@@ -219,6 +226,7 @@ struct ContentView: View {
             } action: {
                 toolsFrame = $0
             }
+            .shown(showsUI)
         }
         // Open from the start where there is room, as the web app's is on a desktop
         // and folded on a phone.
@@ -267,6 +275,7 @@ struct ContentView: View {
                     OpenStreetMapCredit(isOwed: session.mapCredits.contains(.openStreetMap)) { showsAcknowledgements = true }
                 }
                 .frame(maxWidth: .infinity)
+                .shown(showsUI)
             }
         }
         .onChange(of: session.isPicking) { _, picking in
@@ -466,6 +475,17 @@ struct ContentView: View {
             session.follow(target, animated: true)
         } else {
             session.stopTracking(animated: true)
+        }
+    }
+}
+
+extension View {
+    /// The view, or nothing while `isShown` is false. Taken away rather than faded:
+    /// faded and hidden from accessibility, the menu and the clock stayed in the
+    /// accessibility tree.
+    @ViewBuilder fileprivate func shown(_ isShown: Bool) -> some View {
+        if isShown {
+            self
         }
     }
 }

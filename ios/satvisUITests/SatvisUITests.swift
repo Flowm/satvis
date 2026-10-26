@@ -44,8 +44,33 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testOpensALink() {
         let app = launch(link: "/?tags=&sats=METOP-B&track=METOP-B&elements=Point,Label,Orbit")
-        XCTAssert(app.buttons["Stop tracking"].firstMatch.waitForExistence(timeout: 20))
+        let stop = app.buttons["Stop tracking"].firstMatch
+        XCTAssert(stop.waitForExistence(timeout: 20))
         XCTAssertFalse(app.navigationBars["METOP-B"].exists)
+        // The corner's, there while the panel is closed.
+        stop.tap()
+        XCTAssert(stop.waitForNonExistence(timeout: 5))
+        XCTAssert(app.buttons["Home view"].exists)
+    }
+
+    // The corner's eye hides the menu column, the clock deck and the corner's other
+    // buttons, as the web app's Hide UI does, and brings them back.
+    @MainActor
+    func testHidesTheUI() {
+        let app = launch()
+        let hide = app.buttons["Hide UI"]
+        XCTAssert(hide.waitForExistence(timeout: 30))
+        XCTAssert(menuToggle(app).exists)
+        hide.tap()
+        let show = app.buttons["Show UI"]
+        XCTAssert(show.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Home view"].exists)
+        XCTAssertFalse(menuToggle(app).exists)
+        // The clock deck's time, which is a button.
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label CONTAINS 'UTC'")).firstMatch.exists)
+        show.tap()
+        XCTAssert(app.buttons["Home view"].waitForExistence(timeout: 5))
+        XCTAssert(menuToggle(app).exists)
     }
 
     // The web app's menu column unfolds from the menu button, folded on a phone

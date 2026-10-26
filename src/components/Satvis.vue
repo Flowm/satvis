@@ -194,12 +194,38 @@
         <segmented-control v-model="msaa" label="Antialiasing (MSAA)" :options="MSAA_OPTIONS" />
       </toolbar-panel>
     </div>
+    <!-- The native app's corner, in its order: the eye first, so it stays put as the
+         others come and go, then the way home, then what the view in front offers. -->
     <div id="toolbarRight">
       <UTooltip :text="showUI ? 'Hide UI' : 'Show UI'">
         <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="showUI ? 'Hide UI' : 'Show UI'" @click="toggleUI">
           <UIcon :name="showUI ? 'lucide:eye' : 'lucide:eye-off'" />
         </button>
       </UTooltip>
+      <template v-if="showUI">
+        <UTooltip :text="inSkyView ? 'Leave the sky view' : 'Home view'">
+          <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="inSkyView ? 'Leave the sky view' : 'Home view'" @click="goHome">
+            <UIcon name="lucide:globe" />
+          </button>
+        </UTooltip>
+        <UTooltip v-if="inSkyView && compassOffered" :text="compassActive ? 'Stop aiming by compass' : 'Aim by compass'">
+          <button
+            type="button"
+            class="cesium-button cesium-toolbar-button"
+            :class="{ 'toolbarRight__button--on': compassActive }"
+            :aria-label="compassActive ? 'Stop aiming by compass' : 'Aim by compass'"
+            :disabled="compassPending"
+            @click="toggleCompassAim"
+          >
+            <UIcon name="lucide:compass" />
+          </button>
+        </UTooltip>
+        <UTooltip v-if="tracking && !inSkyView" text="Stop tracking">
+          <button type="button" class="cesium-button cesium-toolbar-button" aria-label="Stop tracking" @click="cc.viewer.trackedEntity = undefined">
+            <UIcon name="lucide:video-off" />
+          </button>
+        </UTooltip>
+      </template>
     </div>
     <!-- Outside showUI: it stays visible with hidden UI and in minimalUI. -->
     <entity-info-panel />
@@ -376,18 +402,34 @@ function leaveSkyView(): void {
   sceneMode.value = returnProjection.value;
 }
 
+/** The Sky panel's switch and the corner's button. Once aiming, the panel closes so it does not cover the sky. */
+async function toggleCompassAim(): Promise<void> {
+  await toggleCompass();
+  if (compassActive.value) {
+    menu.sky = false;
+  }
+}
+
 /**
  * iOS raises the permission prompt only from inside the click, so the box flips first and is corrected
  * by hand: Vue re-syncs a checkbox only when its bound value changes, and a refusal leaves it unchanged.
  */
 async function onCompassToggle(event: Event): Promise<void> {
-  await toggleCompass();
+  await toggleCompassAim();
   (event.target as HTMLInputElement).checked = compassActive.value;
-  // On success, close the panel so it does not cover the sky.
-  if (compassActive.value) {
-    menu.sky = false;
+}
+
+/** The corner's globe: out of the sky view, else home, letting go of what is followed, as the native app's. */
+function goHome(): void {
+  if (inSkyView.value) {
+    leaveSkyView();
+  } else {
+    cc.flyHome();
   }
 }
+
+/** Whether the camera follows a satellite or a station. Cesium's, so it is mirrored here. */
+const tracking = ref(cc.viewer.trackedEntity !== undefined);
 
 /** Aborted on unmount, removing the window listeners. */
 const windowListeners = new AbortController();
@@ -402,8 +444,13 @@ onMounted(() => {
   window.addEventListener("pointercancel", onPointerCancel, { capture: true, signal });
 });
 
+const removeTrackedListener = cc.viewer.trackedEntityChanged.addEventListener(() => {
+  tracking.value = cc.viewer.trackedEntity !== undefined;
+});
+
 onBeforeUnmount(() => {
   windowListeners.abort();
+  removeTrackedListener();
 });
 
 /** Pixels a press on the globe may travel and still count as a tap rather than a drag. */
