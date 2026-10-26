@@ -2,21 +2,7 @@
 // time passes, and which representation fits the scene. The satellite's collection
 // (SatelliteComponentCollection) holds them and asks.
 
-import {
-  ArcType,
-  BoundingSphere,
-  Cartesian2,
-  Cartesian3,
-  Color,
-  ColorGeometryInstanceAttribute,
-  DistanceDisplayCondition,
-  GeometryInstance,
-  type JulianDate,
-  NearFarScalar,
-  PerspectiveFrustum,
-  PolylineGeometry,
-  TimeInterval,
-} from "@cesium/core";
+import { BoundingSphere, Cartesian2, Cartesian3, Color, DistanceDisplayCondition, JulianDate, NearFarScalar, PerspectiveFrustum, TimeInterval } from "@cesium/core";
 import {
   CallbackProperty,
   ConstantProperty,
@@ -27,7 +13,6 @@ import {
   ModelGraphics,
   PathGraphics,
   PointGraphics,
-  PolylineColorAppearance,
   PolylineGlowMaterialProperty,
   PolylineGraphics,
   SceneMode,
@@ -45,10 +30,10 @@ import { coneDescription, coneOrientation, groundTrackSwath, modelUrl, orbitPath
 import type { SatelliteProperties } from "./SatelliteProperties";
 import { drawable } from "./util/drawablePositions";
 import { GroundTrack, type GroundTrackBatch } from "./util/GroundTrackBatch";
-import type { PolylineBatch } from "./util/PolylineBatch";
+import { BatchedLine, type PolylineBatch } from "./util/PolylineBatch";
 
-/** A GeometryInstance when merged into a shared orbit batch, a GroundTrack in the ground-track batch. */
-export type Component = Entity | GeometryInstance | GroundTrack;
+/** A BatchedLine when merged into a shared orbit batch, a GroundTrack in the ground-track batch. */
+export type Component = Entity | BatchedLine | GroundTrack;
 
 export type ComponentName = (typeof SATELLITE_COMPONENTS)[number];
 
@@ -141,10 +126,23 @@ function palette(alpha?: number): Palette {
 const PALETTES: Record<Exclude<SkyAppearance, "hidden">, Palette> = { normal: palette(), dimmedDaylight: palette(0.6), dimmedDark: palette(0.3) };
 
 /**
- * CSS pixels, the orbit's and the orbit track's. At 2 px the orbits bunched around a
- * zoomed-out globe read as bold; 1 px draws two thirds of their light.
+ * CSS pixels, the tracked satellite's orbit and orbit track paths. At 2 px the orbits
+ * bunched around a zoomed-out globe read as bold; 1 px draws two thirds of their light.
  */
 const ORBIT_WIDTH = 1;
+
+/**
+ * The batched lines' colours. A path is 1.5 CSS px wide at alpha 0.15 (Cesium adds half a
+ * pixel), a batched line 1 CSS px, so it carries the same light at half again the alpha.
+ */
+export const ORBIT_LINE_COLOR = Color.WHITE.withAlpha(0.225);
+export const ORBIT_TRACK_LINE_COLOR = Color.GOLD.withAlpha(0.225);
+
+/**
+ * When each batched orbit was cut, in simulation time. Past half a period it is recut
+ * on the next refill, so the satellite never reaches the drift ramp's quarter.
+ */
+const orbitCutAt = new WeakMap<BatchedLine, JulianDate>();
 
 // CSS pixels.
 const LABEL_OFFSET = 10;
@@ -357,6 +355,17 @@ export function modelCopies(host: ComponentHost): Entity[] {
   return (host.props.model?.lods ?? []).map((lod, i) => atSatellite(host, "model", modelGraphics(host, lod.file, i + 1)));
 }
 
+/**
+ * Has the point give way to the model once that is drawn large enough, only while the
+ * model is shown: Cesium evaluates a point's show callback every tick, and at 11,140
+ * Starlink points it was most of the tick, where a large group draws no model.
+ */
+export function deferPointToModel(point: Component | undefined, host: ComponentHost, modelShown: boolean): void {
+  if (point instanceof Entity && point.point) {
+    point.point.show = modelShown ? new CallbackProperty(() => (host.model.pixelDiameter() ?? 0) < MODEL_MARKER_PIXELS, false) : undefined;
+  }
+}
+
 /** Follows the satellite, facing along its velocity. */
 function bindAtSatellite(component: Component, host: ComponentHost): void {
   const position = host.props.trajectory.entityPosition;
@@ -386,27 +395,12 @@ function drawnAsPath(host: ComponentHost): boolean {
 }
 
 function fitsDrawing(component: Component, host: ComponentHost): boolean {
-  return drawnAsPath(host) ? component instanceof Entity : component instanceof GeometryInstance;
+  return drawnAsPath(host) ? component instanceof Entity : component instanceof BatchedLine;
 }
 
-function polylineInstance(positions: Cartesian3[], color: Color, id: string): GeometryInstance {
-  return new GeometryInstance({
-    geometry: new PolylineGeometry({
-      positions,
-      width: ORBIT_WIDTH,
-      arcType: ArcType.NONE,
-      vertexFormat: PolylineColorAppearance.VERTEX_FORMAT,
-    }),
-    attributes: {
-      color: ColorGeometryInstanceAttribute.fromColor(color),
-    },
-    id,
-  });
-}
-
-function orbitTrackInstance(host: ComponentHost, time: JulianDate): GeometryInstance | undefined {
+function orbitTrackLine(host: ComponentHost, time: JulianDate): BatchedLine | undefined {
   const positions = drawable(host.props.trajectory.positionsForTrack(time));
-  return positions && polylineInstance(positions, Color.GOLD.withAlpha(0.15), host.props.name);
+  return positions && new BatchedLine(positions, host.props.name);
 }
 
 /** Keyed by the config list, so a component without a kind is a compile error. */
@@ -425,9 +419,6 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
           color: POINT_COLOR[host.props.orbitClass],
           outlineColor: Color.DIMGREY,
           outlineWidth: 1,
-          ...(host.props.model && {
-            show: new CallbackProperty(() => (host.model.pixelDiameter() ?? 0) < MODEL_MARKER_PIXELS, false),
-          }),
         }),
       ),
     bind: bindAtSatellite,
@@ -478,8 +469,8 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
   Orbit: {
     create: (host) => {
       const { trajectory } = host.props;
-      trajectory.requireInertial();
       if (drawnAsPath(host)) {
+        trajectory.requireInertial();
         const path = new PathGraphics({
           ...orbitPathTimes(host.props.orbit.orbitalPeriod),
           material: Color.WHITE.withAlpha(0.15),
@@ -488,8 +479,13 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
         });
         return host.entity("path", path, trajectory.inertial, true);
       }
-      const positions = drawable(trajectory.positionsForNextOrbit(host.viewer.clock.currentTime));
-      return positions && polylineInstance(positions, new Color(1.0, 1.0, 1.0, 0.15), host.props.name);
+      const now = host.viewer.clock.currentTime;
+      const positions = drawable(trajectory.positionsForNextOrbit(now));
+      const line = positions && new BatchedLine(positions, host.props.name);
+      if (line) {
+        orbitCutAt.set(line, JulianDate.clone(now));
+      }
+      return line;
     },
     batch: (host) => host.batches.orbits,
     bind: (component, host, refilled) => {
@@ -498,7 +494,10 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
         component.position = host.props.trajectory.inertial;
         return undefined;
       }
-      return refilled ? "recreate" : undefined;
+      // Every refill recreating it rebuilt a batch chunk ten times a second at x1 with all active.
+      const cutAt = component instanceof BatchedLine ? orbitCutAt.get(component) : undefined;
+      const age = cutAt && Math.abs(JulianDate.secondsDifference(host.viewer.clock.currentTime, cutAt));
+      return refilled && (age === undefined || age >= (host.props.orbit.orbitalPeriod * 60) / 2) ? "recreate" : undefined;
     },
     fits: fitsDrawing,
   },
@@ -519,7 +518,7 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
         host.props.trajectory.requireSampled();
         return host.entity("path", path, host.props.trajectory.fixed, true);
       }
-      return orbitTrackInstance(host, host.viewer.clock.currentTime);
+      return orbitTrackLine(host, host.viewer.clock.currentTime);
     },
     batch: (host) => host.batches.tracks,
     bind: (component, host, refilled) => {
@@ -538,10 +537,10 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
      * primitive rebuild.
      */
     recut: (component, host, time) => {
-      if (!(component instanceof GeometryInstance)) {
+      if (!(component instanceof BatchedLine)) {
         return component;
       }
-      const next = orbitTrackInstance(host, time);
+      const next = orbitTrackLine(host, time);
       return next && host.batches.tracks.replace(component, next) ? next : component;
     },
     fits: fitsDrawing,

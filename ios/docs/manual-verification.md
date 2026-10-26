@@ -153,6 +153,9 @@ the web app now runs FXAA (ac4fdc3). The white and gold at 15 % still read over 
 Earth's land and sea. The globe's limb against space is still a hard edge: only a full-frame
 pass would smooth it.
 
+Since 2026-10-26 the web app no longer relies on FXAA for its batched orbit lines: they
+are one CSS pixel wide with their edges faded over a device pixel, as here, at 22.5 %.
+
 ## Native app: a link that names a component keeps it over its budget
 
 **Procedure.** Debug build in the iPhone 17e simulator against satvis.space, by a UI

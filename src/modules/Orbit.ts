@@ -67,8 +67,10 @@ const POLAR_RADIUS_KM = 6356.752;
  */
 const BEARING_SAMPLE_MS = 10_000;
 
-const MU_KM3_S2 = 398600.4418;
-const EARTH_ROTATION_RAD_S = 7.2921159e-5;
+/** The Earth's gravitational parameter, km³/s². */
+export const MU_KM3_S2 = 398600.4418;
+/** The Earth's rotation, rad/s. */
+export const EARTH_ROTATION_RAD_S = 7.2921159e-5;
 const INV_PHI = (Math.sqrt(5) - 1) / 2;
 
 /** Pass edge and peak resolution. A kilometre-wide swath can serve a station for under a second. */

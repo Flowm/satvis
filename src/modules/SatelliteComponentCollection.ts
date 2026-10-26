@@ -3,7 +3,7 @@ import { CallbackProperty, Camera, Entity, EntityView, type Scene, SceneMode, Ve
 import type { Viewer } from "@cesium/widgets";
 
 import { setPassHighlights } from "../composables/usePassHighlights";
-import { type Component, type ComponentHost, componentKind, modelCopies, ModelSize, type SatelliteBatches, type SkyAppearance } from "./componentKinds";
+import { type Component, type ComponentHost, componentKind, deferPointToModel, modelCopies, ModelSize, type SatelliteBatches, type SkyAppearance } from "./componentKinds";
 import type { GroundStation } from "./PassPredictor";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import { SatelliteProperties } from "./SatelliteProperties";
@@ -234,6 +234,9 @@ export class SatelliteComponentCollection implements ComponentHost {
       if (name === "3D model") {
         this.#modelCopies = modelCopies(this);
       }
+      if (name === "3D model" || name === "Point") {
+        deferPointToModel(this.#components.Point, this, "3D model" in this.#components);
+      }
       if (this.#skyAppearance !== "normal") {
         kind.appear?.(component, this);
         this.#modelCopiesOf(name).forEach((copy) => kind.appear?.(copy, this));
@@ -270,6 +273,7 @@ export class SatelliteComponentCollection implements ComponentHost {
       this.#modelCopies.forEach((copy) => this.viewer.entities.remove(copy));
       this.#modelCopies = [];
       this.model.reset();
+      deferPointToModel(this.#components.Point, this, false);
       this.#setViewFrom();
     }
 

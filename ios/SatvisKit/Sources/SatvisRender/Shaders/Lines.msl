@@ -1,9 +1,9 @@
 // Each satellite's orbit and orbit track, drawn through its samples as a line one
-// point wide in screen space, as the web app's PathGraphics and PolylineGeometry
-// draw them: the orbit white at 15 %, half a period either side, fixed in
-// inertial space and closed into a loop; the track gold at 15 %, a period ahead
-// over the turning Earth.
-// Its edges fade over a device pixel, where the web app smooths them with FXAA.
+// point wide in screen space, as the web app's PolylineBatch.ts draws them: the
+// orbit white, half a period either side, fixed in inertial space and closed into
+// a loop; the track gold, a period ahead over the turning Earth. Both at 15 %; the
+// web app's are at 22.5 %, for the light of its 1.5 px paths at 15 %.
+// Its edges fade over a device pixel, as the web app's do.
 
 struct LineOut {
     float4 position [[position]];

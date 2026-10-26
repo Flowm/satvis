@@ -1,4 +1,4 @@
-import { type BoundingSphere, type Cartesian2, Cartesian3, GeometryInstance, JulianDate, Math as CesiumMath, Matrix3, PerspectiveFrustum } from "@cesium/core";
+import { type BoundingSphere, type Cartesian2, Cartesian3, Color, JulianDate, Math as CesiumMath, Matrix3, PerspectiveFrustum } from "@cesium/core";
 import { Entity, type Property, Transforms } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -11,7 +11,7 @@ import { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { parseGpPayload, type GpRecord } from "./util/gp";
 import { GroundTrackBatch } from "./util/GroundTrackBatch";
 import { InlinePassSource } from "./util/passSource";
-import { PolylineBatch } from "./util/PolylineBatch";
+import { BatchedLine, PolylineBatch } from "./util/PolylineBatch";
 import { InlineSampleSource } from "./util/sampleSource";
 
 const LINK = "Ground station link";
@@ -24,6 +24,7 @@ const munich = (): GroundStation => ({ name: "Munich", position: { latitude: 48.
 function fakeViewer() {
   const entities = new Set<unknown>();
   const postRender = new Set<() => void>();
+  const ticks = new Set<() => void>();
   const trackedListeners = new Set<() => void>();
   const selectedListeners = new Set<() => void>();
   const removed: unknown[] = [];
@@ -31,7 +32,7 @@ function fakeViewer() {
     clock: {
       currentTime: JulianDate.fromIso8601("2018-12-08T00:00:00Z"),
       shouldAnimate: false,
-      onTick: { addEventListener: () => () => {} },
+      onTick: { addEventListener: (listener: () => void) => (ticks.add(listener), () => ticks.delete(listener)) },
     },
     scene: {
       requestRender: () => {},
@@ -93,7 +94,7 @@ function fakeViewer() {
       },
     },
   };
-  return { viewer: viewer as unknown as Viewer, entities, removed };
+  return { viewer: viewer as unknown as Viewer, entities, removed, tick: () => [...ticks].forEach((listener) => listener()) };
 }
 
 /**
@@ -101,7 +102,7 @@ function fakeViewer() {
  * worker before `model` wrote it, `modelFile` alone, unless it has `lods`.
  */
 async function setup({ modelFile = "ISS-(ZARYA).glb", lods }: { modelFile?: string | null; lods?: ModelLod[] } = {}) {
-  const { viewer, entities, removed } = fakeViewer();
+  const { viewer, entities, removed, tick } = fakeViewer();
   const record = parseGpPayload(TLE)[0] as GpRecord;
   if (modelFile !== null) {
     record.metadata = { modelFile, ...(lods && { model: { file: modelFile, lods } }) };
@@ -109,7 +110,11 @@ async function setup({ modelFile = "ISS-(ZARYA).glb", lods }: { modelFile?: stri
   const entry = new CatalogEntry({ key: "25544|ISS", name: "ISS", nameUpper: "ISS", satnum: "25544", tags: [], record });
   const sampler = new InlineSampleSource().samplerFor(entry.satnum, entry.record);
   const predictor = new InlinePassSource().predictorFor(entry.satnum, entry.record);
-  const batches = { orbits: new PolylineBatch(viewer, "inertial"), tracks: new PolylineBatch(viewer, "fixed"), groundTracks: new GroundTrackBatch(viewer) };
+  const batches = {
+    orbits: new PolylineBatch(viewer, "inertial", Color.WHITE),
+    tracks: new PolylineBatch(viewer, "fixed", Color.GOLD),
+    groundTracks: new GroundTrackBatch(viewer),
+  };
   const nowMs = JulianDate.toDate(viewer.clock.currentTime).getTime();
   const opening = (await sampler.samples(nowMs - 3600_000, nowMs + 3600_000))!;
   const sat = new SatelliteComponentCollection(viewer, entry, batches, sampler, predictor, opening);
@@ -118,6 +123,7 @@ async function setup({ modelFile = "ISS-(ZARYA).glb", lods }: { modelFile?: stri
     viewer,
     entities,
     removed,
+    tick,
     setModelRadius: (radius: number) => ((viewer as unknown as { modelRadius?: number }).modelRadius = radius),
     setMetresPerPixel: (metres: number) => ((viewer as unknown as { metresPerPixel: number }).metresPerPixel = metres),
   };
@@ -211,16 +217,35 @@ describe("SatelliteComponentCollection lines and ground tracks", () => {
   test("draw the tracked satellite's orbit as a path, and go back into the batch once it is let go", async () => {
     const { sat, viewer } = await setup();
     sat.show(["Point", "Orbit", "Orbit track"]);
-    expect(sat.components.Orbit).toBeInstanceOf(GeometryInstance);
-    expect(sat.components["Orbit track"]).toBeInstanceOf(GeometryInstance);
+    expect(sat.components.Orbit).toBeInstanceOf(BatchedLine);
+    expect(sat.components["Orbit track"]).toBeInstanceOf(BatchedLine);
 
     sat.track();
     expect(sat.components.Orbit).toBeInstanceOf(Entity);
     expect(sat.components["Orbit track"]).toBeInstanceOf(Entity);
 
     viewer.trackedEntity = undefined;
-    expect(sat.components.Orbit).toBeInstanceOf(GeometryInstance);
-    expect(sat.components["Orbit track"]).toBeInstanceOf(GeometryInstance);
+    expect(sat.components.Orbit).toBeInstanceOf(BatchedLine);
+    expect(sat.components["Orbit track"]).toBeInstanceOf(BatchedLine);
+  });
+
+  test("recut the batched orbit on a refill once it is half a period old, not on every refill", async () => {
+    const { sat, viewer, tick } = await setup();
+    sat.show(["Point", "Orbit"]);
+    const first = sat.components.Orbit;
+    // A refill each quarter period of simulation time.
+    const refill = async () => {
+      viewer.clock.currentTime = JulianDate.addSeconds(viewer.clock.currentTime, sat.props.orbit.orbitalPeriod * 15 + 1, new JulianDate());
+      tick();
+      await flush();
+    };
+
+    await refill();
+    expect(sat.components.Orbit).toBe(first);
+
+    await refill();
+    expect(sat.components.Orbit).toBeInstanceOf(BatchedLine);
+    expect(sat.components.Orbit).not.toBe(first);
   });
 });
 
@@ -434,7 +459,7 @@ describe("SatelliteComponentCollection beside its model", () => {
   const ALL = ["Point", "Label", "3D model"];
   const labelOffset = (sat: SatelliteComponentCollection, viewer: Viewer) =>
     ((sat.components.Label as Entity).label!.pixelOffset!.getValue(viewer.clock.currentTime) as Cartesian2).x;
-  const pointShown = (sat: SatelliteComponentCollection, viewer: Viewer) => (sat.components.Point as Entity).point!.show!.getValue(viewer.clock.currentTime);
+  const pointShown = (sat: SatelliteComponentCollection, viewer: Viewer) => (sat.components.Point as Entity).point!.show?.getValue(viewer.clock.currentTime) ?? true;
 
   test("starts the label past the model's edge, and hides the point the model stands in for", async () => {
     const { sat, viewer, setModelRadius } = await setup();
@@ -478,6 +503,24 @@ describe("SatelliteComponentCollection beside its model", () => {
     sat.show(ALL);
     expect(labelOffset(sat, viewer)).toBe(10);
     expect(pointShown(sat, viewer)).toBe(true);
+  });
+
+  test("asks the model only while it is shown, in either order", async () => {
+    const { sat, viewer, setModelRadius } = await setup();
+    setModelRadius(65);
+    const show = () => (sat.components.Point as Entity).point!.show;
+    sat.show(["Point"]);
+    // A show callback is evaluated for every point on every tick.
+    expect(show()).toBeUndefined();
+
+    sat.show(["3D model"]);
+    expect(pointShown(sat, viewer)).toBe(false);
+    sat.hide(["3D model"]);
+    expect(show()).toBeUndefined();
+
+    sat.hide(["Point"]);
+    sat.show(["3D model", "Point"]);
+    expect(pointShown(sat, viewer)).toBe(false);
   });
 });
 

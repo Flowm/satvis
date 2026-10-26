@@ -54,9 +54,9 @@ test("a running clock renders a few frames a second at the default view, and eve
   }
 });
 
-test("a running clock with a ground track renders every 1/30 s, which the pacer does not bound", async ({ page }) => {
+// The ribbon lies on the ground under the orbit, so from above the orbits it is paced as they are.
+test("a running clock with a ground track is paced at the default view", async ({ page }) => {
   await openApp(page, "elements=Point,Label,Ground+track");
   await waitForOpenedLinkThumbnail(page);
-  await waitTicks(page, 40);
-  expect(await page.evaluate(() => window.cc!.viewer.scene.maximumRenderTimeChange)).toBeCloseTo(1 / 30);
+  await expect.poll(() => page.evaluate(() => window.cc!.viewer.scene.maximumRenderTimeChange), { message: "paced, not the 1/30 s floor" }).toBeGreaterThan(0.1);
 });

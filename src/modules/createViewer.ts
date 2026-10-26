@@ -3,6 +3,8 @@
 import { Tonemapper } from "@cesium/engine";
 import { Viewer } from "@cesium/widgets";
 
+import { useConstantStylePoints } from "./util/ConstantStylePointVisualizer";
+
 /**
  * No `animation` or `timeline` widget: `ClockDeck.vue` replaces both.
  * `minimalUI` (`DeviceDetect.minimalUI`) only hides the fullscreen button.
@@ -10,6 +12,7 @@ import { Viewer } from "@cesium/widgets";
 export function createViewer(container: string | Element, options: { minimalUI: boolean }): Viewer {
   const { minimalUI } = options;
 
+  useConstantStylePoints();
   const viewer = new Viewer(container, {
     animation: false,
     // The store's layer stack is the only default; sceneSync applies it a tick later.
