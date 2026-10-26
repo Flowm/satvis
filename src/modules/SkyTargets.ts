@@ -4,7 +4,7 @@
 // `(azimuth - heading) * pixelsPerDegree` breaks at the zenith, where the derived
 // heading flips by 180°, and cannot express roll.
 
-import { Cartesian2, Cartesian3, Cartographic, Math as CesiumMath, JulianDate, Matrix3, Ray } from "@cesium/core";
+import { Cartesian2, Cartesian3, Math as CesiumMath, JulianDate, Matrix3, Ray } from "@cesium/core";
 import { type Scene, SceneTransforms } from "@cesium/engine";
 
 import type { SatelliteComponentCollection } from "./SatelliteComponentCollection";
@@ -24,7 +24,6 @@ export interface LookAngles {
 export interface SkyTarget extends LookAngles {
   sat: SatelliteComponentCollection;
   name: string;
-  altitudeKm: number;
   /** Fixed frame. */
   position: Cartesian3;
   /** In CSS pixels; undefined when behind the camera. */
@@ -87,7 +86,6 @@ export function skyTargets(scene: Scene, frame: ObserverFrame, satellites: reado
       position,
       // Height above the ellipsoid: geocentric radius varies 6357-6378 km with
       // latitude, a ~12 km bias.
-      altitudeKm: (Cartographic.fromCartesian(position)?.height ?? 0) / 1000,
       window: SceneTransforms.worldToWindowCoordinates(scene, position),
       visibility: visibility(elevationOfSun, !inEarthShadow(position, sun), angles.rangeKm),
     });

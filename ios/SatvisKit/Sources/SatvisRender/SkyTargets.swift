@@ -10,9 +10,8 @@ public struct SkyTarget: Sendable, Equatable {
     /// Degrees clockwise from north, and above the horizon.
     public let azimuth: Double
     public let elevation: Double
-    /// Kilometres from the eye, and above the ellipsoid.
+    /// Kilometres from the eye.
     public let range: Double
-    public let altitude: Double
     /// Where it is drawn, in points.
     public let screen: CGPoint
     /// Whether it could be seen by eye, now, from the observer.
@@ -125,7 +124,7 @@ extension DrawnFrame {
             }
             return SkyTarget(
                 id: satellites.id(at: index), name: satellites.name(at: index), azimuth: azimuth, elevation: elevation, range: range / 1000,
-                altitude: heightAboveEllipsoid(position) / 1000, screen: screen, visibility: judgement.visibility(of: position, from: eye))
+                screen: screen, visibility: judgement.visibility(of: position, from: eye))
         }
         if radius.isFinite, let directions {
             // Where the camera looks now, not where it looked for this frame: the
