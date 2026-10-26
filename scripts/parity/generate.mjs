@@ -505,6 +505,7 @@ try {
     [11.25, 30.5, 1540.2],
     [192.3, 47.06, 4999.5],
     [359.6, 89.6, 38_362.4],
+    [10, -0.3, 500],
   ].map(([azimuth, elevation, rangeKm]) => {
     const { text, spoken } = skyCard.lockPosition(azimuth, elevation, rangeKm);
     return { azimuth, elevation, rangeKm, text, spoken };
