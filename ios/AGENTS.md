@@ -152,8 +152,12 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   have no alerts until then. A shared link carries the visiting stations and the
   selected one, never the rest of the saved ones, which are often where the user
   lives. Sharing is the Bookmarks sheet's: its Share button shares the view on
-  screen and a card's Share its bookmark, so the top-right corner holds only
-  the ways back. The link is made when tapped, so a pinned clock gives its
+  screen and a card's Share its bookmark. The top-right corner is the web app's
+  `#toolbarRight`, with the same buttons, labels and conditions: Hide UI (the
+  eye, always, and alone while the UI is hidden), Home view or, in the sky view,
+  Leave the sky view, then Aim by compass and the camera in the sky view, or
+  Stop tracking while something is followed. The camera is the app's alone (ADR
+  0013); the rest are ways back and the view's own controls. The link is made when tapped, so a pinned clock gives its
   minute then, and handed to the system's share sheet as itself, which shows
   the site's own preview. satvis.space links open the app as universal links: the site's
   `public/.well-known/apple-app-site-association` claims `/ot` and `/` with a
@@ -237,7 +241,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   the App Store privacy label in step with it.
 - The menu column is the web app's (`Satvis.vue`'s `menuItems`): a Menu toggle
   over Bookmarks, Satellites, Components, Map, Locations, Globe, Sky and Graphics,
-  then About, which the web app keeps as a corner button, with their
+  then About, with their
   Lucide icons, names and order, and their hover hints, trimmed to what the
   app has, as VoiceOver hints, one panel (`PanelStyle.swift`, drawn rather than
   Liquid Glass, whose blur cost the compositor 5 ms of GPU a frame)
