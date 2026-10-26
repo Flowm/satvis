@@ -2,23 +2,14 @@
 // so the model's pixel diameter came out infinite, the label's pixel offset with it, and
 // its billboard collection's bounding radius NaN. Rendering stopped in the frustum split.
 
-import { readFileSync } from "node:fs";
-
 import { openApp, waitTicks } from "../support/app";
 import { expect, test } from "../support/test";
 
 const ISS = "ISS (ZARYA)";
 
-/** CI checks out no models submodule, so the model is this cube. */
-const CUBE = readFileSync(new URL("../fixtures/models/cube.glb", import.meta.url));
-
 test("a camera inside the tracked model's bounding sphere keeps rendering", async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 800 });
-  await openApp(page, `tags=&sats=${encodeURIComponent(ISS)}&elements=Point,Label,3D model&track=${encodeURIComponent(ISS)}`, {
-    setup: async (setupPage) => {
-      await setupPage.route("**/data/models/*.glb", (route) => route.fulfill({ contentType: "model/gltf-binary", body: CUBE }));
-    },
-  });
+  await openApp(page, `tags=&sats=${encodeURIComponent(ISS)}&elements=Point,Label,3D model&track=${encodeURIComponent(ISS)}`);
   await expect
     .poll(() => page.evaluate((name) => window.cc!.sats.activeSatellites.find((sat) => sat.props.name === name)?.model.state(), ISS), { message: "model loaded" })
     .toBe("ready");

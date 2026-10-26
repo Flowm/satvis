@@ -354,15 +354,16 @@ export class CesiumController {
       return;
     }
 
-    const morph = (): void => {
-      if (target === SceneMode.SCENE3D) {
-        this.viewer.scene.morphTo3D();
-      } else if (target === SceneMode.SCENE2D) {
-        this.viewer.scene.morphTo2D();
-      } else {
-        this.viewer.scene.morphToColumbusView();
-      }
-    };
+    const morph = (): void =>
+      this.sats.keepTrackThroughMorph(() => {
+        if (target === SceneMode.SCENE3D) {
+          this.viewer.scene.morphTo3D();
+        } else if (target === SceneMode.SCENE2D) {
+          this.viewer.scene.morphTo2D();
+        } else {
+          this.viewer.scene.morphToColumbusView();
+        }
+      });
 
     // In every direction, including back to 3D: outside 3D each batched component falls
     // back to per-entity paths, and only re-creation on release switches it back

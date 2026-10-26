@@ -4,13 +4,10 @@
 
 import { readFileSync } from "node:fs";
 
-import { openApp } from "../support/app";
+import { CUBE_MODEL, openApp } from "../support/app";
 import { expect, test } from "../support/test";
 
 const ISS = "ISS (ZARYA)";
-
-/** CI checks out no models submodule, so both files are this cube. */
-const CUBE = readFileSync(new URL("../fixtures/models/cube.glb", import.meta.url));
 
 const STATIONS = JSON.parse(readFileSync(new URL("../fixtures/gp/stations.json", import.meta.url), "utf8")) as { OBJECT_NAME: string; metadata?: Record<string, unknown> }[];
 
@@ -24,7 +21,7 @@ test("draws the copy at the default view and fetches the file once tracked", asy
       await setupPage.route("**/api/gp/stations.json", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify(stations) }));
       await setupPage.route("**/data/models/*.glb", (route) => {
         fetched.push(decodeURIComponent(new URL(route.request().url()).pathname.split("/").pop()!));
-        return route.fulfill({ contentType: "model/gltf-binary", body: CUBE });
+        return route.fulfill({ contentType: "model/gltf-binary", body: CUBE_MODEL });
       });
     },
   });

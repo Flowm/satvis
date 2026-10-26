@@ -1,4 +1,5 @@
 import { JulianDate } from "@cesium/core";
+import { SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -22,7 +23,7 @@ function fakeViewer() {
   };
   const viewer = {
     clock: { currentTime: JulianDate.fromIso8601("2018-12-08T00:00:00Z"), shouldAnimate: false, onTick: listeners() },
-    scene: { requestRender: () => {}, primitives: { add: () => {}, remove: () => true }, preRender: listeners(), postRender: listeners(), mode: 3 },
+    scene: { requestRender: () => {}, primitives: { add: () => {}, remove: () => true }, preRender: listeners(), postRender: listeners(), morphComplete: listeners(), mode: 3 },
     camera: { cancelFlight: () => {} },
     entities: { add: (e: unknown) => entities.add(e) && e, remove: (e: unknown) => entities.delete(e), contains: (e: unknown) => entities.has(e), size: () => entities.size },
     selectedEntity: undefined,
@@ -153,6 +154,35 @@ describe("SatelliteManager", () => {
     const rebuilt = sats.getSatellite("ISS (ZARYA)");
     expect(rebuilt?.props.entry.record).toBe(moved);
     expect(track.mock.contexts).toEqual([rebuilt]);
+    track.mockRestore();
+  });
+
+  test("keeps the track through a morph, which Cesium clears it for, and tracks again once it ends", async () => {
+    const viewer = fakeViewer();
+    const sats = new SatelliteManager(viewer, { samples: new InlineSampleSource(), passes: new InlinePassSource() });
+    sats.addRecords(parseGpPayload(TLES), ["Test"]);
+    sats.reconcile(scene({ enabledSatellites: ["ISS (ZARYA)"] }));
+    await sats.buildSettled();
+    const reported: string[] = [];
+    sats.onTrackedChange((name) => reported.push(name));
+    const events = viewer as unknown as { trackedEntityChanged: { raise: () => void }; scene: { mode: number; morphComplete: { raise: () => void } } };
+    viewer.trackedEntity = sats.getSatellite("ISS (ZARYA)")!.defaultEntity;
+    const track = vi.spyOn(SatelliteComponentCollection.prototype, "track").mockImplementation(() => {});
+
+    sats.keepTrackThroughMorph(() => {
+      // As SceneTransitioner does: the track cleared as the morph starts, then the mode set.
+      viewer.trackedEntity = undefined;
+      events.trackedEntityChanged.raise();
+      events.scene.mode = SceneMode.MORPHING;
+    });
+    // A reconcile mid-morph does not track: a track aborts the morph.
+    sats.reconcile(scene({ enabledSatellites: ["ISS (ZARYA)"], trackedSatellite: "ISS (ZARYA)" }));
+    expect(track).not.toHaveBeenCalled();
+    events.scene.mode = SceneMode.SCENE3D;
+    events.scene.morphComplete.raise();
+
+    expect(reported).toEqual([]);
+    expect(track.mock.contexts).toEqual([sats.getSatellite("ISS (ZARYA)")]);
     track.mockRestore();
   });
 });

@@ -1,4 +1,5 @@
 import { Cartesian3, JulianDate } from "@cesium/core";
+import { SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
 import { clearPassHighlights, setPassHighlights } from "../composables/usePassHighlights";
@@ -171,6 +172,9 @@ export class SatelliteManager {
       }
     });
 
+    // A track waits out a morph (`#trackPending`).
+    this.viewer.scene.morphComplete.addEventListener(() => this.#trackPending());
+
     // New entries may fall into the activation target, e.g. a URL-enabled name or
     // a pending tracked satellite.
     this.catalog.onChange(() => {
@@ -190,6 +194,35 @@ export class SatelliteManager {
   /** Drop a track still waiting on its model, which would otherwise start its flight whenever the model loads. */
   cancelPendingTrack(): void {
     cancelPendingTrack(this.viewer);
+  }
+
+  /**
+   * Runs `morph`, keeping the tracked satellite through it: Cesium clears the tracked object as
+   * a morph starts (`SceneTransitioner`). The loss goes unreported, and the satellite is tracked
+   * again once the morph ends.
+   */
+  keepTrackThroughMorph(morph: () => void): void {
+    const name = this.trackedSatellite;
+    this.#retracking = name || undefined;
+    morph();
+    if (!name || this.trackedSatellite) {
+      // Nothing tracked, or a refused morph, which keeps the track.
+      this.#retracking = undefined;
+      return;
+    }
+    this.pendingTrackedSatellite = name;
+  }
+
+  /** Tracks the pending satellite once it is built, and not mid-morph, which a track aborts. */
+  #trackPending(): void {
+    if (!this.pendingTrackedSatellite || this.viewer.scene.mode === SceneMode.MORPHING) {
+      return;
+    }
+    const sat = this.getSatellite(this.pendingTrackedSatellite);
+    if (sat) {
+      sat.track();
+      this.pendingTrackedSatellite = undefined;
+    }
   }
 
   #onCatalogChange: (() => void) | undefined;
@@ -413,13 +446,7 @@ export class SatelliteManager {
       if (!unbudgeted && performance.now() >= deadline) break;
     }
 
-    if (this.pendingTrackedSatellite) {
-      const sat = this.getSatellite(this.pendingTrackedSatellite);
-      if (sat) {
-        sat.track();
-        this.pendingTrackedSatellite = undefined;
-      }
-    }
+    this.#trackPending();
     if (this.#pendingSelection) {
       this.select(this.#pendingSelection);
     }
