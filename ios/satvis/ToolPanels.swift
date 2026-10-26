@@ -247,8 +247,7 @@ private struct Segments<Value: Hashable>: View {
                 Text(name).tag(value)
             }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
+        .panelSegmented()
     }
 }
 

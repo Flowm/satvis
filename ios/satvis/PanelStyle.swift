@@ -85,6 +85,15 @@ extension View {
         panelList()
             .presentationBackground(Color.panelSurface.opacity(PanelDensity.dense.opacity))
     }
+
+    /// A segmented picker on a card's raised track. The system's track is a
+    /// translucent fill, which let the globe's labels through a panel, and fainter
+    /// still while disabled: UIKit dims the whole control.
+    func panelSegmented() -> some View {
+        pickerStyle(.segmented)
+            .labelsHidden()
+            .background(Color.panelRaised, in: .capsule)
+    }
 }
 
 /// The surface of `panel(in:)`, as dense as the environment says.

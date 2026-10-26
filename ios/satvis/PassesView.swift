@@ -53,8 +53,7 @@ struct PassesSections: View {
                     Text("Elevation").tag(OverpassMode.elevation)
                     Text("Swath").tag(OverpassMode.swath)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                .panelSegmented()
                 Toggle("Past", isOn: $showsPast)
                     .fixedSize()
             }
