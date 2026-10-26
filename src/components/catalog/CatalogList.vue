@@ -36,7 +36,13 @@
             :title="column.title?.(item.row)"
             >{{ column.cell(item.row) }}</span
           >
-          <button type="button" class="cs-iconBtn" :aria-label="`Show info for ${item.row.name}`" :title="`Show info for ${item.row.name}`" @click="emit('info', item.row.name)">
+          <button
+            type="button"
+            class="cs-iconBtn catalogList__info"
+            :aria-label="`Show info for ${item.row.name}`"
+            :title="`Show info for ${item.row.name}`"
+            @click="emit('info', item.row.name)"
+          >
             <UIcon name="lucide:info" />
           </button>
         </div>
@@ -214,6 +220,15 @@ const visible = computed(() =>
   width: 7px;
   height: 7px;
   border-radius: 50%;
+}
+
+/* The accent, as the Satellites panel's info buttons. */
+.catalogList__info {
+  color: var(--panel-accent);
+}
+
+.catalogList__info:hover {
+  color: var(--cs-text);
 }
 
 .catalogList__empty {
