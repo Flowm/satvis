@@ -16,7 +16,7 @@
     <slot />
     <template #body>
       <!-- eslint-disable-next-line vue/no-v-html -->
-      <div v-if="content" :ref="attach" class="about about--dialog" @click="openDemo" v-html="content"></div>
+      <div v-if="content" ref="lifted" class="about about--dialog" @click="openDemo" v-html="content"></div>
       <div v-else class="about about--dialog">
         <p v-if="failed">The about page could not be loaded. <a href="/about">Open it directly</a>.</p>
         <p v-else>Loading…</p>
@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { type ComponentPublicInstance, ref, watch } from "vue";
+import { ref, useTemplateRef, watch } from "vue";
 
 import { useBookmarks } from "../composables/useBookmarks";
 import { attachCarousel } from "../modules/util/carousel";
@@ -38,22 +38,15 @@ const content = ref("");
 const failed = ref(false);
 
 const { demos, open: openBookmark } = useBookmarks();
+const lifted = useTemplateRef<HTMLElement>("lifted");
 
-/** The content element the carousel is wired to, and the undo; the modal unmounts it when closed. */
-let attached: { element: Element; detach: () => void } | undefined;
-
-/** Wires the demo carousel each time the content mounts. */
-function attach(element: Element | ComponentPublicInstance | null): void {
-  if (element === attached?.element) {
-    return;
+// The modal mounts the content afresh each time it opens.
+watch(lifted, (element) => {
+  const carousel = element?.querySelector<HTMLElement>(".demoCarousel");
+  if (carousel) {
+    attachCarousel(carousel);
   }
-  attached?.detach();
-  attached = undefined;
-  const carousel = element instanceof Element ? element.querySelector<HTMLElement>(".demoCarousel") : null;
-  if (element instanceof Element && carousel) {
-    attached = { element, detach: attachCarousel(carousel) };
-  }
-}
+});
 
 /** A demo opens in place, as its bookmark card does; a modified click opens its url, as any link. */
 function openDemo(event: MouseEvent): void {

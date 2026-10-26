@@ -115,21 +115,8 @@ struct AboutView: View {
                 Text(demo.name)
                     .font(.headline)
                     .foregroundStyle(Color.panelAccent)
-                Group {
-                    Label {
-                        Text(summary.what)
-                    } icon: {
-                        Image(.lucideOrbit).resizable().frame(width: 12, height: 12)
-                    }
-                    Label {
-                        Text(summary.where)
-                    } icon: {
-                        Image(whereIcon(summary)).resizable().frame(width: 12, height: 12)
-                    }
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+                BookmarkFacts(summary: summary)
+                    .font(.subheadline)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(.rect)
@@ -187,10 +174,5 @@ struct AboutView: View {
         } else {
             Image(systemName: "photo").foregroundStyle(.tertiary)
         }
-    }
-
-    /// The icon of the Sky, Globe or tracking camera, as on the demo's card.
-    private func whereIcon(_ summary: BookmarkSummary) -> ImageResource {
-        summary.where.hasPrefix("Sky") ? .lucideTelescope : summary.where.hasPrefix("Following") ? .lucideCrosshair : .lucideGlobe
     }
 }

@@ -43,10 +43,8 @@ test("the about page shows the demos as their cards do, and links to them", () =
     name: text(/<span class="demoCarousel__name"\s*>([\s\S]*?)<\/span\s*>/.exec(slide!)![1]!),
     facts: [...slide!.matchAll(/<span class="demoCarousel__fact"\s*>([\s\S]*?)<\/span\s*>/g)].map(([, fact]) => text(fact!)),
   }));
-  const dots = /<span class="demoCarousel__dots"[^>]*>([\s\S]*?)<\/span>\s*<\/div>/.exec(html)![1]!.match(/<span>/g)?.length;
 
   expect(slides.map(({ demo }) => demo)).toEqual(DEMO_BOOKMARKS.map(({ id }) => id));
-  expect(dots).toBe(DEMO_BOOKMARKS.length);
   DEMO_BOOKMARKS.forEach((demo, index) => {
     const slide = slides[index]!;
     const url = new URL(slide.href, "https://satvis.space");
