@@ -42,7 +42,7 @@ test("after dusk, the sky view tells what can be seen from what cannot", async (
   const target = seen[0]!;
   await page.evaluate(({ azimuth, elevation }) => window.cc!.skyView.look({ azimuth, pitch: elevation, roll: 0 }), target);
   await expect(page.locator(".sky-hud__card .sky-hud__name")).toHaveText(target.name);
-  await expect(page.locator(".sky-hud__facts")).toContainText("Could be seen");
+  await expect(page.locator(".sky-hud__chip")).toHaveText("Could be seen");
 
   await openMenu(page, "Sky");
   await menuSwitch(page, "Show").click();

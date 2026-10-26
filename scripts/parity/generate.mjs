@@ -497,6 +497,19 @@ try {
     [10, true, 36_000],
   ].map(([sunElevation, sunlit, rangeKm]) => ({ sunElevation, sunlit, rangeKm, visibility: sky.visibility(sunElevation, sunlit, rangeKm) }));
 
+  // The sky view's lock card: where to look, rounded and grouped, and the verdict's words.
+  const skyCard = await runner.import("/src/modules/skyCard.ts");
+  const lockPositions = [
+    [0, 0.4, 412.5],
+    [-0.4, 12, 999.5],
+    [11.25, 30.5, 1540.2],
+    [192.3, 47.06, 4999.5],
+    [359.6, 89.6, 38_362.4],
+  ].map(([azimuth, elevation, rangeKm]) => {
+    const { text, spoken } = skyCard.lockPosition(azimuth, elevation, rangeKm);
+    return { azimuth, elevation, rangeKm, text, spoken };
+  });
+
   // Bookmarks (ADR 0011): what a card says of a scene, and the name a scene is given,
   // against the default preset's defaults and the demo preset's.
   const bookmarks = await runner.import("/src/modules/util/bookmarks.ts");
@@ -569,6 +582,7 @@ try {
     compassPoints,
     greenwichHourAngle: hourAngles,
     visibility: { sunDirections, shadows, verdicts },
+    lockCard: { labels: skyCard.VISIBILITY_LABEL, positions: lockPositions },
     bookmarks: { now: BOOKMARK_NOW, summaries, ages, openedLimit: bookmarks.OPENED_LIMIT },
     // Each case is [lodSets index, diameter, current level, level].
     modelLevels: { hysteresis: MODEL_LEVEL_HYSTERESIS, lodSets: LOD_SETS, cases: modelLevels },

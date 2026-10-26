@@ -42,15 +42,17 @@
     <!-- North is unknown until the phone has been flat once. Unlike the toast, this cannot be dismissed. -->
     <div v-if="compassActive && !calibrated" class="sky-hud__warn panelSurface">Hold the phone flat to set north</div>
 
-    <div v-if="locked" class="sky-hud__card panelSurface">
-      <div class="sky-hud__name">{{ locked.name }}</div>
-      <dl class="sky-hud__facts">
-        <template v-for="fact in facts" :key="fact[0]">
-          <dt>{{ fact[0] }}</dt>
-          <dd>{{ fact[1] }}</dd>
-        </template>
-      </dl>
-      <div class="sky-hud__hint">Tap to open</div>
+    <!-- The chevron stands for "Tap to open", which the hidden text says. -->
+    <div v-if="locked && position" class="sky-hud__card panelSurface">
+      <div class="sky-hud__row">
+        <span class="sky-hud__name">{{ locked.name }}</span>
+        <span class="sky-hud__chip" :class="{ 'sky-hud__chip--visible': locked.visibility === 'visible' }">{{ VISIBILITY_LABEL[locked.visibility] }}</span>
+      </div>
+      <div class="sky-hud__row">
+        <span class="sky-hud__where" aria-hidden="true">{{ position.text }}</span>
+        <span class="sr-only">{{ position.spoken }}. Tap to open.</span>
+        <UIcon name="lucide:chevron-right" class="sky-hud__open" aria-hidden="true" />
+      </div>
     </div>
   </div>
 </template>
@@ -63,8 +65,7 @@ import { useController } from "../composables/useController";
 import { useSkyCompass } from "../composables/useSkyCompass";
 import { useSkyHud, type TapeTick } from "../composables/useSkyHud";
 import { SKY_MODE } from "../config/viewModes";
-import { compassPoint } from "../modules/SkyTargets";
-import type { Visibility } from "../modules/util/visibility";
+import { lockPosition, VISIBILITY_LABEL } from "../modules/skyCard";
 import { useCesiumStore } from "../stores/cesium";
 
 /**
@@ -83,25 +84,9 @@ const { active: compassActive } = useSkyCompass(cc);
 const { sceneMode } = storeToRefs(useCesiumStore());
 const visible = computed(() => sceneMode.value === SKY_MODE);
 
-const VISIBILITY_LABEL: Record<Visibility, string> = {
-  visible: "Could be seen",
-  shadow: "In Earth's shadow",
-  daylight: "Daylight",
-  far: "Too far",
-};
-
-const facts = computed<[string, string][]>(() => {
+const position = computed(() => {
   const target = locked.value;
-  if (!target) {
-    return [];
-  }
-  return [
-    ["Azimuth", `${target.azimuth.toFixed(1)}° ${compassPoint(target.azimuth)}`],
-    ["Elevation", `${target.elevation.toFixed(1)}°`],
-    ["Range", `${Math.round(target.rangeKm).toLocaleString()} km`],
-    ["Altitude", `${Math.round(target.altitudeKm).toLocaleString()} km`],
-    ["Visibility", VISIBILITY_LABEL[target.visibility]],
-  ];
+  return target && lockPosition(target.azimuth, target.elevation, target.rangeKm);
 });
 
 const tickClass = (tick: TapeTick): string => (tick.major ? "sky-hud__tick sky-hud__tick--major" : "sky-hud__tick");
@@ -246,37 +231,56 @@ onUnmounted(() => {
   text-align: right;
 }
 
+/* As wide whatever it holds, so it stands still as the lock goes from one satellite to
+   the next. 280 px holds "359° NNW · 90° up · 38,362 km away" and clears the
+   elevation tape's labels on a 375 px phone. */
 .sky-hud__card {
   position: absolute;
   left: 50%;
   bottom: max(calc(64px + var(--safe-bottom, 0px)), calc(var(--clock-deck-height, 0px) + 8px));
   transform: translateX(-50%);
-  min-width: 220px;
-  padding: 8px 12px;
+  width: 280px;
+  max-width: calc(100% - 32px);
+  padding: 6px 8px 6px 12px;
   border-radius: var(--panel-radius);
   font-size: 13px;
-  text-align: center;
+  line-height: 18px;
+}
+
+.sky-hud__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sky-hud__name,
+.sky-hud__where {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sky-hud__name {
   font-weight: 600;
-  margin-bottom: 4px;
 }
 
-.sky-hud__facts {
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 1px 12px;
-  text-align: left;
-}
-
-.sky-hud__facts dd {
-  text-align: right;
-}
-
-.sky-hud__hint {
-  margin-top: 4px;
-  opacity: 0.7;
+.sky-hud__chip {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: #ffffff1f;
   font-size: 11px;
+}
+
+.sky-hud__chip--visible {
+  background: #4ade8033;
+  color: #4ade80;
+}
+
+.sky-hud__open {
+  flex: none;
+  opacity: 0.6;
 }
 </style>
