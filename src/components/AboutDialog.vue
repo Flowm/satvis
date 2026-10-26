@@ -1,8 +1,16 @@
 <template>
+  <!-- Teleported into #app, which carries `dark`: in body its header, close button and overlay take Nuxt UI's light theme.
+       There it needs a z-index above the toolbars' (main.css), which it otherwise follows in the DOM. -->
   <UModal
     v-model:open="open"
+    portal="#app"
     title="About Satvis"
-    :ui="{ overlay: 'bg-black/40', content: 'bg-(--panel-surface-dense) text-(--panel-ink) divide-neutral-600 max-w-2xl', header: 'p-2 sm:px-3', body: 'p-3 sm:p-3' }"
+    :ui="{
+      overlay: 'z-30 bg-black/40',
+      content: 'z-30 bg-(--panel-surface-dense) text-(--panel-ink) divide-neutral-600 max-w-2xl',
+      header: 'p-2 sm:px-3',
+      body: 'p-3 sm:p-3',
+    }"
   >
     <!-- The trigger, which the dialog returns focus to when it closes. -->
     <slot />
