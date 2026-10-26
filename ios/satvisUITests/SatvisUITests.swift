@@ -26,6 +26,19 @@ nonisolated class SatvisUITests: XCTestCase {
         }
     }
 
+    // The groups read A to Z, ignoring case, as the web app's `localeCompare` sorts
+    // them: the index lists Eutelsat last, and code points put GNSS before Globalstar.
+    @MainActor
+    func testListsTheGroupsAToZ() {
+        let app = launch()
+        openMenu(app)
+        app.buttons["Satellites"].tap()
+        let rows = ["Active", "Cubesat", "Eutelsat", "Globalstar", "GNSS"].map { app.staticTexts[$0].firstMatch }
+        XCTAssert(rows[0].waitForExistence(timeout: 10))
+        let tops = rows.map(\.frame.minY)
+        XCTAssertEqual(tops, tops.sorted())
+    }
+
     // A link opens on what it names, as on the web: the satellite enabled and
     // tracked, its panel closed, as `track` follows alone.
     @MainActor
