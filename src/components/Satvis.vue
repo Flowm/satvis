@@ -245,6 +245,7 @@ import { useGeolocation } from "../composables/useGeolocation";
 import { useSelectedEntity } from "../composables/useSelectedEntity";
 import { compassAvailable, useSkyCompass } from "../composables/useSkyCompass";
 import { SATELLITE_COMPONENTS } from "../config/components";
+import { PHONE_WIDTH } from "../config/layout";
 import { MSAA_RATES, pixelRatiosFor } from "../config/rendering";
 import { availableStarMaps, BUILTIN_STAR_MAP, type StarMapName } from "../config/starMaps";
 import { type MapGroup, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, viewModeNote } from "../config/surfaceModels";
@@ -292,7 +293,7 @@ const menuToggle = ref<HTMLButtonElement>();
 const entryButtons: Partial<Record<MenuKey, HTMLButtonElement | null>> = {};
 
 /** A known phone width, below which the column stacks over the info panel. A hidden tab can report 0. */
-const isNarrow = (): boolean => window.innerWidth > 0 && window.innerWidth < 640;
+const isNarrow = (): boolean => window.innerWidth > 0 && window.innerWidth < PHONE_WIDTH;
 
 const menuExpanded = ref(!isNarrow());
 

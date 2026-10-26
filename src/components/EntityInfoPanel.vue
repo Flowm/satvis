@@ -454,12 +454,12 @@ function notifyForPasses(): void {
 
 /* In the top-right corner where the menu column leaves room, as the iOS app's card, over
    the Hide UI button, which hides under it (main.css). A phone keeps it under the top row,
-   clear of the menu toggle. */
+   clear of the menu toggle (`PHONE_WIDTH`, src/config/layout.ts). */
 @media (min-width: 640px) {
   .entity-info-panel {
     top: calc(var(--edge) + var(--safe-top, 0px));
-    /* Clear of the open menu column, whose edge is at 129 px with a mouse and 134 with a finger. */
-    max-width: min(540px, calc(100% - 170px - var(--safe-left, 0px) - var(--safe-right, 0px)));
+    /* Clear of the open menu column, a gap from it as from the screen's edge. */
+    max-width: min(540px, calc(100% - 3 * var(--edge) - var(--menu-width) - var(--safe-left, 0px) - var(--safe-right, 0px)));
   }
 }
 
