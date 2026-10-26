@@ -225,6 +225,7 @@ describe("SampledTrajectory", () => {
     const { trajectory, periodSeconds } = issTrajectory();
     await trajectory.ensure(T0);
     const positions = trajectory.positionsForNextOrbit(JulianDate.addSeconds(T0, 20, new JulianDate()));
+    trajectory.requireInertial();
 
     // Up to the ramp, three quarters on, a rebuild running late still finds the satellite on its line.
     for (let fraction = 0; fraction <= 0.74; fraction += 0.01) {
@@ -237,13 +238,27 @@ describe("SampledTrajectory", () => {
     }
   });
 
-  test("positionsForNextOrbit asking for the inertial frame requires it implicitly", async () => {
+  test("positionsForNextOrbit keeps no inertial property: one for every batched orbit cost 21 KB a satellite", async () => {
     const { trajectory } = issTrajectory();
     await trajectory.ensure(T0);
-    expect(trajectory.inertial).toBeUndefined();
 
-    expect(trajectory.positionsForNextOrbit(T0).length).toBeGreaterThan(0);
-    expect(trajectory.inertial).toBeDefined();
+    expect(trajectory.positionsForNextOrbit(T0).length).toBeGreaterThan(100);
+    expect(trajectory.inertial).toBeUndefined();
+  });
+
+  test("positionsForNextOrbit matches the inertial property's samples", async () => {
+    useRealEarthRotation();
+    const { trajectory } = issTrajectory();
+    await trajectory.ensure(T0);
+    const start = JulianDate.addSeconds(T0, 20, new JulianDate());
+    const positions = trajectory.positionsForNextOrbit(start);
+    trajectory.requireInertial();
+    const { values } = trajectory.inertial!.getRawSamples(start, JulianDate.addSeconds(start, 600, new JulianDate()));
+
+    // Past the head, before the drift ramp: the same samples, rotated alike.
+    for (const [index, value] of values.entries()) {
+      expect(Cartesian3.distance(positions[index + 1]!, value as Cartesian3)).toBeLessThan(1e-3);
+    }
   });
 
   describe("sampling through a source", () => {

@@ -1,189 +1,187 @@
-// The viewer is faked with a hand-cranked clock. The build itself is not covered:
-// driving a Primitive through its creation states needs a real WebGL context.
+// The slots and the packing are covered here; drawing them needs a real WebGL context,
+// which the e2e specs that show orbits have.
 
-import { ArcType, Cartesian3, Color, ColorGeometryInstanceAttribute, GeometryInstance, JulianDate, PolylineGeometry } from "@cesium/core";
-import { PolylineColorAppearance, SceneMode } from "@cesium/engine";
+import { Cartesian3, Color, JulianDate } from "@cesium/core";
+import { SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { describe, expect, test } from "vitest";
 
-import { PolylineBatch } from "./PolylineBatch";
+import { BatchedLine, LineSlots, POINTS_PER_SLOT, PolylineBatch, slotRuns } from "./PolylineBatch";
 
-function orbitGeometry(id: string): GeometryInstance {
-  return new GeometryInstance({
-    geometry: new PolylineGeometry({
-      positions: Cartesian3.fromDegreesArray([0, 0, 10, 10]),
-      width: 2,
-      arcType: ArcType.NONE,
-      vertexFormat: PolylineColorAppearance.VERTEX_FORMAT,
-    }),
-    attributes: { color: ColorGeometryInstanceAttribute.fromColor(new Color(1, 1, 1, 0.15)) },
+const FLOATS_PER_SLOT = POINTS_PER_SLOT * 4;
+
+function line(id: string, count = 3): BatchedLine {
+  return new BatchedLine(
+    Array.from({ length: count }, (_, i) => new Cartesian3(7e6 + i, i, 0 - i || 0)),
     id,
-  });
+  );
 }
 
 function fakeViewer() {
-  const listeners = new Set<() => void>();
   const primitives = {
     added: [] as unknown[],
-    removed: [] as unknown[],
     add(primitive: unknown) {
       this.added.push(primitive);
     },
-    remove(primitive: unknown) {
-      this.removed.push(primitive);
-      return true;
-    },
   };
   let renders = 0;
-
   const viewer = {
-    clock: {
-      currentTime: JulianDate.fromIso8601("2026-01-01T00:00:00Z"),
-      onTick: {
-        addEventListener(listener: () => void) {
-          listeners.add(listener);
-          return () => listeners.delete(listener);
-        },
-      },
-    },
+    clock: { currentTime: JulianDate.fromIso8601("2026-01-01T00:00:00Z") },
     scene: {
       mode: SceneMode.SCENE3D,
       primitives,
-      frameState: {},
       requestRender() {
         renders += 1;
       },
     },
   };
-
   return {
     viewer: viewer as unknown as Viewer,
     primitives,
     get renders() {
       return renders;
     },
-    get listenerCount() {
-      return listeners.size;
-    },
-    tick(times = 1) {
-      for (let i = 0; i < times; i += 1) {
-        [...listeners].forEach((listener) => listener());
-      }
-    },
   };
 }
 
-/** Mirrors PolylineBatch's own window; the callback fires on the tick after it. */
-const COALESCE_TICKS = 30;
-const PAST_WINDOW = COALESCE_TICKS + 2;
+describe("BatchedLine", () => {
+  test("packs its points as float32 x, y, z and knows the farthest", () => {
+    const packed = line("ISS", 2);
+
+    expect([...packed.points]).toEqual([7e6, 0, 0, 7e6 + 1, 1, -1]);
+    expect(packed.radius).toBeCloseTo(Math.hypot(7e6 + 1, 1, 1));
+  });
+
+  test("keeps the slot's last point free for the break", () => {
+    expect(line("long", POINTS_PER_SLOT + 5).points).toHaveLength((POINTS_PER_SLOT - 1) * 3);
+  });
+});
+
+describe("LineSlots", () => {
+  test("gives each line its own slot, and the draw ends at the last", () => {
+    const slots = new LineSlots();
+    slots.add(line("a"));
+    slots.add(line("b"));
+
+    expect(slots.size).toBe(2);
+    expect(slots.extent).toBe(2);
+    expect(slots.takeDirty()).toEqual([0, 1]);
+    expect(slots.dirty).toBe(false);
+  });
+
+  test("a recreate, a remove and an add, keeps its slot and uploads only that one", () => {
+    const slots = new LineSlots();
+    const lines = ["a", "b", "c"].map((id) => line(id));
+    lines.forEach((member) => slots.add(member));
+    slots.takeDirty();
+
+    slots.remove(lines[1]!);
+    slots.add(line("b again"));
+
+    expect(slots.extent).toBe(3);
+    expect(slots.takeDirty()).toEqual([1]);
+  });
+
+  test("replace swaps a member in its slot, and refuses a stranger", () => {
+    const slots = new LineSlots();
+    const first = line("ISS");
+    slots.add(first);
+    slots.takeDirty();
+    const second = line("ISS");
+
+    expect(slots.replace(first, second)).toBe(true);
+    expect(slots.has(second) && !slots.has(first)).toBe(true);
+    expect(slots.takeDirty()).toEqual([0]);
+    expect(slots.replace(first, line("ISS"))).toBe(false);
+  });
+
+  test("removing the last lines shortens the draw", () => {
+    const slots = new LineSlots();
+    const lines = ["a", "b", "c"].map((id) => line(id));
+    lines.forEach((member) => slots.add(member));
+
+    slots.remove(lines[2]!);
+    slots.remove(lines[1]!);
+
+    expect(slots.extent).toBe(1);
+    // A freed slot past the end is not handed out again.
+    slots.add(line("d"));
+    expect(slots.extent).toBe(2);
+  });
+
+  test("writes a line's points with w = 1, then breaks, so no segment joins two slots", () => {
+    const slots = new LineSlots();
+    slots.add(line("a", 2));
+    slots.add(line("b", 2));
+
+    const packed = slots.writeAll(3);
+
+    expect([...packed.subarray(0, 8)]).toEqual([7e6, 0, 0, 1, 7e6 + 1, 1, -1, 1]);
+    expect(packed[FLOATS_PER_SLOT - 1]).toBe(0);
+    expect(packed[FLOATS_PER_SLOT + 3]).toBe(1);
+    // The spare slot draws nothing.
+    expect(packed.subarray(2 * FLOATS_PER_SLOT).every((value) => value === 0)).toBe(true);
+  });
+
+  test("an emptied slot is written as breaks", () => {
+    const slots = new LineSlots();
+    const member = line("a");
+    slots.add(member);
+    slots.add(line("b"));
+    slots.remove(member);
+
+    const out = new Float32Array(FLOATS_PER_SLOT).fill(9);
+    slots.write(0, out);
+
+    expect(out.every((value) => value === 0)).toBe(true);
+  });
+});
+
+describe("slotRuns", () => {
+  test("a build's appended slots are one upload, scattered refills one each", () => {
+    expect(slotRuns([10, 11, 12, 13])).toEqual([[10, 13]]);
+    expect(slotRuns([2, 500, 9000])).toEqual([
+      [2, 2],
+      [500, 500],
+      [9000, 9000],
+    ]);
+  });
+
+  test("near neighbours share an upload, the slots between them included", () => {
+    expect(slotRuns([3, 7, 11, 40])).toEqual([
+      [3, 11],
+      [40, 40],
+    ]);
+  });
+});
 
 describe("PolylineBatch", () => {
-  test("nothing added, nothing pending, settled resolves at once", async () => {
-    const { viewer } = fakeViewer();
-    const batch = new PolylineBatch(viewer);
-
-    expect(batch.pending).toBe(false);
-    await expect(batch.settled()).resolves.toBeUndefined();
-  });
-
-  test("an add is pending, and nothing reaches the scene before the window closes", () => {
+  test("is a primitive in the scene from the start", () => {
     const host = fakeViewer();
-    const batch = new PolylineBatch(host.viewer);
+    const batch = new PolylineBatch(host.viewer, "inertial", Color.WHITE);
 
-    batch.add(orbitGeometry("ISS"));
-
-    expect(batch.pending).toBe(true);
-    host.tick(COALESCE_TICKS - 1);
-    expect(host.primitives.added).toHaveLength(0);
-    expect(batch.pending).toBe(true);
-  });
-
-  test("many adds in one window cost one rebuild", () => {
-    const host = fakeViewer();
-    const batch = new PolylineBatch(host.viewer);
-    const before = host.listenerCount;
-
-    for (let i = 0; i < 50; i += 1) {
-      batch.add(orbitGeometry(`SAT-${i}`));
-    }
-
-    expect(host.listenerCount).toBe(before + 1);
-  });
-
-  test("removing the last geometry clears the batch and settles", async () => {
-    const host = fakeViewer();
-    const batch = new PolylineBatch(host.viewer);
-    const geometry = orbitGeometry("ISS");
-
-    batch.add(geometry);
-    batch.remove(geometry);
-    expect(batch.pending).toBe(true);
-
-    const settled = batch.settled();
-    host.tick(PAST_WINDOW);
-    await expect(settled).resolves.toBeUndefined();
+    expect(host.primitives.added).toEqual([batch]);
     expect(batch.pending).toBe(false);
   });
 
-  test("the empty rebuild stops its own tick callback", () => {
+  test("a change is pending until a frame uploads it, and asks for that frame", () => {
     const host = fakeViewer();
-    const batch = new PolylineBatch(host.viewer);
-    // The constructor's permanent inertial-frame updater.
-    const permanent = host.listenerCount;
+    const batch = new PolylineBatch(host.viewer, "fixed", Color.GOLD);
 
-    const geometry = orbitGeometry("ISS");
-    batch.add(geometry);
-    batch.remove(geometry);
-    host.tick(PAST_WINDOW);
+    batch.add(line("ISS"));
 
-    expect(host.listenerCount).toBe(permanent);
-  });
-
-  test("settled() called when idle does not wait for a tick", async () => {
-    const host = fakeViewer();
-    const batch = new PolylineBatch(host.viewer);
-    const geometry = orbitGeometry("ISS");
-
-    batch.add(geometry);
-    batch.remove(geometry);
-    host.tick(PAST_WINDOW);
-    await batch.settled();
-
-    await expect(batch.settled()).resolves.toBeUndefined();
-  });
-
-  test("replace swaps a member's geometry in place and schedules one rebuild", () => {
-    const host = fakeViewer();
-    const batch = new PolylineBatch(host.viewer, "fixed");
-    const first = orbitGeometry("ISS");
-    const second = orbitGeometry("ISS");
-
-    batch.add(first);
-    expect(batch.replace(first, second)).toBe(true);
     expect(batch.size).toBe(1);
     expect(batch.pending).toBe(true);
+    expect(host.renders).toBe(1);
   });
 
-  test("replace refuses a geometry that is no longer a member", () => {
+  test("replace refuses a line that is no longer a member", () => {
     const host = fakeViewer();
-    const batch = new PolylineBatch(host.viewer, "fixed");
-    const stale = orbitGeometry("ISS");
+    const batch = new PolylineBatch(host.viewer, "fixed", Color.GOLD);
 
     // The satellite disabled its track between the refresh being scheduled and running.
-    expect(batch.replace(stale, orbitGeometry("ISS"))).toBe(false);
+    expect(batch.replace(line("ISS"), line("ISS"))).toBe(false);
     expect(batch.size).toBe(0);
-  });
-
-  test("only the inertial batch installs a periodic re-orientation", () => {
-    const host = fakeViewer();
-    const before = host.listenerCount;
-
-    const inertial = new PolylineBatch(host.viewer, "inertial");
-    expect(inertial.size).toBe(0);
-    expect(host.listenerCount).toBe(before + 1);
-
-    const fixed = new PolylineBatch(host.viewer, "fixed");
-    expect(fixed.size).toBe(0);
-    expect(host.listenerCount).toBe(before + 1);
+    expect(host.renders).toBe(0);
   });
 });

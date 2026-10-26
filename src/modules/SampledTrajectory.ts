@@ -20,7 +20,7 @@ interface SampledPositionData {
   interval: TimeInterval;
   /** Built on demand (`requireSampled`): a `JulianDate` per sample costs 13.2 KB a satellite. */
   fixed: SampledPositionProperty | undefined;
-  /** Built on demand (`requireInertial`) for the Orbit component: 8.7 KB a satellite. */
+  /** Built on demand (`requireInertial`) for the Orbit component's path: 21 KB a satellite. */
   inertial: SampledPositionProperty | undefined;
   valid: boolean;
 }
@@ -53,6 +53,11 @@ export class SampledTrajectory {
 
   /** False after a gap: the grid read assumes no holes, so `fixed` takes over. */
   #gridUsable = true;
+
+  /** The grid while it holds the samples; undefined once `fixed` has taken over, or before a sample. */
+  get #grid(): GridPositionProperty | undefined {
+    return this.#gridUsable && this.#gridFixed.length > 0 ? this.#gridFixed : undefined;
+  }
 
   /** At most one; see `ensure`. */
   #filling: Promise<void> | undefined;
@@ -106,8 +111,9 @@ export class SampledTrajectory {
 
   /** From the grid, or from `fixed` once a gap has abandoned the grid. */
   #windowSamples(): { times: JulianDate[]; positions: Cartesian3[] } {
-    if (this.#gridUsable && this.#gridFixed.length > 0) {
-      return this.#gridFixed.allSamples();
+    const grid = this.#grid;
+    if (grid) {
+      return grid.allSamples();
     }
     const fixed = this.#data?.fixed;
     if (!fixed) {
@@ -118,15 +124,13 @@ export class SampledTrajectory {
   }
 
   get sampleCount(): number {
-    if (this.#gridUsable && this.#gridFixed.length > 0) {
-      return this.#gridFixed.length;
-    }
-    return this.#data?.fixed?.length() ?? 0;
+    return this.#grid?.length ?? this.#data?.fixed?.length() ?? 0;
   }
 
   #positionsBetween(start: JulianDate, end: JulianDate): Cartesian3[] {
-    if (this.#gridUsable && this.#gridFixed.length > 0) {
-      return this.#gridFixed.samplesBetween(start, end).positions;
+    const grid = this.#grid;
+    if (grid) {
+      return grid.samplesBetween(start, end).positions;
     }
     const fixed = this.#data?.fixed;
     return fixed ? (fixed.getRawValues(start, end) as Cartesian3[]) : [];
@@ -137,7 +141,7 @@ export class SampledTrajectory {
     if (!this.#data) {
       return undefined;
     }
-    return this.#gridUsable && this.#gridFixed.length > 0 ? this.#gridFixed : this.#data.fixed;
+    return this.#grid ?? this.#data.fixed;
   }
 
   /** ICRF. Undefined until `requireInertial`. */
@@ -187,41 +191,66 @@ export class SampledTrajectory {
   }
 
   /**
-   * The inertial orbit one period ahead of `start`, closed into a loop at the satellite.
-   * One period on, the orbit has drifted from the head (J2: 31 km for the ISS, 54 km for
-   * NOAA 20); closing straight back bent the line by up to 95° at the satellite. The
-   * drift is ramped out over the last quarter instead. A head with nothing behind it,
-   * after a clock jump or a gap, is one point, which the caller's below-two check skips
-   * until the refill lands.
+   * The inertial orbit one period ahead of `start`, closed into a loop at the satellite. A
+   * period on, J2 has moved the orbit (31 km for the ISS, 54 km for NOAA 20), and closing
+   * straight back bent the line up to 95°, so the drift is ramped out over the last quarter.
+   * After a clock jump or a gap it is the head alone, which the caller skips until the refill.
+   * Rotated from the fixed samples: an `inertial` property for every batched orbit took 354 MB
+   * for all active ones.
    */
   positionsForNextOrbit(start: JulianDate): Cartesian3[] {
-    if (!this.#data) return [];
-    this.requireInertial();
-    const inertial = this.#data.inertial;
-    const last = inertial?.lastTime();
-    if (!inertial || !last) return [];
+    const last = this.#lastSampleTime();
+    if (!this.#data || !last) return [];
     const periodSeconds = this.#orbit.orbitalPeriod * 60;
     const end = JulianDate.addSeconds(start, periodSeconds, new JulianDate());
-    const head = inertial.getValueInReferenceFrame(start, ReferenceFrame.INERTIAL)!;
-    const { times, values } = inertial.getRawSamples(start, end);
-    const positions = values as Cartesian3[];
+    const head = this.#inertialAt(start);
+    if (!head) return [];
+    const { times, positions: fixedPositions } = this.samplesBetween(start, end);
+    const kept: JulianDate[] = [];
+    const positions: Cartesian3[] = [];
+    for (const [index, time] of times.entries()) {
+      const fixedToIcrf = Transforms.computeFixedToIcrfMatrix(time, SampledTrajectory.#rotationScratch);
+      if (defined(fixedToIcrf)) {
+        kept.push(time);
+        positions.push(Matrix3.multiplyByVector(fixedToIcrf, fixedPositions[index] as Cartesian3, fixedPositions[index] as Cartesian3));
+      }
+    }
     // Measured a period back from the last sample when `end` is past it, where
     // interpolation would hold that sample instead. The drift barely changes in between.
     const measuredAt = JulianDate.lessThan(end, last) ? end : last;
-    const drift = Cartesian3.subtract(
-      inertial.getValueInReferenceFrame(measuredAt, ReferenceFrame.INERTIAL)!,
-      inertial.getValueInReferenceFrame(JulianDate.addSeconds(measuredAt, -periodSeconds, new JulianDate()), ReferenceFrame.INERTIAL)!,
-      new Cartesian3(),
-    );
-    const rampSeconds = periodSeconds * DRIFT_RAMP_SHARE;
-    const shift = new Cartesian3();
-    for (const [index, position] of positions.entries()) {
-      const weight = (JulianDate.secondsDifference(times[index]!, start) - periodSeconds + rampSeconds) / rampSeconds;
-      if (weight > 0) {
-        Cartesian3.subtract(position, Cartesian3.multiplyByScalar(drift, weight, shift), position);
+    const after = this.#inertialAt(measuredAt);
+    const before = this.#inertialAt(JulianDate.addSeconds(measuredAt, -periodSeconds, new JulianDate()));
+    if (after && before) {
+      const drift = Cartesian3.subtract(after, before, new Cartesian3());
+      const rampSeconds = periodSeconds * DRIFT_RAMP_SHARE;
+      const shift = new Cartesian3();
+      for (const [index, position] of positions.entries()) {
+        const weight = (JulianDate.secondsDifference(kept[index]!, start) - periodSeconds + rampSeconds) / rampSeconds;
+        if (weight > 0) {
+          Cartesian3.subtract(position, Cartesian3.multiplyByScalar(drift, weight, shift), position);
+        }
       }
     }
     return drawablePositions([head, ...positions, head]);
+  }
+
+  /** The fixed-to-ICRF rotation of one sample, reused for the next. */
+  static readonly #rotationScratch = new Matrix3();
+
+  /** ICRF, interpolated in the fixed frame; undefined outside the samples or before the IAU data loads. */
+  #inertialAt(time: JulianDate): Cartesian3 | undefined {
+    const fixed = this.position(time);
+    const fixedToIcrf = fixed && Transforms.computeFixedToIcrfMatrix(time, SampledTrajectory.#rotationScratch);
+    return fixed && defined(fixedToIcrf) ? Matrix3.multiplyByVector(fixedToIcrf, fixed, fixed) : undefined;
+  }
+
+  /** The time of the window's last sample; undefined without one. */
+  #lastSampleTime(): JulianDate | undefined {
+    const grid = this.#grid;
+    if (grid) {
+      return grid.timeAt(grid.firstIndex + grid.length - 1);
+    }
+    return this.#data?.fixed?.lastTime();
   }
 
   /**
@@ -238,8 +267,9 @@ export class SampledTrajectory {
 
   /** The raw fixed-frame samples from `start` to `end`, for the ground track's ribbon. */
   samplesBetween(start: JulianDate, end: JulianDate): { times: JulianDate[]; positions: Cartesian3[] } {
-    if (this.#gridUsable && this.#gridFixed.length > 0) {
-      return this.#gridFixed.samplesBetween(start, end);
+    const grid = this.#grid;
+    if (grid) {
+      return grid.samplesBetween(start, end);
     }
     const fixed = this.#data?.fixed;
     if (!fixed) {

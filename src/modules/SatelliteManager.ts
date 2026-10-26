@@ -5,6 +5,7 @@ import type { Viewer } from "@cesium/widgets";
 import { clearPassHighlights, setPassHighlights } from "../composables/usePassHighlights";
 import type { ElementsEntry } from "../config/presets";
 import type { SerializedGroundStation } from "../stores/sat";
+import { ORBIT_LINE_COLOR, ORBIT_TRACK_LINE_COLOR } from "./componentKinds";
 import { CUSTOM_KEY_PREFIX, CUSTOM_TAG, isCustom } from "./customSatellites";
 import { GroundStationEntity, type GroundStationPositionData } from "./GroundStationEntity";
 import { RecutSchedule } from "./recutSchedule";
@@ -136,8 +137,8 @@ export class SatelliteManager {
     this.#samples = sources.samples ?? new WorkerSampleSource();
     // A worker separate from sampling; see passWorker.
     this.#passes = sources.passes ?? new WorkerPassSource();
-    this.orbits = new PolylineBatch(viewer, "inertial");
-    this.tracks = new PolylineBatch(viewer, "fixed");
+    this.orbits = new PolylineBatch(viewer, "inertial", ORBIT_LINE_COLOR);
+    this.tracks = new PolylineBatch(viewer, "fixed", ORBIT_TRACK_LINE_COLOR);
     this.groundTracks = new GroundTrackBatch(viewer);
     this.#recuts = new RecutSchedule(viewer.clock.currentTime);
     viewer.clock.onTick.addEventListener(() => {
