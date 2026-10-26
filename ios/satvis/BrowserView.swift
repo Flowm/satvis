@@ -72,6 +72,7 @@ struct BrowserView: View {
             }
             .navigationTitle("Satellites")
             .navigationBarTitleDisplayMode(.inline)
+            .panelSheet()
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Clear all", role: .destructive) { catalog.clearAll() }
@@ -87,7 +88,8 @@ struct BrowserView: View {
                     .foregroundStyle(.secondary)
                     .padding(8)
                     .frame(maxWidth: .infinity)
-                    .background(.bar)
+                    // The surface, not the bar's material, which blurs what is behind.
+                    .background(Color.panelSurface)
             }
         }
     }

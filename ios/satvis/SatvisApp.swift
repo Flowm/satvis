@@ -295,18 +295,14 @@ struct ContentView: View {
                 }
             }
         }
-        // The sheets are the surface, solid: the system's lifts it a step.
         .sheet(isPresented: $showsBookmarks) {
             BookmarksView(session: session)
-                .presentationBackground(Color.panelSurface)
         }
         .sheet(isPresented: $showsBrowser) {
             BrowserView(catalog: session.catalog) { session.select(.satellite($0.id)) }
-                .presentationBackground(Color.panelSurface)
         }
         .sheet(isPresented: $showsAbout) {
             AboutView(map: session.mapCredits, privacyPolicy: session.privacyPolicy, analytics: session.analytics)
-                .presentationBackground(Color.panelSurface)
         }
         .sheet(isPresented: $showsAcknowledgements) {
             NavigationStack {
@@ -317,7 +313,6 @@ struct ContentView: View {
                         }
                     }
             }
-            .presentationBackground(Color.panelSurface)
         }
         // A card over the trailing edge where there is room for one, a sheet over
         // the lower half where there is not, leaving the globe to steer either

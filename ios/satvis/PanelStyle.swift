@@ -41,14 +41,14 @@ enum PanelDensity {
     /// The menu column, the corner buttons, the clock deck and the sky view's card:
     /// a few large glyphs, which the globe can show through.
     case float
-    /// The tool panels and the info panel: rows of small text, which the globe's
-    /// labels must not bleed through.
+    /// The tool panels, the info panel and the sheets: rows of small text, which
+    /// the globe and its labels show behind faintly, and do not bleed through.
     case dense
 
     var opacity: Double {
         switch self {
         case .float: 0.85
-        case .dense: 0.95
+        case .dense: 0.9
         }
     }
 }
@@ -77,6 +77,13 @@ extension View {
     func panelList() -> some View {
         scrollContentBackground(.hidden)
             .containerBackground(.clear, for: .navigation)
+    }
+
+    /// A sheet on the dense surface, as the info panel: the system's is solid, or
+    /// Liquid Glass, which blurs the globe behind it every frame.
+    func panelSheet() -> some View {
+        panelList()
+            .presentationBackground(Color.panelSurface.opacity(PanelDensity.dense.opacity))
     }
 }
 

@@ -77,6 +77,7 @@ struct AcknowledgementsView: View {
                 }
             }
         }
+        .panelSheet()
         .navigationTitle("Acknowledgements")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -107,6 +108,7 @@ private struct LicenceText: View {
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .panelSheet()
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
     }
