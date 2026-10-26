@@ -119,12 +119,12 @@ struct ContentView: View {
             // benchmark panel shows its own measurements in its place.
             if session.showsPerformance, !session.showsBenchmark, let renderer = session.renderer {
                 PerformanceOverlay(renderer: renderer)
-                    .padding(.top, sizeClass == .regular ? 16 : 76)
+                    .padding(.top, sizeClass == .regular ? 12 : 64)
             }
         }
         .overlay(alignment: .topTrailing) {
             // The menu column's gap to a panel beside it.
-            VStack(spacing: 8) {
+            VStack(spacing: PanelMetrics.gap) {
                 // Always there, so the way back is where it always is.
                 Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
                 if session.observer != nil {
@@ -152,7 +152,7 @@ struct ContentView: View {
             } action: {
                 cornerFrame = $0
             }
-            .padding()
+            .padding(PanelMetrics.edge)
             // Under a panel across a phone's width, whose close button they showed
             // through.
             .opacity(panelFillsWidth ? 0 : 1)
@@ -162,7 +162,7 @@ struct ContentView: View {
         // Over the top-right buttons, for a panel across a phone's width.
         .overlay(alignment: .topLeading) {
             GeometryReader { _ in
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: PanelMetrics.gap) {
                     ToolMenu(isOpen: $showsTools) {
                         // The web app's menu column: its entries, icons, order and hints.
                         ToolEntry(
@@ -212,7 +212,7 @@ struct ContentView: View {
                 }
                 .animation(.snappy(duration: 0.2), value: panel)
                 .frame(maxWidth: panelReach, alignment: .topLeading)
-                .padding()
+                .padding(PanelMetrics.edge)
             }
             .onGeometryChange(for: CGRect.self) {
                 $0.frame(in: .global)
@@ -245,7 +245,7 @@ struct ContentView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .panel()
-                .padding(.top, 72)
+                .padding(.top, 64)
             }
         }
         .overlay(alignment: .bottom) {
@@ -411,8 +411,8 @@ struct ContentView: View {
     /// The info panel beside the globe. 400 pt fitted the old four-cell position strip;
     /// the tab row and the facts fit it too.
     private static let cardWidth: CGFloat = 400
-    /// The menu column with its names, a gap and a 280 pt panel, and the margins.
-    private static let roomForNames: CGFloat = 520
+    /// The menu column with its names, a gap and a 260 pt panel, and the margins.
+    private static let roomForNames: CGFloat = 500
 
     /// Whether the column keeps its names beside a panel: only where both fit, as
     /// on an iPad mini with the info card open a panel beside them was 100 pt wide.
@@ -427,13 +427,13 @@ struct ContentView: View {
     }
 
     /// How wide the column and a card beside it may be: short of the corner's
-    /// buttons, which leave a card 258 pt on a 402 pt phone. Less the 16 pt margin
-    /// and an 8 pt gap.
+    /// buttons, which leave a card 274 pt on a 402 pt phone. Less the margin and a
+    /// gap.
     private var panelReach: CGFloat? {
         guard !panelFillsWidth, let toolsFrame, let cornerFrame else {
             return nil
         }
-        return max(cornerFrame.minX - toolsFrame.minX - 16 - 8, 0)
+        return max(cornerFrame.minX - toolsFrame.minX - PanelMetrics.edge - PanelMetrics.gap, 0)
     }
 
     @ViewBuilder private var infoPanel: some View {

@@ -46,15 +46,27 @@ body {
   --credit-bottom: var(--credit-corner-bottom);
   --credit-left: var(--credit-corner-left);
 
-  /* The top row: the Menu toggle, the top-right buttons, a panel's header, and the
-     entity info panel's offset below them. */
+  /* The size scale, shared with the iOS app (ios/satvis/PanelStyle.swift, `PanelMetrics`).
+     A row: the Menu toggle, the top-right buttons, a menu entry, a panel's header and its
+     switches. A mouse keeps the web's density; a finger gets the iOS app's 44. */
   --toolbar-row: 32px;
-  /* From the menu column's border to an icon. */
+  /* From the menu column's border to an icon, so the folded column is a row square. */
   --menu-inset: 5px;
-  /* The iOS app's 16 and 12 points of a 44-point row: a panel's corners, and a button's,
-     so the menu column folded to its toggle is a button's shape, not a capsule. */
+  /* The iOS app's 16 points of a 44-point row: a panel's corners, and the corner buttons',
+     so the menu column folded to its toggle is their twin. */
   --panel-radius: calc(var(--toolbar-row) * 16 / 44);
-  --button-radius: calc(var(--toolbar-row) * 12 / 44);
+  --button-radius: var(--panel-radius);
+  /* From the screen's edge, or its safe area, to the menu column and the corner buttons,
+     and between those and the entity info panel below them. */
+  --edge: 12px;
+  /* Between the menu column and its panel. */
+  --toolbar-gap: 8px;
+  --panel-width: 260px;
+  /* A row's name, a panel's title, a note, and a section's heading. */
+  --text-label: 14px;
+  --text-title: 15px;
+  --text-note: 12px;
+  --text-section: 12px;
 
   /* The panels' palette, shared with the iOS app (ios/satvis/PanelStyle.swift): Apple's
      dark grouped backgrounds, which its lists' rows already are. Nothing blurs the globe:
@@ -84,11 +96,15 @@ body {
   --panel-destructive: #ff453a;
 }
 
-/* A finger needs 44px. The icons move in to keep the column square when collapsed. */
+/* A finger needs 44px (Apple's Human Interface Guidelines), and its text a size up, as
+   the iOS app's. */
 @media (pointer: coarse) {
   :root {
     --toolbar-row: 44px;
-    --menu-inset: 10px;
+    --menu-inset: 11px;
+    --text-label: 15px;
+    --text-title: 16px;
+    --text-note: 13px;
   }
 }
 
@@ -96,13 +112,14 @@ body {
    reachable, and above #toolbarRight, which a phone's panel covers. */
 #toolbarLeft {
   position: absolute;
-  top: calc(5px + var(--safe-top));
-  left: calc(2px + var(--safe-left));
+  top: calc(var(--edge) + var(--safe-top));
+  left: calc(var(--edge) + var(--safe-left));
   z-index: 7;
   display: flex;
   align-items: flex-start;
-  /* Beside the collapsed column, 2 × inset + 22px wide: 16px of insets and margins around it. */
-  --toolbar-panel-max: calc(100vw - 38px - 2 * var(--menu-inset) - var(--safe-left) - var(--safe-right));
+  gap: var(--toolbar-gap);
+  /* Beside the folded column, a row square, with the edges and the gap around them. */
+  --toolbar-panel-max: calc(100vw - 2 * var(--edge) - var(--toolbar-row) - var(--toolbar-gap) - var(--safe-left) - var(--safe-right));
   /* The box spans the column and a panel; the globe takes the drag in the gaps. */
   pointer-events: none;
 }
@@ -120,9 +137,12 @@ body {
 
 #toolbarRight {
   position: absolute;
-  top: calc(5px + var(--safe-top));
-  right: calc(2px + var(--safe-right));
+  top: calc(var(--edge) + var(--safe-top));
+  right: calc(var(--edge) + var(--safe-right));
   z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: var(--toolbar-gap);
 }
 
 /* Floating over the globe, as the iOS app's `panel`: a glow along the top, and a light
@@ -154,6 +174,7 @@ body {
 
 /* The iOS app's buttons, lit and grown while pressed where Cesium's turn blue. */
 #toolbarRight .cesium-button {
+  margin: 0;
   border-radius: var(--button-radius);
   color: var(--panel-ink);
   fill: var(--panel-ink);
@@ -178,12 +199,10 @@ body {
   outline-offset: 2px;
 }
 
-/* Cesium's button margin, level with the top-right buttons. The padding stands in for
-   the border the edge replaced. */
+/* The padding stands in for the border the edge replaced. */
 .menuColumn {
   display: flex;
   flex-direction: column;
-  margin: 2px 3px;
   padding: 1px;
   border-radius: var(--panel-radius);
   overflow: hidden;
@@ -198,7 +217,7 @@ body {
   background: none;
   border: none;
   color: var(--panel-ink);
-  font-size: 14px;
+  font-size: var(--text-label);
   text-align: left;
   cursor: pointer;
 }
@@ -210,13 +229,7 @@ body {
 }
 
 .menuColumn__item {
-  height: 34px;
-}
-
-@media (pointer: coarse) {
-  .menuColumn__item {
-    height: 44px;
-  }
+  height: var(--toolbar-row);
 }
 
 @media (hover: hover) {
@@ -282,12 +295,17 @@ body {
   .toolbarLeft--panelOpen .menuColumn__toggle {
     padding-right: calc(var(--menu-inset) - 1px);
   }
+
+  /* Over the catalog sheet a panel stops short of its Expand, Back and Close buttons, the
+     header's last 96px. */
+  #toolbarLeft:has(> .catalogSheet:not(.catalogSheet--full)) {
+    --toolbar-panel-max: calc(100vw - var(--edge) - var(--toolbar-row) - 2 * var(--toolbar-gap) - 96px - var(--safe-left) - var(--safe-right));
+  }
 }
 
 .toolbarSwitches {
   display: flex;
   flex-direction: column;
-  margin: 2px 3px;
   border-radius: var(--panel-radius);
 }
 
@@ -295,10 +313,10 @@ body {
 .toolbarTitle {
   margin: 12px 8px 2px;
   color: var(--panel-muted);
-  font-size: 11px;
+  font-size: var(--text-section);
   font-weight: 600;
   letter-spacing: 0.06em;
-  line-height: 14px;
+  line-height: 16px;
   text-transform: uppercase;
 }
 
@@ -321,8 +339,8 @@ body {
   min-width: 100%;
   box-sizing: border-box;
   padding: 2px 8px 3px 8px;
-  font-size: 11px;
-  line-height: 14px;
+  font-size: var(--text-note);
+  line-height: 1.3;
   opacity: 0.6;
 }
 
@@ -331,12 +349,12 @@ body {
 .toolbarSwitch {
   position: relative;
   display: block;
-  height: 30px;
+  height: var(--toolbar-row);
   padding: 0 8px 0 32px;
   border-radius: 7px;
   color: var(--panel-muted);
-  font-size: 14px;
-  line-height: 30px;
+  font-size: var(--text-label);
+  line-height: var(--toolbar-row);
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -344,13 +362,6 @@ body {
   transition:
     background-color 0.15s,
     color 0.15s;
-}
-
-@media (pointer: coarse) {
-  .toolbarSwitch {
-    height: 36px;
-    line-height: 36px;
-  }
 }
 
 .toolbarSwitch:has(input:checked) {
@@ -413,24 +424,18 @@ body {
   align-items: center;
   gap: 8px;
   width: 100%;
-  height: 30px;
+  height: var(--toolbar-row);
   padding: 0 8px;
   border: none;
   border-radius: 7px;
   background: none;
   color: var(--panel-ink);
-  font-size: 14px;
+  font-size: var(--text-label);
   text-align: left;
   cursor: pointer;
   transition:
     background-color 0.15s,
     color 0.15s;
-}
-
-@media (pointer: coarse) {
-  .toolbarPlace {
-    height: 36px;
-  }
 }
 
 @media (hover: hover) {

@@ -22,7 +22,7 @@ enum ToolPanel: Hashable {
     /// Its card's width. Locations' is wider: a station's latitude and longitude
     /// stand side by side, and 280 pt cut -122.2727 short.
     var cardWidth: CGFloat {
-        self == .locations ? 320 : 280
+        self == .locations ? 320 : 260
     }
 
     /// Whether it takes the rest of a phone's width, over the corner's buttons,
@@ -77,7 +77,6 @@ struct ToolMenu<Tools: View>: View {
         // As wide as its widest name, every row across all of it.
         .fixedSize()
         .labelStyle(ToolLabelStyle())
-        .padding(.vertical, 4)
         .clipShape(.rect(cornerRadius: 16))
         .panel()
         .animation(.snappy(duration: 0.2), value: isOpen)
@@ -125,15 +124,15 @@ private struct ToolLabel: View {
                 .frame(width: 44 * scale)
             if !folded {
                 configuration.title
-                    .font(.body.weight(.medium))
+                    .font(.subheadline.weight(.medium))
                     .lineLimit(1)
             }
         }
     }
 }
 
-/// A row of the column, across its width, a fingertip tall: with the column's
-/// inset, the toggle's middle is level with the corner buttons' opposite.
+/// A row of the column, across its width, a fingertip tall: folded to its toggle,
+/// the column is the corner buttons' twin opposite.
 private struct ToolRowStyle: ButtonStyle {
     var isSelected = false
 
@@ -151,9 +150,9 @@ private struct ToolRow: View {
     var body: some View {
         configuration.label
             .foregroundStyle(isSelected ? Color.panelAccent : .primary)
-            .padding(.leading, 4)
-            .padding(.trailing, folded ? 4 : 18)
-            .frame(maxWidth: .infinity, minHeight: 44 * scale, alignment: .leading)
+            // Folded, the icon's column alone: a row square, as the web app's.
+            .padding(.trailing, folded ? 0 : 18)
+            .frame(maxWidth: .infinity, minHeight: PanelMetrics.row * scale, alignment: .leading)
             .background(.white.opacity(configuration.isPressed || isSelected ? 0.12 : 0))
             // Changed at once, the press's and the open panel's alike: the panel's
             // animation faded the latter in after the former had gone, a flicker.
@@ -180,19 +179,17 @@ struct ToolPanelView<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text(title)
-                    .font(.headline)
+                    .font(.callout.weight(.semibold))
                 Spacer(minLength: 8)
                 Button("Close", systemImage: "xmark", action: onClose)
                     .labelStyle(.iconOnly)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.secondary)
-                    .frame(width: 44 * scale, height: 44 * scale)
+                    .frame(width: PanelMetrics.row * scale, height: PanelMetrics.row * scale)
                     .contentShape(.rect)
             }
-            .padding(.leading, 16)
+            .padding(.leading, 12)
             .padding(.trailing, 4)
-            // The column's inset over its toggle's row, and none under it.
-            .padding(.top, 4)
             Divider()
             ViewThatFits(in: .vertical) {
                 padded(content)
@@ -208,11 +205,12 @@ struct ToolPanelView<Content: View>: View {
     }
 
     private func padded(_ content: Content) -> some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
             content
         }
+        .font(.subheadline)
         .toggleStyle(CircleToggleStyle())
-        .padding(16)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
@@ -293,7 +291,7 @@ struct PanelRow<Mark: View, Title: View>: View {
     @ViewBuilder let mark: Mark
     @ViewBuilder let title: Title
     @ScaledMetric(relativeTo: .body) private var markWidth = PanelRowMetrics.markWidth
-    @ScaledMetric(relativeTo: .body) private var height = 44.0
+    @ScaledMetric(relativeTo: .body) private var height = PanelMetrics.row
 
     var body: some View {
         HStack(spacing: PanelRowMetrics.spacing) {
@@ -334,7 +332,7 @@ private struct SelectionCircle: View {
 
     var body: some View {
         Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-            .font(.title3)
+            .font(.body)
             .symbolRenderingMode(.palette)
             .foregroundStyle(isOn ? Color.panelSurface : .white.opacity(0.35), Color.panelAccent)
             .accessibilityHidden(true)

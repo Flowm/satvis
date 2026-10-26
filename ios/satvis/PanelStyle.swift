@@ -128,8 +128,8 @@ struct PanelButtonStyle: ButtonStyle {
     @ScaledMetric(relativeTo: .body) private var scale = 1.0
 
     func makeBody(configuration: Configuration) -> some View {
-        // The folded column: a 44 pt row and its 4 pt inset over and under it.
-        let side = square ? 44 * scale + 8 : 44
+        // The folded column: one row.
+        let side = square ? PanelMetrics.row * scale : PanelMetrics.row
         let radius: CGFloat = square ? 16 : 12
         configuration.label
             .padding(.horizontal, square ? 0 : 12)
@@ -141,4 +141,19 @@ struct PanelButtonStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 1.08 : 1)
             .animation(.spring(duration: 0.25, bounce: 0.4), value: configuration.isPressed)
     }
+}
+
+/// The size scale, shared with the web app (src/css/main.css, `--toolbar-row` and on):
+/// in points at the default text size, which Dynamic Type scales the rows by. The text
+/// is a size under the system's body, as the web app's on a touch screen: the
+/// subheadline's 15 for a row's name, the callout's 16 for a panel's title, the
+/// footnote's 13 for a note and the caption's 12 for a section's heading.
+enum PanelMetrics {
+    /// A row, a button, and the folded menu column: the fingertip Apple's Human
+    /// Interface Guidelines ask for.
+    static let row: CGFloat = 44
+    /// From the safe area's edge to the menu column and the corner's buttons.
+    static let edge: CGFloat = 12
+    /// Between the menu column and its panel, and between the corner's buttons.
+    static let gap: CGFloat = 8
 }

@@ -1,7 +1,7 @@
 <template>
   <div class="cesium">
     <div v-show="showUI" id="toolbarLeft" :class="{ 'toolbarLeft--panelOpen': anyMenuOpen }">
-      <div class="menuColumn panelSurface">
+      <div ref="menuColumn" class="menuColumn panelSurface">
         <button
           ref="menuToggle"
           type="button"
@@ -212,10 +212,11 @@
 
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 
 import { useController } from "../composables/useController";
 import { useGeolocation } from "../composables/useGeolocation";
+import { useSelectedEntity } from "../composables/useSelectedEntity";
 import { compassAvailable, useSkyCompass } from "../composables/useSkyCompass";
 import { SATELLITE_COMPONENTS } from "../config/components";
 import { MSAA_RATES, pixelRatiosFor } from "../config/rendering";
@@ -260,6 +261,7 @@ const menu = reactive<Record<MenuKey, boolean>>({
 const anyMenuOpen = computed(() => Object.values(menu).some(Boolean));
 const showUI = ref(true);
 
+const menuColumn = ref<HTMLElement>();
 const menuToggle = ref<HTMLButtonElement>();
 const entryButtons: Partial<Record<MenuKey, HTMLButtonElement | null>> = {};
 
@@ -459,13 +461,45 @@ function closeMenus() {
   });
 }
 
-/** On a phone the catalog and the column would cover the info panel just opened. */
-function onShowInfo(): void {
-  if (isNarrow()) {
+const { selection } = useSelectedEntity(cc);
+
+/** Whether two boxes share any area. */
+const overlaps = (a: DOMRect, b: DOMRect): boolean => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+/**
+ * Closes what would cover the info panel: the open panel, and the column where it reaches that far, as on
+ * a phone. Measured, not a width: at 820 px the Satellites panel covered the info panel's name and tabs.
+ */
+async function uncoverInfoPanel(): Promise<void> {
+  await nextTick();
+  const info = document.querySelector(".entity-info-panel")?.getBoundingClientRect();
+  if (!info) {
+    return;
+  }
+  const covers = (element: Element | undefined) => !!element && overlaps(element.getBoundingClientRect(), info);
+  if ([...document.querySelectorAll("#toolbarLeft > .toolbarPanel")].some(covers)) {
     closeMenus();
-    catalogOpen.value = false;
+  }
+  if (covers(menuColumn.value)) {
     menuExpanded.value = false;
   }
+}
+
+/**
+ * Shown again, if it is already selected and a panel opened over it since. The catalog sheet stays open
+ * beside it, but on a phone, where it covers it at any height.
+ */
+function onShowInfo(): void {
+  if (isNarrow()) {
+    catalogOpen.value = false;
+  }
+  void uncoverInfoPanel();
+  // A satellite not built yet is selected once it is, a frame or more after the click.
+  const stop = watch(selection, () => {
+    stop();
+    void uncoverInfoPanel();
+  });
+  setTimeout(stop, 2000);
 }
 
 /** The catalog sheet, opened from the Satellites panel, which it replaces while open. */
