@@ -145,6 +145,10 @@ body {
   gap: var(--toolbar-gap);
 }
 
+#toolbarRight .toolbarRight__button--on {
+  color: var(--panel-accent);
+}
+
 /* Floating over the globe, as the iOS app's `panel`: a glow along the top, and a light
    edge where Liquid Glass has its rim, brightest at the top left and the bottom right.
    The edge is a masked pseudo-element, as a border cannot take a gradient round a

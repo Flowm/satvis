@@ -39,6 +39,7 @@ import { SkyInteraction } from "./SkyInteraction";
 import { type Observer, SkyView } from "./SkyView";
 import { SurfaceModel } from "./SurfaceModel";
 import { DeviceDetect } from "./util/DeviceDetect";
+import { smootherstep } from "./util/easing";
 import { Suppressible } from "./util/Suppressible";
 
 dayjs.extend(utc);
@@ -186,15 +187,40 @@ export class CesiumController {
    * a rectangle lands at 12,700 km on a phone and clips the globe there.
    */
   setDefaultView(): void {
+    const destination = this.#defaultViewDestination();
+    if (destination) {
+      this.viewer.camera.setView({ destination });
+    }
+  }
+
+  /**
+   * Flies back to the default view, letting go of what is followed: the corner's Home
+   * view, as the native app's. Untracked first, so this flight replaces the one back to
+   * where tracking began. The flat projections have no such view, and take Cesium's home.
+   */
+  flyHome(): void {
+    this.viewer.trackedEntity = undefined;
+    const { camera, mode } = this.viewer.scene;
+    const duration = DeviceDetect.prefersReducedMotion() ? 0 : undefined;
+    const destination = mode === SceneMode.SCENE3D ? this.#defaultViewDestination() : undefined;
+    if (destination) {
+      camera.flyTo({ destination, duration, easingFunction: smootherstep });
+    } else {
+      camera.flyHome(duration);
+    }
+  }
+
+  /** Undefined before the frustum has a field of view. */
+  #defaultViewDestination(): Cartesian3 | undefined {
     const { camera, canvas, globe } = this.viewer.scene;
     if (!(camera.frustum instanceof PerspectiveFrustum) || camera.frustum.fov === undefined) {
-      return;
+      return undefined;
     }
     const aspectRatio = canvas.clientHeight > 0 ? canvas.clientWidth / canvas.clientHeight : 1;
     // The equatorial radius, because that is the widest the disc can be.
     const radius = globe.ellipsoid.maximumRadius;
     const height = defaultViewDistance(camera.frustum.fov, aspectRatio, radius) - radius;
-    camera.setView({ destination: Cartesian3.fromDegrees(DEFAULT_VIEW_LON, DEFAULT_VIEW_LAT, height) });
+    return Cartesian3.fromDegrees(DEFAULT_VIEW_LON, DEFAULT_VIEW_LAT, height);
   }
 
   #preloadReferenceFrameData(): void {
