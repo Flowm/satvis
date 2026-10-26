@@ -69,7 +69,7 @@ workspace package). One `pnpm install` at the root covers both.
   (`scripts/parity/`), and writes the tables it reads from the web app as they are
   (SATCAT labels, external links). Rerun it after changing propagation or its
   sampling grid, element-set parsing, pass prediction, the info panel's details
-  and passes, the URL codec, the sky view's visibility (`visibility.ts`), the
+  and passes, the URL codec, the sky view's visibility (`visibility.ts`) and lock card (`skyCard.ts`), the
   analytics sanitising (`posthogPrivacy.ts`), the pixel ratios
   (`config/rendering.ts`), the model levels (`config/modelLevels.ts`), or those
   tables; CI fails while the committed output is stale.

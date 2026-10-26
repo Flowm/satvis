@@ -6,11 +6,11 @@ import simd
 public enum Visibility: String, Sendable, Equatable {
     case visible, shadow, daylight, far
 
-    /// The web app's card text (SkyHud.vue).
+    /// The lock card's chip, as the web app's (skyCard.ts).
     public var label: String {
         switch self {
         case .visible: "Could be seen"
-        case .shadow: "In Earth's shadow"
+        case .shadow: "In shadow"
         case .daylight: "Daylight"
         case .far: "Too far"
         }
