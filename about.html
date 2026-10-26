@@ -19,6 +19,7 @@
     />
     <meta name="twitter:card" content="summary" />
     <link rel="stylesheet" href="/src/css/about.css" />
+    <script type="module" src="/src/about.ts"></script>
     <style>
       body {
         margin: 0;
@@ -48,42 +49,124 @@
       </p>
 
       <h2>See it in action</h2>
-      <!-- The iOS App Store screenshots open these same urls (ios/satvisUITests/SatvisUITests.swift), so the two stay one set. -->
-      <div class="about-showcase">
-        <figure>
-          <a href="/?time=2026-10-04T08:52Z"
-            ><img src="/showcase/globe.webp" width="3200" height="2000" alt="The globe with weather satellites labelled around it" loading="lazy"
-          /></a>
-          <figcaption>The globe, with the weather satellites switched on. <a href="/?time=2026-10-04T08:52Z">Open it</a></figcaption>
-        </figure>
-        <figure>
-          <a href="/?tags=&amp;sats=ISS+(ZARYA)&amp;track=ISS+(ZARYA)&amp;elements=Point,Label,Orbit,3D+model&amp;layers=VersaTiles&amp;time=2026-10-04T02:07Z"
-            ><img src="/showcase/iss.webp" width="3200" height="2000" alt="A 3D model of the ISS above the curve of the Earth, on its orbit line" loading="lazy"
-          /></a>
-          <figcaption>
-            Tracking the ISS: the camera follows the station along its orbit.
-            <a href="/?tags=&amp;sats=ISS+(ZARYA)&amp;track=ISS+(ZARYA)&amp;elements=Point,Label,Orbit,3D+model&amp;layers=VersaTiles&amp;time=2026-10-04T02:07Z">Follow it</a>
-          </figcaption>
-        </figure>
-        <figure>
-          <a
-            href="/?scene=Sky&amp;gs=46.5935,7.9091&amp;terrain=ReEarth&amp;layers=VersaTiles&amp;stars=DeepStar2K&amp;time=2026-10-04T19:22Z&amp;tags=GNSS,Weather,OneWeb&amp;elements=Point,Label&amp;xsats=COSMOS+2500+(755),GSAT0220+(GALILEO+24),METEOSAT-11+(MSG-4),BEIDOU-3+M27+(C49),SES-5+(EGNOS/PRN+136),EUTELSAT+5+WEST+B+(EGNOS/PRN+121),BEIDOU-3+M21+(C43),METEOSAT-12+(MTG-I1),METEOSAT-10+(MSG-3),MTG-I2,LUCH+5B+(SDCM/PRN+125),BEIDOU-3+M8+(C28),ONEWEB-0169,ONEWEB-0336,BEIDOU-3+M11+(C25),ONEWEB-0112,ONEWEB-0628,GSAT-8+(GAGAN/PRN+127),BEIDOU-2+G5+(C05),TIANMU-1+10,TIANMU-1+13"
-            ><img
-              src="/showcase/sky.webp"
-              width="3200"
-              height="2000"
-              alt="Night sky over the Lauterbrunnen valley, with labelled navigation, weather and OneWeb satellites above the cliffs"
-              loading="lazy"
-          /></a>
-          <figcaption>
-            The sky view at night from the Lauterbrunnen valley: navigation, weather and OneWeb satellites overhead, and the cliffs hiding the rest.
+      <!-- The demo bookmarks (src/config/bookmarks.ts), as their cards show them; bookmarks.test.ts holds the two to one set. src/modules/util/carousel.ts
+           adds the buttons, here and in the dialog, which opens a demo in place. -->
+      <section class="demoCarousel" aria-roledescription="carousel" aria-label="Demos">
+        <svg class="demoCarousel__icons" aria-hidden="true">
+          <symbol id="demo-icon-orbit" viewBox="0 0 24 24">
+            <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+              <path d="M20.341 6.484A10 10 0 0 1 10.266 21.85m-6.607-4.334A10 10 0 0 1 13.74 2.152" />
+              <circle cx="12" cy="12" r="3" />
+              <circle cx="19" cy="5" r="2" />
+              <circle cx="5" cy="19" r="2" />
+            </g>
+          </symbol>
+          <symbol id="demo-icon-globe" viewBox="0 0 24 24">
+            <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 2a14.5 14.5 0 0 0 0 20a14.5 14.5 0 0 0 0-20M2 12h20" />
+            </g>
+          </symbol>
+          <symbol id="demo-icon-crosshair" viewBox="0 0 24 24">
+            <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M22 12h-4M6 12H2m10-6V2m0 20v-4" />
+            </g>
+          </symbol>
+          <symbol id="demo-icon-telescope" viewBox="0 0 24 24">
+            <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+              <path d="m10.065 12.493l-6.18 1.318a.934.934 0 0 1-1.108-.702l-.537-2.15a1.07 1.07 0 0 1 .691-1.265l13.504-4.44m-2.875 6.493l4.332-.924M16 21l-3.105-6.21" />
+              <path
+                d="M16.485 5.94a2 2 0 0 1 1.455-2.425l1.09-.272a1 1 0 0 1 1.212.727l1.515 6.06a1 1 0 0 1-.727 1.213l-1.09.272a2 2 0 0 1-2.425-1.455zM6.158 8.633l1.114 4.456M8 21l3.105-6.21"
+              />
+              <circle cx="12" cy="13" r="2" />
+            </g>
+          </symbol>
+        </svg>
+        <ul class="demoCarousel__track">
+          <li class="demoCarousel__slide" aria-roledescription="slide" aria-label="1 of 3">
+            <a class="demoCarousel__link" href="/" data-demo="demo-globe">
+              <img
+                src="/showcase/globe-card.jpg"
+                srcset="/showcase/globe-card.jpg 480w, /showcase/globe.webp 3200w"
+                sizes="(min-width: 46rem) 43.5rem, 100vw"
+                width="480"
+                height="300"
+                alt="The globe with weather satellites labelled around it"
+              />
+              <span class="demoCarousel__name">Weather satellites</span>
+              <span class="demoCarousel__fact"
+                ><svg aria-hidden="true"><use href="#demo-icon-orbit" /></svg>Weather satellites</span
+              >
+              <span class="demoCarousel__fact"
+                ><svg aria-hidden="true"><use href="#demo-icon-globe" /></svg>Globe</span
+              >
+            </a>
+          </li>
+          <li class="demoCarousel__slide" aria-roledescription="slide" aria-label="2 of 3">
             <a
-              href="/?scene=Sky&amp;gs=46.5935,7.9091&amp;terrain=ReEarth&amp;layers=VersaTiles&amp;stars=DeepStar2K&amp;time=2026-10-04T19:22Z&amp;tags=GNSS,Weather,OneWeb&amp;elements=Point,Label&amp;xsats=COSMOS+2500+(755),GSAT0220+(GALILEO+24),METEOSAT-11+(MSG-4),BEIDOU-3+M27+(C49),SES-5+(EGNOS/PRN+136),EUTELSAT+5+WEST+B+(EGNOS/PRN+121),BEIDOU-3+M21+(C43),METEOSAT-12+(MTG-I1),METEOSAT-10+(MSG-3),MTG-I2,LUCH+5B+(SDCM/PRN+125),BEIDOU-3+M8+(C28),ONEWEB-0169,ONEWEB-0336,BEIDOU-3+M11+(C25),ONEWEB-0112,ONEWEB-0628,GSAT-8+(GAGAN/PRN+127),BEIDOU-2+G5+(C05),TIANMU-1+10,TIANMU-1+13"
-              >Stand there</a
+              class="demoCarousel__link"
+              href="/?tags=&amp;sats=ISS+(ZARYA)&amp;track=ISS+(ZARYA)&amp;elements=Point,Label,Orbit,3D+model&amp;layers=VersaTiles"
+              data-demo="demo-iss"
             >
-          </figcaption>
-        </figure>
-      </div>
+              <img
+                src="/showcase/iss-card.jpg"
+                srcset="/showcase/iss-card.jpg 480w, /showcase/iss.webp 3200w"
+                sizes="(min-width: 46rem) 43.5rem, 100vw"
+                width="480"
+                height="300"
+                alt="A 3D model of the ISS above the curve of the Earth, on its orbit line"
+                loading="lazy"
+              />
+              <span class="demoCarousel__name">Follow the ISS</span>
+              <span class="demoCarousel__fact"
+                ><svg aria-hidden="true"><use href="#demo-icon-orbit" /></svg>ISS (ZARYA)</span
+              >
+              <span class="demoCarousel__fact"
+                ><svg aria-hidden="true"><use href="#demo-icon-crosshair" /></svg>Following it</span
+              >
+            </a>
+          </li>
+          <li class="demoCarousel__slide" aria-roledescription="slide" aria-label="3 of 3">
+            <a
+              class="demoCarousel__link"
+              href="/?scene=Sky&amp;gs=46.5935,7.9091,Lauterbrunnen&amp;terrain=ReEarth&amp;layers=VersaTiles&amp;stars=DeepStar2K&amp;tags=Active"
+              data-demo="demo-sky"
+            >
+              <img
+                src="/showcase/sky-card.jpg"
+                srcset="/showcase/sky-card.jpg 480w, /showcase/sky.webp 3200w"
+                sizes="(min-width: 46rem) 43.5rem, 100vw"
+                width="480"
+                height="300"
+                alt="Night sky over the Lauterbrunnen valley, with labelled navigation, weather and OneWeb satellites above the cliffs"
+                loading="lazy"
+              />
+              <span class="demoCarousel__name">Sky over Lauterbrunnen</span>
+              <span class="demoCarousel__fact"
+                ><svg aria-hidden="true"><use href="#demo-icon-orbit" /></svg>Active satellites</span
+              >
+              <span class="demoCarousel__fact"
+                ><svg aria-hidden="true"><use href="#demo-icon-telescope" /></svg>Sky over Lauterbrunnen</span
+              >
+            </a>
+          </li>
+        </ul>
+        <!-- Shown by carousel.ts; without a script the track still scrolls. -->
+        <div class="demoCarousel__controls" hidden>
+          <button type="button" class="demoCarousel__step demoCarousel__step--prev" aria-label="Previous demo">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m15 18l-6-6l6-6" />
+            </svg>
+          </button>
+          <button type="button" class="demoCarousel__step demoCarousel__step--next" aria-label="Next demo">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 18l6-6l-6-6" />
+            </svg>
+          </button>
+          <span class="demoCarousel__dots" aria-hidden="true"><span></span><span></span><span></span></span>
+        </div>
+      </section>
 
       <h2>What it does</h2>
       <ul>

@@ -16,7 +16,7 @@
     <slot />
     <template #body>
       <!-- eslint-disable-next-line vue/no-v-html -->
-      <div v-if="content" class="about about--dialog" v-html="content"></div>
+      <div v-if="content" :ref="attach" class="about about--dialog" @click="openDemo" v-html="content"></div>
       <div v-else class="about about--dialog">
         <p v-if="failed">The about page could not be loaded. <a href="/about">Open it directly</a>.</p>
         <p v-else>Loading…</p>
@@ -26,13 +26,46 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { type ComponentPublicInstance, ref, watch } from "vue";
+
+import { useBookmarks } from "../composables/useBookmarks";
+import { attachCarousel } from "../modules/util/carousel";
 
 import "../css/about.css";
 
 const open = ref(false);
 const content = ref("");
 const failed = ref(false);
+
+const { demos, open: openBookmark } = useBookmarks();
+
+/** The content element the carousel is wired to, and the undo; the modal unmounts it when closed. */
+let attached: { element: Element; detach: () => void } | undefined;
+
+/** Wires the demo carousel each time the content mounts. */
+function attach(element: Element | ComponentPublicInstance | null): void {
+  if (element === attached?.element) {
+    return;
+  }
+  attached?.detach();
+  attached = undefined;
+  const carousel = element instanceof Element ? element.querySelector<HTMLElement>(".demoCarousel") : null;
+  if (element instanceof Element && carousel) {
+    attached = { element, detach: attachCarousel(carousel) };
+  }
+}
+
+/** A demo opens in place, as its bookmark card does; a modified click opens its url, as any link. */
+function openDemo(event: MouseEvent): void {
+  const id = (event.target as Element).closest<HTMLElement>("[data-demo]")?.dataset.demo;
+  const demo = demos.find((bookmark) => bookmark.id === id);
+  if (!demo || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+    return;
+  }
+  event.preventDefault();
+  openBookmark(demo);
+  open.value = false;
+}
 
 // The about page is the only copy of the content; the dialog lifts its `#about-content`.
 // `v-html` runs no scripts from it. Fetches `about.html`, not `/about`: only that url

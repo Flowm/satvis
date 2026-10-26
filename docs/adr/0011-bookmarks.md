@@ -22,12 +22,12 @@ which the native app's url codec could not follow.
 view, and "preset" the route's starting configuration, so neither could name a stored
 link without a qualifier.
 
-**Three kinds.** A **demo** ships with the app: the scenes of the about page's
-showcase, each live and with a group or a single satellite rather than a list, so it
-shows the present and reads at a glance. The ISS is followed alone: the rest of the
-Stations group crowds the close-up. The sky shows every active satellite, as points
-past the label budget. The about page's own links stay pinned to the moment of their
-pictures; the App Store screenshots are the demos, at a pinned minute. The first
+**Three kinds.** A **demo** ships with the app, live and with a group or a single
+satellite rather than a list, so it shows the present and reads at a glance. The ISS
+is followed alone: the rest of the Stations group crowds the close-up. The sky shows
+every active satellite, as points past the label budget. The about page shows the
+demos as a carousel, linking to them live, and About opens them in place; the App
+Store screenshots are the demos, at a pinned minute. The first
 demo is the default preset's weather globe, so it is also the default view. A
 **saved** bookmark is one the visitor named. An **opened link** is a link a visit
 started with, so a shared link can be found again after wandering off it. Only a
@@ -76,6 +76,6 @@ are small copies of the showcase pictures, precached so the panel works offline.
 - **The native app keeps the same records**, per device (`ios/AGENTS.md`): its links
   decode the same query, and the demos and the parameters the stores own reach it
   through the parity script's `web-tables.json`. Nothing on the worker changes.
-- **A demo's picture is the about page's, not the present.** The sky demo shows a
+- **A demo's picture is a moment, not the present.** The sky demo shows a
   night sky on its card and a daylight one at noon.
 - **A bookmark's meaning can drift** with its preset's defaults, as any link's can.
