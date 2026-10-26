@@ -121,8 +121,7 @@ final class CatalogModel {
     /// Every tag a browsable group carries, A to Z as the web app's `localeCompare` lists them.
     var tags: [String] {
         var seen = Set<String>()
-        return groups.filter { !$0.searchOnly }.flatMap(\.tags).filter { seen.insert($0).inserted }
-            .sorted { $0.localizedCompare($1) == .orderedAscending }
+        return groups.filter { !$0.searchOnly }.flatMap(\.tags).filter { seen.insert($0).inserted }.alphabetical()
     }
 
     /// Satellites carrying a tag, loading its groups first.

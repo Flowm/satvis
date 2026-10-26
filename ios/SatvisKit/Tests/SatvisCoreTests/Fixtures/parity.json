@@ -7408,6 +7408,19 @@
       }
     ]
   },
+  "groupOrder": [
+    "active",
+    "Éclair",
+    "eutelsat",
+    "GNSS",
+    "Guowang",
+    "iridium",
+    "IridiumNEXT",
+    "OneWeb",
+    "Starlink 10",
+    "Starlink 2",
+    "Weather"
+  ],
   "bookmarks": {
     "now": "2026-10-08T12:00:00Z",
     "summaries": [
