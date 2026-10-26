@@ -498,14 +498,14 @@ function toggleMenuColumn() {
   }
 }
 
-/** Closes the open panel, which lies over the catalog sheet, else the sheet's innermost layer, then the column. Inputs and an open dialog keep Escape for themselves. */
+/** Closes the open panel, which lies over the catalog sheet, else the sheet's innermost layer, then the column. Inputs, an open dialog and an open menu keep Escape for themselves. */
 function onEscape(event: KeyboardEvent) {
   if (
     event.key !== "Escape" ||
     event.defaultPrevented ||
     (event.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable]") ||
     // Not every [role=dialog]: Cesium's credit lightbox carries the role while hidden.
-    document.querySelector('[role="dialog"][data-state="open"]')
+    document.querySelector('[role="dialog"][data-state="open"], [role="menu"][data-state="open"]')
   ) {
     return;
   }

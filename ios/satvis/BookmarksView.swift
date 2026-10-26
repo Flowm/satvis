@@ -45,12 +45,7 @@ struct BookmarksView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 12) {
-                    Picker("Bookmarks", selection: $tab) {
-                        Text("Demos").tag(Bookmark.Kind.demo)
-                        Text(count("Saved", bookmarks.saved.count)).tag(Bookmark.Kind.saved)
-                        Text(count("Recent", bookmarks.opened.count)).tag(Bookmark.Kind.opened)
-                    }
-                    .pickerStyle(.segmented)
+                    BookmarkTabs(selection: $tab, counts: [.saved: bookmarks.saved.count, .opened: bookmarks.opened.count])
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
                         ForEach(shown) { bookmark in
                             card(bookmark, isCurrent: bookmark.scene == here)
@@ -140,10 +135,6 @@ struct BookmarksView: View {
                 bookmarks.release(bookmark.id)
             }
         }
-    }
-
-    private func count(_ title: String, _ count: Int) -> String {
-        count > 0 ? "\(title) (\(count))" : title
     }
 
     private func card(_ bookmark: Bookmark, isCurrent: Bool) -> some View {
@@ -238,6 +229,61 @@ struct BookmarksView: View {
                 bookmarks.release(bookmark.id)
             }
         }
+    }
+}
+
+/// The tabs with the web app's counts on Saved and Recent, as badges, which the
+/// system's segmented control cannot draw: it takes a segment's text alone. Drawn
+/// as that control is, so that it matches the other panels' pickers.
+private struct BookmarkTabs: View {
+    @Binding var selection: Bookmark.Kind
+    let counts: [Bookmark.Kind: Int]
+    @Namespace private var thumb
+
+    private static let tabs: [(Bookmark.Kind, String)] = [(.demo, "Demos"), (.saved, "Saved"), (.opened, "Recent")]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Self.tabs, id: \.0) { kind, title in
+                tab(kind, title, count: counts[kind] ?? 0)
+            }
+        }
+        .padding(2)
+        .background(Color(uiColor: .tertiarySystemFill), in: .capsule)
+        .accessibilityElement(children: .contain)
+    }
+
+    private func tab(_ kind: Bookmark.Kind, _ title: String, count: Int) -> some View {
+        let isSelected = selection == kind
+        return Button {
+            withAnimation(.snappy) { selection = kind }
+        } label: {
+            HStack(spacing: 5) {
+                Text(title)
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.caption2.weight(.semibold))
+                        .monospacedDigit()
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(.white.opacity(0.12), in: .capsule)
+                }
+            }
+            .font(.subheadline.weight(isSelected ? .semibold : .medium))
+            .foregroundStyle(Color.panelInk)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, minHeight: 28)
+            .background {
+                if isSelected {
+                    Capsule().fill(Color(uiColor: .systemGray2)).matchedGeometryEffect(id: "thumb", in: thumb)
+                }
+            }
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        // The picker's labels, which VoiceOver read and the UI tests find.
+        .accessibilityLabel(count > 0 ? "\(title) (\(count))" : title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

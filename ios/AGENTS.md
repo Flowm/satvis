@@ -273,7 +273,9 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   links are kept in Application Support (`BookmarkStorage`), in backups, and synced
   nowhere; a deleted one's picture stays while its own Undo lasts. A card's
   actions are a long press, and a "…" on the card shows they are there: Share on
-  every card, a demo's included. An opened link is one the system hands over, or
+  every card, a demo's included. Its tabs are drawn as a segmented control is,
+  not the system's, which takes a segment's text alone: they carry the web app's
+  counts as badges. An opened link is one the system hands over, or
   `SATVIS_LINK`: not the view a last run left, which is a reload. Pictures are the
   renderer's next frame (`GlobeRenderer.snapshot`), read from a drawable asked
   for readable for that frame alone, 480 pixels across where the web app's are
