@@ -3,7 +3,7 @@
 
 import { clockMs, FIXTURE_TIME, openApp, waitForScene } from "../support/app";
 import { expect, test } from "../support/test";
-import { openMenu, toasts } from "../support/ui";
+import { menuSwitch, openMenu, toasts } from "../support/ui";
 
 // The ISS demo's street map asks for hosts the fixture network cuts off.
 test.use({ viewport: { width: 1280, height: 800 }, allowConsoleErrors: /ERR_BLOCKED_BY_CLIENT/ });
@@ -100,7 +100,11 @@ test("back to the default view, back to the link, and keep it", async ({ page })
   await name.press("Enter");
   await expect(cards).toHaveCount(2);
 
-  // A reload reopens the visitor's own scene, so it is not recorded as another link.
+  // A reload reopens the visitor's own scene, so it is not recorded as another link. Off
+  // every bookmark first, so only the reload keeps it off Recent.
+  await openMenu(page, "Components");
+  await menuSwitch(page, "Label").click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("elements")).not.toContain("Label");
   await page.reload();
   await waitForScene(page);
   await openMenu(page, "Bookmarks");

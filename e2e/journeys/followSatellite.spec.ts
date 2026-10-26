@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 import type { Page } from "@playwright/test";
 
 import { openApp, waitTicks } from "../support/app";
@@ -7,9 +5,6 @@ import { expect, test } from "../support/test";
 import { DEVICES, showInfo } from "../support/ui";
 
 const ISS = "ISS (ZARYA)";
-
-/** CI checks out no models submodule, so every model is this cube. */
-const CUBE = readFileSync(new URL("../fixtures/models/cube.glb", import.meta.url));
 
 /** Metres from the camera to the tracked satellite, and where the satellite is. */
 const trackingGap = (page: Page) =>
@@ -25,12 +20,7 @@ for (const [device, options] of Object.entries(DEVICES)) {
     test.use(options);
 
     test("search for the ISS, read its details, and follow it", async ({ page }) => {
-      await openApp(page, "", {
-        live: true,
-        setup: async (setupPage) => {
-          await setupPage.route("**/data/models/*.glb", (route) => route.fulfill({ contentType: "model/gltf-binary", body: CUBE }));
-        },
-      });
+      await openApp(page, "", { live: true });
 
       await showInfo(page, ISS);
       // On a phone the catalog and the menu column make way for the info panel.

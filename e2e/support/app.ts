@@ -6,6 +6,13 @@ import { fileURLToPath } from "node:url";
 
 import { expect, type Page } from "@playwright/test";
 
+/** The page's navigation entries, read before the clock replaces `performance`. */
+declare global {
+  interface Window {
+    realNavigationEntries?: PerformanceEntryList;
+  }
+}
+
 const FIXTURE_DIR = fileURLToPath(new URL("../fixtures/gp/", import.meta.url));
 
 /** Within a day of every fixture epoch (e2e/fixtures/gp). */
@@ -14,19 +21,27 @@ export const FIXTURE_TIME = "2026-10-05T12:00Z";
 /** The fixture's group sizes, which the default preset's counts follow. */
 export const fixtureGroupCount = (name: string): number => (JSON.parse(readFileSync(`${FIXTURE_DIR}${name}.json`, "utf8")) as unknown[]).length;
 
+/**
+ * Every model, as CI checks out no models submodule. Without it the dev server answers a
+ * `.glb` with index.html, which fails to parse at a moment no spec controls, and a tracked
+ * satellite lost its track in one bookmarks journey out of twelve.
+ */
+export const CUBE_MODEL = readFileSync(new URL("../fixtures/models/cube.glb", import.meta.url));
+
 /** One transparent pixel. */
 export const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
 
 /**
- * Serves `/api` from the fixture and keeps every request on localhost. A map tile from
- * elsewhere (an image by its extension, as OSM's are) gets a transparent pixel; anything
- * else is aborted.
+ * Serves `/api` from the fixture, and every model as `CUBE_MODEL`, and keeps every request on
+ * localhost. A map tile from elsewhere (an image by its extension, as OSM's are) gets a
+ * transparent pixel; anything else is aborted.
  */
 export async function useFixtureNetwork(page: Page): Promise<void> {
   await page.route(
     (url) => url.hostname !== "localhost",
     (route) => (/\.(png|jpe?g|webp)$/.test(new URL(route.request().url()).pathname) ? route.fulfill({ contentType: "image/png", body: PIXEL }) : route.abort("blockedbyclient")),
   );
+  await page.route("**/data/models/*.glb", (route) => route.fulfill({ contentType: "model/gltf-binary", body: CUBE_MODEL }));
   await page.route("**/api/groups.json", (route) => route.fulfill({ contentType: "application/json", body: readFileSync(`${FIXTURE_DIR}groups.json`) }));
   await page.route("**/api/gp/*.json", (route) => {
     const name = new URL(route.request().url()).pathname.split("/").pop()!;
@@ -94,7 +109,7 @@ export async function openApp(page: Page, query: string, { setup, satellites = t
     await scaleRendering(page, renderScale);
   }
   if (live) {
-    await page.clock.install({ time: new Date(FIXTURE_TIME) });
+    await installClock(page, new Date(FIXTURE_TIME));
     await page.goto(query === "" ? "/" : `/?${query}`);
   } else {
     const params = new URLSearchParams(query);
@@ -104,6 +119,24 @@ export async function openApp(page: Page, query: string, { setup, satellites = t
     await page.goto(`/?${params.toString().replaceAll("%2C", ",")}`);
   }
   await waitForScene(page, satellites);
+}
+
+/**
+ * Installs Playwright's clock with the page's navigation entry intact. The clock swaps
+ * `performance` for a fake whose `getEntriesByType` is always empty, so the app could not
+ * tell a reload from a navigation (`recordOpenedLink`). Init scripts run in the order they
+ * were added, though Playwright does not promise it: the first sees the real `performance`,
+ * the second the fake.
+ */
+async function installClock(page: Page, time: Date): Promise<void> {
+  await page.addInitScript(() => {
+    window.realNavigationEntries = performance.getEntriesByType("navigation");
+  });
+  await page.clock.install({ time });
+  await page.addInitScript(() => {
+    const entriesByType = performance.getEntriesByType.bind(performance);
+    performance.getEntriesByType = (type) => (type === "navigation" ? (window.realNavigationEntries ?? []) : entriesByType(type));
+  });
 }
 
 /** Built satellites and loaded tiles. A frame must run for either to change. */
