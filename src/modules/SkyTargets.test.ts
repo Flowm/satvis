@@ -84,7 +84,7 @@ describe("lookAngles", () => {
 describe("nearestTarget", () => {
   const center = new Cartesian2(640, 360);
   const target = (name: string, x: number, y: number, elevation = 45): SkyTarget =>
-    ({ name, azimuth: 0, elevation, rangeKm: 1000, altitudeKm: 800, window: new Cartesian2(x, y), visibility: "visible", sat: { props: { name } } }) as unknown as SkyTarget;
+    ({ name, azimuth: 0, elevation, rangeKm: 1000, window: new Cartesian2(x, y), visibility: "visible", sat: { props: { name } } }) as unknown as SkyTarget;
 
   test("takes the genuinely nearest, not the first in range", () => {
     const targets = [target("far", 640, 410), target("near", 650, 360), target("mid", 660, 380)];

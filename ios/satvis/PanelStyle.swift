@@ -23,6 +23,8 @@ extension Color {
     static let panelAccent = Color(red: 127 / 255, green: 210 / 255, blue: 234 / 255)
     /// "Not where it rests", as on the web: the clock deck's reset, a stale element set.
     static let panelAmber = Color(red: 1, green: 0xD4 / 255, blue: 0x79 / 255)
+    /// The web app's `#4ade80`: what could be seen, the sky view's lock and its chip.
+    static let panelGreen = Color(red: 0x4A / 255, green: 0xDE / 255, blue: 0x80 / 255)
 }
 
 extension UIColor {
@@ -68,7 +70,7 @@ extension View {
     /// panel's 16 unless told otherwise, the buttons' 12 and the 4 points the menu
     /// column sets its rows in, so the column folded to its toggle is a button's
     /// shape, not a capsule.
-    func panel(cornerRadius: CGFloat = 16) -> some View {
+    func panel(cornerRadius: CGFloat = PanelMetrics.radius) -> some View {
         panel(in: .rect(cornerRadius: cornerRadius))
     }
 
@@ -165,4 +167,9 @@ enum PanelMetrics {
     static let edge: CGFloat = 12
     /// Between the menu column and its panel, and between the corner's buttons.
     static let gap: CGFloat = 8
+    /// From the safe area's top to what sits under the menu toggle and the corner's
+    /// first button.
+    static let underTopRow = edge + row + gap
+    /// A panel's corners, a card's and the info card's.
+    static let radius: CGFloat = 16
 }

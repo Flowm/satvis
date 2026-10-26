@@ -55,13 +55,14 @@ body {
   /* The iOS app's 16 points of a 44-point row: a panel's corners, and the corner buttons',
      so the menu column folded to its toggle is their twin. */
   --panel-radius: calc(var(--toolbar-row) * 16 / 44);
-  --button-radius: var(--panel-radius);
   /* From the screen's edge, or its safe area, to the menu column and the corner buttons,
      and between those and the entity info panel below them. */
   --edge: 12px;
   /* Between the menu column and its panel. */
   --toolbar-gap: 8px;
   --panel-width: 260px;
+  /* The open menu column, its widest name "Components" (measured: 124.4 and 136.1 px). */
+  --menu-width: 125px;
   /* A row's name, a panel's title, a note, and a section's heading. */
   --text-label: 14px;
   --text-title: 15px;
@@ -92,6 +93,8 @@ body {
   --panel-accent: #7fd2ea;
   /* "Not where it rests", as the iOS app's: the clock deck's reset, a stale element set. */
   --panel-amber: #ffd479;
+  /* What could be seen, or where something stands: the sky view's lock, its chip, a station. */
+  --panel-green: #4ade80;
   /* Apple's dark red, for what removes or forgets. */
   --panel-destructive: #ff453a;
 }
@@ -105,6 +108,7 @@ body {
     --text-label: 15px;
     --text-title: 16px;
     --text-note: 13px;
+    --menu-width: 137px;
   }
 }
 
@@ -179,7 +183,7 @@ body {
 /* The iOS app's buttons, lit and grown while pressed where Cesium's turn blue. */
 #toolbarRight .cesium-button {
   margin: 0;
-  border-radius: var(--button-radius);
+  border-radius: var(--panel-radius);
   color: var(--panel-ink);
   fill: var(--panel-ink);
   box-shadow: none;
@@ -281,14 +285,13 @@ body {
   opacity: 0.7;
 }
 
-/* Under the entity info panel, which takes the top-right corner from 640 px. */
-@media (min-width: 640px) {
-  #toolbarRight:has(~ .entity-info-panel) {
-    visibility: hidden;
-  }
+/* Under the entity info panel: it takes the corner from 640 px, and a phone's panel meets
+   the second button. The panel's own Track and Close stay. */
+#toolbarRight:has(~ .entity-info-panel) {
+  visibility: hidden;
 }
 
-/* A phone: labels fold beside a panel, by the right padding only so the icons stay put,
+/* A phone (`PHONE_WIDTH`, src/config/layout.ts): labels fold beside a panel, by the right padding only so the icons stay put,
    and the top-right buttons it covers hide rather than show through it. */
 @media (max-width: 639px) {
   #toolbarLeft.toolbarLeft--panelOpen ~ #toolbarRight {

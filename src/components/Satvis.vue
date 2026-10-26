@@ -194,33 +194,32 @@
         <segmented-control v-model="msaa" label="Antialiasing (MSAA)" :options="MSAA_OPTIONS" />
       </toolbar-panel>
     </div>
-    <!-- The native app's corner, in its order: the eye first, so it stays put as the
-         others come and go, then the way home, then what the view in front offers. -->
+    <!-- The native app's corner, in its order: the eye first, so it stays put as the others come and go. -->
     <div id="toolbarRight">
-      <UTooltip :text="showUI ? 'Hide UI' : 'Show UI'">
-        <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="showUI ? 'Hide UI' : 'Show UI'" @click="toggleUI">
+      <UTooltip :text="uiLabel">
+        <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="uiLabel" @click="toggleUI">
           <UIcon :name="showUI ? 'lucide:eye' : 'lucide:eye-off'" />
         </button>
       </UTooltip>
       <template v-if="showUI">
-        <UTooltip :text="inSkyView ? 'Leave the sky view' : 'Home view'">
-          <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="inSkyView ? 'Leave the sky view' : 'Home view'" @click="goHome">
+        <UTooltip :text="homeLabel">
+          <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="homeLabel" @click="goHome">
             <UIcon name="lucide:globe" />
           </button>
         </UTooltip>
-        <UTooltip v-if="inSkyView && compassOffered" :text="compassActive ? 'Stop aiming by compass' : 'Aim by compass'">
+        <UTooltip v-if="inSkyView && compassOffered" :text="compassLabel">
           <button
             type="button"
             class="cesium-button cesium-toolbar-button"
             :class="{ 'toolbarRight__button--on': compassActive }"
-            :aria-label="compassActive ? 'Stop aiming by compass' : 'Aim by compass'"
+            :aria-label="compassLabel"
             :disabled="compassPending"
             @click="toggleCompassAim"
           >
             <UIcon name="lucide:compass" />
           </button>
         </UTooltip>
-        <UTooltip v-if="tracking && !inSkyView" text="Stop tracking">
+        <UTooltip v-if="tracking" text="Stop tracking">
           <button type="button" class="cesium-button cesium-toolbar-button" aria-label="Stop tracking" @click="cc.viewer.trackedEntity = undefined">
             <UIcon name="lucide:video-off" />
           </button>
@@ -245,6 +244,7 @@ import { useGeolocation } from "../composables/useGeolocation";
 import { useSelectedEntity } from "../composables/useSelectedEntity";
 import { compassAvailable, useSkyCompass } from "../composables/useSkyCompass";
 import { SATELLITE_COMPONENTS } from "../config/components";
+import { PHONE_WIDTH } from "../config/layout";
 import { MSAA_RATES, pixelRatiosFor } from "../config/rendering";
 import { availableStarMaps, BUILTIN_STAR_MAP, type StarMapName } from "../config/starMaps";
 import { type MapGroup, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, viewModeNote } from "../config/surfaceModels";
@@ -292,7 +292,7 @@ const menuToggle = ref<HTMLButtonElement>();
 const entryButtons: Partial<Record<MenuKey, HTMLButtonElement | null>> = {};
 
 /** A known phone width, below which the column stacks over the info panel. A hidden tab can report 0. */
-const isNarrow = (): boolean => window.innerWidth > 0 && window.innerWidth < 640;
+const isNarrow = (): boolean => window.innerWidth > 0 && window.innerWidth < PHONE_WIDTH;
 
 const menuExpanded = ref(!isNarrow());
 
@@ -419,6 +419,11 @@ async function onCompassToggle(event: Event): Promise<void> {
   (event.target as HTMLInputElement).checked = compassActive.value;
 }
 
+/** The corner's names, the native app's, for its tooltips and screen readers alike. */
+const uiLabel = computed(() => (showUI.value ? "Hide UI" : "Show UI"));
+const homeLabel = computed(() => (inSkyView.value ? "Leave the sky view" : "Home view"));
+const compassLabel = computed(() => (compassActive.value ? "Stop aiming by compass" : "Aim by compass"));
+
 /** The corner's globe: out of the sky view, else home, letting go of what is followed, as the native app's. */
 function goHome(): void {
   if (inSkyView.value) {
@@ -513,10 +518,7 @@ const { selection } = useSelectedEntity(cc);
 /** Whether two boxes share any area. */
 const overlaps = (a: DOMRect, b: DOMRect): boolean => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
-/**
- * Closes what would cover the info panel: the open panel, and the column where it reaches that far, as on
- * a phone. Measured, not a width: at 820 px the Satellites panel covered the info panel's name and tabs.
- */
+/** Closes the open panel, and folds the column, where either would cover the info panel: measured, not by width. */
 async function uncoverInfoPanel(): Promise<void> {
   await nextTick();
   const info = document.querySelector(".entity-info-panel")?.getBoundingClientRect();
@@ -541,7 +543,8 @@ function onShowInfo(): void {
     catalogOpen.value = false;
   }
   void uncoverInfoPanel();
-  // A satellite not built yet is selected once it is, a frame or more after the click.
+  // A satellite not built yet is selected a frame or more after the click; one already selected never
+  // changes the selection, so the watch gives up.
   const stop = watch(selection, () => {
     stop();
     void uncoverInfoPanel();

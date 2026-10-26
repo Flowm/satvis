@@ -7398,9 +7398,29 @@
         "rangeKm": 38362.4,
         "text": "0° N · 90° up · 38,362 km away",
         "spoken": "Azimuth 0° N, elevation 90°, 38,362 km away"
+      },
+      {
+        "azimuth": 10,
+        "elevation": -0.3,
+        "rangeKm": 500,
+        "text": "10° N · 0° up · 500 km away",
+        "spoken": "Azimuth 10° N, elevation 0°, 500 km away"
       }
     ]
   },
+  "groupOrder": [
+    "active",
+    "Éclair",
+    "eutelsat",
+    "GNSS",
+    "Guowang",
+    "iridium",
+    "IridiumNEXT",
+    "OneWeb",
+    "Starlink 10",
+    "Starlink 2",
+    "Weather"
+  ],
   "bookmarks": {
     "now": "2026-10-08T12:00:00Z",
     "summaries": [

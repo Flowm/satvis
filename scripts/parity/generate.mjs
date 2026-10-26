@@ -497,6 +497,9 @@ try {
     [10, true, 36_000],
   ].map(([sunElevation, sunlit, rangeKm]) => ({ sunElevation, sunlit, rangeKm, visibility: sky.visibility(sunElevation, sunlit, rangeKm) }));
 
+  // Case, accents and digits, against Swift's `localizedCompare`.
+  const GROUP_NAMES = ["Weather", "active", "GNSS", "Guowang", "Éclair", "eutelsat", "IridiumNEXT", "iridium", "OneWeb", "Starlink 2", "Starlink 10"];
+
   // The sky view's lock card: where to look, rounded and grouped, and the verdict's words.
   const skyCard = await runner.import("/src/modules/skyCard.ts");
   const lockPositions = [
@@ -505,6 +508,7 @@ try {
     [11.25, 30.5, 1540.2],
     [192.3, 47.06, 4999.5],
     [359.6, 89.6, 38_362.4],
+    [10, -0.3, 500],
   ].map(([azimuth, elevation, rangeKm]) => {
     const { text, spoken } = skyCard.lockPosition(azimuth, elevation, rangeKm);
     return { azimuth, elevation, rangeKm, text, spoken };
@@ -583,6 +587,8 @@ try {
     greenwichHourAngle: hourAngles,
     visibility: { sunDirections, shadows, verdicts },
     lockCard: { labels: skyCard.VISIBILITY_LABEL, positions: lockPositions },
+    // The Satellites list's groups, A to Z as `localeCompare` has them (useSatelliteBrowser.ts).
+    groupOrder: GROUP_NAMES.toSorted((a, b) => a.localeCompare(b)),
     bookmarks: { now: BOOKMARK_NOW, summaries, ages, openedLimit: bookmarks.OPENED_LIMIT },
     // Each case is [lodSets index, diameter, current level, level].
     modelLevels: { hysteresis: MODEL_LEVEL_HYSTERESIS, lodSets: LOD_SETS, cases: modelLevels },

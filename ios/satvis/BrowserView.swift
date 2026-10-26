@@ -180,7 +180,7 @@ private struct SatelliteRow: View {
             VStack(alignment: .leading) {
                 Text(entry.name)
                 if showsTags {
-                    Text(entry.tags.sorted { $0.localizedCompare($1) == .orderedAscending }.joined(separator: ", "))
+                    Text(entry.tags.alphabetical().joined(separator: ", "))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

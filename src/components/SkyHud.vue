@@ -193,7 +193,7 @@ onUnmounted(() => {
   transform: translateX(-50%);
   border-left: 7px solid transparent;
   border-right: 7px solid transparent;
-  border-bottom: 9px solid #4ade80;
+  border-bottom: 9px solid var(--panel-green);
 }
 
 .sky-hud__reticle {
@@ -215,7 +215,7 @@ onUnmounted(() => {
 
 .sky-hud__reticle--locked :deep(circle),
 .sky-hud__reticle--locked :deep(line) {
-  stroke: #4ade80;
+  stroke: var(--panel-green);
   opacity: 1;
 }
 
@@ -239,11 +239,13 @@ onUnmounted(() => {
   left: 50%;
   bottom: max(calc(64px + var(--safe-bottom, 0px)), calc(var(--clock-deck-height, 0px) + 8px));
   transform: translateX(-50%);
+  /* From either side of a narrow screen. */
+  --gutter: 16px;
   width: 280px;
-  max-width: calc(100% - 32px);
+  max-width: calc(100% - 2 * var(--gutter));
   padding: 6px 8px 6px 12px;
   border-radius: var(--panel-radius);
-  font-size: 13px;
+  font-size: var(--text-note);
   line-height: 18px;
 }
 
@@ -275,8 +277,8 @@ onUnmounted(() => {
 }
 
 .sky-hud__chip--visible {
-  background: #4ade8033;
-  color: #4ade80;
+  background: color-mix(in srgb, var(--panel-green) 20%, transparent);
+  color: var(--panel-green);
 }
 
 .sky-hud__open {

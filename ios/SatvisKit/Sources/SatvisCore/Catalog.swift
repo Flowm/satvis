@@ -169,3 +169,11 @@ public struct Activation: Sendable, Equatable {
         self = Activation()
     }
 }
+
+extension Sequence<String> {
+    /// A to Z as the web app's `localeCompare` sorts the satellite groups, held to it
+    /// by the parity fixtures.
+    public func alphabetical() -> [String] {
+        sorted { $0.localizedCompare($1) == .orderedAscending }
+    }
+}
