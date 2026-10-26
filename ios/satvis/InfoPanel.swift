@@ -210,8 +210,7 @@ private struct TabPicker: View {
         ) {
             ForEach(tabs, id: \.self) { Text($0.rawValue.capitalized) }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
+        .panelSegmented()
     }
 }
 
