@@ -194,8 +194,7 @@
         <segmented-control v-model="msaa" label="Antialiasing (MSAA)" :options="MSAA_OPTIONS" />
       </toolbar-panel>
     </div>
-    <!-- The native app's corner, in its order: the eye first, so it stays put as the
-         others come and go, then the way home, then what the view in front offers. -->
+    <!-- The native app's corner, in its order: the eye first, so it stays put as the others come and go. -->
     <div id="toolbarRight">
       <UTooltip :text="showUI ? 'Hide UI' : 'Show UI'">
         <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="showUI ? 'Hide UI' : 'Show UI'" @click="toggleUI">
@@ -514,10 +513,7 @@ const { selection } = useSelectedEntity(cc);
 /** Whether two boxes share any area. */
 const overlaps = (a: DOMRect, b: DOMRect): boolean => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
-/**
- * Closes what would cover the info panel: the open panel, and the column where it reaches that far, as on
- * a phone. Measured, not a width: at 820 px the Satellites panel covered the info panel's name and tabs.
- */
+/** Closes the open panel, and folds the column, where either would cover the info panel: measured, not by width. */
 async function uncoverInfoPanel(): Promise<void> {
   await nextTick();
   const info = document.querySelector(".entity-info-panel")?.getBoundingClientRect();
@@ -542,7 +538,8 @@ function onShowInfo(): void {
     catalogOpen.value = false;
   }
   void uncoverInfoPanel();
-  // A satellite not built yet is selected once it is, a frame or more after the click.
+  // A satellite not built yet is selected a frame or more after the click; one already selected never
+  // changes the selection, so the watch gives up.
   const stop = watch(selection, () => {
     stop();
     void uncoverInfoPanel();

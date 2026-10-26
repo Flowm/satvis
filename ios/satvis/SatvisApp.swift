@@ -133,9 +133,7 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            // The web app's corner, in its order: the eye first, so it stays put as the
-            // others come and go, then the way home, then what the view in front offers.
-            // The menu column's gap to a panel beside it.
+            // The web app's order: the eye first, so it stays put as the others come and go.
             VStack(spacing: PanelMetrics.gap) {
                 Button(showsUI ? "Hide UI" : "Show UI", systemImage: showsUI ? "eye" : "eye.slash") { showsUI.toggle() }
                 if showsUI {
@@ -173,13 +171,10 @@ struct ContentView: View {
             .accessibilityHidden(cornerCovered)
             .animation(.snappy(duration: 0.2), value: cornerCovered)
         }
-        // A card in the top-right corner, over the corner's buttons, where there is
-        // room for one, as the web app's panel, a sheet over the lower half where
-        // there is not (below), leaving the globe to steer either way. Not an
-        // inspector column: one narrows the globe's view, and iPadOS then presents
-        // its frames late enough to halve every other one, 40 fps tracking the ISS
-        // on an iPad mini where the card leaves it at 60. Nothing moves aside for
-        // it, and a tool panel opened beside the menu column covers it.
+        // Where there is room, a card in the top-right corner, as the web app's panel;
+        // else a sheet (below). Not an inspector column: narrowing the globe's view
+        // made iPadOS present frames late, 40 fps tracking the ISS on an iPad mini
+        // against the card's 60.
         .overlay(alignment: .topTrailing) {
             GeometryReader { proxy in
                 if showsCard, let frame = cardPlacement(in: proxy) {
@@ -455,12 +450,9 @@ struct ContentView: View {
         panelFillsWidth || showsCard
     }
 
-    /// Where the info card goes, in the window, given the overlay's room: in the
-    /// corner's buttons' place, clear of the menu column, and as tall as its list
-    /// up to `cardMaxHeight`, above the clock deck. While the camera holds
-    /// something in the middle of the screen, the tracked satellite or station or
-    /// the sky view's crosshair, it keeps clear of that. Nil until the corner's
-    /// buttons are laid out.
+    /// The info card's frame in the window: in the corner's buttons' place, clear of
+    /// the menu column and the clock deck, and clear of the screen's middle while
+    /// the camera holds something there. Nil until the corner is laid out.
     private func cardPlacement(in proxy: GeometryProxy) -> CGRect? {
         guard let cornerFrame else {
             return nil
