@@ -63,9 +63,9 @@ body {
   /* The menu column, the corner buttons, the clock deck and the sky view's cards: a few
      large glyphs, which the globe can show through. */
   --panel-surface-float: #1c1c1ed9;
-  /* The panels and the info panel, whose rows of small text globe labels must not bleed
-     through. Solid only over the corner buttons and in dialogs. */
-  --panel-surface-dense: #1c1c1ef2;
+  /* The panels, the info panel and the dialogs: rows of small text, which the globe and
+     its labels show behind faintly, and do not bleed through. */
+  --panel-surface-dense: #1c1c1ee6;
   /* A card or a control on a panel. */
   --panel-raised: #2c2c2e;
   --panel-raised-hover: #3a3a3c;
@@ -130,14 +130,16 @@ body {
    The edge is a masked pseudo-element, as a border cannot take a gradient round a
    rounded corner; inside the element's own clip, so a panel has no border. */
 .panelSurface,
-#toolbarRight .cesium-button {
+#toolbarRight .cesium-button,
+.cesium-credit-lightbox-overlay .cesium-credit-lightbox {
   position: relative;
   border: none;
   background: var(--panel-glow), var(--panel-surface-float);
 }
 
 .panelSurface::before,
-#toolbarRight .cesium-button::before {
+#toolbarRight .cesium-button::before,
+.cesium-credit-lightbox-overlay .cesium-credit-lightbox-expanded::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -263,10 +265,10 @@ body {
 }
 
 /* A phone: labels fold beside a panel, by the right padding only so the icons stay put,
-   and the panel is opaque over the top-right buttons. */
+   and the top-right buttons it covers hide rather than show through it. */
 @media (max-width: 639px) {
-  #toolbarLeft .toolbarPanel {
-    background: var(--panel-surface);
+  #toolbarLeft.toolbarLeft--panelOpen ~ #toolbarRight {
+    visibility: hidden;
   }
 
   .toolbarLeft--panelOpen .menuColumn__label {
@@ -633,6 +635,21 @@ body.clock-deck[data-clock-deck="folded"] {
 .cesium-viewer-bottom {
   bottom: var(--credit-bottom) !important;
   left: var(--credit-left) !important;
+}
+
+/* Cesium's credits, a dialog: the panels' dense surface over a dimmed globe, in place of
+   its #303336 over an 80 % grey. `body` outranks the style Cesium injects after this. */
+body .cesium-credit-lightbox-overlay {
+  background-color: #00000066;
+}
+
+.cesium-credit-lightbox-overlay .cesium-credit-lightbox {
+  background: var(--panel-glow), var(--panel-surface-dense);
+  color: var(--panel-ink);
+}
+
+.cesium-credit-lightbox-overlay .cesium-credit-lightbox-expanded {
+  border-radius: var(--panel-radius);
 }
 
 /* Below 576 px the lightbox is full screen, its close button under the status bar. */

@@ -2,7 +2,7 @@
   <UModal
     v-model:open="open"
     title="About Satvis"
-    :ui="{ content: 'bg-(--panel-surface)/95 text-(--panel-ink) divide-neutral-600 max-w-2xl', header: 'p-2 sm:px-3', body: 'p-3 sm:p-3' }"
+    :ui="{ overlay: 'bg-black/40', content: 'bg-(--panel-surface-dense) text-(--panel-ink) divide-neutral-600 max-w-2xl', header: 'p-2 sm:px-3', body: 'p-3 sm:p-3' }"
   >
     <!-- The trigger, which the dialog returns focus to when it closes. -->
     <slot />
