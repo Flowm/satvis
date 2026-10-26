@@ -73,6 +73,13 @@ struct ContentView: View {
     @State private var cornerFrame: CGRect?
     /// The room the menu column and its panel are laid out in, in the window.
     @State private var toolsFrame: CGRect?
+    /// Where the clock deck is, in the window, for the info card to stop above it.
+    @State private var deckFrame: CGRect?
+    /// How tall the info card's list is laid out, its bar included; nil until
+    /// measured, when the card takes all the height it may.
+    @State private var infoHeight: CGFloat?
+    /// Where the info card is, in the window, for the sky view's lock card.
+    @State private var cardFrame: CGRect?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -111,7 +118,7 @@ struct ContentView: View {
         .overlay {
             if session.observer != nil, let renderer = session.renderer {
                 // In the renderer's frame, the whole screen, since it projects into it.
-                SkyHUD(renderer: renderer, controls: topControls, trailingInset: cardInset, notice: session.notice ?? session.aim.cameraWarning)
+                SkyHUD(renderer: renderer, controls: topControls, infoCard: showsCard ? cardFrame : nil, notice: session.notice ?? session.aim.cameraWarning)
                     .ignoresSafeArea()
             }
         }
@@ -161,10 +168,52 @@ struct ContentView: View {
             }
             .padding(PanelMetrics.edge)
             // Under a panel across a phone's width, whose close button they showed
-            // through.
-            .opacity(panelFillsWidth ? 0 : 1)
-            .accessibilityHidden(panelFillsWidth)
-            .animation(.snappy(duration: 0.2), value: panelFillsWidth)
+            // through, and under the info card, which has its own Track and close.
+            .opacity(cornerCovered ? 0 : 1)
+            .accessibilityHidden(cornerCovered)
+            .animation(.snappy(duration: 0.2), value: cornerCovered)
+        }
+        // A card in the top-right corner, over the corner's buttons, where there is
+        // room for one, as the web app's panel, a sheet over the lower half where
+        // there is not (below), leaving the globe to steer either way. Not an
+        // inspector column: one narrows the globe's view, and iPadOS then presents
+        // its frames late enough to halve every other one, 40 fps tracking the ISS
+        // on an iPad mini where the card leaves it at 60. Nothing moves aside for
+        // it, and a tool panel opened beside the menu column covers it.
+        .overlay(alignment: .topTrailing) {
+            GeometryReader { proxy in
+                if showsCard, let frame = cardPlacement(in: proxy) {
+                    let room = proxy.frame(in: .global)
+                    infoPanel
+                        .onScrollGeometryChange(for: CGFloat.self) {
+                            $0.contentSize.height + $0.contentInsets.top + $0.contentInsets.bottom
+                        } action: { _, height in
+                            infoHeight = height
+                        }
+                        .frame(width: frame.width, height: frame.height)
+                        .clipShape(.rect(cornerRadius: 16))
+                        // The panels' surface, dense as the tool panels', but not
+                        // their ink, which would light the lists' section headers.
+                        .background {
+                            Color.clear.panel()
+                                .environment(\.panelDensity, .dense)
+                        }
+                        .onGeometryChange(for: CGRect.self) {
+                            $0.frame(in: .global)
+                        } action: {
+                            cardFrame = $0
+                        }
+                        .padding(.top, frame.minY - room.minY)
+                        .padding(.trailing, room.maxX - frame.maxX)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                        .animation(.snappy(duration: 0.2), value: frame)
+                        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
+                }
+            }
+            .animation(.smooth, value: showsCard)
+        }
+        .onChange(of: session.selection) {
+            infoHeight = nil
         }
         // Over the top-right buttons, for a panel across a phone's width.
         .overlay(alignment: .topLeading) {
@@ -275,6 +324,11 @@ struct ContentView: View {
                     OpenStreetMapCredit(isOwed: session.mapCredits.contains(.openStreetMap)) { showsAcknowledgements = true }
                 }
                 .frame(maxWidth: .infinity)
+                .onGeometryChange(for: CGRect.self) {
+                    $0.frame(in: .global)
+                } action: {
+                    deckFrame = $0
+                }
                 .shown(showsUI)
             }
         }
@@ -323,27 +377,6 @@ struct ContentView: View {
                     }
             }
         }
-        // A card over the trailing edge where there is room for one, a sheet over
-        // the lower half where there is not, leaving the globe to steer either
-        // way. Not an inspector column: one narrows the globe's view, and iPadOS
-        // then presents its frames late enough to halve every other one, 40 fps
-        // tracking the ISS on an iPad mini where the card leaves it at 60. The
-        // controls move aside for the card; the globe, under the safe area, does
-        // not.
-        .safeAreaInset(edge: .trailing, spacing: 0) {
-            if sizeClass == .regular, session.selection != nil {
-                infoPanel
-                    .frame(width: Self.cardWidth)
-                    // Dense, not glass: glass this large, blurring a globe that
-                    // changes every frame, costs the compositor as much as the
-                    // inspector did.
-                    .background(Color.panelSurface.opacity(PanelDensity.dense.opacity))
-                    .clipShape(.rect(cornerRadius: 28))
-                    .padding([.vertical, .trailing], 12)
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
-            }
-        }
-        .animation(.smooth, value: sizeClass == .regular && session.selection != nil)
         .sheet(
             isPresented: Binding {
                 sizeClass != .regular && session.selection != nil
@@ -402,29 +435,73 @@ struct ContentView: View {
         }
     }
 
-    /// How far the info card reaches in from the trailing edge: its width and its
-    /// margin, where it shows.
     /// For the sky view's tapes. The HUD fills the window, so their frames are
     /// the window's.
     private var topControls: TopControls? {
         guard let menuFrame, let cornerFrame else {
             return nil
         }
-        return TopControls(menu: menuFrame, buttons: cornerFrame)
+        // The card covers the buttons, and the tapes run round it instead.
+        return TopControls(menu: menuFrame, buttons: showsCard ? cardFrame ?? cornerFrame : cornerFrame)
     }
 
-    private var cardInset: CGFloat {
-        sizeClass == .regular && session.selection != nil ? Self.cardWidth + 12 : 0
+    /// Whether the info panel is a card over the globe rather than a sheet.
+    private var showsCard: Bool {
+        sizeClass == .regular && session.selection != nil
     }
 
-    /// The info panel beside the globe. 400 pt fitted the old four-cell position strip;
-    /// the tab row and the facts fit it too.
-    private static let cardWidth: CGFloat = 400
+    /// Whether something covers the corner's buttons, which hide under it.
+    private var cornerCovered: Bool {
+        panelFillsWidth || showsCard
+    }
+
+    /// Where the info card goes, in the window, given the overlay's room: in the
+    /// corner's buttons' place, clear of the menu column, and as tall as its list
+    /// up to `cardMaxHeight`, above the clock deck. While the camera holds
+    /// something in the middle of the screen, the tracked satellite or station or
+    /// the sky view's crosshair, it keeps clear of that. Nil until the corner's
+    /// buttons are laid out.
+    private func cardPlacement(in proxy: GeometryProxy) -> CGRect? {
+        guard let cornerFrame else {
+            return nil
+        }
+        let room = proxy.frame(in: .global)
+        var width = max(min(Self.cardMaxWidth, cornerFrame.maxX - (menuFrame?.maxX ?? room.minX) - 8), Self.cardMinWidth)
+        let top = cornerFrame.minY
+        var bottom = min(deckFrame?.minY ?? room.maxY, room.maxY) - 8
+        if session.tracked != nil || session.observer != nil {
+            // The globe's view fills the window, safe area and all. Narrower where
+            // that leaves the card its width, as in landscape; else shorter.
+            let middle = CGPoint(x: (room.maxX + proxy.safeAreaInsets.trailing) / 2, y: (room.maxY + proxy.safeAreaInsets.bottom) / 2)
+            let besideMiddle = cornerFrame.maxX - middle.x - Self.labelClearance
+            if besideMiddle >= Self.cardMinWidth {
+                width = min(width, besideMiddle)
+            } else {
+                bottom = min(bottom, middle.y - Self.focusClearance)
+            }
+        }
+        let height = max(min(infoHeight ?? .infinity, Self.cardMaxHeight, bottom - top), Self.cardMinHeight)
+        return CGRect(x: cornerFrame.maxX - width, y: top, width: width, height: height)
+    }
+
+    /// The web app's 540 px. 400 pt fitted the tab row and the facts.
+    private static let cardMaxWidth: CGFloat = 540
+    private static let cardMinWidth: CGFloat = 400
+    /// The web app's 520 px of rows and its header, with the app's larger rows.
+    private static let cardMaxHeight: CGFloat = 680
+    /// The bar, the tabs and a row.
+    private static let cardMinHeight: CGFloat = 200
+    /// Points kept clear over the middle of the screen: the crosshair's 26, a
+    /// tracked satellite's point, and a margin.
+    private static let focusClearance: CGFloat = 60
+    /// Points kept clear right of the middle, for a tracked satellite's label:
+    /// "ISS (ZARYA)" reaches about 100 past its point.
+    private static let labelClearance: CGFloat = 130
     /// The menu column with its names, a gap and a 260 pt panel, and the margins.
     private static let roomForNames: CGFloat = 500
 
-    /// Whether the column keeps its names beside a panel: only where both fit, as
-    /// on an iPad mini with the info card open a panel beside them was 100 pt wide.
+    /// Whether the column keeps its names beside a panel: only where both fit,
+    /// which a phone's width does not.
     private var roomy: Bool {
         (toolsFrame?.width ?? 0) >= Self.roomForNames
     }

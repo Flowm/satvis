@@ -452,6 +452,17 @@ function notifyForPasses(): void {
   user-select: text;
 }
 
+/* In the top-right corner where the menu column leaves room, as the iOS app's card, over
+   the Hide UI button, which hides under it (main.css). A phone keeps it under the top row,
+   clear of the menu toggle. */
+@media (min-width: 640px) {
+  .entity-info-panel {
+    top: calc(var(--edge) + var(--safe-top, 0px));
+    /* Clear of the open menu column, whose edge is at 129 px with a mouse and 134 with a finger. */
+    max-width: min(540px, calc(100% - 170px - var(--safe-left, 0px) - var(--safe-right, 0px)));
+  }
+}
+
 /* A long press on a tab or a pass control would select its label. */
 .entity-info-panel :deep([role="tablist"]),
 .passes__bar {
