@@ -105,20 +105,11 @@
       <toolbar-panel v-show="menu.globe" title="Globe" @close="closePanel('globe')">
         <div class="toolbarTitle">Projection</div>
         <!-- No projection is checked in the sky view, as a checked one read as the active view;
-             Sky view is, greyed, as the Sky panel enters it. -->
-        <label v-for="name in projections" :key="name" class="toolbarSwitch">
-          <input type="radio" name="projection" :checked="!inSkyView && sceneMode === name" @change="sceneMode = name" />
-          {{ name }}
-        </label>
-        <label v-if="inSkyView" class="toolbarSwitch">
-          <input type="radio" name="projection" checked disabled />
-          Sky view
-        </label>
+             the Sky panel enters it, and a projection leaves it. -->
+        <segmented-control :model-value="inSkyView ? undefined : sceneMode" label="Projection" :options="PROJECTION_OPTIONS" @update:model-value="sceneMode = $event!" />
+        <div v-if="inSkyView" class="toolbarNote">In the sky view; a projection leaves it.</div>
         <div class="toolbarTitle">Camera</div>
-        <label v-for="name in CAMERA_MODES" :key="name" class="toolbarSwitch">
-          <input v-model="cameraMode" type="radio" :value="name" :disabled="inSkyView" />
-          {{ name }}
-        </label>
+        <segmented-control v-model="cameraMode" label="Camera" :options="CAMERA_OPTIONS" :disabled="inSkyView" />
         <div v-if="inSkyView" class="toolbarNote">The sky view holds the camera.</div>
       </toolbar-panel>
       <toolbar-panel v-show="menu.sky" title="Sky" @close="closePanel('sky')">
@@ -158,10 +149,7 @@
         <!-- Hidden in minimalUI (iOS, iframe), where there is no keyboard. -->
         <div v-if="!cc.minimalUI" class="toolbarNote">WASD walks the observer, Q and E change height.</div>
         <div class="toolbarTitle">Out of sight</div>
-        <label v-for="mode in UNSEEN_MODES" :key="mode" class="toolbarSwitch">
-          <input v-model="unseen" type="radio" :value="mode" :disabled="!inSkyView" />
-          {{ UNSEEN_LABEL[mode] }}
-        </label>
+        <segmented-control v-model="unseen" label="Out of sight" :options="UNSEEN_OPTIONS" :disabled="!inSkyView" />
         <div class="toolbarNote">In Earth's shadow, too far away or during daylight.</div>
       </toolbar-panel>
       <toolbar-panel v-show="menu.render" title="Graphics" @close="closePanel('render')">
@@ -203,10 +191,7 @@
           {{ ratio === "native" ? `${devicePixelRatio.toFixed(1)}x (Native)` : `${Number(ratio).toFixed(1)}x` }}
         </label>
         <div class="toolbarTitle">Antialiasing (MSAA)</div>
-        <label v-for="rate in MSAA_RATES" :key="rate" class="toolbarSwitch">
-          <input v-model="msaa" type="radio" :value="rate" />
-          {{ rate === "off" ? "Off" : `${rate}x` }}
-        </label>
+        <segmented-control v-model="msaa" label="Antialiasing (MSAA)" :options="MSAA_OPTIONS" />
       </toolbar-panel>
     </div>
     <div id="toolbarRight">
@@ -251,6 +236,7 @@ import ClockDeck from "./ClockDeck.vue";
 import EntityInfoPanel from "./EntityInfoPanel.vue";
 import GroundStationList from "./GroundStationList.vue";
 import SatelliteBrowser from "./SatelliteBrowser.vue";
+import SegmentedControl from "./SegmentedControl.vue";
 import SkyHud from "./SkyHud.vue";
 import ToolbarPanel from "./ToolbarPanel.vue";
 
@@ -349,7 +335,10 @@ const { active: compassActive, pending: compassPending, toggle: toggleCompass } 
 const inSkyView = computed(() => sceneMode.value === SKY_MODE);
 
 const UNSEEN_LABEL: Record<UnseenMode, string> = { show: "Show", dim: "Dim", hide: "Hide" };
-const projections = SCENE_MODES.filter((mode) => mode !== SKY_MODE);
+const UNSEEN_OPTIONS = UNSEEN_MODES.map((mode) => ({ value: mode, label: UNSEEN_LABEL[mode] }));
+const PROJECTION_OPTIONS = SCENE_MODES.filter((mode) => mode !== SKY_MODE).map((mode) => ({ value: mode, label: mode }));
+const CAMERA_OPTIONS = CAMERA_MODES.map((mode) => ({ value: mode, label: mode }));
+const MSAA_OPTIONS = MSAA_RATES.map((rate) => ({ value: rate, label: rate === "off" ? "Off" : `${rate}x` }));
 
 /** The projection Back to the globe returns to. Not in the url, which holds only the view mode. */
 const returnProjection = ref(inSkyView.value ? "3D" : sceneMode.value);
