@@ -4,12 +4,8 @@
     title="About Satvis"
     :ui="{ content: 'bg-(--panel-surface)/95 text-(--panel-ink) divide-neutral-600 max-w-2xl', header: 'p-2 sm:px-3', body: 'p-3 sm:p-3' }"
   >
-    <UTooltip text="About">
-      <!-- A link, not a button: it is the only reference crawlers find to /about, and middle-click opens the page. -->
-      <a class="cesium-button cesium-toolbar-button" href="/about" aria-label="About Satvis" @click.prevent>
-        <UIcon name="lucide:info" />
-      </a>
-    </UTooltip>
+    <!-- The trigger, which the dialog returns focus to when it closes. -->
+    <slot />
     <template #body>
       <!-- eslint-disable-next-line vue/no-v-html -->
       <div v-if="content" class="about about--dialog" v-html="content"></div>
