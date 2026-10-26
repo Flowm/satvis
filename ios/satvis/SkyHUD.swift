@@ -12,10 +12,9 @@ struct SkyHUD: View {
     /// The controls along the top, which the tapes run round, never under. Nil
     /// until laid out, and the tapes with it.
     let controls: TopControls?
-    /// How far the info card covers the trailing edge, for the lock's card to
-    /// stand clear of it. The elevation tape follows the buttons, which move
-    /// aside for it.
-    var trailingInset: CGFloat = 0
+    /// The info card over the trailing side, in the HUD's frame, for the lock's
+    /// card to stand clear of it where it reaches the lower half.
+    var infoCard: CGRect?
     /// The session's word for the user, over the lock's card.
     var notice: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -26,7 +25,7 @@ struct SkyHUD: View {
                 let settled = renderer.isSkySettled
                 // Up as the ground arrives: projected against a camera still in
                 // flight, the tapes would swim across the screen.
-                SkyInstruments(renderer: renderer, controls: controls, trailingInset: trailingInset, notice: notice, size: proxy.size, date: context.date)
+                SkyInstruments(renderer: renderer, controls: controls, infoCard: infoCard, notice: notice, size: proxy.size, date: context.date)
                     .opacity(settled ? 1 : 0)
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: settled)
             }
@@ -49,7 +48,7 @@ struct TopControls: Equatable {
 private struct SkyInstruments: View {
     let renderer: GlobeRenderer
     let controls: TopControls?
-    let trailingInset: CGFloat
+    let infoCard: CGRect?
     let notice: String?
     let size: CGSize
     let date: Date
@@ -84,7 +83,7 @@ private struct SkyInstruments: View {
                 }
             }
             .padding(.bottom, 136)
-            .padding(.trailing, trailingInset)
+            .padding(.trailing, infoCard.map { $0.maxY > size.height / 2 ? size.width - $0.minX + 8 : 0 } ?? 0)
         }
     }
 
