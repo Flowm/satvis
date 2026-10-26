@@ -26,7 +26,7 @@ export interface SkyTarget extends LookAngles {
   name: string;
   /** Fixed frame. */
   position: Cartesian3;
-  /** In CSS pixels; undefined when behind the camera. */
+  /** In CSS pixels; undefined below the horizon or behind the camera. */
   window: Cartesian2 | undefined;
   /** Whether it could be seen by eye, now, from the observer. */
   visibility: Visibility;
@@ -35,13 +35,17 @@ export interface SkyTarget extends LookAngles {
 /** In metres. Any distance works if it dwarfs the eye height. */
 const DIRECTION_DISTANCE = 1e7;
 
+/** Reused: the sky view asks for every active satellite every frame. */
+const deltaScratch = new Cartesian3();
+const localScratch = new Cartesian3();
+
 export function lookAngles(frame: ObserverFrame, target: Cartesian3): LookAngles {
-  const delta = Cartesian3.subtract(target, frame.position, new Cartesian3());
+  const delta = Cartesian3.subtract(target, frame.position, deltaScratch);
   const range = Cartesian3.magnitude(delta);
   if (range === 0) {
     return { azimuth: 0, elevation: 0, rangeKm: 0 };
   }
-  const local = Matrix3.multiplyByVector(frame.fixedToEnu, delta, new Cartesian3());
+  const local = Matrix3.multiplyByVector(frame.fixedToEnu, delta, localScratch);
   const azimuth = normalizeAzimuth(CesiumMath.toDegrees(Math.atan2(local.x, local.y)));
   return { azimuth, elevation: elevationOf(local, range), rangeKm: range / 1000 };
 }
@@ -68,7 +72,11 @@ export function directionToWindow(scene: Scene, frame: ObserverFrame, azimuth: n
   return SceneTransforms.worldToWindowCoordinates(scene, directionToWorld(frame, azimuth, elevation));
 }
 
-/** Positions come from the entity's sampled property, so a target is where Cesium draws it. */
+/**
+ * Positions come from the entity's sampled property, so a target is where Cesium draws it.
+ * Only a target above the horizon is projected: none below can be locked (`nearestTarget`),
+ * and projecting every one was the larger part of the sky view's frame.
+ */
 export function skyTargets(scene: Scene, frame: ObserverFrame, satellites: readonly SatelliteComponentCollection[], time: JulianDate): SkyTarget[] {
   const sun = sunDirection(JulianDate.toDate(time).getTime(), new Cartesian3());
   const elevationOfSun = sunElevation(frame, sun);
@@ -84,9 +92,7 @@ export function skyTargets(scene: Scene, frame: ObserverFrame, satellites: reado
       sat,
       name: sat.props.name,
       position,
-      // Height above the ellipsoid: geocentric radius varies 6357-6378 km with
-      // latitude, a ~12 km bias.
-      window: SceneTransforms.worldToWindowCoordinates(scene, position),
+      window: angles.elevation > 0 ? SceneTransforms.worldToWindowCoordinates(scene, position) : undefined,
       visibility: visibility(elevationOfSun, !inEarthShadow(position, sun), angles.rangeKm),
     });
   }
