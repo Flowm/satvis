@@ -23,6 +23,8 @@ extension Color {
     static let panelAccent = Color(red: 127 / 255, green: 210 / 255, blue: 234 / 255)
     /// "Not where it rests", as on the web: the clock deck's reset, a stale element set.
     static let panelAmber = Color(red: 1, green: 0xD4 / 255, blue: 0x79 / 255)
+    /// The web app's `#4ade80`: what could be seen, the sky view's lock and its chip.
+    static let panelGreen = Color(red: 0x4A / 255, green: 0xDE / 255, blue: 0x80 / 255)
 }
 
 extension UIColor {

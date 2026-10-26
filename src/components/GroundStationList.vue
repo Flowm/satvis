@@ -234,7 +234,7 @@ function offsetOf(index: number): number {
 }
 
 .gsList__rank {
-  color: #4ade8099;
+  color: color-mix(in srgb, var(--panel-green) 60%, transparent);
   flex: none;
   font-size: 11px;
   line-height: 24px;
@@ -244,7 +244,7 @@ function offsetOf(index: number): number {
 }
 
 .gsList__rank--observer {
-  color: #4ade80;
+  color: var(--panel-green);
 }
 
 .gsList__grip {
@@ -270,7 +270,7 @@ function offsetOf(index: number): number {
 
 .gsList__grip:focus-visible {
   border-radius: 3px;
-  outline: 1px solid #4ade80;
+  outline: 1px solid var(--panel-green);
 }
 
 .gsList__name,
@@ -285,7 +285,7 @@ function offsetOf(index: number): number {
 
 .gsList__name:focus,
 .gsList__coord:focus {
-  border-bottom-color: #4ade80;
+  border-bottom-color: var(--panel-green);
   outline: none;
 }
 
@@ -329,13 +329,13 @@ function offsetOf(index: number): number {
 /* Pick mode stays on until a click on the globe. */
 .toolbarActions .gsList__action--on,
 .toolbarActions .gsList__action--on:hover:not(:disabled) {
-  background-color: #4ade80;
+  background-color: var(--panel-green);
   color: #14281b;
   font-weight: 600;
 }
 
 .gsList__pickNote {
-  color: #4ade80;
+  color: var(--panel-green);
   opacity: 1;
 }
 </style>

@@ -53,7 +53,7 @@ private struct SkyInstruments: View {
     let size: CGSize
     let date: Date
 
-    private static let lockColor = Color(red: 0x4A / 255, green: 0xDE / 255, blue: 0x80 / 255)
+    private static let lockColor = Color.panelGreen
     private static let traceColor = Color(red: 0x7D / 255, green: 0xD3 / 255, blue: 0xFC / 255)
 
     var body: some View {
@@ -226,7 +226,7 @@ private struct SkyInstruments: View {
         .monospacedDigit()
         .font(.footnote)
         .foregroundStyle(Color.panelInk)
-        .frame(width: min(cardWidth, size.width - 52), alignment: .leading)
+        .frame(width: min(cardWidth, size.width - 2 * Self.cardGutter - 20), alignment: .leading)
         .padding(.leading, 12)
         .padding(.trailing, 8)
         .padding(.vertical, 6)
@@ -252,6 +252,9 @@ private struct SkyInstruments: View {
     /// Points inside the padding: room for "359° NNW · 90° up · 38,362 km away"
     /// at the default text size, the web app's 280 px with its padding.
     @ScaledMetric(relativeTo: .footnote) private var cardWidth = 260.0
+    /// From either side of a narrow screen, as the web app's; the card's own padding
+    /// is the 20 points more the frame leaves.
+    private static let cardGutter: CGFloat = 16
 
     private func label(_ text: String, at point: CGPoint, anchor: UnitPoint, in context: inout GraphicsContext) {
         // The image's margin is beyond the text's trailing edge.

@@ -94,6 +94,8 @@ body {
   --panel-accent: #7fd2ea;
   /* "Not where it rests", as the iOS app's: the clock deck's reset, a stale element set. */
   --panel-amber: #ffd479;
+  /* What could be seen, or where something stands: the sky view's lock, its chip, a station. */
+  --panel-green: #4ade80;
   /* Apple's dark red, for what removes or forgets. */
   --panel-destructive: #ff453a;
 }
