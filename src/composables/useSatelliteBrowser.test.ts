@@ -97,6 +97,15 @@ describe("useSatelliteBrowser search-only groups", () => {
     expect(browser.rows.value.filter((row) => row.kind === "group")).toEqual([]);
   });
 
+  test("a search result's groups read A to Z, as the group rows do", async () => {
+    const catalog = new SatelliteCatalog();
+    catalog.registerGroups([["weather", ["Weather", "Earth"]]]);
+    const browser = useSatelliteBrowser(catalog);
+    browser.setSearchQuery("METEO");
+    await vi.advanceTimersByTimeAsync(200);
+    expect(browser.rows.value.filter((row) => row.kind === "sat").map((row) => row.groupsLabel)).toEqual(["Earth, Weather"]);
+  });
+
   test("a search-only copy of a satellite a group already offers stays hidden", async () => {
     const { browser } = setup();
     // Satnum 3 is SAT-B in Custom, renamed from SAT-A in Active.

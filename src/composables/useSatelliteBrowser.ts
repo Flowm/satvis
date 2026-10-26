@@ -236,7 +236,7 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
 
   function groupsLabelOf(entry: CatalogEntry): string | undefined {
     const tags = entry.tags.filter((tag) => !searchOnlyTags.value.has(tag));
-    return tags.length > 0 ? tags.join(", ") : undefined;
+    return tags.length > 0 ? tags.toSorted((a, b) => a.localeCompare(b)).join(", ") : undefined;
   }
 
   function toggleGroup(tag: string): void {
