@@ -152,14 +152,17 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   have no alerts until then. A shared link carries the visiting stations and the
   selected one, never the rest of the saved ones, which are often where the user
   lives. Sharing is the Bookmarks sheet's: its Share button shares the view on
-  screen and a card's Share its bookmark. The top-right corner is the web app's
-  `#toolbarRight`, with the same buttons, labels and conditions: Hide UI (the
-  eye, always, and alone while the UI is hidden), Home view or, in the sky view,
-  Leave the sky view, then Aim by compass and the camera in the sky view, or
-  Stop tracking while something is followed. The camera is the app's alone (ADR
-  0013); the rest are ways back and the view's own controls. The link is made when tapped, so a pinned clock gives its
-  minute then, and handed to the system's share sheet as itself, which shows
-  the site's own preview. satvis.space links open the app as universal links: the site's
+  screen and a card's Share its bookmark. The link is made when tapped, so a
+  pinned clock gives its minute then, and handed to the system's share sheet as
+  itself, which shows the site's own preview. The top-right corner is the web
+  app's `#toolbarRight`, with the same buttons and labels: Hide UI (the eye,
+  always, and alone while the UI is hidden), Home view or, in the sky view, Leave
+  the sky view, then Aim by compass and the camera in the sky view, or Stop
+  tracking while something is followed. The web offers the compass only where
+  the browser has device orientation; the camera is the app's alone (ADR 0013).
+  On an iPad, as on the web, the column hides under the info card, which has its
+  own Track and Close; an iPhone's info sheet leaves it in place.
+  satvis.space links open the app as universal links: the site's
   `public/.well-known/apple-app-site-association` claims `/ot` and `/` with a
   query, and `satvis.entitlements` the `applinks:satvis.space` domain, which
   needs the Associated Domains capability on the App ID. The simulator builds

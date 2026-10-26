@@ -220,7 +220,7 @@
             <UIcon name="lucide:compass" />
           </button>
         </UTooltip>
-        <UTooltip v-if="tracking && !inSkyView" text="Stop tracking">
+        <UTooltip v-if="tracking" text="Stop tracking">
           <button type="button" class="cesium-button cesium-toolbar-button" aria-label="Stop tracking" @click="cc.viewer.trackedEntity = undefined">
             <UIcon name="lucide:video-off" />
           </button>
