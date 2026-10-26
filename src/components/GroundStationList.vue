@@ -338,4 +338,62 @@ function offsetOf(index: number): number {
   color: var(--panel-green);
   opacity: 1;
 }
+
+/* A finger: the iOS app's two-line row, the name over its coordinates, with the grip and
+   the cross a row square. Inputs at 16px, under which iOS Safari zooms in on focus. */
+@media (pointer: coarse) {
+  .gsList__row {
+    display: grid;
+    grid-template-areas:
+      "rank grip name name remove"
+      "rank grip lat lon remove";
+    grid-template-columns: 12px 32px 1fr 1fr 32px;
+    column-gap: 6px;
+    height: auto;
+    min-height: var(--toolbar-row);
+    padding: 4px 3px;
+  }
+
+  .gsList__rank {
+    grid-area: rank;
+  }
+
+  .gsList__grip {
+    grid-area: grip;
+    justify-content: center;
+    align-self: stretch;
+    font-size: 18px;
+  }
+
+  .gsList__name {
+    grid-area: name;
+    width: auto;
+    font-size: 16px;
+  }
+
+  .gsList__coord {
+    width: auto;
+    font-size: 16px;
+    opacity: 0.8;
+  }
+
+  .gsList__coord[aria-label="Latitude"] {
+    grid-area: lat;
+  }
+
+  .gsList__coord[aria-label="Longitude"] {
+    grid-area: lon;
+  }
+
+  .gsList__remove {
+    grid-area: remove;
+    align-self: stretch;
+    font-size: 22px;
+  }
+
+  .toolbarActions button {
+    min-height: var(--toolbar-row);
+    font-size: var(--text-label);
+  }
+}
 </style>
