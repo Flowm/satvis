@@ -23,8 +23,7 @@ export const fixtureGroupCount = (name: string): number => (JSON.parse(readFileS
 
 /**
  * Every model, as CI checks out no models submodule. Without it the dev server answers a
- * `.glb` with index.html, which fails to parse at a moment no spec controls, and a tracked
- * satellite lost its track in one bookmarks journey out of twelve.
+ * `.glb` with index.html, which fails to parse at a moment no spec controls.
  */
 export const CUBE_MODEL = readFileSync(new URL("../fixtures/models/cube.glb", import.meta.url));
 
