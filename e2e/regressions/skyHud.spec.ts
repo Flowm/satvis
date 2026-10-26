@@ -28,10 +28,16 @@ test("every control takes clicks in the sky view", async ({ page }) => {
   await page.getByRole("button", { name: "Open menu" }).click();
   await expect(page.locator("#menuColumnList")).toBeVisible();
 
-  const clickable = Object.fromEntries(Object.keys(CONTROLS).map((name) => [name, "clickable"]));
   for (const width of [563, 1000, 1106]) {
     await page.setViewportSize({ width, height: 900 });
+    // From 640 px the entity panel takes the top-right corner, and the eye hides under it.
+    const covered = width >= 640;
+    const controls = Object.fromEntries(Object.entries(CONTROLS).filter(([name]) => !(covered && name === "toolbar eye")));
+    const clickable = Object.fromEntries(Object.keys(controls).map((name) => [name, "clickable"]));
     // The clock deck and the credits are placed from resize listeners.
-    await expect.poll(() => hitTest(page, CONTROLS), { message: `at ${width} px` }).toEqual(clickable);
+    await expect.poll(() => hitTest(page, controls), { message: `at ${width} px` }).toEqual(clickable);
+    if (covered) {
+      await expect(page.locator(CONTROLS["toolbar eye"])).toBeHidden();
+    }
   }
 });

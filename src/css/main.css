@@ -281,6 +281,13 @@ body {
   opacity: 0.7;
 }
 
+/* Under the entity info panel, which takes the top-right corner from 640 px. */
+@media (min-width: 640px) {
+  #toolbarRight:has(~ .entity-info-panel) {
+    visibility: hidden;
+  }
+}
+
 /* A phone: labels fold beside a panel, by the right padding only so the icons stay put,
    and the top-right buttons it covers hide rather than show through it. */
 @media (max-width: 639px) {
