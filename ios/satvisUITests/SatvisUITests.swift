@@ -256,15 +256,22 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Default view"].isEnabled)
     }
 
-    // About opens from the menu, without the about page's demos, which are the
-    // Bookmarks sheet's.
+    // About opens from the menu, and opens a demo of its carousel, a step on, as
+    // its card does.
     @MainActor
-    func testOpensAboutFromTheMenu() {
+    func testOpensADemoFromAbout() {
         let app = launch()
         openMenu(app)
         app.buttons["About"].tap()
-        XCTAssert(app.navigationBars["About Satvis"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.staticTexts["See it in action"].exists)
+        let sheet = app.navigationBars["About Satvis"]
+        XCTAssert(sheet.waitForExistence(timeout: 5))
+        let next = app.buttons["Next demo"].firstMatch
+        XCTAssert(next.waitForExistence(timeout: 5))
+        next.tap()
+        let demo = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Follow the ISS'")).firstMatch
+        XCTAssert(demo.waitForExistence(timeout: 5))
+        demo.tap()
+        XCTAssert(sheet.waitForNonExistence(timeout: 5))
     }
 
     // The terrain draws OpenStreetMap's data, so its name shows beside the clock
