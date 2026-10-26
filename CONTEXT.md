@@ -252,8 +252,8 @@ discussion; sharpen them here when they drift.
   url parameters the stores own, never a camera position. Opening one navigates to
   the link. Kept per browser (`docs/adr/0011-bookmarks.md`). Not a preset, which is
   where a route starts, and not a view mode.
-- **Demo**: a bookmark that ships with the app: a scene of the about page's
-  showcase, live and with a group or a single satellite.
+- **Demo**: a bookmark that ships with the app, live and with a group or a single
+  satellite. The about page and About show the demos too, as a carousel.
 - **Opened link**: a link a visit started with, kept so it can be found again. A
   reload, Back or Forward is not one. "Recent" on screen.
 - **Default view**: the route's preset with no scene parameter, which the Bookmarks

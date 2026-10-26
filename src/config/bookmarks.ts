@@ -1,6 +1,6 @@
-// The demo bookmarks: the scenes of the about page's showcase, live and with a group
-// or a single satellite, so they show the present. The about page's own links pin the
-// moment its pictures were taken.
+// The demo bookmarks, live and with a group or a single satellite, so they show the
+// present. The about page shows them too, from its own copy (about.html), which
+// bookmarks.test.ts holds to these.
 
 import type { Bookmark } from "../modules/util/bookmarks";
 

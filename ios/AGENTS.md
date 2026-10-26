@@ -54,7 +54,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   (`GlobeRenderer.trimMemory`), about 175 MB after the sky view.
 - About, the menu column's last entry, is the web app's About dialog (`AboutView.swift`):
   what Satvis is, what it does and where its data comes from, written for the app.
-  The about page's demos are the Bookmarks sheet's, so About has none of its own.
+  Its demos are the Bookmarks sheet's, with their pictures, in a carousel as on the
+  about page; choosing one opens it as its card does.
 - The credits are one screen, About's Acknowledgements (`AcknowledgementsView`):
   what the map is drawn from now (`Credit.map`), the web app's credit display;
   where the satellites come from; the data the app fetches; and the code it

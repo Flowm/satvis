@@ -302,7 +302,7 @@ struct ContentView: View {
             BrowserView(catalog: session.catalog) { session.select(.satellite($0.id)) }
         }
         .sheet(isPresented: $showsAbout) {
-            AboutView(map: session.mapCredits, privacyPolicy: session.privacyPolicy, analytics: session.analytics)
+            AboutView(session: session)
         }
         .sheet(isPresented: $showsAcknowledgements) {
             NavigationStack {

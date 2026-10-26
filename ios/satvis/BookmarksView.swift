@@ -318,22 +318,9 @@ struct BookmarkCard: View {
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(2)
                 .padding(.horizontal, 8)
-            Group {
-                Label {
-                    Text(summary.what)
-                } icon: {
-                    Image(.lucideOrbit).resizable().frame(width: 12, height: 12)
-                }
-                Label {
-                    Text(summary.where)
-                } icon: {
-                    Image(whereIcon).resizable().frame(width: 12, height: 12)
-                }
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .padding(.horizontal, 8)
+            BookmarkFacts(summary: summary)
+                .font(.caption)
+                .padding(.horizontal, 8)
         }
         .padding(.bottom, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -352,11 +339,6 @@ struct BookmarkCard: View {
         }
     }
 
-    /// The icon of the Sky, Globe or tracking camera.
-    private var whereIcon: ImageResource {
-        summary.where.hasPrefix("Sky") ? .lucideTelescope : summary.where.hasPrefix("Following") ? .lucideCrosshair : .lucideGlobe
-    }
-
     private func badge(_ text: String, color: Color) -> some View {
         Text(text)
             .font(.caption2)
@@ -365,6 +347,34 @@ struct BookmarkCard: View {
             .padding(.vertical, 2)
             .background(.black.opacity(0.73), in: .rect(cornerRadius: 6))
             .padding(5)
+    }
+}
+
+/// A bookmark's satellites and where its camera is, each a line beside its icon,
+/// on its card and in About's carousel.
+struct BookmarkFacts: View {
+    let summary: BookmarkSummary
+
+    var body: some View {
+        Group {
+            Label {
+                Text(summary.what)
+            } icon: {
+                Image(.lucideOrbit).resizable().frame(width: 12, height: 12)
+            }
+            Label {
+                Text(summary.where)
+            } icon: {
+                Image(whereIcon).resizable().frame(width: 12, height: 12)
+            }
+        }
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+    }
+
+    /// The icon of the Sky, Globe or tracking camera.
+    private var whereIcon: ImageResource {
+        summary.where.hasPrefix("Sky") ? .lucideTelescope : summary.where.hasPrefix("Following") ? .lucideCrosshair : .lucideGlobe
     }
 }
 
