@@ -2,7 +2,7 @@
 
 import type { Page } from "@playwright/test";
 
-import { openApp, waitForSky } from "../support/app";
+import { hitTest, openApp, selectSatellite, waitForSky } from "../support/app";
 import { expect, test } from "../support/test";
 import { DEVICES } from "../support/ui";
 
@@ -44,6 +44,22 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await page.getByRole("button", { name: "Show UI" }).click();
       await expect.poll(() => corner(page)).toEqual(["Hide UI", "Home view"]);
       await expect(page.locator("#toolbarLeft")).toBeVisible();
+    });
+
+    test("the column hides under the info panel, whose own buttons stay reachable", async ({ page }) => {
+      await openApp(page, `tags=&sats=${encodeURIComponent(ISS)}&elements=Point,Label&track=${encodeURIComponent(ISS)}`);
+      await expect.poll(() => corner(page)).toEqual(["Hide UI", "Home view", "Stop tracking"]);
+      await selectSatellite(page, ISS);
+      const panel = page.locator(".entity-info-panel");
+      await expect(panel).toBeVisible();
+      await expect(page.locator("#toolbarRight")).toBeHidden();
+      await expect
+        .poll(() => hitTest(page, { track: ".entity-info-panel [aria-label='Track entity']", close: ".entity-info-panel [aria-label='Close']" }))
+        .toEqual({ track: "clickable", close: "clickable" });
+
+      await panel.getByRole("button", { name: "Close" }).click();
+      await expect(panel).toBeHidden();
+      await expect(page.locator("#toolbarRight")).toBeVisible();
     });
 
     test("in the sky view the globe button leaves it, above the compass", async ({ page }) => {

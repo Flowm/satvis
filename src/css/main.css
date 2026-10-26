@@ -281,11 +281,10 @@ body {
   opacity: 0.7;
 }
 
-/* Under the entity info panel, which takes the top-right corner from 640 px. */
-@media (min-width: 640px) {
-  #toolbarRight:has(~ .entity-info-panel) {
-    visibility: hidden;
-  }
+/* Under the entity info panel: it takes the corner from 640 px, and a phone's panel meets
+   the second button. The panel's own Track and Close stay. */
+#toolbarRight:has(~ .entity-info-panel) {
+  visibility: hidden;
 }
 
 /* A phone: labels fold beside a panel, by the right padding only so the icons stay put,
