@@ -67,6 +67,8 @@ struct ContentView: View {
     /// Where the menu column and the top corner's buttons are, in the window.
     @State private var menuFrame: CGRect?
     @State private var cornerFrame: CGRect?
+    /// The room the menu column and its panel are laid out in, in the window.
+    @State private var toolsFrame: CGRect?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -150,14 +152,15 @@ struct ContentView: View {
                 cornerFrame = $0
             }
             .padding()
+            // Under a panel across a phone's width, whose close button they showed
+            // through.
+            .opacity(panelFillsWidth ? 0 : 1)
+            .accessibilityHidden(panelFillsWidth)
+            .animation(.snappy(duration: 0.2), value: panelFillsWidth)
         }
-        // Over the top-right buttons: where there is no room beside them an open
-        // panel covers them, as on the web.
+        // Over the top-right buttons, for a panel across a phone's width.
         .overlay(alignment: .topLeading) {
-            // The names stay beside a panel only where both fit: on an iPad mini
-            // with the info card open, a panel beside them was 100 pt wide.
-            GeometryReader { proxy in
-                let roomy = proxy.size.width >= Self.roomForNames
+            GeometryReader { _ in
                 HStack(alignment: .top, spacing: 8) {
                     ToolMenu(isOpen: $showsTools) {
                         // The web app's menu column: its entries, icons, order and hints.
@@ -188,7 +191,7 @@ struct ContentView: View {
                         menuFrame = $0
                     }
                     if let panel {
-                        ToolPanelView(title: panel.title, fillsWidth: !roomy, onClose: { self.panel = nil }) {
+                        ToolPanelView(title: panel.title, width: panelFillsWidth ? nil : panel.cardWidth, onClose: { self.panel = nil }) {
                             switch panel {
                             case .components: ComponentsPanel(catalog: session.catalog)
                             case .map: MapPanel(session: session)
@@ -207,7 +210,13 @@ struct ContentView: View {
                     }
                 }
                 .animation(.snappy(duration: 0.2), value: panel)
+                .frame(maxWidth: panelReach, alignment: .topLeading)
                 .padding()
+            }
+            .onGeometryChange(for: CGRect.self) {
+                $0.frame(in: .global)
+            } action: {
+                toolsFrame = $0
             }
         }
         // Open from the start where there is room, as the web app's is on a desktop
@@ -399,6 +408,28 @@ struct ContentView: View {
     private static let cardWidth: CGFloat = 400
     /// The menu column with its names, a gap and a 280 pt panel, and the margins.
     private static let roomForNames: CGFloat = 520
+
+    /// Whether the column keeps its names beside a panel: only where both fit, as
+    /// on an iPad mini with the info card open a panel beside them was 100 pt wide.
+    private var roomy: Bool {
+        (toolsFrame?.width ?? 0) >= Self.roomForNames
+    }
+
+    /// Whether the open panel takes the rest of a phone's width, over the corner's
+    /// buttons: short of them, it would be no wider than a card.
+    private var panelFillsWidth: Bool {
+        !roomy && panel?.needsWidth == true
+    }
+
+    /// How wide the column and a card beside it may be: short of the corner's
+    /// buttons, which leave a card 258 pt on a 402 pt phone. Less the 16 pt margin
+    /// and an 8 pt gap.
+    private var panelReach: CGFloat? {
+        guard !panelFillsWidth, let toolsFrame, let cornerFrame else {
+            return nil
+        }
+        return max(cornerFrame.minX - toolsFrame.minX - 16 - 8, 0)
+    }
 
     @ViewBuilder private var infoPanel: some View {
         switch session.selection {
