@@ -434,7 +434,7 @@ describe("SatelliteComponentCollection beside its model", () => {
   const ALL = ["Point", "Label", "3D model"];
   const labelOffset = (sat: SatelliteComponentCollection, viewer: Viewer) =>
     ((sat.components.Label as Entity).label!.pixelOffset!.getValue(viewer.clock.currentTime) as Cartesian2).x;
-  const pointShown = (sat: SatelliteComponentCollection, viewer: Viewer) => (sat.components.Point as Entity).point!.show!.getValue(viewer.clock.currentTime);
+  const pointShown = (sat: SatelliteComponentCollection, viewer: Viewer) => (sat.components.Point as Entity).point!.show?.getValue(viewer.clock.currentTime) ?? true;
 
   test("starts the label past the model's edge, and hides the point the model stands in for", async () => {
     const { sat, viewer, setModelRadius } = await setup();
@@ -478,6 +478,24 @@ describe("SatelliteComponentCollection beside its model", () => {
     sat.show(ALL);
     expect(labelOffset(sat, viewer)).toBe(10);
     expect(pointShown(sat, viewer)).toBe(true);
+  });
+
+  test("asks the model only while it is shown, in either order", async () => {
+    const { sat, viewer, setModelRadius } = await setup();
+    setModelRadius(65);
+    const show = () => (sat.components.Point as Entity).point!.show;
+    sat.show(["Point"]);
+    // A show callback is evaluated for every point on every tick.
+    expect(show()).toBeUndefined();
+
+    sat.show(["3D model"]);
+    expect(pointShown(sat, viewer)).toBe(false);
+    sat.hide(["3D model"]);
+    expect(show()).toBeUndefined();
+
+    sat.hide(["Point"]);
+    sat.show(["3D model", "Point"]);
+    expect(pointShown(sat, viewer)).toBe(false);
   });
 });
 

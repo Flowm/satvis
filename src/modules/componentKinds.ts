@@ -357,6 +357,17 @@ export function modelCopies(host: ComponentHost): Entity[] {
   return (host.props.model?.lods ?? []).map((lod, i) => atSatellite(host, "model", modelGraphics(host, lod.file, i + 1)));
 }
 
+/**
+ * Has the point give way to the model once that is drawn large enough, only while the
+ * model is shown: Cesium evaluates a point's show callback every tick, and at 11,140
+ * Starlink points it was most of the tick, where a large group draws no model.
+ */
+export function deferPointToModel(point: Component | undefined, host: ComponentHost, modelShown: boolean): void {
+  if (point instanceof Entity && point.point) {
+    point.point.show = modelShown ? new CallbackProperty(() => (host.model.pixelDiameter() ?? 0) < MODEL_MARKER_PIXELS, false) : undefined;
+  }
+}
+
 /** Follows the satellite, facing along its velocity. */
 function bindAtSatellite(component: Component, host: ComponentHost): void {
   const position = host.props.trajectory.entityPosition;
@@ -425,9 +436,6 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
           color: POINT_COLOR[host.props.orbitClass],
           outlineColor: Color.DIMGREY,
           outlineWidth: 1,
-          ...(host.props.model && {
-            show: new CallbackProperty(() => (host.model.pixelDiameter() ?? 0) < MODEL_MARKER_PIXELS, false),
-          }),
         }),
       ),
     bind: bindAtSatellite,
