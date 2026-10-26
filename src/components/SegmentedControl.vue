@@ -51,7 +51,8 @@ const name = useId();
     color 0.15s;
 }
 
-/* The track is a row's 36px. */
+/* A 36px track, the iOS app's segmented pickers' 32 points and a little more: like
+   theirs, below a row's 44px. */
 @media (pointer: coarse) {
   .segments__option {
     height: 32px;

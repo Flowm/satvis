@@ -23,7 +23,7 @@ const emit = defineEmits<{ close: [] }>();
 
 .toolbarPanel--fixed {
   box-sizing: border-box;
-  width: min(240px, var(--toolbar-panel-max));
+  width: min(var(--panel-width), var(--toolbar-panel-max));
   max-height: calc(100dvh - 140px);
   padding: 0 6px 6px;
 }
@@ -51,7 +51,7 @@ const emit = defineEmits<{ close: [] }>();
   margin-bottom: 4px;
   padding-left: 4px;
   border-bottom: 1px solid var(--panel-hairline);
-  font-size: 15px;
+  font-size: var(--text-title);
   font-weight: 600;
 }
 
@@ -64,9 +64,15 @@ const emit = defineEmits<{ close: [] }>();
   margin-top: 4px;
 }
 
+/* The header's height and as wide, its icon centred. */
 .toolbarPanel__close {
   display: inline-flex;
-  padding: 4px;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--toolbar-row);
+  height: 100%;
+  padding: 0;
   background: none;
   border: none;
   border-radius: 6px;
@@ -77,12 +83,6 @@ const emit = defineEmits<{ close: [] }>();
 .toolbarPanel__close:focus-visible {
   outline: 2px solid var(--panel-accent);
   outline-offset: -2px;
-}
-
-@media (pointer: coarse) {
-  .toolbarPanel__close {
-    padding: 10px;
-  }
 }
 
 @media (hover: hover) {

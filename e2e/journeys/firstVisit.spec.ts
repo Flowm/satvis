@@ -57,7 +57,9 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await page.mouse.move(globe.x - 40, globe.y - 40, { steps: 4 });
       await page.mouse.up();
       await expect(catalog).toBeVisible();
-      await (device === "phone" ? page.touchscreen.tap(globe.x, globe.y) : page.mouse.click(globe.x, globe.y));
+      // Found again: the drag turned what was bare under a satellite.
+      const bare = await bareGlobe(page);
+      await (device === "phone" ? page.touchscreen.tap(bare.x, bare.y) : page.mouse.click(bare.x, bare.y));
       await expect(catalog).toBeHidden();
       await expect(page.getByRole("button", { name: "Open menu" })).toBeVisible({ visible: device === "phone" });
       expect(await selected()).toBe(selection);

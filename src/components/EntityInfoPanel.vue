@@ -440,10 +440,10 @@ function notifyForPasses(): void {
 /* The width loses both side insets, or the card overflows beside a landscape notch. */
 .entity-info-panel {
   position: absolute;
-  /* 18px: the toolbars' 5px offset and 2px margin, and an 11px gap below the row. */
-  top: calc(18px + var(--toolbar-row) + var(--safe-top, 0px));
-  right: calc(5px + var(--safe-right, 0px));
-  width: calc(100% - 10px - var(--safe-left, 0px) - var(--safe-right, 0px));
+  /* Below the top row, as far from it as the row is from the edge. */
+  top: calc(2 * var(--edge) + var(--toolbar-row) + var(--safe-top, 0px));
+  right: calc(var(--edge) + var(--safe-right, 0px));
+  width: calc(100% - 2 * var(--edge) - var(--safe-left, 0px) - var(--safe-right, 0px));
   max-width: 540px;
   z-index: 5;
   font-size: 14px;
