@@ -235,7 +235,9 @@ struct PanelSection<Content: View>: View {
     }
 }
 
-/// One of a few, side by side: the web app's radio buttons, where the names are short.
+/// One of a few, side by side: the web app's segmented control, on a card's raised
+/// track. The system's track is a translucent fill, which let the globe's labels
+/// through the panel, and fainter still while disabled: UIKit dims the whole control.
 private struct Segments<Value: Hashable>: View {
     let title: LocalizedStringKey
     @Binding var selection: Value
@@ -249,6 +251,7 @@ private struct Segments<Value: Hashable>: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
+        .background(Color.panelRaised, in: .capsule)
     }
 }
 
