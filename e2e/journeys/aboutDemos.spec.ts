@@ -25,7 +25,11 @@ async function openAbout(page: Page): Promise<Locator> {
     await page.getByRole("button", { name: "Open menu" }).click();
   }
   await trigger.click();
-  return page.getByRole("dialog", { name: "About Satvis" });
+  const dialog = page.getByRole("dialog", { name: "About Satvis" });
+  // Scrolled while it still zooms in, the body lands elsewhere once the animation ends,
+  // and a click's own scroll into view then moves the carousel off its picture.
+  await dialog.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)));
+  return dialog;
 }
 
 /** Steps with the buttons and the arrow keys, checking which demo's picture shows: the dialog may clip the lines under it. */
