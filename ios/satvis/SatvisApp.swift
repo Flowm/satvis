@@ -168,18 +168,18 @@ struct ContentView: View {
             }
             .padding(PanelMetrics.edge)
             // Under a panel across a phone's width, whose close button they showed
-            // through.
-            .opacity(panelFillsWidth ? 0 : 1)
-            .accessibilityHidden(panelFillsWidth)
-            .animation(.snappy(duration: 0.2), value: panelFillsWidth)
+            // through, and under the info card, which has its own Track and close.
+            .opacity(cornerCovered ? 0 : 1)
+            .accessibilityHidden(cornerCovered)
+            .animation(.snappy(duration: 0.2), value: cornerCovered)
         }
-        // A card under the corner's buttons where there is room for one, as the web
-        // app's panel, a sheet over the lower half where there is not (below),
-        // leaving the globe to steer either way. Not an inspector column: one
-        // narrows the globe's view, and iPadOS then presents its frames late enough
-        // to halve every other one, 40 fps tracking the ISS on an iPad mini where
-        // the card leaves it at 60. Nothing moves aside for it, and a tool panel
-        // opened beside the menu column covers it.
+        // A card in the top-right corner, over the corner's buttons, where there is
+        // room for one, as the web app's panel, a sheet over the lower half where
+        // there is not (below), leaving the globe to steer either way. Not an
+        // inspector column: one narrows the globe's view, and iPadOS then presents
+        // its frames late enough to halve every other one, 40 fps tracking the ISS
+        // on an iPad mini where the card leaves it at 60. Nothing moves aside for
+        // it, and a tool panel opened beside the menu column covers it.
         .overlay(alignment: .topTrailing) {
             GeometryReader { proxy in
                 if showsCard, let frame = cardPlacement(in: proxy) {
@@ -441,7 +441,8 @@ struct ContentView: View {
         guard let menuFrame, let cornerFrame else {
             return nil
         }
-        return TopControls(menu: menuFrame, buttons: cornerFrame)
+        // The card covers the buttons, and the tapes run round it instead.
+        return TopControls(menu: menuFrame, buttons: showsCard ? cardFrame ?? cornerFrame : cornerFrame)
     }
 
     /// Whether the info panel is a card over the globe rather than a sheet.
@@ -449,19 +450,24 @@ struct ContentView: View {
         sizeClass == .regular && session.selection != nil
     }
 
-    /// Where the info card goes, in the window, given the overlay's room: under
-    /// the corner's buttons and level with them, clear of the menu column, and as
-    /// tall as its list up to `cardMaxHeight`, above the clock deck. While the
-    /// camera holds something in the middle of the screen, the tracked satellite or
-    /// station or the sky view's crosshair, it keeps clear of that. Nil until the
-    /// corner's buttons are laid out.
+    /// Whether something covers the corner's buttons, which hide under it.
+    private var cornerCovered: Bool {
+        panelFillsWidth || showsCard
+    }
+
+    /// Where the info card goes, in the window, given the overlay's room: in the
+    /// corner's buttons' place, clear of the menu column, and as tall as its list
+    /// up to `cardMaxHeight`, above the clock deck. While the camera holds
+    /// something in the middle of the screen, the tracked satellite or station or
+    /// the sky view's crosshair, it keeps clear of that. Nil until the corner's
+    /// buttons are laid out.
     private func cardPlacement(in proxy: GeometryProxy) -> CGRect? {
         guard let cornerFrame else {
             return nil
         }
         let room = proxy.frame(in: .global)
         var width = max(min(Self.cardMaxWidth, cornerFrame.maxX - (menuFrame?.maxX ?? room.minX) - 8), Self.cardMinWidth)
-        let top = cornerFrame.maxY + 8
+        let top = cornerFrame.minY
         var bottom = min(deckFrame?.minY ?? room.maxY, room.maxY) - 8
         if session.tracked != nil || session.observer != nil {
             // The globe's view fills the window, safe area and all. Narrower where
