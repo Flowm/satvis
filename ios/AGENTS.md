@@ -178,10 +178,12 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   ones cost an iPad mini 8.6 ms of the main thread, 15 times a second (14
   measured), and with them a Debug build managed 5 frames a second. A clock fast
   enough to outrun a second between locks searches them all, as before.
-  The lock's card is the web app's, a fact a row, except on a phone, where it
-  hid a third of the sky: two facts a row, four lines where there were seven. Its
-  width is fixed, scaled with the text, so it holds still as the crosshair moves
-  from one satellite to the next.
+  The lock's card is the web app's, two lines on every device: the name and a
+  chip saying whether it could be seen, then where to look and how far. Its
+  numbers are whole and grouped as en-US whatever the region, as the info
+  panel's (`SkyCard`, held to `skyCard.ts` by the parity fixtures). Its width is
+  fixed, scaled with the text, so it holds still as the crosshair moves from one
+  satellite to the next.
   Compass aiming (`SkyCompass`) is CoreMotion's attitude against true north, or
   magnetic north without a location, so it needs no calibration step; it can
   only be tried on a device, the simulator having no motion sensor. The

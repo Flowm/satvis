@@ -52,7 +52,6 @@ private struct SkyInstruments: View {
     let notice: String?
     let size: CGSize
     let date: Date
-    @Environment(\.horizontalSizeClass) private var sizeClass
 
     private static let lockColor = Color(red: 0x4A / 255, green: 0xDE / 255, blue: 0x80 / 255)
     private static let traceColor = Color(red: 0x7D / 255, green: 0xD3 / 255, blue: 0xFC / 255)
@@ -205,77 +204,54 @@ private struct SkyInstruments: View {
         }
     }
 
-    /// The web app's card: a fact a row. On a phone, where it hid a third of the
-    /// sky, two a row and the hint beside the name, four lines where there were seven.
-    /// As wide whatever it holds: sized to its facts, it jumped as the crosshair
-    /// went from one satellite to the next.
+    /// Two lines on every device, as the web app's: the name and whether it could
+    /// be seen, then where to look. The rest is the info panel's, which the lock
+    /// opens; the chevron says so. As wide whatever it holds: sized to its text, it
+    /// jumped as the crosshair went from one satellite to the next.
     private func card(_ target: SkyTarget) -> some View {
-        let facts = Self.facts(target)
-        let compact = sizeClass == .compact
-        return VStack(alignment: .leading, spacing: 1) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+        let position = SkyCard.position(azimuth: target.azimuth, elevation: target.elevation, range: target.range)
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
                 Text(target.name).fontWeight(.semibold).lineLimit(1)
-                if compact {
-                    Spacer(minLength: 0)
-                    hint
-                }
+                Spacer(minLength: 0)
+                chip(target.visibility)
             }
-            .padding(.bottom, 2)
-            if compact {
-                HStack(spacing: 20) {
-                    fact(facts[0])
-                    fact(facts[1])
-                }
-                HStack(spacing: 20) {
-                    fact(facts[2])
-                    fact(facts[3])
-                }
-                fact(facts[4])
-            } else {
-                ForEach(facts, id: \.0) { fact($0) }
-                hint.padding(.top, 2)
+            HStack(spacing: 8) {
+                // Two lines rather than an ellipsis at the largest text sizes.
+                Text(position.text).lineLimit(2)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).opacity(0.6)
             }
         }
         .monospacedDigit()
         .font(.footnote)
         .foregroundStyle(Color.panelInk)
-        .frame(width: compact ? compactCardWidth : cardWidth, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .frame(width: min(cardWidth, size.width - 52), alignment: .leading)
+        .padding(.leading, 12)
+        .padding(.trailing, 8)
+        .padding(.vertical, 6)
         .panel()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(target.name)
+        .accessibilityValue("\(target.visibility.label). \(position.spoken)")
+        .accessibilityHint("Tap to open")
+        .accessibilityAddTraits(.updatesFrequently)
     }
 
-    /// A fact's name at the card's leading edge and its value at the trailing one.
-    private func fact(_ fact: (name: String, value: String)) -> some View {
-        HStack(spacing: 8) {
-            Text(fact.name)
-            Spacer(minLength: 0)
-            Text(fact.value).lineLimit(1)
-        }
+    /// The verdict, green where the satellite could be seen.
+    private func chip(_ visibility: SatvisCore.Visibility) -> some View {
+        let seen = visibility == .visible
+        return Text(visibility.label)
+            .font(.caption2)
+            .foregroundStyle(seen ? Self.lockColor : Color.panelInk)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(seen ? Self.lockColor.opacity(0.2) : Color.white.opacity(0.12), in: Capsule())
     }
 
-    /// Points inside the padding: room for the widest values, "In Earth's
-    /// shadow" and a five-digit range, at the default text size.
-    @ScaledMetric(relativeTo: .footnote) private var cardWidth = 230.0
-    @ScaledMetric(relativeTo: .footnote) private var compactCardWidth = 300.0
-
-    /// The lock opens the satellite's panel; the card only says so.
-    private var hint: some View {
-        Text("Tap to open").font(.caption2).opacity(0.7)
-    }
-
-    /// What the card says of a satellite, in the web app's order (SkyHud.vue):
-    /// azimuth, elevation, range, altitude, visibility.
-    private static func facts(_ target: SkyTarget) -> [(String, String)] {
-        let degrees = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(1))
-        return [
-            ("Azimuth", "\(target.azimuth.formatted(degrees))° \(compassPoint(target.azimuth))"),
-            ("Elevation", "\(target.elevation.formatted(degrees))°"),
-            ("Range", "\(Int(target.range.rounded()).formatted()) km"),
-            ("Altitude", "\(Int(target.altitude.rounded()).formatted()) km"),
-            ("Visibility", target.visibility.label),
-        ]
-    }
+    /// Points inside the padding: room for "359° NNW · 90° up · 38,362 km away"
+    /// at the default text size, the web app's 280 px with its padding.
+    @ScaledMetric(relativeTo: .footnote) private var cardWidth = 260.0
 
     private func label(_ text: String, at point: CGPoint, anchor: UnitPoint, in context: inout GraphicsContext) {
         // The image's margin is beyond the text's trailing edge.
