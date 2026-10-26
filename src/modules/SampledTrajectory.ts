@@ -7,7 +7,7 @@ import type Orbit from "./Orbit";
 import "./util/CesiumSampledPositionRawValueAccess";
 import { CesiumCallbackHelper } from "./util/CesiumCallbackHelper";
 import { drawablePositions } from "./util/drawablePositions";
-import { GridPositionProperty } from "./util/GridPositionProperty";
+import { GridPositionProperty, type SampleVisitor } from "./util/GridPositionProperty";
 import type { SampleChunk, TrajectorySampler } from "./util/sampleSource";
 import { trajectoryWindow } from "./util/trajectoryWindow";
 
@@ -263,6 +263,24 @@ export class SampledTrajectory {
     const end = JulianDate.addSeconds(start, this.#orbit.orbitalPeriod * 60, new JulianDate());
     // The grid always exists, so the fixed path never creates a sampled property.
     return drawablePositions([this.position(start), ...this.#positionsBetween(start, end)]);
+  }
+
+  /** Each fixed-frame sample of the window and its seconds after `time`, for the render pacer. */
+  forEachSample(time: JulianDate, visit: SampleVisitor): void {
+    const grid = this.#grid;
+    if (grid) {
+      grid.forEachSample(time, visit);
+      return;
+    }
+    const fixed = this.#data?.fixed;
+    const interval = this.#data?.interval;
+    if (!fixed || !interval) {
+      return;
+    }
+    const { times, values } = fixed.getRawSamples(interval.start, interval.stop);
+    for (const [index, position] of (values as Cartesian3[]).entries()) {
+      visit(position.x, position.y, position.z, JulianDate.secondsDifference(times[index]!, time));
+    }
   }
 
   /** The raw fixed-frame samples from `start` to `end`, for the ground track's ribbon. */

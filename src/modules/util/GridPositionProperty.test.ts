@@ -151,6 +151,16 @@ describe("GridPositionProperty", () => {
     expect(property.indexAtOrAfter(at(4.1 * STEP))).toBe(5);
   });
 
+  test("visits each sample with its seconds after the time asked for", () => {
+    const visited: number[][] = [];
+    filled(3, 3).forEachSample(at(4 * STEP), (x, y, z, seconds) => visited.push([x, y, z, seconds]));
+    expect(visited).toEqual([
+      [300, -600, 7000, -STEP],
+      [400, -800, 7000, 0],
+      [500, -1000, 7000, STEP],
+    ]);
+  });
+
   test("converts out of its own reference frame on request", () => {
     const property = filled();
     const own = property.getValueInReferenceFrame(at(2 * STEP), ReferenceFrame.FIXED) as Cartesian3;

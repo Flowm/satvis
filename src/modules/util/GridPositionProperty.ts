@@ -32,6 +32,9 @@ const STENCIL = 6;
 
 const GROWTH_HEADROOM = 1.25;
 
+/** A sample's fixed-frame metres and its seconds after the time asked for. */
+export type SampleVisitor = (x: number, y: number, z: number, seconds: number) => void;
+
 /**
  * A sample's index is its position on the grid, so batches that share the anchor
  * and step append without matching times.
@@ -293,6 +296,15 @@ export class GridPositionProperty {
       positions.push(new Cartesian3(this.#positions[at] as number, this.#positions[at + 1] as number, this.#positions[at + 2] as number));
     }
     return { times, positions };
+  }
+
+  /** Calls `visit` with each sample in order and its seconds after `time`, allocating nothing. */
+  forEachSample(time: JulianDate, visit: SampleVisitor): void {
+    const firstSeconds = JulianDate.secondsDifference(this.#anchor, time) + this.#firstIndex * this.#stepSeconds;
+    for (let index = 0; index < this.#count; index += 1) {
+      const at = index * 3;
+      visit(this.#positions[at] as number, this.#positions[at + 1] as number, this.#positions[at + 2] as number, firstSeconds + index * this.#stepSeconds);
+    }
   }
 
   allSamples(): { times: JulianDate[]; positions: Cartesian3[] } {
