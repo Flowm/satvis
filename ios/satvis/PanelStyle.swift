@@ -163,10 +163,12 @@ enum PanelMetrics {
     /// A row, a button, and the folded menu column: the fingertip Apple's Human
     /// Interface Guidelines ask for.
     static let row: CGFloat = 44
-    /// From the safe area's edge to the menu column and the corner's buttons.
-    static let edge: CGFloat = 12
     /// Between the menu column and its panel, and between the corner's buttons.
     static let gap: CGFloat = 8
+    /// From the safe area's edge to the menu column and the corner's buttons: the
+    /// gap, as the web app's, since a phone's safe area already clears the notch and
+    /// the rounded corners.
+    static let edge = gap
     /// From the safe area's top to what sits under the menu toggle and the corner's
     /// first button.
     static let underTopRow = edge + row + gap

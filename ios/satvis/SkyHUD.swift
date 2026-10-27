@@ -107,15 +107,18 @@ private struct SkyInstruments: View {
     }
 
     /// Where the compass tape runs: its rule's height and its ends. Over the
-    /// controls where they stand 60 pt down or more, as under a notch or the
-    /// Dynamic Island, whose status bar keeps to the ears and leaves the band over
-    /// them free. Else, on an iPad or in landscape, between the menu and the
-    /// buttons, level with the buttons, where that leaves 200 pt about the middle.
-    /// Else, on an iPhone with a Home button, under both.
+    /// controls where the safe area starts 48 pt down or more, as under a mini's
+    /// notch or the Dynamic Island, whose status bar keeps to the ears and leaves
+    /// the band over them free. Placed by the safe area rather than the buttons,
+    /// 8 pt under it: 4 pt higher, its labels ran into a mini's clock.
+    /// Else, on an iPad or in landscape, between the menu and the buttons, level
+    /// with the buttons, where that leaves 200 pt about the middle. Else, on an
+    /// iPhone with a Home button, under both.
     private static func compassTape(around controls: TopControls, width: CGFloat) -> (rule: CGFloat, from: CGFloat, to: CGFloat) {
         let (menu, buttons) = (controls.menu, controls.buttons)
-        if buttons.minY >= 60 {
-            return (buttons.minY - 4, 0, width)
+        let safeTop = buttons.minY - PanelMetrics.edge
+        if safeTop >= 48 {
+            return (safeTop + 8, 0, width)
         }
         let from = menu.maxX + 16
         let to = buttons.minX - 16

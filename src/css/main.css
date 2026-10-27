@@ -56,8 +56,9 @@ body {
      so the menu column folded to its toggle is their twin. */
   --panel-radius: calc(var(--toolbar-row) * 16 / 44);
   /* From the screen's edge, or its safe area, to the menu column and the corner buttons,
-     and between those and the entity info panel below them. */
-  --edge: 12px;
+     and between those and the entity info panel below them: the gap, as the iOS app's,
+     since a phone's safe area already clears the notch and the rounded corners. */
+  --edge: 8px;
   /* Between the menu column and its panel. */
   --toolbar-gap: 8px;
   --panel-width: 260px;
