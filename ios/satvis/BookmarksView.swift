@@ -6,6 +6,8 @@ import SwiftUI
 /// saving the scene. A sheet, as the other long lists are.
 struct BookmarksView: View {
     let session: Session
+    /// A bookmark or the default view was opened, and the sheet closes on it.
+    let onOpen: () -> Void
     /// Opens on Saved for a user who has saved something.
     @State private var tab: Bookmark.Kind
     /// The bookmark whose name is being edited, and the name as typed so far.
@@ -23,8 +25,9 @@ struct BookmarksView: View {
     private static let shareButton = "share"
     @Environment(\.dismiss) private var dismiss
 
-    init(session: Session) {
+    init(session: Session, onOpen: @escaping () -> Void = {}) {
         self.session = session
+        self.onOpen = onOpen
         _tab = State(initialValue: session.bookmarks.saved.isEmpty ? .demo : .saved)
     }
 
@@ -85,6 +88,7 @@ struct BookmarksView: View {
                     HStack {
                         Button("Default view", systemImage: "arrow.counterclockwise") {
                             session.openDefaultView()
+                            onOpen()
                             dismiss()
                         }
                         .disabled(here.query.isEmpty)
@@ -142,6 +146,7 @@ struct BookmarksView: View {
         let summary = session.summary(bookmark.scene)
         return Button {
             session.open(bookmark.scene)
+            onOpen()
             dismiss()
         } label: {
             BookmarkCard(bookmark: bookmark, summary: summary, picture: picture(bookmark), isCurrent: isCurrent)

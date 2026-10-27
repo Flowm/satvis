@@ -47,26 +47,34 @@ test("back to the default view, back to the link, and keep it", async ({ page })
   await expect(toasts(page, "Link copied")).toBeVisible();
   await expect.poll(async () => read(await page.evaluate(() => navigator.clipboard.readText()))).toEqual(link);
 
+  // Opening a view closes the panel on it; the "…" menu above did not.
   await panel.getByRole("button", { name: "Default view" }).click();
+  await expect(panel).toBeHidden();
   await expect.poll(() => new URL(page.url()).search).toBe("");
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.scene.mode), { message: "the globe is back" }).toBe(3);
   // The link's pinned hour is gone with it: the clock is at the present again.
   expect(Math.abs((await clockMs(page)) - Date.parse(FIXTURE_TIME))).toBeLessThan(5 * 60_000);
+  await openMenu(page, "Bookmarks");
   await expect(panel.getByRole("button", { name: "Default view" })).toBeDisabled();
 
   // Paused at the present, the url carries no `time` for a minute; Default view still sets the clock going.
   await panel.getByRole("tab", { name: /Demos/ }).click();
   await cards.filter({ hasText: "Follow the ISS" }).getByRole("button").first().click();
+  await expect(panel).toBeHidden();
   await expect.poll(() => new URL(page.url()).searchParams.get("track")).toBe("ISS (ZARYA)");
   await page.evaluate(() => {
     window.cc!.viewer.clockViewModel.shouldAnimate = false;
   });
+  await openMenu(page, "Bookmarks");
   await panel.getByRole("button", { name: "Default view" }).click();
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.clock.shouldAnimate)).toBe(true);
+  await openMenu(page, "Bookmarks");
   await panel.getByRole("tab", { name: /Recent/ }).click();
 
   await opened.getByRole("button").first().click();
   await expect.poll(() => Object.fromEntries(new URL(page.url()).searchParams)).toEqual({ tags: "Science", scene: "2D", time: "2026-10-05T11:00Z" });
+  await openMenu(page, "Bookmarks");
+  await panel.getByRole("tab", { name: /Recent/ }).click();
   await expect(opened).toHaveClass(/bookmarkCard--current/);
 
   // Saved from Recent, the name opens with the footer's button saving it, not a new bookmark.
@@ -93,6 +101,7 @@ test("back to the default view, back to the link, and keep it", async ({ page })
   // A new scene is saved under a name drawn from it.
   await panel.getByRole("tab", { name: /Demos/ }).click();
   await cards.filter({ hasText: "Follow the ISS" }).getByRole("button").first().click();
+  await openMenu(page, "Bookmarks");
   await expect(save).toBeEnabled();
   await save.click();
   await expect(name).toBeFocused();

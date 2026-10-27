@@ -287,6 +287,11 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssertFalse(card.isSelected)
         card.tap()
         XCTAssert(sheet.waitForNonExistence(timeout: 5))
+        // On a phone the column stays folded over the scene the bookmark opened.
+        if UIDevice.current.userInterfaceIdiom != .pad {
+            sleep(1)
+            XCTAssertEqual(menuToggle(app).label, "Menu")
+        }
         openMenu(app)
         app.buttons["Bookmarks"].tap()
         XCTAssert(card.waitForExistence(timeout: 10))

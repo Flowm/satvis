@@ -352,7 +352,9 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showsBookmarks) {
-            BookmarksView(session: session)
+            // The column stays folded over the scene a bookmark opened, as a tap on
+            // the globe leaves it.
+            BookmarksView(session: session) { foldedFor = nil }
         }
         .sheet(isPresented: $showsBrowser) {
             BrowserView(catalog: session.catalog) { session.select(.satellite($0.id)) }

@@ -24,7 +24,7 @@
         :current="isCurrent(bookmark)"
         v-model:draft="draft"
         :renaming="renaming === bookmark.id"
-        @open="open(bookmark)"
+        @open="onOpen(bookmark)"
         @rename="startRename(bookmark)"
         @commit="commitRename"
         @cancel="renaming = undefined"
@@ -36,7 +36,7 @@
     </div>
 
     <footer class="bookmarkPanel__footer">
-      <button type="button" :disabled="isDefault" @click="openDefault"><UIcon name="lucide:rotate-ccw" />Default view</button>
+      <button type="button" :disabled="isDefault" @click="onOpenDefault"><UIcon name="lucide:rotate-ccw" />Default view</button>
       <!-- While a name is open the button saves it, not a new bookmark. Pressing it keeps the focus
            in the field, or Safari, which focuses no clicked button, would end the edit first. -->
       <button v-if="renaming" type="button" class="bookmarkPanel__primary" data-saves-name @pointerdown.prevent @click="commitRename"><UIcon name="lucide:check" />Save</button>
@@ -76,6 +76,7 @@ const EMPTY: Record<Tab, string> = {
 
 const { demos, saved, opened, isDefault, isCurrent, summary, open, link, openDefault, saveCurrent, rename, keep, remove, restore, forget } = useBookmarks();
 const toast = useToast();
+const emit = defineEmits<{ opened: [] }>();
 
 /** Opens on Saved for a visitor who has saved something. */
 const tab = ref<Tab>(saved.value.length > 0 ? "saved" : "demo");
@@ -92,6 +93,18 @@ const renaming = ref<string>();
 const draft = ref("");
 /** A picture is being taken, which a second press must not repeat. */
 const saving = ref(false);
+
+/** Opens `bookmark`, and the panel closes on the scene. */
+function onOpen(bookmark: Bookmark): void {
+  open(bookmark);
+  emit("opened");
+}
+
+/** As `onOpen`, for the default view. */
+function onOpenDefault(): void {
+  openDefault();
+  emit("opened");
+}
 
 /** Opens `bookmark`'s name for editing. */
 function startRename(bookmark: Bookmark): void {
