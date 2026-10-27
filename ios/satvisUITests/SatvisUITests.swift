@@ -53,6 +53,25 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Home view"].exists)
     }
 
+    // The Spacecraft tab's links are one row, which opens a menu of the five sites.
+    @MainActor
+    func testOpensTheLinksFromAMenu() {
+        let app = search("METOP-C")
+        app.buttons["Details of METOP-C"].tap()
+        XCTAssert(app.navigationBars["METOP-C"].waitForExistence(timeout: 10))
+        app.buttons["Spacecraft"].tap()
+        let links = app.buttons["Links"]
+        // Under a phone's half-height sheet, in a lazy list.
+        for _ in 0..<3 where !links.waitForExistence(timeout: 2) {
+            app.collectionViews.firstMatch.swipeUp()
+        }
+        XCTAssertEqual(links.value as? String, "5 sites")
+        links.tap()
+        for site in ["CelesTrak", "Satcat", "n2yo", "Heavens-Above", "KeepTrack"] {
+            XCTAssert(app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", site)).firstMatch.waitForExistence(timeout: 5), site)
+        }
+    }
+
     // The corner's eye hides the menu column, the clock deck and the corner's other
     // buttons, as the web app's Hide UI does, and brings them back.
     @MainActor

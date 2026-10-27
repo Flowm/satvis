@@ -147,26 +147,31 @@ struct InfoPanel: View {
             }
         }
         if !links.isEmpty {
-            Section("Links") {
-                ForEach(links, id: \.0) { link, url in
-                    Link(destination: url) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(link.label)
-                                Text(link.title)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 8)
-                            Image(systemName: "arrow.up.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                                .accessibilityHidden(true)
+            // One row, opening a menu of the sites: a row each, with its title, took a phone's sheet 320 pt.
+            Section {
+                Menu {
+                    ForEach(links, id: \.0) { link, url in
+                        Link(destination: url) {
+                            Label(link.label, systemImage: "arrow.up.right")
+                            Text(link.title)
                         }
                     }
-                    // A Link paints its label in the tint, through the styles set inside it.
-                    .tint(.primary)
+                } label: {
+                    HStack {
+                        Text("Links")
+                        Spacer(minLength: 8)
+                        Text("\(links.count) sites")
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(.rect)
                 }
+                // A Menu paints its label in the tint, through the styles set inside it.
+                .tint(.primary)
+                .accessibilityLabel("Links")
+                .accessibilityValue("\(links.count) sites")
             }
         }
     }
