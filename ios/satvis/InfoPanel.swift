@@ -86,6 +86,7 @@ struct InfoPanel: View {
                     }
                     .font(.footnote)
                     .lineLimit(1)
+                    .leadingTitle()
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(
                         "\(entry.name), catalog number \(entry.satnum), \(SatelliteDetails.chips(entry.record, propagator: propagator).joined(separator: ", "))"
@@ -215,6 +216,13 @@ private struct TabPicker: View {
 }
 
 extension View {
+    /// A bar's title at its leading edge, as the web app's, where the bar centres
+    /// a title narrower than the room it has: asking for more than there is, it
+    /// is given all of it, and is cut short within it.
+    fileprivate func leadingTitle() -> some View {
+        frame(minWidth: 0, idealWidth: 10_000, maxWidth: .infinity, alignment: .leading)
+    }
+
     /// A section close under the title and over the tab's cards, as the web app's tab row is.
     fileprivate func tabHeader() -> some View {
         listSectionMargins(.top, 0).listSectionSpacing(.compact)
@@ -329,6 +337,12 @@ struct StationPanel: View {
             .navigationTitle(station.displayName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .title) {
+                    Text(station.displayName)
+                        .font(.headline)
+                        .lineLimit(1)
+                        .leadingTitle()
+                }
                 // By what they do: the station itself, where to look from, and away.
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     // A station a link brought is the link's until saved: alerts and
