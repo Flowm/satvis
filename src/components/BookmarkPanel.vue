@@ -11,7 +11,7 @@
         :class="{ 'bookmarkPanel__tab--on': tab === entry.key }"
         @click="tab = entry.key"
       >
-        {{ entry.label }}<span v-if="count(entry.key)" class="bookmarkPanel__count">{{ count(entry.key) }}</span>
+        {{ entry.label }}<span v-if="count(entry.key)" class="countBadge">{{ count(entry.key) }}</span>
       </button>
     </div>
 
@@ -226,14 +226,6 @@ function onRemove(bookmark: Bookmark): void {
 .bookmarkPanel__tabs button:focus-visible {
   outline: 2px solid var(--panel-accent);
   outline-offset: -2px;
-}
-
-.bookmarkPanel__count {
-  margin-left: 5px;
-  padding: 0 5px;
-  background: #ffffff1f;
-  border-radius: 8px;
-  font-size: 11px;
 }
 
 /* Cards clip their corners, which lets auto rows shrink below their content instead of scrolling. */

@@ -8,6 +8,23 @@ enum PassSubject {
     case station(GroundStation, [CatalogEntry])
 }
 
+extension PassSubject {
+    /// The passes so far, whether that is all of them, and for a station, how
+    /// many of its satellites are done.
+    func passes(in model: PassModel, at now: Double) -> (passes: [Pass], settled: Bool, progress: (done: Int, total: Int)?) {
+        switch self {
+        case .satellite(let entry):
+            guard let passes = model.passes(of: entry.id, at: now) else {
+                return ([], false, nil)
+            }
+            return (passes, true, nil)
+        case .station(let station, let entries):
+            let answer = model.passes(over: station, of: entries, from: now)
+            return (answer.passes, answer.settled, (answer.predicted, entries.count))
+        }
+    }
+}
+
 /// The web app's Passes tab: the next pass as a headline, the timeline strip for a
 /// satellite, the overpass mode, and the list. Tapping a pass moves the clock to
 /// its start.
@@ -113,19 +130,8 @@ struct PassesSections: View {
         return held.subject == subjectID ? (held.passes, held.mode) : nil
     }
 
-    /// The passes so far, whether that is all of them, and for a station, how
-    /// many of its satellites are done.
     private var list: (passes: [Pass], settled: Bool, progress: (done: Int, total: Int)?) {
-        switch subject {
-        case .satellite(let entry):
-            guard let passes = passes.passes(of: entry.id, at: now) else {
-                return ([], false, nil)
-            }
-            return (passes, true, nil)
-        case .station(let station, let entries):
-            let answer = passes.passes(over: station, of: entries, from: now)
-            return (answer.passes, answer.settled, (answer.predicted, entries.count))
-        }
+        subject.passes(in: passes, at: now)
     }
 
     private var subjectID: String {

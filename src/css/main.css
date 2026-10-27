@@ -554,6 +554,21 @@ body {
   opacity: 0.3;
 }
 
+/* A count on a tab: the Bookmarks panel's and the info panel's Passes, as the iOS app's
+   `CountBadge`. */
+.countBadge {
+  flex: none;
+  margin-left: 5px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--panel-selected);
+  color: var(--panel-ink);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+}
+
 .toolbarSpinner {
   box-sizing: border-box;
   flex: none;

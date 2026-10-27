@@ -21,6 +21,8 @@ extension Color {
     static let panelInk = Color(red: 0xED / 255, green: 1, blue: 1)
     /// The web app's cyan, `#7fd2ea`, for what is open or chosen.
     static let panelAccent = Color(red: 127 / 255, green: 210 / 255, blue: 234 / 255)
+    /// What is chosen, and a tab's count: the web app's `#ffffff1f`.
+    static let panelSelected = Color.white.opacity(0x1F / 255)
     /// "Not where it rests", as on the web: the clock deck's reset, a stale element set.
     static let panelAmber = Color(red: 1, green: 0xD4 / 255, blue: 0x79 / 255)
     /// The web app's `#4ade80`: what could be seen, the sky view's lock and its chip.

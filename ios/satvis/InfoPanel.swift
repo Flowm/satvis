@@ -45,7 +45,7 @@ struct InfoPanel: View {
                                     .padding(.bottom, 12)
                             }
                         }
-                        TabPicker(tabs: tabs, tab: $tab)
+                        TabPicker(tabs: tabs, tab: $tab, subject: .satellite(entry), clock: clock, passes: passes)
                     }
                     .bareRow()
                 }
@@ -195,23 +195,29 @@ enum InfoTab: String {
     }
 }
 
-/// The web app's tab row, over the tabs a selection has.
+/// The web app's tab row, over the tabs a selection has, the Passes tab with the
+/// count its list shows.
 private struct TabPicker: View {
     let tabs: [InfoTab]
     @Binding var tab: InfoTab
+    let subject: PassSubject
+    let clock: ViewerClock
+    let passes: PassModel
+    @AppStorage("showPastPasses") private var showsPast = false
 
     var body: some View {
-        Picker(
-            "Tab",
-            selection: Binding {
-                InfoTab.resolved(tab, among: tabs)
-            } set: {
-                tab = $0
-            }
-        ) {
-            ForEach(tabs, id: \.self) { Text($0.rawValue.capitalized) }
+        // Once a second, as the list it counts.
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            let now = clock.now()
+            let count = subject.passes(in: passes, at: now).passes.visible(at: now, past: showsPast).count
+            SegmentedTabs(
+                selection: Binding {
+                    InfoTab.resolved(tab, among: tabs)
+                } set: {
+                    tab = $0
+                },
+                tabs: tabs.map { ($0, $0.rawValue.capitalized, $0 == .passes ? count : 0) })
         }
-        .panelSegmented()
     }
 }
 
@@ -310,7 +316,7 @@ struct StationPanel: View {
         NavigationStack {
             List {
                 Section {
-                    TabPicker(tabs: Self.tabs, tab: $tab)
+                    TabPicker(tabs: Self.tabs, tab: $tab, subject: .station(station, catalog.activeEntries), clock: clock, passes: passes)
                         .bareRow()
                 }
                 .tabHeader()
