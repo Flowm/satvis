@@ -114,7 +114,7 @@ body {
 }
 
 /* Above the sky HUD (z-4) and the entity info panel (z-5), so the sky view's exit stays
-   reachable, and above #toolbarRight, which a phone's panel covers. */
+   reachable, and above #toolbarRight, which a phone's wide panel covers. */
 #toolbarLeft {
   position: absolute;
   top: calc(var(--edge) + var(--safe-top));
@@ -125,6 +125,8 @@ body {
   gap: var(--toolbar-gap);
   /* Beside the folded column, a row square, with the edges and the gap around them. */
   --toolbar-panel-max: calc(100vw - 2 * var(--edge) - var(--toolbar-row) - var(--toolbar-gap) - var(--safe-left) - var(--safe-right));
+  /* A card's, as `--toolbar-panel-max` but on a phone a gap short of the top-right buttons. */
+  --toolbar-card-max: var(--toolbar-panel-max);
   /* The box spans the column and a panel; the globe takes the drag in the gaps. */
   pointer-events: none;
 }
@@ -292,11 +294,21 @@ body {
   visibility: hidden;
 }
 
-/* A phone (`PHONE_WIDTH`, src/config/layout.ts): labels fold beside a panel, by the right padding only so the icons stay put,
-   and the top-right buttons it covers hide rather than show through it. */
+/* A phone (`PHONE_WIDTH`, src/config/layout.ts): labels fold beside a panel, by the right padding only so the icons stay put.
+   A card stops short of the top-right buttons, as the iOS app's; the wide panels, sheets there, cover them, and they
+   hide rather than show through. */
 @media (max-width: 639px) {
-  #toolbarLeft.toolbarLeft--panelOpen ~ #toolbarRight {
+  #toolbarLeft {
+    --toolbar-card-max: calc(100vw - 2 * var(--edge) - 2 * var(--toolbar-row) - 2 * var(--toolbar-gap) - var(--safe-left) - var(--safe-right));
+  }
+
+  #toolbarLeft:has(> .toolbarPanel--wide) ~ #toolbarRight {
     visibility: hidden;
+  }
+
+  /* The iOS app's: a station's latitude and longitude stand side by side, and 260px cut -122.2727 short. */
+  .toolbarPanel--locations {
+    --panel-width: 320px;
   }
 
   .toolbarLeft--panelOpen .menuColumn__label {

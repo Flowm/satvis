@@ -114,6 +114,9 @@ private struct StationRow: View {
     @State private var longitude = ""
     @FocusState private var focused: Field?
     @ScaledMetric(relativeTo: .body) private var markWidth = PanelRowMetrics.markWidth
+    /// What -17.5516 and -149.5585 take side by side, as halves of the row.
+    @ScaledMetric(relativeTo: .caption) private var coordinatesWidth: CGFloat = 132
+    @State private var stacksCoordinates = false
 
     private enum Field {
         case name, latitude, longitude
@@ -127,12 +130,21 @@ private struct StationRow: View {
                     .focused($focused, equals: .name)
                     .submitLabel(.done)
                     .accessibilityLabel("Name")
-                HStack {
+                // Latitude over longitude where halves would cut -149.5585 short, as on
+                // a 375 pt phone's card. By the room, not the text, so that no field
+                // moves while it is typed in.
+                let layout = stacksCoordinates ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout())
+                layout {
                     coordinate("Latitude", text: $latitude, field: .latitude)
                     coordinate("Longitude", text: $longitude, field: .longitude)
                 }
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
+            }
+            .onGeometryChange(for: Bool.self) {
+                $0.size.width < coordinatesWidth
+            } action: {
+                stacksCoordinates = $0
             }
             Button("Show passes", systemImage: "chevron.right", action: onShow)
                 .labelStyle(.iconOnly)

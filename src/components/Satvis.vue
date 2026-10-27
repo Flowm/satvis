@@ -63,7 +63,7 @@
           {{ componentName }}
         </label>
       </toolbar-panel>
-      <toolbar-panel v-show="menu.gs" title="Locations" @close="closePanel('gs')">
+      <toolbar-panel v-show="menu.gs" title="Locations" class="toolbarPanel--locations" @close="closePanel('gs')">
         <ground-station-list />
       </toolbar-panel>
       <toolbar-panel v-show="menu.map" title="Map" @close="closePanel('map')">

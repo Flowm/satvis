@@ -199,6 +199,10 @@ function offsetOf(index: number): number {
 </script>
 
 <style scoped>
+.gsList {
+  container-type: inline-size;
+}
+
 .gsList__empty {
   font-style: italic;
 }
@@ -394,6 +398,19 @@ function offsetOf(index: number): number {
   .toolbarActions button {
     min-height: var(--toolbar-row);
     font-size: var(--text-label);
+  }
+
+  /* Latitude over longitude where halves would cut -149.5585 short: a 375px phone's
+     card, which stops short of the corner buttons. As wide as the row, not its text, so
+     no field moves while it is typed in. */
+  @container (width < 258px) {
+    .gsList__row {
+      grid-template-areas:
+        "rank grip name remove"
+        "rank grip lat remove"
+        "rank grip lon remove";
+      grid-template-columns: 12px 32px 1fr 32px;
+    }
   }
 }
 </style>

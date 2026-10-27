@@ -23,7 +23,7 @@ const emit = defineEmits<{ close: [] }>();
 
 .toolbarPanel--fixed {
   box-sizing: border-box;
-  width: min(var(--panel-width), var(--toolbar-panel-max));
+  width: min(var(--panel-width), var(--toolbar-panel-max), var(--toolbar-card-max));
   max-height: calc(100dvh - 140px);
   padding: 0 6px 6px;
 }
