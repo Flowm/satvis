@@ -298,7 +298,10 @@ outright: the cut, in full, not a faster version of the movement.
   ridge is hidden but lockable. Candidates are asked nearest first, only until one is
   visible, so a normal frame casts one ray. The viewer's own click and double-click,
   which select and track what is under the pointer, are off while the sky view's
-  interaction runs.
+  interaction runs. The lock does not choose what a tap opens: a tap anywhere opened
+  the locked satellite, so a tap meant for the sky opened a panel. A tap opens what
+  the globe's own pick finds under it, a finger's within 24 px as the iOS app's, and
+  the lock's card opens the lock; a tap on empty sky keeps what is open.
 - **The capture radius stays in CSS pixels**, so its angular reach follows the zoom:
   ±5.3° at the default on an 844 px-tall phone, ±0.71° at maximum zoom. Zooming in
   _is_ how you choose between two satellites in the reticle, which a radius in

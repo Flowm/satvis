@@ -38,14 +38,17 @@ import Testing
         #expect(focus.selection == .station(station))
     }
 
-    // From the ground the crosshair chooses, not the finger.
-    @Test func aTapInTheSkyViewOpensWhatTheCrosshairHolds() {
+    // From the ground a tap opens what it lands on, as on the globe, and a tap on
+    // empty sky keeps what is open, whatever the crosshair holds.
+    @Test func aTapInTheSkyViewOpensOnlyWhatItLandsOn() {
         var focus = Focus()
         _ = focus.enterSky(at: station)
-        focus.tap(Focus.Tap(crosshair: { "b" }, entity: { "a" }), keepingSelection: false) { _, _ in nil }
-        #expect(focus.selection == .satellite("b"))
+        focus.tap(Focus.Tap(), keepingSelection: false) { _, _ in nil }
+        #expect(focus.selection == nil)
         focus.tap(Focus.Tap(entity: { "a" }), keepingSelection: false) { _, _ in nil }
-        #expect(focus.selection == .satellite("b"))
+        #expect(focus.selection == .satellite("a"))
+        focus.tap(Focus.Tap(), keepingSelection: false) { _, _ in nil }
+        #expect(focus.selection == .satellite("a"))
     }
 
     @Test func aDoubleTapInTheSkyViewDoesNothing() {

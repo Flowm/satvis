@@ -118,8 +118,11 @@ struct ContentView: View {
         .overlay {
             if session.observer != nil, let renderer = session.renderer {
                 // In the renderer's frame, the whole screen, since it projects into it.
-                SkyHUD(renderer: renderer, controls: topControls, infoCard: showsCard ? cardFrame : nil, notice: session.notice ?? session.aim.cameraWarning)
-                    .ignoresSafeArea()
+                SkyHUD(
+                    renderer: renderer, onOpen: { session.select(.satellite($0)) }, controls: topControls, infoCard: showsCard ? cardFrame : nil,
+                    notice: session.notice ?? session.aim.cameraWarning
+                )
+                .ignoresSafeArea()
             }
         }
         .overlay(alignment: .top) {

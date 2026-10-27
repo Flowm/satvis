@@ -54,18 +54,11 @@ public struct Focus: Sendable, Equatable {
     public struct Tap {
         /// The place on the ground under the finger.
         public var ground: () -> GeoCoordinate?
-        /// The satellite the sky view's crosshair holds, by catalog id.
-        public var crosshair: () -> String?
         /// The renderer's id of what is under the finger.
         public var entity: () -> String?
 
-        public init(
-            ground: @escaping () -> GeoCoordinate? = { nil },
-            crosshair: @escaping () -> String? = { nil },
-            entity: @escaping () -> String? = { nil }
-        ) {
+        public init(ground: @escaping () -> GeoCoordinate? = { nil }, entity: @escaping () -> String? = { nil }) {
             self.ground = ground
-            self.crosshair = crosshair
             self.entity = entity
         }
     }
@@ -111,8 +104,8 @@ public struct Focus: Sendable, Equatable {
     }
 
     /// A tap places a station while picking, and otherwise selects what it lands
-    /// on, or nothing unless `keepingSelection`. `add` saves a station at a place
-    /// and says which it became.
+    /// on, or nothing unless `keepingSelection`; in the sky view a miss keeps the
+    /// selection. `add` saves a station at a place and says which it became.
     public mutating func tap(_ tap: Tap, keepingSelection: Bool, add: (_ latitude: Double, _ longitude: Double) -> UUID?) {
         if isPicking {
             if let place = tap.ground(), let added = add(place.latitude, place.longitude) {
@@ -121,15 +114,8 @@ public struct Focus: Sendable, Equatable {
             isPicking = false
             return
         }
-        // From the ground the crosshair chooses, not the finger (ADR 0003).
-        if observer != nil {
-            if let lock = tap.crosshair() {
-                selection = .satellite(lock)
-            }
-            return
-        }
         let hit = tap.entity()
-        if hit == nil, keepingSelection {
+        if hit == nil, keepingSelection || observer != nil {
             return
         }
         selection = hit.map(Selection.init(rendererID:))

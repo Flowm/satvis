@@ -72,8 +72,8 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   await page.mouse.up();
 
   await expect(page.locator(".sky-hud__card .sky-hud__name")).toHaveText(TARGET);
-  // A tap anywhere opens what the crosshair holds.
-  await page.mouse.click(cx, cy);
+  // The lock's card opens what the crosshair holds.
+  await page.locator(".sky-hud__card").click();
   await expect(panel.locator(".head__name")).toHaveText(TARGET);
 
   // Two seconds of sprint: a runner's frame a second caps each step at 100 ms of walk.

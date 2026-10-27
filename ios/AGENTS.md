@@ -175,8 +175,9 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   web's three-leg flight in and out; the instruments (`SkyHUD`) and the gestures
   wait for it to land, and reduced motion cuts. The crosshair, the tapes, the
   trace and the card read the renderer's last frame (`DrawnFrame`,
-  `SkyTargets.swift`), and the lock is the tap: from the ground a tap opens what
-  the crosshair holds. The lock places only the satellites near the crosshair, by
+  `SkyTargets.swift`). From the ground a tap opens what it lands on, as on the
+  globe, and the card opens the lock; a tap on empty sky keeps what is open
+  (ADR 0003). The lock places only the satellites near the crosshair, by
   each one's direction kept for a second of the clock: placing all 16,755 active
   ones cost an iPad mini 8.6 ms of the main thread, 15 times a second (14
   measured), and with them a Debug build managed 5 frames a second. A clock fast

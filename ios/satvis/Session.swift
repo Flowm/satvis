@@ -602,10 +602,7 @@ final class Session {
 
     /// What the renderer has under `point`, for a tap.
     private static func hits(_ renderer: GlobeRenderer, at point: CGPoint, viewSize size: CGSize) -> Focus.Tap {
-        Focus.Tap(
-            ground: { renderer.groundPoint(at: point, viewSize: size) },
-            crosshair: { renderer.skyLock(viewSize: size)?.id },
-            entity: { renderer.entity(at: point, viewSize: size) })
+        Focus.Tap(ground: { renderer.groundPoint(at: point, viewSize: size) }, entity: { renderer.entity(at: point, viewSize: size) })
     }
 
     /// Follows a satellite or a station, and opens its panel (`Focus.follow`).
