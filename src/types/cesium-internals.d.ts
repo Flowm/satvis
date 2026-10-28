@@ -5,8 +5,6 @@ declare module "@cesium/widgets" {
   interface Viewer {
     /** Absent under `minimalUI`, which is why the accessor guards it. */
     _fullscreenButton?: { _container: HTMLElement };
-    /** Holds the credit line and the bottom UI. */
-    _bottomContainer: HTMLElement;
   }
 }
 

@@ -3,8 +3,8 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import type { SwathExtents } from "../config/satelliteMetadata";
-import type Orbit from "./Orbit";
 import type { GroundStationPosition } from "./Orbit";
+import { compassPoint } from "./skyGeometry";
 import type { PassPredictorSource, WorkerPass } from "./util/passSource";
 
 dayjs.extend(utc);
@@ -44,10 +44,7 @@ interface PassWindow {
  * list, or nothing at first, and `onChanged` fires when the answer lands.
  */
 export class PassPredictor {
-  #orbit: Orbit;
-
-  /** Read per recompute, so a record that arrives later still applies. */
-  #swath: () => SwathExtents;
+  readonly #swath: SwathExtents;
 
   #groundStations: GroundStation[] = [];
 
@@ -63,8 +60,6 @@ export class PassPredictor {
 
   #pendingTime: JulianDate | undefined;
 
-  #inFlight: Promise<void> | undefined;
-
   /** Bumped by `clear()`; a reply from an older generation is dropped. */
   #generation = 0;
 
@@ -72,8 +67,7 @@ export class PassPredictor {
 
   passIntervals = new TimeIntervalCollection();
 
-  constructor(orbit: Orbit, swath: () => SwathExtents, source: PassPredictorSource) {
-    this.#orbit = orbit;
+  constructor(swath: SwathExtents, source: PassPredictorSource) {
     this.#swath = swath;
     this.#source = source;
   }
@@ -118,7 +112,7 @@ export class PassPredictor {
     if (this.#covers(time)) {
       return this.#passes;
     }
-    void this.#request(time);
+    this.#request(time);
     return this.#passes;
   }
 
@@ -128,17 +122,6 @@ export class PassPredictor {
    */
   settled(time: JulianDate): boolean {
     return !this.groundStationAvailable || this.#covers(time);
-  }
-
-  /** Resolves once the list covers `time`. */
-  ensurePasses(time: JulianDate): Promise<Pass[]> {
-    if (!this.groundStationAvailable) {
-      return Promise.resolve(this.#passes);
-    }
-    if (this.#covers(time)) {
-      return Promise.resolve(this.#passes);
-    }
-    return this.#request(time).then(() => this.#passes);
   }
 
   clear(): void {
@@ -152,11 +135,10 @@ export class PassPredictor {
    * At most one request at a time. A read during a request is not queued, since
    * at a fast clock reads outrun replies; its time is re-asked once afterwards.
    */
-  #request(time: JulianDate): Promise<void> {
+  #request(time: JulianDate): void {
     if (this.#requesting) {
       this.#pendingTime = JulianDate.clone(time);
-      // Not a resolved promise, which would hand `ensurePasses` the stale list.
-      return this.#inFlight ?? Promise.resolve();
+      return;
     }
     this.#requesting = true;
     const generation = this.#generation;
@@ -165,13 +147,13 @@ export class PassPredictor {
       stop: JulianDate.addDays(time, 1, JulianDate.clone(time)),
       stopPrediction: JulianDate.addDays(time, 4, JulianDate.clone(time)),
     };
-    this.#inFlight = this.#source
+    void this.#source
       .passes({
         mode: this.#mode,
         stations: this.#groundStations.map((station) => ({ name: station.name, position: station.position })),
         startEpochMs: JulianDate.toDate(window.start).getTime(),
         endEpochMs: JulianDate.toDate(window.stopPrediction).getTime(),
-        swath: this.#swath(),
+        swath: this.#swath,
       })
       .then((passes) => {
         if (generation !== this.#generation || passes === undefined) {
@@ -181,15 +163,13 @@ export class PassPredictor {
       })
       .finally(() => {
         this.#requesting = false;
-        this.#inFlight = undefined;
         const pending = this.#pendingTime;
         this.#pendingTime = undefined;
         // Without the coverage check every reply spawned another prediction, forever.
         if (pending && !this.#covers(pending)) {
-          void this.#request(pending);
+          this.#request(pending);
         }
       });
-    return this.#inFlight;
   }
 
   #covers(time: JulianDate): boolean {
@@ -197,10 +177,6 @@ export class PassPredictor {
   }
 
   #apply(window: PassWindow, passes: Pass[]): void {
-    // The worker is keyed on satnum and holds no name. See OrbitCache.
-    for (const pass of passes) {
-      pass.name = this.#orbit.name;
-    }
     this.#window = window;
     this.#passes = passes;
     this.passIntervals = new TimeIntervalCollection(
@@ -284,12 +260,6 @@ export function passSummary(pass: Pass): string {
     return `${window} · ${pass.maxElevation.toFixed(0)}° max, apex ${compassPoint(pass.azimuthApex)}`;
   }
   return `${window} · ${pass.minDistance.toFixed(0)} km off track, swath ${pass.swathWidth.toFixed(0)} km`;
-}
-
-/** 16-point compass abbreviation. */
-export function compassPoint(azimuthDeg: number): string {
-  const points = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-  return points[Math.round((((azimuthDeg % 360) + 360) % 360) / 22.5) % 16]!;
 }
 
 export function toPassRows(passes: Pass[], time: JulianDate, nameField: "name" | "groundStationName", mode: string): PassRow[] {

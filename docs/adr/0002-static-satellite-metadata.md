@@ -94,12 +94,11 @@ degrees, enough to flip the side for a station nearly along-track.
 In the satellite table it would cover 39 satellites instead of 10,000 and would
 eventually contradict the orbit beside it, so it never goes there.
 
-It is still cached in the metadata bag, by `orbitClassOf` in `parseGpPayload`, on
-the client. Both objections are about the served payload and the table: the
-frontend classifies every record it parses and reclassifies on every load, so the
-value cannot age against its orbit, and nothing is added to the wire.
+The client derives it with `orbitClassOf`, once per catalog entry
+(`CatalogEntry.orbitClass`), and never stores it in the bag: the value cannot age
+against its orbit, and nothing is added to the wire.
 
-The cache exists because the satellite browser classifies whole catalog pages at a
+The entry keeps it because the satellite browser classifies whole catalog pages at a
 time, and a `CatalogEntry` holds a record with no satrec. Deriving from the record
 is two number reads; via a satrec it would be ~10,000 SGP4 initialisations on the
 main thread during a catalog load. The raw mean motion differs from the
@@ -107,8 +106,8 @@ SGP4-recovered one by ~1 part in 10,000, a hundredth of a minute at the LEO/MEO
 boundary, which no classification depends on. So `orbitClassOf` is the only
 definition.
 
-This is the one field whose presence in the bag does not mean "the satellite table
-had something to say". Read provenance per field, not per bag.
+Every field in the bag means "the satellite table had something to say". Read
+provenance per field, not per bag.
 
 ## Alternatives rejected
 
@@ -125,10 +124,7 @@ had something to say". Read provenance per field, not per bag.
   against real SLSTR granule footprints.
 - **Enriching every record with a default bag** so `metadata` is always present.
   ~10,000 records would each carry the same defaults to say nothing. Defaults live in
-  the frontend, and an absent key means "not in the table". (The client-side
-  `orbitClass` gives every parsed record a bag, but it differs per satellite and is
-  never served, so neither objection applies.)
+  the frontend, and an absent key means "not in the table".
 - **Calling `orbitClassOf` at each call site instead of caching it.** The browser
   would classify the same entry on every recompute of the row list, and the class
-  would have no single owner. `CatalogEntry.orbitClass` is that owner, and the only
-  place a missing cache entry is handled.
+  would have no single owner. `CatalogEntry.orbitClass` is that owner.

@@ -44,7 +44,7 @@ function record(name: string, satnum: number, elements: { meanMotion?: number; i
       MEAN_MOTION_DOT: 0,
       MEAN_MOTION_DDOT: 0,
     },
-    metadata: { orbitClass: (elements.meanMotion ?? 15.2) > 11.25 ? "LEO" : "GEO", ...metadata },
+    metadata,
   };
 }
 

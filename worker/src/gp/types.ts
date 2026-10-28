@@ -24,19 +24,17 @@ export interface TleRecord {
 
 export type GpRecord = OmmRecord | TleRecord;
 
-/** Exactly one key is present. */
-export type SourceSpec = { celestrak: string } | { celestrakSup: string } | { url: string };
+/** A CelesTrak GP group, by its GROUP name. */
+export interface SourceSpec {
+  celestrak: string;
+}
 
 export interface GroupSelect {
-  noradIds?: (number | string)[];
-  names?: string[];
+  /** Matched against OBJECT_NAME. */
   namePattern?: string;
 }
 
-/**
- * One row per individually named satellite. Prefer it to select.noradIds + rename;
- * `select` stays the tool for bulk and pattern selection.
- */
+/** One row per individually named satellite; `select` is for selection in bulk, by pattern. */
 export interface SatelliteSpec {
   /** Matched against the record's NORAD_CAT_ID as a string, without normalization. */
   noradId?: number;
@@ -65,13 +63,11 @@ export interface GroupDefinition {
   sources?: SourceSpec[];
   select?: GroupSelect;
   /**
-   * Unioned with `select`. A row's `name` takes precedence over `rename`. A group
-   * with neither `satellites` nor `select` passes every record, so its first row
-   * filters it down to that row: use the top-level satellite table for those groups.
+   * Unioned with `select`. A group with neither `satellites` nor `select` passes every
+   * record, so its first row filters it down to that row: use the top-level satellite
+   * table for those groups.
    */
   satellites?: SatelliteSpec[];
-  /** OBJECT_NAME -> new name, applied after selection. */
-  rename?: Record<string, string>;
   /**
    * Groups whose full output, extras and renames included, is prepended to this
    * group's records. To order extras earlier, put them in a separate included group.

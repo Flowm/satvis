@@ -2,7 +2,7 @@
 // ./urlCodec; this adapter owns the router and history entries. Contract:
 // docs/adr/0001-url-parameter-specification.md.
 
-import type { PiniaPluginContext, Store as PiniaStore } from "pinia";
+import type { PiniaPlugin, Store as PiniaStore } from "pinia";
 import { watch } from "vue";
 import type { LocationQuery, Router } from "vue-router";
 
@@ -12,11 +12,10 @@ import { decode, encode, type FieldSpec, paramOf, type Query } from "./urlCodec"
 export type { FieldKind, FieldSpec } from "./urlCodec";
 
 interface UrlSyncConfig {
-  enabled?: boolean;
   config: FieldSpec[];
-  /** Stores with guarded keys supply this so the url goes through their actions. */
+  /** Writes through the store's actions: guarded keys are read-only computeds, which an assignment only warns about. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  apply?: (store: any, patch: Record<string, unknown>) => void;
+  apply: (store: any, patch: Record<string, unknown>) => void;
 }
 
 declare module "pinia" {
@@ -26,16 +25,13 @@ declare module "pinia" {
   }
 }
 
-/** Injected by the plugin registered ahead of this one in src/app.ts. */
-interface ExtendedStore extends PiniaStore {
-  router: Router;
-  /** The route's preset, as url parameters. */
-  presetDefaults?: Promise<Query>;
+interface SyncedStore extends PiniaStore {
   [key: string]: unknown;
 }
 
 interface Registration {
-  store: ExtendedStore;
+  store: SyncedStore;
+  router: Router;
   specs: FieldSpec[];
   apply: UrlSyncConfig["apply"];
   /** Qualified with the store id, so two stores can share a key name. */
@@ -69,10 +65,10 @@ const hydratedEntries = () => [...registry.values()].filter((entry) => entry.def
  * Lossy on purpose; apply it only to owned parameters, so a valueless `?embed`
  * or a repeated foreign parameter survives.
  */
-function normalizeQuery(query: LocationQuery, owned?: ReadonlySet<string>): Query {
+function normalizeQuery(query: LocationQuery, owned: ReadonlySet<string>): Query {
   const normalized: Record<string, string> = {};
   for (const [key, value] of Object.entries(query)) {
-    if (owned !== undefined && !owned.has(key)) {
+    if (!owned.has(key)) {
       continue;
     }
     const first = Array.isArray(value) ? value[0] : value;
@@ -94,15 +90,6 @@ const withoutClock = (query: LocationQuery): string => {
   const { [CLOCK_PARAM]: _clock, ...rest } = query;
   return stableQuery(rest);
 };
-
-/** Guarded keys are read-only computeds: assigning one does nothing but warn. */
-function commit(entry: Registration, patch: Record<string, unknown>): void {
-  if (entry.apply) {
-    entry.apply(entry.store, patch);
-    return;
-  }
-  Object.assign(entry.store, patch);
-}
 
 function baseline(entry: Registration): Record<string, unknown> {
   const defaults = { ...entry.defaults };
@@ -129,7 +116,7 @@ function applyQuery(entry: Registration, query: Query, defaults: Record<string, 
   }
 
   if (changed) {
-    commit(entry, next);
+    entry.apply(entry.store, next);
   }
 
   for (const param of invalid) {
@@ -229,40 +216,43 @@ function hydrate(entry: Registration, router: Router, presetDefaults: Query): vo
   watchQuery(router);
 }
 
-function createUrlSync({ options, store }: PiniaPluginContext): void {
-  const urlsync = options.urlsync;
-  if (!urlsync?.enabled && !urlsync?.config) {
-    return;
-  }
+/** The pinia plugin. `presetDefaults` are the route's preset, as url parameters. */
+export default function createUrlSync(router: Router, presetDefaults: Promise<Query>): PiniaPlugin {
+  return ({ options, store }) => {
+    const urlsync = options.urlsync;
+    if (!urlsync) {
+      return;
+    }
 
-  const extended = store as unknown as ExtendedStore;
-  const { router } = extended;
-  const entry: Registration = {
-    store: extended,
-    specs: urlsync.config,
-    apply: urlsync.apply,
-    qualified: qualify(store.$id, urlsync.config),
-    adjust: new Map(),
+    const synced = store as unknown as SyncedStore;
+    const entry: Registration = {
+      store: synced,
+      router,
+      specs: urlsync.config,
+      apply: urlsync.apply,
+      qualified: qualify(store.$id, urlsync.config),
+      adjust: new Map(),
+    };
+    registry.set(store.$id, entry);
+
+    hydrations.set(
+      store.$id,
+      Promise.all([router.isReady(), presetDefaults]).then(([, defaults]) => hydrate(entry, router, defaults)),
+    );
+
+    // Not $subscribe: guarded keys are computeds over private refs outside $state,
+    // so $subscribe never sees them change.
+    watch(
+      () => entry.specs.map((spec) => synced[spec.name]),
+      () => {
+        if (entry.defaults === undefined) {
+          return;
+        }
+        writeQuery(router, "push");
+      },
+      { deep: true },
+    );
   };
-  registry.set(store.$id, entry);
-
-  hydrations.set(
-    store.$id,
-    Promise.all([router.isReady(), extended.presetDefaults ?? {}]).then(([, presetDefaults]) => hydrate(entry, router, presetDefaults)),
-  );
-
-  // Not $subscribe: guarded keys are computeds over private refs outside $state,
-  // so $subscribe never sees them change.
-  watch(
-    () => entry.specs.map((spec) => extended[spec.name]),
-    () => {
-      if (entry.defaults === undefined) {
-        return;
-      }
-      writeQuery(router, "push");
-    },
-    { deep: true },
-  );
 }
 
 /**
@@ -290,7 +280,7 @@ export function adjustUrlDefault(storeId: string, key: string, adjust: ((baselin
   } else {
     entry.adjust.delete(name);
   }
-  writeQuery(entry.store.router, "replace");
+  writeQuery(entry.router, "replace");
 }
 
 /** Settles once every store synced so far has read the opening url. */
@@ -312,5 +302,3 @@ export function foreignParams(query: LocationQuery, owned: ReadonlySet<string> =
 export function syncedQuery(): Query {
   return encodeState(hydratedEntries());
 }
-
-export default createUrlSync;

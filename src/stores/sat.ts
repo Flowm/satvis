@@ -206,7 +206,6 @@ export const useSatStore = defineStore(
   {
     // Wire format: docs/adr/0001-url-parameter-specification.md.
     urlsync: {
-      enabled: true,
       config: [
         { name: "enabledComponents", url: "elements", kind: closedStringList(() => SATELLITE_COMPONENTS) },
         { name: "enabledSatellites", url: "sats", kind: tildeEscapedStringList() },

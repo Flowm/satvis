@@ -124,9 +124,7 @@ matches what toggling a base layer means to a user. The rule lives in the store'
 `setLayers` action, not in the codec, because it constrains the whole list whatever
 the source.
 
-`ArcGis` (imagery) and `ArcGIS` (terrain) are different things. The terrain provider
-is registered `visible: false`, so `?terrain=ArcGIS` is not accepted. Do not
-"correct" either spelling.
+The imagery layer is spelled `ArcGis`; do not "correct" it.
 
 `surface` is carried even when its model cannot apply in the current `scene`
 (`GooglePhotorealistic` is sky view only, and neither model applies in 2D or

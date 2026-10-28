@@ -62,7 +62,7 @@ record at refresh time. The new rule is about who may write each field.
 | Sensor       | `swathStarboardKm`, `swathPortKm`, `coneFovDeg`                 | curated only                                                     |
 | Mission      | `missionType`                                                   | curated only                                                     |
 | Model        | `modelFile`, `model`                                            | curated (manifest NORAD ids), else derived from `bus` (ADR 0007) |
-| Orbit        | `orbitClass`                                                    | derived, client-side (ADR 0002)                                  |
+| Orbit        | `CatalogEntry.orbitClass`, not in the bag                       | derived, client-side (ADR 0002)                                  |
 | Orbit kind   | `opOrbit`                                                       | GCAT; resolved in `CatalogEntry.orbitKind` (ADR 0012)            |
 
 **No field falls back from one upstream source to another.** A chain such as "GCAT's
@@ -123,24 +123,23 @@ change its file before it applied, because a 304 reused the parsed rows. Now:
   because GCAT's catalog is 18.4 MiB against KV's 25 MiB value limit, and it grows;
   gzip makes it 2.6 MiB, and decompresses to the file as downloaded.
 - **Two paths store them, and only these.** `PUT /api/upstream/<name>`, which
-  `push-catalog` calls, and the Worker's own fetch: `POST /api/upstream/refresh`, and
-  the same refresh from the scheduled handler, which the Docker image fires daily with
-  `CATALOG_CRON`. Both are conditional on the stored file's ETag, but only while the
-  file is there: a status that outlived its file would otherwise make every download a
-  304 and never bring the file back. A new file is parsed before it is stored, so an
-  error page or a cut-off download is refused (422) and the stored file stands. A file
-  cut at a line break parses, so one with under half the stored rows is refused too;
-  neither table ever halves. The two paths are not meant to run at once: two stores of
-  one table can interleave file and status, and leave the older file under the newer
-  ETag until upstream changes again.
+  `push-catalog` calls, and the Worker's own fetch, `POST /api/upstream/refresh`,
+  which the Docker image calls daily. Both are conditional on the stored file's ETag,
+  but only while the file is there: a status that outlived its file would otherwise
+  make every download a 304 and never bring the file back. A new file is parsed
+  before it is stored, so an error page or a cut-off download is refused (422) and the
+  stored file stands. A file cut at a line break parses, so one with under half the
+  stored rows is refused too; neither table ever halves. The two paths are not meant
+  to run at once: two stores of one table can interleave file and status, and leave
+  the older file under the newer ETag until upstream changes again.
 - **Every GP update reads their parsed rows**, kept beside each file under
   `rows:<name>`, and enriches from them; it never downloads a table. A table stored
-  between two GP updates reaches the groups at the next one. A missing or unreadable
-  table means enriching without it, as ADR 0006 has it: a table never fails a group.
+  between two GP updates reaches the groups at the next one. A table with no stored
+  rows means enriching without it, as ADR 0006 has it: a table never fails a group.
 - **Every check parses the stored file again**, a 304 too, and replaces the rows, so
   a parser change applies at the next check, at most a day later. A file the new
   parser rejects keeps its old rows, and its status records the error. A file stored
-  before rows were kept is parsed by the next GP update, which keeps its rows.
+  before rows were kept has none until its next check.
 
   This amends the first version of this decision, in which every GP update decompressed
   and parsed the four files itself. That was put at 160 ms; it was most of the update's

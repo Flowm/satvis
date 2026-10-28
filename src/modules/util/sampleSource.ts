@@ -14,17 +14,6 @@ export interface TrajectorySampler {
 
 export interface SampleSource {
   samplerFor(satnum: string, record: GpRecord): TrajectorySampler;
-  readonly stats: SampleSourceStats;
-}
-
-export interface SampleSourceStats {
-  requests: number;
-  chunks: number;
-  samples: number;
-  refused: number;
-  unopenable: number;
-  /** Requests answered inline after the pool was given up on. */
-  inlineFallbacks: number;
 }
 
 /**
@@ -41,27 +30,15 @@ const WORKER_SILENCE_MS = 4000;
  */
 const MAX_COMMANDS_PER_MESSAGE = 64;
 
-const emptyStats = (): SampleSourceStats => ({ requests: 0, chunks: 0, samples: 0, refused: 0, unopenable: 0, inlineFallbacks: 0 });
-
 /** Propagates on the calling thread: the tests' source, and the pool's fallback. */
 export class InlineSampleSource implements SampleSource {
   readonly #cache = new SatrecCache();
 
-  readonly stats = emptyStats();
-
   samplerFor(satnum: string, record: GpRecord): TrajectorySampler {
     return {
       samples: (fromEpochMs, toEpochMs) => {
-        this.stats.requests += 1;
         const reply = runCommand(this.#cache, { kind: "sample", satnum, fromEpochMs, toEpochMs, record });
-        if (reply.kind !== "chunk") {
-          if (reply.kind === "unopenable") this.stats.unopenable += 1;
-          return Promise.resolve(undefined);
-        }
-        this.stats.chunks += 1;
-        this.stats.samples += reply.chunk.positionsFixed.length / 3;
-        this.stats.refused += reply.chunk.refusedIndices.length;
-        return Promise.resolve(reply.chunk);
+        return Promise.resolve(reply.kind === "chunk" ? reply.chunk : undefined);
       },
     };
   }
@@ -138,8 +115,6 @@ export class WorkerSampleSource implements SampleSource {
   /** Satnums whose record has been sent. See `record` in Sgp4SampleCommand. */
   #recordSent = new Set<string>();
 
-  readonly stats = emptyStats();
-
   constructor() {
     if (typeof Worker !== "function") {
       this.#giveUp("this environment has no Worker");
@@ -174,7 +149,6 @@ export class WorkerSampleSource implements SampleSource {
   samplerFor(satnum: string, record: GpRecord): TrajectorySampler {
     return {
       samples: (fromEpochMs, toEpochMs) => {
-        this.stats.requests += 1;
         if (this.#inline) {
           return this.#inlineSamples(satnum, record, fromEpochMs, toEpochMs);
         }
@@ -199,7 +173,6 @@ export class WorkerSampleSource implements SampleSource {
     if (!inline) {
       return Promise.resolve(undefined);
     }
-    this.stats.inlineFallbacks += 1;
     return inline.samplerFor(satnum, record).samples(fromEpochMs, toEpochMs);
   }
 
@@ -267,9 +240,6 @@ export class WorkerSampleSource implements SampleSource {
         return;
       }
       if (reply.kind === "chunk") {
-        this.stats.chunks += 1;
-        this.stats.samples += reply.chunk.positionsFixed.length / 3;
-        this.stats.refused += reply.chunk.refusedIndices.length;
         pending.resolve(reply.chunk);
         return;
       }
@@ -281,7 +251,6 @@ export class WorkerSampleSource implements SampleSource {
         this.#schedule();
         return;
       }
-      this.stats.unopenable += 1;
       pending.resolve(undefined);
     });
   }

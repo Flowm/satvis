@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { computedOrbitKindOf, createSatrec, epochMsOf, type GpRecord, orbitClassOf, parseGpPayload, recordName, recordSatnum, recordTleLines } from "./gp";
+import { computedOrbitKindOf, createSatrec, epochMsOf, type GpRecord, orbitClassOf, parseGpPayload, recordName, recordSatnum } from "./gp";
 
 const OMM_ARRAY = JSON.stringify([
   {
@@ -167,15 +167,6 @@ describe("createSatrec", () => {
   });
 });
 
-describe("recordTleLines", () => {
-  test("returns 3 lines for a TLE record and undefined for OMM", () => {
-    const tle = parseGpPayload(TLE_3LINE)[0] as GpRecord;
-    const omm = parseGpPayload(OMM_ARRAY)[0] as GpRecord;
-    expect(recordTleLines(tle)).toHaveLength(3);
-    expect(recordTleLines(omm)).toBeUndefined();
-  });
-});
-
 describe("metadata lifting", () => {
   const OMM_ISS = JSON.parse(OMM_ARRAY)[0] as Record<string, unknown>;
   const [TLE_LINE1, TLE_LINE2] = TLE_2LINE.split("\n");
@@ -183,7 +174,7 @@ describe("metadata lifting", () => {
   test("lifts an OMM record's metadata off the element set", () => {
     const payload = JSON.stringify([{ ...OMM_ISS, metadata: { swathStarboardKm: 1000, swathPortKm: 500 } }]);
     const record = parseGpPayload(payload)[0]!;
-    expect(record.metadata).toEqual({ swathStarboardKm: 1000, swathPortKm: 500, orbitClass: "LEO" });
+    expect(record.metadata).toEqual({ swathStarboardKm: 1000, swathPortKm: 500 });
     expect(record.kind).toBe("omm");
     expect(record.kind === "omm" && "metadata" in record.omm).toBe(false);
   });
@@ -199,24 +190,24 @@ describe("metadata lifting", () => {
     ]);
     const record = parseGpPayload(payload)[0]!;
     expect(record.kind).toBe("tle");
-    expect(record.metadata).toEqual({ coneFovDeg: 45, orbitClass: "LEO" });
+    expect(record.metadata).toEqual({ coneFovDeg: 45 });
   });
 
-  test("carries nothing but the derived class on an unenriched record", () => {
+  test("carries no bag on an unenriched record", () => {
     const record = parseGpPayload(JSON.stringify([OMM_ISS]))[0]!;
-    expect(record.metadata).toEqual({ orbitClass: "LEO" });
+    expect(record.metadata).toBeUndefined();
   });
 
   test("ignores a metadata value that is not an object", () => {
     for (const bad of ["nope", 42, [1, 2], null]) {
       const record = parseGpPayload(JSON.stringify([{ ...OMM_ISS, metadata: bad }]))[0]!;
-      expect(record.metadata, JSON.stringify(bad)).toEqual({ orbitClass: "LEO" });
+      expect(record.metadata, JSON.stringify(bad)).toBeUndefined();
     }
   });
 
   test("does not lift metadata out of legacy TLE text (no place to carry it)", () => {
     const record = parseGpPayload(`ISS\n${TLE_LINE1}\n${TLE_LINE2}`)[0]!;
-    expect(record.metadata).toEqual({ orbitClass: "LEO" });
+    expect(record.metadata).toBeUndefined();
   });
 });
 

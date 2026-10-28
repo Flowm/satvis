@@ -16,7 +16,7 @@ import { useSatStore } from "../stores/sat";
 import { activeTargetEntries } from "./satelliteActivation";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import type { DesiredScene } from "./SatelliteManager";
-import type { Observer } from "./SkyView";
+import type { Observer } from "./skyGeometry";
 import { isOffPresent } from "./util/clockDeck";
 import type { GpRecord } from "./util/gp";
 import { toMinuteIso } from "./util/urlCodec";
@@ -81,7 +81,6 @@ export interface SceneTarget {
       readonly currentTime: JulianDate;
       readonly onTick: { addEventListener(listener: () => void): () => void };
     };
-    readonly timeline?: unknown;
   };
   applySurfaceModel(surfaceModel: string, viewMode: string): Promise<void>;
   applyStarMap(starMap: string): Promise<void>;
@@ -93,6 +92,17 @@ export interface SceneTarget {
   setTime(time: string): void;
   goLive(): void;
 }
+
+/** Copied, so the scene SatelliteManager diffs against never changes under it. */
+export const desiredScene = (satStore: ReturnType<typeof useSatStore>): DesiredScene => ({
+  enabledTags: [...satStore.enabledTags],
+  enabledSatellites: [...satStore.enabledSatellites],
+  disabledSatellites: [...satStore.disabledSatellites],
+  components: [...satStore.enabledComponents],
+  groundStations: satStore.groundStations.map((station) => ({ ...station })),
+  overpassMode: satStore.overpassMode,
+  trackedSatellite: satStore.trackedSatellite,
+});
 
 export function startSceneSync(cc: SceneTarget): void {
   const cesiumStore = useCesiumStore();
@@ -376,17 +386,11 @@ export function startSceneSync(cc: SceneTarget): void {
     { immediate: true },
   );
 
-  const desired = (): DesiredScene => ({
-    enabledTags: [...satStore.enabledTags],
-    enabledSatellites: [...satStore.enabledSatellites],
-    disabledSatellites: [...satStore.disabledSatellites],
-    components: [...satStore.enabledComponents],
-    groundStations: satStore.groundStations.map((station) => ({ ...station })),
-    overpassMode: satStore.overpassMode,
-    trackedSatellite: satStore.trackedSatellite,
-  });
-
-  watch(desired, (next) => cc.sats.reconcile(next), { deep: true, immediate: true });
+  watch(
+    () => desiredScene(satStore),
+    (next) => cc.sats.reconcile(next),
+    { deep: true, immediate: true },
+  );
 
   // `time` is null (live) exactly while the clock shows the present, as the Live dot does.
   // Off it, however it got there, `time` follows the clock to the minute, so a shared link

@@ -2,12 +2,12 @@ import { Cartesian3, JulianDate } from "@cesium/core";
 import { SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
-import { clearPassHighlights, setPassHighlights } from "../composables/usePassHighlights";
 import type { ElementsEntry } from "../config/presets";
 import type { SerializedGroundStation } from "../stores/sat";
 import { ORBIT_LINE_COLOR, ORBIT_TRACK_LINE_COLOR } from "./componentKinds";
 import { CUSTOM_KEY_PREFIX, CUSTOM_TAG, isCustom } from "./customSatellites";
 import { GroundStationEntity, type GroundStationPositionData } from "./GroundStationEntity";
+import { type Pass, stationPasses, stationPassesSettled } from "./PassPredictor";
 import { RecutSchedule } from "./recutSchedule";
 import { activeTargetEntries, buildOrder } from "./satelliteActivation";
 import { type CatalogEntry, SatelliteCatalog } from "./SatelliteCatalog";
@@ -19,7 +19,7 @@ import { approximatePeriodMinutes, type GpRecord } from "./util/gp";
 import { GroundTrackBatch } from "./util/GroundTrackBatch";
 import { type PassSource, WorkerPassSource } from "./util/passSource";
 import { PolylineBatch } from "./util/PolylineBatch";
-import { type SampleChunk, type SampleSource, type SampleSourceStats, WorkerSampleSource } from "./util/sampleSource";
+import { type SampleChunk, type SampleSource, WorkerSampleSource } from "./util/sampleSource";
 import { SuppressibleSet } from "./util/Suppressible";
 import { WINDOW_ORBITS_BACK, WINDOW_ORBITS_FORWARD } from "./util/trajectoryWindow";
 
@@ -38,11 +38,6 @@ import { WINDOW_ORBITS_BACK, WINDOW_ORBITS_FORWARD } from "./util/trajectoryWind
  */
 const BUILD_BUDGET_MS = 16;
 
-/**
- * Below this a build runs synchronously; the default 74-satellite scene fits in one budget anyway.
- */
-const BUILD_SYNCHRONOUS_LIMIT = 250;
-
 export interface DesiredScene {
   enabledTags: string[];
   enabledSatellites: string[];
@@ -53,7 +48,7 @@ export interface DesiredScene {
   trackedSatellite: string;
 }
 
-const EMPTY_SCENE: DesiredScene = {
+export const EMPTY_SCENE: DesiredScene = {
   enabledTags: [],
   enabledSatellites: [],
   disabledSatellites: [],
@@ -115,9 +110,6 @@ export class SatelliteManager {
   /** Catalog entries waiting to be instantiated, in build order. */
   #queue: [string, CatalogEntry][] = [];
 
-  /** Decided once per activation, not as the queue drains. */
-  #unbudgetedBuild = true;
-
   #buildHandle: number | undefined;
 
   #buildWaiters: Array<() => void> = [];
@@ -153,24 +145,14 @@ export class SatelliteManager {
         return;
       }
       this.#retracking = undefined;
-      if (this.trackedSatellite) {
-        this.getSatellite(this.trackedSatellite)?.show(this.#effectiveComponents());
-      }
       this.#onTrackedChange?.(this.trackedSatellite);
     });
 
     returnAfterTracking(this.viewer);
 
-    // Any other selection, by click or by select(), supersedes a pending one. The
-    // timeline marks the selected satellite's passes; a ground station or nothing clears them.
+    // Any other selection, by click or by select(), supersedes a pending one.
     this.viewer.selectedEntityChanged.addEventListener(() => {
       this.#pendingSelection = undefined;
-      const selected = this.activeSatellites.find((sat) => sat.isSelected);
-      if (selected) {
-        setPassHighlights(selected.props.passPredictor.passes(this.viewer.clock.currentTime));
-      } else {
-        clearPassHighlights();
-      }
     });
 
     // A track waits out a morph (`#trackPending`).
@@ -376,7 +358,7 @@ export class SatelliteManager {
 
   /** Re-cut the orbit tracks as simulation time passes (RecutSchedule). */
   #refreshDerivedGeometry(time: JulianDate): void {
-    if (!this.#recuts.tick(time, { count: this.#active.size, tracksPending: this.tracks.pending })) {
+    if (!this.#recuts.tick(time, this.#active.size)) {
       return;
     }
     for (const sat of this.#active.values()) {
@@ -411,7 +393,6 @@ export class SatelliteManager {
       [...target].filter(([key]) => !this.#active.has(key)),
       this.pendingTrackedSatellite || this.#pendingSelection || this.trackedSatellite || undefined,
     );
-    this.#unbudgetedBuild = this.#queue.length <= BUILD_SYNCHRONOUS_LIMIT;
     this.#ready = [];
     this.#requestOpeningWindows();
     this.#build();
@@ -435,8 +416,6 @@ export class SatelliteManager {
       this.#buildHandle = undefined;
     }
 
-    // Without requestAnimationFrame (unit tests) a half-drained queue would never resume.
-    const unbudgeted = this.#unbudgetedBuild || typeof requestAnimationFrame !== "function";
     const deadline = performance.now() + BUILD_BUDGET_MS;
     while (this.#ready.length > 0) {
       const next = this.#ready.shift();
@@ -444,7 +423,7 @@ export class SatelliteManager {
       this.#queue = this.#queue.filter(([queued]) => queued !== next.key);
       this.#instantiate(next.key, next.entry, next.chunk);
       // After at least one satellite, so a tiny budget still makes progress.
-      if (!unbudgeted && performance.now() >= deadline) break;
+      if (performance.now() >= deadline) break;
     }
 
     this.#trackPending();
@@ -515,7 +494,7 @@ export class SatelliteManager {
       entry,
       { orbits: this.orbits, tracks: this.tracks, groundTracks: this.groundTracks },
       this.#samples.samplerFor(this.#propagationKey(entry), entry.record),
-      this.#passes.predictorFor(this.#propagationKey(entry), entry.record),
+      this.#passes.predictorFor(entry.name, entry.record),
       chunk,
     );
     sat.props.passPredictor.mode = this.#desired.overpassMode;
@@ -540,10 +519,6 @@ export class SatelliteManager {
 
   get building(): boolean {
     return this.#ready.length > 0 || this.#opening > 0;
-  }
-
-  get sampleStats(): SampleSourceStats {
-    return this.#samples.stats;
   }
 
   /** Derived from Cesium; set it through reconcile. */
@@ -613,13 +588,30 @@ export class SatelliteManager {
   }
 
   #createGroundstation(position: GroundStationPositionData, name: string, index: number): GroundStationEntity {
-    const groundStation = new GroundStationEntity(this.viewer, this, position, name, index);
+    const groundStation = new GroundStationEntity(this.viewer, position, name, index);
     groundStation.show();
     return groundStation;
   }
 
   get groundStations(): GroundStationEntity[] {
     return this.#stations;
+  }
+
+  /** The drawn satellites' passes over the station named `name`, starting within two days of `time`. */
+  stationPasses(name: string, time: JulianDate): Pass[] {
+    return stationPasses(
+      this.visibleSatellites.map((sat) => sat.props.passPredictor),
+      time,
+      name,
+    );
+  }
+
+  /** Whether every drawn satellite's prediction has answered for `time`. */
+  stationPassesSettled(time: JulianDate): boolean {
+    return stationPassesSettled(
+      this.visibleSatellites.map((sat) => sat.props.passPredictor),
+      time,
+    );
   }
 
   get overpassMode(): string {

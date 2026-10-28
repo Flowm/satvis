@@ -1,7 +1,8 @@
 import { Cartesian2, Cartesian3, Math as CesiumMath } from "@cesium/core";
 import { describe, expect, test } from "vitest";
 
-import { compassPoint, directionToWorld, lookAngles, nearestTarget, observerFrame, type SkyTarget, sunElevation } from "./SkyTargets";
+import { observerFrame } from "./skyGeometry";
+import { directionToWorld, lookAngles, nearestTarget, type SkyTarget, sunElevation } from "./SkyTargets";
 import { sunDirection } from "./util/visibility";
 
 const MUNICH = { lat: 48.14, lon: 11.58 };
@@ -142,25 +143,6 @@ describe("nearestTarget", () => {
       return false;
     });
     expect(asked).toEqual(["up there"]);
-  });
-});
-
-describe("compassPoint", () => {
-  test("names the sixteen points", () => {
-    expect(compassPoint(0)).toBe("N");
-    expect(compassPoint(90)).toBe("E");
-    expect(compassPoint(180)).toBe("S");
-    expect(compassPoint(270)).toBe("W");
-    expect(compassPoint(45)).toBe("NE");
-    expect(compassPoint(202.5)).toBe("SSW");
-  });
-
-  test("wraps rather than running off the end", () => {
-    // 359° is north, not a seventeenth point.
-    expect(compassPoint(359)).toBe("N");
-    expect(compassPoint(360)).toBe("N");
-    expect(compassPoint(-90)).toBe("W");
-    expect(compassPoint(720 + 180)).toBe("S");
   });
 });
 

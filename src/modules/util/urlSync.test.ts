@@ -2,7 +2,7 @@
 // tested here because only LocationQuery can express a valueless or repeated one.
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, test } from "vitest";
-import { createApp, markRaw } from "vue";
+import { createApp } from "vue";
 import { createMemoryHistory, createRouter, type Router } from "vue-router";
 
 import { useCesiumStore } from "../../stores/cesium";
@@ -19,11 +19,7 @@ const flush = async (): Promise<void> => {
 async function mount(initial: string, presetDefaults: Query = {}): Promise<{ router: Router }> {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: "/", component: {} }] });
   const pinia = createPinia();
-  pinia.use(({ store }) => {
-    store.router = markRaw(router);
-    store.presetDefaults = markRaw(Promise.resolve(presetDefaults));
-  });
-  pinia.use(piniaUrlSync);
+  pinia.use(piniaUrlSync(router, Promise.resolve(presetDefaults)));
   createApp({}).use(pinia);
   setActivePinia(pinia);
 

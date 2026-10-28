@@ -1,8 +1,7 @@
 import { Cartesian3, JulianDate } from "@cesium/core";
-import { CallbackProperty, Camera, Entity, EntityView, type Scene, SceneMode, VelocityOrientationProperty } from "@cesium/engine";
+import { CallbackProperty, Camera, Entity, EntityView, type Scene, SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
-import { setPassHighlights } from "../composables/usePassHighlights";
 import { type Component, type ComponentHost, componentKind, deferPointToModel, modelCopies, ModelSize, type SatelliteBatches, type SkyAppearance } from "./componentKinds";
 import type { GroundStation } from "./PassPredictor";
 import type { CatalogEntry } from "./SatelliteCatalog";
@@ -10,8 +9,6 @@ import { SatelliteProperties } from "./SatelliteProperties";
 import { cancelPendingTrack, trackEntity, trackWhenReady, type CameraPose } from "./trackFlight";
 import type { PassPredictorSource } from "./util/passSource";
 import type { SampleChunk, TrajectorySampler } from "./util/sampleSource";
-
-export type { SatelliteBatches } from "./componentKinds";
 
 type SatelliteComponentName = string;
 
@@ -53,9 +50,6 @@ export class SatelliteComponentCollection implements ComponentHost {
   /** Kept across components, so one created in the sky view is born dimmed or hidden. */
   #skyAppearance: SkyAppearance = "normal";
 
-  /** What a click or a track acts on: the first Entity created. */
-  defaultEntity: Entity | undefined;
-
   eventListeners: Record<string, () => void> = {};
 
   /**
@@ -77,21 +71,6 @@ export class SatelliteComponentCollection implements ComponentHost {
     );
     this.props.trajectory.adopt(opening);
     this.props.trajectory.follow(viewer, () => this.#bindAll());
-  }
-
-  /**
-   * Prediction is off-thread, so this may paint a stale or empty band; the
-   * `passesChanged` listener paints the real one.
-   */
-  #highlightPasses(): void {
-    const predictor = this.props.passPredictor;
-    const time = this.viewer.clock.currentTime;
-    if (this.isSelected) {
-      setPassHighlights(predictor.passes(time));
-    } else {
-      // The tracked satellite still needs the window for its ground-station link.
-      predictor.passes(time);
-    }
   }
 
   /** Written by the sky view each frame, so an unchanged value returns at once. */
@@ -120,6 +99,11 @@ export class SatelliteComponentCollection implements ComponentHost {
     return Object.keys(this.#components);
   }
 
+  /** What a click or a track acts on: the first Entity among the components, in the order they were created. */
+  get defaultEntity(): Entity | undefined {
+    return Object.values(this.#components).find((component) => component instanceof Entity);
+  }
+
   get created(): boolean {
     return this.componentNames.length > 0;
   }
@@ -137,12 +121,8 @@ export class SatelliteComponentCollection implements ComponentHost {
     return [...Object.values(this.#components), ...this.#modelCopies];
   }
 
-  show(componentNames: string[] = this.componentNames): void {
+  show(componentNames: string[]): void {
     componentNames.forEach((name) => this.enableComponent(name));
-  }
-
-  hide(componentNames: string[] = this.componentNames): void {
-    componentNames.forEach((name) => this.disableComponent(name));
   }
 
   /** `animate` flies to the tracked view first, in 3D. */
@@ -193,65 +173,55 @@ export class SatelliteComponentCollection implements ComponentHost {
 
   /** For the kinds: an entity named after the satellite, framed for tracking. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  entity(entityKey: string, entityValue: any, position: any, moving: boolean): Entity {
+  entity(entityKey: string, entityValue: any, position: any): Entity {
     const entity = new Entity({
       name: this.props.name,
       position,
       viewFrom: this.#viewFrom(),
     });
-    if (moving) {
-      entity.orientation = new VelocityOrientationProperty(position);
-    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (entity as any)[entityKey] = entityValue;
     return entity;
   }
 
+  /** A component already drawn is left as it is: a batch gives a line one slot per add. */
   enableComponent(name: SatelliteComponentName): void {
+    if (this.#components[name]) {
+      return;
+    }
     const kind = componentKind(name);
     if (!kind) {
       console.error(`Unknown component ${name}`);
       return;
     }
-    if (!this.created) {
-      this.init();
-    }
     if (!this.props.trajectory.valid) {
       console.error(`No valid position data available for ${this.props.name}`);
       return;
     }
-    let component = this.#components[name];
+    const component = kind.create(this);
     if (!component) {
-      component = kind.create(this);
-      if (!component) {
-        // The satellite cannot draw it, and an empty collection keeps no listeners.
-        if (!this.created) {
-          this.deinit();
-        }
-        return;
-      }
-      this.#components[name] = component;
-      if (name === "3D model") {
-        this.#modelCopies = modelCopies(this);
-      }
-      if (name === "3D model" || name === "Point") {
-        deferPointToModel(this.#components.Point, this, "3D model" in this.#components);
-      }
-      if (this.#skyAppearance !== "normal") {
-        kind.appear?.(component, this);
-        this.#modelCopiesOf(name).forEach((copy) => kind.appear?.(copy, this));
-      }
-      this.#bind(name, component, false);
-      this.#requestFrameIfPaused();
+      return;
     }
+    // An empty collection keeps no listeners.
+    if (!this.created) {
+      this.init();
+    }
+    this.#components[name] = component;
+    if (name === "3D model") {
+      this.#modelCopies = modelCopies(this);
+    }
+    if (name === "3D model" || name === "Point") {
+      deferPointToModel(this.#components.Point, this, "3D model" in this.#components);
+    }
+    if (this.#skyAppearance !== "normal") {
+      kind.appear?.(component, this);
+      this.#modelCopiesOf(name).forEach((copy) => kind.appear?.(copy, this));
+    }
+    this.#bind(name, component, false);
+    this.#requestFrameIfPaused();
 
     if (component instanceof Entity) {
-      for (const entity of [component, ...this.#modelCopiesOf(name)]) {
-        if (!this.viewer.entities.contains(entity)) {
-          this.viewer.entities.add(entity);
-        }
-      }
-      this.defaultEntity ??= component;
+      [component, ...this.#modelCopiesOf(name)].forEach((entity) => this.viewer.entities.add(entity));
     } else {
       kind.batch?.(this).add(component);
     }
@@ -275,10 +245,6 @@ export class SatelliteComponentCollection implements ComponentHost {
       this.model.reset();
       deferPointToModel(this.#components.Point, this, false);
       this.#setViewFrom();
-    }
-
-    if (this.defaultEntity === component) {
-      this.defaultEntity = Object.values(this.#components).find((remaining) => remaining instanceof Entity);
     }
 
     if (this.componentNames.length === 0) {
@@ -319,14 +285,6 @@ export class SatelliteComponentCollection implements ComponentHost {
   }
 
   init(): void {
-    // Prediction answers late. The ground-station link reads passIntervals every
-    // frame; the timeline bands are painted once and must be told.
-    this.eventListeners.passesChanged = this.props.passPredictor.onChanged(() => {
-      if (this.isSelected) {
-        setPassHighlights(this.props.passPredictor.passes(this.viewer.clock.currentTime));
-      }
-    });
-
     this.eventListeners.trackedEntity = this.viewer.trackedEntityChanged.addEventListener(() => {
       // A copy hides once the tracked model grows, and Cesium follows only what it can measure.
       if (this.#isModelCopy(this.viewer.trackedEntity)) {
@@ -369,7 +327,7 @@ export class SatelliteComponentCollection implements ComponentHost {
 
   /** Idempotent and final: disabling the last component calls `deinit()`, and the trajectory stops. */
   dispose(): void {
-    this.hide();
+    this.componentNames.forEach((name) => this.disableComponent(name));
     this.props.trajectory.stop();
   }
 
@@ -433,10 +391,7 @@ export class SatelliteComponentCollection implements ComponentHost {
       return;
     }
 
-    // The setter clears the predictor's window; the answer arrives via `passesChanged`.
+    // Clears the predictor's window; whatever reads the passes next asks again.
     this.props.passPredictor.groundStations = groundStations;
-    if (this.isSelected || this.isTracked) {
-      this.#highlightPasses();
-    }
   }
 }

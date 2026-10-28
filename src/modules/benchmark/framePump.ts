@@ -66,36 +66,26 @@ export function frameQueue(frameMs: number, now: () => number): FrameQueue {
   };
 }
 
-let uninstall: (() => void) | undefined;
-
 /**
- * Returns the undo, or undefined when not requested or already running.
- *
  * Calls `resize` and `render` itself (Cesium's manual-loop mode). Toggling
  * `useDefaultRenderLoop` alone is a no-op: a suspended loop never cleared its
  * running flag, so the setter does not start a new one.
  */
-export function installFramePumpIfRequested(viewer: Viewer, search: string): (() => void) | undefined {
+export function installFramePumpIfRequested(viewer: Viewer, search: string): void {
   const frameMs = requestedFrameMs(search);
-  if (uninstall || frameMs === undefined) {
-    return undefined;
+  if (frameMs === undefined) {
+    return;
   }
 
   const queue = frameQueue(frameMs, () => performance.now());
-  const nativeRequest = window.requestAnimationFrame.bind(window);
-  const nativeCancel = window.cancelAnimationFrame.bind(window);
   window.requestAnimationFrame = (callback) => queue.request(callback);
   window.cancelAnimationFrame = (handle) => queue.cancel(handle);
 
   viewer.useDefaultRenderLoop = false;
 
-  let running = true;
   let warnedAboutSize = false;
   const channel = new MessageChannel();
   const pump = (): void => {
-    if (!running) {
-      return;
-    }
     if (queue.runDue()) {
       try {
         viewer.resize();
@@ -108,7 +98,6 @@ export function installFramePumpIfRequested(viewer: Viewer, search: string): (()
         }
       } catch (error) {
         console.error("[framePump] the render threw; stopping", error);
-        running = false;
         return;
       }
     }
@@ -120,15 +109,4 @@ export function installFramePumpIfRequested(viewer: Viewer, search: string): (()
   channel.port2.postMessage(0);
 
   console.log(`[framePump] driving frames every ${frameMs} ms — fps and frameMs are this pump, not a display`);
-
-  uninstall = () => {
-    running = false;
-    channel.port1.removeEventListener("message", pump);
-    channel.port1.close();
-    window.requestAnimationFrame = nativeRequest;
-    window.cancelAnimationFrame = nativeCancel;
-    viewer.useDefaultRenderLoop = true;
-    uninstall = undefined;
-  };
-  return uninstall;
 }

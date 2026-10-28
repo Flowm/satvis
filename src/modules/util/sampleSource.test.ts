@@ -136,7 +136,6 @@ describe("WorkerSampleSource pool", () => {
     for (const chunk of chunks) {
       expect(chunk?.positionsFixed.length).toBeGreaterThan(0);
     }
-    expect(source.stats.inlineFallbacks).toBe(6);
     expect(FakeWorker.instances.every((worker) => worker.terminated)).toBe(true);
     expect(errors).toHaveBeenCalledTimes(1);
   });
@@ -149,7 +148,6 @@ describe("WorkerSampleSource pool", () => {
 
     expect(chunk?.positionsFixed.length).toBeGreaterThan(0);
     expect(FakeWorker.instances.every((worker) => worker.posted.length === 0)).toBe(true);
-    expect(source.stats.inlineFallbacks).toBe(1);
   });
 
   test("a lane that goes silent while holding work gives up too", async () => {
@@ -163,7 +161,6 @@ describe("WorkerSampleSource pool", () => {
 
       expect(await pending).toBeDefined();
       expect(errors).toHaveBeenCalledTimes(1);
-      expect(source.stats.inlineFallbacks).toBe(1);
     } finally {
       vi.useRealTimers();
     }

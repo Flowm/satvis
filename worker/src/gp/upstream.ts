@@ -165,26 +165,13 @@ export async function refreshUpstream<T>(spec: UpstreamSpec<T>, store: GroupStor
 
 /**
  * The stored rows, not the file: parsing all four files put a GP update over the
- * deployed Worker's 2 s CPU limit now and then (ADR 0008). A file stored before rows were
- * kept is parsed, and its rows are kept. Undefined when no file is stored or it no longer
- * parses: the GP update then enriches without this table.
+ * deployed Worker's 2 s CPU limit now and then (ADR 0008). Undefined when none are
+ * stored: the GP update then enriches without this table.
  */
 export async function loadUpstream<T>(spec: UpstreamSpec<T>, store: GroupStore): Promise<T | undefined> {
   const rows = await store.readUpstreamRows(spec.name);
-  if (rows !== undefined) {
-    return rows as T;
-  }
-  let parsed: T | undefined;
-  try {
-    parsed = await parseStored(spec, store);
-  } catch (err) {
-    console.warn(`gp refresh: stored ${spec.name} unreadable (${err instanceof Error ? err.message : String(err)}); enriching without it`);
-    return undefined;
-  }
-  if (parsed === undefined) {
+  if (rows === undefined) {
     console.warn(`gp refresh: no stored ${spec.name}; enriching without it`);
-    return undefined;
   }
-  await store.writeUpstreamRows(spec.name, parsed);
-  return parsed;
+  return rows as T | undefined;
 }

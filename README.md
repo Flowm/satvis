@@ -77,30 +77,21 @@ pnpm dev:worker                                     # wrangler dev on :8080
 SATVIS_API_PROXY=http://localhost:8080 pnpm dev     # frontend proxies /api → local worker
 ```
 
-A refresh fills Workers KV. `pnpm dev:worker` starts wrangler with
-`--test-scheduled`, so you can run the scheduled refreshes once: the upstream
-tables first, then the GP data, which is enriched from them
-(`worker/src/gp/schedule.ts` has both crons):
+A refresh fills Workers KV: the upstream tables first, then the GP data, which is
+enriched from them. Each reports per source and needs a bearer token, because one GP
+run pulls ~7 MB from CelesTrak against a 250 MB/day per-IP cap:
 
 ```
-curl "http://localhost:8080/__scheduled?cron=47+4+*+*+*"
-curl "http://localhost:8080/__scheduled?cron=23+*%2F6+*+*+*"
+curl -X POST -H "Authorization: Bearer $REFRESH_TOKEN" http://localhost:8080/api/upstream/refresh
+curl -X POST -H "Authorization: Bearer $REFRESH_TOKEN" http://localhost:8080/api/refresh
 ```
 
 Then `GET /api/groups.json` lists the refreshed groups and
 `GET /api/gp/starlink.json` returns an OMM element-set array.
 
-`POST /api/refresh` runs the same refresh on demand and reports per-source
-diagnostics. It needs a bearer token, because one run pulls ~7 MB from CelesTrak
-against a 250 MB/day per-IP cap:
-
-```
-curl -X POST -H "Authorization: Bearer $REFRESH_TOKEN" http://localhost:8080/api/refresh
-```
-
 Locally the token comes from `worker/.dev.vars` (copy `worker/.dev.vars.example`).
 Deployed, it is a Worker secret: `wrangler secret put REFRESH_TOKEN`. With no
-secret set, the endpoint returns 503.
+secret set, the endpoints return 503.
 
 `POST /api/ingest` takes the same token and runs the same pass on payloads the
 caller already downloaded ([Downloading off-Worker](#downloading-off-worker)).
@@ -179,7 +170,7 @@ facts, keyed by NORAD id). Tags and presets reach clients with the group index,
 - The core config is `worker/src/config/satvis.core.yaml`: the CelesTrak groups,
   the `default` preset, and the curated satellite table.
 - A plugin adds `data/custom/<plugin>/satvis.yaml`. Groups take `sources`,
-  `select`, `satellites`, `rename`, `include`, `exclude` and `extraRecordsFile`.
+  `select`, `satellites`, `include`, `exclude` and `extraRecordsFile`.
   Example (`data/custom/example/satvis.yaml`):
 
   ```yaml
@@ -216,10 +207,10 @@ so all presets work without the worker.
 
 The `Dockerfile` serves the app and the worker from one container. The worker
 runs on workerd through wrangler's local runtime (`worker/scripts/serve.mjs`). KV
-is stored as SQLite in `/data`, and `serve.mjs` runs the GP refresh every 6 h and
-the upstream tables daily itself (`worker/src/gp/schedule.ts`): a self-hosted
-container is not behind Cloudflare's firewalled egress. A fresh volume refreshes
-both once at startup.
+is stored as SQLite in `/data`, and `serve.mjs` calls `POST /api/refresh` every 6 h
+and `POST /api/upstream/refresh` daily: a self-hosted container is not behind
+Cloudflare's firewalled egress. A fresh volume refreshes both once at startup.
+Without `REFRESH_TOKEN`, `serve.mjs` makes up a token only it knows.
 
 ```sh
 docker build --build-arg BUILD_SHA=$(git rev-parse --short HEAD) -t satvis .

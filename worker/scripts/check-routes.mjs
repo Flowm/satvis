@@ -32,7 +32,7 @@ function buildSite() {
   for (const file of ["404.html", "_redirects"]) {
     cpSync(path.join(publicDir, file), path.join(site, file));
   }
-  for (const page of ["index.html", "embedded.html", "test.html"]) {
+  for (const page of ["index.html", "embedded.html"]) {
     writeFileSync(path.join(site, page), `<!doctype html><title>${page}</title>`);
   }
   writeFileSync(path.join(site, "cesium/Assets/Textures/NaturalEarthII/tilemapresource.xml"), "<TileMap/>");
@@ -126,7 +126,6 @@ test("the app's pages are assets", async () => {
 test("html file names redirect to their clean paths, and old links to theirs", async () => {
   const cases = [
     ["/embedded.html", "/embedded", 307],
-    ["/test.html", "/test", 307],
     ["/ot.html", "/ot", 301],
     ["/next/about", "/about", 301],
   ];

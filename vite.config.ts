@@ -61,7 +61,6 @@ export default defineConfig({
         index: fileURLToPath(new URL("index.html", import.meta.url)),
         about: fileURLToPath(new URL("about.html", import.meta.url)),
         embedded: fileURLToPath(new URL("embedded.html", import.meta.url)),
-        test: fileURLToPath(new URL("test.html", import.meta.url)),
       },
       output: {
         codeSplitting: {
@@ -220,13 +219,9 @@ export default defineConfig({
         },
         image: "public/logo.svg",
       },
-      devOptions: {
-        type: "module",
-      },
     }),
   ],
   resolve: {
-    tsconfigPaths: true,
     alias: [
       // Stubs satellite.js's unused Emscripten bundles, which raise fifteen "externalized
       // for browser compatibility" warnings.
@@ -235,7 +230,6 @@ export default defineConfig({
     ],
   },
   test: {
-    environment: "node",
     include: ["src/**/*.test.ts"],
   },
   server: {

@@ -1,5 +1,5 @@
 import { type BoundingSphere, type Cartesian2, Cartesian3, Color, JulianDate, Math as CesiumMath, Matrix3, PerspectiveFrustum } from "@cesium/core";
-import { Entity, type Property, Transforms } from "@cesium/engine";
+import { Entity, type Property, SceneMode, Transforms } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -109,7 +109,7 @@ async function setup({ modelFile = "ISS-(ZARYA).glb", lods }: { modelFile?: stri
   }
   const entry = new CatalogEntry({ key: "25544|ISS", name: "ISS", nameUpper: "ISS", satnum: "25544", tags: [], record });
   const sampler = new InlineSampleSource().samplerFor(entry.satnum, entry.record);
-  const predictor = new InlinePassSource().predictorFor(entry.satnum, entry.record);
+  const predictor = new InlinePassSource().predictorFor(entry.name, entry.record);
   const batches = {
     orbits: new PolylineBatch(viewer, "inertial", Color.WHITE),
     tracks: new PolylineBatch(viewer, "fixed", Color.GOLD),
@@ -177,12 +177,22 @@ describe("SatelliteComponentCollection lifetime", () => {
   test("draws again after every component was switched off", async () => {
     const { sat, viewer } = await setup();
     sat.show(["Point"]);
-    sat.hide(["Point"]);
+    sat.disableComponent("Point");
 
     sat.show(["Point"]);
 
     expect(sat.componentNames).toEqual(["Point"]);
     expect(sat.props.trajectory.position(viewer.clock.currentTime)).toBeDefined();
+  });
+
+  test("keeps no listeners while it draws nothing", async () => {
+    const { sat } = await setup({ modelFile: null });
+    sat.show(["3D model"]);
+    expect(sat.eventListeners).toEqual({});
+
+    sat.dispose();
+    sat.show(["Point"]);
+    expect(sat.eventListeners).toEqual({});
   });
 
   test("stops sampling once disposed", async () => {
@@ -227,6 +237,26 @@ describe("SatelliteComponentCollection lines and ground tracks", () => {
     viewer.trackedEntity = undefined;
     expect(sat.components.Orbit).toBeInstanceOf(BatchedLine);
     expect(sat.components["Orbit track"]).toBeInstanceOf(BatchedLine);
+  });
+
+  test("act through the first entity left, which a recreated one does not displace", async () => {
+    const { sat, viewer } = await setup({ modelFile: null });
+    const scene = viewer.scene as unknown as { mode: SceneMode };
+    // Outside 3D the orbit is a path entity, created here before the point.
+    scene.mode = SceneMode.SCENE2D;
+    sat.show(["Orbit", "Point"]);
+    expect(sat.defaultEntity).toBe(sat.components.Orbit);
+
+    // A tracking change refits both times.
+    scene.mode = SceneMode.SCENE3D;
+    viewer.trackedEntity = undefined;
+    expect(sat.components.Orbit).toBeInstanceOf(BatchedLine);
+    expect(sat.defaultEntity).toBe(sat.components.Point);
+
+    scene.mode = SceneMode.SCENE2D;
+    viewer.trackedEntity = undefined;
+    expect(sat.components.Orbit).toBeInstanceOf(Entity);
+    expect(sat.defaultEntity).toBe(sat.components.Point);
   });
 
   test("recut the batched orbit on a refill once it is half a period old, not on every refill", async () => {
@@ -331,7 +361,7 @@ describe("SatelliteComponentCollection 3D model with a lower-detail copy", () =>
   test("adds the copy beside the model, and removes it with the model", async () => {
     const { sat, model, copy, removed } = await withCopy();
     expect(copy.model?.uri?.getValue(JulianDate.now())).toBe("./data/models/ISS-(ZARYA)-low.glb");
-    sat.hide(["3D model"]);
+    sat.disableComponent("3D model");
     expect(removed).toEqual(expect.arrayContaining([model, copy]));
   });
 
@@ -425,7 +455,7 @@ describe("SatelliteComponentCollection 3D model with a lower-detail copy", () =>
     setModelRadius(65);
     setMetresPerPixel(0.5);
     shown(sat.components["3D model"] as Entity);
-    sat.hide(["3D model"]);
+    sat.disableComponent("3D model");
     sat.show(["3D model"]);
     setMetresPerPixel(1000);
     const model = sat.components["3D model"] as Entity;
@@ -515,10 +545,10 @@ describe("SatelliteComponentCollection beside its model", () => {
 
     sat.show(["3D model"]);
     expect(pointShown(sat, viewer)).toBe(false);
-    sat.hide(["3D model"]);
+    sat.disableComponent("3D model");
     expect(show()).toBeUndefined();
 
-    sat.hide(["Point"]);
+    sat.disableComponent("Point");
     sat.show(["3D model", "Point"]);
     expect(pointShown(sat, viewer)).toBe(false);
   });

@@ -13,9 +13,6 @@
 /data/models/*
   Access-Control-Allow-Origin: *
 
-/test
-  X-Robots-Tag: noindex
-
 /embedded
   X-Robots-Tag: noindex
 

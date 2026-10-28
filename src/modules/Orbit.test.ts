@@ -58,11 +58,6 @@ describe("Orbit (TLE record)", () => {
     // Roughly one visible pass per ~1.5 orbits over Munich across two weeks.
     expect(passes.length).toBeGreaterThan(50);
   });
-
-  test("exposes tle lines and satnum", () => {
-    expect(orbit.tle).toHaveLength(3);
-    expect(orbit.satnum).toBe("25544");
-  });
 });
 
 describe("Orbit elevation passes", () => {
@@ -308,7 +303,7 @@ describe("Orbit swath containment", () => {
 });
 
 describe("Orbit (GpRecord path)", () => {
-  test("OMM record builds an orbit without tle lines", () => {
+  test("OMM record builds an orbit", () => {
     const omm = JSON.stringify([
       {
         OBJECT_NAME: "ISS (ZARYA)",
@@ -329,8 +324,7 @@ describe("Orbit (GpRecord path)", () => {
     ]);
     const record = parseGpPayload(omm)[0] as GpRecord;
     const orbit = new Orbit("ISS", record);
-    expect(orbit.satnum).toBe("25544");
-    expect(orbit.tle).toBeUndefined();
+    expect(orbit.satrec.satnum).toBe("25544");
     expect(orbit.record.kind).toBe("omm");
     expect(orbit.error).toBe(0);
   });

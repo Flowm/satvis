@@ -3,21 +3,13 @@
 import { buildPlan, type BenchmarkStep, type PlanSpec } from "./benchmarkPlan";
 import type { FrameSample } from "./frameSampler";
 
-export interface SceneRequest {
-  satelliteCount: number;
-  components: readonly string[];
-  clockMultiplier: number;
-}
-
 /**
  * What the app built, which can differ from the request: a name can match two
  * catalog entries, and a component exists only where it applies (no cone without
  * a swath, no model without a model url).
  */
 export interface SceneApplied {
-  satellitesRequested: number;
   satellitesVisible: number;
-  componentsRequested: string[];
   componentsDrawn: string[];
   componentInstances: Record<string, number>;
   /** Read from the app, not the step: the app can refuse the clock. */
@@ -53,9 +45,9 @@ export interface FootprintSample {
 export interface BenchmarkTarget {
   environment(): Record<string, string | number>;
   /** Once per run, before the first step. */
-  prepare(): Promise<void>;
+  prepare(options: BenchmarkOptions): Promise<void>;
   catalogSize(): number;
-  apply(request: SceneRequest): Promise<SceneApplied>;
+  apply(step: BenchmarkStep): Promise<SceneApplied>;
   measure(options: MeasureOptions): Promise<FrameSample>;
   /** Undefined where the browser cannot answer. Called after the sample window, with the scene still up. */
   measureFootprint(): Promise<FootprintSample | undefined>;
@@ -67,6 +59,10 @@ export interface BenchmarkOptions {
   sampleMs: number;
   /** Off by default: each capture waits ~17 s, see `FootprintSample`. */
   captureFootprint?: boolean;
+  /** Unset means the whole loaded catalog. */
+  tag?: string;
+  /** Switches pass prediction on for every satellite: a large cost unrelated to drawing. */
+  groundStation?: { lat: number; lon: number };
 }
 
 /** Measured over six calls: 14, 16, 19, 16, 18 and 19 s. A wait for GC, so it does not scale with the scene. */
@@ -113,8 +109,9 @@ export class BenchmarkRunner {
     this.#target = target;
   }
 
+  /** From the call to `start`, so also while the target prepares. */
   get running(): boolean {
-    return this.#current !== undefined;
+    return this.#abort !== undefined;
   }
 
   /** The run in progress, or the last one to finish. */
@@ -129,27 +126,28 @@ export class BenchmarkRunner {
   }
 
   async start(spec: PlanSpec, options: BenchmarkOptions = DEFAULT_OPTIONS, hooks: RunnerHooks = {}): Promise<BenchmarkRun> {
-    if (this.#current) {
+    if (this.#abort) {
       throw new Error("A benchmark is already running");
     }
     const abort = new AbortController();
     this.#abort = abort;
 
-    await this.#target.prepare();
-    const steps = buildPlan(spec);
-    const run: BenchmarkRun = {
-      startedAtIso: new Date().toISOString(),
-      spec,
-      environment: this.#target.environment(),
-      options,
-      catalogSize: this.#target.catalogSize(),
-      results: [],
-      cancelled: false,
-    };
-    this.#current = run;
-    hooks.onLog?.(`${steps.length} steps over a catalog of ${run.catalogSize} satellites`);
-
+    let run: BenchmarkRun | undefined;
     try {
+      await this.#target.prepare(options);
+      const steps = buildPlan(spec);
+      run = {
+        startedAtIso: new Date().toISOString(),
+        spec,
+        environment: this.#target.environment(),
+        options,
+        catalogSize: this.#target.catalogSize(),
+        results: [],
+        cancelled: false,
+      };
+      this.#current = run;
+      hooks.onLog?.(`${steps.length} steps over a catalog of ${run.catalogSize} satellites`);
+
       for (const step of steps) {
         if (abort.signal.aborted) {
           run.cancelled = true;
@@ -157,7 +155,7 @@ export class BenchmarkRunner {
         }
         hooks.onProgress?.({ done: run.results.length, total: steps.length, step });
         // eslint-disable-next-line no-await-in-loop
-        const applied = await this.#target.apply({ satelliteCount: step.satelliteCount, components: step.components, clockMultiplier: step.clockMultiplier });
+        const applied = await this.#target.apply(step);
         // eslint-disable-next-line no-await-in-loop
         const frames = await this.#target.measure({ ...options, signal: abort.signal });
         if (abort.signal.aborted) {
@@ -173,7 +171,7 @@ export class BenchmarkRunner {
       }
     } finally {
       await this.#target.restore();
-      this.#last = run;
+      this.#last = run ?? this.#last;
       this.#current = undefined;
       this.#abort = undefined;
     }

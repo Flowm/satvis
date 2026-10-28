@@ -34,7 +34,7 @@ describe("SatelliteCatalog", () => {
     catalog.addRecords([ommRecord("ALPHA", 1), ommRecord("GAMMA", 3)], ["GroupB"]);
 
     // ALPHA, BETA, GAMMA — ALPHA is not duplicated.
-    expect(catalog.size).toBe(3);
+    expect(catalog.entries).toHaveLength(3);
     const alpha = catalog.getByName("ALPHA");
     expect(alpha?.tags).toEqual(["GroupA", "GroupB"]);
   });
@@ -58,7 +58,7 @@ describe("SatelliteCatalog", () => {
     // Same name, different satnums → distinct keys, but getByName returns first.
     catalog.addRecords([ommRecord("DUPE", 10)], ["A"]);
     catalog.addRecords([ommRecord("DUPE", 11)], ["B"]);
-    expect(catalog.size).toBe(2);
+    expect(catalog.entries).toHaveLength(2);
     expect(catalog.getByName("DUPE")?.satnum).toBe("10");
   });
 
@@ -83,10 +83,12 @@ describe("SatelliteCatalog", () => {
     ]);
   });
 
-  test("onChange fires with added and merged entries", () => {
+  test("addRecords returns the added and merged entries", () => {
     const catalog = new SatelliteCatalog();
-    const batches: number[] = [];
-    catalog.onChange((entries) => batches.push(entries.length));
+    let notified = 0;
+    catalog.onChange(() => {
+      notified += 1;
+    });
     // addRecords does not fire onChange; only a group load does. Check the returned changed set instead.
     const changed1 = catalog.addRecords([ommRecord("A", 1)], ["G1"]);
     expect(changed1).toHaveLength(1);
@@ -96,7 +98,7 @@ describe("SatelliteCatalog", () => {
     // Re-adding with an existing tag returns nothing changed.
     const changed3 = catalog.addRecords([ommRecord("A", 1)], ["G1"]);
     expect(changed3).toHaveLength(0);
-    expect(batches).toEqual([]);
+    expect(notified).toBe(0);
   });
 
   test("integrates with parseGpPayload output", () => {
@@ -153,13 +155,13 @@ describe("CatalogEntry derived orbit facts", () => {
   }
 
   test("takes GCAT's orbit kind, and computes one where GCAT has none", () => {
-    expect(entry({ orbitClass: "LEO", opOrbit: "LLEO/P" }).orbitKind).toEqual({ code: "P", source: "gcat" });
+    expect(entry({ opOrbit: "LLEO/P" }).orbitKind).toEqual({ code: "P", source: "gcat" });
     // 51° of inclination: GCAT's intermediate band.
-    expect(entry({ orbitClass: "LEO" }).orbitKind).toEqual({ code: "I", source: "computed" });
+    expect(entry({}).orbitKind).toEqual({ code: "I", source: "computed" });
   });
 
   test("reads the epoch off the element set", () => {
-    expect(entry({ orbitClass: "LEO" }).epochMs).toBe(Date.UTC(2026, 6, 4));
+    expect(entry({}).epochMs).toBe(Date.UTC(2026, 6, 4));
   });
 });
 
@@ -240,7 +242,7 @@ describe("SatelliteCatalog lazy loading", () => {
       ["stations", ["Stations"]],
     ]);
     await catalog.ensureAll();
-    expect(catalog.size).toBe(2);
+    expect(catalog.entries).toHaveLength(2);
     expect(requested).toContain("/api/gp/weather.json");
     expect(requested).toContain("/api/gp/stations.json");
   });

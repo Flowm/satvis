@@ -52,6 +52,13 @@ export function offsetObserver(observer: Observer, east: number, north: number):
 /** To [0, 360). */
 export const normalizeAzimuth = (degrees: number): number => ((degrees % 360) + 360) % 360;
 
+/** 16-point compass abbreviation. */
+export function compassPoint(azimuth: number): string {
+  const points = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  const index = Math.round(normalizeAzimuth(azimuth) / 22.5) % points.length;
+  return points[index] as string;
+}
+
 /** In east-north-up, of length `distance`. */
 export function enuDirection(azimuth: number, elevation: number, distance = 1): Cartesian3 {
   const az = CesiumMath.toRadians(azimuth);

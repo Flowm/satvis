@@ -8,29 +8,17 @@ const CELESTRAK_BASE = "https://celestrak.org/NORAD/elements/";
 /** CelesTrak asks clients to space out requests. */
 const REQUEST_SPACING_MS = 250;
 /**
- * Aborts a stalled source, so one hung upstream cannot push the sequential refresh
- * past the cron / 120 s /__scheduled limit. CelesTrak's largest groups need far less.
+ * Aborts a stalled source, so one hung upstream cannot stall the sequential refresh.
+ * CelesTrak's largest groups need far less.
  */
 const REQUEST_TIMEOUT_MS = 30_000;
 
 export function sourceKey(spec: SourceSpec): string {
-  if ("celestrak" in spec) {
-    return `celestrak:${spec.celestrak}`;
-  }
-  if ("celestrakSup" in spec) {
-    return `celestrakSup:${spec.celestrakSup}`;
-  }
-  return `url:${spec.url}`;
+  return `celestrak:${spec.celestrak}`;
 }
 
 export function sourceUrl(spec: SourceSpec): string {
-  if ("celestrak" in spec) {
-    return `${CELESTRAK_BASE}gp.php?GROUP=${encodeURIComponent(spec.celestrak)}&FORMAT=JSON`;
-  }
-  if ("celestrakSup" in spec) {
-    return `${CELESTRAK_BASE}supplemental/sup-gp.php?FILE=${encodeURIComponent(spec.celestrakSup)}&FORMAT=JSON`;
-  }
-  return spec.url;
+  return `${CELESTRAK_BASE}gp.php?GROUP=${encodeURIComponent(spec.celestrak)}&FORMAT=JSON`;
 }
 
 /** Deduped by sourceKey, so two groups naming one source fetch it once. */

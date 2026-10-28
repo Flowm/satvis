@@ -12,8 +12,6 @@ import { Cartesian3, Math as CesiumMath, Matrix3 } from "@cesium/core";
 
 import { type Aim, normalizeAzimuth, rollOf } from "./skyGeometry";
 
-export { normalizeAzimuth } from "./skyGeometry";
-
 export interface DeviceOrientationSample {
   /** Degrees about the vertical, 0-360. Relative to an arbitrary zero on iOS. */
   alpha: number;
@@ -127,7 +125,6 @@ export type CompassOutcome =
   | "aiming"
   /** Aiming, but north waits on the phone being held flat once. */
   | "aiming-uncalibrated"
-  | "unsupported"
   | "denied"
   /** Granted, but never fired. Desktop browsers do this. */
   | "silent"
@@ -149,8 +146,6 @@ export interface OrientationEvent {
 
 /** Where orientation events come from. */
 export interface OrientationEvents {
-  /** False where the browser has no orientation events at all. */
-  readonly supported: boolean;
   /** iOS gates the sensor behind this, called from a user gesture, over https only. Absent elsewhere. */
   requestPermission?: () => Promise<string>;
   /** Both event types; returns the removal. */
@@ -164,10 +159,8 @@ export interface OrientationEvents {
  * `deviceorientation` carries `webkitCompassHeading` on iOS.
  */
 export function browserOrientationEvents(): OrientationEvents {
-  const supported = typeof DeviceOrientationEvent !== "undefined";
-  const gate = supported ? (DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> }) : undefined;
+  const gate = typeof DeviceOrientationEvent !== "undefined" ? (DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> }) : undefined;
   return {
-    supported,
     ...(typeof gate?.requestPermission === "function" && { requestPermission: () => gate.requestPermission!() }),
     listen(listener) {
       const handler = (event: Event) => listener(event as unknown as OrientationEvent);
@@ -228,9 +221,6 @@ export class CompassAiming {
       return this.calibration.calibrated ? "aiming" : "aiming-uncalibrated";
     }
     const { events } = this.#options;
-    if (!events.supported) {
-      return "unsupported";
-    }
     if (events.requestPermission) {
       try {
         if ((await events.requestPermission()) !== "granted") {

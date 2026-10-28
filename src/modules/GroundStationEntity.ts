@@ -1,10 +1,8 @@
-import { Cartesian3, JulianDate, NearFarScalar } from "@cesium/core";
+import { Cartesian3, NearFarScalar } from "@cesium/core";
 import { BillboardGraphics, Entity, HeightReference, HorizontalOrigin, VerticalOrigin } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
 import icon from "../images/icons/pin.svg";
-import { stationPasses, stationPassesSettled, type Pass } from "./PassPredictor";
-import type { SatelliteManager } from "./SatelliteManager";
 
 export interface GroundStationPositionData {
   latitude: number;
@@ -13,18 +11,16 @@ export interface GroundStationPositionData {
   cartesian: Cartesian3;
 }
 
-/** A named position on the ground, drawn as one pin. */
 /** A station's name, or its coordinates to two decimals where it has none. */
 export function stationLabel(name: string | undefined, latitude: number, longitude: number): string {
   return name || `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
 }
 
+/** A named position on the ground, drawn as one pin. */
 export class GroundStationEntity {
   readonly #viewer: Viewer;
 
   readonly #entity: Entity;
-
-  sats: SatelliteManager;
 
   position: GroundStationPositionData;
 
@@ -33,9 +29,8 @@ export class GroundStationEntity {
   /** Its place in the store's list, which every station edit and the observer designation name it by. */
   readonly index: number;
 
-  constructor(viewer: Viewer, sats: SatelliteManager, position: GroundStationPositionData, givenName: string, index: number) {
+  constructor(viewer: Viewer, position: GroundStationPositionData, givenName: string, index: number) {
     this.#viewer = viewer;
-    this.sats = sats;
     this.position = position;
     this.givenName = givenName;
     this.index = index;
@@ -84,27 +79,7 @@ export class GroundStationEntity {
     this.#viewer.selectedEntity = this.#entity;
   }
 
-  get hasName(): boolean {
-    return this.givenName !== "";
-  }
-
   get name(): string {
     return stationLabel(this.givenName, this.position.latitude, this.position.longitude);
-  }
-
-  passes(time: JulianDate, deltaHours = 48): Pass[] {
-    return stationPasses(
-      this.sats.visibleSatellites.map((sat) => sat.props.passPredictor),
-      time,
-      this.name,
-      deltaHours,
-    );
-  }
-
-  passesSettled(time: JulianDate): boolean {
-    return stationPassesSettled(
-      this.sats.visibleSatellites.map((sat) => sat.props.passPredictor),
-      time,
-    );
   }
 }

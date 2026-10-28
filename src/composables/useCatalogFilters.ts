@@ -2,7 +2,7 @@
 // actions on the globe, which go through setActivation like every activation writer.
 
 import { storeToRefs } from "pinia";
-import { computed, reactive, ref, shallowRef } from "vue";
+import { computed, reactive, ref } from "vue";
 
 import {
   type ApsisBox,
@@ -57,8 +57,6 @@ export type HistogramScale = "linear" | "sqrt" | "log";
 const launchScale = ref<HistogramScale>("sqrt");
 /** Linear: no bin vanishes, and the directions compare across bars (ADR 0012). */
 const crossingScale = ref<HistogramScale>("linear");
-/** The full-catalog load, while in flight. */
-const loading = shallowRef<Promise<void> | undefined>();
 
 /** The orbit facet's order, for sorting the list by orbit. */
 const orbitRank = (row: CatalogRow): number => FACET_BY_KEY.orbit.order!.indexOf(orbitLeafOf(row.orbitClass, row.orbitKind));
@@ -74,23 +72,9 @@ export function useCatalogFilters(catalog: SatelliteCatalog) {
   const { catalogRevision, enabledSatellites } = storeToRefs(satStore);
   const browser = useSatelliteBrowser(catalog);
 
-  /** Loads every group, search-only ones too; a failed group is retried on the next call. */
-  function loadAll(): Promise<void> {
-    if (loading.value === undefined) {
-      const load = catalog.ensureAll().finally(() => {
-        if (loading.value === load) {
-          loading.value = undefined;
-        }
-      });
-      loading.value = load;
-    }
-    return loading.value;
-  }
-
   const rows = computed<CatalogRow[]>(() => {
     void catalogRevision.value;
-    const searchOnly = new Set(catalog.groups.filter((group) => group.searchOnly).map((group) => group.tag));
-    return catalogRows(catalog.entries, searchOnly, Date.now());
+    return catalogRows(catalog.entries, browser.searchOnlyTags.value, Date.now());
   });
 
   const filter = computed<CatalogFilter>(() => ({
@@ -192,21 +176,19 @@ export function useCatalogFilters(catalog: SatelliteCatalog) {
     }
   }
 
-  /** Replaces what the globe shows with the first SHOW_CAP matches; returns how many. */
-  function showOnly(matches: readonly CatalogRow[]): number {
+  /** Replaces what the globe shows with the first SHOW_CAP matches. */
+  function showOnly(matches: readonly CatalogRow[]): void {
     const names = matches.slice(0, SHOW_CAP).map((row) => row.name);
     satStore.setActivation({ enabledTags: [], enabledSatellites: names, disabledSatellites: [] });
-    return names.length;
   }
 
-  /** Adds the first SHOW_CAP matches the globe does not show yet; returns how many. */
-  function add(matches: readonly CatalogRow[]): number {
+  /** Adds the first SHOW_CAP matches the globe does not show yet. */
+  function add(matches: readonly CatalogRow[]): void {
     const names = matches
       .filter((row) => !browser.activeSatNames.value.has(row.name))
       .slice(0, SHOW_CAP)
       .map((row) => row.name);
     satStore.setActivation({ enabledSatellites: [...enabledSatellites.value, ...names] });
-    return names.length;
   }
 
   function hide(matches: readonly CatalogRow[]): void {
@@ -227,8 +209,8 @@ export function useCatalogFilters(catalog: SatelliteCatalog) {
     launchScale,
     crossingScale,
     /** The full catalog is loading. */
-    isLoading: computed(() => loading.value !== undefined),
-    loadAll,
+    isLoading: browser.loadingAll,
+    loadAll: browser.loadAll,
     rows,
     /** Per-facet counts, launches per year, the plots' bright rows, daylit crossings per bin. */
     result,

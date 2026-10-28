@@ -203,9 +203,8 @@ These headers were checked against a control without them. Results were the same
 for the imagery hosts (ArcGIS, OSM, VersaTiles, NASA GIBS, Iowa Mesonet), ReEarth
 terrain, `api.cesium.com`, `assets.ion.cesium.com` (World Terrain, OSM Buildings)
 and `tile.googleapis.com`: all 200, no `blockedReason`. A framed instance runs
-unisolated, because COOP does not apply to iframes. `api.maptiler.com` (403) and
-ArcGIS terrain (no requests) fail with and without the headers. PostHog under
-`credentialless` is not verified.
+unisolated, because COOP does not apply to iframes. `api.maptiler.com` (403) fails
+with and without the headers. PostHog under `credentialless` is not verified.
 
 **Black globe, satellites still drawing.** An isolated document refuses to start
 a worker from a cached response without COEP. When it blocks
@@ -232,8 +231,7 @@ Cesium's workers `CacheFirst` for 30 days, and those cached responses have no CO
   and drives `resize`/`render` itself. The channel keeps a core busy. Another
   value sets the interval; `0` turns it off. `app.ts` loads it without the panel.
   - `?framems=100` (10 frames a second) saves render work, not the core. A build
-    of more than 250 satellites gets 16 ms per frame, so it takes about six times
-    as long.
+    gets 16 ms per frame, so one that spans frames takes about six times as long.
   - The pane must have laid out the tab, or the canvas is 0 px wide and draws
     nothing. The pump warns once.
   - `document.hidden` stays true.
@@ -282,8 +280,10 @@ Cesium's workers `CacheFirst` for 30 days, and those cached responses have no CO
 
 ## Shape
 
-Only `cesiumBenchmarkTarget.ts` knows about Cesium. The rest is pure and
-unit-tested (`benchmark.test.ts`, `framePump.test.ts`).
+Only `cesiumBenchmarkTarget.ts` and the pump know about Cesium. The sampler, plan,
+report and runner are pure and unit-tested (`benchmark.test.ts`, and
+`benchmarkRunner.test.ts` with a fake target), as is the pump's frame queue
+(`framePump.test.ts`).
 
 - `frameSampler.ts` — timestamps in, percentiles out.
 - `benchmarkPlan.ts` — the sweep matrix.

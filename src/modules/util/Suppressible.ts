@@ -23,60 +23,45 @@ export class Suppressible<T> {
     this.#apply = apply;
   }
 
-  /** What the user picked, whether or not it is being honoured. */
-  get chosen(): T {
-    return this.#chosen;
-  }
-
   get inForce(): T {
     return this.#override ?? this.#chosen;
   }
 
-  get suppressed(): boolean {
-    return this.#override !== undefined;
-  }
-
-  /**
-   * Applied only if it is in force; a choice made under a suppression waits for release.
-   * Returns whether this changed what is in force.
-   */
-  choose(value: T): boolean {
+  /** Applied only if it is in force; a choice made under a suppression waits for release. */
+  choose(value: T): void {
     if (Object.is(value, this.#chosen)) {
-      return false;
+      return;
     }
     const before = this.inForce;
     this.#chosen = value;
-    return this.#reapply(before);
+    this.#reapply(before);
   }
 
-  /** Returns whether this changed what is in force. */
-  suppress(value: T): boolean {
+  suppress(value: T): void {
     if (Object.is(value, this.#override)) {
-      return false;
+      return;
     }
     const before = this.inForce;
     this.#override = value;
-    return this.#reapply(before);
+    this.#reapply(before);
   }
 
-  /** Returns whether this changed what is in force. */
-  release(): boolean {
+  release(): void {
     if (this.#override === undefined) {
-      return false;
+      return;
     }
     const before = this.inForce;
     this.#override = undefined;
-    return this.#reapply(before);
+    this.#reapply(before);
   }
 
-  #reapply(before: T): boolean {
+  #reapply(before: T): void {
     const value = this.inForce;
     if (Object.is(value, before)) {
-      return false;
+      return;
     }
     const generation = ++this.#generation;
     void this.#apply(value, () => generation === this.#generation);
-    return true;
   }
 }
 
@@ -102,16 +87,8 @@ export class SuppressibleSet {
     this.#apply = apply;
   }
 
-  get chosen(): readonly string[] {
-    return this.#chosen;
-  }
-
   get inForce(): string[] {
     return [...this.#inForce];
-  }
-
-  isSuppressed(name: string): boolean {
-    return this.#suppressed.has(name);
   }
 
   choose(values: readonly string[]): void {
@@ -129,15 +106,13 @@ export class SuppressibleSet {
     return true;
   }
 
-  /** Returns whether this brought anything back. */
-  release(name: string): boolean {
-    if (!this.#suppressed.delete(name)) {
-      return false;
+  release(name: string): void {
+    if (this.#suppressed.delete(name)) {
+      this.#settle();
     }
-    return this.#settle().show.length > 0;
   }
 
-  #settle(): SetChange {
+  #settle(): void {
     const next = new Set(this.#chosen.filter((name) => !this.#suppressed.has(name)));
     const show = [...next].filter((name) => !this.#inForce.has(name));
     const hide = [...this.#inForce].filter((name) => !next.has(name));
@@ -145,6 +120,5 @@ export class SuppressibleSet {
     if (show.length > 0 || hide.length > 0) {
       this.#apply({ show, hide });
     }
-    return { show, hide };
   }
 }

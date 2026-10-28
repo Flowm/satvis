@@ -28,6 +28,13 @@ describe("validateGroups", () => {
     ).toThrow("cycle detected: a -> b -> a");
   });
 
+  it("refuses a key or a source kind the evaluator does not read", () => {
+    expect(() => validateGroups([{ name: "a", rename: { X: "Y" } }])).toThrow('group "a": unknown key "rename"');
+    expect(() => validateGroups([{ name: "a", select: { noradIds: [1] } }])).toThrow('group "a": unknown key "noradIds"');
+    expect(() => validateGroups([{ name: "a", sources: [{ url: "https://example.com/x.json" }] }])).toThrow('group "a": a source must be');
+    expect(() => validateGroups([{ name: "a", sources: SOURCES, select: { namePattern: "^A" }, tags: ["a"] }])).not.toThrow();
+  });
+
   it("refuses a tag with a comma, which the url could not carry", () => {
     expect(() => validateGroups([{ name: "a", tags: ["x,y"] }])).toThrow("without a comma");
   });
@@ -41,7 +48,7 @@ describe("validateGroups", () => {
 
 describe("remainders", () => {
   it("must exclude every sibling selecting from the same sources", () => {
-    const sibling = { name: "weather", sources: SOURCES, select: { names: ["NOAA"] } };
+    const sibling = { name: "weather", sources: SOURCES, select: { namePattern: "^NOAA" } };
     expect(() => validateRemainders([sibling, { name: "rest", sources: SOURCES, exclude: [] }], "core")).toThrow('core: group "rest" must exclude "weather"');
     expect(() => validateRemainders([sibling, { name: "rest", sources: SOURCES, exclude: ["weather"] }], "core")).not.toThrow();
   });
@@ -86,6 +93,12 @@ describe("the satellite table", () => {
     table.add(5, { metadata: { missionType: "EO", modelFile: "a.glb" } }, "plugin");
     expect(table.entries()).toEqual([{ noradId: 5, name: "SAT", metadata: { missionType: "EO", modelFile: "a.glb" } }]);
     expect(() => table.add(5, { metadata: { modelFile: "b.glb" } }, "other")).toThrow('other sets modelFile="b.glb", but core, plugin set');
+  });
+
+  it("refuses a modelFile outside /data/models/, in a table entry or a group row", () => {
+    expect(() => validateSatelliteTable([{ noradId: 5, modelFile: "../a.glb" }], "core")).toThrow('core satellites[0]: "modelFile" must be a .glb path');
+    expect(() => validateGroups([{ name: "a", satellites: [{ noradId: 5, metadata: { modelFile: "/a.glb" } }] }])).toThrow('"modelFile" must be a .glb path');
+    expect(() => validateSatelliteTable([{ noradId: 5, modelFile: "sats/a.glb" }], "core")).not.toThrow();
   });
 
   it("refuses an entry with nothing to attach", () => {

@@ -13,25 +13,23 @@ export const compassAvailable = (): boolean => typeof DeviceOrientationEvent !==
 const active = ref(false);
 const pending = ref(false);
 
-const FAILURES: Record<string, string> = {
-  unsupported: "This browser does not report device orientation.",
+const FAILURES: Partial<Record<CompassOutcome, string>> = {
   denied: "Motion and orientation access was declined. It can be re-enabled in the browser's site settings.",
   silent: "Orientation was granted but no readings arrived, which is usual on a device without motion sensors.",
-  no_heading: "This device reports orientation but cannot tell where north is, so the sky would be aimed at an arbitrary bearing.",
+  "no-heading": "This device reports orientation but cannot tell where north is, so the sky would be aimed at an arbitrary bearing.",
 };
 
 export function useSkyCompass(cc: CesiumController): { active: Readonly<Ref<boolean>>; pending: Readonly<Ref<boolean>>; toggle: () => Promise<void> } {
   // A drag or closing the view also stops the compass. The callback is a single slot,
   // so registering it on every call is harmless.
-  cc.skyInteraction.onOrientationStop(() => {
+  cc.skyInteraction.aiming.onStop(() => {
     active.value = false;
   });
 
   async function toggle(): Promise<void> {
     const { skyInteraction } = cc;
     if (active.value) {
-      skyInteraction.disableDeviceOrientation();
-      active.value = false;
+      skyInteraction.aiming.disable();
       return;
     }
     if (pending.value) {
@@ -42,7 +40,7 @@ export function useSkyCompass(cc: CesiumController): { active: Readonly<Ref<bool
     pending.value = true;
     let outcome: CompassOutcome;
     try {
-      outcome = await skyInteraction.enableDeviceOrientation();
+      outcome = await skyInteraction.aiming.enable();
     } finally {
       pending.value = false;
     }
@@ -65,7 +63,7 @@ export function useSkyCompass(cc: CesiumController): { active: Readonly<Ref<bool
     }
     useToastProxy().add({
       title: "Compass aiming unavailable",
-      description: FAILURES[outcome.replace("-", "_")] ?? "The device's orientation is not usable for aiming.",
+      description: FAILURES[outcome] ?? "The device's orientation is not usable for aiming.",
       color: "warning",
     });
   }

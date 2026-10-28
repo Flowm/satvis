@@ -1,15 +1,13 @@
-import { createExecutionContext, createScheduledController, env, SELF, waitOnExecutionContext } from "cloudflare:test";
+import { env, SELF } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 
 import generatedConfig from "../src/config/satvis.generated.json" with { type: "json" };
 import { GCAT_CATALOG_URL } from "../src/gp/gcat.ts";
 import { toIngestBundle } from "../src/gp/pushProtocol.ts";
-import { CATALOG_CRON, GP_CRON } from "../src/gp/schedule.ts";
 import { collectSources, sourceKey, sourceUrl } from "../src/gp/sources.ts";
 import { kvGroupStore } from "../src/gp/store.ts";
 import type { GroupsConfig, GroupsIndex, OmmRecord } from "../src/gp/types.ts";
 import { UPSTREAMS } from "../src/gp/upstreams.ts";
-import worker from "../src/index.ts";
 import { GCAT_CATALOG_LINES, GCAT_ORGS_LINES, gcatCatalog, gcatOrgs } from "./gcatFixtures.ts";
 
 /** Distinct upstream requests per refresh, asserted against the fetch spy after each test. */
@@ -51,11 +49,14 @@ function ingestBundle(reply: (source: string) => unknown, opts?: { status?: numb
   const specs = collectSources((generatedConfig as GroupsConfig).groups);
   const fetched = specs.map((spec) => {
     const url = sourceUrl(spec);
-    const params = new URL(url).searchParams;
-    const source = params.get("GROUP") ?? params.get("FILE") ?? "";
+    const source = new URL(url).searchParams.get("GROUP") ?? "";
     return { key: sourceKey(spec), url, ms: 0, status: opts?.status ?? 200, records: reply(source) as OmmRecord[] };
   });
   return JSON.stringify(toIngestBundle(fetched, UPDATED));
+}
+
+function postRefresh(): Promise<Response> {
+  return SELF.fetch("https://satvis.space/api/refresh", { method: "POST", headers: AUTH });
 }
 
 function postIngest(body: string, headers: Record<string, string> = AUTH): Promise<Response> {
@@ -200,8 +201,8 @@ describe("index route", () => {
   });
 });
 
-describe("scheduled() refresh", () => {
-  // refreshAll uses the global fetch. The default stub rejects every request;
+describe("POST /api/refresh", () => {
+  // The refresh uses the global fetch. The default stub rejects every request;
   // interceptCelestrak() swaps in a reply and sets the expected call count.
   let fetchSpy: MockInstance<typeof fetch>;
   let expectedFetches = 0;
@@ -219,7 +220,7 @@ describe("scheduled() refresh", () => {
   });
 
   /**
-   * Answers gp.php and sup-gp.php requests synthetically. A GP refresh asks for nothing
+   * Answers gp.php requests synthetically. A GP refresh asks for nothing
    * else: it reads the upstream tables from KV.
    */
   function interceptCelestrak(reply: (group: string) => unknown, opts?: { status?: number }): void {
@@ -227,25 +228,28 @@ describe("scheduled() refresh", () => {
     fetchSpy.mockImplementation(async (input, init) => {
       const request = new Request(input, init);
       const url = new URL(request.url);
-      const isGp = url.pathname === "/NORAD/elements/gp.php" || url.pathname === "/NORAD/elements/supplemental/sup-gp.php";
-      if (request.method !== "GET" || url.origin !== "https://celestrak.org" || !isGp) {
+      if (request.method !== "GET" || url.origin !== "https://celestrak.org" || url.pathname !== "/NORAD/elements/gp.php") {
         throw new Error(`unmocked fetch: ${request.method} ${request.url}`);
       }
-      const source = url.searchParams.get("GROUP") ?? url.searchParams.get("FILE") ?? "";
+      const source = url.searchParams.get("GROUP") ?? "";
       return new Response(JSON.stringify(reply(source)), { status: opts?.status ?? 200 });
     });
   }
 
-  it("writes evaluated groups to KV and builds the index", async () => {
+  it("writes the evaluated groups and the index, and reports per-source diagnostics", async () => {
+    // An old index is past the cooldown.
+    await store().writeIndex({ updated: "2020-01-01T00:00:00.000Z", groups: [] } satisfies GroupsIndex);
     interceptCelestrak((group) => [{ OBJECT_NAME: `${group.toUpperCase()}-1`, NORAD_CAT_ID: 10000 + group.length }]);
 
-    const ctx = createExecutionContext();
-    const controller = createScheduledController({ scheduledTime: Date.now(), cron: GP_CRON });
-    await worker.scheduled(controller, env, ctx);
-    await waitOnExecutionContext(ctx);
-
-    const weather = await groupRecords("weather");
-    expect(Array.isArray(weather)).toBe(true);
+    const res = await postRefresh();
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    const body = (await res.json()) as { refreshed: boolean; written: number; sources: { ok: boolean; status?: number; records?: number }[] };
+    expect(body.refreshed).toBe(true);
+    expect(body.written).toBeGreaterThan(0);
+    expect(body.sources).toHaveLength(SOURCE_COUNT);
+    expect(body.sources.every((s) => s.ok && s.status === 200 && (s.records ?? 0) > 0)).toBe(true);
+    expect(Array.isArray(await groupRecords("weather"))).toBe(true);
 
     const index = await store().readIndex();
     const weatherStatus = index.groups.find((g) => g.name === "weather");
@@ -259,52 +263,13 @@ describe("scheduled() refresh", () => {
     expect(issStatus?.warnings).toEqual(expect.arrayContaining([expect.stringContaining("matched no record")]));
   });
 
-  it("carves the derived groups out of the shared active source", async () => {
-    // Each record lands in exactly one group, the anchored patterns skip names that
-    // merely contain a prefix, and `satellites` rows (real ids) pull in the unprefixed members.
-    interceptCelestrak((source) =>
-      source === "active"
-        ? [
-            { OBJECT_NAME: "STARLINK-1234", NORAD_CAT_ID: 1 },
-            { OBJECT_NAME: "ONEWEB-0042", NORAD_CAT_ID: 2 },
-            { OBJECT_NAME: "GLOBALSTAR M001", NORAD_CAT_ID: 3 },
-            { OBJECT_NAME: "IRIDIUM 100", NORAD_CAT_ID: 4 },
-            { OBJECT_NAME: "FLOCK 4X-1", NORAD_CAT_ID: 5 },
-            { OBJECT_NAME: "PELICAN-11", NORAD_CAT_ID: 6 },
-            { OBJECT_NAME: "LEMUR-2-CLARA", NORAD_CAT_ID: 7 },
-            { OBJECT_NAME: "EUTELSAT 7C", NORAD_CAT_ID: 8 },
-            { OBJECT_NAME: "OTTER SDM", NORAD_CAT_ID: 66678 },
-            { OBJECT_NAME: "EXPRESS-AT1", NORAD_CAT_ID: 39612 },
-            { OBJECT_NAME: "NOT-STARLINK-9", NORAD_CAT_ID: 90 },
-            { OBJECT_NAME: "COSMOS 2251", NORAD_CAT_ID: 91 },
-          ]
-        : [{ OBJECT_NAME: `${source.toUpperCase()}-1`, NORAD_CAT_ID: 900 }],
-    );
-
-    const ctx = createExecutionContext();
-    const controller = createScheduledController({ scheduledTime: Date.now(), cron: GP_CRON });
-    await worker.scheduled(controller, env, ctx);
-    await waitOnExecutionContext(ctx);
-
-    expect(await idsOf("starlink")).toEqual([1]);
-    expect(await idsOf("oneweb")).toEqual([2]);
-    expect(await idsOf("globalstar")).toEqual([3]);
-    expect(await idsOf("iridium-NEXT")).toEqual([4]);
-    expect(await idsOf("planet")).toEqual([5, 6]);
-    expect(await idsOf("spire")).toEqual([7, 66678]);
-    expect(await idsOf("eutelsat")).toEqual([8, 39612]);
-  });
-
   it("preserves last-known-good on failure", async () => {
     await seedGroup("weather", ommArray(["GOOD SAT", 1]), "2026-01-01T00:00:00.000Z");
     await store().writeIndex({ updated: "2026-01-01T00:00:00.000Z", groups: [{ name: "weather", updated: "2026-01-01T00:00:00.000Z", count: 1 }] } satisfies GroupsIndex);
 
     interceptCelestrak(() => [], { status: 503 });
 
-    const ctx = createExecutionContext();
-    const controller = createScheduledController({ scheduledTime: Date.now(), cron: GP_CRON });
-    await worker.scheduled(controller, env, ctx);
-    await waitOnExecutionContext(ctx);
+    expect((await postRefresh()).status).toBe(200);
 
     const weather = (await groupRecords("weather"))!;
     expect(weather.map((r) => r.OBJECT_NAME)).toEqual(["GOOD SAT"]);
@@ -316,29 +281,7 @@ describe("scheduled() refresh", () => {
     expect(weatherStatus?.lastErrorAt).toBeTruthy();
   });
 
-  it("runs the refresh and reports per-source diagnostics on POST /api/refresh", async () => {
-    // An old index is past the cooldown.
-    await store().writeIndex({ updated: "2020-01-01T00:00:00.000Z", groups: [] } satisfies GroupsIndex);
-    interceptCelestrak((group) => [{ OBJECT_NAME: `${group.toUpperCase()}-1`, NORAD_CAT_ID: 42 }]);
-
-    const res = await SELF.fetch("https://satvis.space/api/refresh", { method: "POST", headers: AUTH });
-    expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("no-store");
-
-    const body = (await res.json()) as {
-      refreshed: boolean;
-      written: number;
-      sources: { key: string; ok: boolean; status?: number; records?: number }[];
-      groups: { name: string }[];
-    };
-    expect(body.refreshed).toBe(true);
-    expect(body.written).toBeGreaterThan(0);
-    expect(body.sources).toHaveLength(SOURCE_COUNT);
-    expect(body.sources.every((s) => s.ok && s.status === 200 && (s.records ?? 0) > 0)).toBe(true);
-    expect(Array.isArray(await groupRecords("weather"))).toBe(true);
-  });
-
-  it("rate-limits POST /api/refresh within the cooldown and returns the cached index", async () => {
+  it("rate-limits within the cooldown and returns the cached index", async () => {
     // Without interceptCelestrak(), the afterEach count proves no upstream fetch was made.
     const recent = new Date().toISOString();
     await store().writeIndex({
@@ -346,7 +289,7 @@ describe("scheduled() refresh", () => {
       groups: [{ name: "weather", updated: recent, count: 2, lastError: "source celestrak:weather failed: HTTP 522" }],
     } satisfies GroupsIndex);
 
-    const res = await SELF.fetch("https://satvis.space/api/refresh", { method: "POST", headers: AUTH });
+    const res = await postRefresh();
     expect(res.status).toBe(429);
     expect(Number(res.headers.get("Retry-After"))).toBeGreaterThan(0);
     const body = (await res.json()) as { refreshed: boolean; reason: string; retryAfterMs: number; groups: { name: string; lastError?: string }[] };
@@ -356,7 +299,7 @@ describe("scheduled() refresh", () => {
     expect(body.groups.find((g) => g.name === "weather")?.lastError).toContain("HTTP 522");
   });
 
-  it("rejects a non-POST /api/refresh with 405", async () => {
+  it("rejects another method with 405", async () => {
     const res = await SELF.fetch("https://satvis.space/api/refresh");
     expect(res.status).toBe(405);
     expect(res.headers.get("Allow")).toBe("POST");
@@ -366,7 +309,7 @@ describe("scheduled() refresh", () => {
   it.each([
     ["no Authorization header", {}],
     ["a wrong token", { Authorization: "Bearer not-the-token" }],
-  ])("rejects POST /api/refresh with %s", async (_label, headers) => {
+  ])("rejects %s", async (_label, headers) => {
     const res = await SELF.fetch("https://satvis.space/api/refresh", { method: "POST", headers });
     expect(res.status).toBe(401);
   });
@@ -375,7 +318,7 @@ describe("scheduled() refresh", () => {
     const configured = secretEnv.REFRESH_TOKEN;
     delete secretEnv.REFRESH_TOKEN;
     try {
-      const res = await SELF.fetch("https://satvis.space/api/refresh", { method: "POST", headers: AUTH });
+      const res = await postRefresh();
       expect(res.status).toBe(503);
     } finally {
       secretEnv.REFRESH_TOKEN = configured;
@@ -414,16 +357,24 @@ describe("POST /api/ingest", () => {
   });
 
   it("carves the derived groups out of the ingested active source", async () => {
-    // The same carve-out assertions as the scheduled() test.
+    // Each record lands in exactly one group, the anchored patterns skip names that
+    // merely contain a prefix, and `satellites` rows (real ids) pull in the unprefixed members.
     await postIngest(
       ingestBundle((source) =>
         source === "active"
           ? [
               { OBJECT_NAME: "STARLINK-1234", NORAD_CAT_ID: 1 },
               { OBJECT_NAME: "ONEWEB-0042", NORAD_CAT_ID: 2 },
+              { OBJECT_NAME: "GLOBALSTAR M001", NORAD_CAT_ID: 3 },
+              { OBJECT_NAME: "IRIDIUM 100", NORAD_CAT_ID: 4 },
+              { OBJECT_NAME: "FLOCK 4X-1", NORAD_CAT_ID: 5 },
+              { OBJECT_NAME: "PELICAN-11", NORAD_CAT_ID: 6 },
               { OBJECT_NAME: "LEMUR-2-CLARA", NORAD_CAT_ID: 7 },
+              { OBJECT_NAME: "EUTELSAT 7C", NORAD_CAT_ID: 8 },
               { OBJECT_NAME: "OTTER SDM", NORAD_CAT_ID: 66678 },
+              { OBJECT_NAME: "EXPRESS-AT1", NORAD_CAT_ID: 39612 },
               { OBJECT_NAME: "NOT-STARLINK-9", NORAD_CAT_ID: 90 },
+              { OBJECT_NAME: "COSMOS 2251", NORAD_CAT_ID: 91 },
             ]
           : [{ OBJECT_NAME: `${source.toUpperCase()}-1`, NORAD_CAT_ID: 900 }],
       ),
@@ -431,7 +382,11 @@ describe("POST /api/ingest", () => {
 
     expect(await idsOf("starlink")).toEqual([1]);
     expect(await idsOf("oneweb")).toEqual([2]);
+    expect(await idsOf("globalstar")).toEqual([3]);
+    expect(await idsOf("iridium-NEXT")).toEqual([4]);
+    expect(await idsOf("planet")).toEqual([5, 6]);
     expect(await idsOf("spire")).toEqual([7, 66678]);
+    expect(await idsOf("eutelsat")).toEqual([8, 39612]);
   });
 
   it("preserves last-known-good for a source the downloader could not fetch", async () => {
@@ -634,7 +589,7 @@ describe("GET /api/status", () => {
   });
 });
 
-describe("POST /api/upstream/refresh and the catalog schedule", () => {
+describe("POST /api/upstream/refresh", () => {
   let fetchSpy: MockInstance<typeof fetch>;
 
   beforeEach(async () => {
@@ -655,21 +610,12 @@ describe("POST /api/upstream/refresh and the catalog schedule", () => {
     vi.restoreAllMocks();
   });
 
-  it("downloads every table, and stores the changed one", async () => {
+  it("downloads every table and no GP source, and stores the changed one", async () => {
     const res = await SELF.fetch("https://satvis.space/api/upstream/refresh", { method: "POST", headers: AUTH });
     expect(res.status).toBe(200);
     expect(fetchSpy).toHaveBeenCalledTimes(UPSTREAMS.length);
     expect(((await res.json()) as { sources: Record<string, { etag?: string }> }).sources.gcat).toMatchObject({ etag: '"cat1"' });
     expect((await status()).sources.gcat).toMatchObject({ rows: 1, etag: '"cat1"' });
-  });
-
-  it("runs on the catalog cron, and fetches no GP source", async () => {
-    const ctx = createExecutionContext();
-    await worker.scheduled(createScheduledController({ scheduledTime: Date.now(), cron: CATALOG_CRON }), env, ctx);
-    await waitOnExecutionContext(ctx);
-
-    expect(fetchSpy).toHaveBeenCalledTimes(UPSTREAMS.length);
-    expect((await status()).sources.gcat).toMatchObject({ rows: 1 });
   });
 
   it("needs the token", async () => {

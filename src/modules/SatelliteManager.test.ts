@@ -1,5 +1,5 @@
-import { JulianDate } from "@cesium/core";
-import { SceneMode } from "@cesium/engine";
+import { JulianDate, Matrix3 } from "@cesium/core";
+import { Entity, SceneMode, Transforms } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -23,8 +23,16 @@ function fakeViewer() {
   };
   const viewer = {
     clock: { currentTime: JulianDate.fromIso8601("2018-12-08T00:00:00Z"), shouldAnimate: false, onTick: listeners() },
-    scene: { requestRender: () => {}, primitives: { add: () => {}, remove: () => true }, preRender: listeners(), postRender: listeners(), morphComplete: listeners(), mode: 3 },
-    camera: { cancelFlight: () => {} },
+    scene: {
+      requestRender: () => {},
+      primitives: { add: () => {}, remove: () => true },
+      preRender: listeners(),
+      postRender: listeners(),
+      morphComplete: listeners(),
+      mode: 3,
+      globe: {},
+    },
+    camera: { cancelFlight: () => {}, flyTo: () => {} },
     entities: { add: (e: unknown) => entities.add(e) && e, remove: (e: unknown) => entities.delete(e), contains: (e: unknown) => entities.has(e), size: () => entities.size },
     selectedEntity: undefined,
     trackedEntity: undefined,
@@ -118,7 +126,7 @@ describe("SatelliteManager", () => {
     sats.setCustomRecords([]);
     await sats.buildSettled();
     expect(sats.activeSatellites).toEqual([]);
-    expect(sats.catalog.size).toBe(0);
+    expect(sats.catalog.entries).toHaveLength(0);
   });
 
   test("keeps a custom satellite apart from a group serving its name and NORAD id later", async () => {
@@ -184,5 +192,50 @@ describe("SatelliteManager", () => {
     expect(reported).toEqual([]);
     expect(track.mock.contexts).toEqual([sats.getSatellite("ISS (ZARYA)")]);
     track.mockRestore();
+  });
+
+  test("lists the drawn satellites' passes over a station once their prediction answers", async () => {
+    const viewer = fakeViewer();
+    const sats = new SatelliteManager(viewer, { samples: new InlineSampleSource(), passes: new InlinePassSource() });
+    sats.addRecords(parseGpPayload(TLES), ["Test"]);
+    sats.reconcile(scene({ enabledTags: ["Test"], groundStations: [{ lat: 48.14, lon: 11.58, name: "Munich" }] }));
+    await sats.buildSettled();
+    const time = viewer.clock.currentTime;
+
+    expect(sats.stationPasses("Munich", time)).toEqual([]);
+    expect(sats.stationPassesSettled(time)).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const passes = sats.stationPasses("Munich", time);
+    expect(sats.stationPassesSettled(time)).toBe(true);
+    expect(new Set(passes.map((pass) => pass.name))).toEqual(new Set(["ISS (ZARYA)", "NOAA 20"]));
+    expect(passes.map((pass) => pass.start)).toEqual(passes.map((pass) => pass.start).toSorted((a, b) => a - b));
+    expect(sats.stationPasses("Paris", time)).toEqual([]);
+  });
+
+  test("draws a tracked satellite's orbit once, and leaves no line behind once it is let go and dropped", async () => {
+    // The ICRF transform needs async-loaded IAU data that Node lacks.
+    vi.spyOn(Transforms, "computeFixedToIcrfMatrix").mockImplementation(() => Matrix3.clone(Matrix3.IDENTITY));
+    const viewer = fakeViewer();
+    const sats = new SatelliteManager(viewer, { samples: new InlineSampleSource(), passes: new InlinePassSource() });
+    const add = vi.spyOn(sats.orbits, "add");
+    const remove = vi.spyOn(sats.orbits, "remove");
+    sats.addRecords(parseGpPayload(TLES), ["Test"]);
+    sats.reconcile(scene({ enabledSatellites: ["ISS (ZARYA)"], components: ["Point", "Orbit"] }));
+    await sats.buildSettled();
+    const raiseTracked = () => (viewer as unknown as { trackedEntityChanged: { raise: () => void } }).trackedEntityChanged.raise();
+
+    viewer.trackedEntity = sats.getSatellite("ISS (ZARYA)")!.defaultEntity;
+    raiseTracked();
+    expect(sats.getSatellite("ISS (ZARYA)")!.components.Orbit).toBeInstanceOf(Entity);
+    viewer.trackedEntity = undefined;
+    raiseTracked();
+    sats.reconcile(scene({ components: ["Point", "Orbit"] }));
+
+    // A line added twice holds two slots, and its removal frees only one.
+    expect(sats.activeSatellites).toEqual([]);
+    expect(add.mock.calls.length).toBe(2);
+    expect(remove.mock.calls.map(([line]) => line)).toEqual(add.mock.calls.map(([line]) => line));
+    vi.restoreAllMocks();
   });
 });

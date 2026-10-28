@@ -88,7 +88,7 @@ try {
   const parsed = records.map((record) => ({
     name: gp.recordName(record),
     satnum: gp.recordSatnum(record),
-    orbitClass: record.metadata.orbitClass,
+    orbitClass: gp.orbitClassOf(record),
     approximatePeriodMinutes: gp.approximatePeriodMinutes(record),
   }));
 
@@ -125,7 +125,7 @@ try {
     const satrec = gp.createSatrec(record);
     const periodMs = ((2 * Math.PI) / satrec.no) * MS_PER_MINUTE;
     const now = gridAnchorEpochMs(satrec) + 60 * MS_PER_MINUTE;
-    const chunk = sampleInterval(satrec, parsed[index].satnum, now - 0.5 * periodMs, now + 1.5 * periodMs);
+    const chunk = sampleInterval(satrec, now - 0.5 * periodMs, now + 1.5 * periodMs);
     const every = 20;
     return {
       record: index,
@@ -142,7 +142,7 @@ try {
   // then the element set as the panel shows it.
   const details = records.map((record, index) => {
     const orbit = new Orbit(parsed[index].name, record);
-    const { orbitClass, chips, status, orbitRows, spacecraftRows } = entityInfo.getSatelliteInfo(orbit, record.metadata.orbitClass, record.metadata);
+    const { orbitClass, chips, status, orbitRows, spacecraftRows } = entityInfo.getSatelliteInfo(orbit, gp.orbitClassOf(record), record.metadata ?? {});
     return { facts: { orbitClass, chips, status, orbitRows, spacecraftRows }, elements: entityInfo.getElementsInfo(orbit) };
   });
 
@@ -155,7 +155,7 @@ try {
     const startMs = Math.ceil((orbit.julianDate - 2440587.5) * 1440) * MS_PER_MINUTE;
     const start = new Date(startMs);
     const end = new Date(startMs + PASS_WINDOW_DAYS * 1440 * MS_PER_MINUTE);
-    const own = swathExtentsOf(record.metadata);
+    const own = swathExtentsOf(record.metadata ?? {});
     const swaths = own ? [own, ASYMMETRIC_SWATH] : [{ starboardKm: DEFAULT_SWATH_KM / 2, portKm: DEFAULT_SWATH_KM / 2 }];
     return STATIONS.flatMap((station, stationIndex) => {
       const position = { latitude: station.latitude, longitude: station.longitude, height: 0 };
@@ -232,6 +232,7 @@ try {
   const { JulianDate } = await runner.import("@cesium/core");
   const passPredictor = await runner.import("/src/modules/PassPredictor.ts");
   const { passTimelineLayout } = await runner.import("/src/modules/util/passTimeline.ts");
+  const { compassPoint } = await runner.import("/src/modules/skyGeometry.ts");
   const presentation = passes
     .filter((entry) => entry.passes.length > 0)
     .map((entry) => {
@@ -256,7 +257,7 @@ try {
     untilMs,
     text: passPredictor.formatCountdown(0, { start: untilMs, end: untilMs + 600_000 }),
   }));
-  const compassPoints = [-11.25, 0, 11.24, 11.25, 33.75, 180, 348.75, 359.99, 371.25].map((azimuth) => ({ azimuth, point: passPredictor.compassPoint(azimuth) }));
+  const compassPoints = [-11.25, 0, 11.24, 11.25, 33.75, 180, 348.75, 359.99, 371.25].map((azimuth) => ({ azimuth, point: compassPoint(azimuth) }));
 
   // Links (ADR 0001): each field kind's answer for awkward input, then whole links
   // decoded onto a preset's defaults and written back, over the parameters and

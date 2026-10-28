@@ -6,7 +6,6 @@
 .git
 .claude
 dist
-dev-dist
 report
 ios
 worker/.cache

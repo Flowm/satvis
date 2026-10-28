@@ -37,6 +37,8 @@ const position: Ref<PositionRow[]> = ref([]);
 const passRows: Ref<PassRow[]> = ref([]);
 /** The passes behind `passRows`, in the same order. */
 const passes: ShallowRef<readonly Pass[]> = shallowRef([]);
+/** The selected satellite's passes, past ones included, which the clock deck marks; empty for anything else. */
+const satellitePasses: ShallowRef<readonly Pass[]> = shallowRef([]);
 /** The ongoing or next pass. */
 const nextPass: ShallowRef<Pass | null> = shallowRef(null);
 /** Distinct subjects in the pass list. At one, the panel drops the first column. */
@@ -64,6 +66,7 @@ const satelliteInfo: ShallowRef<SatelliteInfo | undefined> = shallowRef();
 
 let controller: CesiumController | undefined;
 let removeTickCallback: (() => void) | undefined;
+let removePassesListener: (() => void) | undefined;
 
 function cc(): CesiumController {
   if (!controller) {
@@ -123,6 +126,7 @@ function refreshData(sel: Selection, time: JulianDate): void {
     staleNotice.value = elements.value ? staleElementsNotice(elements.value.epochMs, JulianDate.toDate(time).getTime()) : undefined;
     passesPending.value = !props.passPredictor.settled(time);
     hasAnyPasses.value = allPasses.length > 0;
+    satellitePasses.value = allPasses;
     setPasses(filterPasses(allPasses, time, showPastPasses.value), time, "groundStationName", mode);
   } else {
     const { gs } = sel;
@@ -133,8 +137,8 @@ function refreshData(sel: Selection, time: JulianDate): void {
       { label: "Longitude", value: `${gs.position.longitude.toFixed(2)}°` },
     ];
     staleNotice.value = undefined;
-    const allPasses = gs.passes(time);
-    passesPending.value = !gs.passesSettled(time);
+    const allPasses = sats.stationPasses(gs.name, time);
+    passesPending.value = !sats.stationPassesSettled(time);
     hasAnyPasses.value = allPasses.length > 0;
     setPasses(filterPasses(allPasses, time, showPastPasses.value), time, "name", mode);
   }
@@ -162,6 +166,10 @@ function update(time?: JulianDate): void {
     satelliteInfo.value = next?.kind === "satellite" ? getSatelliteInfo(next.sat.props.orbit, next.sat.props.orbitClass, next.sat.props.metadata) : undefined;
     // A pass picked on one entity's timeline means nothing on the next one's.
     pickedPassMs.value = null;
+    satellitePasses.value = [];
+    // Prediction answers late, and the refresh below never runs while the clock is paused.
+    removePassesListener?.();
+    removePassesListener = next?.kind === "satellite" ? next.sat.props.passPredictor.onChanged(() => update()) : undefined;
     if (next && !removeTickCallback) {
       removeTickCallback = CesiumCallbackHelper.createThrottledTimeCallback(viewer, 1, (tickTime) => update(tickTime));
     } else if (!next && removeTickCallback) {
@@ -180,9 +188,10 @@ function init(): void {
   const { viewer } = cc();
   viewer.selectedEntityChanged.addEventListener(() => update());
   viewer.trackedEntityChanged.addEventListener(() => syncTracked());
-  // sceneSync's watcher (started in app.ts) sets cc.sats.overpassMode first, so update() reads the new mode.
-  const { overpassMode } = storeToRefs(useSatStore());
-  watch(overpassMode, () => update());
+  // sceneSync's watcher (started in app.ts) hands the manager the mode and the stations first, so
+  // update() reads them, and asks again for passes the stations' change cleared.
+  const { overpassMode, groundStations } = storeToRefs(useSatStore());
+  watch([overpassMode, groundStations], () => update());
   watch(showPastPasses, () => update());
   // Pick up a selection made before the first panel mount.
   update();
@@ -233,6 +242,7 @@ export function useSelectedEntity(instance: CesiumController) {
     position,
     passRows,
     passes,
+    satellitePasses,
     nextPass,
     subjectCount,
     nowMs,

@@ -5,9 +5,12 @@ import type { JulianDate } from "@cesium/core";
 import { useCesiumStore } from "../../stores/cesium";
 import { useSatStore } from "../../stores/sat";
 import type { CesiumController } from "../CesiumController";
-import type { DesiredScene } from "../SatelliteManager";
-import type { BenchmarkTarget, FootprintSample, MeasureOptions, SceneApplied, SceneRequest } from "./benchmarkRunner";
+import { EMPTY_SCENE, type DesiredScene } from "../SatelliteManager";
+import { desiredScene } from "../sceneSync";
+import { formatComponents, type BenchmarkStep } from "./benchmarkPlan";
+import type { BenchmarkOptions, BenchmarkTarget, FootprintSample, MeasureOptions, SceneApplied } from "./benchmarkRunner";
 import { FrameSampler, type FrameSample } from "./frameSampler";
+import { GPU_TIMER_TRUST_FACTOR } from "./report";
 
 declare global {
   /** `performance.measureUserAgentSpecificMemory()` is not in the dom lib (not Baseline). */
@@ -35,20 +38,24 @@ const BYTES_PER_MB = 1024 * 1024;
 const GPU_QUERY_POLL_MS = 4;
 const GPU_QUERY_MAX_POLLS = 250;
 
-export interface LiveSnapshot {
-  frames: FrameSample;
-  satellitesVisible: number;
-  componentsDrawn: string[];
-  clockMultiplier: number;
+export interface LiveReadout {
+  fps: number;
+  frameMs: number;
+  p95Ms: number;
+  worstMs: number;
+  cpuMs: number;
+  /** Undefined without a GPU clock, or with one that contradicts the frame rate. */
+  gpuMs: number | undefined;
+  jankPct: number;
+  /** The window's heap floor, not the live set. Undefined outside Chrome. */
+  heapMb: number | undefined;
+  /** The gap to the floor is uncollected garbage; see FrameSample.heap. */
+  heapPeakMb: number | undefined;
+  satellites: number;
+  components: string;
+  clock: number;
   entities: number;
   primitives: number;
-}
-
-export interface TargetOptions {
-  /** Unset means the whole loaded catalog. */
-  tag?: string;
-  /** Switches pass prediction on for every satellite: a large cost unrelated to drawing. */
-  groundStation?: { lat: number; lon: number };
 }
 
 /**
@@ -142,7 +149,8 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
   /** At most one in flight: one per frame would queue hundreds and force a flush on each. */
   #queryInFlight: { query: WebGLQuery; targets: GpuTarget[] } | undefined;
 
-  options: TargetOptions = {};
+  /** The sweep's, from prepare(). */
+  #options: BenchmarkOptions | undefined;
 
   /**
    * State before the first prepare(), held until restore() so a run that throws still restores it.
@@ -261,17 +269,24 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     setTimeout(poll, GPU_QUERY_POLL_MS);
   }
 
-  get gpuTimingAvailable(): boolean {
-    return this.#timerExt !== undefined;
-  }
-
   /** Sampled continuously, sweep or not. */
-  live(): LiveSnapshot {
+  live(): LiveReadout {
+    const { fps, wall, cpu, gpu, heap, jankRatio } = this.#live.snapshot();
+    const gpuMs = gpu?.mean;
     return {
-      frames: this.#live.snapshot(),
-      satellitesVisible: this.#cc.sats.visibleSatellites.length,
-      componentsDrawn: this.#cc.sats.enabledComponents,
-      clockMultiplier: this.#cc.viewer.clock.multiplier,
+      fps,
+      frameMs: wall?.mean ?? 0,
+      p95Ms: wall?.p95 ?? 0,
+      worstMs: wall?.max ?? 0,
+      cpuMs: cpu?.mean ?? 0,
+      // The report's per-run GPU gate, applied per snapshot.
+      gpuMs: gpuMs !== undefined && wall !== undefined && wall.p50 > 0 && gpuMs <= wall.p50 * GPU_TIMER_TRUST_FACTOR ? gpuMs : undefined,
+      jankPct: jankRatio * 100,
+      heapMb: heap?.min,
+      heapPeakMb: heap?.max,
+      satellites: this.#cc.sats.visibleSatellites.length,
+      components: formatComponents(this.#cc.sats.enabledComponents),
+      clock: this.#cc.viewer.clock.multiplier,
       entities: this.#cc.viewer.entities.values.length,
       primitives: this.#cc.viewer.scene.primitives.length,
     };
@@ -302,10 +317,7 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     const { clock } = this.#cc.viewer;
     // eslint-disable-next-line @typescript-eslint/unbound-method
     const original = clock.tick;
-    if ((original as { __benchmarkWrapped?: boolean }).__benchmarkWrapped) {
-      return;
-    }
-    const wrapped = (): JulianDate => {
+    clock.tick = (): JulianDate => {
       const started = performance.now();
       try {
         return original.call(clock);
@@ -313,14 +325,13 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
         this.#tickMs = performance.now() - started;
       }
     };
-    (wrapped as { __benchmarkWrapped?: boolean }).__benchmarkWrapped = true;
-    clock.tick = wrapped;
   }
 
-  async prepare(): Promise<void> {
+  async prepare(options: BenchmarkOptions): Promise<void> {
+    this.#options = options;
     const { clock } = this.#cc.viewer;
     const cesiumStore = useCesiumStore();
-    this.#saved ??= { requestRenderMode: cesiumStore.requestRenderMode, shouldAnimate: clock.shouldAnimate, multiplier: clock.multiplier, scene: this.#storeScene() };
+    this.#saved ??= { requestRenderMode: cesiumStore.requestRenderMode, shouldAnimate: clock.shouldAnimate, multiplier: clock.multiplier, scene: desiredScene(useSatStore()) };
     // requestRenderMode skips idle frames, and a stopped clock skips position
     // updates; either would measure idleness. Set through the store so the Render
     // menu's switch follows.
@@ -334,8 +345,8 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     return this.#names().length;
   }
 
-  async apply(request: SceneRequest): Promise<SceneApplied> {
-    const names = this.#names().slice(0, request.satelliteCount);
+  async apply(step: BenchmarkStep): Promise<SceneApplied> {
+    const names = this.#names().slice(0, step.satelliteCount);
     const { clock } = this.#cc.viewer;
 
     // Real time during the build, or `buildMs` would carry propagation at ×1000.
@@ -350,13 +361,13 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     // Satellites are built to a per-frame budget (SatelliteManager.#build), so
     // reconcile returns early; `buildMs` waits for the complete scene.
     const buildStart = performance.now();
-    this.#cc.sats.reconcile(this.#scene(names, request.components));
+    this.#cc.sats.reconcile(this.#scene(names, step.components));
     await this.#cc.sats.buildSettled();
     const buildMs = performance.now() - buildStart;
     await nextFrames(2);
 
     // Only now, so the warmup absorbs the first refreshes at the new rate.
-    clock.multiplier = request.clockMultiplier;
+    clock.multiplier = step.clockMultiplier;
 
     const satellites = this.#cc.sats.visibleSatellites;
     const componentInstances: Record<string, number> = {};
@@ -366,9 +377,7 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
       }
     }
     return {
-      satellitesRequested: request.satelliteCount,
       satellitesVisible: satellites.length,
-      componentsRequested: [...request.components],
       componentsDrawn: this.#cc.sats.enabledComponents,
       componentInstances,
       clockMultiplier: clock.multiplier,
@@ -440,7 +449,7 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     clock.shouldAnimate = saved.shouldAnimate;
     clock.multiplier = saved.multiplier;
     // The sweep bypassed the store, so sceneSync's watcher will not fire.
-    this.#cc.sats.reconcile(this.#storeScene());
+    this.#cc.sats.reconcile(desiredScene(useSatStore()));
     this.#saved = undefined;
     await nextFrames(1);
   }
@@ -449,34 +458,19 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
    * Sorted, so "the first 500" is stable across runs; deduplicated because activation matches by name.
    */
   #names(): string[] {
-    const entries = this.options.tag ? this.#cc.sats.catalog.entriesWithTag(this.options.tag) : this.#cc.sats.catalog.entries;
+    const tag = this.#options?.tag;
+    const entries = tag ? this.#cc.sats.catalog.entriesWithTag(tag) : this.#cc.sats.catalog.entries;
     // eslint-disable-next-line unicorn/no-array-sort -- already a fresh array
     return [...new Set(entries.map((entry) => entry.name))].sort();
   }
 
   #scene(enabledSatellites: string[], components: readonly string[]): DesiredScene {
-    const station = this.options.groundStation;
+    const station = this.#options?.groundStation;
     return {
-      enabledTags: [],
+      ...EMPTY_SCENE,
       enabledSatellites,
-      disabledSatellites: [],
       components: [...components],
       groundStations: station ? [{ lat: station.lat, lon: station.lon, name: "Benchmark" }] : [],
-      overpassMode: "elevation",
-      trackedSatellite: "",
-    };
-  }
-
-  #storeScene(): DesiredScene {
-    const store = useSatStore();
-    return {
-      enabledTags: [...store.enabledTags],
-      enabledSatellites: [...store.enabledSatellites],
-      disabledSatellites: [...store.disabledSatellites],
-      components: [...store.enabledComponents],
-      groundStations: store.groundStations.map((station) => ({ ...station })),
-      overpassMode: store.overpassMode,
-      trackedSatellite: store.trackedSatellite,
     };
   }
 }

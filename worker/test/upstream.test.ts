@@ -188,26 +188,12 @@ describe("loadUpstream", () => {
     expect(await loadUpstream(SATCAT, store)).toEqual({ "25544": expect.objectContaining({ launchSite: "TYMSC" }) });
   });
 
-  it("parses a file stored without rows, and keeps its rows", async () => {
+  it("answers undefined when no rows are stored, even beside a stored file", async () => {
     const { store, rows } = memoryStore();
-    await storeUpstream(SATCAT, store, SATCAT_CSV, undefined, NOW);
-    rows.clear();
-
-    expect(await loadUpstream(SATCAT, store)).toHaveProperty("25544");
-    expect(rows.get("satcat")).toHaveProperty("25544");
-  });
-
-  it("answers undefined, not a throw, when nothing is stored or a file without rows no longer parses", async () => {
-    const { store, files, rows } = memoryStore();
     expect(await loadUpstream(SATCAT, store)).toBeUndefined();
 
     await storeUpstream(SATCAT, store, SATCAT_CSV, undefined, NOW);
     rows.clear();
-    const gcatParserOnSatcat = { ...SATCAT, parse: parseGcatCatalog };
-    expect(await loadUpstream(gcatParserOnSatcat, store)).toBeUndefined();
-
-    files.set("satcat", new Uint8Array([1, 2, 3]));
     expect(await loadUpstream(SATCAT, store)).toBeUndefined();
-    expect(rows.size).toBe(0);
   });
 });

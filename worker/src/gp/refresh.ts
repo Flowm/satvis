@@ -1,4 +1,4 @@
-// Store-agnostic: the Worker runs it against KV (workerRuntime.ts), scripts/update-static-gp.mjs against disk.
+// Store-agnostic: the Worker runs it against KV (api.ts), scripts/update-static-gp.mjs against disk.
 
 import type { FetchImpl } from "./download.ts";
 import { evaluateGroups } from "./evaluate.ts";

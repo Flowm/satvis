@@ -69,7 +69,7 @@ describe("useCatalogFilters", () => {
     const { satStore, sheet } = await setup();
     satStore.setActivation({ enabledTags: ["Weather"] });
     sheet.toggle("purpose", "Communications");
-    expect(sheet.showOnly(sheet.matched.value)).toBe(SHOW_CAP);
+    sheet.showOnly(sheet.matched.value);
     expect(satStore.enabledTags).toEqual([]);
     expect(satStore.enabledSatellites).toHaveLength(SHOW_CAP);
   });
@@ -78,7 +78,7 @@ describe("useCatalogFilters", () => {
     const { satStore, sheet } = await setup();
     satStore.setActivation({ enabledTags: ["Weather"] });
     sheet.toggle("purpose", "Meteorology");
-    expect(sheet.add(sheet.matched.value)).toBe(0);
+    sheet.add(sheet.matched.value);
     expect(satStore.enabledSatellites).toEqual([]);
   });
 

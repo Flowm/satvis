@@ -40,7 +40,7 @@
         {{ live.heapMb === undefined ? "n/a" : `${live.heapMb.toFixed(0)} MB` }}
       </div>
       <div class="bench__row bench__dim">
-        {{ live.satellites }} sats · {{ live.components || "no components" }} · ×{{ live.clock }} · {{ live.entities }} entities · {{ live.primitives }} primitives
+        {{ live.satellites }} sats · {{ live.components }} · ×{{ live.clock }} · {{ live.entities }} entities · {{ live.primitives }} primitives
       </div>
     </div>
 
@@ -277,7 +277,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 
 import { useController } from "../composables/useController";
 import {
@@ -289,10 +289,8 @@ import {
   canMeasureFootprint,
   estimateDurationMs,
   FOOTPRINT_CAPTURE_MS,
-  formatComponents,
   installBenchmark,
   logRun,
-  marginalCosts,
   memoryFits,
   propagationCosts,
   reportRows,
@@ -301,14 +299,12 @@ import {
   toCsv,
   toJson,
   formatTable,
-  GPU_TIMER_TRUST_FACTOR,
   MIN_MEMORY_FIT_POINTS,
   MIN_TRUSTWORTHY_FRAMES,
   MIN_TRUSTWORTHY_MEMORY_R2,
   absoluteFitTrustworthy,
   hasFootprints,
   memoryFitTrustworthy,
-  type BenchmarkRun,
   type MemoryFit,
   type PropagationCost,
   isDrifted,
@@ -361,7 +357,6 @@ const settingsOpen = ref(true);
  * invalidates. Every derived view reads this counter instead.
  */
 const revision = ref(0);
-const finished = ref<BenchmarkRun | undefined>(undefined);
 
 const counts = computed(() =>
   countsText.value
@@ -398,7 +393,7 @@ const estimateText = computed(() => {
 
 /** `mode` is recovered by comparing against the presets; anything else is "current". */
 function adoptRunSettings(): void {
-  const current = run();
+  const current = bench.runner.run;
   if (!current) {
     return;
   }
@@ -411,7 +406,7 @@ function adoptRunSettings(): void {
   warmupMs.value = current.options.warmupMs;
   sampleMs.value = current.options.sampleMs;
   withFootprint.value = current.options.captureFootprint === true;
-  withGroundStation.value = bench.target.options.groundStation !== undefined;
+  withGroundStation.value = current.options.groundStation !== undefined;
 }
 
 const settingsSummary = computed(() => {
@@ -428,31 +423,29 @@ const settingsSummary = computed(() => {
   return `· ${parts.join(" · ")}`;
 });
 
-const run = (): BenchmarkRun | undefined => bench.runner.run ?? finished.value;
-
 const rows = computed<ReportRow[]>(() => {
   void revision.value;
-  const current = run();
+  const current = bench.runner.run;
   return current ? reportRows(current) : [];
 });
 const fits = computed<ScalingFit[]>(() => {
   void revision.value;
-  const current = run();
+  const current = bench.runner.run;
   return current && current.results.length > 1 ? scalingFits(current) : [];
 });
 const memory = computed<MemoryFit[]>(() => {
   void revision.value;
-  const current = run();
+  const current = bench.runner.run;
   return current && current.results.length > 1 ? memoryFits(current) : [];
 });
 const propagation = computed<PropagationCost[]>(() => {
   void revision.value;
-  const current = run();
+  const current = bench.runner.run;
   return current ? propagationCosts(current) : [];
 });
 const repeats = computed<RepeatCheck[]>(() => {
   void revision.value;
-  const current = run();
+  const current = bench.runner.run;
   return current ? repeatChecks(current) : [];
 });
 
@@ -468,48 +461,13 @@ const gpuColumn = computed(() => rows.value.some((row) => row.gpuMs !== ""));
 
 const footprintColumn = computed(() => {
   void revision.value;
-  const current = run();
+  const current = bench.runner.run;
   return current !== undefined && hasFootprints(current);
 });
 
-interface Live {
-  fps: number;
-  frameMs: number;
-  p95Ms: number;
-  worstMs: number;
-  cpuMs: number;
-  /** Undefined without a GPU clock, or with one that contradicts the frame rate. */
-  gpuMs: number | undefined;
-  jankPct: number;
-  /** The window's heap floor, not the live set. Undefined outside Chrome. */
-  heapMb: number | undefined;
-  satellites: number;
-  components: string;
-  clock: number;
-  entities: number;
-  primitives: number;
-}
-const EMPTY_LIVE: Live = {
-  fps: 0,
-  frameMs: 0,
-  p95Ms: 0,
-  worstMs: 0,
-  cpuMs: 0,
-  gpuMs: undefined,
-  jankPct: 0,
-  heapMb: undefined,
-  satellites: 0,
-  components: "",
-  clock: 1,
-  entities: 0,
-  primitives: 0,
-};
-const live = ref<Live>(EMPTY_LIVE);
+const live = ref(bench.target.live());
 
 const fpsClass = computed(() => (live.value.fps < FPS_BAD ? "bench__bad" : live.value.fps < FPS_WARN ? "bench__warn" : "bench__good"));
-
-const gpuOrUndefined = (gpuMs: number | undefined, wallP50: number | undefined): number | undefined =>
-  gpuMs !== undefined && wallP50 !== undefined && wallP50 > 0 && gpuMs <= wallP50 * GPU_TIMER_TRUST_FACTOR ? gpuMs : undefined;
 
 function disableRenderOnDemand(): void {
   cesiumStore.requestRenderMode = false;
@@ -532,23 +490,7 @@ function refresh(): void {
     }
   }
   revision.value += 1;
-  const snapshot = bench.target.live();
-  live.value = {
-    fps: snapshot.frames.fps,
-    frameMs: snapshot.frames.wall?.mean ?? 0,
-    p95Ms: snapshot.frames.wall?.p95 ?? 0,
-    worstMs: snapshot.frames.wall?.max ?? 0,
-    cpuMs: snapshot.frames.cpu?.mean ?? 0,
-    // The report's per-run GPU gate, applied per snapshot.
-    gpuMs: gpuOrUndefined(snapshot.frames.gpu?.mean, snapshot.frames.wall?.p50),
-    jankPct: snapshot.frames.jankRatio * 100,
-    heapMb: snapshot.frames.heap?.min,
-    satellites: snapshot.satellitesVisible,
-    components: formatComponents(snapshot.componentsDrawn),
-    clock: snapshot.clockMultiplier,
-    entities: snapshot.entities,
-    primitives: snapshot.primitives,
-  };
+  live.value = bench.target.live();
 }
 
 /** Restored on close. Not the target's job: its save/restore is scoped to a run. */
@@ -577,13 +519,17 @@ let startedHere = false;
 
 async function start(): Promise<void> {
   startedHere = true;
-  running.value = true;
-  finished.value = undefined;
   status.value = "preparing — loading the whole catalog";
   try {
-    const result = await bench.runner.start(
+    const sweep = bench.runner.start(
       spec.value,
-      { warmupMs: warmupMs.value, sampleMs: sampleMs.value, captureFootprint: withFootprint.value },
+      {
+        warmupMs: warmupMs.value,
+        sampleMs: sampleMs.value,
+        captureFootprint: withFootprint.value,
+        // Any location works.
+        groundStation: withGroundStation.value ? { lat: 48.1772, lon: 11.7476 } : undefined,
+      },
       {
         onProgress: ({ done, total, step }) => {
           status.value = `${done + 1}/${total} — ${step.label}`;
@@ -594,14 +540,15 @@ async function start(): Promise<void> {
         },
       },
     );
-    finished.value = result;
+    running.value = bench.runner.running;
+    const result = await sweep;
     status.value = result.cancelled ? `cancelled after ${result.results.length} steps` : `done — ${result.results.length} steps`;
     logRun(result);
   } catch (error) {
     status.value = `failed: ${String(error)}`;
   } finally {
     startedHere = false;
-    running.value = false;
+    running.value = bench.runner.running;
     revision.value += 1;
   }
 }
@@ -612,15 +559,14 @@ function cancel(): void {
 }
 
 function logToConsole(): void {
-  const current = run();
+  const current = bench.runner.run;
   if (current) {
     logRun(current);
-    console.table(marginalCosts(current));
   }
 }
 
 async function copy(format: "csv" | "json" | "text"): Promise<void> {
-  const current = run();
+  const current = bench.runner.run;
   if (!current) {
     return;
   }
@@ -636,16 +582,6 @@ async function copy(format: "csv" | "json" | "text"): Promise<void> {
     copied.value = "";
   }, 2000);
 }
-
-// On the shared target, because it belongs to the scene, not the sweep. Any location works.
-watch(
-  withGroundStation,
-  (enabled) => {
-    // Merged, so a console run's `tag` survives.
-    bench.target.options = { ...bench.target.options, groundStation: enabled ? { lat: 48.1772, lon: 11.7476 } : undefined };
-  },
-  { immediate: true },
-);
 </script>
 
 <style scoped>

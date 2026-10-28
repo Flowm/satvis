@@ -1,9 +1,9 @@
-import { Cartesian3, Math as CesiumMath, PerspectiveFrustum } from "@cesium/core";
+import { Cartesian3, Cartographic, Math as CesiumMath, PerspectiveFrustum } from "@cesium/core";
 import { type LabelCollection, type Scene, SceneMode } from "@cesium/engine";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import type { Aim } from "./skyGeometry";
 import {
-  type Aim,
   defaultAzimuth,
   DEFAULT_FOVY,
   DEFAULT_PITCH,
@@ -290,5 +290,36 @@ describe("the scene state the view borrows", () => {
     expect(labels.coarseDepthTestDistance).toBe(Number.POSITIVE_INFINITY);
     await view.exit();
     expect(labels.coarseDepthTestDistance).toBe(635_675);
+  });
+
+  describe("the ground under the observer", () => {
+    // The stub's globe answers 800 m, so a measured height is told apart from it.
+    const eyeAltitude = (scene: ReturnType<typeof stubScene>): number => Cartographic.fromCartesian(scene.camera.position).height;
+    const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+    async function measuredView() {
+      cut();
+      const scene = stubScene(false);
+      const view = new SkyView(scene as unknown as Scene);
+      let answer: (height: number) => void = () => {};
+      view.setGroundHeightSource(() => new Promise((resolve) => (answer = resolve)));
+      await view.enter({ lat: 47.3879, lon: 12.3077 });
+      return { scene, view, answer: (height: number) => answer(height) };
+    }
+
+    test("stands on what the source measures", async () => {
+      const { scene, answer } = await measuredView();
+      answer(500);
+      await flush();
+      expect(eyeAltitude(scene)).toBeCloseTo(500 + MIN_EYE_HEIGHT, 3);
+    });
+
+    test("discards a measurement that lands after the height was set outright", async () => {
+      const { scene, view, answer } = await measuredView();
+      view.setGroundHeight(300);
+      answer(500);
+      await flush();
+      expect(eyeAltitude(scene)).toBeCloseTo(300 + MIN_EYE_HEIGHT, 3);
+    });
   });
 });

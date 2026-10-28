@@ -3,15 +3,12 @@
 import { SATELLITE_COMPONENTS } from "../../config/components";
 
 export interface BenchmarkStep {
-  index: number;
   satelliteCount: number;
   components: string[];
   /** See DEFAULT_CLOCK_MULTIPLIERS. */
   clockMultiplier: number;
   /** The closing re-run of the first step. Excluded from every derived table. */
   repeat: boolean;
-  /** Component set and clock rate: the report's grouping key, so no fit mixes clocks. */
-  series: string;
   label: string;
 }
 
@@ -72,12 +69,10 @@ export function buildPlan(spec: PlanSpec): BenchmarkStep[] {
   const push = (satelliteCount: number, components: readonly string[], clockMultiplier: number, repeat: boolean): void => {
     const series = formatSeries(components, clockMultiplier);
     steps.push({
-      index: steps.length,
       satelliteCount,
       components: [...components],
       clockMultiplier,
       repeat,
-      series,
       label: `${satelliteCount} sats · ${series}${repeat ? " (repeat)" : ""}`,
     });
   };

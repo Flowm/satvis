@@ -48,11 +48,8 @@ export class BatchedLine {
   /** Distance of the farthest point from the centre of the Earth, metres. */
   readonly radius: number;
 
-  /** Packs `positions`, cut short past a slot; `id` names the line's satellite. */
-  constructor(
-    positions: readonly Cartesian3[],
-    readonly id: string,
-  ) {
+  /** Packs `positions`, cut short past a slot. */
+  constructor(positions: readonly Cartesian3[]) {
     const count = Math.min(positions.length, POINTS_PER_SLOT - 1);
     this.points = new Float32Array(count * 3);
     let radius = 0;
@@ -79,11 +76,6 @@ export class LineSlots {
   /** Slots changed since the last `takeDirty`. */
   #dirty = new Set<number>();
 
-  /** The lines held. */
-  get size(): number {
-    return this.#slotOf.size;
-  }
-
   /** One past the highest slot in use: the slots drawn. */
   get extent(): number {
     return this.#lines.length;
@@ -92,11 +84,6 @@ export class LineSlots {
   /** Whether a slot changed since the last `takeDirty`. */
   get dirty(): boolean {
     return this.#dirty.size > 0;
-  }
-
-  /** Whether `line` has a slot. */
-  has(line: BatchedLine): boolean {
-    return this.#slotOf.has(line);
   }
 
   /** Gives `line` the last freed slot, or a new one at the end. */
@@ -287,9 +274,6 @@ export class PolylineBatch {
   /** The members and their slots in the points buffer. */
   readonly #slots = new LineSlots();
 
-  /** `settled` calls waiting for the next upload. */
-  #settledWaiters: Array<() => void> = [];
-
   /** The farthest point of any line so far, metres; the bound only grows. */
   #radius = 0;
 
@@ -308,25 +292,12 @@ export class PolylineBatch {
   /** Set by `destroy`, for the scene's `isDestroyed`. */
   #destroyed = false;
 
-  /** Read by the scene. */
-  show = true;
-
   /** Adds the batch to `viewer`'s scene, its lines in `frame` and drawn in `color`. */
   constructor(viewer: Viewer, frame: BatchFrame, color: Color) {
     this.#viewer = viewer;
     this.#frame = frame;
     this.#color = color;
     viewer.scene.primitives.add(this);
-  }
-
-  /** Changes not yet on the GPU. */
-  get pending(): boolean {
-    return this.#slots.dirty;
-  }
-
-  /** The members. */
-  get size(): number {
-    return this.#slots.size;
   }
 
   /** Draws `line` from the next rendered frame. */
@@ -357,22 +328,9 @@ export class PolylineBatch {
     return true;
   }
 
-  /**
-   * Resolves once the GPU holds every change. The scene morph waits on it: morphing
-   * first would draw the lines into the projection being left.
-   */
-  settled(): Promise<void> {
-    if (!this.pending) {
-      return Promise.resolve();
-    }
-    return new Promise((resolve) => {
-      this.#settledWaiters.push(resolve);
-    });
-  }
-
   /** Called by the scene on every rendered frame. */
   update(frameState: any): void {
-    if (!this.show || this.#destroyed) {
+    if (this.#destroyed) {
       return;
     }
     const { context } = frameState;
@@ -380,11 +338,6 @@ export class PolylineBatch {
       return;
     }
     this.#upload(context);
-    if (this.#settledWaiters.length > 0) {
-      const waiters = this.#settledWaiters;
-      this.#settledWaiters = [];
-      waiters.forEach((resolve) => resolve());
-    }
     // A batch draws only in 3D; elsewhere its members are paths.
     const extent = this.#slots.extent;
     if (!this.#gpu || extent === 0 || frameState.mode !== SceneMode.SCENE3D || !frameState.passes.render) {

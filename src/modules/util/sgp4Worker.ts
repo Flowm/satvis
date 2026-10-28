@@ -39,7 +39,6 @@ export interface Sgp4Request {
 }
 
 export interface Sgp4Chunk {
-  satnum: string;
   /**
    * Sample i is at `anchorEpochMs + (firstIndex + i) · stepSeconds`. Never place
    * samples from a per-chunk start: `Date` rounds it to whole milliseconds, and two
@@ -47,8 +46,6 @@ export interface Sgp4Chunk {
    */
   anchorEpochMs: number;
   firstIndex: number;
-  /** Epoch milliseconds of the first sample. Not used for placement. */
-  startEpochMs: number;
   stepSeconds: number;
   /**
    * Metres, in Cesium's pseudo-fixed frame: `computeTemeToPseudoFixedMatrix`
@@ -76,9 +73,7 @@ export interface Sgp4Response {
 
 /** Where this element set's grid is anchored, in epoch milliseconds. */
 export function gridAnchorEpochMs(satrec: satellitejs.SatRec): number {
-  // Some satellite.js versions split the epoch across `jdsatepoch` and `jdsatepochF`.
-  const fractional = (satrec as unknown as { jdsatepochF?: number }).jdsatepochF ?? 0;
-  return (satrec.jdsatepoch + fractional - JD_UNIX_EPOCH) * MS_PER_DAY;
+  return (satrec.jdsatepoch - JD_UNIX_EPOCH) * MS_PER_DAY;
 }
 
 export function gridStepSeconds(satrec: satellitejs.SatRec): number {
@@ -94,7 +89,7 @@ export function gridStepSeconds(satrec: satellitejs.SatRec): number {
  * Undefined when the element set yields no usable grid. Pure, so the inline source
  * and the tests run it without a worker.
  */
-export function sampleInterval(satrec: satellitejs.SatRec, satnum: string, fromEpochMs: number, toEpochMs: number): Sgp4Chunk | undefined {
+export function sampleInterval(satrec: satellitejs.SatRec, fromEpochMs: number, toEpochMs: number): Sgp4Chunk | undefined {
   const stepSeconds = gridStepSeconds(satrec);
   const anchor = gridAnchorEpochMs(satrec);
   if (stepSeconds <= 0 || !Number.isFinite(anchor)) {
@@ -107,7 +102,7 @@ export function sampleInterval(satrec: satellitejs.SatRec, satnum: string, fromE
   const startEpochMs = anchor + firstIndex * stepMs;
   if (sampleCount <= 0) {
     // Narrower than one step: answered with no samples, never an off-grid one.
-    return { satnum, anchorEpochMs: anchor, firstIndex, startEpochMs, stepSeconds, positionsFixed: new Float64Array(0), refusedIndices: [] };
+    return { anchorEpochMs: anchor, firstIndex, stepSeconds, positionsFixed: new Float64Array(0), refusedIndices: [] };
   }
 
   // Rotate at `trunc(anchor)`: the consumer turns the anchor into a JulianDate through
@@ -130,7 +125,7 @@ export function sampleInterval(satrec: satellitejs.SatRec, satnum: string, fromE
     positionsFixed[index * 3 + 1] = rotation.cos * y - rotation.sin * x;
     positionsFixed[index * 3 + 2] = position.z * 1000;
   }
-  return { satnum, anchorEpochMs: anchor, firstIndex, startEpochMs, stepSeconds, positionsFixed, refusedIndices };
+  return { anchorEpochMs: anchor, firstIndex, stepSeconds, positionsFixed, refusedIndices };
 }
 
 /**
@@ -181,7 +176,7 @@ export function runCommand(cache: SatrecCache, command: Sgp4Command): Sgp4Reply 
     }
     cache.set(command.satnum, satrec);
   }
-  const chunk = sampleInterval(satrec, command.satnum, command.fromEpochMs, command.toEpochMs);
+  const chunk = sampleInterval(satrec, command.fromEpochMs, command.toEpochMs);
   return chunk ? { kind: "chunk", chunk } : { kind: "unopenable", satnum: command.satnum, reason: "no usable mean motion" };
 }
 

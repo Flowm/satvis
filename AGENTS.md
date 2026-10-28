@@ -37,8 +37,8 @@ workspace package). One `pnpm install` at the root covers both.
   one refresh pass behind a bearer token. The upstream tables (SATCAT, GCAT) travel
   apart: `push-catalog` uploads them to `PUT /api/upstream/<name>`, or
   `POST /api/upstream/refresh` fetches them, and every GP refresh reads them from KV
-  (ADR 0008). The deployed Worker has no cron; the Docker image schedules both
-  (`worker/src/gp/schedule.ts`).
+  (ADR 0008). The deployed Worker has no cron; the Docker image calls both refresh
+  endpoints on a schedule (`worker/scripts/serve.mjs`).
 - `pnpm update-gp` runs that pipeline locally into a static `data/gp/` snapshot;
   the app probes `/api/groups.json` and falls back to it.
 - Config is declarative YAML — core in `worker/src/config/satvis.core.yaml`,

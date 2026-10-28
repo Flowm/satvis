@@ -15,8 +15,6 @@ import { type LabelCollection, type Scene, SceneMode } from "@cesium/engine";
 import { flightDuration, type FlightPath, flightPath, flightPose, newPose, type Pose } from "./skyFlight";
 import { type Aim, enuDirection, type Observer, type ObserverFrame, observerFrame, rollBasis } from "./skyGeometry";
 
-export type { Aim, Observer } from "./skyGeometry";
-
 /** An orthonormal camera basis in east-north-up components. */
 export interface Basis {
   direction: Cartesian3;
@@ -300,6 +298,7 @@ export class SkyView {
       this.#frame = undefined;
     }
     this.#apply();
+    // A settled sky view renders on demand, so nothing else would move the camera.
     this.#scene.requestRender();
   }
 
@@ -372,11 +371,6 @@ export class SkyView {
     if (this.#phase === "leaving") {
       return this.#flight?.finished ?? Promise.resolve();
     }
-    if (!this.#saved) {
-      // Unreachable: every non-off phase has a saved globe to go back to.
-      this.#restore();
-      return Promise.resolve();
-    }
     return this.#fly("leaving");
   }
 
@@ -410,17 +404,9 @@ export class SkyView {
       return;
     }
     void source(observer).then((height) => {
-      if (generation !== this.#groundGeneration || !isPlausibleGroundHeight(height)) {
-        return;
+      if (generation === this.#groundGeneration && height !== undefined) {
+        this.setGroundHeight(height);
       }
-      this.#groundMeasured = true;
-      if (height !== this.#groundHeight) {
-        this.#groundHeight = height;
-        this.#frame = undefined;
-      }
-      // A settled sky view renders on demand, so nothing else would move the camera.
-      this.#apply();
-      this.#scene.requestRender();
     });
   }
 
@@ -457,12 +443,7 @@ export class SkyView {
     if (this.#observer) {
       this.#skyPose(this.#observer);
     }
-    return flightPath(this.#savedPose(), this.#sky, this.#over);
-  }
-
-  /** Only called with `#saved` present. */
-  #savedPose(): Pose {
-    return this.#saved?.pose ?? this.#cameraPose();
+    return flightPath(this.#saved!.pose, this.#sky, this.#over);
   }
 
   #land(): void {
@@ -477,7 +458,7 @@ export class SkyView {
   }
 
   #restore(): void {
-    const saved = this.#saved;
+    const saved = this.#saved!;
     // Cesium's Event defers removals raised during a dispatch, so this is safe
     // inside the landing frame's preRender callback.
     this.#removePreRender?.();
@@ -493,9 +474,6 @@ export class SkyView {
       }
     }
     this.#borrowedLabels.clear();
-    if (!saved) {
-      return;
-    }
 
     const { camera, screenSpaceCameraController: controller } = this.#scene;
     camera.lookAtTransform(Matrix4.IDENTITY);

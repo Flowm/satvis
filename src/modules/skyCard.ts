@@ -1,8 +1,7 @@
 // What the sky view's lock card says of a satellite (SkyHud.vue), held to the native
 // app's (SkyCard.swift) by the parity fixtures.
 
-import { normalizeAzimuth } from "./skyGeometry";
-import { compassPoint } from "./SkyTargets";
+import { compassPoint, normalizeAzimuth } from "./skyGeometry";
 import type { Visibility } from "./util/visibility";
 
 /** The verdict as the card's chip says it. */

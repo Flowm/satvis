@@ -97,11 +97,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 
-import { useClockDeckChrome } from "../composables/useClockDeckChrome";
 import { useLadder, useTimeline } from "../composables/useClockScales";
-import { usePassHighlights } from "../composables/usePassHighlights";
+import { useController } from "../composables/useController";
+import { useSelectedEntity } from "../composables/useSelectedEntity";
 import { useViewerClock } from "../composables/useViewerClock";
-import { arrowStep, Scale, CHIP_PX, clockLabel, dateLabel, LADDER, multiplierLabel, passMarks, rateLabel, REAL_TIME_RUNG } from "../modules/util/clockDeck";
+import { arrowStep, CHIP_PX, clockLabel, dateLabel, LADDER, multiplierLabel, passMarks, rateLabel, REAL_TIME_RUNG } from "../modules/util/clockDeck";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
 
 const clock = useViewerClock();
@@ -111,14 +111,14 @@ const timeline = ref<HTMLElement>();
 const { ticks, width: timelineWidth, onDown: onTimelineDown, onMove: onTimelineMove, onUp: onTimelineUp, onKey: onTimelineKey, measure } = useTimeline(clock, timeline);
 
 /** The timeline moves under a fixed needle, so marks are recomputed relative to `now`. */
-const { passes } = usePassHighlights();
-const marks = computed(() => passMarks(passes.value, now.value.getTime(), timelineWidth.value));
+const { satellitePasses } = useSelectedEntity(useController());
+const marks = computed(() => passMarks(satellitePasses.value, now.value.getTime(), timelineWidth.value));
 
 const ladder = ref<HTMLElement>();
 const { onScroll: onLadderScroll, onDown: onLadderDown, onMove: onLadderMove, onUp: onLadderUp, pick: pickRung, showRung, step } = useLadder(clock, ladder);
 
-const scale = ref<Scale>(Scale.Timeline);
-const onLadder = computed(() => scale.value === Scale.Ladder);
+/** The scale row shows the speed ladder, not the timeline. */
+const onLadder = ref(false);
 /** Folded on every touch device, tablets included. */
 const open = ref(!DeviceDetect.hasTouch());
 
@@ -134,7 +134,7 @@ function reset(): void {
 }
 
 function toggleScale(): void {
-  scale.value = onLadder.value ? Scale.Timeline : Scale.Ladder;
+  onLadder.value = !onLadder.value;
   // Each scale is `v-if`d, so the arriving one has no width until it is in the tree.
   void nextTick(() => {
     if (onLadder.value) {
@@ -149,9 +149,9 @@ function toggle(): void {
   open.value = !open.value;
   if (!open.value) {
     // Reopen on the timeline, not the ladder.
-    scale.value = Scale.Timeline;
+    onLadder.value = false;
   }
-  chrome.setFolded(!open.value);
+  markBody();
   if (!open.value) {
     return;
   }
@@ -164,7 +164,7 @@ function onLadderKey(event: KeyboardEvent): void {
     return;
   }
   event.preventDefault();
-  step(direction, rung.value);
+  step(direction);
   // After the re-render, the newly selected rung is the one holding tabindex 0.
   void nextTick(() => ladder.value?.querySelector<HTMLElement>(".rung--on")?.focus());
 }
@@ -206,14 +206,18 @@ function measureSurface(): void {
 let rowSize: ResizeObserver | undefined;
 const onResize = (): void => measureSurface();
 
-const chrome = useClockDeckChrome();
+/** Marks `body` for main.css, which places Cesium's credit line by the fold and the width. */
+function markBody(): void {
+  document.body.classList.add("clock-deck");
+  document.body.classList.toggle("clock-deck--folded", !open.value);
+}
 
 watch(open, () => void nextTick(measureSurface));
 
 onMounted(() => {
   measure();
   measureSurface();
-  chrome.attach(!open.value);
+  markBody();
   window.addEventListener("resize", onResize);
   const group = cluster.value?.querySelector(".right");
   if (cluster.value && group) {
@@ -224,6 +228,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  document.body.classList.remove("clock-deck", "clock-deck--folded");
   window.removeEventListener("resize", onResize);
   rowSize?.disconnect();
 });

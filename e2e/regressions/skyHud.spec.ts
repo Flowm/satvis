@@ -33,7 +33,7 @@ test("every control takes clicks in the sky view", async ({ page }) => {
   const clickable = Object.fromEntries(Object.keys(controls).map((name) => [name, "clickable"]));
   for (const width of [563, 1000, 1106]) {
     await page.setViewportSize({ width, height: 900 });
-    // The clock deck and the credits are placed from resize listeners.
+    // The clock deck is placed from resize listeners.
     await expect.poll(() => hitTest(page, controls), { message: `at ${width} px` }).toEqual(clickable);
     await expect(page.locator("#toolbarRight")).toBeHidden();
   }

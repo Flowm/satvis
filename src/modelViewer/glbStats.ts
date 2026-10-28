@@ -79,7 +79,7 @@ export interface GlbStats {
   problems: string[];
 }
 
-export function parseGlb(buffer: ArrayBuffer): { json: Gltf; bin?: Uint8Array } {
+function parseGlb(buffer: ArrayBuffer): { json: Gltf; bin?: Uint8Array } {
   const view = new DataView(buffer);
   if (view.getUint32(0, true) !== GLB_MAGIC) {
     throw new Error("not a GLB file");

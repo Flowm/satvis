@@ -9,10 +9,9 @@ function recorder() {
 
 describe("Suppressible", () => {
   test("the initial value is not applied — it is what the world already shows", () => {
-    const { applied } = recorder();
-    const setting = new Suppressible<string>("None", () => {});
+    const { applied, apply } = recorder();
+    const setting = new Suppressible<string>("None", apply);
 
-    expect(setting.chosen).toBe("None");
     expect(setting.inForce).toBe("None");
     expect(applied).toEqual([]);
   });
@@ -21,8 +20,8 @@ describe("Suppressible", () => {
     const { applied, apply } = recorder();
     const setting = new Suppressible<string>("None", apply);
 
-    expect(setting.choose("Maptiler")).toBe(true);
-    expect(setting.choose("Maptiler")).toBe(false);
+    setting.choose("Maptiler");
+    setting.choose("Maptiler");
 
     expect(applied).toEqual(["Maptiler"]);
   });
@@ -33,11 +32,10 @@ describe("Suppressible", () => {
     setting.choose("Maptiler");
 
     setting.suppress("CesiumWorldTerrain");
-
-    expect(setting.chosen).toBe("Maptiler");
     expect(setting.inForce).toBe("CesiumWorldTerrain");
-    expect(setting.suppressed).toBe(true);
-    expect(applied).toEqual(["Maptiler", "CesiumWorldTerrain"]);
+
+    setting.release();
+    expect(applied).toEqual(["Maptiler", "CesiumWorldTerrain", "Maptiler"]);
   });
 
   test("choosing under a suppression records but does not apply", () => {
@@ -45,9 +43,8 @@ describe("Suppressible", () => {
     const setting = new Suppressible<string>("None", apply);
     setting.suppress("CesiumWorldTerrain");
 
-    expect(setting.choose("ReEarth")).toBe(false);
+    setting.choose("ReEarth");
 
-    expect(setting.chosen).toBe("ReEarth");
     expect(setting.inForce).toBe("CesiumWorldTerrain");
     expect(applied).toEqual(["CesiumWorldTerrain"]);
   });
@@ -58,7 +55,7 @@ describe("Suppressible", () => {
     setting.suppress("CesiumWorldTerrain");
     setting.choose("ReEarth");
 
-    expect(setting.release()).toBe(true);
+    setting.release();
 
     expect(setting.inForce).toBe("ReEarth");
     expect(applied).toEqual(["CesiumWorldTerrain", "ReEarth"]);
@@ -68,7 +65,7 @@ describe("Suppressible", () => {
     const { applied, apply } = recorder();
     const setting = new Suppressible<string>("None", apply);
 
-    expect(setting.release()).toBe(false);
+    setting.release();
     expect(applied).toEqual([]);
   });
 
@@ -77,12 +74,11 @@ describe("Suppressible", () => {
     const setting = new Suppressible<string>("None", apply);
 
     // Nothing on screen changes, but a later choose must not take effect.
-    expect(setting.suppress("None")).toBe(false);
-    expect(setting.suppressed).toBe(true);
-    expect(setting.choose("Maptiler")).toBe(false);
+    setting.suppress("None");
+    setting.choose("Maptiler");
     expect(applied).toEqual([]);
 
-    expect(setting.release()).toBe(true);
+    setting.release();
     expect(applied).toEqual(["Maptiler"]);
   });
 
@@ -116,7 +112,6 @@ describe("Suppressible", () => {
 
     camera.suppress("Fixed");
     expect(camera.inForce).toBe("Fixed");
-    expect(camera.chosen).toBe("Inertial");
 
     camera.release();
     expect(camera.inForce).toBe("Inertial");
@@ -161,7 +156,6 @@ describe("SuppressibleSet", () => {
 
     expect(hidden).toEqual(["Orbit"]);
     expect(components.inForce).toEqual(["Point"]);
-    expect(components.chosen).toEqual(["Point", "Orbit"]);
   });
 
   test("suppressing something the user does not have on does nothing", () => {
@@ -181,7 +175,7 @@ describe("SuppressibleSet", () => {
     components.suppress("Orbit");
     shown.length = 0;
 
-    expect(components.release("Orbit")).toBe(true);
+    components.release("Orbit");
     expect(shown).toEqual(["Orbit"]);
   });
 

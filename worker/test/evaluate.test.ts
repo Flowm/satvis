@@ -29,14 +29,6 @@ describe("sourceUrl / sourceKey", () => {
     expect(sourceUrl({ celestrak: "active" })).toBe("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=JSON");
     expect(sourceKey({ celestrak: "active" })).toBe("celestrak:active");
   });
-  it("builds celestrak supplemental URLs", () => {
-    expect(sourceUrl({ celestrakSup: "transporter-12" })).toBe("https://celestrak.org/NORAD/elements/supplemental/sup-gp.php?FILE=transporter-12&FORMAT=JSON");
-    expect(sourceKey({ celestrakSup: "transporter-12" })).toBe("celestrakSup:transporter-12");
-  });
-  it("passes through raw URLs", () => {
-    expect(sourceUrl({ url: "https://example.com/x.json" })).toBe("https://example.com/x.json");
-    expect(sourceKey({ url: "https://example.com/x.json" })).toBe("url:https://example.com/x.json");
-  });
 });
 
 describe("collectSources", () => {
@@ -61,39 +53,9 @@ describe("evaluateGroups: select", () => {
     expect(names(evaluateGroups(defs, records).get("move"))).toEqual(["FIRST-MOVE", "MOVE-II"]);
   });
 
-  it("selects by noradIds (string or number)", () => {
-    const defs: GroupDefinition[] = [{ name: "ot", sources: [{ celestrak: "active" }], select: { noradIds: [43547, "43556"] } }];
-    expect(names(evaluateGroups(defs, records).get("ot"))).toEqual(["LEMUR-2-ROHOVITHSA", "LEMUR-2-EMBRIONOVIS"]);
-  });
-
-  it("selects by names", () => {
-    const defs: GroupDefinition[] = [{ name: "s", sources: [{ celestrak: "active" }], select: { names: ["STARLINK-1"] } }];
-    expect(names(evaluateGroups(defs, records).get("s"))).toEqual(["STARLINK-1"]);
-  });
-
-  it("ORs the select criteria together", () => {
-    const defs: GroupDefinition[] = [{ name: "mix", sources: [{ celestrak: "active" }], select: { noradIds: [44713], namePattern: "^FIRST-MOVE" } }];
-    expect(names(evaluateGroups(defs, records).get("mix"))).toEqual(["FIRST-MOVE", "STARLINK-1"]);
-  });
-
   it("passes all records through when no select is given", () => {
     const defs: GroupDefinition[] = [{ name: "all", sources: [{ celestrak: "active" }] }];
     expect(names(evaluateGroups(defs, records).get("all"))).toHaveLength(5);
-  });
-});
-
-describe("evaluateGroups: rename", () => {
-  it("renames matched OBJECT_NAME after select", () => {
-    const records: RecordsBySource = new Map([["celestrak:active", [omm("LEMUR-2-ROHOVITHSA", 43547), omm("LEMUR-2-EMBRIONOVIS", 43556)]]]);
-    const defs: GroupDefinition[] = [
-      {
-        name: "ot",
-        sources: [{ celestrak: "active" }],
-        select: { noradIds: [43547, 43556] },
-        rename: { "LEMUR-2-ROHOVITHSA": "FOREST-1", "LEMUR-2-EMBRIONOVIS": "FOREST-2" },
-      },
-    ];
-    expect(names(evaluateGroups(defs, records).get("ot"))).toEqual(["FOREST-1", "FOREST-2"]);
   });
 });
 
@@ -117,53 +79,16 @@ describe("evaluateGroups: satellites rows", () => {
     expect(names(evaluateGroups(defs, records).get("ot"))).toEqual(["GENA-OT"]);
   });
 
-  it("applies the group rename map to a row-selected record with no row `name`", () => {
-    const defs: GroupDefinition[] = [
-      {
-        name: "ot",
-        sources: [{ celestrak: "active" }],
-        satellites: [{ noradId: 66774, upstreamName: "GENA-OT" }],
-        rename: { "GENA-OT": "GENA-1" },
-      },
-    ];
-    expect(names(evaluateGroups(defs, records).get("ot"))).toEqual(["GENA-1"]);
-  });
-
   it("unions satellites rows with `select`", () => {
     const defs: GroupDefinition[] = [
       {
         name: "ot",
         sources: [{ celestrak: "active" }],
         satellites: [{ noradId: 43547, upstreamName: "LEMUR-2-ROHOVITHSA", name: "FOREST-1" }],
-        select: { names: ["STARLINK-1"] },
+        select: { namePattern: "^STARLINK" },
       },
     ];
     expect(names(evaluateGroups(defs, records).get("ot"))).toEqual(["FOREST-1", "STARLINK-1"]);
-  });
-
-  it("gives a row `name` precedence over the group rename map", () => {
-    const defs: GroupDefinition[] = [
-      {
-        name: "ot",
-        sources: [{ celestrak: "active" }],
-        satellites: [{ noradId: 43547, upstreamName: "LEMUR-2-ROHOVITHSA", name: "FOREST-1" }],
-        rename: { "LEMUR-2-ROHOVITHSA": "WRONG" },
-      },
-    ];
-    expect(names(evaluateGroups(defs, records).get("ot"))).toEqual(["FOREST-1"]);
-  });
-
-  it("still applies the rename map to records not renamed by a row", () => {
-    const defs: GroupDefinition[] = [
-      {
-        name: "ot",
-        sources: [{ celestrak: "active" }],
-        satellites: [{ noradId: 43547, upstreamName: "LEMUR-2-ROHOVITHSA", name: "FOREST-1" }],
-        select: { names: ["LEMUR-2-EMBRIONOVIS"] },
-        rename: { "LEMUR-2-EMBRIONOVIS": "FOREST-2" },
-      },
-    ];
-    expect(names(evaluateGroups(defs, records).get("ot"))).toEqual(["FOREST-1", "FOREST-2"]);
   });
 
   it("warns when an id matches a record with an unexpected OBJECT_NAME", () => {
@@ -229,12 +154,11 @@ describe("evaluateGroups: include ordering (wfs-includes-ot)", () => {
   it("prepends included group output before own records, then extras", () => {
     const records: RecordsBySource = new Map([["celestrak:active", [omm("FOREST-SRC", 1), omm("SENTINEL-2A", 2), omm("NOAA 20 (JPSS-1)", 3)]]]);
     const defs: GroupDefinition[] = [
-      { name: "wfs", sources: [{ celestrak: "active" }], select: { names: ["SENTINEL-2A", "NOAA 20 (JPSS-1)"] }, include: ["ot"] },
+      { name: "wfs", sources: [{ celestrak: "active" }], select: { namePattern: "^(SENTINEL-2A|NOAA 20)" }, include: ["ot"] },
       {
         name: "ot",
         sources: [{ celestrak: "active" }],
-        select: { noradIds: [1] },
-        rename: { "FOREST-SRC": "FOREST-1" },
+        satellites: [{ noradId: 1, name: "FOREST-1" }],
         extraRecords: [{ OBJECT_NAME: "OT-ADD-1", TLE_LINE1: "1 ...", TLE_LINE2: "2 ..." }],
       },
     ];
@@ -282,7 +206,7 @@ describe("evaluateGroups: exclude", () => {
       {
         name: "gone",
         sources: [{ celestrak: "active" }],
-        select: { noradIds: [25544] },
+        satellites: [{ noradId: 25544 }],
         extraRecords: [{ OBJECT_NAME: "PSEUDO-TOO", TLE_LINE1: "1 63351U ...", TLE_LINE2: "2 63351 ..." }],
       },
     ];

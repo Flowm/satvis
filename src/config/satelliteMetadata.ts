@@ -1,11 +1,9 @@
 // Static facts a GP record carries beside its element set (ADR 0002, 0006, 0008). Every
 // field has one owner: curated rows (satvis.core.yaml, plugins, model manifests), SATCAT,
-// or GCAT, and curated rows may override an upstream field (SatelliteTable).
-// `orbitClass` is derived here. A curated field needs no worker change, except the swath
-// pair, whose both-or-neither rule the generator enforces; an upstream field is mapped
-// by its parser (worker/src/gp/satcat.ts, gcat.ts). Cesium-free: node-env vitest exercises it.
-
-import type { OrbitClass } from "./orbitClass";
+// or GCAT, and curated rows may override an upstream field (SatelliteTable). A curated
+// field needs no worker change, except the swath pair, whose both-or-neither rule the
+// generator enforces; an upstream field is mapped by its parser (worker/src/gp/satcat.ts,
+// gcat.ts). Cesium-free: node-env vitest exercises it.
 
 /** Worker `SatelliteModel` (worker/src/gp/types.ts): a satellite's 3D model and the copies drawn while it is small (ADR 0007). */
 export interface SatelliteModel {
@@ -83,12 +81,6 @@ export interface SatelliteMetadata {
   orbitCenter?: string;
   /** ISO date; present only once the object has re-entered. */
   decayDate?: string;
-
-  /**
-   * Cached by `parseGpPayload`; read through `CatalogEntry.orbitClass`.
-   * `cacheOrbitClass` overwrites it, so no served field may use the name.
-   */
-  orbitClass?: OrbitClass;
 }
 
 /** The satellite's model: `model`, else the `modelFile` a payload from before `model` carries alone. */

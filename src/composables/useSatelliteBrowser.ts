@@ -38,9 +38,9 @@ const SEARCH_DEBOUNCE_MS = 150;
 
 const searchQuery = ref("");
 const debouncedQuery = ref("");
-/** The full-catalog load a search starts, while in flight. */
-const searchLoad = shallowRef<Promise<void> | undefined>();
-const searchLoading = computed(() => searchLoad.value !== undefined);
+/** The full-catalog load a search or the catalog sheet starts, while in flight. */
+const allLoad = shallowRef<Promise<void> | undefined>();
+const loadingAll = computed(() => allLoad.value !== undefined);
 const expandedGroups = ref<Set<string>>(new Set());
 
 let debounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -77,16 +77,24 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     return new Set(catalog.entries.filter((entry) => !isSearchOnly(entry)).map((entry) => entry.satnum));
   });
 
-  function setSearchQuery(value: string): void {
-    searchQuery.value = value;
-    // Search spans every group; a group that failed to load is retried here.
-    if (value.trim() !== "" && searchLoad.value === undefined) {
+  /** Loads every group, search-only ones too; a failed group is retried on the next call. */
+  function loadAll(): Promise<void> {
+    if (allLoad.value === undefined) {
       const load = catalog.ensureAll().finally(() => {
-        if (searchLoad.value === load) {
-          searchLoad.value = undefined;
+        if (allLoad.value === load) {
+          allLoad.value = undefined;
         }
       });
-      searchLoad.value = load;
+      allLoad.value = load;
+    }
+    return allLoad.value;
+  }
+
+  function setSearchQuery(value: string): void {
+    searchQuery.value = value;
+    // Search spans every group.
+    if (value.trim() !== "") {
+      void loadAll();
     }
     scheduleDebounce();
   }
@@ -276,8 +284,12 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
   return {
     /** What the globe shows by name, tracking aside. */
     activeSatNames,
+    /** Tags whose every group is search-only. */
+    searchOnlyTags,
     searchQuery,
-    searchLoading,
+    /** The full catalog is loading. */
+    loadingAll,
+    loadAll,
     setSearchQuery,
     clearSearch,
     rows,

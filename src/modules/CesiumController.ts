@@ -20,23 +20,16 @@ import utc from "dayjs/plugin/utc";
 import { usePostHog } from "../composables/usePostHog";
 import { defaultViewDistance } from "../config/defaultView";
 import { parseLayer } from "../config/layers";
-import { MSAA_RATES, PIXEL_RATIOS, msaaSamplesFor, resolutionScaleFor } from "../config/rendering";
-import { STAR_MAPS, type StarMapSources, starMapSources } from "../config/starMaps";
-import {
-  type ImageryContext,
-  type ImageryProviderEntry,
-  imageryProviderNames,
-  imageryProviders,
-  type TerrainProviderEntry,
-  terrainProviderNames,
-  terrainProviders,
-} from "./CesiumLayerProviders";
+import { msaaSamplesFor, resolutionScaleFor } from "../config/rendering";
+import { type StarMapSources, starMapSources } from "../config/starMaps";
+import { type ImageryContext, type ImageryProviderEntry, imageryProviders, type TerrainProviderEntry, terrainProviders } from "./CesiumLayerProviders";
 import { BATCHED_COMPONENTS } from "./componentKinds";
 import { RenderPacer } from "./renderPacing";
 import { cesiumSceneMode } from "./satelliteGraphics";
 import { SatelliteManager } from "./SatelliteManager";
+import type { Observer } from "./skyGeometry";
 import { SkyInteraction } from "./SkyInteraction";
-import { type Observer, SkyView } from "./SkyView";
+import { SkyView } from "./SkyView";
 import { SurfaceModel } from "./SurfaceModel";
 import { DeviceDetect } from "./util/DeviceDetect";
 import { smootherstep } from "./util/easing";
@@ -82,8 +75,6 @@ export function skipUnsizedFrames(widget: CesiumWidget): void {
 export class CesiumController {
   viewer: Viewer;
 
-  minimalUI: boolean;
-
   sats!: SatelliteManager;
 
   /** Sets how far simulation time may run between renders on demand. */
@@ -95,18 +86,16 @@ export class CesiumController {
 
   surface!: SurfaceModel;
 
-  #uiVisible: boolean = true;
-
   #removeCameraTrackEci: (() => void) | undefined;
 
   /** Aborted when the imagery layers are replaced, detaching any that follow the clock. */
   #imageryLifetime = new AbortController();
 
   /** "Fixed" or "Inertial". The sky view suppresses it with "Fixed". */
-  readonly camera: Suppressible<string>;
+  readonly #camera: Suppressible<string>;
 
   /** A surface model can suppress it (ADR 0005). */
-  readonly terrain: Suppressible<string>;
+  readonly #terrain: Suppressible<string>;
 
   /** Reports a selection once, not on every view-mode re-apply. */
   #selectedSurfaceModel: string | undefined;
@@ -126,13 +115,12 @@ export class CesiumController {
 
   constructor(viewer: Viewer) {
     this.#preloadReferenceFrameData();
-    this.minimalUI = DeviceDetect.minimalUI();
 
     this.viewer = viewer;
     this.setDefaultView();
 
-    this.camera = new Suppressible<string>("Fixed", (mode) => this.#applyCameraMode(mode));
-    this.terrain = new Suppressible<string>("None", (name, isCurrent) => this.#applyTerrain(name, isCurrent));
+    this.#camera = new Suppressible<string>("Fixed", (mode) => this.#applyCameraMode(mode));
+    this.#terrain = new Suppressible<string>("None", (name, isCurrent) => this.#applyTerrain(name, isCurrent));
 
     this.#createInputHandler();
     this.#addErrorHandler();
@@ -159,7 +147,7 @@ export class CesiumController {
 
     this.surface = new SurfaceModel({
       scene: this.viewer.scene,
-      setTerrainOverride: (name) => (name === undefined ? this.#releaseTerrain() : this.#suppressTerrain(name)),
+      setTerrainOverride: (name) => (name === undefined ? this.#terrain.release() : this.#terrain.suppress(name)),
       skyLanded: () => this.skyView.settled,
       onFailure: (name, error) => this.#onSurfaceFailure(name, error),
     });
@@ -174,12 +162,6 @@ export class CesiumController {
       this.viewer.creditDisplay.addStaticCredit(new Credit(`<a href="/data/privacy.html" target="_blank"><u>Privacy</u></a>`, true));
     }
     this.viewer.creditDisplay.addStaticCredit(new Credit(`Satellite TLE data provided by <a href="https://celestrak.org/NORAD/elements/" target="_blank"><u>Celestrak</u></a>`));
-
-    if (this.minimalUI) {
-      setTimeout(() => {
-        this.#fixLogo();
-      }, 2500);
-    }
   }
 
   /**
@@ -236,14 +218,8 @@ export class CesiumController {
   set imageryLayers(newLayerNames: string[]) {
     this.#clearImageryLayers();
     newLayerNames.forEach((layerName) => {
-      const selection = parseLayer(layerName);
-      if (selection === undefined) {
-        return;
-      }
-      const layer = this.#createImageryLayer(selection.provider, selection.alpha);
-      if (layer) {
-        this.viewer.scene.imageryLayers.add(layer);
-      }
+      const { provider, alpha } = parseLayer(layerName)!;
+      this.viewer.scene.imageryLayers.add(this.#createImageryLayer(provider, alpha));
     });
     // Providers resolve asynchronously, so without this render-on-demand never tiles
     // the new layer and the globe stays blank.
@@ -256,12 +232,7 @@ export class CesiumController {
     this.viewer.scene.imageryLayers.removeAll();
   }
 
-  #createImageryLayer(imageryProviderName: string, alpha?: number): ImageryLayer | false {
-    if (!imageryProviderNames().includes(imageryProviderName)) {
-      console.error("Unknown imagery layer");
-      return false;
-    }
-
+  #createImageryLayer(imageryProviderName: string, alpha?: number): ImageryLayer {
     const provider = imageryProviders[imageryProviderName] as ImageryProviderEntry;
     const context: ImageryContext = {
       clock: this.viewer.clock,
@@ -274,29 +245,7 @@ export class CesiumController {
   }
 
   set terrainProvider(terrainProviderName: string) {
-    if (!terrainProviderNames().includes(terrainProviderName)) {
-      console.error("Unknown terrain provider");
-      return;
-    }
-    this.terrain.choose(terrainProviderName);
-  }
-
-  /** The user's choice, not necessarily the one in force. */
-  get terrainProvider(): string {
-    return this.terrain.chosen;
-  }
-
-  /** Accepts any registered provider, including ones a url may not name. */
-  #suppressTerrain(terrainProviderName: string): void {
-    if (!(terrainProviderName in terrainProviders)) {
-      console.error("Unknown terrain provider override");
-      return;
-    }
-    this.terrain.suppress(terrainProviderName);
-  }
-
-  #releaseTerrain(): void {
-    this.terrain.release();
+    this.#terrain.choose(terrainProviderName);
   }
 
   /**
@@ -391,6 +340,12 @@ export class CesiumController {
         }
       });
 
+    // Cesium completes a running morph before starting another. Completing it here releases
+    // what that morph suppressed, so this one suppresses it again and owns the release.
+    if (this.viewer.scene.mode === SceneMode.MORPHING) {
+      this.viewer.scene.completeMorph();
+    }
+
     // In every direction, including back to 3D: outside 3D each batched component falls
     // back to per-entity paths, and only re-creation on release switches it back
     // (342 ms a frame vs 1.24 ms batched).
@@ -401,40 +356,27 @@ export class CesiumController {
         this.viewer.scene.morphComplete.removeEventListener(release);
       };
       this.viewer.scene.morphComplete.addEventListener(release);
-
-      // Batches rebuild asynchronously; morphing first rebuilds them into the old projection.
-      void Promise.all([this.sats.orbits.settled(), this.sats.tracks.settled()]).then(() => {
-        morph();
-        // Cesium refuses some morphs (mid-morph, notably) and then raises no completion.
-        if (this.viewer.scene.mode !== SceneMode.MORPHING) {
-          release();
-        }
-      });
+      morph();
+      // Cesium refuses some morphs (mid-morph, notably) and then raises no completion.
+      if (this.viewer.scene.mode !== SceneMode.MORPHING) {
+        release();
+      }
     } else {
       morph();
     }
   }
 
   set cameraMode(cameraMode: string) {
-    if (cameraMode !== "Inertial" && cameraMode !== "Fixed") {
-      console.error("Unknown camera mode");
-      return;
-    }
-    this.camera.choose(cameraMode);
-  }
-
-  /** The user's choice, not necessarily the one in force. */
-  get cameraMode(): string {
-    return this.camera.chosen;
+    this.#camera.choose(cameraMode);
   }
 
   /** The sky view drives the camera, and inertial tracking re-parents it every frame. */
   suppressCameraMode(): void {
-    this.camera.suppress("Fixed");
+    this.#camera.suppress("Fixed");
   }
 
   releaseCameraMode(): void {
-    this.camera.release();
+    this.#camera.release();
   }
 
   #applyCameraMode(mode: string): void {
@@ -462,13 +404,9 @@ export class CesiumController {
     }
   }
 
-  setTime(
-    current: string | number | Date,
-    start: string = dayjs.utc(current).subtract(12, "hour").toISOString(),
-    stop: string = dayjs.utc(current).add(7, "day").toISOString(),
-  ): void {
-    this.viewer.clock.startTime = JulianDate.fromIso8601(dayjs.utc(start).toISOString());
-    this.viewer.clock.stopTime = JulianDate.fromIso8601(dayjs.utc(stop).toISOString());
+  setTime(current: string | number | Date): void {
+    this.viewer.clock.startTime = JulianDate.fromIso8601(dayjs.utc(current).subtract(12, "hour").toISOString());
+    this.viewer.clock.stopTime = JulianDate.fromIso8601(dayjs.utc(current).add(7, "day").toISOString());
     this.viewer.clock.currentTime = JulianDate.fromIso8601(dayjs.utc(current).toISOString());
   }
 
@@ -544,23 +482,9 @@ export class CesiumController {
 
   /** Cesium's own chrome is only the fullscreen button. */
   set showUI(enabled: boolean) {
-    this.#uiVisible = enabled;
     const fullscreen = this.viewer._fullscreenButton?._container;
     if (fullscreen) {
       fullscreen.style.visibility = enabled ? "" : "hidden";
-    }
-  }
-
-  get showUI(): boolean {
-    return this.#uiVisible;
-  }
-
-  #fixLogo(): void {
-    if (this.minimalUI) {
-      this.viewer._bottomContainer.style.left = "5px";
-    }
-    if (DeviceDetect.isiPhoneWithNotchVisible()) {
-      this.viewer._bottomContainer.style.bottom = "20px";
     }
   }
 
@@ -570,20 +494,12 @@ export class CesiumController {
    * ratio. No explicit render: `CesiumWidget.resize` requests one every frame.
    */
   set pixelRatio(ratio: string) {
-    if (!(PIXEL_RATIOS as readonly string[]).includes(ratio)) {
-      console.error("Unknown pixel ratio");
-      return;
-    }
     this.viewer.useBrowserRecommendedResolution = false;
     this.viewer.resolutionScale = resolutionScaleFor(ratio, window.devicePixelRatio);
   }
 
   /** One of `MSAA_RATES`. Changing the sample count requests no frame, hence the explicit render. */
   set msaa(rate: string) {
-    if (!(MSAA_RATES as readonly string[]).includes(rate)) {
-      console.error("Unknown MSAA rate");
-      return;
-    }
     this.viewer.scene.msaaSamples = msaaSamplesFor(rate);
     this.viewer.scene.requestRender();
   }
@@ -609,10 +525,6 @@ export class CesiumController {
    * The viewer starts with the built-in sky box, so sceneSync's watcher is not immediate.
    */
   async applyStarMap(name: string): Promise<void> {
-    if (!(STAR_MAPS as readonly string[]).includes(name)) {
-      console.error("Unknown star map");
-      return;
-    }
     const generation = ++this.#starMapGeneration;
     const sources = starMapSources(name);
     const faces = sources === undefined ? undefined : await this.loadStarMapFaces(sources);

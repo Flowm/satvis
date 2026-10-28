@@ -194,12 +194,12 @@ describe("GridPositionProperty", () => {
     expect(raised).toBe(1);
   });
 
-  test("hands back the raw samples for a range", () => {
+  test("hands back the raw samples for a span", () => {
     const property = filled(0, 10);
-    const positions = property.rawPositions(2, 4);
+    const { positions } = property.samplesBetween(at(2 * STEP), at(4 * STEP));
     expect(positions).toHaveLength(3);
     expect(positions[0]?.x).toBeCloseTo(200, 6);
     // Clamped to what is held, not padded.
-    expect(property.rawPositions(-5, 100)).toHaveLength(10);
+    expect(property.samplesBetween(at(-5 * STEP), at(100 * STEP)).positions).toHaveLength(10);
   });
 });
