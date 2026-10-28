@@ -62,6 +62,7 @@ function fakeTarget() {
     cameraMode: "Fixed",
     pixelRatio: "native",
     msaa: "4",
+    frameRate: "60",
     showFps: false,
     requestRenderMode: true,
     background: false,

@@ -326,13 +326,14 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   shaders took fast math, the default view took 10.5 ms of GPU a frame at native,
   6.7 at 1.5 and 2.8 at 1. A benchmark runs
   at the ratio it began at and records it.
-- The Graphics menu's "Frame rate" caps the globe at 30, 60 or 120 frames a second
-  (`preferredFramesPerSecond`), offering only what the screen shows: 120 on a
+- The Graphics panel's "Frame rate" caps the globe at 30 or 60 frames a second,
+  or Max, the screen's own (`preferredFramesPerSecond`, 120 asked): 120 on a
   ProMotion screen, which an iPhone gives an app only with
   `CADisableMinimumFrameDurationOnPhone` in `Info.plist` (without `OnPhone`
   it is ignored, and held 120 to 60). The simulator reports 60
-  whatever it models. The web app has no such parameter, so the rate is kept in
-  `UserDefaults`, not links; a benchmark records it as `app_frame_rate`. That
+  whatever it models. The web app keeps its rate in links as `framerate`; the app
+  keeps its own in `UserDefaults`, as the device's choice, and ignores the
+  parameter. A benchmark records it as `app_frame_rate`. That
   rate is a cap: a frame is skipped, and the last one left on screen, while
   nothing has been set or loaded, the camera stands still and no satellite can
   have moved half a device pixel, as the web app paces CesiumJS's render on

@@ -301,6 +301,7 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
       gpu: gpuName(),
       canvas: `${canvas.width}x${canvas.height}`,
       devicePixelRatio: window.devicePixelRatio,
+      frameRate: useCesiumStore().frameRate,
       hardwareConcurrency: navigator.hardwareConcurrency,
       // A hidden tab presents no frames, which invalidates the run.
       visibility: document.visibilityState,

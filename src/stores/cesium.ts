@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
 import { layerProvider } from "../config/layers";
-import { MSAA_RATES, PIXEL_RATIOS, currentDevicePixelRatio, defaultMsaaRate } from "../config/rendering";
+import { FRAME_RATES, type FrameRate, MSAA_RATES, PIXEL_RATIOS, currentDevicePixelRatio, defaultMsaaRate } from "../config/rendering";
 import { BUILTIN_STAR_MAP, STAR_MAPS } from "../config/starMaps";
 import { SURFACE_MODELS } from "../config/surfaceModels";
 import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "../config/viewModes";
@@ -28,6 +28,8 @@ export const useCesiumStore = defineStore(
      * The default is read once, so moving to another monitor cannot overwrite the user's choice.
      */
     const msaa = ref<string>(defaultMsaaRate(currentDevicePixelRatio()));
+    /** Frames a second at most; 60, as on iOS, spares the battery. */
+    const frameRate = ref<FrameRate>("60");
     const background = ref(true);
     const showFps = ref(false);
     const pickMode = ref(false);
@@ -125,6 +127,7 @@ export const useCesiumStore = defineStore(
       cameraMode,
       pixelRatio,
       msaa,
+      frameRate,
       background,
       showFps,
       pickMode,
@@ -145,6 +148,7 @@ export const useCesiumStore = defineStore(
         { name: "cameraMode", url: "camera", kind: enumString(CAMERA_MODES) },
         { name: "pixelRatio", url: "pixelratio", kind: enumString([...PIXEL_RATIOS]) },
         { name: "msaa", url: "msaa", kind: enumString([...MSAA_RATES]) },
+        { name: "frameRate", url: "framerate", kind: enumString([...FRAME_RATES]) },
         { name: "showFps", url: "fps", kind: boolean() },
         { name: "showBenchmark", url: "bench", kind: boolean() },
         { name: "background", url: "bg", kind: boolean() },

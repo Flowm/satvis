@@ -20,7 +20,7 @@ import utc from "dayjs/plugin/utc";
 import { usePostHog } from "../composables/usePostHog";
 import { defaultViewDistance } from "../config/defaultView";
 import { parseLayer } from "../config/layers";
-import { msaaSamplesFor, resolutionScaleFor } from "../config/rendering";
+import { type FrameRate, msaaSamplesFor, resolutionScaleFor, targetFrameRateFor } from "../config/rendering";
 import { type StarMapSources, starMapSources } from "../config/starMaps";
 import { type ImageryContext, type ImageryProviderEntry, imageryProviders, type TerrainProviderEntry, terrainProviders } from "./CesiumLayerProviders";
 import { BATCHED_COMPONENTS } from "./componentKinds";
@@ -502,6 +502,12 @@ export class CesiumController {
   set msaa(rate: string) {
     this.viewer.scene.msaaSamples = msaaSamplesFor(rate);
     this.viewer.scene.requestRender();
+  }
+
+  /** Frames a second at most. */
+  set frameRate(rate: FrameRate) {
+    // Cesium's types leave out undefined, which its docs allow: the browser's own rate.
+    this.viewer.targetFrameRate = targetFrameRateFor(rate) as number;
   }
 
   /**

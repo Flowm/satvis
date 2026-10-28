@@ -59,3 +59,17 @@ export function resolutionScaleFor(ratio: string, devicePixelRatio: number): num
   }
   return Number(ratio) / devicePixelRatio;
 }
+
+/** The native app's choices (`Session.frameRates`): frames a second, or the screen's own rate. */
+export const FRAME_RATES = ["30", "60", "max"] as const;
+
+export type FrameRate = (typeof FRAME_RATES)[number];
+
+/**
+ * Cesium's `targetFrameRate`, none for `max`. Cesium draws only once more than the whole
+ * interval has passed, so a cap of exactly the screen's rate skips every frame that comes a
+ * hair early: 60 on a 60 Hz screen with 0.1 ms of jitter drew 30 a second. The headroom keeps them.
+ */
+export function targetFrameRateFor(rate: FrameRate): number | undefined {
+  return rate === "max" ? undefined : Number(rate) * 1.05;
+}

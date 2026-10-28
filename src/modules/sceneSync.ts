@@ -7,6 +7,7 @@ import { nextTick, watch } from "vue";
 
 import { currentPosition } from "../composables/useGeolocation";
 import { useToastProxy } from "../composables/useToastProxy";
+import type { FrameRate } from "../config/rendering";
 import { satelliteModel } from "../config/satelliteMetadata";
 import { BUILTIN_STAR_MAP, starMapRecovery } from "../config/starMaps";
 import { surfaceModelLabel } from "../config/surfaceModels";
@@ -54,6 +55,7 @@ export interface SceneTarget {
   cameraMode: string;
   pixelRatio: string;
   msaa: string;
+  frameRate: FrameRate;
   showFps: boolean;
   requestRenderMode: boolean;
   background: boolean;
@@ -305,6 +307,13 @@ export function startSceneSync(cc: SceneTarget): void {
     () => cesiumStore.msaa,
     (rate) => {
       cc.msaa = rate;
+    },
+    { immediate: true },
+  );
+  watch(
+    () => cesiumStore.frameRate,
+    (rate) => {
+      cc.frameRate = rate;
     },
     { immediate: true },
   );

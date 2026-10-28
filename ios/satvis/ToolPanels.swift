@@ -677,24 +677,12 @@ struct GraphicsPanel: View {
                 })
             Note("Native is this screen's \(Double(displayScale).formatted(.number.precision(.fractionLength(0...2))))x. Fewer pixels draw faster.")
         }
-        // Only the rates the screen can show; a rate kept from a faster screen, as a
-        // restored backup brings, reads as the fastest here.
-        let rates = Session.frameRates.filter { $0 <= maximumFrameRate }
         PanelSection("Frame rate") {
             Segments(
                 title: "Frame rate",
-                selection: Binding {
-                    rates.last { $0 <= session.frameRate } ?? rates[0]
-                } set: {
-                    session.frameRate = $0
-                },
-                options: rates.map { ("\($0) fps", $0) })
-            Note("Fewer frames save battery.")
+                selection: $session.frameRate,
+                options: Session.frameRates.map { ($0 == Session.maximumFrameRate ? "Max" : "\($0) fps", $0) })
+            Note("At most this many frames a second. Fewer save battery.")
         }
-    }
-
-    /// 120 on a ProMotion screen, never under 60.
-    private var maximumFrameRate: Int {
-        max(GlobeRenderer.displayMaximumFramesPerSecond, 60)
     }
 }

@@ -190,6 +190,9 @@
         <div class="toolbarNote">Native is this screen's {{ nativeRatio }}x. Fewer pixels draw faster.</div>
         <div class="toolbarTitle">Antialiasing (MSAA)</div>
         <segmented-control v-model="msaa" label="Antialiasing (MSAA)" :options="MSAA_OPTIONS" />
+        <div class="toolbarTitle">Frame rate</div>
+        <segmented-control v-model="frameRate" label="Frame rate" :options="FRAME_RATE_OPTIONS" />
+        <div class="toolbarNote">At most this many frames a second. Fewer save battery.</div>
       </toolbar-panel>
     </div>
     <!-- The native app's corner, in its order: the eye first, so it stays put as the others come and go. -->
@@ -243,7 +246,7 @@ import { useSelectedEntity } from "../composables/useSelectedEntity";
 import { compassAvailable, useSkyCompass } from "../composables/useSkyCompass";
 import { SATELLITE_COMPONENTS } from "../config/components";
 import { PHONE_WIDTH } from "../config/layout";
-import { MSAA_RATES, pixelRatiosFor } from "../config/rendering";
+import { FRAME_RATES, MSAA_RATES, pixelRatiosFor } from "../config/rendering";
 import { availableStarMaps, BUILTIN_STAR_MAP, STAR_MAP_LABELS, type StarMapName } from "../config/starMaps";
 import { type MapGroup, SURFACE_MODEL_LABELS, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, surfaceModelLabel, viewModeNote } from "../config/surfaceModels";
 import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "../config/viewModes";
@@ -299,7 +302,8 @@ const menuItems: { key: MenuKey; label: string; icon: string; hint: string }[] =
 ];
 
 const cesiumStore = useCesiumStore();
-const { baseLayer, terrainProvider, surfaceModel, starMap, sceneMode, unseen, cameraMode, pixelRatio, msaa, showFps, showBenchmark, requestRenderMode } = storeToRefs(cesiumStore);
+const { baseLayer, terrainProvider, surfaceModel, starMap, sceneMode, unseen, cameraMode, pixelRatio, msaa, frameRate, showFps, showBenchmark, requestRenderMode } =
+  storeToRefs(cesiumStore);
 
 /** Starts with the builtin map, and widens once per page when the probes answer. */
 const starMapOptions = ref<StarMapName[]>([BUILTIN_STAR_MAP]);
@@ -360,6 +364,7 @@ const UNSEEN_OPTIONS = UNSEEN_MODES.map((mode) => ({ value: mode, label: UNSEEN_
 const PROJECTION_OPTIONS = SCENE_MODES.filter((mode) => mode !== SKY_MODE).map((mode) => ({ value: mode, label: mode }));
 const CAMERA_OPTIONS = CAMERA_MODES.map((mode) => ({ value: mode, label: mode }));
 const MSAA_OPTIONS = MSAA_RATES.map((rate) => ({ value: rate, label: rate === "off" ? "Off" : `${rate}x` }));
+const FRAME_RATE_OPTIONS = FRAME_RATES.map((rate) => ({ value: rate, label: rate === "max" ? "Max" : `${rate} fps` }));
 
 /** The projection Back to the globe returns to. Not in the url, which holds only the view mode. */
 const returnProjection = ref(inSkyView.value ? "3D" : sceneMode.value);
