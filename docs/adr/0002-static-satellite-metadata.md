@@ -25,12 +25,11 @@ table in `satvis.core.yaml` (and plugin configs). The table is merged into the
 generated config and applied by `SatelliteTable.enrich` inside `refreshGroups`. The worker
 API and the static `data/gp/` snapshot both go through that path.
 
-**Matching is by NORAD id only.** No patterns. A satellite gets a swath because
-someone wrote its catalog number down, so the table is a 1:1 mirror of the upstream
-prediction table it was transcribed from, and re-syncing is a diff.
+**Matching is by NORAD id only.** No patterns: a satellite gets a swath because
+someone wrote its catalog number down.
 
-**Swath is a pair of per-side extents**, as upstream has it, measured cross-track
-from the ground track relative to flight direction.
+**Swath is a pair of per-side extents**, measured cross-track from the ground track
+relative to flight direction.
 
 The format is YAML because the extents are trustworthy only with their provenance
 (which value is a published spec and which was calibrated against real product
@@ -39,9 +38,10 @@ footprints), and JSON cannot carry a comment.
 ### Consequences accepted
 
 - **Six satellites lost their swath:** Fengyun 3A/3B/3C/3G/3H and METOP-SGA1 were
-  covered only by `namePattern` and are absent upstream. They fall back to the
-  200 km default (`DEFAULT_SWATH_KM`). An absent entry reads as "we do not know",
-  where a pattern-derived number reads as data.
+  covered only by `namePattern`. They fall back to the 200 km default
+  (`DEFAULT_SWATH_KM`). An absent entry reads as "we do not know", where a
+  pattern-derived number reads as data. METOP-SGA1 has since been given METimage's
+  design swath.
 - **Sentinel-3's ground track roughly doubles**, 740 → 1500 km, and other extents
   shift ~1% (Terra 2330 → 2350, Sentinel-2 290 → 300, VIIRS 3000 → 3130) as
   calibrated values replace nominal ones.
@@ -113,8 +113,7 @@ provenance per field, not per bag.
 
 - **A `families` layer keyed by `namePattern`**, with nominal instrument swaths below
   the calibrated per-satellite ones. It would have kept the six satellites above and
-  given new fleet members a value on launch day, but it brings back pattern matching
-  and stops the table mirroring upstream.
+  given new fleet members a value on launch day, but it brings back pattern matching.
 - **Group-scoped metadata** (`satellites[].metadata` applying only within its group).
   A swath is not a fact about a group: a satellite in two groups would need the value
   twice, synced by hand. Row metadata instead lifts into the global table under the

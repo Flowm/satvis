@@ -10,7 +10,7 @@ status: accepted; how SATCAT is fetched and stored, and `owner`, superseded by A
 
 ADR 0002 replaced pattern-matched metadata rules with a NORAD-keyed satellite table,
 hand-written in `satvis.core.yaml`. That shape suits what it holds (swath extents and
-sensor cones, calibrated and transcribed per satellite), but it covers **19
+sensor cones, published or calibrated per satellite), but it covers **19
 satellites out of the 12,594** the app serves. Every other satellite arrives as a
 name, a catalog number and six orbital elements, and the app can say nothing about it
 beyond the orbit class it derives.
