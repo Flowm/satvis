@@ -307,7 +307,6 @@ import {
   absoluteFitTrustworthy,
   hasFootprints,
   memoryFitTrustworthy,
-  type BenchmarkRun,
   type MemoryFit,
   type PropagationCost,
   isDrifted,
@@ -360,7 +359,6 @@ const settingsOpen = ref(true);
  * invalidates. Every derived view reads this counter instead.
  */
 const revision = ref(0);
-const finished = ref<BenchmarkRun | undefined>(undefined);
 
 const counts = computed(() =>
   countsText.value
@@ -397,7 +395,7 @@ const estimateText = computed(() => {
 
 /** `mode` is recovered by comparing against the presets; anything else is "current". */
 function adoptRunSettings(): void {
-  const current = run();
+  const current = bench.runner.run;
   if (!current) {
     return;
   }
@@ -427,31 +425,29 @@ const settingsSummary = computed(() => {
   return `· ${parts.join(" · ")}`;
 });
 
-const run = (): BenchmarkRun | undefined => bench.runner.run ?? finished.value;
-
 const rows = computed<ReportRow[]>(() => {
   void revision.value;
-  const current = run();
+  const current = bench.runner.run;
   return current ? reportRows(current) : [];
 });
 const fits = computed<ScalingFit[]>(() => {
   void revision.value;
-  const current = run();
+  const current = bench.runner.run;
   return current && current.results.length > 1 ? scalingFits(current) : [];
 });
 const memory = computed<MemoryFit[]>(() => {
   void revision.value;
-  const current = run();
+  const current = bench.runner.run;
   return current && current.results.length > 1 ? memoryFits(current) : [];
 });
 const propagation = computed<PropagationCost[]>(() => {
   void revision.value;
-  const current = run();
+  const current = bench.runner.run;
   return current ? propagationCosts(current) : [];
 });
 const repeats = computed<RepeatCheck[]>(() => {
   void revision.value;
-  const current = run();
+  const current = bench.runner.run;
   return current ? repeatChecks(current) : [];
 });
 
@@ -467,7 +463,7 @@ const gpuColumn = computed(() => rows.value.some((row) => row.gpuMs !== ""));
 
 const footprintColumn = computed(() => {
   void revision.value;
-  const current = run();
+  const current = bench.runner.run;
   return current !== undefined && hasFootprints(current);
 });
 
@@ -576,11 +572,9 @@ let startedHere = false;
 
 async function start(): Promise<void> {
   startedHere = true;
-  running.value = true;
-  finished.value = undefined;
   status.value = "preparing — loading the whole catalog";
   try {
-    const result = await bench.runner.start(
+    const sweep = bench.runner.start(
       spec.value,
       { warmupMs: warmupMs.value, sampleMs: sampleMs.value, captureFootprint: withFootprint.value },
       {
@@ -593,14 +587,15 @@ async function start(): Promise<void> {
         },
       },
     );
-    finished.value = result;
+    running.value = bench.runner.running;
+    const result = await sweep;
     status.value = result.cancelled ? `cancelled after ${result.results.length} steps` : `done — ${result.results.length} steps`;
     logRun(result);
   } catch (error) {
     status.value = `failed: ${String(error)}`;
   } finally {
     startedHere = false;
-    running.value = false;
+    running.value = bench.runner.running;
     revision.value += 1;
   }
 }
@@ -611,14 +606,14 @@ function cancel(): void {
 }
 
 function logToConsole(): void {
-  const current = run();
+  const current = bench.runner.run;
   if (current) {
     logRun(current);
   }
 }
 
 async function copy(format: "csv" | "json" | "text"): Promise<void> {
-  const current = run();
+  const current = bench.runner.run;
   if (!current) {
     return;
   }

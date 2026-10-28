@@ -282,8 +282,10 @@ Cesium's workers `CacheFirst` for 30 days, and those cached responses have no CO
 
 ## Shape
 
-Only `cesiumBenchmarkTarget.ts` knows about Cesium. The rest is pure and
-unit-tested (`benchmark.test.ts`, `framePump.test.ts`).
+Only `cesiumBenchmarkTarget.ts` and the pump know about Cesium. The sampler, plan,
+report and runner are pure and unit-tested (`benchmark.test.ts`, and
+`benchmarkRunner.test.ts` with a fake target), as is the pump's frame queue
+(`framePump.test.ts`).
 
 - `frameSampler.ts` — timestamps in, percentiles out.
 - `benchmarkPlan.ts` — the sweep matrix.

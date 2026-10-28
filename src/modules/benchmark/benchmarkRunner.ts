@@ -105,8 +105,9 @@ export class BenchmarkRunner {
     this.#target = target;
   }
 
+  /** From the call to `start`, so also while the target prepares. */
   get running(): boolean {
-    return this.#current !== undefined;
+    return this.#abort !== undefined;
   }
 
   /** The run in progress, or the last one to finish. */
@@ -121,27 +122,28 @@ export class BenchmarkRunner {
   }
 
   async start(spec: PlanSpec, options: BenchmarkOptions = DEFAULT_OPTIONS, hooks: RunnerHooks = {}): Promise<BenchmarkRun> {
-    if (this.#current) {
+    if (this.#abort) {
       throw new Error("A benchmark is already running");
     }
     const abort = new AbortController();
     this.#abort = abort;
 
-    await this.#target.prepare();
-    const steps = buildPlan(spec);
-    const run: BenchmarkRun = {
-      startedAtIso: new Date().toISOString(),
-      spec,
-      environment: this.#target.environment(),
-      options,
-      catalogSize: this.#target.catalogSize(),
-      results: [],
-      cancelled: false,
-    };
-    this.#current = run;
-    hooks.onLog?.(`${steps.length} steps over a catalog of ${run.catalogSize} satellites`);
-
+    let run: BenchmarkRun | undefined;
     try {
+      await this.#target.prepare();
+      const steps = buildPlan(spec);
+      run = {
+        startedAtIso: new Date().toISOString(),
+        spec,
+        environment: this.#target.environment(),
+        options,
+        catalogSize: this.#target.catalogSize(),
+        results: [],
+        cancelled: false,
+      };
+      this.#current = run;
+      hooks.onLog?.(`${steps.length} steps over a catalog of ${run.catalogSize} satellites`);
+
       for (const step of steps) {
         if (abort.signal.aborted) {
           run.cancelled = true;
@@ -165,7 +167,7 @@ export class BenchmarkRunner {
       }
     } finally {
       await this.#target.restore();
-      this.#last = run;
+      this.#last = run ?? this.#last;
       this.#current = undefined;
       this.#abort = undefined;
     }
