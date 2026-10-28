@@ -185,6 +185,16 @@ describe("SatelliteComponentCollection lifetime", () => {
     expect(sat.props.trajectory.position(viewer.clock.currentTime)).toBeDefined();
   });
 
+  test("keeps no listeners while it draws nothing", async () => {
+    const { sat } = await setup({ modelFile: null });
+    sat.show(["3D model"]);
+    expect(sat.eventListeners).toEqual({});
+
+    sat.dispose();
+    sat.show(["Point"]);
+    expect(sat.eventListeners).toEqual({});
+  });
+
   test("stops sampling once disposed", async () => {
     const { sat, viewer } = await setup();
     sat.show(["Point"]);

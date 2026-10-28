@@ -207,50 +207,44 @@ export class SatelliteComponentCollection implements ComponentHost {
     return entity;
   }
 
+  /** A component already drawn is left as it is: a batch gives a line one slot per add. */
   enableComponent(name: SatelliteComponentName): void {
+    if (this.#components[name]) {
+      return;
+    }
     const kind = componentKind(name);
     if (!kind) {
       console.error(`Unknown component ${name}`);
       return;
     }
-    if (!this.created) {
-      this.init();
-    }
     if (!this.props.trajectory.valid) {
       console.error(`No valid position data available for ${this.props.name}`);
       return;
     }
-    let component = this.#components[name];
+    const component = kind.create(this);
     if (!component) {
-      component = kind.create(this);
-      if (!component) {
-        // The satellite cannot draw it, and an empty collection keeps no listeners.
-        if (!this.created) {
-          this.deinit();
-        }
-        return;
-      }
-      this.#components[name] = component;
-      if (name === "3D model") {
-        this.#modelCopies = modelCopies(this);
-      }
-      if (name === "3D model" || name === "Point") {
-        deferPointToModel(this.#components.Point, this, "3D model" in this.#components);
-      }
-      if (this.#skyAppearance !== "normal") {
-        kind.appear?.(component, this);
-        this.#modelCopiesOf(name).forEach((copy) => kind.appear?.(copy, this));
-      }
-      this.#bind(name, component, false);
-      this.#requestFrameIfPaused();
+      return;
     }
+    // An empty collection keeps no listeners.
+    if (!this.created) {
+      this.init();
+    }
+    this.#components[name] = component;
+    if (name === "3D model") {
+      this.#modelCopies = modelCopies(this);
+    }
+    if (name === "3D model" || name === "Point") {
+      deferPointToModel(this.#components.Point, this, "3D model" in this.#components);
+    }
+    if (this.#skyAppearance !== "normal") {
+      kind.appear?.(component, this);
+      this.#modelCopiesOf(name).forEach((copy) => kind.appear?.(copy, this));
+    }
+    this.#bind(name, component, false);
+    this.#requestFrameIfPaused();
 
     if (component instanceof Entity) {
-      for (const entity of [component, ...this.#modelCopiesOf(name)]) {
-        if (!this.viewer.entities.contains(entity)) {
-          this.viewer.entities.add(entity);
-        }
-      }
+      [component, ...this.#modelCopiesOf(name)].forEach((entity) => this.viewer.entities.add(entity));
       this.defaultEntity ??= component;
     } else {
       kind.batch?.(this).add(component);

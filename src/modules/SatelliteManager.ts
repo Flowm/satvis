@@ -145,9 +145,6 @@ export class SatelliteManager {
         return;
       }
       this.#retracking = undefined;
-      if (this.trackedSatellite) {
-        this.getSatellite(this.trackedSatellite)?.show(this.#effectiveComponents());
-      }
       this.#onTrackedChange?.(this.trackedSatellite);
     });
 
