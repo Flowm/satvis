@@ -418,7 +418,7 @@ function notifyForPasses(): void {
   if (selection.value?.kind === "satellite") {
     upcoming = selection.value.sat.props.passPredictor.passes(cc.viewer.clock.currentTime);
   } else if (selection.value?.kind === "groundstation") {
-    upcoming = selection.value.gs.passes(cc.viewer.clock.currentTime);
+    upcoming = cc.sats.stationPasses(selection.value.gs.name, cc.viewer.clock.currentTime);
   }
   if (upcoming.length === 0) {
     toast.add({

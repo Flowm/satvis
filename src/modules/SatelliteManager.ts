@@ -8,6 +8,7 @@ import type { SerializedGroundStation } from "../stores/sat";
 import { ORBIT_LINE_COLOR, ORBIT_TRACK_LINE_COLOR } from "./componentKinds";
 import { CUSTOM_KEY_PREFIX, CUSTOM_TAG, isCustom } from "./customSatellites";
 import { GroundStationEntity, type GroundStationPositionData } from "./GroundStationEntity";
+import { type Pass, stationPasses, stationPassesSettled } from "./PassPredictor";
 import { RecutSchedule } from "./recutSchedule";
 import { activeTargetEntries, buildOrder } from "./satelliteActivation";
 import { type CatalogEntry, SatelliteCatalog } from "./SatelliteCatalog";
@@ -595,13 +596,30 @@ export class SatelliteManager {
   }
 
   #createGroundstation(position: GroundStationPositionData, name: string, index: number): GroundStationEntity {
-    const groundStation = new GroundStationEntity(this.viewer, this, position, name, index);
+    const groundStation = new GroundStationEntity(this.viewer, position, name, index);
     groundStation.show();
     return groundStation;
   }
 
   get groundStations(): GroundStationEntity[] {
     return this.#stations;
+  }
+
+  /** The drawn satellites' passes over the station named `name`, starting within two days of `time`. */
+  stationPasses(name: string, time: JulianDate): Pass[] {
+    return stationPasses(
+      this.visibleSatellites.map((sat) => sat.props.passPredictor),
+      time,
+      name,
+    );
+  }
+
+  /** Whether every drawn satellite's prediction has answered for `time`. */
+  stationPassesSettled(time: JulianDate): boolean {
+    return stationPassesSettled(
+      this.visibleSatellites.map((sat) => sat.props.passPredictor),
+      time,
+    );
   }
 
   get overpassMode(): string {

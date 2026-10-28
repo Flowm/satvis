@@ -194,6 +194,25 @@ describe("SatelliteManager", () => {
     track.mockRestore();
   });
 
+  test("lists the drawn satellites' passes over a station once their prediction answers", async () => {
+    const viewer = fakeViewer();
+    const sats = new SatelliteManager(viewer, { samples: new InlineSampleSource(), passes: new InlinePassSource() });
+    sats.addRecords(parseGpPayload(TLES), ["Test"]);
+    sats.reconcile(scene({ enabledTags: ["Test"], groundStations: [{ lat: 48.14, lon: 11.58, name: "Munich" }] }));
+    await sats.buildSettled();
+    const time = viewer.clock.currentTime;
+
+    expect(sats.stationPasses("Munich", time)).toEqual([]);
+    expect(sats.stationPassesSettled(time)).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const passes = sats.stationPasses("Munich", time);
+    expect(sats.stationPassesSettled(time)).toBe(true);
+    expect(new Set(passes.map((pass) => pass.name))).toEqual(new Set(["ISS (ZARYA)", "NOAA 20"]));
+    expect(passes.map((pass) => pass.start)).toEqual(passes.map((pass) => pass.start).toSorted((a, b) => a - b));
+    expect(sats.stationPasses("Paris", time)).toEqual([]);
+  });
+
   test("draws a tracked satellite's orbit once, and leaves no line behind once it is let go and dropped", async () => {
     // The ICRF transform needs async-loaded IAU data that Node lacks.
     vi.spyOn(Transforms, "computeFixedToIcrfMatrix").mockImplementation(() => Matrix3.clone(Matrix3.IDENTITY));

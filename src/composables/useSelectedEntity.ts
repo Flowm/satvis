@@ -133,8 +133,8 @@ function refreshData(sel: Selection, time: JulianDate): void {
       { label: "Longitude", value: `${gs.position.longitude.toFixed(2)}°` },
     ];
     staleNotice.value = undefined;
-    const allPasses = gs.passes(time);
-    passesPending.value = !gs.passesSettled(time);
+    const allPasses = sats.stationPasses(gs.name, time);
+    passesPending.value = !sats.stationPassesSettled(time);
     hasAnyPasses.value = allPasses.length > 0;
     setPasses(filterPasses(allPasses, time, showPastPasses.value), time, "name", mode);
   }
