@@ -22,7 +22,7 @@ export type GestureIntent =
   | { kind: "zoom"; factor: number }
   /** A drag takes the aim back from the device sensor, which would otherwise spring the sky back. */
   | { kind: "take-aim" }
-  /** Acts on what the crosshair holds, not on what is under the finger. */
+  /** Opens what is under the pointer, not what the crosshair holds. */
   | { kind: "tap" };
 
 interface Point {
