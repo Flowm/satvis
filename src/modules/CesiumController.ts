@@ -340,6 +340,12 @@ export class CesiumController {
         }
       });
 
+    // Cesium completes a running morph before starting another. Completing it here releases
+    // what that morph suppressed, so this one suppresses it again and owns the release.
+    if (this.viewer.scene.mode === SceneMode.MORPHING) {
+      this.viewer.scene.completeMorph();
+    }
+
     // In every direction, including back to 3D: outside 3D each batched component falls
     // back to per-entity paths, and only re-creation on release switches it back
     // (342 ms a frame vs 1.24 ms batched).
