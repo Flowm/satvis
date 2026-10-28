@@ -90,10 +90,6 @@ const scratchQuaternion = new Quaternion();
 export function flightPosition(from: Cartesian3, to: Cartesian3, overhead: number, drop: number, result: Cartesian3): Cartesian3 {
   const fromRadius = Cartesian3.magnitude(from);
   const toRadius = Cartesian3.magnitude(to);
-  if (fromRadius === 0 || toRadius === 0) {
-    // The geocentre has no direction to rotate. Unreachable from a real camera.
-    return Cartesian3.lerp(from, to, drop, result);
-  }
   const height = fromRadius - toRadius;
   const left = heightLeft(height, drop);
   const radius = toRadius + left * height;

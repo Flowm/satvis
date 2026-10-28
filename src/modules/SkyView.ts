@@ -371,11 +371,6 @@ export class SkyView {
     if (this.#phase === "leaving") {
       return this.#flight?.finished ?? Promise.resolve();
     }
-    if (!this.#saved) {
-      // Unreachable: every non-off phase has a saved globe to go back to.
-      this.#restore();
-      return Promise.resolve();
-    }
     return this.#fly("leaving");
   }
 
@@ -448,12 +443,7 @@ export class SkyView {
     if (this.#observer) {
       this.#skyPose(this.#observer);
     }
-    return flightPath(this.#savedPose(), this.#sky, this.#over);
-  }
-
-  /** Only called with `#saved` present. */
-  #savedPose(): Pose {
-    return this.#saved?.pose ?? this.#cameraPose();
+    return flightPath(this.#saved!.pose, this.#sky, this.#over);
   }
 
   #land(): void {
@@ -468,7 +458,7 @@ export class SkyView {
   }
 
   #restore(): void {
-    const saved = this.#saved;
+    const saved = this.#saved!;
     // Cesium's Event defers removals raised during a dispatch, so this is safe
     // inside the landing frame's preRender callback.
     this.#removePreRender?.();
@@ -484,9 +474,6 @@ export class SkyView {
       }
     }
     this.#borrowedLabels.clear();
-    if (!saved) {
-      return;
-    }
 
     const { camera, screenSpaceCameraController: controller } = this.#scene;
     camera.lookAtTransform(Matrix4.IDENTITY);
