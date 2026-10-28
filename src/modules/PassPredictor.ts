@@ -5,6 +5,7 @@ import utc from "dayjs/plugin/utc";
 import type { SwathExtents } from "../config/satelliteMetadata";
 import type Orbit from "./Orbit";
 import type { GroundStationPosition } from "./Orbit";
+import { compassPoint } from "./skyGeometry";
 import type { PassPredictorSource, WorkerPass } from "./util/passSource";
 
 dayjs.extend(utc);
@@ -284,12 +285,6 @@ export function passSummary(pass: Pass): string {
     return `${window} · ${pass.maxElevation.toFixed(0)}° max, apex ${compassPoint(pass.azimuthApex)}`;
   }
   return `${window} · ${pass.minDistance.toFixed(0)} km off track, swath ${pass.swathWidth.toFixed(0)} km`;
-}
-
-/** 16-point compass abbreviation. */
-export function compassPoint(azimuthDeg: number): string {
-  const points = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-  return points[Math.round((((azimuthDeg % 360) + 360) % 360) / 22.5) % 16]!;
 }
 
 export function toPassRows(passes: Pass[], time: JulianDate, nameField: "name" | "groundStationName", mode: string): PassRow[] {

@@ -2,8 +2,8 @@ import { Cartesian3, Math as CesiumMath, PerspectiveFrustum } from "@cesium/core
 import { type LabelCollection, type Scene, SceneMode } from "@cesium/engine";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import type { Aim } from "./skyGeometry";
 import {
-  type Aim,
   defaultAzimuth,
   DEFAULT_FOVY,
   DEFAULT_PITCH,

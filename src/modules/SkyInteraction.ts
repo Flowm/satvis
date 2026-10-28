@@ -12,10 +12,11 @@ import type { SkyAppearance } from "./componentKinds";
 import { browserOrientationEvents, CompassAiming, type CompassCalibration, type CompassOutcome } from "./DeviceAim";
 import type { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import type { SatelliteManager } from "./SatelliteManager";
+import type { Observer } from "./skyGeometry";
 import { type GestureIntent, lookAfterDrag, SkyGestures } from "./skyGestures";
 import { SkyMovement } from "./SkyMovement";
 import { groundHides, nearestTarget, type SkyTarget, skyTargets } from "./SkyTargets";
-import type { Observer, SkyView } from "./SkyView";
+import type { SkyView } from "./SkyView";
 import type { UnseenMode } from "./util/visibility";
 
 /** In CSS pixels. */

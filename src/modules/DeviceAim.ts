@@ -12,8 +12,6 @@ import { Cartesian3, Math as CesiumMath, Matrix3 } from "@cesium/core";
 
 import { type Aim, normalizeAzimuth, rollOf } from "./skyGeometry";
 
-export { normalizeAzimuth } from "./skyGeometry";
-
 export interface DeviceOrientationSample {
   /** Degrees about the vertical, 0-360. Relative to an arbitrary zero on iOS. */
   alpha: number;

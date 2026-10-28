@@ -7,8 +7,8 @@ import { type Scene, SceneTransforms } from "@cesium/engine";
 import { shallowRef, type ShallowRef } from "vue";
 
 import type { CesiumController } from "../modules/CesiumController";
-import { normalizeAzimuth } from "../modules/skyGeometry";
-import { compassPoint, directionToWindow, groundHides, lookAngles, type ObserverFrame, type SkyTarget } from "../modules/SkyTargets";
+import { compassPoint, normalizeAzimuth, type ObserverFrame } from "../modules/skyGeometry";
+import { directionToWindow, groundHides, lookAngles, type SkyTarget } from "../modules/SkyTargets";
 import { fovxFromFovy } from "../modules/SkyView";
 
 /** A mark on one of the tapes, already placed in CSS pixels. */

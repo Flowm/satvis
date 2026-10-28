@@ -11,8 +11,6 @@ import type { SatelliteComponentCollection } from "./SatelliteComponentCollectio
 import { enuDirection, normalizeAzimuth, type ObserverFrame } from "./skyGeometry";
 import { inEarthShadow, sunDirection, type Visibility, visibility } from "./util/visibility";
 
-export { type ObserverFrame, observerFrame } from "./skyGeometry";
-
 export interface LookAngles {
   /** Degrees clockwise from north. */
   azimuth: number;
@@ -137,10 +135,4 @@ export function nearestTarget(targets: readonly SkyTarget[], center: Cartesian2,
     }
   }
   return inReach.toSorted((a, b) => a.distance - b.distance).find(({ target }) => !hidden(target))?.target;
-}
-
-export function compassPoint(azimuth: number): string {
-  const points = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-  const index = Math.round(normalizeAzimuth(azimuth) / 22.5) % points.length;
-  return points[index] as string;
 }

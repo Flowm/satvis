@@ -16,7 +16,7 @@ import { useSatStore } from "../stores/sat";
 import { activeTargetEntries } from "./satelliteActivation";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import type { DesiredScene } from "./SatelliteManager";
-import type { Observer } from "./SkyView";
+import type { Observer } from "./skyGeometry";
 import { isOffPresent } from "./util/clockDeck";
 import type { GpRecord } from "./util/gp";
 import { toMinuteIso } from "./util/urlCodec";

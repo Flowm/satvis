@@ -15,8 +15,6 @@ import { type LabelCollection, type Scene, SceneMode } from "@cesium/engine";
 import { flightDuration, type FlightPath, flightPath, flightPose, newPose, type Pose } from "./skyFlight";
 import { type Aim, enuDirection, type Observer, type ObserverFrame, observerFrame, rollBasis } from "./skyGeometry";
 
-export type { Aim, Observer } from "./skyGeometry";
-
 /** An orthonormal camera basis in east-north-up components. */
 export interface Basis {
   direction: Cartesian3;

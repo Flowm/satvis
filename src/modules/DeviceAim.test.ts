@@ -9,10 +9,9 @@ import {
   compassYawOffset,
   type DeviceOrientationSample,
   hasHeadingSource,
-  normalizeAzimuth,
   type OrientationEvent,
 } from "./DeviceAim";
-import type { Aim } from "./skyGeometry";
+import { type Aim, normalizeAzimuth } from "./skyGeometry";
 import { skyBasis } from "./SkyView";
 
 const sample = (alpha: number, beta: number, gamma: number, screenAngle = 0): DeviceOrientationSample => ({ alpha, beta, gamma, screenAngle });

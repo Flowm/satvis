@@ -3,19 +3,7 @@ import dayjs from "dayjs";
 import { describe, expect, test } from "vitest";
 
 import Orbit from "./Orbit";
-import {
-  PassPredictor,
-  compassPoint,
-  filterPasses,
-  formatCountdown,
-  passMinutes,
-  passQuality,
-  passSummary,
-  stationPasses,
-  toPassRows,
-  type GroundStation,
-  type Pass,
-} from "./PassPredictor";
+import { PassPredictor, filterPasses, formatCountdown, passMinutes, passQuality, passSummary, stationPasses, toPassRows, type GroundStation, type Pass } from "./PassPredictor";
 import { parseGpPayload, type GpRecord } from "./util/gp";
 import { InlinePassSource, type PassPredictorSource, type PassQuery } from "./util/passSource";
 
@@ -299,16 +287,6 @@ describe("passQuality", () => {
     // Clamped either way, so a station outside the footprint cannot go negative.
     expect(passQuality(swathPass(0, 10 * MIN))).toBeGreaterThanOrEqual(0);
     expect(passQuality(swathPass(0, 10 * MIN))).toBeLessThanOrEqual(1);
-  });
-});
-
-describe("compassPoint", () => {
-  test("names the sixteen points, and wraps rather than running off the end", () => {
-    expect(compassPoint(0)).toBe("N");
-    expect(compassPoint(90)).toBe("E");
-    expect(compassPoint(180)).toBe("S");
-    expect(compassPoint(359)).toBe("N");
-    expect(compassPoint(-90)).toBe("W");
   });
 });
 

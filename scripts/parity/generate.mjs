@@ -232,6 +232,7 @@ try {
   const { JulianDate } = await runner.import("@cesium/core");
   const passPredictor = await runner.import("/src/modules/PassPredictor.ts");
   const { passTimelineLayout } = await runner.import("/src/modules/util/passTimeline.ts");
+  const { compassPoint } = await runner.import("/src/modules/skyGeometry.ts");
   const presentation = passes
     .filter((entry) => entry.passes.length > 0)
     .map((entry) => {
@@ -256,7 +257,7 @@ try {
     untilMs,
     text: passPredictor.formatCountdown(0, { start: untilMs, end: untilMs + 600_000 }),
   }));
-  const compassPoints = [-11.25, 0, 11.24, 11.25, 33.75, 180, 348.75, 359.99, 371.25].map((azimuth) => ({ azimuth, point: passPredictor.compassPoint(azimuth) }));
+  const compassPoints = [-11.25, 0, 11.24, 11.25, 33.75, 180, 348.75, 359.99, 371.25].map((azimuth) => ({ azimuth, point: compassPoint(azimuth) }));
 
   // Links (ADR 0001): each field kind's answer for awkward input, then whole links
   // decoded onto a preset's defaults and written back, over the parameters and

@@ -1,7 +1,7 @@
 import { Cartesian3 } from "@cesium/core";
 import { describe, expect, test } from "vitest";
 
-import { enuDirection, levelBasis, normalizeAzimuth, offsetObserver, rollBasis, rollOf } from "./skyGeometry";
+import { compassPoint, enuDirection, levelBasis, normalizeAzimuth, offsetObserver, rollBasis, rollOf } from "./skyGeometry";
 
 const angles = [
   [0, 0],
@@ -81,6 +81,25 @@ describe("normalizeAzimuth", () => {
     expect(normalizeAzimuth(-90)).toBe(270);
     expect(normalizeAzimuth(450)).toBe(90);
     expect(normalizeAzimuth(-720.5)).toBeCloseTo(359.5, 9);
+  });
+});
+
+describe("compassPoint", () => {
+  test("names the sixteen points", () => {
+    expect(compassPoint(0)).toBe("N");
+    expect(compassPoint(90)).toBe("E");
+    expect(compassPoint(180)).toBe("S");
+    expect(compassPoint(270)).toBe("W");
+    expect(compassPoint(45)).toBe("NE");
+    expect(compassPoint(202.5)).toBe("SSW");
+  });
+
+  test("wraps rather than running off the end", () => {
+    // 359° is north, not a seventeenth point.
+    expect(compassPoint(359)).toBe("N");
+    expect(compassPoint(360)).toBe("N");
+    expect(compassPoint(-90)).toBe("W");
+    expect(compassPoint(720 + 180)).toBe("S");
   });
 });
 

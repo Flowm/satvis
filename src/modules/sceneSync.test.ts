@@ -12,7 +12,7 @@ import { useSatStore } from "../stores/sat";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import type { DesiredScene } from "./SatelliteManager";
 import { type SceneTarget, startSceneSync } from "./sceneSync";
-import type { Observer } from "./SkyView";
+import type { Observer } from "./skyGeometry";
 
 /** The url the page was opened on. */
 const url = vi.hoisted(() => ({ elements: undefined as string | undefined, adjustUrlDefault: vi.fn() }));
