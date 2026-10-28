@@ -120,7 +120,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   PBR. `ios/scripts/make-model-fixture.mjs` writes the test's cube. The info
   panel's Spacecraft tab shows the model on its own (`ModelCloseUp`), as the web
   app's `ModelCloseUp.ts` does, with the globe's model shaders rather than
-  RealityKit or SceneKit (ADR 0009), lit from over the viewer's shoulder.
+  RealityKit or SceneKit (ADR 0009), lit from over the viewer's shoulder at the
+  web app's intensity of 2.5 and tonemapped in the shader, as it draws to the screen.
 - `Session`, owned by `SatvisApp`, is one open globe: the models (`ViewerClock`,
   `CatalogModel`, `PassModel`, `SatelliteLayer`, `StarMap`, and `PassAlerts`, which
   the background refresh needs too), what is selected, followed and stood on and

@@ -106,6 +106,9 @@ struct ModelInstance {
     var alphaCutoff: Float
     /// How the sky view draws it, 1 as usual: drawn blended below 1.
     var opacity: Float
+    /// 0 leaves the colour in HDR, for the globe's tonemap pass; above 0 it
+    /// scales the light and tonemaps in the shader, for a pass that draws to the screen.
+    var exposure: Float = 0
 }
 
 /// The model pass's two pipelines, the globe's and the close-up's alike: the

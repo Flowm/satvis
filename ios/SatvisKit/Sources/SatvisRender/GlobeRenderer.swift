@@ -12,7 +12,10 @@ public enum RendererError: Error {
 /// Compiles Shaders/*.msl. At run time rather than at build time, so that neither
 /// the build nor CI needs Xcode's separately downloaded Metal toolchain.
 enum ShaderLibrary {
-    static let files = ["Common", "Sky", "Globe", "Surface", "Points", "Lines", "Labels", "Stations", "Footprints", "Models", "Tonemap"]
+    /// The models' shaders and what they call, which the close-up compiles alone.
+    /// In order: `Models` calls `Tonemap`.
+    static let models = ["Common", "Tonemap", "Models"]
+    static let files = ["Common", "Sky", "Globe", "Surface", "Points", "Lines", "Labels", "Stations", "Footprints"] + models.dropFirst()
 
     /// The shaders compiled twice: safe math for the vertex functions that place a
     /// satellite, where fast math may regroup the high/low subtraction from the

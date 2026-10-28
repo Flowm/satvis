@@ -24,6 +24,9 @@ struct ModelInstance {
     float alphaCutoff;
     /// How the sky view draws it, 1 as usual: drawn blended below 1.
     float opacity;
+    /// 0 leaves the colour in HDR, for the globe's tonemap pass; above 0 it
+    /// scales the light and tonemaps here, for the close-up, which draws to the screen.
+    float exposure;
 };
 
 struct ModelOut {
@@ -59,6 +62,9 @@ inline float4 shadeModel(ModelOut in, bool front, constant ModelInstance &instan
     float reflectance = mix(0.04, 0.6, instance.metallic);
     float highlight = diffuse > 0.0 ? pow(max(dot(normal, halfway), 0.0), shininess) * reflectance : 0.0;
     float3 color = albedo.rgb * (0.15 + 0.95 * diffuse * (1.0 - 0.5 * instance.metallic)) + float3(highlight);
+    if (instance.exposure > 0.0) {
+        color = acesTonemapping(color * instance.exposure);
+    }
     // glTF's alpha modes: cut out below a mask's cutoff; the alpha blended for a
     // blended part, whose pipeline blends, ignored for an opaque one.
     if (albedo.a < instance.alphaCutoff) {
