@@ -7,9 +7,9 @@
     title="About Satvis"
     :ui="{
       overlay: 'z-30 bg-black/40',
-      content: 'z-30 bg-(--panel-surface-dense) text-(--panel-ink) divide-neutral-600 max-w-2xl',
-      header: 'p-2 sm:px-3',
-      body: 'p-3 sm:p-3',
+      content: 'z-30 bg-(--panel-surface-dense) text-(--panel-ink) divide-neutral-600 max-w-xl',
+      header: 'py-2 px-4 sm:px-5',
+      body: 'p-4 sm:p-5',
     }"
   >
     <!-- The trigger, which the dialog returns focus to when it closes. -->
