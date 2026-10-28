@@ -39,6 +39,12 @@ const emit = defineEmits<{ close: [] }>();
   overflow-y: auto;
 }
 
+/* Rows keep their height and the body scrolls: a row's `overflow: hidden`, which cuts a long
+   name short, let it shrink instead, and its mark slid off its label on a short screen. */
+.toolbarPanel--fixed .toolbarPanel__body > :deep(*) {
+  flex-shrink: 0;
+}
+
 /* With the divider, level with the divider under the Menu row. */
 .toolbarPanel__header {
   flex: none;
