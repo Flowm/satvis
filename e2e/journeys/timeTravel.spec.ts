@@ -59,3 +59,24 @@ test("pause, drag an hour back, speed up, and return to now", async ({ page }) =
   await expect(live).toBeVisible();
   expect(pinned(page)).toBeNull();
 });
+
+test("the reset on the speed ladder puts back the time and the speed", async ({ page }) => {
+  await openApp(page, "", { live: true });
+  await openClockDeck(page);
+  const deck = page.locator(".deck");
+  const live = deck.getByRole("img", { name: "Live" });
+  const reset = deck.getByRole("button", { name: "Back to now", exact: true });
+
+  await deck.getByRole("button", { name: "Set playback speed", exact: true }).click();
+  await expect(reset).toBeHidden();
+  await deck.getByRole("radio", { name: /^600×/ }).click();
+  await expect(reset).toBeVisible();
+  await expect(live).toBeHidden();
+
+  await reset.click();
+  expect(await page.evaluate(() => window.cc!.viewer.clock.multiplier)).toBe(1);
+  await expect(deck.getByRole("radio", { name: /^1×/ })).toHaveAttribute("aria-checked", "true");
+  await expect(live).toBeVisible();
+  await expect(reset).toBeHidden();
+  expect(Math.abs((await clockMs(page)) - Date.parse(FIXTURE_TIME))).toBeLessThan(5 * 60_000);
+});

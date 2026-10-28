@@ -120,12 +120,9 @@ struct ClockDeck<Accessory: View>: View {
                         onLadder.toggle()
                     }
                     if resettable {
-                        chip(onLadder ? "Back to real time" : "Back to now", symbol: "arrow.counterclockwise", fill: Color.panelAmber.opacity(0.12), tint: Color.panelAmber) {
-                            if onLadder {
-                                clock.setMultiplier(1)
-                            } else {
-                                clock.goLive()
-                            }
+                        // The ladder follows the speed it puts back.
+                        chip("Back to now", symbol: "arrow.counterclockwise", fill: Color.panelAmber.opacity(0.12), tint: Color.panelAmber) {
+                            clock.goLive()
                         }
                     }
                 }
@@ -150,12 +147,10 @@ struct ClockDeck<Accessory: View>: View {
         .accessibilityLabel(title)
     }
 
-    /// Whether the scale showing is away from where it rests.
+    /// Whether the clock is away from where it rests, its time or its speed: the
+    /// reset puts back both, on either scale, as the web app's.
     private var resettable: Bool {
-        if onLadder {
-            return clock.clock.multiplier != 1
-        }
-        return clock.clock.isOffPresent(at: ViewerClock.real()) || clock.clock.isPinned
+        clock.clock.multiplier != 1 || clock.clock.isOffPresent(at: ViewerClock.real()) || clock.clock.isPinned
     }
 
     /// How far the surface reaches either side of the middle: around the clock,
