@@ -219,13 +219,9 @@ export default defineConfig({
         },
         image: "public/logo.svg",
       },
-      devOptions: {
-        type: "module",
-      },
     }),
   ],
   resolve: {
-    tsconfigPaths: true,
     alias: [
       // Stubs satellite.js's unused Emscripten bundles, which raise fifteen "externalized
       // for browser compatibility" warnings.
@@ -234,7 +230,6 @@ export default defineConfig({
     ],
   },
   test: {
-    environment: "node",
     include: ["src/**/*.test.ts"],
   },
   server: {

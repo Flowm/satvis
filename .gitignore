@@ -1,6 +1,5 @@
 node_modules/
 /dist/
-/dev-dist/
 
 # OS
 .DS_Store

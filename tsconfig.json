@@ -6,10 +6,7 @@
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "types": [],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "types": []
   },
   "include": ["src", "src/**/*.vue", "e2e", "vite.config.ts", "playwright.config.ts", "components.d.ts"]
 }
