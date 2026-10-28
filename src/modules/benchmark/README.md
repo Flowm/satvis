@@ -203,9 +203,8 @@ These headers were checked against a control without them. Results were the same
 for the imagery hosts (ArcGIS, OSM, VersaTiles, NASA GIBS, Iowa Mesonet), ReEarth
 terrain, `api.cesium.com`, `assets.ion.cesium.com` (World Terrain, OSM Buildings)
 and `tile.googleapis.com`: all 200, no `blockedReason`. A framed instance runs
-unisolated, because COOP does not apply to iframes. `api.maptiler.com` (403) and
-ArcGIS terrain (no requests) fail with and without the headers. PostHog under
-`credentialless` is not verified.
+unisolated, because COOP does not apply to iframes. `api.maptiler.com` (403) fails
+with and without the headers. PostHog under `credentialless` is not verified.
 
 **Black globe, satellites still drawing.** An isolated document refuses to start
 a worker from a cached response without COEP. When it blocks

@@ -1,7 +1,6 @@
 import { type Clock } from "@cesium/core";
 import {
   ArcGisMapServerImageryProvider,
-  ArcGISTiledElevationTerrainProvider,
   CesiumTerrainProvider,
   createWorldTerrainAsync,
   EllipsoidTerrainProvider,
@@ -37,7 +36,6 @@ export interface ImageryProviderEntry {
 
 export interface TerrainProviderEntry {
   create: () => TerrainProvider | Promise<TerrainProvider>;
-  visible?: boolean;
 }
 
 export const imageryProviders: Record<string, ImageryProviderEntry> = {
@@ -166,10 +164,6 @@ export const terrainProviders: Record<string, TerrainProviderEntry> = {
         requestVertexNormals: true,
       }),
   },
-  ArcGIS: {
-    create: () => ArcGISTiledElevationTerrainProvider.fromUrl("https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer"),
-    visible: false,
-  },
 };
 
 export function imageryProviderNames(): string[] {
@@ -188,9 +182,6 @@ export function overlayLayerNames(): string[] {
     .map(([name]) => name);
 }
 
-/** Terrain providers a user may select. `ArcGIS` is registered but hidden. */
 export function terrainProviderNames(): string[] {
-  return Object.entries(terrainProviders)
-    .filter(([, entry]) => entry.visible ?? true)
-    .map(([name]) => name);
+  return Object.keys(terrainProviders);
 }

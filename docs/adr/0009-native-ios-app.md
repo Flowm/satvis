@@ -138,7 +138,7 @@ it off.
 
 ## What the native app leaves out
 
-- Cesium World Terrain, MapTiler and ArcGIS terrain
+- Cesium World Terrain and MapTiler terrain
 - Surface models: OSM Buildings and Google Photorealistic (ADR 0005)
 - The Columbus view mode
 - The GOES-IR and Nexrad overlays, and the debug tile grid

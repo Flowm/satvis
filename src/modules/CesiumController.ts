@@ -271,9 +271,8 @@ export class CesiumController {
     this.#terrain.choose(terrainProviderName);
   }
 
-  /** Accepts any registered provider, including ones a url may not name. */
   #suppressTerrain(terrainProviderName: string): void {
-    if (!(terrainProviderName in terrainProviders)) {
+    if (!terrainProviderNames().includes(terrainProviderName)) {
       console.error("Unknown terrain provider override");
       return;
     }
