@@ -122,7 +122,6 @@ export const useCesiumStore = defineStore(
   {
     // Wire format: docs/adr/0001-url-parameter-specification.md.
     urlsync: {
-      enabled: true,
       config: [
         { name: "layers", url: "layers", kind: layerList(imageryProviderNames) },
         { name: "terrainProvider", url: "terrain", kind: enumString(terrainProviderNames()) },

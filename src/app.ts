@@ -1,7 +1,7 @@
 import { Ion } from "@cesium/engine";
 import ui from "@nuxt/ui/vue-plugin";
 import { createPinia } from "pinia";
-import { createApp, markRaw } from "vue";
+import { createApp } from "vue";
 
 import App from "./App.vue";
 import { recordOpenedLink } from "./composables/useBookmarks";
@@ -40,7 +40,7 @@ if (new URLSearchParams(window.location.search).has("framems")) {
 
 const preset = resolvePreset();
 /** The url sync waits for this: the url only states what differs from the preset. */
-const presetDefaults = markRaw(preset.then(({ defaults }) => defaults));
+const presetDefaults = preset.then(({ defaults }) => defaults);
 void preset.then((resolved) => {
   updateMetadata(resolved);
   // Only groups the activation needs are fetched.
@@ -48,11 +48,7 @@ void preset.then((resolved) => {
 });
 
 const pinia = createPinia();
-pinia.use(({ store }) => {
-  store.router = markRaw(router);
-  store.presetDefaults = presetDefaults;
-});
-pinia.use(piniaUrlSync);
+pinia.use(piniaUrlSync(router, presetDefaults));
 app.use(pinia);
 
 // Not a component: it must outlive every panel and not depend on mount order.
