@@ -161,17 +161,15 @@ describe("PolylineBatch", () => {
     const batch = new PolylineBatch(host.viewer, "inertial", Color.WHITE);
 
     expect(host.primitives.added).toEqual([batch]);
-    expect(batch.pending).toBe(false);
   });
 
-  test("a change is pending until a frame uploads it, and asks for that frame", () => {
+  test("a change asks for the frame that uploads it", () => {
     const host = fakeViewer();
     const batch = new PolylineBatch(host.viewer, "fixed", Color.GOLD);
 
     batch.add(line("ISS"));
 
     expect(batch.size).toBe(1);
-    expect(batch.pending).toBe(true);
     expect(host.renders).toBe(1);
   });
 

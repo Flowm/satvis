@@ -287,9 +287,6 @@ export class PolylineBatch {
   /** The members and their slots in the points buffer. */
   readonly #slots = new LineSlots();
 
-  /** `settled` calls waiting for the next upload. */
-  #settledWaiters: Array<() => void> = [];
-
   /** The farthest point of any line so far, metres; the bound only grows. */
   #radius = 0;
 
@@ -317,11 +314,6 @@ export class PolylineBatch {
     this.#frame = frame;
     this.#color = color;
     viewer.scene.primitives.add(this);
-  }
-
-  /** Changes not yet on the GPU. */
-  get pending(): boolean {
-    return this.#slots.dirty;
   }
 
   /** The members. */
@@ -357,19 +349,6 @@ export class PolylineBatch {
     return true;
   }
 
-  /**
-   * Resolves once the GPU holds every change. The scene morph waits on it: morphing
-   * first would draw the lines into the projection being left.
-   */
-  settled(): Promise<void> {
-    if (!this.pending) {
-      return Promise.resolve();
-    }
-    return new Promise((resolve) => {
-      this.#settledWaiters.push(resolve);
-    });
-  }
-
   /** Called by the scene on every rendered frame. */
   update(frameState: any): void {
     if (!this.show || this.#destroyed) {
@@ -380,11 +359,6 @@ export class PolylineBatch {
       return;
     }
     this.#upload(context);
-    if (this.#settledWaiters.length > 0) {
-      const waiters = this.#settledWaiters;
-      this.#settledWaiters = [];
-      waiters.forEach((resolve) => resolve());
-    }
     // A batch draws only in 3D; elsewhere its members are paths.
     const extent = this.#slots.extent;
     if (!this.#gpu || extent === 0 || frameState.mode !== SceneMode.SCENE3D || !frameState.passes.render) {

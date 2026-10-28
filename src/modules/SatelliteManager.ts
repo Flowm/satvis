@@ -365,7 +365,7 @@ export class SatelliteManager {
 
   /** Re-cut the orbit tracks as simulation time passes (RecutSchedule). */
   #refreshDerivedGeometry(time: JulianDate): void {
-    if (!this.#recuts.tick(time, { count: this.#active.size, tracksPending: this.tracks.pending })) {
+    if (!this.#recuts.tick(time, this.#active.size)) {
       return;
     }
     for (const sat of this.#active.values()) {
