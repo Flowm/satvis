@@ -19,8 +19,8 @@
 #                   holds some of them, and names a fresh launch GUOWANG
 # The extras are in `active` but not in the curated group; we serve them.
 #
-# Members without a matching prefix are `satellites` rows, not select.noradIds: a
-# row's upstreamName is checked, so a rename or decay warns in /api/groups.json.
+# Members without a matching prefix are `satellites` rows: a row's upstreamName is
+# checked, so a rename or decay warns in /api/groups.json.
 #
 # `active-remainder` is `active` minus the ten. A group carved from `active` must
 # join its exclude list and carry the `Active` tag (the generator checks both), so

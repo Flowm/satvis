@@ -14,23 +14,11 @@ const REQUEST_SPACING_MS = 250;
 const REQUEST_TIMEOUT_MS = 30_000;
 
 export function sourceKey(spec: SourceSpec): string {
-  if ("celestrak" in spec) {
-    return `celestrak:${spec.celestrak}`;
-  }
-  if ("celestrakSup" in spec) {
-    return `celestrakSup:${spec.celestrakSup}`;
-  }
-  return `url:${spec.url}`;
+  return `celestrak:${spec.celestrak}`;
 }
 
 export function sourceUrl(spec: SourceSpec): string {
-  if ("celestrak" in spec) {
-    return `${CELESTRAK_BASE}gp.php?GROUP=${encodeURIComponent(spec.celestrak)}&FORMAT=JSON`;
-  }
-  if ("celestrakSup" in spec) {
-    return `${CELESTRAK_BASE}supplemental/sup-gp.php?FILE=${encodeURIComponent(spec.celestrakSup)}&FORMAT=JSON`;
-  }
-  return spec.url;
+  return `${CELESTRAK_BASE}gp.php?GROUP=${encodeURIComponent(spec.celestrak)}&FORMAT=JSON`;
 }
 
 /** Deduped by sourceKey, so two groups naming one source fetch it once. */

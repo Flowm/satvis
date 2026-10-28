@@ -51,8 +51,7 @@ function ingestBundle(reply: (source: string) => unknown, opts?: { status?: numb
   const specs = collectSources((generatedConfig as GroupsConfig).groups);
   const fetched = specs.map((spec) => {
     const url = sourceUrl(spec);
-    const params = new URL(url).searchParams;
-    const source = params.get("GROUP") ?? params.get("FILE") ?? "";
+    const source = new URL(url).searchParams.get("GROUP") ?? "";
     return { key: sourceKey(spec), url, ms: 0, status: opts?.status ?? 200, records: reply(source) as OmmRecord[] };
   });
   return JSON.stringify(toIngestBundle(fetched, UPDATED));
@@ -219,7 +218,7 @@ describe("scheduled() refresh", () => {
   });
 
   /**
-   * Answers gp.php and sup-gp.php requests synthetically. A GP refresh asks for nothing
+   * Answers gp.php requests synthetically. A GP refresh asks for nothing
    * else: it reads the upstream tables from KV.
    */
   function interceptCelestrak(reply: (group: string) => unknown, opts?: { status?: number }): void {
@@ -227,11 +226,10 @@ describe("scheduled() refresh", () => {
     fetchSpy.mockImplementation(async (input, init) => {
       const request = new Request(input, init);
       const url = new URL(request.url);
-      const isGp = url.pathname === "/NORAD/elements/gp.php" || url.pathname === "/NORAD/elements/supplemental/sup-gp.php";
-      if (request.method !== "GET" || url.origin !== "https://celestrak.org" || !isGp) {
+      if (request.method !== "GET" || url.origin !== "https://celestrak.org" || url.pathname !== "/NORAD/elements/gp.php") {
         throw new Error(`unmocked fetch: ${request.method} ${request.url}`);
       }
-      const source = url.searchParams.get("GROUP") ?? url.searchParams.get("FILE") ?? "";
+      const source = url.searchParams.get("GROUP") ?? "";
       return new Response(JSON.stringify(reply(source)), { status: opts?.status ?? 200 });
     });
   }

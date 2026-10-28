@@ -18,40 +18,6 @@ function recordSatnum(record: GpRecord): string | undefined {
   return id === undefined || id === null ? undefined : String(id);
 }
 
-interface CompiledSelect {
-  noradIds: Set<string>;
-  names: Set<string>;
-  pattern: RegExp | undefined;
-}
-
-function compileSelect(select: GroupDefinition["select"]): CompiledSelect | undefined {
-  if (!select) {
-    return undefined;
-  }
-  return {
-    noradIds: new Set((select.noradIds ?? []).map((id) => String(id))),
-    names: new Set(select.names ?? []),
-    pattern: select.namePattern ? new RegExp(select.namePattern) : undefined,
-  };
-}
-
-function selectMatches(record: OmmRecord, select: CompiledSelect | undefined): boolean {
-  if (!select) {
-    return false;
-  }
-  if (select.noradIds.size > 0) {
-    const satnum = recordSatnum(record);
-    if (satnum !== undefined && select.noradIds.has(satnum)) {
-      return true;
-    }
-  }
-  const name = recordName(record);
-  if (select.names.has(name)) {
-    return true;
-  }
-  return select.pattern !== undefined && select.pattern.test(name);
-}
-
 /**
  * A row matches by noradId, or else by exact upstreamName; the generator rejects a
  * row with neither. Each map holds ascending row indices per key.
@@ -104,17 +70,14 @@ interface SelectResult {
   warnings: string[];
 }
 
-/**
- * Selects by the union of `satellites` rows and `select`. A row's `name` beats the
- * group `rename` map, which renames whatever no row did.
- */
+/** Selects by the union of `satellites` rows and `select`; a row's `name` renames its record. */
 function applySelectAndRename(records: OmmRecord[], def: GroupDefinition): SelectResult {
   const rows = def.satellites ?? [];
   const warnings: string[] = [];
   const matchedByRow = rows.map(() => false);
   const out: OmmRecord[] = [];
   const compiledRows = compileRows(rows);
-  const compiledSelect = compileSelect(def.select);
+  const pattern = def.select?.namePattern ? new RegExp(def.select.namePattern) : undefined;
   const passAll = rows.length === 0 && !def.select;
 
   for (const record of records) {
@@ -134,11 +97,11 @@ function applySelectAndRename(records: OmmRecord[], def: GroupDefinition): Selec
       matchedRow = true;
     }
     if (matchedRow) {
-      out.push(rowName !== undefined ? { ...record, OBJECT_NAME: rowName } : applyGroupRename(record, def.rename));
+      out.push(rowName !== undefined ? { ...record, OBJECT_NAME: rowName } : record);
       continue;
     }
-    if (passAll || selectMatches(record, compiledSelect)) {
-      out.push(applyGroupRename(record, def.rename));
+    if (passAll || pattern?.test(recordName(record))) {
+      out.push(record);
     }
   }
 
@@ -161,14 +124,6 @@ function applySelectAndRename(records: OmmRecord[], def: GroupDefinition): Selec
   }
 
   return { records: out, warnings };
-}
-
-function applyGroupRename(record: OmmRecord, rename: GroupDefinition["rename"]): OmmRecord {
-  const current = record.OBJECT_NAME;
-  if (rename && current !== undefined && current in rename) {
-    return { ...record, OBJECT_NAME: rename[current]! };
-  }
-  return record;
 }
 
 function dependencies(def: GroupDefinition): string[] {

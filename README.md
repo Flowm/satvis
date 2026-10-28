@@ -179,7 +179,7 @@ facts, keyed by NORAD id). Tags and presets reach clients with the group index,
 - The core config is `worker/src/config/satvis.core.yaml`: the CelesTrak groups,
   the `default` preset, and the curated satellite table.
 - A plugin adds `data/custom/<plugin>/satvis.yaml`. Groups take `sources`,
-  `select`, `satellites`, `rename`, `include`, `exclude` and `extraRecordsFile`.
+  `select`, `satellites`, `include`, `exclude` and `extraRecordsFile`.
   Example (`data/custom/example/satvis.yaml`):
 
   ```yaml

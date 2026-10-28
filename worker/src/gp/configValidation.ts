@@ -133,6 +133,22 @@ function validateTags(group: Raw): void {
   }
 }
 
+/** The keys the evaluator reads; it ignores any other, so a removed or misspelt one fails here. */
+const GROUP_KEYS = new Set(["name", "sources", "select", "satellites", "include", "exclude", "extraRecords", "tags"]);
+
+function validateKeys(group: Raw): void {
+  const where = `group ${JSON.stringify(group.name)}`;
+  const unknown = Object.keys(group).find((key) => !GROUP_KEYS.has(key)) ?? Object.keys(group.select ?? {}).find((key) => key !== "namePattern");
+  if (unknown !== undefined) {
+    throw new Error(`${where}: unknown key ${JSON.stringify(unknown)}`);
+  }
+  for (const source of group.sources ?? []) {
+    if (typeof source?.celestrak !== "string" || Object.keys(source).length !== 1) {
+      throw new Error(`${where}: a source must be { celestrak: <CelesTrak group> }, not ${JSON.stringify(source)}`);
+    }
+  }
+}
+
 export function validateGroups(groups: Raw[]): void {
   const names = new Set();
   for (const group of groups) {
@@ -143,6 +159,7 @@ export function validateGroups(groups: Raw[]): void {
       throw new Error(`duplicate group name ${JSON.stringify(group.name)}`);
     }
     names.add(group.name);
+    validateKeys(group);
     validateSatellites(group);
     validateTags(group);
   }
