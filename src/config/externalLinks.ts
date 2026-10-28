@@ -11,27 +11,27 @@ export function externalLinks(satnum: string): ExternalLink[] {
   return [
     {
       label: "CelesTrak",
-      title: "CelesTrak SATCAT entry — the catalog this app's data comes from",
+      title: "Its catalog entry at the source of this app's data",
       href: `https://celestrak.org/satcat/table-satcat.php?CATNR=${satnum}`,
     },
     {
       label: "Satcat",
-      title: "satcat.com — mass, radar cross section, conjunctions",
+      title: "Mass, radar cross section and close approaches",
       href: `https://www.satcat.com/sats/${satnum}`,
     },
     {
       label: "n2yo",
-      title: "n2yo.com — live tracking and pass predictions",
+      title: "Live tracking and pass predictions",
       href: `https://www.n2yo.com/satellite/?s=${satnum}`,
     },
     {
       label: "Heavens-Above",
-      title: "heavens-above.com — orbit diagrams and ground track",
+      title: "Orbit diagrams and the ground track",
       href: `https://heavens-above.com/orbit.aspx?satid=${satnum}`,
     },
     {
       label: "KeepTrack",
-      title: "app.keeptrack.space — 3D orbital analysis",
+      title: "Orbital analysis in 3D",
       href: `https://app.keeptrack.space/?sat=${satnum}`,
     },
   ];
