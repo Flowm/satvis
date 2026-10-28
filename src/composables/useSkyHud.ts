@@ -159,7 +159,7 @@ export function useSkyHud(cc: CesiumController): SkyHudState & { start: () => vo
     elevation.value = thin(elevationTicks);
 
     locked.value = skyInteraction.locked;
-    calibrated.value = skyInteraction.compass.calibrated;
+    calibrated.value = skyInteraction.aiming.calibration.calibrated;
     sampleTrace(time, scene, frame);
     trace.value = projectTrace(scene);
   }

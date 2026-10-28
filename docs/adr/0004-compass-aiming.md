@@ -44,7 +44,7 @@ on.
 
 Handing back **levels the view**. Only the sensor ever rolls the sky view, so a roll
 left behind is one the pointer cannot straighten, and a frozen tilted horizon reads
-as a broken view. So `disableDeviceOrientation` levels it whoever asked: the control,
+as a broken view. So `CompassAiming.disable` levels it whoever asked: the control,
 a drag, or the view closing.
 
 A drag during the 1200 ms sensor probe is the awkward case: the aim is being
@@ -53,7 +53,7 @@ claiming a compass that is off, so the probe checks whether the aim is still its
 before it answers. That outcome is `taken-back`, the one outcome that shows the user
 nothing, because the user ended it.
 
-`enableDeviceOrientation` reports which outcome happened (aiming,
+`CompassAiming.enable` reports which outcome happened (aiming,
 aiming-but-not-yet-calibrated, unsupported, denied, granted-but-silent, no-heading,
 or taken-back), not a boolean, because each needs different words: a laptop has no
 sensor to grant, a declined permission can be asked again, a device with no

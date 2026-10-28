@@ -10,7 +10,7 @@ import { menuSwitch, openMenu, toasts, touchscreen } from "../support/ui";
 // The headless shell asks DeviceOrientationEvent.requestPermission; without these it is denied.
 test.use({ viewport: { width: 1000, height: 800 }, permissions: ["accelerometer", "gyroscope", "magnetometer"] });
 
-const sky = (page: Page) => page.evaluate(() => ({ aiming: window.cc!.skyInteraction.orientationActive, aim: { ...window.cc!.skyView.aim }, fovy: window.cc!.skyView.fovy }));
+const sky = (page: Page) => page.evaluate(() => ({ aiming: window.cc!.skyInteraction.aiming.active, aim: { ...window.cc!.skyView.aim }, fovy: window.cc!.skyView.fovy }));
 
 /** A phone held still, pointing west-south-west and down: an absolute reading every 100 ms. */
 const startSensor = (page: Page) =>

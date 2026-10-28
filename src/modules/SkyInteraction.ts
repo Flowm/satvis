@@ -9,7 +9,7 @@ import { Cartesian2, type JulianDate } from "@cesium/core";
 import { Entity, type Scene, type ScreenSpaceEventHandler, ScreenSpaceEventType } from "@cesium/engine";
 
 import type { SkyAppearance } from "./componentKinds";
-import { browserOrientationEvents, CompassAiming, type CompassCalibration, type CompassOutcome } from "./DeviceAim";
+import { browserOrientationEvents, CompassAiming } from "./DeviceAim";
 import type { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import type { SatelliteManager } from "./SatelliteManager";
 import type { Observer } from "./skyGeometry";
@@ -65,14 +65,14 @@ export class SkyInteraction {
 
   readonly movement: SkyMovement;
 
-  readonly #aiming: CompassAiming;
+  readonly aiming: CompassAiming;
 
   #observerMoved: ((observer: Observer) => void) | undefined;
 
   constructor(options: SkyInteractionOptions) {
     this.#options = options;
-    this.#aiming = new CompassAiming({ events: browserOrientationEvents(), look: (aim) => options.skyView.look(aim) });
-    this.#gestures = new SkyGestures({ fovy: () => options.skyView.fovy, aimHeld: () => this.#aiming.active });
+    this.aiming = new CompassAiming({ events: browserOrientationEvents(), look: (aim) => options.skyView.look(aim) });
+    this.#gestures = new SkyGestures({ fovy: () => options.skyView.fovy, aimHeld: () => this.aiming.active });
     this.movement = new SkyMovement({
       skyView: options.skyView,
       onMove: (observer) => this.#observerMoved?.(observer),
@@ -85,29 +85,6 @@ export class SkyInteraction {
    */
   onObserverMove(callback: (observer: Observer) => void): void {
     this.#observerMoved = callback;
-  }
-
-  get orientationActive(): boolean {
-    return this.#aiming.active;
-  }
-
-  get compass(): CompassCalibration {
-    return this.#aiming.calibration;
-  }
-
-  /** Must be called from a user gesture; see `CompassAiming.enable`. */
-  enableDeviceOrientation(): Promise<CompassOutcome> {
-    return this.#aiming.enable();
-  }
-
-  /** Levels the view; see `CompassAiming.disable`. */
-  disableDeviceOrientation(): void {
-    this.#aiming.disable();
-  }
-
-  /** Also called when a drag takes the aim back, which the compass control cannot otherwise see. */
-  onOrientationStop(callback: () => void): void {
-    this.#aiming.onStop(callback);
   }
 
   /** Refreshed each frame. */
@@ -162,6 +139,8 @@ export class SkyInteraction {
   }
 
   stop(): void {
+    // The compass can be switched on during the entry flight, before `start`.
+    this.aiming.disable();
     if (!this.#canvas) {
       return;
     }
@@ -178,7 +157,6 @@ export class SkyInteraction {
     }
     this.#viewerActions = [];
     this.movement.stop();
-    this.disableDeviceOrientation();
     this.#removePreRender?.();
     this.#removePreRender = undefined;
     this.#gestures.reset();
@@ -243,7 +221,7 @@ export class SkyInteraction {
           break;
         case "take-aim":
           // Walking never touches the aim and leaves the compass on.
-          this.disableDeviceOrientation();
+          this.aiming.disable();
           break;
         case "tap":
           if (tap) {

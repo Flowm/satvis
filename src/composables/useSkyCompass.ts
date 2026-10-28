@@ -23,15 +23,14 @@ const FAILURES: Record<string, string> = {
 export function useSkyCompass(cc: CesiumController): { active: Readonly<Ref<boolean>>; pending: Readonly<Ref<boolean>>; toggle: () => Promise<void> } {
   // A drag or closing the view also stops the compass. The callback is a single slot,
   // so registering it on every call is harmless.
-  cc.skyInteraction.onOrientationStop(() => {
+  cc.skyInteraction.aiming.onStop(() => {
     active.value = false;
   });
 
   async function toggle(): Promise<void> {
     const { skyInteraction } = cc;
     if (active.value) {
-      skyInteraction.disableDeviceOrientation();
-      active.value = false;
+      skyInteraction.aiming.disable();
       return;
     }
     if (pending.value) {
@@ -42,7 +41,7 @@ export function useSkyCompass(cc: CesiumController): { active: Readonly<Ref<bool
     pending.value = true;
     let outcome: CompassOutcome;
     try {
-      outcome = await skyInteraction.enableDeviceOrientation();
+      outcome = await skyInteraction.aiming.enable();
     } finally {
       pending.value = false;
     }

@@ -91,23 +91,8 @@ const position = computed(() => {
 
 const tickClass = (tick: TapeTick): string => (tick.major ? "sky-hud__tick sky-hud__tick--major" : "sky-hud__tick");
 
-watch(
-  visible,
-  (on) => {
-    if (on) {
-      start();
-      return;
-    }
-    stop();
-    // Also drops the sensor subscription; the compass control learns of it on its own.
-    cc.skyInteraction.disableDeviceOrientation();
-  },
-  { immediate: true },
-);
-onUnmounted(() => {
-  stop();
-  cc.skyInteraction.disableDeviceOrientation();
-});
+watch(visible, (on) => (on ? start() : stop()), { immediate: true });
+onUnmounted(stop);
 </script>
 
 <style scoped>
