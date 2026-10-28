@@ -5,7 +5,8 @@ import type { JulianDate } from "@cesium/core";
 import { useCesiumStore } from "../../stores/cesium";
 import { useSatStore } from "../../stores/sat";
 import type { CesiumController } from "../CesiumController";
-import type { DesiredScene } from "../SatelliteManager";
+import { EMPTY_SCENE, type DesiredScene } from "../SatelliteManager";
+import { desiredScene } from "../sceneSync";
 import type { BenchmarkStep } from "./benchmarkPlan";
 import type { BenchmarkTarget, FootprintSample, MeasureOptions, SceneApplied } from "./benchmarkRunner";
 import { FrameSampler, type FrameSample } from "./frameSampler";
@@ -312,7 +313,7 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
   async prepare(): Promise<void> {
     const { clock } = this.#cc.viewer;
     const cesiumStore = useCesiumStore();
-    this.#saved ??= { requestRenderMode: cesiumStore.requestRenderMode, shouldAnimate: clock.shouldAnimate, multiplier: clock.multiplier, scene: this.#storeScene() };
+    this.#saved ??= { requestRenderMode: cesiumStore.requestRenderMode, shouldAnimate: clock.shouldAnimate, multiplier: clock.multiplier, scene: desiredScene(useSatStore()) };
     // requestRenderMode skips idle frames, and a stopped clock skips position
     // updates; either would measure idleness. Set through the store so the Render
     // menu's switch follows.
@@ -430,7 +431,7 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     clock.shouldAnimate = saved.shouldAnimate;
     clock.multiplier = saved.multiplier;
     // The sweep bypassed the store, so sceneSync's watcher will not fire.
-    this.#cc.sats.reconcile(this.#storeScene());
+    this.#cc.sats.reconcile(desiredScene(useSatStore()));
     this.#saved = undefined;
     await nextFrames(1);
   }
@@ -447,26 +448,10 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
   #scene(enabledSatellites: string[], components: readonly string[]): DesiredScene {
     const station = this.options.groundStation;
     return {
-      enabledTags: [],
+      ...EMPTY_SCENE,
       enabledSatellites,
-      disabledSatellites: [],
       components: [...components],
       groundStations: station ? [{ lat: station.lat, lon: station.lon, name: "Benchmark" }] : [],
-      overpassMode: "elevation",
-      trackedSatellite: "",
-    };
-  }
-
-  #storeScene(): DesiredScene {
-    const store = useSatStore();
-    return {
-      enabledTags: [...store.enabledTags],
-      enabledSatellites: [...store.enabledSatellites],
-      disabledSatellites: [...store.disabledSatellites],
-      components: [...store.enabledComponents],
-      groundStations: store.groundStations.map((station) => ({ ...station })),
-      overpassMode: store.overpassMode,
-      trackedSatellite: store.trackedSatellite,
     };
   }
 }

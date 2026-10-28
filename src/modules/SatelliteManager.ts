@@ -53,7 +53,7 @@ export interface DesiredScene {
   trackedSatellite: string;
 }
 
-const EMPTY_SCENE: DesiredScene = {
+export const EMPTY_SCENE: DesiredScene = {
   enabledTags: [],
   enabledSatellites: [],
   disabledSatellites: [],
