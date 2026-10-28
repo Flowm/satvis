@@ -19,7 +19,7 @@ import { approximatePeriodMinutes, type GpRecord } from "./util/gp";
 import { GroundTrackBatch } from "./util/GroundTrackBatch";
 import { type PassSource, WorkerPassSource } from "./util/passSource";
 import { PolylineBatch } from "./util/PolylineBatch";
-import { type SampleChunk, type SampleSource, type SampleSourceStats, WorkerSampleSource } from "./util/sampleSource";
+import { type SampleChunk, type SampleSource, WorkerSampleSource } from "./util/sampleSource";
 import { SuppressibleSet } from "./util/Suppressible";
 import { WINDOW_ORBITS_BACK, WINDOW_ORBITS_FORWARD } from "./util/trajectoryWindow";
 
@@ -540,10 +540,6 @@ export class SatelliteManager {
 
   get building(): boolean {
     return this.#ready.length > 0 || this.#opening > 0;
-  }
-
-  get sampleStats(): SampleSourceStats {
-    return this.#samples.stats;
   }
 
   /** Derived from Cesium; set it through reconcile. */

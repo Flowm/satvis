@@ -125,7 +125,7 @@ try {
     const satrec = gp.createSatrec(record);
     const periodMs = ((2 * Math.PI) / satrec.no) * MS_PER_MINUTE;
     const now = gridAnchorEpochMs(satrec) + 60 * MS_PER_MINUTE;
-    const chunk = sampleInterval(satrec, parsed[index].satnum, now - 0.5 * periodMs, now + 1.5 * periodMs);
+    const chunk = sampleInterval(satrec, now - 0.5 * periodMs, now + 1.5 * periodMs);
     const every = 20;
     return {
       record: index,

@@ -16,13 +16,36 @@ const T0 = JulianDate.fromDate(dayjs("2018-12-08").toDate());
 
 const issRecord = (): GpRecord => parseGpPayload(TLE)[0] as GpRecord;
 
-/** Samples inline, through the same code the worker runs. */
-function issTrajectory(): { orbit: Orbit; trajectory: SampledTrajectory; sampler: TrajectorySampler; source: InlineSampleSource; periodSeconds: number } {
+/** What a sampler was asked for, and how many samples it answered with. */
+interface Asked {
+  requests: number;
+  samples: number;
+}
+
+/** Samples inline, through the same code the worker runs, counting into `asked`. */
+function issTrajectory(): { orbit: Orbit; trajectory: SampledTrajectory; sampler: TrajectorySampler; asked: Asked; periodSeconds: number } {
   const record = issRecord();
   const orbit = new Orbit("ISS", record);
-  const source = new InlineSampleSource();
-  const sampler = source.samplerFor("25544", record);
-  return { orbit, trajectory: new SampledTrajectory(orbit, sampler), sampler, source, periodSeconds: orbit.orbitalPeriod * 60 };
+  const inline = new InlineSampleSource().samplerFor("25544", record);
+  const asked: Asked = { requests: 0, samples: 0 };
+  const sampler: TrajectorySampler = {
+    samples: async (from, to) => {
+      asked.requests += 1;
+      const chunk = await inline.samples(from, to);
+      asked.samples += (chunk?.positionsFixed.length ?? 0) / 3;
+      return chunk;
+    },
+  };
+  return { orbit, trajectory: new SampledTrajectory(orbit, sampler), sampler, asked, periodSeconds: orbit.orbitalPeriod * 60 };
+}
+
+/** How many samples the window holds. */
+function heldSamples(trajectory: SampledTrajectory): number {
+  let count = 0;
+  trajectory.forEachSample(T0, () => {
+    count += 1;
+  });
+  return count;
 }
 
 /** `follow` only needs a clock and a tick event off the viewer. */
@@ -131,7 +154,7 @@ describe("SampledTrajectory", () => {
     await trajectory.ensure(T0);
 
     expect(trajectory.entityPosition).toBeDefined();
-    expect(trajectory.sampleCount).toBeGreaterThan(0);
+    expect(heldSamples(trajectory)).toBeGreaterThan(0);
     expect(trajectory.fixed).toBeUndefined();
     expect(trajectory.inertial).toBeUndefined();
   });
@@ -139,7 +162,7 @@ describe("SampledTrajectory", () => {
   test("requireInertial backfills the window already sampled", async () => {
     const { trajectory } = issTrajectory();
     await trajectory.ensure(T0);
-    const samples = trajectory.sampleCount;
+    const samples = heldSamples(trajectory);
     expect(samples).toBeGreaterThan(0);
 
     trajectory.requireInertial();
@@ -152,7 +175,7 @@ describe("SampledTrajectory", () => {
     trajectory.requireInertial();
     await trajectory.ensure(T0);
 
-    expect(trajectory.inertial?.length()).toBe(trajectory.sampleCount);
+    expect(trajectory.inertial?.length()).toBe(heldSamples(trajectory));
   });
 
   test("requireInertial is idempotent and keeps the same property instance", async () => {
@@ -174,7 +197,7 @@ describe("SampledTrajectory", () => {
 
     await trajectory.ensure(JulianDate.addSeconds(T0, periodSeconds, new JulianDate()));
 
-    expect(trajectory.inertial?.length()).toBe(trajectory.sampleCount);
+    expect(trajectory.inertial?.length()).toBe(heldSamples(trajectory));
   });
 
   test("positionsForNextOrbit starts and closes the loop at the satellite, not at the next stored sample", async () => {
@@ -263,24 +286,24 @@ describe("SampledTrajectory", () => {
 
   describe("sampling through a source", () => {
     test("propagates nowhere on this thread — every sample comes from the source", async () => {
-      const { orbit, trajectory, source } = issTrajectory();
+      const { orbit, trajectory, asked } = issTrajectory();
       const sgp4 = vi.spyOn(orbit, "positionECI");
 
       await trajectory.ensure(T0);
 
       expect(sgp4).not.toHaveBeenCalled();
-      expect(source.stats.chunks).toBe(1);
-      expect(source.stats.samples).toBeGreaterThan(200);
+      expect(asked.requests).toBe(1);
+      expect(asked.samples).toBeGreaterThan(200);
     });
 
     test("a slid window asks only for what it is missing", async () => {
-      const { trajectory, source, periodSeconds } = issTrajectory();
+      const { trajectory, asked, periodSeconds } = issTrajectory();
       await trajectory.ensure(T0);
-      const openingSamples = source.stats.samples;
+      const openingSamples = asked.samples;
 
       await trajectory.ensure(JulianDate.addSeconds(T0, periodSeconds / 4, new JulianDate()));
 
-      const added = source.stats.samples - openingSamples;
+      const added = asked.samples - openingSamples;
       expect(added).toBeGreaterThan(0);
       expect(added).toBeLessThan(openingSamples / 2);
     });
@@ -319,15 +342,15 @@ describe("SampledTrajectory", () => {
     });
 
     test("requireSampled backfills the window already held, without re-propagating", async () => {
-      const { orbit, trajectory, source } = issTrajectory();
+      const { orbit, trajectory, asked } = issTrajectory();
       await trajectory.ensure(T0);
-      const requests = source.stats.requests;
+      const requests = asked.requests;
       const sgp4 = vi.spyOn(orbit, "positionECI");
 
       trajectory.requireSampled();
 
-      expect(trajectory.fixed?.length()).toBe(trajectory.sampleCount);
-      expect(source.stats.requests).toBe(requests);
+      expect(trajectory.fixed?.length()).toBe(heldSamples(trajectory));
+      expect(asked.requests).toBe(requests);
       expect(sgp4).not.toHaveBeenCalled();
     });
 
@@ -341,7 +364,7 @@ describe("SampledTrajectory", () => {
 
       // A path graphic binds to this object.
       expect(trajectory.fixed).toBe(property);
-      expect(trajectory.fixed?.length()).toBe(trajectory.sampleCount);
+      expect(trajectory.fixed?.length()).toBe(heldSamples(trajectory));
       expect(trajectory.fixed?.getValue(JulianDate.addSeconds(T0, periodSeconds, new JulianDate()))).toBeDefined();
     });
 
@@ -353,7 +376,7 @@ describe("SampledTrajectory", () => {
       // A clock jump clear of the window re-inits.
       await trajectory.ensure(JulianDate.addSeconds(T0, periodSeconds * 50, new JulianDate()));
 
-      expect(trajectory.fixed?.length()).toBe(trajectory.sampleCount);
+      expect(trajectory.fixed?.length()).toBe(heldSamples(trajectory));
     });
 
     test("a gap in a chunk falls back to the sampled property rather than closing it", async () => {
@@ -367,7 +390,7 @@ describe("SampledTrajectory", () => {
 
       expect(trajectory.fixed).toBeDefined();
       expect(trajectory.entityPosition).toBe(trajectory.fixed);
-      expect(trajectory.sampleCount).toBeGreaterThan(0);
+      expect(heldSamples(trajectory)).toBeGreaterThan(0);
       expect(trajectory.position(T0)).toBeDefined();
     });
 
@@ -385,7 +408,7 @@ describe("SampledTrajectory", () => {
 
       await subject.ensure(T0);
       // Captured from the grid before the gap; afterwards both readers share one store.
-      const gridCount = subject.sampleCount;
+      const gridCount = heldSamples(subject);
       // Not T0: the new window starts there, and a first-sample read HOLDs (~350 km off).
       const probe = JulianDate.addSeconds(T0, periodSeconds / 4, new JulianDate());
       const atProbe = subject.position(probe)!;
@@ -397,7 +420,7 @@ describe("SampledTrajectory", () => {
 
       expect(subject.entityPosition).toBe(subject.fixed);
       // Eviction trims the far end, so the count lands near the pre-gap one.
-      expect(subject.sampleCount).toBeGreaterThan(gridCount / 2);
+      expect(heldSamples(subject)).toBeGreaterThan(gridCount / 2);
       // If the backfill came up empty, `fixed` would hold only the gapped chunk and
       // HOLD would answer this with a sample 1.25 revolutions away.
       expect(Cartesian3.distance(subject.position(probe)!, atProbe)).toBeLessThan(50);
@@ -474,7 +497,7 @@ describe("SampledTrajectory", () => {
     });
 
     test("follow only arranges the top-ups; it does not fill", async () => {
-      const { trajectory, source } = issTrajectory();
+      const { trajectory, asked } = issTrajectory();
       let notified = 0;
 
       trajectory.follow(fakeViewer(), () => {
@@ -482,7 +505,7 @@ describe("SampledTrajectory", () => {
       });
 
       expect(notified).toBe(0);
-      expect(source.stats.requests).toBe(0);
+      expect(asked.requests).toBe(0);
       trajectory.stop();
     });
 
@@ -512,8 +535,9 @@ describe("SampledTrajectory", () => {
       trajectory.adopt(chunk);
 
       const satrec = createSatrec(issRecord());
-      const { anchorEpochMs, firstIndex, startEpochMs, stepSeconds } = chunk;
+      const { anchorEpochMs, firstIndex, stepSeconds } = chunk;
       const stepMs = stepSeconds * 1000;
+      const startEpochMs = anchorEpochMs + firstIndex * stepMs;
       // Truncated as the sampler truncates: the grid files sample zero here.
       const anchor = JulianDate.fromDate(new Date(anchorEpochMs));
       let worst = 0;

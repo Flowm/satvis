@@ -266,17 +266,6 @@ export class GridPositionProperty {
     return convertToReferenceFrame(time, target, this.#frame, referenceFrame, target);
   }
 
-  rawPositions(fromGridIndex = this.#firstIndex, toGridIndex = this.#firstIndex + this.#count - 1): Cartesian3[] {
-    const from = Math.max(fromGridIndex, this.#firstIndex);
-    const to = Math.min(toGridIndex, this.#firstIndex + this.#count - 1);
-    const out: Cartesian3[] = [];
-    for (let index = from; index <= to; index += 1) {
-      const at = (index - this.#firstIndex) * 3;
-      out.push(new Cartesian3(this.#positions[at] as number, this.#positions[at + 1] as number, this.#positions[at + 2] as number));
-    }
-    return out;
-  }
-
   indexAtOrAfter(time: JulianDate): number {
     return Math.ceil(JulianDate.secondsDifference(time, this.#anchor) / this.#stepSeconds);
   }

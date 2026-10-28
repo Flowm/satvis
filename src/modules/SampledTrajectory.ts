@@ -123,10 +123,6 @@ export class SampledTrajectory {
     return { times, positions: values as Cartesian3[] };
   }
 
-  get sampleCount(): number {
-    return this.#grid?.length ?? this.#data?.fixed?.length() ?? 0;
-  }
-
   #positionsBetween(start: JulianDate, end: JulianDate): Cartesian3[] {
     const grid = this.#grid;
     if (grid) {
