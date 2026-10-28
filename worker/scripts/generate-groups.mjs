@@ -34,8 +34,6 @@ const PLUGIN_CONFIG_NAME = "satvis.yaml";
 /** The submodule's and any plugin's list of files under /data/models/ by NORAD id (ADR 0007). */
 const MODEL_MANIFEST_NAME = "models.yaml";
 const modelsManifestPath = path.join(repoRoot, "data", "models", MODEL_MANIFEST_NAME);
-/** Pre-YAML plugin config name, detected only to fail loudly instead of dropping the plugin. */
-const LEGACY_PLUGIN_CONFIG_NAME = "groups.json";
 
 function readYaml(file) {
   return YAML.parse(fs.readFileSync(file, "utf8"));
@@ -93,17 +91,9 @@ function discoverPluginConfigs() {
     if (!entry.isDirectory()) {
       continue;
     }
-    const dir = path.join(customDir, entry.name);
-    const candidate = path.join(dir, PLUGIN_CONFIG_NAME);
+    const candidate = path.join(customDir, entry.name, PLUGIN_CONFIG_NAME);
     if (fs.existsSync(candidate)) {
       configs.push(candidate);
-      continue;
-    }
-    if (fs.existsSync(path.join(dir, LEGACY_PLUGIN_CONFIG_NAME))) {
-      throw new Error(
-        `${path.relative(repoRoot, path.join(dir, LEGACY_PLUGIN_CONFIG_NAME))} is the pre-YAML config format; ` +
-          `rename it to ${PLUGIN_CONFIG_NAME} and convert it to YAML (see worker/src/config/satvis.core.yaml)`,
-      );
     }
   }
   return configs;
