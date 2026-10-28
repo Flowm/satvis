@@ -135,12 +135,12 @@ change its file before it applied, because a 304 reused the parsed rows. Now:
   ETag until upstream changes again.
 - **Every GP update reads their parsed rows**, kept beside each file under
   `rows:<name>`, and enriches from them; it never downloads a table. A table stored
-  between two GP updates reaches the groups at the next one. A missing or unreadable
-  table means enriching without it, as ADR 0006 has it: a table never fails a group.
+  between two GP updates reaches the groups at the next one. A table with no stored
+  rows means enriching without it, as ADR 0006 has it: a table never fails a group.
 - **Every check parses the stored file again**, a 304 too, and replaces the rows, so
   a parser change applies at the next check, at most a day later. A file the new
   parser rejects keeps its old rows, and its status records the error. A file stored
-  before rows were kept is parsed by the next GP update, which keeps its rows.
+  before rows were kept has none until its next check.
 
   This amends the first version of this decision, in which every GP update decompressed
   and parsed the four files itself. That was put at 160 ms; it was most of the update's
