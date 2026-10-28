@@ -246,6 +246,8 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
         let base = ModelInstance(
             modelViewProjection: float4x4(projection * viewMatrix), rotation: matrix_identity_float3x3, modelToEye: float4x4(toEye), baseColor: .one,
             sunDirection: light, hasTexture: 0, metallic: 0, roughness: 0, alphaCutoff: 0, opacity: 1)
+        // glTF's, as the globe's pass sets it: Metal's default culls a one-sided part's front and shows its back.
+        encoder.setFrontFacing(.counterClockwise)
         encoder.setFragmentSamplerState(sampler, index: 0)
         for blended in [false, true] {
             encoder.setRenderPipelineState(blended ? pipelines.blended : pipelines.opaque)
