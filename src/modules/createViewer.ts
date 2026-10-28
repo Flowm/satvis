@@ -41,8 +41,8 @@ export function createViewer(container: string | Element, options: { minimalUI: 
     },
   });
 
-  // Shorter than Cesium's "Data attribution": the breakpoints in `useClockDeckChrome`
-  // and main.css are measured off this width. CreditDisplay sets the text only once.
+  // Shorter than Cesium's "Data attribution": the clock deck's breakpoints in main.css are
+  // measured off this width. CreditDisplay sets the text only once.
   const expandLink = viewer.container.querySelector(".cesium-credit-expand-link");
   if (expandLink) {
     expandLink.textContent = "Attribution";

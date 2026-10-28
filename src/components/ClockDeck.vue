@@ -97,7 +97,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 
-import { useClockDeckChrome } from "../composables/useClockDeckChrome";
 import { useLadder, useTimeline } from "../composables/useClockScales";
 import { usePassHighlights } from "../composables/usePassHighlights";
 import { useViewerClock } from "../composables/useViewerClock";
@@ -151,7 +150,7 @@ function toggle(): void {
     // Reopen on the timeline, not the ladder.
     scale.value = Scale.Timeline;
   }
-  chrome.setFolded(!open.value);
+  markBody();
   if (!open.value) {
     return;
   }
@@ -206,14 +205,18 @@ function measureSurface(): void {
 let rowSize: ResizeObserver | undefined;
 const onResize = (): void => measureSurface();
 
-const chrome = useClockDeckChrome();
+/** Marks `body` for main.css, which places Cesium's credit line by the fold and the width. */
+function markBody(): void {
+  document.body.classList.add("clock-deck");
+  document.body.classList.toggle("clock-deck--folded", !open.value);
+}
 
 watch(open, () => void nextTick(measureSurface));
 
 onMounted(() => {
   measure();
   measureSurface();
-  chrome.attach(!open.value);
+  markBody();
   window.addEventListener("resize", onResize);
   const group = cluster.value?.querySelector(".right");
   if (cluster.value && group) {
@@ -224,6 +227,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  document.body.classList.remove("clock-deck", "clock-deck--folded");
   window.removeEventListener("resize", onResize);
   rowSize?.disconnect();
 });
