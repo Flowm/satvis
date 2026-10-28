@@ -7,9 +7,8 @@ import { fetchGpIndex } from "../modules/util/gpSource";
 import type { Query } from "../modules/util/urlCodec";
 
 /**
- * A source is a GP group name, resolved against the probed GP base, or a URL/path (any "/"
- * or ".", including legacy .txt), passed through and parsed by sniffing. A search-only
- * source gets no group row: it is too large to enable whole.
+ * A source is a GP group name, fetched from the probed GP base. A search-only source gets
+ * no group row: it is too large to enable whole.
  */
 export type ElementsEntry = [source: string, tags: string[], options?: { searchOnly?: boolean }];
 

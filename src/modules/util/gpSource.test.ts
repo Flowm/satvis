@@ -117,16 +117,6 @@ describe("fetchGpGroup", () => {
     expect(JSON.parse(payload)).toHaveLength(1);
   });
 
-  test("passes explicit URL sources through without a fallback", async () => {
-    const requested = installFetch({
-      ...WORKER_ROUTES,
-      "data/tle/custom.txt": () => new Response("CUSTOM\n1 ...\n2 ..."),
-    });
-    const payload = await fetchGpGroup("data/tle/custom.txt");
-    expect(payload).toContain("CUSTOM");
-    expect(requested).not.toContain("/api/gp/data/tle/custom.txt.json");
-  });
-
   test("rethrows when both the API and the static snapshot fail", async () => {
     installFetch({
       ...WORKER_ROUTES,

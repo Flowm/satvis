@@ -114,37 +114,15 @@ function resolveGpSource(): Promise<GpSourceInfo> {
   return infoPromise;
 }
 
-/**
- * A bare group name resolves against the probed base; any other source (a legacy
- * .txt URL, a path) passes through unchanged and is sniffed by parseGpPayload.
- */
-function resolveGroupUrl(source: string, base: string): string {
-  if (/^[a-zA-Z0-9_-]+$/.test(source)) {
-    return `${base}${source}.json`;
-  }
-  return source;
-}
-
-/** Undefined for an explicit URL source, which has no static counterpart. */
-function staticGroupUrl(source: string): string | undefined {
-  if (/^[a-zA-Z0-9_-]+$/.test(source)) {
-    return `${STATIC_BASE}${source}.json`;
-  }
-  return undefined;
-}
-
 /** Never rejects: empty when neither the worker nor the static snapshot answers. */
 export async function fetchGpIndex(): Promise<GpIndex> {
   return (await resolveGpSource()).index;
 }
 
-/**
- * A bare group name that fails against the worker is retried once against the
- * static snapshot. An explicit URL source has no fallback.
- */
-export async function fetchGpGroup(source: string): Promise<string> {
+/** A group that fails against the worker is retried once against the static snapshot. */
+export async function fetchGpGroup(group: string): Promise<string> {
   const { base } = await resolveGpSource();
-  const url = resolveGroupUrl(source, base);
+  const url = `${base}${group}.json`;
   try {
     // Not mode:"no-cors": an opaque response has an unreadable body.
     const response = await fetch(url);
@@ -153,10 +131,10 @@ export async function fetchGpGroup(source: string): Promise<string> {
     }
     return await response.text();
   } catch (error) {
-    const fallback = staticGroupUrl(source);
-    if (fallback === undefined || fallback === url) {
+    if (base !== API_BASE) {
       throw error;
     }
+    const fallback = `${STATIC_BASE}${group}.json`;
     console.log(`GP fetch failed for ${url}, retrying static snapshot ${fallback}`, error);
     const response = await fetch(fallback);
     if (!response.ok) {
