@@ -8,12 +8,12 @@ import { recordOpenedLink } from "./composables/useBookmarks";
 import { controllerKey } from "./composables/useController";
 import { usePWAUpdate } from "./composables/usePWAUpdate";
 import { ionAccessToken } from "./config/ion";
-import { resolvePreset } from "./config/presets";
+import { resolvePreset, updateMetadata } from "./config/presets";
 import { CesiumController } from "./modules/CesiumController";
 import { createViewer } from "./modules/createViewer";
 import { startSceneSync } from "./modules/sceneSync";
 import piniaUrlSync from "./modules/util/urlSync";
-import { router, setupRouterGuards } from "./router";
+import { router } from "./router";
 
 declare global {
   interface Window {
@@ -38,8 +38,14 @@ if (new URLSearchParams(window.location.search).has("framems")) {
   void import("./modules/benchmark/framePump").then(({ installFramePumpIfRequested }) => installFramePumpIfRequested(viewer, window.location.search));
 }
 
+const preset = resolvePreset();
 /** The url sync waits for this: the url only states what differs from the preset. */
-const presetDefaults = markRaw(resolvePreset().then((preset) => preset.defaults));
+const presetDefaults = markRaw(preset.then(({ defaults }) => defaults));
+void preset.then((resolved) => {
+  updateMetadata(resolved);
+  // Only groups the activation needs are fetched.
+  void cc.sats.loadElementSets(resolved.elements);
+});
 
 const pinia = createPinia();
 pinia.use(({ store }) => {
@@ -52,7 +58,6 @@ app.use(pinia);
 // Not a component: it must outlive every panel and not depend on mount order.
 startSceneSync(cc);
 
-setupRouterGuards(router, cc);
 app.use(router);
 
 void recordOpenedLink(cc, router);
