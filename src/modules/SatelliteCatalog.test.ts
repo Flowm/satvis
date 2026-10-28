@@ -155,13 +155,13 @@ describe("CatalogEntry derived orbit facts", () => {
   }
 
   test("takes GCAT's orbit kind, and computes one where GCAT has none", () => {
-    expect(entry({ orbitClass: "LEO", opOrbit: "LLEO/P" }).orbitKind).toEqual({ code: "P", source: "gcat" });
+    expect(entry({ opOrbit: "LLEO/P" }).orbitKind).toEqual({ code: "P", source: "gcat" });
     // 51° of inclination: GCAT's intermediate band.
-    expect(entry({ orbitClass: "LEO" }).orbitKind).toEqual({ code: "I", source: "computed" });
+    expect(entry({}).orbitKind).toEqual({ code: "I", source: "computed" });
   });
 
   test("reads the epoch off the element set", () => {
-    expect(entry({ orbitClass: "LEO" }).epochMs).toBe(Date.UTC(2026, 6, 4));
+    expect(entry({}).epochMs).toBe(Date.UTC(2026, 6, 4));
   });
 });
 

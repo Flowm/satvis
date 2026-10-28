@@ -110,7 +110,7 @@ interface CustomRow {
 /** A record as the dialog lists it. */
 function customRowOf(record: GpRecord): CustomRow {
   const epochMs = epochMsOf(record);
-  const orbitClass = record.metadata?.orbitClass ?? orbitClassOf(record);
+  const orbitClass = orbitClassOf(record);
   return {
     name: recordName(record),
     satnum: recordSatnum(record),

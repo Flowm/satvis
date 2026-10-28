@@ -6,10 +6,7 @@ import { json2satrec, twoline2satrec, type OMMJsonObject, type SatRec } from "sa
 import type { OrbitClass } from "../../config/orbitClass";
 import type { SatelliteMetadata } from "../../config/satelliteMetadata";
 
-/**
- * `metadata` is optional for hand-built records; every record from parseGpPayload
- * carries at least the derived `orbitClass`.
- */
+/** `metadata` is the bag the worker attached, absent where it attached none. */
 export type GpRecord = ({ kind: "omm"; omm: OMMJsonObject } | { kind: "tle"; name: string; line1: string; line2: string }) & {
   metadata?: SatelliteMetadata;
 };
@@ -162,17 +159,6 @@ export function computedOrbitKindOf(r: GpRecord, orbitClass: OrbitClass): string
   return undefined;
 }
 
-/**
- * Derived at load rather than served, so it cannot go stale against the element
- * set (docs/adr/0002-static-satellite-metadata.md).
- */
-function cacheOrbitClass(records: GpRecord[]): GpRecord[] {
-  for (const record of records) {
-    record.metadata = { ...record.metadata, orbitClass: orbitClassOf(record) };
-  }
-  return records;
-}
-
 /** Where a parse reports what it skipped. */
 export type SkipWarning = (message: string, detail?: unknown) => void;
 
@@ -181,14 +167,14 @@ export function parseGpPayload(text: string, warn: SkipWarning = console.warn): 
   const trimmed = text.trimStart();
   const firstChar = trimmed[0];
   if (firstChar === "[" || firstChar === "{") {
-    return cacheOrbitClass(parseJsonPayload(text, warn));
+    return parseJsonPayload(text, warn);
   }
   // A missing group on an SPA-fallback host answers index.html with a 200.
   if (firstChar === "<") {
     warn("Skipping GP payload that looks like HTML (missing group?)");
     return [];
   }
-  return cacheOrbitClass(parseTleText(text, warn));
+  return parseTleText(text, warn);
 }
 
 function parseJsonPayload(text: string, warn: SkipWarning): GpRecord[] {

@@ -88,7 +88,7 @@ try {
   const parsed = records.map((record) => ({
     name: gp.recordName(record),
     satnum: gp.recordSatnum(record),
-    orbitClass: record.metadata.orbitClass,
+    orbitClass: gp.orbitClassOf(record),
     approximatePeriodMinutes: gp.approximatePeriodMinutes(record),
   }));
 
@@ -142,7 +142,7 @@ try {
   // then the element set as the panel shows it.
   const details = records.map((record, index) => {
     const orbit = new Orbit(parsed[index].name, record);
-    const { orbitClass, chips, status, orbitRows, spacecraftRows } = entityInfo.getSatelliteInfo(orbit, record.metadata.orbitClass, record.metadata);
+    const { orbitClass, chips, status, orbitRows, spacecraftRows } = entityInfo.getSatelliteInfo(orbit, gp.orbitClassOf(record), record.metadata ?? {});
     return { facts: { orbitClass, chips, status, orbitRows, spacecraftRows }, elements: entityInfo.getElementsInfo(orbit) };
   });
 
@@ -155,7 +155,7 @@ try {
     const startMs = Math.ceil((orbit.julianDate - 2440587.5) * 1440) * MS_PER_MINUTE;
     const start = new Date(startMs);
     const end = new Date(startMs + PASS_WINDOW_DAYS * 1440 * MS_PER_MINUTE);
-    const own = swathExtentsOf(record.metadata);
+    const own = swathExtentsOf(record.metadata ?? {});
     const swaths = own ? [own, ASYMMETRIC_SWATH] : [{ starboardKm: DEFAULT_SWATH_KM / 2, portKm: DEFAULT_SWATH_KM / 2 }];
     return STATIONS.flatMap((station, stationIndex) => {
       const position = { latitude: station.latitude, longitude: station.longitude, height: 0 };

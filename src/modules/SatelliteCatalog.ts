@@ -32,16 +32,19 @@ export class CatalogEntry {
   }
 
   /**
-   * Attached by the worker at refresh time. Empty for a hand-built record, where
+   * Attached by the worker at refresh time. Empty where it attached nothing, and
    * consumers apply their own defaults.
    */
   get metadata(): SatelliteMetadata {
     return this.record.metadata ?? {};
   }
 
-  /** parseGpPayload caches the class; this falls back only for hand-built records. */
+  #orbitClass: OrbitClass | undefined;
+
+  /** From the element set, never served (ADR 0002). Memoized as `orbitKind` is. */
   get orbitClass(): OrbitClass {
-    return this.metadata.orbitClass ?? orbitClassOf(this.record);
+    this.#orbitClass ??= orbitClassOf(this.record);
+    return this.#orbitClass;
   }
 
   #orbitKind: OrbitKind | undefined;

@@ -64,11 +64,11 @@ discussion; sharpen them here when they drift.
   (`src/config/satelliteMetadata.ts`). Provenance is per field, and decides what
   an absent field means:
   - **curated**: hand-written for a few dozen satellites, attached by the worker;
-  - **upstream**: from SATCAT or GCAT, one owner per field, attached by the worker;
-  - **derived**: the orbit class, computed by the frontend from the element set.
+  - **upstream**: from SATCAT or GCAT, one owner per field, attached by the worker.
 
-  A satellite in neither table still has its orbit class, and uses app defaults
-  for the rest.
+  The orbit class is not in the bag: the frontend derives it from the element set
+  (`CatalogEntry.orbitClass`). A satellite in neither table still has one, and uses
+  app defaults for the rest.
 
 - **Model manifest**: a `models.yaml` that lists 3D model files and what each
   depicts, by NORAD id or by GCAT **bus**: the `data/models` submodule's, and any
