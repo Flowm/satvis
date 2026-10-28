@@ -115,7 +115,7 @@ test("the sky view returns to the projection it was entered from, and holds the 
   for (const projection of ["3D", "2D", "Columbus"]) {
     await expect(menuSwitch(page, projection).locator("input")).not.toBeChecked();
   }
-  await expect(page.getByText("In the sky view; a projection leaves it.")).toBeVisible();
+  await expect(page.getByText("Select a projection to leave the sky view.")).toBeVisible();
   await expect(menuSwitch(page, "Inertial").locator("input")).toBeDisabled();
 
   await openMenu(page, "Sky");
@@ -125,7 +125,7 @@ test("the sky view returns to the projection it was entered from, and holds the 
   await openMenu(page, "Globe");
   await expect(menuSwitch(page, "Inertial").locator("input")).toBeEnabled();
   await expect(menuSwitch(page, "2D").locator("input")).toBeChecked();
-  await expect(page.getByText("In the sky view; a projection leaves it.")).toBeHidden();
+  await expect(page.getByText("Select a projection to leave the sky view.")).toBeHidden();
 });
 
 test("look up stands where the device is, listed first, so a reload stands there again", async ({ page }) => {

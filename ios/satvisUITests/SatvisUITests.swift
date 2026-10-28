@@ -256,19 +256,17 @@ nonisolated class SatvisUITests: XCTestCase {
         let projection = app.buttons["3D"]
         XCTAssert(projection.waitForExistence(timeout: 5))
         XCTAssertFalse(projection.isSelected)
-        // The sky view is chosen there, but greyed: the Sky panel enters it.
-        let sky = app.buttons["Sky view"]
-        XCTAssert(sky.isSelected)
-        XCTAssertFalse(sky.isEnabled)
+        let note = app.staticTexts["Select a projection to leave the sky view."]
+        XCTAssert(note.exists)
         // A disabled picker's segments read as enabled; the control does not.
-        let camera = app.segmentedControls.firstMatch
+        let camera = app.segmentedControls.element(boundBy: 1)
         let inertial = camera.buttons["Inertial"]
         XCTAssert(inertial.isSelected)
         XCTAssertFalse(camera.isEnabled)
         projection.tap()
         XCTAssert(app.buttons["Home view"].waitForExistence(timeout: 10))
         XCTAssert(projection.isSelected)
-        XCTAssertFalse(sky.exists)
+        XCTAssertFalse(note.exists)
         XCTAssert(camera.isEnabled && inertial.isSelected)
         app.buttons["Fixed"].tap()
         XCTAssert(app.buttons["Fixed"].isSelected)

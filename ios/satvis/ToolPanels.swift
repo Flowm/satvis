@@ -358,8 +358,6 @@ private struct CircleToggleStyle: ToggleStyle {
 private struct Choices<Value: Hashable>: View {
     @Binding var selection: Value
     let options: [(String, Value)]
-    /// Shown but not offered, greyed as the web app's disabled rows.
-    var disabled: Set<Value> = []
 
     var body: some View {
         PanelCard {
@@ -374,7 +372,6 @@ private struct Choices<Value: Hashable>: View {
                     }
                 }
                 .buttonStyle(PanelRowStyle())
-                .disabled(disabled.contains(value))
                 .accessibilityAddTraits(selection == value ? .isSelected : [])
             }
         }
@@ -423,25 +420,30 @@ struct MapPanel: View {
 
 /// The globe's projection and camera: the web app's Globe panel, less the 2D and
 /// Columbus projections the app does not draw. It writes the same view as the
-/// Sky panel, so in the sky view no projection is ticked; Sky view is, listed only
-/// then and greyed, as it is entered from the Sky panel, which names a place
-/// (ADR 0003).
+/// Sky panel, so in the sky view no projection is chosen, and choosing one leaves
+/// it; the Sky panel enters it, as it names a place (ADR 0003).
 struct GlobePanel: View {
     @Bindable var session: Session
 
     var body: some View {
         let inSky = session.observer != nil
         PanelSection("Projection") {
-            Choices(
-                selection: Binding {
-                    inSky ? "Sky" : "3D"
+            Picker(
+                "Projection",
+                selection: Binding<String?> {
+                    inSky ? nil : "3D"
                 } set: { _ in
                     if inSky {
                         session.leaveSky()
                     }
-                },
-                options: inSky ? [("3D", "3D"), ("Sky view", "Sky")] : [("3D", "3D")],
-                disabled: ["Sky"])
+                }
+            ) {
+                Text(verbatim: "3D").tag(String?.some("3D"))
+            }
+            .panelSegmented()
+            if inSky {
+                Note("Select a projection to leave the sky view.")
+            }
         }
         PanelSection("Camera") {
             Segments(title: "Camera", selection: $session.cameraFrame, options: CameraFrame.allCases.map { ($0.rawValue, $0) })

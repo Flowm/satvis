@@ -107,7 +107,7 @@
         <!-- No projection is checked in the sky view, as a checked one read as the active view;
              the Sky panel enters it, and a projection leaves it. -->
         <segmented-control :model-value="inSkyView ? undefined : sceneMode" label="Projection" :options="PROJECTION_OPTIONS" @update:model-value="sceneMode = $event!" />
-        <div v-if="inSkyView" class="toolbarNote">In the sky view; a projection leaves it.</div>
+        <div v-if="inSkyView" class="toolbarNote">Select a projection to leave the sky view.</div>
         <div class="toolbarTitle">Camera</div>
         <segmented-control v-model="cameraMode" label="Camera" :options="CAMERA_OPTIONS" :disabled="inSkyView" />
         <div v-if="inSkyView" class="toolbarNote">The sky view holds the camera.</div>
