@@ -1,5 +1,5 @@
 import { type BoundingSphere, type Cartesian2, Cartesian3, Color, JulianDate, Math as CesiumMath, Matrix3, PerspectiveFrustum } from "@cesium/core";
-import { Entity, type Property, Transforms } from "@cesium/engine";
+import { Entity, type Property, SceneMode, Transforms } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -237,6 +237,26 @@ describe("SatelliteComponentCollection lines and ground tracks", () => {
     viewer.trackedEntity = undefined;
     expect(sat.components.Orbit).toBeInstanceOf(BatchedLine);
     expect(sat.components["Orbit track"]).toBeInstanceOf(BatchedLine);
+  });
+
+  test("act through the first entity left, which a recreated one does not displace", async () => {
+    const { sat, viewer } = await setup({ modelFile: null });
+    const scene = viewer.scene as unknown as { mode: SceneMode };
+    // Outside 3D the orbit is a path entity, created here before the point.
+    scene.mode = SceneMode.SCENE2D;
+    sat.show(["Orbit", "Point"]);
+    expect(sat.defaultEntity).toBe(sat.components.Orbit);
+
+    // A tracking change refits both times.
+    scene.mode = SceneMode.SCENE3D;
+    viewer.trackedEntity = undefined;
+    expect(sat.components.Orbit).toBeInstanceOf(BatchedLine);
+    expect(sat.defaultEntity).toBe(sat.components.Point);
+
+    scene.mode = SceneMode.SCENE2D;
+    viewer.trackedEntity = undefined;
+    expect(sat.components.Orbit).toBeInstanceOf(Entity);
+    expect(sat.defaultEntity).toBe(sat.components.Point);
   });
 
   test("recut the batched orbit on a refill once it is half a period old, not on every refill", async () => {

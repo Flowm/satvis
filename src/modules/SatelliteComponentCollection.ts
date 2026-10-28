@@ -51,9 +51,6 @@ export class SatelliteComponentCollection implements ComponentHost {
   /** Kept across components, so one created in the sky view is born dimmed or hidden. */
   #skyAppearance: SkyAppearance = "normal";
 
-  /** What a click or a track acts on: the first Entity created. */
-  defaultEntity: Entity | undefined;
-
   eventListeners: Record<string, () => void> = {};
 
   /**
@@ -116,6 +113,11 @@ export class SatelliteComponentCollection implements ComponentHost {
 
   get componentNames(): string[] {
     return Object.keys(this.#components);
+  }
+
+  /** What a click or a track acts on: the first Entity among the components, in the order they were created. */
+  get defaultEntity(): Entity | undefined {
+    return Object.values(this.#components).find((component) => component instanceof Entity);
   }
 
   get created(): boolean {
@@ -236,7 +238,6 @@ export class SatelliteComponentCollection implements ComponentHost {
 
     if (component instanceof Entity) {
       [component, ...this.#modelCopiesOf(name)].forEach((entity) => this.viewer.entities.add(entity));
-      this.defaultEntity ??= component;
     } else {
       kind.batch?.(this).add(component);
     }
@@ -260,10 +261,6 @@ export class SatelliteComponentCollection implements ComponentHost {
       this.model.reset();
       deferPointToModel(this.#components.Point, this, false);
       this.#setViewFrom();
-    }
-
-    if (this.defaultEntity === component) {
-      this.defaultEntity = Object.values(this.#components).find((remaining) => remaining instanceof Entity);
     }
 
     if (this.componentNames.length === 0) {
