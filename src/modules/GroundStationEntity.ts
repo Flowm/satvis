@@ -84,20 +84,15 @@ export class GroundStationEntity {
     this.#viewer.selectedEntity = this.#entity;
   }
 
-  get hasName(): boolean {
-    return this.givenName !== "";
-  }
-
   get name(): string {
     return stationLabel(this.givenName, this.position.latitude, this.position.longitude);
   }
 
-  passes(time: JulianDate, deltaHours = 48): Pass[] {
+  passes(time: JulianDate): Pass[] {
     return stationPasses(
       this.sats.visibleSatellites.map((sat) => sat.props.passPredictor),
       time,
       this.name,
-      deltaHours,
     );
   }
 

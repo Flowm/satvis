@@ -70,7 +70,7 @@ export interface ComponentHost {
   /** Set by the sky view each frame. */
   readonly skyAppearance: SkyAppearance;
   /** An entity named after the satellite, framed for tracking. */
-  entity(key: string, graphics: unknown, position: unknown, moving: boolean): Entity;
+  entity(key: string, graphics: unknown, position: unknown): Entity;
   /** The station of the pass containing `time`, else the first station. */
   groundStationAt(time: JulianDate): Cartesian3 | undefined;
 }
@@ -377,7 +377,7 @@ function bindAtSatellite(component: Component, host: ComponentHost): void {
 
 /** An entity at the satellite, positioned by the grid property. Not for path graphics: Cesium sub-samples densely only a `SampledPositionProperty`. */
 function atSatellite(host: ComponentHost, key: string, graphics: unknown): Entity {
-  return host.entity(key, graphics, host.props.trajectory.entityPosition, true);
+  return host.entity(key, graphics, host.props.trajectory.entityPosition);
 }
 
 /** Shows or hides the entity, and has `restyle` colour its graphics. */
@@ -400,7 +400,7 @@ function fitsDrawing(component: Component, host: ComponentHost): boolean {
 
 function orbitTrackLine(host: ComponentHost, time: JulianDate): BatchedLine | undefined {
   const positions = drawable(host.props.trajectory.positionsForTrack(time));
-  return positions && new BatchedLine(positions, host.props.name);
+  return positions && new BatchedLine(positions);
 }
 
 /** Keyed by the config list, so a component without a kind is a compile error. */
@@ -477,11 +477,11 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
           resolution: 600,
           width: ORBIT_WIDTH,
         });
-        return host.entity("path", path, trajectory.inertial, true);
+        return host.entity("path", path, trajectory.inertial);
       }
       const now = host.viewer.clock.currentTime;
       const positions = drawable(trajectory.positionsForNextOrbit(now));
-      const line = positions && new BatchedLine(positions, host.props.name);
+      const line = positions && new BatchedLine(positions);
       if (line) {
         orbitCutAt.set(line, JulianDate.clone(now));
       }
@@ -516,7 +516,7 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
           width: ORBIT_WIDTH,
         });
         host.props.trajectory.requireSampled();
-        return host.entity("path", path, host.props.trajectory.fixed, true);
+        return host.entity("path", path, host.props.trajectory.fixed);
       }
       return orbitTrackLine(host, host.viewer.clock.currentTime);
     },

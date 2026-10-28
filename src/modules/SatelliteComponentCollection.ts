@@ -1,5 +1,5 @@
 import { Cartesian3, JulianDate } from "@cesium/core";
-import { CallbackProperty, Camera, Entity, EntityView, type Scene, SceneMode, VelocityOrientationProperty } from "@cesium/engine";
+import { CallbackProperty, Camera, Entity, EntityView, type Scene, SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
 import { setPassHighlights } from "../composables/usePassHighlights";
@@ -10,8 +10,6 @@ import { SatelliteProperties } from "./SatelliteProperties";
 import { cancelPendingTrack, trackEntity, trackWhenReady, type CameraPose } from "./trackFlight";
 import type { PassPredictorSource } from "./util/passSource";
 import type { SampleChunk, TrajectorySampler } from "./util/sampleSource";
-
-export type { SatelliteBatches } from "./componentKinds";
 
 type SatelliteComponentName = string;
 
@@ -137,12 +135,8 @@ export class SatelliteComponentCollection implements ComponentHost {
     return [...Object.values(this.#components), ...this.#modelCopies];
   }
 
-  show(componentNames: string[] = this.componentNames): void {
+  show(componentNames: string[]): void {
     componentNames.forEach((name) => this.enableComponent(name));
-  }
-
-  hide(componentNames: string[] = this.componentNames): void {
-    componentNames.forEach((name) => this.disableComponent(name));
   }
 
   /** `animate` flies to the tracked view first, in 3D. */
@@ -193,15 +187,12 @@ export class SatelliteComponentCollection implements ComponentHost {
 
   /** For the kinds: an entity named after the satellite, framed for tracking. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  entity(entityKey: string, entityValue: any, position: any, moving: boolean): Entity {
+  entity(entityKey: string, entityValue: any, position: any): Entity {
     const entity = new Entity({
       name: this.props.name,
       position,
       viewFrom: this.#viewFrom(),
     });
-    if (moving) {
-      entity.orientation = new VelocityOrientationProperty(position);
-    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (entity as any)[entityKey] = entityValue;
     return entity;
@@ -363,7 +354,7 @@ export class SatelliteComponentCollection implements ComponentHost {
 
   /** Idempotent and final: disabling the last component calls `deinit()`, and the trajectory stops. */
   dispose(): void {
-    this.hide();
+    this.componentNames.forEach((name) => this.disableComponent(name));
     this.props.trajectory.stop();
   }
 

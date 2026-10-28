@@ -10,11 +10,8 @@ import { BatchedLine, LineSlots, POINTS_PER_SLOT, PolylineBatch, slotRuns } from
 
 const FLOATS_PER_SLOT = POINTS_PER_SLOT * 4;
 
-function line(id: string, count = 3): BatchedLine {
-  return new BatchedLine(
-    Array.from({ length: count }, (_, i) => new Cartesian3(7e6 + i, i, 0 - i || 0)),
-    id,
-  );
+function line(count = 3): BatchedLine {
+  return new BatchedLine(Array.from({ length: count }, (_, i) => new Cartesian3(7e6 + i, i, 0 - i || 0)));
 }
 
 function fakeViewer() {
@@ -46,24 +43,23 @@ function fakeViewer() {
 
 describe("BatchedLine", () => {
   test("packs its points as float32 x, y, z and knows the farthest", () => {
-    const packed = line("ISS", 2);
+    const packed = line(2);
 
     expect([...packed.points]).toEqual([7e6, 0, 0, 7e6 + 1, 1, -1]);
     expect(packed.radius).toBeCloseTo(Math.hypot(7e6 + 1, 1, 1));
   });
 
   test("keeps the slot's last point free for the break", () => {
-    expect(line("long", POINTS_PER_SLOT + 5).points).toHaveLength((POINTS_PER_SLOT - 1) * 3);
+    expect(line(POINTS_PER_SLOT + 5).points).toHaveLength((POINTS_PER_SLOT - 1) * 3);
   });
 });
 
 describe("LineSlots", () => {
   test("gives each line its own slot, and the draw ends at the last", () => {
     const slots = new LineSlots();
-    slots.add(line("a"));
-    slots.add(line("b"));
+    slots.add(line());
+    slots.add(line());
 
-    expect(slots.size).toBe(2);
     expect(slots.extent).toBe(2);
     expect(slots.takeDirty()).toEqual([0, 1]);
     expect(slots.dirty).toBe(false);
@@ -71,12 +67,12 @@ describe("LineSlots", () => {
 
   test("a recreate, a remove and an add, keeps its slot and uploads only that one", () => {
     const slots = new LineSlots();
-    const lines = ["a", "b", "c"].map((id) => line(id));
+    const lines = [line(), line(), line()];
     lines.forEach((member) => slots.add(member));
     slots.takeDirty();
 
     slots.remove(lines[1]!);
-    slots.add(line("b again"));
+    slots.add(line());
 
     expect(slots.extent).toBe(3);
     expect(slots.takeDirty()).toEqual([1]);
@@ -84,20 +80,20 @@ describe("LineSlots", () => {
 
   test("replace swaps a member in its slot, and refuses a stranger", () => {
     const slots = new LineSlots();
-    const first = line("ISS");
+    const first = line();
     slots.add(first);
     slots.takeDirty();
-    const second = line("ISS");
+    const second = line();
 
     expect(slots.replace(first, second)).toBe(true);
-    expect(slots.has(second) && !slots.has(first)).toBe(true);
     expect(slots.takeDirty()).toEqual([0]);
-    expect(slots.replace(first, line("ISS"))).toBe(false);
+    expect(slots.replace(first, line())).toBe(false);
+    expect(slots.remove(second)).toBe(true);
   });
 
   test("removing the last lines shortens the draw", () => {
     const slots = new LineSlots();
-    const lines = ["a", "b", "c"].map((id) => line(id));
+    const lines = [line(), line(), line()];
     lines.forEach((member) => slots.add(member));
 
     slots.remove(lines[2]!);
@@ -105,14 +101,14 @@ describe("LineSlots", () => {
 
     expect(slots.extent).toBe(1);
     // A freed slot past the end is not handed out again.
-    slots.add(line("d"));
+    slots.add(line());
     expect(slots.extent).toBe(2);
   });
 
   test("writes a line's points with w = 1, then breaks, so no segment joins two slots", () => {
     const slots = new LineSlots();
-    slots.add(line("a", 2));
-    slots.add(line("b", 2));
+    slots.add(line(2));
+    slots.add(line(2));
 
     const packed = slots.writeAll(3);
 
@@ -125,9 +121,9 @@ describe("LineSlots", () => {
 
   test("an emptied slot is written as breaks", () => {
     const slots = new LineSlots();
-    const member = line("a");
+    const member = line();
     slots.add(member);
-    slots.add(line("b"));
+    slots.add(line());
     slots.remove(member);
 
     const out = new Float32Array(FLOATS_PER_SLOT).fill(9);
@@ -167,9 +163,8 @@ describe("PolylineBatch", () => {
     const host = fakeViewer();
     const batch = new PolylineBatch(host.viewer, "fixed", Color.GOLD);
 
-    batch.add(line("ISS"));
+    batch.add(line());
 
-    expect(batch.size).toBe(1);
     expect(host.renders).toBe(1);
   });
 
@@ -178,8 +173,7 @@ describe("PolylineBatch", () => {
     const batch = new PolylineBatch(host.viewer, "fixed", Color.GOLD);
 
     // The satellite disabled its track between the refresh being scheduled and running.
-    expect(batch.replace(line("ISS"), line("ISS"))).toBe(false);
-    expect(batch.size).toBe(0);
+    expect(batch.replace(line(), line())).toBe(false);
     expect(host.renders).toBe(0);
   });
 });

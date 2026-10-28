@@ -48,11 +48,8 @@ export class BatchedLine {
   /** Distance of the farthest point from the centre of the Earth, metres. */
   readonly radius: number;
 
-  /** Packs `positions`, cut short past a slot; `id` names the line's satellite. */
-  constructor(
-    positions: readonly Cartesian3[],
-    readonly id: string,
-  ) {
+  /** Packs `positions`, cut short past a slot. */
+  constructor(positions: readonly Cartesian3[]) {
     const count = Math.min(positions.length, POINTS_PER_SLOT - 1);
     this.points = new Float32Array(count * 3);
     let radius = 0;
@@ -79,11 +76,6 @@ export class LineSlots {
   /** Slots changed since the last `takeDirty`. */
   #dirty = new Set<number>();
 
-  /** The lines held. */
-  get size(): number {
-    return this.#slotOf.size;
-  }
-
   /** One past the highest slot in use: the slots drawn. */
   get extent(): number {
     return this.#lines.length;
@@ -92,11 +84,6 @@ export class LineSlots {
   /** Whether a slot changed since the last `takeDirty`. */
   get dirty(): boolean {
     return this.#dirty.size > 0;
-  }
-
-  /** Whether `line` has a slot. */
-  has(line: BatchedLine): boolean {
-    return this.#slotOf.has(line);
   }
 
   /** Gives `line` the last freed slot, or a new one at the end. */
@@ -305,20 +292,12 @@ export class PolylineBatch {
   /** Set by `destroy`, for the scene's `isDestroyed`. */
   #destroyed = false;
 
-  /** Read by the scene. */
-  show = true;
-
   /** Adds the batch to `viewer`'s scene, its lines in `frame` and drawn in `color`. */
   constructor(viewer: Viewer, frame: BatchFrame, color: Color) {
     this.#viewer = viewer;
     this.#frame = frame;
     this.#color = color;
     viewer.scene.primitives.add(this);
-  }
-
-  /** The members. */
-  get size(): number {
-    return this.#slots.size;
   }
 
   /** Draws `line` from the next rendered frame. */
@@ -351,7 +330,7 @@ export class PolylineBatch {
 
   /** Called by the scene on every rendered frame. */
   update(frameState: any): void {
-    if (!this.show || this.#destroyed) {
+    if (this.#destroyed) {
       return;
     }
     const { context } = frameState;

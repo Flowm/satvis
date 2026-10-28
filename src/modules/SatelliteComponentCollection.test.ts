@@ -177,7 +177,7 @@ describe("SatelliteComponentCollection lifetime", () => {
   test("draws again after every component was switched off", async () => {
     const { sat, viewer } = await setup();
     sat.show(["Point"]);
-    sat.hide(["Point"]);
+    sat.disableComponent("Point");
 
     sat.show(["Point"]);
 
@@ -341,7 +341,7 @@ describe("SatelliteComponentCollection 3D model with a lower-detail copy", () =>
   test("adds the copy beside the model, and removes it with the model", async () => {
     const { sat, model, copy, removed } = await withCopy();
     expect(copy.model?.uri?.getValue(JulianDate.now())).toBe("./data/models/ISS-(ZARYA)-low.glb");
-    sat.hide(["3D model"]);
+    sat.disableComponent("3D model");
     expect(removed).toEqual(expect.arrayContaining([model, copy]));
   });
 
@@ -435,7 +435,7 @@ describe("SatelliteComponentCollection 3D model with a lower-detail copy", () =>
     setModelRadius(65);
     setMetresPerPixel(0.5);
     shown(sat.components["3D model"] as Entity);
-    sat.hide(["3D model"]);
+    sat.disableComponent("3D model");
     sat.show(["3D model"]);
     setMetresPerPixel(1000);
     const model = sat.components["3D model"] as Entity;
@@ -525,10 +525,10 @@ describe("SatelliteComponentCollection beside its model", () => {
 
     sat.show(["3D model"]);
     expect(pointShown(sat, viewer)).toBe(false);
-    sat.hide(["3D model"]);
+    sat.disableComponent("3D model");
     expect(show()).toBeUndefined();
 
-    sat.hide(["Point"]);
+    sat.disableComponent("Point");
     sat.show(["3D model", "Point"]);
     expect(pointShown(sat, viewer)).toBe(false);
   });
