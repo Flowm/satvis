@@ -287,10 +287,3 @@ export function createSatrec(r: GpRecord): SatRec {
   }
   return twoline2satrec(r.line1, r.line2);
 }
-
-export function recordTleLines(r: GpRecord): string[] | undefined {
-  if (r.kind === "tle") {
-    return [r.name, r.line1, r.line2];
-  }
-  return undefined;
-}

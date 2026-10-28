@@ -7,7 +7,6 @@ import type { OrbitClass } from "../../config/orbitClass";
 import { satcatLabel, SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, SATCAT_ORBIT_TYPE } from "../../config/satcatCodes";
 import { swathExtentsOf, type SatelliteMetadata } from "../../config/satelliteMetadata";
 import type Orbit from "../Orbit";
-import { recordTleLines } from "./gp";
 import { derivedOrbitRows, orbitRegimeLabel } from "./orbitFacts";
 
 dayjs.extend(utc);
@@ -141,8 +140,7 @@ export function getElementsInfo(orbit: Orbit): ElementsInfo {
   const epoch = formatEpoch(orbit.julianDate);
   const epochMs = (orbit.julianDate - JD_UNIX_EPOCH) * 86_400_000;
   if (orbit.record.kind === "tle") {
-    const tle = orbit.tle ?? recordTleLines(orbit.record)!;
-    return { kind: "tle", epoch, epochMs, lines: tle.slice(1, 3).join("\n") };
+    return { kind: "tle", epoch, epochMs, lines: `${orbit.record.line1}\n${orbit.record.line2}` };
   }
   const { omm } = orbit.record;
   const rows: [string, unknown][] = [

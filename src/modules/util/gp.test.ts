@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { computedOrbitKindOf, createSatrec, epochMsOf, type GpRecord, orbitClassOf, parseGpPayload, recordName, recordSatnum, recordTleLines } from "./gp";
+import { computedOrbitKindOf, createSatrec, epochMsOf, type GpRecord, orbitClassOf, parseGpPayload, recordName, recordSatnum } from "./gp";
 
 const OMM_ARRAY = JSON.stringify([
   {
@@ -164,15 +164,6 @@ describe("createSatrec", () => {
     const satrec = createSatrec(records[0] as GpRecord);
     expect(satrec.error).toBe(0);
     expect(String(satrec.satnum)).toBe("25544");
-  });
-});
-
-describe("recordTleLines", () => {
-  test("returns 3 lines for a TLE record and undefined for OMM", () => {
-    const tle = parseGpPayload(TLE_3LINE)[0] as GpRecord;
-    const omm = parseGpPayload(OMM_ARRAY)[0] as GpRecord;
-    expect(recordTleLines(tle)).toHaveLength(3);
-    expect(recordTleLines(omm)).toBeUndefined();
   });
 });
 

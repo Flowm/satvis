@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import * as satellitejs from "satellite.js";
 
 import type { SwathExtents } from "../config/satelliteMetadata";
-import { createSatrec, recordTleLines, type GpRecord } from "./util/gp";
+import { createSatrec, type GpRecord } from "./util/gp";
 
 const deg2rad = Math.PI / 180;
 const rad2deg = 180 / Math.PI;
@@ -147,20 +147,12 @@ export default class Orbit {
 
   record: GpRecord;
 
-  /** Only for kind:"tle" records, for the info panel. Undefined for OMM. */
-  tle?: string[];
-
   satrec: satellitejs.SatRec;
 
   constructor(name: string, record: GpRecord) {
     this.name = name;
     this.record = record;
-    this.tle = recordTleLines(record);
     this.satrec = createSatrec(record);
-  }
-
-  get satnum(): string {
-    return this.satrec.satnum;
   }
 
   get error(): number {

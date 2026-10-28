@@ -54,7 +54,7 @@ function issPredictor(swathKm = 500): { orbit: Orbit; predictor: PassPredictor; 
   const record = parseGpPayload(TLE)[0] as GpRecord;
   const orbit = new Orbit("ISS", record);
   const inline = new InlinePassSource();
-  const bound = inline.predictorFor(orbit.satnum, record);
+  const bound = inline.predictorFor("25544", record);
   const queries: PassQuery[] = [];
   const source: PassPredictorSource = {
     passes: (query) => {
@@ -67,17 +67,27 @@ function issPredictor(swathKm = 500): { orbit: Orbit; predictor: PassPredictor; 
   return { orbit, predictor, queries };
 }
 
+/** Lets every reply already asked for land: the inline source answers before the next task. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+/** The passes at `time`, once the read's reply has landed. */
+async function passesAt(predictor: PassPredictor, time: JulianDate): Promise<Pass[]> {
+  predictor.passes(time);
+  await settle();
+  return predictor.passes(time);
+}
+
 describe("PassPredictor", () => {
   test("asks for nothing without a ground station", async () => {
     const { predictor, queries } = issPredictor();
-    expect(await predictor.ensurePasses(EPOCH_TIME)).toHaveLength(0);
+    expect(await passesAt(predictor, EPOCH_TIME)).toHaveLength(0);
     expect(queries).toHaveLength(0);
   });
 
   test("computes passes with the station name attached and intervals in sync", async () => {
     const { predictor } = issPredictor();
     predictor.groundStations = [MUNICH];
-    const passes = await predictor.ensurePasses(EPOCH_TIME);
+    const passes = await passesAt(predictor, EPOCH_TIME);
     expect(passes.length).toBeGreaterThan(0);
     expect(passes.every((pass) => pass.groundStationName === "Munich")).toBe(true);
     expect(passes.every((pass) => pass.name === "ISS")).toBe(true);
@@ -90,7 +100,7 @@ describe("PassPredictor", () => {
 
     expect(predictor.passes(EPOCH_TIME)).toHaveLength(0);
 
-    await predictor.ensurePasses(EPOCH_TIME);
+    await settle();
     expect(predictor.passes(EPOCH_TIME).length).toBeGreaterThan(0);
   });
 
@@ -98,15 +108,15 @@ describe("PassPredictor", () => {
     const { predictor, queries } = issPredictor();
     predictor.groundStations = [MUNICH];
 
-    await predictor.ensurePasses(EPOCH_TIME);
+    await passesAt(predictor, EPOCH_TIME);
     expect(queries).toHaveLength(1);
 
     // Inside the ±1 day window: no new request.
-    await predictor.ensurePasses(JulianDate.addSeconds(EPOCH_TIME, 3600, new JulianDate()));
+    await passesAt(predictor, JulianDate.addSeconds(EPOCH_TIME, 3600, new JulianDate()));
     expect(queries).toHaveLength(1);
 
     // A jump beyond the window forces one.
-    await predictor.ensurePasses(JulianDate.addDays(EPOCH_TIME, 2, new JulianDate()));
+    await passesAt(predictor, JulianDate.addDays(EPOCH_TIME, 2, new JulianDate()));
     expect(queries).toHaveLength(2);
   });
 
@@ -114,10 +124,10 @@ describe("PassPredictor", () => {
     const { predictor, queries } = issPredictor();
     predictor.groundStations = [MUNICH];
 
-    const first = predictor.ensurePasses(EPOCH_TIME);
+    predictor.passes(EPOCH_TIME);
     predictor.passes(JulianDate.addDays(EPOCH_TIME, 3, new JulianDate()));
     predictor.passes(JulianDate.addDays(EPOCH_TIME, 5, new JulianDate()));
-    await first;
+    await settle();
 
     // Three reads, two requests: the one already out, then one re-ask for the latest time.
     expect(queries).toHaveLength(2);
@@ -127,21 +137,21 @@ describe("PassPredictor", () => {
   test("changing ground stations clears the computed passes", async () => {
     const { predictor } = issPredictor();
     predictor.groundStations = [MUNICH];
-    expect((await predictor.ensurePasses(EPOCH_TIME)).length).toBeGreaterThan(0);
+    expect((await passesAt(predictor, EPOCH_TIME)).length).toBeGreaterThan(0);
 
     predictor.groundStations = [];
-    expect(await predictor.ensurePasses(EPOCH_TIME)).toHaveLength(0);
+    expect(await passesAt(predictor, EPOCH_TIME)).toHaveLength(0);
     expect(predictor.passIntervals.length).toBe(0);
   });
 
   test("a reply computed against stations that have since changed is dropped", async () => {
     const { predictor, queries } = issPredictor();
     predictor.groundStations = [MUNICH];
-    const inFlight = predictor.ensurePasses(EPOCH_TIME);
+    predictor.passes(EPOCH_TIME);
 
     // The station goes away while the request is out.
     predictor.groundStations = [];
-    await inFlight;
+    await settle();
 
     expect(queries).toHaveLength(1);
     expect(predictor.passes(EPOCH_TIME)).toHaveLength(0);
@@ -153,7 +163,7 @@ describe("PassPredictor", () => {
     predictor.groundStations = [MUNICH];
 
     predictor.mode = "swath";
-    const passes = await predictor.ensurePasses(EPOCH_TIME);
+    const passes = await passesAt(predictor, EPOCH_TIME);
     expect(queries).toHaveLength(1);
     expect(queries[0]!.mode).toBe("swath");
     expect(queries[0]!.swath).toEqual({ starboardKm: 145, portKm: 145 });
@@ -163,10 +173,10 @@ describe("PassPredictor", () => {
   test("setting the same mode keeps the window intact", async () => {
     const { predictor, queries } = issPredictor();
     predictor.groundStations = [MUNICH];
-    await predictor.ensurePasses(EPOCH_TIME);
+    await passesAt(predictor, EPOCH_TIME);
 
     predictor.mode = "elevation";
-    await predictor.ensurePasses(EPOCH_TIME);
+    await passesAt(predictor, EPOCH_TIME);
     expect(queries).toHaveLength(1);
   });
 
@@ -178,11 +188,11 @@ describe("PassPredictor", () => {
       notified += 1;
     });
 
-    await predictor.ensurePasses(EPOCH_TIME);
+    await passesAt(predictor, EPOCH_TIME);
     expect(notified).toBe(1);
 
     unsubscribe();
-    await predictor.ensurePasses(JulianDate.addDays(EPOCH_TIME, 2, new JulianDate()));
+    await passesAt(predictor, JulianDate.addDays(EPOCH_TIME, 2, new JulianDate()));
     expect(notified).toBe(1);
   });
 });
@@ -191,7 +201,7 @@ describe("stationPasses", () => {
   test("keeps only the named station's passes, sorted by start", async () => {
     const { predictor } = issPredictor();
     predictor.groundStations = [MUNICH, VIENNA];
-    const all = await predictor.ensurePasses(EPOCH_TIME);
+    const all = await passesAt(predictor, EPOCH_TIME);
     expect(all.some((pass) => pass.groundStationName === "Vienna")).toBe(true);
 
     const munich = stationPasses([predictor], EPOCH_TIME, "Munich");
@@ -203,7 +213,7 @@ describe("stationPasses", () => {
   test("drops passes starting beyond the deltaHours horizon", async () => {
     const { predictor } = issPredictor();
     predictor.groundStations = [MUNICH];
-    await predictor.ensurePasses(EPOCH_TIME);
+    await passesAt(predictor, EPOCH_TIME);
     const horizon = stationPasses([predictor], EPOCH_TIME, "Munich", 1);
     const startLimit = JulianDate.toDate(EPOCH_TIME).getTime() + 2 * HOUR;
     expect(horizon.every((pass) => pass.start < startLimit)).toBe(true);

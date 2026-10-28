@@ -37,14 +37,6 @@ export class SatelliteProperties {
     this.trajectory = new SampledTrajectory(this.orbit, sampler);
   }
 
-  get tags(): string[] {
-    return this.entry.tags;
-  }
-
-  hasTag(tag: string): boolean {
-    return this.tags.includes(tag);
-  }
-
   get metadata(): SatelliteMetadata {
     return this.entry.metadata;
   }
@@ -61,12 +53,6 @@ export class SatelliteProperties {
   /** Per-side cross-track swath extents (km). Defaults to a symmetric split of DEFAULT_SWATH_KM. */
   get swathExtents(): SwathExtents {
     return swathExtentsOf(this.metadata) ?? { starboardKm: DEFAULT_SWATH_KM / 2, portKm: DEFAULT_SWATH_KM / 2 };
-  }
-
-  /** Total swath width (km). Pass containment uses the sides individually. */
-  get swath(): number {
-    const { starboardKm, portKm } = this.swathExtents;
-    return starboardKm + portKm;
   }
 
   /** Half-angle, degrees. */

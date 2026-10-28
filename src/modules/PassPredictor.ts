@@ -64,8 +64,6 @@ export class PassPredictor {
 
   #pendingTime: JulianDate | undefined;
 
-  #inFlight: Promise<void> | undefined;
-
   /** Bumped by `clear()`; a reply from an older generation is dropped. */
   #generation = 0;
 
@@ -119,7 +117,7 @@ export class PassPredictor {
     if (this.#covers(time)) {
       return this.#passes;
     }
-    void this.#request(time);
+    this.#request(time);
     return this.#passes;
   }
 
@@ -129,17 +127,6 @@ export class PassPredictor {
    */
   settled(time: JulianDate): boolean {
     return !this.groundStationAvailable || this.#covers(time);
-  }
-
-  /** Resolves once the list covers `time`. */
-  ensurePasses(time: JulianDate): Promise<Pass[]> {
-    if (!this.groundStationAvailable) {
-      return Promise.resolve(this.#passes);
-    }
-    if (this.#covers(time)) {
-      return Promise.resolve(this.#passes);
-    }
-    return this.#request(time).then(() => this.#passes);
   }
 
   clear(): void {
@@ -153,11 +140,10 @@ export class PassPredictor {
    * At most one request at a time. A read during a request is not queued, since
    * at a fast clock reads outrun replies; its time is re-asked once afterwards.
    */
-  #request(time: JulianDate): Promise<void> {
+  #request(time: JulianDate): void {
     if (this.#requesting) {
       this.#pendingTime = JulianDate.clone(time);
-      // Not a resolved promise, which would hand `ensurePasses` the stale list.
-      return this.#inFlight ?? Promise.resolve();
+      return;
     }
     this.#requesting = true;
     const generation = this.#generation;
@@ -166,7 +152,7 @@ export class PassPredictor {
       stop: JulianDate.addDays(time, 1, JulianDate.clone(time)),
       stopPrediction: JulianDate.addDays(time, 4, JulianDate.clone(time)),
     };
-    this.#inFlight = this.#source
+    void this.#source
       .passes({
         mode: this.#mode,
         stations: this.#groundStations.map((station) => ({ name: station.name, position: station.position })),
@@ -182,15 +168,13 @@ export class PassPredictor {
       })
       .finally(() => {
         this.#requesting = false;
-        this.#inFlight = undefined;
         const pending = this.#pendingTime;
         this.#pendingTime = undefined;
         // Without the coverage check every reply spawned another prediction, forever.
         if (pending && !this.#covers(pending)) {
-          void this.#request(pending);
+          this.#request(pending);
         }
       });
-    return this.#inFlight;
   }
 
   #covers(time: JulianDate): boolean {
