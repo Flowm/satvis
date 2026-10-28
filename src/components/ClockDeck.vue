@@ -100,7 +100,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useLadder, useTimeline } from "../composables/useClockScales";
 import { usePassHighlights } from "../composables/usePassHighlights";
 import { useViewerClock } from "../composables/useViewerClock";
-import { arrowStep, Scale, CHIP_PX, clockLabel, dateLabel, LADDER, multiplierLabel, passMarks, rateLabel, REAL_TIME_RUNG } from "../modules/util/clockDeck";
+import { arrowStep, CHIP_PX, clockLabel, dateLabel, LADDER, multiplierLabel, passMarks, rateLabel, REAL_TIME_RUNG } from "../modules/util/clockDeck";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
 
 const clock = useViewerClock();
@@ -116,8 +116,8 @@ const marks = computed(() => passMarks(passes.value, now.value.getTime(), timeli
 const ladder = ref<HTMLElement>();
 const { onScroll: onLadderScroll, onDown: onLadderDown, onMove: onLadderMove, onUp: onLadderUp, pick: pickRung, showRung, step } = useLadder(clock, ladder);
 
-const scale = ref<Scale>(Scale.Timeline);
-const onLadder = computed(() => scale.value === Scale.Ladder);
+/** The scale row shows the speed ladder, not the timeline. */
+const onLadder = ref(false);
 /** Folded on every touch device, tablets included. */
 const open = ref(!DeviceDetect.hasTouch());
 
@@ -133,7 +133,7 @@ function reset(): void {
 }
 
 function toggleScale(): void {
-  scale.value = onLadder.value ? Scale.Timeline : Scale.Ladder;
+  onLadder.value = !onLadder.value;
   // Each scale is `v-if`d, so the arriving one has no width until it is in the tree.
   void nextTick(() => {
     if (onLadder.value) {
@@ -148,7 +148,7 @@ function toggle(): void {
   open.value = !open.value;
   if (!open.value) {
     // Reopen on the timeline, not the ladder.
-    scale.value = Scale.Timeline;
+    onLadder.value = false;
   }
   markBody();
   if (!open.value) {
@@ -163,7 +163,7 @@ function onLadderKey(event: KeyboardEvent): void {
     return;
   }
   event.preventDefault();
-  step(direction, rung.value);
+  step(direction);
   // After the re-render, the newly selected rung is the one holding tabindex 0.
   void nextTick(() => ladder.value?.querySelector<HTMLElement>(".rung--on")?.focus());
 }

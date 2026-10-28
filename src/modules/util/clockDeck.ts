@@ -14,12 +14,6 @@ const PRESENT_TOLERANCE_MS = 60_000;
  */
 export const isOffPresent = (clockMs: number, systemMs: number): boolean => Math.abs(clockMs - systemMs) > PRESENT_TOLERANCE_MS;
 
-/** An enum, not the app's usual `const` array: nothing iterates it. */
-export enum Scale {
-  Timeline = "timeline",
-  Ladder = "ladder",
-}
-
 /**
  * Cesium's `AnimationViewModel.defaultTicks` from 1× up. The thirteen rungs below 1×
  * are left out because a swipe has to cross every rung.
@@ -122,7 +116,7 @@ export function passMarks(spans: readonly TimeSpan[], centreMs: number, widthPx:
   return marks;
 }
 
-export const nearestRung = (scrollLeft: number, chipPx: number = CHIP_PX): number => Math.min(LADDER.length - 1, Math.max(0, Math.round(scrollLeft / chipPx)));
+export const nearestRung = (scrollLeft: number): number => Math.min(LADDER.length - 1, Math.max(0, Math.round(scrollLeft / CHIP_PX)));
 
 export const arrowStep = (key: string): number => (key === "ArrowRight" ? 1 : key === "ArrowLeft" ? -1 : 0);
 

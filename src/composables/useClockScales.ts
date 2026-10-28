@@ -157,7 +157,7 @@ export function useTimeline(clock: ViewerClock, timeline: Ref<HTMLElement | unde
  * is nothing at all under a mouse, and it re-snaps every programmatic write, so the
  * ladder notches against the finger; `settle` rests it on a rung instead.
  */
-export function useLadder(clock: ViewerClock, ladder: Ref<HTMLElement | undefined>, chipPx: number = CHIP_PX) {
+export function useLadder(clock: ViewerClock, ladder: Ref<HTMLElement | undefined>) {
   // A programmatic scroll raises the same event a finger does.
   let settling = false;
   let settleTarget = 0;
@@ -171,7 +171,7 @@ export function useLadder(clock: ViewerClock, ladder: Ref<HTMLElement | undefine
 
   function scrollToRung(at: number, behavior: ScrollBehavior): void {
     settling = true;
-    settleTarget = at * chipPx;
+    settleTarget = at * CHIP_PX;
     ladder.value?.scrollTo({ left: settleTarget, behavior });
     clearTimeout(settleTimer);
     settleTimer = setTimeout(() => {
@@ -180,7 +180,7 @@ export function useLadder(clock: ViewerClock, ladder: Ref<HTMLElement | undefine
     clock.setRung(at);
   }
 
-  const restingRung = (): number => nearestRung(ladder.value?.scrollLeft ?? 0, chipPx);
+  const restingRung = (): number => nearestRung(ladder.value?.scrollLeft ?? 0);
 
   function onScroll(): void {
     if (!ladder.value) {
@@ -234,7 +234,7 @@ export function useLadder(clock: ViewerClock, ladder: Ref<HTMLElement | undefine
   function settle(): void {
     const rung = restingRung();
     // Animating from a rung to itself is how this loops.
-    if (ladder.value && Math.abs(ladder.value.scrollLeft - rung * chipPx) < 1) {
+    if (ladder.value && Math.abs(ladder.value.scrollLeft - rung * CHIP_PX) < 1) {
       return;
     }
     scrollToRung(rung, scrollBehavior());
@@ -250,12 +250,12 @@ export function useLadder(clock: ViewerClock, ladder: Ref<HTMLElement | undefine
 
   const showRung = (rung: number, { animate }: { animate: boolean }): void => scrollToRung(rung, animate ? scrollBehavior() : "auto");
 
-  function step(direction: number, from: number): number {
+  function step(direction: number): void {
+    const from = clock.rung.value;
     const next = Math.min(LADDER.length - 1, Math.max(0, from + direction));
     if (next !== from) {
       scrollToRung(next, "auto");
     }
-    return next;
   }
 
   onUnmounted(() => {
