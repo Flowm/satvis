@@ -298,6 +298,7 @@ export class SkyView {
       this.#frame = undefined;
     }
     this.#apply();
+    // A settled sky view renders on demand, so nothing else would move the camera.
     this.#scene.requestRender();
   }
 
@@ -408,17 +409,9 @@ export class SkyView {
       return;
     }
     void source(observer).then((height) => {
-      if (generation !== this.#groundGeneration || !isPlausibleGroundHeight(height)) {
-        return;
+      if (generation === this.#groundGeneration && height !== undefined) {
+        this.setGroundHeight(height);
       }
-      this.#groundMeasured = true;
-      if (height !== this.#groundHeight) {
-        this.#groundHeight = height;
-        this.#frame = undefined;
-      }
-      // A settled sky view renders on demand, so nothing else would move the camera.
-      this.#apply();
-      this.#scene.requestRender();
     });
   }
 
