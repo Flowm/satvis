@@ -35,8 +35,15 @@ const emit = defineEmits<{ close: [] }>();
   min-height: 0;
 }
 
+/* With the panel's own padding, the iOS app's 12 points around the cards. */
 .toolbarPanel--fixed .toolbarPanel__body {
+  padding: 0 6px 6px;
   overflow-y: auto;
+}
+
+/* As wide as the cards, which it stands among. */
+.toolbarPanel--fixed .toolbarPanel__body > :deep(.segments) {
+  margin: 0;
 }
 
 /* Rows keep their height and the body scrolls: a row's `overflow: hidden`, which cuts a long
@@ -67,7 +74,12 @@ const emit = defineEmits<{ close: [] }>();
 
 /* The divider already spaces a first section. */
 .toolbarPanel__body > :deep(.toolbarTitle:first-child) {
-  margin-top: 4px;
+  margin-top: 8px;
+}
+
+/* A card with no heading, as Components', a little further from the divider. */
+.toolbarPanel__body > :deep(:is(.toolbarSwitch, .toolbarPlace):first-child) {
+  margin-top: 6px;
 }
 
 /* The header's height and as wide, its icon centred. */

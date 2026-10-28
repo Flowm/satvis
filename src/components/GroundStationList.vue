@@ -1,5 +1,6 @@
 <template>
   <div class="gsList">
+    <div class="toolbarTitle">Saved</div>
     <div v-if="stations.length === 0" class="toolbarNote gsList__empty">None yet — pick one on the globe, or use your own position.</div>
     <div
       v-for="(station, index) in stations"
@@ -60,16 +61,16 @@
       <button type="button" class="gsList__remove" title="Remove" @click="removeAt(index)">×</button>
     </div>
 
-    <div class="toolbarActions">
-      <button type="button" :class="{ 'gsList__action--on': pickMode }" :aria-pressed="pickMode" @click="pickMode = !pickMode">
-        <UIcon name="lucide:crosshair" />
-        {{ pickMode ? "Cancel pick" : "Pick on globe" }}
-      </button>
-      <button type="button" :disabled="locating" @click="void locate()">
-        <span v-if="locating" class="toolbarSpinner"></span>
-        My location
-      </button>
-    </div>
+    <div class="toolbarTitle">Add</div>
+    <button type="button" class="toolbarPlace gsList__pick" :aria-pressed="pickMode" @click="pickMode = !pickMode">
+      <UIcon name="lucide:crosshair" class="toolbarPlace__icon" />
+      <span class="toolbarPlace__label">{{ pickMode ? "Cancel pick" : "Pick on globe" }}</span>
+    </button>
+    <button type="button" class="toolbarPlace" :disabled="locating" @click="void locate()">
+      <span v-if="locating" class="toolbarSpinner"></span>
+      <UIcon v-else name="lucide:locate-fixed" class="toolbarPlace__icon" />
+      <span class="toolbarPlace__label">My location</span>
+    </button>
 
     <div v-if="pickMode" class="toolbarNote gsList__pickNote">Choose a spot on the globe for the station.</div>
     <div v-if="sceneMode === SKY_MODE" class="toolbarNote">The sky view stands at ◉.</div>
@@ -203,6 +204,11 @@ function offsetOf(index: number): number {
   container-type: inline-size;
 }
 
+/* The divider already spaces it, as ToolbarPanel.vue spaces a panel's first heading. */
+.gsList > .toolbarTitle:first-child {
+  margin-top: 8px;
+}
+
 .gsList__empty {
   font-style: italic;
 }
@@ -210,14 +216,27 @@ function offsetOf(index: number): number {
 .gsList__row {
   align-items: center;
   background-color: var(--panel-raised);
-  border-radius: 6px;
   display: flex;
   gap: 3px;
-  height: 24px;
-  margin: 1px 0;
-  opacity: 0.85;
-  padding: 0 3px;
+  height: var(--toolbar-row);
+  padding: 0 6px;
   transition: transform 120ms ease-out;
+}
+
+/* One card, as the Sky panel's rows (src/css/main.css): rounded at its ends, a hairline
+   between each two. */
+.gsList__row:not(.gsList__row + *) {
+  border-top-left-radius: var(--card-radius);
+  border-top-right-radius: var(--card-radius);
+}
+
+.gsList__row:not(:has(+ .gsList__row)) {
+  border-bottom-left-radius: var(--card-radius);
+  border-bottom-right-radius: var(--card-radius);
+}
+
+.gsList__row + .gsList__row {
+  box-shadow: inset 0 1px var(--panel-hairline);
 }
 
 .gsList__row--observer {
@@ -331,11 +350,9 @@ function offsetOf(index: number): number {
 }
 
 /* Pick mode stays on until a click on the globe. */
-.toolbarActions .gsList__action--on,
-.toolbarActions .gsList__action--on:hover:not(:disabled) {
-  background-color: var(--panel-green);
-  color: #14281b;
-  font-weight: 600;
+.gsList__pick[aria-pressed="true"] {
+  background-image: linear-gradient(#ffffff14, #ffffff14);
+  color: var(--panel-green);
 }
 
 .gsList__pickNote {
@@ -355,7 +372,7 @@ function offsetOf(index: number): number {
     column-gap: 6px;
     height: auto;
     min-height: var(--toolbar-row);
-    padding: 4px 3px;
+    padding: 4px 6px;
   }
 
   .gsList__rank {
@@ -393,11 +410,6 @@ function offsetOf(index: number): number {
     grid-area: remove;
     align-self: stretch;
     font-size: 22px;
-  }
-
-  .toolbarActions button {
-    min-height: var(--toolbar-row);
-    font-size: var(--text-label);
   }
 
   /* Latitude over longitude where halves would cut -149.5585 short: a 375px phone's
