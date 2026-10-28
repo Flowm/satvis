@@ -38,11 +38,6 @@ import { WINDOW_ORBITS_BACK, WINDOW_ORBITS_FORWARD } from "./util/trajectoryWind
  */
 const BUILD_BUDGET_MS = 16;
 
-/**
- * Below this a build runs synchronously; the default 74-satellite scene fits in one budget anyway.
- */
-const BUILD_SYNCHRONOUS_LIMIT = 250;
-
 export interface DesiredScene {
   enabledTags: string[];
   enabledSatellites: string[];
@@ -114,9 +109,6 @@ export class SatelliteManager {
 
   /** Catalog entries waiting to be instantiated, in build order. */
   #queue: [string, CatalogEntry][] = [];
-
-  /** Decided once per activation, not as the queue drains. */
-  #unbudgetedBuild = true;
 
   #buildHandle: number | undefined;
 
@@ -411,7 +403,6 @@ export class SatelliteManager {
       [...target].filter(([key]) => !this.#active.has(key)),
       this.pendingTrackedSatellite || this.#pendingSelection || this.trackedSatellite || undefined,
     );
-    this.#unbudgetedBuild = this.#queue.length <= BUILD_SYNCHRONOUS_LIMIT;
     this.#ready = [];
     this.#requestOpeningWindows();
     this.#build();
@@ -435,8 +426,6 @@ export class SatelliteManager {
       this.#buildHandle = undefined;
     }
 
-    // Without requestAnimationFrame (unit tests) a half-drained queue would never resume.
-    const unbudgeted = this.#unbudgetedBuild || typeof requestAnimationFrame !== "function";
     const deadline = performance.now() + BUILD_BUDGET_MS;
     while (this.#ready.length > 0) {
       const next = this.#ready.shift();
@@ -444,7 +433,7 @@ export class SatelliteManager {
       this.#queue = this.#queue.filter(([queued]) => queued !== next.key);
       this.#instantiate(next.key, next.entry, next.chunk);
       // After at least one satellite, so a tiny budget still makes progress.
-      if (!unbudgeted && performance.now() >= deadline) break;
+      if (performance.now() >= deadline) break;
     }
 
     this.#trackPending();

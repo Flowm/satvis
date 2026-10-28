@@ -231,8 +231,7 @@ Cesium's workers `CacheFirst` for 30 days, and those cached responses have no CO
   and drives `resize`/`render` itself. The channel keeps a core busy. Another
   value sets the interval; `0` turns it off. `app.ts` loads it without the panel.
   - `?framems=100` (10 frames a second) saves render work, not the core. A build
-    of more than 250 satellites gets 16 ms per frame, so it takes about six times
-    as long.
+    gets 16 ms per frame, so one that spans frames takes about six times as long.
   - The pane must have laid out the tab, or the canvas is 0 px wide and draws
     nothing. The pump warns once.
   - `document.hidden` stays true.
