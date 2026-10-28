@@ -3,7 +3,7 @@
 
 import type { SwathExtents } from "../../config/satelliteMetadata";
 import type { GpRecord } from "./gp";
-import { OrbitCache, runPassCommand, type PassCommand, type PassRequest, type PassResponse, type PassStation, type WorkerPass } from "./passWorker";
+import { runPassCommand, type PassCommand, type PassRequest, type PassResponse, type PassStation, type WorkerPass } from "./passWorker";
 
 export type { PassStation, WorkerPass };
 
@@ -20,7 +20,8 @@ export interface PassPredictorSource {
 }
 
 export interface PassSource {
-  predictorFor(satnum: string, record: GpRecord): PassPredictorSource;
+  /** `name` is the satellite's, which its passes carry. */
+  predictorFor(name: string, record: GpRecord): PassPredictorSource;
 }
 
 /** Eight commands is about 64 ms a reply, so a station's table fills in progressively. */
@@ -28,16 +29,11 @@ const MAX_COMMANDS_PER_MESSAGE = 8;
 
 /** Predicts on the calling thread, for tests. */
 export class InlinePassSource implements PassSource {
-  readonly #cache = new OrbitCache();
-
-  predictorFor(satnum: string, record: GpRecord): PassPredictorSource {
+  predictorFor(name: string, record: GpRecord): PassPredictorSource {
     return {
       passes: (query) => {
-        const reply = runPassCommand(this.#cache, { kind: "passes", satnum, record, ...query });
-        if (reply.kind !== "passes") {
-          return Promise.resolve(undefined);
-        }
-        return Promise.resolve(reply.passes);
+        const reply = runPassCommand({ kind: "passes", name, record, ...query });
+        return Promise.resolve(reply.kind === "passes" ? reply.passes : undefined);
       },
     };
   }
@@ -45,10 +41,7 @@ export class InlinePassSource implements PassSource {
 
 interface Pending {
   resolve: (passes: WorkerPass[] | undefined) => void;
-  satnum: string;
-  query: PassQuery;
-  record: GpRecord;
-  sendRecord: boolean;
+  command: PassCommand;
 }
 
 export class WorkerPassSource implements PassSource {
@@ -64,8 +57,6 @@ export class WorkerPassSource implements PassSource {
 
   #inFlight = new Map<number, Pending[]>();
 
-  #recordSent = new Set<string>();
-
   constructor() {
     if (typeof Worker !== "function") {
       this.#giveUp("this environment has no Worker");
@@ -80,16 +71,14 @@ export class WorkerPassSource implements PassSource {
     }
   }
 
-  predictorFor(satnum: string, record: GpRecord): PassPredictorSource {
+  predictorFor(name: string, record: GpRecord): PassPredictorSource {
     return {
       passes: (query) => {
         if (this.#broken) {
           return Promise.resolve(undefined);
         }
-        const sendRecord = !this.#recordSent.has(satnum);
-        this.#recordSent.add(satnum);
         return new Promise<WorkerPass[] | undefined>((resolve) => {
-          this.#queued.push({ resolve, satnum, query, record, sendRecord });
+          this.#queued.push({ resolve, command: { kind: "passes", name, record, ...query } });
           this.#schedule();
         });
       },
@@ -119,9 +108,7 @@ export class WorkerPassSource implements PassSource {
     for (let offset = 0; offset < queued.length; offset += MAX_COMMANDS_PER_MESSAGE) {
       const pending = queued.slice(offset, offset + MAX_COMMANDS_PER_MESSAGE);
       const batchId = this.#nextBatchId++;
-      const commands: PassCommand[] = pending.map((item) =>
-        item.sendRecord ? { kind: "passes", satnum: item.satnum, record: item.record, ...item.query } : { kind: "passes", satnum: item.satnum, ...item.query },
-      );
+      const commands = pending.map((item) => item.command);
       this.#inFlight.set(batchId, pending);
       // A transfer list, not a target origin — see sampleSource.
       // eslint-disable-next-line unicorn/require-post-message-target-origin
@@ -136,22 +123,7 @@ export class WorkerPassSource implements PassSource {
     }
     this.#inFlight.delete(response.batchId);
     response.replies.forEach((reply, index) => {
-      const item = pending[index];
-      if (!item) {
-        return;
-      }
-      if (reply.kind === "passes") {
-        item.resolve(reply.passes);
-        return;
-      }
-      if (reply.kind === "unknown") {
-        // Evicted, or this batch raced ahead of the one carrying the record.
-        this.#recordSent.delete(reply.satnum);
-        this.#queued.push({ ...item, sendRecord: true });
-        this.#schedule();
-        return;
-      }
-      item.resolve(undefined);
+      pending[index]?.resolve(reply.kind === "passes" ? reply.passes : undefined);
     });
   }
 

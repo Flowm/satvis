@@ -35,7 +35,7 @@ function propertiesFor(metadata?: SatelliteMetadata): SatelliteProperties {
   const catalog = new SatelliteCatalog();
   catalog.addRecords([ommRecord("TEST SAT", 1, metadata)], ["Test"]);
   const entry = catalog.getByName("TEST SAT")!;
-  return new SatelliteProperties(entry, new InlineSampleSource().samplerFor(entry.satnum, entry.record), new InlinePassSource().predictorFor(entry.satnum, entry.record));
+  return new SatelliteProperties(entry, new InlineSampleSource().samplerFor(entry.satnum, entry.record), new InlinePassSource().predictorFor(entry.name, entry.record));
 }
 
 describe("record-carried satellite metadata", () => {

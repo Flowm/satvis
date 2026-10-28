@@ -515,7 +515,7 @@ export class SatelliteManager {
       entry,
       { orbits: this.orbits, tracks: this.tracks, groundTracks: this.groundTracks },
       this.#samples.samplerFor(this.#propagationKey(entry), entry.record),
-      this.#passes.predictorFor(this.#propagationKey(entry), entry.record),
+      this.#passes.predictorFor(entry.name, entry.record),
       chunk,
     );
     sat.props.passPredictor.mode = this.#desired.overpassMode;

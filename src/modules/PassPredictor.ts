@@ -3,7 +3,6 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import type { SwathExtents } from "../config/satelliteMetadata";
-import type Orbit from "./Orbit";
 import type { GroundStationPosition } from "./Orbit";
 import { compassPoint } from "./skyGeometry";
 import type { PassPredictorSource, WorkerPass } from "./util/passSource";
@@ -45,10 +44,7 @@ interface PassWindow {
  * list, or nothing at first, and `onChanged` fires when the answer lands.
  */
 export class PassPredictor {
-  #orbit: Orbit;
-
-  /** Read per recompute, so a record that arrives later still applies. */
-  #swath: () => SwathExtents;
+  readonly #swath: SwathExtents;
 
   #groundStations: GroundStation[] = [];
 
@@ -71,8 +67,7 @@ export class PassPredictor {
 
   passIntervals = new TimeIntervalCollection();
 
-  constructor(orbit: Orbit, swath: () => SwathExtents, source: PassPredictorSource) {
-    this.#orbit = orbit;
+  constructor(swath: SwathExtents, source: PassPredictorSource) {
     this.#swath = swath;
     this.#source = source;
   }
@@ -158,7 +153,7 @@ export class PassPredictor {
         stations: this.#groundStations.map((station) => ({ name: station.name, position: station.position })),
         startEpochMs: JulianDate.toDate(window.start).getTime(),
         endEpochMs: JulianDate.toDate(window.stopPrediction).getTime(),
-        swath: this.#swath(),
+        swath: this.#swath,
       })
       .then((passes) => {
         if (generation !== this.#generation || passes === undefined) {
@@ -182,10 +177,6 @@ export class PassPredictor {
   }
 
   #apply(window: PassWindow, passes: Pass[]): void {
-    // The worker is keyed on satnum and holds no name. See OrbitCache.
-    for (const pass of passes) {
-      pass.name = this.#orbit.name;
-    }
     this.#window = window;
     this.#passes = passes;
     this.passIntervals = new TimeIntervalCollection(

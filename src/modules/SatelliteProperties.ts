@@ -33,7 +33,7 @@ export class SatelliteProperties {
     this.name = entry.name;
     this.satnum = entry.satnum;
     this.orbit = new Orbit(entry.name, entry.record);
-    this.passPredictor = new PassPredictor(this.orbit, () => this.swathExtents, passes);
+    this.passPredictor = new PassPredictor(this.swathExtents, passes);
     this.trajectory = new SampledTrajectory(this.orbit, sampler);
   }
 

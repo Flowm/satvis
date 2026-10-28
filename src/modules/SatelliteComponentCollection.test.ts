@@ -109,7 +109,7 @@ async function setup({ modelFile = "ISS-(ZARYA).glb", lods }: { modelFile?: stri
   }
   const entry = new CatalogEntry({ key: "25544|ISS", name: "ISS", nameUpper: "ISS", satnum: "25544", tags: [], record });
   const sampler = new InlineSampleSource().samplerFor(entry.satnum, entry.record);
-  const predictor = new InlinePassSource().predictorFor(entry.satnum, entry.record);
+  const predictor = new InlinePassSource().predictorFor(entry.name, entry.record);
   const batches = {
     orbits: new PolylineBatch(viewer, "inertial", Color.WHITE),
     tracks: new PolylineBatch(viewer, "fixed", Color.GOLD),

@@ -2,7 +2,6 @@ import { JulianDate } from "@cesium/core";
 import dayjs from "dayjs";
 import { describe, expect, test } from "vitest";
 
-import Orbit from "./Orbit";
 import { PassPredictor, filterPasses, formatCountdown, passMinutes, passQuality, passSummary, stationPasses, toPassRows, type GroundStation, type Pass } from "./PassPredictor";
 import { parseGpPayload, type GpRecord } from "./util/gp";
 import { InlinePassSource, type PassPredictorSource, type PassQuery } from "./util/passSource";
@@ -49,12 +48,10 @@ const EPOCH_TIME = JulianDate.fromDate(dayjs("2018-12-08").toDate());
 const MUNICH: GroundStation = { name: "Munich", position: { latitude: 48.177, longitude: 11.7476, height: 0 } };
 const VIENNA: GroundStation = { name: "Vienna", position: { latitude: 48.2082, longitude: 16.3738, height: 0 } };
 
-/** Records every query: the source builds its own `Orbit`, so spying on this one proves nothing. */
-function issPredictor(swathKm = 500): { orbit: Orbit; predictor: PassPredictor; queries: PassQuery[] } {
+/** Records every query. */
+function issPredictor(swathKm = 500): { predictor: PassPredictor; queries: PassQuery[] } {
   const record = parseGpPayload(TLE)[0] as GpRecord;
-  const orbit = new Orbit("ISS", record);
-  const inline = new InlinePassSource();
-  const bound = inline.predictorFor("25544", record);
+  const bound = new InlinePassSource().predictorFor("ISS", record);
   const queries: PassQuery[] = [];
   const source: PassPredictorSource = {
     passes: (query) => {
@@ -63,8 +60,8 @@ function issPredictor(swathKm = 500): { orbit: Orbit; predictor: PassPredictor; 
     },
   };
   // The symmetric split SatelliteProperties gives a satellite without per-side extents.
-  const predictor = new PassPredictor(orbit, () => ({ starboardKm: swathKm / 2, portKm: swathKm / 2 }), source);
-  return { orbit, predictor, queries };
+  const predictor = new PassPredictor({ starboardKm: swathKm / 2, portKm: swathKm / 2 }, source);
+  return { predictor, queries };
 }
 
 /** Lets every reply already asked for land: the inline source answers before the next task. */
