@@ -76,6 +76,9 @@
           content: collapsed ? 'hidden' : 'px-3 pb-3 info-body',
         }"
       >
+        <template #trailing="{ item }">
+          <span v-if="item.badge" class="countBadge">{{ item.badge }}</span>
+        </template>
         <template #passes>
           <div class="tab-body__pad">
             <template v-if="!passesPending && hasAnyPasses">

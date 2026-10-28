@@ -5,10 +5,12 @@ import SwiftUI
 /// The sky view's instruments over the picture (SkyHud.vue): the crosshair, a
 /// compass tape across the top and an elevation tape down the right, the locked
 /// satellite's path across the sky, and its card. Drawn every frame from the
-/// renderer's last one, and transparent to touches: the controls under it stay
-/// usable, and a tap is the session's.
+/// renderer's last one, and transparent to touches but for the card: the controls
+/// under it stay usable, and a tap is the session's.
 struct SkyHUD: View {
     let renderer: GlobeRenderer
+    /// The card was tapped, with the locked satellite's id.
+    let onOpen: (String) -> Void
     /// The controls along the top, which the tapes run round, never under. Nil
     /// until laid out, and the tapes with it.
     let controls: TopControls?
@@ -25,12 +27,14 @@ struct SkyHUD: View {
                 let settled = renderer.isSkySettled
                 // Up as the ground arrives: projected against a camera still in
                 // flight, the tapes would swim across the screen.
-                SkyInstruments(renderer: renderer, controls: controls, infoCard: infoCard, notice: notice, size: proxy.size, date: context.date)
-                    .opacity(settled ? 1 : 0)
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: settled)
+                SkyInstruments(
+                    renderer: renderer, controls: controls, infoCard: infoCard, notice: notice, size: proxy.size, date: context.date, onOpen: onOpen
+                )
+                .opacity(settled ? 1 : 0)
+                .allowsHitTesting(settled)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.4), value: settled)
             }
         }
-        .allowsHitTesting(false)
     }
 }
 
@@ -52,6 +56,7 @@ private struct SkyInstruments: View {
     let notice: String?
     let size: CGSize
     let date: Date
+    let onOpen: (String) -> Void
 
     private static let lockColor = Color.panelGreen
     private static let traceColor = Color(red: 0x7D / 255, green: 0xD3 / 255, blue: 0xFC / 255)
@@ -72,13 +77,20 @@ private struct SkyInstruments: View {
                 }
                 reticle(locked: lock != nil, size: size, in: &context)
             }
+            .allowsHitTesting(false)
             // Above the clock deck.
             VStack(spacing: 12) {
                 if let notice {
                     NoticeBanner(text: notice)
+                        .allowsHitTesting(false)
                 }
                 if let lock {
-                    card(lock)
+                    Button {
+                        onOpen(lock.id)
+                    } label: {
+                        card(lock)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.bottom, 136)
@@ -107,15 +119,18 @@ private struct SkyInstruments: View {
     }
 
     /// Where the compass tape runs: its rule's height and its ends. Over the
-    /// controls where they stand 60 pt down or more, as under a notch or the
-    /// Dynamic Island, whose status bar keeps to the ears and leaves the band over
-    /// them free. Else, on an iPad or in landscape, between the menu and the
-    /// buttons, level with the buttons, where that leaves 200 pt about the middle.
-    /// Else, on an iPhone with a Home button, under both.
+    /// controls where the safe area starts 48 pt down or more, as under a mini's
+    /// notch or the Dynamic Island, whose status bar keeps to the ears and leaves
+    /// the band over them free. Placed by the safe area rather than the buttons,
+    /// 8 pt under it: 4 pt higher, its labels ran into a mini's clock.
+    /// Else, on an iPad or in landscape, between the menu and the buttons, level
+    /// with the buttons, where that leaves 200 pt about the middle. Else, on an
+    /// iPhone with a Home button, under both.
     private static func compassTape(around controls: TopControls, width: CGFloat) -> (rule: CGFloat, from: CGFloat, to: CGFloat) {
         let (menu, buttons) = (controls.menu, controls.buttons)
-        if buttons.minY >= 60 {
-            return (buttons.minY - 4, 0, width)
+        let safeTop = buttons.minY - PanelMetrics.edge
+        if safeTop >= 48 {
+            return (safeTop + 8, 0, width)
         }
         let from = menu.maxX + 16
         let to = buttons.minX - 16
@@ -235,7 +250,7 @@ private struct SkyInstruments: View {
         .accessibilityLabel(target.name)
         .accessibilityValue("\(target.visibility.label). \(position.spoken)")
         .accessibilityHint("Tap to open")
-        .accessibilityAddTraits(.updatesFrequently)
+        .accessibilityAddTraits([.updatesFrequently, .isButton])
     }
 
     /// The verdict, green where the satellite could be seen.

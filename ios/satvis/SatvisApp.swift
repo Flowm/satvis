@@ -118,8 +118,11 @@ struct ContentView: View {
         .overlay {
             if session.observer != nil, let renderer = session.renderer {
                 // In the renderer's frame, the whole screen, since it projects into it.
-                SkyHUD(renderer: renderer, controls: topControls, infoCard: showsCard ? cardFrame : nil, notice: session.notice ?? session.aim.cameraWarning)
-                    .ignoresSafeArea()
+                SkyHUD(
+                    renderer: renderer, onOpen: { session.select(.satellite($0)) }, controls: topControls, infoCard: showsCard ? cardFrame : nil,
+                    notice: session.notice ?? session.aim.cameraWarning
+                )
+                .ignoresSafeArea()
             }
         }
         .overlay(alignment: .top) {
@@ -165,11 +168,10 @@ struct ContentView: View {
                 cornerFrame = $0
             }
             .padding(PanelMetrics.edge)
-            // Under a panel across a phone's width, whose close button they showed
-            // through, and under the info card, which has its own Track and close.
-            .opacity(cornerCovered ? 0 : 1)
-            .accessibilityHidden(cornerCovered)
-            .animation(.snappy(duration: 0.2), value: cornerCovered)
+            // Under the info card, which has its own Track and close.
+            .opacity(showsCard ? 0 : 1)
+            .accessibilityHidden(showsCard)
+            .animation(.snappy(duration: 0.2), value: showsCard)
         }
         // Where there is room, a card in the top-right corner, as the web app's panel;
         // else a sheet (below). Not an inspector column: narrowing the globe's view
@@ -210,7 +212,6 @@ struct ContentView: View {
         .onChange(of: session.selection) {
             infoHeight = nil
         }
-        // Over the top-right buttons, for a panel across a phone's width.
         .overlay(alignment: .topLeading) {
             GeometryReader { _ in
                 HStack(alignment: .top, spacing: PanelMetrics.gap) {
@@ -243,7 +244,7 @@ struct ContentView: View {
                         menuFrame = $0
                     }
                     if let panel {
-                        ToolPanelView(title: panel.title, width: panelFillsWidth ? nil : panel.cardWidth, onClose: { self.panel = nil }) {
+                        ToolPanelView(title: panel.title, width: panel.cardWidth, onClose: { self.panel = nil }) {
                             switch panel {
                             case .components: ComponentsPanel(catalog: session.catalog)
                             case .map: MapPanel(session: session)
@@ -354,7 +355,9 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showsBookmarks) {
-            BookmarksView(session: session)
+            // The column stays folded over the scene a bookmark opened, as a tap on
+            // the globe leaves it.
+            BookmarksView(session: session) { foldedFor = nil }
         }
         .sheet(isPresented: $showsBrowser) {
             BrowserView(catalog: session.catalog) { session.select(.satellite($0.id)) }
@@ -445,11 +448,6 @@ struct ContentView: View {
         sizeClass == .regular && session.selection != nil
     }
 
-    /// Whether something covers the corner's buttons, which hide under it.
-    private var cornerCovered: Bool {
-        panelFillsWidth || showsCard
-    }
-
     /// The info card's frame in the window: in the corner's buttons' place, clear of
     /// the menu column and the clock deck, and clear of the screen's middle while
     /// the camera holds something there. Nil until the corner is laid out.
@@ -498,17 +496,11 @@ struct ContentView: View {
         (toolsFrame?.width ?? 0) >= Self.roomForNames
     }
 
-    /// Whether the open panel takes the rest of a phone's width, over the corner's
-    /// buttons: short of them, it would be no wider than a card.
-    private var panelFillsWidth: Bool {
-        !roomy && panel?.needsWidth == true
-    }
-
     /// How wide the column and a card beside it may be: short of the corner's
-    /// buttons, which leave a card 274 pt on a 402 pt phone. Less the margin and a
+    /// buttons, which leave a card 282 pt on a 402 pt phone. Less the margin and a
     /// gap.
     private var panelReach: CGFloat? {
-        guard !panelFillsWidth, let toolsFrame, let cornerFrame else {
+        guard let toolsFrame, let cornerFrame else {
             return nil
         }
         return max(cornerFrame.minX - toolsFrame.minX - PanelMetrics.edge - PanelMetrics.gap, 0)

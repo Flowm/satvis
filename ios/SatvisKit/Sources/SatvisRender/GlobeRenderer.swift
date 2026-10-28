@@ -599,11 +599,17 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     /// The ground station or satellite drawn nearest a point on the view, within a
-    /// fingertip of it and not behind the Earth (`DrawnFrame.entity`).
+    /// fingertip of it and not behind the Earth (`DrawnFrame.entity`), nor hidden
+    /// from the sky view as one that cannot be seen.
     public func entity(at point: CGPoint, viewSize: CGSize) -> String? {
-        lastFrame?.entity(
+        guard let lastFrame else {
+            return nil
+        }
+        let judgement = isSkySettled && unseen == .hide ? skyCamera.map { SkyJudgement(camera: $0, at: lastFrame.time, unseen: unseen) } : nil
+        return lastFrame.entity(
             at: point, viewSize: viewSize, stations: stations, satellites: points.installed, components: components,
-            labels: points.prepared?.labels?.atlas.instances)
+            labels: points.prepared?.labels?.atlas.instances,
+            hidden: { position in judgement.map { $0.opacity(of: position, from: lastFrame.eye) == 0 } ?? false })
     }
 
     /// Where on the ellipsoid a point on the view lands; nil off the globe.

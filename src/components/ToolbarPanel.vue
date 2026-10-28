@@ -23,7 +23,7 @@ const emit = defineEmits<{ close: [] }>();
 
 .toolbarPanel--fixed {
   box-sizing: border-box;
-  width: min(var(--panel-width), var(--toolbar-panel-max));
+  width: min(var(--panel-width), var(--toolbar-panel-max), var(--toolbar-card-max));
   max-height: calc(100dvh - 140px);
   padding: 0 6px 6px;
 }
@@ -37,6 +37,12 @@ const emit = defineEmits<{ close: [] }>();
 
 .toolbarPanel--fixed .toolbarPanel__body {
   overflow-y: auto;
+}
+
+/* Rows keep their height and the body scrolls: a row's `overflow: hidden`, which cuts a long
+   name short, let it shrink instead, and its mark slid off its label on a short screen. */
+.toolbarPanel--fixed .toolbarPanel__body > :deep(*) {
+  flex-shrink: 0;
 }
 
 /* With the divider, level with the divider under the Menu row. */

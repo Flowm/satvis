@@ -47,7 +47,7 @@
       </div>
       <!-- v-if: the cards' pictures load only when it opens. -->
       <toolbar-panel v-if="menu.bookmarks" title="Bookmarks" wide @close="closePanel('bookmarks')">
-        <bookmark-panel />
+        <bookmark-panel @opened="onBookmarkOpened" />
       </toolbar-panel>
       <!-- v-if, not v-show: the virtualized list measures its scroll element on mount,
            and a hidden mount measures 0. Search and expansion state survive remounts in useSatelliteBrowser. -->
@@ -63,7 +63,7 @@
           {{ componentName }}
         </label>
       </toolbar-panel>
-      <toolbar-panel v-show="menu.gs" title="Locations" @close="closePanel('gs')">
+      <toolbar-panel v-show="menu.gs" title="Locations" class="toolbarPanel--locations" @close="closePanel('gs')">
         <ground-station-list />
       </toolbar-panel>
       <toolbar-panel v-show="menu.map" title="Map" @close="closePanel('map')">
@@ -490,6 +490,14 @@ function onPointerUp(event: PointerEvent): void {
     menuExpanded.value = false;
   }
   cc.keepSelectionOnEmptyClick();
+}
+
+/** Clears the way to the scene a bookmark opened, as a tap on the globe does. */
+function onBookmarkOpened(): void {
+  closeMenus();
+  if (isNarrow()) {
+    menuExpanded.value = false;
+  }
 }
 
 /** A cancelled press is no tap. */

@@ -4,7 +4,7 @@ import type { Page } from "@playwright/test";
 
 import { hitTest, openApp, selectSatellite, waitForSky } from "../support/app";
 import { expect, test } from "../support/test";
-import { DEVICES } from "../support/ui";
+import { closeMenuPanel, DEVICES, openMenu } from "../support/ui";
 
 const ISS = "ISS (ZARYA)";
 
@@ -72,5 +72,30 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await expect.poll(() => page.evaluate(() => window.cc!.skyView.active)).toBe(false);
       await expect.poll(() => corner(page)).toEqual(["Hide UI", "Home view"]);
     });
+
+    test("a menu panel stops short of the corner, which stays in reach", async ({ page }) => {
+      await openApp(page, "tags=", { satellites: false });
+      for (const title of ["Components", "Map", "Locations"]) {
+        await openMenu(page, title);
+        await expect
+          .poll(() => hitTest(page, { home: "#toolbarRight [aria-label='Home view']", close: `[aria-label='${title}'] [aria-label='Close panel']` }), { message: title })
+          .toEqual({ home: "clickable", close: "clickable" });
+        await closeMenuPanel(page, title);
+      }
+    });
   });
 }
+
+test.describe("phone", () => {
+  test.use(DEVICES.phone);
+
+  // A sheet in the native app, so nothing to stop short of there.
+  test("a wide panel covers the corner, which hides under it", async ({ page }) => {
+    await openApp(page, "tags=", { satellites: false });
+    await openMenu(page, "Satellites");
+    await expect(page.getByRole("region", { name: "Satellites" })).toBeVisible();
+    await expect(page.locator("#toolbarRight")).toBeHidden();
+    await closeMenuPanel(page, "Satellites");
+    await expect(page.locator("#toolbarRight")).toBeVisible();
+  });
+});

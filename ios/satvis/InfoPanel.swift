@@ -45,7 +45,7 @@ struct InfoPanel: View {
                                     .padding(.bottom, 12)
                             }
                         }
-                        TabPicker(tabs: tabs, tab: $tab)
+                        TabPicker(tabs: tabs, tab: $tab, subject: .satellite(entry), clock: clock, passes: passes)
                     }
                     .bareRow()
                 }
@@ -86,6 +86,7 @@ struct InfoPanel: View {
                     }
                     .font(.footnote)
                     .lineLimit(1)
+                    .leadingTitle()
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(
                         "\(entry.name), catalog number \(entry.satnum), \(SatelliteDetails.chips(entry.record, propagator: propagator).joined(separator: ", "))"
@@ -146,26 +147,31 @@ struct InfoPanel: View {
             }
         }
         if !links.isEmpty {
-            Section("Links") {
-                ForEach(links, id: \.0) { link, url in
-                    Link(destination: url) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(link.label)
-                                Text(link.title)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 8)
-                            Image(systemName: "arrow.up.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                                .accessibilityHidden(true)
+            // One row, opening a menu of the sites: a row each, with its title, took a phone's sheet 320 pt.
+            Section {
+                Menu {
+                    ForEach(links, id: \.0) { link, url in
+                        Link(destination: url) {
+                            Label(link.label, systemImage: "arrow.up.right")
+                            Text(link.title)
                         }
                     }
-                    // A Link paints its label in the tint, through the styles set inside it.
-                    .tint(.primary)
+                } label: {
+                    HStack {
+                        Text("Links")
+                        Spacer(minLength: 8)
+                        Text("\(links.count) sites")
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(.rect)
                 }
+                // A Menu paints its label in the tint, through the styles set inside it.
+                .tint(.primary)
+                .accessibilityLabel("Links")
+                .accessibilityValue("\(links.count) sites")
             }
         }
     }
@@ -194,27 +200,40 @@ enum InfoTab: String {
     }
 }
 
-/// The web app's tab row, over the tabs a selection has.
+/// The web app's tab row, over the tabs a selection has, the Passes tab with the
+/// count its list shows.
 private struct TabPicker: View {
     let tabs: [InfoTab]
     @Binding var tab: InfoTab
+    let subject: PassSubject
+    let clock: ViewerClock
+    let passes: PassModel
+    @AppStorage("showPastPasses") private var showsPast = false
 
     var body: some View {
-        Picker(
-            "Tab",
-            selection: Binding {
-                InfoTab.resolved(tab, among: tabs)
-            } set: {
-                tab = $0
-            }
-        ) {
-            ForEach(tabs, id: \.self) { Text($0.rawValue.capitalized) }
+        // Once a second, as the list it counts.
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            let now = clock.now()
+            let count = subject.passes(in: passes, at: now).passes.visible(at: now, past: showsPast).count
+            SegmentedTabs(
+                selection: Binding {
+                    InfoTab.resolved(tab, among: tabs)
+                } set: {
+                    tab = $0
+                },
+                tabs: tabs.map { ($0, $0.rawValue.capitalized, $0 == .passes ? count : 0) })
         }
-        .panelSegmented()
     }
 }
 
 extension View {
+    /// A bar's title at its leading edge, as the web app's, where the bar centres
+    /// a title narrower than the room it has: asking for more than there is, it
+    /// is given all of it, and is cut short within it.
+    fileprivate func leadingTitle() -> some View {
+        frame(minWidth: 0, idealWidth: 10_000, maxWidth: .infinity, alignment: .leading)
+    }
+
     /// A section close under the title and over the tab's cards, as the web app's tab row is.
     fileprivate func tabHeader() -> some View {
         listSectionMargins(.top, 0).listSectionSpacing(.compact)
@@ -302,7 +321,7 @@ struct StationPanel: View {
         NavigationStack {
             List {
                 Section {
-                    TabPicker(tabs: Self.tabs, tab: $tab)
+                    TabPicker(tabs: Self.tabs, tab: $tab, subject: .station(station, catalog.activeEntries), clock: clock, passes: passes)
                         .bareRow()
                 }
                 .tabHeader()
@@ -329,6 +348,12 @@ struct StationPanel: View {
             .navigationTitle(station.displayName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .title) {
+                    Text(station.displayName)
+                        .font(.headline)
+                        .lineLimit(1)
+                        .leadingTitle()
+                }
                 // By what they do: the station itself, where to look from, and away.
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     // A station a link brought is the link's until saved: alerts and

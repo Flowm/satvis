@@ -19,20 +19,11 @@ enum ToolPanel: Hashable {
         }
     }
 
-    /// Its card's width. Locations' is wider: a station's latitude and longitude
-    /// stand side by side, and 280 pt cut -122.2727 short.
+    /// Its card's width, or what the corner's buttons leave where that is less, as
+    /// on a phone. Locations' is wider: a station's latitude and longitude stand
+    /// side by side, and on a 402 pt phone the 282 pt left fits -122.2727.
     var cardWidth: CGFloat {
         self == .locations ? 320 : 260
-    }
-
-    /// Whether it takes the rest of a phone's width, over the corner's buttons,
-    /// rather than a card short of them: 258 pt on a 402 pt phone cut "Ground
-    /// station link" and "Satellite (VersaTiles)" short, and Locations' longitudes.
-    var needsWidth: Bool {
-        switch self {
-        case .components, .map, .locations: true
-        case .globe, .sky, .graphics: false
-        }
     }
 }
 
@@ -167,8 +158,8 @@ private struct ToolRow: View {
 /// screen is too short for it.
 struct ToolPanelView<Content: View>: View {
     let title: LocalizedStringKey
-    /// A card's width, or nil across all the room it is given.
-    var width: CGFloat?
+    /// A card's width, or less where the room is narrower.
+    let width: CGFloat
     let onClose: () -> Void
     @ViewBuilder let content: Content
     /// Dynamic Type's scale, as the menu column's rows take it, so that the title
@@ -198,7 +189,7 @@ struct ToolPanelView<Content: View>: View {
                 }
             }
         }
-        .frame(maxWidth: width ?? .infinity)
+        .frame(maxWidth: width)
         .panel()
         // Rows of small text, which the globe's labels showed through.
         .environment(\.panelDensity, .dense)

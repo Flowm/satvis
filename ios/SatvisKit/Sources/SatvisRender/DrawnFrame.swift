@@ -41,10 +41,10 @@ struct DrawnFrame {
     /// fingertip of it and not behind the Earth. A satellite is its point and its
     /// label (`Picking`), the label as `labels` sizes it while `components` draws
     /// labels. A station's pin wins: it is the larger target, and one the user put
-    /// there.
+    /// there. `hidden` says whether a satellite at a position is drawn at all.
     func entity(
         at point: CGPoint, viewSize: CGSize, stations: [StationMarker], satellites: some DrawnSatellites, components: SatelliteComponents,
-        labels: [LabelInstance]?
+        labels: [LabelInstance]?, hidden: (SIMD3<Double>) -> Bool = { _ in false }
     ) -> String? {
         guard viewSize.width > 0 else {
             return nil
@@ -68,7 +68,7 @@ struct DrawnFrame {
         // As Labels.msl places them, in points.
         let labels = components.contains(.label) ? labels : nil
         for index in 0..<satellites.count {
-            guard let position = satellites.position(at: index, time: time), !isHiddenByEarth(position, from: eye),
+            guard let position = satellites.position(at: index, time: time), !isHiddenByEarth(position, from: eye), !hidden(position),
                 let spot = screenPoint(position, viewSize: viewSize)
             else {
                 continue

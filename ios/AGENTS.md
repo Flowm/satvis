@@ -175,8 +175,9 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   web's three-leg flight in and out; the instruments (`SkyHUD`) and the gestures
   wait for it to land, and reduced motion cuts. The crosshair, the tapes, the
   trace and the card read the renderer's last frame (`DrawnFrame`,
-  `SkyTargets.swift`), and the lock is the tap: from the ground a tap opens what
-  the crosshair holds. The lock places only the satellites near the crosshair, by
+  `SkyTargets.swift`). From the ground a tap opens what it lands on, as on the
+  globe, and the card opens the lock; a tap on empty sky keeps what is open
+  (ADR 0003). The lock places only the satellites near the crosshair, by
   each one's direction kept for a second of the clock: placing all 16,755 active
   ones cost an iPad mini 8.6 ms of the main thread, 15 times a second (14
   measured), and with them a Debug build managed 5 frames a second. A clock fast
@@ -259,10 +260,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   buttons one left-aligned mark (`CircleToggleStyle` keeps a switch a switch to
   VoiceOver); a segmented control where the choices are short; a setting that
   needs the sky view is disabled on the globe, not hidden. On a phone the column
-  folds to its icons beside a panel, as the web's does below 640 px: a card that
-  stops short of the top-right buttons (Globe, Sky, Graphics), or the rest of the
-  width, which hides those buttons while it is open, where a card cuts the names
-  or coordinates short (Components, Map, Locations). Those buttons
+  folds to its icons beside a panel, as the web's does below 640 px: every panel
+  is a card that stops short of the top-right buttons, which stay in view. Those buttons
   are the ways back alone: home or out of the sky view, the compass and the
   camera, and the end of tracking. Not system
   menus: iOS 26 grows one out of its control, in the column's place, and it holds

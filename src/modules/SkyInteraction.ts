@@ -6,7 +6,7 @@
 // means lives in ./skyGestures, aiming by compass in ./DeviceAim, walking in ./SkyMovement.
 
 import { Cartesian2, type JulianDate } from "@cesium/core";
-import { type Scene, type ScreenSpaceEventHandler, ScreenSpaceEventType } from "@cesium/engine";
+import { Entity, type Scene, type ScreenSpaceEventHandler, ScreenSpaceEventType } from "@cesium/engine";
 
 import type { SkyAppearance } from "./componentKinds";
 import { browserOrientationEvents, CompassAiming, type CompassCalibration, type CompassOutcome } from "./DeviceAim";
@@ -21,6 +21,9 @@ import type { UnseenMode } from "./util/visibility";
 /** In CSS pixels. */
 export const CAPTURE_RADIUS = 60;
 
+/** A fingertip around a touch, in CSS pixels: the iOS app's `Picking.pointReach`. */
+const TOUCH_REACH = 24;
+
 const VIEWER_PICK_INPUTS = [ScreenSpaceEventType.LEFT_CLICK, ScreenSpaceEventType.LEFT_DOUBLE_CLICK];
 
 export interface SkyInteractionOptions {
@@ -29,13 +32,14 @@ export interface SkyInteractionOptions {
   sats: SatelliteManager;
   /**
    * The viewer's, whose click selects what is under the pointer and whose double-click
-   * tracks it. Both are off while this runs: the sky view acts on its crosshair and
-   * tracks nothing (docs/adr/0003-sky-view.md).
+   * tracks it. Both are off while this runs: a tap that misses keeps the selection, and
+   * the sky view tracks nothing (docs/adr/0003-sky-view.md).
    */
   viewerInputs?: ScreenSpaceEventHandler;
   /** Also called when the lock clears. */
   onLockChange?: (target: SkyTarget | undefined) => void;
-  onSelect?: (target: SkyTarget) => void;
+  /** A tap on an entity, or the lock's card. */
+  onSelect?: (entity: Entity) => void;
 }
 
 export class SkyInteraction {
@@ -114,6 +118,14 @@ export class SkyInteraction {
 
   get locked(): SkyTarget | undefined {
     return this.#locked;
+  }
+
+  /** Opens what the crosshair holds: the lock's card was tapped. */
+  selectLocked(): void {
+    const entity = this.#locked?.sat.defaultEntity;
+    if (entity) {
+      this.#options.onSelect?.(entity);
+    }
   }
 
   /** What to do with the satellites that cannot be seen; hidden ones are also off the crosshair. */
@@ -222,8 +234,8 @@ export class SkyInteraction {
     this.#options.onLockChange?.(target);
   }
 
-  /** What a gesture means, applied to the view. */
-  #apply(intents: GestureIntent[]): void {
+  /** What a gesture means, applied to the view; `tap` is where a tap lands and how far it reaches, in CSS pixels. */
+  #apply(intents: GestureIntent[], tap?: { at: Cartesian2; reach: number }): void {
     const { skyView, scene } = this.#options;
     for (const intent of intents) {
       switch (intent.kind) {
@@ -245,11 +257,26 @@ export class SkyInteraction {
           this.disableDeviceOrientation();
           break;
         case "tap":
-          if (this.#locked) {
-            this.#options.onSelect?.(this.#locked);
+          if (tap) {
+            this.#tap(tap.at, tap.reach);
           }
           break;
       }
+    }
+  }
+
+  /**
+   * The globe's own hit test, so a tap opens only the satellite or station it lands on, or
+   * for a finger the one drawn nearest within `reach`. A miss leaves the selection, and so
+   * does what is no entity, such as a surface model.
+   */
+  #tap(at: Cartesian2, reach: number): void {
+    const { scene } = this.#options;
+    // Cesium's pick box is in drawing-buffer pixels, and it looks outward from its middle.
+    const box = reach > 0 ? Math.ceil((2 * reach * scene.drawingBufferWidth) / scene.canvas.clientWidth) : undefined;
+    const picked = scene.pick(at, box, box) as { id?: unknown } | undefined;
+    if (picked?.id instanceof Entity) {
+      this.#options.onSelect?.(picked.id);
     }
   }
 
@@ -268,7 +295,9 @@ export class SkyInteraction {
   };
 
   #onPointerUp = (event: PointerEvent): void => {
+    const box = this.#canvas?.getBoundingClientRect();
     this.#canvas?.releasePointerCapture?.(event.pointerId);
-    this.#apply(this.#gestures.up(event.pointerId));
+    const reach = event.pointerType === "touch" ? TOUCH_REACH : 0;
+    this.#apply(this.#gestures.up(event.pointerId), box && { at: new Cartesian2(event.clientX - box.left, event.clientY - box.top), reach });
   };
 }

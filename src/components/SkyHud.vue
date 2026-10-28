@@ -43,17 +43,17 @@
     <div v-if="compassActive && !calibrated" class="sky-hud__warn panelSurface">Hold the phone flat to set north</div>
 
     <!-- The chevron stands for "Tap to open", which the hidden text says. -->
-    <div v-if="locked && position" class="sky-hud__card panelSurface">
-      <div class="sky-hud__row">
+    <button v-if="locked && position" type="button" class="sky-hud__card panelSurface" @click="cc.skyInteraction.selectLocked()">
+      <span class="sky-hud__row">
         <span class="sky-hud__name">{{ locked.name }}</span>
         <span class="sky-hud__chip" :class="{ 'sky-hud__chip--visible': locked.visibility === 'visible' }">{{ VISIBILITY_LABEL[locked.visibility] }}</span>
-      </div>
-      <div class="sky-hud__row">
+      </span>
+      <span class="sky-hud__row">
         <span class="sky-hud__where" aria-hidden="true">{{ position.text }}</span>
         <span class="sr-only">{{ position.spoken }}. Tap to open.</span>
         <UIcon name="lucide:chevron-right" class="sky-hud__open" aria-hidden="true" />
-      </div>
-    </div>
+      </span>
+    </button>
   </div>
 </template>
 
@@ -247,6 +247,10 @@ onUnmounted(() => {
   border-radius: var(--panel-radius);
   font-size: var(--text-note);
   line-height: 18px;
+  /* The HUD's one target: a tap anywhere else on it falls through to the sky. */
+  pointer-events: auto;
+  text-align: left;
+  cursor: pointer;
 }
 
 .sky-hud__row {
