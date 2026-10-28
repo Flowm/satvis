@@ -53,9 +53,10 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   again and again. iOS's memory warning drops what the last frame does not use
   (`GlobeRenderer.trimMemory`), about 175 MB after the sky view.
 - About, the menu column's last entry, is the web app's About dialog (`AboutView.swift`):
-  what Satvis is, what it does and where its data comes from, written for the app.
-  Its demos are the Bookmarks sheet's, with their pictures, in a carousel as on the
-  about page; choosing one opens it as its card does.
+  what Satvis is, what it does and where its data comes from, written for the app,
+  in the about page's order and with its Lucide icons, the app's links and switch
+  where the web has its credits. Its demos are the Bookmarks sheet's, with their
+  pictures, in a carousel as on the about page; choosing one opens it as its card does.
 - The credits are one screen, About's Acknowledgements (`AcknowledgementsView`):
   what the map is drawn from now (`Credit.map`), the web app's credit display;
   where the satellites come from; the data the app fetches; and the code it
