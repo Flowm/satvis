@@ -20,17 +20,9 @@ import utc from "dayjs/plugin/utc";
 import { usePostHog } from "../composables/usePostHog";
 import { defaultViewDistance } from "../config/defaultView";
 import { parseLayer } from "../config/layers";
-import { MSAA_RATES, PIXEL_RATIOS, msaaSamplesFor, resolutionScaleFor } from "../config/rendering";
-import { STAR_MAPS, type StarMapSources, starMapSources } from "../config/starMaps";
-import {
-  type ImageryContext,
-  type ImageryProviderEntry,
-  imageryProviderNames,
-  imageryProviders,
-  type TerrainProviderEntry,
-  terrainProviderNames,
-  terrainProviders,
-} from "./CesiumLayerProviders";
+import { msaaSamplesFor, resolutionScaleFor } from "../config/rendering";
+import { type StarMapSources, starMapSources } from "../config/starMaps";
+import { type ImageryContext, type ImageryProviderEntry, imageryProviders, type TerrainProviderEntry, terrainProviders } from "./CesiumLayerProviders";
 import { BATCHED_COMPONENTS } from "./componentKinds";
 import { RenderPacer } from "./renderPacing";
 import { cesiumSceneMode } from "./satelliteGraphics";
@@ -155,7 +147,7 @@ export class CesiumController {
 
     this.surface = new SurfaceModel({
       scene: this.viewer.scene,
-      setTerrainOverride: (name) => (name === undefined ? this.#terrain.release() : this.#suppressTerrain(name)),
+      setTerrainOverride: (name) => (name === undefined ? this.#terrain.release() : this.#terrain.suppress(name)),
       skyLanded: () => this.skyView.settled,
       onFailure: (name, error) => this.#onSurfaceFailure(name, error),
     });
@@ -226,14 +218,8 @@ export class CesiumController {
   set imageryLayers(newLayerNames: string[]) {
     this.#clearImageryLayers();
     newLayerNames.forEach((layerName) => {
-      const selection = parseLayer(layerName);
-      if (selection === undefined) {
-        return;
-      }
-      const layer = this.#createImageryLayer(selection.provider, selection.alpha);
-      if (layer) {
-        this.viewer.scene.imageryLayers.add(layer);
-      }
+      const { provider, alpha } = parseLayer(layerName)!;
+      this.viewer.scene.imageryLayers.add(this.#createImageryLayer(provider, alpha));
     });
     // Providers resolve asynchronously, so without this render-on-demand never tiles
     // the new layer and the globe stays blank.
@@ -246,12 +232,7 @@ export class CesiumController {
     this.viewer.scene.imageryLayers.removeAll();
   }
 
-  #createImageryLayer(imageryProviderName: string, alpha?: number): ImageryLayer | false {
-    if (!imageryProviderNames().includes(imageryProviderName)) {
-      console.error("Unknown imagery layer");
-      return false;
-    }
-
+  #createImageryLayer(imageryProviderName: string, alpha?: number): ImageryLayer {
     const provider = imageryProviders[imageryProviderName] as ImageryProviderEntry;
     const context: ImageryContext = {
       clock: this.viewer.clock,
@@ -264,19 +245,7 @@ export class CesiumController {
   }
 
   set terrainProvider(terrainProviderName: string) {
-    if (!terrainProviderNames().includes(terrainProviderName)) {
-      console.error("Unknown terrain provider");
-      return;
-    }
     this.#terrain.choose(terrainProviderName);
-  }
-
-  #suppressTerrain(terrainProviderName: string): void {
-    if (!terrainProviderNames().includes(terrainProviderName)) {
-      console.error("Unknown terrain provider override");
-      return;
-    }
-    this.#terrain.suppress(terrainProviderName);
   }
 
   /**
@@ -396,10 +365,6 @@ export class CesiumController {
   }
 
   set cameraMode(cameraMode: string) {
-    if (cameraMode !== "Inertial" && cameraMode !== "Fixed") {
-      console.error("Unknown camera mode");
-      return;
-    }
     this.#camera.choose(cameraMode);
   }
 
@@ -527,20 +492,12 @@ export class CesiumController {
    * ratio. No explicit render: `CesiumWidget.resize` requests one every frame.
    */
   set pixelRatio(ratio: string) {
-    if (!(PIXEL_RATIOS as readonly string[]).includes(ratio)) {
-      console.error("Unknown pixel ratio");
-      return;
-    }
     this.viewer.useBrowserRecommendedResolution = false;
     this.viewer.resolutionScale = resolutionScaleFor(ratio, window.devicePixelRatio);
   }
 
   /** One of `MSAA_RATES`. Changing the sample count requests no frame, hence the explicit render. */
   set msaa(rate: string) {
-    if (!(MSAA_RATES as readonly string[]).includes(rate)) {
-      console.error("Unknown MSAA rate");
-      return;
-    }
     this.viewer.scene.msaaSamples = msaaSamplesFor(rate);
     this.viewer.scene.requestRender();
   }
@@ -566,10 +523,6 @@ export class CesiumController {
    * The viewer starts with the built-in sky box, so sceneSync's watcher is not immediate.
    */
   async applyStarMap(name: string): Promise<void> {
-    if (!(STAR_MAPS as readonly string[]).includes(name)) {
-      console.error("Unknown star map");
-      return;
-    }
     const generation = ++this.#starMapGeneration;
     const sources = starMapSources(name);
     const faces = sources === undefined ? undefined : await this.loadStarMapFaces(sources);
