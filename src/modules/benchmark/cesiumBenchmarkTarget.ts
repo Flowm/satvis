@@ -6,7 +6,8 @@ import { useCesiumStore } from "../../stores/cesium";
 import { useSatStore } from "../../stores/sat";
 import type { CesiumController } from "../CesiumController";
 import type { DesiredScene } from "../SatelliteManager";
-import type { BenchmarkTarget, FootprintSample, MeasureOptions, SceneApplied, SceneRequest } from "./benchmarkRunner";
+import type { BenchmarkStep } from "./benchmarkPlan";
+import type { BenchmarkTarget, FootprintSample, MeasureOptions, SceneApplied } from "./benchmarkRunner";
 import { FrameSampler, type FrameSample } from "./frameSampler";
 
 declare global {
@@ -334,8 +335,8 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     return this.#names().length;
   }
 
-  async apply(request: SceneRequest): Promise<SceneApplied> {
-    const names = this.#names().slice(0, request.satelliteCount);
+  async apply(step: BenchmarkStep): Promise<SceneApplied> {
+    const names = this.#names().slice(0, step.satelliteCount);
     const { clock } = this.#cc.viewer;
 
     // Real time during the build, or `buildMs` would carry propagation at ×1000.
@@ -350,13 +351,13 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     // Satellites are built to a per-frame budget (SatelliteManager.#build), so
     // reconcile returns early; `buildMs` waits for the complete scene.
     const buildStart = performance.now();
-    this.#cc.sats.reconcile(this.#scene(names, request.components));
+    this.#cc.sats.reconcile(this.#scene(names, step.components));
     await this.#cc.sats.buildSettled();
     const buildMs = performance.now() - buildStart;
     await nextFrames(2);
 
     // Only now, so the warmup absorbs the first refreshes at the new rate.
-    clock.multiplier = request.clockMultiplier;
+    clock.multiplier = step.clockMultiplier;
 
     const satellites = this.#cc.sats.visibleSatellites;
     const componentInstances: Record<string, number> = {};
@@ -366,9 +367,7 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
       }
     }
     return {
-      satellitesRequested: request.satelliteCount,
       satellitesVisible: satellites.length,
-      componentsRequested: [...request.components],
       componentsDrawn: this.#cc.sats.enabledComponents,
       componentInstances,
       clockMultiplier: clock.multiplier,

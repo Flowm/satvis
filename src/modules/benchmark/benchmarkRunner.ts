@@ -3,21 +3,13 @@
 import { buildPlan, type BenchmarkStep, type PlanSpec } from "./benchmarkPlan";
 import type { FrameSample } from "./frameSampler";
 
-export interface SceneRequest {
-  satelliteCount: number;
-  components: readonly string[];
-  clockMultiplier: number;
-}
-
 /**
  * What the app built, which can differ from the request: a name can match two
  * catalog entries, and a component exists only where it applies (no cone without
  * a swath, no model without a model url).
  */
 export interface SceneApplied {
-  satellitesRequested: number;
   satellitesVisible: number;
-  componentsRequested: string[];
   componentsDrawn: string[];
   componentInstances: Record<string, number>;
   /** Read from the app, not the step: the app can refuse the clock. */
@@ -55,7 +47,7 @@ export interface BenchmarkTarget {
   /** Once per run, before the first step. */
   prepare(): Promise<void>;
   catalogSize(): number;
-  apply(request: SceneRequest): Promise<SceneApplied>;
+  apply(step: BenchmarkStep): Promise<SceneApplied>;
   measure(options: MeasureOptions): Promise<FrameSample>;
   /** Undefined where the browser cannot answer. Called after the sample window, with the scene still up. */
   measureFootprint(): Promise<FootprintSample | undefined>;
@@ -157,7 +149,7 @@ export class BenchmarkRunner {
         }
         hooks.onProgress?.({ done: run.results.length, total: steps.length, step });
         // eslint-disable-next-line no-await-in-loop
-        const applied = await this.#target.apply({ satelliteCount: step.satelliteCount, components: step.components, clockMultiplier: step.clockMultiplier });
+        const applied = await this.#target.apply(step);
         // eslint-disable-next-line no-await-in-loop
         const frames = await this.#target.measure({ ...options, signal: abort.signal });
         if (abort.signal.aborted) {

@@ -40,18 +40,14 @@ function result(options: {
   const clock = options.clock ?? 1;
   const components = options.components;
   const step: BenchmarkStep = {
-    index: 0,
     satelliteCount: options.sats,
     components,
     clockMultiplier: clock,
     repeat: options.repeat ?? false,
-    series: formatSeries(components, clock),
     label: "",
   };
   const applied: SceneApplied = {
-    satellitesRequested: options.sats,
     satellitesVisible: options.visible ?? options.sats,
-    componentsRequested: components,
     componentsDrawn: components,
     componentInstances: {},
     clockMultiplier: clock,

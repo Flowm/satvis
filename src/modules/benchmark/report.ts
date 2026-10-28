@@ -35,7 +35,7 @@ const heapPeakMb = (result: BenchmarkResult): number | undefined => result.frame
 
 const footprintJsMb = (result: BenchmarkResult): number | undefined => result.footprint?.jsMb;
 
-const seriesOf = (result: BenchmarkResult): string => formatSeries(result.applied.componentsRequested, result.applied.clockMultiplier);
+const seriesOf = (result: BenchmarkResult): string => formatSeries(result.step.components, result.applied.clockMultiplier);
 
 /** Without the closing repeat, which would weight one scene twice and hide the drift. */
 const measured = (run: BenchmarkRun): BenchmarkResult[] => run.results.filter((result) => !result.step.repeat);
@@ -104,11 +104,11 @@ export function reportRows(run: BenchmarkRun): ReportRow[] {
   // Once per run: trust in the driver's clock is a property of the machine.
   const trustGpu = gpuTimerTrustworthy(run);
   return run.results.map((result) => {
-    const requested = formatComponents(result.applied.componentsRequested);
+    const requested = formatComponents(result.step.components);
     const drawn = formatComponents(result.applied.componentsDrawn);
     const gpu = trustGpu ? result.frames.gpu?.mean : undefined;
     return {
-      sats: result.applied.satellitesRequested,
+      sats: result.step.satelliteCount,
       components: requested,
       clock: result.applied.clockMultiplier,
       repeat: result.step.repeat,
@@ -291,37 +291,37 @@ export interface MarginalCost {
 export function marginalCosts(run: BenchmarkRun): MarginalCost[] {
   const byCondition = new Map<string, BenchmarkResult[]>();
   for (const result of measured(run)) {
-    const key = `${result.applied.satellitesRequested}@${result.applied.clockMultiplier}`;
+    const key = `${result.step.satelliteCount}@${result.applied.clockMultiplier}`;
     byCondition.set(key, [...(byCondition.get(key) ?? []), result]);
   }
   const costs: MarginalCost[] = [];
   const buckets = [...byCondition.values()];
   // eslint-disable-next-line unicorn/no-array-sort -- already a fresh array
-  buckets.sort((a, b) => (a[0]?.applied.satellitesRequested ?? 0) - (b[0]?.applied.satellitesRequested ?? 0));
+  buckets.sort((a, b) => (a[0]?.step.satelliteCount ?? 0) - (b[0]?.step.satelliteCount ?? 0));
   for (const results of buckets) {
     for (const result of results) {
-      const own = new Set(result.applied.componentsRequested);
+      const own = new Set(result.step.components);
       let baseline: BenchmarkResult | undefined;
       for (const candidate of results) {
-        const other = candidate.applied.componentsRequested;
+        const other = candidate.step.components;
         if (other.length >= own.size || !other.every((component) => own.has(component))) {
           continue;
         }
-        if (baseline === undefined || other.length > baseline.applied.componentsRequested.length) {
+        if (baseline === undefined || other.length > baseline.step.components.length) {
           baseline = candidate;
         }
       }
       if (!baseline) {
         continue;
       }
-      const base = new Set(baseline.applied.componentsRequested);
+      const base = new Set(baseline.step.components);
       const delta = mainThreadMs(result) - mainThreadMs(baseline);
       const drawn = result.applied.satellitesVisible;
       costs.push({
-        sats: result.applied.satellitesRequested,
+        sats: result.step.satelliteCount,
         clock: result.applied.clockMultiplier,
-        added: formatComponents(result.applied.componentsRequested.filter((component) => !base.has(component))),
-        over: formatComponents(baseline.applied.componentsRequested),
+        added: formatComponents(result.step.components.filter((component) => !base.has(component))),
+        over: formatComponents(baseline.step.components),
         deltaMainMs: round(delta),
         usPerSatellite: drawn > 0 ? round((delta * 1000) / drawn, 1) : 0,
       });
@@ -350,7 +350,7 @@ export interface PropagationCost {
 export function propagationCosts(run: BenchmarkRun): PropagationCost[] {
   const byScene = new Map<string, BenchmarkResult[]>();
   for (const result of measured(run)) {
-    const key = `${result.applied.satellitesRequested}|${formatComponents(result.applied.componentsRequested)}`;
+    const key = `${result.step.satelliteCount}|${formatComponents(result.step.components)}`;
     byScene.set(key, [...(byScene.get(key) ?? []), result]);
   }
   const costs: PropagationCost[] = [];
@@ -366,8 +366,8 @@ export function propagationCosts(run: BenchmarkRun): PropagationCost[] {
       const delta = tickMs(result) - tickMs(baseline);
       const drawn = result.applied.satellitesVisible;
       costs.push({
-        sats: result.applied.satellitesRequested,
-        components: formatComponents(result.applied.componentsRequested),
+        sats: result.step.satelliteCount,
+        components: formatComponents(result.step.components),
         clock: result.applied.clockMultiplier,
         tickMs: round(tickMs(result)),
         deltaTickMs: round(delta),
@@ -430,16 +430,16 @@ export function repeatChecks(run: BenchmarkRun): RepeatCheck[] {
   for (const repeat of run.results.filter((result) => result.step.repeat)) {
     const first = measured(run).find(
       (candidate) =>
-        candidate.applied.satellitesRequested === repeat.applied.satellitesRequested &&
+        candidate.step.satelliteCount === repeat.step.satelliteCount &&
         candidate.applied.clockMultiplier === repeat.applied.clockMultiplier &&
-        formatComponents(candidate.applied.componentsRequested) === formatComponents(repeat.applied.componentsRequested),
+        formatComponents(candidate.step.components) === formatComponents(repeat.step.components),
     );
     if (!first) {
       continue;
     }
     checks.push({
-      sats: repeat.applied.satellitesRequested,
-      components: formatComponents(repeat.applied.componentsRequested),
+      sats: repeat.step.satelliteCount,
+      components: formatComponents(repeat.step.components),
       clock: repeat.applied.clockMultiplier,
       firstMainMs: round(mainThreadMs(first)),
       repeatMainMs: round(mainThreadMs(repeat)),
@@ -532,8 +532,8 @@ export function toJson(run: BenchmarkRun): string {
       propagation: propagationCosts(run),
       repeat: repeatChecks(run),
       componentInstances: run.results.map((result) => ({
-        sats: result.applied.satellitesRequested,
-        components: formatComponents(result.applied.componentsRequested),
+        sats: result.step.satelliteCount,
+        components: formatComponents(result.step.components),
         clock: result.applied.clockMultiplier,
         instances: result.applied.componentInstances,
       })),
@@ -626,7 +626,7 @@ export function logRun(run: BenchmarkRun): void {
     console.table(
       captured.map((result) => ({
         sats: result.applied.satellitesVisible,
-        components: formatComponents(result.applied.componentsRequested),
+        components: formatComponents(result.step.components),
         jsMb: round(result.footprint?.jsMb ?? 0, 1),
         totalMb: round(result.footprint?.totalMb ?? 0, 1),
         workerMb: round(result.footprint?.workerMb ?? 0, 1),
