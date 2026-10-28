@@ -139,7 +139,7 @@
           <span class="toolbarPlace__label">Back to the globe</span>
         </button>
         <div v-if="skyPlaces.length === 0" class="toolbarNote">Locations you add are listed here too.</div>
-        <div v-if="compassOffered || !cc.minimalUI" class="toolbarTitle">Aiming</div>
+        <div v-if="compassOffered || !minimalUI" class="toolbarTitle">Aiming</div>
         <label v-if="compassOffered" class="toolbarSwitch">
           <input type="checkbox" :checked="compassActive" :disabled="compassPending || !inSkyView" @change="onCompassToggle" />
           <!-- The spinner replaces the mark while the sensor is probed. -->
@@ -147,7 +147,7 @@
           Use compass
         </label>
         <!-- Hidden in minimalUI (iOS, iframe), where there is no keyboard. -->
-        <div v-if="!cc.minimalUI" class="toolbarNote">WASD walks the observer, Q and E change height.</div>
+        <div v-if="!minimalUI" class="toolbarNote">WASD walks the observer, Q and E change height.</div>
         <div class="toolbarTitle">Out of sight</div>
         <segmented-control v-model="unseen" label="Out of sight" :options="UNSEEN_OPTIONS" :disabled="!inSkyView" />
         <div class="toolbarNote">In Earth's shadow, too far away or during daylight.</div>
@@ -359,6 +359,7 @@ const satStore = useSatStore();
 const { enabledComponents, groundStations, observerStation } = storeToRefs(satStore);
 
 const compassOffered = compassAvailable();
+const minimalUI = DeviceDetect.minimalUI();
 const { active: compassActive, pending: compassPending, toggle: toggleCompass } = useSkyCompass(cc);
 const inSkyView = computed(() => sceneMode.value === SKY_MODE);
 

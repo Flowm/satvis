@@ -83,8 +83,6 @@ export function skipUnsizedFrames(widget: CesiumWidget): void {
 export class CesiumController {
   viewer: Viewer;
 
-  minimalUI: boolean;
-
   sats!: SatelliteManager;
 
   /** Sets how far simulation time may run between renders on demand. */
@@ -127,7 +125,6 @@ export class CesiumController {
 
   constructor(viewer: Viewer) {
     this.#preloadReferenceFrameData();
-    this.minimalUI = DeviceDetect.minimalUI();
 
     this.viewer = viewer;
     this.setDefaultView();
@@ -175,12 +172,6 @@ export class CesiumController {
       this.viewer.creditDisplay.addStaticCredit(new Credit(`<a href="/data/privacy.html" target="_blank"><u>Privacy</u></a>`, true));
     }
     this.viewer.creditDisplay.addStaticCredit(new Credit(`Satellite TLE data provided by <a href="https://celestrak.org/NORAD/elements/" target="_blank"><u>Celestrak</u></a>`));
-
-    if (this.minimalUI) {
-      setTimeout(() => {
-        this.#fixLogo();
-      }, 2500);
-    }
   }
 
   /**
@@ -554,15 +545,6 @@ export class CesiumController {
 
   get showUI(): boolean {
     return this.#uiVisible;
-  }
-
-  #fixLogo(): void {
-    if (this.minimalUI) {
-      this.viewer._bottomContainer.style.left = "5px";
-    }
-    if (DeviceDetect.isiPhoneWithNotchVisible()) {
-      this.viewer._bottomContainer.style.bottom = "20px";
-    }
   }
 
   /**

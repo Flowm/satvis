@@ -4,14 +4,13 @@ import { Tonemapper } from "@cesium/engine";
 import { Viewer } from "@cesium/widgets";
 
 import { useConstantStylePoints } from "./util/ConstantStylePointVisualizer";
+import { DeviceDetect } from "./util/DeviceDetect";
 
 /**
  * No `animation` or `timeline` widget: `ClockDeck.vue` replaces both.
- * `minimalUI` (`DeviceDetect.minimalUI`) only hides the fullscreen button.
+ * `DeviceDetect.minimalUI` only hides the fullscreen button.
  */
-export function createViewer(container: string | Element, options: { minimalUI: boolean }): Viewer {
-  const { minimalUI } = options;
-
+export function createViewer(container: string | Element): Viewer {
   useConstantStylePoints();
   const viewer = new Viewer(container, {
     animation: false,
@@ -20,7 +19,7 @@ export function createViewer(container: string | Element, options: { minimalUI: 
     baseLayerPicker: false,
     // Outside #cesiumContainer's stacking context, so the lightbox covers the app's toolbars and clock deck
     creditViewport: document.body,
-    fullscreenButton: !minimalUI,
+    fullscreenButton: !DeviceDetect.minimalUI(),
     fullscreenElement: document.body,
     geocoder: false,
     homeButton: false,

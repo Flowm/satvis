@@ -12,7 +12,6 @@ import { resolvePreset } from "./config/presets";
 import { CesiumController } from "./modules/CesiumController";
 import { createViewer } from "./modules/createViewer";
 import { startSceneSync } from "./modules/sceneSync";
-import { DeviceDetect } from "./modules/util/DeviceDetect";
 import piniaUrlSync from "./modules/util/urlSync";
 import { router, setupRouterGuards } from "./router";
 
@@ -29,7 +28,7 @@ usePWAUpdate({ autoUpdate: true });
 Ion.defaultAccessToken = ionAccessToken;
 
 const app = createApp(App);
-const viewer = createViewer("cesiumContainer", { minimalUI: DeviceDetect.minimalUI() });
+const viewer = createViewer("cesiumContainer");
 const cc = new CesiumController(viewer);
 app.provide(controllerKey, cc);
 window.cc = cc;
