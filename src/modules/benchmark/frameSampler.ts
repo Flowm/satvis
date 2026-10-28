@@ -4,12 +4,10 @@
 export const JANK_MS = 1000 / 30;
 
 export interface SeriesStats {
-  count: number;
   mean: number;
   min: number;
   p50: number;
   p95: number;
-  p99: number;
   max: number;
 }
 
@@ -24,19 +22,16 @@ export function seriesStats(values: readonly number[]): SeriesStats | undefined 
   const at = (quantile: number): number => sorted[Math.min(sorted.length - 1, Math.floor(quantile * sorted.length))] as number;
   const sum = values.reduce((total, value) => total + value, 0);
   return {
-    count: values.length,
     mean: sum / values.length,
     min: sorted[0] as number,
     p50: at(0.5),
     p95: at(0.95),
-    p99: at(0.99),
     max: sorted[sorted.length - 1] as number,
   };
 }
 
 export interface FrameSample {
   frames: number;
-  elapsedMs: number;
   fps: number;
   /** Time between consecutive presented frames; this is where a vsync ceiling shows. */
   wall: SeriesStats | undefined;
@@ -69,7 +64,6 @@ export interface FrameSample {
    *   24 MB at 1,000, 31 MB at 5,000.
    */
   heap: SeriesStats | undefined;
-  jankFrames: number;
   jankRatio: number;
 }
 
@@ -164,14 +158,12 @@ export class FrameSampler {
     const jankFrames = this.#wall.filter((value) => value > JANK_MS).length;
     return {
       frames: this.#wall.length,
-      elapsedMs,
       fps: elapsedMs > 0 ? (this.#wall.length / elapsedMs) * 1000 : 0,
       wall,
       cpu: seriesStats(this.#cpu),
       tick: seriesStats(this.#tick),
       gpu: seriesStats(this.#gpu),
       heap: seriesStats(this.#heap),
-      jankFrames,
       jankRatio: this.#wall.length > 0 ? jankFrames / this.#wall.length : 0,
     };
   }

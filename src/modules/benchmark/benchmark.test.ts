@@ -62,14 +62,12 @@ function result(options: {
     applied,
     frames: {
       frames,
-      elapsedMs: frames * 10,
       fps: 100,
       wall: seriesStats([options.wallMs ?? 10]),
       cpu: seriesStats([options.cpuMs]),
       tick: seriesStats([options.tickMs ?? 0]),
       gpu: options.gpuMs === undefined ? undefined : seriesStats([options.gpuMs]),
       heap: options.heapMb === undefined ? undefined : seriesStats(options.heapMb),
-      jankFrames: 0,
       jankRatio: 0,
     },
     footprint: options.footprintMb === undefined ? undefined : { totalMb: options.footprintMb * 1.4, jsMb: options.footprintMb, workerMb: 0, elapsedMs: 17_000 },
@@ -93,7 +91,7 @@ describe("seriesStats", () => {
 
   test("percentiles come off the sorted values, whatever order they arrived in", () => {
     const stats = seriesStats([50, 10, 30, 20, 40]);
-    expect(stats).toMatchObject({ count: 5, min: 10, max: 50, mean: 30, p50: 30 });
+    expect(stats).toMatchObject({ min: 10, max: 50, mean: 30, p50: 30 });
   });
 
   test("the input array is left in its arrival order", () => {
@@ -118,7 +116,6 @@ describe("FrameSampler", () => {
     }
     const snapshot = sampler.snapshot();
     expect(snapshot.frames).toBe(3);
-    expect(snapshot.elapsedMs).toBe(30);
     expect(snapshot.fps).toBeCloseTo(100);
     expect(snapshot.wall?.mean).toBe(10);
   });
@@ -148,7 +145,6 @@ describe("FrameSampler", () => {
     sampler.push(10);
     sampler.push(10 + JANK_MS + 1);
     const snapshot = sampler.snapshot();
-    expect(snapshot.jankFrames).toBe(1);
     expect(snapshot.jankRatio).toBeCloseTo(0.5);
   });
 
@@ -436,7 +432,6 @@ describe("gpu timing", () => {
     sampler.pushGpu(8);
     const snap = sampler.snapshot();
     expect(snap.frames).toBe(2);
-    expect(snap.gpu?.count).toBe(1);
     expect(snap.gpu?.mean).toBe(8);
   });
 
@@ -693,7 +688,6 @@ describe("FrameSampler heap series", () => {
     const heap = sampler.snapshot().heap;
     expect(heap?.min).toBe(86.3);
     expect(heap?.max).toBe(462.2);
-    expect(heap?.count).toBe(3);
   });
 
   test("reset drops the heap samples with the rest of the warmup", () => {

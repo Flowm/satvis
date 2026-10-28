@@ -292,7 +292,6 @@ import {
   formatComponents,
   installBenchmark,
   logRun,
-  marginalCosts,
   memoryFits,
   propagationCosts,
   reportRows,
@@ -615,7 +614,6 @@ function logToConsole(): void {
   const current = run();
   if (current) {
     logRun(current);
-    console.table(marginalCosts(current));
   }
 }
 

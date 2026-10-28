@@ -262,10 +262,6 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     setTimeout(poll, GPU_QUERY_POLL_MS);
   }
 
-  get gpuTimingAvailable(): boolean {
-    return this.#timerExt !== undefined;
-  }
-
   /** Sampled continuously, sweep or not. */
   live(): LiveSnapshot {
     return {
@@ -303,10 +299,7 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     const { clock } = this.#cc.viewer;
     // eslint-disable-next-line @typescript-eslint/unbound-method
     const original = clock.tick;
-    if ((original as { __benchmarkWrapped?: boolean }).__benchmarkWrapped) {
-      return;
-    }
-    const wrapped = (): JulianDate => {
+    clock.tick = (): JulianDate => {
       const started = performance.now();
       try {
         return original.call(clock);
@@ -314,8 +307,6 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
         this.#tickMs = performance.now() - started;
       }
     };
-    (wrapped as { __benchmarkWrapped?: boolean }).__benchmarkWrapped = true;
-    clock.tick = wrapped;
   }
 
   async prepare(): Promise<void> {

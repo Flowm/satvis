@@ -18,7 +18,6 @@ import { logRun, toCsv, toJson, formatTable } from "./report";
 export * from "./benchmarkPlan";
 export * from "./benchmarkRunner";
 export * from "./cesiumBenchmarkTarget";
-export * from "./framePump";
 export * from "./frameSampler";
 export * from "./report";
 
@@ -42,18 +41,10 @@ export interface BenchmarkHandle {
   cancel(): void;
   /** Returns the stop function. */
   watch(intervalMs?: number): () => void;
-  readonly last: BenchmarkRun | undefined;
   log(): void;
   csv(): string;
   json(): string;
   text(): string;
-  readonly presets: {
-    counts: readonly number[];
-    quickCounts: readonly number[];
-    clockMultipliers: readonly number[];
-    cumulative: readonly (readonly string[])[];
-    isolated: readonly (readonly string[])[];
-  };
 }
 
 let handle: BenchmarkHandle | undefined;
@@ -124,20 +115,10 @@ export function installBenchmark(cc: CesiumController): BenchmarkHandle {
       }, intervalMs);
       return () => clearInterval(timer);
     },
-    get last() {
-      return runner.run;
-    },
     log: () => logRun(requireRun()),
     csv: () => toCsv(requireRun()),
     json: () => toJson(requireRun()),
     text: () => formatTable(requireRun()),
-    presets: {
-      counts: DEFAULT_SATELLITE_COUNTS,
-      quickCounts: QUICK_SATELLITE_COUNTS,
-      clockMultipliers: DEFAULT_CLOCK_MULTIPLIERS,
-      cumulative: CUMULATIVE_COMPONENT_SETS,
-      isolated: ISOLATED_COMPONENT_SETS,
-    },
   };
 
   (window as unknown as { bench?: BenchmarkHandle }).bench = handle;
