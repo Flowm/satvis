@@ -16,22 +16,14 @@ export type StarMapName = (typeof STAR_MAPS)[number];
 /** The map that cannot be missing, and so the fallback everywhere. */
 export const BUILTIN_STAR_MAP: StarMapName = "Tycho1K";
 
-interface StarMapAsset {
-  /** Path stem for the six faces (`_px.webp` and friends). */
-  prefix: string;
-  /** The command the missing-asset warning suggests. */
-  recovery: string;
-}
-
-const GENERATOR = "pnpm update-starmap";
-
 /**
- * `Tycho1K` is absent: Cesium resolves its faces through `buildModuleUrl`, and the path moves
- * with the Cesium version. The others can be missing, so `CesiumController.applyStarMap` fetches them itself.
+ * Path stems for the six faces (`_px.webp` and friends). `Tycho1K` is absent: Cesium resolves
+ * its faces through `buildModuleUrl`, and the path moves with the Cesium version. The others
+ * can be missing, so `CesiumController.applyStarMap` fetches them itself.
  */
-const ASSETS: Partial<Record<StarMapName, StarMapAsset>> = {
-  DeepStar1K: { prefix: "data/starmap/deepstar_2020_1024", recovery: GENERATOR },
-  DeepStar2K: { prefix: "data/starmap/deepstar_2020_2048", recovery: GENERATOR },
+const PREFIXES: Partial<Record<StarMapName, string>> = {
+  DeepStar1K: "data/starmap/deepstar_2020_1024",
+  DeepStar2K: "data/starmap/deepstar_2020_2048",
 };
 
 /** Named the way Cesium's `SkyBox` wants them. */
@@ -46,11 +38,10 @@ export interface StarMapSources {
 
 /** `undefined` for Cesium's own faces. */
 export function starMapSources(name: string): StarMapSources | undefined {
-  const asset = ASSETS[name as StarMapName];
-  if (asset === undefined) {
+  const prefix = PREFIXES[name as StarMapName];
+  if (prefix === undefined) {
     return undefined;
   }
-  const { prefix } = asset;
   return {
     positiveX: `${prefix}_px.webp`,
     negativeX: `${prefix}_mx.webp`,
@@ -61,39 +52,32 @@ export function starMapSources(name: string): StarMapSources | undefined {
   };
 }
 
+/** The command the missing-asset warning suggests. */
 export function starMapRecovery(name: string): string | undefined {
-  return ASSETS[name as StarMapName]?.recovery;
+  return starMapSources(name) === undefined ? undefined : "pnpm update-starmap";
 }
 
-/** One probe per map for the life of the page; the menu asks on every render. */
-const probes = new Map<string, Promise<boolean>>();
-
 /**
- * Narrows the menu only; the url vocabulary stays wide and sceneSync falls back to
- * BUILTIN_STAR_MAP.
- *
  * A ranged `GET`, not a `HEAD`: the Cache API ignores non-GET requests, and a cache
  * hit returns the whole stored face, which keeps the offline case working. The
  * content type is checked because an SPA fallback answers 200 with `index.html`.
- * A network error counts as available: no answer is not evidence of absence.
+ * A network error counts as present: no answer is not evidence of absence.
  */
-export async function starMapAvailable(name: string): Promise<boolean> {
-  const sources = starMapSources(name);
-  if (sources === undefined) {
-    return (STAR_MAPS as readonly string[]).includes(name);
-  }
-  let probe = probes.get(name);
-  if (probe === undefined) {
-    probe = fetch(sources.positiveX, { headers: { Range: "bytes=0-0" } })
-      .then((response) => response.ok && (response.headers.get("content-type") ?? "").startsWith("image/"))
-      .catch(() => true);
-    probes.set(name, probe);
-  }
-  return probe;
-}
+const facesPresent = (sources: StarMapSources): Promise<boolean> =>
+  fetch(sources.positiveX, { headers: { Range: "bytes=0-0" } })
+    .then((response) => response.ok && (response.headers.get("content-type") ?? "").startsWith("image/"))
+    .catch(() => true);
 
-/** In `STAR_MAPS` order. */
+/**
+ * In `STAR_MAPS` order. Narrows the menu only; the url vocabulary stays wide and
+ * sceneSync falls back to BUILTIN_STAR_MAP.
+ */
 export async function availableStarMaps(): Promise<StarMapName[]> {
-  const present = await Promise.all(STAR_MAPS.map((name) => starMapAvailable(name)));
+  const present = await Promise.all(
+    STAR_MAPS.map((name) => {
+      const sources = starMapSources(name);
+      return sources === undefined || facesPresent(sources);
+    }),
+  );
   return STAR_MAPS.filter((_, index) => present[index]);
 }
