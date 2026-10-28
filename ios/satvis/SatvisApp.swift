@@ -244,7 +244,7 @@ struct ContentView: View {
                         menuFrame = $0
                     }
                     if let panel {
-                        ToolPanelView(title: panel.title, width: panel.cardWidth, onClose: { self.panel = nil }) {
+                        ToolPanelView(title: panel.title, width: panel.cardWidth, maxHeight: panelMaxHeight, onClose: { self.panel = nil }) {
                             switch panel {
                             case .components: ComponentsPanel(catalog: session.catalog)
                             case .map: MapPanel(session: session)
@@ -504,6 +504,15 @@ struct ContentView: View {
             return nil
         }
         return max(cornerFrame.minX - toolsFrame.minX - PanelMetrics.edge - PanelMetrics.gap, 0)
+    }
+
+    /// How tall a panel may run: down to a gap above the clock deck, as the web app's,
+    /// scrolling where it is longer.
+    private var panelMaxHeight: CGFloat? {
+        guard let toolsFrame, let deckFrame else {
+            return nil
+        }
+        return max(deckFrame.minY - PanelMetrics.gap - toolsFrame.minY - PanelMetrics.edge, 0)
     }
 
     @ViewBuilder private var infoPanel: some View {

@@ -154,17 +154,24 @@ private struct ToolRow: View {
 }
 
 /// A panel beside the menu column: its title and a close button over a rule level
-/// with the column's, and under it what it holds, scrolling only where the
-/// screen is too short for it.
+/// with the column's, and under it what it holds, scrolling only where it would
+/// run past `maxHeight`.
 struct ToolPanelView<Content: View>: View {
     let title: LocalizedStringKey
     /// A card's width, or less where the room is narrower.
     let width: CGFloat
+    /// How tall it may run, title and all: down to the clock deck. Nil leaves it
+    /// what it is offered.
+    let maxHeight: CGFloat?
     let onClose: () -> Void
     @ViewBuilder let content: Content
     /// Dynamic Type's scale, as the menu column's rows take it, so that the title
     /// row is as tall as the column's first and the two rules meet.
     @ScaledMetric(relativeTo: .body) private var scale = 1.0
+    /// What it holds, measured, which the scroll view is as tall as where it fits.
+    @State private var contentHeight: CGFloat?
+    /// The title row and its rule, measured.
+    @State private var headerHeight: CGFloat = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -182,18 +189,33 @@ struct ToolPanelView<Content: View>: View {
             .padding(.leading, 12)
             .padding(.trailing, 4)
             Divider()
-            ViewThatFits(in: .vertical) {
-                padded(content)
-                ScrollView {
-                    padded(content)
+                .onGeometryChange(for: CGFloat.self) {
+                    $0.frame(in: .named(Self.space)).maxY
+                } action: {
+                    headerHeight = $0
                 }
+            // Not a ViewThatFits between the content and a scroll view: capped
+            // from outside, it squeezed a note to one line and stretched the title
+            // row.
+            ScrollView {
+                padded(content)
             }
+            .scrollBounceBehavior(.basedOnSize)
+            .onScrollGeometryChange(for: CGFloat.self) {
+                $0.contentSize.height
+            } action: { _, height in
+                contentHeight = height
+            }
+            .frame(height: contentHeight.map { min($0, (maxHeight ?? .infinity) - headerHeight) })
         }
+        .coordinateSpace(.named(Self.space))
         .frame(maxWidth: width)
         .panel()
         // Rows of small text, which the globe's labels showed through.
         .environment(\.panelDensity, .dense)
     }
+
+    private static var space: String { "toolPanel" }
 
     private func padded(_ content: Content) -> some View {
         VStack(alignment: .leading, spacing: 16) {
