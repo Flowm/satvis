@@ -36,8 +36,6 @@ export interface SkyInteractionOptions {
    * the sky view tracks nothing (docs/adr/0003-sky-view.md).
    */
   viewerInputs?: ScreenSpaceEventHandler;
-  /** Also called when the lock clears. */
-  onLockChange?: (target: SkyTarget | undefined) => void;
   /** A tap on an entity, or the lock's card. */
   onSelect?: (entity: Entity) => void;
 }
@@ -184,7 +182,7 @@ export class SkyInteraction {
     this.#removePreRender = undefined;
     this.#gestures.reset();
     this.#targets = [];
-    this.#setLocked(undefined);
+    this.#locked = undefined;
     for (const sat of this.#styled) {
       sat.skyAppearance = "normal";
     }
@@ -210,7 +208,7 @@ export class SkyInteraction {
     }
     // The picture already hides what the ground hides.
     const lockable = this.#unseen === "hide" ? this.#targets.filter((target) => target.visibility === "visible") : this.#targets;
-    this.#setLocked(nearestTarget(lockable, this.#center(), CAPTURE_RADIUS, (target) => groundHides(scene, frame, target.position)));
+    this.#locked = nearestTarget(lockable, this.#center(), CAPTURE_RADIUS, (target) => groundHides(scene, frame, target.position));
   }
 
   /** Daylight dims every satellite alike, so it dims less than a dark sky (`PALETTES`). */
@@ -222,16 +220,6 @@ export class SkyInteraction {
       return "hidden";
     }
     return target.visibility === "daylight" ? "dimmedDaylight" : "dimmedDark";
-  }
-
-  #setLocked(target: SkyTarget | undefined): void {
-    // Compare by satellite: the target is rebuilt every frame.
-    if (this.#locked?.sat === target?.sat) {
-      this.#locked = target;
-      return;
-    }
-    this.#locked = target;
-    this.#options.onLockChange?.(target);
   }
 
   /** What a gesture means, applied to the view; `tap` is where a tap lands and how far it reaches, in CSS pixels. */
