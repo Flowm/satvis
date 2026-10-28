@@ -7,9 +7,10 @@ import { useSatStore } from "../../stores/sat";
 import type { CesiumController } from "../CesiumController";
 import { EMPTY_SCENE, type DesiredScene } from "../SatelliteManager";
 import { desiredScene } from "../sceneSync";
-import type { BenchmarkStep } from "./benchmarkPlan";
+import { formatComponents, type BenchmarkStep } from "./benchmarkPlan";
 import type { BenchmarkOptions, BenchmarkTarget, FootprintSample, MeasureOptions, SceneApplied } from "./benchmarkRunner";
 import { FrameSampler, type FrameSample } from "./frameSampler";
+import { GPU_TIMER_TRUST_FACTOR } from "./report";
 
 declare global {
   /** `performance.measureUserAgentSpecificMemory()` is not in the dom lib (not Baseline). */
@@ -37,11 +38,22 @@ const BYTES_PER_MB = 1024 * 1024;
 const GPU_QUERY_POLL_MS = 4;
 const GPU_QUERY_MAX_POLLS = 250;
 
-export interface LiveSnapshot {
-  frames: FrameSample;
-  satellitesVisible: number;
-  componentsDrawn: string[];
-  clockMultiplier: number;
+export interface LiveReadout {
+  fps: number;
+  frameMs: number;
+  p95Ms: number;
+  worstMs: number;
+  cpuMs: number;
+  /** Undefined without a GPU clock, or with one that contradicts the frame rate. */
+  gpuMs: number | undefined;
+  jankPct: number;
+  /** The window's heap floor, not the live set. Undefined outside Chrome. */
+  heapMb: number | undefined;
+  /** The gap to the floor is uncollected garbage; see FrameSample.heap. */
+  heapPeakMb: number | undefined;
+  satellites: number;
+  components: string;
+  clock: number;
   entities: number;
   primitives: number;
 }
@@ -258,12 +270,23 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
   }
 
   /** Sampled continuously, sweep or not. */
-  live(): LiveSnapshot {
+  live(): LiveReadout {
+    const { fps, wall, cpu, gpu, heap, jankRatio } = this.#live.snapshot();
+    const gpuMs = gpu?.mean;
     return {
-      frames: this.#live.snapshot(),
-      satellitesVisible: this.#cc.sats.visibleSatellites.length,
-      componentsDrawn: this.#cc.sats.enabledComponents,
-      clockMultiplier: this.#cc.viewer.clock.multiplier,
+      fps,
+      frameMs: wall?.mean ?? 0,
+      p95Ms: wall?.p95 ?? 0,
+      worstMs: wall?.max ?? 0,
+      cpuMs: cpu?.mean ?? 0,
+      // The report's per-run GPU gate, applied per snapshot.
+      gpuMs: gpuMs !== undefined && wall !== undefined && wall.p50 > 0 && gpuMs <= wall.p50 * GPU_TIMER_TRUST_FACTOR ? gpuMs : undefined,
+      jankPct: jankRatio * 100,
+      heapMb: heap?.min,
+      heapPeakMb: heap?.max,
+      satellites: this.#cc.sats.visibleSatellites.length,
+      components: formatComponents(this.#cc.sats.enabledComponents),
+      clock: this.#cc.viewer.clock.multiplier,
       entities: this.#cc.viewer.entities.values.length,
       primitives: this.#cc.viewer.scene.primitives.length,
     };

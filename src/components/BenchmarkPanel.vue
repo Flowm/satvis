@@ -40,7 +40,7 @@
         {{ live.heapMb === undefined ? "n/a" : `${live.heapMb.toFixed(0)} MB` }}
       </div>
       <div class="bench__row bench__dim">
-        {{ live.satellites }} sats · {{ live.components || "no components" }} · ×{{ live.clock }} · {{ live.entities }} entities · {{ live.primitives }} primitives
+        {{ live.satellites }} sats · {{ live.components }} · ×{{ live.clock }} · {{ live.entities }} entities · {{ live.primitives }} primitives
       </div>
     </div>
 
@@ -289,7 +289,6 @@ import {
   canMeasureFootprint,
   estimateDurationMs,
   FOOTPRINT_CAPTURE_MS,
-  formatComponents,
   installBenchmark,
   logRun,
   memoryFits,
@@ -300,7 +299,6 @@ import {
   toCsv,
   toJson,
   formatTable,
-  GPU_TIMER_TRUST_FACTOR,
   MIN_MEMORY_FIT_POINTS,
   MIN_TRUSTWORTHY_FRAMES,
   MIN_TRUSTWORTHY_MEMORY_R2,
@@ -467,44 +465,9 @@ const footprintColumn = computed(() => {
   return current !== undefined && hasFootprints(current);
 });
 
-interface Live {
-  fps: number;
-  frameMs: number;
-  p95Ms: number;
-  worstMs: number;
-  cpuMs: number;
-  /** Undefined without a GPU clock, or with one that contradicts the frame rate. */
-  gpuMs: number | undefined;
-  jankPct: number;
-  /** The window's heap floor, not the live set. Undefined outside Chrome. */
-  heapMb: number | undefined;
-  satellites: number;
-  components: string;
-  clock: number;
-  entities: number;
-  primitives: number;
-}
-const EMPTY_LIVE: Live = {
-  fps: 0,
-  frameMs: 0,
-  p95Ms: 0,
-  worstMs: 0,
-  cpuMs: 0,
-  gpuMs: undefined,
-  jankPct: 0,
-  heapMb: undefined,
-  satellites: 0,
-  components: "",
-  clock: 1,
-  entities: 0,
-  primitives: 0,
-};
-const live = ref<Live>(EMPTY_LIVE);
+const live = ref(bench.target.live());
 
 const fpsClass = computed(() => (live.value.fps < FPS_BAD ? "bench__bad" : live.value.fps < FPS_WARN ? "bench__warn" : "bench__good"));
-
-const gpuOrUndefined = (gpuMs: number | undefined, wallP50: number | undefined): number | undefined =>
-  gpuMs !== undefined && wallP50 !== undefined && wallP50 > 0 && gpuMs <= wallP50 * GPU_TIMER_TRUST_FACTOR ? gpuMs : undefined;
 
 function disableRenderOnDemand(): void {
   cesiumStore.requestRenderMode = false;
@@ -527,23 +490,7 @@ function refresh(): void {
     }
   }
   revision.value += 1;
-  const snapshot = bench.target.live();
-  live.value = {
-    fps: snapshot.frames.fps,
-    frameMs: snapshot.frames.wall?.mean ?? 0,
-    p95Ms: snapshot.frames.wall?.p95 ?? 0,
-    worstMs: snapshot.frames.wall?.max ?? 0,
-    cpuMs: snapshot.frames.cpu?.mean ?? 0,
-    // The report's per-run GPU gate, applied per snapshot.
-    gpuMs: gpuOrUndefined(snapshot.frames.gpu?.mean, snapshot.frames.wall?.p50),
-    jankPct: snapshot.frames.jankRatio * 100,
-    heapMb: snapshot.frames.heap?.min,
-    satellites: snapshot.satellitesVisible,
-    components: formatComponents(snapshot.componentsDrawn),
-    clock: snapshot.clockMultiplier,
-    entities: snapshot.entities,
-    primitives: snapshot.primitives,
-  };
+  live.value = bench.target.live();
 }
 
 /** Restored on close. Not the target's job: its save/restore is scoped to a run. */

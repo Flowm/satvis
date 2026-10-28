@@ -8,7 +8,6 @@ import {
   ISOLATED_COMPONENT_SETS,
   buildPlan,
   estimateDurationMs,
-  formatComponents,
   type PlanSpec,
 } from "./benchmarkPlan";
 import { BenchmarkRunner, DEFAULT_OPTIONS, FOOTPRINT_CAPTURE_MS, type BenchmarkOptions, type BenchmarkRun, type RunnerHooks } from "./benchmarkRunner";
@@ -104,12 +103,10 @@ export function installBenchmark(cc: CesiumController): BenchmarkHandle {
     watch(intervalMs = 2000) {
       const timer = setInterval(() => {
         const live = target.live();
-        const { wall, cpu, heap } = live.frames;
-        // The min-max gap is uncollected garbage; see FrameSample.heap.
-        const heapText = heap === undefined ? "n/a" : `${heap.min.toFixed(0)}–${heap.max.toFixed(0)} MB`;
+        const heapText = live.heapMb === undefined || live.heapPeakMb === undefined ? "n/a" : `${live.heapMb.toFixed(0)}–${live.heapPeakMb.toFixed(0)} MB`;
         console.log(
-          `[bench] ${live.frames.fps.toFixed(1).padStart(5)} fps · frame ${(wall?.mean ?? 0).toFixed(2).padStart(6)} ms (p95 ${(wall?.p95 ?? 0).toFixed(2)}) · cpu ${(cpu?.mean ?? 0).toFixed(2).padStart(6)} ms ·`,
-          `${String(live.satellitesVisible).padStart(5)} sats · ${formatComponents(live.componentsDrawn)} @ ×${live.clockMultiplier} · ${live.entities} entities · heap ${heapText}`,
+          `[bench] ${live.fps.toFixed(1).padStart(5)} fps · frame ${live.frameMs.toFixed(2).padStart(6)} ms (p95 ${live.p95Ms.toFixed(2)}) · cpu ${live.cpuMs.toFixed(2).padStart(6)} ms ·`,
+          `${String(live.satellites).padStart(5)} sats · ${live.components} @ ×${live.clock} · ${live.entities} entities · heap ${heapText}`,
         );
       }, intervalMs);
       return () => clearInterval(timer);
