@@ -6,8 +6,6 @@ import SwiftUI
 /// demos, what it does and where its data comes from.
 struct AboutView: View {
     let session: Session
-    /// The demo on screen in the carousel.
-    @State private var shownDemo: Bookmark.ID?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -81,25 +79,29 @@ struct AboutView: View {
     }
 
     /// The Bookmarks sheet's demos (the web app's about page, `carousel.ts`), one
-    /// across: swiped, or stepped by the buttons on the picture.
+    /// across: swiped, or stepped by the buttons on the picture. The buttons scroll
+    /// through a proxy: a `scrollPosition(id:)` binding, written mid-swipe, set the
+    /// position back for a frame, and the slide flickered to where it would land.
     private var demos: some View {
-        ScrollView(.horizontal) {
-            LazyHStack(spacing: 16) {
-                ForEach(Array(Bookmarks.demos.enumerated()), id: \.element.id) { index, demo in
-                    demoSlide(demo, index: index)
-                        .padding(.horizontal, 16)
-                        .containerRelativeFrame(.horizontal)
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 16) {
+                    ForEach(Array(Bookmarks.demos.enumerated()), id: \.element.id) { index, demo in
+                        demoSlide(demo, index: index, proxy: proxy)
+                            .padding(.horizontal, 16)
+                            .containerRelativeFrame(.horizontal)
+                            .id(demo.id)
+                    }
                 }
+                .scrollTargetLayout()
             }
-            .scrollTargetLayout()
+            .scrollTargetBehavior(.viewAligned)
+            .scrollIndicators(.hidden)
         }
-        .scrollTargetBehavior(.viewAligned)
-        .scrollPosition(id: $shownDemo)
-        .scrollIndicators(.hidden)
     }
 
     /// A demo as its card names it; choosing it opens it, as its card does.
-    private func demoSlide(_ demo: Bookmark, index: Int) -> some View {
+    private func demoSlide(_ demo: Bookmark, index: Int, proxy: ScrollViewProxy) -> some View {
         let summary = session.summary(demo.scene)
         let count = Bookmarks.demos.count
         return Button {
@@ -129,12 +131,12 @@ struct AboutView: View {
                 .aspectRatio(16 / 10, contentMode: .fit)
                 .overlay(alignment: .leading) {
                     if index > 0 {
-                        stepButton("Previous demo", systemImage: "chevron.left", to: Bookmarks.demos[index - 1].id)
+                        stepButton("Previous demo", systemImage: "chevron.left", to: Bookmarks.demos[index - 1].id, proxy: proxy)
                     }
                 }
                 .overlay(alignment: .trailing) {
                     if index < count - 1 {
-                        stepButton("Next demo", systemImage: "chevron.right", to: Bookmarks.demos[index + 1].id)
+                        stepButton("Next demo", systemImage: "chevron.right", to: Bookmarks.demos[index + 1].id, proxy: proxy)
                     }
                 }
                 .overlay(alignment: .bottom) {
@@ -155,9 +157,9 @@ struct AboutView: View {
     }
 
     /// Scrolls to `demo`, at once under Reduce Motion.
-    private func stepButton(_ title: LocalizedStringKey, systemImage: String, to demo: Bookmark.ID) -> some View {
+    private func stepButton(_ title: LocalizedStringKey, systemImage: String, to demo: Bookmark.ID, proxy: ScrollViewProxy) -> some View {
         Button(title, systemImage: systemImage) {
-            withAnimation(reduceMotion ? nil : .snappy) { shownDemo = demo }
+            withAnimation(reduceMotion ? nil : .snappy) { proxy.scrollTo(demo, anchor: .leading) }
         }
         .labelStyle(.iconOnly)
         .font(.body.weight(.semibold))
