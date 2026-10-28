@@ -1,15 +1,19 @@
+import generatedConfig from "../config/satvis.generated.json" with { type: "json" };
+import type { FetchImpl } from "./download.ts";
 import { withConfig } from "./groupsIndex.ts";
 import { bundleFetch, parseIngestBundle, readReport } from "./pushProtocol.ts";
-import type { RefreshReport } from "./refresh.ts";
+import { refreshGroups, type RefreshReport, refreshUpstreams } from "./refresh.ts";
 import { type GroupStore, kvGroupStore, upstreamStatuses } from "./store.ts";
-import { GROUP_NAME_RE } from "./types.ts";
+import { GROUP_NAME_RE, type GroupsConfig } from "./types.ts";
 import { recordFailure, recordUnchanged, storeUpstream } from "./upstream.ts";
 import { UPSTREAMS, upstreamSpec } from "./upstreams.ts";
-import { groupsConfig, refreshAll, refreshAllUpstreams } from "./workerRuntime.ts";
 
-/**
- * POST /api/refresh does not re-hit CelesTrak within this window of the last refresh, cron included.
- */
+const groupsConfig = generatedConfig as GroupsConfig;
+
+/** The Worker's own downloads; it reads the global at call time, so a test's spy on it applies. */
+const workerFetch: FetchImpl = (url, init) => fetch(url, init);
+
+/** POST /api/refresh does not re-hit CelesTrak within this window of the last refresh. */
 const REFRESH_COOLDOWN_MS = 60_000;
 /** /api/status marks a group stale after this long without a write; push-gp runs several times a day. */
 const GROUP_STALE_AFTER_MS = 12 * 3600_000;
@@ -107,9 +111,10 @@ async function handleIndex({ request, store }: RouteContext): Promise<Response> 
 }
 
 /**
- * The scheduled refresh plus a per-source report. One run pulls ~7 MB from CelesTrak,
- * which firewalls by IP (250 MB/day) across Cloudflare's shared egress, hence the
- * token and the cooldown. Within the cooldown it answers 429 with the stored index.
+ * The GP refresh plus a per-source report; the Docker image schedules it. One run pulls
+ * ~7 MB from CelesTrak, which firewalls by IP (250 MB/day) across Cloudflare's shared
+ * egress, hence the token and the cooldown. Within the cooldown it answers 429 with the
+ * stored index.
  */
 async function handleRefresh({ store }: RouteContext): Promise<Response> {
   const previous = await store.readIndex();
@@ -121,12 +126,12 @@ async function handleRefresh({ store }: RouteContext): Promise<Response> {
       { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)), ...NO_STORE } },
     );
   }
-  return jsonResponse({ refreshed: true, ...reportBody(await refreshAll(store)) }, { headers: NO_STORE });
+  return jsonResponse({ refreshed: true, ...reportBody(await refreshGroups(groupsConfig, store, workerFetch)) }, { headers: NO_STORE });
 }
 
 /**
- * The scheduled refresh over payloads downloaded off-Worker (scripts/push-gp.mjs), for
- * when CelesTrak firewalls Cloudflare's egress. No cooldown: it spends no CelesTrak budget.
+ * The GP refresh over payloads downloaded off-Worker (scripts/push-gp.mjs), for when
+ * CelesTrak firewalls Cloudflare's egress. No cooldown: it spends no CelesTrak budget.
  */
 async function handleIngest({ request, store }: RouteContext): Promise<Response> {
   let raw: unknown;
@@ -140,7 +145,7 @@ async function handleIngest({ request, store }: RouteContext): Promise<Response>
     return badRequest(sources);
   }
   console.log(`gp ingest: ${sources.length} source(s) posted`);
-  return jsonResponse({ ingested: true, ...reportBody(await refreshAll(store, bundleFetch(sources))) }, { headers: NO_STORE });
+  return jsonResponse({ ingested: true, ...reportBody(await refreshGroups(groupsConfig, store, bundleFetch(sources))) }, { headers: NO_STORE });
 }
 
 /**
@@ -169,9 +174,12 @@ async function handleUpstreamPut({ request, store, param: name }: RouteContext):
   return jsonResponse({ name, ...status }, { status: stored ? 200 : 422, headers: NO_STORE });
 }
 
-/** The Worker downloads every upstream table itself, each conditional on its stored file. */
+/**
+ * The Worker downloads every upstream table itself, each conditional on its stored file;
+ * the Docker image schedules it.
+ */
 async function handleUpstreamRefresh({ store }: RouteContext): Promise<Response> {
-  return jsonResponse({ sources: await refreshAllUpstreams(store) }, { headers: NO_STORE });
+  return jsonResponse({ sources: await refreshUpstreams(store, workerFetch) }, { headers: NO_STORE });
 }
 
 /**

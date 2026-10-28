@@ -8,8 +8,8 @@ const CELESTRAK_BASE = "https://celestrak.org/NORAD/elements/";
 /** CelesTrak asks clients to space out requests. */
 const REQUEST_SPACING_MS = 250;
 /**
- * Aborts a stalled source, so one hung upstream cannot push the sequential refresh
- * past the cron / 120 s /__scheduled limit. CelesTrak's largest groups need far less.
+ * Aborts a stalled source, so one hung upstream cannot stall the sequential refresh.
+ * CelesTrak's largest groups need far less.
  */
 const REQUEST_TIMEOUT_MS = 30_000;
 

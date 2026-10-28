@@ -7,7 +7,7 @@
   "scripts": {
     "deploy": "pnpm generate-groups && wrangler deploy",
     "deploy:preview": "pnpm generate-groups && wrangler versions upload --preview-alias preview-$(git rev-parse --short=8 HEAD)",
-    "dev": "pnpm generate-groups && wrangler dev --port 8080 --test-scheduled",
+    "dev": "pnpm generate-groups && wrangler dev --port 8080",
     "generate-groups": "node scripts/generate-groups.mjs",
     "generate-types": "wrangler types src/worker-configuration.d.ts",
     "push-catalog": "node scripts/push-catalog.mjs",

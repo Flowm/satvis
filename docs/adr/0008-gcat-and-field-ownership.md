@@ -123,16 +123,15 @@ change its file before it applied, because a 304 reused the parsed rows. Now:
   because GCAT's catalog is 18.4 MiB against KV's 25 MiB value limit, and it grows;
   gzip makes it 2.6 MiB, and decompresses to the file as downloaded.
 - **Two paths store them, and only these.** `PUT /api/upstream/<name>`, which
-  `push-catalog` calls, and the Worker's own fetch: `POST /api/upstream/refresh`, and
-  the same refresh from the scheduled handler, which the Docker image fires daily with
-  `CATALOG_CRON`. Both are conditional on the stored file's ETag, but only while the
-  file is there: a status that outlived its file would otherwise make every download a
-  304 and never bring the file back. A new file is parsed before it is stored, so an
-  error page or a cut-off download is refused (422) and the stored file stands. A file
-  cut at a line break parses, so one with under half the stored rows is refused too;
-  neither table ever halves. The two paths are not meant to run at once: two stores of
-  one table can interleave file and status, and leave the older file under the newer
-  ETag until upstream changes again.
+  `push-catalog` calls, and the Worker's own fetch, `POST /api/upstream/refresh`,
+  which the Docker image calls daily. Both are conditional on the stored file's ETag,
+  but only while the file is there: a status that outlived its file would otherwise
+  make every download a 304 and never bring the file back. A new file is parsed
+  before it is stored, so an error page or a cut-off download is refused (422) and the
+  stored file stands. A file cut at a line break parses, so one with under half the
+  stored rows is refused too; neither table ever halves. The two paths are not meant
+  to run at once: two stores of one table can interleave file and status, and leave
+  the older file under the newer ETag until upstream changes again.
 - **Every GP update reads their parsed rows**, kept beside each file under
   `rows:<name>`, and enriches from them; it never downloads a table. A table stored
   between two GP updates reaches the groups at the next one. A table with no stored

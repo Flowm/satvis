@@ -17,8 +17,8 @@
     // and a 200. Without public/404.html a missing file becomes a billed Worker call.
     // Every app path must be a real html file or a public/_redirects rule (/ot).
     "not_found_handling": "404-page",
-    // No file can shadow an api path. /__scheduled is wrangler dev's --test-scheduled endpoint.
-    "run_worker_first": ["/api/*", "/__scheduled"],
+    // No file can shadow an api path.
+    "run_worker_first": ["/api/*"],
   },
   "kv_namespaces": [{ "binding": "GP_KV", "id": "26a7848ab641416fa518a3df4790a968" }],
   "triggers": {
