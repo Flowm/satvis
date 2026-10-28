@@ -2,7 +2,6 @@ import { Cartesian3, JulianDate } from "@cesium/core";
 import { CallbackProperty, Camera, Entity, EntityView, type Scene, SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
-import { setPassHighlights } from "../composables/usePassHighlights";
 import { type Component, type ComponentHost, componentKind, deferPointToModel, modelCopies, ModelSize, type SatelliteBatches, type SkyAppearance } from "./componentKinds";
 import type { GroundStation } from "./PassPredictor";
 import type { CatalogEntry } from "./SatelliteCatalog";
@@ -72,21 +71,6 @@ export class SatelliteComponentCollection implements ComponentHost {
     );
     this.props.trajectory.adopt(opening);
     this.props.trajectory.follow(viewer, () => this.#bindAll());
-  }
-
-  /**
-   * Prediction is off-thread, so this may paint a stale or empty band; the
-   * `passesChanged` listener paints the real one.
-   */
-  #highlightPasses(): void {
-    const predictor = this.props.passPredictor;
-    const time = this.viewer.clock.currentTime;
-    if (this.isSelected) {
-      setPassHighlights(predictor.passes(time));
-    } else {
-      // The tracked satellite still needs the window for its ground-station link.
-      predictor.passes(time);
-    }
   }
 
   /** Written by the sky view each frame, so an unchanged value returns at once. */
@@ -301,14 +285,6 @@ export class SatelliteComponentCollection implements ComponentHost {
   }
 
   init(): void {
-    // Prediction answers late. The ground-station link reads passIntervals every
-    // frame; the timeline bands are painted once and must be told.
-    this.eventListeners.passesChanged = this.props.passPredictor.onChanged(() => {
-      if (this.isSelected) {
-        setPassHighlights(this.props.passPredictor.passes(this.viewer.clock.currentTime));
-      }
-    });
-
     this.eventListeners.trackedEntity = this.viewer.trackedEntityChanged.addEventListener(() => {
       // A copy hides once the tracked model grows, and Cesium follows only what it can measure.
       if (this.#isModelCopy(this.viewer.trackedEntity)) {
@@ -415,10 +391,7 @@ export class SatelliteComponentCollection implements ComponentHost {
       return;
     }
 
-    // The setter clears the predictor's window; the answer arrives via `passesChanged`.
+    // Clears the predictor's window; whatever reads the passes next asks again.
     this.props.passPredictor.groundStations = groundStations;
-    if (this.isSelected || this.isTracked) {
-      this.#highlightPasses();
-    }
   }
 }

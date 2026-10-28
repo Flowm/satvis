@@ -98,7 +98,8 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 
 import { useLadder, useTimeline } from "../composables/useClockScales";
-import { usePassHighlights } from "../composables/usePassHighlights";
+import { useController } from "../composables/useController";
+import { useSelectedEntity } from "../composables/useSelectedEntity";
 import { useViewerClock } from "../composables/useViewerClock";
 import { arrowStep, CHIP_PX, clockLabel, dateLabel, LADDER, multiplierLabel, passMarks, rateLabel, REAL_TIME_RUNG } from "../modules/util/clockDeck";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
@@ -110,8 +111,8 @@ const timeline = ref<HTMLElement>();
 const { ticks, width: timelineWidth, onDown: onTimelineDown, onMove: onTimelineMove, onUp: onTimelineUp, onKey: onTimelineKey, measure } = useTimeline(clock, timeline);
 
 /** The timeline moves under a fixed needle, so marks are recomputed relative to `now`. */
-const { passes } = usePassHighlights();
-const marks = computed(() => passMarks(passes.value, now.value.getTime(), timelineWidth.value));
+const { satellitePasses } = useSelectedEntity(useController());
+const marks = computed(() => passMarks(satellitePasses.value, now.value.getTime(), timelineWidth.value));
 
 const ladder = ref<HTMLElement>();
 const { onScroll: onLadderScroll, onDown: onLadderDown, onMove: onLadderMove, onUp: onLadderUp, pick: pickRung, showRung, step } = useLadder(clock, ladder);
