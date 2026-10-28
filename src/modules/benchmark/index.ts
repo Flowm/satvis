@@ -12,7 +12,7 @@ import {
   type PlanSpec,
 } from "./benchmarkPlan";
 import { BenchmarkRunner, DEFAULT_OPTIONS, FOOTPRINT_CAPTURE_MS, type BenchmarkOptions, type BenchmarkRun, type RunnerHooks } from "./benchmarkRunner";
-import { CesiumBenchmarkTarget, canMeasureFootprint, type TargetOptions } from "./cesiumBenchmarkTarget";
+import { CesiumBenchmarkTarget, canMeasureFootprint } from "./cesiumBenchmarkTarget";
 import { logRun, toCsv, toJson, formatTable } from "./report";
 
 export * from "./benchmarkPlan";
@@ -27,7 +27,7 @@ export const QUICK_SATELLITE_COUNTS: readonly number[] = [0, 100, 1000];
 /** Orbit is rebuilt on every trajectory window refresh, so a faster clock shows most there. */
 export const CLOCK_COMPONENT_SETS: readonly (readonly string[])[] = [["Point", "Orbit"]];
 
-export type RunOverrides = Partial<PlanSpec> & Partial<BenchmarkOptions> & TargetOptions;
+export type RunOverrides = Partial<PlanSpec> & Partial<BenchmarkOptions>;
 
 export interface BenchmarkHandle {
   readonly target: CesiumBenchmarkTarget;
@@ -63,16 +63,15 @@ export function installBenchmark(cc: CesiumController): BenchmarkHandle {
   };
 
   async function start(defaults: PlanSpec, overrides: RunOverrides = {}): Promise<BenchmarkRun> {
-    const { satelliteCounts, componentSets, clockMultipliers, repeatFirstStep, warmupMs, sampleMs, captureFootprint, ...targetOptions } = overrides;
-    target.options = targetOptions;
+    const { satelliteCounts, componentSets, clockMultipliers, repeatFirstStep, warmupMs, sampleMs, ...extras } = overrides;
     const spec: PlanSpec = {
       satelliteCounts: satelliteCounts ?? defaults.satelliteCounts,
       componentSets: componentSets ?? defaults.componentSets,
       clockMultipliers: clockMultipliers ?? defaults.clockMultipliers,
       repeatFirstStep: repeatFirstStep ?? defaults.repeatFirstStep,
     };
-    const options: BenchmarkOptions = { warmupMs: warmupMs ?? DEFAULT_OPTIONS.warmupMs, sampleMs: sampleMs ?? DEFAULT_OPTIONS.sampleMs, captureFootprint };
-    if (captureFootprint && !canMeasureFootprint()) {
+    const options: BenchmarkOptions = { warmupMs: warmupMs ?? DEFAULT_OPTIONS.warmupMs, sampleMs: sampleMs ?? DEFAULT_OPTIONS.sampleMs, ...extras };
+    if (options.captureFootprint && !canMeasureFootprint()) {
       console.warn(
         "[bench] captureFootprint was asked for but performance.measureUserAgentSpecificMemory is not available — the page is not cross-origin isolated. " +
           "Serve it with COOP: same-origin and COEP: credentialless. Carrying on without footprints.",

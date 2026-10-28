@@ -45,7 +45,7 @@ export interface FootprintSample {
 export interface BenchmarkTarget {
   environment(): Record<string, string | number>;
   /** Once per run, before the first step. */
-  prepare(): Promise<void>;
+  prepare(options: BenchmarkOptions): Promise<void>;
   catalogSize(): number;
   apply(step: BenchmarkStep): Promise<SceneApplied>;
   measure(options: MeasureOptions): Promise<FrameSample>;
@@ -59,6 +59,10 @@ export interface BenchmarkOptions {
   sampleMs: number;
   /** Off by default: each capture waits ~17 s, see `FootprintSample`. */
   captureFootprint?: boolean;
+  /** Unset means the whole loaded catalog. */
+  tag?: string;
+  /** Switches pass prediction on for every satellite: a large cost unrelated to drawing. */
+  groundStation?: { lat: number; lon: number };
 }
 
 /** Measured over six calls: 14, 16, 19, 16, 18 and 19 s. A wait for GC, so it does not scale with the scene. */
@@ -130,7 +134,7 @@ export class BenchmarkRunner {
 
     let run: BenchmarkRun | undefined;
     try {
-      await this.#target.prepare();
+      await this.#target.prepare(options);
       const steps = buildPlan(spec);
       run = {
         startedAtIso: new Date().toISOString(),

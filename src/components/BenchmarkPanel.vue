@@ -277,7 +277,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 
 import { useController } from "../composables/useController";
 import {
@@ -408,7 +408,7 @@ function adoptRunSettings(): void {
   warmupMs.value = current.options.warmupMs;
   sampleMs.value = current.options.sampleMs;
   withFootprint.value = current.options.captureFootprint === true;
-  withGroundStation.value = bench.target.options.groundStation !== undefined;
+  withGroundStation.value = current.options.groundStation !== undefined;
 }
 
 const settingsSummary = computed(() => {
@@ -576,7 +576,13 @@ async function start(): Promise<void> {
   try {
     const sweep = bench.runner.start(
       spec.value,
-      { warmupMs: warmupMs.value, sampleMs: sampleMs.value, captureFootprint: withFootprint.value },
+      {
+        warmupMs: warmupMs.value,
+        sampleMs: sampleMs.value,
+        captureFootprint: withFootprint.value,
+        // Any location works.
+        groundStation: withGroundStation.value ? { lat: 48.1772, lon: 11.7476 } : undefined,
+      },
       {
         onProgress: ({ done, total, step }) => {
           status.value = `${done + 1}/${total} — ${step.label}`;
@@ -629,16 +635,6 @@ async function copy(format: "csv" | "json" | "text"): Promise<void> {
     copied.value = "";
   }, 2000);
 }
-
-// On the shared target, because it belongs to the scene, not the sweep. Any location works.
-watch(
-  withGroundStation,
-  (enabled) => {
-    // Merged, so a console run's `tag` survives.
-    bench.target.options = { ...bench.target.options, groundStation: enabled ? { lat: 48.1772, lon: 11.7476 } : undefined };
-  },
-  { immediate: true },
-);
 </script>
 
 <style scoped>

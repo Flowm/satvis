@@ -8,7 +8,7 @@ import type { CesiumController } from "../CesiumController";
 import { EMPTY_SCENE, type DesiredScene } from "../SatelliteManager";
 import { desiredScene } from "../sceneSync";
 import type { BenchmarkStep } from "./benchmarkPlan";
-import type { BenchmarkTarget, FootprintSample, MeasureOptions, SceneApplied } from "./benchmarkRunner";
+import type { BenchmarkOptions, BenchmarkTarget, FootprintSample, MeasureOptions, SceneApplied } from "./benchmarkRunner";
 import { FrameSampler, type FrameSample } from "./frameSampler";
 
 declare global {
@@ -44,13 +44,6 @@ export interface LiveSnapshot {
   clockMultiplier: number;
   entities: number;
   primitives: number;
-}
-
-export interface TargetOptions {
-  /** Unset means the whole loaded catalog. */
-  tag?: string;
-  /** Switches pass prediction on for every satellite: a large cost unrelated to drawing. */
-  groundStation?: { lat: number; lon: number };
 }
 
 /**
@@ -144,7 +137,8 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
   /** At most one in flight: one per frame would queue hundreds and force a flush on each. */
   #queryInFlight: { query: WebGLQuery; targets: GpuTarget[] } | undefined;
 
-  options: TargetOptions = {};
+  /** The sweep's, from prepare(). */
+  #options: BenchmarkOptions | undefined;
 
   /**
    * State before the first prepare(), held until restore() so a run that throws still restores it.
@@ -310,7 +304,8 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     };
   }
 
-  async prepare(): Promise<void> {
+  async prepare(options: BenchmarkOptions): Promise<void> {
+    this.#options = options;
     const { clock } = this.#cc.viewer;
     const cesiumStore = useCesiumStore();
     this.#saved ??= { requestRenderMode: cesiumStore.requestRenderMode, shouldAnimate: clock.shouldAnimate, multiplier: clock.multiplier, scene: desiredScene(useSatStore()) };
@@ -440,13 +435,14 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
    * Sorted, so "the first 500" is stable across runs; deduplicated because activation matches by name.
    */
   #names(): string[] {
-    const entries = this.options.tag ? this.#cc.sats.catalog.entriesWithTag(this.options.tag) : this.#cc.sats.catalog.entries;
+    const tag = this.#options?.tag;
+    const entries = tag ? this.#cc.sats.catalog.entriesWithTag(tag) : this.#cc.sats.catalog.entries;
     // eslint-disable-next-line unicorn/no-array-sort -- already a fresh array
     return [...new Set(entries.map((entry) => entry.name))].sort();
   }
 
   #scene(enabledSatellites: string[], components: readonly string[]): DesiredScene {
-    const station = this.options.groundStation;
+    const station = this.#options?.groundStation;
     return {
       ...EMPTY_SCENE,
       enabledSatellites,
