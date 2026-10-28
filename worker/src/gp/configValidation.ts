@@ -2,6 +2,7 @@
 // written. Pure, so the tests reach every rule; the script keeps the YAML and file I/O.
 // No Cloudflare APIs: the script imports it through node type stripping.
 
+import { isModelPath } from "./modelLods.ts";
 import { GROUP_NAME_RE, type PresetDefinition, type SatelliteEntry } from "./types.ts";
 
 /** A config entry as YAML parsed it: nothing about its shape is trusted until it is checked here. */
@@ -60,8 +61,9 @@ function validateSatellites(group: Raw): void {
 }
 
 /**
- * Only the swath extents are checked: swathExtentsOf in src/config/satelliteMetadata.ts
- * reads them as a pair and treats a half-specified swath as absent.
+ * The swath extents are checked because swathExtentsOf in src/config/satelliteMetadata.ts
+ * reads them as a pair and treats a half-specified swath as absent; `modelFile` because
+ * the app puts it under ./data/models/.
  */
 function validateMetadata(metadata: Raw, where: string): void {
   if (metadata === null || typeof metadata !== "object" || Array.isArray(metadata)) {
@@ -77,6 +79,9 @@ function validateMetadata(metadata: Raw, where: string): void {
   const given = sides.filter((side) => metadata[side] !== undefined);
   if (given.length === 1) {
     throw new Error(`${where}: swath needs both "swathStarboardKm" and "swathPortKm" (got only ${JSON.stringify(given[0])})`);
+  }
+  if (metadata.modelFile !== undefined && !isModelPath(metadata.modelFile)) {
+    throw new Error(`${where}: "modelFile" must be a .glb path under /data/models/ (got ${JSON.stringify(metadata.modelFile)})`);
   }
   // The refresh derives it from modelFile (ADR 0007), so a row's would reach only new apps.
   if (metadata.model !== undefined) {

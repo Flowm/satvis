@@ -95,6 +95,12 @@ describe("the satellite table", () => {
     expect(() => table.add(5, { metadata: { modelFile: "b.glb" } }, "other")).toThrow('other sets modelFile="b.glb", but core, plugin set');
   });
 
+  it("refuses a modelFile outside /data/models/, in a table entry or a group row", () => {
+    expect(() => validateSatelliteTable([{ noradId: 5, modelFile: "../a.glb" }], "core")).toThrow('core satellites[0]: "modelFile" must be a .glb path');
+    expect(() => validateGroups([{ name: "a", satellites: [{ noradId: 5, metadata: { modelFile: "/a.glb" } }] }])).toThrow('"modelFile" must be a .glb path');
+    expect(() => validateSatelliteTable([{ noradId: 5, modelFile: "sats/a.glb" }], "core")).not.toThrow();
+  });
+
   it("refuses an entry with nothing to attach", () => {
     expect(() => validateSatelliteTable([{ noradId: 5, name: "SAT" }], "core")).toThrow("core satellites[0]: has no metadata fields");
   });
