@@ -103,7 +103,6 @@ function fakeTarget() {
     },
     viewer: {
       clock,
-      timeline: undefined,
     },
     applySurfaceModel: (surfaceModel, viewMode) => {
       calls.surfaceModels.push([surfaceModel, viewMode]);

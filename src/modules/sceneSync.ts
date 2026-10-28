@@ -81,7 +81,6 @@ export interface SceneTarget {
       readonly currentTime: JulianDate;
       readonly onTick: { addEventListener(listener: () => void): () => void };
     };
-    readonly timeline?: unknown;
   };
   applySurfaceModel(surfaceModel: string, viewMode: string): Promise<void>;
   applyStarMap(starMap: string): Promise<void>;

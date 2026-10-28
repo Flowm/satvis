@@ -94,18 +94,16 @@ export class CesiumController {
 
   surface!: SurfaceModel;
 
-  #uiVisible: boolean = true;
-
   #removeCameraTrackEci: (() => void) | undefined;
 
   /** Aborted when the imagery layers are replaced, detaching any that follow the clock. */
   #imageryLifetime = new AbortController();
 
   /** "Fixed" or "Inertial". The sky view suppresses it with "Fixed". */
-  readonly camera: Suppressible<string>;
+  readonly #camera: Suppressible<string>;
 
   /** A surface model can suppress it (ADR 0005). */
-  readonly terrain: Suppressible<string>;
+  readonly #terrain: Suppressible<string>;
 
   /** Reports a selection once, not on every view-mode re-apply. */
   #selectedSurfaceModel: string | undefined;
@@ -129,8 +127,8 @@ export class CesiumController {
     this.viewer = viewer;
     this.setDefaultView();
 
-    this.camera = new Suppressible<string>("Fixed", (mode) => this.#applyCameraMode(mode));
-    this.terrain = new Suppressible<string>("None", (name, isCurrent) => this.#applyTerrain(name, isCurrent));
+    this.#camera = new Suppressible<string>("Fixed", (mode) => this.#applyCameraMode(mode));
+    this.#terrain = new Suppressible<string>("None", (name, isCurrent) => this.#applyTerrain(name, isCurrent));
 
     this.#createInputHandler();
     this.#addErrorHandler();
@@ -157,7 +155,7 @@ export class CesiumController {
 
     this.surface = new SurfaceModel({
       scene: this.viewer.scene,
-      setTerrainOverride: (name) => (name === undefined ? this.#releaseTerrain() : this.#suppressTerrain(name)),
+      setTerrainOverride: (name) => (name === undefined ? this.#terrain.release() : this.#suppressTerrain(name)),
       skyLanded: () => this.skyView.settled,
       onFailure: (name, error) => this.#onSurfaceFailure(name, error),
     });
@@ -270,12 +268,7 @@ export class CesiumController {
       console.error("Unknown terrain provider");
       return;
     }
-    this.terrain.choose(terrainProviderName);
-  }
-
-  /** The user's choice, not necessarily the one in force. */
-  get terrainProvider(): string {
-    return this.terrain.chosen;
+    this.#terrain.choose(terrainProviderName);
   }
 
   /** Accepts any registered provider, including ones a url may not name. */
@@ -284,11 +277,7 @@ export class CesiumController {
       console.error("Unknown terrain provider override");
       return;
     }
-    this.terrain.suppress(terrainProviderName);
-  }
-
-  #releaseTerrain(): void {
-    this.terrain.release();
+    this.#terrain.suppress(terrainProviderName);
   }
 
   /**
@@ -412,21 +401,16 @@ export class CesiumController {
       console.error("Unknown camera mode");
       return;
     }
-    this.camera.choose(cameraMode);
-  }
-
-  /** The user's choice, not necessarily the one in force. */
-  get cameraMode(): string {
-    return this.camera.chosen;
+    this.#camera.choose(cameraMode);
   }
 
   /** The sky view drives the camera, and inertial tracking re-parents it every frame. */
   suppressCameraMode(): void {
-    this.camera.suppress("Fixed");
+    this.#camera.suppress("Fixed");
   }
 
   releaseCameraMode(): void {
-    this.camera.release();
+    this.#camera.release();
   }
 
   #applyCameraMode(mode: string): void {
@@ -454,13 +438,9 @@ export class CesiumController {
     }
   }
 
-  setTime(
-    current: string | number | Date,
-    start: string = dayjs.utc(current).subtract(12, "hour").toISOString(),
-    stop: string = dayjs.utc(current).add(7, "day").toISOString(),
-  ): void {
-    this.viewer.clock.startTime = JulianDate.fromIso8601(dayjs.utc(start).toISOString());
-    this.viewer.clock.stopTime = JulianDate.fromIso8601(dayjs.utc(stop).toISOString());
+  setTime(current: string | number | Date): void {
+    this.viewer.clock.startTime = JulianDate.fromIso8601(dayjs.utc(current).subtract(12, "hour").toISOString());
+    this.viewer.clock.stopTime = JulianDate.fromIso8601(dayjs.utc(current).add(7, "day").toISOString());
     this.viewer.clock.currentTime = JulianDate.fromIso8601(dayjs.utc(current).toISOString());
   }
 
@@ -536,15 +516,10 @@ export class CesiumController {
 
   /** Cesium's own chrome is only the fullscreen button. */
   set showUI(enabled: boolean) {
-    this.#uiVisible = enabled;
     const fullscreen = this.viewer._fullscreenButton?._container;
     if (fullscreen) {
       fullscreen.style.visibility = enabled ? "" : "hidden";
     }
-  }
-
-  get showUI(): boolean {
-    return this.#uiVisible;
   }
 
   /**
