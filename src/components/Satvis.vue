@@ -72,12 +72,12 @@
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('layers') }">Basemap</div>
         <label v-for="name in baseLayers" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('layers') }">
           <input type="radio" name="basemap" :value="name" :checked="baseLayer === name" @change="setBaseLayer(name)" />
-          {{ name }}
+          {{ imageryLabel(name) }}
         </label>
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('layers') }">Overlays</div>
         <label v-for="name in overlayLayers" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('layers') }">
           <input type="checkbox" :checked="hasOverlay(name)" @change="toggleOverlay(name, ($event.target as HTMLInputElement).checked)" />
-          {{ name }}
+          {{ imageryLabel(name) }}
         </label>
         <div v-if="inertReason('layers')" class="toolbarNote">{{ inertReason("layers") }}</div>
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('terrain') }">Terrain</div>
@@ -85,20 +85,20 @@
              imposing surface model overrides; disabled while imposed. -->
         <label v-for="name in terrainNames" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('terrain') }">
           <input type="radio" name="terrain" :value="name" :checked="activeTerrain === name" :disabled="terrainImposed" @change="terrainProvider = name" />
-          {{ name }}
+          {{ terrainLabel(name) }}
         </label>
         <div v-if="inertReason('terrain')" class="toolbarNote">{{ inertReason("terrain") }}</div>
         <div class="toolbarTitle">Surface</div>
         <label v-for="name in SURFACE_MODELS" :key="name" class="toolbarSwitch">
           <input v-model="surfaceModel" type="radio" :value="name" />
-          {{ name }}
+          {{ SURFACE_MODEL_LABELS[name] }}
         </label>
         <div v-if="surfaceUnavailable" class="toolbarNote">{{ surfaceUnavailable }}</div>
         <!-- Narrowed to the maps on the server (see src/config/starMaps.ts); `?stars=` still accepts every name. -->
         <div class="toolbarTitle">Star map</div>
         <label v-for="name in starMapOptions" :key="name" class="toolbarSwitch">
           <input v-model="starMap" type="radio" :value="name" />
-          {{ name }}
+          {{ STAR_MAP_LABELS[name] }}
         </label>
       </toolbar-panel>
       <!-- Two panels, one `scene` parameter (docs/adr/0003-sky-view.md): each view's settings stay visible, disabled where the other view is up. -->
@@ -246,10 +246,10 @@ import { compassAvailable, useSkyCompass } from "../composables/useSkyCompass";
 import { SATELLITE_COMPONENTS } from "../config/components";
 import { PHONE_WIDTH } from "../config/layout";
 import { MSAA_RATES, pixelRatiosFor } from "../config/rendering";
-import { availableStarMaps, BUILTIN_STAR_MAP, type StarMapName } from "../config/starMaps";
-import { type MapGroup, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, viewModeNote } from "../config/surfaceModels";
+import { availableStarMaps, BUILTIN_STAR_MAP, STAR_MAP_LABELS, type StarMapName } from "../config/starMaps";
+import { type MapGroup, SURFACE_MODEL_LABELS, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, surfaceModelLabel, viewModeNote } from "../config/surfaceModels";
 import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "../config/viewModes";
-import { baseLayerNames, overlayLayerNames, terrainProviderNames } from "../modules/CesiumLayerProviders";
+import { baseLayerNames, imageryLabel, overlayLayerNames, terrainLabel, terrainProviderNames } from "../modules/CesiumLayerProviders";
 import { stationLabel } from "../modules/GroundStationEntity";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
 import { GEOLOCATION } from "../modules/util/groundStationEdits";
@@ -318,6 +318,7 @@ const inert = computed(() => effects.value.inert);
 
 const activeTerrain = computed(() => effects.value.terrain ?? terrainProvider.value);
 const terrainImposed = computed(() => effects.value.terrain !== undefined);
+const surfaceLabel = computed(() => surfaceModelLabel(surfaceModel.value));
 
 /**
  * The imposed-terrain case names the user's choice, because the radio shows the terrain in force.
@@ -328,9 +329,10 @@ function inertReason(group: MapGroup): string {
   }
   const forced = effects.value.terrain;
   if (group === "terrain" && forced) {
-    return forced === terrainProvider.value ? `${surfaceModel.value} needs ${forced}` : `${surfaceModel.value} needs ${forced}, ${terrainProvider.value} returns`;
+    const needs = `${surfaceLabel.value} needs ${terrainLabel(forced)}`;
+    return forced === terrainProvider.value ? needs : `${needs}, ${terrainLabel(terrainProvider.value)} returns`;
   }
-  return `Hidden by ${surfaceModel.value}`;
+  return `Hidden by ${surfaceLabel.value}`;
 }
 
 /** `viewModeNote` derives the text from the rules; do not write the view modes out here. */

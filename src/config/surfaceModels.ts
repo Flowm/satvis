@@ -8,6 +8,13 @@ export const SURFACE_MODELS = ["None", "OsmBuildings", "GooglePhotorealistic"] a
 /** Not `SurfaceModel`: that is the class in src/modules/SurfaceModel.ts. */
 export type SurfaceModelName = (typeof SURFACE_MODELS)[number];
 
+/** The Map panel's names; the ids stay the url's and the store's (ADR 0001). */
+export const SURFACE_MODEL_LABELS: Record<SurfaceModelName, string> = {
+  None: "None",
+  OsmBuildings: "Buildings (OSM)",
+  GooglePhotorealistic: "Photorealistic (Google)",
+};
+
 export type SurfaceTileset = Exclude<SurfaceModelName, "None">;
 
 /** Map menu groups a surface model can make inert. */
@@ -53,6 +60,11 @@ export interface SurfaceEffects {
 
 export function isSurfaceModelName(value: string): value is SurfaceModelName {
   return (SURFACE_MODELS as readonly string[]).includes(value);
+}
+
+/** Its label, or the id where it is none of ours. */
+export function surfaceModelLabel(name: string): string {
+  return isSurfaceModelName(name) ? SURFACE_MODEL_LABELS[name] : name;
 }
 
 /** Total in both arguments, so the menu's annotations cannot drift from the scene. */

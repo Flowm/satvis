@@ -13,6 +13,13 @@ export const STAR_MAPS = ["Tycho1K", "DeepStar1K", "DeepStar2K"] as const;
 
 export type StarMapName = (typeof STAR_MAPS)[number];
 
+/** The Map panel's names; the ids stay the url's and the store's (ADR 0001). */
+export const STAR_MAP_LABELS: Record<StarMapName, string> = {
+  Tycho1K: "Tycho (1K)",
+  DeepStar1K: "Deep Star (1K)",
+  DeepStar2K: "Deep Star (2K)",
+};
+
 /** The map that cannot be missing, and so the fallback everywhere. */
 export const BUILTIN_STAR_MAP: StarMapName = "Tycho1K";
 

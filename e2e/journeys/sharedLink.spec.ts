@@ -50,7 +50,7 @@ test("a scene set up through the menus survives the trip through its url", async
   await openMenu(page, "Components");
   await menuSwitch(page, "Ground track").click();
   await openMenu(page, "Map");
-  await menuSwitch(page, "OSM").click();
+  await menuSwitch(page, "OpenStreetMap").click();
   await openMenu(page, "Globe");
   await menuSwitch(page, "2D").click();
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.scene.mode)).toBe(2);

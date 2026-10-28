@@ -9,6 +9,7 @@ import { currentPosition } from "../composables/useGeolocation";
 import { useToastProxy } from "../composables/useToastProxy";
 import { satelliteModel } from "../config/satelliteMetadata";
 import { BUILTIN_STAR_MAP, starMapRecovery } from "../config/starMaps";
+import { surfaceModelLabel } from "../config/surfaceModels";
 import { SKY_MODE } from "../config/viewModes";
 import { useCesiumStore } from "../stores/cesium";
 import { useCustomSatelliteStore } from "../stores/customSatellites";
@@ -154,7 +155,7 @@ export function startSceneSync(cc: SceneTarget): void {
   cc.onSurfaceFailure((name, error) => {
     cesiumStore.surfaceModel = "None";
     useToastProxy().add({
-      title: `${name} unavailable`,
+      title: `${surfaceModelLabel(name)} unavailable`,
       description: `${error instanceof Error ? error.message : "The tileset could not be loaded"}. Cesium ion needs a token valid for this origin.`,
       color: "warning",
     });

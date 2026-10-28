@@ -121,12 +121,13 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
     case blackMarble = "BlackMarble"
     case viirs = "VIIRS"
 
+    /// The Map panel's name for it, the web app's (`CesiumLayerProviders.ts`).
     public var title: String {
         switch self {
         case .naturalEarth: "Natural Earth"
         case .versaTiles: "Satellite (VersaTiles)"
-        case .blackMarble: "Black Marble"
-        case .viirs: "VIIRS"
+        case .blackMarble: "Night (Black Marble)"
+        case .viirs: "Daily (VIIRS)"
         }
     }
 

@@ -414,9 +414,9 @@ struct MapPanel: View {
         PanelSection("Basemap") {
             Choices(selection: $session.baseLayer, options: BaseLayer.allCases.map { ($0.title, $0) })
         }
-        // The web app's names for the two, as its links spell them.
+        // The web app's names for the two.
         PanelSection("Terrain") {
-            Segments(title: "Terrain", selection: $session.terrain, options: [("None", false), ("ReEarth", true)])
+            Segments(title: "Terrain", selection: $session.terrain, options: [("None", false), ("Re:Earth", true)])
         }
     }
 }
