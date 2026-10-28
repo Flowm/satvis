@@ -60,8 +60,6 @@ struct CameraRig {
     private static let homeFlightDuration = 1.5
     /// The pose of the last frame, which a flight sets off from.
     private var lastPose: CameraPose?
-    /// The terrain as the Map menu has it; the sky view stands on it regardless.
-    var terrainSetting = false
     /// What the free camera holds still in. Tracking keeps the satellite's own
     /// frame, and the sky view the observer's, so it waits while either is up:
     /// the free camera does not turn meanwhile.
@@ -80,12 +78,6 @@ struct CameraRig {
                 skyCamera?.verticalFieldOfView = min(max(fieldOfView, range.lowerBound), range.upperBound)
             }
         }
-    }
-
-    /// Whether the globe follows the terrain: as the Map menu has it, but always
-    /// in the sky view, the flights in and out included.
-    var wantsTerrain: Bool {
-        terrainSetting || cameraMode == .sky
     }
 
     /// Whether the sky view has landed, and what is on screen is what it aims at.

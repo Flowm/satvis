@@ -5,7 +5,7 @@ import { layerProvider } from "../config/layers";
 import { MSAA_RATES, PIXEL_RATIOS, currentDevicePixelRatio, defaultMsaaRate } from "../config/rendering";
 import { BUILTIN_STAR_MAP, STAR_MAPS } from "../config/starMaps";
 import { SURFACE_MODELS } from "../config/surfaceModels";
-import { CAMERA_MODES, SCENE_MODES } from "../config/viewModes";
+import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "../config/viewModes";
 import { baseLayerNames, imageryProviderNames, terrainProviderNames } from "../modules/CesiumLayerProviders";
 import { sameValue } from "../modules/util/equality";
 import { boolean, enumString, layerList, timestamp, toMinuteIso } from "../modules/util/urlCodec";
@@ -89,6 +89,18 @@ export const useCesiumStore = defineStore(
       setLayers([name, ...activeLayers.value.filter((token) => !isBase(token))]);
     }
 
+    /**
+     * A panel's way into the sky view, with the terrain on, as the horizon is the
+     * view's point; a terrain already chosen stays, as does one turned off in the
+     * view. A link keeps its own.
+     */
+    function enterSkyView(): void {
+      if (sceneMode.value !== SKY_MODE && terrainProvider.value === "None") {
+        terrainProvider.value = "ReEarth";
+      }
+      sceneMode.value = SKY_MODE;
+    }
+
     /** An overlay goes last, over the others. */
     function toggleOverlay(name: string, enabled: boolean): void {
       const without = activeLayers.value.filter((token) => layerProvider(token) !== name);
@@ -108,6 +120,7 @@ export const useCesiumStore = defineStore(
       surfaceModel,
       starMap,
       sceneMode,
+      enterSkyView,
       unseen,
       cameraMode,
       pixelRatio,

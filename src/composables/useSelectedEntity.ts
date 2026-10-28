@@ -219,7 +219,7 @@ export function useSelectedEntity(instance: CesiumController) {
       return;
     }
     useSatStore().setObserverStation(sel.gs.index);
-    useCesiumStore().sceneMode = SKY_MODE;
+    useCesiumStore().enterSkyView();
   }
 
   function toggleTrack(): void {

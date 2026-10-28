@@ -62,7 +62,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   carries, under its licences. Only OpenStreetMap wants its name in sight of the
   map (the OpenStreetMap Foundation's attribution guidelines, for the ODbL), and
   of the maps only the terrain uses its data, the VersaTiles imagery being
-  photography: while the terrain is drawn, in the sky view too, "© OpenStreetMap"
+  photography: while the terrain is drawn, "© OpenStreetMap"
   stands left of the clock deck from when that starts, opens the
   Acknowledgements, and fades after five seconds, as the guidelines allow when
   an About entry still leads to it. The terrain's sources are copied from
@@ -171,7 +171,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
 - The sky view (ADR 0003) is the same renderer from the ground: `SkyCamera`
   stands 2 m over the terrain at the observer, its attitude a quaternion in the
   observer's east-north-up frame, so the zenith is an aim like any other. It
-  stands on Re:Earth's terrain whatever the Map menu says. `SkyFlight` is the
+  stands on the Map menu's terrain, as on the web: on the ellipsoid with None
+  (ADR 0009). Entering it from a panel turns the terrain on; a link keeps its own. `SkyFlight` is the
   web's three-leg flight in and out; the instruments (`SkyHUD`) and the gestures
   wait for it to land, and reduced motion cuts. The crosshair, the tapes, the
   trace and the card read the renderer's last frame (`DrawnFrame`,

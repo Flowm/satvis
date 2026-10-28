@@ -60,11 +60,8 @@ enum ShaderLibrary {
 /// satellites over it, for one MTKView.
 @MainActor
 public final class GlobeRenderer: NSObject, MTKViewDelegate {
-    /// The cameras, their flights and what the gestures steer. Whatever it asks
-    /// of the terrain is applied here alone, after every change.
-    private var rig = CameraRig() {
-        didSet { surface.setTerrain(rig.wantsTerrain) }
-    }
+    /// The cameras, their flights and what the gestures steer.
+    private var rig = CameraRig()
     /// Which camera the view is seen through (`CameraRig`).
     public var cameraMode: CameraMode { rig.cameraMode }
     /// The sky view's camera, while it is on the ground.
@@ -474,9 +471,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         needsDraw = true
     }
 
-    /// Whether the globe follows Re:Earth's terrain. Off by default, as on the web.
+    /// Whether the globe follows Re:Earth's terrain, the sky view's ground too.
+    /// Off by default, as on the web.
     public func setTerrain(_ enabled: Bool) {
-        rig.terrainSetting = enabled
+        surface.setTerrain(enabled)
         needsDraw = true
     }
 

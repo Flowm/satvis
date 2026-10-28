@@ -56,10 +56,10 @@ final class Benchmark {
             link: "/?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model", keepsPanel: true),
         BenchmarkScene(
             id: "sky_view", title: "Sky view", subtitle: "Lauterbrunnen", detail: "Looking up from Lauterbrunnen, on terrain, the default preset's satellites",
-            link: "/?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen"),
+            link: "/?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen&terrain=ReEarth"),
         BenchmarkScene(
             id: "sky_active", title: "Sky view", subtitle: "All active", detail: "Looking up from Lauterbrunnen, on terrain, every active satellite",
-            link: "/?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen&tags=Active"),
+            link: "/?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen&tags=Active&terrain=ReEarth"),
     ]
     /// Changed when the scenes or the metrics change, so results can be told apart.
     static let version = 7

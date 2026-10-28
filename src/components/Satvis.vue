@@ -382,14 +382,14 @@ const standingAtGeolocation = computed(() => inSkyView.value && groundStations.v
 /** Stands where the device is, which may give no position, and then nothing opens. */
 async function lookUpFromHere(): Promise<void> {
   if (await locate({ observe: true })) {
-    sceneMode.value = SKY_MODE;
+    cesiumStore.enterSkyView();
   }
 }
 
 /** Designates the station, without reordering the list; a view already up moves there. */
 function lookUpFrom(index: number): void {
   satStore.setObserverStation(index);
-  sceneMode.value = SKY_MODE;
+  cesiumStore.enterSkyView();
 }
 
 /** Returns to the projection the sky view was entered from. */

@@ -298,3 +298,27 @@ describe("layer edits", () => {
     expect(cesium.baseLayer).toBe("");
   });
 });
+
+describe("enterSkyView", () => {
+  test("turns the terrain on", () => {
+    const cesium = useCesiumStore();
+    cesium.enterSkyView();
+    expect(cesium.sceneMode).toBe("Sky");
+    expect(cesium.terrainProvider).toBe("ReEarth");
+  });
+
+  test("keeps a terrain already chosen", () => {
+    const cesium = useCesiumStore();
+    cesium.terrainProvider = "Maptiler";
+    cesium.enterSkyView();
+    expect(cesium.terrainProvider).toBe("Maptiler");
+  });
+
+  test("keeps a terrain turned off in the sky view", () => {
+    const cesium = useCesiumStore();
+    cesium.enterSkyView();
+    cesium.terrainProvider = "None";
+    cesium.enterSkyView();
+    expect(cesium.terrainProvider).toBe("None");
+  });
+});

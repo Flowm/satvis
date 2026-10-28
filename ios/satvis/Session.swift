@@ -91,9 +91,8 @@ final class Session {
         return BookmarkModel()
     }()
 
-    /// What the map is drawn from now, to credit: with the terrain the sky view
-    /// always stands on, whatever the Map menu says.
-    var mapCredits: [Credit] { Credit.map(baseLayer: baseLayer, terrain: terrain || observer != nil) }
+    /// What the map is drawn from now, to credit.
+    var mapCredits: [Credit] { Credit.map(baseLayer: baseLayer, terrain: terrain) }
 
     /// The site's privacy policy, which covers the app.
     var privacyPolicy: URL { site.appending(path: "data/privacy.html") }
@@ -408,9 +407,9 @@ final class Session {
                 GroundStations.normalized([GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name)]).first.map(GroundStations.Place.init)
             }
             if let station = first.flatMap({ place in passes.stations.first { GroundStations.Place($0) == place } }) {
-                enterSky(at: station.id)
+                lookUp(at: station.id)
             } else if let here = await stationHere(), generation == linkGeneration {
-                enterSky(at: here)
+                lookUp(at: here)
             }
         } else if let name = scene.tracked, let entry = await catalog.entry(named: name), generation == linkGeneration {
             perform(focus.follow(.satellite(entry.id), selecting: false))
@@ -514,8 +513,21 @@ final class Session {
 
     // MARK: Sky view
 
-    /// Stands on a ground station and looks up (`Focus.enterSky`), if it is one.
+    /// A panel's way into the sky view, with the terrain on: the horizon is the
+    /// view's point. One turned off in the view stays off, and a link keeps its own
+    /// (`lookUp`).
     func enterSky(at id: UUID) {
+        guard passes.station(id) != nil else {
+            return
+        }
+        if observer == nil {
+            terrain = true
+        }
+        lookUp(at: id)
+    }
+
+    /// Stands on a ground station and looks up (`Focus.enterSky`), if it is one.
+    private func lookUp(at id: UUID) {
         guard passes.station(id) != nil else {
             return
         }

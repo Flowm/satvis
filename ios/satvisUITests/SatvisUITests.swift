@@ -228,7 +228,7 @@ nonisolated class SatvisUITests: XCTestCase {
     }
 
     // A location's row in the Sky panel stands there, marked, without the device's
-    // position, and Back to the globe leaves.
+    // position, on the terrain, which credits OpenStreetMap; Back to the globe leaves.
     @MainActor
     func testLooksUpFromALocation() {
         let app = launch(link: "/?gs=48.1372,11.5756,Munich")
@@ -238,6 +238,7 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(munich.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Back to the globe"].exists)
         munich.tap()
+        XCTAssert(app.buttons["© OpenStreetMap"].waitForExistence(timeout: 5))
         XCTAssert(app.buttons["Leave the sky view"].waitForExistence(timeout: 20))
         XCTAssert(munich.isSelected)
         XCTAssertFalse(app.buttons["My location"].isSelected)

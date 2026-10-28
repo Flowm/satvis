@@ -30,8 +30,8 @@ final class Surface {
     /// Seconds before a failed imagery or terrain tile is asked for again.
     private static let retryInterval: TimeInterval = 60
     private static let maximumScreenSpaceError = 2.0
-    /// Counts the terrain tiles that came in, for what is worked out from the
-    /// ground to know it is out of date.
+    /// Counts the terrain tiles that came in and the terrain turned on or off,
+    /// for what is worked out from the ground to know it is out of date.
     private(set) var terrainRevision = 0
     /// Counts the imagery and terrain tiles that came in or failed: a frame drawn
     /// before one may no longer be what the surface would draw.
@@ -178,7 +178,10 @@ final class Surface {
 
     /// Turns the terrain on or off. Loaded terrain is kept for turning it on again.
     func setTerrain(_ enabled: Bool) {
-        terrainEnabled = enabled
+        if enabled != terrainEnabled {
+            terrainEnabled = enabled
+            terrainRevision += 1
+        }
     }
 
     /// What to draw a tile with: laid over the terrain where that is on, else on the
@@ -327,8 +330,11 @@ final class Surface {
     }
 
     /// The ground's height at a place, metres above the ellipsoid, from the finest
-    /// terrain tile loaded there; nil before any has.
+    /// terrain tile loaded there; nil before any has. 0 with the terrain off.
     func groundHeight(latitude: Double, longitude: Double) -> Double? {
+        guard terrainEnabled else {
+            return 0
+        }
         // Rows and columns become integers below, which traps on a coordinate far
         // out of range: nothing past the poles, and longitudes wrapped.
         guard latitude.isFinite, longitude.isFinite, abs(latitude) <= 90 else {
