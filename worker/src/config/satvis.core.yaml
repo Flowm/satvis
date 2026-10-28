@@ -143,9 +143,7 @@ presets:
 # swath edge (starboard = velocity bearing + 90°). They are not half a swath width,
 # and the sides can differ.
 #
-# Order and grouping mirror the upstream prediction table they come from, so a
-# re-sync stays a readable diff. Only LEO imagers: geostationary platforms have no
-# moving swath.
+# Only LEO imagers: geostationary platforms have no moving swath.
 satellites:
   # MODIS (Terra/Aqua) — 2330 km nominal; footprints reach ~1170/side.
   - { noradId: 25994, name: TERRA, swathStarboardKm: 1175, swathPortKm: 1175 }
@@ -176,6 +174,9 @@ satellites:
   # AVHRR/3 (MetOp) — 2900 km total.
   - { noradId: 38771, name: METOP-B, swathStarboardKm: 1450, swathPortKm: 1450 }
   - { noradId: 43689, name: METOP-C, swathStarboardKm: 1450, swathPortKm: 1450 }
+
+  # METimage (MetOp-SG A) — 2670 km design swath, not yet checked against product footprints.
+  - { noradId: 65159, name: METOP-SGA1, swathStarboardKm: 1335, swathPortKm: 1335 }
 
   # MERSI (Fengyun-3) — 2900 km total.
   # Only satellites with a confirmed MERSI variant; 3A/3B/3C and 3G/3H are left out (ADR 0002).
