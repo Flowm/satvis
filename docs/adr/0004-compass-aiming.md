@@ -54,8 +54,8 @@ before it answers. That outcome is `taken-back`, the one outcome that shows the 
 nothing, because the user ended it.
 
 `CompassAiming.enable` reports which outcome happened (aiming,
-aiming-but-not-yet-calibrated, unsupported, denied, granted-but-silent, no-heading,
-or taken-back), not a boolean, because each needs different words: a laptop has no
+aiming-but-not-yet-calibrated, denied, granted-but-silent, no-heading, or
+taken-back), not a boolean, because each needs different words: a laptop has no
 sensor to grant, a declined permission can be asked again, a device with no
 magnetometer will not get one, and a person who took the aim by hand needs no
 message.

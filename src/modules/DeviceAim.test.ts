@@ -203,13 +203,12 @@ describe("hasHeadingSource", () => {
 
 describe("CompassAiming", () => {
   /** An orientation source the test fires, and a probe that ends when the test says. */
-  function setup({ supported = true, permission }: { supported?: boolean; permission?: () => Promise<string> } = {}) {
+  function setup({ permission }: { permission?: () => Promise<string> } = {}) {
     const listeners = new Set<(event: OrientationEvent) => void>();
     const looks: Partial<Aim>[] = [];
     let endProbe = () => {};
     const aiming = new CompassAiming({
       events: {
-        supported,
         ...(permission && { requestPermission: permission }),
         listen: (listener) => (listeners.add(listener), () => listeners.delete(listener)),
         screenAngle: () => 0,
@@ -241,10 +240,6 @@ describe("CompassAiming", () => {
     const { probe, fire } = setup();
     // Pointed near the zenith, where the compass heading swings.
     expect(await probe(() => fire({ beta: 90, webkitCompassHeading: 100 }))).toBe("aiming-uncalibrated");
-  });
-
-  test("says so where the browser has no orientation events", async () => {
-    expect(await setup({ supported: false }).probe()).toBe("unsupported");
   });
 
   test("is denied when the permission is refused, or asked for outside a gesture", async () => {
