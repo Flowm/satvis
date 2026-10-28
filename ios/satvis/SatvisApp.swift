@@ -68,6 +68,9 @@ struct ContentView: View {
     @State private var pickingFromLocations: Selection??
     /// The panel open beside the menu column, if any.
     @State private var panel: ToolPanel?
+    /// Whether the last tap on the globe closed the menu, for its selection to
+    /// keep once no double tap can follow.
+    @State private var tapClosedMenu = false
     /// Where the menu column and the top corner's buttons are, in the window.
     @State private var menuFrame: CGRect?
     @State private var cornerFrame: CGRect?
@@ -86,20 +89,25 @@ struct ContentView: View {
     var body: some View {
         GlobeView(
             onRenderer: session.attach,
-            onTap: { point, size in
+            onEveryTap: {
                 // As the web app's: a tap on the globe puts the menu back as it
-                // starts, no panel and on a phone a folded column, and still selects
-                // what it hits; a miss that closed the menu keeps the selection.
-                // Picking leaves the menu alone.
+                // starts, no panel and on a phone a folded column. It does so as the
+                // finger lifts, as the web's first click of a double click does, not
+                // 350 ms later once `onTap` knows no double tap follows. Picking
+                // leaves the menu alone.
                 let foldsColumn = sizeClass != .regular && showsTools
-                let closesMenu = !session.isPicking && (panel != nil || foldsColumn)
-                if closesMenu {
+                tapClosedMenu = !session.isPicking && (panel != nil || foldsColumn)
+                if tapClosedMenu {
                     panel = nil
                     if foldsColumn {
                         showsTools = false
                     }
                 }
-                session.tap(at: point, viewSize: size, keepingSelection: closesMenu)
+            },
+            onTap: { point, size in
+                // It still selects what it hits; a miss that closed the menu keeps
+                // the selection.
+                session.tap(at: point, viewSize: size, keepingSelection: tapClosedMenu)
             },
             onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) },
             mayDrag: session.aim.mayDrag(_:fingers:),
