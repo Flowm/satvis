@@ -83,9 +83,9 @@ describe("useSatelliteBrowser search-only groups", () => {
   test("a search finds its satellites, labelled by the groups the user can pick", async () => {
     const { browser } = setup();
     browser.setSearchQuery("-1");
-    expect(browser.searchLoading.value).toBe(true);
+    expect(browser.loadingAll.value).toBe(true);
     await vi.advanceTimersByTimeAsync(200);
-    expect(browser.searchLoading.value).toBe(false);
+    expect(browser.loadingAll.value).toBe(false);
 
     const sats = browser.rows.value.filter((row) => row.kind === "sat");
     expect(sats.map((row) => row.name)).toEqual(["METEO-1", "SENTINEL-1"]);

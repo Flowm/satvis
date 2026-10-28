@@ -27,7 +27,7 @@
       </div>
     </div>
     <!-- A search loads every group, and the biggest takes seconds. -->
-    <div v-else-if="searchLoading" class="browser-empty">Loading all satellites…</div>
+    <div v-else-if="loadingAll" class="browser-empty">Loading all satellites…</div>
     <div v-else class="browser-empty">No matches</div>
 
     <div class="browser-summary">
@@ -51,7 +51,7 @@ const { sats } = useController();
 
 const {
   searchQuery,
-  searchLoading,
+  loadingAll,
   setSearchQuery,
   clearSearch,
   rows,
