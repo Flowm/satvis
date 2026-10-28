@@ -68,14 +68,12 @@ interface RegisteredGroup {
   load: Promise<void> | undefined;
 }
 
-export type CatalogChangeCallback = (entries: CatalogEntry[]) => void;
+export type CatalogChangeCallback = () => void;
 
 export class SatelliteCatalog {
   #byKey = new Map<string, CatalogEntry>();
 
   #byName = new Map<string, CatalogEntry>();
-
-  #bySatnum = new Map<string, CatalogEntry[]>();
 
   #byTag = new Map<string, Set<CatalogEntry>>();
 
@@ -85,11 +83,8 @@ export class SatelliteCatalog {
     this.#changeCallbacks.push(cb);
   }
 
-  #notifyChange(entries: CatalogEntry[]): void {
-    if (entries.length === 0) {
-      return;
-    }
-    this.#changeCallbacks.forEach((cb) => cb(entries));
+  #notifyChange(): void {
+    this.#changeCallbacks.forEach((cb) => cb());
   }
 
   #registry = new Map<string, RegisteredGroup>();
@@ -160,7 +155,9 @@ export class SatelliteCatalog {
       const records = parseGpPayload(text);
       const changed = this.addRecords(records, group.tags);
       group.loaded = true;
-      this.#notifyChange(changed);
+      if (changed.length > 0) {
+        this.#notifyChange();
+      }
     } catch (error) {
       console.log(error);
       group.load = undefined;
@@ -197,9 +194,6 @@ export class SatelliteCatalog {
       if (!this.#byName.has(name)) {
         this.#byName.set(name, entry);
       }
-      const satnumEntries = this.#bySatnum.get(satnum) ?? [];
-      satnumEntries.push(entry);
-      this.#bySatnum.set(satnum, satnumEntries);
       this.#indexTags(entry);
       changed.push(entry);
     }
@@ -211,12 +205,6 @@ export class SatelliteCatalog {
     const orphanedNames = new Set<string>();
     for (const entry of entries) {
       this.#byKey.delete(entry.key);
-      const sameSatnum = (this.#bySatnum.get(entry.satnum) ?? []).filter((e) => e !== entry);
-      if (sameSatnum.length > 0) {
-        this.#bySatnum.set(entry.satnum, sameSatnum);
-      } else {
-        this.#bySatnum.delete(entry.satnum);
-      }
       for (const tag of entry.tags) {
         const tagged = this.#byTag.get(tag);
         tagged?.delete(entry);
@@ -275,10 +263,6 @@ export class SatelliteCatalog {
 
   getByName(name: string): CatalogEntry | undefined {
     return this.#byName.get(name);
-  }
-
-  get size(): number {
-    return this.#byKey.size;
   }
 
   get entries(): CatalogEntry[] {

@@ -118,7 +118,7 @@ describe("SatelliteManager", () => {
     sats.setCustomRecords([]);
     await sats.buildSettled();
     expect(sats.activeSatellites).toEqual([]);
-    expect(sats.catalog.size).toBe(0);
+    expect(sats.catalog.entries).toHaveLength(0);
   });
 
   test("keeps a custom satellite apart from a group serving its name and NORAD id later", async () => {
