@@ -186,10 +186,8 @@
         </label>
         <!-- Ladders rather than switches; see src/config/rendering.ts. -->
         <div class="toolbarTitle">Pixel ratio</div>
-        <label v-for="ratio in pixelRatioOptions" :key="ratio" class="toolbarSwitch">
-          <input v-model="pixelRatio" type="radio" :value="ratio" />
-          {{ ratio === "native" ? `${devicePixelRatio.toFixed(1)}x (Native)` : `${Number(ratio).toFixed(1)}x` }}
-        </label>
+        <segmented-control v-model="pixelRatio" label="Pixel ratio" :options="PIXEL_RATIO_OPTIONS" />
+        <div class="toolbarNote">Native is this screen's {{ nativeRatio }}x. Fewer pixels draw faster.</div>
         <div class="toolbarTitle">Antialiasing (MSAA)</div>
         <segmented-control v-model="msaa" label="Antialiasing (MSAA)" :options="MSAA_OPTIONS" />
       </toolbar-panel>
@@ -309,8 +307,8 @@ void availableStarMaps().then((names) => {
   starMapOptions.value = names;
 });
 
-const devicePixelRatio = window.devicePixelRatio;
-const pixelRatioOptions = pixelRatiosFor(devicePixelRatio);
+const nativeRatio = Number(window.devicePixelRatio.toFixed(2));
+const PIXEL_RATIO_OPTIONS = pixelRatiosFor(window.devicePixelRatio).map((ratio) => ({ value: ratio, label: ratio === "native" ? "Native" : `${ratio}x` }));
 
 /** The same function the globe reads, so the menu and the globe cannot disagree. */
 const effects = computed(() => surfaceEffects(surfaceModel.value, sceneMode.value));

@@ -669,11 +669,13 @@ struct GraphicsPanel: View {
         // The web app's ladder (src/config/rendering.ts): the fixed rungs below
         // the screen's own ratio, then the screen's, so it only offers savings.
         PanelSection("Pixel ratio") {
-            Choices(
+            Segments(
+                title: "Pixel ratio",
                 selection: $session.pixelRatio,
                 options: LinkCodec.pixelRatios.filter { $0 == "native" || (Double($0) ?? 0) < displayScale }.map { ratio in
-                    (ratio == "native" ? String(format: "%.1fx (Native)", displayScale) : String(format: "%.1fx", Double(ratio) ?? 0), ratio)
+                    (ratio == "native" ? "Native" : "\(ratio)x", ratio)
                 })
+            Note("Native is this screen's \(Double(displayScale).formatted(.number.precision(.fractionLength(0...2))))x. Fewer pixels draw faster.")
         }
         // Only the rates the screen can show; a rate kept from a faster screen, as a
         // restored backup brings, reads as the fastest here.
