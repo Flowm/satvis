@@ -153,6 +153,13 @@
         <div class="toolbarNote">In Earth's shadow, too far away or during daylight.</div>
       </toolbar-panel>
       <toolbar-panel v-show="openMenu === 'render'" title="Graphics" @close="closePanel('render')">
+        <!-- First, so a phone shows it without scrolling. -->
+        <div class="toolbarTitle">Interface</div>
+        <button ref="hideUIButton" type="button" class="toolbarPlace" @click="hideUI">
+          <UIcon name="lucide:eye-off" class="toolbarPlace__icon" />
+          <span class="toolbarPlace__label">Hide UI</span>
+        </button>
+        <div class="toolbarNote">For a clear view of the globe. Show UI, top right, brings it back.</div>
         <div class="toolbarTitle">Measurement</div>
         <label class="toolbarSwitch">
           <input v-model="showFps" type="checkbox" />
@@ -196,14 +203,14 @@
         <div class="toolbarNote">Draws a frame only when something moves. Turn it off to measure frame times.</div>
       </toolbar-panel>
     </div>
-    <!-- The native app's corner, in its order: the eye first, so it stays put as the others come and go. -->
+    <!-- The native app's corner, in its order. -->
     <div id="toolbarRight">
-      <UTooltip :text="uiLabel">
-        <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="uiLabel" @click="toggleUI">
-          <UIcon :name="showUI ? 'lucide:eye' : 'lucide:eye-off'" />
+      <UTooltip v-if="!showUI" text="Show UI">
+        <button ref="showUIButton" type="button" class="cesium-button cesium-toolbar-button" aria-label="Show UI" @click="restoreUI">
+          <UIcon name="lucide:eye" />
         </button>
       </UTooltip>
-      <template v-if="showUI">
+      <template v-else>
         <UTooltip :text="homeLabel">
           <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="homeLabel" @click="goHome">
             <UIcon name="lucide:globe" />
@@ -284,6 +291,8 @@ const showUI = ref(true);
 const menuColumn = ref<HTMLElement>();
 const menuToggle = ref<HTMLButtonElement>();
 const entryButtons: Partial<Record<MenuKey, HTMLButtonElement | null>> = {};
+const hideUIButton = ref<HTMLButtonElement>();
+const showUIButton = ref<HTMLButtonElement>();
 
 /** A known phone width, below which the column stacks over the info panel. A hidden tab can report 0. */
 const isNarrow = (): boolean => window.innerWidth > 0 && window.innerWidth < PHONE_WIDTH;
@@ -299,7 +308,7 @@ const menuItems: { key: MenuKey; label: string; icon: string; hint: string }[] =
   { key: "gs", label: "Locations", icon: "lucide:map-pin", hint: "Ground stations, for pass predictions and the sky view" },
   { key: "globe", label: "Globe", icon: "lucide:globe", hint: "Globe, flat map or Columbus view, and the camera" },
   { key: "sky", label: "Sky", icon: "lucide:telescope", hint: "Look up from a ground station and see what passes over" },
-  { key: "render", label: "Graphics", icon: "lucide:gauge", hint: "Quality, effects and performance" },
+  { key: "render", label: "Graphics", icon: "lucide:gauge", hint: "Hiding the UI, quality, effects and performance" },
 ];
 
 const cesiumStore = useCesiumStore();
@@ -419,7 +428,6 @@ async function onCompassToggle(event: Event): Promise<void> {
 }
 
 /** The corner's names, the native app's, for its tooltips and screen readers alike. */
-const uiLabel = computed(() => (showUI.value ? "Hide UI" : "Show UI"));
 const homeLabel = computed(() => (inSkyView.value ? "Leave the sky view" : "Home view"));
 const compassLabel = computed(() => (compassActive.value ? "Stop aiming by compass" : "Aim by compass"));
 
@@ -596,7 +604,9 @@ function onEscape(event: KeyboardEvent) {
   ) {
     return;
   }
-  if (openMenu.value) {
+  if (!showUI.value) {
+    restoreUI();
+  } else if (openMenu.value) {
     closePanel(openMenu.value);
   } else if (catalogOpen.value) {
     catalogSheet.value?.escape();
@@ -618,9 +628,37 @@ function closePanel(key: MenuKey) {
   }
 }
 
-function toggleUI() {
-  showUI.value = !showUI.value;
-  // cc owns the Cesium fullscreen button, which showUI also hides.
-  cc.showUI = showUI.value;
+/**
+ * Closes the menu with the rest of the UI, so Show UI brings back none of it open.
+ * Keyboard focus moves to Show UI; only `:focus-visible`, as a click focuses the button
+ * too, and the moved focus would open the tooltip.
+ */
+async function hideUI() {
+  const focusVisible = !!hideUIButton.value?.matches(":focus-visible");
+  closeMenus();
+  if (isNarrow()) {
+    menuExpanded.value = false;
+  }
+  setUIShown(false);
+  if (focusVisible) {
+    await nextTick();
+    showUIButton.value?.focus();
+  }
+}
+
+/** Shows the UI again; keyboard focus moves to the Menu button, as Show UI hides. */
+async function restoreUI() {
+  const focusVisible = !!showUIButton.value?.matches(":focus-visible");
+  setUIShown(true);
+  if (focusVisible) {
+    await nextTick();
+    menuToggle.value?.focus();
+  }
+}
+
+/** cc owns the Cesium fullscreen button, which `showUI` also hides. */
+function setUIShown(shown: boolean) {
+  showUI.value = shown;
+  cc.showUI = shown;
 }
 </script>

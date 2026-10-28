@@ -641,15 +641,23 @@ struct Note: View {
     }
 }
 
-/// How the globe is drawn and what that costs: the web app's Graphics panel, less
-/// the scene effects and MSAA, which the app does not switch, and Render only on
-/// change, which it always does but while the FPS overlay or the benchmark
-/// measures (`GlobeRenderer.mustDraw`).
+/// How the globe is drawn and what that costs, and hiding the UI: the web app's
+/// Graphics panel, less the scene effects and MSAA, which the app does not switch,
+/// and Render only on change, which it always does but while the FPS overlay or the
+/// benchmark measures (`GlobeRenderer.mustDraw`).
 struct GraphicsPanel: View {
     @Bindable var session: Session
+    let hideUI: () -> Void
     @Environment(\.displayScale) private var displayScale
 
     var body: some View {
+        // First, so a phone shows it without scrolling.
+        PanelSection("Interface") {
+            PanelCard {
+                Place(Text("Hide UI"), image: .lucideEyeOff, action: hideUI)
+            }
+            Note("For a clear view of the globe. Show UI, top right, brings it back.")
+        }
         PanelSection("Measurement") {
             PanelCard {
                 Toggle(

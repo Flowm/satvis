@@ -56,8 +56,7 @@ struct ContentView: View {
     @State private var showsAcknowledgements = false
     @State private var showsAbout = false
     @State private var showsTools = false
-    /// The corner's eye, as the web app's Hide UI: off, the menu column, its panel,
-    /// the clock deck and the corner's other buttons hide, for a picture of the globe.
+    /// The Graphics panel's Hide UI, as the web app's (`hideUI`).
     @State private var showsUI = true
     /// What was selected when a sheet folded the column on a phone, to unfold it
     /// again when the sheet closes; nil while no sheet folded it.
@@ -86,15 +85,23 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
+    /// Hides the menu column, its panel, the clock deck and the corner's buttons, for
+    /// a picture of the globe. The menu closes first, so Show UI brings none of it back
+    /// open, as on the web.
+    private func hideUI() {
+        panel = nil
+        if sizeClass != .regular {
+            showsTools = false
+        }
+        showsUI = false
+    }
+
     var body: some View {
         GlobeView(
             onRenderer: session.attach,
             onEveryTap: {
-                // As the web app's: a tap on the globe puts the menu back as it
-                // starts, no panel and on a phone a folded column. It does so as the
-                // finger lifts, as the web's first click of a double click does, not
-                // 350 ms later once `onTap` knows no double tap follows. Picking
-                // leaves the menu alone.
+                // As the web app's: no panel and on a phone a folded column. As the
+                // finger lifts, not 350 ms later once `onTap` rules out a double tap.
                 let foldsColumn = sizeClass != .regular && showsTools
                 tapClosedMenu = !session.isPicking && (panel != nil || foldsColumn)
                 if tapClosedMenu {
@@ -105,8 +112,6 @@ struct ContentView: View {
                 }
             },
             onTap: { point, size in
-                // It still selects what it hits; a miss that closed the menu keeps
-                // the selection.
                 session.tap(at: point, viewSize: size, keepingSelection: tapClosedMenu)
             },
             onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) },
@@ -144,10 +149,11 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            // The web app's order: the eye first, so it stays put as the others come and go.
+            // The web app's buttons, in its order.
             VStack(spacing: PanelMetrics.gap) {
-                Button(showsUI ? "Hide UI" : "Show UI", systemImage: showsUI ? "eye" : "eye.slash") { showsUI.toggle() }
-                if showsUI {
+                if !showsUI {
+                    Button("Show UI", systemImage: "eye") { showsUI = true }
+                } else {
                     Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
                     if session.observer != nil {
                         Button(
@@ -238,7 +244,7 @@ struct ContentView: View {
                         entry(.locations, image: .lucideMapPin, hint: "Ground stations, for pass predictions and the sky view")
                         entry(.globe, image: .lucideGlobe, hint: "The globe's projection, and the camera")
                         entry(.sky, image: .lucideTelescope, hint: "Look up from a ground station and see what passes over")
-                        entry(.graphics, image: .lucideGauge, hint: "Quality and performance")
+                        entry(.graphics, image: .lucideGauge, hint: "Hiding the UI, quality and performance")
                         // The web app's About button, kept off the corner, which holds
                         // the ways back alone.
                         ToolEntry(title: "About", image: .lucideInfo, hint: "What Satvis is, what it does, where its data comes from, and its credits") {
@@ -263,7 +269,7 @@ struct ContentView: View {
                                 }
                             case .globe: GlobePanel(session: session)
                             case .sky: SkyPanel(session: session)
-                            case .graphics: GraphicsPanel(session: session)
+                            case .graphics: GraphicsPanel(session: session, hideUI: hideUI)
                             }
                         }
                         .id(panel)

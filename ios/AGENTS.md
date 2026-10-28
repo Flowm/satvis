@@ -157,10 +157,11 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   screen and a card's Share its bookmark. The link is made when tapped, so a
   pinned clock gives its minute then, and handed to the system's share sheet as
   itself, which shows the site's own preview. The top-right corner is the web
-  app's `#toolbarRight`, with the same buttons and labels: Hide UI (the eye,
-  always, and alone while the UI is hidden), Home view or, in the sky view, Leave
-  the sky view, then Aim by compass and the camera in the sky view, or Stop
-  tracking while something is followed. The web offers the compass only where
+  app's `#toolbarRight`, with the same buttons and labels: Home view or, in the
+  sky view, Leave the sky view, then Aim by compass and the camera in the sky
+  view, or Stop tracking while something is followed. Hide UI is the Graphics
+  panel's first row, as on the web; while the UI is hidden the corner holds Show
+  UI alone. The web offers the compass only where
   the browser has device orientation; the camera is the app's alone (ADR 0013).
   On an iPad, as on the web, the column hides under the info card, which has its
   own Track and Close; an iPhone's info sheet leaves it in place.

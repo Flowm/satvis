@@ -22,13 +22,13 @@ for (const [device, options] of Object.entries(DEVICES)) {
   test.describe(device, () => {
     test.use(options);
 
-    test("the corner stops tracking, flies home and hides the UI", async ({ page }) => {
+    test("the corner stops tracking, flies home and shows the UI the menu hid", async ({ page }) => {
       await openApp(page, `tags=&sats=${encodeURIComponent(ISS)}&elements=Point,Label&track=${encodeURIComponent(ISS)}`);
-      await expect.poll(() => corner(page)).toEqual(["Hide UI", "Home view", "Stop tracking"]);
+      await expect.poll(() => corner(page)).toEqual(["Home view", "Stop tracking"]);
 
       await page.getByRole("button", { name: "Stop tracking" }).click();
       await expect.poll(() => page.evaluate(() => window.cc!.viewer.trackedEntity === undefined)).toBe(true);
-      await expect.poll(() => corner(page)).toEqual(["Hide UI", "Home view"]);
+      await expect.poll(() => corner(page)).toEqual(["Home view"]);
       await expect.poll(() => new URL(page.url()).searchParams.get("track")).toBeNull();
       // Back to the view tracking began from, the default one over 15° E 25° N.
       await expect.poll(() => cameraAt(page), { timeout: 10_000 }).toEqual([15, 25]);
@@ -40,17 +40,21 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await page.getByRole("button", { name: "Home view" }).click();
       await expect.poll(() => cameraAt(page), { timeout: 10_000 }).toEqual([15, 25]);
 
-      await page.getByRole("button", { name: "Hide UI" }).click();
+      // The Graphics panel's first row; the corner holds Show UI alone until it is pressed,
+      // and the panel comes back closed.
+      await openMenu(page, "Graphics");
+      await page.getByRole("region", { name: "Graphics" }).getByRole("button", { name: "Hide UI" }).click();
       await expect.poll(() => corner(page)).toEqual(["Show UI"]);
       await expect(page.locator("#toolbarLeft")).toBeHidden();
       await page.getByRole("button", { name: "Show UI" }).click();
-      await expect.poll(() => corner(page)).toEqual(["Hide UI", "Home view"]);
+      await expect.poll(() => corner(page)).toEqual(["Home view"]);
       await expect(page.locator("#toolbarLeft")).toBeVisible();
+      await expect(page.getByRole("region", { name: "Graphics" })).toBeHidden();
     });
 
     test("the column hides under the info panel, whose own buttons stay reachable", async ({ page }) => {
       await openApp(page, `tags=&sats=${encodeURIComponent(ISS)}&elements=Point,Label&track=${encodeURIComponent(ISS)}`);
-      await expect.poll(() => corner(page)).toEqual(["Hide UI", "Home view", "Stop tracking"]);
+      await expect.poll(() => corner(page)).toEqual(["Home view", "Stop tracking"]);
       await selectSatellite(page, ISS);
       const panel = page.locator(".entity-info-panel");
       await expect(panel).toBeVisible();
@@ -68,11 +72,11 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await openApp(page, "scene=Sky&gs=48.1400,11.5800");
       await waitForSky(page);
       // Chromium has DeviceOrientationEvent, and localhost is a secure context.
-      await expect.poll(() => corner(page)).toEqual(["Hide UI", "Leave the sky view", "Aim by compass"]);
+      await expect.poll(() => corner(page)).toEqual(["Leave the sky view", "Aim by compass"]);
 
       await page.getByRole("button", { name: "Leave the sky view" }).click();
       await expect.poll(() => page.evaluate(() => window.cc!.skyView.active)).toBe(false);
-      await expect.poll(() => corner(page)).toEqual(["Hide UI", "Home view"]);
+      await expect.poll(() => corner(page)).toEqual(["Home view"]);
     });
 
     test("a menu panel stops short of the corner, which stays in reach", async ({ page }) => {
@@ -99,5 +103,28 @@ test.describe("phone", () => {
     await expect(page.locator("#toolbarRight")).toBeHidden();
     await closeMenuPanel(page, "Satellites");
     await expect(page.locator("#toolbarRight")).toBeVisible();
+  });
+});
+
+test.describe("desktop", () => {
+  test.use(DEVICES.desktop);
+
+  test("focus moves from Hide UI to Show UI, and on to the Menu button", async ({ page }) => {
+    await openApp(page, "tags=", { satellites: false });
+    await openMenu(page, "Graphics");
+    await page.getByRole("region", { name: "Graphics" }).getByRole("button", { name: "Hide UI" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("button", { name: "Show UI" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".menuColumn__toggle")).toBeFocused();
+  });
+
+  test("Escape shows the hidden UI", async ({ page }) => {
+    await openApp(page, "tags=", { satellites: false });
+    await openMenu(page, "Graphics");
+    await page.getByRole("region", { name: "Graphics" }).getByRole("button", { name: "Hide UI" }).click();
+    await expect(page.locator("#toolbarLeft")).toBeHidden();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#toolbarLeft")).toBeVisible();
   });
 });
