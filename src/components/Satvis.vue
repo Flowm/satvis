@@ -162,11 +162,6 @@
           <input v-model="showBenchmark" type="checkbox" />
           Benchmark
         </label>
-        <!-- Under Measurement: with render-on-demand on, frame gaps measure idleness, not scene cost. -->
-        <label class="toolbarSwitch">
-          <input v-model="requestRenderMode" type="checkbox" />
-          RequestRender
-        </label>
         <div class="toolbarTitle">Scene effects</div>
         <label class="toolbarSwitch">
           <input v-model="cc.viewer.scene.fog.enabled" type="checkbox" />
@@ -193,6 +188,12 @@
         <div class="toolbarTitle">Frame rate</div>
         <segmented-control v-model="frameRate" label="Frame rate" :options="FRAME_RATE_OPTIONS" />
         <div class="toolbarNote">At most this many frames a second. Fewer save battery.</div>
+        <label class="toolbarSwitch">
+          <input v-model="requestRenderMode" type="checkbox" />
+          Render only on change
+        </label>
+        <!-- With it on, the FPS figure measures idleness, not what a frame costs. -->
+        <div class="toolbarNote">Draws a frame only when something moves. Turn it off to measure frame times.</div>
       </toolbar-panel>
     </div>
     <!-- The native app's corner, in its order: the eye first, so it stays put as the others come and go. -->

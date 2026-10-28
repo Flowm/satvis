@@ -642,7 +642,9 @@ struct Note: View {
 }
 
 /// How the globe is drawn and what that costs: the web app's Graphics panel, less
-/// the scene effects and MSAA, which the app does not switch.
+/// the scene effects and MSAA, which the app does not switch, and Render only on
+/// change, which it always does but while the FPS overlay or the benchmark
+/// measures (`GlobeRenderer.mustDraw`).
 struct GraphicsPanel: View {
     @Bindable var session: Session
     @Environment(\.displayScale) private var displayScale
