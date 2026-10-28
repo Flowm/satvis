@@ -2,7 +2,7 @@
 
 import type { Page } from "@playwright/test";
 
-import { hitTest, openApp, selectSatellite, waitForSky } from "../support/app";
+import { hitTest, openApp, selectSatellite, steady, waitForSky } from "../support/app";
 import { expect, test } from "../support/test";
 import { closeMenuPanel, DEVICES, openMenu } from "../support/ui";
 
@@ -33,6 +33,8 @@ for (const [device, options] of Object.entries(DEVICES)) {
       // Back to the view tracking began from, the default one over 15° E 25° N.
       await expect.poll(() => cameraAt(page), { timeout: 10_000 }).toEqual([15, 25]);
 
+      // Rounded, the eased flight reads 15° E 25° N before it lands, and would undo the turn.
+      await steady(page, () => page.evaluate(() => window.cc!.viewer.camera.positionWC.toString()));
       await page.evaluate(() => window.cc!.viewer.camera.rotateLeft(1));
       expect(await cameraAt(page)).not.toEqual([15, 25]);
       await page.getByRole("button", { name: "Home view" }).click();
