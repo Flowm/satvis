@@ -7,10 +7,10 @@
 User-agent: *
 Allow: /
 
-# /test and /embedded are deliberately not disallowed. Both carry `X-Robots-Tag:
-# noindex` (public/_headers), and a Disallow would stop a crawler ever fetching the
-# header that says so: a url blocked from crawling can still be indexed from the
-# links pointing at it, with nothing to show but the url. Noindex needs the crawl.
+# /embedded is deliberately not disallowed. It carries `X-Robots-Tag: noindex`
+# (public/_headers), and a Disallow would stop a crawler ever fetching the header
+# that says so: a url blocked from crawling can still be indexed from the links
+# pointing at it, with nothing to show but the url. Noindex needs the crawl.
 #
 # Nothing else is disallowed either. /api/* costs a Worker invocation per request,
 # but no page links to a gp payload, so nothing walks into one; and /data/ and
