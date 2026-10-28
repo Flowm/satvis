@@ -46,27 +46,27 @@
         </nav>
       </div>
       <!-- v-if: the cards' pictures load only when it opens. -->
-      <toolbar-panel v-if="menu.bookmarks" title="Bookmarks" wide @close="closePanel('bookmarks')">
+      <toolbar-panel v-if="openMenu === 'bookmarks'" title="Bookmarks" wide @close="closePanel('bookmarks')">
         <bookmark-panel @opened="onBookmarkOpened" />
       </toolbar-panel>
       <!-- v-if, not v-show: the virtualized list measures its scroll element on mount,
            and a hidden mount measures 0. Search and expansion state survive remounts in useSatelliteBrowser. -->
-      <toolbar-panel v-if="menu.cat" title="Satellites" wide @close="closePanel('cat')">
+      <toolbar-panel v-if="openMenu === 'cat'" title="Satellites" wide @close="closePanel('cat')">
         <satellite-browser @show-info="onShowInfo" @browse="openCatalog" />
       </toolbar-panel>
       <!-- The full catalog grows out of the Satellites panel and takes its place; inside #toolbarLeft so it stacks over the clock. -->
       <catalog-sheet v-if="catalogOpen" ref="catalogSheet" @back="closeCatalog(true)" @close="closeCatalog(false)" @expand="closeMenus" @show-info="onShowInfo" />
       <!-- "Components", not "elements": an element set is the GP data. -->
-      <toolbar-panel v-show="menu.sat" title="Components" @close="closePanel('sat')">
+      <toolbar-panel v-show="openMenu === 'sat'" title="Components" @close="closePanel('sat')">
         <label v-for="componentName in SATELLITE_COMPONENTS" :key="componentName" class="toolbarSwitch">
           <input v-model="enabledComponents" type="checkbox" :value="componentName" />
           {{ componentName }}
         </label>
       </toolbar-panel>
-      <toolbar-panel v-show="menu.gs" title="Locations" class="toolbarPanel--locations" @close="closePanel('gs')">
+      <toolbar-panel v-show="openMenu === 'gs'" title="Locations" class="toolbarPanel--locations" @close="closePanel('gs')">
         <ground-station-list />
       </toolbar-panel>
-      <toolbar-panel v-show="menu.map" title="Map" @close="closePanel('map')">
+      <toolbar-panel v-show="openMenu === 'map'" title="Map" @close="closePanel('map')">
         <!-- Both groups bind by provider, not token, so a url layer with an opacity
              (`ArcGis_0.5`) still matches. An inert group is dimmed but stays live. -->
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('layers') }">Basemap</div>
@@ -102,7 +102,7 @@
         </label>
       </toolbar-panel>
       <!-- Two panels, one `scene` parameter (docs/adr/0003-sky-view.md): each view's settings stay visible, disabled where the other view is up. -->
-      <toolbar-panel v-show="menu.globe" title="Globe" @close="closePanel('globe')">
+      <toolbar-panel v-show="openMenu === 'globe'" title="Globe" @close="closePanel('globe')">
         <div class="toolbarTitle">Projection</div>
         <!-- No projection is checked in the sky view, as a checked one read as the active view;
              the Sky panel enters it, and a projection leaves it. -->
@@ -112,7 +112,7 @@
         <segmented-control v-model="cameraMode" label="Camera" :options="CAMERA_OPTIONS" :disabled="inSkyView" />
         <div v-if="inSkyView" class="toolbarNote">The sky view holds the camera.</div>
       </toolbar-panel>
-      <toolbar-panel v-show="menu.sky" title="Sky" @close="closePanel('sky')">
+      <toolbar-panel v-show="openMenu === 'sky'" title="Sky" @close="closePanel('sky')">
         <!-- Each row enters the sky view standing there, or moves a view already up (docs/adr/0003-sky-view.md).
              Every row waits for a fix in flight, which would otherwise move the view after a later tap. -->
         <div class="toolbarTitle">Look up from</div>
@@ -152,7 +152,7 @@
         <segmented-control v-model="unseen" label="Out of sight" :options="UNSEEN_OPTIONS" :disabled="!inSkyView" />
         <div class="toolbarNote">In Earth's shadow, too far away or during daylight.</div>
       </toolbar-panel>
-      <toolbar-panel v-show="menu.render" title="Graphics" @close="closePanel('render')">
+      <toolbar-panel v-show="openMenu === 'render'" title="Graphics" @close="closePanel('render')">
         <div class="toolbarTitle">Measurement</div>
         <label class="toolbarSwitch">
           <input v-model="showFps" type="checkbox" />
@@ -237,7 +237,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import { useController } from "../composables/useController";
 import { useGeolocation } from "../composables/useGeolocation";
@@ -274,17 +274,9 @@ const BenchmarkPanel = defineAsyncComponent(() => import("./BenchmarkPanel.vue")
 
 const cc = useController();
 
-const menu = reactive<Record<MenuKey, boolean>>({
-  bookmarks: false,
-  cat: false,
-  sat: false,
-  gs: false,
-  map: false,
-  globe: false,
-  sky: false,
-  render: false,
-});
-const anyMenuOpen = computed(() => Object.values(menu).some(Boolean));
+/** The one panel open, if any. */
+const openMenu = ref<MenuKey>();
+const anyMenuOpen = computed(() => openMenu.value !== undefined);
 const showUI = ref(true);
 
 const menuColumn = ref<HTMLElement>();
@@ -406,8 +398,8 @@ function leaveSkyView(): void {
 /** The Sky panel's switch and the corner's button. Once aiming, the panel closes so it does not cover the sky. */
 async function toggleCompassAim(): Promise<void> {
   await toggleCompass();
-  if (compassActive.value) {
-    menu.sky = false;
+  if (compassActive.value && openMenu.value === "sky") {
+    openMenu.value = undefined;
   }
 }
 
@@ -508,18 +500,14 @@ function onPointerCancel(): void {
 
 /** A panel opens over the catalog sheet, which stays open; the Satellites entry takes the sheet back to the panel it grew from. */
 function toggleMenu(name: MenuKey) {
-  const oldState = menu[name];
-  closeMenus();
   if (name === "cat") {
     catalogOpen.value = false;
   }
-  menu[name] = !oldState;
+  openMenu.value = openMenu.value === name ? undefined : name;
 }
 
 function closeMenus() {
-  (Object.keys(menu) as MenuKey[]).forEach((k) => {
-    menu[k] = false;
-  });
+  openMenu.value = undefined;
 }
 
 const { selection } = useSelectedEntity(cc);
@@ -564,7 +552,7 @@ function onShowInfo(): void {
 /** The catalog sheet, opened from the Satellites panel, which it replaces while open. */
 const catalogOpen = ref(false);
 /** A menu entry's panel is open; the Satellites entry's too while the sheet grown from it is. */
-const entryOpen = (key: MenuKey) => menu[key] || (key === "cat" && catalogOpen.value);
+const entryOpen = (key: MenuKey) => openMenu.value === key || (key === "cat" && catalogOpen.value);
 const catalogSheet = ref<InstanceType<typeof CatalogSheet> | null>(null);
 
 /** On a phone the column would cover the sheet's header, so it folds. */
@@ -580,7 +568,7 @@ function openCatalog(): void {
 function closeCatalog(back: boolean): void {
   catalogOpen.value = false;
   if (back) {
-    menu.cat = true;
+    openMenu.value = "cat";
   }
 }
 
@@ -602,9 +590,8 @@ function onEscape(event: KeyboardEvent) {
   ) {
     return;
   }
-  const open = (Object.keys(menu) as MenuKey[]).find((k) => menu[k]);
-  if (open) {
-    closePanel(open);
+  if (openMenu.value) {
+    closePanel(openMenu.value);
   } else if (catalogOpen.value) {
     catalogSheet.value?.escape();
   } else {
@@ -619,7 +606,7 @@ function onEscape(event: KeyboardEvent) {
 /** Focus inside the closing panel moves to its entry, so keyboard users keep their place. */
 function closePanel(key: MenuKey) {
   const focusInPanel = !!document.activeElement?.closest(".toolbarPanel");
-  menu[key] = false;
+  openMenu.value = undefined;
   if (focusInPanel) {
     entryButtons[key]?.focus();
   }

@@ -132,6 +132,13 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await expect(sheet).toBeHidden();
       await expect(page.getByRole("region", { name: "Satellites" })).toBeVisible();
 
+      // The sheet's Back returns to the Satellites panel alone, closing a panel over the sheet.
+      await page.getByRole("button", { name: "Browse and filter the catalog" }).click();
+      await openMenu(page, "Map");
+      await sheet.getByRole("button", { name: "Back to the Satellites panel" }).click();
+      await expect(page.getByRole("region", { name: "Satellites" })).toBeVisible();
+      await expect(page.getByRole("region", { name: "Map" })).toBeHidden();
+
       // Dragged down from the sheet, it closes, as the close button does.
       await page.getByRole("button", { name: "Browse and filter the catalog" }).click();
       await expect(sheet).toBeVisible();
