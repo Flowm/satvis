@@ -38,6 +38,7 @@ for (const [device, options] of Object.entries(DEVICES)) {
       // The model close-up is a second scene, which lives only while its tab shows.
       await panel.getByRole("tab", { name: "Spacecraft" }).click();
       await expect(panel.locator(".model-view")).toHaveAttribute("data-state", "ready");
+      await expect(panel.locator(".model-view__hint")).toHaveText(`Drag to turn, ${device === "phone" ? "pinch" : "scroll"} to zoom`);
       await expect(panel.getByRole("row", { name: /Launched/ })).toContainText("1998-11-20");
       // GCAT's facts beside SATCAT's (ADR 0008): named by the worker, labelled here.
       await expect(panel.getByRole("row", { name: /Country/ })).toContainText("USA");

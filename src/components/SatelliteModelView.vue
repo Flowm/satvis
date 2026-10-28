@@ -9,7 +9,7 @@
       <UButton class="model-view__reset" icon="i-lucide-rotate-ccw" variant="ghost" color="neutral" size="xs" aria-label="Reset view" @click="closeUp?.resetView()" />
     </UTooltip>
   </div>
-  <div class="model-view__hint">Drag to turn · scroll or pinch to zoom</div>
+  <div class="model-view__hint">Drag to turn, {{ zoomGesture }} to zoom</div>
 </template>
 
 <script setup lang="ts">
@@ -17,6 +17,7 @@ import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
 
 import { type CloseUpState, ModelCloseUp } from "../modules/ModelCloseUp";
 import { modelUrl } from "../modules/satelliteGraphics";
+import { DeviceDetect } from "../modules/util/DeviceDetect";
 
 const props = defineProps<{
   /** Path under /data/models/, from the satellite's metadata. */
@@ -25,6 +26,8 @@ const props = defineProps<{
   name: string;
 }>();
 
+/** As the native app words it on a touch screen; with a mouse, its wheel. */
+const zoomGesture = DeviceDetect.hasTouch() ? "pinch" : "scroll";
 /** Where the Cesium canvas goes. */
 const containerEl = useTemplateRef<HTMLDivElement>("containerEl");
 /** Picks the note over the scene and whether the reset button shows. */

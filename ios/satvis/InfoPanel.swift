@@ -136,7 +136,7 @@ struct InfoPanel: View {
                 SatelliteModelView(modelFile: modelFile, name: entry.name, context: closeUp)
                     .listRowInsets(EdgeInsets())
             } footer: {
-                Text("Drag to turn · pinch to zoom")
+                Text("Drag to turn, pinch to zoom")
             }
         }
         if !facts.isEmpty {
