@@ -464,7 +464,7 @@ struct GlobePanel: View {
             }
             .panelSegmented()
             if inSky {
-                Note("Select a projection to leave the sky view.")
+                Note("Select a projection to leave sky view.")
             }
         }
         PanelSection("Camera") {

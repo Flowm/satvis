@@ -1,7 +1,7 @@
 <template>
   <div class="gsList">
     <div class="toolbarTitle">Saved</div>
-    <div v-if="stations.length === 0" class="toolbarNote gsList__empty">None yet — pick one on the globe, or use your own position.</div>
+    <div v-if="stations.length === 0" class="toolbarNote gsList__empty">None yet. Pick one on the globe, or use your own position.</div>
     <div
       v-for="(station, index) in stations"
       :key="index"

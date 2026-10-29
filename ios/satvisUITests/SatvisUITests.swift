@@ -262,7 +262,7 @@ nonisolated class SatvisUITests: XCTestCase {
         let projection = app.buttons["3D"]
         XCTAssert(projection.waitForExistence(timeout: 5))
         XCTAssertFalse(projection.isSelected)
-        let note = app.staticTexts["Select a projection to leave the sky view."]
+        let note = app.staticTexts["Select a projection to leave sky view."]
         XCTAssert(note.exists)
         // A disabled picker's segments read as enabled; the control does not.
         let camera = app.segmentedControls.element(boundBy: 1)
