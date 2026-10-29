@@ -6,7 +6,7 @@ status: accepted
 
 The sky view stands on the ground and looks up. What it lacks is the ground: the
 buildings around you tell you where you stand, and what a low satellite is behind.
-So the Map menu has a third group beside Layers and Terrain: `None`, `OsmBuildings`,
+So the Map panel has a third group beside Layers and Terrain: `None`, `OsmBuildings`,
 `GooglePhotorealistic`, at most one, none by default.
 
 The name is **surface model**, not "buildings", because only one of the two is

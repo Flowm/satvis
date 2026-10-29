@@ -136,7 +136,7 @@ at 2 m or 500. A third coordinate would feed the pass predictor a number it has 
 use for. The eye height belongs to the view and resets on entry with the aim and the
 zoom.
 
-The view stands on the Map menu's terrain, and entering it from a panel (the Sky
+The view stands on the Map panel's terrain, and entering it from a panel (the Sky
 panel's places, a ground station's info panel) turns Re:Earth's terrain on where the
 menu has None, because the horizon is the view's point: on the ellipsoid it is a
 flat line. A terrain already chosen stays, as does None chosen in the view: moving

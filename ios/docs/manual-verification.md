@@ -5,7 +5,7 @@ changes, with what each run returned. The web app's checks are its e2e suite.
 
 ## Native app: Re:Earth terrain, and what it asks of Re:Earth
 
-**Procedure.** In the iPhone 17e simulator (3× screen), with the Map menu's
+**Procedure.** In the iPhone 17e simulator (3× screen), with the Map panel's
 VersaTiles and Terrain on and `SATVIS_TIME=2026-10-04T09:30:00Z` for daylight, put a
 ground station on the Zugspitze (47.4211, 10.9853), follow it from its panel, and pinch
 in until the tracking camera stops. Count the requests from the app's log

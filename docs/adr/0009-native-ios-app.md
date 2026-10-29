@@ -123,7 +123,7 @@ location is known and to magnetic north where it is not: either way a measured
 heading, so the web's "hold the phone flat to set north" step has no
 counterpart. And `scene` names only the two views the app has, `3D` and `Sky`: a
 `2D` or `Columbus` link opens on the globe and drops the parameter, as a link
-naming a layer the app lacks does. The sky view stands on the Map menu's terrain,
+naming a layer the app lacks does. The sky view stands on the Map panel's terrain,
 and a panel entering it turns the terrain on, as on the web (ADR 0003). It first
 stood on Re:Earth's terrain whatever the menu said, which showed mountains the
 user had turned off in the sky view.
@@ -147,7 +147,7 @@ it off.
 - The OSM and ArcGIS basemaps. The OSMF tile policy forbids an app that
   depends on `tile.openstreetmap.org`, and Esri's terms for published apps were
   not worth checking for a second satellite basemap.
-- MSAA and the scene effects in the Graphics menu, WebVR and the embed mode
+- MSAA and the scene effects in the Graphics panel, WebVR and the embed mode
 
 These come later: the 2D view mode, the DeepStar2K star
 map, and a Live Activity for a pass. The camera passthrough in the sky view, once

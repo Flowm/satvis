@@ -60,7 +60,7 @@ Every parameter is optional. An absent parameter means "use the default" (see
     The two `DeepStar` cuts are optional assets, built by `pnpm update-starmap`, so a
     deployment may have neither. They stay in the accepted vocabulary anyway, as
     `?pixelratio=1.5` is accepted on a display that cannot use it: the parameter
-    says what was asked for, not what this machine can serve. The Map menu offers the
+    says what was asked for, not what this machine can serve. The Map panel offers the
     maps it can find, and treats an unanswered probe as present, which suits a PWA
     whose faces may be cached while the network is down. A link naming a missing map
     falls back to `Tycho1K` and the url is rewritten to match.
@@ -107,7 +107,7 @@ encodes as `+`, and must never be escaped as `-`.
 `layers` items are validated against the segment before `_`. Base layers:
 `NaturalEarth`, `ArcGis`, `VersaTiles`, `OSM`, `BlackMarble`, `VIIRS`. Overlays: `Tiles`,
 `GOES-IR`, `Nextrad`. `VIIRS` and `GOES-IR` show the frame for `time` (`GibsTimeLayer`).
-The Map menu shows one basemap on radios and any number of overlays on checkboxes;
+The Map panel shows one basemap on radios and any number of overlays on checkboxes;
 `base` on the registry entry (`src/modules/CesiumLayerProviders.ts`) decides which is
 which. The optional `_<alpha>` suffix sets the layer's opacity and has no UI control.
 The accepted set comes from the registry (`imageryProviderNames`), so it cannot drift.

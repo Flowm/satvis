@@ -43,7 +43,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   the cache whatever their age, which leaves a host alone for as long as a 429
   asks. Natural Earth's levels 3 to 5 are kept for good instead (`KeptTiles`, in
   Application Support), since the whole pyramid is 17 MB: a place seen once
-  shows offline, whatever the system purges. The base map and the terrain are the Map menu's, kept between launches.
+  shows offline, whatever the system purges. The base map and the terrain are the Map panel's, kept between launches.
 - Terrain (`Terrain.swift`) is Re:Earth's quantized mesh, decoded and kept per
   terrain tile; a surface tile's grid is laid over the terrain tile log₂(screen
   scale) levels coarser, the level the web app would ask for, so the app asks
@@ -174,7 +174,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
 - The sky view (ADR 0003) is the same renderer from the ground: `SkyCamera`
   stands 2 m over the terrain at the observer, its attitude a quaternion in the
   observer's east-north-up frame, so the zenith is an aim like any other. It
-  stands on the Map menu's terrain, as on the web: on the ellipsoid with None
+  stands on the Map panel's terrain, as on the web: on the ellipsoid with None
   (ADR 0009). Entering it from a panel turns the terrain on; a link keeps its own. `SkyFlight` is the
   web's three-leg flight in and out; the instruments (`SkyHUD`) and the gestures
   wait for it to land, and reduced motion cuts. The crosshair, the tapes, the
@@ -306,7 +306,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   scrubbed clock spins it. Tracking keeps the satellite's frame and the sky view
   the observer's; the free camera waits meanwhile, and the sky view keeps the
   choice for the way back, as the web suspends it there.
-- The Graphics menu's "FPS" is the web app's FPS switch, kept in links as
+- The Graphics panel's "FPS" is the web app's FPS switch, kept in links as
   `fps=true` as the web keeps it (`PerformanceOverlay.swift`, `FrameStats`):
   frames per second, the renderer's CPU and the GPU's milliseconds a frame,
   satellites drawn and the memory footprint iOS counts. Nothing is timed while it
@@ -318,7 +318,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   PostHog only for the site `https://satvis.space/` exactly, so pointing
   `SATVIS_API` at `https://satvis.space` measures the real data and counts
   nothing.
-- The Graphics menu's "Pixel ratio" is the web app's (`pixelratio`, kept in links):
+- The Graphics panel's "Pixel ratio" is the web app's (`pixelratio`, kept in links):
   the globe drawn at 1 or 1.5 pixels a point instead of the screen's own, which
   the system scales up (`ScaledMTKView` in `GlobeView.swift`). The renderer sizes
   everything placed on the screen in points times the drawable's pixels a point,
@@ -352,7 +352,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   frames rather than 30 %. The rate stays the one chosen, not a steady divisor
   below it: at 45 fps the eye trails a satellite 12.6 ms on average, at 30
   16.7.
-- The Graphics menu's "Benchmark" is the web app's `bench=true`, kept in links
+- The Graphics panel's "Benchmark" is the web app's `bench=true`, kept in links
   the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): eleven scenes opened
   by their links in turn, each waited for until everything active is drawn
   (`SatelliteLayer.draws`: a satellite SGP4 refuses, long decayed, is never drawn,

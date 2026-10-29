@@ -107,7 +107,7 @@ import simd
         #expect(surface.tileCount == 2)
     }
 
-    // The sky view stands on the ground the Map menu draws: the ellipsoid with the
+    // The sky view stands on the ground the Map panel draws: the ellipsoid with the
     // terrain off, and what is worked out from the ground redone when it changes.
     @MainActor
     @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func standsOnTheEllipsoidWithTheTerrainOff() async throws {

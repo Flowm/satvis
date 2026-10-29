@@ -1,4 +1,4 @@
-// Star fields behind the globe. Cesium-free, because the url schema and the Map menu need the list too.
+// Star fields behind the globe. Cesium-free, because the url schema and the Map panel need the list too.
 
 /**
  * Named for catalogue and cube face size, ordered by cost. `Tycho1K` ships with Cesium

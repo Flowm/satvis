@@ -405,7 +405,7 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(stamp.label.contains("19:22"), "The clock read \(stamp.label)")
     }
 
-    // The web app's `fps=true` shows the performance overlay; the Graphics menu's
+    // The web app's `fps=true` shows the performance overlay; the Graphics panel's
     // FPS switches it off.
     @MainActor
     func testShowsPerformanceFromALink() {
@@ -419,7 +419,7 @@ nonisolated class SatvisUITests: XCTestCase {
     }
 
     // The web app's `bench=true` opens the benchmark panel; Close puts it away,
-    // and the Graphics menu brings it back.
+    // and the Graphics panel brings it back.
     @MainActor
     func testOpensTheBenchmarkFromALink() {
         let app = launch(link: "/?bench=true")

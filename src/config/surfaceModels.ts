@@ -1,5 +1,5 @@
 // The surface model vocabulary and every consequence of picking one, Cesium-free so the
-// url schema, the Map menu and SurfaceModel share it. OsmBuildings adds to the globe;
+// url schema, the Map panel and SurfaceModel share it. OsmBuildings adds to the globe;
 // GooglePhotorealistic replaces it. See ADR 0005.
 
 import { SKY_MODE } from "./viewModes";
@@ -17,7 +17,7 @@ export const SURFACE_MODEL_LABELS: Record<SurfaceModelName, string> = {
 
 export type SurfaceTileset = Exclude<SurfaceModelName, "None">;
 
-/** Map menu groups a surface model can make inert. */
+/** Map panel groups a surface model can make inert. */
 export type MapGroup = "layers" | "terrain";
 
 interface SurfaceModelRules {
