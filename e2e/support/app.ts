@@ -152,7 +152,7 @@ export async function waitForScene(page: Page, satellites = true): Promise<void>
 
 /**
  * The console errors of a sky view entered from a panel, which turns Re:Earth's
- * terrain on: the fixture blocks it, and the globe keeps the ellipsoid.
+ * terrain on: the fixture blocks it, and it falls back to None.
  */
 export const BLOCKED_TERRAIN = /Terrain provider ReEarth failed to load|ERR_BLOCKED_BY_CLIENT/;
 

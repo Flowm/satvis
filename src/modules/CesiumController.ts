@@ -112,6 +112,7 @@ export class CesiumController {
   #onGlobePick: (lat: number, lon: number) => void = () => {};
 
   #onSurfaceFailure: (name: string, error: unknown) => void = () => {};
+  #onTerrainFailure: (name: string, error: unknown) => void = () => {};
 
   constructor(viewer: Viewer) {
     this.#preloadReferenceFrameData();
@@ -276,6 +277,9 @@ export class CesiumController {
     } catch (error) {
       // The previous terrain stays.
       console.error(`Terrain provider ${name} failed to load`, error);
+      if (isCurrent()) {
+        this.#onTerrainFailure(name, error);
+      }
     }
   }
 
@@ -458,6 +462,11 @@ export class CesiumController {
   /** A surface model's tileset failed to load; the scene has already dropped it. */
   onSurfaceFailure(callback: (name: string, error: unknown) => void): void {
     this.#onSurfaceFailure = callback;
+  }
+
+  /** A terrain failed to load; the previous one stays. */
+  onTerrainFailure(callback: (name: string, error: unknown) => void): void {
+    this.#onTerrainFailure = callback;
   }
 
   /**

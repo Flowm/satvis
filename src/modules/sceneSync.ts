@@ -15,6 +15,7 @@ import { SKY_MODE } from "../config/viewModes";
 import { useCesiumStore } from "../stores/cesium";
 import { useCustomSatelliteStore } from "../stores/customSatellites";
 import { useSatStore } from "../stores/sat";
+import { terrainLabel } from "./CesiumLayerProviders";
 import { activeTargetEntries } from "./satelliteActivation";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import type { DesiredScene } from "./SatelliteManager";
@@ -89,6 +90,7 @@ export interface SceneTarget {
   applyStarMap(starMap: string): Promise<void>;
   onGlobePick(callback: (lat: number, lon: number) => void): void;
   onSurfaceFailure(callback: (name: string, error: unknown) => void): void;
+  onTerrainFailure(callback: (name: string, error: unknown) => void): void;
   suppressCameraMode(): void;
   releaseCameraMode(): void;
   morphTo(mode: string): void;
@@ -161,6 +163,15 @@ export function startSceneSync(cc: SceneTarget): void {
       description: `${error instanceof Error ? error.message : "The tileset could not be loaded"}. Cesium ion needs a token valid for this origin.`,
       color: "warning",
     });
+  });
+  // As a surface model's. Only the Map panel's own choice: World Terrain under OSM
+  // Buildings is not one, and that failure reports the buildings.
+  cc.onTerrainFailure((name) => {
+    if (cesiumStore.terrainProvider !== name) {
+      return;
+    }
+    cesiumStore.terrainProvider = "None";
+    useToastProxy().add({ title: `${terrainLabel(name)} unavailable`, description: "The terrain could not be loaded.", color: "warning" });
   });
   // Immediate, because `?surface=` arrives before anything else triggers it.
   watch(

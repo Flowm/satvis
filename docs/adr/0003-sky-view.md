@@ -140,7 +140,9 @@ The view stands on the Map menu's terrain, and entering it from a panel (the Sky
 panel's places, a ground station's info panel) turns Re:Earth's terrain on where the
 menu has None, because the horizon is the view's point: on the ellipsoid it is a
 flat line. A terrain already chosen stays, as does None chosen in the view: moving
-to another place there is not an entry. The terrain stays on after leaving.
+to another place there is not an entry. The terrain stays on after leaving. On the
+web a terrain that fails to load, offline say, goes back to None and says so, as a
+surface model does, so the menu and the link never claim one the globe lacks.
 A link to the sky view keeps the terrain it names, None included, since a link has
 no way to tell None turned off in the sky view from None never set.
 
