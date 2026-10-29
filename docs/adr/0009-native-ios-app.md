@@ -117,14 +117,16 @@ from the web's:
 - The app keeps its view as a link and reopens on it, but live: a clock found
   paused hours later reads as broken.
 
-**The sky view is the web's (ADR 0003, 0004), with three native differences.**
+**The sky view is the web's (ADR 0003, 0004), with two native differences.**
 Compass aiming reads CoreMotion's attitude, referenced to true north where the
 location is known and to magnetic north where it is not: either way a measured
 heading, so the web's "hold the phone flat to set north" step has no
-counterpart. The sky view stands on Re:Earth's terrain whatever the Map menu
-says, because the eye's height and the horizon need it. And `scene` names only
-the two views the app has, `3D` and `Sky`: a `2D` or `Columbus` link opens on
-the globe and drops the parameter, as a link naming a layer the app lacks does.
+counterpart. And `scene` names only the two views the app has, `3D` and `Sky`: a
+`2D` or `Columbus` link opens on the globe and drops the parameter, as a link
+naming a layer the app lacks does. The sky view stands on the Map panel's terrain,
+and a panel entering it turns the terrain on, as on the web (ADR 0003). It first
+stood on Re:Earth's terrain whatever the menu said, which showed mountains the
+user had turned off in the sky view.
 
 **Usage is counted in the web app's PostHog project**, as PostHog advises for
 one product on several platforms, told apart by `platform: ios` and PostHog's own
@@ -145,7 +147,7 @@ it off.
 - The OSM and ArcGIS basemaps. The OSMF tile policy forbids an app that
   depends on `tile.openstreetmap.org`, and Esri's terms for published apps were
   not worth checking for a second satellite basemap.
-- MSAA and the scene effects in the Graphics menu, WebVR and the embed mode
+- MSAA and the scene effects in the Graphics panel, WebVR and the embed mode
 
 These come later: the 2D view mode, the DeepStar2K star
 map, and a Live Activity for a pass. The camera passthrough in the sky view, once

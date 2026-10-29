@@ -12,7 +12,10 @@ public enum RendererError: Error {
 /// Compiles Shaders/*.msl. At run time rather than at build time, so that neither
 /// the build nor CI needs Xcode's separately downloaded Metal toolchain.
 enum ShaderLibrary {
-    static let files = ["Common", "Sky", "Globe", "Surface", "Points", "Lines", "Labels", "Stations", "Footprints", "Models", "Tonemap"]
+    /// The models' shaders and what they call, which the close-up compiles alone.
+    /// In order: `Models` calls `Tonemap`.
+    static let models = ["Common", "Tonemap", "Models"]
+    static let files = ["Common", "Sky", "Globe", "Surface", "Points", "Lines", "Labels", "Stations", "Footprints"] + models.dropFirst()
 
     /// The shaders compiled twice: safe math for the vertex functions that place a
     /// satellite, where fast math may regroup the high/low subtraction from the
@@ -60,11 +63,8 @@ enum ShaderLibrary {
 /// satellites over it, for one MTKView.
 @MainActor
 public final class GlobeRenderer: NSObject, MTKViewDelegate {
-    /// The cameras, their flights and what the gestures steer. Whatever it asks
-    /// of the terrain is applied here alone, after every change.
-    private var rig = CameraRig() {
-        didSet { surface.setTerrain(rig.wantsTerrain) }
-    }
+    /// The cameras, their flights and what the gestures steer.
+    private var rig = CameraRig()
     /// Which camera the view is seen through (`CameraRig`).
     public var cameraMode: CameraMode { rig.cameraMode }
     /// The sky view's camera, while it is on the ground.
@@ -474,9 +474,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         needsDraw = true
     }
 
-    /// Whether the globe follows Re:Earth's terrain. Off by default, as on the web.
+    /// Whether the globe follows Re:Earth's terrain, the sky view's ground too.
+    /// Off by default, as on the web.
     public func setTerrain(_ enabled: Bool) {
-        rig.terrainSetting = enabled
+        surface.setTerrain(enabled)
         needsDraw = true
     }
 

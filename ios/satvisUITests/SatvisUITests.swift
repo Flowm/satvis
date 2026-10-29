@@ -72,24 +72,29 @@ nonisolated class SatvisUITests: XCTestCase {
         }
     }
 
-    // The corner's eye hides the menu column, the clock deck and the corner's other
-    // buttons, as the web app's Hide UI does, and brings them back.
+    // The Graphics panel's Hide UI hides the menu column, the clock deck and the
+    // corner's buttons, as the web app's does, and the corner's Show UI, there
+    // alone while they are hidden, brings them back with the panel closed.
     @MainActor
     func testHidesTheUI() {
         let app = launch()
-        let hide = app.buttons["Hide UI"]
-        XCTAssert(hide.waitForExistence(timeout: 30))
-        XCTAssert(menuToggle(app).exists)
-        hide.tap()
+        XCTAssert(app.buttons["Home view"].waitForExistence(timeout: 30))
+        XCTAssertFalse(app.buttons["Show UI"].exists)
+        openMenu(app)
+        app.buttons["Graphics"].tap()
+        app.buttons["Hide UI"].tap()
         let show = app.buttons["Show UI"]
         XCTAssert(show.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Home view"].exists)
+        XCTAssertFalse(app.buttons["Hide UI"].exists)
         XCTAssertFalse(menuToggle(app).exists)
         // The clock deck's time, which is a button.
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label CONTAINS 'UTC'")).firstMatch.exists)
         show.tap()
         XCTAssert(app.buttons["Home view"].waitForExistence(timeout: 5))
         XCTAssert(menuToggle(app).exists)
+        XCTAssertFalse(show.exists)
+        XCTAssertFalse(app.buttons["Hide UI"].exists)
     }
 
     // The web app's menu column unfolds from the menu button, folded on a phone
@@ -228,7 +233,7 @@ nonisolated class SatvisUITests: XCTestCase {
     }
 
     // A location's row in the Sky panel stands there, marked, without the device's
-    // position, and Back to the globe leaves.
+    // position, on the terrain, which credits OpenStreetMap; Back to the globe leaves.
     @MainActor
     func testLooksUpFromALocation() {
         let app = launch(link: "/?gs=48.1372,11.5756,Munich")
@@ -238,6 +243,7 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(munich.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Back to the globe"].exists)
         munich.tap()
+        XCTAssert(app.buttons["© OpenStreetMap"].waitForExistence(timeout: 5))
         XCTAssert(app.buttons["Leave the sky view"].waitForExistence(timeout: 20))
         XCTAssert(munich.isSelected)
         XCTAssertFalse(app.buttons["My location"].isSelected)
@@ -256,19 +262,17 @@ nonisolated class SatvisUITests: XCTestCase {
         let projection = app.buttons["3D"]
         XCTAssert(projection.waitForExistence(timeout: 5))
         XCTAssertFalse(projection.isSelected)
-        // The sky view is chosen there, but greyed: the Sky panel enters it.
-        let sky = app.buttons["Sky view"]
-        XCTAssert(sky.isSelected)
-        XCTAssertFalse(sky.isEnabled)
+        let note = app.staticTexts["Select a projection to leave sky view."]
+        XCTAssert(note.exists)
         // A disabled picker's segments read as enabled; the control does not.
-        let camera = app.segmentedControls.firstMatch
+        let camera = app.segmentedControls.element(boundBy: 1)
         let inertial = camera.buttons["Inertial"]
         XCTAssert(inertial.isSelected)
         XCTAssertFalse(camera.isEnabled)
         projection.tap()
         XCTAssert(app.buttons["Home view"].waitForExistence(timeout: 10))
         XCTAssert(projection.isSelected)
-        XCTAssertFalse(sky.exists)
+        XCTAssertFalse(note.exists)
         XCTAssert(camera.isEnabled && inertial.isSelected)
         app.buttons["Fixed"].tap()
         XCTAssert(app.buttons["Fixed"].isSelected)
@@ -401,7 +405,7 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(stamp.label.contains("19:22"), "The clock read \(stamp.label)")
     }
 
-    // The web app's `fps=true` shows the performance overlay; the Graphics menu's
+    // The web app's `fps=true` shows the performance overlay; the Graphics panel's
     // FPS switches it off.
     @MainActor
     func testShowsPerformanceFromALink() {
@@ -415,7 +419,7 @@ nonisolated class SatvisUITests: XCTestCase {
     }
 
     // The web app's `bench=true` opens the benchmark panel; Close puts it away,
-    // and the Graphics menu brings it back.
+    // and the Graphics panel brings it back.
     @MainActor
     func testOpensTheBenchmarkFromALink() {
         let app = launch(link: "/?bench=true")

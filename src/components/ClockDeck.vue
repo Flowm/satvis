@@ -24,7 +24,7 @@
             </span>
           </button>
 
-          <button v-if="resettable" type="button" class="reset" :aria-label="onLadder ? 'Back to real time' : 'Back to now'" @click="reset">
+          <button v-if="resettable" type="button" class="reset" aria-label="Back to now" @click="reset">
             <span class="reset__circle">
               <UIcon name="lucide:rotate-ccw" />
             </span>
@@ -122,15 +122,15 @@ const onLadder = ref(false);
 /** Folded on every touch device, tablets included. */
 const open = ref(!DeviceDetect.hasTouch());
 
-const resettable = computed(() => (onLadder.value ? multiplier.value !== 1 : offPresent.value));
+/** On either scale, as the reset puts back the time and the speed together. */
+const resettable = computed(() => offPresent.value || multiplier.value !== 1);
 
 function reset(): void {
+  goLive();
   if (onLadder.value) {
     // Through the ladder, or the shown rung and the rate in force disagree.
     showRung(REAL_TIME_RUNG, { animate: true });
-    return;
   }
-  goLive();
 }
 
 function toggleScale(): void {

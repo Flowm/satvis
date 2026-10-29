@@ -72,12 +72,12 @@
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('layers') }">Basemap</div>
         <label v-for="name in baseLayers" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('layers') }">
           <input type="radio" name="basemap" :value="name" :checked="baseLayer === name" @change="setBaseLayer(name)" />
-          {{ name }}
+          {{ imageryLabel(name) }}
         </label>
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('layers') }">Overlays</div>
         <label v-for="name in overlayLayers" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('layers') }">
           <input type="checkbox" :checked="hasOverlay(name)" @change="toggleOverlay(name, ($event.target as HTMLInputElement).checked)" />
-          {{ name }}
+          {{ imageryLabel(name) }}
         </label>
         <div v-if="inertReason('layers')" class="toolbarNote">{{ inertReason("layers") }}</div>
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('terrain') }">Terrain</div>
@@ -85,20 +85,20 @@
              imposing surface model overrides; disabled while imposed. -->
         <label v-for="name in terrainNames" :key="name" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('terrain') }">
           <input type="radio" name="terrain" :value="name" :checked="activeTerrain === name" :disabled="terrainImposed" @change="terrainProvider = name" />
-          {{ name }}
+          {{ terrainLabel(name) }}
         </label>
         <div v-if="inertReason('terrain')" class="toolbarNote">{{ inertReason("terrain") }}</div>
         <div class="toolbarTitle">Surface</div>
         <label v-for="name in SURFACE_MODELS" :key="name" class="toolbarSwitch">
           <input v-model="surfaceModel" type="radio" :value="name" />
-          {{ name }}
+          {{ SURFACE_MODEL_LABELS[name] }}
         </label>
         <div v-if="surfaceUnavailable" class="toolbarNote">{{ surfaceUnavailable }}</div>
         <!-- Narrowed to the maps on the server (see src/config/starMaps.ts); `?stars=` still accepts every name. -->
         <div class="toolbarTitle">Star map</div>
         <label v-for="name in starMapOptions" :key="name" class="toolbarSwitch">
           <input v-model="starMap" type="radio" :value="name" />
-          {{ name }}
+          {{ STAR_MAP_LABELS[name] }}
         </label>
       </toolbar-panel>
       <!-- Two panels, one `scene` parameter (docs/adr/0003-sky-view.md): each view's settings stay visible, disabled where the other view is up. -->
@@ -107,7 +107,7 @@
         <!-- No projection is checked in the sky view, as a checked one read as the active view;
              the Sky panel enters it, and a projection leaves it. -->
         <segmented-control :model-value="inSkyView ? undefined : sceneMode" label="Projection" :options="PROJECTION_OPTIONS" @update:model-value="sceneMode = $event!" />
-        <div v-if="inSkyView" class="toolbarNote">In the sky view; a projection leaves it.</div>
+        <div v-if="inSkyView" class="toolbarNote">Select a projection to leave sky view.</div>
         <div class="toolbarTitle">Camera</div>
         <segmented-control v-model="cameraMode" label="Camera" :options="CAMERA_OPTIONS" :disabled="inSkyView" />
         <div v-if="inSkyView" class="toolbarNote">The sky view holds the camera.</div>
@@ -153,6 +153,13 @@
         <div class="toolbarNote">In Earth's shadow, too far away or during daylight.</div>
       </toolbar-panel>
       <toolbar-panel v-show="openMenu === 'render'" title="Graphics" @close="closePanel('render')">
+        <!-- First, so a phone shows it without scrolling. -->
+        <div class="toolbarTitle">Interface</div>
+        <button ref="hideUIButton" type="button" class="toolbarPlace" @click="hideUI">
+          <UIcon name="lucide:eye-off" class="toolbarPlace__icon" />
+          <span class="toolbarPlace__label">Hide UI</span>
+        </button>
+        <div class="toolbarNote">For a clear view of the globe. Show UI, top right, brings it back.</div>
         <div class="toolbarTitle">Measurement</div>
         <label class="toolbarSwitch">
           <input v-model="showFps" type="checkbox" />
@@ -161,11 +168,6 @@
         <label class="toolbarSwitch">
           <input v-model="showBenchmark" type="checkbox" />
           Benchmark
-        </label>
-        <!-- Under Measurement: with render-on-demand on, frame gaps measure idleness, not scene cost. -->
-        <label class="toolbarSwitch">
-          <input v-model="requestRenderMode" type="checkbox" />
-          RequestRender
         </label>
         <div class="toolbarTitle">Scene effects</div>
         <label class="toolbarSwitch">
@@ -186,22 +188,28 @@
         </label>
         <!-- Ladders rather than switches; see src/config/rendering.ts. -->
         <div class="toolbarTitle">Pixel ratio</div>
-        <label v-for="ratio in pixelRatioOptions" :key="ratio" class="toolbarSwitch">
-          <input v-model="pixelRatio" type="radio" :value="ratio" />
-          {{ ratio === "native" ? `${devicePixelRatio.toFixed(1)}x (Native)` : `${Number(ratio).toFixed(1)}x` }}
-        </label>
+        <segmented-control v-model="pixelRatio" label="Pixel ratio" :options="PIXEL_RATIO_OPTIONS" />
+        <div class="toolbarNote">Native is this screen's {{ nativeRatio }}x. Fewer pixels draw faster.</div>
         <div class="toolbarTitle">Antialiasing (MSAA)</div>
         <segmented-control v-model="msaa" label="Antialiasing (MSAA)" :options="MSAA_OPTIONS" />
+        <div class="toolbarTitle">Frame rate</div>
+        <segmented-control v-model="frameRate" label="Frame rate" :options="FRAME_RATE_OPTIONS" />
+        <div class="toolbarNote">At most this many frames a second. Fewer save battery.</div>
+        <label class="toolbarSwitch">
+          <input v-model="requestRenderMode" type="checkbox" />
+          Render only on change
+        </label>
+        <div class="toolbarNote">Draws a frame only when something moves. Turn it off to measure frame times.</div>
       </toolbar-panel>
     </div>
-    <!-- The native app's corner, in its order: the eye first, so it stays put as the others come and go. -->
+    <!-- The native app's corner, in its order. -->
     <div id="toolbarRight">
-      <UTooltip :text="uiLabel">
-        <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="uiLabel" @click="toggleUI">
-          <UIcon :name="showUI ? 'lucide:eye' : 'lucide:eye-off'" />
+      <UTooltip v-if="!showUI" text="Show UI">
+        <button ref="showUIButton" type="button" class="cesium-button cesium-toolbar-button" aria-label="Show UI" @click="restoreUI">
+          <UIcon name="lucide:eye" />
         </button>
       </UTooltip>
-      <template v-if="showUI">
+      <template v-else>
         <UTooltip :text="homeLabel">
           <button type="button" class="cesium-button cesium-toolbar-button" :aria-label="homeLabel" @click="goHome">
             <UIcon name="lucide:globe" />
@@ -245,11 +253,11 @@ import { useSelectedEntity } from "../composables/useSelectedEntity";
 import { compassAvailable, useSkyCompass } from "../composables/useSkyCompass";
 import { SATELLITE_COMPONENTS } from "../config/components";
 import { PHONE_WIDTH } from "../config/layout";
-import { MSAA_RATES, pixelRatiosFor } from "../config/rendering";
-import { availableStarMaps, BUILTIN_STAR_MAP, type StarMapName } from "../config/starMaps";
-import { type MapGroup, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, viewModeNote } from "../config/surfaceModels";
+import { FRAME_RATES, MSAA_RATES, pixelRatiosFor } from "../config/rendering";
+import { availableStarMaps, BUILTIN_STAR_MAP, STAR_MAP_LABELS, type StarMapName } from "../config/starMaps";
+import { type MapGroup, SURFACE_MODEL_LABELS, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, surfaceModelLabel, viewModeNote } from "../config/surfaceModels";
 import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "../config/viewModes";
-import { baseLayerNames, overlayLayerNames, terrainProviderNames } from "../modules/CesiumLayerProviders";
+import { baseLayerNames, imageryLabel, overlayLayerNames, terrainLabel, terrainProviderNames } from "../modules/CesiumLayerProviders";
 import { stationLabel } from "../modules/GroundStationEntity";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
 import { GEOLOCATION } from "../modules/util/groundStationEdits";
@@ -282,6 +290,8 @@ const showUI = ref(true);
 const menuColumn = ref<HTMLElement>();
 const menuToggle = ref<HTMLButtonElement>();
 const entryButtons: Partial<Record<MenuKey, HTMLButtonElement | null>> = {};
+const hideUIButton = ref<HTMLButtonElement>();
+const showUIButton = ref<HTMLButtonElement>();
 
 /** A known phone width, below which the column stacks over the info panel. A hidden tab can report 0. */
 const isNarrow = (): boolean => window.innerWidth > 0 && window.innerWidth < PHONE_WIDTH;
@@ -297,11 +307,12 @@ const menuItems: { key: MenuKey; label: string; icon: string; hint: string }[] =
   { key: "gs", label: "Locations", icon: "lucide:map-pin", hint: "Ground stations, for pass predictions and the sky view" },
   { key: "globe", label: "Globe", icon: "lucide:globe", hint: "Globe, flat map or Columbus view, and the camera" },
   { key: "sky", label: "Sky", icon: "lucide:telescope", hint: "Look up from a ground station and see what passes over" },
-  { key: "render", label: "Graphics", icon: "lucide:gauge", hint: "Quality, effects and performance" },
+  { key: "render", label: "Graphics", icon: "lucide:gauge", hint: "Hiding the UI, quality, effects and performance" },
 ];
 
 const cesiumStore = useCesiumStore();
-const { baseLayer, terrainProvider, surfaceModel, starMap, sceneMode, unseen, cameraMode, pixelRatio, msaa, showFps, showBenchmark, requestRenderMode } = storeToRefs(cesiumStore);
+const { baseLayer, terrainProvider, surfaceModel, starMap, sceneMode, unseen, cameraMode, pixelRatio, msaa, frameRate, showFps, showBenchmark, requestRenderMode } =
+  storeToRefs(cesiumStore);
 
 /** Starts with the builtin map, and widens once per page when the probes answer. */
 const starMapOptions = ref<StarMapName[]>([BUILTIN_STAR_MAP]);
@@ -309,8 +320,8 @@ void availableStarMaps().then((names) => {
   starMapOptions.value = names;
 });
 
-const devicePixelRatio = window.devicePixelRatio;
-const pixelRatioOptions = pixelRatiosFor(devicePixelRatio);
+const nativeRatio = Number(window.devicePixelRatio.toFixed(2));
+const PIXEL_RATIO_OPTIONS = pixelRatiosFor(window.devicePixelRatio).map((ratio) => ({ value: ratio, label: ratio === "native" ? "Native" : `${ratio}x` }));
 
 /** The same function the globe reads, so the menu and the globe cannot disagree. */
 const effects = computed(() => surfaceEffects(surfaceModel.value, sceneMode.value));
@@ -318,6 +329,7 @@ const inert = computed(() => effects.value.inert);
 
 const activeTerrain = computed(() => effects.value.terrain ?? terrainProvider.value);
 const terrainImposed = computed(() => effects.value.terrain !== undefined);
+const surfaceLabel = computed(() => surfaceModelLabel(surfaceModel.value));
 
 /**
  * The imposed-terrain case names the user's choice, because the radio shows the terrain in force.
@@ -328,9 +340,10 @@ function inertReason(group: MapGroup): string {
   }
   const forced = effects.value.terrain;
   if (group === "terrain" && forced) {
-    return forced === terrainProvider.value ? `${surfaceModel.value} needs ${forced}` : `${surfaceModel.value} needs ${forced}, ${terrainProvider.value} returns`;
+    const needs = `${surfaceLabel.value} needs ${terrainLabel(forced)}`;
+    return forced === terrainProvider.value ? needs : `${needs}, ${terrainLabel(terrainProvider.value)} returns`;
   }
-  return `Hidden by ${surfaceModel.value}`;
+  return `Hidden by ${surfaceLabel.value}`;
 }
 
 /** `viewModeNote` derives the text from the rules; do not write the view modes out here. */
@@ -360,6 +373,7 @@ const UNSEEN_OPTIONS = UNSEEN_MODES.map((mode) => ({ value: mode, label: UNSEEN_
 const PROJECTION_OPTIONS = SCENE_MODES.filter((mode) => mode !== SKY_MODE).map((mode) => ({ value: mode, label: mode }));
 const CAMERA_OPTIONS = CAMERA_MODES.map((mode) => ({ value: mode, label: mode }));
 const MSAA_OPTIONS = MSAA_RATES.map((rate) => ({ value: rate, label: rate === "off" ? "Off" : `${rate}x` }));
+const FRAME_RATE_OPTIONS = FRAME_RATES.map((rate) => ({ value: rate, label: rate === "max" ? "Max" : `${rate} fps` }));
 
 /** The projection Back to the globe returns to. Not in the url, which holds only the view mode. */
 const returnProjection = ref(inSkyView.value ? "3D" : sceneMode.value);
@@ -380,14 +394,14 @@ const standingAtGeolocation = computed(() => inSkyView.value && groundStations.v
 /** Stands where the device is, which may give no position, and then nothing opens. */
 async function lookUpFromHere(): Promise<void> {
   if (await locate({ observe: true })) {
-    sceneMode.value = SKY_MODE;
+    cesiumStore.enterSkyView();
   }
 }
 
 /** Designates the station, without reordering the list; a view already up moves there. */
 function lookUpFrom(index: number): void {
   satStore.setObserverStation(index);
-  sceneMode.value = SKY_MODE;
+  cesiumStore.enterSkyView();
 }
 
 /** Returns to the projection the sky view was entered from. */
@@ -413,7 +427,6 @@ async function onCompassToggle(event: Event): Promise<void> {
 }
 
 /** The corner's names, the native app's, for its tooltips and screen readers alike. */
-const uiLabel = computed(() => (showUI.value ? "Hide UI" : "Show UI"));
 const homeLabel = computed(() => (inSkyView.value ? "Leave the sky view" : "Home view"));
 const compassLabel = computed(() => (compassActive.value ? "Stop aiming by compass" : "Aim by compass"));
 
@@ -590,7 +603,9 @@ function onEscape(event: KeyboardEvent) {
   ) {
     return;
   }
-  if (openMenu.value) {
+  if (!showUI.value) {
+    restoreUI();
+  } else if (openMenu.value) {
     closePanel(openMenu.value);
   } else if (catalogOpen.value) {
     catalogSheet.value?.escape();
@@ -612,9 +627,37 @@ function closePanel(key: MenuKey) {
   }
 }
 
-function toggleUI() {
-  showUI.value = !showUI.value;
-  // cc owns the Cesium fullscreen button, which showUI also hides.
-  cc.showUI = showUI.value;
+/**
+ * Closes the menu with the rest of the UI, so Show UI brings back none of it open.
+ * Keyboard focus moves to Show UI; only `:focus-visible`, as a click focuses the button
+ * too, and the moved focus would open the tooltip.
+ */
+async function hideUI() {
+  const focusVisible = !!hideUIButton.value?.matches(":focus-visible");
+  closeMenus();
+  if (isNarrow()) {
+    menuExpanded.value = false;
+  }
+  setUIShown(false);
+  if (focusVisible) {
+    await nextTick();
+    showUIButton.value?.focus();
+  }
+}
+
+/** Shows the UI again; keyboard focus moves to the Menu button, as Show UI hides. */
+async function restoreUI() {
+  const focusVisible = !!showUIButton.value?.matches(":focus-visible");
+  setUIShown(true);
+  if (focusVisible) {
+    await nextTick();
+    menuToggle.value?.focus();
+  }
+}
+
+/** cc owns the Cesium fullscreen button, which `showUI` also hides. */
+function setUIShown(shown: boolean) {
+  showUI.value = shown;
+  cc.showUI = shown;
 }
 </script>

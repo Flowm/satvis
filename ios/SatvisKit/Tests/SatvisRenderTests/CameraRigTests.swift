@@ -32,7 +32,7 @@ import simd
     @Test func landsInTheSkyViewAfterTheFlightAndHoldsTheGesturesTillThen() throws {
         var rig = Self.rig()
         rig.enterSky(Self.observer, animated: true, uptime: 10, aspectRatio: Self.aspectRatio)
-        #expect(rig.cameraMode == .sky && !rig.isSkySettled && rig.wantsTerrain)
+        #expect(rig.cameraMode == .sky && !rig.isSkySettled)
         let aim = try #require(rig.skyCamera)
         Self.frame(&rig, at: 10 + SkyFlight.duration / 2)
         rig.drag(by: SIMD2(100, 50), viewSize: Self.viewSize)
@@ -56,10 +56,10 @@ import simd
         Self.frame(&rig, at: 11)
         rig.leaveSky(animated: true, uptime: 12, aspectRatio: Self.aspectRatio)
         Self.frame(&rig, at: 13)
-        #expect(rig.cameraMode == .sky && rig.wantsTerrain)
+        #expect(rig.cameraMode == .sky)
 
         rig.track("25544", animated: false, uptime: 13) { _ in .noModel }
-        #expect(rig.cameraMode == .tracking("25544") && rig.skyCamera == nil && !rig.wantsTerrain)
+        #expect(rig.cameraMode == .tracking("25544") && rig.skyCamera == nil)
         Self.frame(&rig, at: 12 + SkyFlight.duration, target: SIMD3(7_000_000, 0, 0))
         #expect(rig.cameraMode == .tracking("25544"))
 
@@ -123,7 +123,7 @@ import simd
         var rig = Self.rig()
         rig.enterSky(SkyCamera(latitude: .nan, longitude: 0), animated: false, uptime: 1, aspectRatio: Self.aspectRatio)
         #expect(Self.frame(&rig, at: 1) == nil)
-        #expect(rig.cameraMode == .orbit && rig.skyCamera == nil && !rig.wantsTerrain)
+        #expect(rig.cameraMode == .orbit && rig.skyCamera == nil)
         #expect(Self.frame(&rig, at: 2) != nil)
     }
 

@@ -285,6 +285,9 @@ discussion; sharpen them here when they drift.
   (`docs/adr/0009-native-ios-app.md`). It replaces the **WebView app**, the
   earlier iOS app that showed satvis.space in a web view, kept only as the tag
   `ios-webview-final`. "The iOS app" means the native app.
+- **Menu and panel**: the menu is the column of entries at the top left (Map,
+  Globe, Sky, Graphics and the rest); each entry opens its panel beside it. "The
+  Map panel", never "the Map menu".
 - **Parity fixture**: an output of the web app's own code for a fixed element
   set: a position, a pass, a url round trip. The native app's tests must
   reproduce it, so the fixtures are regenerated from the web code, never edited
@@ -295,7 +298,8 @@ discussion; sharpen them here when they drift.
 - **Render pacing**: drawing a frame only when it would differ from the last:
   something set or loaded, the camera moved, or a satellite able to have moved
   half a device pixel. The web app's CesiumJS render on demand, the native app's
-  `RenderPacing`. The sky view and tracking are never paced.
+  `RenderPacing`. The sky view and tracking are never paced. The web's Graphics
+  panel turns it off and on as "Render only on change"; the native app always paces.
 - **Idle**: the app on screen with nobody touching it and the clock at ×1, its
   frames paced. A benchmark's idle scene measures what that costs, as **load**,
   not how fast it draws: its frame rate is low by design.

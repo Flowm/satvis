@@ -136,6 +136,16 @@ at 2 m or 500. A third coordinate would feed the pass predictor a number it has 
 use for. The eye height belongs to the view and resets on entry with the aim and the
 zoom.
 
+The view stands on the Map panel's terrain, and entering it from a panel (the Sky
+panel's places, a ground station's info panel) turns Re:Earth's terrain on where the
+menu has None, because the horizon is the view's point: on the ellipsoid it is a
+flat line. A terrain already chosen stays, as does None chosen in the view: moving
+to another place there is not an entry. The terrain stays on after leaving. On the
+web a terrain that fails to load, offline say, goes back to None and says so, as a
+surface model does, so the menu and the link never claim one the globe lacks.
+A link to the sky view keeps the terrain it names, None included, since a link has
+no way to tell None turned off in the sky view from None never set.
+
 ### Inertial is suppressed; tracking is cleared
 
 Three things want to write the camera every frame, and the sky view cannot share it

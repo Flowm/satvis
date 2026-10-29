@@ -30,7 +30,7 @@ import simd
     @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func drawsOpaqueModelPartsWithFullCoverage() async throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let libraries = try await ShaderLibrary.make(device: device)
-        let closeUp = try await ShaderLibrary.makeFast(device: device, files: ["Common", "Models"])
+        let closeUp = try await ShaderLibrary.makeFast(device: device, files: ShaderLibrary.models)
         var uses = [(ModelCloseUp.targets, closeUp, closeUp), (GlobeRenderer.modelTargets(tileTonemap: false), libraries.precise, libraries.fast)]
         if device.supportsFamily(.apple4) {
             uses.append((GlobeRenderer.modelTargets(tileTonemap: true), libraries.precise, libraries.fast))

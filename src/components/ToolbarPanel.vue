@@ -24,7 +24,8 @@ const emit = defineEmits<{ close: [] }>();
 .toolbarPanel--fixed {
   box-sizing: border-box;
   width: min(var(--panel-width), var(--toolbar-panel-max), var(--toolbar-card-max));
-  max-height: calc(100dvh - 140px);
+  /* Down to a gap above the clock deck, as the iOS app's; without the deck, 140px short of the bottom. */
+  max-height: calc(100dvh - var(--edge) - var(--safe-top) - var(--clock-deck-height, 120px) - var(--toolbar-gap));
   padding: 0 6px 6px;
 }
 
@@ -35,8 +36,15 @@ const emit = defineEmits<{ close: [] }>();
   min-height: 0;
 }
 
+/* With the panel's own padding, the iOS app's 12 points around the cards. */
 .toolbarPanel--fixed .toolbarPanel__body {
+  padding: 0 6px 6px;
   overflow-y: auto;
+}
+
+/* As wide as the cards, which it stands among. */
+.toolbarPanel--fixed .toolbarPanel__body > :deep(.segments) {
+  margin: 0;
 }
 
 /* Rows keep their height and the body scrolls: a row's `overflow: hidden`, which cuts a long
@@ -67,7 +75,12 @@ const emit = defineEmits<{ close: [] }>();
 
 /* The divider already spaces a first section. */
 .toolbarPanel__body > :deep(.toolbarTitle:first-child) {
-  margin-top: 4px;
+  margin-top: 8px;
+}
+
+/* A card with no heading, as Components', a little further from the divider. */
+.toolbarPanel__body > :deep(:is(.toolbarSwitch, .toolbarPlace):first-child) {
+  margin-top: 6px;
 }
 
 /* The header's height and as wide, its icon centred. */

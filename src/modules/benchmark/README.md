@@ -52,7 +52,7 @@ rate**. The clock axis is ×1 only, unless you ask for more.
 
 | Column             | Meaning                                                                      |
 | ------------------ | ---------------------------------------------------------------------------- |
-| `fps`, `frameMs`   | Time between presented frames. Flattens against vsync                        |
+| `fps`, `frameMs`   | Time between presented frames. Flattens against vsync and the frame rate cap |
 | `cpuMs`            | `preUpdate` → `postRender`: the render only                                  |
 | `tickMs`           | `clock.tick()`, every `onTick` listener included. Propagation shows here     |
 | `gpuMs`            | GPU time per frame, blank when the driver's timer is not believable          |

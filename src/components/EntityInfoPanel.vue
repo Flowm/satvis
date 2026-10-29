@@ -456,7 +456,7 @@ function notifyForPasses(): void {
 }
 
 /* In the top-right corner where the menu column leaves room, as the iOS app's card, over
-   the Hide UI button, which hides under it (main.css). A phone keeps it under the top row,
+   the top-right buttons, which hide under it (main.css). A phone keeps it under the top row,
    clear of the menu toggle (`PHONE_WIDTH`, src/config/layout.ts). */
 @media (min-width: 640px) {
   .entity-info-panel {

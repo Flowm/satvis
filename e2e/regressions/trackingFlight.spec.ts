@@ -2,7 +2,7 @@
 
 import type { Page } from "@playwright/test";
 
-import { openApp, selectSatellite, waitForSky, waitTicks } from "../support/app";
+import { BLOCKED_TERRAIN, openApp, selectSatellite, waitForSky, waitTicks } from "../support/app";
 import { expect, test } from "../support/test";
 import { openMenu, skyPlace } from "../support/ui";
 
@@ -10,7 +10,7 @@ const ISS = "ISS (ZARYA)";
 const CSS = "CSS (TIANHE)";
 const QUERY = `tags=&sats=${encodeURIComponent(ISS)},${encodeURIComponent(CSS)}`;
 
-test.use({ viewport: { width: 1000, height: 800 } });
+test.use({ viewport: { width: 1000, height: 800 }, allowConsoleErrors: BLOCKED_TERRAIN });
 
 /** Records each change of the tracked entity, with where the camera stood at that moment. */
 const recordTracking = (page: Page) =>

@@ -7,12 +7,15 @@ import { nextTick, watch } from "vue";
 
 import { currentPosition } from "../composables/useGeolocation";
 import { useToastProxy } from "../composables/useToastProxy";
+import type { FrameRate } from "../config/rendering";
 import { satelliteModel } from "../config/satelliteMetadata";
 import { BUILTIN_STAR_MAP, starMapRecovery } from "../config/starMaps";
+import { surfaceModelLabel } from "../config/surfaceModels";
 import { SKY_MODE } from "../config/viewModes";
 import { useCesiumStore } from "../stores/cesium";
 import { useCustomSatelliteStore } from "../stores/customSatellites";
 import { useSatStore } from "../stores/sat";
+import { terrainLabel } from "./CesiumLayerProviders";
 import { activeTargetEntries } from "./satelliteActivation";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import type { DesiredScene } from "./SatelliteManager";
@@ -53,6 +56,7 @@ export interface SceneTarget {
   cameraMode: string;
   pixelRatio: string;
   msaa: string;
+  frameRate: FrameRate;
   showFps: boolean;
   requestRenderMode: boolean;
   background: boolean;
@@ -86,6 +90,7 @@ export interface SceneTarget {
   applyStarMap(starMap: string): Promise<void>;
   onGlobePick(callback: (lat: number, lon: number) => void): void;
   onSurfaceFailure(callback: (name: string, error: unknown) => void): void;
+  onTerrainFailure(callback: (name: string, error: unknown) => void): void;
   suppressCameraMode(): void;
   releaseCameraMode(): void;
   morphTo(mode: string): void;
@@ -154,10 +159,19 @@ export function startSceneSync(cc: SceneTarget): void {
   cc.onSurfaceFailure((name, error) => {
     cesiumStore.surfaceModel = "None";
     useToastProxy().add({
-      title: `${name} unavailable`,
+      title: `${surfaceModelLabel(name)} unavailable`,
       description: `${error instanceof Error ? error.message : "The tileset could not be loaded"}. Cesium ion needs a token valid for this origin.`,
       color: "warning",
     });
+  });
+  // As a surface model's. Only the Map panel's own choice: World Terrain under OSM
+  // Buildings is not one, and that failure reports the buildings.
+  cc.onTerrainFailure((name) => {
+    if (cesiumStore.terrainProvider !== name) {
+      return;
+    }
+    cesiumStore.terrainProvider = "None";
+    useToastProxy().add({ title: `${terrainLabel(name)} unavailable`, description: "The terrain could not be loaded.", color: "warning" });
   });
   // Immediate, because `?surface=` arrives before anything else triggers it.
   watch(
@@ -304,6 +318,13 @@ export function startSceneSync(cc: SceneTarget): void {
     () => cesiumStore.msaa,
     (rate) => {
       cc.msaa = rate;
+    },
+    { immediate: true },
+  );
+  watch(
+    () => cesiumStore.frameRate,
+    (rate) => {
+      cc.frameRate = rate;
     },
     { immediate: true },
   );

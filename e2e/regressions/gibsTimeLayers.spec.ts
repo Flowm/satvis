@@ -63,8 +63,8 @@ test("the layers request the frame for the clock, and nothing once removed", asy
   const tickListeners = () => page.evaluate(() => window.cc!.viewer.clock.onTick.numberOfListeners);
   const listenersWithLayers = await tickListeners();
   await openMenu(page, "Map");
-  await menuSwitch(page, "NaturalEarth").click();
-  await menuSwitch(page, "GOES-IR").click();
+  await menuSwitch(page, "Natural Earth").click();
+  await menuSwitch(page, "Infrared (GOES-East)").click();
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.imageryLayers.length)).toBe(1);
   expect(new URL(page.url()).searchParams.get("layers")).toBeNull();
   // Each layer kept the viewer's clock in step with one listener.

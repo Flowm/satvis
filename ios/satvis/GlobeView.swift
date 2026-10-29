@@ -12,7 +12,9 @@ private let log = Logger(subsystem: "org.frcy.app.satvis", category: "globe")
 struct GlobeView: View {
     /// Called once the renderer exists, so the satellites can be handed to it.
     let onRenderer: (GlobeRenderer) -> Void
-    /// Where on the view, and the view's size.
+    /// Called as each tap lifts, a double tap's first included.
+    var onEveryTap: () -> Void = {}
+    /// Where on the view, and the view's size; called once no double tap can follow.
     let onTap: (CGPoint, CGSize) -> Void
     let onDoubleTap: (CGPoint, CGSize) -> Void
     /// Asked with a drag's translation so far, and the most fingers down during
@@ -50,6 +52,7 @@ struct GlobeView: View {
                     .onEnded { onDoubleTap($0.location, size) }
                     .exclusively(before: SpatialTapGesture().onEnded { onTap($0.location, size) })
             )
+            .simultaneousGesture(SpatialTapGesture().onEnded { _ in onEveryTap() })
             .simultaneousGesture(
                 DragGesture(minimumDistance: 1)
                     .onChanged { value in

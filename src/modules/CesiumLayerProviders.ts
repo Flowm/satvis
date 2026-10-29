@@ -29,18 +29,23 @@ export interface ImageryContext {
 }
 
 export interface ImageryProviderEntry {
+  /** The Map panel's name for it; the key stays the url's and the store's (ADR 0001). */
+  label: string;
   create: (context: ImageryContext) => ImageryProvider | Promise<ImageryProvider>;
   alpha: number;
   base: boolean;
 }
 
 export interface TerrainProviderEntry {
+  /** The Map panel's name for it. */
+  label: string;
   create: () => TerrainProvider | Promise<TerrainProvider>;
 }
 
 export const imageryProviders: Record<string, ImageryProviderEntry> = {
   /** The offline base map, and the default. */
   NaturalEarth: {
+    label: "Natural Earth",
     // Overrides the manifest, which declares only the committed levels; readonly after
     // construction. Above it Cesium magnifies the deepest ready ancestor tile.
     create: () =>
@@ -52,6 +57,7 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
     base: true,
   },
   ArcGis: {
+    label: "Satellite (Esri)",
     create: () =>
       ArcGisMapServerImageryProvider.fromUrl("https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer", {
         enablePickFeatures: false,
@@ -64,6 +70,7 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
    * copied from https://tiles.versatiles.org/tiles/satellite/tiles.json.
    */
   VersaTiles: {
+    label: "Satellite (VersaTiles)",
     create: () =>
       new UrlTemplateImageryProvider({
         // The TileJSON has no `scheme`, so `xyz` applies; `{reverseY}` would invert it.
@@ -78,6 +85,7 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
     base: true,
   },
   OSM: {
+    label: "OpenStreetMap",
     create: () =>
       new OpenStreetMapImageryProvider({
         url: "https://a.tile.openstreetmap.org/",
@@ -86,6 +94,7 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
     base: true,
   },
   BlackMarble: {
+    label: "Night (Black Marble)",
     create: () =>
       new WebMapServiceImageryProvider({
         url: "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi",
@@ -105,22 +114,26 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
    * black. NOAA-20 rather than Suomi NPP, whose recent days miss more swaths.
    */
   VIIRS: {
+    label: "Daily (VIIRS)",
     create: (context) => createGibsTimeLayer({ layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", maximumLevel: 9, format: "jpeg", daily: true }, context),
     alpha: 1,
     base: true,
   },
   Tiles: {
+    label: "Tile grid",
     create: () => new TileCoordinatesImageryProvider(),
     alpha: 1,
     base: false,
   },
   /** GOES-East clean infrared, every 10 minutes for the last few months, over the Americas. */
   "GOES-IR": {
+    label: "Infrared (GOES-East)",
     create: (context) => createGibsTimeLayer({ layer: "GOES-East_ABI_Band13_Clean_Infrared", maximumLevel: 6, format: "png", daily: false }, context),
     alpha: 0.5,
     base: false,
   },
   Nextrad: {
+    label: "US radar (NEXRAD)",
     create: () =>
       new WebMapServiceImageryProvider({
         url: "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi?",
@@ -138,10 +151,12 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
 
 export const terrainProviders: Record<string, TerrainProviderEntry> = {
   None: {
+    label: "None",
     create: () => new EllipsoidTerrainProvider(),
   },
   /** OSM Buildings forces this terrain (src/config/surfaceModels.ts). Needs the ion token. */
   CesiumWorldTerrain: {
+    label: "Cesium World Terrain",
     // `globe.enableLighting` needs vertex normals, or the relief shades flat.
     create: () => createWorldTerrainAsync({ requestVertexNormals: true }),
   },
@@ -150,6 +165,7 @@ export const terrainProviders: Record<string, TerrainProviderEntry> = {
    * tens of metres off. No water mask: it would need a second attribution line.
    */
   ReEarth: {
+    label: "Re:Earth",
     create: () =>
       CesiumTerrainProvider.fromUrl("https://terrain.reearth.land/cesium-mesh/ellipsoid", {
         credit: '<a href="https://terrain.reearth.land/" target="_blank">Re:Earth Terrain</a> · Mapterhorn (CC BY 4.0)',
@@ -157,6 +173,7 @@ export const terrainProviders: Record<string, TerrainProviderEntry> = {
       }),
   },
   Maptiler: {
+    label: "MapTiler",
     create: () =>
       CesiumTerrainProvider.fromUrl("https://api.maptiler.com/tiles/terrain-quantized-mesh/?key=tiHE8Ed08u6ZoFjbE32Z", {
         credit:
@@ -184,4 +201,14 @@ export function overlayLayerNames(): string[] {
 
 export function terrainProviderNames(): string[] {
   return Object.keys(terrainProviders);
+}
+
+/** The id where it is none of ours. */
+export function imageryLabel(name: string): string {
+  return imageryProviders[name]?.label ?? name;
+}
+
+/** The id where it is none of ours. */
+export function terrainLabel(name: string): string {
+  return terrainProviders[name]?.label ?? name;
 }

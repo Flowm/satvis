@@ -9,7 +9,7 @@ import { expect, test } from "../support/test";
 const CONTROLS = {
   "menu toggle": "#toolbarLeft .menuColumn__toggle",
   "toolbar Locations": "#toolbarLeft .menuColumn__item:nth-child(4)",
-  "toolbar eye": "#toolbarRight button",
+  corner: "#toolbarRight button",
   "cesium credits": ".cesium-credit-logoContainer",
   "clock deck controls": ".cluster",
   "clock deck scale row": ".scale-row",
@@ -29,7 +29,7 @@ test("every control takes clicks in the sky view", async ({ page }) => {
   await expect(page.locator("#menuColumnList")).toBeVisible();
 
   // The top-right column hides under the entity panel at every width.
-  const controls = Object.fromEntries(Object.entries(CONTROLS).filter(([name]) => name !== "toolbar eye"));
+  const controls = Object.fromEntries(Object.entries(CONTROLS).filter(([name]) => name !== "corner"));
   const clickable = Object.fromEntries(Object.keys(controls).map((name) => [name, "clickable"]));
   for (const width of [563, 1000, 1106]) {
     await page.setViewportSize({ width, height: 900 });

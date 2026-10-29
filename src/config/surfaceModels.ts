@@ -1,5 +1,5 @@
 // The surface model vocabulary and every consequence of picking one, Cesium-free so the
-// url schema, the Map menu and SurfaceModel share it. OsmBuildings adds to the globe;
+// url schema, the Map panel and SurfaceModel share it. OsmBuildings adds to the globe;
 // GooglePhotorealistic replaces it. See ADR 0005.
 
 import { SKY_MODE } from "./viewModes";
@@ -8,9 +8,16 @@ export const SURFACE_MODELS = ["None", "OsmBuildings", "GooglePhotorealistic"] a
 /** Not `SurfaceModel`: that is the class in src/modules/SurfaceModel.ts. */
 export type SurfaceModelName = (typeof SURFACE_MODELS)[number];
 
+/** The Map panel's names. */
+export const SURFACE_MODEL_LABELS: Record<SurfaceModelName, string> = {
+  None: "None",
+  OsmBuildings: "Buildings (OSM)",
+  GooglePhotorealistic: "Photorealistic (Google)",
+};
+
 export type SurfaceTileset = Exclude<SurfaceModelName, "None">;
 
-/** Map menu groups a surface model can make inert. */
+/** Map panel groups a surface model can make inert. */
 export type MapGroup = "layers" | "terrain";
 
 interface SurfaceModelRules {
@@ -53,6 +60,11 @@ export interface SurfaceEffects {
 
 export function isSurfaceModelName(value: string): value is SurfaceModelName {
   return (SURFACE_MODELS as readonly string[]).includes(value);
+}
+
+/** The id where it is none of ours. */
+export function surfaceModelLabel(name: string): string {
+  return isSurfaceModelName(name) ? SURFACE_MODEL_LABELS[name] : name;
 }
 
 /** Total in both arguments, so the menu's annotations cannot drift from the scene. */

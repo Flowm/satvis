@@ -61,6 +61,8 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
     /// One turn a minute.
     private static let turnRadiansPerSecond = 2 * Double.pi / 60
     private static let verticalFieldOfView = 40 * Double.pi / 180
+    /// The web app's studio light, of intensity 2.5 under its ACES tonemap.
+    private static let exposure: Float = 2.5
     /// The view's, which `make` sets it up with.
     static let targets = ModelPipelines.Targets(color: .bgra8Unorm_srgb, depth: .depth32Float, sampleCount: 4)
 
@@ -78,7 +80,7 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
         view.sampleCount = targets.sampleCount
         // Clear, over the caller's backdrop: the view itself has to be made transparent too.
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
-        let task = library ?? Task { try await ShaderLibrary.makeFast(device: device, files: ["Common", "Models"]) }
+        let task = library ?? Task { try await ShaderLibrary.makeFast(device: device, files: ShaderLibrary.models) }
         library = task
         let compiled: MTLLibrary
         do {
@@ -245,7 +247,9 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
         let toEye = simd_double4x4(columns: (SIMD4(1, 0, 0, 0), SIMD4(0, 1, 0, 0), SIMD4(0, 0, 1, 0), SIMD4(-eye, 1)))
         let base = ModelInstance(
             modelViewProjection: float4x4(projection * viewMatrix), rotation: matrix_identity_float3x3, modelToEye: float4x4(toEye), baseColor: .one,
-            sunDirection: light, hasTexture: 0, metallic: 0, roughness: 0, alphaCutoff: 0, opacity: 1)
+            sunDirection: light, hasTexture: 0, metallic: 0, roughness: 0, alphaCutoff: 0, opacity: 1, exposure: Self.exposure)
+        // glTF's, as the globe's pass sets it: Metal's default culls a one-sided part's front and shows its back.
+        encoder.setFrontFacing(.counterClockwise)
         encoder.setFragmentSamplerState(sampler, index: 0)
         for blended in [false, true] {
             encoder.setRenderPipelineState(blended ? pipelines.blended : pipelines.opaque)

@@ -56,8 +56,7 @@ struct ContentView: View {
     @State private var showsAcknowledgements = false
     @State private var showsAbout = false
     @State private var showsTools = false
-    /// The corner's eye, as the web app's Hide UI: off, the menu column, its panel,
-    /// the clock deck and the corner's other buttons hide, for a picture of the globe.
+    /// The Graphics panel's Hide UI, as the web app's (`hideUI`).
     @State private var showsUI = true
     /// What was selected when a sheet folded the column on a phone, to unfold it
     /// again when the sheet closes; nil while no sheet folded it.
@@ -68,6 +67,9 @@ struct ContentView: View {
     @State private var pickingFromLocations: Selection??
     /// The panel open beside the menu column, if any.
     @State private var panel: ToolPanel?
+    /// Whether the last tap on the globe closed the menu, for its selection to
+    /// keep once no double tap can follow.
+    @State private var tapClosedMenu = false
     /// Where the menu column and the top corner's buttons are, in the window.
     @State private var menuFrame: CGRect?
     @State private var cornerFrame: CGRect?
@@ -83,23 +85,34 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
 
+    /// Hides the menu column, its panel, the clock deck and the corner's buttons, for
+    /// a picture of the globe. The menu closes first, so Show UI brings none of it back
+    /// open, as on the web.
+    private func hideUI() {
+        panel = nil
+        if sizeClass != .regular {
+            showsTools = false
+        }
+        showsUI = false
+    }
+
     var body: some View {
         GlobeView(
             onRenderer: session.attach,
-            onTap: { point, size in
-                // As the web app's: a tap on the globe puts the menu back as it
-                // starts, no panel and on a phone a folded column, and still selects
-                // what it hits; a miss that closed the menu keeps the selection.
-                // Picking leaves the menu alone.
+            onEveryTap: {
+                // As the web app's: no panel and on a phone a folded column. As the
+                // finger lifts, not 350 ms later once `onTap` rules out a double tap.
                 let foldsColumn = sizeClass != .regular && showsTools
-                let closesMenu = !session.isPicking && (panel != nil || foldsColumn)
-                if closesMenu {
+                tapClosedMenu = !session.isPicking && (panel != nil || foldsColumn)
+                if tapClosedMenu {
                     panel = nil
                     if foldsColumn {
                         showsTools = false
                     }
                 }
-                session.tap(at: point, viewSize: size, keepingSelection: closesMenu)
+            },
+            onTap: { point, size in
+                session.tap(at: point, viewSize: size, keepingSelection: tapClosedMenu)
             },
             onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) },
             mayDrag: session.aim.mayDrag(_:fingers:),
@@ -136,10 +149,11 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            // The web app's order: the eye first, so it stays put as the others come and go.
+            // The web app's buttons, in its order.
             VStack(spacing: PanelMetrics.gap) {
-                Button(showsUI ? "Hide UI" : "Show UI", systemImage: showsUI ? "eye" : "eye.slash") { showsUI.toggle() }
-                if showsUI {
+                if !showsUI {
+                    Button("Show UI", systemImage: "eye") { showsUI = true }
+                } else {
                     Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
                     if session.observer != nil {
                         Button(
@@ -230,7 +244,7 @@ struct ContentView: View {
                         entry(.locations, image: .lucideMapPin, hint: "Ground stations, for pass predictions and the sky view")
                         entry(.globe, image: .lucideGlobe, hint: "The globe's projection, and the camera")
                         entry(.sky, image: .lucideTelescope, hint: "Look up from a ground station and see what passes over")
-                        entry(.graphics, image: .lucideGauge, hint: "Quality and performance")
+                        entry(.graphics, image: .lucideGauge, hint: "Hiding the UI, quality and performance")
                         // The web app's About button, kept off the corner, which holds
                         // the ways back alone.
                         ToolEntry(title: "About", image: .lucideInfo, hint: "What Satvis is, what it does, where its data comes from, and its credits") {
@@ -244,7 +258,7 @@ struct ContentView: View {
                         menuFrame = $0
                     }
                     if let panel {
-                        ToolPanelView(title: panel.title, width: panel.cardWidth, onClose: { self.panel = nil }) {
+                        ToolPanelView(title: panel.title, width: panel.cardWidth, maxHeight: panelMaxHeight, onClose: { self.panel = nil }) {
                             switch panel {
                             case .components: ComponentsPanel(catalog: session.catalog)
                             case .map: MapPanel(session: session)
@@ -255,7 +269,7 @@ struct ContentView: View {
                                 }
                             case .globe: GlobePanel(session: session)
                             case .sky: SkyPanel(session: session)
-                            case .graphics: GraphicsPanel(session: session)
+                            case .graphics: GraphicsPanel(session: session, hideUI: hideUI)
                             }
                         }
                         .id(panel)
@@ -504,6 +518,15 @@ struct ContentView: View {
             return nil
         }
         return max(cornerFrame.minX - toolsFrame.minX - PanelMetrics.edge - PanelMetrics.gap, 0)
+    }
+
+    /// How tall a panel may run: down to a gap above the clock deck, as the web app's,
+    /// scrolling where it is longer.
+    private var panelMaxHeight: CGFloat? {
+        guard let toolsFrame, let deckFrame else {
+            return nil
+        }
+        return max(deckFrame.minY - PanelMetrics.gap - toolsFrame.minY - PanelMetrics.edge, 0)
     }
 
     @ViewBuilder private var infoPanel: some View {

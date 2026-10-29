@@ -20,7 +20,7 @@ import utc from "dayjs/plugin/utc";
 import { usePostHog } from "../composables/usePostHog";
 import { defaultViewDistance } from "../config/defaultView";
 import { parseLayer } from "../config/layers";
-import { msaaSamplesFor, resolutionScaleFor } from "../config/rendering";
+import { type FrameRate, msaaSamplesFor, resolutionScaleFor, targetFrameRateFor } from "../config/rendering";
 import { type StarMapSources, starMapSources } from "../config/starMaps";
 import { type ImageryContext, type ImageryProviderEntry, imageryProviders, type TerrainProviderEntry, terrainProviders } from "./CesiumLayerProviders";
 import { BATCHED_COMPONENTS } from "./componentKinds";
@@ -112,6 +112,7 @@ export class CesiumController {
   #onGlobePick: (lat: number, lon: number) => void = () => {};
 
   #onSurfaceFailure: (name: string, error: unknown) => void = () => {};
+  #onTerrainFailure: (name: string, error: unknown) => void = () => {};
 
   constructor(viewer: Viewer) {
     this.#preloadReferenceFrameData();
@@ -276,6 +277,9 @@ export class CesiumController {
     } catch (error) {
       // The previous terrain stays.
       console.error(`Terrain provider ${name} failed to load`, error);
+      if (isCurrent()) {
+        this.#onTerrainFailure(name, error);
+      }
     }
   }
 
@@ -460,6 +464,11 @@ export class CesiumController {
     this.#onSurfaceFailure = callback;
   }
 
+  /** A terrain failed to load; the previous one stays. */
+  onTerrainFailure(callback: (name: string, error: unknown) => void): void {
+    this.#onTerrainFailure = callback;
+  }
+
   /**
    * The click being released keeps the selection if it hits nothing, and still selects what it hits. Cleared
    * once this event is over, because Cesium fires no click for a press that moved past its 5px tolerance.
@@ -502,6 +511,12 @@ export class CesiumController {
   set msaa(rate: string) {
     this.viewer.scene.msaaSamples = msaaSamplesFor(rate);
     this.viewer.scene.requestRender();
+  }
+
+  /** Frames a second at most. */
+  set frameRate(rate: FrameRate) {
+    // Cesium's types leave out undefined, which its docs allow: the browser's own rate.
+    this.viewer.targetFrameRate = targetFrameRateFor(rate) as number;
   }
 
   /**

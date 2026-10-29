@@ -154,17 +154,24 @@ private struct ToolRow: View {
 }
 
 /// A panel beside the menu column: its title and a close button over a rule level
-/// with the column's, and under it what it holds, scrolling only where the
-/// screen is too short for it.
+/// with the column's, and under it what it holds, scrolling only where it would
+/// run past `maxHeight`.
 struct ToolPanelView<Content: View>: View {
     let title: LocalizedStringKey
     /// A card's width, or less where the room is narrower.
     let width: CGFloat
+    /// How tall it may run, title and all: down to the clock deck. Nil leaves it
+    /// what it is offered.
+    let maxHeight: CGFloat?
     let onClose: () -> Void
     @ViewBuilder let content: Content
     /// Dynamic Type's scale, as the menu column's rows take it, so that the title
     /// row is as tall as the column's first and the two rules meet.
     @ScaledMetric(relativeTo: .body) private var scale = 1.0
+    /// What it holds, measured, which the scroll view is as tall as where it fits.
+    @State private var contentHeight: CGFloat?
+    /// The title row and its rule, measured.
+    @State private var headerHeight: CGFloat = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -182,18 +189,33 @@ struct ToolPanelView<Content: View>: View {
             .padding(.leading, 12)
             .padding(.trailing, 4)
             Divider()
-            ViewThatFits(in: .vertical) {
-                padded(content)
-                ScrollView {
-                    padded(content)
+                .onGeometryChange(for: CGFloat.self) {
+                    $0.frame(in: .named(Self.space)).maxY
+                } action: {
+                    headerHeight = $0
                 }
+            // Not a ViewThatFits between the content and a scroll view: capped
+            // from outside, it squeezed a note to one line and stretched the title
+            // row.
+            ScrollView {
+                padded(content)
             }
+            .scrollBounceBehavior(.basedOnSize)
+            .onScrollGeometryChange(for: CGFloat.self) {
+                $0.contentSize.height
+            } action: { _, height in
+                contentHeight = height
+            }
+            .frame(height: contentHeight.map { min($0, (maxHeight ?? .infinity) - headerHeight) })
         }
+        .coordinateSpace(.named(Self.space))
         .frame(maxWidth: width)
         .panel()
         // Rows of small text, which the globe's labels showed through.
         .environment(\.panelDensity, .dense)
     }
+
+    private static var space: String { "toolPanel" }
 
     private func padded(_ content: Content) -> some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -358,8 +380,6 @@ private struct CircleToggleStyle: ToggleStyle {
 private struct Choices<Value: Hashable>: View {
     @Binding var selection: Value
     let options: [(String, Value)]
-    /// Shown but not offered, greyed as the web app's disabled rows.
-    var disabled: Set<Value> = []
 
     var body: some View {
         PanelCard {
@@ -374,7 +394,6 @@ private struct Choices<Value: Hashable>: View {
                     }
                 }
                 .buttonStyle(PanelRowStyle())
-                .disabled(disabled.contains(value))
                 .accessibilityAddTraits(selection == value ? .isSelected : [])
             }
         }
@@ -414,34 +433,39 @@ struct MapPanel: View {
         PanelSection("Basemap") {
             Choices(selection: $session.baseLayer, options: BaseLayer.allCases.map { ($0.title, $0) })
         }
-        // The web app's names for the two, as its links spell them.
+        // The web app's names for the two.
         PanelSection("Terrain") {
-            Segments(title: "Terrain", selection: $session.terrain, options: [("None", false), ("ReEarth", true)])
+            Segments(title: "Terrain", selection: $session.terrain, options: [("None", false), ("Re:Earth", true)])
         }
     }
 }
 
 /// The globe's projection and camera: the web app's Globe panel, less the 2D and
 /// Columbus projections the app does not draw. It writes the same view as the
-/// Sky panel, so in the sky view no projection is ticked; Sky view is, listed only
-/// then and greyed, as it is entered from the Sky panel, which names a place
-/// (ADR 0003).
+/// Sky panel, so in the sky view no projection is chosen, and choosing one leaves
+/// it; the Sky panel enters it, as it names a place (ADR 0003).
 struct GlobePanel: View {
     @Bindable var session: Session
 
     var body: some View {
         let inSky = session.observer != nil
         PanelSection("Projection") {
-            Choices(
-                selection: Binding {
-                    inSky ? "Sky" : "3D"
+            Picker(
+                "Projection",
+                selection: Binding<String?> {
+                    inSky ? nil : "3D"
                 } set: { _ in
                     if inSky {
                         session.leaveSky()
                     }
-                },
-                options: inSky ? [("3D", "3D"), ("Sky view", "Sky")] : [("3D", "3D")],
-                disabled: ["Sky"])
+                }
+            ) {
+                Text(verbatim: "3D").tag(String?.some("3D"))
+            }
+            .panelSegmented()
+            if inSky {
+                Note("Select a projection to leave sky view.")
+            }
         }
         PanelSection("Camera") {
             Segments(title: "Camera", selection: $session.cameraFrame, options: CameraFrame.allCases.map { ($0.rawValue, $0) })
@@ -617,13 +641,23 @@ struct Note: View {
     }
 }
 
-/// How the globe is drawn and what that costs: the web app's Graphics panel, less
-/// the scene effects and MSAA, which the app does not switch.
+/// How the globe is drawn and what that costs, and hiding the UI: the web app's
+/// Graphics panel, less the scene effects and MSAA, which the app does not switch,
+/// and Render only on change, which it always does but while the FPS overlay or the
+/// benchmark measures (`GlobeRenderer.mustDraw`).
 struct GraphicsPanel: View {
     @Bindable var session: Session
+    let hideUI: () -> Void
     @Environment(\.displayScale) private var displayScale
 
     var body: some View {
+        // First, so a phone shows it without scrolling.
+        PanelSection("Interface") {
+            PanelCard {
+                Place(Text("Hide UI"), image: .lucideEyeOff, action: hideUI)
+            }
+            Note("For a clear view of the globe. Show UI, top right, brings it back.")
+        }
         PanelSection("Measurement") {
             PanelCard {
                 Toggle(
@@ -645,30 +679,20 @@ struct GraphicsPanel: View {
         // The web app's ladder (src/config/rendering.ts): the fixed rungs below
         // the screen's own ratio, then the screen's, so it only offers savings.
         PanelSection("Pixel ratio") {
-            Choices(
+            Segments(
+                title: "Pixel ratio",
                 selection: $session.pixelRatio,
                 options: LinkCodec.pixelRatios.filter { $0 == "native" || (Double($0) ?? 0) < displayScale }.map { ratio in
-                    (ratio == "native" ? String(format: "%.1fx (Native)", displayScale) : String(format: "%.1fx", Double(ratio) ?? 0), ratio)
+                    (ratio == "native" ? "Native" : "\(ratio)x", ratio)
                 })
+            Note("Native is this screen's \(Double(displayScale).formatted(.number.precision(.fractionLength(0...2))))x. Fewer pixels draw faster.")
         }
-        // Only the rates the screen can show; a rate kept from a faster screen, as a
-        // restored backup brings, reads as the fastest here.
-        let rates = Session.frameRates.filter { $0 <= maximumFrameRate }
         PanelSection("Frame rate") {
             Segments(
                 title: "Frame rate",
-                selection: Binding {
-                    rates.last { $0 <= session.frameRate } ?? rates[0]
-                } set: {
-                    session.frameRate = $0
-                },
-                options: rates.map { ("\($0) fps", $0) })
-            Note("Fewer frames save battery.")
+                selection: $session.frameRate,
+                options: Session.frameRates.map { ($0 == Session.maximumFrameRate ? "Max" : "\($0) fps", $0) })
+            Note("At most this many frames a second. Fewer save battery.")
         }
-    }
-
-    /// 120 on a ProMotion screen, never under 60.
-    private var maximumFrameRate: Int {
-        max(GlobeRenderer.displayMaximumFramesPerSecond, 60)
     }
 }

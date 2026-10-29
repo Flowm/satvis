@@ -1,4 +1,4 @@
-// Star fields behind the globe. Cesium-free, because the url schema and the Map menu need the list too.
+// Star fields behind the globe. Cesium-free, because the url schema and the Map panel need the list too.
 
 /**
  * Named for catalogue and cube face size, ordered by cost. `Tycho1K` ships with Cesium
@@ -12,6 +12,13 @@
 export const STAR_MAPS = ["Tycho1K", "DeepStar1K", "DeepStar2K"] as const;
 
 export type StarMapName = (typeof STAR_MAPS)[number];
+
+/** The Map panel's names. */
+export const STAR_MAP_LABELS: Record<StarMapName, string> = {
+  Tycho1K: "Tycho (1K)",
+  DeepStar1K: "Deep Star (1K)",
+  DeepStar2K: "Deep Star (2K)",
+};
 
 /** The map that cannot be missing, and so the fallback everywhere. */
 export const BUILTIN_STAR_MAP: StarMapName = "Tycho1K";

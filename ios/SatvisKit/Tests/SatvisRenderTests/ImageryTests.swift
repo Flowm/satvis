@@ -107,4 +107,23 @@ import simd
         #expect(surface.tileCount == 2)
     }
 
+    // The sky view stands on the ground the Map panel draws: the ellipsoid with the
+    // terrain off, and what is worked out from the ground redone when it changes.
+    @MainActor
+    @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func standsOnTheEllipsoidWithTheTerrainOff() async throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let libraries = try await ShaderLibrary.make(device: device)
+        let surface = try Surface(device: device, library: libraries.precise, site: URL(string: "https://satvis.space/")!)
+        #expect(surface.groundHeight(latitude: 46.59, longitude: 7.91) == 0)
+        let revision = surface.terrainRevision
+        surface.setTerrain(true)
+        #expect(surface.groundHeight(latitude: 46.59, longitude: 7.91) == nil)
+        #expect(surface.terrainRevision == revision + 1)
+        surface.setTerrain(true)
+        #expect(surface.terrainRevision == revision + 1)
+        surface.setTerrain(false)
+        #expect(surface.groundHeight(latitude: 46.59, longitude: 7.91) == 0)
+        #expect(surface.terrainRevision == revision + 2)
+    }
+
 }

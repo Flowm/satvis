@@ -2,16 +2,22 @@
 
 import type { Page } from "@playwright/test";
 
-import { canvasBox, openApp, waitForSky } from "../support/app";
+import { BLOCKED_TERRAIN, canvasBox, openApp, waitForSky } from "../support/app";
 import { expect, test } from "../support/test";
-import { addStationHere, clickEntity, closeMenuPanel, menuSwitch, openMenu, showInfo, skyPlace } from "../support/ui";
+import { addStationHere, clickEntity, closeMenuPanel, menuSwitch, openMenu, showInfo, skyPlace, toasts } from "../support/ui";
 
 const MUNICH = { latitude: 48.1372, longitude: 11.5756 };
 const TARGET = "METEOSAT-12 (MTG-I1)";
 
-test.use({ geolocation: MUNICH, permissions: ["geolocation"], viewport: { width: 1280, height: 800 } });
+test.use({ geolocation: MUNICH, permissions: ["geolocation"], viewport: { width: 1280, height: 800 }, allowConsoleErrors: BLOCKED_TERRAIN });
 
 /** The target's azimuth and elevation from the observer, against the geodetic normal. */
+/** Entered from a panel, it turns Re:Earth on; the fixture blocks it, so it falls back to None and says so. */
+const expectTerrainTried = async (page: Page) => {
+  await expect(toasts(page, "Re:Earth unavailable")).toHaveCount(1);
+  expect(new URL(page.url()).searchParams.get("terrain")).toBeNull();
+};
+
 const skyPosition = (page: Page, name: string) =>
   page.evaluate((wanted) => {
     const { viewer, skyView, sats } = window.cc!;
@@ -58,6 +64,7 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   await panel.getByRole("button", { name: "View the sky from this ground station" }).click();
   await waitForSky(page);
   await expect(page.locator(".sky-hud--settled")).toBeVisible();
+  await expectTerrainTried(page);
 
   // The view follows the cursor, so this drag puts the target under the crosshair.
   const target = await skyPosition(page, TARGET);
@@ -110,12 +117,13 @@ test("the sky view returns to the projection it was entered from, and holds the 
   await skyPlace(page, "Munich").click();
   await waitForSky(page);
   await expect(skyPlace(page, "Munich")).toHaveAttribute("aria-current", "location");
+  await expectTerrainTried(page);
 
   await openMenu(page, "Globe");
   for (const projection of ["3D", "2D", "Columbus"]) {
     await expect(menuSwitch(page, projection).locator("input")).not.toBeChecked();
   }
-  await expect(page.getByText("In the sky view; a projection leaves it.")).toBeVisible();
+  await expect(page.getByText("Select a projection to leave sky view.")).toBeVisible();
   await expect(menuSwitch(page, "Inertial").locator("input")).toBeDisabled();
 
   await openMenu(page, "Sky");
@@ -125,7 +133,7 @@ test("the sky view returns to the projection it was entered from, and holds the 
   await openMenu(page, "Globe");
   await expect(menuSwitch(page, "Inertial").locator("input")).toBeEnabled();
   await expect(menuSwitch(page, "2D").locator("input")).toBeChecked();
-  await expect(page.getByText("In the sky view; a projection leaves it.")).toBeHidden();
+  await expect(page.getByText("Select a projection to leave sky view.")).toBeHidden();
 });
 
 test("look up stands where the device is, listed first, so a reload stands there again", async ({ page }) => {
@@ -149,4 +157,11 @@ test("look up moves the Geolocation station rather than adding another", async (
   await waitForSky(page);
   expect(await page.evaluate(() => window.cc!.skyView.observer)).toEqual({ lat: MUNICH.latitude, lon: MUNICH.longitude });
   await expect.poll(() => new URL(page.url()).searchParams.get("gs")).toBe("48.1372,11.5756,Geolocation_47.2692,11.4041,Innsbruck");
+});
+
+test("a link to the sky view keeps its own terrain", async ({ page }) => {
+  await openApp(page, "gs=48.1372,11.5756,Munich&scene=Sky");
+  await waitForSky(page);
+  await openMenu(page, "Map");
+  await expect(page.locator('input[name="terrain"][value="None"]')).toBeChecked();
 });

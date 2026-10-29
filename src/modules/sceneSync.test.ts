@@ -40,6 +40,7 @@ function fakeTarget() {
     // A test calls them to simulate a click on the globe, or a tileset that fails.
     globePicked: undefined as ((lat: number, lon: number) => void) | undefined,
     surfaceFailed: undefined as ((name: string, error: unknown) => void) | undefined,
+    terrainFailed: undefined as ((name: string, error: unknown) => void) | undefined,
   };
 
   const unavailableStarMaps = new Set<string>();
@@ -62,6 +63,7 @@ function fakeTarget() {
     cameraMode: "Fixed",
     pixelRatio: "native",
     msaa: "4",
+    frameRate: "60",
     showFps: false,
     requestRenderMode: true,
     background: false,
@@ -117,6 +119,9 @@ function fakeTarget() {
     },
     onSurfaceFailure: (callback) => {
       calls.surfaceFailed = callback;
+    },
+    onTerrainFailure: (callback) => {
+      calls.terrainFailed = callback;
     },
     suppressCameraMode: () => {
       calls.suppressCamera += 1;
@@ -247,6 +252,19 @@ describe("startSceneSync", () => {
 
     expect(store.surfaceModel).toBe("None");
     expect(calls.surfaceModels.at(-1)).toEqual(["None", store.sceneMode]);
+  });
+
+  test("a terrain that fails goes back to None, unless another was chosen meanwhile", async () => {
+    const { target, calls } = fakeTarget();
+    startSceneSync(target);
+    const store = useCesiumStore();
+    store.terrainProvider = "ReEarth";
+    await nextTick();
+
+    calls.terrainFailed?.("CesiumWorldTerrain", new Error("401"));
+    expect(store.terrainProvider).toBe("ReEarth");
+    calls.terrainFailed?.("ReEarth", new Error("offline"));
+    expect(store.terrainProvider).toBe("None");
   });
 
   test("a projection view mode morphs, and hands the camera back first", async () => {

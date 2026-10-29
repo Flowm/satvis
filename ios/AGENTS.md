@@ -43,7 +43,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   the cache whatever their age, which leaves a host alone for as long as a 429
   asks. Natural Earth's levels 3 to 5 are kept for good instead (`KeptTiles`, in
   Application Support), since the whole pyramid is 17 MB: a place seen once
-  shows offline, whatever the system purges. The base map and the terrain are the Map menu's, kept between launches.
+  shows offline, whatever the system purges. The base map and the terrain are the Map panel's, kept between launches.
 - Terrain (`Terrain.swift`) is Re:Earth's quantized mesh, decoded and kept per
   terrain tile; a surface tile's grid is laid over the terrain tile log₂(screen
   scale) levels coarser, the level the web app would ask for, so the app asks
@@ -53,16 +53,17 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   again and again. iOS's memory warning drops what the last frame does not use
   (`GlobeRenderer.trimMemory`), about 175 MB after the sky view.
 - About, the menu column's last entry, is the web app's About dialog (`AboutView.swift`):
-  what Satvis is, what it does and where its data comes from, written for the app.
-  Its demos are the Bookmarks sheet's, with their pictures, in a carousel as on the
-  about page; choosing one opens it as its card does.
+  what Satvis is, what it does and where its data comes from, written for the app,
+  in the about page's order and with its Lucide icons, the app's links and switch
+  where the web has its credits. Its demos are the Bookmarks sheet's, with their
+  pictures, in a carousel as on the about page; choosing one opens it as its card does.
 - The credits are one screen, About's Acknowledgements (`AcknowledgementsView`):
   what the map is drawn from now (`Credit.map`), the web app's credit display;
   where the satellites come from; the data the app fetches; and the code it
   carries, under its licences. Only OpenStreetMap wants its name in sight of the
   map (the OpenStreetMap Foundation's attribution guidelines, for the ODbL), and
   of the maps only the terrain uses its data, the VersaTiles imagery being
-  photography: while the terrain is drawn, in the sky view too, "© OpenStreetMap"
+  photography: while the terrain is drawn, "© OpenStreetMap"
   stands left of the clock deck from when that starts, opens the
   Acknowledgements, and fades after five seconds, as the guidelines allow when
   an About entry still leads to it. The terrain's sources are copied from
@@ -120,7 +121,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   PBR. `ios/scripts/make-model-fixture.mjs` writes the test's cube. The info
   panel's Spacecraft tab shows the model on its own (`ModelCloseUp`), as the web
   app's `ModelCloseUp.ts` does, with the globe's model shaders rather than
-  RealityKit or SceneKit (ADR 0009), lit from over the viewer's shoulder.
+  RealityKit or SceneKit (ADR 0009), lit from over the viewer's shoulder at the
+  web app's intensity of 2.5 and tonemapped in the shader, as it draws to the screen.
 - `Session`, owned by `SatvisApp`, is one open globe: the models (`ViewerClock`,
   `CatalogModel`, `PassModel`, `SatelliteLayer`, `StarMap`, and `PassAlerts`, which
   the background refresh needs too), what is selected, followed and stood on and
@@ -155,10 +157,11 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   screen and a card's Share its bookmark. The link is made when tapped, so a
   pinned clock gives its minute then, and handed to the system's share sheet as
   itself, which shows the site's own preview. The top-right corner is the web
-  app's `#toolbarRight`, with the same buttons and labels: Hide UI (the eye,
-  always, and alone while the UI is hidden), Home view or, in the sky view, Leave
-  the sky view, then Aim by compass and the camera in the sky view, or Stop
-  tracking while something is followed. The web offers the compass only where
+  app's `#toolbarRight`, with the same buttons and labels: Home view or, in the
+  sky view, Leave the sky view, then Aim by compass and the camera in the sky
+  view, or Stop tracking while something is followed. Hide UI is the Graphics
+  panel's first row, as on the web; while the UI is hidden the corner holds Show
+  UI alone. The web offers the compass only where
   the browser has device orientation; the camera is the app's alone (ADR 0013).
   On an iPad, as on the web, the column hides under the info card, which has its
   own Track and Close; an iPhone's info sheet leaves it in place.
@@ -171,7 +174,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
 - The sky view (ADR 0003) is the same renderer from the ground: `SkyCamera`
   stands 2 m over the terrain at the observer, its attitude a quaternion in the
   observer's east-north-up frame, so the zenith is an aim like any other. It
-  stands on Re:Earth's terrain whatever the Map menu says. `SkyFlight` is the
+  stands on the Map panel's terrain, as on the web: on the ellipsoid with None
+  (ADR 0009). Entering it from a panel turns the terrain on; a link keeps its own. `SkyFlight` is the
   web's three-leg flight in and out; the instruments (`SkyHUD`) and the gestures
   wait for it to land, and reduced motion cuts. The crosshair, the tapes, the
   trace and the card read the renderer's last frame (`DrawnFrame`,
@@ -302,7 +306,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   scrubbed clock spins it. Tracking keeps the satellite's frame and the sky view
   the observer's; the free camera waits meanwhile, and the sky view keeps the
   choice for the way back, as the web suspends it there.
-- The Graphics menu's "FPS" is the web app's FPS switch, kept in links as
+- The Graphics panel's "FPS" is the web app's FPS switch, kept in links as
   `fps=true` as the web keeps it (`PerformanceOverlay.swift`, `FrameStats`):
   frames per second, the renderer's CPU and the GPU's milliseconds a frame,
   satellites drawn and the memory footprint iOS counts. Nothing is timed while it
@@ -314,7 +318,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   PostHog only for the site `https://satvis.space/` exactly, so pointing
   `SATVIS_API` at `https://satvis.space` measures the real data and counts
   nothing.
-- The Graphics menu's "Pixel ratio" is the web app's (`pixelratio`, kept in links):
+- The Graphics panel's "Pixel ratio" is the web app's (`pixelratio`, kept in links):
   the globe drawn at 1 or 1.5 pixels a point instead of the screen's own, which
   the system scales up (`ScaledMTKView` in `GlobeView.swift`). The renderer sizes
   everything placed on the screen in points times the drawable's pixels a point,
@@ -323,13 +327,14 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   shaders took fast math, the default view took 10.5 ms of GPU a frame at native,
   6.7 at 1.5 and 2.8 at 1. A benchmark runs
   at the ratio it began at and records it.
-- The Graphics menu's "Frame rate" caps the globe at 30, 60 or 120 frames a second
-  (`preferredFramesPerSecond`), offering only what the screen shows: 120 on a
+- The Graphics panel's "Frame rate" caps the globe at 30 or 60 frames a second,
+  or Max, the screen's own (`preferredFramesPerSecond`, 120 asked): 120 on a
   ProMotion screen, which an iPhone gives an app only with
   `CADisableMinimumFrameDurationOnPhone` in `Info.plist` (without `OnPhone`
   it is ignored, and held 120 to 60). The simulator reports 60
-  whatever it models. The web app has no such parameter, so the rate is kept in
-  `UserDefaults`, not links; a benchmark records it as `app_frame_rate`. That
+  whatever it models. The web app keeps its rate in links as `framerate`; the app
+  keeps its own in `UserDefaults`, as the device's choice, and ignores the
+  parameter. A benchmark records it as `app_frame_rate`. That
   rate is a cap: a frame is skipped, and the last one left on screen, while
   nothing has been set or loaded, the camera stands still and no satellite can
   have moved half a device pixel, as the web app paces CesiumJS's render on
@@ -347,7 +352,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   frames rather than 30 %. The rate stays the one chosen, not a steady divisor
   below it: at 45 fps the eye trails a satellite 12.6 ms on average, at 30
   16.7.
-- The Graphics menu's "Benchmark" is the web app's `bench=true`, kept in links
+- The Graphics panel's "Benchmark" is the web app's `bench=true`, kept in links
   the same way (`Benchmark.swift`, `BenchmarkPanel.swift`): eleven scenes opened
   by their links in turn, each waited for until everything active is drawn
   (`SatelliteLayer.draws`: a satellite SGP4 refuses, long decayed, is never drawn,

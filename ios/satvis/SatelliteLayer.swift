@@ -19,6 +19,9 @@ final class SatelliteLayer {
     /// Components a `show` gave with a set not drawn yet, handed over with it: given
     /// at once, 3D models for the set still drawn loaded 77 models, 490 MB.
     @ObservationIgnored private var pendingComponents: (components: SatelliteComponents, show: Int)?
+    /// How long the last refresh that resampled anything took to be handed to the
+    /// renderer, in seconds.
+    @ObservationIgnored private var refreshSeconds = 0.0
 
     init(globe: GlobeBinding) {
         self.globe = globe
@@ -61,7 +64,11 @@ final class SatelliteLayer {
     /// often the faster the clock runs, so a window is refilled before it runs out.
     func run(clock: ViewerClock) async {
         while !Task.isCancelled {
-            await refresh(at: clock.now())
+            // Sampled where the clock will be once the windows are drawn: sampling
+            // every active satellite took 0.14 s in Release, and at 43200× low orbits
+            // had a window 31 % of the time when sampled where the clock was.
+            let multiplier = clock.clock.isPlaying ? clock.clock.multiplier : 0
+            await refresh(at: clock.now() + multiplier * refreshSeconds * 1000)
             let interval = min(max(60 / max(abs(clock.clock.multiplier), 1), 0.05), 1)
             try? await Task.sleep(for: .seconds(interval))
         }
@@ -71,9 +78,13 @@ final class SatelliteLayer {
         // Before the store is asked: a refresh asked before a `show`'s replacement
         // returns the set before it.
         let show = showCount
+        let started = ContinuousClock.now
         guard let satellites = await store.refresh(at: time, as: Self.satellite) else {
             return
         }
+        // Capped above the slowest measured, 1.8 s in a Debug build: a refresh the app
+        // was suspended through would shift the next windows days past the clock.
+        defer { refreshSeconds = min((ContinuousClock.now - started) / .seconds(1), 2) }
         count = satellites.count
         let components = pendingComponents.flatMap { show >= $0.show ? $0.components : nil }
         await globe.setSatellites(satellites, components: components) { [weak self] in

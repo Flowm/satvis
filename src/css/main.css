@@ -62,6 +62,9 @@ body {
   /* Between the menu column and its panel. */
   --toolbar-gap: 8px;
   --panel-width: 260px;
+  /* A card of rows (the iOS app's `PanelCard`), and where its rows' names start. */
+  --card-radius: 12px;
+  --card-name-inset: 40px;
   /* The open menu column, its widest name "Components" (measured: 124.4 and 136.1 px). */
   --menu-width: 125px;
   /* A row's name, a panel's title, a note, and a section's heading. */
@@ -91,6 +94,8 @@ body {
   --panel-glow: linear-gradient(#ffffff0d, transparent 35%);
   --panel-ink: #edffff;
   --panel-muted: #edffff99;
+  /* What does not apply here: a disabled row's name, on a card that stays solid. */
+  --panel-faint: #edffff4d;
   --panel-accent: #7fd2ea;
   /* "Not where it rests", as the iOS app's: the clock deck's reset, a stale element set. */
   --panel-amber: #ffd479;
@@ -336,23 +341,26 @@ body {
   border-radius: var(--panel-radius);
 }
 
-/* A section heading, quieter than the panel title, level with the rows' marks. */
+/* A section heading over its card, quieter than the panel title, as the iOS app's
+   `PanelSection`. */
 .toolbarTitle {
-  margin: 12px 8px 2px;
+  margin: 16px 4px 6px;
   color: var(--panel-muted);
   font-size: var(--text-section);
   font-weight: 600;
-  letter-spacing: 0.06em;
   line-height: 16px;
-  text-transform: uppercase;
 }
 
 .toolbarContent {
   margin: 5px;
 }
 
-/* Opacity only, so a chosen row keeps its accent mark. */
+/* The name and the mark, not the card under them. A chosen row keeps its accent mark. */
 .toolbarSwitch--inert {
+  color: var(--panel-faint);
+}
+
+.toolbarSwitch--inert input {
   opacity: 0.3;
 }
 
@@ -365,7 +373,7 @@ body {
   width: 0;
   min-width: 100%;
   box-sizing: border-box;
-  padding: 2px 8px 3px 8px;
+  padding: 6px 4px 0;
   font-size: var(--text-note);
   line-height: 1.3;
   opacity: 0.6;
@@ -377,8 +385,7 @@ body {
   position: relative;
   display: block;
   height: var(--toolbar-row);
-  padding: 0 8px 0 32px;
-  border-radius: 7px;
+  padding: 0 12px 0 var(--card-name-inset);
   color: var(--panel-muted);
   font-size: var(--text-label);
   line-height: var(--toolbar-row);
@@ -397,7 +404,7 @@ body {
 
 @media (hover: hover) {
   .toolbarSwitch:hover:not(:has(input:disabled)) {
-    background: #ffffff10;
+    background-color: var(--panel-raised-hover);
     color: var(--panel-ink);
   }
 }
@@ -407,7 +414,7 @@ body {
   appearance: none;
   position: absolute;
   top: 50%;
-  left: 8px;
+  left: 12px;
   box-sizing: border-box;
   width: 16px;
   height: 16px;
@@ -447,15 +454,14 @@ body {
 /* A row that acts rather than chooses: the Sky panel's places. Laid out as a switch
    row, with an icon in the mark's place. */
 .toolbarPlace {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   width: 100%;
   height: var(--toolbar-row);
-  padding: 0 8px;
+  padding: 0 12px;
   border: none;
-  border-radius: 7px;
-  background: none;
   color: var(--panel-ink);
   font-size: var(--text-label);
   text-align: left;
@@ -467,7 +473,7 @@ body {
 
 @media (hover: hover) {
   .toolbarPlace:hover:not(:disabled, [aria-current]) {
-    background: #ffffff10;
+    background-color: var(--panel-raised-hover);
   }
 }
 
@@ -477,7 +483,7 @@ body {
 
 /* Waiting on My location's fix; the row with the spinner is the one waiting. */
 .toolbarPlace:disabled:not(:has(.toolbarSpinner)) {
-  opacity: 0.3;
+  color: var(--panel-faint);
 }
 
 .toolbarPlace:focus-visible {
@@ -487,7 +493,7 @@ body {
 
 /* Where the sky view stands. */
 .toolbarPlace[aria-current] {
-  background: var(--panel-selected);
+  background-image: linear-gradient(#ffffff14, #ffffff14);
   color: var(--panel-accent);
 }
 
@@ -507,43 +513,6 @@ body {
   white-space: nowrap;
 }
 
-.toolbarActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 4px 0 2px;
-}
-
-.toolbarActions button {
-  align-items: center;
-  background-color: var(--panel-raised);
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--panel-ink);
-  cursor: pointer;
-  display: flex;
-  flex: 1 1 auto;
-  font-size: 11px;
-  gap: 4px;
-  justify-content: center;
-  padding: 4px 6px;
-  white-space: nowrap;
-}
-
-.toolbarActions button:hover:not(:disabled) {
-  background-color: var(--panel-raised-hover);
-}
-
-.toolbarActions button:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
-
-.toolbarActions .toolbarSpinner {
-  height: 10px;
-  width: 10px;
-}
-
 /* Waiting on a location fix or sensor probe; a second tap must not queue a second request. */
 .toolbarSwitch:has(input:disabled) {
   cursor: default;
@@ -551,7 +520,38 @@ body {
 
 /* Not applicable in the current view; a spinner's row is waiting, not off. */
 .toolbarSwitch:has(input:disabled):not(:has(.toolbarSpinner)) {
+  color: var(--panel-faint);
+}
+
+.toolbarSwitch:has(input:disabled):not(:has(.toolbarSpinner)) input {
   opacity: 0.3;
+}
+
+/* Rows on an inset card, as the iOS app's `PanelCard`: each run of rows shares one,
+   a hairline between each two from the names' edge. Drawn by the rows themselves, so a
+   panel needs no wrapper around them. */
+.toolbarSwitch,
+.toolbarPlace {
+  background-color: var(--panel-raised);
+}
+
+:is(.toolbarSwitch, .toolbarPlace):not(:is(.toolbarSwitch, .toolbarPlace) + *) {
+  border-top-left-radius: var(--card-radius);
+  border-top-right-radius: var(--card-radius);
+}
+
+:is(.toolbarSwitch, .toolbarPlace):not(:has(+ :is(.toolbarSwitch, .toolbarPlace))) {
+  border-bottom-left-radius: var(--card-radius);
+  border-bottom-right-radius: var(--card-radius);
+}
+
+:is(.toolbarSwitch, .toolbarPlace) + :is(.toolbarSwitch, .toolbarPlace)::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--card-name-inset);
+  border-top: 1px solid var(--panel-hairline);
 }
 
 /* A count on a tab: the Bookmarks panel's and the info panel's Passes, as the iOS app's

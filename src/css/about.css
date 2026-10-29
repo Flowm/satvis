@@ -1,4 +1,5 @@
-/* Shared by about.html and AboutDialog.vue, both through Vite. */
+/* Shared by about.html and AboutDialog.vue, both through Vite. The iOS app's About
+   (ios/satvis/AboutView.swift) has the same sections in the same order. */
 
 .about {
   max-width: 46rem;
@@ -6,30 +7,55 @@
   padding: 2rem 1.25rem 3rem;
   color: #edffff;
   font-family: sans-serif;
-  line-height: 1.6;
+  line-height: 1.55;
+}
+.about-icons {
+  display: none;
+}
+.about-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.about-hero {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin: 0 0 1rem;
+}
+/* The app icon's corner, 22.5 % of its side. */
+.about .about-hero img {
+  flex: none;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 0.8rem;
 }
 .about h1 {
-  font-size: 1.6rem;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
   line-height: 1.25;
-  margin: 0 0 0.75rem;
+}
+.about-hero__name {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+.about-hero__tagline {
+  font-size: 1rem;
+  font-weight: 400;
+  color: #b8d6df;
 }
 .about h2 {
-  font-size: 1.05rem;
   margin: 1.75rem 0 0.5rem;
-  color: #9fd4e3;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #b8d6df;
 }
 .about p {
   margin: 0 0 0.9rem;
-}
-/* Explicit, because Tailwind's preflight in the dialog resets ul to list-style:none. */
-.about ul {
-  margin: 0 0 0.9rem;
-  padding-left: 1.25rem;
-  list-style: disc outside;
-}
-.about li {
-  display: list-item;
-  margin-bottom: 0.35rem;
 }
 .about a {
   color: #7fd2ea;
@@ -37,7 +63,77 @@
 .about img {
   max-width: 100%;
   height: auto;
-  border-radius: 6px;
+}
+/* A group, as the iOS app's inset list draws one. */
+.about .about-card,
+.about .about-features,
+.about .about-links {
+  margin: 0;
+  background: #ffffff0f;
+  border-radius: 12px;
+}
+.about .about-card {
+  padding: 0.75rem 0.9rem;
+}
+/* Explicit, because Tailwind's preflight in the dialog resets ul to list-style:none. */
+.about .about-features,
+.about .about-links {
+  padding: 0;
+  list-style: none;
+}
+.about-features li {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+}
+.about-features li + li,
+.about-links li + li {
+  border-top: 1px solid #ffffff14;
+}
+.about-features svg,
+.about-links svg {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  color: #7fd2ea;
+}
+/* On the first line's middle. */
+.about-features svg {
+  margin-top: calc((1.55em - 1.125rem) / 2);
+}
+.about .about-links {
+  margin-top: 1.75rem;
+}
+.about .about-links a {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  color: inherit;
+  text-decoration: none;
+}
+.about-links a:hover {
+  background: #ffffff0a;
+}
+.about-links li:first-child a {
+  border-radius: 12px 12px 0 0;
+}
+.about-links li:last-child a {
+  border-radius: 0 0 12px 12px;
+}
+.about-links a:focus-visible {
+  outline: 2px solid #7fd2ea;
+  outline-offset: -2px;
+}
+.about-links a > svg:last-child {
+  margin-left: auto;
+  color: #b8d6df;
+  opacity: 0.6;
+}
+.about .about-footer {
+  margin: 0.5rem 0.9rem 0;
+  font-size: 0.8125rem;
+  color: #b8d6df;
 }
 /* The demos (about.html, carousel.ts): one slide across, swiped or stepped. */
 .demoCarousel {
@@ -82,6 +178,7 @@
   aspect-ratio: 16 / 10;
   object-fit: cover;
   background: #000;
+  border-radius: 12px;
 }
 .demoCarousel__link:focus-visible {
   outline: none;
@@ -91,7 +188,7 @@
   outline-offset: 2px;
 }
 .demoCarousel__name {
-  margin-top: 0.45rem;
+  margin-top: 0.6rem;
   color: #7fd2ea;
   font-weight: 600;
 }
@@ -117,7 +214,7 @@
   position: absolute;
   top: calc(100cqw * 10 / 16 / 2);
   display: inline-flex;
-  padding: 0.4rem;
+  padding: 0.5rem;
   background: #000b;
   border: none;
   border-radius: 999px;
@@ -164,14 +261,12 @@
   opacity: 1;
 }
 .about .about-lede {
-  font-size: 1.05rem;
+  margin: 0;
 }
 
-/* In the dialog the card supplies the margin and the header already says "About Satvis". */
+/* In the dialog the card supplies the margin, and the text is the panels' size. */
 .about--dialog {
   max-width: none;
   padding: 0;
-}
-.about--dialog h1 {
-  font-size: 1.15rem;
+  font-size: 0.9375rem;
 }
