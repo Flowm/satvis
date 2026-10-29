@@ -64,11 +64,9 @@ final class SatelliteLayer {
     /// often the faster the clock runs, so a window is refilled before it runs out.
     func run(clock: ViewerClock) async {
         while !Task.isCancelled {
-            // Sampled around where the clock will be once the windows are drawn, not
-            // where it was when sampling began: with every active satellite, which
-            // took the simulator 1.8 s in a Debug build and 0.14 s in Release, the
-            // clock ran off the end of most low orbits' windows meanwhile, and they
-            // had one 14 % of the time at 3600× in Debug, 31 % at 43200× in Release.
+            // Sampled where the clock will be once the windows are drawn: sampling
+            // every active satellite took 0.14 s in Release, and at 43200× low orbits
+            // had a window 31 % of the time when sampled where the clock was.
             let multiplier = clock.clock.isPlaying ? clock.clock.multiplier : 0
             await refresh(at: clock.now() + multiplier * refreshSeconds * 1000)
             let interval = min(max(60 / max(abs(clock.clock.multiplier), 1), 0.05), 1)

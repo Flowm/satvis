@@ -199,7 +199,6 @@
           <input v-model="requestRenderMode" type="checkbox" />
           Render only on change
         </label>
-        <!-- With it on, the FPS figure measures idleness, not what a frame costs. -->
         <div class="toolbarNote">Draws a frame only when something moves. Turn it off to measure frame times.</div>
       </toolbar-panel>
     </div>

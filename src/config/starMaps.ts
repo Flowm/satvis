@@ -13,7 +13,7 @@ export const STAR_MAPS = ["Tycho1K", "DeepStar1K", "DeepStar2K"] as const;
 
 export type StarMapName = (typeof STAR_MAPS)[number];
 
-/** The Map panel's names; the ids stay the url's and the store's (ADR 0001). */
+/** The Map panel's names. */
 export const STAR_MAP_LABELS: Record<StarMapName, string> = {
   Tycho1K: "Tycho (1K)",
   DeepStar1K: "Deep Star (1K)",

@@ -182,7 +182,6 @@ private struct DemoCarousel: View {
                     shown = index
                 }
             }
-            // The picture's box at the top of every slide.
             .overlay(alignment: .top) {
                 Color.clear
                     .aspectRatio(16 / 10, contentMode: .fit)

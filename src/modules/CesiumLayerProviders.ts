@@ -37,7 +37,7 @@ export interface ImageryProviderEntry {
 }
 
 export interface TerrainProviderEntry {
-  /** The Map panel's name for it; the key stays the url's and the store's (ADR 0001). */
+  /** The Map panel's name for it. */
   label: string;
   create: () => TerrainProvider | Promise<TerrainProvider>;
 }
@@ -203,12 +203,12 @@ export function terrainProviderNames(): string[] {
   return Object.keys(terrainProviders);
 }
 
-/** Its label, or the id where it is none of ours. */
+/** The id where it is none of ours. */
 export function imageryLabel(name: string): string {
   return imageryProviders[name]?.label ?? name;
 }
 
-/** Its label, or the id where it is none of ours. */
+/** The id where it is none of ours. */
 export function terrainLabel(name: string): string {
   return terrainProviders[name]?.label ?? name;
 }
