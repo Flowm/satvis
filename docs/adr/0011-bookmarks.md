@@ -73,7 +73,7 @@ are small copies of the showcase pictures, precached so the panel works offline.
 
 ## Consequences
 
-- **The native app keeps the same records**, per device (`ios/AGENTS.md`): its links
+- **The native app keeps the same records**, per device (`BookmarkStorage`): its links
   decode the same query, and the demos and the parameters the stores own reach it
   through the parity script's `web-tables.json`. Nothing on the worker changes.
 - **A demo's picture is a moment, not the present.** The sky demo shows a
