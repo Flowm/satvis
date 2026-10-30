@@ -139,6 +139,9 @@ export default defineConfig({
         globIgnores: ["cesium/ThirdParty/**/*", "cesium/Widgets/**/*", "cesium/Workers/**/*", "cesium/Assets/Textures/maki/*", "**/*.map", "data/privacy.html"],
         sourcemap: true,
         navigateFallback: "/index.html",
+        // Navigations only: Workbox skips a request whose mode is not `navigate`, so this list
+        // never changes what a fetch() receives. The prefixes hold data, not routes: the
+        // extensions alone gave a `.json` url opened in the address bar the app shell.
         navigateFallbackDenylist: [/\.(css|js|png|svg|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|txt|glb)$/, /^\/api\//, /^\/data\//, /^\/cesium\//, /^\/\.well-known\//],
         runtimeCaching: [
           {
