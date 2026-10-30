@@ -231,6 +231,30 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   a gesture that is not finite: once two fingertips meet, RotateGesture reports
   NaN, and a NaN heading drew a black globe until relaunch (TestFlight build 15).
   A camera that is not finite anyway is put back home and logged as a fault.
+- 2D is the web app's flat map (ADR 0009), the Globe panel's 3D | 2D and a
+  link's `scene=2D`: CesiumJS's SCENE2D in its geographic projection, drawn from
+  `MapCamera` (centre, span across the view's longer side, heading). The rig keeps
+  it beside the globe camera; a switch keeps the place, from the globe's centre at
+  its scale, or the web app's opening view (five radii across, 287°) from where
+  the whole disc shows, and back. The map repeats east and west and zooms out to
+  its whole width across the view, no further, so a point
+  is drawn once, at the copy nearest the centre (`MapCamera.maximumSpan`). Each
+  pass has a 2D vertex function in `Shaders/Map.msl`, so 3D's are untouched, and
+  the map's own draws are `MapPass`'s:
+  positions are metres of the map from the view's centre, a satellite placed by
+  Bowring's geodetic latitude as Cesium's 2D places it (`geodeticPosition` on the
+  CPU, `mapPosition` in the shaders, which taps and placed stations go back
+  through, `DrawnFrame`). Tiles are the globe's, laid flat by their texture
+  coordinates and refined by metres per pixel, without terrain; a line's segments
+  are quads of their own, so none stretches across the map at the antimeridian.
+  The orbit there is Cesium's path, where the satellite is at each instant, not
+  the inertial ring of 3D: on the map that ring left the satellite's own path. No
+  stars, atmosphere or sensor cones, as on the web. Tracking holds what it follows
+  in the middle at a scale of its own, which a switch of projection carries over
+  from the tracking camera's range and back; a drag does nothing. The sky view is drawn in 3D and goes back to
+  the map. A change of projection draws one frame more of the old one, keeps it,
+  and fades it out over the new for 0.35 s (`ProjectionFade`), so it covers
+  the landing out of the sky view too.
 - A frame the GPU fails is logged (category `gpu`) and reported once per
   `MTLCommandBufferError` code as a PostHog exception (`GlobeRenderer.onGPUFault`):
   after one, iOS refuses the app's later frames and files no crash report.
@@ -284,7 +308,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   A tap on the globe closes the panel and on a phone folds the column, as on
   the web, and a miss that did so keeps the selection.
   What the app does not draw is left out: Map's overlays, surface and Tycho star map;
-  Globe's 2D and Columbus projections; Sky's keyboard note; Graphics' scene
+  Globe's Columbus projection; Sky's keyboard note; Graphics' scene
   effects and MSAA.
 - Bookmarks are the web app's (ADR 0011, `BookmarksView.swift`): the same records,
   a preset's path and the parameters the web app's stores own, so the code that
