@@ -168,7 +168,7 @@ public enum LinkCodec {
     public static let layers = ["NaturalEarth", "VersaTiles", "BlackMarble", "VIIRS"]
     public static let terrains = ["None", "ReEarth"]
     public static let overpassModes = ["elevation", "swath"]
-    public static let scenes = ["3D", "Sky"]
+    public static let scenes = ["3D", "2D", "Sky"]
     /// The web app's `PIXEL_RATIOS` (src/config/rendering.ts).
     public static let pixelRatios = ["1", "1.5", "native"]
 

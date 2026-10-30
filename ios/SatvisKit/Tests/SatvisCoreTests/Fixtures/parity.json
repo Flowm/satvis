@@ -8761,6 +8761,7 @@
       ],
       "scenes": [
         "3D",
+        "2D",
         "Sky"
       ],
       "unseen": [
@@ -9765,6 +9766,67 @@
           "scene"
         ],
         "written": "gs=46.5935,7.9091"
+      },
+      {
+        "preset": "default",
+        "query": "scene=2D&tags=Science",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Science"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "stars": "Tycho1K",
+          "scene": "2D",
+          "unseen": "dim",
+          "camera": "Fixed",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": "tags=Science&scene=2D"
+      },
+      {
+        "preset": "demo",
+        "query": "scene=2D&track=ISS+(ZARYA)",
+        "state": {
+          "elements": [
+            "Point",
+            "Orbit",
+            "Ground track"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "GNSS"
+          ],
+          "gs": [],
+          "track": "ISS (ZARYA)",
+          "overpass": "swath",
+          "layers": [
+            "VersaTiles"
+          ],
+          "terrain": "None",
+          "stars": "Tycho1K",
+          "scene": "2D",
+          "unseen": "dim",
+          "camera": "Fixed",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": "track=ISS+(ZARYA)&scene=2D"
       },
       {
         "preset": "default",
