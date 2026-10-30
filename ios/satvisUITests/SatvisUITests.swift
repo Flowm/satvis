@@ -278,6 +278,36 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Fixed"].isSelected)
     }
 
+    // A link that names 2D opens on the map, which the Globe panel switches to 3D
+    // and back; from the sky view, 2D leaves it for the map.
+    @MainActor
+    func testSwitchesTo2DAndBack() {
+        let app = launch(link: "/?scene=2D&gs=48.1372,11.5756,Munich")
+        openMenu(app)
+        app.buttons["Globe"].tap()
+        let twoD = app.buttons["2D"]
+        let threeD = app.buttons["3D"]
+        XCTAssert(twoD.waitForExistence(timeout: 5))
+        XCTAssert(twoD.isSelected)
+        threeD.tap()
+        XCTAssert(threeD.isSelected)
+        XCTAssertFalse(twoD.isSelected)
+        twoD.tap()
+        XCTAssert(twoD.isSelected)
+
+        app.buttons["Sky"].tap()
+        let munich = app.buttons["Munich"]
+        XCTAssert(munich.waitForExistence(timeout: 5))
+        munich.tap()
+        XCTAssert(app.buttons["Leave the sky view"].waitForExistence(timeout: 20))
+        app.buttons["Globe"].tap()
+        XCTAssert(app.staticTexts["Select a projection to leave sky view."].waitForExistence(timeout: 5))
+        XCTAssertFalse(twoD.isSelected)
+        twoD.tap()
+        XCTAssert(app.buttons["Home view"].waitForExistence(timeout: 10))
+        XCTAssert(twoD.isSelected)
+    }
+
     // A link the app opens with is kept under Recent; saving it moves it to Saved,
     // under the name given, and it opens again from there after the default view.
     @MainActor
