@@ -61,7 +61,7 @@ describe("derivedOrbitRows", () => {
   });
 
   test("reports apsides for a satellite with no node times", () => {
-    expect(rowValue(GOES, "Apogee / Perigee")).toMatch(/^3\d{4} \/ 3\d{4} km$/);
+    expect(rowValue(GOES, "Apogee / Perigee")).toMatch(/^3\d,\d{3} \/ 3\d,\d{3} km$/);
     expect(rowValue(GOES, "LTAN / LTDN")).toBeUndefined();
   });
 

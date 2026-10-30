@@ -1,6 +1,7 @@
 // Lays out a pass list as a strip, in percentages. Cesium-free so it can be tested.
 
 import { passQuality, type Pass } from "../PassPredictor";
+import { formatFixed } from "./formats";
 
 const HOUR_MS = 3600 * 1000;
 
@@ -116,5 +117,5 @@ function ticksFor(horizonMs: number, nowMs: number, pct: (epochMs: number) => nu
 
 function horizonLabel(horizonMs: number): string {
   const hours = horizonMs / HOUR_MS;
-  return hours >= 24 ? `${(hours / 24).toFixed(hours % 24 === 0 ? 0 : 1)} d` : `${Math.round(hours)} h`;
+  return hours >= 24 ? `${formatFixed(hours / 24, hours % 24 === 0 ? 0 : 1)} d` : `${Math.round(hours)} h`;
 }

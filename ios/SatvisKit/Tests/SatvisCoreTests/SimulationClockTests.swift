@@ -2,7 +2,7 @@ import Testing
 
 @testable import SatvisCore
 
-@Suite struct SimulationClockTests {
+@Suite(.formatsInEnglishUS) struct SimulationClockTests {
     private let start = 1_790_000_000_000.0
 
     @Test func followsThePresentUntilTouched() {

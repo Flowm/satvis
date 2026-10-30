@@ -46,7 +46,7 @@
           </li>
         </ul>
         <p v-if="list.rows.length > SHOW_CAP" class="cs-mute">
-          And {{ (list.rows.length - SHOW_CAP).toLocaleString() }} more.<template v-if="!list.removable"> All join the catalog; the globe shows the first {{ SHOW_CAP }}.</template>
+          And {{ formatInteger(list.rows.length - SHOW_CAP) }} more.<template v-if="!list.removable"> All join the catalog; the globe shows the first {{ SHOW_CAP }}.</template>
         </p>
       </template>
       <p class="catalogCustom__note cs-mute">Kept in this browser only.</p>
@@ -62,6 +62,7 @@ import { SHOW_CAP } from "../../composables/useCatalogFilters";
 import { useController } from "../../composables/useController";
 import { type OrbitClass, orbitColor } from "../../config/orbitClass";
 import { isCustom, parseCustomElements } from "../../modules/customSatellites";
+import { formatInteger } from "../../modules/util/formats";
 import { computedOrbitKindOf, epochMsOf, type GpRecord, orbitClassOf, recordName, recordSatnum } from "../../modules/util/gp";
 import { useCustomSatelliteStore } from "../../stores/customSatellites";
 import { useSatStore } from "../../stores/sat";
@@ -133,7 +134,7 @@ const lists = computed(() =>
 /** The Add button's label, with the count when there are several. */
 const addLabel = computed(() => {
   const count = parsed.value.records.length;
-  return count > 1 ? `Add ${count.toLocaleString()} to the globe` : "Add to the globe";
+  return count > 1 ? `Add ${formatInteger(count)} to the globe` : "Add to the globe";
 });
 
 /** Into the catalog, and onto the globe by name, as every activation writer does. */

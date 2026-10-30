@@ -5,6 +5,7 @@ import utc from "dayjs/plugin/utc";
 import type { SwathExtents } from "../config/satelliteMetadata";
 import type { GroundStationPosition } from "./Orbit";
 import { compassPoint } from "./skyGeometry";
+import { formatFixed } from "./util/formats";
 import type { PassPredictorSource, WorkerPass } from "./util/passSource";
 
 dayjs.extend(utc);
@@ -257,9 +258,9 @@ export function passQuality(pass: Pass): number {
 export function passSummary(pass: Pass): string {
   const window = `${hhmmUtc(pass.start)}–${hhmmUtc(pass.end)} UTC · ${passMinutes(pass)} min`;
   if ("maxElevation" in pass) {
-    return `${window} · ${pass.maxElevation.toFixed(0)}° max, apex ${compassPoint(pass.azimuthApex)}`;
+    return `${window} · ${formatFixed(pass.maxElevation, 0)}° max, apex ${compassPoint(pass.azimuthApex)}`;
   }
-  return `${window} · ${pass.minDistance.toFixed(0)} km off track, swath ${pass.swathWidth.toFixed(0)} km`;
+  return `${window} · ${formatFixed(pass.minDistance, 0)} km off track, swath ${formatFixed(pass.swathWidth, 0)} km`;
 }
 
 export function toPassRows(passes: Pass[], time: JulianDate, nameField: "name" | "groundStationName", mode: string): PassRow[] {
@@ -268,11 +269,11 @@ export function toPassRows(passes: Pass[], time: JulianDate, nameField: "name" |
     let primary: string;
     let secondary: string;
     if (mode === "swath" && "minDistance" in pass) {
-      primary = `${pass.minDistance.toFixed(1)}km`;
-      secondary = `${pass.swathWidth.toFixed(0)}km`;
+      primary = `${formatFixed(pass.minDistance, 1)}km`;
+      secondary = `${formatFixed(pass.swathWidth, 0)}km`;
     } else if ("maxElevation" in pass) {
-      primary = `${pass.maxElevation.toFixed(0)}°`;
-      secondary = `${pass.azimuthApex.toFixed(2)}°`;
+      primary = `${formatFixed(pass.maxElevation, 0)}°`;
+      secondary = `${formatFixed(pass.azimuthApex, 2)}°`;
     } else {
       primary = "";
       secondary = "";
@@ -282,7 +283,7 @@ export function toPassRows(passes: Pass[], time: JulianDate, nameField: "name" |
       key: `${name}-${pass.start}-${pass.end}`,
       name,
       countdown: formatCountdown(nowMs, pass),
-      startLabel: dayjs.utc(pass.start).format("DD.MM HH:mm:ss"),
+      startLabel: dayjs.utc(pass.start).format("MM-DD HH:mm:ss"),
       endLabel: dayjs.utc(pass.end).format("HH:mm:ss"),
       primary,
       secondary,

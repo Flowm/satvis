@@ -3,6 +3,7 @@ import { BillboardGraphics, Entity, HeightReference, HorizontalOrigin, VerticalO
 import type { Viewer } from "@cesium/widgets";
 
 import icon from "../images/icons/pin.svg";
+import { formatCoordinates } from "./util/formats";
 
 export interface GroundStationPositionData {
   latitude: number;
@@ -13,7 +14,7 @@ export interface GroundStationPositionData {
 
 /** A station's name, or its coordinates to two decimals where it has none. */
 export function stationLabel(name: string | undefined, latitude: number, longitude: number): string {
-  return name || `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+  return name || formatCoordinates(latitude, longitude);
 }
 
 /** A named position on the ground, drawn as one pin. */

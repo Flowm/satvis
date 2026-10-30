@@ -122,7 +122,7 @@ extension PassParity.ExpectedPass {
     }
 }
 
-@Suite struct PassParityTests {
+@Suite(.formatsInEnglishUS) struct PassParityTests {
     @Test func findsTheWebAppsPasses() throws {
         let parity = try JSONDecoder().decode(PassParity.self, from: Parity.fixture("parity"))
         let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))

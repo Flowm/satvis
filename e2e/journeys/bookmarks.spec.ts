@@ -21,7 +21,7 @@ test("back to the default view, back to the link, and keep it", async ({ page })
   const opened = cards.filter({ hasText: "Science satellites" });
   await expect(opened, "the link is recorded").toHaveCount(1);
   await expect(opened).toContainText("Flat map");
-  await expect(opened).toContainText("5 Oct, 11:00 UTC");
+  await expect(opened).toContainText("2026-10-05 11:00 UTC");
 
   // Shared through the system's sheet where there is one, copied where there is none.
   const actions = opened.getByRole("button", { name: "Actions for Science satellites" });

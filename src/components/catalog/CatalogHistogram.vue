@@ -100,6 +100,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 import type { HistogramScale } from "../../composables/useCatalogFilters";
+import { formatInteger, formatNumber } from "../../modules/util/formats";
 import CatalogTileToggle from "./CatalogTileToggle.vue";
 
 /** An x axis tick. */
@@ -266,15 +267,15 @@ function segmentStyle(bin: number, series: number) {
 }
 /** "12", or "↓ 12 · ↑ 3" for several series. */
 function tipOf(bin: number): string {
-  if (props.series.length === 1) return (props.series[0]!.counts.get(bin) ?? 0).toLocaleString();
-  return props.series.map((s) => `${s.short ?? s.label} ${(s.counts.get(bin) ?? 0).toLocaleString()}`).join(" · ");
+  if (props.series.length === 1) return formatInteger(props.series[0]!.counts.get(bin) ?? 0);
+  return props.series.map((s) => `${s.short ?? s.label} ${formatInteger(s.counts.get(bin) ?? 0)}`).join(" · ");
 }
 
 /** The y axis's ticks, by the scale. */
 const yTicks = computed(() => (props.scale === "linear" ? linearTicks() : steppedTicks()));
 
 /** "500", "2k". */
-const tickLabel = (value: number) => (value >= 1000 ? `${value / 1000}k` : String(value));
+const tickLabel = (value: number) => (value >= 1000 ? `${formatNumber(value / 1000)}k` : String(value));
 
 /** Evenly spaced at the smallest whole 1-2-5 step that keeps them 16 px apart and at most about eight. */
 function linearTicks(): YTick[] {

@@ -54,7 +54,7 @@ describe("the speed ladder", () => {
 describe("labels", () => {
   test("say the multiplier with a real minus sign", () => {
     expect(multiplierLabel(1)).toBe("1×");
-    expect(multiplierLabel(86400)).toBe("86400×");
+    expect(multiplierLabel(-86400)).toBe("−86400×");
     expect(multiplierLabel(-60)).toBe("−60×");
   });
 
@@ -70,7 +70,7 @@ describe("labels", () => {
 
   test("read the clock in UTC whatever the machine's zone is", () => {
     expect(clockLabel(AT)).toBe("14:37:09");
-    expect(dateLabel(AT)).toBe("Wed 19 Aug");
+    expect(dateLabel(AT)).toBe("Wed, Aug 19");
   });
 });
 
@@ -95,7 +95,7 @@ describe("the ruler", () => {
     const ticks = timelineTicks(midnight, 360);
     const labelled = ticks.filter((tick) => tick.label !== "");
     expect(labelled.every((tick) => tick.major)).toBe(true);
-    expect(ticks.find((tick) => tick.at === midnight)?.label).toBe("Wed 19 Aug");
+    expect(ticks.find((tick) => tick.at === midnight)?.label).toBe("Wed, Aug 19");
     expect(ticks.find((tick) => tick.at === midnight + 3_600_000)?.label).toBe("01:00");
     expect(ticks.find((tick) => tick.at === midnight + 600_000)?.label).toBe("");
   });

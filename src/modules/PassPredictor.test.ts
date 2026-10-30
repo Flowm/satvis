@@ -303,7 +303,7 @@ describe("toPassRows", () => {
     expect(row!.name).toBe("Munich");
     expect(row!.primary).toBe("57°");
     expect(row!.secondary).toBe("123.46°");
-    expect(row!.startLabel).toBe("01.07 13:00:00");
+    expect(row!.startLabel).toBe("07-01 13:00:00");
     expect(row!.endLabel).toBe("13:10:00");
     expect(row!.startMs).toBe(T0 + 1 * HOUR);
   });
@@ -312,7 +312,7 @@ describe("toPassRows", () => {
     const [row] = toPassRows([swathPass(1 * HOUR, 1 * HOUR + 10 * MIN)], NOW, "name", "swath");
     expect(row!.name).toBe("ISS");
     expect(row!.primary).toBe("12.3km");
-    expect(row!.secondary).toBe("1235km");
+    expect(row!.secondary).toBe("1,235km");
   });
 
   test("elevation pass in swath mode falls back to elevation columns", () => {

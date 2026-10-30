@@ -1539,7 +1539,7 @@
         "spacecraftRows": [
           [
             "Swath",
-            "2900 km"
+            "2,900 km"
           ],
           [
             "Country",
@@ -1641,7 +1641,7 @@
           ],
           [
             "Apogee / Perigee",
-            "20494 / 19871 km"
+            "20,494 / 19,871 km"
           ]
         ],
         "spacecraftRows": [
@@ -1737,7 +1737,7 @@
           ],
           [
             "Apogee / Perigee",
-            "35792 / 35784 km"
+            "35,792 / 35,784 km"
           ]
         ],
         "spacecraftRows": [
@@ -1830,7 +1830,7 @@
           ],
           [
             "Apogee / Perigee",
-            "52415 / 5808 km"
+            "52,415 / 5,808 km"
           ]
         ],
         "spacecraftRows": [
@@ -1913,7 +1913,7 @@
           ],
           [
             "Apogee / Perigee",
-            "3863 / 651 km"
+            "3,863 / 651 km"
           ]
         ],
         "spacecraftRows": []
@@ -4184,84 +4184,84 @@
       "rows": [
         {
           "countdown": "ended",
-          "startLabel": "02.10 11:25:09",
+          "startLabel": "10-02 11:25:09",
           "endLabel": "11:33:47",
           "primary": "74°",
           "secondary": "340.60°"
         },
         {
           "countdown": "51 m 21 s",
-          "startLabel": "02.10 13:02:21",
+          "startLabel": "10-02 13:02:21",
           "endLabel": "13:10:47",
           "primary": "44°",
           "secondary": "0.55°"
         },
         {
           "countdown": "2 h 28 m",
-          "startLabel": "02.10 14:39:22",
+          "startLabel": "10-02 14:39:22",
           "endLabel": "14:47:58",
           "primary": "78°",
           "secondary": "20.51°"
         },
         {
           "countdown": "4 h 5 m",
-          "startLabel": "02.10 16:16:25",
+          "startLabel": "10-02 16:16:25",
           "endLabel": "16:24:04",
           "primary": "24°",
           "secondary": "218.98°"
         },
         {
           "countdown": "20 h 51 m",
-          "startLabel": "03.10 09:02:17",
+          "startLabel": "10-03 09:02:17",
           "endLabel": "09:09:23",
           "primary": "18°",
           "secondary": "137.89°"
         },
         {
           "countdown": "22 h 26 m",
-          "startLabel": "03.10 10:37:58",
+          "startLabel": "10-03 10:37:58",
           "endLabel": "10:46:35",
           "primary": "84°",
           "secondary": "155.87°"
         },
         {
           "countdown": "1 d 0 h",
-          "startLabel": "03.10 12:15:04",
+          "startLabel": "10-03 12:15:04",
           "endLabel": "12:23:32",
           "primary": "45°",
           "secondary": "355.58°"
         },
         {
           "countdown": "1 d 1 h",
-          "startLabel": "03.10 13:52:10",
+          "startLabel": "10-03 13:52:10",
           "endLabel": "14:00:44",
           "primary": "61°",
           "secondary": "15.69°"
         },
         {
           "countdown": "1 d 3 h",
-          "startLabel": "03.10 15:29:06",
+          "startLabel": "10-03 15:29:06",
           "endLabel": "15:37:16",
           "primary": "35°",
           "secondary": "214.62°"
         },
         {
           "countdown": "1 d 4 h",
-          "startLabel": "03.10 17:08:13",
+          "startLabel": "10-03 17:08:13",
           "endLabel": "17:10:10",
           "primary": "6°",
           "secondary": "231.51°"
         },
         {
           "countdown": "1 d 20 h",
-          "startLabel": "04.10 08:15:55",
+          "startLabel": "10-04 08:15:55",
           "endLabel": "08:21:48",
           "primary": "12°",
           "secondary": "133.77°"
         },
         {
           "countdown": "1 d 21 h",
-          "startLabel": "04.10 09:50:51",
+          "startLabel": "10-04 09:50:51",
           "endLabel": "09:59:23",
           "primary": "59°",
           "secondary": "151.26°"
@@ -4379,14 +4379,14 @@
       "rows": [
         {
           "countdown": "2 h 32 m",
-          "startLabel": "02.10 14:43:33",
+          "startLabel": "10-02 14:43:33",
           "endLabel": "14:43:49",
           "primary": "83.0km",
           "secondary": "200km"
         },
         {
           "countdown": "22 h 31 m",
-          "startLabel": "03.10 10:42:03",
+          "startLabel": "10-03 10:42:03",
           "endLabel": "10:42:29",
           "primary": "42.4km",
           "secondary": "200km"
@@ -4444,84 +4444,84 @@
       "rows": [
         {
           "countdown": "7 h 36 m",
-          "startLabel": "02.10 19:47:27",
+          "startLabel": "10-02 19:47:27",
           "endLabel": "19:55:11",
           "primary": "25°",
           "secondary": "50.39°"
         },
         {
           "countdown": "9 h 13 m",
-          "startLabel": "02.10 21:24:07",
+          "startLabel": "10-02 21:24:07",
           "endLabel": "21:32:02",
           "primary": "26°",
           "secondary": "215.55°"
         },
         {
           "countdown": "10 h 53 m",
-          "startLabel": "02.10 23:04:37",
+          "startLabel": "10-02 23:04:37",
           "endLabel": "23:07:08",
           "primary": "6°",
           "secondary": "197.00°"
         },
         {
           "countdown": "14 h 9 m",
-          "startLabel": "03.10 02:20:03",
+          "startLabel": "10-03 02:20:03",
           "endLabel": "02:25:32",
           "primary": "10°",
           "secondary": "155.15°"
         },
         {
           "countdown": "15 h 44 m",
-          "startLabel": "03.10 03:55:53",
+          "startLabel": "10-03 03:55:53",
           "endLabel": "04:04:30",
           "primary": "63°",
           "secondary": "138.19°"
         },
         {
           "countdown": "17 h 23 m",
-          "startLabel": "03.10 05:34:01",
+          "startLabel": "10-03 05:34:01",
           "endLabel": "05:39:11",
           "primary": "10°",
           "secondary": "304.90°"
         },
         {
           "countdown": "1 d 6 h",
-          "startLabel": "03.10 19:01:05",
+          "startLabel": "10-03 19:01:05",
           "endLabel": "19:07:29",
           "primary": "14°",
           "secondary": "53.47°"
         },
         {
           "countdown": "1 d 8 h",
-          "startLabel": "03.10 20:36:37",
+          "startLabel": "10-03 20:36:37",
           "endLabel": "20:45:01",
           "primary": "43°",
           "secondary": "219.54°"
         },
         {
           "countdown": "1 d 10 h",
-          "startLabel": "03.10 22:16:06",
+          "startLabel": "10-03 22:16:06",
           "endLabel": "22:20:38",
           "primary": "8°",
           "secondary": "201.92°"
         },
         {
           "countdown": "1 d 13 h",
-          "startLabel": "04.10 01:33:22",
+          "startLabel": "10-04 01:33:22",
           "endLabel": "01:37:15",
           "primary": "7°",
           "secondary": "159.92°"
         },
         {
           "countdown": "1 d 14 h",
-          "startLabel": "04.10 03:08:49",
+          "startLabel": "10-04 03:08:49",
           "endLabel": "03:17:07",
           "primary": "35°",
           "secondary": "142.01°"
         },
         {
           "countdown": "1 d 16 h",
-          "startLabel": "04.10 04:46:01",
+          "startLabel": "10-04 04:46:01",
           "endLabel": "04:53:10",
           "primary": "18°",
           "secondary": "307.85°"
@@ -4625,84 +4625,84 @@
       "rows": [
         {
           "countdown": "4 h 13 m",
-          "startLabel": "02.10 18:26:35",
+          "startLabel": "10-02 18:26:35",
           "endLabel": "18:36:47",
           "primary": "19°",
           "secondary": "56.71°"
         },
         {
           "countdown": "5 h 51 m",
-          "startLabel": "02.10 20:04:45",
+          "startLabel": "10-02 20:04:45",
           "endLabel": "20:17:38",
           "primary": "78°",
           "secondary": "255.89°"
         },
         {
           "countdown": "7 h 35 m",
-          "startLabel": "02.10 21:48:02",
+          "startLabel": "10-02 21:48:02",
           "endLabel": "21:56:16",
           "primary": "12°",
           "secondary": "274.67°"
         },
         {
           "countdown": "18 h 5 m",
-          "startLabel": "03.10 08:18:29",
+          "startLabel": "10-03 08:18:29",
           "endLabel": "08:30:25",
           "primary": "32°",
           "secondary": "95.25°"
         },
         {
           "countdown": "19 h 45 m",
-          "startLabel": "03.10 09:58:31",
+          "startLabel": "10-03 09:58:31",
           "endLabel": "10:10:46",
           "primary": "42°",
           "secondary": "293.93°"
         },
         {
           "countdown": "21 h 27 m",
-          "startLabel": "03.10 11:40:38",
+          "startLabel": "10-03 11:40:38",
           "endLabel": "11:46:09",
           "primary": "8°",
           "secondary": "314.22°"
         },
         {
           "countdown": "1 d 3 h",
-          "startLabel": "03.10 18:06:54",
+          "startLabel": "10-03 18:06:54",
           "endLabel": "18:15:42",
           "primary": "14°",
           "secondary": "52.48°"
         },
         {
           "countdown": "1 d 5 h",
-          "startLabel": "03.10 19:44:06",
+          "startLabel": "10-03 19:44:06",
           "endLabel": "19:56:55",
           "primary": "73°",
           "secondary": "72.03°"
         },
         {
           "countdown": "1 d 7 h",
-          "startLabel": "03.10 21:26:03",
+          "startLabel": "10-03 21:26:03",
           "endLabel": "21:36:15",
           "primary": "18°",
           "secondary": "270.68°"
         },
         {
           "countdown": "1 d 17 h",
-          "startLabel": "04.10 07:58:06",
+          "startLabel": "10-04 07:58:06",
           "endLabel": "08:09:01",
           "primary": "22°",
           "secondary": "91.37°"
         },
         {
           "countdown": "1 d 19 h",
-          "startLabel": "04.10 09:37:42",
+          "startLabel": "10-04 09:37:42",
           "endLabel": "09:50:23",
           "primary": "60°",
           "secondary": "290.00°"
         },
         {
           "countdown": "1 d 21 h",
-          "startLabel": "04.10 11:19:10",
+          "startLabel": "10-04 11:19:10",
           "endLabel": "11:27:02",
           "primary": "12°",
           "secondary": "309.79°"
@@ -4810,54 +4810,54 @@
       "rows": [
         {
           "countdown": "5 h 54 m",
-          "startLabel": "02.10 20:07:34",
+          "startLabel": "10-02 20:07:34",
           "endLabel": "20:14:47",
           "primary": "155.6km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "18 h 8 m",
-          "startLabel": "03.10 08:21:55",
+          "startLabel": "10-03 08:21:55",
           "endLabel": "08:27:02",
-          "primary": "1040.6km",
-          "secondary": "2900km"
+          "primary": "1,040.6km",
+          "secondary": "2,900km"
         },
         {
           "countdown": "19 h 48 m",
-          "startLabel": "03.10 10:01:36",
+          "startLabel": "10-03 10:01:36",
           "endLabel": "10:07:43",
           "primary": "771.9km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 5 h",
-          "startLabel": "03.10 19:46:54",
+          "startLabel": "10-03 19:46:54",
           "endLabel": "19:54:04",
           "primary": "218.3km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 17 h",
-          "startLabel": "04.10 08:02:57",
+          "startLabel": "10-04 08:02:57",
           "endLabel": "08:04:13",
-          "primary": "1428.8km",
-          "secondary": "2900km"
+          "primary": "1,428.8km",
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 19 h",
-          "startLabel": "04.10 09:40:36",
+          "startLabel": "10-04 09:40:36",
           "endLabel": "09:47:32",
           "primary": "411.0km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         }
       ],
       "summaries": [
-        "20:07–20:14 UTC · 7 min · 156 km off track, swath 2900 km",
-        "08:21–08:27 UTC · 5 min · 1041 km off track, swath 2900 km",
-        "10:01–10:07 UTC · 6 min · 772 km off track, swath 2900 km",
-        "19:46–19:54 UTC · 7 min · 218 km off track, swath 2900 km",
-        "08:02–08:04 UTC · 1 min · 1429 km off track, swath 2900 km",
-        "09:40–09:47 UTC · 7 min · 411 km off track, swath 2900 km"
+        "20:07–20:14 UTC · 7 min · 156 km off track, swath 2,900 km",
+        "08:21–08:27 UTC · 5 min · 1,041 km off track, swath 2,900 km",
+        "10:01–10:07 UTC · 6 min · 772 km off track, swath 2,900 km",
+        "19:46–19:54 UTC · 7 min · 218 km off track, swath 2,900 km",
+        "08:02–08:04 UTC · 1 min · 1,429 km off track, swath 2,900 km",
+        "09:40–09:47 UTC · 7 min · 411 km off track, swath 2,900 km"
       ],
       "visible": 6,
       "layout": {
@@ -4947,22 +4947,22 @@
       "rows": [
         {
           "countdown": "5 h 55 m",
-          "startLabel": "02.10 20:08:57",
+          "startLabel": "10-02 20:08:57",
           "endLabel": "20:13:23",
           "primary": "155.6km",
-          "secondary": "1150km"
+          "secondary": "1,150km"
         },
         {
           "countdown": "1 d 5 h",
-          "startLabel": "03.10 19:50:10",
+          "startLabel": "10-03 19:50:10",
           "endLabel": "19:50:47",
           "primary": "218.3km",
-          "secondary": "1150km"
+          "secondary": "1,150km"
         }
       ],
       "summaries": [
-        "20:08–20:13 UTC · 4 min · 156 km off track, swath 1150 km",
-        "19:50–19:50 UTC · 1 min · 218 km off track, swath 1150 km"
+        "20:08–20:13 UTC · 4 min · 156 km off track, swath 1,150 km",
+        "19:50–19:50 UTC · 1 min · 218 km off track, swath 1,150 km"
       ],
       "visible": 2,
       "layout": {
@@ -5008,56 +5008,56 @@
       "rows": [
         {
           "countdown": "5 h 29 m",
-          "startLabel": "02.10 19:42:32",
+          "startLabel": "10-02 19:42:32",
           "endLabel": "19:54:16",
           "primary": "29°",
           "secondary": "83.14°"
         },
         {
           "countdown": "7 h 9 m",
-          "startLabel": "02.10 21:22:33",
+          "startLabel": "10-02 21:22:33",
           "endLabel": "21:34:11",
           "primary": "30°",
           "secondary": "248.81°"
         },
         {
           "countdown": "16 h 47 m",
-          "startLabel": "03.10 07:00:48",
+          "startLabel": "10-03 07:00:48",
           "endLabel": "07:12:44",
           "primary": "34°",
           "secondary": "110.25°"
         },
         {
           "countdown": "18 h 28 m",
-          "startLabel": "03.10 08:41:07",
+          "startLabel": "10-03 08:41:07",
           "endLabel": "08:52:31",
           "primary": "25°",
           "secondary": "275.99°"
         },
         {
           "countdown": "1 d 5 h",
-          "startLabel": "03.10 19:22:26",
+          "startLabel": "10-03 19:22:26",
           "endLabel": "19:32:43",
           "primary": "18°",
           "secondary": "86.01°"
         },
         {
           "countdown": "1 d 6 h",
-          "startLabel": "03.10 21:01:35",
+          "startLabel": "10-03 21:01:35",
           "endLabel": "21:14:03",
           "primary": "46°",
           "secondary": "251.90°"
         },
         {
           "countdown": "1 d 16 h",
-          "startLabel": "04.10 06:40:53",
+          "startLabel": "10-04 06:40:53",
           "endLabel": "06:51:38",
           "primary": "22°",
           "secondary": "113.41°"
         },
         {
           "countdown": "1 d 18 h",
-          "startLabel": "04.10 08:19:50",
+          "startLabel": "10-04 08:19:50",
           "endLabel": "08:32:13",
           "primary": "41°",
           "secondary": "278.87°"
@@ -5157,62 +5157,62 @@
       "rows": [
         {
           "countdown": "5 h 33 m",
-          "startLabel": "02.10 19:46:10",
+          "startLabel": "10-02 19:46:10",
           "endLabel": "19:50:43",
-          "primary": "1137.2km",
-          "secondary": "2900km"
+          "primary": "1,137.2km",
+          "secondary": "2,900km"
         },
         {
           "countdown": "7 h 13 m",
-          "startLabel": "02.10 21:26:08",
+          "startLabel": "10-02 21:26:08",
           "endLabel": "21:30:41",
-          "primary": "1127.2km",
-          "secondary": "2900km"
+          "primary": "1,127.2km",
+          "secondary": "2,900km"
         },
         {
           "countdown": "16 h 51 m",
-          "startLabel": "03.10 07:04:05",
+          "startLabel": "10-03 07:04:05",
           "endLabel": "07:09:22",
           "primary": "991.2km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "18 h 32 m",
-          "startLabel": "03.10 08:45:03",
+          "startLabel": "10-03 08:45:03",
           "endLabel": "08:48:29",
-          "primary": "1281.3km",
-          "secondary": "2900km"
+          "primary": "1,281.3km",
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 6 h",
-          "startLabel": "03.10 21:04:39",
+          "startLabel": "10-03 21:04:39",
           "endLabel": "21:11:04",
           "primary": "671.1km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 16 h",
-          "startLabel": "04.10 06:45:49",
+          "startLabel": "10-04 06:45:49",
           "endLabel": "06:46:37",
-          "primary": "1441.0km",
-          "secondary": "2900km"
+          "primary": "1,441.0km",
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 18 h",
-          "startLabel": "04.10 08:22:56",
+          "startLabel": "10-04 08:22:56",
           "endLabel": "08:29:01",
           "primary": "802.0km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         }
       ],
       "summaries": [
-        "19:46–19:50 UTC · 5 min · 1137 km off track, swath 2900 km",
-        "21:26–21:30 UTC · 5 min · 1127 km off track, swath 2900 km",
-        "07:04–07:09 UTC · 5 min · 991 km off track, swath 2900 km",
-        "08:45–08:48 UTC · 3 min · 1281 km off track, swath 2900 km",
-        "21:04–21:11 UTC · 6 min · 671 km off track, swath 2900 km",
-        "06:45–06:46 UTC · 1 min · 1441 km off track, swath 2900 km",
-        "08:22–08:29 UTC · 6 min · 802 km off track, swath 2900 km"
+        "19:46–19:50 UTC · 5 min · 1,137 km off track, swath 2,900 km",
+        "21:26–21:30 UTC · 5 min · 1,127 km off track, swath 2,900 km",
+        "07:04–07:09 UTC · 5 min · 991 km off track, swath 2,900 km",
+        "08:45–08:48 UTC · 3 min · 1,281 km off track, swath 2,900 km",
+        "21:04–21:11 UTC · 6 min · 671 km off track, swath 2,900 km",
+        "06:45–06:46 UTC · 1 min · 1,441 km off track, swath 2,900 km",
+        "08:22–08:29 UTC · 6 min · 802 km off track, swath 2,900 km"
       ],
       "visible": 7,
       "layout": {
@@ -5312,14 +5312,14 @@
       "rows": [
         {
           "countdown": "1 d 6 h",
-          "startLabel": "03.10 21:06:22",
+          "startLabel": "10-03 21:06:22",
           "endLabel": "21:09:21",
           "primary": "671.1km",
-          "secondary": "1150km"
+          "secondary": "1,150km"
         }
       ],
       "summaries": [
-        "21:06–21:09 UTC · 3 min · 671 km off track, swath 1150 km"
+        "21:06–21:09 UTC · 3 min · 671 km off track, swath 1,150 km"
       ],
       "visible": 1,
       "layout": {
@@ -5355,203 +5355,203 @@
       "rows": [
         {
           "countdown": "ended",
-          "startLabel": "02.10 13:31:42",
+          "startLabel": "10-02 13:31:42",
           "endLabel": "13:44:31",
           "primary": "66°",
           "secondary": "348.41°"
         },
         {
           "countdown": "58 m 38 s",
-          "startLabel": "02.10 15:11:38",
+          "startLabel": "10-02 15:11:38",
           "endLabel": "15:24:27",
           "primary": "67°",
           "secondary": "12.77°"
         },
         {
           "countdown": "2 h 38 m",
-          "startLabel": "02.10 16:51:39",
+          "startLabel": "10-02 16:51:39",
           "endLabel": "17:04:35",
           "primary": "85°",
           "secondary": "37.09°"
         },
         {
           "countdown": "4 h 19 m",
-          "startLabel": "02.10 18:32:06",
+          "startLabel": "10-02 18:32:06",
           "endLabel": "18:44:58",
           "primary": "63°",
           "secondary": "241.40°"
         },
         {
           "countdown": "6 h 0 m",
-          "startLabel": "02.10 20:13:21",
+          "startLabel": "10-02 20:13:21",
           "endLabel": "20:25:37",
           "primary": "36°",
           "secondary": "265.90°"
         },
         {
           "countdown": "7 h 42 m",
-          "startLabel": "02.10 21:55:37",
+          "startLabel": "10-02 21:55:37",
           "endLabel": "22:06:31",
           "primary": "21°",
           "secondary": "290.99°"
         },
         {
           "countdown": "9 h 25 m",
-          "startLabel": "02.10 23:38:53",
+          "startLabel": "10-02 23:38:53",
           "endLabel": "23:47:41",
           "primary": "13°",
           "secondary": "317.04°"
         },
         {
           "countdown": "11 h 9 m",
-          "startLabel": "03.10 01:22:37",
+          "startLabel": "10-03 01:22:37",
           "endLabel": "01:29:26",
           "primary": "9°",
           "secondary": "344.07°"
         },
         {
           "countdown": "12 h 52 m",
-          "startLabel": "03.10 03:05:41",
+          "startLabel": "10-03 03:05:41",
           "endLabel": "03:12:18",
           "primary": "9°",
           "secondary": "11.58°"
         },
         {
           "countdown": "14 h 34 m",
-          "startLabel": "03.10 04:47:34",
+          "startLabel": "10-03 04:47:34",
           "endLabel": "04:56:01",
           "primary": "12°",
           "secondary": "38.73°"
         },
         {
           "countdown": "16 h 15 m",
-          "startLabel": "03.10 06:28:48",
+          "startLabel": "10-03 06:28:48",
           "endLabel": "06:39:24",
           "primary": "19°",
           "secondary": "64.94°"
         },
         {
           "countdown": "17 h 56 m",
-          "startLabel": "03.10 08:09:44",
+          "startLabel": "10-03 08:09:44",
           "endLabel": "08:21:50",
           "primary": "33°",
           "secondary": "90.16°"
         },
         {
           "countdown": "19 h 37 m",
-          "startLabel": "03.10 09:50:25",
+          "startLabel": "10-03 09:50:25",
           "endLabel": "10:03:14",
           "primary": "58°",
           "secondary": "114.74°"
         },
         {
           "countdown": "21 h 17 m",
-          "startLabel": "03.10 11:30:51",
+          "startLabel": "10-03 11:30:51",
           "endLabel": "11:43:48",
           "primary": "89°",
           "secondary": "319.08°"
         },
         {
           "countdown": "22 h 58 m",
-          "startLabel": "03.10 13:11:01",
+          "startLabel": "10-03 13:11:01",
           "endLabel": "13:23:51",
           "primary": "68°",
           "secondary": "343.37°"
         },
         {
           "countdown": "1 d 0 h",
-          "startLabel": "03.10 14:50:59",
+          "startLabel": "10-03 14:50:59",
           "endLabel": "15:03:47",
           "primary": "65°",
           "secondary": "7.73°"
         },
         {
           "countdown": "1 d 2 h",
-          "startLabel": "03.10 16:30:57",
+          "startLabel": "10-03 16:30:57",
           "endLabel": "16:43:51",
           "primary": "79°",
           "secondary": "32.06°"
         },
         {
           "countdown": "1 d 3 h",
-          "startLabel": "03.10 18:11:17",
+          "startLabel": "10-03 18:11:17",
           "endLabel": "18:24:12",
           "primary": "70°",
           "secondary": "236.36°"
         },
         {
           "countdown": "1 d 5 h",
-          "startLabel": "03.10 19:52:20",
+          "startLabel": "10-03 19:52:20",
           "endLabel": "20:04:48",
           "primary": "41°",
           "secondary": "260.80°"
         },
         {
           "countdown": "1 d 7 h",
-          "startLabel": "03.10 21:34:23",
+          "startLabel": "10-03 21:34:23",
           "endLabel": "21:45:38",
           "primary": "24°",
           "secondary": "285.74°"
         },
         {
           "countdown": "1 d 9 h",
-          "startLabel": "03.10 23:17:28",
+          "startLabel": "10-03 23:17:28",
           "endLabel": "23:26:44",
           "primary": "14°",
           "secondary": "311.56°"
         },
         {
           "countdown": "1 d 10 h",
-          "startLabel": "04.10 01:01:11",
+          "startLabel": "10-04 01:01:11",
           "endLabel": "01:08:20",
           "primary": "10°",
           "secondary": "338.41°"
         },
         {
           "countdown": "1 d 12 h",
-          "startLabel": "04.10 02:44:28",
+          "startLabel": "10-04 02:44:28",
           "endLabel": "02:50:56",
           "primary": "9°",
           "secondary": "5.89°"
         },
         {
           "countdown": "1 d 14 h",
-          "startLabel": "04.10 04:26:34",
+          "startLabel": "10-04 04:26:34",
           "endLabel": "04:34:34",
           "primary": "11°",
           "secondary": "33.18°"
         },
         {
           "countdown": "1 d 15 h",
-          "startLabel": "04.10 06:07:54",
+          "startLabel": "10-04 06:07:54",
           "endLabel": "06:18:06",
           "primary": "17°",
           "secondary": "59.61°"
         },
         {
           "countdown": "1 d 17 h",
-          "startLabel": "04.10 07:48:53",
+          "startLabel": "10-04 07:48:53",
           "endLabel": "08:00:45",
           "primary": "30°",
           "secondary": "85.01°"
         },
         {
           "countdown": "1 d 19 h",
-          "startLabel": "04.10 09:29:37",
+          "startLabel": "10-04 09:29:37",
           "endLabel": "09:42:21",
           "primary": "52°",
           "secondary": "109.68°"
         },
         {
           "countdown": "1 d 20 h",
-          "startLabel": "04.10 11:10:07",
+          "startLabel": "10-04 11:10:07",
           "endLabel": "11:23:04",
           "primary": "85°",
           "secondary": "134.04°"
         },
         {
           "countdown": "1 d 22 h",
-          "startLabel": "04.10 12:50:20",
+          "startLabel": "10-04 12:50:20",
           "endLabel": "13:03:11",
           "primary": "71°",
           "secondary": "338.33°"
@@ -5686,150 +5686,150 @@
       "rows": [
         {
           "countdown": "ended",
-          "startLabel": "02.10 13:34:34",
+          "startLabel": "10-02 13:34:34",
           "endLabel": "13:41:39",
           "primary": "316.1km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 h 1 m",
-          "startLabel": "02.10 15:14:29",
+          "startLabel": "10-02 15:14:29",
           "endLabel": "15:21:36",
           "primary": "310.3km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "2 h 41 m",
-          "startLabel": "02.10 16:54:28",
+          "startLabel": "10-02 16:54:28",
           "endLabel": "17:01:45",
           "primary": "69.5km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "4 h 21 m",
-          "startLabel": "02.10 18:34:59",
+          "startLabel": "10-02 18:34:59",
           "endLabel": "18:42:04",
           "primary": "362.8km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "6 h 3 m",
-          "startLabel": "02.10 20:16:36",
+          "startLabel": "10-02 20:16:36",
           "endLabel": "20:22:21",
           "primary": "910.3km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "18 h 0 m",
-          "startLabel": "03.10 08:13:07",
+          "startLabel": "10-03 08:13:07",
           "endLabel": "08:18:28",
-          "primary": "1001.5km",
-          "secondary": "2900km"
+          "primary": "1,001.5km",
+          "secondary": "2,900km"
         },
         {
           "countdown": "19 h 40 m",
-          "startLabel": "03.10 09:53:21",
+          "startLabel": "10-03 09:53:21",
           "endLabel": "10:00:20",
           "primary": "444.3km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "21 h 20 m",
-          "startLabel": "03.10 11:33:41",
+          "startLabel": "10-03 11:33:41",
           "endLabel": "11:40:59",
           "primary": "12.1km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "23 h 0 m",
-          "startLabel": "03.10 13:13:53",
+          "startLabel": "10-03 13:13:53",
           "endLabel": "13:21:00",
           "primary": "287.1km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 0 h",
-          "startLabel": "03.10 14:53:50",
+          "startLabel": "10-03 14:53:50",
           "endLabel": "15:00:55",
           "primary": "331.4km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 2 h",
-          "startLabel": "03.10 16:33:46",
+          "startLabel": "10-03 16:33:46",
           "endLabel": "16:41:01",
           "primary": "137.1km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 4 h",
-          "startLabel": "03.10 18:14:08",
+          "startLabel": "10-03 18:14:08",
           "endLabel": "18:21:19",
           "primary": "261.0km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 5 h",
-          "startLabel": "03.10 19:55:28",
+          "startLabel": "10-03 19:55:28",
           "endLabel": "20:01:39",
           "primary": "792.2km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 7 h",
-          "startLabel": "03.10 21:38:43",
+          "startLabel": "10-03 21:38:43",
           "endLabel": "21:41:17",
-          "primary": "1361.9km",
-          "secondary": "2900km"
+          "primary": "1,361.9km",
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 17 h",
-          "startLabel": "04.10 07:52:28",
+          "startLabel": "10-04 07:52:28",
           "endLabel": "07:57:11",
-          "primary": "1120.3km",
-          "secondary": "2900km"
+          "primary": "1,120.3km",
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 19 h",
-          "startLabel": "04.10 09:32:36",
+          "startLabel": "10-04 09:32:36",
           "endLabel": "09:39:23",
           "primary": "554.4km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 20 h",
-          "startLabel": "04.10 11:12:57",
+          "startLabel": "10-04 11:12:57",
           "endLabel": "11:20:14",
           "primary": "69.7km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         },
         {
           "countdown": "1 d 22 h",
-          "startLabel": "04.10 12:53:11",
+          "startLabel": "10-04 12:53:11",
           "endLabel": "13:00:21",
           "primary": "248.1km",
-          "secondary": "2900km"
+          "secondary": "2,900km"
         }
       ],
       "summaries": [
-        "13:34–13:41 UTC · 7 min · 316 km off track, swath 2900 km",
-        "15:14–15:21 UTC · 7 min · 310 km off track, swath 2900 km",
-        "16:54–17:01 UTC · 7 min · 70 km off track, swath 2900 km",
-        "18:34–18:42 UTC · 7 min · 363 km off track, swath 2900 km",
-        "20:16–20:22 UTC · 6 min · 910 km off track, swath 2900 km",
-        "08:13–08:18 UTC · 5 min · 1001 km off track, swath 2900 km",
-        "09:53–10:00 UTC · 7 min · 444 km off track, swath 2900 km",
-        "11:33–11:40 UTC · 7 min · 12 km off track, swath 2900 km",
-        "13:13–13:21 UTC · 7 min · 287 km off track, swath 2900 km",
-        "14:53–15:00 UTC · 7 min · 331 km off track, swath 2900 km",
-        "16:33–16:41 UTC · 7 min · 137 km off track, swath 2900 km",
-        "18:14–18:21 UTC · 7 min · 261 km off track, swath 2900 km",
-        "19:55–20:01 UTC · 6 min · 792 km off track, swath 2900 km",
-        "21:38–21:41 UTC · 3 min · 1362 km off track, swath 2900 km",
-        "07:52–07:57 UTC · 5 min · 1120 km off track, swath 2900 km",
-        "09:32–09:39 UTC · 7 min · 554 km off track, swath 2900 km",
-        "11:12–11:20 UTC · 7 min · 70 km off track, swath 2900 km",
-        "12:53–13:00 UTC · 7 min · 248 km off track, swath 2900 km"
+        "13:34–13:41 UTC · 7 min · 316 km off track, swath 2,900 km",
+        "15:14–15:21 UTC · 7 min · 310 km off track, swath 2,900 km",
+        "16:54–17:01 UTC · 7 min · 70 km off track, swath 2,900 km",
+        "18:34–18:42 UTC · 7 min · 363 km off track, swath 2,900 km",
+        "20:16–20:22 UTC · 6 min · 910 km off track, swath 2,900 km",
+        "08:13–08:18 UTC · 5 min · 1,001 km off track, swath 2,900 km",
+        "09:53–10:00 UTC · 7 min · 444 km off track, swath 2,900 km",
+        "11:33–11:40 UTC · 7 min · 12 km off track, swath 2,900 km",
+        "13:13–13:21 UTC · 7 min · 287 km off track, swath 2,900 km",
+        "14:53–15:00 UTC · 7 min · 331 km off track, swath 2,900 km",
+        "16:33–16:41 UTC · 7 min · 137 km off track, swath 2,900 km",
+        "18:14–18:21 UTC · 7 min · 261 km off track, swath 2,900 km",
+        "19:55–20:01 UTC · 6 min · 792 km off track, swath 2,900 km",
+        "21:38–21:41 UTC · 3 min · 1,362 km off track, swath 2,900 km",
+        "07:52–07:57 UTC · 5 min · 1,120 km off track, swath 2,900 km",
+        "09:32–09:39 UTC · 7 min · 554 km off track, swath 2,900 km",
+        "11:12–11:20 UTC · 7 min · 70 km off track, swath 2,900 km",
+        "12:53–13:00 UTC · 7 min · 248 km off track, swath 2,900 km"
       ],
       "visible": 17,
       "layout": {
@@ -5929,86 +5929,86 @@
       "rows": [
         {
           "countdown": "2 h 44 m",
-          "startLabel": "02.10 16:57:30",
+          "startLabel": "10-02 16:57:30",
           "endLabel": "16:58:43",
           "primary": "69.5km",
-          "secondary": "1150km"
+          "secondary": "1,150km"
         },
         {
           "countdown": "4 h 23 m",
-          "startLabel": "02.10 18:36:27",
+          "startLabel": "10-02 18:36:27",
           "endLabel": "18:40:36",
           "primary": "362.8km",
-          "secondary": "1150km"
+          "secondary": "1,150km"
         },
         {
           "countdown": "19 h 41 m",
-          "startLabel": "03.10 09:54:52",
+          "startLabel": "10-03 09:54:52",
           "endLabel": "09:58:49",
           "primary": "444.3km",
-          "secondary": "1150km"
+          "secondary": "1,150km"
         },
         {
           "countdown": "21 h 23 m",
-          "startLabel": "03.10 11:36:42",
+          "startLabel": "10-03 11:36:42",
           "endLabel": "11:37:58",
           "primary": "12.1km",
-          "secondary": "1150km"
+          "secondary": "1,150km"
         },
         {
           "countdown": "1 d 2 h",
-          "startLabel": "03.10 16:36:52",
+          "startLabel": "10-03 16:36:52",
           "endLabel": "16:37:55",
           "primary": "137.1km",
-          "secondary": "1150km"
+          "secondary": "1,150km"
         },
         {
           "countdown": "1 d 4 h",
-          "startLabel": "03.10 18:15:33",
+          "startLabel": "10-03 18:15:33",
           "endLabel": "18:19:54",
           "primary": "261.0km",
-          "secondary": "1150km"
+          "secondary": "1,150km"
         },
         {
           "countdown": "1 d 5 h",
-          "startLabel": "03.10 19:57:28",
+          "startLabel": "10-03 19:57:28",
           "endLabel": "19:59:38",
           "primary": "792.2km",
-          "secondary": "1150km"
+          "secondary": "1,150km"
         },
         {
           "countdown": "1 d 19 h",
-          "startLabel": "04.10 09:34:12",
+          "startLabel": "10-04 09:34:12",
           "endLabel": "09:37:48",
           "primary": "554.4km",
-          "secondary": "1150km"
+          "secondary": "1,150km"
         },
         {
           "countdown": "1 d 21 h",
-          "startLabel": "04.10 11:14:20",
+          "startLabel": "10-04 11:14:20",
           "endLabel": "11:18:51",
           "primary": "69.7km",
-          "secondary": "1150km"
+          "secondary": "1,150km"
         },
         {
           "countdown": "1 d 22 h",
-          "startLabel": "04.10 12:56:41",
+          "startLabel": "10-04 12:56:41",
           "endLabel": "12:56:51",
           "primary": "248.1km",
-          "secondary": "1150km"
+          "secondary": "1,150km"
         }
       ],
       "summaries": [
-        "16:57–16:58 UTC · 1 min · 70 km off track, swath 1150 km",
-        "18:36–18:40 UTC · 4 min · 363 km off track, swath 1150 km",
-        "09:54–09:58 UTC · 4 min · 444 km off track, swath 1150 km",
-        "11:36–11:37 UTC · 1 min · 12 km off track, swath 1150 km",
-        "16:36–16:37 UTC · 1 min · 137 km off track, swath 1150 km",
-        "18:15–18:19 UTC · 4 min · 261 km off track, swath 1150 km",
-        "19:57–19:59 UTC · 2 min · 792 km off track, swath 1150 km",
-        "09:34–09:37 UTC · 4 min · 554 km off track, swath 1150 km",
-        "11:14–11:18 UTC · 5 min · 70 km off track, swath 1150 km",
-        "12:56–12:56 UTC · 0 min · 248 km off track, swath 1150 km"
+        "16:57–16:58 UTC · 1 min · 70 km off track, swath 1,150 km",
+        "18:36–18:40 UTC · 4 min · 363 km off track, swath 1,150 km",
+        "09:54–09:58 UTC · 4 min · 444 km off track, swath 1,150 km",
+        "11:36–11:37 UTC · 1 min · 12 km off track, swath 1,150 km",
+        "16:36–16:37 UTC · 1 min · 137 km off track, swath 1,150 km",
+        "18:15–18:19 UTC · 4 min · 261 km off track, swath 1,150 km",
+        "19:57–19:59 UTC · 2 min · 792 km off track, swath 1,150 km",
+        "09:34–09:37 UTC · 4 min · 554 km off track, swath 1,150 km",
+        "11:14–11:18 UTC · 5 min · 70 km off track, swath 1,150 km",
+        "12:56–12:56 UTC · 0 min · 248 km off track, swath 1,150 km"
       ],
       "visible": 10,
       "layout": {
@@ -6104,28 +6104,28 @@
       "rows": [
         {
           "countdown": "3 h 56 m",
-          "startLabel": "02.10 10:48:47",
+          "startLabel": "10-02 10:48:47",
           "endLabel": "16:27:58",
           "primary": "66°",
           "secondary": "104.04°"
         },
         {
           "countdown": "19 h 29 m",
-          "startLabel": "03.10 02:21:08",
+          "startLabel": "10-03 02:21:08",
           "endLabel": "05:02:33",
           "primary": "17°",
           "secondary": "306.45°"
         },
         {
           "countdown": "1 d 3 h",
-          "startLabel": "03.10 10:44:43",
+          "startLabel": "10-03 10:44:43",
           "endLabel": "16:23:54",
           "primary": "66°",
           "secondary": "104.05°"
         },
         {
           "countdown": "1 d 19 h",
-          "startLabel": "04.10 02:17:05",
+          "startLabel": "10-04 02:17:05",
           "endLabel": "04:58:28",
           "primary": "17°",
           "secondary": "306.46°"
@@ -6205,14 +6205,14 @@
       "rows": [
         {
           "countdown": "ongoing",
-          "startLabel": "02.10 06:47:36",
+          "startLabel": "10-02 06:47:36",
           "endLabel": "13:15:03",
           "primary": "88°",
           "secondary": "290.43°"
         },
         {
           "countdown": "23 h 51 m",
-          "startLabel": "03.10 06:43:33",
+          "startLabel": "10-03 06:43:33",
           "endLabel": "13:10:59",
           "primary": "88°",
           "secondary": "290.43°"
@@ -6266,28 +6266,28 @@
       "rows": [
         {
           "countdown": "5 h 8 m",
-          "startLabel": "02.10 12:00:48",
+          "startLabel": "10-02 12:00:48",
           "endLabel": "16:56:18",
           "primary": "53°",
           "secondary": "122.77°"
         },
         {
           "countdown": "18 h 4 m",
-          "startLabel": "03.10 00:56:43",
+          "startLabel": "10-03 00:56:43",
           "endLabel": "04:59:37",
           "primary": "37°",
           "secondary": "309.57°"
         },
         {
           "countdown": "1 d 5 h",
-          "startLabel": "03.10 11:56:45",
+          "startLabel": "10-03 11:56:45",
           "endLabel": "16:52:14",
           "primary": "53°",
           "secondary": "122.77°"
         },
         {
           "countdown": "1 d 18 h",
-          "startLabel": "04.10 00:52:40",
+          "startLabel": "10-04 00:52:40",
           "endLabel": "04:55:33",
           "primary": "37°",
           "secondary": "309.57°"
@@ -6367,28 +6367,28 @@
       "rows": [
         {
           "countdown": "6 h 27 m",
-          "startLabel": "26.09 06:00:25",
+          "startLabel": "09-26 06:00:25",
           "endLabel": "10:57:03",
           "primary": "33°",
           "secondary": "23.01°"
         },
         {
           "countdown": "15 h 2 m",
-          "startLabel": "26.09 14:35:38",
+          "startLabel": "09-26 14:35:38",
           "endLabel": "20:42:47",
           "primary": "20°",
           "secondary": "231.98°"
         },
         {
           "countdown": "1 d 2 h",
-          "startLabel": "27.09 02:04:24",
+          "startLabel": "09-27 02:04:24",
           "endLabel": "06:04:46",
           "primary": "34°",
           "secondary": "329.61°"
         },
         {
           "countdown": "1 d 10 h",
-          "startLabel": "27.09 10:09:11",
+          "startLabel": "09-27 10:09:11",
           "endLabel": "22:33:00",
           "primary": "58°",
           "secondary": "211.95°"
@@ -6468,14 +6468,14 @@
       "rows": [
         {
           "countdown": "13 h 1 m",
-          "startLabel": "26.09 12:34:37",
+          "startLabel": "09-26 12:34:37",
           "endLabel": "18:12:58",
           "primary": "74°",
           "secondary": "247.34°"
         },
         {
           "countdown": "1 d 7 h",
-          "startLabel": "27.09 06:38:34",
+          "startLabel": "09-27 06:38:34",
           "endLabel": "16:55:32",
           "primary": "42°",
           "secondary": "29.87°"
@@ -6533,21 +6533,21 @@
       "rows": [
         {
           "countdown": "2 h 49 m",
-          "startLabel": "26.09 02:22:25",
+          "startLabel": "09-26 02:22:25",
           "endLabel": "11:23:28",
           "primary": "65°",
           "secondary": "33.85°"
         },
         {
           "countdown": "18 h 29 m",
-          "startLabel": "26.09 18:02:11",
+          "startLabel": "09-26 18:02:11",
           "endLabel": "06:01:23",
           "primary": "65°",
           "secondary": "325.68°"
         },
         {
           "countdown": "1 d 12 h",
-          "startLabel": "27.09 11:45:38",
+          "startLabel": "09-27 11:45:38",
           "endLabel": "22:33:00",
           "primary": "65°",
           "secondary": "309.79°"
@@ -6616,70 +6616,70 @@
       "rows": [
         {
           "countdown": "10 h 13 m",
-          "startLabel": "28.06 06:04:41",
+          "startLabel": "06-28 06:04:41",
           "endLabel": "06:23:13",
           "primary": "18°",
           "secondary": "133.90°"
         },
         {
           "countdown": "12 h 29 m",
-          "startLabel": "28.06 08:20:55",
+          "startLabel": "06-28 08:20:55",
           "endLabel": "08:51:20",
           "primary": "41°",
           "secondary": "159.39°"
         },
         {
           "countdown": "14 h 49 m",
-          "startLabel": "28.06 10:40:02",
+          "startLabel": "06-28 10:40:02",
           "endLabel": "11:17:56",
           "primary": "49°",
           "secondary": "184.29°"
         },
         {
           "countdown": "17 h 10 m",
-          "startLabel": "28.06 13:01:12",
+          "startLabel": "06-28 13:01:12",
           "endLabel": "13:41:10",
           "primary": "37°",
           "secondary": "206.87°"
         },
         {
           "countdown": "19 h 35 m",
-          "startLabel": "28.06 15:26:38",
+          "startLabel": "06-28 15:26:38",
           "endLabel": "15:57:36",
           "primary": "16°",
           "secondary": "227.29°"
         },
         {
           "countdown": "1 d 10 h",
-          "startLabel": "29.06 06:27:32",
+          "startLabel": "06-29 06:27:32",
           "endLabel": "06:48:40",
           "primary": "23°",
           "secondary": "140.59°"
         },
         {
           "countdown": "1 d 12 h",
-          "startLabel": "29.06 08:44:43",
+          "startLabel": "06-29 08:44:43",
           "endLabel": "09:16:13",
           "primary": "45°",
           "secondary": "166.28°"
         },
         {
           "countdown": "1 d 15 h",
-          "startLabel": "29.06 11:04:14",
+          "startLabel": "06-29 11:04:14",
           "endLabel": "11:42:16",
           "primary": "46°",
           "secondary": "190.39°"
         },
         {
           "countdown": "1 d 17 h",
-          "startLabel": "29.06 13:25:56",
+          "startLabel": "06-29 13:25:56",
           "endLabel": "14:04:15",
           "primary": "31°",
           "secondary": "212.09°"
         },
         {
           "countdown": "1 d 20 h",
-          "startLabel": "29.06 15:54:13",
+          "startLabel": "06-29 15:54:13",
           "endLabel": "16:17:05",
           "primary": "10°",
           "secondary": "231.63°"
@@ -6791,84 +6791,84 @@
       "rows": [
         {
           "countdown": "28 m 40 s",
-          "startLabel": "27.06 20:19:40",
+          "startLabel": "06-27 20:19:40",
           "endLabel": "20:44:08",
           "primary": "88°",
           "secondary": "8.58°"
         },
         {
           "countdown": "2 h 55 m",
-          "startLabel": "27.06 22:46:58",
+          "startLabel": "06-27 22:46:58",
           "endLabel": "23:03:40",
           "primary": "81°",
           "secondary": "346.66°"
         },
         {
           "countdown": "5 h 20 m",
-          "startLabel": "28.06 01:11:38",
+          "startLabel": "06-28 01:11:38",
           "endLabel": "01:22:08",
           "primary": "22°",
           "secondary": "324.84°"
         },
         {
           "countdown": "17 h 44 m",
-          "startLabel": "28.06 13:35:36",
+          "startLabel": "06-28 13:35:36",
           "endLabel": "13:58:40",
           "primary": "11°",
           "secondary": "41.98°"
         },
         {
           "countdown": "20 h 0 m",
-          "startLabel": "28.06 15:51:45",
+          "startLabel": "06-28 15:51:45",
           "endLabel": "16:27:15",
           "primary": "36°",
           "secondary": "32.36°"
         },
         {
           "countdown": "22 h 25 m",
-          "startLabel": "28.06 18:16:43",
+          "startLabel": "06-28 18:16:43",
           "endLabel": "18:48:35",
           "primary": "67°",
           "secondary": "20.01°"
         },
         {
           "countdown": "1 d 0 h",
-          "startLabel": "28.06 20:45:06",
+          "startLabel": "06-28 20:45:06",
           "endLabel": "21:08:25",
           "primary": "88°",
           "secondary": "183.06°"
         },
         {
           "countdown": "1 d 3 h",
-          "startLabel": "28.06 23:12:01",
+          "startLabel": "06-28 23:12:01",
           "endLabel": "23:27:49",
           "primary": "65°",
           "secondary": "339.41°"
         },
         {
           "countdown": "1 d 5 h",
-          "startLabel": "29.06 01:37:04",
+          "startLabel": "06-29 01:37:04",
           "endLabel": "01:45:10",
           "primary": "12°",
           "secondary": "320.19°"
         },
         {
           "countdown": "1 d 18 h",
-          "startLabel": "29.06 13:55:50",
+          "startLabel": "06-29 13:55:50",
           "endLabel": "14:26:51",
           "primary": "18°",
           "secondary": "40.63°"
         },
         {
           "countdown": "1 d 20 h",
-          "startLabel": "29.06 16:15:27",
+          "startLabel": "06-29 16:15:27",
           "endLabel": "16:52:08",
           "primary": "45°",
           "secondary": "29.65°"
         },
         {
           "countdown": "1 d 22 h",
-          "startLabel": "29.06 18:41:49",
+          "startLabel": "06-29 18:41:49",
           "endLabel": "18:51:00",
           "primary": "25°",
           "secondary": "295.85°"
@@ -6986,14 +6986,14 @@
       "rows": [
         {
           "countdown": "44 m 44 s",
-          "startLabel": "27.06 20:35:44",
+          "startLabel": "06-27 20:35:44",
           "endLabel": "20:36:16",
           "primary": "46.5km",
           "secondary": "200km"
         },
         {
           "countdown": "1 d 1 h",
-          "startLabel": "28.06 21:00:21",
+          "startLabel": "06-28 21:00:21",
           "endLabel": "21:00:54",
           "primary": "43.6km",
           "secondary": "200km"
@@ -7444,7 +7444,7 @@
         "summary": {
           "what": "ISS (ZARYA)",
           "where": "Following it",
-          "time": "4 Oct, 02:07 UTC"
+          "time": "2026-10-04 02:07 UTC"
         },
         "name": "Following ISS (ZARYA)"
       },
@@ -7642,7 +7642,7 @@
         "summary": {
           "what": "Weather satellites",
           "where": "Globe",
-          "time": "31 Dec 2025, 23:59 UTC"
+          "time": "2025-12-31 23:59 UTC"
         },
         "name": "Weather satellites"
       },
@@ -7666,7 +7666,7 @@
         "summary": {
           "what": "Weather satellites",
           "where": "Globe",
-          "time": "9 Jan, 07:05 UTC"
+          "time": "2026-01-09 07:05 UTC"
         },
         "name": "Weather satellites"
       },
@@ -7678,7 +7678,7 @@
         "summary": {
           "what": "Weather satellites",
           "where": "Globe",
-          "time": "9 Feb, 07:05 UTC"
+          "time": "2026-02-09 07:05 UTC"
         },
         "name": "Weather satellites"
       },
@@ -7690,7 +7690,7 @@
         "summary": {
           "what": "Weather satellites",
           "where": "Globe",
-          "time": "9 Mar, 07:05 UTC"
+          "time": "2026-03-09 07:05 UTC"
         },
         "name": "Weather satellites"
       },
@@ -7702,7 +7702,7 @@
         "summary": {
           "what": "Weather satellites",
           "where": "Globe",
-          "time": "9 Apr, 07:05 UTC"
+          "time": "2026-04-09 07:05 UTC"
         },
         "name": "Weather satellites"
       },
@@ -7714,7 +7714,7 @@
         "summary": {
           "what": "Weather satellites",
           "where": "Globe",
-          "time": "9 May, 07:05 UTC"
+          "time": "2026-05-09 07:05 UTC"
         },
         "name": "Weather satellites"
       },
@@ -7726,7 +7726,7 @@
         "summary": {
           "what": "Weather satellites",
           "where": "Globe",
-          "time": "9 Jun, 07:05 UTC"
+          "time": "2026-06-09 07:05 UTC"
         },
         "name": "Weather satellites"
       },
@@ -7738,7 +7738,7 @@
         "summary": {
           "what": "Weather satellites",
           "where": "Globe",
-          "time": "9 Jul, 07:05 UTC"
+          "time": "2026-07-09 07:05 UTC"
         },
         "name": "Weather satellites"
       },
@@ -7750,7 +7750,7 @@
         "summary": {
           "what": "Weather satellites",
           "where": "Globe",
-          "time": "9 Aug, 07:05 UTC"
+          "time": "2026-08-09 07:05 UTC"
         },
         "name": "Weather satellites"
       },
@@ -7762,7 +7762,7 @@
         "summary": {
           "what": "Weather satellites",
           "where": "Globe",
-          "time": "9 Sept, 07:05 UTC"
+          "time": "2026-09-09 07:05 UTC"
         },
         "name": "Weather satellites"
       },
@@ -7774,7 +7774,7 @@
         "summary": {
           "what": "Weather satellites",
           "where": "Globe",
-          "time": "9 Oct, 07:05 UTC"
+          "time": "2026-10-09 07:05 UTC"
         },
         "name": "Weather satellites"
       },
@@ -7786,7 +7786,7 @@
         "summary": {
           "what": "Weather satellites",
           "where": "Globe",
-          "time": "9 Nov, 07:05 UTC"
+          "time": "2026-11-09 07:05 UTC"
         },
         "name": "Weather satellites"
       },
@@ -7798,7 +7798,7 @@
         "summary": {
           "what": "Weather satellites",
           "where": "Globe",
-          "time": "9 Dec, 07:05 UTC"
+          "time": "2026-12-09 07:05 UTC"
         },
         "name": "Weather satellites"
       },

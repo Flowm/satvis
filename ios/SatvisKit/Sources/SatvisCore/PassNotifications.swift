@@ -120,7 +120,7 @@ public struct PassNotificationPlan: Sendable {
         guard count > 0 else {
             return "No passes in the next four days"
         }
-        let passes = "Notifying for \(count) \(count == 1 ? "pass" : "passes")"
+        let passes = "Notifying for \(Formats.integer(count)) \(count == 1 ? "pass" : "passes")"
         guard isCutShort else {
             return passes
         }

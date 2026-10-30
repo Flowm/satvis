@@ -224,6 +224,7 @@ import { externalLinks } from "../config/externalLinks";
 import { ORBIT_CLASS_COLOR } from "../config/orbitClass";
 import { SKY_MODE } from "../config/viewModes";
 import { formatCountdown, passSummary, type Pass } from "../modules/PassPredictor";
+import { formatInteger } from "../modules/util/formats";
 import { notifyPasses } from "../modules/util/passNotifications";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
@@ -433,7 +434,7 @@ function notifyForPasses(): void {
   toast.add({
     color: "success",
     title: "Success",
-    description: `Notifying for ${upcoming.length} passes`,
+    description: `Notifying for ${formatInteger(upcoming.length)} passes`,
     duration: 3000,
   });
 }

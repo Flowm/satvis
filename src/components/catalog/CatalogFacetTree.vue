@@ -3,7 +3,7 @@
   <div class="facetTree" :class="{ 'facetTree--open': open }">
     <div class="cs-tileHead">
       <UIcon :name="def.icon" class="cs-mute" /> {{ def.label }}
-      <span v-if="open" class="cs-mute cs-num">{{ branches.length.toLocaleString() }}</span>
+      <span v-if="open" class="cs-mute cs-num">{{ formatInteger(branches.length) }}</span>
       <span class="cs-headEnd">
         <button v-if="picked.size" type="button" class="cs-reset" @click="emit('clear')">reset</button>
         <catalog-tile-toggle :open="open" :label="def.label" @click="emit('toggle-open')" />
@@ -36,7 +36,7 @@
           >
             <span class="facetTree__label" :style="{ color: colorOf?.(branch.parent) }">{{ branch.parent }}</span>
             <span class="facetTree__track"><span :style="{ width: `${width(branch.count)}%`, background: colorOf?.(branch.parent) }" /></span>
-            <span class="facetTree__count cs-num">{{ branch.count.toLocaleString() }}</span>
+            <span class="facetTree__count cs-num">{{ formatInteger(branch.count) }}</span>
             <span v-if="open" class="facetTree__hint">{{ hintOf?.(branch.parent) }}</span>
           </button>
         </div>
@@ -46,13 +46,13 @@
             <button type="button" class="facetTree__pick" :title="hintOf?.(leaf.value)" :aria-pressed="picked.has(leaf.value)" @click="emit('toggle', leaf.value)">
               <span class="facetTree__label" :style="{ color: colorOf?.(leaf.value) }">{{ leafLabel(branch.parent, leaf.value) }}</span>
               <span class="facetTree__track"><span :style="{ width: `${width(leaf.count)}%`, background: colorOf?.(leaf.value) }" /></span>
-              <span class="facetTree__count cs-num">{{ leaf.count.toLocaleString() }}</span>
+              <span class="facetTree__count cs-num">{{ formatInteger(leaf.count) }}</span>
               <span v-if="open" class="facetTree__hint">{{ hintOf?.(leaf.value) }}</span>
             </button>
           </div>
         </template>
       </template>
-      <button v-if="!open && branches.length > top" type="button" class="facetTree__more" @click="emit('toggle-open')">+{{ (branches.length - top).toLocaleString() }} more</button>
+      <button v-if="!open && branches.length > top" type="button" class="facetTree__more" @click="emit('toggle-open')">+{{ formatInteger(branches.length - top) }} more</button>
       <div v-if="open && shown.length === 0" class="facetTree__empty cs-dim">No {{ def.label.toLowerCase() }} matches "{{ search }}".</div>
     </div>
     <p v-if="open && note" class="facetTree__note cs-mute">{{ note }}</p>
@@ -63,6 +63,7 @@
 import { computed, ref } from "vue";
 
 import { type FacetBranch, type FacetDef, pickedFirst } from "../../modules/catalogFacets";
+import { formatInteger } from "../../modules/util/formats";
 import CatalogTileToggle from "./CatalogTileToggle.vue";
 
 const props = defineProps<{

@@ -7,6 +7,7 @@ import type { OrbitClass } from "../../config/orbitClass";
 import { satcatLabel, SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, SATCAT_ORBIT_TYPE } from "../../config/satcatCodes";
 import { swathExtentsOf, type SatelliteMetadata } from "../../config/satelliteMetadata";
 import type Orbit from "../Orbit";
+import { formatInteger, formatMeasure, formatNumber } from "./formats";
 import { derivedOrbitRows, orbitRegimeLabel } from "./orbitFacts";
 
 dayjs.extend(utc);
@@ -72,10 +73,11 @@ function spacecraftRows(metadata: SatelliteMetadata, status: string | undefined)
   if (extents !== undefined) {
     const { starboardKm, portKm } = extents;
     const total = starboardKm + portKm;
-    rows.push(["Swath", starboardKm === portKm ? `${total} km` : `${total} km (${starboardKm} stbd / ${portKm} port)`]);
+    const km = (value: number) => formatNumber(value);
+    rows.push(["Swath", starboardKm === portKm ? `${km(total)} km` : `${km(total)} km (${km(starboardKm)} stbd / ${km(portKm)} port)`]);
   }
   if (coneFovDeg !== undefined) {
-    rows.push(["Sensor FOV", `${coneFovDeg}°`]);
+    rows.push(["Sensor FOV", `${formatNumber(coneFovDeg)}°`]);
   }
   if (missionType !== undefined) {
     rows.push(["Mission", missionType]);
@@ -99,7 +101,7 @@ function spacecraftRows(metadata: SatelliteMetadata, status: string | undefined)
     rows.push(["Bus", bus]);
   }
   if (massKg !== undefined) {
-    rows.push(["Mass", `${approximate(metadata, "massKg", massKg.toLocaleString("en-US"))} kg`]);
+    rows.push(["Mass", `${approximate(metadata, "massKg", formatMeasure(massKg))} kg`]);
   }
   const size = sizeOf(metadata);
   if (size !== undefined) {
@@ -128,10 +130,10 @@ function approximate(metadata: SatelliteMetadata, key: keyof SatelliteMetadata, 
 
 /** "12.6 × 4.2 m, span 23.9 m": the body's two dimensions as GCAT gives them, then the span with arrays and booms. */
 function sizeOf(metadata: SatelliteMetadata): string | undefined {
-  const body = (["lengthM", "diameterM"] as const).flatMap((key) => (metadata[key] === undefined ? [] : [approximate(metadata, key, String(metadata[key]))]));
+  const body = (["lengthM", "diameterM"] as const).flatMap((key) => (metadata[key] === undefined ? [] : [approximate(metadata, key, formatNumber(metadata[key]))]));
   const parts = body.length === 0 ? [] : [`${body.join(" × ")} m`];
   if (metadata.spanM !== undefined) {
-    parts.push(`span ${approximate(metadata, "spanM", String(metadata.spanM))} m`);
+    parts.push(`span ${approximate(metadata, "spanM", formatNumber(metadata.spanM))} m`);
   }
   return parts.length === 0 ? undefined : parts.join(", ");
 }
@@ -171,7 +173,7 @@ export function staleElementsNotice(epochMs: number, timeMs: number): string | u
   if (Math.abs(offsetDays) <= STALE_ELEMENTS_DAYS) {
     return undefined;
   }
-  const days = Math.round(Math.abs(offsetDays));
+  const days = formatInteger(Math.round(Math.abs(offsetDays)));
   return `Position and passes may be inaccurate, clock ${days} days ${offsetDays > 0 ? "after" : "before"} element epoch`;
 }
 

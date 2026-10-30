@@ -59,6 +59,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import type { SortKey } from "../../composables/useCatalogFilters";
 import { orbitColor, orbitKindLabel } from "../../config/orbitClass";
 import type { CatalogRow } from "../../modules/catalogFacets";
+import { formatInteger, formatFixed } from "../../modules/util/formats";
 
 const props = defineProps<{ rows: readonly CatalogRow[]; active: ReadonlySet<string>; sortKey: SortKey; sortDescending: boolean }>();
 const emit = defineEmits<{ sort: [key: SortKey]; toggle: [name: string]; info: [name: string] }>();
@@ -99,8 +100,8 @@ const COLUMN: Record<"name" | "year" | "orbit" | "country" | "launched" | "altit
   orbit: { id: "orbit", label: "Orbit", sort: "orbit", track: "minmax(110px, 1fr)", dim: true, cell: orbitLabel, title: orbitTitle },
   country: { id: "country", label: "Country", sort: "country", track: "minmax(60px, 0.7fr)", cell: (row) => row.country },
   launched: { id: "launched", label: "Launched", sort: "launchDate", track: "80px", number: true, cell: (row) => row.launchDate ?? "—" },
-  altitude: { id: "altitude", label: "Alt km", sort: "altitudeKm", track: "56px", number: true, cell: (row) => Math.round(row.altitudeKm).toLocaleString() },
-  inclination: { id: "inclination", label: "Inc °", sort: "inclinationDeg", track: "44px", number: true, cell: (row) => row.inclinationDeg.toFixed(1) },
+  altitude: { id: "altitude", label: "Alt km", sort: "altitudeKm", track: "56px", number: true, cell: (row) => formatInteger(row.altitudeKm) },
+  inclination: { id: "inclination", label: "Inc °", sort: "inclinationDeg", track: "44px", number: true, cell: (row) => formatFixed(row.inclinationDeg, 1) },
 };
 
 /** Px of list width each column set needs, widest first: the tracks' minimums, gaps and padding. */

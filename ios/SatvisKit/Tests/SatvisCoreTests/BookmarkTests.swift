@@ -5,7 +5,7 @@ import Testing
 
 /// Bookmarks against the web app's own (src/modules/util/bookmarks.ts, through
 /// scripts/parity/generate.mjs), then the edits the panel makes.
-@Suite struct BookmarkParityTests {
+@Suite(.formatsInEnglishUS) struct BookmarkParityTests {
     private struct Fixture: Decodable {
         struct Summary: Decodable {
             let what: String
@@ -46,10 +46,9 @@ import Testing
 
     @Test func describesASceneTheWayTheWebAppDoes() throws {
         let root = try Self.root()
-        let now = try Date(root.bookmarks.now, strategy: .iso8601)
         #expect(root.bookmarks.summaries.count > 20)
         for test in root.bookmarks.summaries {
-            let summary = Bookmarks.summarize(test.query, presetDefaults: try #require(root.links.presets[test.preset]), now: now)
+            let summary = Bookmarks.summarize(test.query, presetDefaults: try #require(root.links.presets[test.preset]))
             let label = "\(test.preset) \(test.query)"
             #expect(summary.what == test.summary.what, "\(label)")
             #expect(summary.where == test.summary.where, "\(label)")

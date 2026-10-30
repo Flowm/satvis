@@ -7,6 +7,7 @@ import { SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, satcatLabel } from "../config/sa
 import { satelliteModel } from "../config/satelliteMetadata";
 import { isCustom } from "./customSatellites";
 import type { CatalogEntry } from "./SatelliteCatalog";
+import { formatFixed, formatInteger, formatNumber } from "./util/formats";
 import { ascendingNodeDegOf, orbitShapeOf } from "./util/gp";
 import { ltanHoursOf } from "./util/orbitFacts";
 
@@ -204,8 +205,8 @@ export function daylitCrossingOf(ltanHours: number): DaylitCrossing {
 
 /** "550", "20.2k", "171k": km, short enough for a chart's axis. */
 export function formatKm(km: number): string {
-  if (km >= 100_000) return `${Math.round(km / 1000)}k`;
-  return km >= 1000 ? `${Math.round(km / 100) / 10}k` : String(Math.round(km));
+  if (km >= 100_000) return `${formatInteger(km / 1000)}k`;
+  return km >= 1000 ? `${formatNumber(Math.round(km / 100) / 10)}k` : String(Math.round(km));
 }
 
 /** "22:30"; 24:00 for the end of the day. */
@@ -560,7 +561,7 @@ export function filterChips(filter: CatalogFilter, leaves: Partial<Record<FacetK
     chips.push({
       id: "shape",
       facet: "Shape",
-      value: `${formatKmRange(altitudeKm)}, ${inclinationDeg[0].toFixed(0)}–${Math.min(inclinationDeg[1], 180).toFixed(0)}°`,
+      value: `${formatKmRange(altitudeKm)}, ${formatFixed(inclinationDeg[0], 0)}–${formatFixed(Math.min(inclinationDeg[1], 180), 0)}°`,
       clears: "shape",
     });
   }
@@ -590,4 +591,4 @@ export function formatOpenRange([from, to]: [number, number], format: (value: nu
 }
 
 /** A chip's km range, in whole km with thousands separators. */
-const formatKmRange = (range: [number, number]) => formatOpenRange(range, (km) => Math.round(km).toLocaleString("en-US"), " km");
+const formatKmRange = (range: [number, number]) => formatOpenRange(range, formatInteger, " km");

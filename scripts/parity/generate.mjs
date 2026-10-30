@@ -73,6 +73,10 @@ const server = await createServer({
 });
 try {
   const runner = createServerModuleRunner(server.environments.ssr, { hmr: false });
+  // The web formats for the browser's region (docs/adr/0015-formats-follow-the-device.md);
+  // the native tests format en-US to compare.
+  const { setFormatLocale } = await runner.import("/src/modules/util/formats.ts");
+  setFormatLocale("en-US");
   const gp = await runner.import("/src/modules/util/gp.ts");
   const { greenwichHourAngle } = await runner.import("/src/modules/util/temeToFixed.ts");
   const { sampleInterval, gridAnchorEpochMs } = await runner.import("/src/modules/util/sgp4Worker.ts");
@@ -555,7 +559,7 @@ try {
     ...DEMO_BOOKMARKS.map((demo) => ["default", demo.query]),
   ];
   const summaries = BOOKMARK_CASES.map(([preset, query]) => {
-    const summary = bookmarks.summarize(query, PRESETS[preset], new Date(BOOKMARK_NOW));
+    const summary = bookmarks.summarize(query, PRESETS[preset]);
     return { preset, query, summary, name: bookmarks.defaultName(summary) };
   });
   const bookmarkNow = Date.parse(BOOKMARK_NOW);

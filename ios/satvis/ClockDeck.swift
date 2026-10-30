@@ -363,7 +363,7 @@ private struct Ladder: View {
                     ForEach(SimulationClock.ladder.indices, id: \.self) { index in
                         let multiplier = SimulationClock.ladder[index]
                         VStack(spacing: 0) {
-                            Text("\(multiplier < 0 ? "−" : "")\(Int(abs(multiplier)))×")
+                            Text(verbatim: "\(multiplier < 0 ? "−" : "")\(Int(abs(multiplier)))×")
                                 .font(.system(size: 15, weight: .semibold).monospacedDigit())
                             Text(SimulationClock.rateLabel(multiplier))
                                 .font(.system(size: 10).monospacedDigit())

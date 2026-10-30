@@ -168,7 +168,7 @@
         <!-- The native app's order, which keeps the frame rate in a phone's view. Ladders rather than switches; see src/config/rendering.ts. -->
         <div class="toolbarTitle">Pixel ratio</div>
         <segmented-control v-model="pixelRatio" label="Pixel ratio" :options="PIXEL_RATIO_OPTIONS" />
-        <div class="toolbarNote">Native is this screen's {{ nativeRatio }}x. Fewer pixels draw faster.</div>
+        <div class="toolbarNote">Native is this screen's {{ formatNumber(nativeRatio) }}x. Fewer pixels draw faster.</div>
         <div class="toolbarTitle">Frame rate</div>
         <segmented-control v-model="frameRate" label="Frame rate" :options="FRAME_RATE_OPTIONS" />
         <div class="toolbarNote">At most this many frames a second. Fewer save battery.</div>
@@ -266,6 +266,7 @@ import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "../config/viewModes";
 import { baseLayerNames, imageryLabel, overlayLayerNames, terrainLabel, terrainProviderNames } from "../modules/CesiumLayerProviders";
 import { stationLabel } from "../modules/GroundStationEntity";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
+import { formatNumber } from "../modules/util/formats";
 import { GEOLOCATION } from "../modules/util/groundStationEdits";
 import { UNSEEN_MODES, type UnseenMode } from "../modules/util/visibility";
 import { useCesiumStore } from "../stores/cesium";

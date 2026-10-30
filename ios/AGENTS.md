@@ -194,8 +194,9 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   enough to outrun a second between locks searches them all, as before.
   The lock's card is the web app's, two lines on every device: the name and a
   chip saying whether it could be seen, then where to look and how far. Its
-  numbers are whole and grouped as en-US whatever the region, as the info
-  panel's (`SkyCard`, held to `skyCard.ts` by the parity fixtures). Its width is
+  numbers are whole and grouped as en-US whatever the region, unlike every
+  other number and date, which follow it (`Formats`, ADR 0015); it is held to
+  `skyCard.ts` by the parity fixtures (`SkyCard`). Its width is
   fixed, scaled with the text, so it holds still as the crosshair moves from one
   satellite to the next.
   Compass aiming (`SkyCompass`) is CoreMotion's attitude against true north, or
@@ -530,7 +531,9 @@ links read onto a preset and written back, over the parameters and vocabularies
 the app honours (`LinkCodec`). `SatvisCore/Shared/web-tables.json` is the web
 app's SATCAT labels and external links, read as they are. Regenerate both with
 `pnpm update-parity-fixtures` at the repository root; never edit them by hand. CI
-fails while it is stale. SGP4 states agree with satellite.js to under a
+fails while it is stale. The fixtures' text is formatted in en-US, and the suites
+that compare it pin `Formats.locale` to en_US (`.formatsInEnglishUS`), whatever the
+machine's region. SGP4 states agree with satellite.js to under a
 micrometre and are held to a centimetre. That depends on setting the satrec up as
 satellite.js does: the epoch as a year and fractional day, an OMM `EPOCH`
 truncated to the millisecond as a JavaScript Date keeps it, and the time since
