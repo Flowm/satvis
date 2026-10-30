@@ -95,23 +95,27 @@ struct BookmarksView: View {
                         }
                         .disabled(here.query.isEmpty)
                         Spacer()
-                        if let savedHere {
-                            Button("Saved", systemImage: "bookmark.fill") {
-                                tab = .saved
-                                startRename(savedHere)
-                            }
-                        } else {
-                            Button("Save this view", systemImage: "bookmark") {
-                                Task {
-                                    saving = true
-                                    defer { saving = false }
-                                    let bookmark = await session.saveHere()
+                        // Filled, as the web app's: the sheet's main action.
+                        Group {
+                            if let savedHere {
+                                Button("Saved", systemImage: "bookmark.fill") {
                                     tab = .saved
-                                    startRename(bookmark)
+                                    startRename(savedHere)
                                 }
+                            } else {
+                                Button("Save this view", systemImage: "bookmark") {
+                                    Task {
+                                        saving = true
+                                        defer { saving = false }
+                                        let bookmark = await session.saveHere()
+                                        tab = .saved
+                                        startRename(bookmark)
+                                    }
+                                }
+                                .disabled(here.query.isEmpty || saving)
                             }
-                            .disabled(here.query.isEmpty || saving)
                         }
+                        .buttonStyle(PanelButtonStyle(emphasis: .filled))
                     }
                     .buttonStyle(PanelButtonStyle())
                 }
