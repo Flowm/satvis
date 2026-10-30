@@ -2,7 +2,7 @@ import Foundation
 
 /// What the sky view's lock card says of a satellite, as the web app's
 /// (src/modules/skyCard.ts): whole numbers grouped as en-US, whatever the region,
-/// as the info panel's are.
+/// as its fixed width is sized for those digits (ADR 0015).
 public enum SkyCard {
     /// Where to look, for the eye and for VoiceOver: "192° SSW · 47° up · 1,540 km
     /// away". Degrees, and kilometres for the range.
