@@ -5,7 +5,7 @@ import Testing
 
 /// Bookmarks against the web app's own (src/modules/util/bookmarks.ts, through
 /// scripts/parity/generate.mjs), then the edits the panel makes.
-@Suite struct BookmarkParityTests {
+@Suite(.formatsInEnglishUS) struct BookmarkParityTests {
     private struct Fixture: Decodable {
         struct Summary: Decodable {
             let what: String
@@ -46,10 +46,9 @@ import Testing
 
     @Test func describesASceneTheWayTheWebAppDoes() throws {
         let root = try Self.root()
-        let now = try Date(root.bookmarks.now, strategy: .iso8601)
         #expect(root.bookmarks.summaries.count > 20)
         for test in root.bookmarks.summaries {
-            let summary = Bookmarks.summarize(test.query, presetDefaults: try #require(root.links.presets[test.preset]), now: now)
+            let summary = Bookmarks.summarize(test.query, presetDefaults: try #require(root.links.presets[test.preset]))
             let label = "\(test.preset) \(test.query)"
             #expect(summary.what == test.summary.what, "\(label)")
             #expect(summary.where == test.summary.where, "\(label)")
@@ -127,7 +126,7 @@ import Testing
         let bookmark = Bookmark(id: "x", kind: .saved, name: "", scene: SceneLink(path: "/ot", query: ["stars": "DeepStar2K", "tags": "OT", "scene": "Sky"]), at: 0)
         let link = bookmark.scene.link(carrying: [LinkQuery.Item(key: "framems", values: ["16"])])
         #expect(link.preset == "ot")
-        #expect(link.query.string == "framems=16&tags=OT&scene=Sky&stars=DeepStar2K")
+        #expect(link.query.string == "framems=16&tags=OT&stars=DeepStar2K&scene=Sky")
         let query = LinkQuery(parsing: "framems=16&tags=GNSS&tags=OT&utm_source=x&time=2026-10-04T08:52Z")
         #expect(Bookmarks.ownedQuery(of: query) == ["tags": "GNSS", "time": "2026-10-04T08:52Z"])
         #expect(Bookmarks.carriedItems(of: query).map(\.key) == ["framems", "utm_source"])

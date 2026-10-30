@@ -290,10 +290,10 @@ private enum PositionRow: CaseIterable {
 
     func value(_ position: LivePosition) -> String {
         switch self {
-        case .latitude: "\(toFixed2(position.latitude))°"
-        case .longitude: "\(toFixed2(position.longitude))°"
-        case .altitude: "\(toFixed2(position.height / 1000)) km"
-        case .velocity: "\(toFixed2(position.speed)) km/s"
+        case .latitude: "\(Formats.fixed(position.latitude, 2))°"
+        case .longitude: "\(Formats.fixed(position.longitude, 2))°"
+        case .altitude: "\(Formats.fixed(position.height / 1000, 2)) km"
+        case .velocity: "\(Formats.fixed(position.speed, 2)) km/s"
         }
     }
 }
@@ -330,8 +330,8 @@ struct StationPanel: View {
                     case .location:
                         Section {
                             FactRow(label: "Name", value: station.displayName)
-                            FactRow(label: "Latitude", value: "\(toFixed2(station.latitude))°")
-                            FactRow(label: "Longitude", value: "\(toFixed2(station.longitude))°")
+                            FactRow(label: "Latitude", value: "\(Formats.fixed(station.latitude, 2))°")
+                            FactRow(label: "Longitude", value: "\(Formats.fixed(station.longitude, 2))°")
                         }
                     default:
                         PassesSections(subject: .station(station, catalog.activeEntries), clock: clock, passes: passes)
@@ -428,12 +428,6 @@ private struct AlertButton: View {
             Text("Add a ground station to be notified of passes over it.")
         }
     }
-}
-
-/// Two decimals with a point, as the web app writes them, and as an unnamed
-/// station's name has them.
-func toFixed2(_ value: Double) -> String {
-    String(format: "%.2f", value)
 }
 
 /// A fact as the web app's tables show one: the label, and the value right-aligned

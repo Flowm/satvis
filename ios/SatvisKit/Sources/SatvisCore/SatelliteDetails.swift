@@ -78,11 +78,11 @@ public enum SatelliteDetails {
             metadata[key]?.string.map { table[$0] ?? $0 }
         }
         if let starboard = metadata["swathStarboardKm"]?.number, let port = metadata["swathPortKm"]?.number {
-            let total = javaScriptString(starboard + port)
-            rows.append(("Swath", starboard == port ? "\(total) km" : "\(total) km (\(javaScriptString(starboard)) stbd / \(javaScriptString(port)) port)"))
+            let km = { Formats.number($0) }
+            rows.append(("Swath", starboard == port ? "\(km(starboard + port)) km" : "\(km(starboard + port)) km (\(km(starboard)) stbd / \(km(port)) port)"))
         }
         if let fov = metadata["coneFovDeg"]?.number {
-            rows.append(("Sensor FOV", "\(javaScriptString(fov))°"))
+            rows.append(("Sensor FOV", "\(Formats.number(fov))°"))
         }
         if let mission = metadata["missionType"]?.string {
             rows.append(("Mission", mission))
@@ -106,7 +106,7 @@ public enum SatelliteDetails {
             rows.append(("Bus", bus))
         }
         if let mass = metadata["massKg"]?.number {
-            rows.append(("Mass", "\(approximate(metadata, "massKg", groupedString(mass))) kg"))
+            rows.append(("Mass", "\(approximate(metadata, "massKg", Formats.measure(mass))) kg"))
         }
         if let size = size(metadata) {
             rows.append(("Size", size))
@@ -134,18 +134,12 @@ public enum SatelliteDetails {
     /// "12.6 × 4.2 m, span 23.9 m": the body's two dimensions as GCAT gives them,
     /// then the span with arrays and booms.
     private static func size(_ metadata: [String: JSONValue]) -> String? {
-        let body = ["lengthM", "diameterM"].compactMap { key in metadata[key]?.number.map { approximate(metadata, key, javaScriptString($0)) } }
+        let body = ["lengthM", "diameterM"].compactMap { key in metadata[key]?.number.map { approximate(metadata, key, Formats.number($0)) } }
         var parts = body.isEmpty ? [] : ["\(body.joined(separator: " × ")) m"]
         if let span = metadata["spanM"]?.number {
-            parts.append("span \(approximate(metadata, "spanM", javaScriptString(span))) m")
+            parts.append("span \(approximate(metadata, "spanM", Formats.number(span))) m")
         }
         return parts.isEmpty ? nil : parts.joined(separator: ", ")
-    }
-
-    /// The number as `toLocaleString("en-US")` writes it: grouped by thousands, at
-    /// most three decimals.
-    static func groupedString(_ value: Double) -> String {
-        value.formatted(.number.locale(Locale(identifier: "en_US")).precision(.fractionLength(0...3)).rounded(rule: .toNearestOrAwayFromZero))
     }
 
     /// What the panel shows under the name, as the web app's `SatelliteInfo.chips`:
@@ -214,7 +208,7 @@ public enum SatelliteDetails {
         guard abs(offsetDays) > staleElementsDays else {
             return nil
         }
-        return "Position and passes may be inaccurate, clock \(Int(abs(offsetDays).rounded())) days \(offsetDays > 0 ? "after" : "before") element epoch"
+        return "Position and passes may be inaccurate, clock \(Formats.integer(Int(abs(offsetDays).rounded()))) days \(offsetDays > 0 ? "after" : "before") element epoch"
     }
 
     static func formatEpoch(julianDate: Double) -> String {
@@ -249,7 +243,7 @@ public struct OrbitFacts: Sendable {
         if shape.apogeeAltitude.isFinite, shape.perigeeAltitude.isFinite {
             let apogee = (shape.apogeeAltitude * Self.earthRadiusKm).rounded()
             let perigee = (shape.perigeeAltitude * Self.earthRadiusKm).rounded()
-            rows.append(("Apogee / Perigee", "\(Int(apogee)) / \(Int(perigee)) km"))
+            rows.append(("Apogee / Perigee", "\(Formats.integer(Int(apogee))) / \(Formats.integer(Int(perigee))) km"))
         }
         if isSunSynchronous {
             let jd = propagator.epochJulianDate

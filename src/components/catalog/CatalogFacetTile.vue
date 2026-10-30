@@ -14,15 +14,15 @@
       type="button"
       class="facetTile__row"
       :class="{ 'facetTile__row--picked': picked.has(item.value), 'facetTile__row--dimmed': picked.size > 0 && !picked.has(item.value) }"
-      :title="`${item.value}: ${item.count.toLocaleString()}`"
+      :title="`${item.value}: ${formatInteger(item.count)}`"
       :aria-pressed="picked.has(item.value)"
       @click="emit('toggle', item.value)"
     >
       <span class="facetTile__label">{{ item.value }}</span>
       <span class="facetTile__track"><span :style="{ width: `${(item.count / max) * 100}%` }" /></span>
-      <span class="facetTile__count cs-num">{{ item.count.toLocaleString() }}</span>
+      <span class="facetTile__count cs-num">{{ formatInteger(item.count) }}</span>
     </button>
-    <button v-if="items.length > top" type="button" class="facetTile__more" @click="emit('toggle-open')">+{{ (items.length - top).toLocaleString() }} more</button>
+    <button v-if="items.length > top" type="button" class="facetTile__more" @click="emit('toggle-open')">+{{ formatInteger(items.length - top) }} more</button>
   </div>
 </template>
 
@@ -30,6 +30,7 @@
 import { computed } from "vue";
 
 import { type FacetDef, type FacetItem, pickedFirst } from "../../modules/catalogFacets";
+import { formatInteger } from "../../modules/util/formats";
 import CatalogTileToggle from "./CatalogTileToggle.vue";
 
 const props = defineProps<{

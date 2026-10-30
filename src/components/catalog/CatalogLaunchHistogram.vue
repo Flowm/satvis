@@ -19,10 +19,10 @@
   >
     <template #stats>
       <span
-        ><b>{{ stats.total.toLocaleString() }}</b> launched, under the other filters</span
+        ><b>{{ formatInteger(stats.total) }}</b> launched, under the other filters</span
       >
       <span v-if="stats.peak"
-        >peak <b>{{ stats.peak[0] }}</b> with {{ stats.peak[1].toLocaleString() }}</span
+        >peak <b>{{ stats.peak[0] }}</b> with {{ formatInteger(stats.peak[1]) }}</span
       >
       <span>{{ stats.recentShare }}% since {{ RECENT_FROM }}</span>
     </template>
@@ -33,6 +33,7 @@
 import { computed } from "vue";
 
 import type { HistogramScale } from "../../composables/useCatalogFilters";
+import { formatInteger } from "../../modules/util/formats";
 import CatalogHistogram, { type HistogramTick } from "./CatalogHistogram.vue";
 
 const props = defineProps<{

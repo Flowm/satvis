@@ -17,6 +17,7 @@ import { filterPasses, toPassRows, type Pass, type PassRow } from "../modules/Pa
 import type { SatelliteComponentCollection } from "../modules/SatelliteComponentCollection";
 import { CesiumCallbackHelper } from "../modules/util/CesiumCallbackHelper";
 import { getElementsInfo, getSatelliteInfo, staleElementsNotice, type ElementsInfo, type SatelliteInfo } from "../modules/util/entityInfo";
+import { formatFixed } from "../modules/util/formats";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
 
@@ -117,10 +118,10 @@ function refreshData(sel: Selection, time: JulianDate): void {
     const cartographic = props.orbit.positionGeodetic(JulianDate.toDate(time), true);
     position.value = cartographic
       ? [
-          { label: "Latitude", value: `${cartographic.latitude.toFixed(2)}°` },
-          { label: "Longitude", value: `${cartographic.longitude.toFixed(2)}°` },
-          { label: "Altitude", value: `${(cartographic.height / 1000).toFixed(2)} km` },
-          { label: "Velocity", value: `${(cartographic.velocity ?? 0).toFixed(2)} km/s` },
+          { label: "Latitude", value: `${formatFixed(cartographic.latitude, 2)}°` },
+          { label: "Longitude", value: `${formatFixed(cartographic.longitude, 2)}°` },
+          { label: "Altitude", value: `${formatFixed(cartographic.height / 1000, 2)} km` },
+          { label: "Velocity", value: `${formatFixed(cartographic.velocity ?? 0, 2)} km/s` },
         ]
       : [];
     staleNotice.value = elements.value ? staleElementsNotice(elements.value.epochMs, JulianDate.toDate(time).getTime()) : undefined;
@@ -133,8 +134,8 @@ function refreshData(sel: Selection, time: JulianDate): void {
     name.value = gs.name;
     position.value = [
       { label: "Name", value: gs.name },
-      { label: "Latitude", value: `${gs.position.latitude.toFixed(2)}°` },
-      { label: "Longitude", value: `${gs.position.longitude.toFixed(2)}°` },
+      { label: "Latitude", value: `${formatFixed(gs.position.latitude, 2)}°` },
+      { label: "Longitude", value: `${formatFixed(gs.position.longitude, 2)}°` },
     ];
     staleNotice.value = undefined;
     const allPasses = sats.stationPasses(gs.name, time);

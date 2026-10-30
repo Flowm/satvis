@@ -4,6 +4,7 @@
 import { constants, gstime, type SatRec } from "satellite.js";
 
 import type Orbit from "../Orbit";
+import { formatFixed } from "./formats";
 
 const RAD_TO_DEG = 180 / Math.PI;
 const HOURS_PER_DEGREE = 24 / 360;
@@ -48,8 +49,8 @@ function apsideRows(satrec: SatRec): [string, string][] {
   if (!Number.isFinite(satrec.alta) || !Number.isFinite(satrec.altp)) {
     return [];
   }
-  const apogee = (satrec.alta * constants.earthRadius).toFixed(0);
-  const perigee = (satrec.altp * constants.earthRadius).toFixed(0);
+  const apogee = formatFixed(satrec.alta * constants.earthRadius, 0);
+  const perigee = formatFixed(satrec.altp * constants.earthRadius, 0);
   return [["Apogee / Perigee", `${apogee} / ${perigee} km`]];
 }
 

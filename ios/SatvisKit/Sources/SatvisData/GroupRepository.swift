@@ -74,11 +74,12 @@ public actor GroupRepository {
         }
     }
 
-    /// The star map as last kept, without asking the worker. Nil while any face
-    /// is missing.
-    public func keptStarMap() -> [Data]? {
-        let faces = Self.starMapFaces.compactMap { store.read(.file($0))?.data }
-        return faces.count == Self.starMapFaces.count ? faces : nil
+    /// A star map as last kept (`map`'s `drawn`), without asking the worker. Nil
+    /// while any face is missing.
+    public func keptStarMap(_ map: StarMapName) -> [Data]? {
+        let paths = Self.starMapFaces(map)
+        let faces = paths.compactMap { store.read(.file($0))?.data }
+        return faces.count == paths.count ? faces : nil
     }
 
     /// An image as last kept, without asking the site.
@@ -91,12 +92,12 @@ public actor GroupRepository {
         try await load(.file(path), fetch: { try await self.client.image(path, ifNoneMatch: $0) }, decode: { data, _ in data })
     }
 
-    /// The six faces of satvis's own star map, as the web app's `DeepStar1K` (NASA
-    /// SVS Deep Star Maps 2020, built by `pnpm update-starmap`), in the order a
-    /// cube texture takes them: +X, −X, +Y, −Y, +Z, −Z. Nil while any is missing.
-    public func starMap() async -> [Data]? {
+    /// The six faces of one of satvis's own star maps, `map`'s `drawn` (NASA SVS
+    /// Deep Star Maps 2020, built by `pnpm update-starmap`), in the order a cube
+    /// texture takes them: +X, −X, +Y, −Y, +Z, −Z. Nil while any is missing.
+    public func starMap(_ map: StarMapName) async -> [Data]? {
         var faces: [Data] = []
-        for path in Self.starMapFaces {
+        for path in Self.starMapFaces(map) {
             guard let loaded = try? await image(path) else {
                 return nil
             }
@@ -105,7 +106,11 @@ public actor GroupRepository {
         return faces
     }
 
-    private static let starMapFaces = ["px", "mx", "py", "my", "pz", "mz"].map { "data/starmap/deepstar_2020_1024_\($0).webp" }
+    /// The web app's paths for them (`starMapSources`): faces 1,024 or 2,048 pixels a side.
+    private static func starMapFaces(_ map: StarMapName) -> [String] {
+        let side = map.drawn == .deepStar2K ? 2048 : 1024
+        return ["px", "mx", "py", "my", "pz", "mz"].map { "data/starmap/deepstar_2020_\(side)_\($0).webp" }
+    }
 
     /// `decode` takes the payload and its ETag.
     private func kept<Value: Sendable>(_ key: PayloadStore.Key, decode: (Data, String?) throws -> Value) -> Loaded<Value>? {

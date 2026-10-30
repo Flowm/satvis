@@ -3,7 +3,7 @@
   <div class="facetDetail">
     <div class="cs-tileHead">
       <UIcon :name="def.icon" class="cs-mute" /> {{ def.label }}
-      <span class="cs-mute cs-num">{{ items.length.toLocaleString() }} values</span>
+      <span class="cs-mute cs-num">{{ formatInteger(items.length) }} values</span>
       <span v-if="picked.size" class="cs-dim cs-num">· {{ picked.size }} picked</span>
       <span class="cs-headEnd">
         <button v-if="picked.size" type="button" class="cs-reset" @click="emit('clear')">reset</button>
@@ -22,7 +22,7 @@
         </button>
       </div>
       <button v-if="search && shown.length" type="button" class="cs-btn" @click="emit('pick-many', shownValues)">
-        <UIcon name="lucide:check-check" /> Pick all {{ shown.length.toLocaleString() }}
+        <UIcon name="lucide:check-check" /> Pick all {{ formatInteger(shown.length) }}
       </button>
     </div>
 
@@ -39,7 +39,7 @@
         <UIcon :name="picked.has(item.value) ? 'lucide:square-check' : 'lucide:square'" class="facetDetail__box" />
         <span class="facetDetail__label" :title="item.value">{{ item.value }}</span>
         <span class="facetDetail__track"><span :style="{ width: `${(item.count / max) * 100}%` }" /></span>
-        <span class="facetDetail__count cs-num">{{ item.count.toLocaleString() }}</span>
+        <span class="facetDetail__count cs-num">{{ formatInteger(item.count) }}</span>
         <span class="facetDetail__share cs-num">{{ share(item.count) }}</span>
       </button>
       <div v-if="!shown.length" class="facetDetail__empty cs-dim">No {{ def.label.toLowerCase() }} matches "{{ search }}".</div>
@@ -51,6 +51,7 @@
 import { computed, onMounted, ref } from "vue";
 
 import type { FacetDef, FacetItem } from "../../modules/catalogFacets";
+import { formatInteger, formatFixed } from "../../modules/util/formats";
 import CatalogTileToggle from "./CatalogTileToggle.vue";
 
 const props = defineProps<{ def: FacetDef; items: readonly FacetItem[]; picked: ReadonlySet<string> }>();
@@ -87,7 +88,7 @@ const shownValues = computed(() => shown.value.map((item) => item.value));
 function share(count: number): string {
   if (total.value === 0 || count === 0) return "";
   const percent = (count / total.value) * 100;
-  return percent >= 1 ? `${percent.toFixed(0)}%` : "<1%";
+  return percent >= 1 ? `${formatFixed(percent, 0)}%` : "<1%";
 }
 
 /** Focused on opening, so typing searches at once. */

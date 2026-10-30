@@ -1,5 +1,6 @@
 // A visitor opens a link, goes back to the default view in one click, returns to the
-// link from Recent, and saves it under names that outlive a reload (ADR 0011).
+// link from Recent, saves it under names that outlive a reload, and shares the view on
+// screen (ADR 0011).
 
 import { clockMs, FIXTURE_TIME, openApp, waitForScene } from "../support/app";
 import { expect, test } from "../support/test";
@@ -20,7 +21,7 @@ test("back to the default view, back to the link, and keep it", async ({ page })
   const opened = cards.filter({ hasText: "Science satellites" });
   await expect(opened, "the link is recorded").toHaveCount(1);
   await expect(opened).toContainText("Flat map");
-  await expect(opened).toContainText("5 Oct, 11:00 UTC");
+  await expect(opened).toContainText("2026-10-05 11:00 UTC");
 
   // Shared through the system's sheet where there is one, copied where there is none.
   const actions = opened.getByRole("button", { name: "Actions for Science satellites" });
@@ -121,4 +122,26 @@ test("back to the default view, back to the link, and keep it", async ({ page })
   await expect(cards).toHaveCount(2);
   await panel.getByRole("tab", { name: /Recent/ }).click();
   await expect(cards).toHaveCount(0);
+});
+
+test("Share this view hands on the page's link", async ({ page }) => {
+  await openApp(page, LINK);
+  await openMenu(page, "Bookmarks");
+  const shareView = page.getByRole("region", { name: "Bookmarks" }).getByRole("button", { name: "Share this view" });
+
+  // Through the system's sheet where there is one, as a card's Share.
+  await page.evaluate(() => {
+    navigator.canShare = () => true;
+    navigator.share = async (data) => void (document.body.dataset.shared = data?.url);
+  });
+  await shareView.click();
+  await expect.poll(() => page.evaluate(() => document.body.dataset.shared)).toBe(page.url());
+
+  // Copied where there is none.
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(() => (navigator.canShare = () => false));
+  await shareView.click();
+  await expect(toasts(page, "Link copied")).toBeVisible();
+  await expect(toasts(page, "Link copied")).toContainText("Science satellites");
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(page.url());
 });

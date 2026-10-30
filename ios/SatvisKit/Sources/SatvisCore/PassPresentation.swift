@@ -47,9 +47,9 @@ extension Pass {
         let minutes = "\(Int((duration / 60_000).rounded())) min"
         switch measure {
         case .elevation(let maxElevation, _, let azimuthApex, _, _):
-            return "\(minutes) · \(toFixed(maxElevation, 0))° max, apex \(compassPoint(azimuthApex))"
+            return "\(minutes) · \(Formats.fixed(maxElevation, 0))° max, apex \(compassPoint(azimuthApex))"
         case .swath(let minDistance, _, let swathWidth):
-            return "\(minutes) · \(toFixed(minDistance, 0)) km off track, swath \(toFixed(swathWidth, 0)) km"
+            return "\(minutes) · \(Formats.fixed(minDistance, 0)) km off track, swath \(Formats.fixed(swathWidth, 0)) km"
         }
     }
 
@@ -58,16 +58,16 @@ extension Pass {
     public var columns: (primary: String, secondary: String) {
         switch measure {
         case .elevation(let maxElevation, _, let azimuthApex, _, _):
-            ("\(toFixed(maxElevation, 0))°", "\(toFixed(azimuthApex, 2))°")
+            ("\(Formats.fixed(maxElevation, 0))°", "\(Formats.fixed(azimuthApex, 2))°")
         case .swath(let minDistance, _, let swathWidth):
-            ("\(toFixed(minDistance, 1))km", "\(toFixed(swathWidth, 0))km")
+            ("\(Formats.fixed(minDistance, 1))km", "\(Formats.fixed(swathWidth, 0))km")
         }
     }
 
-    /// `DD.MM HH:mm:ss` UTC.
+    /// `MM-DD HH:mm:ss` UTC.
     public var startLabel: String {
         let utc = civilDate(epochMilliseconds: start)
-        return "\(two(utc.day)).\(two(utc.month)) \(two(utc.hour)):\(two(utc.minute)):\(two(utc.second))"
+        return "\(two(utc.month))-\(two(utc.day)) \(two(utc.hour)):\(two(utc.minute)):\(two(utc.second))"
     }
 
     /// `HH:mm:ss` UTC.
@@ -181,7 +181,7 @@ public struct PassTimelineLayout: Sendable {
         }
         self.ticks = ticks
         now = fraction(nowMs)
-        horizonLabel = hours >= 24 ? "\(toFixed(hours / 24, hours.truncatingRemainder(dividingBy: 24) == 0 ? 0 : 1)) d" : "\(Int(hours.rounded())) h"
+        horizonLabel = hours >= 24 ? "\(Formats.fixed(hours / 24, hours.truncatingRemainder(dividingBy: 24) == 0 ? 0 : 1)) d" : "\(Int(hours.rounded())) h"
         beyond = passes.filter { $0.start > spanEnd }.count
     }
 

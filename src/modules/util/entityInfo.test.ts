@@ -101,12 +101,12 @@ describe("getSatelliteInfo", () => {
 
   test("shows a symmetric swath as a single total", () => {
     const rows = getSatelliteInfo(ISS, "LEO", { swathStarboardKm: 1175, swathPortKm: 1175 });
-    expect(valueOf(rows, "Swath")).toBe("2350 km");
+    expect(valueOf(rows, "Swath")).toBe("2,350 km");
   });
 
   test("spells out the sides when they differ", () => {
     const rows = getSatelliteInfo(ISS, "LEO", { swathStarboardKm: 1000, swathPortKm: 500 });
-    expect(valueOf(rows, "Swath")).toBe("1500 km (1000 stbd / 500 port)");
+    expect(valueOf(rows, "Swath")).toBe("1,500 km (1,000 stbd / 500 port)");
   });
 
   test("includes the display-only fields when present", () => {

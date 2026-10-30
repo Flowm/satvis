@@ -47,6 +47,8 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
     private var pitch = 0.0
     /// Metres from the bounding sphere's centre.
     private var distance = 1.0
+    /// The distance `resetView` framed the model at, which a pinch stays within 4 times of.
+    private var framingDistance = 1.0
     /// Until the first drag or pinch; `resetView` turns it back on.
     private var turning = true
     private var lastFrame: CFTimeInterval?
@@ -58,9 +60,11 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
     /// Short of looking straight down or up, where the yaw turns about the line of sight.
     private static let pitchLimit = 1.5
     private static let radiansPerPoint = 0.01
-    /// One turn a minute.
-    private static let turnRadiansPerSecond = 2 * Double.pi / 60
-    private static let verticalFieldOfView = 40 * Double.pi / 180
+    /// One turn a minute, the way a drag to the right turns it, as Cesium's
+    /// `rotateLeft` turns the web app's.
+    private static let turnRadiansPerSecond = -2 * Double.pi / 60
+    /// Cesium's default, which the web app keeps: across the view's wider side.
+    private static let fieldOfView = Double.pi / 3
     /// The web app's studio light, of intensity 2.5 under its ACES tonemap.
     private static let exposure: Float = 2.5
     /// The view's, which `make` sets it up with.
@@ -150,8 +154,8 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
     public func resetView() {
         yaw = Self.defaultYaw
         pitch = Self.defaultPitch
-        // 0.85 of what fits the bounding sphere, as on the web: models are rarely round.
-        distance = 0.85 * fittingDistance
+        framingDistance = framing(for: view?.drawableSize ?? .zero)
+        distance = framingDistance
         turning = true
         updateDrawing()
     }
@@ -172,14 +176,26 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
             return
         }
         let radius = Double(model?.radius ?? 1)
-        distance = min(max(distance / scale, 0.6 * radius), 4 * 0.85 * fittingDistance)
+        distance = min(max(distance / scale, 0.6 * radius), 4 * framingDistance)
         updateDrawing()
     }
 
-    /// Far enough for the bounding sphere to fill the field of view: the vertical
-    /// one, as the close-up is wider than tall.
-    private var fittingDistance: Double {
-        Double(max(model?.radius ?? 1, 0.01)) / sin(Self.verticalFieldOfView / 2)
+    /// 0.85 of what fits the bounding sphere in a view of `size`, as on the web: models are rarely round.
+    private func framing(for size: CGSize) -> Double {
+        0.85 * fittingDistance(aspect: size.height > 0 ? Double(size.width / size.height) : 1)
+    }
+
+    /// Far enough for the bounding sphere to fill the narrower of the two fields of view.
+    private func fittingDistance(aspect: Double) -> Double {
+        let vertical = Self.verticalFieldOfView(aspect: aspect)
+        let horizontal = 2 * atan(tan(vertical / 2) * aspect)
+        return Double(max(model?.radius ?? 1, 0.01)) / sin(min(vertical, horizontal) / 2)
+    }
+
+    /// The vertical field of view for a view `aspect` wide per unit of height, as
+    /// Cesium's `PerspectiveFrustum` derives it from `fieldOfView`.
+    private static func verticalFieldOfView(aspect: Double) -> Double {
+        aspect > 1 ? 2 * atan(tan(fieldOfView / 2) / aspect) : fieldOfView
     }
 
     /// Frames on the display's clock while the model turns; otherwise one frame per change.
@@ -200,7 +216,14 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
         }
     }
 
-    public func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
+    /// Frames the model again for the view's new shape, at the same zoom: a model
+    /// can load before the view is laid out, and an iPad turns.
+    public func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
+        let framing = framing(for: size)
+        distance *= framing / framingDistance
+        framingDistance = framing
+        updateDrawing()
+    }
 
     public func draw(in view: MTKView) {
         let now = CACurrentMediaTime()
@@ -243,7 +266,7 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
         let radius = Double(model.radius)
         let near = max(distance - 2 * radius, distance * 0.01)
         let far = distance + 2 * radius
-        let projection = Self.perspective(fovy: Self.verticalFieldOfView, aspect: aspect, near: near, far: far)
+        let projection = Self.perspective(fovy: Self.verticalFieldOfView(aspect: aspect), aspect: aspect, near: near, far: far)
         let toEye = simd_double4x4(columns: (SIMD4(1, 0, 0, 0), SIMD4(0, 1, 0, 0), SIMD4(0, 0, 1, 0), SIMD4(-eye, 1)))
         let base = ModelInstance(
             modelViewProjection: float4x4(projection * viewMatrix), rotation: matrix_identity_float3x3, modelToEye: float4x4(toEye), baseColor: .one,

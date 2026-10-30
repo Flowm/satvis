@@ -12,7 +12,7 @@
       @click.stop="emit('toggle-group', row.tag)"
     />
     <span class="browser-label browser-label--group" @click="emit('toggle-expand', row.tag)">{{ row.tag }}</span>
-    <span class="browser-badge">{{ row.activeCount }}/{{ row.count }}</span>
+    <span class="browser-badge">{{ formatInteger(row.activeCount) }}/{{ formatInteger(row.count) }}</span>
   </div>
 
   <div v-else class="browser-row browser-row--sat">
@@ -34,6 +34,7 @@ import { onMounted, ref, watch } from "vue";
 
 import type { BrowserRow } from "../composables/useSatelliteBrowser";
 import { ORBIT_CLASS_COLOR } from "../config/orbitClass";
+import { formatInteger } from "../modules/util/formats";
 
 const props = defineProps<{ row: BrowserRow }>();
 const emit = defineEmits<{

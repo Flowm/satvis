@@ -133,13 +133,13 @@ struct BenchmarkPanel: View {
                 switch benchmark.phase {
                 case .idle, .cancelled:
                     Button("Start") { benchmark.start(on: session) }
-                        .buttonStyle(PanelButtonStyle(prominent: true))
+                        .buttonStyle(PanelButtonStyle(emphasis: .accent))
                 case .loading, .settling, .measuring:
                     Button("Cancel", role: .cancel) { benchmark.cancel() }
                         .buttonStyle(PanelButtonStyle())
                 case .done:
                     Button(benchmark.submitted ? "Sent" : "Send results") { benchmark.submit(with: session.analytics) }
-                        .buttonStyle(PanelButtonStyle(prominent: true))
+                        .buttonStyle(PanelButtonStyle(emphasis: .accent))
                         .disabled(benchmark.submitted || !session.analytics.isSharing)
                     Button("Run again") { benchmark.start(on: session) }
                         .buttonStyle(PanelButtonStyle())

@@ -29,6 +29,8 @@ public struct SceneState: Sendable, Equatable {
     public var layers: [String]
     /// Whether the globe follows Re:Earth's terrain.
     public var terrain: Bool
+    /// The star map a link names; the app draws its `drawn`.
+    public var starMap: StarMapName
     /// In the sky view, how the satellites that cannot be seen are drawn (ADR 0010).
     public var unseen: UnseenMode
     /// What the free camera holds still in (CONTEXT.md, Camera mode).
@@ -44,7 +46,8 @@ public struct SceneState: Sendable, Equatable {
     public init(
         activation: Activation = Activation(), components: SatelliteComponents = [.point, .label], stations: [LinkStation] = [],
         selectedStation: LinkStation? = nil, sky: Bool = false, observer: LinkStation? = nil, tracked: String? = nil, overpassMode: OverpassMode = .elevation,
-        layers: [String] = ["NaturalEarth"], terrain: Bool = false, unseen: UnseenMode = .dim, cameraFrame: CameraFrame = .fixed, pixelRatio: String = "native",
+        layers: [String] = ["NaturalEarth"], terrain: Bool = false, starMap: StarMapName = .tycho1K, unseen: UnseenMode = .dim, cameraFrame: CameraFrame = .fixed,
+        pixelRatio: String = "native",
         time: Date? = nil, foreign: Foreign = Foreign()
     ) {
         self.activation = activation
@@ -57,6 +60,7 @@ public struct SceneState: Sendable, Equatable {
         self.overpassMode = overpassMode
         self.layers = layers
         self.terrain = terrain
+        self.starMap = starMap
         self.unseen = unseen
         self.cameraFrame = cameraFrame
         self.pixelRatio = pixelRatio
@@ -121,6 +125,7 @@ public struct SceneState: Sendable, Equatable {
             overpassMode: OverpassMode(rawValue: state.overpass) ?? .elevation,
             layers: state.layerProviders,
             terrain: state.terrain == "ReEarth",
+            starMap: state.stars,
             unseen: state.unseen,
             cameraFrame: state.camera,
             pixelRatio: state.pixelRatio,
@@ -155,6 +160,7 @@ public struct SceneState: Sendable, Equatable {
             overpass: overpassMode.rawValue,
             layers: layers,
             terrain: terrain ? "ReEarth" : "None",
+            stars: starMap,
             scene: sky ? "Sky" : "3D",
             unseen: unseen,
             camera: cameraFrame,

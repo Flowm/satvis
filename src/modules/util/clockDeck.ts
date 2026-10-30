@@ -3,6 +3,8 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
+import { formatNumber, formatWeekdayDate } from "./formats";
+
 dayjs.extend(utc);
 
 /** The granularity the url records anyway. See CONTEXT.md, live vs pinned time. */
@@ -125,14 +127,14 @@ export function rungFor(multiplier: number): number {
   return LADDER.reduce((best, value, at) => (Math.abs(value - multiplier) < Math.abs(LADDER[best]! - multiplier) ? at : best), 0);
 }
 
-/** `60×`. */
+/** `60×`, ungrouped: "−86,400×" takes 63 of the rung's 64 px (ADR 0015). */
 export const multiplierLabel = (multiplier: number): string => `${multiplier < 0 ? "−" : ""}${Math.abs(multiplier)}×`;
 
 /** `1 min/s`. */
 export function rateLabel(multiplier: number): string {
   const abs = Math.abs(multiplier);
   const sign = multiplier < 0 ? "−" : "";
-  const trim = (value: number): string => Number(value.toFixed(2)).toString();
+  const trim = (value: number): string => formatNumber(Number(value.toFixed(2)));
   if (abs < 60) {
     return `${sign}${trim(abs)} s/s`;
   }
@@ -146,5 +148,5 @@ export function rateLabel(multiplier: number): string {
 }
 
 export const clockLabel = (date: Date): string => dayjs.utc(date).format("HH:mm:ss");
-export const dateLabel = (date: Date): string => dayjs.utc(date).format("ddd DD MMM");
+export const dateLabel = (date: Date): string => formatWeekdayDate(date);
 const hhmmLabel = (date: Date): string => dayjs.utc(date).format("HH:mm");

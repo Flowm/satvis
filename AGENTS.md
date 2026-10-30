@@ -16,7 +16,8 @@ workspace package). One `pnpm install` at the root covers both.
   compass aiming (0004), surface models (0005), SATCAT enrichment (0006), model
   manifests (0007), GCAT and the one owner per metadata field (0008), the native
   iOS app (0009), visibility in the sky view (0010), bookmarks (0011), the satellite
-  catalog (0012), the native sky view's camera passthrough (0013), custom satellites (0014).
+  catalog (0012), the native sky view's camera passthrough (0013), custom satellites (0014),
+  numbers and dates following the device (0015).
 - **`e2e/`** — Playwright specs against the running app: `journeys/` walks the main
   flows through the menus, `regressions/` pins down one past bug each, for what
   needs layout, a GPU or frames. Read `e2e/support/app.ts` before writing one: it
@@ -69,7 +70,7 @@ workspace package). One `pnpm install` at the root covers both.
   (`scripts/parity/`), and writes the tables it reads from the web app as they are
   (SATCAT labels, external links). Rerun it after changing propagation or its
   sampling grid, element-set parsing, pass prediction, the info panel's details
-  and passes, the URL codec, the sky view's visibility (`visibility.ts`) and lock card (`skyCard.ts`), the
+  and passes, the URL codec, the number and date formats (`formats.ts`), the sky view's visibility (`visibility.ts`) and lock card (`skyCard.ts`), the
   analytics sanitising (`posthogPrivacy.ts`), the pixel ratios
   (`config/rendering.ts`), the model levels (`config/modelLevels.ts`), or those
   tables; CI fails while the committed output is stale.

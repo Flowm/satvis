@@ -122,7 +122,7 @@ public enum Bookmarks {
 
     /// What a bookmark shows, in words. `presetDefaults` fill what the query leaves
     /// out, as they do when it is opened.
-    public static func summarize(_ query: [String: String], presetDefaults: [String: String], now: Date = Date()) -> BookmarkSummary {
+    public static func summarize(_ query: [String: String], presetDefaults: [String: String]) -> BookmarkSummary {
         func value(_ parameter: String) -> String? { query[parameter] ?? presetDefaults[parameter] }
         func list(_ text: String?) -> [String] {
             guard let text, !text.isEmpty else {
@@ -155,7 +155,7 @@ public enum Bookmarks {
         } else {
             place = projections[scene] ?? scene
         }
-        return BookmarkSummary(what: what, where: place, time: value("time").map { timeLabel($0, now: now) })
+        return BookmarkSummary(what: what, where: place, time: value("time").map(timeLabel))
     }
 
     /// A name for a scene nobody named: the camera where it says more than the
@@ -198,7 +198,7 @@ public enum Bookmarks {
 
     /// Up to two names, or a count.
     private static func satellitesNamed(_ names: [String]) -> String {
-        names.count <= 2 ? joinNames(names) : "\(names.count) satellites"
+        names.count <= 2 ? joinNames(names) : "\(Formats.integer(names.count)) satellites"
     }
 
     /// The first station of a `gs` value, which a link's sky view stands on, by name if it has one.
@@ -208,30 +208,26 @@ public enum Bookmarks {
             return fields[2]
         }
         // JavaScript's `Number`: an empty field is 0, a missing or unreadable one NaN.
-        func degrees(_ index: Int) -> String {
+        func degrees(_ index: Int) -> Double {
             guard index < fields.count else {
-                return "NaN"
+                return .nan
             }
             let field = fields[index].trimmingCharacters(in: .whitespaces)
-            return field.isEmpty ? "0.00" : Double(field).map { toFixed($0, 2) } ?? "NaN"
+            return field.isEmpty ? 0 : Double(field) ?? .nan
         }
-        return "\(degrees(0))°, \(degrees(1))°"
+        return Formats.coordinates(degrees(0), degrees(1))
     }
 
-    /// en-GB's short months, as `toLocaleDateString` gives them.
-    private static let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"]
-
-    /// Day, month and minute in UTC, as the clock deck shows it, with the year only
-    /// when it is not this one; the text as it came where it is no time.
-    private static func timeLabel(_ iso: String, now: Date) -> String {
+    /// "2026-10-05 11:00 UTC": ISO 8601 to the minute, as a link's `time` is; the
+    /// text as it came where it is no time.
+    private static func timeLabel(_ iso: String) -> String {
         guard let date = parseISO(iso) else {
             return iso
         }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
         let parts = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
-        let year = parts.year == calendar.component(.year, from: now) ? "" : " \(parts.year!)"
-        return "\(parts.day!) \(months[parts.month! - 1])\(year), \(String(format: "%02d:%02d", parts.hour!, parts.minute!)) UTC"
+        return String(format: "%04d-%02d-%02d %02d:%02d UTC", parts.year!, parts.month!, parts.day!, parts.hour!, parts.minute!)
     }
 
     /// The forms a link's `time` takes: to the minute, the second or the millisecond.

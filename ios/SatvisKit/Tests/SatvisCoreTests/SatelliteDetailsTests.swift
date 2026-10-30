@@ -5,7 +5,7 @@ import Testing
 
 /// The info panel's header, Orbit and Spacecraft tabs, held to what the web app's
 /// entityInfo.ts writes for the same records.
-@Suite struct SatelliteDetailsTests {
+@Suite(.formatsInEnglishUS) struct SatelliteDetailsTests {
     struct Details: Decodable {
         struct Elements: Decodable {
             let kind: String
@@ -88,13 +88,6 @@ import Testing
         #expect(gcat.categoryLabel("SIG?*") == "Signals intelligence?")
         #expect(gcat.classLabel("BD") == "Commercial / Military")
         #expect(gcat.classLabel("BX") == "Commercial / X")
-    }
-
-    @Test func groupsMassesAsJavaScriptDoes() {
-        #expect(SatelliteDetails.groupedString(20281) == "20,281")
-        #expect(SatelliteDetails.groupedString(2857.1234) == "2,857.123")
-        #expect(SatelliteDetails.groupedString(1.47) == "1.47")
-        #expect(SatelliteDetails.groupedString(1234567.0005) == "1,234,567.001")
     }
 
     @Test func readsTheSharedTables() throws {

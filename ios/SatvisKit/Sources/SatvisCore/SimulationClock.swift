@@ -88,7 +88,7 @@ public struct SimulationClock: Sendable, Equatable {
         let sign = multiplier < 0 ? "−" : ""
         func trim(_ value: Double) -> String {
             let rounded = (value * 100).rounded() / 100
-            return rounded == rounded.rounded() ? String(Int(rounded)) : String(rounded)
+            return Formats.decimal(rounded == rounded.rounded() ? String(Int(rounded)) : String(rounded))
         }
         switch magnitude {
         case ..<60: return "\(sign)\(trim(magnitude)) s/s"

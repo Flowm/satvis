@@ -16,8 +16,8 @@
         @click="onGripClick"
       />
       <span class="catalogSheet__title">Catalog</span>
-      <span class="catalogSheet__count cs-num" aria-live="polite">{{ sheet.matched.value.length.toLocaleString() }}</span>
-      <span class="catalogSheet__of cs-dim cs-num">of {{ sheet.rows.value.length.toLocaleString() }}<template v-if="sheet.isLoading.value"> · loading…</template></span>
+      <span class="catalogSheet__count cs-num" aria-live="polite">{{ formatInteger(sheet.matched.value.length) }}</span>
+      <span class="catalogSheet__of cs-dim cs-num">of {{ formatInteger(sheet.rows.value.length) }}<template v-if="sheet.isLoading.value"> · loading…</template></span>
       <span class="catalogSheet__chips" :class="{ 'catalogSheet__chips--empty': sheet.chips.value.length === 0 }">
         <span v-for="chip in sheet.chips.value" :key="chip.id" class="cs-chip">
           <b v-if="chip.facet">{{ chip.facet }}</b> {{ chip.value }}
@@ -47,7 +47,7 @@
         <UIcon name="lucide:sliders-horizontal" /> Filters <span v-if="sheet.chips.value.length" class="catalogSheet__badge">{{ sheet.chips.value.length }}</span>
       </button>
       <button type="button" role="tab" :aria-selected="pane === 'list'" :class="{ on: pane === 'list' }" @click="pane = 'list'">
-        <UIcon name="lucide:list" /> Satellites <span class="catalogSheet__badge cs-num">{{ sheet.matched.value.length.toLocaleString() }}</span>
+        <UIcon name="lucide:list" /> Satellites <span class="catalogSheet__badge cs-num">{{ formatInteger(sheet.matched.value.length) }}</span>
       </button>
     </div>
 
@@ -165,7 +165,7 @@
             <button v-if="sheet.query.value" type="button" class="cs-iconBtn" aria-label="Clear the search" @click="sheet.query.value = ''"><UIcon name="lucide:x" /></button>
           </div>
           <div class="catalogSheet__actions">
-            <span class="cs-dim cs-num">{{ sheet.matched.value.length.toLocaleString() }}<span class="catalogSheet__matchWord"> matches</span></span>
+            <span class="cs-dim cs-num">{{ formatInteger(sheet.matched.value.length) }}<span class="catalogSheet__matchWord"> matches</span></span>
             <span class="catalogSheet__spacer" />
             <button type="button" class="cs-btn cs-btn--primary" :disabled="!sheet.matched.value.length" @click="show"><UIcon name="lucide:eye" /> Show only these</button>
             <button type="button" class="cs-btn" :disabled="!sheet.matched.value.length" title="Add the matches to what the globe shows" @click="add">
@@ -197,7 +197,7 @@
             @click="sheet.activeOnly.value = !sheet.activeOnly.value"
           >
             <UIcon name="lucide:globe" />
-            <span class="cs-num">{{ sheet.active.value.size.toLocaleString() }}</span> on the globe
+            <span class="cs-num">{{ formatInteger(sheet.active.value.size) }}</span> on the globe
           </button>
           <span class="catalogSheet__spacer" />
           <button type="button" class="cs-btn" :disabled="sheet.active.value.size === 0" @click="sheet.clearGlobe()"><UIcon name="lucide:eraser" /> Clear globe</button>
@@ -217,6 +217,7 @@ import { SHOW_CAP, useCatalogFilters } from "../../composables/useCatalogFilters
 import { useController } from "../../composables/useController";
 import { ORBIT_CLASS_HINT, orbitColor, orbitKindHint, SUN_SYNC_COLOR } from "../../config/orbitClass";
 import { FACET_BY_KEY, FACETS, type FacetDef, type FacetKey, facetBranches, facetItems, NO_KIND, NO_PROGRAM, parseOrbitLeaf } from "../../modules/catalogFacets";
+import { formatInteger } from "../../modules/util/formats";
 import { useSatStore } from "../../stores/sat";
 import CatalogApsisPlot from "./CatalogApsisPlot.vue";
 import CatalogCrossingHistogram from "./CatalogCrossingHistogram.vue";
@@ -277,7 +278,7 @@ const TREES: Tree[] = [
     note: () => {
       const worked = sheet.rows.value.filter((row) => row.orbitKindComputed && row.orbitKind !== undefined).length;
       return worked > 0
-        ? `GCAT has no orbit code for ${worked.toLocaleString()} satellites yet, most launched in the last three months; their LEO kind is worked out from the element set by GCAT's bounds, and starred in the list. "${NO_KIND}" collects the rest.`
+        ? `GCAT has no orbit code for ${formatInteger(worked)} satellites yet, most launched in the last three months; their LEO kind is worked out from the element set by GCAT's bounds, and starred in the list. "${NO_KIND}" collects the rest.`
         : undefined;
     },
   },

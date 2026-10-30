@@ -21,6 +21,9 @@ extension Color {
     static let panelInk = Color(red: 0xED / 255, green: 1, blue: 1)
     /// The web app's cyan, `#7fd2ea`, for what is open or chosen.
     static let panelAccent = Color(red: 127 / 255, green: 210 / 255, blue: 234 / 255)
+    /// The web app's filled button, `#3d7f93`: the cyan darkened to carry the ink,
+    /// which on the cyan itself reads at 1.4 to 1.
+    static let panelPrimary = Color(red: 0x3D / 255, green: 0x7F / 255, blue: 0x93 / 255)
     /// What is chosen, and a tab's count: the web app's `#ffffff1f`.
     static let panelSelected = Color.white.opacity(0x1F / 255)
     /// "Not where it rests", as on the web: the clock deck's reset, a stale element set.
@@ -130,11 +133,20 @@ private enum PanelEdge {
 
 /// The button: on the panel, its corners 12 points round, growing and lit while
 /// pressed, as Liquid Glass's are. At least 44 points a side, so an icon alone is a
-/// square. `prominent` takes the web app's cyan for the action a panel offers first.
-/// `square` makes an icon the folded menu column's twin, for the corner's buttons:
+/// square. `emphasis` sets it apart from the panel. `square` makes an icon the folded menu column's twin, for the corner's buttons:
 /// as tall, as round, and as wide whichever icon it holds.
 struct PanelButtonStyle: ButtonStyle {
-    var prominent = false
+    /// How a button stands out from its panel.
+    enum Emphasis {
+        /// The panel's ink.
+        case plain
+        /// The web app's cyan, for the action a panel offers first.
+        case accent
+        /// Filled, as the web app's primary button, for a panel's main action.
+        case filled
+    }
+
+    var emphasis = Emphasis.plain
     var square = false
     @Environment(\.isEnabled) private var isEnabled
     /// Dynamic Type's scale, as the menu column's rows take it.
@@ -147,12 +159,28 @@ struct PanelButtonStyle: ButtonStyle {
         configuration.label
             .padding(.horizontal, square ? 0 : 12)
             .frame(minWidth: side, minHeight: side)
-            .foregroundStyle(!isEnabled ? Color(white: 0x64 / 255) : prominent ? .panelAccent : .panelInk)
+            .foregroundStyle(emphasis == .filled ? .panelInk : !isEnabled ? Color(white: 0x64 / 255) : emphasis == .accent ? .panelAccent : .panelInk)
             .background(configuration.isPressed ? .white.opacity(0.18) : .clear, in: .rect(cornerRadius: radius))
-            .panel(cornerRadius: radius)
+            .modifier(PanelButtonSurface(filled: emphasis == .filled, radius: radius))
+            // Dimmed whole, as the web app's disabled buttons are.
+            .opacity(emphasis == .filled && !isEnabled ? 0.5 : 1)
             .contentShape(.rect(cornerRadius: radius))
             .scaleEffect(configuration.isPressed ? 1.08 : 1)
             .animation(.spring(duration: 0.25, bounce: 0.4), value: configuration.isPressed)
+    }
+}
+
+/// Under a `PanelButtonStyle`: the panel, or the web app's primary fill.
+private struct PanelButtonSurface: ViewModifier {
+    let filled: Bool
+    let radius: CGFloat
+
+    func body(content: Content) -> some View {
+        if filled {
+            content.background(Color.panelPrimary, in: .rect(cornerRadius: radius))
+        } else {
+            content.panel(cornerRadius: radius)
+        }
     }
 }
 

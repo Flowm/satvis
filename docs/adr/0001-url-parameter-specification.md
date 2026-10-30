@@ -63,7 +63,10 @@ Every parameter is optional. An absent parameter means "use the default" (see
     says what was asked for, not what this machine can serve. The Map panel offers the
     maps it can find, and treats an unanswered probe as present, which suits a PWA
     whose faces may be cached while the network is down. A link naming a missing map
-    falls back to `Tycho1K` and the url is rewritten to match.
+    falls back to `Tycho1K` and the url is rewritten to match. The native app has
+    the two `DeepStar` cuts and no `Tycho1K` (ADR 0009): it draws `DeepStar1K` for
+    `Tycho1K` and keeps the name, so a link it writes back still says what was
+    asked for.
 
 [^3]:
     Above a component's budget the default loses it: `Label` past 200 active

@@ -73,6 +73,10 @@ const server = await createServer({
 });
 try {
   const runner = createServerModuleRunner(server.environments.ssr, { hmr: false });
+  // The web formats for the browser's region (docs/adr/0015-formats-follow-the-device.md);
+  // the native tests format en-US to compare.
+  const { setFormatLocale } = await runner.import("/src/modules/util/formats.ts");
+  setFormatLocale("en-US");
   const gp = await runner.import("/src/modules/util/gp.ts");
   const { greenwichHourAngle } = await runner.import("/src/modules/util/temeToFixed.ts");
   const { sampleInterval, gridAnchorEpochMs } = await runner.import("/src/modules/util/sgp4Worker.ts");
@@ -268,10 +272,13 @@ try {
   const { PIXEL_RATIOS } = await runner.import("/src/config/rendering.ts");
   const { UNSEEN_MODES } = await runner.import("/src/modules/util/visibility.ts");
   const { CAMERA_MODES } = await runner.import("/src/config/viewModes.ts");
+  const { STAR_MAPS } = await runner.import("/src/config/starMaps.ts");
   const vocabulary = {
     components: ["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model", "Ground station link"],
     layers: ["NaturalEarth", "VersaTiles", "BlackMarble", "VIIRS"],
     terrain: ["None", "ReEarth"],
+    // Whole, Tycho1K included: the app draws it as DeepStar1K, and a link keeps it.
+    stars: [...STAR_MAPS],
     overpass: ["elevation", "swath"],
     scenes: ["3D", "Sky"],
     unseen: [...UNSEEN_MODES],
@@ -385,6 +392,7 @@ try {
     { name: "overpass", kind: kinds.overpass },
     { name: "layers", kind: kinds.layers },
     { name: "terrain", kind: codec.enumString(vocabulary.terrain) },
+    { name: "stars", kind: codec.enumString(vocabulary.stars) },
     { name: "scene", kind: codec.enumString(vocabulary.scenes) },
     { name: "unseen", kind: codec.enumString(vocabulary.unseen) },
     { name: "camera", kind: codec.enumString(vocabulary.cameras) },
@@ -402,6 +410,7 @@ try {
     overpass: "elevation",
     layers: ["NaturalEarth"],
     terrain: "None",
+    stars: "Tycho1K",
     scene: "3D",
     unseen: "dim",
     camera: "Fixed",
@@ -430,6 +439,9 @@ try {
     ["default", "camera=inertial"],
     ["demo", "camera=Fixed"],
     ["default", "unseen=dim&unseen=Hide"],
+    ["default", "stars=Tycho1K&tags=GNSS"],
+    ["default", "stars=DeepStar1K"],
+    ["default", "stars=deepstar2k&layers=VersaTiles"],
     ["default", "layers=NaturalEarth,VersaTiles_0.50,BlackMarble"],
     ["default", "pixelratio=1.5&tags=Starlink"],
     ["default", "pixelratio=native"],
@@ -547,7 +559,7 @@ try {
     ...DEMO_BOOKMARKS.map((demo) => ["default", demo.query]),
   ];
   const summaries = BOOKMARK_CASES.map(([preset, query]) => {
-    const summary = bookmarks.summarize(query, PRESETS[preset], new Date(BOOKMARK_NOW));
+    const summary = bookmarks.summarize(query, PRESETS[preset]);
     return { preset, query, summary, name: bookmarks.defaultName(summary) };
   });
   const bookmarkNow = Date.parse(BOOKMARK_NOW);

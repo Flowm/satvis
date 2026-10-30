@@ -31,7 +31,9 @@
     <div v-else class="browser-empty">No matches</div>
 
     <div class="browser-summary">
-      <span>{{ groupCount }} group{{ groupCount === 1 ? "" : "s" }} · {{ activeSatCount }} satellite{{ activeSatCount === 1 ? "" : "s" }} active</span>
+      <span
+        >{{ formatInteger(groupCount) }} group{{ groupCount === 1 ? "" : "s" }} · {{ formatInteger(activeSatCount) }} satellite{{ activeSatCount === 1 ? "" : "s" }} active</span
+      >
       <button v-if="hasActiveSelection" type="button" class="browser-clear" @click="clearAll">Clear all</button>
     </div>
     <button type="button" class="browser-catalog" @click="emit('browse')"><UIcon name="lucide:chart-no-axes-column" /> Browse and filter the catalog</button>
@@ -44,6 +46,7 @@ import { computed, ref } from "vue";
 
 import { useController } from "../composables/useController";
 import { type BrowserRow, useSatelliteBrowser } from "../composables/useSatelliteBrowser";
+import { formatInteger } from "../modules/util/formats";
 
 const ROW_HEIGHT = 28;
 

@@ -264,7 +264,7 @@ private struct VisitingRow: View {
                             .lineLimit(1)
                         // An unnamed one is shown by its coordinates already.
                         if station.name != nil {
-                            Text("\(toFixed2(station.latitude))°, \(toFixed2(station.longitude))°")
+                            Text(verbatim: Formats.coordinates(station.latitude, station.longitude))
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }

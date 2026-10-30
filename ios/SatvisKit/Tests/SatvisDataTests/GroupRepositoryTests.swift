@@ -220,6 +220,18 @@ private let fixedNow = Date(timeIntervalSince1970: 1_790_000_000)
         #expect(await offline.keptImage("showcase/globe-card.jpg") == Data([9]))
     }
 
+    // Each map's faces are kept apart, and the Tycho map a link names is the 1K one.
+    @Test func keepsEachStarMapApart() async throws {
+        let worker = StubWorker((0..<6).map { .image(Data([UInt8($0)]), etag: "\($0)") })
+        let store = temporaryStore()
+        let repository = GroupRepository(client: worker.client, store: store, snapshot: nil)
+        #expect(await repository.starMap(.deepStar2K) == (0..<6).map { Data([UInt8($0)]) })
+        #expect(worker.requests.withLock { $0.first?.url?.lastPathComponent } == "deepstar_2020_2048_px.webp")
+        #expect(await repository.keptStarMap(.deepStar2K)?.count == 6)
+        #expect(await repository.keptStarMap(.deepStar1K) == nil)
+        #expect(await repository.keptStarMap(.tycho1K) == nil)
+    }
+
     // `pnpm dev`, and a deploy that never ran the generator, answer with index.html.
     @Test func doesNotTakeAPageForAnImage() async throws {
         let repository = GroupRepository(client: StubWorker([.html]).client, store: temporaryStore(), snapshot: nil)

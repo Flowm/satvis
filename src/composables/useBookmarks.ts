@@ -1,6 +1,7 @@
 // Bookmarks against the router and the globe: opening one, saving the scene, and
 // recording the link a visit started with (docs/adr/0011-bookmarks.md).
 
+import { useToast } from "@nuxt/ui/composables/useToast";
 import { computed, reactive, ref } from "vue";
 import { type Router, useRouter } from "vue-router";
 
@@ -42,6 +43,7 @@ export function useBookmarks() {
   const cc = useController();
   const router = useRouter();
   const store = useBookmarkStore();
+  const { share, shareHere } = useShare();
 
   const route = computed(() => router.currentRoute.value);
   // The scene's own parameters, as the url states them.
@@ -105,6 +107,8 @@ export function useBookmarks() {
     summary,
     open,
     link,
+    share,
+    shareHere,
     openDefault,
     saveCurrent,
     rename: store.rename,
@@ -113,6 +117,40 @@ export function useBookmarks() {
     restore: store.restore,
     forget: store.forget,
   };
+}
+
+/** Handing a link on, from a bookmark's card or the Bookmarks panel's bar. */
+export function useShare() {
+  const toast = useToast();
+
+  /**
+   * The system's share sheet where the browser has one and the page may use it (not in an
+   * iframe without `allow="web-share"`), the clipboard otherwise, with a toast naming `name`.
+   */
+  async function share(url: string, name: string): Promise<void> {
+    if (navigator.canShare?.({ url })) {
+      try {
+        await navigator.share({ url });
+        return;
+      } catch (error) {
+        // Dismissing the sheet rejects too.
+        if ((error as DOMException).name === "AbortError") {
+          return;
+        }
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.add({ title: "Link copied", description: name, duration: 3000 });
+    } catch {
+      toast.add({ title: "Could not copy the link", description: url, color: "error" });
+    }
+  }
+
+  /** The page's url, foreign parameters and all, as the native app shares the view on screen. */
+  const shareHere = (): Promise<void> => share(window.location.href, defaultName(summarize(syncedQuery(), defaultsFor(routePath.value))));
+
+  return { share, shareHere };
 }
 
 /**

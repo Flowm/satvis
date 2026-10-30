@@ -18,6 +18,8 @@ export default defineConfig({
     // A GitHub runner draws 1000×800 at about a frame a second and 640×400 twice as fast.
     // Specs that measure layout set their own.
     viewport: { width: 640, height: 400 },
+    // Numbers and dates follow the browser's language (docs/adr/0015-formats-follow-the-device.md).
+    locale: "en-US",
     trace: "retain-on-failure",
   },
   projects: [

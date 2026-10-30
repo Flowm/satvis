@@ -22,7 +22,7 @@
   >
     <template #stats>
       <span
-        ><b>{{ stats.total.toLocaleString() }}</b> sun-sync, under the other filters</span
+        ><b>{{ formatInteger(stats.total) }}</b> sun-sync, under the other filters</span
       >
       <span
         >southbound <b>{{ stats.southboundShare }}%</b></span
@@ -39,6 +39,7 @@ import { computed } from "vue";
 
 import type { HistogramScale } from "../../composables/useCatalogFilters";
 import { CROSSING_BIN_HOURS, CROSSING_FROM_HOURS, type CrossingDirection, formatLocalTime } from "../../modules/catalogFacets";
+import { formatInteger } from "../../modules/util/formats";
 import CatalogHistogram, { type HistogramBand, type HistogramSeries, type HistogramTick } from "./CatalogHistogram.vue";
 
 const props = defineProps<{

@@ -47,6 +47,11 @@
       </div>
       <!-- v-if: the cards' pictures load only when it opens. -->
       <toolbar-panel v-if="openMenu === 'bookmarks'" title="Bookmarks" wide @close="closePanel('bookmarks')">
+        <template #actions>
+          <UTooltip text="Share this view">
+            <button type="button" aria-label="Share this view" @click="void shareHere()"><UIcon name="lucide:share" /></button>
+          </UTooltip>
+        </template>
         <bookmark-panel @opened="onBookmarkOpened" />
       </toolbar-panel>
       <!-- v-if, not v-show: the virtualized list measures its scroll element on mount,
@@ -160,6 +165,18 @@
           <span class="toolbarPlace__label">Hide UI</span>
         </button>
         <div class="toolbarNote">For a clear view of the globe. Show UI, top right, brings it back.</div>
+        <!-- The native app's order, which keeps the frame rate in a phone's view. Ladders rather than switches; see src/config/rendering.ts. -->
+        <div class="toolbarTitle">Pixel ratio</div>
+        <segmented-control v-model="pixelRatio" label="Pixel ratio" :options="PIXEL_RATIO_OPTIONS" />
+        <div class="toolbarNote">Native is this screen's {{ formatNumber(nativeRatio) }}x. Fewer pixels draw faster.</div>
+        <div class="toolbarTitle">Frame rate</div>
+        <segmented-control v-model="frameRate" label="Frame rate" :options="FRAME_RATE_OPTIONS" />
+        <div class="toolbarNote">At most this many frames a second. Fewer save battery.</div>
+        <label class="toolbarSwitch">
+          <input v-model="requestRenderMode" type="checkbox" />
+          Render only on change
+        </label>
+        <div class="toolbarNote">Draws a frame only when something moves. Turn it off to measure frame times.</div>
         <div class="toolbarTitle">Measurement</div>
         <label class="toolbarSwitch">
           <input v-model="showFps" type="checkbox" />
@@ -186,20 +203,8 @@
           <input v-model="cc.viewer.scene.globe.showGroundAtmosphere" type="checkbox" />
           Atmosphere
         </label>
-        <!-- Ladders rather than switches; see src/config/rendering.ts. -->
-        <div class="toolbarTitle">Pixel ratio</div>
-        <segmented-control v-model="pixelRatio" label="Pixel ratio" :options="PIXEL_RATIO_OPTIONS" />
-        <div class="toolbarNote">Native is this screen's {{ nativeRatio }}x. Fewer pixels draw faster.</div>
         <div class="toolbarTitle">Antialiasing (MSAA)</div>
         <segmented-control v-model="msaa" label="Antialiasing (MSAA)" :options="MSAA_OPTIONS" />
-        <div class="toolbarTitle">Frame rate</div>
-        <segmented-control v-model="frameRate" label="Frame rate" :options="FRAME_RATE_OPTIONS" />
-        <div class="toolbarNote">At most this many frames a second. Fewer save battery.</div>
-        <label class="toolbarSwitch">
-          <input v-model="requestRenderMode" type="checkbox" />
-          Render only on change
-        </label>
-        <div class="toolbarNote">Draws a frame only when something moves. Turn it off to measure frame times.</div>
       </toolbar-panel>
     </div>
     <!-- The native app's corner, in its order. -->
@@ -247,6 +252,7 @@
 import { storeToRefs } from "pinia";
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
+import { useShare } from "../composables/useBookmarks";
 import { useController } from "../composables/useController";
 import { useGeolocation } from "../composables/useGeolocation";
 import { useSelectedEntity } from "../composables/useSelectedEntity";
@@ -260,6 +266,7 @@ import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "../config/viewModes";
 import { baseLayerNames, imageryLabel, overlayLayerNames, terrainLabel, terrainProviderNames } from "../modules/CesiumLayerProviders";
 import { stationLabel } from "../modules/GroundStationEntity";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
+import { formatNumber } from "../modules/util/formats";
 import { GEOLOCATION } from "../modules/util/groundStationEdits";
 import { UNSEEN_MODES, type UnseenMode } from "../modules/util/visibility";
 import { useCesiumStore } from "../stores/cesium";
@@ -281,6 +288,8 @@ type MenuKey = "bookmarks" | "cat" | "sat" | "gs" | "map" | "globe" | "sky" | "r
 const BenchmarkPanel = defineAsyncComponent(() => import("./BenchmarkPanel.vue"));
 
 const cc = useController();
+/** The Bookmarks panel's Share this view, in its header. */
+const { shareHere } = useShare();
 
 /** The one panel open, if any. */
 const openMenu = ref<MenuKey>();

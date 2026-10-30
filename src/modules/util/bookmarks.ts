@@ -1,6 +1,7 @@
 // Bookmarks: a link to a scene, kept under a name (docs/adr/0011-bookmarks.md). Pure:
 // the store persists them, `useBookmarks` opens them.
 
+import { formatCoordinates, formatInteger } from "./formats";
 import type { Query } from "./urlCodec";
 
 /** A demo ships with the app, a saved one was named by the user, an opened one is a link that started a visit. */
@@ -75,22 +76,18 @@ function joinNames(names: readonly string[]): string {
 const groupNoun = (tag: string): string => (/[a-z]s$/.test(tag) ? tag : `${tag} satellites`);
 
 /** Up to two names, or a count. */
-const satellitesNamed = (names: readonly string[]): string => (names.length <= 2 ? joinNames(names) : `${names.length} satellites`);
+const satellitesNamed = (names: readonly string[]): string => (names.length <= 2 ? joinNames(names) : `${formatInteger(names.length)} satellites`);
 
 /** The first station of a `gs` value, which a link's sky view stands on, by name if it has one. */
 function firstStation(gs: string): string {
   const [lat, lon, name] = gs.split("_")[0]!.split(",");
-  return name || `${Number(lat).toFixed(2)}°, ${Number(lon).toFixed(2)}°`;
+  return name || formatCoordinates(Number(lat), Number(lon));
 }
 
-/** Day, month and minute in UTC, as the clock deck shows it, with the year only when it is not this one. */
-function timeLabel(iso: string, now: Date): string {
+/** "2026-10-05 11:00 UTC": ISO 8601 to the minute, as a link's `time` is. */
+function timeLabel(iso: string): string {
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return iso;
-  }
-  const year = date.getUTCFullYear() === now.getUTCFullYear() ? undefined : "numeric";
-  return `${date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year, timeZone: "UTC" })}, ${date.toISOString().slice(11, 16)} UTC`;
+  return Number.isNaN(date.getTime()) ? iso : `${date.toISOString().slice(0, 16).replace("T", " ")} UTC`;
 }
 
 /** The globe's projections by their `scene` value. */
@@ -100,7 +97,7 @@ const PROJECTION: Readonly<Record<string, string>> = { "3D": "Globe", "2D": "Fla
  * What a bookmark shows, in words. `presetDefaults` fill what the query leaves out,
  * as they do when it is opened.
  */
-export function summarize(query: Query, presetDefaults: Query, now = new Date()): BookmarkSummary {
+export function summarize(query: Query, presetDefaults: Query): BookmarkSummary {
   const value = (param: string): string | undefined => query[param] ?? presetDefaults[param];
   const tags = list(value("tags"));
   const sats = list(value("sats"));
@@ -129,7 +126,7 @@ export function summarize(query: Query, presetDefaults: Query, now = new Date())
   }
 
   const time = value("time");
-  return { what, where, time: time ? timeLabel(time, now) : undefined };
+  return { what, where, time: time ? timeLabel(time) : undefined };
 }
 
 /** A name for a scene nobody named: the camera where it says more than the satellites, both for a projection. */

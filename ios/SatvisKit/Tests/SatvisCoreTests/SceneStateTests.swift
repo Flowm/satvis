@@ -20,8 +20,8 @@ import Testing
             SceneState(
                 activation: Activation(enabledTags: ["GNSS", "Weather"], enabledSatellites: ["ISS (ZARYA)"], disabledSatellites: ["GOES 19"]),
                 components: [.point, .orbit, .model], stations: [munich, field], tracked: "ISS (ZARYA)", overpassMode: .swath, layers: ["VIIRS"],
-                terrain: true, unseen: .hide, cameraFrame: .inertial, pixelRatio: "1.5", time: time,
-                foreign: SceneState.Foreign(LinkQuery(parsing: "embed&stars=DeepStar2K&framems=16"))),
+                terrain: true, starMap: .deepStar2K, unseen: .hide, cameraFrame: .inertial, pixelRatio: "1.5", time: time,
+                foreign: SceneState.Foreign(LinkQuery(parsing: "embed&surface=OsmBuildings&framems=16"))),
             SceneState(activation: Activation(enabledTags: []), components: [], stations: [munich], sky: true, observer: munich),
         ]
         for presetDefaults in [[:], ["tags": "GNSS", "elements": "Point,Orbit,Ground track", "overpass": "swath", "layers": "VersaTiles"]] {
@@ -34,10 +34,23 @@ import Testing
     }
 
     @Test func keepsForeignParametersAsTheyCame() {
-        let query = LinkQuery(parsing: "embed&tags=GNSS&stars=DeepStar2K&utm_source=x+y&fps=false")
+        let query = LinkQuery(parsing: "embed&tags=GNSS&surface=OsmBuildings&utm_source=x+y&fps=false")
         let (scene, _) = SceneState.read(query, presetDefaults: [:])
-        #expect(scene.foreign.query.string == "embed&stars=DeepStar2K&utm_source=x+y&fps=false")
-        #expect(written(scene) == "embed&stars=DeepStar2K&utm_source=x+y&fps=false&tags=GNSS")
+        #expect(scene.foreign.query.string == "embed&surface=OsmBuildings&utm_source=x+y&fps=false")
+        #expect(written(scene) == "embed&surface=OsmBuildings&utm_source=x+y&fps=false&tags=GNSS")
+    }
+
+    // The app draws two of the web app's three star maps, and a link keeps the one it named.
+    @Test func drawsTheStarMapALinkNamesAsTheAppCan() {
+        let read = { (query: String) in SceneState.read(LinkQuery(parsing: query), presetDefaults: [:]).scene }
+        #expect(read("").starMap == .tycho1K && read("").starMap.drawn == .deepStar1K)
+        #expect(read("stars=Tycho1K").starMap.drawn == .deepStar1K)
+        #expect(read("stars=DeepStar1K").starMap.drawn == .deepStar1K)
+        #expect(read("stars=DeepStar2K").starMap.drawn == .deepStar2K)
+        #expect(read("stars=Bogus").starMap == .tycho1K)
+        #expect(written(read("stars=Tycho1K")) == "")
+        #expect(written(read("stars=DeepStar1K")) == "stars=DeepStar1K")
+        #expect(written(SceneState(starMap: .deepStar2K)) == "stars=DeepStar2K")
     }
 
     @Test func readsAndWritesTheFPSSwitchAndTheBenchmarkPanel() {

@@ -3,7 +3,7 @@ import Testing
 
 @testable import SatvisCore
 
-@Suite struct GroundStationTests {
+@Suite(.formatsInEnglishUS) struct GroundStationTests {
     @Test func namesAStationWithoutOneByItsCoordinates() {
         #expect(GroundStation(latitude: 48.1351, longitude: 11.582).displayName == "48.14°, 11.58°")
         // JavaScript's toFixed rounds a tie away from zero, where printf would not.

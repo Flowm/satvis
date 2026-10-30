@@ -1,8 +1,11 @@
-<!-- A panel opened from the menu column: its name, a close button, and the controls. -->
+<!-- A panel opened from the menu column: its name and any buttons of its own, a close button, and the controls. -->
 <template>
   <section class="toolbarSwitches toolbarPanel panelSurface" :class="wide ? 'toolbarPanel--wide' : 'toolbarPanel--fixed'" :aria-label="title">
     <header class="toolbarPanel__header">
-      <span>{{ title }}</span>
+      <span class="toolbarPanel__title">
+        {{ title }}
+        <slot name="actions" />
+      </span>
       <button type="button" class="toolbarPanel__close" aria-label="Close panel" @click="emit('close')"><UIcon name="lucide:x" /></button>
     </header>
     <div class="toolbarPanel__body"><slot /></div>
@@ -83,8 +86,17 @@ const emit = defineEmits<{ close: [] }>();
   margin-top: 6px;
 }
 
+/* Its buttons beside it, as the close button is beside the header's end. */
+.toolbarPanel__title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+}
+
 /* The header's height and as wide, its icon centred. */
-.toolbarPanel__close {
+.toolbarPanel__close,
+.toolbarPanel__title :deep(button) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -99,13 +111,15 @@ const emit = defineEmits<{ close: [] }>();
   cursor: pointer;
 }
 
-.toolbarPanel__close:focus-visible {
+.toolbarPanel__close:focus-visible,
+.toolbarPanel__title :deep(button:focus-visible) {
   outline: 2px solid var(--panel-accent);
   outline-offset: -2px;
 }
 
 @media (hover: hover) {
-  .toolbarPanel__close:hover {
+  .toolbarPanel__close:hover,
+  .toolbarPanel__title :deep(button:hover) {
     background: #ffffff14;
   }
 }

@@ -36,7 +36,7 @@ public struct GroundStation: Sendable, Hashable, Codable, Identifiable {
     /// The name, or the coordinates to two decimals for a station without one, as
     /// the web app shows it.
     public var displayName: String {
-        name ?? "\(toFixed(latitude, 2))°, \(toFixed(longitude, 2))°"
+        name ?? Formats.coordinates(latitude, longitude)
     }
 }
 
@@ -108,6 +108,9 @@ public enum GroundStations {
 /// 7.9090. Rounding the scaled double instead would round the tie it makes.
 func toFixed(_ value: Double, _ digits: Int) -> String {
     let sign = value < 0 ? "-" : ""
+    guard value.isFinite else {
+        return value.isNaN ? "NaN" : "\(sign)Infinity"
+    }
     // Exact: a double's fraction has at most 52 binary digits above 1, and far
     // more digits than this below it never decide a rounding.
     let exact = String(format: "%.60f", abs(value))

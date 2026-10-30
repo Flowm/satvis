@@ -50,6 +50,7 @@ struct ToolMenu<Tools: View>: View {
                 Label("Menu", image: isOpen ? .lucideChevronUp : .lucideMenu)
                     // Swapped, not faded: a crossfade shows both at once.
                     .contentTransition(.identity)
+                    .labelStyle(ToolLabelStyle(iconSide: 22))
             }
             .buttonStyle(ToolRowStyle())
             .accessibilityLabel(isOpen ? "Close menu" : "Menu")
@@ -96,26 +97,34 @@ struct ToolEntry: View {
 }
 
 /// An icon in a column of its own, so the names line up, and the name beside it.
+/// The web app's sizes: an entry's icon 20 points, the Menu toggle's 22, each
+/// centred in the folded column's square, and the name 40 points in, 8 past an
+/// entry's icon.
 private struct ToolLabelStyle: LabelStyle {
+    /// The icon's side; the Lucide assets are 22 points.
+    var iconSide: CGFloat = 20
+
     func makeBody(configuration: Configuration) -> some View {
-        ToolLabel(configuration: configuration)
+        ToolLabel(configuration: configuration, iconSide: iconSide)
     }
 }
 
 private struct ToolLabel: View {
     let configuration: LabelStyleConfiguration
+    let iconSide: CGFloat
     /// Scaled with the text, icon and all, as the system's controls are.
     @ScaledMetric(relativeTo: .body) private var scale = 1.0
     @Environment(\.toolNamesFolded) private var folded
 
     var body: some View {
-        HStack(spacing: 4) {
+        // The name 4 points into the icon's square: 12 to the icon, 20 of it and 8.
+        HStack(spacing: -4 * scale) {
             configuration.icon
-                .scaleEffect(scale)
+                .scaleEffect(scale * iconSide / 22)
                 .frame(width: PanelMetrics.row * scale)
             if !folded {
                 configuration.title
-                    .font(.subheadline.weight(.medium))
+                    .font(.subheadline)
                     .lineLimit(1)
             }
         }
@@ -141,8 +150,9 @@ private struct ToolRow: View {
     var body: some View {
         configuration.label
             .foregroundStyle(isSelected ? Color.panelAccent : .primary)
-            // Folded, the icon's column alone: a row square, as the web app's.
-            .padding(.trailing, folded ? 0 : 18)
+            // Folded, the icon's column alone: a row square, as the web app's. Open,
+            // the web's 10 points and its border's 1 past the longest name.
+            .padding(.trailing, folded ? 0 : 11)
             .frame(maxWidth: .infinity, minHeight: PanelMetrics.row * scale, alignment: .leading)
             .background(.white.opacity(configuration.isPressed || isSelected ? 0.12 : 0))
             // Changed at once, the press's and the open panel's alike: the panel's
@@ -424,8 +434,8 @@ struct ComponentsPanel: View {
     }
 }
 
-/// What the globe is covered with: the web app's Map panel, less the overlays,
-/// surfaces and star maps the app does not draw.
+/// What the globe is covered with and drawn against: the web app's Map panel,
+/// less the overlays, surfaces and Tycho star map the app does not draw.
 struct MapPanel: View {
     @Bindable var session: Session
 
@@ -436,6 +446,16 @@ struct MapPanel: View {
         // The web app's names for the two.
         PanelSection("Terrain") {
             Segments(title: "Terrain", selection: $session.terrain, options: [("None", false), ("Re:Earth", true)])
+        }
+        // Ticks Deep Star (1K) for the Tycho map a link may name, which it draws.
+        PanelSection("Star map") {
+            Choices(
+                selection: Binding {
+                    session.starMap.drawn
+                } set: {
+                    session.starMap = $0
+                },
+                options: StarMapName.drawable.map { ($0.title, $0) })
         }
     }
 }
@@ -658,24 +678,6 @@ struct GraphicsPanel: View {
             }
             Note("For a clear view of the globe. Show UI, top right, brings it back.")
         }
-        PanelSection("Measurement") {
-            PanelCard {
-                Toggle(
-                    "FPS",
-                    isOn: Binding {
-                        session.showsPerformance
-                    } set: {
-                        session.setShowsPerformance($0)
-                    })
-                Toggle(
-                    "Benchmark",
-                    isOn: Binding {
-                        session.showsBenchmark
-                    } set: {
-                        session.setShowsBenchmark($0)
-                    })
-            }
-        }
         // The web app's ladder (src/config/rendering.ts): the fixed rungs below
         // the screen's own ratio, then the screen's, so it only offers savings.
         PanelSection("Pixel ratio") {
@@ -693,6 +695,24 @@ struct GraphicsPanel: View {
                 selection: $session.frameRate,
                 options: Session.frameRates.map { ($0 == Session.maximumFrameRate ? "Max" : "\($0) fps", $0) })
             Note("At most this many frames a second. Fewer save battery.")
+        }
+        PanelSection("Measurement") {
+            PanelCard {
+                Toggle(
+                    "FPS",
+                    isOn: Binding {
+                        session.showsPerformance
+                    } set: {
+                        session.setShowsPerformance($0)
+                    })
+                Toggle(
+                    "Benchmark",
+                    isOn: Binding {
+                        session.showsBenchmark
+                    } set: {
+                        session.setShowsBenchmark($0)
+                    })
+            }
         }
     }
 }

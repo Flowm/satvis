@@ -33,9 +33,13 @@ above terrain out past GEO, against a star background:
   rendered once per name with CoreText and drawn as billboards.
 - The atmosphere is Cesium's ground and sky atmosphere, ported from GLSL to Metal.
   The ported files carry Cesium's Apache 2.0 notice, with its licence beside them.
-  The sun lights the day side; the star background is satvis's own DeepStar1K sky
-  box (NASA SVS Deep Star Maps 2020), fetched from satvis.space and kept on disk
-  rather than copied into the repository a second time.
+  The sun lights the day side; the star background is satvis's own DeepStar1K
+  or DeepStar2K sky box (NASA SVS Deep Star Maps 2020), as the Map panel
+  chooses, fetched from satvis.space and kept on disk rather than copied into
+  the repository a second time. The 2K map is fetched only once chosen: its
+  faces are 6.4 MB to download, against 1.3 MB, and its mipmapped cube is
+  129 MiB of the device's memory, against 32 MiB. The Tycho map CesiumJS ships,
+  the web app's default, is not drawn; the app draws DeepStar1K for it.
 
 SwiftUI draws all the controls over the `MTKView`.
 
@@ -148,9 +152,10 @@ it off.
   depends on `tile.openstreetmap.org`, and Esri's terms for published apps were
   not worth checking for a second satellite basemap.
 - MSAA and the scene effects in the Graphics panel, WebVR and the embed mode
+- The Tycho star map
 
-These come later: the 2D view mode, the DeepStar2K star
-map, and a Live Activity for a pass. The camera passthrough in the sky view, once
+These come later: the 2D view mode and a Live Activity
+for a pass. The camera passthrough in the sky view, once
 among them, is ADR 0013.
 
 3D models are drawn from the web app's own files rather than a converted copy,
