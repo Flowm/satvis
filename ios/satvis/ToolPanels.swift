@@ -434,8 +434,8 @@ struct ComponentsPanel: View {
     }
 }
 
-/// What the globe is covered with: the web app's Map panel, less the overlays,
-/// surfaces and star maps the app does not draw.
+/// What the globe is covered with and drawn against: the web app's Map panel,
+/// less the overlays, surfaces and Tycho star map the app does not draw.
 struct MapPanel: View {
     @Bindable var session: Session
 
@@ -446,6 +446,16 @@ struct MapPanel: View {
         // The web app's names for the two.
         PanelSection("Terrain") {
             Segments(title: "Terrain", selection: $session.terrain, options: [("None", false), ("Re:Earth", true)])
+        }
+        // Ticks Deep Star (1K) for the Tycho map a link may name, which it draws.
+        PanelSection("Star map") {
+            Choices(
+                selection: Binding {
+                    session.starMap.drawn
+                } set: {
+                    session.starMap = $0
+                },
+                options: StarMapName.drawable.map { ($0.title, $0) })
         }
     }
 }

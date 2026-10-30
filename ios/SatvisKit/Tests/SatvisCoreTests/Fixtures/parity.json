@@ -8750,6 +8750,11 @@
         "None",
         "ReEarth"
       ],
+      "stars": [
+        "Tycho1K",
+        "DeepStar1K",
+        "DeepStar2K"
+      ],
       "overpass": [
         "elevation",
         "swath"
@@ -8799,6 +8804,7 @@
         "NaturalEarth"
       ],
       "terrain": "None",
+      "stars": "Tycho1K",
       "scene": "3D",
       "unseen": "dim",
       "camera": "Fixed",
@@ -9453,6 +9459,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -9482,6 +9489,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -9509,6 +9517,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -9540,6 +9549,7 @@
             "VersaTiles"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -9576,6 +9586,7 @@
             "VersaTiles"
           ],
           "terrain": "ReEarth",
+          "stars": "DeepStar2K",
           "scene": "Sky",
           "unseen": "dim",
           "camera": "Fixed",
@@ -9583,7 +9594,7 @@
           "time": "2026-10-04T19:22Z"
         },
         "invalid": [],
-        "written": "stars=DeepStar2K&tags=GNSS,Weather,OneWeb&gs=46.5935,7.9091&layers=VersaTiles&terrain=ReEarth&scene=Sky&time=2026-10-04T19:22Z"
+        "written": "tags=GNSS,Weather,OneWeb&gs=46.5935,7.9091&layers=VersaTiles&terrain=ReEarth&stars=DeepStar2K&scene=Sky&time=2026-10-04T19:22Z"
       },
       {
         "preset": "default",
@@ -9611,6 +9622,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -9645,6 +9657,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -9679,6 +9692,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -9705,6 +9719,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -9739,6 +9754,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -9770,6 +9786,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "Sky",
           "unseen": "dim",
           "camera": "Fixed",
@@ -9805,6 +9822,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "Sky",
           "unseen": "hide",
           "camera": "Fixed",
@@ -9834,6 +9852,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "show",
           "camera": "Fixed",
@@ -9868,6 +9887,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "Sky",
           "unseen": "dim",
           "camera": "Inertial",
@@ -9897,6 +9917,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -9929,6 +9950,7 @@
             "VersaTiles"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -9958,6 +9980,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -9966,6 +9989,98 @@
         },
         "invalid": [],
         "written": ""
+      },
+      {
+        "preset": "default",
+        "query": "stars=Tycho1K&tags=GNSS",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "GNSS"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "stars": "Tycho1K",
+          "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": "tags=GNSS"
+      },
+      {
+        "preset": "default",
+        "query": "stars=DeepStar1K",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "terrain": "None",
+          "stars": "DeepStar1K",
+          "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [],
+        "written": "stars=DeepStar1K"
+      },
+      {
+        "preset": "default",
+        "query": "stars=deepstar2k&layers=VersaTiles",
+        "state": {
+          "elements": [
+            "Point",
+            "Label"
+          ],
+          "sats": [],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "VersaTiles"
+          ],
+          "terrain": "None",
+          "stars": "Tycho1K",
+          "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
+          "pixelratio": "native",
+          "time": null
+        },
+        "invalid": [
+          "stars"
+        ],
+        "written": "layers=VersaTiles"
       },
       {
         "preset": "default",
@@ -9989,6 +10104,7 @@
             "BlackMarble"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -10018,6 +10134,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -10047,6 +10164,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -10076,6 +10194,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -10110,6 +10229,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -10140,6 +10260,7 @@
             "VersaTiles"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -10170,6 +10291,7 @@
             "VersaTiles"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -10200,6 +10322,7 @@
             "NaturalEarth"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
@@ -10229,6 +10352,7 @@
             "VersaTiles"
           ],
           "terrain": "None",
+          "stars": "Tycho1K",
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",

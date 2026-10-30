@@ -69,10 +69,16 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   an About entry still leads to it. The terrain's sources are copied from
   Re:Earth's `layer.json`, which CesiumJS reads at run time; check them against
   it when the terrain changes. The licences the app owes are M6's.
-- The star map is the web app's `DeepStar1K`, fetched from the site
-  (`data/starmap/`) and kept like the GP data, not shipped: it is generated with
-  Docker by `pnpm update-starmap`, and committing it here would be a second copy.
-  The sky is black until the first fetch.
+- The star maps are the web app's `DeepStar1K` and `DeepStar2K`, the Map panel's
+  choice, fetched from the site (`data/starmap/`) and kept like the GP data, not
+  shipped: they are generated with Docker by `pnpm update-starmap`, and committing
+  them here would be a second copy. The sky is black until the first fetch. The
+  2K map is fetched only once chosen, and the 1K one stays drawn until it has
+  arrived (`StarMap`); one that cannot be had falls back to the 1K one, in the
+  Map panel and in links, as the web app's falls back to its default. Its cube texture, mipmapped, is 129 MiB of GPU memory
+  where the 1K one's is 32. The choice is kept between launches and in links as
+  `stars`, in the web app's whole vocabulary: `Tycho1K`, its default, which
+  ships with CesiumJS, is drawn as `DeepStar1K` and written back as it came.
 - The renderer works in the Earth-fixed frame in metres, relative to the eye,
   with reversed-Z depth and no far plane. Satellites are placed by high/low float
   pairs, in vertex functions compiled with safe math, which fast math could
@@ -141,8 +147,8 @@ the app is developed on. Why it is built this way, and the milestones it is buil
 - A link is the view, as on the web (ADR 0001): `LinkCodec` reads one onto its
   preset's defaults, `SceneState` turns that into the app's terms and back, and
   `Session.open` applies it, replacing what is shown; `Session.link` writes the
-  view back. Parameters the app does not honour (`stars`,
-  `surface`…) are kept as they came and written into every link it makes.
+  view back. Parameters the app does not honour (`surface`,
+  `msaa`…) are kept as they came and written into every link it makes.
   The view is kept as a link when the app goes to the background and reopened
   from it, without its time, so the app reopens live. Past a component's budget
   (labels at 200 active satellites, ground station links at 500, 3D models at 200
@@ -276,7 +282,7 @@ the app is developed on. Why it is built this way, and the milestones it is buil
   and a cancelled pick opens it again.
   A tap on the globe closes the panel and on a phone folds the column, as on
   the web, and a miss that did so keeps the selection.
-  What the app does not draw is left out: Map's overlays, surface and star map;
+  What the app does not draw is left out: Map's overlays, surface and Tycho star map;
   Globe's 2D and Columbus projections; Sky's keyboard note; Graphics' scene
   effects and MSAA.
 - Bookmarks are the web app's (ADR 0011, `BookmarksView.swift`): the same records,

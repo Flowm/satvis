@@ -127,7 +127,7 @@ import Testing
         let bookmark = Bookmark(id: "x", kind: .saved, name: "", scene: SceneLink(path: "/ot", query: ["stars": "DeepStar2K", "tags": "OT", "scene": "Sky"]), at: 0)
         let link = bookmark.scene.link(carrying: [LinkQuery.Item(key: "framems", values: ["16"])])
         #expect(link.preset == "ot")
-        #expect(link.query.string == "framems=16&tags=OT&scene=Sky&stars=DeepStar2K")
+        #expect(link.query.string == "framems=16&tags=OT&stars=DeepStar2K&scene=Sky")
         let query = LinkQuery(parsing: "framems=16&tags=GNSS&tags=OT&utm_source=x&time=2026-10-04T08:52Z")
         #expect(Bookmarks.ownedQuery(of: query) == ["tags": "GNSS", "time": "2026-10-04T08:52Z"])
         #expect(Bookmarks.carriedItems(of: query).map(\.key) == ["framems", "utm_source"])

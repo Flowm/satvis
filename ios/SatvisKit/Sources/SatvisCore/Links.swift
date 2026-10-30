@@ -118,6 +118,9 @@ public struct LinkState: Sendable, Hashable {
     public var overpass: String
     public var layers: [String]
     public var terrain: String
+    /// In the web app's whole vocabulary, Tycho1K included, which the app draws as
+    /// DeepStar1K (`StarMapName.drawn`): a link keeps what it asked for.
+    public var stars: StarMapName
     /// `3D`, or `Sky` for the sky view (ADR 0003).
     public var scene: String
     /// In the sky view, how the satellites that cannot be seen are drawn (ADR 0010).
@@ -131,11 +134,11 @@ public struct LinkState: Sendable, Hashable {
     /// The web app's defaults before any preset (src/stores).
     public static let global = LinkState(
         elements: ["Point", "Label"], sats: [], xsats: [], tags: [], gs: [], track: "", overpass: "elevation", layers: ["NaturalEarth"], terrain: "None",
-        scene: "3D", unseen: .dim, camera: .fixed, pixelRatio: "native", time: nil)
+        stars: .tycho1K, scene: "3D", unseen: .dim, camera: .fixed, pixelRatio: "native", time: nil)
 
     public init(
         elements: [String], sats: [String], xsats: [String], tags: [String], gs: [LinkStation], track: String, overpass: String, layers: [String],
-        terrain: String, scene: String = "3D", unseen: UnseenMode = .dim, camera: CameraFrame = .fixed, pixelRatio: String = "native",
+        terrain: String, stars: StarMapName = .tycho1K, scene: String = "3D", unseen: UnseenMode = .dim, camera: CameraFrame = .fixed, pixelRatio: String = "native",
         time: String?
     ) {
         self.elements = elements
@@ -147,6 +150,7 @@ public struct LinkState: Sendable, Hashable {
         self.overpass = overpass
         self.layers = layers
         self.terrain = terrain
+        self.stars = stars
         self.scene = scene
         self.unseen = unseen
         self.camera = camera
@@ -204,6 +208,7 @@ public enum LinkCodec {
         Field("overpass", \.overpass, .oneOf(overpassModes)),
         Field("layers", \.layers, .layerList(layers)),
         Field("terrain", \.terrain, .oneOf(terrains)),
+        Field("stars", \.stars, .enumeration),
         Field("scene", \.scene, .oneOf(scenes)),
         Field("unseen", \.unseen, .enumeration),
         Field("camera", \.camera, .enumeration),

@@ -355,6 +355,24 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(credit.waitForNonExistence(timeout: 10))
     }
 
+    // The Map panel ticks the star map a link names, and the Tycho map, which the
+    // app lacks, as the Deep Star (1K) it draws instead.
+    @MainActor
+    func testChoosesTheStarMapALinkNames() {
+        var app = XCUIApplication()
+        for (link, ticked) in [("/?stars=DeepStar2K", "Deep Star (2K)"), ("/?stars=Tycho1K", "Deep Star (1K)")] {
+            app = launch(link: link)
+            openMenu(app)
+            app.buttons["Map"].tap()
+            let choice = app.buttons[ticked]
+            XCTAssert(choice.waitForExistence(timeout: 5), link)
+            XCTAssert(choice.isSelected, link)
+        }
+        app.buttons["Deep Star (2K)"].tap()
+        XCTAssert(app.buttons["Deep Star (2K)"].isSelected)
+        XCTAssertFalse(app.buttons["Deep Star (1K)"].isSelected)
+    }
+
     // Without the terrain no source wants its name over the map: the credits are
     // About's.
     @MainActor

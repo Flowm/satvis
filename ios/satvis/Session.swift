@@ -27,7 +27,7 @@ final class Session {
     /// what it asks goes to `renderer`.
     @ObservationIgnored private let globe = GlobeBinding()
     @ObservationIgnored let satellites: SatelliteLayer
-    @ObservationIgnored private let starMap: StarMap
+    @ObservationIgnored private let starMapLoader: StarMap
     /// The demo bookmarks' pictures by their path on the site, kept once fetched.
     private(set) var demoPictures: [String: Data] = [:]
     /// Observed: it arrives once its shaders compile, possibly after a link has
@@ -71,6 +71,16 @@ final class Session {
         didSet {
             UserDefaults.standard.set(terrain, forKey: "terrain")
             globe.terrain = terrain
+        }
+    }
+    /// The star map, kept between launches and in links as `stars`: the web app's
+    /// default, Tycho1K, until one is chosen, which the app draws as DeepStar1K.
+    /// A map that cannot be had falls back to DeepStar1K, as the web app's falls back
+    /// to its default, so the link and the Map panel name what is drawn.
+    var starMap: StarMapName = UserDefaults.standard.string(forKey: "starMap").flatMap(StarMapName.init(rawValue:)) ?? .tycho1K {
+        didSet {
+            UserDefaults.standard.set(starMap.rawValue, forKey: "starMap")
+            starMapLoader.show(starMap)
         }
     }
     @ObservationIgnored private let tiles = TileFetcher.shared()
@@ -151,10 +161,11 @@ final class Session {
         self.alerts = alerts
         catalog = CatalogModel(loader: loader)
         satellites = SatelliteLayer(globe: globe)
-        starMap = StarMap(globe: globe)
+        starMapLoader = StarMap(globe: globe, repository: repository)
         aim = SkyAim(globe: globe)
         bindGlobe()
         aim.show = { [weak self] text in self?.show(text) }
+        starMapLoader.onUnavailable = { [weak self] _ in self?.starMap = .deepStar1K }
     }
 
     /// Fetches a 3D model by its path under /data/models/, for the globe and the info
@@ -224,6 +235,7 @@ final class Session {
 
     /// Loads what there is to show and keeps it in step until cancelled.
     func run() async {
+        starMapLoader.show(starMap)
         let watchers = [
             Task { await watchActive() },
             Task { await watchStations() },
@@ -231,7 +243,6 @@ final class Session {
             Task { await watchEntries() },
             Task { await aim.watchAiming() },
             Task { await aim.watchCameraPlace { self.observer.flatMap(self.passes.station) } },
-            Task { await starMap.load(from: repository) },
             Task { await loadDemoPictures() },
             Task { await predictPasses() },
             Task { await followImageryDay() },
@@ -347,6 +358,7 @@ final class Session {
             overpassMode: passes.mode,
             layers: [baseLayer.rawValue],
             terrain: terrain,
+            starMap: starMap,
             unseen: unseen,
             cameraFrame: cameraFrame,
             pixelRatio: pixelRatio,
@@ -383,6 +395,7 @@ final class Session {
                 baseLayer = base
             }
             terrain = scene.terrain
+            starMap = scene.starMap
             pixelRatio = scene.pixelRatio
             passes.setMode(scene.overpassMode)
             // A clock pinned for a screenshot stays where it was put.
