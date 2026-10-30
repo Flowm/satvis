@@ -47,6 +47,11 @@
       </div>
       <!-- v-if: the cards' pictures load only when it opens. -->
       <toolbar-panel v-if="openMenu === 'bookmarks'" title="Bookmarks" wide @close="closePanel('bookmarks')">
+        <template #actions>
+          <UTooltip text="Share this view">
+            <button type="button" aria-label="Share this view" @click="void shareHere()"><UIcon name="lucide:share" /></button>
+          </UTooltip>
+        </template>
         <bookmark-panel @opened="onBookmarkOpened" />
       </toolbar-panel>
       <!-- v-if, not v-show: the virtualized list measures its scroll element on mount,
@@ -247,6 +252,7 @@
 import { storeToRefs } from "pinia";
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
+import { useShare } from "../composables/useBookmarks";
 import { useController } from "../composables/useController";
 import { useGeolocation } from "../composables/useGeolocation";
 import { useSelectedEntity } from "../composables/useSelectedEntity";
@@ -281,6 +287,8 @@ type MenuKey = "bookmarks" | "cat" | "sat" | "gs" | "map" | "globe" | "sky" | "r
 const BenchmarkPanel = defineAsyncComponent(() => import("./BenchmarkPanel.vue"));
 
 const cc = useController();
+/** The Bookmarks panel's Share this view, in its header. */
+const { shareHere } = useShare();
 
 /** The one panel open, if any. */
 const openMenu = ref<MenuKey>();
