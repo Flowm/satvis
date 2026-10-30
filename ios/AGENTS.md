@@ -468,7 +468,8 @@ exactly.
   them, then the UI tests, which need no network: they point the app at a worker
   that is not there and set `SATVIS_TEST_CATALOG`, which starts a Debug build
   from a fixed catalog (`TestCatalog.swift`, `UITestCatalog.json`, which the
-  Release configuration's `EXCLUDED_SOURCE_FILE_NAMES` leaves out), open the
+  Release configuration's `EXCLUDED_SOURCE_FILE_NAMES` leaves out) with black
+  star maps beside it, as the real ones are fetched and kept, open the
   satellite browser, find a satellite there, and open its panel from there.
 - **`run API=…`** installs and launches against another worker, e.g. a local one
   at `http://localhost:8080` (`pnpm dev:worker` at the repository root).
