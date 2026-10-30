@@ -51,6 +51,7 @@ private final class RecordingGlobe: Globe {
     func track(_ id: String, animated: Bool) { calls.append("track \(id) \(animated)") }
     func stopTracking(animated: Bool) { calls.append("stopTracking \(animated)") }
     func flyHome(animated: Bool) { calls.append("flyHome \(animated)") }
+    func setProjection(_ projection: GlobeProjection, animated: Bool) { calls.append("projection \(projection.rawValue) \(animated)") }
 }
 
 @MainActor
@@ -86,6 +87,7 @@ private final class RecordingGlobe: Globe {
         await binding.setSatellites([]) { drawn = true }
         binding.stations = [StationMarker(id: "a", latitude: 1, longitude: 2)]
         binding.cameraFrame = .inertial
+        binding.setProjection(.twoD, animated: true)
         binding.unseen = .hide
         binding.terrain = true
         binding.setImagery(.viirs, site: Self.site, frame: "2026-10-18")
@@ -97,13 +99,15 @@ private final class RecordingGlobe: Globe {
         #expect(
             Set(globe.calls) == [
                 "clock", "tileLoader", "modelLoader", "imagery VIIRS 2026-10-18", "terrain true", "unseen hide",
-                "cameraFrame Inertial", "stations [\"a\"]", "onGPUFault", "track 25544 false", "passthrough 0.5", "links [\"25544\"]",
+                "cameraFrame Inertial", "projection 2D false", "stations [\"a\"]", "onGPUFault", "track 25544 false", "passthrough 0.5", "links [\"25544\"]",
                 "components \(SatelliteComponents.point.rawValue)", "starMap 6", "prepare 1", "satellites 1",
             ])
         #expect(Set(globe.calls).count == globe.calls.count)
         #expect(Self.told("tileLoader", before: "imagery VIIRS 2026-10-18", on: globe))
         #expect(Self.told("modelLoader", before: "satellites 1", on: globe))
         #expect(Self.told("stations [\"a\"]", before: "track 25544 false", on: globe))
+        // The camera is placed in the projection it is drawn in.
+        #expect(Self.told("projection 2D false", before: "track 25544 false", on: globe))
         #expect(Self.told("components \(SatelliteComponents.point.rawValue)", before: "satellites 1", on: globe))
         #expect(globe.calls.last == "satellites 1")
         #expect(drawn)
@@ -120,9 +124,10 @@ private final class RecordingGlobe: Globe {
         binding.terrain = true
         binding.enterSky(SkyCamera(latitude: 48, longitude: 11), animated: true)
         binding.stopTracking(animated: false)
+        binding.setProjection(.twoD, animated: true)
         var drawn = false
         await binding.setSatellites([]) { drawn = true }
-        #expect(globe.calls == ["terrain true", "enterSky 48.0 true", "stopTracking false", "prepare 1", "satellites 1"])
+        #expect(globe.calls == ["terrain true", "enterSky 48.0 true", "stopTracking false", "projection 2D true", "prepare 1", "satellites 1"])
         #expect(drawn)
     }
 

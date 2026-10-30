@@ -125,12 +125,28 @@ from the web's:
 Compass aiming reads CoreMotion's attitude, referenced to true north where the
 location is known and to magnetic north where it is not: either way a measured
 heading, so the web's "hold the phone flat to set north" step has no
-counterpart. And `scene` names only the two views the app has, `3D` and `Sky`: a
-`2D` or `Columbus` link opens on the globe and drops the parameter, as a link
-naming a layer the app lacks does. The sky view stands on the Map panel's terrain,
+counterpart. And `scene` names only the views the app has, `3D`, `2D` and `Sky`:
+a `Columbus` link opens on the globe and drops the parameter, as a link naming a
+layer the app lacks does. The sky view stands on the Map panel's terrain,
 and a panel entering it turns the terrain on, as on the web (ADR 0003). It first
 stood on Re:Earth's terrain whatever the menu said, which showed mountains the
 user had turned off in the sky view.
+
+**2D is the web's flat map, drawn by the same renderer.** CesiumJS's SCENE2D in
+its geographic projection: the map repeats east and west, the satellites, their
+names, paths, swaths, stations and models are placed where Cesium's 2D places
+them, and the sun shades it, but no stars, atmosphere or sensor cones are drawn,
+as on the web. Each pass has a 2D vertex function beside its 3D one, so the 3D
+shaders and their cost are untouched, and a line's segments are each drawn whole
+from one copy of the map, so none is stretched across it at the antimeridian.
+Switching keeps the place in sight and crossfades, as the renderer keeps the last
+frame of the other projection for a third of a second; reduced motion cuts.
+CesiumJS's two-second morph, the globe unrolling into the map, was not ported:
+every vertex function would need both placements and a camera between
+perspective and orthographic, for an effect seen for two seconds. Nor its 2D
+zoom, which lets the map shrink to a stamp: the map stops at its whole width
+across the view. The sky view is drawn in 3D and goes back to 2D, as the web's
+does (ADR 0003).
 
 **Usage is counted in the web app's PostHog project**, as PostHog advises for
 one product on several platforms, told apart by `platform: ios` and PostHog's own
@@ -154,8 +170,8 @@ it off.
 - MSAA and the scene effects in the Graphics panel, WebVR and the embed mode
 - The Tycho star map
 
-These come later: the 2D view mode and a Live Activity
-for a pass. The camera passthrough in the sky view, once
+These come later: a Live Activity for a pass. The 2D view mode, once among them,
+is drawn now (above). The camera passthrough in the sky view, once
 among them, is ADR 0013.
 
 3D models are drawn from the web app's own files rather than a converted copy,

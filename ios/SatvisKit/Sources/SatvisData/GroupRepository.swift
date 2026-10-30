@@ -74,11 +74,11 @@ public actor GroupRepository {
         }
     }
 
-    /// A star map as last kept (`map`'s `drawn`), without asking the worker. Nil
-    /// while any face is missing.
+    /// A star map as last kept (`map`'s `drawn`), or the snapshot's, without
+    /// asking the worker. Nil while any face is missing.
     public func keptStarMap(_ map: StarMapName) -> [Data]? {
         let paths = Self.starMapFaces(map)
-        let faces = paths.compactMap { store.read(.file($0))?.data }
+        let faces = paths.compactMap { kept(.file($0)) { data, _ in data }?.value }
         return faces.count == paths.count ? faces : nil
     }
 
@@ -107,7 +107,7 @@ public actor GroupRepository {
     }
 
     /// The web app's paths for them (`starMapSources`): faces 1,024 or 2,048 pixels a side.
-    private static func starMapFaces(_ map: StarMapName) -> [String] {
+    public static func starMapFaces(_ map: StarMapName) -> [String] {
         let side = map.drawn == .deepStar2K ? 2048 : 1024
         return ["px", "mx", "py", "my", "pz", "mz"].map { "data/starmap/deepstar_2020_\(side)_\($0).webp" }
     }

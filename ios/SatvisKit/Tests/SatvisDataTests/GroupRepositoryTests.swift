@@ -160,6 +160,17 @@ private let fixedNow = Date(timeIntervalSince1970: 1_790_000_000)
         #expect(loaded.value.groups.map(\.tags) == [["Weather"]])
     }
 
+    // The UI tests' catalog carries the star maps, kept or not on the device.
+    @Test func takesAStarMapFromTheSnapshotWhereNoneIsKept() async throws {
+        let snapshot = temporaryStore()
+        for (number, path) in GroupRepository.starMapFaces(.deepStar2K).enumerated() {
+            try snapshot.write(.file(path), data: Data([UInt8(number)]), etag: nil, confirmed: fixedNow)
+        }
+        let repository = GroupRepository(client: StubWorker([.offline]).client, store: temporaryStore(), snapshot: snapshot)
+        #expect(await repository.keptStarMap(.deepStar2K) == (0..<6).map { Data([UInt8($0)]) })
+        #expect(await repository.keptStarMap(.deepStar1K) == nil)
+    }
+
     @Test func failsWithNothingToFallBackOn() async throws {
         let repository = GroupRepository(client: StubWorker([.offline]).client, store: temporaryStore(), snapshot: nil)
         await #expect(throws: URLError.self) {

@@ -178,6 +178,46 @@ enum RenderPacing {
         return nearest.isFinite ? max(0, nearest - chord / 2 - lineDrift) : nil
     }
 
+    /// The latitude the map's stretch east to west is taken at, at most, in
+    /// radians: towards a pole it grows without bound.
+    static let mapStretchLatitude = 85 * Double.pi / 180
+
+    /// The most device pixels a simulation second that anything drawn of the
+    /// satellites in `motions` can cross the flat map at `pixelsPerMetre`: each
+    /// one's speed carried down to the ground, where the map measures it, and
+    /// stretched east to west by the map's 1 / cos(latitude), at its `latitude`
+    /// in radians now and 5° on, nil where it is not drawn. A line reaches nearer
+    /// a pole than its satellite is, so with `lines` every satellite is stretched
+    /// as at `mapStretchLatitude`. Infinite once every frame would be drawn anyway.
+    static func mapPixelRate(_ motions: [OrbitMotion?], lines: Bool, pixelsPerMetre: Double, latitude: (Int) -> Double?) -> Double {
+        let enough = pixels * fastestDisplay / pixelsPerMetre
+        let widest = 1 / cos(mapStretchLatitude)
+        var fastest = 0.0
+        for (index, motion) in motions.enumerated() {
+            guard let motion, motion.inner > 0 else {
+                continue
+            }
+            let ground = motion.speed * MapCamera.radius / motion.inner
+            // The bound before the stretch, which is at most `widest`: only those
+            // that could pass the fastest need their latitude.
+            guard ground * widest > fastest else {
+                continue
+            }
+            var stretch = widest
+            if !lines {
+                guard let latitude = latitude(index) else {
+                    continue
+                }
+                stretch = 1 / cos(min(abs(latitude) + 5 * Double.pi / 180, mapStretchLatitude))
+            }
+            fastest = max(fastest, ground * stretch)
+            if fastest >= enough {
+                return .infinity
+            }
+        }
+        return fastest * pixelsPerMetre
+    }
+
     /// Whether a frame drawn `elapsed` simulation seconds ago, while nothing on it
     /// moves faster than `pixelRate` device pixels a simulation second, still stands.
     static func stands(_ elapsed: Double, pixelRate: Double) -> Bool {

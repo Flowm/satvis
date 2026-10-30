@@ -175,7 +175,9 @@ discussion; sharpen them here when they drift.
 - **View mode**: where the viewer looks from and in what projection: the globe in
   3D, 2D or Columbus, or the sky view. Exactly one is active. The app's
   vocabulary, not Cesium's: the sky view is not a Cesium scene mode
-  (`src/config/viewModes.ts`).
+  (`src/config/viewModes.ts`). The native app has no Columbus, and holds the
+  view mode as two parts: whether the sky view is up, and its `GlobeProjection`,
+  3D or 2D, which in the sky view is the projection it goes back to.
 - **Camera mode**: the reference frame the camera is pinned to: earth-fixed or
   inertial. Independent of the view mode. Not the native app's `CameraMode`,
   which is the camera the view is seen through: orbit, tracking or sky.

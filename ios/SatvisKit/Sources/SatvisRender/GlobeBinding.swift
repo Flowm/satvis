@@ -28,6 +28,7 @@ public protocol Globe: AnyObject {
     func track(_ id: String, animated: Bool)
     func stopTracking(animated: Bool)
     func flyHome(animated: Bool)
+    func setProjection(_ projection: GlobeProjection, animated: Bool)
 }
 
 extension GlobeRenderer: Globe {}
@@ -81,6 +82,9 @@ public final class GlobeBinding {
     public var cameraFrame = CameraFrame.fixed {
         didSet { globe?.cameraFrame = cameraFrame }
     }
+    /// How the globe is drawn, as a globe or as the flat map; in the sky view the
+    /// projection it goes back to. Set with `setProjection`.
+    public private(set) var projection = GlobeProjection.threeD
     /// The ground stations to stand pins on.
     public var stations: [StationMarker] = [] {
         didSet { globe?.setStations(stations) }
@@ -138,6 +142,7 @@ public final class GlobeBinding {
         globe.setTerrain(terrain)
         globe.unseen = unseen
         globe.cameraFrame = cameraFrame
+        globe.setProjection(projection, animated: false)
         globe.setStations(stations)
         globe.onGPUFault = onGPUFault
         switch camera {
@@ -205,6 +210,12 @@ public final class GlobeBinding {
     }
 
     // MARK: Camera
+
+    /// Draws the globe as a globe or as the flat map (`GlobeRenderer.setProjection`).
+    public func setProjection(_ projection: GlobeProjection, animated: Bool) {
+        self.projection = projection
+        globe?.setProjection(projection, animated: animated)
+    }
 
     /// Follows what has this id (`GlobeRenderer.track`).
     public func track(_ id: String, animated: Bool) {

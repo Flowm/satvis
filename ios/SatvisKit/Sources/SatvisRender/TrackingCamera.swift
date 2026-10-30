@@ -13,6 +13,10 @@ struct CameraPose: Equatable {
     var verticalFieldOfView: Double? = nil
     /// Metres to the near plane.
     var near = 1.0
+    /// In 2D, the map camera the frame is drawn from; the rest of the pose is
+    /// then the globe camera over the same place, which a flight into the sky
+    /// view sets off from.
+    var mapCamera: MapCamera? = nil
 
     /// The projection for a viewport of this shape.
     func projection(aspectRatio: Double) -> simd_double4x4 {
@@ -23,6 +27,7 @@ struct CameraPose: Equatable {
     /// Whether no coordinate is NaN or infinite.
     var isFinite: Bool {
         [position, right, up, back].allSatisfy { $0.x.isFinite && $0.y.isFinite && $0.z.isFinite }
+            && mapCamera.map { [$0.latitude, $0.longitude, $0.span, $0.heading].allSatisfy(\.isFinite) } ?? true
     }
 
     func verticalFieldOfView(aspectRatio: Double) -> Double {

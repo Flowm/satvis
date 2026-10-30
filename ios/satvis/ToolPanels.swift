@@ -460,10 +460,12 @@ struct MapPanel: View {
     }
 }
 
-/// The globe's projection and camera: the web app's Globe panel, less the 2D and
-/// Columbus projections the app does not draw. It writes the same view as the
-/// Sky panel, so in the sky view no projection is chosen, and choosing one leaves
-/// it; the Sky panel enters it, as it names a place (ADR 0003).
+/// The globe's projection and camera: the web app's Globe panel, less the
+/// Columbus projection the app does not draw (ADR 0009). It writes the same view
+/// as the Sky panel, so in the sky view no projection is chosen, and choosing one
+/// leaves it for that projection; the Sky panel enters it, as it names a place
+/// (ADR 0003). The camera mode stays to be chosen in 2D, as on the web, where
+/// only the globe turns with it.
 struct GlobePanel: View {
     @Bindable var session: Session
 
@@ -472,15 +474,17 @@ struct GlobePanel: View {
         PanelSection("Projection") {
             Picker(
                 "Projection",
-                selection: Binding<String?> {
-                    inSky ? nil : "3D"
-                } set: { _ in
-                    if inSky {
-                        session.leaveSky()
+                selection: Binding<GlobeProjection?> {
+                    inSky ? nil : session.projection
+                } set: { projection in
+                    if let projection {
+                        session.choose(projection)
                     }
                 }
             ) {
-                Text(verbatim: "3D").tag(String?.some("3D"))
+                ForEach(GlobeProjection.allCases, id: \.self) { projection in
+                    Text(verbatim: projection.rawValue).tag(GlobeProjection?.some(projection))
+                }
             }
             .panelSegmented()
             if inSky {

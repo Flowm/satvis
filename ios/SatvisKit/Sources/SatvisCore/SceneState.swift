@@ -17,6 +17,9 @@ public struct SceneState: Sendable, Equatable {
     public var selectedStation: LinkStation?
     /// Whether the sky view is up (ADR 0003).
     public var sky: Bool
+    /// The globe's projection; in the sky view the one it goes back to, which a
+    /// link does not carry, so a sky view's link reads 3D.
+    public var projection: GlobeProjection
     /// The station the sky view stands on, a link's first: written first, and read
     /// as the first of a sky view's link.
     public var observer: LinkStation?
@@ -45,8 +48,9 @@ public struct SceneState: Sendable, Equatable {
     /// By default the web app's view before any preset (`LinkState.global`).
     public init(
         activation: Activation = Activation(), components: SatelliteComponents = [.point, .label], stations: [LinkStation] = [],
-        selectedStation: LinkStation? = nil, sky: Bool = false, observer: LinkStation? = nil, tracked: String? = nil, overpassMode: OverpassMode = .elevation,
-        layers: [String] = ["NaturalEarth"], terrain: Bool = false, starMap: StarMapName = .tycho1K, unseen: UnseenMode = .dim, cameraFrame: CameraFrame = .fixed,
+        selectedStation: LinkStation? = nil, sky: Bool = false, projection: GlobeProjection = .threeD, observer: LinkStation? = nil, tracked: String? = nil,
+        overpassMode: OverpassMode = .elevation, layers: [String] = ["NaturalEarth"], terrain: Bool = false, starMap: StarMapName = .tycho1K, unseen: UnseenMode = .dim,
+        cameraFrame: CameraFrame = .fixed,
         pixelRatio: String = "native",
         time: Date? = nil, foreign: Foreign = Foreign()
     ) {
@@ -55,6 +59,7 @@ public struct SceneState: Sendable, Equatable {
         self.stations = stations
         self.selectedStation = selectedStation
         self.sky = sky
+        self.projection = projection
         self.observer = observer
         self.tracked = tracked
         self.overpassMode = overpassMode
@@ -120,6 +125,7 @@ public struct SceneState: Sendable, Equatable {
             components: components,
             stations: state.gs,
             sky: sky,
+            projection: GlobeProjection(rawValue: state.scene) ?? .threeD,
             observer: sky ? state.gs.first : nil,
             tracked: state.track.isEmpty ? nil : state.track,
             overpassMode: OverpassMode(rawValue: state.overpass) ?? .elevation,
@@ -161,7 +167,7 @@ public struct SceneState: Sendable, Equatable {
             layers: layers,
             terrain: terrain ? "ReEarth" : "None",
             stars: starMap,
-            scene: sky ? "Sky" : "3D",
+            scene: sky ? "Sky" : projection.rawValue,
             unseen: unseen,
             camera: cameraFrame,
             pixelRatio: pixelRatio,

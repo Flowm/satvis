@@ -55,6 +55,10 @@ final class Session {
     var cameraFrame = CameraFrame.fixed {
         didSet { globe.cameraFrame = cameraFrame }
     }
+    /// The Globe panel's projection, kept in links as `scene`: the globe, or the
+    /// flat map, the web app's 2D. In the sky view, which is drawn in 3D, the one
+    /// it goes back to, which a link does not carry (ADR 0003).
+    private(set) var projection = GlobeProjection.threeD
     /// The compass and the camera's picture behind the sky view (ADR 0004, ADR 0013).
     let aim: SkyAim
     /// A word for the user that goes by itself: how switching the compass on went.
@@ -353,6 +357,7 @@ final class Session {
             stations: passes.visiting.map(LinkStation.init),
             selectedStation: selected.map(LinkStation.init),
             sky: observer != nil,
+            projection: projection,
             observer: observer.flatMap(passes.station).map(LinkStation.init),
             tracked: focus.trackedSatellite.flatMap { catalog.catalog.entries[$0]?.name },
             overpassMode: passes.mode,
@@ -410,6 +415,8 @@ final class Session {
         }
         unseen = scene.unseen
         cameraFrame = scene.cameraFrame
+        // A link cuts, as its camera does.
+        setProjection(scene.projection, animated: false)
         editStations { $0.setVisiting(scene.stations.map { GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) }) }
         await catalog.open(preset: preset, activation: scene.activation, components: scene.components, named: named)
         guard generation == linkGeneration else {
@@ -552,6 +559,22 @@ final class Session {
     /// Back onto the globe, from the sky view.
     func leaveSky() {
         perform(focus.leaveSky())
+    }
+
+    /// The Globe panel's projection: the globe drawn that way, the sky view left
+    /// for it, as the web app's panel leaves it.
+    func choose(_ projection: GlobeProjection) {
+        setProjection(projection, animated: true)
+        if observer != nil {
+            leaveSky()
+        }
+    }
+
+    /// Draws the globe as a globe or as the flat map; `animated` fades from one to
+    /// the other, unless reduced motion cuts.
+    private func setProjection(_ projection: GlobeProjection, animated: Bool) {
+        self.projection = projection
+        globe.setProjection(projection, animated: animated && !UIAccessibility.isReduceMotionEnabled)
     }
 
     /// The globe button (`Focus.goHome`).

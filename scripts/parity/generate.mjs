@@ -280,7 +280,7 @@ try {
     // Whole, Tycho1K included: the app draws it as DeepStar1K, and a link keeps it.
     stars: [...STAR_MAPS],
     overpass: ["elevation", "swath"],
-    scenes: ["3D", "Sky"],
+    scenes: ["3D", "2D", "Sky"],
     unseen: [...UNSEEN_MODES],
     cameras: [...CAMERA_MODES],
     pixelRatios: [...PIXEL_RATIOS],
@@ -432,6 +432,8 @@ try {
     ["default", "embed&tags=Weather&tags=GNSS&bench=true&utm_source=x+y"],
     ["default", "track=&gs=&elements="],
     ["default", "scene=Columbus&gs=46.5935,7.9091"],
+    ["default", "scene=2D&tags=Science"],
+    ["demo", "scene=2D&track=ISS+(ZARYA)"],
     ["default", "scene=Sky&track=ISS+(ZARYA)"],
     ["default", "scene=Sky&unseen=hide&gs=48.1372,11.5756,Munich"],
     ["default", "unseen=show"],

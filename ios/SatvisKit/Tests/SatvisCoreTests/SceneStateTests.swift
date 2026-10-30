@@ -104,6 +104,24 @@ import Testing
         #expect(SceneState.read(LinkQuery(parsing: "gs=48.1372,11.5756"), presetDefaults: [:]).scene.observer == nil)
     }
 
+    @Test func readsAndWritesTheProjection() {
+        #expect(written(SceneState(projection: .twoD)) == "scene=2D")
+        #expect(written(SceneState(projection: .threeD)) == "")
+        // The sky view's link names the sky view alone; the projection it goes back
+        // to is not the link's.
+        #expect(written(SceneState(sky: true, projection: .twoD, observer: munich)) == "gs=48.1372,11.5756,Munich&scene=Sky")
+        #expect(SceneState.read(LinkQuery(parsing: "scene=2D"), presetDefaults: [:]).scene.projection == .twoD)
+        let sky = SceneState.read(LinkQuery(parsing: "scene=Sky"), presetDefaults: [:]).scene
+        #expect(sky.sky && sky.projection == .threeD)
+        // Columbus is the web app's alone: the globe, the parameter dropped.
+        let columbus = SceneState.read(LinkQuery(parsing: "scene=Columbus"), presetDefaults: [:]).scene
+        #expect(!columbus.sky && columbus.projection == .threeD)
+        #expect(written(columbus) == "")
+        // A preset's 2D is its default, and its 3D then a choice the link names.
+        #expect(SceneState.read(LinkQuery(), presetDefaults: ["scene": "2D"]).scene.projection == .twoD)
+        #expect(written(SceneState(), presetDefaults: ["scene": "2D"]) == "scene=3D")
+    }
+
     @Test func recordsTheTimeOnlyOffThePresent() throws {
         let start = 1_790_000_000_000.0
         var clock = SimulationClock(real: start)
@@ -132,6 +150,7 @@ import Testing
             #expect(scene.activation.enabledSatellites == Set(want["sats"] as! [String]), "\(label)")
             #expect(scene.tracked ?? "" == want["track"] as? String, "\(label)")
             #expect(scene.sky == (want["scene"] as? String == "Sky"), "\(label)")
+            #expect(scene.projection == (want["scene"] as? String == "2D" ? .twoD : .threeD), "\(label)")
             #expect(scene.overpassMode.rawValue == want["overpass"] as? String, "\(label)")
             #expect(scene.terrain == (want["terrain"] as? String == "ReEarth"), "\(label)")
             #expect(scene.time.map(minuteISO) == want["time"] as? String, "\(label)")
