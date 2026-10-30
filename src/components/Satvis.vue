@@ -160,6 +160,18 @@
           <span class="toolbarPlace__label">Hide UI</span>
         </button>
         <div class="toolbarNote">For a clear view of the globe. Show UI, top right, brings it back.</div>
+        <!-- The native app's order, which keeps the frame rate in a phone's view. Ladders rather than switches; see src/config/rendering.ts. -->
+        <div class="toolbarTitle">Pixel ratio</div>
+        <segmented-control v-model="pixelRatio" label="Pixel ratio" :options="PIXEL_RATIO_OPTIONS" />
+        <div class="toolbarNote">Native is this screen's {{ nativeRatio }}x. Fewer pixels draw faster.</div>
+        <div class="toolbarTitle">Frame rate</div>
+        <segmented-control v-model="frameRate" label="Frame rate" :options="FRAME_RATE_OPTIONS" />
+        <div class="toolbarNote">At most this many frames a second. Fewer save battery.</div>
+        <label class="toolbarSwitch">
+          <input v-model="requestRenderMode" type="checkbox" />
+          Render only on change
+        </label>
+        <div class="toolbarNote">Draws a frame only when something moves. Turn it off to measure frame times.</div>
         <div class="toolbarTitle">Measurement</div>
         <label class="toolbarSwitch">
           <input v-model="showFps" type="checkbox" />
@@ -186,20 +198,8 @@
           <input v-model="cc.viewer.scene.globe.showGroundAtmosphere" type="checkbox" />
           Atmosphere
         </label>
-        <!-- Ladders rather than switches; see src/config/rendering.ts. -->
-        <div class="toolbarTitle">Pixel ratio</div>
-        <segmented-control v-model="pixelRatio" label="Pixel ratio" :options="PIXEL_RATIO_OPTIONS" />
-        <div class="toolbarNote">Native is this screen's {{ nativeRatio }}x. Fewer pixels draw faster.</div>
         <div class="toolbarTitle">Antialiasing (MSAA)</div>
         <segmented-control v-model="msaa" label="Antialiasing (MSAA)" :options="MSAA_OPTIONS" />
-        <div class="toolbarTitle">Frame rate</div>
-        <segmented-control v-model="frameRate" label="Frame rate" :options="FRAME_RATE_OPTIONS" />
-        <div class="toolbarNote">At most this many frames a second. Fewer save battery.</div>
-        <label class="toolbarSwitch">
-          <input v-model="requestRenderMode" type="checkbox" />
-          Render only on change
-        </label>
-        <div class="toolbarNote">Draws a frame only when something moves. Turn it off to measure frame times.</div>
       </toolbar-panel>
     </div>
     <!-- The native app's corner, in its order. -->

@@ -658,24 +658,6 @@ struct GraphicsPanel: View {
             }
             Note("For a clear view of the globe. Show UI, top right, brings it back.")
         }
-        PanelSection("Measurement") {
-            PanelCard {
-                Toggle(
-                    "FPS",
-                    isOn: Binding {
-                        session.showsPerformance
-                    } set: {
-                        session.setShowsPerformance($0)
-                    })
-                Toggle(
-                    "Benchmark",
-                    isOn: Binding {
-                        session.showsBenchmark
-                    } set: {
-                        session.setShowsBenchmark($0)
-                    })
-            }
-        }
         // The web app's ladder (src/config/rendering.ts): the fixed rungs below
         // the screen's own ratio, then the screen's, so it only offers savings.
         PanelSection("Pixel ratio") {
@@ -693,6 +675,24 @@ struct GraphicsPanel: View {
                 selection: $session.frameRate,
                 options: Session.frameRates.map { ($0 == Session.maximumFrameRate ? "Max" : "\($0) fps", $0) })
             Note("At most this many frames a second. Fewer save battery.")
+        }
+        PanelSection("Measurement") {
+            PanelCard {
+                Toggle(
+                    "FPS",
+                    isOn: Binding {
+                        session.showsPerformance
+                    } set: {
+                        session.setShowsPerformance($0)
+                    })
+                Toggle(
+                    "Benchmark",
+                    isOn: Binding {
+                        session.showsBenchmark
+                    } set: {
+                        session.setShowsBenchmark($0)
+                    })
+            }
         }
     }
 }
