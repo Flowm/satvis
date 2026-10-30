@@ -13,8 +13,8 @@ export const VISIBILITY_LABEL: Record<Visibility, string> = {
 };
 
 /**
- * Whole numbers grouped as en-US, whatever the locale: the app's words are English, and
- * so are the info panel's numbers the card leads to. A tenth of a degree is finer than
+ * Whole numbers grouped as en-US, whatever the locale: the card's fixed width is sized for
+ * those digits (ADR 0015). A tenth of a degree is finer than
  * a phone's compass and flickers as a satellite crosses the crosshair. `|| 0`, as a
  * satellite just under the horizon would otherwise read "-0° up", where Swift prints 0.
  */

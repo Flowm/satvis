@@ -2,8 +2,8 @@
 // Write the parity fixtures the native app's tests are held to
 // (docs/adr/0009-native-ios-app.md): what the web app's own code answers for the
 // element sets in parity-input.json. Also write the tables the native app reads
-// as they are rather than keeping a copy of its own: the SATCAT and GCAT code labels and
-// the external links. Never edit either output by hand; CI checks that rerunning
+// as they are rather than keeping a copy of its own: the SATCAT and GCAT code labels,
+// the external links and the bookmark demos. Never edit either output by hand; CI checks that rerunning
 // this changes nothing.
 //
 // The web code is loaded through Vite's module runner, because its imports are

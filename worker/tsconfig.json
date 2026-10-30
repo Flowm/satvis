@@ -8,6 +8,7 @@
     "allowSyntheticDefaultImports": true,
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
+    "erasableSyntaxOnly": true,
     "moduleDetection": "force",
     "noEmit": true,
     "skipLibCheck": true,

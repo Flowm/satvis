@@ -1,5 +1,5 @@
-// Everything under worker/src/gp/ must stay erasable syntax (no enums, namespaces,
-// parameter properties or `import =`): the static generator imports it with node type stripping.
+// Everything under worker/src/gp/ must stay erasable syntax: the scripts in worker/scripts/
+// import it with Node's type stripping.
 
 /** CelesTrak OMM JSON record. Selection reads only OBJECT_NAME and NORAD_CAT_ID. */
 export interface OmmRecord {

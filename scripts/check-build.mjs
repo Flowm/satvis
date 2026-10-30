@@ -1,5 +1,5 @@
-// Two rules that exist only in the generated dist/sw.js (AGENTS.md, Gotchas): a data url
-// opened in the address bar must not get the app shell, and nothing from Cesium ion or
+// Two rules that exist only in the generated dist/sw.js: a data url opened in the address bar
+// must not get the app shell (vite.config.ts says why), and nothing from Cesium ion or
 // Google's tile hosts may be cached.
 
 import assert from "node:assert/strict";

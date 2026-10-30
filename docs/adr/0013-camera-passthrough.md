@@ -29,7 +29,7 @@ match it, and looks like a working feature that is wrong, which ADR 0004 refuses
 So switching the camera on starts the compass first, and a compass that cannot start
 (no sensor, no heading, a silent sensor) leaves the camera off and says why. Whatever
 stops the compass stops the camera, however it stopped: its button, a drag that takes
-the aim back, leaving the sky view, a sensor that falls silent. `Session` holds that
+the aim back, leaving the sky view, a sensor that falls silent. `SkyAim` holds that
 rule in one place, by watching the compass. Switching the camera off leaves the
 compass aiming.
 

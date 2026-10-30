@@ -244,7 +244,7 @@ part of `data/imagery/`: about 17.2 MB, a minute on a warm cache. The host needs
 docker; GDAL runs in the container.
 
 The build raises the zoom ceiling when it finds those levels. Without them the globe
-still works, capped at level 2, and goes soft when you zoom in. The build only warns,
+still works, capped at level 2, and goes soft when you zoom in. The build says nothing,
 so run the generator before `pnpm deploy`. A running `pnpm dev` needs a restart to
 pick up the new levels.
 
