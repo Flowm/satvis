@@ -88,12 +88,21 @@ describe("GpSource probe", () => {
       "/api/groups.json": json({
         updated: "",
         groups: [{ name: "weather", tags: "Weather" }],
-        presets: { default: { groups: "weather" }, ot: { defaults: { tags: "OT", fps: true }, groups: [{ name: "ot" }, { searchOnly: true }] } },
+        presets: {
+          default: { groups: "weather" },
+          ot: {
+            defaults: { tags: "OT", fps: true },
+            groups: [{ name: "ot" }, { searchOnly: true }],
+            featured: [{ name: "OT", thumbnail: "data/showcase/ot-card.jpg", query: { scene: "2D", fps: true } }, { name: "No picture" }, "OT"],
+          },
+        },
       }),
     });
     expect(await fetchGpIndex()).toEqual({
       groups: [{ name: "weather" }],
-      presets: { ot: { defaults: { tags: "OT" }, groups: [{ name: "ot" }] } },
+      presets: {
+        ot: { defaults: { tags: "OT" }, groups: [{ name: "ot" }], featured: [{ name: "OT", thumbnail: "data/showcase/ot-card.jpg", query: { scene: "2D" } }] },
+      },
     });
   });
 

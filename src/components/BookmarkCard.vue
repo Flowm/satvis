@@ -44,7 +44,7 @@ import { DeviceDetect } from "../modules/util/DeviceDetect";
 const props = defineProps<{ bookmark: Bookmark; summary: BookmarkSummary; current: boolean; renaming: boolean; draft: string }>();
 const emit = defineEmits<{ open: []; rename: []; "update:draft": [name: string]; commit: []; cancel: []; remove: []; keep: []; share: [] }>();
 
-/** A demo's picture is a path under the app's base; a saved one is a data url. */
+/** A featured bookmark's picture is a path under the app's base; a saved one is a data url. */
 const thumbnailUrl = computed(() => {
   const { thumbnail } = props.bookmark;
   return thumbnail && !thumbnail.startsWith("data:") ? `${import.meta.env.BASE_URL}${thumbnail}` : thumbnail;

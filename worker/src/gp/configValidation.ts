@@ -3,7 +3,7 @@
 // No Cloudflare APIs: the script imports it through node type stripping.
 
 import { isModelPath } from "./modelLods.ts";
-import { GROUP_NAME_RE, type PresetDefinition, type SatelliteEntry } from "./types.ts";
+import { type FeaturedBookmark, GROUP_NAME_RE, type PresetDefinition, type SatelliteEntry } from "./types.ts";
 
 /** A config entry as YAML parsed it: nothing about its shape is trusted until it is checked here. */
 type Raw = Record<string, any>;
@@ -245,6 +245,37 @@ export function validateRemainderTags(groups: Raw[]): void {
   }
 }
 
+/** A preset's featured bookmarks, each with a `query`, empty when it has none. */
+function validateFeatured(featured: unknown, where: string): FeaturedBookmark[] | undefined {
+  if (featured === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(featured)) {
+    throw new Error(`${where}: "featured" must be an array`);
+  }
+  return featured.map((entry: Raw, i): FeaturedBookmark => {
+    const at = `${where} featured[${i}]`;
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error(`${at}: must be an object`);
+    }
+    for (const key of ["name", "thumbnail"]) {
+      if (typeof entry[key] !== "string" || entry[key] === "") {
+        throw new Error(`${at}: "${key}" must be a non-empty string`);
+      }
+    }
+    const query = entry.query ?? {};
+    if (query === null || typeof query !== "object" || Array.isArray(query)) {
+      throw new Error(`${at}: "query" must be an object of url parameters`);
+    }
+    for (const [param, value] of Object.entries(query)) {
+      if (typeof value !== "string") {
+        throw new Error(`${at}: ${JSON.stringify(param)} must be a string, as the url would carry it`);
+      }
+    }
+    return { name: entry.name, thumbnail: entry.thumbnail, query };
+  });
+}
+
 /** A preset group entry is a bare name or { name, searchOnly }; it comes out as the object. */
 export function validatePresets(presets: Raw[], groups: Raw[]): PresetDefinition[] {
   const byName = new Map(groups.map((group) => [group.name, group]));
@@ -293,14 +324,19 @@ export function validatePresets(presets: Raw[], groups: Raw[]): PresetDefinition
       }
       return searchOnly ? { name, searchOnly } : { name };
     });
-    // The one default checked here: a tag no registered group carries enables nothing.
+    // The one parameter checked here: a tag no registered group carries enables nothing.
     const carried = new Set(presetGroups.flatMap(({ name }) => byName.get(name)!.tags as string[]));
-    for (const tag of (defaults.tags ?? "").split(",").filter((name: string) => name !== "")) {
-      if (!carried.has(tag)) {
-        throw new Error(`${where}: default tag ${JSON.stringify(tag)} is carried by none of its groups`);
+    const checkTags = (tags: string | undefined, what: string): void => {
+      for (const tag of (tags ?? "").split(",").filter((name: string) => name !== "")) {
+        if (!carried.has(tag)) {
+          throw new Error(`${where}: ${what} ${JSON.stringify(tag)} is carried by none of its groups`);
+        }
       }
-    }
-    return { ...preset, groups: presetGroups } as PresetDefinition;
+    };
+    checkTags(defaults.tags, "default tag");
+    const featured = validateFeatured(preset.featured, where);
+    featured?.forEach(({ name, query }) => checkTags(query.tags, `featured ${JSON.stringify(name)}: tag`));
+    return { ...preset, groups: presetGroups, ...(featured && { featured }) } as PresetDefinition;
   });
   if (!seen.has(DEFAULT_PRESET)) {
     throw new Error(`no ${JSON.stringify(DEFAULT_PRESET)} preset: every route that names none falls back to it`);

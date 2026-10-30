@@ -1,15 +1,15 @@
-<!-- The Bookmarks panel: demos, saved bookmarks and opened links as cards, the way back to the default view, and saving the scene. -->
+<!-- The Bookmarks panel: featured and saved bookmarks and opened links as cards, the way back to the default view, and saving the scene. -->
 <template>
   <div class="bookmarkPanel">
     <div class="bookmarkPanel__tabs" role="tablist" aria-label="Bookmarks">
       <button
-        v-for="entry in TABS"
+        v-for="entry in tabs"
         :key="entry.key"
         type="button"
         role="tab"
         :aria-selected="tab === entry.key"
         :class="{ 'bookmarkPanel__tab--on': tab === entry.key }"
-        @click="tab = entry.key"
+        @click="show(entry.key)"
       >
         {{ entry.label }}<span v-if="count(entry.key)" class="countBadge">{{ count(entry.key) }}</span>
       </button>
@@ -51,38 +51,52 @@
 
 <script setup lang="ts">
 import { useToast } from "@nuxt/ui/composables/useToast";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 
 import { useBookmarks } from "../composables/useBookmarks";
-import type { Bookmark } from "../modules/util/bookmarks";
+import type { Bookmark, BookmarkKind } from "../modules/util/bookmarks";
 import BookmarkCard from "./BookmarkCard.vue";
 
 /** The kind of bookmark a tab lists. */
-type Tab = "demo" | "saved" | "opened";
+type Tab = BookmarkKind;
 
 /** "Recent" on screen: opened links are the links recent visits started with. */
 const TABS: { key: Tab; label: string }[] = [
-  { key: "demo", label: "Demos" },
+  { key: "featured", label: "Featured" },
   { key: "saved", label: "Saved" },
   { key: "opened", label: "Recent" },
 ];
 
-/** What an empty tab says. Demos are never empty. */
+/** What an empty tab says. Featured is hidden rather than empty. */
 const EMPTY: Record<Tab, string> = {
-  demo: "",
+  featured: "",
   saved: "Save this view to come back to it.",
   opened: "Links you open show up here.",
 };
 
-const { demos, saved, opened, isDefault, isCurrent, summary, open, link, share, openDefault, saveCurrent, rename, keep, remove, restore, forget } = useBookmarks();
+const { featured, saved, opened, isDefault, isCurrent, summary, open, link, share, openDefault, saveCurrent, rename, keep, remove, restore, forget } = useBookmarks();
 const toast = useToast();
 const emit = defineEmits<{ opened: [] }>();
 
-/** Opens on Saved for a visitor who has saved something. */
-const tab = ref<Tab>(saved.value.length > 0 ? "saved" : "demo");
+/** A preset that features nothing has no Featured tab. */
+const tabs = computed(() => TABS.filter(({ key }) => key !== "featured" || featured.value.length > 0));
+/** Saved for a visitor who has saved something, else Featured where the preset has any. */
+const openingTab = (): Tab => (saved.value.length > 0 ? "saved" : featured.value.length > 0 ? "featured" : "opened");
+const tab = ref<Tab>(openingTab());
+/** Whether the visitor has moved off the opening tab, which the arriving group index then leaves alone. */
+let moved = false;
+// The preset's featured bookmarks arrive with the group index, which can be after the panel opened.
+watch(
+  () => featured.value.length > 0,
+  () => {
+    if (!moved) {
+      tab.value = openingTab();
+    }
+  },
+);
 /** The open tab's bookmarks. */
-const shown = computed(() => (tab.value === "demo" ? demos : tab.value === "saved" ? saved.value : opened.value));
-/** The badge on a tab; demos have none. */
+const shown = computed(() => (tab.value === "featured" ? featured.value : tab.value === "saved" ? saved.value : opened.value));
+/** The badge on a tab; Featured has none. */
 const count = (key: Tab): number => (key === "saved" ? saved.value.length : key === "opened" ? opened.value.length : 0);
 
 /** The saved bookmark of the scene on screen, if there is one. */
@@ -106,6 +120,12 @@ function onOpenDefault(): void {
   emit("opened");
 }
 
+/** Shows the `key` tab, for good: the arriving group index no longer changes it. */
+function show(key: Tab): void {
+  moved = true;
+  tab.value = key;
+}
+
 /** Opens `bookmark`'s name for editing. */
 function startRename(bookmark: Bookmark): void {
   draft.value = bookmark.name;
@@ -114,7 +134,7 @@ function startRename(bookmark: Bookmark): void {
 
 /** Shows a saved bookmark with its name open. */
 function showSaved(bookmark: Bookmark): void {
-  tab.value = "saved";
+  show("saved");
   startRename(bookmark);
 }
 
@@ -131,7 +151,7 @@ async function onSave(): Promise<void> {
   saving.value = true;
   try {
     const bookmark = await saveCurrent();
-    tab.value = "saved";
+    show("saved");
     startRename(bookmark);
   } finally {
     saving.value = false;
@@ -142,7 +162,7 @@ async function onSave(): Promise<void> {
 function onKeep(bookmark: Bookmark): void {
   const kept = keep(bookmark.id, bookmark.name);
   if (kept) {
-    tab.value = "saved";
+    show("saved");
     startRename(kept);
   }
 }

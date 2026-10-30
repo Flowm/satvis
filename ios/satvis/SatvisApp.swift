@@ -232,7 +232,7 @@ struct ContentView: View {
                     ToolMenu(isOpen: $showsTools) {
                         // The web app's menu column: its entries, icons, order and hints.
                         ToolEntry(
-                            title: "Bookmarks", image: .lucideBookmark, hint: "Demos, saved views and links you opened, and the way back to the default view"
+                            title: "Bookmarks", image: .lucideBookmark, hint: "Featured and saved views, links you opened, and the way back to the default view"
                         ) {
                             showsBookmarks = true
                         }

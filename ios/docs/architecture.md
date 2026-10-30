@@ -176,9 +176,10 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   changes it under a running app.
 - Bookmarks are the web app's (ADR 0011, `BookmarksView.swift`): the code that
   describes and names them (`Bookmarks` in SatvisCore) is held to its
-  `src/modules/util/bookmarks.ts` by the parity fixtures. A bookmark's picture
-  is the renderer's next frame (`GlobeRenderer.snapshot`), a demo's the site's
-  `showcase/` picture (`GroupRepository.image`). A launch on the test catalog
+  `src/modules/util/bookmarks.ts` by the parity fixtures. The featured ones are
+  the route's preset's, from the group index (`GroupIndex.featured`). A
+  bookmark's picture is the renderer's next frame (`GlobeRenderer.snapshot`), a
+  featured one's the site's, at the path the index gives (`GroupRepository.image`). A launch on the test catalog
   keeps its bookmarks apart, so every UI test starts with none.
 - The Globe panel's camera mode is the web app's `camera` (`CameraFrame`, kept
   in links): Fixed, or Inertial, where the free camera is turned back each frame

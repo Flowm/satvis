@@ -28,7 +28,7 @@ discussion; sharpen them here when they drift.
   `Custom`, which the browser gives its custom satellites. A satellite can carry tags
   from several groups. Tag names must not contain a comma.
 - **Preset**: the starting configuration of a route: a title, the groups to
-  register, and default url parameters. Defined in the worker config and served
+  register, default url parameters, and its featured bookmarks. Defined in the worker config and served
   with the group index. A client ignores a default it has no use for. The url
   carries only deviations from the preset, so the same query string means
   different things on different routes.
@@ -254,8 +254,10 @@ discussion; sharpen them here when they drift.
   url parameters the stores own, never a camera position. Opening one navigates to
   the link. Kept per browser (`docs/adr/0011-bookmarks.md`). Not a preset, which is
   where a route starts, and not a view mode.
-- **Demo**: a bookmark that ships with the app, live and with a group or a single
-  satellite. The about page and About show the demos too, as a carousel.
+- **Featured bookmark**: a bookmark a preset ships, live and with a group or a single
+  satellite, written as a link against that preset's defaults. The Bookmarks panel
+  lists the route's preset's alone; one with no parameters is its default view.
+  Formerly "demo". The about page and About show the default preset's as a carousel.
 - **Opened link**: a link a visit started with, kept so it can be found again. A
   reload, Back or Forward is not one. "Recent" on screen.
 - **Default view**: the route's preset with no scene parameter, which the Bookmarks

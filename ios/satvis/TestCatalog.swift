@@ -10,7 +10,8 @@
     /// which the target's Release `EXCLUDED_SOURCE_FILE_NAMES` leaves out, holds the
     /// index and the default preset's groups as satvis.space served them on
     /// 2026-10-07, GCAT's facts included, with only the core config's groups and
-    /// presets, since the plugins' stay out of the repository. The tests point the app at a worker that does not answer and ask
+    /// presets, since the plugins' stay out of the repository, and the default
+    /// preset's featured bookmarks as the core config has them since. The tests point the app at a worker that does not answer and ask
     /// for it with `SATVIS_TEST_CATALOG`, so they need no network and no live data.
     /// Each star map is there too, as black faces: the real ones are fetched and
     /// kept, and a test that found one kept by an earlier run passed only there.

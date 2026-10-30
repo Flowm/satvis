@@ -42,10 +42,8 @@ public struct WebTables: Sendable, Decodable {
         }
     }
 
-    /// The web app's demo bookmarks (src/config/bookmarks.ts), and the url
-    /// parameters its stores own, which a bookmark keeps.
+    /// The url parameters the web app's stores own, which a bookmark keeps.
     public struct BookmarkTables: Sendable, Decodable {
-        public var demos: [Bookmark]
         public var ownedParams: [String]
     }
 

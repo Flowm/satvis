@@ -221,7 +221,7 @@ private let fixedNow = Date(timeIntervalSince1970: 1_790_000_000)
         #expect(worker.requests.withLock { $0.first?.url?.absoluteString } == "https://satvis.test/data/starmap/x.webp")
     }
 
-    // A demo bookmark's picture, offline after the first launch that fetched it.
+    // A featured bookmark's picture, offline after the first launch that fetched it.
     @Test func keepsAPictureForOfflineLaunches() async throws {
         let store = temporaryStore()
         let online = GroupRepository(client: StubWorker([.image(Data([9]), etag: "b")]).client, store: store, snapshot: nil)

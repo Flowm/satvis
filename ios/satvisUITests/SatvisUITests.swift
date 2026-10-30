@@ -354,21 +354,21 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Default view"].isEnabled)
     }
 
-    // About opens from the menu, and opens a demo of its carousel, a step on, as
-    // its card does.
+    // About opens from the menu, and opens a featured bookmark of its carousel, a
+    // step on, as its card does.
     @MainActor
-    func testOpensADemoFromAbout() {
+    func testOpensAFeaturedBookmarkFromAbout() {
         let app = launch()
         openMenu(app)
         app.buttons["About"].tap()
         let sheet = app.navigationBars["About Satvis"]
         XCTAssert(sheet.waitForExistence(timeout: 5))
-        let next = app.buttons["Next demo"].firstMatch
+        let next = app.buttons["Next bookmark"].firstMatch
         XCTAssert(next.waitForExistence(timeout: 5))
         next.tap()
-        let demo = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Follow the ISS'")).firstMatch
-        XCTAssert(demo.waitForExistence(timeout: 5))
-        demo.tap()
+        let featured = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Follow the ISS'")).firstMatch
+        XCTAssert(featured.waitForExistence(timeout: 5))
+        featured.tap()
         XCTAssert(sheet.waitForNonExistence(timeout: 5))
     }
 
@@ -552,14 +552,14 @@ nonisolated class SatvisUITests: XCTestCase {
         return app
     }
 
-    // The App Store screenshots: the Bookmarks sheet's three demos, opened from
-    // their cards as anyone would, so they show what a demo shows. Globe, sky,
+    // The App Store screenshots: the Bookmarks sheet's three featured bookmarks,
+    // opened from their cards as anyone would, so they show what one shows. Globe, sky,
     // ISS: the first three are the search result's. Only scripts/screenshots.sh
     // takes them, against BASE_URL.
 
     @MainActor
     func testScreenshot1Globe() throws {
-        let app = try openDemo("Weather satellites", at: "2026-10-04T08:52:00")
+        let app = try openFeatured("Weather satellites", at: "2026-10-04T08:52:00")
         screenshot(app, "1Globe")
     }
 
@@ -568,7 +568,7 @@ nonisolated class SatvisUITests: XCTestCase {
     // left an iPad's cliffs coarse.
     @MainActor
     func testScreenshot2Sky() throws {
-        let app = try openDemo("Sky over Lauterbrunnen", at: "2026-10-04T19:22:00", wait: 60)
+        let app = try openFeatured("Sky over Lauterbrunnen", at: "2026-10-04T19:22:00", wait: 60)
         screenshot(app, "2Sky")
     }
 
@@ -576,16 +576,16 @@ nonisolated class SatvisUITests: XCTestCase {
     // to make out.
     @MainActor
     func testScreenshot3ISS() throws {
-        let app = try openDemo("Follow the ISS", at: "2026-10-04T08:17:40")
+        let app = try openFeatured("Follow the ISS", at: "2026-10-04T08:17:40")
         screenshot(app, "3ISS")
     }
 
     /// Launches on BASE_URL's site with its clock stopped at `time` (UTC), so
-    /// that every device shows the same moment, opens the demo of that name from
+    /// that every device shows the same moment, opens the featured bookmark of that name from
     /// the Bookmarks sheet, which leaves a stopped clock where it is, and waits
     /// `wait` seconds for the tiles.
     @MainActor
-    func openDemo(_ name: String, at time: String, wait: UInt32 = 20) throws -> XCUIApplication {
+    func openFeatured(_ name: String, at time: String, wait: UInt32 = 20) throws -> XCUIApplication {
         let environment = ProcessInfo.processInfo.environment
         guard environment["SCREENSHOTS"] != nil else {
             throw XCTSkip("Taken by scripts/screenshots.sh")

@@ -2,6 +2,6 @@
 
 import { attachCarousel } from "./modules/util/carousel";
 
-for (const carousel of document.querySelectorAll<HTMLElement>(".demoCarousel")) {
+for (const carousel of document.querySelectorAll<HTMLElement>(".featuredCarousel")) {
   attachCarousel(carousel);
 }

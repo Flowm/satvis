@@ -1,15 +1,18 @@
 import SatvisCore
 import SwiftUI
 
-/// The web app's Bookmarks panel (BookmarkPanel.vue): the demos, the saved
+/// The web app's Bookmarks panel (BookmarkPanel.vue): the featured and saved
 /// bookmarks and the opened links as cards, the way back to the default view, and
 /// saving the scene. A sheet, as the other long lists are.
 struct BookmarksView: View {
     let session: Session
     /// A bookmark or the default view was opened, and the sheet closes on it.
     let onOpen: () -> Void
-    /// Opens on Saved for a user who has saved something.
+    /// Opens on `openingTab`.
     @State private var tab: Bookmark.Kind
+    /// Whether the user has moved off the opening tab, which the arriving group
+    /// index then leaves alone.
+    @State private var moved = false
     /// The bookmark whose name is being edited, and the name as typed so far.
     @State private var renaming: Bookmark?
     @State private var draft = ""
@@ -28,17 +31,34 @@ struct BookmarksView: View {
     init(session: Session, onOpen: @escaping () -> Void = {}) {
         self.session = session
         self.onOpen = onOpen
-        _tab = State(initialValue: session.bookmarks.saved.isEmpty ? .demo : .saved)
+        _tab = State(initialValue: Self.openingTab(session))
+    }
+
+    /// Saved for a user who has saved something, else Featured where the preset has any.
+    private static func openingTab(_ session: Session) -> Bookmark.Kind {
+        !session.bookmarks.saved.isEmpty ? .saved : session.featured.isEmpty ? .opened : .featured
+    }
+
+    /// Shows the `kind` tab, for good: the arriving group index no longer changes it.
+    private func show(_ kind: Bookmark.Kind) {
+        moved = true
+        tab = kind
     }
 
     private var bookmarks: BookmarkModel { session.bookmarks }
 
     private var shown: [Bookmark] {
         switch tab {
-        case .demo: Bookmarks.demos
+        case .featured: session.featured
         case .saved: bookmarks.saved
         case .opened: bookmarks.opened
         }
+    }
+
+    /// A preset that features nothing has no Featured tab.
+    private var tabs: [(value: Bookmark.Kind, title: String, count: Int)] {
+        (session.featured.isEmpty ? [] : [(.featured, "Featured", 0)])
+            + [(.saved, "Saved", bookmarks.saved.count), (.opened, "Recent", bookmarks.opened.count)]
     }
 
     var body: some View {
@@ -48,9 +68,7 @@ struct BookmarksView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 12) {
-                    SegmentedTabs(
-                        selection: $tab,
-                        tabs: [(.demo, "Demos", 0), (.saved, "Saved", bookmarks.saved.count), (.opened, "Recent", bookmarks.opened.count)])
+                    SegmentedTabs(selection: Binding(get: { tab }, set: show), tabs: tabs)
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
                         ForEach(shown) { bookmark in
                             card(bookmark, isCurrent: bookmark.scene == here)
@@ -63,6 +81,13 @@ struct BookmarksView: View {
                     }
                 }
                 .padding()
+            }
+            // The preset's featured bookmarks arrive with the group index, which can be
+            // after the sheet opened.
+            .onChange(of: session.featured.isEmpty) {
+                if !moved {
+                    tab = Self.openingTab(session)
+                }
             }
             .navigationTitle("Bookmarks")
             .navigationBarTitleDisplayMode(.inline)
@@ -99,7 +124,7 @@ struct BookmarksView: View {
                         Group {
                             if let savedHere {
                                 Button("Saved", systemImage: "bookmark.fill") {
-                                    tab = .saved
+                                    show(.saved)
                                     startRename(savedHere)
                                 }
                             } else {
@@ -108,7 +133,7 @@ struct BookmarksView: View {
                                         saving = true
                                         defer { saving = false }
                                         let bookmark = await session.saveHere()
-                                        tab = .saved
+                                        show(.saved)
                                         startRename(bookmark)
                                     }
                                 }
@@ -192,19 +217,19 @@ struct BookmarksView: View {
         case .opened:
             Button("Save", systemImage: "bookmark") {
                 if let kept = bookmarks.keep(bookmark.id, name: bookmark.name) {
-                    tab = .saved
+                    show(.saved)
                     startRename(kept)
                 }
             }
             Button("Forget", systemImage: "xmark") { bookmarks.forget(bookmark.id) }
-        case .demo:
+        case .featured:
             EmptyView()
         }
     }
 
-    /// A demo's picture is the site's, kept once fetched; the others' are the device's.
+    /// A featured bookmark's picture is the site's, kept once fetched; the others' are the device's.
     private func picture(_ bookmark: Bookmark) -> UIImage? {
-        let data = bookmark.kind == .demo ? bookmark.thumbnail.flatMap { session.demoPictures[$0] } : bookmarks.pictures[bookmark.id]
+        let data = bookmark.kind == .featured ? bookmark.thumbnail.flatMap { session.featuredPictures[$0] } : bookmarks.pictures[bookmark.id]
         return data.flatMap(UIImage.init(data:))
     }
 

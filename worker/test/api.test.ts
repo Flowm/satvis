@@ -1,17 +1,17 @@
 import { env, SELF } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 
-import generatedConfig from "../src/config/satvis.generated.json" with { type: "json" };
 import { GCAT_CATALOG_URL } from "../src/gp/gcat.ts";
+import { groupsConfig } from "../src/gp/groupsConfig.ts";
 import { toIngestBundle } from "../src/gp/pushProtocol.ts";
 import { collectSources, sourceKey, sourceUrl } from "../src/gp/sources.ts";
 import { kvGroupStore } from "../src/gp/store.ts";
-import type { GroupsConfig, GroupsIndex, OmmRecord } from "../src/gp/types.ts";
+import type { GroupsIndex, OmmRecord } from "../src/gp/types.ts";
 import { UPSTREAMS } from "../src/gp/upstreams.ts";
 import { GCAT_CATALOG_LINES, GCAT_ORGS_LINES, gcatCatalog, gcatOrgs } from "./gcatFixtures.ts";
 
 /** Distinct upstream requests per refresh, asserted against the fetch spy after each test. */
-const SOURCE_COUNT = collectSources((generatedConfig as GroupsConfig).groups).length;
+const SOURCE_COUNT = collectSources(groupsConfig.groups).length;
 
 const UPDATED = "2026-07-04T00:00:00.000Z";
 const UPDATED_MS = Date.parse(UPDATED);
@@ -46,7 +46,7 @@ async function idsOf(group: string): Promise<unknown[]> {
 
 /** Every configured source answered with `reply`, bundled as push-gp bundles them. */
 function ingestBundle(reply: (source: string) => unknown, opts?: { status?: number }): string {
-  const specs = collectSources((generatedConfig as GroupsConfig).groups);
+  const specs = collectSources(groupsConfig.groups);
   const fetched = specs.map((spec) => {
     const url = sourceUrl(spec);
     const source = new URL(url).searchParams.get("GROUP") ?? "";
@@ -153,7 +153,7 @@ describe("index route", () => {
     const index: GroupsIndex = { updated: UPDATED, groups: [{ name: "weather", updated: UPDATED, count: 2, tags: ["Stale"] }] };
     await store().writeIndex(index);
     const body = (await (await SELF.fetch("https://satvis.space/api/groups.json")).json()) as GroupsIndex;
-    expect(body.groups.map((group) => group.name)).toEqual((generatedConfig as GroupsConfig).groups.map((group) => group.name));
+    expect(body.groups.map((group) => group.name)).toEqual(groupsConfig.groups.map((group) => group.name));
     expect(body.groups.find((group) => group.name === "weather")?.tags).toEqual(["Weather"]);
     expect(body.groups.find((group) => group.name === "starlink")).toMatchObject({ updated: null, count: 0, tags: ["Starlink", "Active"] });
     expect(body.presets?.default).toMatchObject({ defaults: { tags: "Weather" } });

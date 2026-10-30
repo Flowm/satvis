@@ -81,6 +81,27 @@ describe("validatePresets", () => {
     expect(() => validatePresets([{ name: "default", defaults: { tags: "sar" }, groups: ["weather"] }], groups)).toThrow('default tag "sar"');
   });
 
+  it("gives a featured bookmark without a query an empty one", () => {
+    const featured = [
+      { name: "Weather", thumbnail: "showcase/weather-card.jpg" },
+      { name: "EO", thumbnail: "showcase/eo-card.jpg", query: { tags: "eo", scene: "2D" } },
+    ];
+    expect(validatePresets([{ name: "default", groups: ["weather"], featured }], groups)[0]!.featured).toEqual([
+      { name: "Weather", thumbnail: "showcase/weather-card.jpg", query: {} },
+      { name: "EO", thumbnail: "showcase/eo-card.jpg", query: { tags: "eo", scene: "2D" } },
+    ]);
+  });
+
+  // No name or picture, a value the url could not carry, a tag none of its groups carries.
+  it.each([
+    [{ thumbnail: "a.jpg" }, '"name" must be a non-empty string'],
+    [{ name: "A" }, '"thumbnail" must be a non-empty string'],
+    [{ name: "A", thumbnail: "a.jpg", query: { scene: 2 } }, '"scene" must be a string'],
+    [{ name: "A", thumbnail: "a.jpg", query: { tags: "eo,sar" } }, 'featured "A": tag "sar"'],
+  ])("refuses the featured bookmark %j", (entry, message) => {
+    expect(() => validatePresets([{ name: "default", groups: ["weather"], featured: [entry] }], groups)).toThrow(message);
+  });
+
   it("needs a default preset", () => {
     expect(() => validatePresets([{ name: "other", groups: ["weather"] }], groups)).toThrow('no "default" preset');
   });

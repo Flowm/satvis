@@ -39,7 +39,7 @@ variables they take. `make run` opens no simulator window; follow the app with
   fixed catalog with no worker to answer (`TestCatalog.swift`).
 - **`screenshots`** erases one simulator per App Store size, the default
   `iPhone 18 Pro` among them and an iPhone Duo closed and another open, and
-  shoots the Bookmarks sheet's demos on the live site
+  shoots the Bookmarks sheet's featured bookmarks on the live site
   (`scripts/screenshots.sh`). `SHOTS=2Sky` retakes one whose tiles had not
   loaded.
 - **`fold`** and **`unfold`** close and open an iPhone Duo simulator, which

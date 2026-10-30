@@ -6,7 +6,7 @@ import { clockMs, FIXTURE_TIME, openApp, waitForScene } from "../support/app";
 import { expect, test } from "../support/test";
 import { menuSwitch, openMenu, toasts } from "../support/ui";
 
-// The ISS demo's street map asks for hosts the fixture network cuts off.
+// The featured ISS bookmark's street map asks for hosts the fixture network cuts off.
 test.use({ viewport: { width: 1280, height: 800 }, allowConsoleErrors: /ERR_BLOCKED_BY_CLIENT/ });
 
 const LINK = "tags=Science&scene=2D&time=2026-10-05T11:00Z";
@@ -59,7 +59,7 @@ test("back to the default view, back to the link, and keep it", async ({ page })
   await expect(panel.getByRole("button", { name: "Default view" })).toBeDisabled();
 
   // Paused at the present, the url carries no `time` for a minute; Default view still sets the clock going.
-  await panel.getByRole("tab", { name: /Demos/ }).click();
+  await panel.getByRole("tab", { name: /Featured/ }).click();
   await cards.filter({ hasText: "Follow the ISS" }).getByRole("button").first().click();
   await expect(panel).toBeHidden();
   await expect.poll(() => new URL(page.url()).searchParams.get("track")).toBe("ISS (ZARYA)");
@@ -100,7 +100,7 @@ test("back to the default view, back to the link, and keep it", async ({ page })
   await expect(cards).toHaveCount(1);
 
   // A new scene is saved under a name drawn from it.
-  await panel.getByRole("tab", { name: /Demos/ }).click();
+  await panel.getByRole("tab", { name: /Featured/ }).click();
   await cards.filter({ hasText: "Follow the ISS" }).getByRole("button").first().click();
   await openMenu(page, "Bookmarks");
   await expect(save).toBeEnabled();
