@@ -41,6 +41,8 @@ struct FrameUniforms {
     float3 focusRelative;
     /// Its index, or -1.
     int focus;
+    /// In 2D, the longitude and latitude at the view's centre, in radians.
+    float2 mapCentre;
 };
 
 /// How a satellite at `position`, `relative` from the eye, is drawn in the sky

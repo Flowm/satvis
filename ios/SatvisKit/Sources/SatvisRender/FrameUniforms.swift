@@ -26,6 +26,9 @@ struct FrameUniforms {
     var focusRelative = SIMD3<Float>()
     /// Its index, or -1.
     var focus: Int32 = -1
+    /// In 2D, the longitude and latitude at the view's centre, in radians, which
+    /// the map is placed from.
+    var mapCentre = SIMD2<Float>()
 }
 
 /// A double split into two floats whose sum keeps most of its precision: the high

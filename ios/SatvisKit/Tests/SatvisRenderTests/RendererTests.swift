@@ -12,7 +12,8 @@ import simd
             "fullscreenVertex", "skyBoxFragment", "skyAtmosphereVertex", "skyAtmosphereFragment", "globeVertex", "globeFragment", "pointVertex", "pointFragment",
             "lineVertex", "lineFragment", "labelVertex", "labelFragment", "stationVertex", "stationFragment", "linkVertex", "linkFragment", "overlayVertex", "overlayFragment",
             "coneVertex", "coneFragment", "coneRimVertex", "coneRimFragment", "modelVertex", "modelFragment",
-            "modelOpaqueFragment", "tonemapFragment",
+            "modelOpaqueFragment", "tonemapFragment", "mapGlobeVertex", "mapGlobeFragment", "mapPointVertex", "mapLineVertex", "mapLabelVertex",
+            "fadeFragment",
         ] {
             #expect(libraries.precise.makeFunction(name: name) != nil && libraries.fast.makeFunction(name: name) != nil, "\(name)")
         }
@@ -64,7 +65,7 @@ import simd
 
     // Metal reads these as its own structs; a mismatch draws garbage silently.
     @Test func matchesTheShaderLayouts() {
-        #expect(MemoryLayout<FrameUniforms>.size == 292)
+        #expect(MemoryLayout<FrameUniforms>.size == 304)
         #expect(MemoryLayout<GlobeVertex>.stride == 48)
         #expect(MemoryLayout<PointInstance>.stride == 32)
         #expect(MemoryLayout<PointFrame>.stride == 12)

@@ -15,7 +15,7 @@ enum ShaderLibrary {
     /// The models' shaders and what they call, which the close-up compiles alone.
     /// In order: `Models` calls `Tonemap`.
     static let models = ["Common", "Tonemap", "Models"]
-    static let files = ["Common", "Sky", "Globe", "Surface", "Points", "Lines", "Labels", "Stations", "Footprints"] + models.dropFirst()
+    static let files = ["Common", "Sky", "Globe", "Surface", "Points", "Lines", "Labels", "Stations", "Footprints", "Map"] + models.dropFirst()
 
     /// The shaders compiled twice: safe math for the vertex functions that place a
     /// satellite, where fast math may regroup the high/low subtraction from the
@@ -71,7 +71,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     public var skyCamera: SkyCamera? { rig.skyCamera }
     /// A line's triangle strip, two vertices a point: `lineNodes` samples in
     /// Shaders/Lines.msl, and where the satellite is now between two of them.
-    private static let lineVertices = 2 * (121 + 1)
+    private static let lineVertices = 2 * (lineNodes + 1)
+    /// Samples a line runs through, the satellite's own place aside; mirrors
+    /// `lineNodes` in Shaders/Lines.msl.
+    static let lineNodes = 121
     /// Past this many satellites, where one orbit is no longer told from the next,
     /// a line small on the screen steps over samples (`lineStride` in
     /// Shaders/Lines.msl): with every active one's orbit on, an iPad mini drew
@@ -148,6 +151,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// A model's opaque parts, and its blended ones after every opaque one.
     private let modelPipelines: ModelPipelines
     private let coneRimPipeline: MTLRenderPipelineState
+    /// The flat map's own draws.
+    private let mapPass: MapPass
     private let overlay: GroundOverlay
     private let tonemapPipeline: MTLRenderPipelineState
     /// The tonemap as the scene pass's last draw, on a GPU that reads its own
@@ -205,6 +210,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Something drawn has changed since the last frame, which the next has to
     /// show whatever the pacing.
     private var needsDraw = true
+    /// The last frame of the other projection, fading out over the frames since
+    /// the change.
+    private var fade: ProjectionFade
     /// What the last frame was drawn from, which the next is skipped against
     /// (`mustDraw`).
     private var drawnFrom: (pose: CameraPose, time: Double, content: Int, pixelRate: Double, links: Range<Double>)?
@@ -339,6 +347,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         linkPipeline = try pipeline("linkVertex", "linkFragment", blend: true)
         overlayPipeline = try pipeline("overlayVertex", "overlayFragment", format: .r8Unorm, depth: false, blend: true, premultiplied: true)
         conePipeline = try pipeline("coneVertex", "coneFragment", blend: true)
+        mapPass = MapPass(
+            tiles: try pipeline("mapGlobeVertex", "mapGlobeFragment", fastVertex: true), points: try pipeline("mapPointVertex", "pointFragment", blend: true),
+            lines: try pipeline("mapLineVertex", "lineFragment", blend: true),
+            labels: try pipeline("mapLabelVertex", "labelFragment", blend: true, premultiplied: true))
+        fade = ProjectionFade(
+            pipeline: try pipeline("fullscreenVertex", "fadeFragment", format: view.colorPixelFormat, depth: false, blend: true, fastVertex: true))
         coneRimPipeline = try pipeline("coneRimVertex", "coneRimFragment", blend: true)
         guard let overlay = GroundOverlay(device: device) else {
             throw RendererError.noDevice
@@ -579,6 +593,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         rig.flyHome(animated: animated, uptime: ProcessInfo.processInfo.systemUptime, aspectRatio: lastAspectRatio)
     }
 
+    /// Draws the globe as a globe or as the flat map, keeping the place in sight.
+    /// `animated` fades the one into the other; without it, as reduced motion
+    /// asks, it cuts.
+    public func setProjection(_ projection: GlobeProjection, animated: Bool) {
+        rig.setProjection(projection, animated: animated, aspectRatio: lastAspectRatio ?? hdr.map { Double($0.width) / Double($0.height) })
+        needsDraw = true
+    }
+
     /// A drag of `points` on a view of `size` points: moves the free camera over
     /// the globe, circles what is followed, or turns the sky view.
     public func drag(by points: SIMD2<Double>, viewSize size: CGSize) {
@@ -687,9 +709,15 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     public func draw(in view: MTKView) {
         let interval = 1 / Double(max(1, view.preferredFramesPerSecond))
         drawables.setBehind((presentation.perFrame ?? 0) > interval)
+        // A change of projection that fades draws one frame more of the old one,
+        // and keeps it to fade from; one that does not shows the new at once.
+        let keepsFrame = rig.drawnProjection != rig.shownProjection && rig.fadesProjection && lastFrame != nil
+        if rig.drawnProjection != rig.shownProjection, !keepsFrame {
+            rig.showProjection()
+        }
         // A drawable can be read only from a view asked for readable ones, which
         // cannot keep them in tile memory: asked for one frame, and back after.
-        view.framebufferOnly = snapshotRequest == nil
+        view.framebufferOnly = snapshotRequest == nil && !keepsFrame
         guard rig.orbitCamera != nil, let hdr, let depth else {
             return
         }
@@ -722,6 +750,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         if tonemapTilePipeline == nil {
             encodeTonemapPass(commands, screen: target.screen, hdr: hdr)
         }
+        if keepsFrame {
+            keepFrame(target.drawable.texture, commands: commands, at: shown)
+        } else {
+            encodeFade(onto: target.drawable.texture, commands: commands, at: shown)
+        }
         encodeSnapshot(of: target.drawable, into: commands)
         let committed = ProcessInfo.processInfo.systemUptime
         let cpu = committed - started - target.waitedForBuffer - target.waitedForDrawable
@@ -752,7 +785,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         // Calls stop while the app is in the background, which may drop the picture.
         let resumed = uptime - lastDrawCall > 0.5
         lastDrawCall = uptime
-        let paced = (!measuresFrames || recordsIdle) && snapshotRequest == nil && cameraMode == .orbit
+        let paced =
+            (!measuresFrames || recordsIdle) && snapshotRequest == nil && cameraMode == .orbit && !fade.isFading && rig.drawnProjection == rig.shownProjection
         if paced, !needsDraw, !resumed, surface.isSettled, let drawnFrom, drawnFrom.pose == pose, drawnFrom.content == contentRevision,
             RenderPacing.stands(abs(time - drawnFrom.time) / 1000, pixelRate: drawnFrom.pixelRate), drawnFrom.links.contains(time)
         {
@@ -791,6 +825,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// it is, or its orbit's lines where their nodes are, and its ground station
     /// links, which move no faster than it does, where they pass nearest.
     private func pixelRate(pose: CameraPose, time: Double, size: SIMD2<Double>) -> Double {
+        if let map = pose.mapCamera {
+            let lines = components.contains(.orbit) || components.contains(.orbitTrack)
+            return RenderPacing.mapPixelRate(
+                points.prepared?.motions ?? [], lines: lines, pixelsPerMetre: max(size.x, size.y) / map.span,
+                latitude: { self.points.satellites[$0].trajectory.position(at: time).map { geodeticPosition($0).latitude } })
+        }
         let (satellites, motions, camera) = (points.satellites, points.prepared?.motions ?? [], pose.position)
         let (orbit, track) = (components.contains(.orbit), components.contains(.orbitTrack))
         var stations: [String: [SIMD3<Double>]] = [:]
@@ -909,7 +949,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         overlay.encode(commands, pipeline: overlayPipeline, satellites: points.satellites, at: now, enabled: components.contains(.groundTrack), device: device)
         var surfaceTiles: [Surface.Tile] = []
-        if let imagery {
+        if let imagery, let map = pose.mapCamera {
+            let selection = surface.selectMap(map, viewportPixels: size)
+            let drawn = Set(selection.draw.map(\.key))
+            let bakes = selection.bake.filter { drawn.contains($0.key) } + selection.bake.filter { !drawn.contains($0.key) }
+            surface.encodeBakes(bakes, base: imagery, commands: commands)
+            surfaceTiles = selection.draw.filter { $0.texture != nil }
+        } else if let imagery {
             let selection = surface.select(
                 eye: pose.position, viewProjection: drawnFrame.viewProjection, viewportHeightPixels: size.y,
                 verticalFieldOfView: pose.verticalFieldOfView(aspectRatio: size.x / size.y), pixelsPerPoint: pixelScale)
@@ -949,6 +995,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         encoder.setVertexBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
         encoder.setFragmentBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
 
+        if let map = plan.pose.mapCamera {
+            drawMap(encoder, plan, map: map)
+            encoder.endEncoding()
+            return
+        }
         drawGlobe(encoder, tiles: plan.surfaceTiles, eye: plan.pose.position, showsCamera: showsCamera)
         drawModels(encoder, plan.placements, frame: plan.uniforms, viewProjection: plan.drawn.viewProjection, blended: false)
         // Behind the globe and the models, drawn after them so that only the
@@ -962,6 +1013,30 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         drawSatellites(encoder, now: plan.drawn.time, placements: plan.placements)
         drawTileTonemap(encoder)
         encoder.endEncoding()
+    }
+
+    /// The 2D scene: the map, the models over it, the stations, the satellites'
+    /// lines, points and names. No stars, atmosphere or sensor cones, as the web
+    /// app's 2D draws none. The map writes no depth; the models and what is drawn
+    /// at a satellite's height test it, each against the others.
+    private func drawMap(_ encoder: MTLRenderCommandEncoder, _ plan: FramePlan, map: MapCamera) {
+        mapPass.drawTiles(
+            encoder, plan.surfaceTiles, map: map, aspectRatio: plan.drawn.size.x / plan.drawn.size.y, surface: surface, overlay: overlay,
+            sampler: tileSampler, depth: noDepth)
+        drawModels(encoder, plan.placements, frame: plan.uniforms, viewProjection: plan.drawn.viewProjection, blended: false)
+        drawModels(encoder, plan.placements, frame: plan.uniforms, viewProjection: plan.drawn.viewProjection, blended: true)
+        drawStations(encoder, eye: plan.pose.position, now: plan.drawn.time, map: map)
+        if let samples = points.prepared?.samples, let instances = points.prepared?.instances,
+            let states = pointFrames(at: plan.drawn.time, models: plan.placements)
+        {
+            encoder.setVertexBuffer(samples, offset: 0, index: 0)
+            encoder.setVertexBuffer(instances, offset: 0, index: 2)
+            encoder.setVertexBuffer(states, offset: 0, index: 3)
+            mapPass.drawSatellites(
+                encoder, count: points.count, components: components, labels: points.prepared?.labels,
+                stepsLines: points.count > Self.lineLevelOfDetailSatellites, depthTest: depthTest, noDepth: noDepth)
+        }
+        drawTileTonemap(encoder)
     }
 
     /// The globe's tiles, each placed by its centre from the eye, writing depth.
@@ -1086,6 +1161,21 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         encoder.endEncoding()
     }
 
+    /// Keeps the frame just drawn, the last of the old projection, to fade from,
+    /// and draws the new one from the next frame on.
+    private func keepFrame(_ drawable: MTLTexture, commands: MTLCommandBuffer, at uptime: Double) {
+        rig.showProjection()
+        needsDraw = true
+        fade.keep(drawable, commands: commands, device: device, at: uptime)
+    }
+
+    /// The kept frame over the screen, fading out.
+    private func encodeFade(onto screen: MTLTexture, commands: MTLCommandBuffer, at uptime: Double) {
+        if fade.encode(onto: screen, commands: commands, at: uptime) {
+            needsDraw = true
+        }
+    }
+
     /// A copy of the drawable for the picture asked for, where it can be read.
     private func encodeSnapshot(of drawable: CAMetalDrawable, into commands: MTLCommandBuffer) {
         // Taken off as it is queued: the frames already in flight would copy it again.
@@ -1107,8 +1197,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private struct ModelPlacement {
         var index: Int
         var model: PreparedModel
-        /// The model's frame to the eye's, scaled: metres from the eye.
+        /// The model's frame to the eye's, scaled: metres from the eye. On the map,
+        /// to the map's east, north and up from the view's centre.
         var toEye: simd_double4x4
+        /// The same in the fixed frame, which the sun lights it in: on the map,
+        /// seen from straight above (`MapCamera.lighting`).
+        var lightingToEye: simd_double4x4
         var rotation: simd_float3x3
         /// How wide its bounding sphere is drawn, in points.
         var points: Double
@@ -1130,8 +1224,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         let aspectRatio = size.x / size.y
         let heightPoints = size.y / pixelScale
+        let longerPoints = max(size.x, size.y) / pixelScale
         let tangent = tan(pose.verticalFieldOfView(aspectRatio: aspectRatio) / 2)
-        let homeMetresPerPoint = 2 * OrbitCamera.home(aspectRatio: aspectRatio).radius * tangent / heightPoints
+        // On the map, no larger than at the zoom-out limit, the whole map across.
+        let homeMetresPerPoint =
+            pose.mapCamera != nil
+            ? MapCamera.maximumSpan(aspectRatio: aspectRatio) / longerPoints : 2 * OrbitCamera.home(aspectRatio: aspectRatio).radius * tangent / heightPoints
         return prepared.modelled.compactMap { index in
             let satellite = prepared.satellites[index]
             guard let satelliteModel = satellite.model, let position = satellite.trajectory.position(at: now),
@@ -1139,7 +1237,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             else {
                 return nil
             }
-            let metresPerPoint = 2 * simd.distance(position, pose.position) * tangent / heightPoints
+            let metresPerPoint = pose.mapCamera.map { $0.span / longerPoints } ?? 2 * simd.distance(position, pose.position) * tangent / heightPoints
             // How large the model is drawn: its scale, and its bounding sphere's diameter in points.
             func size(of model: PreparedModel) -> (scale: Double, points: Double) {
                 let diameter = 2 * Double(model.radius)
@@ -1169,11 +1267,19 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             let port = normalize(cross(surfaceUp, forward))
             let up = cross(forward, port)
             let (scale, drawnPoints) = size(of: model)
-            return ModelPlacement(
-                index: index, model: model,
-                toEye: simd_double4x4(columns: (SIMD4(port * scale, 0), SIMD4(up * scale, 0), SIMD4(forward * scale, 0), SIMD4(position - pose.position, 1))),
+            let axes = simd_double3x3(columns: (port, up, forward))
+            let toEye = modelFrame(axes, scale: scale, from: position - pose.position)
+            var placement = ModelPlacement(
+                index: index, model: model, toEye: toEye, lightingToEye: toEye,
                 rotation: simd_float3x3(columns: (SIMD3<Float>(port), SIMD3<Float>(up), SIMD3<Float>(forward))),
                 points: drawnPoints, opacity: Float(opacity))
+            if let map = pose.mapCamera {
+                // On the map, east, north and up from where it is, seen from
+                // straight above, as CesiumJS draws a model in 2D.
+                placement.toEye = map.placement(of: axes, at: position, scale: scale)
+                placement.lightingToEye = MapCamera.lighting(of: axes, at: position, scale: scale)
+            }
+            return placement
         }
     }
 
@@ -1211,7 +1317,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         for placement in placements {
             let base = ModelInstance(
                 modelViewProjection: float4x4(viewProjection * placement.toEye), rotation: placement.rotation,
-                modelToEye: float4x4(placement.toEye), baseColor: .one, sunDirection: frame.sunDirection, hasTexture: 0, metallic: 0,
+                modelToEye: float4x4(placement.lightingToEye), baseColor: .one, sunDirection: frame.sunDirection, hasTexture: 0, metallic: 0,
                 roughness: 0, alphaCutoff: 0, opacity: placement.opacity)
             placement.model.encodeParts(blended: blended, wholeBlended: placement.opacity < 1, base: base, encoder: encoder)
         }
@@ -1229,14 +1335,24 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// The links of the passes under way, then the pins of the stations facing
     /// the eye. Few enough to go in with the draw call.
-    private func drawStations(_ encoder: MTLRenderCommandEncoder, eye: SIMD3<Double>, now: Double) {
+    /// On the map (`map`), each is placed on it from the view's centre, and a
+    /// link runs straight the shorter way round, from its station.
+    private func drawStations(_ encoder: MTLRenderCommandEncoder, eye: SIMD3<Double>, now: Double, map: MapCamera? = nil) {
         func relative(_ position: SIMD3<Double>) -> (Float, Float, Float) {
-            let offset = position - eye
+            let offset = map.map { $0.offset(of: position) } ?? position - eye
             return (Float(offset.x), Float(offset.y), Float(offset.z))
+        }
+        func placed(from station: SIMD3<Double>, to satellite: SIMD3<Double>) -> LinkInstance {
+            guard let map else {
+                return LinkInstance(satellite: relative(satellite), station: relative(station))
+            }
+            let (from, to) = (map.offset(of: station), map.offset(of: satellite))
+            let east = to.x - MapCamera.mapWidth * ((to.x - from.x) / MapCamera.mapWidth).rounded()
+            return LinkInstance(satellite: (Float(east), Float(to.y), Float(to.z)), station: (Float(from.x), Float(from.y), Float(from.z)))
         }
         if components.contains(.groundStationLink) {
             let instances = links.filter { $0.start <= now && now <= $0.end }.compactMap { link in
-                points.position(of: link.satellite, at: now).map { LinkInstance(satellite: relative($0), station: relative(link.station)) }
+                points.position(of: link.satellite, at: now).map { placed(from: link.station, to: $0) }
             }.prefix(Self.maximumInlineInstances)
             if !instances.isEmpty {
                 encoder.setRenderPipelineState(linkPipeline)
@@ -1246,8 +1362,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: instances.count)
             }
         }
-        let pins = stations.filter { isAboveHorizon($0.position, from: eye) }.prefix(Self.maximumInlineInstances).map {
-            StationInstance(position: relative($0.position), distance: Float(simd.distance($0.position, eye)))
+        // On the map, at the size they have on the globe seen from as high.
+        let pins = stations.filter { map != nil || isAboveHorizon($0.position, from: eye) }.prefix(Self.maximumInlineInstances).map {
+            StationInstance(position: relative($0.position), distance: Float(map != nil ? heightAboveEllipsoid(eye) : simd.distance($0.position, eye)))
         }
         if let pin, !pins.isEmpty {
             encoder.setRenderPipelineState(stationPipeline)
@@ -1309,11 +1426,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             sunDirection: SIMD3<Float>(Sun.directionFixed(epochMilliseconds: now)),
             viewportSize: SIMD2<Float>(size),
             eyeHeight: Float(pose.eyeHeight),
-            cameraDistance: Float(length(position)),
+            // On the map, CesiumJS's camera distance in 2D, which the lighting fades by.
+            cameraDistance: Float(pose.mapCamera?.lightingDistance ?? length(position)),
             pointSize: Float(6 * pixelScale),
             pixelScale: Float(pixelScale),
             unseenOpacity: judgement?.uniforms.unseenOpacity ?? 1,
-            skyIsDark: judgement?.uniforms.skyIsDark ?? 0)
+            skyIsDark: judgement?.uniforms.skyIsDark ?? 0,
+            mapCentre: pose.mapCamera.map { SIMD2<Float>(Float($0.longitude), Float($0.latitude)) } ?? SIMD2())
     }
 }
 

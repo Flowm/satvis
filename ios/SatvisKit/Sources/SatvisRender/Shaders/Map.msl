@@ -1,0 +1,247 @@
+// The map's shading (`mapGlobeFragment`) is ported from CesiumJS
+// (Shaders/GlobeFS.glsl, its 2D branch) with Scene/Globe.js's defaults.
+// Copyright 2011-2024 CesiumJS Contributors. Licensed under the Apache License,
+// Version 2.0, with the third-party notices it carries: LICENSE.CesiumJS.md
+// beside this file. Changed for satvis: translated from GLSL to the Metal
+// Shading Language, reduced to the lighting the web app's settings take in 2D,
+// with no ground atmosphere, and fed by FrameUniforms instead of Cesium's
+// automatic uniforms.
+//
+// The flat map, the web app's 2D (MapCamera.swift): CesiumJS's SCENE2D in its
+// geographic projection, x = a·longitude and y = a·latitude, seen straight down.
+// A 2D vertex function beside each 3D one, which it leaves as it is: positions
+// are metres east, north and up of the view's centre, the copy of the map nearest
+// it, as the map repeats east and west every `mapWidth`. The viewProjection is
+// then orthographic, the ground at depth ½.
+//
+// Not drawn: the stars and the atmospheres, as CesiumJS draws neither in 2D, and
+// the sensor cones, which the web app's 2D shows none of.
+
+constant float mapRadius = ellipsoidRadii.x;
+constant float mapWidth = 2.0 * M_PI_F * ellipsoidRadii.x;
+
+/// Longitude east of the view's centre, wrapped to the copy nearest it, in radians.
+inline float mapEast(float3 p, constant FrameUniforms &frame) {
+    float east = atan2(p.y, p.x) - frame.mapCentre.x;
+    return east - 2.0 * M_PI_F * floor((east + M_PI_F) / (2.0 * M_PI_F));
+}
+
+/// Where a point in the fixed frame lies on the map: metres east and north of the
+/// view's centre and metres above the ellipsoid. Bowring's formula, as
+/// `geodeticPosition` in MapCamera.swift, where CesiumJS's 2D places a satellite.
+inline float3 mapPosition(float3 p, constant FrameUniforms &frame) {
+    const float a = ellipsoidRadii.x;
+    const float b = ellipsoidRadii.z;
+    // WGS84's eccentricities squared, from its radii in double precision:
+    // worked out here in float, they would move a latitude by some 0.4 m.
+    const float e2 = 6.69437999014e-3;
+    const float ep2 = 6.73949674228e-3;
+    float horizontal = length(p.xy);
+    float theta = atan2(p.z * a, horizontal * b);
+    float s = sin(theta), c = cos(theta);
+    float latitude = atan2(p.z + ep2 * b * s * s * s, horizontal - e2 * a * c * c * c);
+    float sinLatitude = sin(latitude);
+    float height = horizontal * cos(latitude) + p.z * sinLatitude - a * sqrt(1.0 - e2 * sinLatitude * sinLatitude);
+    return float3(mapEast(p, frame) * mapRadius, (latitude - frame.mapCentre.y) * mapRadius, height);
+}
+
+// Mirrors MapTile in MapPass.swift: a tile's north-west corner from the
+// view's centre and its size, in metres of the map, worked out in double
+// precision on the CPU, and its centre in the fixed frame, for directions.
+struct MapTile {
+    float2 corner;
+    float2 size;
+    float3 centre;
+};
+
+// What a tile's vertex hands its fragments: where it is in the fixed frame, by
+// which the ground tracks are looked up, its normal, which the sun lights, and
+// its texture coordinates.
+struct MapGlobeOut {
+    float4 position [[position]];
+    float3 positionWC;
+    float3 normal;
+    float2 uv;
+};
+
+/// A geographic tile laid flat: its texture coordinates run with longitude and
+/// latitude, so they place its vertices on the map. Its skirt falls on its edges.
+vertex MapGlobeOut mapGlobeVertex(uint vid [[vertex_id]], const device GlobeVertex *vertices [[buffer(0)]], constant FrameUniforms &frame [[buffer(1)]],
+                                  constant MapTile &tile [[buffer(2)]]) {
+    GlobeVertex v = vertices[vid];
+    MapGlobeOut out;
+    float2 place = tile.corner + float2(v.uv.x, -v.uv.y) * tile.size;
+    out.position = frame.viewProjection * float4(place, 0.0, 1.0);
+    out.positionWC = tile.centre + v.offset;
+    out.normal = v.normal;
+    out.uv = v.uv;
+    return out;
+}
+
+/// The imagery lit by the Sun, as GlobeFS.glsl shades it in 2D: no ground
+/// atmosphere, and the lighting faded by half the view's larger extent, its
+/// distances less the largest radius. Then the ground tracks, as on the globe.
+fragment float4 mapGlobeFragment(MapGlobeOut in [[stage_in]], constant FrameUniforms &frame [[buffer(1)]], texture2d<float> imagery [[texture(0)]],
+                                 texturecube<float> overlay [[texture(1)]], sampler imagerySampler [[sampler(0)]],
+                                 constant int &overlayShown [[buffer(2)]]) {
+    float3 color = gammaCorrect(imagery.sample(imagerySampler, in.uv).rgb);
+    float fadeOut = lightingFadeOutDistance - ellipsoidRadii.x;
+    float fadeIn = lightingFadeInDistance - ellipsoidRadii.x;
+    float fade = clamp((frame.cameraDistance - fadeOut) / (fadeIn - fadeOut), 0.0, 1.0);
+    float diffuseIntensity = clamp(max(dot(frame.sunDirection, normalize(in.normal)), 0.0) * 5.0 + 0.3, 0.0, 1.0);
+    float3 result = color * mix(1.0, diffuseIntensity, fade);
+    if (overlayShown != 0) {
+        float coverage = overlay.sample(imagerySampler, normalize(in.positionWC)).r;
+        result = mix(result, gammaCorrect(float3(139.0 / 255.0, 0.0, 0.0)), coverage);
+    }
+    return float4(result, 1.0);
+}
+
+/// Satellites as points over the place under them.
+vertex PointOut mapPointVertex(uint iid [[vertex_id]], const device packed_float3 *samples [[buffer(0)]], constant FrameUniforms &frame [[buffer(1)]],
+                               const device PointInstance *instances [[buffer(2)]], const device PointFrame *frames [[buffer(3)]]) {
+    PointOut out;
+    out.color = instances[iid].color;
+    out.size = frame.pointSize;
+    float3 position;
+    if (!satellitePosition(iid, samples, instances, frames, position) || frames[iid].modelPoints >= modelMarkerPoints) {
+        out.position = float4(0.0, 0.0, -2.0, 1.0);
+        out.size = 0.0;
+        return out;
+    }
+    out.position = frame.viewProjection * float4(mapPosition(position, frame), 1.0);
+    return out;
+}
+
+/// Names beside their points, as on the globe, but at any height: CesiumJS's 2D
+/// camera has no distance to fade them by.
+vertex LabelOut mapLabelVertex(uint vid [[vertex_id]], uint iid [[instance_id]], const device packed_float3 *samples [[buffer(0)]],
+                               constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
+                               const device PointFrame *frames [[buffer(3)]], const device LabelInstance *labels [[buffer(4)]]) {
+    LabelInstance label = labels[iid];
+    LabelOut out;
+    out.position = float4(0.0, 0.0, -2.0, 1.0);
+    out.alpha = 0.0;
+    out.uv = float2(0.0);
+    float3 position;
+    if (!satellitePosition(label.satellite, samples, instances, frames, position)) {
+        return out;
+    }
+    float4 clip = frame.viewProjection * float4(mapPosition(position, frame), 1.0);
+    float2 corner = float2(vid & 1, vid >> 1);
+    float gap = max(10.0, frames[label.satellite].modelPoints / 2.0 + 4.0);
+    float2 offset = float2(gap + corner.x * label.size.x, (0.5 - corner.y) * label.size.y) * frame.pixelScale;
+    clip.xy += offset * 2.0 / frame.viewportSize * clip.w;
+    out.position = clip;
+    out.uv = mix(label.uvRect.xy, label.uvRect.zw, corner);
+    out.alpha = 1.0;
+    return out;
+}
+
+/// `lineStride` on the map, where an orbit's arc is the Earth's radius across at
+/// the map's scale, whatever the satellite's height.
+inline int mapLineStride(constant FrameUniforms &frame) {
+    float yScale = length(float3(frame.viewProjection[0][1], frame.viewProjection[1][1], frame.viewProjection[2][1]));
+    float pixels = mapRadius * yScale * 0.5 * frame.viewportSize.y;
+    int stride = maximumLineStride;
+    while (stride > 1) {
+        float halfArc = M_PI_F * float(stride) / float(lineNodes - 1);
+        if (pixels * 0.5 * halfArc * halfArc <= maximumSagPixels) {
+            break;
+        }
+        stride /= 2;
+    }
+    return stride;
+}
+
+/// The two triangles of a segment's quad, as its ends (bit 1) and sides (bit 0).
+constant uint quadCorners[6] = {0, 1, 2, 2, 1, 3};
+
+/// The orbit and orbit track on the map, as the web app's 2D draws them, CesiumJS
+/// paths: where the satellite is at each instant over the turning Earth, half a
+/// period either side of now for the orbit, a period ahead for the track. The
+/// orbit is not held still in inertial space, as on the globe: on the map that
+/// ring would leave the satellite's own path, and a GEO satellite's would cross
+/// the whole map where the web app draws its small figure of eight. So it is
+/// neither turned nor closed into a loop (`linePoint` in Lines.msl, as the
+/// track). Each segment is a quad of its own, both its ends
+/// placed from the copy of the map its first end is in, so a segment over the
+/// antimeridian is drawn whole and is not stretched across the map; past the
+/// view's edge, its second quad draws it again a map's width over, for the far
+/// edge. 12 vertices a segment: `lineNodes` segments at most.
+vertex LineOut mapLineVertex(uint vid [[vertex_id]], uint satellite [[instance_id]], const device packed_float3 *samples [[buffer(0)]],
+                             constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
+                             const device PointFrame *frames [[buffer(3)]], constant int &kind [[buffer(5)]], constant int &stepsLines [[buffer(6)]]) {
+    LineOut out;
+    out.across = 0.0;
+    out.position = float4(0.0, 0.0, -2.0, 1.0);
+    PointInstance instance = instances[satellite];
+    PointFrame state = frames[satellite];
+    if (state.offset < 0.0) {
+        return out;
+    }
+    int current = int(state.stencilStart) + 2;
+    int first = current - (kind == 0 ? (lineNodes - 1) / 2 : 0);
+    int stride = stepsLines != 0 && instance.mayStep != 0 ? mapLineStride(frame) : 1;
+    int points = (lineNodes - 1) / stride + 2;
+    int segment = int(vid / 12);
+    bool wrappedCopy = (vid / 6) % 2 == 1;
+    if (segment >= points - 1) {
+        return out;
+    }
+    float nowNode = float(state.stencilStart) + state.offset;
+    // Placed as the track's nodes are.
+    const int trackKind = 1;
+    const float3 drift = float3(0.0);
+    // Where the satellite is now, only for the segments either side of it.
+    int before = (current - first) / stride;
+    float3 now = float3(0.0), nowRelative = float3(0.0);
+    if ((segment == before || segment == before + 1) && !satellitePosition(satellite, samples, instances, frames, frame, now, nowRelative)) {
+        return out;
+    }
+    // linePoint's places from the eye, which the map does not use.
+    float3 a, b, fromEye;
+    linePoint(segment, stride, trackKind, first, current, nowNode, instance, samples, drift, now, nowRelative, frame, a, fromEye);
+    linePoint(segment + 1, stride, trackKind, first, current, nowNode, instance, samples, drift, now, nowRelative, frame, b, fromEye);
+    // NaN is a node SGP4 refused (SampledTrajectory): the line stops there.
+    if (any(isnan(a)) || any(isnan(b))) {
+        return out;
+    }
+    // Which copy, by the longitudes alone, before the latitudes are worked out.
+    float eastA = mapEast(a, frame) * mapRadius;
+    float eastB = mapEast(b, frame) * mapRadius;
+    float unwrap = -mapWidth * round((eastB - eastA) / mapWidth);
+    float shift = 0.0;
+    if (wrappedCopy) {
+        float halfMap = 0.5 * mapWidth;
+        shift = max(eastA, eastB + unwrap) > halfMap ? -mapWidth : (min(eastA, eastB + unwrap) < -halfMap ? mapWidth : 0.0);
+        if (shift == 0.0) {
+            return out;
+        }
+    }
+    float3 mapA = mapPosition(a, frame);
+    float3 mapB = mapPosition(b, frame);
+    mapA.x += shift;
+    mapB.x += unwrap + shift;
+    float4 clipA = frame.viewProjection * float4(mapA, 1.0);
+    float4 clipB = frame.viewProjection * float4(mapB, 1.0);
+    float2 toScreen = frame.viewportSize * 0.5;
+    float2 direction = (clipB.xy - clipA.xy) * toScreen;
+    direction = length(direction) > 0.0 ? normalize(direction) : float2(1.0, 0.0);
+    float2 normal = float2(-direction.y, direction.x);
+    uint corner = quadCorners[vid % 6];
+    float4 clip = (corner >> 1) ? clipB : clipA;
+    float side = (corner & 1) ? 1.0 : -1.0;
+    float halfWidth = 0.5 * frame.pixelScale + 0.5;
+    clip.xy += normal * side * halfWidth / toScreen * clip.w;
+    out.position = clip;
+    out.across = side * halfWidth;
+    return out;
+}
+
+/// The last frame of the other projection over the new one, fading out
+/// (`GlobeRenderer.fade`).
+fragment float4 fadeFragment(FullscreenOut in [[stage_in]], texture2d<float> last [[texture(0)]], constant float &opacity [[buffer(0)]]) {
+    constexpr sampler nearest(filter::nearest);
+    return float4(last.sample(nearest, in.uv).rgb, opacity);
+}

@@ -60,6 +60,23 @@ struct CameraRig {
     private static let homeFlightDuration = 1.5
     /// The pose of the last frame, which a flight sets off from.
     private var lastPose: CameraPose?
+    /// The projection asked for. The sky view is drawn in 3D whatever it is, and
+    /// goes back to it.
+    private(set) var projection = GlobeProjection.threeD
+    /// The projection the frames are drawn in. It follows `shownProjection` once
+    /// the renderer has kept the last frame drawn in the other, to fade from
+    /// (`showProjection`).
+    private(set) var drawnProjection = GlobeProjection.threeD
+    /// Whether the change to `shownProjection` under way fades: what the gesture
+    /// that made it asked for.
+    private(set) var fadesProjection = false
+    /// The free camera over the map; nil until 2D is first drawn.
+    private(set) var mapCamera: MapCamera?
+    /// How the map frames what it follows, kept apart from the free map camera
+    /// as the 3D tracking camera is from the free one.
+    private var trackingMap: TrackedMap?
+    /// The flight on the map, home or into or out of tracking, while one is under way.
+    private var mapFlight: MapFlight?
     /// What the free camera holds still in. Tracking keeps the satellite's own
     /// frame, and the sky view the observer's, so it waits while either is up:
     /// the free camera does not turn meanwhile.
@@ -86,6 +103,56 @@ struct CameraRig {
         cameraMode == .sky && skyFlight == nil
     }
 
+    /// The projection the frames should be drawn in: 3D for the sky view and its
+    /// flights, else the one asked for.
+    var shownProjection: GlobeProjection {
+        cameraMode == .sky || skyFlight != nil ? .threeD : projection
+    }
+
+    /// Draws the frames in `shownProjection` from now on, once the renderer has
+    /// kept a frame of the other to fade from, or does without one.
+    mutating func showProjection() {
+        drawnProjection = shownProjection
+    }
+
+    /// Shows the globe as a globe or as the flat map, keeping the place in sight on
+    /// a view of `aspectRatio`, nil before a frame is drawn. `animated` fades from
+    /// one to the other. In the sky view, the projection it goes back to.
+    mutating func setProjection(_ projection: GlobeProjection, animated: Bool, aspectRatio: Double?) {
+        guard projection != self.projection else {
+            return
+        }
+        self.projection = projection
+        fadesProjection = animated
+        homeFlight = nil
+        poseFlight = nil
+        mapFlight = nil
+        guard let aspectRatio else {
+            return
+        }
+        // From the sky view, the globe camera is where the flight out lands.
+        // What is followed keeps its own scale: the tracking camera's range is
+        // the scale at the target, as a globe camera's altitude is under it.
+        let tracking = if case .tracking = cameraMode { true } else { false }
+        switch projection {
+        case .twoD:
+            if let orbitCamera {
+                mapCamera = MapCamera.matching(orbitCamera, aspectRatio: aspectRatio)
+            }
+            if tracking, let mapCamera {
+                trackingMap = TrackedMap(span: MapCamera.span(atAltitude: trackingCamera.range), heading: mapCamera.heading)
+            }
+        case .threeD:
+            if cameraMode != .sky, skyFlight == nil, let mapCamera {
+                orbitCamera = mapCamera.globe(aspectRatio: aspectRatio)
+            }
+            if tracking, let trackingMap {
+                trackingCamera.range = MapCamera.altitude(spanning: trackingMap.span)
+                framingModel = nil
+            }
+        }
+    }
+
     /// The home view, the first time the view has a size.
     mutating func openHome(aspectRatio: Double) {
         if orbitCamera == nil {
@@ -99,6 +166,13 @@ struct CameraRig {
     mutating func enterSky(_ camera: SkyCamera, animated: Bool, uptime now: Double, aspectRatio: Double?) {
         // From wherever a flight into or out of tracking has got to.
         poseFlight = nil
+        mapFlight = nil
+        fadesProjection = animated
+        // From the map, the way back flies to the globe over it, which then gives
+        // way to the map.
+        if cameraMode != .sky, projection == .twoD, let mapCamera, let aspectRatio {
+            orbitCamera = mapCamera.globe(aspectRatio: aspectRatio)
+        }
         if var flight = skyFlight, !flight.entering {
             // Turned around on the way out: carry on from where the camera is.
             flight.reverse(at: now)
@@ -115,6 +189,7 @@ struct CameraRig {
 
     /// Back to the globe camera, by the flight in played backwards.
     mutating func leaveSky(animated: Bool, uptime now: Double, aspectRatio: Double?) {
+        fadesProjection = animated
         if var flight = skyFlight, flight.entering {
             flight.reverse(at: now)
             skyFlight = flight
@@ -160,6 +235,8 @@ struct CameraRig {
         startPoseFlight(animated, uptime: uptime)
         cameraMode = .tracking(id)
         trackingCamera = TrackingCamera()
+        // On the map, at the scale on screen; on the globe, set when 2D is chosen.
+        trackingMap = drawnProjection == .twoD ? lastPose?.mapCamera.map(TrackedMap.init) : nil
         framingModel = id
         frameModel(model)
     }
@@ -197,6 +274,7 @@ struct CameraRig {
     /// From the pose last drawn, which may be partway through another flight.
     private mutating func startPoseFlight(_ animated: Bool, uptime: Double) {
         poseFlight = animated ? lastPose.map { PoseFlight(from: $0, start: uptime) } : nil
+        flyMap(animated, uptime: uptime, duration: PoseFlight.duration)
     }
 
     /// Back to where the app opens on a view of `aspectRatio`, nil before a frame
@@ -207,6 +285,11 @@ struct CameraRig {
             return
         }
         stopTracking(animated: animated, uptime: uptime)
+        if drawnProjection == .twoD {
+            flyMap(animated, uptime: uptime, duration: Self.homeFlightDuration)
+            mapCamera = MapCamera.home(aspectRatio: aspectRatio)
+            return
+        }
         let home = OrbitCamera.home(aspectRatio: aspectRatio)
         if poseFlight != nil {
             // Already flying out of tracking: on to home instead.
@@ -222,6 +305,9 @@ struct CameraRig {
     /// the globe, circles what is followed, or turns the sky view.
     mutating func drag(by points: SIMD2<Double>, viewSize size: CGSize) {
         let longerSide = Double(max(size.width, size.height))
+        if steerMap(movesCentre: true, { $0.pan(by: points, longerSide: longerSide) }) {
+            return
+        }
         switch cameraMode {
         case .orbit:
             homeFlight = nil
@@ -236,6 +322,9 @@ struct CameraRig {
 
     /// A pinch: nearer for a scale above 1.
     mutating func zoom(by scale: Double) {
+        if steerMap({ $0.zoom(by: scale) }) {
+            return
+        }
         switch cameraMode {
         case .orbit:
             homeFlight = nil
@@ -250,6 +339,9 @@ struct CameraRig {
 
     /// A twist, in radians.
     mutating func rotate(by radians: Double) {
+        if steerMap({ $0.rotate(by: radians) }) {
+            return
+        }
         switch cameraMode {
         case .orbit:
             homeFlight = nil
@@ -260,6 +352,75 @@ struct CameraRig {
         // Only the device's attitude rolls the sky view.
         case .sky: break
         }
+    }
+
+    /// A gesture on the map, while it is drawn: `change` made to the free map
+    /// camera, or to the span and heading of the map that follows something,
+    /// which holds what it follows in the middle and so ignores one that
+    /// `movesCentre`. False off the map, for the globe's cameras to take it.
+    private mutating func steerMap(movesCentre: Bool = false, _ change: (inout MapCamera) -> Void) -> Bool {
+        guard drawnProjection == .twoD else {
+            return false
+        }
+        switch cameraMode {
+        case .orbit:
+            landMapFlight()
+            if var map = mapCamera {
+                change(&map)
+                mapCamera = map
+            }
+        case .tracking:
+            if !movesCentre, var map = lastPose?.mapCamera {
+                change(&map)
+                trackingMap = TrackedMap(map)
+            }
+        case .sky:
+            return false
+        }
+        return true
+    }
+
+    /// From the map last drawn, which may be partway through another flight, for
+    /// `duration` seconds; none where not `animated`.
+    private mutating func flyMap(_ animated: Bool, uptime: Double, duration: Double) {
+        mapFlight = animated ? lastPose?.mapCamera.map { MapFlight(from: $0, start: uptime, duration: duration) } : nil
+    }
+
+    /// Calls off a flight on the map where it has got to, for a gesture to carry
+    /// on from there.
+    private mutating func landMapFlight() {
+        if mapFlight != nil, let map = lastPose?.mapCamera {
+            mapCamera = map
+        }
+        mapFlight = nil
+    }
+
+    /// The map camera a frame is drawn from, as the free one or around what is
+    /// followed, partway through any flight on the map, on a view of
+    /// `aspectRatio`; `target` is where what has an id is.
+    private mutating func mapPose(uptime: Double, aspectRatio: Double, target: (String) -> SIMD3<Double>?) -> CameraPose {
+        var map = mapCamera ?? MapCamera.home(aspectRatio: aspectRatio)
+        map.clamp(aspectRatio: aspectRatio)
+        mapCamera = map
+        if case .tracking(let id) = cameraMode, let position = target(id) {
+            let place = geodeticPosition(position)
+            let held = trackingMap ?? TrackedMap(map)
+            map = MapCamera(latitude: place.latitude, longitude: place.longitude, span: held.span, heading: held.heading)
+            map.clamp(aspectRatio: aspectRatio)
+            trackingMap = TrackedMap(map)
+        }
+        if let flight = mapFlight {
+            if let partway = flight.camera(towards: map, at: uptime) {
+                // Turning, the limit to the span moves with the heading.
+                map = partway
+                map.clamp(aspectRatio: aspectRatio)
+            } else {
+                mapFlight = nil
+            }
+        }
+        var pose = map.globe(aspectRatio: aspectRatio).pose()
+        pose.mapCamera = map
+        return pose
     }
 
     /// Where the frame drawn at `time` (UTC milliseconds) on a view of
@@ -275,6 +436,20 @@ struct CameraRig {
     ) -> CameraPose? {
         guard var orbitCamera else {
             return nil
+        }
+        if drawnProjection == .twoD {
+            inertialAngle = nil
+            let pose = mapPose(uptime: uptime, aspectRatio: aspectRatio, target: target)
+            guard pose.isFinite else {
+                let map = mapCamera
+                log.fault("Map camera not finite: \(String(describing: map), privacy: .public)")
+                mapCamera = MapCamera.home(aspectRatio: aspectRatio)
+                trackingMap = nil
+                mapFlight = nil
+                return nil
+            }
+            lastPose = pose
+            return pose
         }
         if let flight = homeFlight {
             // Called off by anything else the camera is asked to do.
@@ -355,5 +530,40 @@ struct CameraRig {
         }
         lastPose = pose
         return pose
+    }
+}
+
+/// How the map frames what it follows: as wide and as turned as this.
+private struct TrackedMap {
+    /// Metres across the view's longer side, as `MapCamera.span`.
+    var span: Double
+    /// Radians, as `MapCamera.heading`.
+    var heading: Double
+
+    init(span: Double, heading: Double) {
+        self.span = span
+        self.heading = heading
+    }
+
+    /// As `map` frames its centre.
+    init(_ map: MapCamera) {
+        self.init(span: map.span, heading: map.heading)
+    }
+}
+
+/// A flight on the map, home or into or out of tracking. It heads for where the
+/// camera is meant to be each frame, so it lands on a satellite that moved.
+private struct MapFlight {
+    /// The map camera it set off from.
+    let from: MapCamera
+    /// Seconds of system uptime when it set off.
+    let start: Double
+    /// Seconds it takes.
+    let duration: Double
+
+    /// The camera partway to `destination` at `uptime`; nil once it has landed.
+    func camera(towards destination: MapCamera, at uptime: Double) -> MapCamera? {
+        let t = (uptime - start) / duration
+        return t < 1 ? MapCamera.between(from, destination, t: t) : nil
     }
 }

@@ -17,10 +17,15 @@ struct DrawnFrame {
     var time: Double
     /// How wide each 3D model was drawn, in points, by satellite: for picking.
     var modelWidths: [Int: Double] = [:]
+    /// In 2D, the map camera it was drawn from; `viewProjection` then takes metres
+    /// of the map from the view's centre, and `eye` is the globe camera over it.
+    var mapCamera: MapCamera?
 
     /// The frame `pose` draws on a drawable of `size` pixels at `time`.
     init(pose: CameraPose, size: SIMD2<Double>, time: Double, modelWidths: [Int: Double] = [:]) {
-        viewProjection = pose.projection(aspectRatio: size.x / size.y) * pose.view()
+        mapCamera = pose.mapCamera
+        viewProjection =
+            pose.mapCamera?.viewProjection(aspectRatio: size.x / size.y) ?? pose.projection(aspectRatio: size.x / size.y) * pose.view()
         eye = pose.position
         self.size = size
         self.time = time
@@ -30,7 +35,7 @@ struct DrawnFrame {
     /// Where this frame drew a point, on a view `viewSize` points across, in
     /// points; nil behind the camera.
     func screenPoint(_ position: SIMD3<Double>, viewSize: CGSize) -> CGPoint? {
-        let clip = viewProjection * SIMD4(position - eye, 1)
+        let clip = viewProjection * SIMD4(mapCamera?.offset(of: position) ?? position - eye, 1)
         guard clip.w > 0 else {
             return nil
         }
@@ -50,7 +55,7 @@ struct DrawnFrame {
             return nil
         }
         var best: (id: String, score: Double)?
-        for station in stations where isAboveHorizon(station.position, from: eye) {
+        for station in stations where mapCamera != nil || isAboveHorizon(station.position, from: eye) {
             // The pin's head, a little over half its height above the spot.
             if let spot = screenPoint(station.position, viewSize: viewSize) {
                 let distance = hypot(spot.x - point.x, spot.y - 10 - point.y)
@@ -68,14 +73,15 @@ struct DrawnFrame {
         // As Labels.msl places them, in points.
         let labels = components.contains(.label) ? labels : nil
         for index in 0..<satellites.count {
-            guard let position = satellites.position(at: index, time: time), !isHiddenByEarth(position, from: eye), !hidden(position),
+            guard let position = satellites.position(at: index, time: time), mapCamera != nil || !isHiddenByEarth(position, from: eye), !hidden(position),
                 let spot = screenPoint(position, viewSize: viewSize)
             else {
                 continue
             }
             var label: CGRect?
             let distance = simd.distance(position, eye)
-            if let labels, index < labels.count, distance > 2000, distance < 8e7 {
+            // On the map at any height, as Shaders/Map.msl draws them.
+            if let labels, index < labels.count, mapCamera != nil || (distance > 2000 && distance < 8e7) {
                 let size = labels[index].size
                 let width = Double(size.x)
                 let height = Double(size.y)
@@ -96,6 +102,16 @@ struct DrawnFrame {
             return nil
         }
         let ndc = SIMD2(2 * point.x / viewSize.width - 1, 1 - 2 * point.y / viewSize.height)
+        if let map = mapCamera {
+            // Back through the map's projection, on the ground's depth.
+            let ground = viewProjection.inverse * SIMD4(ndc.x, ndc.y, 0.5, 1)
+            let latitude = map.latitude + ground.y / MapCamera.radius
+            guard abs(latitude) <= .pi / 2 else {
+                return nil
+            }
+            let longitude = remainder(map.longitude + ground.x / MapCamera.radius, 2 * .pi)
+            return GeoCoordinate(latitude: latitude * 180 / .pi, longitude: longitude * 180 / .pi)
+        }
         let inverse = viewProjection.inverse
         let far = inverse * SIMD4(ndc.x, ndc.y, 0.5, 1)
         let direction = normalize(SIMD3(far.x, far.y, far.z) / far.w)

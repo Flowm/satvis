@@ -231,27 +231,11 @@ final class Surface {
             let distance = max(simd.distance(eye, nearest), 1)
             let error = Self.levelZeroGeometricError / Double(1 << key.level) * sseFactor / distance
             if error > Self.maximumScreenSpaceError, key.level < maximumLevel {
-                // Loops: a main-actor method passed to `map` checks its executor
-                // at every call.
-                var children: [Tile] = []
-                var ready = true
-                for childKey in key.children {
-                    let child = self.tile(childKey)
-                    child.lastUsed = frame
-                    // Asked of each child, so each starts loading its terrain.
-                    let hasGeometry = hasGeometry(child)
-                    ready = ready && hasGeometry && child.texture != nil
-                    children.append(child)
-                }
-                if ready {
-                    for child in children {
-                        visit(child.key)
-                    }
+                // Asked of each child, so each starts loading its terrain.
+                guard let waiting = refine(key, ready: { hasGeometry($0) && $0.texture != nil }, visit: visit) else {
                     return
                 }
-                for child in children where child.texture == nil {
-                    bake.append(child)
-                }
+                bake += waiting
             }
             _ = hasGeometry(tile)
             draw.append(tile)
@@ -265,6 +249,94 @@ final class Surface {
         isSettled = bake.isEmpty && drapes < Self.drapesPerFrame
         lastSelection = isSettled ? (inputs, draw) : nil
         return (draw, bake)
+    }
+
+    /// The tiles to draw the flat map with this frame, from `map` on a view of
+    /// `viewportPixels`, each with a texture: those the view's bounds overlap in
+    /// any copy of the map, refined while their geometric error spans more than
+    /// two pixels, which on the map is the same at every distance (CesiumJS's
+    /// screen-space error in 2D). Flat, as CesiumJS's 2D is, so no terrain is
+    /// asked for. As `select`, a tile is refined only once its four children have
+    /// a texture.
+    func selectMap(_ map: MapCamera, viewportPixels: SIMD2<Double>) -> (draw: [Tile], bake: [Tile]) {
+        let aspectRatio = viewportPixels.x / viewportPixels.y
+        let inputs = SelectionInputs(
+            eye: SIMD3(map.longitude, map.latitude, map.span), viewProjection: map.viewProjection(aspectRatio: aspectRatio),
+            viewportHeightPixels: viewportPixels.y, verticalFieldOfView: -1, pixelsPerPoint: 0, revision: revision, sourceGeneration: sourceGeneration,
+            terrainEnabled: false)
+        if let lastSelection, lastSelection.inputs == inputs {
+            return (lastSelection.draw, [])
+        }
+        frame += 1
+        let maximumLevel = max(source.maximumLevel + (source.tileSize == 512 && source.projection == .geographic ? 1 : 0), 6)
+        let metresPerPixel = map.span / max(viewportPixels.x, viewportPixels.y)
+        let half = map.boundingHalfExtent(aspectRatio: aspectRatio)
+        var draw: [Tile] = []
+        var bake: [Tile] = []
+
+        func visit(_ key: TileKey) {
+            let tile = self.tile(key)
+            tile.lastUsed = frame
+            let (corner, size) = map.rectangle(of: tile.bounds)
+            guard corner.y >= -half.y, corner.y - size.y <= half.y,
+                !Self.mapCopies(west: corner.x, width: size.x, map: map, aspectRatio: aspectRatio).isEmpty
+            else {
+                return
+            }
+            let error = Self.levelZeroGeometricError / Double(1 << key.level) / metresPerPixel
+            if error > Self.maximumScreenSpaceError, key.level < maximumLevel {
+                guard let waiting = refine(key, ready: { $0.texture != nil }, visit: visit) else {
+                    return
+                }
+                bake += waiting
+            }
+            draw.append(tile)
+            if tile.needsBake || tile.texture == nil {
+                bake.append(tile)
+            }
+        }
+        visit(TileKey(level: 0, x: 0, y: 0))
+        visit(TileKey(level: 0, x: 1, y: 0))
+        evict()
+        isSettled = bake.isEmpty
+        lastSelection = isSettled ? (inputs, draw) : nil
+        return (draw, bake)
+    }
+
+    /// Refines the tile at `key` into its four children once each is `ready`,
+    /// visiting them; nil then. Else the children that still need a texture, the
+    /// tile itself drawn meanwhile. Every child is asked, whatever the others
+    /// answer, as asking starts what it waits for.
+    private func refine(_ key: TileKey, ready: (Tile) -> Bool, visit: (TileKey) -> Void) -> [Tile]? {
+        // Loops: a main-actor method passed to `map` checks its executor at every call.
+        var children: [Tile] = []
+        var allReady = true
+        for childKey in key.children {
+            let child = tile(childKey)
+            child.lastUsed = frame
+            let childReady = ready(child)
+            allReady = allReady && childReady
+            children.append(child)
+        }
+        if allReady {
+            for child in children {
+                visit(child.key)
+            }
+            return nil
+        }
+        return children.filter { $0.texture == nil }
+    }
+
+    /// Which copies of a tile the view takes in, as whole maps east (positive) or
+    /// west of the copy whose west edge, `west` metres east of the view's centre,
+    /// is nearest it; `width` is the tile's, in metres. The view never spans more
+    /// than a map (`MapCamera.maximumSpan`), so at most two.
+    static func mapCopies(west: Double, width: Double, map: MapCamera, aspectRatio: Double) -> [Int] {
+        let half = map.boundingHalfExtent(aspectRatio: aspectRatio).x
+        return (-1...1).filter { copy in
+            let start = west + Double(copy) * MapCamera.mapWidth
+            return start <= half && start + width >= -half
+        }
     }
 
     /// Whether a tile has what it needs to be drawn on the terrain, asking for it
