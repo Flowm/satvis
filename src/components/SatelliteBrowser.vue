@@ -177,7 +177,7 @@ const totalSize = computed(() => virtualizer.value.getTotalSize());
   border-radius: 6px;
   padding: 2px 8px;
   cursor: pointer;
-  color: var(--panel-ink);
+  color: var(--panel-destructive);
   font-size: 12px;
 }
 
