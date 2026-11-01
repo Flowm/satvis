@@ -25,15 +25,18 @@ extension Trait where Self == FormatsInEnglishUS {
         let negative: String
         let decimal: String
         let measure: String
+        let weekday: String
 
         var testDescription: String { identifier }
     }
 
     static let regions = [
         Region(
-            identifier: "en_US", count: "16,819", fixed: "1,234.50", negative: "-48.14", decimal: "12.6", measure: "2,857.123"),
+            identifier: "en_US", count: "16,819", fixed: "1,234.50", negative: "-48.14", decimal: "12.6", measure: "2,857.123",
+            weekday: "Sun, Oct 25"),
         Region(
-            identifier: "de_DE", count: "16.819", fixed: "1.234,50", negative: "-48,14", decimal: "12,6", measure: "2.857,123"),
+            identifier: "de_DE", count: "16.819", fixed: "1.234,50", negative: "-48,14", decimal: "12,6", measure: "2.857,123",
+            weekday: "Sun 25 Oct"),
     ]
 
     @Test(arguments: regions) func numbersFollowTheRegion(region: Region) {
@@ -45,6 +48,31 @@ extension Trait where Self == FormatsInEnglishUS {
             #expect(Formats.decimal("NaN") == "NaN")
             #expect(Formats.number(12.6) == region.decimal)
             #expect(Formats.measure(2857.1234) == region.measure)
+            // 2026-10-25T23:30:00Z.
+            #expect(Formats.weekdayDate(Date(timeIntervalSince1970: 1_792_971_000)) == region.weekday)
+        }
+    }
+
+    /// The clock deck's day as the web app writes it, in regions where Apple's
+    /// locale data and the browser's part.
+    @Test func writesTheDayAsTheWebAppDoes() throws {
+        struct Root: Decodable {
+            struct Case: Decodable {
+                let locale: String
+                let at: Date
+                let text: String
+            }
+
+            let weekdayDates: [Case]
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let cases = try decoder.decode(Root.self, from: Parity.fixture("parity")).weekdayDates
+        #expect(cases.count > 5)
+        for sample in cases {
+            Formats.$locale.withValue(Locale(identifier: sample.locale)) {
+                #expect(Formats.weekdayDate(sample.at) == sample.text, "\(sample.locale)")
+            }
         }
     }
 

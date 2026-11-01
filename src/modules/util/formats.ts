@@ -76,5 +76,25 @@ export const formatCoordinates = (latitude: number, longitude: number): string =
 /** A number as `String(value)` writes it, every digit kept, in the region's separators. */
 export const formatNumber = (value: number): string => formatDecimal(String(value));
 
-/** "Sun, Oct 25" or "Sun, 25 Oct": the clock deck's day, in UTC. */
-export const formatWeekdayDate = (date: Date | number): string => dateFormat({ weekday: "short", day: "2-digit", month: "short" }).format(date);
+/**
+ * The same in every region, as the native app's: the browser's locale data has "Sept" for
+ * en-GB and "June" for en-AU, Apple's has neither.
+ */
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** See `WEEKDAYS`. */
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * "Sun, Oct 25" or "Sun 25 Oct": the clock deck's day, in UTC, in the region's order of day
+ * and month. Punctuation is the comma English writes before a month, none of the region's,
+ * which the native app's locale data writes differently ("Sun 25. Oct" for en-DE).
+ */
+export function formatWeekdayDate(date: Date | number): string {
+  const at = new Date(date);
+  const day = String(at.getUTCDate()).padStart(2, "0");
+  const month = MONTHS[at.getUTCMonth()];
+  const parts = dateFormat({ day: "2-digit", month: "short" }).formatToParts(at);
+  const dayFirst = parts.findIndex(({ type }) => type === "day") < parts.findIndex(({ type }) => type === "month");
+  return `${WEEKDAYS[at.getUTCDay()]}${dayFirst ? ` ${day} ${month}` : `, ${month} ${day}`}`;
+}

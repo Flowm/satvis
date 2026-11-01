@@ -78,7 +78,7 @@ try {
   const runner = createServerModuleRunner(server.environments.ssr, { hmr: false });
   // The web formats for the browser's region (docs/adr/0015-formats-follow-the-device.md);
   // the native tests format en-US to compare.
-  const { setFormatLocale } = await runner.import("/src/modules/util/formats.ts");
+  const { formatWeekdayDate, setFormatLocale } = await runner.import("/src/modules/util/formats.ts");
   setFormatLocale("en-US");
   const gp = await runner.import("/src/modules/util/gp.ts");
   const { greenwichHourAngle } = await runner.import("/src/modules/util/temeToFixed.ts");
@@ -578,6 +578,24 @@ try {
     return { azimuth, elevation, rangeKm, text, spoken };
   });
 
+  // The clock deck's day, in regions whose locale data the browser and Apple's write
+  // differently ("Sept", "25. Oct"): the one format held to the web in more than en-US.
+  const weekdayDates = [
+    ["en-US", "2026-10-25T23:30:00Z"],
+    ["en-DE", "2026-10-25T23:30:00Z"],
+    ["en-GB", "2026-09-06T00:00:00Z"],
+    ["en-AU", "2026-06-07T12:00:00Z"],
+    ["en-AU", "2026-07-01T23:59:59Z"],
+    ["en-CA", "2026-01-05T00:00:00Z"],
+    ["en-AT", "2026-12-31T00:00:00Z"],
+    ["en-CH", "2026-02-01T00:00:00Z"],
+    ["en-IN", "2026-03-15T00:00:00Z"],
+  ].map(([locale, at]) => {
+    setFormatLocale(locale);
+    return { locale, at, text: formatWeekdayDate(Date.parse(at)) };
+  });
+  setFormatLocale("en-US");
+
   // Bookmarks (ADR 0011): what a card says of a scene, and the name a scene is given,
   // against the default preset's defaults and the demo preset's, for the default
   // preset's featured bookmarks among others.
@@ -653,6 +671,7 @@ try {
     greenwichHourAngle: hourAngles,
     visibility: { sunDirections, shadows, verdicts },
     lockCard: { labels: skyCard.VISIBILITY_LABEL, positions: lockPositions },
+    weekdayDates,
     // The Satellites list's groups, A to Z as `localeCompare` has them (useSatelliteBrowser.ts).
     groupOrder: GROUP_NAMES.toSorted((a, b) => a.localeCompare(b)),
     bookmarks: { now: BOOKMARK_NOW, summaries, ages, openedLimit: bookmarks.OPENED_LIMIT },

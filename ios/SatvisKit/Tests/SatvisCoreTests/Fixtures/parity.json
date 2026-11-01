@@ -7408,6 +7408,53 @@
       }
     ]
   },
+  "weekdayDates": [
+    {
+      "locale": "en-US",
+      "at": "2026-10-25T23:30:00Z",
+      "text": "Sun, Oct 25"
+    },
+    {
+      "locale": "en-DE",
+      "at": "2026-10-25T23:30:00Z",
+      "text": "Sun 25 Oct"
+    },
+    {
+      "locale": "en-GB",
+      "at": "2026-09-06T00:00:00Z",
+      "text": "Sun 06 Sep"
+    },
+    {
+      "locale": "en-AU",
+      "at": "2026-06-07T12:00:00Z",
+      "text": "Sun 07 Jun"
+    },
+    {
+      "locale": "en-AU",
+      "at": "2026-07-01T23:59:59Z",
+      "text": "Wed 01 Jul"
+    },
+    {
+      "locale": "en-CA",
+      "at": "2026-01-05T00:00:00Z",
+      "text": "Mon, Jan 05"
+    },
+    {
+      "locale": "en-AT",
+      "at": "2026-12-31T00:00:00Z",
+      "text": "Thu 31 Dec"
+    },
+    {
+      "locale": "en-CH",
+      "at": "2026-02-01T00:00:00Z",
+      "text": "Sun 01 Feb"
+    },
+    {
+      "locale": "en-IN",
+      "at": "2026-03-15T00:00:00Z",
+      "text": "Sun 15 Mar"
+    }
+  ],
   "groupOrder": [
     "active",
     "Éclair",

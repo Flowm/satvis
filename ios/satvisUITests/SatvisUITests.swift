@@ -453,6 +453,7 @@ nonisolated class SatvisUITests: XCTestCase {
         let stamp = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UTC'")).firstMatch
         XCTAssert(stamp.waitForExistence(timeout: 30))
         XCTAssert(stamp.label.contains("19:22"), "The clock read \(stamp.label)")
+        XCTAssert(stamp.label.contains("Sun, Oct 04 UTC"), "The clock read \(stamp.label)")
     }
 
     // The web app's `fps=true` shows the performance overlay; the Graphics panel's
