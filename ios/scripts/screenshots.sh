@@ -8,10 +8,15 @@ set -eu
 cd "$(dirname "$0")/.."
 
 # The 6.3" iPhone is the size App Store Connect requires; the 6.9" one would
-# otherwise be scaled from the 6.5" one, not from it.
-runtime="iOS 27"
+# otherwise be scaled from the 6.5" one, not from it. A line is a simulator's
+# name, which names its screenshots, then its device type if another, and an
+# iPhone Duo's hinge: App Store Connect takes the Duo closed, on its cover
+# display, and open, on its inner one.
+runtime="iOS 27.2"
 devices="iPhone 18 Pro
 iPhone 18 Pro Max
+iPhone Duo||closed
+iPhone Duo open|iPhone Duo|open
 iPad Pro 13-inch (M5)"
 
 # Each screenshot: its test's name, the time its test stops the clock at (UTC),
@@ -33,13 +38,16 @@ mkdir -p screenshots/raw
 
 udids=
 set --
-while read -r device; do
+while IFS='|' read -r device type hinge; do
   udid=$(scripts/simulator-udid.sh "$device" "$runtime" 2>/dev/null) ||
-    udid=$(xcrun simctl create "$device" "$device" "$(echo "$runtime" | tr -d ' ')")
+    udid=$(xcrun simctl create "$device" "${type:-$device}" "$(echo "$runtime" | tr -d ' ')")
   xcrun simctl shutdown "$udid" 2>/dev/null || true
   xcrun simctl erase "$udid"
   xcrun simctl boot "$udid"
   xcrun simctl bootstatus "$udid" >/dev/null
+  if [ -n "$hinge" ]; then
+    swift scripts/hinge.swift "$udid" "$hinge"
+  fi
   xcrun simctl status_bar "$udid" override --dataNetwork wifi --wifiBars 3 --cellularBars 4 --batteryState charged --batteryLevel 100
   udids="$udids $udid"
   set -- "$@" -destination "id=$udid"

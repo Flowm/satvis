@@ -493,3 +493,28 @@ benchmark run at once: `xcrun devicectl device process launch --console
 held exactly 60 fps (`app_frame_rate` 120, `device_max_fps` 120); with
 `CADisableMinimumFrameDurationOnPhone`, 120 fps at 2.2 ms of GPU a frame, and every
 active satellite's orbit 89 fps with the GPU busy throughout.
+
+## Native app: the iPhone Duo, closed and open
+
+**Procedure.** The iPhone Duo simulator on its own iOS 27.2 runtime, closed and opened
+with `make fold` and `make unfold`: the UI tests on one Duo closed and another open, and
+on the iPhone 18 Pro and iPad Pro 13-inch (M5); the default view on the test catalog,
+launched closed, then opened and closed again under the running app, each display taken
+with `simctl io screenshot --display primary` (the cover) or `primary-1` (the inner one).
+
+**Result, 2026-10-30.** Closed, the app fills the cover display's 466 by 678 pt, its
+buttons clear of the status bar's column on the right and the column folded; open, the
+inner display's 951 by 669 pt lying down, a regular width, the column open as on an iPad.
+Opening under the running app opens the column, and closing folds it again. The UI tests
+passed on all four (the Duo open skips the phone's sheet test, as the iPad does) once
+they went by size class rather than idiom, and after three fixes. Closed, the Satellites
+sheet keeps its search field in a Search button at its foot; the tap on the globe had
+landed in the Components panel on the shorter screen. Open, the benchmark panel's twelve
+rows ran 45 pt off the top until its table scrolled, and XCTest's app-wide swipes and
+coordinate taps and `XCUIScreen.main` reached the dark cover display. `make screenshots`
+took the three shots on all five simulators, the Duo closed at 1398 by 2034 and open at
+2853 by 2007, its picture on the second screen turned upright; a first run had stopped
+when the iPhone 18 Pro's app never launched, with no crash report, and the next passed.
+Not checked: the upload to App Store Connect; the sky view's compass, which turns the
+device's attitude by the interface orientation and needs a device; Split View; the Duo
+half open.

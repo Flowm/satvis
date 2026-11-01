@@ -8,8 +8,9 @@ cd "$(dirname "$0")/.."
 . scripts/asc.sh
 
 # The display types and the portrait widths App Store Connect takes for each:
-# the 6.3" iPhone (the required size), the 6.9" one and the 13" iPad.
-types="IPHONE_61:1179,1206 IPHONE_67:1260,1290,1320 IPAD_PRO_3GEN_129:2048,2064"
+# the 6.3" iPhone (the required size), the 6.9" one, the iPhone Duo (closed and
+# open, in one set) and the 13" iPad.
+types="IPHONE_61:1179,1206 IPHONE_67:1260,1290,1320 IPHONE_DUO:1398,2007 IPAD_PRO_3GEN_129:2048,2064"
 
 ls screenshots/*.png >/dev/null 2>&1 || fail "No screenshots in ios/screenshots; run make screenshots"
 # asc leaves out a file of no App Store size without a word, and stops at a

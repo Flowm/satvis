@@ -11,6 +11,9 @@ struct BenchmarkPanel: View {
     let renderer: GlobeRenderer
 
     private var benchmark: Benchmark { session.benchmark }
+    /// How tall the table is laid out, for its scroll view to take no more; nil
+    /// until measured.
+    @State private var tableHeight: CGFloat?
 
     /// The metric columns, wide enough for their widest figure ("43.7", "655").
     /// Load, not a frame time, beside the frame rate: an idle scene's frame
@@ -21,7 +24,18 @@ struct BenchmarkPanel: View {
         VStack(alignment: .leading, spacing: 8) {
             header
             ProgressView(value: progress)
-            table
+            // Scrolls where the screen is shorter than the table, as an iPhone Duo
+            // open or a phone lying down is.
+            ScrollView {
+                table
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .onScrollGeometryChange(for: CGFloat.self) {
+                $0.contentSize.height
+            } action: { _, height in
+                tableHeight = height
+            }
+            .frame(maxHeight: tableHeight)
             footer
         }
         .padding(14)
