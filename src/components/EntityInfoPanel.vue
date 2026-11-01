@@ -567,16 +567,21 @@ function notifyForPasses(): void {
   margin-bottom: 10px;
   padding: 8px 10px 10px;
   border-radius: 4px;
-  background: linear-gradient(180deg, #4caf5024, #4caf5008);
+  background: var(--panel-raised);
 }
 
+/* Green only while the pass is under way, as the iOS app's headline. */
 .hero--live {
-  background: linear-gradient(180deg, #56b4e930, #56b4e910);
+  background: linear-gradient(color-mix(in srgb, var(--panel-green) 20%, transparent), color-mix(in srgb, var(--panel-green) 6%, transparent)), var(--panel-raised);
 }
 
 .hero__label {
   color: var(--panel-muted);
   font-size: var(--text-section);
+}
+
+.hero--live .hero__label {
+  color: var(--panel-green);
 }
 
 .hero__value {
@@ -603,7 +608,7 @@ function notifyForPasses(): void {
 .hero__progress span {
   display: block;
   height: 100%;
-  background: #56b4e9;
+  background: var(--panel-green);
 }
 
 /* Here, not on the scroll container, so the sticky table header pins flush and rows do not show above it. */
