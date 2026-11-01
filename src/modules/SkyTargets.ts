@@ -65,6 +65,24 @@ function elevationOf(local: Cartesian3, length: number): number {
   return CesiumMath.toDegrees(Math.asin(CesiumMath.clamp(local.z / length, -1, 1)));
 }
 
+/**
+ * Degrees. A satellite further below the horizon is no target: the ground hides it, and
+ * the horizon dips under 0° only by the eye's height, 3.2° from 10 km up.
+ */
+const MIN_TARGET_ELEVATION = -5;
+
+/** The sine of MIN_TARGET_ELEVATION, against which `aboveTargetCutoff` compares. */
+const SIN_MIN_TARGET_ELEVATION = Math.sin(CesiumMath.toRadians(MIN_TARGET_ELEVATION));
+
+/** Whether `target` stands at MIN_TARGET_ELEVATION or higher, without the look angles' trigonometry. */
+function aboveTargetCutoff(frame: ObserverFrame, target: Cartesian3): boolean {
+  const delta = Cartesian3.subtract(target, frame.position, deltaScratch);
+  // The third row of the column-major fixedToEnu: up, in the fixed frame.
+  const { fixedToEnu } = frame;
+  const up = fixedToEnu[2]! * delta.x + fixedToEnu[5]! * delta.y + fixedToEnu[8]! * delta.z;
+  return up >= SIN_MIN_TARGET_ELEVATION * Cartesian3.magnitude(delta);
+}
+
 /** Where a direction from the observer lands on screen, in CSS pixels. */
 export function directionToWindow(scene: Scene, frame: ObserverFrame, azimuth: number, elevation: number): Cartesian2 | undefined {
   return SceneTransforms.worldToWindowCoordinates(scene, directionToWorld(frame, azimuth, elevation));
@@ -72,8 +90,9 @@ export function directionToWindow(scene: Scene, frame: ObserverFrame, azimuth: n
 
 /**
  * Positions come from the entity's sampled property, so a target is where Cesium draws it.
- * Only a target above the horizon is projected: none below can be locked (`nearestTarget`),
- * and projecting every one was the larger part of the sky view's frame.
+ * Only a target above the horizon is projected: none below can be locked (`nearestTarget`).
+ * A satellite under MIN_TARGET_ELEVATION is none: nine in ten of all active, whose look
+ * angles and visibility took 8.7 ms of a 21 ms frame in Chromium.
  */
 export function skyTargets(scene: Scene, frame: ObserverFrame, satellites: readonly SatelliteComponentCollection[], time: JulianDate): SkyTarget[] {
   const sun = sunDirection(JulianDate.toDate(time).getTime(), new Cartesian3());
@@ -82,6 +101,9 @@ export function skyTargets(scene: Scene, frame: ObserverFrame, satellites: reado
   for (const sat of satellites) {
     const position = sat.props.trajectory.position(time);
     if (!position) {
+      continue;
+    }
+    if (!aboveTargetCutoff(frame, position)) {
       continue;
     }
     const angles = lookAngles(frame, position);
