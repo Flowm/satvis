@@ -79,10 +79,14 @@ public enum GroundStations {
     }
 
     /// A coordinate read from what was typed, or nil when it is not one: empty,
-    /// half typed, or out of range.
+    /// half typed, or out of range. A decimal comma reads as a point, whatever the
+    /// region, as on the web: no coordinate is large enough to be grouped. Text with
+    /// both, a pasted "48.1372, 11.5756", is a pair and refused.
     public static func coordinate(_ text: String, limit: Double) -> Double? {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
-        guard let value = Double(trimmed), value.isFinite, abs(value) <= limit else {
+        guard !(trimmed.contains(",") && trimmed.contains(".")),
+            let value = Double(trimmed.replacing(",", with: ".", maxReplacements: 1)), value.isFinite, abs(value) <= limit
+        else {
             return nil
         }
         return value

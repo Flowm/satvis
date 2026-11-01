@@ -41,8 +41,14 @@ every region, as the iOS app's clock already did on purpose (`testReadsUTCOnA24H
 it at 1.005.
 
 **What is not for people keeps its fixed form:** url parameters (ADR 0001), stored values,
-analytics, the element set's values, and the Locations panel's coordinate fields, which show and parse a plain decimal so
-that what is typed and what is pasted from a map both read the same.
+analytics and the element set's values.
+
+**The Locations panel's coordinate fields follow the region too** ("48,1372" in Germany), in
+both apps, and read a decimal comma and a decimal point alike, so that a coordinate pasted from
+a map reads as one typed by hand. No coordinate is large enough to be grouped, so a comma is
+never a thousands separator there; text with both, a pasted "48.1372, 11.5756", is a pair and
+refused, as it always was. Kept plain at first, they were the one decimal on screen in the
+fixed form, beside the region's "48,14°" of the station links.
 
 **The sky view's lock card stays fixed**, whole numbers grouped as en-US ("178° S · 33° up ·
 38,362 km away"), in both apps: it is held to `skyCard.ts` by the parity fixtures, and its

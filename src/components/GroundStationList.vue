@@ -42,21 +42,21 @@
         class="gsList__coord"
         type="text"
         inputmode="decimal"
-        :value="station.lat"
+        :value="formatNumber(station.lat)"
         aria-label="Latitude"
         @change="commitCoordinate(index, 'lat', $event)"
         @keydown.enter="commit"
-        @keydown.esc="abandon($event, String(station.lat))"
+        @keydown.esc="abandon($event, formatNumber(station.lat))"
       />
       <input
         class="gsList__coord"
         type="text"
         inputmode="decimal"
-        :value="station.lon"
+        :value="formatNumber(station.lon)"
         aria-label="Longitude"
         @change="commitCoordinate(index, 'lon', $event)"
         @keydown.enter="commit"
-        @keydown.esc="abandon($event, String(station.lon))"
+        @keydown.esc="abandon($event, formatNumber(station.lon))"
       />
       <button type="button" class="gsList__remove" title="Remove" @click="removeAt(index)">×</button>
     </div>
@@ -83,6 +83,7 @@ import { nextTick, ref } from "vue";
 
 import { useGeolocation } from "../composables/useGeolocation";
 import { SKY_MODE } from "../config/viewModes";
+import { formatNumber } from "../modules/util/formats";
 import { dragShift, dropIndex, MAX_LATITUDE, MAX_LONGITUDE, parseCoordinate } from "../modules/util/groundStationEdits";
 import { useCesiumStore } from "../stores/cesium";
 import { useSatStore } from "../stores/sat";
@@ -133,7 +134,8 @@ function commitCoordinate(index: number, field: "lat" | "lon", event: Event): vo
   if (value !== undefined) {
     satStore.relocateGroundStation(index, field, value);
   }
-  settle(input, String(stations.value[index]?.[field] ?? ""));
+  const stored = stations.value[index]?.[field];
+  settle(input, stored === undefined ? "" : formatNumber(stored));
 }
 
 function removeAt(index: number): void {
