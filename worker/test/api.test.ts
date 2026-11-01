@@ -126,6 +126,13 @@ describe("GET /api/gp/<group>.json", () => {
     expect(res.headers.get("Content-Type")).toBe("application/json");
   });
 
+  it("404s a group the config no longer lists, though KV still holds it", async () => {
+    expect(groupsConfig.groups.map(({ name }) => name)).not.toContain("active");
+    await seedGroup("active", ommArray(["ISS (ZARYA)", 25544]));
+    const res = await SELF.fetch("https://satvis.space/api/gp/active.json");
+    expect(res.status).toBe(404);
+  });
+
   it("404s an invalid group name", async () => {
     const res = await SELF.fetch("https://satvis.space/api/gp/..%2Fsecret.json");
     expect(res.status).toBe(404);

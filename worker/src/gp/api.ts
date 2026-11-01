@@ -4,7 +4,6 @@ import { withConfig } from "./groupsIndex.ts";
 import { bundleFetch, parseIngestBundle, readReport } from "./pushProtocol.ts";
 import { refreshGroups, type RefreshReport, refreshUpstreams } from "./refresh.ts";
 import { type GroupStore, kvGroupStore, upstreamStatuses } from "./store.ts";
-import { GROUP_NAME_RE } from "./types.ts";
 import { recordFailure, recordUnchanged, storeUpstream } from "./upstream.ts";
 import { UPSTREAMS, upstreamSpec } from "./upstreams.ts";
 
@@ -17,6 +16,12 @@ const REFRESH_COOLDOWN_MS = 60_000;
 const GROUP_STALE_AFTER_MS = 12 * 3600_000;
 
 const NO_STORE = { "Cache-Control": "no-store" };
+
+/**
+ * The groups served. KV keeps a retired group's last write, which would otherwise
+ * serve weeks-old element sets with a 200: `active` did after it was split up.
+ */
+const SERVED_GROUPS = new Set(groupsConfig.groups.map(({ name }) => name));
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(body), {
@@ -75,7 +80,7 @@ async function handleGroup({ request, store, param: encodedName }: RouteContext)
   } catch {
     return notFound();
   }
-  if (!GROUP_NAME_RE.test(name)) {
+  if (!SERVED_GROUPS.has(name)) {
     return notFound();
   }
   const group = await store.readGroup(name);
