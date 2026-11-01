@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 
 # The 6.3" iPhone is the size App Store Connect requires; the 6.9" one would
 # otherwise be scaled from the 6.5" one, not from it.
-runtime="iOS 27"
+runtime="iOS 27.2"
 devices="iPhone 18 Pro
 iPhone 18 Pro Max
 iPad Pro 13-inch (M5)"

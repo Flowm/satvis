@@ -3,7 +3,7 @@
 # a variable's note is a line of its own.
 
 ## DEVICE    The simulator, by name (default iPhone 18 Pro)
-## RUNTIME   Its runtime, e.g. "iOS 27" (default the newest that has DEVICE)
+## RUNTIME   Its runtime, by the start of its name (default iOS 27.2)
 ## UDID      One simulator exactly, in place of DEVICE and RUNTIME
 ## API       The worker run talks to (default https://satvis.space)
 ## SHOTS     The screenshots to retake alone, e.g. 2Sky
@@ -13,7 +13,7 @@
 ## ASC_*     asc's own settings for the uploads and downloads, e.g. ASC_PROFILE, ASC_READ_ONLY=1
 
 DEVICE ?= iPhone 18 Pro
-RUNTIME ?=
+RUNTIME ?= iOS 27.2
 API ?=
 # Not ?=, so that an ASC_APP_ID in the environment cannot point the listing
 # tasks at another app.

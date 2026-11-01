@@ -1,12 +1,13 @@
 # AGENTS.md — iOS app
 
 The native app: SwiftUI with no web view, reading the same worker as the web
-app. Developed with Xcode 27, Swift 6 with MainActor default isolation in the
+app. Developed with Xcode 27.2, Swift 6 with MainActor default isolation in the
 app target, iOS 26 and later. Xcode Cloud builds, numbers and publishes every
-release; there is no fastlane. CI (`.github/workflows/ios.yml`) pins Xcode 27.0
+release; there is no fastlane. CI (`.github/workflows/ios.yml`) pins Xcode 27.2
 and lints with its `swift format`: a newer formatter's rules can fail
 `make lint` there. CI moves with the Xcode the app is developed on, since Xcode
-26's compiler rejects code Xcode 27's accepts.
+26's compiler rejects code Xcode 27's accepts. Built with the iOS 27.1 SDK or
+later, the app fills an iPhone Duo's screens edge to edge.
 
 ## Layout
 

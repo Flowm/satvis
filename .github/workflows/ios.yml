@@ -34,11 +34,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # The release the app is developed on, not the newest: the image carries
-      # betas beside it (27.2 at the time of writing).
-      - name: Select Xcode 27.0
+      # The release the app is developed on, not the image's default (27.1 at the
+      # time of writing). The image's 27.2 was its release candidate, 27B48, then.
+      - name: Select Xcode 27.2
         run: |
-          sudo xcode-select -s /Applications/Xcode_27.0.app
+          sudo xcode-select -s /Applications/Xcode_27.2.app
           xcodebuild -version
           swift format --version
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
