@@ -5,16 +5,22 @@ import type { Scene } from "@cesium/engine";
 /** Wide enough for a card at twice the CSS pixels. */
 const THUMBNAIL_WIDTH = 320;
 /** The space behind a transparent globe canvas, which the page's background shows through. */
-const BACKDROP = "#0b0f14";
+export const BACKDROP = "#0b0f14";
 /** A frame that never comes, such as in a background tab, gives up rather than hang. */
 const FRAME_TIMEOUT_MS = 2000;
 
-/**
- * The next frame as a data url, or undefined if no frame came. Read inside `postRender`,
- * where the drawing buffer is still intact without `preserveDrawingBuffer`, which would
- * cost every frame a copy.
- */
+/** The next frame as a data url, or undefined if no frame came. */
 export function captureThumbnail(scene: Scene): Promise<string | undefined> {
+  return readNextFrame(scene, drawThumbnail);
+}
+
+/**
+ * What `read` makes of the next frame, or undefined if no frame came. Read inside
+ * `postRender`, where the drawing buffer is still intact without `preserveDrawingBuffer`,
+ * which would cost every frame a copy, so `read` copies the canvas before it returns.
+ * scripts/showcase/capture.mjs reads the featured bookmarks' pictures with it.
+ */
+export function readNextFrame<T>(scene: Scene, read: (canvas: HTMLCanvasElement) => T): Promise<T | undefined> {
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       remove();
@@ -23,7 +29,7 @@ export function captureThumbnail(scene: Scene): Promise<string | undefined> {
     const remove = scene.postRender.addEventListener(() => {
       remove();
       clearTimeout(timeout);
-      resolve(drawThumbnail(scene.canvas));
+      resolve(read(scene.canvas));
     });
     scene.requestRender();
   });

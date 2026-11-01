@@ -116,8 +116,8 @@ export interface FeaturedBookmark {
   /** On its card, and the carousel's slide for the default preset's. */
   name: string;
   /**
-   * A path on the site, such as `showcase/globe-card.jpg`. A plugin ships its own through
-   * its sync.sh, as `data/showcase/<name>-card.jpg`, which the service worker precaches.
+   * A path on the site, such as `showcase/globe.webp`. A plugin ships its own through
+   * its sync.sh, as `data/showcase/<name>.webp`, which the service worker precaches.
    */
   thumbnail: string;
   /** Url parameters (ADR 0001), only those that deviate from the preset's defaults. */

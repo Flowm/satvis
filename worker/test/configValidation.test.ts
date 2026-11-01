@@ -81,14 +81,14 @@ describe("validatePresets", () => {
     expect(() => validatePresets([{ name: "default", defaults: { tags: "sar" }, groups: ["weather"] }], groups)).toThrow('default tag "sar"');
   });
 
-  it("gives a featured bookmark without a query an empty one", () => {
+  it("gives a featured bookmark without a query an empty one, and serves no pictureAt", () => {
     const featured = [
-      { name: "Weather", thumbnail: "showcase/weather-card.jpg" },
-      { name: "EO", thumbnail: "showcase/eo-card.jpg", query: { tags: "eo", scene: "2D" } },
+      { name: "Weather", thumbnail: "showcase/weather.webp" },
+      { name: "EO", thumbnail: "showcase/eo.webp", query: { tags: "eo", scene: "2D" }, pictureAt: "2026-10-04T08:52Z" },
     ];
     expect(validatePresets([{ name: "default", groups: ["weather"], featured }], groups)[0]!.featured).toEqual([
-      { name: "Weather", thumbnail: "showcase/weather-card.jpg", query: {} },
-      { name: "EO", thumbnail: "showcase/eo-card.jpg", query: { tags: "eo", scene: "2D" } },
+      { name: "Weather", thumbnail: "showcase/weather.webp", query: {} },
+      { name: "EO", thumbnail: "showcase/eo.webp", query: { tags: "eo", scene: "2D" } },
     ]);
   });
 
@@ -98,6 +98,7 @@ describe("validatePresets", () => {
     [{ name: "A" }, '"thumbnail" must be a non-empty string'],
     [{ name: "A", thumbnail: "a.jpg", query: { scene: 2 } }, '"scene" must be a string'],
     [{ name: "A", thumbnail: "a.jpg", query: { tags: "eo,sar" } }, 'featured "A": tag "sar"'],
+    [{ name: "A", thumbnail: "a.jpg", pictureAt: "at dawn" }, '"pictureAt" must be an ISO 8601 time'],
   ])("refuses the featured bookmark %j", (entry, message) => {
     expect(() => validatePresets([{ name: "default", groups: ["weather"], featured: [entry] }], groups)).toThrow(message);
   });

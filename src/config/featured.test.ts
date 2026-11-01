@@ -34,6 +34,14 @@ test("every featured bookmark is live and shows a group or a single satellite, n
   }
 });
 
+// The iOS releases before featured bookmarks (2.0) fetch their bundled demos' pictures from the
+// site by these paths. Nothing retakes them.
+test("the JPEG cards the iOS app's older releases fetch stay on the site", () => {
+  for (const name of ["globe", "iss", "sky"]) {
+    expect(existsSync(root(`public/showcase/${name}-card.jpg`)), name).toBe(true);
+  }
+});
+
 test("every featured bookmark has its card picture", () => {
   for (const bookmark of featured) {
     expect(existsSync(root(`public/${bookmark.thumbnail}`)), bookmark.thumbnail).toBe(true);

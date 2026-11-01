@@ -101,7 +101,7 @@ test("on another preset's route, About leaves the carousel out and Bookmarks fea
   index.presets.ot = {
     defaults: { tags: "Science" },
     groups: [{ name: "science" }],
-    featured: [{ name: "Science on a map", thumbnail: "showcase/globe-card.jpg", query: { scene: "2D" } }],
+    featured: [{ name: "Science on a map", thumbnail: "showcase/globe.webp", query: { scene: "2D" } }],
   };
   await openApp(page, "", {
     path: "/ot",

@@ -93,7 +93,7 @@ describe("GpSource probe", () => {
           ot: {
             defaults: { tags: "OT", fps: true },
             groups: [{ name: "ot" }, { searchOnly: true }],
-            featured: [{ name: "OT", thumbnail: "data/showcase/ot-card.jpg", query: { scene: "2D", fps: true } }, { name: "No picture" }, "OT"],
+            featured: [{ name: "OT", thumbnail: "data/showcase/ot.webp", query: { scene: "2D", fps: true } }, { name: "No picture" }, "OT"],
           },
         },
       }),
@@ -101,7 +101,7 @@ describe("GpSource probe", () => {
     expect(await fetchGpIndex()).toEqual({
       groups: [{ name: "weather" }],
       presets: {
-        ot: { defaults: { tags: "OT" }, groups: [{ name: "ot" }], featured: [{ name: "OT", thumbnail: "data/showcase/ot-card.jpg", query: { scene: "2D" } }] },
+        ot: { defaults: { tags: "OT" }, groups: [{ name: "ot" }], featured: [{ name: "OT", thumbnail: "data/showcase/ot.webp", query: { scene: "2D" } }] },
       },
     });
   });

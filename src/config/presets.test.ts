@@ -70,10 +70,10 @@ describe("resolvePreset", () => {
   test("makes its featured bookmarks links on its own route", async () => {
     vi.mocked(fetchGpIndex).mockResolvedValue({
       ...INDEX,
-      presets: { ...INDEX.presets, ot: { ...INDEX.presets.ot!, featured: [{ name: "Flat", thumbnail: "data/showcase/ot-card.jpg", query: { scene: "2D" } }] } },
+      presets: { ...INDEX.presets, ot: { ...INDEX.presets.ot!, featured: [{ name: "Flat", thumbnail: "data/showcase/ot.webp", query: { scene: "2D" } }] } },
     });
     expect((await resolvePreset("/ot")).featured).toEqual([
-      { id: "featured-ot-0", kind: "featured", name: "Flat", path: "/ot", thumbnail: "data/showcase/ot-card.jpg", query: { scene: "2D" }, at: 0 },
+      { id: "featured-ot-0", kind: "featured", name: "Flat", path: "/ot", thumbnail: "data/showcase/ot.webp", query: { scene: "2D" }, at: 0 },
     ]);
   });
 

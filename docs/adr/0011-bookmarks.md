@@ -50,7 +50,16 @@ with an empty query for the default view. Making the defaults themselves a bookm
 entry, as the parameters are the same, was rejected: in one list, `tags` would have
 meant "the value is" in that entry and "change it to" in the next. Every one has a
 picture, a path on the site: the core's in `public/showcase/`, a plugin's shipped by
-its `sync.sh` to `data/showcase/`. The generator checks the shape and each `tags`
+its `sync.sh` to `data/showcase/`. `pnpm update-showcase` takes them
+(`scripts/showcase/capture.mjs`): each link opened at the entry's `pictureAt` with the
+clock stopped, in Chromium on the GPU, read from the globe's canvas as the app reads
+its own pictures, so no panel is in it. It writes one 1600×1000 WebP, the widest a
+carousel shows it (the about page's at 2x, the iOS app's), which the cards show too:
+a 480-pixel copy for them saved 135 kB of the core's three, precached, and decoded
+smaller, for a second file per bookmark. JPEG of the same quality was 1.4 to 2.4
+times the size. Taken by hand before, the pictures
+missed three changes to the demos' queries; the sky's still showed the labelled groups
+it held before every active satellite. The generator checks the shape and each `tags`
 against the preset's groups; a frontend test holds the core's queries to the url codec,
 which the worker does not have. On another preset's route About leaves out the about
 page's carousel, which can only show the default preset's: it is static html, for
@@ -88,15 +97,17 @@ buffer is intact without `preserveDrawingBuffer` and its per-frame copy
 (`src/modules/util/thumbnail.ts`). 320 px wide, WebP, or JPEG where the browser
 encodes no WebP (Safari): 4–11 kB measured. An opened link is pictured once its tiles and
 satellites have loaded, and not at all if the visitor has moved on. The featured
-bookmarks' cards are small copies of the showcase pictures, precached so the panel
-works offline.
+bookmarks' pictures are precached so the panel works offline.
 
 ## Consequences
 
 - **The native app keeps the same records**, per device (`BookmarkStorage`): its links
   decode the same query, its featured bookmarks reach it with the group index, and
   the parameters the stores own through the parity script's `web-tables.json`.
-  Releases before featured bookmarks keep the three demos they bundled.
+  Releases before featured bookmarks keep the three demos they bundled, and fetch
+  their pictures as `showcase/*-card.jpg`, which stay on the site as they were.
 - **A featured bookmark's picture is a moment, not the present.** The sky one shows a
-  night sky on its card and a daylight one at noon.
+  night sky on its card and a daylight one at noon. Retaken weeks after its
+  `pictureAt`, it places a low orbit from element sets that far from the moment: the
+  ISS drawn over desert where the App Store screenshot of the same minute has the sea.
 - **A bookmark's meaning can drift** with its preset's defaults, as any link's can.

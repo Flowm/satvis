@@ -272,6 +272,10 @@ function validateFeatured(featured: unknown, where: string): FeaturedBookmark[] 
         throw new Error(`${at}: ${JSON.stringify(param)} must be a string, as the url would carry it`);
       }
     }
+    if (entry.pictureAt !== undefined && (typeof entry.pictureAt !== "string" || Number.isNaN(Date.parse(entry.pictureAt)))) {
+      throw new Error(`${at}: "pictureAt" must be an ISO 8601 time, such as 2026-10-04T08:52Z`);
+    }
+    // `pictureAt` is for scripts/showcase/capture.mjs alone, so it is not served.
     return { name: entry.name, thumbnail: entry.thumbnail, query };
   });
 }

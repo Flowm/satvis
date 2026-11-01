@@ -187,8 +187,10 @@ facts, keyed by NORAD id). Tags and presets reach clients with the group index,
 - A preset's `featured` bookmarks are its route's Featured tab in the Bookmarks
   panel ([ADR 0011](docs/adr/0011-bookmarks.md)): each a `name`, a `thumbnail` and
   a `query` of url parameters against the preset's `defaults`, none for the default
-  view. A plugin ships the pictures (480 × 300 JPEG) through its `sync.sh` as
-  `data/showcase/<name>-card.jpg`:
+  view. `pnpm update-showcase` takes each picture at its `pictureAt`, a moment
+  close to today: the element sets are today's. It writes a plugin's to
+  `data/custom/<plugin>/showcase/`, which the plugin's `sync.sh` copies to
+  `showcase/` in its output, so they are served as `data/showcase/<name>.webp`:
 
   ```yaml
   presets:
@@ -196,9 +198,14 @@ facts, keyed by NORAD id). Tags and presets reach clients with the group index,
       defaults: { tags: Weather }
       groups: [weather]
       featured:
-        - { name: Weather satellites, thumbnail: data/showcase/x-weather-card.jpg }
-        - { name: Weather on a map, thumbnail: data/showcase/x-map-card.jpg, query: { scene: 2D } }
+        - { name: Weather satellites, thumbnail: data/showcase/x-weather.webp, pictureAt: 2026-10-30T08:00Z }
+        - { name: Weather on a map, thumbnail: data/showcase/x-map.webp, pictureAt: 2026-10-30T08:00Z, query: { scene: 2D } }
   ```
+
+  The script needs a GPU, the network, `pnpm update-imagery`, `pnpm update-starmap`
+  and the models submodule, and says which is missing. It runs the app on Vite's dev
+  server, so set `SATVIS_API_PROXY` to a local worker for a preset not yet deployed;
+  `pnpm update-showcase "Weather on a map"` retakes one.
 
 `pnpm --filter satvis-worker generate-groups` merges the core config, every
 `data/custom/*/satvis.yaml` (with `extraRecordsFile` element sets inlined) and the
