@@ -54,6 +54,7 @@ describe("resolvePreset", () => {
         ["weather", ["Weather"]],
         ["starlink", ["Starlink", "Active"]],
       ],
+      featured: [],
     });
   });
 
@@ -66,6 +67,16 @@ describe("resolvePreset", () => {
     ]);
   });
 
+  test("makes its featured bookmarks links on its own route", async () => {
+    vi.mocked(fetchGpIndex).mockResolvedValue({
+      ...INDEX,
+      presets: { ...INDEX.presets, ot: { ...INDEX.presets.ot!, featured: [{ name: "Flat", thumbnail: "data/showcase/ot.webp", query: { scene: "2D" } }] } },
+    });
+    expect((await resolvePreset("/ot")).featured).toEqual([
+      { id: "featured-ot-0", kind: "featured", name: "Flat", path: "/ot", thumbnail: "data/showcase/ot.webp", query: { scene: "2D" }, at: 0 },
+    ]);
+  });
+
   // `/ot` without the plugin that defines it, and anything inherited from Object.
   test.each(["/move", "/toString", "/ot"])("falls back to the default preset for %s when it names none", async (path) => {
     vi.mocked(fetchGpIndex).mockResolvedValue({ ...INDEX, presets: { default: INDEX.presets.default! } });
@@ -74,6 +85,6 @@ describe("resolvePreset", () => {
 
   test("registers nothing when the index carries no presets", async () => {
     vi.mocked(fetchGpIndex).mockResolvedValue({ groups: INDEX.groups, presets: {} });
-    expect(await resolvePreset("/")).toEqual({ name: "default", title: "Satvis", defaults: {}, elements: [] });
+    expect(await resolvePreset("/")).toEqual({ name: "default", title: "Satvis", defaults: {}, elements: [], featured: [] });
   });
 });

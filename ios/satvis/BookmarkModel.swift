@@ -4,12 +4,12 @@ import SatvisCore
 import SatvisData
 
 /// The saved bookmarks and the opened links, and their pictures, kept on the
-/// device (src/stores/bookmarks.ts, ADR 0011). The demos are the web app's and
-/// ship with it. Each edit is `BookmarkLists`', kept at once.
+/// device (src/stores/bookmarks.ts, ADR 0011). The featured ones are the route's
+/// preset's, from the group index (`Session.featured`). Each edit is `BookmarkLists`', kept at once.
 @Observable
 final class BookmarkModel {
     private(set) var lists: BookmarkLists
-    /// By bookmark id, as JPEG; a demo's is the site's (`Session.demoPictures`).
+    /// By bookmark id, as JPEG; a featured one's is the site's (`Session.featuredPictures`).
     private(set) var pictures: [String: Data] = [:]
     /// Deleted bookmarks whose pictures stay while the delete can be undone.
     @ObservationIgnored private var undoable: Set<String> = []

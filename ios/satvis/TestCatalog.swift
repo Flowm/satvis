@@ -10,7 +10,8 @@
     /// which the target's Release `EXCLUDED_SOURCE_FILE_NAMES` leaves out, holds the
     /// index and the default preset's groups as satvis.space served them on
     /// 2026-10-07, GCAT's facts included, with only the core config's groups and
-    /// presets, since the plugins' stay out of the repository. The tests point the app at a worker that does not answer and ask
+    /// presets, since the plugins' stay out of the repository, and the default
+    /// preset's featured bookmarks as the core config has them since. The tests point the app at a worker that does not answer and ask
     /// for it with `SATVIS_TEST_CATALOG`, so they need no network and no live data.
     /// Each star map is there too, as black faces: the real ones are fetched and
     /// kept, and a test that found one kept by an earlier run passed only there.
@@ -60,6 +61,16 @@
             }
             CGImageDestinationAddImage(destination, image, nil)
             return CGImageDestinationFinalize(destination) ? data as Data : nil
+        }
+
+        /// A kept store of its own for each launch on the test catalog, so a test reads
+        /// the catalog and not what an earlier run kept from a worker, which the
+        /// repository reads first; nil unless asked for.
+        static func keptStore() -> PayloadStore? {
+            guard ProcessInfo.processInfo.environment["SATVIS_TEST_CATALOG"] != nil else {
+                return nil
+            }
+            return PayloadStore(directory: URL.temporaryDirectory.appending(path: "UITestKept-\(UUID())", directoryHint: .isDirectory))
         }
 
         /// A bookmark storage of its own for each launch on the test catalog, so a

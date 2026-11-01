@@ -4,8 +4,8 @@
 import { formatCoordinates, formatInteger } from "./formats";
 import type { Query } from "./urlCodec";
 
-/** A demo ships with the app, a saved one was named by the user, an opened one is a link that started a visit. */
-export type BookmarkKind = "demo" | "saved" | "opened";
+/** A featured one ships with the route's preset, a saved one was named by the user, an opened one is a link that started a visit. */
+export type BookmarkKind = "featured" | "saved" | "opened";
 
 /** A scene as a url: a route and the parameters on it. */
 export interface Link {
@@ -23,9 +23,9 @@ export interface Bookmark extends Link {
   kind: BookmarkKind;
   /** The user's, or one drawn from the scene (`defaultName`). */
   name: string;
-  /** A data url, or a path for a demo. */
+  /** A data url, or a path on the site for a featured one. */
   thumbnail?: string;
-  /** When it was saved or opened, in epoch ms; 0 for a demo. */
+  /** When it was saved or opened, in epoch ms; 0 for a featured one. */
   at: number;
 }
 

@@ -1,15 +1,15 @@
-// The about page's demo carousel (about.html), there and in the About dialog. The track is a
+// The about page's carousel of featured bookmarks (about.html), there and in the About dialog. The track is a
 // scroll-snapped strip, so it swipes without a script; this adds the buttons, the dots and the
 // arrow keys. Whether a step animates is the CSS's `scroll-behavior` (about.css), off for reduced motion.
 
-/** Wires the buttons, dots and arrow keys of the `.demoCarousel` `root`, and shows them. Its listeners go with its elements. */
+/** Wires the buttons, dots and arrow keys of the `.featuredCarousel` `root`, and shows them. Its listeners go with its elements. */
 export function attachCarousel(root: HTMLElement): void {
-  const track = root.querySelector<HTMLElement>(".demoCarousel__track")!;
+  const track = root.querySelector<HTMLElement>(".featuredCarousel__track")!;
   const slides = [...track.children] as HTMLElement[];
-  const prev = root.querySelector<HTMLButtonElement>(".demoCarousel__step--prev")!;
-  const next = root.querySelector<HTMLButtonElement>(".demoCarousel__step--next")!;
+  const prev = root.querySelector<HTMLButtonElement>(".featuredCarousel__step--prev")!;
+  const next = root.querySelector<HTMLButtonElement>(".featuredCarousel__step--next")!;
   const dots = slides.map(() => document.createElement("span"));
-  root.querySelector(".demoCarousel__dots")!.replaceChildren(...dots);
+  root.querySelector(".featuredCarousel__dots")!.replaceChildren(...dots);
 
   // A slide's width plus the track's gap.
   const step = (): number => slides[1]!.offsetLeft - slides[0]!.offsetLeft;
@@ -20,7 +20,7 @@ export function attachCarousel(root: HTMLElement): void {
     const index = current();
     prev.disabled = index === 0;
     next.disabled = index === slides.length - 1;
-    dots.forEach((dot, i) => dot.classList.toggle("demoCarousel__dot--current", i === index));
+    dots.forEach((dot, i) => dot.classList.toggle("featuredCarousel__dot--current", i === index));
   }
 
   prev.addEventListener("click", () => show(current() - 1));
@@ -33,6 +33,6 @@ export function attachCarousel(root: HTMLElement): void {
     }
   });
   track.addEventListener("scroll", update, { passive: true });
-  root.querySelector<HTMLElement>(".demoCarousel__controls")!.hidden = false;
+  root.querySelector<HTMLElement>(".featuredCarousel__controls")!.hidden = false;
   update();
 }

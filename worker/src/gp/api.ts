@@ -1,14 +1,12 @@
-import generatedConfig from "../config/satvis.generated.json" with { type: "json" };
 import type { FetchImpl } from "./download.ts";
+import { groupsConfig } from "./groupsConfig.ts";
 import { withConfig } from "./groupsIndex.ts";
 import { bundleFetch, parseIngestBundle, readReport } from "./pushProtocol.ts";
 import { refreshGroups, type RefreshReport, refreshUpstreams } from "./refresh.ts";
 import { type GroupStore, kvGroupStore, upstreamStatuses } from "./store.ts";
-import { GROUP_NAME_RE, type GroupsConfig } from "./types.ts";
+import { GROUP_NAME_RE } from "./types.ts";
 import { recordFailure, recordUnchanged, storeUpstream } from "./upstream.ts";
 import { UPSTREAMS, upstreamSpec } from "./upstreams.ts";
-
-const groupsConfig = generatedConfig as GroupsConfig;
 
 /** The Worker's own downloads; it reads the global at call time, so a test's spy on it applies. */
 const workerFetch: FetchImpl = (url, init) => fetch(url, init);

@@ -309,7 +309,7 @@ const menuExpanded = ref(!isNarrow());
 
 /** `hint` is the hover text, saying what is behind an entry. */
 const menuItems: { key: MenuKey; label: string; icon: string; hint: string }[] = [
-  { key: "bookmarks", label: "Bookmarks", icon: "lucide:bookmark", hint: "Demos, saved views and links you opened, and the way back to the default view" },
+  { key: "bookmarks", label: "Bookmarks", icon: "lucide:bookmark", hint: "Featured and saved views, links you opened, and the way back to the default view" },
   { key: "cat", label: "Satellites", icon: "lucide:orbit", hint: "Search and pick which satellites to show" },
   { key: "sat", label: "Components", icon: "lucide:satellite", hint: "Orbits, ground tracks, labels and sensor cones" },
   { key: "map", label: "Map", icon: "lucide:layers", hint: "Basemap, overlays, terrain and stars" },

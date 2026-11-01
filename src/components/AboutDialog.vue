@@ -16,7 +16,7 @@
     <slot />
     <template #body>
       <!-- eslint-disable-next-line vue/no-v-html -->
-      <div v-if="content" ref="lifted" class="about about--dialog" @click="openDemo" v-html="content"></div>
+      <div v-if="content" ref="lifted" class="about about--dialog" @click="openFeatured" v-html="content"></div>
       <div v-else class="about about--dialog">
         <p v-if="failed">The about page could not be loaded. <a href="/about">Open it directly</a>.</p>
         <p v-else>Loading…</p>
@@ -29,6 +29,7 @@
 import { ref, useTemplateRef, watch } from "vue";
 
 import { useBookmarks } from "../composables/useBookmarks";
+import { type Bookmark, type Link, sameLink } from "../modules/util/bookmarks";
 import { attachCarousel } from "../modules/util/carousel";
 
 import "../css/about.css";
@@ -37,26 +38,38 @@ const open = ref(false);
 const content = ref("");
 const failed = ref(false);
 
-const { demos, open: openBookmark } = useBookmarks();
+const { featured, onDefaultPreset, open: openBookmark } = useBookmarks();
 const lifted = useTemplateRef<HTMLElement>("lifted");
 
 // The modal mounts the content afresh each time it opens.
 watch(lifted, (element) => {
-  const carousel = element?.querySelector<HTMLElement>(".demoCarousel");
+  const carousel = element?.querySelector<HTMLElement>(".featuredCarousel");
   if (carousel) {
     attachCarousel(carousel);
   }
 });
 
-/** A demo opens in place, as its bookmark card does; a modified click opens its url, as any link. */
-function openDemo(event: MouseEvent): void {
-  const id = (event.target as Element).closest<HTMLElement>("[data-demo]")?.dataset.demo;
-  const demo = demos.find((bookmark) => bookmark.id === id);
-  if (!demo || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+/** The scene a carousel slide links to. */
+function slideLink(slide: Element): Link {
+  const url = new URL(slide.getAttribute("href") ?? "", window.location.href);
+  return { path: url.pathname, query: Object.fromEntries(url.searchParams) };
+}
+
+/** The route's featured bookmark a carousel slide links to, if it is one. */
+const featuredOf = (slide: Element): Bookmark | undefined => featured.value.find((bookmark) => sameLink(bookmark, slideLink(slide)));
+
+/**
+ * A featured bookmark opens in place, as its card does. A modified click, or a slide the route
+ * features no bookmark for yet, before the group index arrives, opens its url as any link.
+ */
+function openFeatured(event: MouseEvent): void {
+  const slide = (event.target as Element).closest(".featuredCarousel__link");
+  const bookmark = slide ? featuredOf(slide) : undefined;
+  if (!bookmark || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
     return;
   }
   event.preventDefault();
-  openBookmark(demo);
+  openBookmark(bookmark);
   open.value = false;
 }
 
@@ -75,6 +88,11 @@ watch(open, async (isOpen) => {
     const main = new DOMParser().parseFromString(await response.text(), "text/html").getElementById("about-content");
     if (!main) {
       throw new Error("about.html has no #about-content");
+    }
+    // The carousel shows the default preset's featured bookmarks, which on another preset's
+    // route would open another preset: that route's own are in the Bookmarks panel.
+    if (!onDefaultPreset.value) {
+      main.querySelector(".about-featured")?.remove();
     }
     content.value = main.innerHTML;
   } catch (error) {

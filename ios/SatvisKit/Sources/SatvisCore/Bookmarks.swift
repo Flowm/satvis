@@ -31,10 +31,10 @@ public struct SceneLink: Sendable, Hashable {
 /// ADR 0011): a route and the url parameters the web app's stores own, never a
 /// camera position. The same records the web app keeps, so either reads the other's.
 public struct Bookmark: Sendable, Hashable, Codable, Identifiable {
-    /// A demo ships with the app, a saved one was named by the user, an opened one
-    /// is a link that started a visit.
+    /// A featured one ships with the route's preset, a saved one was named by the
+    /// user, an opened one is a link that started a visit.
     public enum Kind: String, Sendable, Codable {
-        case demo, saved, opened
+        case featured, saved, opened
     }
 
     /// Unique among one device's bookmarks.
@@ -45,9 +45,9 @@ public struct Bookmark: Sendable, Hashable, Codable, Identifiable {
     /// `scene`'s, flat as the web app keeps them.
     public var path: String
     public var query: [String: String]
-    /// A demo's picture, as a path on the site; the app keeps the others' apart.
+    /// A featured one's picture, as a path on the site; the app keeps the others' apart.
     public var thumbnail: String?
-    /// When it was saved or opened, in epoch milliseconds; 0 for a demo.
+    /// When it was saved or opened, in epoch milliseconds; 0 for a featured one.
     public var at: Double
 
     public init(id: String, kind: Kind, name: String, scene: SceneLink, thumbnail: String? = nil, at: Double) {
@@ -79,9 +79,6 @@ public struct BookmarkSummary: Sendable, Hashable {
 public enum Bookmarks {
     /// The newest opened links kept; older ones drop off.
     public static let openedLimit = 8
-
-    /// The demos the web app ships (src/config/bookmarks.ts), through Shared/web-tables.json.
-    public static var demos: [Bookmark] { WebTables.shared.bookmarks.demos }
 
     /// The parameters the web app's stores own, which a bookmark keeps; a link's
     /// others, such as `framems`, travel past it.

@@ -28,8 +28,8 @@ final class Session {
     @ObservationIgnored private let globe = GlobeBinding()
     @ObservationIgnored let satellites: SatelliteLayer
     @ObservationIgnored private let starMapLoader: StarMap
-    /// The demo bookmarks' pictures by their path on the site, kept once fetched.
-    private(set) var demoPictures: [String: Data] = [:]
+    /// The featured bookmarks' pictures by their path on the site, kept once fetched.
+    private(set) var featuredPictures: [String: Data] = [:]
     /// Observed: it arrives once its shaders compile, possibly after a link has
     /// opened on the sky view, whose instruments wait for it.
     private(set) var renderer: GlobeRenderer?
@@ -247,7 +247,7 @@ final class Session {
             Task { await watchEntries() },
             Task { await aim.watchAiming() },
             Task { await aim.watchCameraPlace { self.observer.flatMap(self.passes.station) } },
-            Task { await loadDemoPictures() },
+            Task { await loadFeaturedPictures() },
             Task { await predictPasses() },
             Task { await followImageryDay() },
             Task { await countViews() },
@@ -460,6 +460,11 @@ final class Session {
         SceneLink(path: Bookmarks.path(preset: catalog.presetName), query: Bookmarks.ownedQuery(of: link(sharing: false).query))
     }
 
+    /// The route's preset's featured bookmarks, in the config's order; none before the index.
+    var featured: [Bookmark] {
+        catalog.index?.featured(preset: catalog.presetName) ?? []
+    }
+
     /// What a bookmark's card says, read against its own preset's defaults.
     func summary(_ scene: SceneLink) -> BookmarkSummary {
         Bookmarks.summarize(scene.query, presetDefaults: catalog.index?.presetDefaults(named: scene.preset) ?? [:])
@@ -487,16 +492,21 @@ final class Session {
         return bookmarks.save(name: Bookmarks.defaultName(summary(scene)), scene: scene, picture: picture)
     }
 
-    /// The demos' pictures as kept, then as the site has them: fetched once and
-    /// kept for offline launches, as the star map is.
-    private func loadDemoPictures() async {
-        let paths = Bookmarks.demos.compactMap(\.thumbnail)
-        for path in paths {
-            demoPictures[path] = await repository.keptImage(path)
-        }
-        for path in paths {
-            if let fetched = try? await repository.image(path).value, fetched != demoPictures[path] {
-                demoPictures[path] = fetched
+    /// The route's featured bookmarks' pictures as kept, then as the site has them:
+    /// fetched once a launch, as the index and the route bring them, and kept for
+    /// offline launches, as the star map is.
+    private func loadFeaturedPictures() async {
+        var asked: Set<String> = []
+        for await paths in Observations({ self.featured.compactMap(\.thumbnail) }) {
+            let new = paths.filter { !asked.contains($0) }
+            asked.formUnion(new)
+            for path in new {
+                featuredPictures[path] = await repository.keptImage(path)
+            }
+            for path in new {
+                if let fetched = try? await repository.image(path).value, fetched != featuredPictures[path] {
+                    featuredPictures[path] = fetched
+                }
             }
         }
     }
@@ -506,12 +516,12 @@ final class Session {
     private static let pictureWidth = 480
 
     /// Keeps the link just opened among the opened ones, unless it shows the
-    /// preset as it opens or is among the demos and saved bookmarks, and pictures
+    /// preset as it opens or is among the featured and saved bookmarks, and pictures
     /// it once it has loaded: everything active drawn, the sky view landed, and
     /// three seconds for the tiles. Not if the user has moved on by then.
     private func recordOpened() async {
         let opened = here
-        guard !opened.query.isEmpty, !(Bookmarks.demos + bookmarks.saved).contains(where: { $0.scene == opened }) else {
+        guard !opened.query.isEmpty, !(featured + bookmarks.saved).contains(where: { $0.scene == opened }) else {
             return
         }
         let link = bookmarks.recordOpened(name: Bookmarks.defaultName(summary(opened)), scene: opened)

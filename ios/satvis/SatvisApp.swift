@@ -36,12 +36,14 @@ struct SatvisApp: App {
     }
 
     private static func repository(site: URL) -> GroupRepository {
-        let store = (try? PayloadStore.applicationSupport()) ?? PayloadStore(directory: URL.temporaryDirectory.appending(path: "GP"))
         #if DEBUG
             let snapshot = TestCatalog.store()
+            let kept = TestCatalog.keptStore()
         #else
             let snapshot: PayloadStore? = nil
+            let kept: PayloadStore? = nil
         #endif
+        let store = kept ?? (try? PayloadStore.applicationSupport()) ?? PayloadStore(directory: URL.temporaryDirectory.appending(path: "GP"))
         return GroupRepository(client: WorkerClient(baseURL: site), store: store, snapshot: snapshot)
     }
 }
@@ -232,7 +234,7 @@ struct ContentView: View {
                     ToolMenu(isOpen: $showsTools) {
                         // The web app's menu column: its entries, icons, order and hints.
                         ToolEntry(
-                            title: "Bookmarks", image: .lucideBookmark, hint: "Demos, saved views and links you opened, and the way back to the default view"
+                            title: "Bookmarks", image: .lucideBookmark, hint: "Featured and saved views, links you opened, and the way back to the default view"
                         ) {
                             showsBookmarks = true
                         }

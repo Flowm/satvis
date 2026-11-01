@@ -5,8 +5,7 @@ import { useToast } from "@nuxt/ui/composables/useToast";
 import { computed, reactive, ref } from "vue";
 import { type Router, useRouter } from "vue-router";
 
-import { DEMO_BOOKMARKS } from "../config/bookmarks";
-import { presetNameOf, presetPath, resolvePreset } from "../config/presets";
+import { DEFAULT_PRESET, presetNameOf, presetPath, resolvePreset } from "../config/presets";
 import type { CesiumController } from "../modules/CesiumController";
 import { type Bookmark, type BookmarkSummary, defaultName, type Link, sameLink, sameQuery, summarize, withoutTime } from "../modules/util/bookmarks";
 import { DeviceDetect } from "../modules/util/DeviceDetect";
@@ -33,7 +32,12 @@ function defaultsFor(path: string): Query {
  * compare equal to the route they open. A bookmark never changes it: another preset is a page load.
  */
 const routePath = ref(presetPath(presetNameOf(window.location.pathname)));
-void resolvePreset().then(({ name }) => (routePath.value = presetPath(name)));
+/** The route's preset's featured bookmarks, once the group index has arrived. */
+const featured = ref<readonly Bookmark[]>([]);
+void resolvePreset().then((preset) => {
+  routePath.value = presetPath(preset.name);
+  featured.value = preset.featured;
+});
 
 /**
  * The Bookmarks panel's model: the three lists, which one is on screen, and the actions.
@@ -96,7 +100,10 @@ export function useBookmarks() {
   }
 
   return {
-    demos: DEMO_BOOKMARKS,
+    /** The route's preset's, in the config's order. */
+    featured: computed(() => featured.value),
+    /** Whether the route opens the default preset, whose featured bookmarks the about page shows. */
+    onDefaultPreset: computed(() => routePath.value === presetPath(DEFAULT_PRESET)),
     /** Newest first. */
     saved: computed(() => store.saved),
     /** Newest first. */
@@ -171,7 +178,7 @@ export async function recordOpenedLink(cc: CesiumController, router: Router): Pr
   const preset = await resolvePreset(router.currentRoute.value.path);
   const opened: Link = { path: presetPath(preset.name), query };
   const store = useBookmarkStore();
-  if ([...DEMO_BOOKMARKS, ...store.saved].some((bookmark) => sameLink(bookmark, opened))) {
+  if ([...preset.featured, ...store.saved].some((bookmark) => sameLink(bookmark, opened))) {
     return;
   }
   const link = store.recordOpened(defaultName(summarize(query, preset.defaults)), opened);

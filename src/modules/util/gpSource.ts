@@ -21,6 +21,8 @@ export interface GpPreset {
   description?: string;
   defaults?: Record<string, string>;
   groups: { name: string; searchOnly?: boolean }[];
+  /** Links against `defaults`, each with its card's picture as a path on the site. */
+  featured?: { name: string; thumbnail: string; query: Record<string, string> }[];
 }
 
 export interface GpIndex {
@@ -40,18 +42,29 @@ let infoPromise: Promise<GpSourceInfo> | undefined;
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const isStringArray = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
 
-/** Lenient: a field of the wrong shape is dropped, so an older index still reads. */
+/** Url parameters without the values that are not strings. */
+const stringValues = (raw: Record<string, unknown>): Record<string, string> =>
+  Object.fromEntries(Object.entries(raw).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+
+/** Lenient: a field or featured bookmark of the wrong shape is dropped, so an older index still reads. */
 function parsePreset(raw: unknown): GpPreset | undefined {
   if (!isObject(raw) || !Array.isArray(raw.groups)) {
     return undefined;
   }
   const groups = raw.groups.filter((group): group is GpPreset["groups"][number] => isObject(group) && typeof group.name === "string");
-  const defaults = isObject(raw.defaults) ? Object.fromEntries(Object.entries(raw.defaults).filter(([, value]) => typeof value === "string")) : undefined;
+  const featured = Array.isArray(raw.featured)
+    ? raw.featured.flatMap((entry: unknown) =>
+        isObject(entry) && typeof entry.name === "string" && typeof entry.thumbnail === "string"
+          ? [{ name: entry.name, thumbnail: entry.thumbnail, query: isObject(entry.query) ? stringValues(entry.query) : {} }]
+          : [],
+      )
+    : undefined;
   return {
     groups,
     ...(typeof raw.title === "string" && { title: raw.title }),
     ...(typeof raw.description === "string" && { description: raw.description }),
-    ...(defaults && { defaults: defaults as Record<string, string> }),
+    ...(isObject(raw.defaults) && { defaults: stringValues(raw.defaults) }),
+    ...(featured && { featured }),
   };
 }
 

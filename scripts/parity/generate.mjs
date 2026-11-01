@@ -3,7 +3,7 @@
 // (docs/adr/0009-native-ios-app.md): what the web app's own code answers for the
 // element sets in parity-input.json. Also write the tables the native app reads
 // as they are rather than keeping a copy of its own: the SATCAT and GCAT code labels,
-// the external links and the bookmark demos. Never edit either output by hand; CI checks that rerunning
+// the external links and the url parameters a bookmark keeps. Never edit either output by hand; CI checks that rerunning
 // this changes nothing.
 //
 // The web code is loaded through Vite's module runner, because its imports are
@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 
 import * as satellitejs from "satellite.js";
 import { createServer, createServerModuleRunner } from "vite";
+import { parse as parseYaml } from "yaml";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const fixtureDir = path.join(repoRoot, "ios/SatvisKit/Tests/SatvisCoreTests/Fixtures");
@@ -530,9 +531,11 @@ try {
   });
 
   // Bookmarks (ADR 0011): what a card says of a scene, and the name a scene is given,
-  // against the default preset's defaults and the demo preset's.
+  // against the default preset's defaults and the demo preset's, for the default
+  // preset's featured bookmarks among others.
   const bookmarks = await runner.import("/src/modules/util/bookmarks.ts");
-  const { DEMO_BOOKMARKS } = await runner.import("/src/config/bookmarks.ts");
+  const corePresets = parseYaml(fs.readFileSync(path.join(repoRoot, "worker/src/config/satvis.core.yaml"), "utf8")).presets;
+  const featured = corePresets.find(({ name }) => name === "default").featured ?? [];
   const BOOKMARK_NOW = "2026-10-08T12:00:00Z";
   const BOOKMARK_CASES = [
     ["default", {}],
@@ -558,7 +561,7 @@ try {
     ...Array.from({ length: 12 }, (_, month) => ["default", { time: `2026-${String(month + 1).padStart(2, "0")}-09T07:05Z` }]),
     ["demo", {}],
     ["demo", { scene: "Sky", gs: "1,2,Home" }],
-    ...DEMO_BOOKMARKS.map((demo) => ["default", demo.query]),
+    ...featured.map(({ query = {} }) => ["default", query]),
   ];
   const summaries = BOOKMARK_CASES.map(([preset, query]) => {
     const summary = bookmarks.summarize(query, PRESETS[preset]);
@@ -622,7 +625,6 @@ try {
     // `{satnum}` stands where the catalog number goes.
     externalLinks: externalLinks("{satnum}"),
     bookmarks: {
-      demos: DEMO_BOOKMARKS,
       // The parameters the web app's stores own, which a bookmark keeps and the rest
       // of a link carries past it. Read from the stores' urlsync configs: creating the
       // stores here would need the router and the globe.

@@ -22,20 +22,48 @@ which the native app's url codec could not follow.
 view, and "preset" the route's starting configuration, so neither could name a stored
 link without a qualifier.
 
-**Three kinds.** A **demo** ships with the app, live and with a group or a single
-satellite rather than a list, so it shows the present and reads at a glance. The ISS
-is followed alone: the rest of the Stations group crowds the close-up. The sky shows
-every active satellite, as points past the label budget. The about page shows the
-demos as a carousel, linking to them live, and About opens them in place; the App
-Store screenshots are the demos, at a pinned minute. The first
-demo is the default preset's weather globe, so it is also the default view. A
+**Three kinds.** A **featured** bookmark ships with the route's preset, live and with
+a group or a single satellite rather than a list, so it shows the present and reads at
+a glance. The ISS is followed alone: the rest of the Stations group crowds the
+close-up. The sky shows every active satellite, as points past the label budget. The
+about page shows the default preset's as a carousel, linking to them live, and About
+opens them in place; the App Store screenshots are the same three, at a pinned minute.
+The first is the default preset's weather globe, so it is also the default view. A
 **saved** bookmark is one the visitor named. An **opened link** is a link a visit
 started with, so a shared link can be found again after wandering off it. Only a
 navigation counts: a reload, Back or Forward reopens the visitor's own scene, an
-embedded page is someone else's, and a link already among the demos or saved
-bookmarks is not recorded twice; saving one takes it off Recent. The newest eight are
+embedded page is someone else's, and a link already among the route's featured or
+saved bookmarks is not recorded twice; saving one takes it off Recent. The newest eight are
 kept, each once. Nor is a scene saved twice: while the scene on screen is saved,
 "Save this view" reads "Saved" and opens that bookmark's name.
+
+**Featured bookmarks belong to the preset, in the worker config.** Each preset lists
+its own (`featured` in `worker/src/config/satvis.core.yaml` and a plugin's
+`satvis.yaml`), served with the group index beside its `defaults`, and the Bookmarks
+panel shows only the route's: a preset is a product's starting point (`/ot` is a
+plugin's), and another preset's would open with a page load into someone else's
+app. A preset with none has no Featured tab. They were called demos and shipped in the
+bundle, for the default route alone; a plugin had no way to feature its own. The cost
+is that they arrive with the index rather than the bundle, which the static `data/gp/`
+snapshot also carries. Each is written as a link against its preset's `defaults`,
+with an empty query for the default view. Making the defaults themselves a bookmark
+entry, as the parameters are the same, was rejected: in one list, `tags` would have
+meant "the value is" in that entry and "change it to" in the next. Every one has a
+picture, a path on the site: the core's in `public/showcase/`, a plugin's shipped by
+its `sync.sh` to `data/showcase/`. `pnpm update-showcase` takes them
+(`scripts/showcase/capture.mjs`): each link opened at the entry's `pictureAt` with the
+clock stopped, in Chromium on the GPU, read from the globe's canvas as the app reads
+its own pictures, so no panel is in it. It writes one 1600×1000 WebP, the widest a
+carousel shows it (the about page's at 2x, the iOS app's), which the cards show too:
+a 480-pixel copy for them saved 135 kB of the core's three, precached, and decoded
+smaller, for a second file per bookmark. JPEG of the same quality was 1.4 to 2.4
+times the size. Taken by hand before, the pictures
+missed three changes to the demos' queries; the sky's still showed the labelled groups
+it held before every active satellite. The generator checks the shape and each `tags`
+against the preset's groups; a frontend test holds the core's queries to the url codec,
+which the worker does not have. On another preset's route About leaves out the about
+page's carousel, which can only show the default preset's: it is static html, for
+crawlers.
 
 **Kept in `localStorage`, per browser, never in the url or on the worker.** It is the
 app's first local state. A private window or blocked site data leaves bookmarks
@@ -68,14 +96,18 @@ the branch `claude/views-presets-ui-prototype-fb0086`.
 buffer is intact without `preserveDrawingBuffer` and its per-frame copy
 (`src/modules/util/thumbnail.ts`). 320 px wide, WebP, or JPEG where the browser
 encodes no WebP (Safari): 4–11 kB measured. An opened link is pictured once its tiles and
-satellites have loaded, and not at all if the visitor has moved on. The demos' cards
-are small copies of the showcase pictures, precached so the panel works offline.
+satellites have loaded, and not at all if the visitor has moved on. The featured
+bookmarks' pictures are precached so the panel works offline.
 
 ## Consequences
 
 - **The native app keeps the same records**, per device (`BookmarkStorage`): its links
-  decode the same query, and the demos and the parameters the stores own reach it
-  through the parity script's `web-tables.json`. Nothing on the worker changes.
-- **A demo's picture is a moment, not the present.** The sky demo shows a
-  night sky on its card and a daylight one at noon.
+  decode the same query, its featured bookmarks reach it with the group index, and
+  the parameters the stores own through the parity script's `web-tables.json`.
+  Releases before featured bookmarks keep the three demos they bundled, and fetch
+  their pictures as `showcase/*-card.jpg`, which stay on the site as they were.
+- **A featured bookmark's picture is a moment, not the present.** The sky one shows a
+  night sky on its card and a daylight one at noon. Retaken weeks after its
+  `pictureAt`, it places a low orbit from element sets that far from the moment: the
+  ISS drawn over desert where the App Store screenshot of the same minute has the sea.
 - **A bookmark's meaning can drift** with its preset's defaults, as any link's can.

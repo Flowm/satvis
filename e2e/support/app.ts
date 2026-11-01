@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { expect, type Page } from "@playwright/test";
+import { parse } from "yaml";
 
 /** The page's navigation entries, read before the clock replaces `performance`. */
 declare global {
@@ -14,6 +15,9 @@ declare global {
 }
 
 const FIXTURE_DIR = fileURLToPath(new URL("../fixtures/gp/", import.meta.url));
+
+/** The core config, whose featured bookmarks the fixture index serves. */
+const CORE_CONFIG = fileURLToPath(new URL("../../worker/src/config/satvis.core.yaml", import.meta.url));
 
 /** Within a day of every fixture epoch (e2e/fixtures/gp). */
 export const FIXTURE_TIME = "2026-10-05T12:00Z";
@@ -41,7 +45,7 @@ export async function useFixtureNetwork(page: Page): Promise<void> {
     (route) => (/\.(png|jpe?g|webp)$/.test(new URL(route.request().url()).pathname) ? route.fulfill({ contentType: "image/png", body: PIXEL }) : route.abort("blockedbyclient")),
   );
   await page.route("**/data/models/*.glb", (route) => route.fulfill({ contentType: "model/gltf-binary", body: CUBE_MODEL }));
-  await page.route("**/api/groups.json", (route) => route.fulfill({ contentType: "application/json", body: readFileSync(`${FIXTURE_DIR}groups.json`) }));
+  await page.route("**/api/groups.json", (route) => route.fulfill({ json: fixtureIndex() }));
   await page.route("**/api/gp/*.json", (route) => {
     const name = new URL(route.request().url()).pathname.split("/").pop()!;
     try {
@@ -83,6 +87,28 @@ async function scaleRendering(page: Page, factor: number): Promise<void> {
   }, factor);
 }
 
+/** A preset in the group index, as far as a spec needs to know it. */
+interface IndexPreset {
+  /** Url parameters (ADR 0001). */
+  defaults?: Record<string, string>;
+  /** The groups the route registers. */
+  groups: { name: string; searchOnly?: boolean }[];
+  /** As the config writes them, which the app reads leniently. */
+  featured?: unknown[];
+}
+
+/** The fixture's group index, its presets with the core config's featured bookmarks, so the specs open the shipped ones. */
+export function fixtureIndex(): { groups: unknown[]; presets: Record<string, IndexPreset> } {
+  const index = JSON.parse(readFileSync(`${FIXTURE_DIR}groups.json`, "utf8")) as ReturnType<typeof fixtureIndex>;
+  const core = (parse(readFileSync(CORE_CONFIG, "utf8")) as { presets: { name: string; featured?: unknown[] }[] }).presets;
+  for (const { name, featured } of core) {
+    if (index.presets[name] && featured) {
+      index.presets[name].featured = featured;
+    }
+  }
+  return index;
+}
+
 export interface OpenOptions {
   /** Routes added after the fixture's, which makes them win: Playwright tries the last registered route first. */
   setup?: (page: Page) => Promise<void>;
@@ -95,13 +121,15 @@ export interface OpenOptions {
    * and running, as a visitor's would be. Otherwise `time` pins the app's clock.
    */
   live?: boolean;
+  /** The route, `/` for the default preset's. */
+  path?: string;
 }
 
 /**
  * Opens `query` at the fixture time and waits until the satellites are built and
  * the globe tiles are loaded.
  */
-export async function openApp(page: Page, query: string, { setup, satellites = true, renderScale = 0.25, live = false }: OpenOptions = {}): Promise<void> {
+export async function openApp(page: Page, query: string, { setup, satellites = true, renderScale = 0.25, live = false, path = "/" }: OpenOptions = {}): Promise<void> {
   await useFixtureNetwork(page);
   await setup?.(page);
   if (renderScale !== 1) {
@@ -109,13 +137,13 @@ export async function openApp(page: Page, query: string, { setup, satellites = t
   }
   if (live) {
     await installClock(page, new Date(FIXTURE_TIME));
-    await page.goto(query === "" ? "/" : `/?${query}`);
+    await page.goto(query === "" ? path : `${path}?${query}`);
   } else {
     const params = new URLSearchParams(query);
     if (!params.has("time")) {
       params.set("time", FIXTURE_TIME);
     }
-    await page.goto(`/?${params.toString().replaceAll("%2C", ",")}`);
+    await page.goto(`${path}?${params.toString().replaceAll("%2C", ",")}`);
   }
   await waitForScene(page, satellites);
 }

@@ -3,6 +3,7 @@
 // The presets and the tags of each group are defined in the worker's YAML config
 // and served with the group index, so every client starts from the same ones.
 
+import type { Bookmark } from "../modules/util/bookmarks";
 import { fetchGpIndex } from "../modules/util/gpSource";
 import type { Query } from "../modules/util/urlCodec";
 
@@ -19,9 +20,12 @@ export interface Preset {
   /** Url parameters (ADR 0001); the url states only deviations. */
   defaults: Query;
   elements: ElementsEntry[];
+  /** Its featured bookmarks, in the config's order (ADR 0011). */
+  featured: Bookmark[];
 }
 
-const DEFAULT_PRESET = "default";
+/** The preset of `/` and of any path naming no preset. */
+export const DEFAULT_PRESET = "default";
 
 /**
  * index.html carries the default preset's title, for crawlers that run no script.
@@ -50,7 +54,7 @@ export async function resolvePreset(path: string = window.location.pathname): Pr
   const preset = presets[name];
   if (preset === undefined) {
     console.warn("The group index carries no presets, so no groups are registered");
-    return { name, title: shellTitle, defaults: {}, elements: [] };
+    return { name, title: shellTitle, defaults: {}, elements: [], featured: [] };
   }
 
   const tagsOf = new Map(groups.map((group) => [group.name, group.tags ?? []]));
@@ -63,6 +67,15 @@ export async function resolvePreset(path: string = window.location.pathname): Pr
       const tags = tagsOf.get(group) ?? [];
       return searchOnly ? [group, tags, { searchOnly }] : [group, tags];
     }),
+    featured: (preset.featured ?? []).map(({ name: bookmarkName, thumbnail, query }, index): Bookmark => ({
+      id: `featured-${name}-${index}`,
+      kind: "featured",
+      name: bookmarkName,
+      path: presetPath(name),
+      thumbnail,
+      query,
+      at: 0,
+    })),
   };
 }
 

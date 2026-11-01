@@ -104,6 +104,24 @@ export interface PresetDefinition {
   description?: string;
   defaults?: Record<string, string>;
   groups: PresetGroup[];
+  /** Shown in this route's Bookmarks panel, in this order. */
+  featured?: FeaturedBookmark[];
+}
+
+/**
+ * A bookmark a preset ships (ADR 0011): a link against the preset's `defaults`. One with
+ * an empty `query` is the preset's default view.
+ */
+export interface FeaturedBookmark {
+  /** On its card, and the carousel's slide for the default preset's. */
+  name: string;
+  /**
+   * A path on the site, such as `showcase/globe.webp`. A plugin ships its own through
+   * its sync.sh, as `data/showcase/<name>.webp`, which the service worker precaches.
+   */
+  thumbnail: string;
+  /** Url parameters (ADR 0001), only those that deviate from the preset's defaults. */
+  query: Record<string, string>;
 }
 
 /**

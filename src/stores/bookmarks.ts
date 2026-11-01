@@ -5,7 +5,7 @@ import { type Bookmark, type BookmarkKind, type Link, parseBookmarks, sameLink, 
 import { localStorageOrNone } from "../modules/util/localStorage";
 
 /** Per browser, not in the url: a bookmark is a link to a scene, not part of one (docs/adr/0011-bookmarks.md). */
-const STORAGE_KEY: Record<Exclude<BookmarkKind, "demo">, string> = {
+const STORAGE_KEY: Record<Exclude<BookmarkKind, "featured">, string> = {
   saved: "satvis:bookmarks:saved",
   opened: "satvis:bookmarks:opened",
 };

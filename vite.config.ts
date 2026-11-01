@@ -133,8 +133,9 @@ export default defineConfig({
           "cesium/Assets/**/*.{jpg,png,xml,json}",
           "data/imagery/NaturalEarthII/{0,1,2,3}/**/*.webp",
           "data/imagery/NaturalEarthII/tilemapresource.xml",
-          // The demo bookmarks' cards, so the Bookmarks panel works offline.
-          "showcase/*-card.jpg",
+          // The featured bookmarks' pictures, the core's and the plugins', so the Bookmarks panel works offline.
+          // One pattern: workbox warns of one that matches nothing, as a plugin's does without plugins.
+          "{showcase,data/showcase}/*.webp",
         ],
         globIgnores: ["cesium/ThirdParty/**/*", "cesium/Widgets/**/*", "cesium/Workers/**/*", "cesium/Assets/Textures/maki/*", "**/*.map", "data/privacy.html"],
         sourcemap: true,

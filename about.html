@@ -41,7 +41,7 @@
     <!-- src/components/AboutDialog.vue lifts this element's innerHTML into the in-app dialog, which is why the back link above sits outside it.
          The readme's opening and feature list are a cut of this copy and reuse its sentences word for word, so a wording change starts here. -->
     <main id="about-content" class="about">
-      <!-- Lucide's icons for the rows below and the demos' facts, inside #about-content so that the dialog has them too. -->
+      <!-- Lucide's icons for the rows below and the featured bookmarks' facts, inside #about-content so that the dialog has them too. -->
       <svg class="about-icons" aria-hidden="true">
         <symbol id="about-icon-orbit" viewBox="0 0 24 24">
           <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
@@ -172,94 +172,75 @@
         see the satellites in that direction.
       </p>
 
-      <h2>See it in action</h2>
-      <!-- The demo bookmarks (src/config/bookmarks.ts), as their cards show them; bookmarks.test.ts holds the two to one set. src/modules/util/carousel.ts
-           adds the buttons, here and in the dialog, which opens a demo in place. -->
-      <section class="demoCarousel" aria-roledescription="carousel" aria-label="Demos">
-        <ul class="demoCarousel__track">
-          <li class="demoCarousel__slide" aria-roledescription="slide" aria-label="1 of 3">
-            <a class="demoCarousel__link" href="/" data-demo="demo-globe">
-              <img
-                src="/showcase/globe-card.jpg"
-                srcset="/showcase/globe-card.jpg 480w, /showcase/globe.webp 3200w"
-                sizes="(min-width: 46rem) 43.5rem, 100vw"
-                width="480"
-                height="300"
-                alt="The globe with weather satellites labelled around it"
-              />
-              <span class="demoCarousel__name">Weather satellites</span>
-              <span class="demoCarousel__fact"
-                ><svg aria-hidden="true"><use href="#about-icon-orbit" /></svg>Weather satellites</span
+      <!-- The default preset's featured bookmarks (worker/src/config/satvis.core.yaml), as their cards show them; src/config/featured.test.ts holds
+           the two to one set. src/modules/util/carousel.ts adds the buttons, here and in the dialog, which opens one in place and leaves this
+           out on another preset's route. -->
+      <div class="about-featured">
+        <h2>See it in action</h2>
+        <section class="featuredCarousel" aria-roledescription="carousel" aria-label="Featured bookmarks">
+          <ul class="featuredCarousel__track">
+            <li class="featuredCarousel__slide" aria-roledescription="slide" aria-label="1 of 3">
+              <a class="featuredCarousel__link" href="/">
+                <img src="/showcase/globe.webp" width="1600" height="1000" alt="The globe with weather satellites labelled around it" />
+                <span class="featuredCarousel__name">Weather satellites</span>
+                <span class="featuredCarousel__fact"
+                  ><svg aria-hidden="true"><use href="#about-icon-orbit" /></svg>Weather satellites</span
+                >
+                <span class="featuredCarousel__fact"
+                  ><svg aria-hidden="true"><use href="#about-icon-globe" /></svg>Globe</span
+                >
+              </a>
+            </li>
+            <li class="featuredCarousel__slide" aria-roledescription="slide" aria-label="2 of 3">
+              <a class="featuredCarousel__link" href="/?tags=&amp;sats=ISS+(ZARYA)&amp;track=ISS+(ZARYA)&amp;elements=Point,Label,Orbit,3D+model&amp;layers=VersaTiles">
+                <img src="/showcase/iss.webp" width="1600" height="1000" alt="A 3D model of the ISS above the curve of the Earth, on its orbit line" loading="lazy" />
+                <span class="featuredCarousel__name">Follow the ISS</span>
+                <span class="featuredCarousel__fact"
+                  ><svg aria-hidden="true"><use href="#about-icon-orbit" /></svg>ISS (ZARYA)</span
+                >
+                <span class="featuredCarousel__fact"
+                  ><svg aria-hidden="true"><use href="#about-icon-crosshair" /></svg>Following it</span
+                >
+              </a>
+            </li>
+            <li class="featuredCarousel__slide" aria-roledescription="slide" aria-label="3 of 3">
+              <a
+                class="featuredCarousel__link"
+                href="/?scene=Sky&amp;gs=46.5935,7.9091,Lauterbrunnen&amp;terrain=ReEarth&amp;layers=VersaTiles&amp;stars=DeepStar2K&amp;tags=Active"
               >
-              <span class="demoCarousel__fact"
-                ><svg aria-hidden="true"><use href="#about-icon-globe" /></svg>Globe</span
-              >
-            </a>
-          </li>
-          <li class="demoCarousel__slide" aria-roledescription="slide" aria-label="2 of 3">
-            <a
-              class="demoCarousel__link"
-              href="/?tags=&amp;sats=ISS+(ZARYA)&amp;track=ISS+(ZARYA)&amp;elements=Point,Label,Orbit,3D+model&amp;layers=VersaTiles"
-              data-demo="demo-iss"
-            >
-              <img
-                src="/showcase/iss-card.jpg"
-                srcset="/showcase/iss-card.jpg 480w, /showcase/iss.webp 3200w"
-                sizes="(min-width: 46rem) 43.5rem, 100vw"
-                width="480"
-                height="300"
-                alt="A 3D model of the ISS above the curve of the Earth, on its orbit line"
-                loading="lazy"
-              />
-              <span class="demoCarousel__name">Follow the ISS</span>
-              <span class="demoCarousel__fact"
-                ><svg aria-hidden="true"><use href="#about-icon-orbit" /></svg>ISS (ZARYA)</span
-              >
-              <span class="demoCarousel__fact"
-                ><svg aria-hidden="true"><use href="#about-icon-crosshair" /></svg>Following it</span
-              >
-            </a>
-          </li>
-          <li class="demoCarousel__slide" aria-roledescription="slide" aria-label="3 of 3">
-            <a
-              class="demoCarousel__link"
-              href="/?scene=Sky&amp;gs=46.5935,7.9091,Lauterbrunnen&amp;terrain=ReEarth&amp;layers=VersaTiles&amp;stars=DeepStar2K&amp;tags=Active"
-              data-demo="demo-sky"
-            >
-              <img
-                src="/showcase/sky-card.jpg"
-                srcset="/showcase/sky-card.jpg 480w, /showcase/sky.webp 3200w"
-                sizes="(min-width: 46rem) 43.5rem, 100vw"
-                width="480"
-                height="300"
-                alt="Night sky over the Lauterbrunnen valley, with labelled navigation, weather and OneWeb satellites above the cliffs"
-                loading="lazy"
-              />
-              <span class="demoCarousel__name">Sky over Lauterbrunnen</span>
-              <span class="demoCarousel__fact"
-                ><svg aria-hidden="true"><use href="#about-icon-orbit" /></svg>Active satellites</span
-              >
-              <span class="demoCarousel__fact"
-                ><svg aria-hidden="true"><use href="#about-icon-telescope" /></svg>Sky over Lauterbrunnen</span
-              >
-            </a>
-          </li>
-        </ul>
-        <!-- Shown by carousel.ts; without a script the track still scrolls. -->
-        <div class="demoCarousel__controls" hidden>
-          <button type="button" class="demoCarousel__step demoCarousel__step--prev" aria-label="Previous demo">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m15 18l-6-6l6-6" />
-            </svg>
-          </button>
-          <button type="button" class="demoCarousel__step demoCarousel__step--next" aria-label="Next demo">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 18l6-6l-6-6" />
-            </svg>
-          </button>
-          <span class="demoCarousel__dots" aria-hidden="true"></span>
-        </div>
-      </section>
+                <img
+                  src="/showcase/sky.webp"
+                  width="1600"
+                  height="1000"
+                  alt="Night sky over the Lauterbrunnen valley, every active satellite a point above the cliffs and the geostationary belt a row across the valley"
+                  loading="lazy"
+                />
+                <span class="featuredCarousel__name">Sky over Lauterbrunnen</span>
+                <span class="featuredCarousel__fact"
+                  ><svg aria-hidden="true"><use href="#about-icon-orbit" /></svg>Active satellites</span
+                >
+                <span class="featuredCarousel__fact"
+                  ><svg aria-hidden="true"><use href="#about-icon-telescope" /></svg>Sky over Lauterbrunnen</span
+                >
+              </a>
+            </li>
+          </ul>
+          <!-- Shown by carousel.ts; without a script the track still scrolls. -->
+          <div class="featuredCarousel__controls" hidden>
+            <button type="button" class="featuredCarousel__step featuredCarousel__step--prev" aria-label="Previous bookmark">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m15 18l-6-6l6-6" />
+              </svg>
+            </button>
+            <button type="button" class="featuredCarousel__step featuredCarousel__step--next" aria-label="Next bookmark">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 18l6-6l-6-6" />
+              </svg>
+            </button>
+            <span class="featuredCarousel__dots" aria-hidden="true"></span>
+          </div>
+        </section>
+      </div>
 
       <h2>What it does</h2>
       <ul class="about-features">
@@ -301,7 +282,7 @@
           <svg aria-hidden="true"><use href="#about-icon-building" /></svg>Add OpenStreetMap buildings to the globe, or Google's photorealistic tiles under the sky view
         </li>
         <li>
-          <svg aria-hidden="true"><use href="#about-icon-bookmark" /></svg>Start from the demo views, bookmark your own, and share any view as a link: the url carries the
+          <svg aria-hidden="true"><use href="#about-icon-bookmark" /></svg>Start from the featured views, bookmark your own, and share any view as a link: the url carries the
           satellites, the components, the locations and the map layers
         </li>
         <li>

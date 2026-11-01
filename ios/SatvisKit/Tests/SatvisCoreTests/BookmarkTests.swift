@@ -66,11 +66,7 @@ import Testing
         #expect(Bookmarks.openedLimit == root.bookmarks.openedLimit)
     }
 
-    @Test func shipsTheWebAppsDemos() {
-        #expect(Bookmarks.demos.map(\.id) == ["demo-globe", "demo-iss", "demo-sky"])
-        #expect(Bookmarks.demos.allSatisfy { $0.kind == .demo && $0.thumbnail != nil })
-        // The first is the default view.
-        #expect(Bookmarks.demos.first?.query == [:])
+    @Test func keepsTheWebAppsOwnedParameters() {
         #expect(Bookmarks.ownedParameters.isSuperset(of: LinkCodec.parameters))
         #expect(Bookmarks.ownedParameters.contains("stars") && !Bookmarks.ownedParameters.contains("framems"))
     }

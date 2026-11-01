@@ -221,14 +221,14 @@ private let fixedNow = Date(timeIntervalSince1970: 1_790_000_000)
         #expect(worker.requests.withLock { $0.first?.url?.absoluteString } == "https://satvis.test/data/starmap/x.webp")
     }
 
-    // A demo bookmark's picture, offline after the first launch that fetched it.
+    // A featured bookmark's picture, offline after the first launch that fetched it.
     @Test func keepsAPictureForOfflineLaunches() async throws {
         let store = temporaryStore()
         let online = GroupRepository(client: StubWorker([.image(Data([9]), etag: "b")]).client, store: store, snapshot: nil)
-        #expect(await online.keptImage("showcase/globe-card.jpg") == nil)
-        _ = try await online.image("showcase/globe-card.jpg")
+        #expect(await online.keptImage("showcase/globe.webp") == nil)
+        _ = try await online.image("showcase/globe.webp")
         let offline = GroupRepository(client: StubWorker([.offline]).client, store: store, snapshot: nil)
-        #expect(await offline.keptImage("showcase/globe-card.jpg") == Data([9]))
+        #expect(await offline.keptImage("showcase/globe.webp") == Data([9]))
     }
 
     // Each map's faces are kept apart, and the Tycho map a link names is the 1K one.

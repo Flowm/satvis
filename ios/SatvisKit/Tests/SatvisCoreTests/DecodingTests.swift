@@ -148,4 +148,25 @@ import Testing
         #expect(index.groups == [GroupStatus(name: "weather")])
         #expect(index.presets == ["ot": Preset(defaults: ["tags": "OT"], groups: [PresetGroup(name: "ot")])])
     }
+
+    // Each a link on its preset's path; a route naming no preset known gets the default's.
+    @Test func readsFeaturedBookmarks() throws {
+        let payload = #"""
+            {"updated": "", "groups": [],
+             "presets": {"default": {"groups": [], "featured": [{"name": "Weather", "thumbnail": "showcase/globe.webp"}]},
+                         "ot": {"groups": [], "featured": [{"name": "Flat", "thumbnail": "data/showcase/ot.webp", "query": {"scene": "2D", "fps": true}},
+                                                          {"name": "No picture"}, "OT"]}}}
+            """#
+        let index = try JSONDecoder().decode(GroupIndex.self, from: Data(payload.utf8))
+        #expect(index.presets["ot"]?.featured == [FeaturedBookmark(name: "Flat", thumbnail: "data/showcase/ot.webp", query: ["scene": "2D"])])
+        #expect(
+            index.featured(preset: "ot") == [
+                Bookmark(
+                    id: "featured-ot-0", kind: .featured, name: "Flat", scene: SceneLink(path: "/ot", query: ["scene": "2D"]),
+                    thumbnail: "data/showcase/ot.webp", at: 0)
+            ])
+        #expect(index.featured(preset: "nope").map(\.scene) == [SceneLink(path: "/", query: [:])])
+        #expect(index.featured(preset: nil).map(\.id) == ["featured-default-0"])
+        #expect(GroupIndex().featured(preset: nil).isEmpty)
+    }
 }
