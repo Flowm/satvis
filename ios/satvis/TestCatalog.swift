@@ -63,6 +63,16 @@
             return CGImageDestinationFinalize(destination) ? data as Data : nil
         }
 
+        /// A kept store of its own for each launch on the test catalog, so a test reads
+        /// the catalog and not what an earlier run kept from a worker, which the
+        /// repository reads first; nil unless asked for.
+        static func keptStore() -> PayloadStore? {
+            guard ProcessInfo.processInfo.environment["SATVIS_TEST_CATALOG"] != nil else {
+                return nil
+            }
+            return PayloadStore(directory: URL.temporaryDirectory.appending(path: "UITestKept-\(UUID())", directoryHint: .isDirectory))
+        }
+
         /// A bookmark storage of its own for each launch on the test catalog, so a
         /// test starts with no bookmarks whatever an earlier run saved; nil unless asked for.
         static func bookmarkStorage() -> BookmarkStorage? {
