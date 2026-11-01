@@ -38,9 +38,15 @@ variables they take. `make run` opens no simulator window; follow the app with
 - **`test`** runs UI tests that need no network: they start a Debug build on a
   fixed catalog with no worker to answer (`TestCatalog.swift`).
 - **`screenshots`** erases one simulator per App Store size, the default
-  `iPhone 18 Pro` among them, and shoots the Bookmarks sheet's demos on the live
-  site (`scripts/screenshots.sh`). `SHOTS=2Sky` retakes one whose tiles had not
+  `iPhone 18 Pro` among them and an iPhone Duo closed and another open, and
+  shoots the Bookmarks sheet's demos on the live site
+  (`scripts/screenshots.sh`). `SHOTS=2Sky` retakes one whose tiles had not
   loaded.
+- **`fold`** and **`unfold`** close and open an iPhone Duo simulator, which
+  simctl, XCTest and the size classes alone cannot: `scripts/hinge.swift` sends
+  DeviceHub's hinge event through private API. Closed, the Duo is a phone's
+  width on its cover display; open, an iPad's on its inner one, and still the
+  `.phone` idiom, so layout and tests go by size class.
 - **`screenshots-upload`** signs in with asc's profile, whose API key needs the
   App Manager role. App Store Connect then checks each file, which took from
   seconds to over 20 minutes a file on 2026-10-08; asc waits 10 minutes
@@ -104,6 +110,10 @@ centimetre.
 - **A lazy `List` has no rows off screen**, so a UI test has to scroll a row
   into view before it can find it. The info panel's `FactRow` reads as one
   element labelled `"<label>, <value>"`, not as two texts.
+- **On an iPhone Duo opened, XCTest's app-wide gestures and `XCUIScreen.main`
+  reach the dark cover display**: `app.swipeUp()` and `app.coordinate(…).tap()`
+  do nothing, and the screenshot is black. Gesture on `app.windows.firstMatch`,
+  and shoot the screen the app is on, as the screenshot tests do.
 - **A simulator keeps its cached launch screen across reinstalls.** Judge
   launch-screen changes on a simulator that never had the app, or after
   `simctl erase`; the screen shows for ~1.5 s, so record it with

@@ -288,8 +288,10 @@ struct ContentView: View {
             .shown(showsUI)
         }
         // Open from the start where there is room, as the web app's is on a desktop
-        // and folded on a phone.
+        // and folded on a phone, and again as the room changes: an iPhone Duo opened
+        // is an iPad's width, and closed a phone's.
         .onAppear { showsTools = sizeClass == .regular }
+        .onChange(of: sizeClass) { _, size in showsTools = size == .regular }
         // A panel goes with the column.
         .onChange(of: showsTools) { _, open in
             if !open {
@@ -341,6 +343,9 @@ struct ContentView: View {
                 }
                 .shown(showsUI)
             }
+            // A benchmark panel taller than the room scrolls under the top row
+            // rather than running off the top, as on an iPhone Duo opened.
+            .padding(.top, PanelMetrics.underTopRow)
         }
         .onChange(of: session.isPicking) { _, picking in
             if !picking, let selection = pickingFromLocations {

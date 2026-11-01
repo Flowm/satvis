@@ -170,6 +170,10 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   Glass, whose blur cost the compositor 5 ms of GPU a frame. Not system menus:
   iOS 26 grows one out of its control, in the column's place, and it holds
   ticked lists alone.
+- The column goes by the horizontal size class, never the idiom: open where it
+  is regular (an iPad, an iPhone Duo open, a Max phone lying down), folded where
+  compact, and set so again whenever it changes, as a Duo opening or closing
+  changes it under a running app.
 - Bookmarks are the web app's (ADR 0011, `BookmarksView.swift`): the code that
   describes and names them (`Bookmarks` in SatvisCore) is held to its
   `src/modules/util/bookmarks.ts` by the parity fixtures. A bookmark's picture

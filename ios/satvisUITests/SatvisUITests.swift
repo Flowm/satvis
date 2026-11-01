@@ -21,7 +21,7 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.navigationBars["METOP-C"].waitForExistence(timeout: 10))
         XCTAssert(app.buttons["Track"].exists)
         // On a phone the column stays folded, clear of the satellite's panel.
-        if UIDevice.current.userInterfaceIdiom != .pad {
+        if !isRoomy(app) {
             XCTAssertEqual(menuToggle(app).label, "Menu")
         }
     }
@@ -104,7 +104,7 @@ nonisolated class SatvisUITests: XCTestCase {
         let app = launch()
         let toggle = menuToggle(app)
         XCTAssert(toggle.waitForExistence(timeout: 30))
-        if UIDevice.current.userInterfaceIdiom == .pad {
+        if isRoomy(app) {
             XCTAssertEqual(toggle.label, "Close menu")
         } else {
             XCTAssertFalse(app.buttons["Map"].exists)
@@ -126,18 +126,20 @@ nonisolated class SatvisUITests: XCTestCase {
         app.buttons["Components"].tap()
         let panel = app.descendants(matching: .any)["Orbit track"]
         XCTAssert(panel.waitForExistence(timeout: 5))
-        // Space beside the globe, clear of the menu, the buttons and the clock.
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.62)).tap()
+        // Right of the globe's middle, clear of the menu and its panel, the buttons
+        // and the clock, on an iPhone Duo's short cover display too. On the window:
+        // an iPhone Duo opened sends the app's own gestures to its dark cover.
+        app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.62)).tap()
         XCTAssert(panel.waitForNonExistence(timeout: 5))
-        XCTAssertEqual(menuToggle(app).label, UIDevice.current.userInterfaceIdiom == .pad ? "Close menu" : "Menu")
+        XCTAssertEqual(menuToggle(app).label, isRoomy(app) ? "Close menu" : "Menu")
     }
 
     // A sheet opened from the menu column and closed again leaves the column as it
     // was: on a phone it folds under the sheet and unfolds as the sheet goes.
     @MainActor
     func testReopensTheMenuAfterASheet() throws {
-        try XCTSkipIf(UIDevice.current.userInterfaceIdiom == .pad, "An iPad's column never folds")
         let app = launch()
+        try XCTSkipIf(isRoomy(app), "An iPad's column never folds")
         openMenu(app)
         for entry in ["Satellites", "Bookmarks"] {
             app.buttons[entry].tap()
@@ -341,7 +343,7 @@ nonisolated class SatvisUITests: XCTestCase {
         card.tap()
         XCTAssert(sheet.waitForNonExistence(timeout: 5))
         // On a phone the column stays folded over the scene the bookmark opened.
-        if UIDevice.current.userInterfaceIdiom != .pad {
+        if !isRoomy(app) {
             sleep(1)
             XCTAssertEqual(menuToggle(app).label, "Menu")
         }
@@ -416,7 +418,7 @@ nonisolated class SatvisUITests: XCTestCase {
         // At the foot of a lazy list, which has no rows off screen.
         let sharing = app.switches["Share usage data"]
         for _ in 0..<6 where !sharing.exists {
-            app.swipeUp()
+            app.windows.firstMatch.swipeUp()
         }
         XCTAssert(sharing.exists)
         app.buttons["Acknowledgements"].tap()
@@ -481,6 +483,13 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(start.waitForExistence(timeout: 5))
     }
 
+    /// Whether the app has an iPad's width, where the menu column opens from the
+    /// start and never folds: an iPhone Duo opened has it too, and is no `.pad`.
+    @MainActor
+    private func isRoomy(_ app: XCUIApplication) -> Bool {
+        app.windows.firstMatch.horizontalSizeClass == .regular
+    }
+
     /// The menu column's toggle, named for what a tap on it does: "Menu" folded,
     /// "Close menu" open.
     @MainActor
@@ -531,7 +540,12 @@ nonisolated class SatvisUITests: XCTestCase {
         openMenu(app)
         app.buttons["Satellites"].tap()
         let search = app.searchFields["Search satellites"]
-        XCTAssert(search.waitForExistence(timeout: 10))
+        XCTAssert(app.navigationBars["Satellites"].waitForExistence(timeout: 10))
+        // An iPhone Duo closed keeps the field in a Search button at the foot.
+        if !search.exists {
+            app.buttons["Search"].tap()
+        }
+        XCTAssert(search.waitForExistence(timeout: 5))
         search.tap()
         search.typeText(name)
         XCTAssert(app.buttons[name].waitForExistence(timeout: 10))
@@ -545,8 +559,8 @@ nonisolated class SatvisUITests: XCTestCase {
 
     @MainActor
     func testScreenshot1Globe() throws {
-        try openDemo("Weather satellites", at: "2026-10-04T08:52:00")
-        screenshot("1Globe")
+        let app = try openDemo("Weather satellites", at: "2026-10-04T08:52:00")
+        screenshot(app, "1Globe")
     }
 
     // Night in the Lauterbrunnen valley. The terrain refines a level at a time
@@ -554,16 +568,16 @@ nonisolated class SatvisUITests: XCTestCase {
     // left an iPad's cliffs coarse.
     @MainActor
     func testScreenshot2Sky() throws {
-        try openDemo("Sky over Lauterbrunnen", at: "2026-10-04T19:22:00", wait: 60)
-        screenshot("2Sky")
+        let app = try openDemo("Sky over Lauterbrunnen", at: "2026-10-04T19:22:00", wait: 60)
+        screenshot(app, "2Sky")
     }
 
     // Over the Tyrrhenian Sea, Italy beside it: over desert the station was hard
     // to make out.
     @MainActor
     func testScreenshot3ISS() throws {
-        try openDemo("Follow the ISS", at: "2026-10-04T08:17:40")
-        screenshot("3ISS")
+        let app = try openDemo("Follow the ISS", at: "2026-10-04T08:17:40")
+        screenshot(app, "3ISS")
     }
 
     /// Launches on BASE_URL's site with its clock stopped at `time` (UTC), so
@@ -571,7 +585,6 @@ nonisolated class SatvisUITests: XCTestCase {
     /// the Bookmarks sheet, which leaves a stopped clock where it is, and waits
     /// `wait` seconds for the tiles.
     @MainActor
-    @discardableResult
     func openDemo(_ name: String, at time: String, wait: UInt32 = 20) throws -> XCUIApplication {
         let environment = ProcessInfo.processInfo.environment
         guard environment["SCREENSHOTS"] != nil else {
@@ -596,9 +609,18 @@ nonisolated class SatvisUITests: XCTestCase {
         return app
     }
 
+    /// Attaches the screen the app is on, status bar and all. Not always the main
+    /// one: an iPhone Duo opened shows the app on its second, the inner display,
+    /// a picture a pixel short each way, 2006 by 2852, and turned on its side by
+    /// its orientation tag (`scripts/caption.swift` takes both).
     @MainActor
-    func screenshot(_ name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    func screenshot(_ app: XCUIApplication, _ name: String) {
+        let window = app.windows.firstMatch.frame.size
+        let shot =
+            XCUIScreen.screens.lazy.map { $0.screenshot() }
+            .first { abs($0.image.size.width - window.width) < 2 && abs($0.image.size.height - window.height) < 2 }
+            ?? XCUIScreen.main.screenshot()
+        let attachment = XCTAttachment(screenshot: shot)
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
