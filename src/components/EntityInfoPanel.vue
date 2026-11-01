@@ -31,7 +31,7 @@
                 @click="toggleRename"
               />
             </UTooltip>
-            <span class="head__id">{{ satnum ? `#${satnum}` : "" }}</span>
+            <span class="head__gap" />
             <UTooltip text="Notify for upcoming passes">
               <UButton icon="i-lucide-bell" variant="ghost" color="neutral" size="xs" aria-label="Notify for upcoming passes" @click="notifyForPasses" />
             </UTooltip>
@@ -44,7 +44,8 @@
             </UTooltip>
             <UButton icon="i-lucide-x" variant="ghost" color="neutral" size="xs" aria-label="Close" @click="deselect" />
           </div>
-          <div v-if="chips.length > 0" class="head__chips">
+          <div v-if="satnum || chips.length > 0" class="head__chips">
+            <span v-if="satnum" class="head__id">#{{ satnum }}</span>
             <!-- The first chip is the orbit, in the colour the globe and the satellite list draw it. -->
             <span
               v-for="(chip, index) in chips"
@@ -520,12 +521,9 @@ function notifyForPasses(): void {
   font-weight: 600;
 }
 
-/* Takes the slack even when there is no catalog number. */
-.head__id {
+/* Keeps the buttons at the right edge however short the name. */
+.head__gap {
   flex-grow: 1;
-  color: #edffff70;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
 }
 
 .head__chips {
@@ -535,6 +533,10 @@ function notifyForPasses(): void {
   padding-left: 2px;
   color: #edffffb0;
   font-size: 11px;
+}
+
+.head__id {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Amber: the app colour for "away from rest", as on the stale notice. */
