@@ -173,7 +173,11 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
 - The column goes by the horizontal size class, never the idiom: open where it
   is regular (an iPad, an iPhone Duo open, a Max phone lying down), folded where
   compact, and set so again whenever it changes, as a Duo opening or closing
-  changes it under a running app.
+  changes it under a running app. Satellites goes by it too: a panel beside the
+  column where it is regular, as on the web, closed under the info card it opens
+  (`BrowserPanel`); a sheet where it is compact, a list too long for a phone's
+  card (`BrowserView`). The panel's list scrolls itself, told the room under the
+  title (`panelRoom`) rather than capped by a frame, which grows to its cap.
 - Bookmarks are the web app's (ADR 0011, `BookmarksView.swift`): the code that
   describes and names them (`Bookmarks` in SatvisCore) is held to its
   `src/modules/util/bookmarks.ts` by the parity fixtures. The featured ones are

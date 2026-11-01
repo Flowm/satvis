@@ -4,20 +4,116 @@ import SwiftUI
 
 /// The satellite browser, as the web app's: a row per tag that switches the whole
 /// group, expanding to its satellites one by one, and a search across everything.
-/// A satellite's info button switches it on and opens its panel.
+/// A satellite's info button switches it on and opens its panel. A sheet, on a
+/// phone; `BrowserPanel` where there is room.
 struct BrowserView: View {
     let catalog: CatalogModel
     let onShow: (CatalogEntry) -> Void
     @State private var query = ""
-    @State private var results: [CatalogEntry]?
-    @State private var searching = false
-    @State private var expanded: Set<String> = []
-    @State private var members: [String: [CatalogEntry]] = [:]
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            List {
+            BrowserList(catalog: catalog, query: query) {
+                onShow($0)
+                dismiss()
+            }
+            .searchable(text: $query, prompt: "Search satellites")
+            .navigationTitle("Satellites")
+            .navigationBarTitleDisplayMode(.inline)
+            .panelSheet()
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    ClearAllButton(catalog: catalog)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                ActiveCount(catalog: catalog)
+                    .padding(8)
+                    .frame(maxWidth: .infinity)
+                    // The surface, not the bar's material, which blurs what is behind.
+                    .background(Color.panelSurface)
+            }
+        }
+    }
+}
+
+/// The satellite browser as a panel beside the menu column, as the web app's: the
+/// search over the list, and the count and Clear all under it. As tall as the list,
+/// up to the room it is given, which the list then scrolls in.
+struct BrowserPanel: View {
+    let catalog: CatalogModel
+    let onShow: (CatalogEntry) -> Void
+    @State private var query = ""
+    /// The list's rows, measured, which it is as tall as where they fit.
+    @State private var listHeight: CGFloat?
+    /// The search row, measured.
+    @State private var searchHeight: CGFloat = 0
+    /// The count's row, measured.
+    @State private var countHeight: CGFloat = 0
+    @Environment(\.panelRoom) private var room
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PanelSearchField(text: $query, prompt: "Search satellites")
+                .padding(12)
+                .onGeometryChange(for: CGFloat.self, of: \.size.height) { searchHeight = $0 }
+            BrowserList(catalog: catalog, query: query, onShow: onShow)
+                // The panels' text size: at the sheet's, a name wrapped in 320 points.
+                .font(.subheadline)
+                .scrollContentBackground(.hidden)
+                .contentMargins(.horizontal, 12, for: .scrollContent)
+                .contentMargins(.vertical, 0, for: .scrollContent)
+                .scrollDismissesKeyboard(.immediately)
+                .onScrollGeometryChange(for: CGFloat.self) {
+                    $0.contentSize.height + $0.contentInsets.top + $0.contentInsets.bottom
+                } action: { _, height in
+                    listHeight = height
+                }
+                .frame(height: shownListHeight)
+            HStack {
+                ActiveCount(catalog: catalog)
+                Spacer(minLength: 8)
+                ClearAllButton(catalog: catalog)
+                    .font(.subheadline)
+                    .buttonStyle(.borderless)
+                    // The panel's ink otherwise, which outranks the role's red.
+                    .foregroundStyle(.red)
+            }
+            .padding(.horizontal, 12)
+            .frame(minHeight: PanelMetrics.row)
+            .onGeometryChange(for: CGFloat.self, of: \.size.height) { countHeight = $0 }
+        }
+    }
+
+    /// The rows' height, or the room left where that is less. At least a row: a list
+    /// laid out none tall measured its rows as none tall too, and stayed so. Eight rows
+    /// until the room is measured, which a long list otherwise ran past the screen for.
+    private var shownListHeight: CGFloat {
+        let left = room.map { max($0 - searchHeight - countHeight, PanelMetrics.row) } ?? PanelMetrics.row * 8
+        guard let listHeight else {
+            return left
+        }
+        return min(max(listHeight, PanelMetrics.row), left)
+    }
+}
+
+/// The browser's list: the groups, or what a search finds.
+private struct BrowserList: View {
+    let catalog: CatalogModel
+    let query: String
+    let onShow: (CatalogEntry) -> Void
+    @State private var results: [CatalogEntry]?
+    @State private var searching = false
+    @State private var expanded: Set<String> = []
+    @State private var members: [String: [CatalogEntry]] = [:]
+
+    var body: some View {
+        List {
+            Group {
                 if searching, results == nil {
                     // A search loads every group, and the biggest takes seconds.
                     HStack {
@@ -48,49 +144,29 @@ struct BrowserView: View {
                     }
                 }
             }
-            .searchable(text: $query, prompt: "Search satellites")
-            .task(id: query) {
-                // As the web app's 150 ms debounce: no search per keystroke.
-                try? await Task.sleep(for: .milliseconds(150))
-                guard !Task.isCancelled else {
-                    return
-                }
-                guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
-                    results = nil
-                    searching = false
-                    return
-                }
-                searching = true
-                let found = await catalog.search(query)
-                // A newer query took over while this one waited for the groups:
-                // its results and its spinner are that one's to set.
-                guard !Task.isCancelled else {
-                    return
-                }
-                results = found
+            // A sheet's own; off one, the grouped rows would be the panel's surface.
+            .listRowBackground(Color.panelRaised)
+        }
+        .task(id: query) {
+            // As the web app's 150 ms debounce: no search per keystroke.
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else {
+                return
+            }
+            guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
+                results = nil
                 searching = false
+                return
             }
-            .navigationTitle("Satellites")
-            .navigationBarTitleDisplayMode(.inline)
-            .panelSheet()
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Clear all", role: .destructive) { catalog.clearAll() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
+            searching = true
+            let found = await catalog.search(query)
+            // A newer query took over while this one waited for the groups:
+            // its results and its spinner are that one's to set.
+            guard !Task.isCancelled else {
+                return
             }
-            .safeAreaInset(edge: .bottom) {
-                let groupsOn = catalog.tags.filter { catalog.activation.enabledTags.contains($0) }.count
-                Text("^[\(groupsOn) group](inflect: true) · ^[\(catalog.activeEntries.count) satellite](inflect: true) active")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(8)
-                    .frame(maxWidth: .infinity)
-                    // The surface, not the bar's material, which blurs what is behind.
-                    .background(Color.panelSurface)
-            }
+            results = found
+            searching = false
         }
     }
 
@@ -99,7 +175,6 @@ struct BrowserView: View {
             catalog.setSatellite(entry, enabled: true)
         }
         onShow(entry)
-        dismiss()
     }
 
     /// Expanding a tag loads its groups, once.
@@ -114,6 +189,56 @@ struct BrowserView: View {
                 expanded.remove(tag)
             }
         }
+    }
+}
+
+/// Switches every group and satellite off, in the sheet's bar and the panel's foot.
+private struct ClearAllButton: View {
+    let catalog: CatalogModel
+
+    var body: some View {
+        Button("Clear all", role: .destructive) { catalog.clearAll() }
+    }
+}
+
+/// How many groups and satellites are on.
+private struct ActiveCount: View {
+    let catalog: CatalogModel
+
+    var body: some View {
+        let groupsOn = catalog.tags.filter { catalog.activation.enabledTags.contains($0) }.count
+        Text("^[\(groupsOn) group](inflect: true) · ^[\(catalog.activeEntries.count) satellite](inflect: true) active")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+    }
+}
+
+/// A search field on a panel, as the web app's: a magnifying glass, the field, and
+/// a cross that clears it. Read as a search field, as the sheet's is.
+private struct PanelSearchField: View {
+    @Binding var text: String
+    let prompt: LocalizedStringKey
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            TextField(prompt, text: $text)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+                .accessibilityAddTraits(.isSearchField)
+            if !text.isEmpty {
+                Button("Clear search", systemImage: "xmark.circle.fill") { text = "" }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(minHeight: 36)
+        .background(Color.panelRaised, in: .capsule)
     }
 }
 

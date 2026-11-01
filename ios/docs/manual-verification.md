@@ -518,3 +518,23 @@ when the iPhone 18 Pro's app never launched, with no crash report, and the next 
 Not checked: the upload to App Store Connect; the sky view's compass, which turns the
 device's attitude by the interface orientation and needs a device; Split View; the Duo
 half open.
+
+## Native app: Satellites beside the menu column on an iPad
+
+**Procedure.** An iPad Air 11-inch (M4) simulator (820 by 1180 pt) and an iPhone 18 Pro,
+both iOS 27.2, on the live site with `SATVIS_TIME=2026-10-04T08:52:00Z`: a temporary UI
+test opening Satellites, expanding Eutelsat, opening its first satellite's info, and
+searching "ISS", a screenshot after each, before and after the change.
+
+**Result, 2026-11-01.** On the iPad Satellites opens beside the column as Components does,
+320 pt wide and clear of the corner, the entry cyan, the globe beside it undimmed: the
+search field under the title, the groups' rows as the sheet's at the panels' 15 pt, and
+under them the count and a red Clear all, the panel running down to a gap above the clock
+deck and the list scrolling inside it. The sheet had sat in the middle, dimming the globe
+and the column. At 320 pt a long name such as EUTELSAT 115 WEST B takes two lines, as it
+does in the phone's sheet. A satellite's info button opens the card in the top-right
+corner and closes the panel. A search lists its results with their groups; the
+on-screen keyboard covers the panel's foot while it is up, as it does every panel's. The
+iPhone's sheet is unchanged. Bookmarks and About are still centred sheets on the iPad.
+The UI tests passed on both; `testEditsLocationsInTheirPanel` failed once on the iPhone
+in the full run (the drag did not move Probeburg) and passed twice alone.
