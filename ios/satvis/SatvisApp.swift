@@ -290,8 +290,7 @@ struct ContentView: View {
         // Open from the start where there is room, as the web app's is on a desktop
         // and folded on a phone, and again as the room changes: an iPhone Duo opened
         // is an iPad's width, and closed a phone's.
-        .onAppear { showsTools = sizeClass == .regular }
-        .onChange(of: sizeClass) { _, size in showsTools = size == .regular }
+        .onChange(of: sizeClass, initial: true) { _, size in showsTools = size == .regular }
         // A panel goes with the column.
         .onChange(of: showsTools) { _, open in
             if !open {

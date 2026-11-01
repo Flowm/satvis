@@ -80,7 +80,9 @@ developerDir.executableURL = URL(fileURLWithPath: "/usr/bin/xcode-select")
 developerDir.arguments = ["-p"]
 let pipe = Pipe()
 developerDir.standardOutput = pipe
-try developerDir.run()
+guard (try? developerDir.run()) != nil else {
+    fail("xcode-select did not run")
+}
 developerDir.waitUntilExit()
 let developerPath = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
     .trimmingCharacters(in: .whitespacesAndNewlines)

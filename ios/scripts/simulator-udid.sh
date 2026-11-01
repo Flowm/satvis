@@ -1,6 +1,6 @@
 #!/bin/sh
 # Prints the UDID of the available simulator named $1 on runtime $2, e.g.
-# "iOS 27". Without $2, on the newest runtime that has one: names repeat across
+# "iOS 27.2". Without $2, on the newest runtime that has one: names repeat across
 # installed runtimes, and the newest is listed last.
 set -eu
 

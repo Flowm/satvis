@@ -45,15 +45,10 @@ run: build ## Build and launch the app on the simulator | DEVICE RUNTIME UDID AP
 	xcrun simctl launch --terminate-running-process $(UDID) org.frcy.app.satvis
 
 fold unfold: DEVICE = iPhone Duo
-fold: ## Close an iPhone Duo simulator | DEVICE RUNTIME UDID
+fold unfold: ## Close or open an iPhone Duo simulator | DEVICE RUNTIME UDID
 	xcrun simctl boot $(UDID) 2>/dev/null || true
 	xcrun simctl bootstatus $(UDID) >/dev/null
-	swift scripts/hinge.swift $(UDID) closed
-
-unfold: ## Open an iPhone Duo simulator | DEVICE RUNTIME UDID
-	xcrun simctl boot $(UDID) 2>/dev/null || true
-	xcrun simctl bootstatus $(UDID) >/dev/null
-	swift scripts/hinge.swift $(UDID) open
+	swift scripts/hinge.swift $(UDID) $(if $(filter fold,$@),closed,open)
 
 logs: ## Stream the app's log from the simulator | DEVICE RUNTIME UDID
 	xcrun simctl spawn $(UDID) log stream --level debug --style compact --predicate 'subsystem == "org.frcy.app.satvis"'
@@ -86,7 +81,7 @@ help: ## List the tasks and the variables they take
 	@echo "Usage: make <task> [VARIABLE=value ...]"
 	@echo
 	@echo Tasks:
-	@awk -F ':.*## | \\| ' '/^[a-z-]+:.*## / { line = sprintf("  %-21s %-44s %s", $$1, $$2, $$3); sub(/ +$$/, "", line); print line }' $(MAKEFILE_LIST)
+	@awk -F ':.*## | \\| ' '/^[a-z -]+:.*## / { line = sprintf("  %-21s %-44s %s", $$1, $$2, $$3); sub(/ +$$/, "", line); print line }' $(MAKEFILE_LIST)
 	@echo
 	@echo Variables:
 	@awk '/^## / { name = $$2; $$1 = $$2 = ""; sub(/^ +/, ""); printf "  %-21s %s\n", name, $$0 }' $(MAKEFILE_LIST)

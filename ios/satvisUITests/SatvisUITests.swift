@@ -139,7 +139,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testReopensTheMenuAfterASheet() throws {
         let app = launch()
-        try XCTSkipIf(isRoomy(app), "An iPad's column never folds")
+        try XCTSkipIf(isRoomy(app), "A regular width's column never folds")
         openMenu(app)
         for entry in ["Satellites", "Bookmarks"] {
             app.buttons[entry].tap()
