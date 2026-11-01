@@ -50,10 +50,14 @@ never a thousands separator there; text with both, a pasted "48.1372, 11.5756", 
 refused, as it always was. Kept plain at first, they were the one decimal on screen in the
 fixed form, beside the region's "48,14°" of the station links.
 
-**The sky view's lock card stays fixed**, whole numbers grouped as en-US ("178° S · 33° up ·
-38,362 km away"), in both apps: it is held to `skyCard.ts` by the parity fixtures, and its
-fixed width is sized for those digits. **The speed ladder's rungs stay ungrouped** ("−86400×")
-for the same reason: grouped, the widest took 63 of a rung's 64 px on the web.
+**The sky view's lock card follows the region too**: "178° S · 33° up · 38.362 km away" in
+Germany, where en-US's "38,362 km" read as 38 km. It was kept fixed at first, for its fixed
+width. Measured, the widest line any region writes, "282° WNW · 10° up · 3,75,000 km away" in
+India for the science satellites 172,000 km out, takes 212 of the web line's 240 px and, in SF,
+243.7 points: the native card grew from 260 to 264 points for it. Germany's points, Switzerland's
+apostrophes and the narrow spaces of France and Sweden are each as wide as en-US's comma or
+narrower. The parity fixtures hold it to `skyCard.ts` in en-US. **The speed ladder's rungs stay
+ungrouped** ("−86400×"): grouped, the widest took 63 of a rung's 64 px on the web.
 
 ## Consequences
 

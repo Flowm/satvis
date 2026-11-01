@@ -118,11 +118,11 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   of the clock: placing all 16,755 active ones cost an iPad mini 8.6 ms of the
   main thread, 15 times a second (14 measured), and with them a Debug build
   managed 5 frames a second. The lock's card is the web app's (`SkyCard`, held
-  to `skyCard.ts` by the parity fixtures), its numbers en-US whatever the
-  region, unlike every other number and date, which follow it (`Formats`, ADR
-  0015). Compass aiming (`SkyCompass`) can only be tried on a device: the
-  simulator has no motion sensor. Where it stands is the web's (ADR 0003): the
-  one station named "Geolocation", moved to the device each time, unless a link
+  to `skyCard.ts` by the parity fixtures), its numbers in the region's
+  conventions as every other number's (`Formats`, ADR 0015). Compass aiming
+  (`SkyCompass`) can only be tried on a device: the simulator has no motion
+  sensor. Where it stands is the web's (ADR 0003): the one station named
+  "Geolocation", moved to the device each time, unless a link
   or a station's panel names one; the app writes the observer first into the
   links it makes, as a link's sky view stands on its first station. What cannot
   be seen (ADR 0010) is dimmed or hidden by the point and label shaders, from

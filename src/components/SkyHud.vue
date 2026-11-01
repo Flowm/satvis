@@ -217,8 +217,9 @@ onUnmounted(stop);
 }
 
 /* As wide whatever it holds, so it stands still as the lock goes from one satellite to
-   the next. 280 px holds "359° NNW · 90° up · 38,362 km away" and clears the
-   elevation tape's labels on a 375 px phone. */
+   the next. 280 px holds the widest line any region writes, "282° WNW · 10° up ·
+   3,75,000 km away" in India (212 of 240 px), and clears the elevation tape's labels on
+   a 375 px phone. */
 .sky-hud__card {
   position: absolute;
   left: 50%;

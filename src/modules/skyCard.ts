@@ -2,6 +2,7 @@
 // app's (SkyCard.swift) by the parity fixtures.
 
 import { compassPoint, normalizeAzimuth } from "./skyGeometry";
+import { formatInteger } from "./util/formats";
 import type { Visibility } from "./util/visibility";
 
 /** The verdict as the card's chip says it. */
@@ -13,12 +14,12 @@ export const VISIBILITY_LABEL: Record<Visibility, string> = {
 };
 
 /**
- * Whole numbers grouped as en-US, whatever the locale: the card's fixed width is sized for
- * those digits (ADR 0015). A tenth of a degree is finer than
- * a phone's compass and flickers as a satellite crosses the crosshair. `|| 0`, as a
- * satellite just under the horizon would otherwise read "-0° up", where Swift prints 0.
+ * Whole numbers, grouped as the region groups them (ADR 0015), rounded as the native app
+ * rounds them. A tenth of a degree is finer than a phone's compass and flickers as a
+ * satellite crosses the crosshair. `|| 0`, as a satellite just under the horizon would
+ * otherwise read "-0° up", where Swift prints 0.
  */
-const whole = (value: number): string => (Math.round(value) || 0).toLocaleString("en-US");
+const whole = (value: number): string => formatInteger(Math.round(value) || 0);
 
 /** Where to look, for the eye and for a screen reader. */
 export function lockPosition(azimuth: number, elevation: number, rangeKm: number): { text: string; spoken: string } {

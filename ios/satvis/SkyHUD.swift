@@ -264,9 +264,11 @@ private struct SkyInstruments: View {
             .background(seen ? Self.lockColor.opacity(0.2) : Color.white.opacity(0.12), in: Capsule())
     }
 
-    /// Points inside the padding: room for "359° NNW · 90° up · 38,362 km away"
-    /// at the default text size, the web app's 280 px with its padding.
-    @ScaledMetric(relativeTo: .footnote) private var cardWidth = 260.0
+    /// Points inside the padding: room at the default text size for the widest
+    /// line any region writes, "282° WNW · 10° up · 3,75,000 km away" in India
+    /// (243.7 pt), for the science satellites 172,000 km out. 4 points wider than the
+    /// web app's 280 px with its padding, as SF runs wider than its sans-serif.
+    @ScaledMetric(relativeTo: .footnote) private var cardWidth = 264.0
     /// From either side of a narrow screen, as the web app's; the card's own padding
     /// is the 20 points more the frame leaves.
     private static let cardGutter: CGFloat = 16
