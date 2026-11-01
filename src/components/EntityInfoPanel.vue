@@ -160,16 +160,22 @@
             </template>
 
             <template v-if="elements">
-              <div class="section">{{ elements.kind === "tle" ? "TLE" : "Elements" }} · epoch {{ elements.epoch }}</div>
-              <pre v-if="elements.kind === 'tle'" class="info-code"><code>{{ elements.lines }}</code></pre>
-              <table v-else class="info-table info-table--facts">
+              <div class="section">Element set</div>
+              <table class="info-table info-table--facts">
                 <tbody>
-                  <tr v-for="[label, value] in elements.rows" :key="label">
-                    <th>{{ label }}</th>
-                    <td class="right mono">{{ value }}</td>
+                  <tr>
+                    <th>Epoch</th>
+                    <td class="right mono">{{ elements.epoch }} UTC</td>
                   </tr>
+                  <template v-if="elements.kind === 'omm'">
+                    <tr v-for="[label, value] in elements.rows" :key="label">
+                      <th>{{ label }}</th>
+                      <td class="right mono">{{ value }}</td>
+                    </tr>
+                  </template>
                 </tbody>
               </table>
+              <pre v-if="elements.kind === 'tle'" class="info-code"><code>{{ elements.lines }}</code></pre>
             </template>
           </div>
         </template>
@@ -569,10 +575,8 @@ function notifyForPasses(): void {
 }
 
 .hero__label {
-  color: #edffffb0;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  color: var(--panel-muted);
+  font-size: var(--text-section);
 }
 
 .hero__value {
@@ -623,12 +627,13 @@ function notifyForPasses(): void {
   font-size: 13px;
 }
 
+/* The menu panels' section heading (`.toolbarTitle`), as the iOS app's list headers. */
 .section {
   margin: 12px 0 5px;
-  color: #edffff90;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  color: var(--panel-muted);
+  font-size: var(--text-section);
+  font-weight: 600;
+  line-height: 16px;
 }
 
 .info-table {
@@ -661,10 +666,8 @@ function notifyForPasses(): void {
   top: 0;
   background: #383b3e;
   color: #edffffb0;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--text-section);
+  font-weight: 600;
 }
 
 .info-table tbody tr.is-next {
