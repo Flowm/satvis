@@ -26,7 +26,7 @@ import simd
     private static func frame(
         _ rig: inout CameraRig, at uptime: Double, time: Double = time, target: SIMD3<Double>? = nil, model: TrackedModel = .noModel
     ) -> CameraPose? {
-        rig.pose(uptime: uptime, time: time, aspectRatio: aspectRatio, model: { _ in model }, target: { _ in target }, groundHeight: { _ in 0 })
+        rig.pose(uptime: uptime, time: time, aspectRatio: aspectRatio, model: { _ in model }, target: { _, _ in target }, groundHeight: { _ in 0 })
     }
 
     @Test func landsInTheSkyViewAfterTheFlightAndHoldsTheGesturesTillThen() throws {

@@ -730,7 +730,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         let size = SIMD2(Double(hdr.width), Double(hdr.height))
         let pose = rig.pose(
             uptime: shown, time: now, aspectRatio: size.x / size.y, model: { self.trackedModel($0) },
-            target: { self.position(of: $0, at: now) }, groundHeight: { self.surface.groundHeight(latitude: $0.latitude, longitude: $0.longitude) })
+            target: { self.position(of: $0, at: $1) }, groundHeight: { self.surface.groundHeight(latitude: $0.latitude, longitude: $0.longitude) })
         guard let pose, mustDraw(pose: pose, time: now, size: size) else {
             if measuring {
                 meter.skipped(cpuSeconds: ProcessInfo.processInfo.systemUptime - started)

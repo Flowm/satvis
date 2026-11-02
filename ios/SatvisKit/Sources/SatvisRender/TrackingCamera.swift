@@ -47,12 +47,13 @@ struct CameraPose: Equatable {
     }
 }
 
-/// A camera that follows a satellite, looking at it from an offset in its local
-/// east-north-up frame. It opens where the web app's tracking view does
-/// (`viewFrom` 0, −3600 km, 4200 km: south of it and above); dragging circles it,
-/// pinching closes in.
+/// A camera that follows a satellite, looking at it from an offset it holds in the
+/// frame the web app's tracking view does (`axes`). It opens where that view does
+/// (`viewFrom` 0, −3600 km, 4200 km: behind it on the y axis and above); dragging
+/// circles it, pinching closes in.
 public struct TrackingCamera: Sendable, Equatable {
-    /// Radians clockwise from north, of the camera as seen from the satellite.
+    /// Radians from the frame's y axis towards its x: from north towards east, for
+    /// what holds still.
     public var heading = Double.pi
     /// Radians above the satellite's horizon.
     public var pitch = atan2(4200.0, 3600.0)
@@ -62,10 +63,9 @@ public struct TrackingCamera: Sendable, Equatable {
     public init() {}
 
     /// Close up on a 3D model, as the web app tracks one while its model is on:
-    /// south-east of it and above, along (9, −10, 9) east-north-up, six model
-    /// radii away, so a cubesat and the ISS fill the screen alike. 34° up, past
-    /// the 20–23° a low orbit's horizon dips, so the model is seen against the
-    /// ground.
+    /// along (9, −10, 9) in `axes`, six model radii away, so a cubesat and the ISS
+    /// fill the screen alike. 34° up, past the 20–23° a low orbit's horizon dips,
+    /// so the model is seen against the ground.
     static func framing(modelRadius radius: Double) -> TrackingCamera {
         var camera = TrackingCamera()
         camera.heading = atan2(9, -10)
@@ -74,11 +74,47 @@ public struct TrackingCamera: Sendable, Equatable {
         return camera
     }
 
-    func pose(target: SIMD3<Double>) -> CameraPose {
+    /// Where Earth's surface is at rest, radians per second.
+    private static let earthRotation = SIMD3(0, 0, 7.292_115e-5)
+    /// CesiumJS's `GRAVITATIONALPARAMETER`, m³/s².
+    private static let gravitationalParameter = 3.986_004_418e14
+    /// Past this semi-major axis, in metres, the frame turns north-up: 1.25 times
+    /// WGS84's equatorial radius, as CesiumJS has it.
+    private static let northUpSemiMajorAxis = 1.25 * 6_378_137.0
+
+    /// The axes CesiumJS's `EntityView` holds a tracked entity's `viewFrom` in, in 3D
+    /// (`updateTransform`), for one at `target` moving at `velocity` m/s in the
+    /// fixed frame. In a low orbit: x along its motion through inertial space,
+    /// level, y along the orbit's normal, z up. In a higher one or an escape: x
+    /// down, y west, z north. Still: east, north, up.
+    static func axes(target: SIMD3<Double>, velocity: SIMD3<Double>) -> (x: SIMD3<Double>, y: SIMD3<Double>, z: SIMD3<Double>) {
         let up = normalize(target)
+        let inertialVelocity = velocity + cross(earthRotation, target)
+        let speed = length(inertialVelocity)
+        let semiMajorAxis = -gravitationalParameter / (speed * speed - 2 * gravitationalParameter / length(target))
+        if semiMajorAxis < 0 || semiMajorAxis > northUpSemiMajorAxis {
+            let west = cross(SIMD3(0, 0, 1), -up)
+            if length(west) > 1e-7 {
+                let y = normalize(west)
+                return (-up, y, normalize(cross(-up, y)))
+            }
+        } else if length(velocity) * 0.001 > 1e-7 * length(target) {
+            // Cesium tells it by where it is a millisecond on.
+            let normal = cross(up, inertialVelocity)
+            if length(normal) * 0.001 > 1e-7 * length(target) {
+                let y = normalize(normal)
+                return (cross(y, up), y, up)
+            }
+        }
         let east = normalize(cross(SIMD3(0, 0, 1), up))
-        let north = cross(up, east)
-        let back = cos(pitch) * (sin(heading) * east + cos(heading) * north) + sin(pitch) * up
+        return (east, cross(up, east), up)
+    }
+
+    /// Seen from here, around what is at `target` moving at `velocity` m/s in the
+    /// fixed frame.
+    func pose(target: SIMD3<Double>, velocity: SIMD3<Double> = .zero) -> CameraPose {
+        let (x, y, up) = Self.axes(target: target, velocity: velocity)
+        let back = cos(pitch) * (sin(heading) * x + cos(heading) * y) + sin(pitch) * up
         let right = normalize(cross(up, back))
         // Nearer than a metre to a cubesat's model: the near plane comes in with it.
         return CameraPose(position: target + range * back, right: right, up: cross(back, right), back: back, near: min(1, range / 10))

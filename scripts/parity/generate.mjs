@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Write the parity fixtures the native app's tests are held to
 // (docs/adr/0009-native-ios-app.md): what the web app's own code answers for the
-// element sets in parity-input.json. Also write the tables the native app reads
+// element sets in parity-input.json, and the axes Cesium tracks them in
+// (tracking-frames.json, for SatvisRender). Also write the tables the native app reads
 // as they are rather than keeping a copy of its own: the SATCAT and GCAT code labels,
-// the external links and the url parameters a bookmark keeps. Never edit either output by hand; CI checks that rerunning
+// the external links and the url parameters a bookmark keeps. Never edit any output by hand; CI checks that rerunning
 // this changes nothing.
 //
 // The web code is loaded through Vite's module runner, because its imports are
@@ -25,6 +26,7 @@ const fixtureDir = path.join(repoRoot, "ios/SatvisKit/Tests/SatvisCoreTests/Fixt
 const inputPath = path.join(fixtureDir, "parity-input.json");
 const outputPath = path.join(fixtureDir, "parity.json");
 const tablesPath = path.join(repoRoot, "ios/SatvisKit/Sources/SatvisCore/Shared/web-tables.json");
+const trackingFramesPath = path.join(repoRoot, "ios/SatvisKit/Tests/SatvisRenderTests/Fixtures/tracking-frames.json");
 
 const MS_PER_MINUTE = 60_000;
 // Around each element set's epoch: back a day, the epoch, half an orbit or so,
@@ -141,6 +143,52 @@ try {
         fixedPositionMetres: Array.from(chunk.positionsFixed.subarray(k * every * 3, k * every * 3 + 3)),
       })),
     };
+  });
+
+  // The axes Cesium's EntityView holds a tracked satellite's viewFrom in, at each state above:
+  // its own code, handed the propagated positions, which it reads again a millisecond on. Its
+  // camera is a stand-in that keeps the transform it is given.
+  const { JulianDate: TrackingDate } = await runner.import("@cesium/core");
+  const { CallbackPositionProperty, Entity, EntityView, SceneMode } = await runner.import("@cesium/engine");
+  const trackingFrames = records.flatMap((record, index) => {
+    const satrec = gp.createSatrec(record);
+    const fixedAt = (ms) => {
+      const { x, y, z } = satellitejs.propagate(satrec, new Date(ms)).position;
+      const angle = greenwichHourAngle(ms);
+      const [c, s] = [Math.cos(angle), Math.sin(angle)];
+      return [(c * x + s * y) * 1000, (-s * x + c * y) * 1000, z * 1000];
+    };
+    return propagation
+      .filter((state) => state.record === index)
+      .map(({ instant }) => {
+        const instantMs = Date.parse(instant);
+        const time = TrackingDate.fromDate(new Date(instantMs));
+        // Cesium asks for the instant and a millisecond on, which whole milliseconds hold exactly.
+        const position = new CallbackPositionProperty((at, result) => {
+          const [x, y, z] = fixedAt(instantMs + Math.round(TrackingDate.secondsDifference(at, time) * 1000));
+          return Object.assign(result ?? {}, { x, y, z });
+        }, false);
+        const camera = {
+          position: { x: 0, y: 0, z: 1 },
+          direction: { x: 0, y: 0, z: -1 },
+          up: { x: 0, y: 1, z: 0 },
+          right: { x: 1, y: 0, z: 0 },
+          _setTransform(transform) {
+            this.transform = Array.from(transform);
+          },
+          lookAtTransform() {},
+        };
+        const view = new EntityView(new Entity({ position, viewFrom: { x: 1, y: 1, z: 1 } }), { mode: SceneMode.SCENE3D, camera });
+        view.update(time);
+        const m = camera.transform;
+        return {
+          record: index,
+          instant,
+          positionMetres: fixedAt(instantMs),
+          millisecondOnMetres: fixedAt(instantMs + 1),
+          axes: { x: m.slice(0, 3), y: m.slice(4, 7), z: m.slice(8, 11) },
+        };
+      });
   });
 
   // The info panel's Orbit and Spacecraft tabs: derived, curated, GCAT and SATCAT facts,
@@ -613,6 +661,7 @@ try {
     links: { vocabulary, presets: PRESETS, defaults: globalDefaults, fieldKinds, cases: links, sanitized },
   };
   fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
+  fs.writeFileSync(trackingFramesPath, `${JSON.stringify({ generatedBy: "scripts/parity/generate.mjs", frames: trackingFrames }, null, 2)}\n`);
 
   const tables = {
     generatedBy: "scripts/parity/generate.mjs",
@@ -636,6 +685,7 @@ try {
   fs.mkdirSync(path.dirname(tablesPath), { recursive: true });
   fs.writeFileSync(tablesPath, `${JSON.stringify(tables, null, 2)}\n`);
   process.stdout.write(`Wrote ${path.relative(repoRoot, outputPath)} (${records.length} records, ${propagation.length} states)\n`);
+  process.stdout.write(`Wrote ${path.relative(repoRoot, trackingFramesPath)} (${trackingFrames.length} frames)\n`);
 } finally {
   await server.close();
 }
