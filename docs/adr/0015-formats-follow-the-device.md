@@ -16,9 +16,9 @@ app showed both conventions on one screen, and the two apps did not agree.
 formats through one module, `src/modules/util/formats.ts`, on cached `Intl.NumberFormat` and
 `Intl.DateTimeFormat`; the iOS app through `Formats` in SatvisCore, on Foundation's format
 styles. Counts are grouped ("16.819"), decimals take the region's separator ("48,14°"), and
-the clock deck's day, the one date written with a month's name, its order ("Sun, 25 Oct"):
-the clock deck and its timeline, the Satellites list and the catalog sheet, the info panel's
-details and passes, and the counts in toasts and labels.
+the clock deck's day, the one date written with a month's name, its order of day and month
+("Sun 25 Oct"): the clock deck and its timeline, the Satellites list and the catalog sheet,
+the info panel's details and passes, and the counts in toasts and labels.
 
 **English words, the region's conventions.** iOS gives an English-only app the device's region
 under English, en_DE for a German device. The web takes the region of the browser's first
@@ -41,13 +41,23 @@ every region, as the iOS app's clock already did on purpose (`testReadsUTCOnA24H
 it at 1.005.
 
 **What is not for people keeps its fixed form:** url parameters (ADR 0001), stored values,
-analytics, the element set's values, and the Locations panel's coordinate fields, which show and parse a plain decimal so
-that what is typed and what is pasted from a map both read the same.
+analytics and the element set's values.
 
-**The sky view's lock card stays fixed**, whole numbers grouped as en-US ("178° S · 33° up ·
-38,362 km away"), in both apps: it is held to `skyCard.ts` by the parity fixtures, and its
-fixed width is sized for those digits. **The speed ladder's rungs stay ungrouped** ("−86400×")
-for the same reason: grouped, the widest took 63 of a rung's 64 px on the web.
+**The Locations panel's coordinate fields follow the region too** ("48,1372" in Germany), in
+both apps, and read a decimal comma and a decimal point alike, so that a coordinate pasted from
+a map reads as one typed by hand. No coordinate is large enough to be grouped, so a comma is
+never a thousands separator there; text with both, a pasted "48.1372, 11.5756", is a pair and
+refused, as it always was. Kept plain at first, they were the one decimal on screen in the
+fixed form, beside the region's "48,14°" of the station links.
+
+**The sky view's lock card follows the region too**: "178° S · 33° up · 38.362 km away" in
+Germany, where en-US's "38,362 km" read as 38 km. It was kept fixed at first, for its fixed
+width. Measured, the widest line any region writes, "282° WNW · 10° up · 3,75,000 km away" in
+India for the science satellites 172,000 km out, takes 212 of the web line's 240 px and, in SF,
+243.7 points: the native card grew from 260 to 264 points for it. Germany's points, Switzerland's
+apostrophes and the narrow spaces of France and Sweden are each as wide as en-US's comma or
+narrower. The parity fixtures hold it to `skyCard.ts` in en-US. **The speed ladder's rungs stay
+ungrouped** ("−86400×"): grouped, the widest took 63 of a rung's 64 px on the web.
 
 ## Consequences
 
@@ -56,7 +66,15 @@ for the same reason: grouped, the widest took 63 of a rung's 64 px on the web.
   web's unit tests pin en-US in `src/test/setup.ts`. The formats themselves are tested under
   en-US and de-DE on both sides.
 - Apple's and the browser's locale data differ in small ways for the same region: en_DE's
-  clock day is "Sun 25. Oct" on iOS and "Sun, 25 Oct" in Chrome. Both follow the device;
-  neither is held to the other outside en-US.
+  clock day is "Sun 25. Oct" in Foundation and "Sun, 25 Oct" in Chrome, en-GB's September
+  "Sep" and "Sept", en-AU's June "Jun" and "June". So both apps build the clock day from
+  parts, `formatWeekdayDate` and `Formats.weekdayDate`: the three-letter abbreviations every
+  region shares, in the region's order of day and month, joined by single spaces, with
+  English's comma after the weekday where the month comes first ("Sun, Oct 25"). It is held
+  to the web in several regions by the parity fixtures; everything else is held to it in
+  en-US only.
+- Where the browser has no English for a region (Russia, Brazil, Japan), `Intl` falls back to
+  en-US's conventions, numbers included, while Apple's are made up for the region: the clock
+  day is "Sun, Oct 25" on the web and "Sun 25 Oct" on iOS in Russia.
 - An unnamed station is named by its coordinates in the region's decimals, "48,14°, 11,58°";
   the degree signs keep the pair readable where the decimal separator is a comma.

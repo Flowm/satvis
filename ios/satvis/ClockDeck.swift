@@ -210,11 +210,10 @@ private struct Stamp: View {
 
     var body: some View {
         let date = Date(timeIntervalSince1970: time / 1000)
-        let utc = Date.FormatStyle(timeZone: .gmt)
         VStack(spacing: 0) {
             Text(UTCClock.time(date))
                 .font(.system(size: 20, weight: .semibold).monospacedDigit())
-            Text("\(date.formatted(utc.weekday(.abbreviated).day(.twoDigits).month(.abbreviated))) UTC")
+            Text(verbatim: "\(Formats.weekdayDate(date)) UTC")
                 .font(.system(size: 11).monospacedDigit())
                 .opacity(0.55)
         }
@@ -283,7 +282,7 @@ private struct TimelineScale: View {
                         let isMidnight = at.truncatingRemainder(dividingBy: 86_400_000) == 0
                         let label =
                             isMidnight
-                            ? date.formatted(Date.FormatStyle(timeZone: .gmt).weekday(.abbreviated).day(.twoDigits).month(.abbreviated))
+                            ? Formats.weekdayDate(date)
                             : UTCClock.hourMinute(date)
                         context.draw(
                             Text(label).font(.system(size: 10)).foregroundStyle(Color.panelInk.opacity(0.6)),

@@ -213,8 +213,8 @@ private struct StationRow: View {
     /// where an edit was refused.
     private func reset() {
         name = station.name ?? ""
-        latitude = javaScriptString(station.latitude)
-        longitude = javaScriptString(station.longitude)
+        latitude = Formats.number(station.latitude)
+        longitude = Formats.number(station.longitude)
     }
 
     /// Keeps what `field` holds, if it changed and, for a coordinate, is one.

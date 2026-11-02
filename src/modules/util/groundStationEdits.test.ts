@@ -50,6 +50,19 @@ describe("parseCoordinate", () => {
   test("does not read a typo as a number", () => {
     expect(parseCoordinate("48abc", MAX_LATITUDE)).toBeUndefined();
   });
+
+  test("takes a decimal comma as well as a point", () => {
+    expect(parseCoordinate("48,1372", MAX_LATITUDE)).toBe(48.1372);
+    expect(parseCoordinate("-0,1278", MAX_LONGITUDE)).toBe(-0.1278);
+    expect(parseCoordinate("48,", MAX_LATITUDE)).toBe(48);
+  });
+
+  test("refuses a pair, whichever separator it was written with", () => {
+    expect(parseCoordinate("48.1372, 11.5756", MAX_LATITUDE)).toBeUndefined();
+    expect(parseCoordinate("48,1372, 11,5756", MAX_LATITUDE)).toBeUndefined();
+    expect(parseCoordinate("48,1372;11,5756", MAX_LATITUDE)).toBeUndefined();
+    expect(parseCoordinate("48 11", MAX_LATITUDE)).toBeUndefined();
+  });
 });
 
 describe("dropIndex", () => {

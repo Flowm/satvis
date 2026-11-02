@@ -3,13 +3,14 @@ import SatvisRender
 import SwiftUI
 
 /// What the menu column opens beside it, as the web app's toolbar panels
-/// (`ToolbarPanel.vue`). The satellite browser and the bookmarks are sheets
-/// instead: lists too long for a panel.
+/// (`ToolbarPanel.vue`). The bookmarks are a sheet instead, and on a phone the
+/// satellite browser: lists too long for a card.
 enum ToolPanel: Hashable {
-    case components, map, locations, globe, sky, graphics
+    case satellites, components, map, locations, globe, sky, graphics
 
     var title: LocalizedStringKey {
         switch self {
+        case .satellites: "Satellites"
         case .components: "Components"
         case .map: "Map"
         case .locations: "Locations"
@@ -21,13 +22,22 @@ enum ToolPanel: Hashable {
 
     /// Its card's width, or what the corner's buttons leave where that is less, as
     /// on a phone. Locations' is wider: a station's latitude and longitude stand
-    /// side by side, and on a 402 pt phone the 282 pt left fits -122.2727.
+    /// side by side, and on a 402 pt phone the 282 pt left fits -122.2727. The
+    /// satellite browser's is the web app's.
     var cardWidth: CGFloat {
-        self == .locations ? 320 : 260
+        self == .locations || self == .satellites ? 320 : 260
+    }
+
+    /// Whether it holds a list that scrolls itself, rather than rows the card scrolls.
+    var scrollsItself: Bool {
+        self == .satellites
     }
 }
 
 extension EnvironmentValues {
+    /// How tall what a panel holds may be, under its title, where it scrolls itself;
+    /// nil where it may be as tall as it is.
+    @Entry var panelRoom: CGFloat?
     /// Whether the menu column shows its icons alone: on a phone, beside an open
     /// panel, as the web app's labels fold below 640 px.
     @Entry var toolNamesFolded = false
@@ -167,9 +177,9 @@ private struct ToolRow: View {
 /// with the column's, and under it what it holds, scrolling only where it would
 /// run past `maxHeight`.
 struct ToolPanelView<Content: View>: View {
-    let title: LocalizedStringKey
-    /// A card's width, or less where the room is narrower.
-    let width: CGFloat
+    /// Which panel: its title, its width, and whether what it holds scrolls itself, as
+    /// a list does, and is only told the height left under the title (`panelRoom`).
+    let panel: ToolPanel
     /// How tall it may run, title and all: down to the clock deck. Nil leaves it
     /// what it is offered.
     let maxHeight: CGFloat?
@@ -186,7 +196,7 @@ struct ToolPanelView<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text(title)
+                Text(panel.title)
                     .font(.callout.weight(.semibold))
                 Spacer(minLength: 8)
                 Button("Close", systemImage: "xmark", action: onClose)
@@ -204,22 +214,28 @@ struct ToolPanelView<Content: View>: View {
                 } action: {
                     headerHeight = $0
                 }
-            // Not a ViewThatFits between the content and a scroll view: capped
-            // from outside, it squeezed a note to one line and stretched the title
-            // row.
-            ScrollView {
-                padded(content)
+            if panel.scrollsItself {
+                // Told, not capped: a frame's maxHeight grows to the cap.
+                content
+                    .environment(\.panelRoom, maxHeight.map { max($0 - headerHeight, 0) })
+            } else {
+                // Not a ViewThatFits between the content and a scroll view: capped
+                // from outside, it squeezed a note to one line and stretched the
+                // title row.
+                ScrollView {
+                    padded(content)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .onScrollGeometryChange(for: CGFloat.self) {
+                    $0.contentSize.height
+                } action: { _, height in
+                    contentHeight = height
+                }
+                .frame(height: contentHeight.map { min($0, (maxHeight ?? .infinity) - headerHeight) })
             }
-            .scrollBounceBehavior(.basedOnSize)
-            .onScrollGeometryChange(for: CGFloat.self) {
-                $0.contentSize.height
-            } action: { _, height in
-                contentHeight = height
-            }
-            .frame(height: contentHeight.map { min($0, (maxHeight ?? .infinity) - headerHeight) })
         }
         .coordinateSpace(.named(Self.space))
-        .frame(maxWidth: width)
+        .frame(maxWidth: panel.cardWidth)
         .panel()
         // Rows of small text, which the globe's labels showed through.
         .environment(\.panelDensity, .dense)

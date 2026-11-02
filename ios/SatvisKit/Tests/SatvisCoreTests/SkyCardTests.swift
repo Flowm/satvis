@@ -4,8 +4,8 @@ import Testing
 @testable import SatvisCore
 
 /// The lock card's words against the web app's own (skyCard.ts, through
-/// scripts/parity/generate.mjs).
-@Suite struct SkyCardTests {
+/// scripts/parity/generate.mjs), in en_US as the fixtures are written.
+@Suite(.formatsInEnglishUS) struct SkyCardTests {
     private struct Fixture: Decodable {
         struct Position: Decodable {
             let azimuth: Double
@@ -31,6 +31,13 @@ import Testing
             let position = SkyCard.position(azimuth: sample.azimuth, elevation: sample.elevation, range: sample.rangeKm)
             #expect(position.text == sample.text)
             #expect(position.spoken == sample.spoken)
+        }
+    }
+
+    @Test(arguments: [("en_US", "38,362"), ("en_DE", "38.362"), ("en_FR", "38\u{202F}362")])
+    func groupsTheRangeAsTheRegionDoes(identifier: String, range: String) {
+        Formats.$locale.withValue(Locale(identifier: identifier)) {
+            #expect(SkyCard.position(azimuth: 178.3, elevation: 32.8, range: 38_362.4).text == "178° S · 33° up · \(range) km away")
         }
     }
 

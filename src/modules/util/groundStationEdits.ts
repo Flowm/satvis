@@ -10,14 +10,16 @@ export const MAX_LONGITUDE = 180;
 /**
  * Undefined for half-typed (`-`, `48.`) and invalid (`500`, `banana`) text alike:
  * the store drops what it cannot use, which would make the row vanish mid-typing.
- * `Number`, not `parseFloat`, which reads `48abc` as 48.
+ * `Number`, not `parseFloat`, which reads `48abc` as 48. A decimal comma reads as a
+ * point, whatever the region: no coordinate is large enough to be grouped. Text with
+ * both, a pasted "48.1372, 11.5756", is a pair and refused.
  */
 export function parseCoordinate(text: string, limit: number): number | undefined {
   const trimmed = text.trim();
-  if (trimmed === "") {
+  if (trimmed === "" || (trimmed.includes(",") && trimmed.includes("."))) {
     return undefined;
   }
-  const value = Number(trimmed);
+  const value = Number(trimmed.replace(",", "."));
   if (!Number.isFinite(value) || Math.abs(value) > limit) {
     return undefined;
   }

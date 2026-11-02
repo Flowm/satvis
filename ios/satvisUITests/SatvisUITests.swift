@@ -20,10 +20,38 @@ nonisolated class SatvisUITests: XCTestCase {
         app.buttons["Details of METOP-C"].tap()
         XCTAssert(app.navigationBars["METOP-C"].waitForExistence(timeout: 10))
         XCTAssert(app.buttons["Track"].exists)
-        // On a phone the column stays folded, clear of the satellite's panel.
-        if !isRoomy(app) {
+        if isRoomy(app) {
+            // The browser's panel closes under the card, as on the web.
+            XCTAssert(app.searchFields["Search satellites"].waitForNonExistence(timeout: 5))
+        } else {
+            // On a phone the column stays folded, clear of the satellite's panel.
             XCTAssertEqual(menuToggle(app).label, "Menu")
         }
+    }
+
+    // Where there is room, Satellites is a panel beside the menu column, as on the
+    // web: the globe stays in reach, its entry is lit, a group drills in, and the
+    // entry closes it again.
+    @MainActor
+    func testBrowsesSatellitesBesideTheMenu() throws {
+        let app = launch()
+        openMenu(app)
+        try XCTSkipIf(!isRoomy(app), "A compact width's browser is a sheet")
+        let entry = app.buttons["Satellites"]
+        entry.tap()
+        let search = app.searchFields["Search satellites"]
+        XCTAssert(search.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["Done"].exists)
+        XCTAssert(entry.isSelected)
+        XCTAssert(app.buttons["Clear all"].exists)
+        // Beside the column, not over it.
+        XCTAssertGreaterThan(search.frame.minX, entry.frame.maxX)
+        let group = app.staticTexts["Weather"].firstMatch
+        XCTAssert(group.waitForExistence(timeout: 10))
+        group.tap()
+        XCTAssert(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Details of '")).firstMatch.waitForExistence(timeout: 10))
+        entry.tap()
+        XCTAssert(search.waitForNonExistence(timeout: 5))
     }
 
     // The groups read A to Z, ignoring case, as the web app's `localeCompare` sorts
@@ -179,8 +207,10 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.textFields["Name"].waitForExistence(timeout: 5))
         XCTAssertLessThan(names().firstIndex(of: "Testhausen") ?? .max, names().firstIndex(of: "Probeburg") ?? .min)
 
+        // Slowly, and held over the target: let go on arrival with every core busy,
+        // the drag ended before the drop session saw the target, in 2 runs of 12.
         let grip = app.descendants(matching: .any)["Reorder Probeburg"]
-        grip.press(forDuration: 1, thenDragTo: app.descendants(matching: .any)["Reorder Testhausen"])
+        grip.press(forDuration: 1, thenDragTo: app.descendants(matching: .any)["Reorder Testhausen"], withVelocity: .slow, thenHoldForDuration: 1)
         let moved = XCTNSPredicateExpectation(
             predicate: NSPredicate { _, _ in (names().firstIndex(of: "Probeburg") ?? .max) < (names().firstIndex(of: "Testhausen") ?? .min) },
             object: nil)
@@ -453,6 +483,7 @@ nonisolated class SatvisUITests: XCTestCase {
         let stamp = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UTC'")).firstMatch
         XCTAssert(stamp.waitForExistence(timeout: 30))
         XCTAssert(stamp.label.contains("19:22"), "The clock read \(stamp.label)")
+        XCTAssert(stamp.label.contains("Sun, Oct 04 UTC"), "The clock read \(stamp.label)")
     }
 
     // The web app's `fps=true` shows the performance overlay; the Graphics panel's
@@ -540,7 +571,8 @@ nonisolated class SatvisUITests: XCTestCase {
         openMenu(app)
         app.buttons["Satellites"].tap()
         let search = app.searchFields["Search satellites"]
-        XCTAssert(app.navigationBars["Satellites"].waitForExistence(timeout: 10))
+        // A sheet on a phone, a panel with no bar where there is room.
+        XCTAssert((isRoomy(app) ? search : app.navigationBars["Satellites"]).waitForExistence(timeout: 10))
         // An iPhone Duo closed keeps the field in a Search button at the foot.
         if !search.exists {
             app.buttons["Search"].tap()

@@ -238,8 +238,13 @@ struct ContentView: View {
                         ) {
                             showsBookmarks = true
                         }
-                        ToolEntry(title: "Satellites", image: .lucideOrbit, hint: "Search and pick which satellites to show") {
-                            showsBrowser = true
+                        // A panel where there is room, as on the web; on a phone a sheet.
+                        ToolEntry(title: "Satellites", image: .lucideOrbit, hint: "Search and pick which satellites to show", isSelected: panel == .satellites) {
+                            if sizeClass == .regular {
+                                panel = panel == .satellites ? nil : .satellites
+                            } else {
+                                showsBrowser = true
+                            }
                         }
                         entry(.components, image: .lucideSatellite, hint: "Orbits, ground tracks, labels and sensor cones")
                         entry(.map, image: .lucideLayers, hint: "Basemap and terrain")
@@ -260,8 +265,14 @@ struct ContentView: View {
                         menuFrame = $0
                     }
                     if let panel {
-                        ToolPanelView(title: panel.title, width: panel.cardWidth, maxHeight: panelMaxHeight, onClose: { self.panel = nil }) {
+                        ToolPanelView(panel: panel, maxHeight: panelMaxHeight, onClose: { self.panel = nil }) {
                             switch panel {
+                            case .satellites:
+                                // Closed under the info card, as the web app's.
+                                BrowserPanel(catalog: session.catalog) {
+                                    session.select(.satellite($0.id))
+                                    clearTheGlobe()
+                                }
                             case .components: ComponentsPanel(catalog: session.catalog)
                             case .map: MapPanel(session: session)
                             case .locations:

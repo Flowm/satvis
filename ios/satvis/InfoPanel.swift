@@ -80,8 +80,6 @@ struct InfoPanel: View {
                             .font(.headline)
                             // The buttons leave the title less room than the system title had.
                             .minimumScaleFactor(0.8)
-                        Text("#\(entry.satnum)")
-                            .foregroundStyle(.secondary)
                         subheading(propagator)
                     }
                     .font(.footnote)
@@ -91,7 +89,7 @@ struct InfoPanel: View {
                     .accessibilityLabel(
                         "\(entry.name), catalog number \(entry.satnum), \(SatelliteDetails.chips(entry.record, propagator: propagator).joined(separator: ", "))"
                     )
-                    // A menu rather than text selection, which would copy whichever of the three lines a press lands on.
+                    // A menu rather than text selection, which would copy whichever of the two lines a press lands on.
                     .contextMenu {
                         Button("Copy Name", systemImage: "doc.on.doc") { UIPasteboard.general.string = entry.name }
                         Button("Copy Catalog Number", systemImage: "number") { UIPasteboard.general.string = entry.satnum }
@@ -176,16 +174,15 @@ struct InfoPanel: View {
         }
     }
 
-    /// The web app's chips as one line: the orbit in its class's colour, then the
-    /// country, then a status other than Operational in amber.
+    /// The web app's subtitle line: the catalog number, then the chips, the orbit in
+    /// its class's colour, the country, and a status other than Operational in amber.
     private func subheading(_ propagator: SGP4Propagator?) -> Text {
         let status = SatelliteDetails.status(entry.record)
         let chips = SatelliteDetails.chips(entry.record, propagator: propagator)
-        return chips.enumerated().reduce(Text(verbatim: "")) { line, item in
+        return chips.enumerated().reduce(Text(verbatim: "#\(entry.satnum)").foregroundStyle(.secondary)) { line, item in
             let (index, chip) = item
             let color: Color = index == 0 ? Color(orbitClass: entry.record.orbitClass) : chip == status ? .panelAmber : .secondary
-            let text = Text(chip).foregroundStyle(color)
-            return index == 0 ? text : Text("\(line)\(Text(verbatim: " · ").foregroundStyle(.tertiary))\(text)")
+            return Text("\(line)\(Text(verbatim: " · ").foregroundStyle(.tertiary))\(Text(chip).foregroundStyle(color))")
         }
     }
 }

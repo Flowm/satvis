@@ -47,6 +47,16 @@ import Testing
         #expect(GroundStations.coordinate("48abc", limit: 90) == nil)
     }
 
+    @Test func takesADecimalCommaButNotAPair() {
+        #expect(GroundStations.coordinate("48,1372", limit: 90) == 48.1372)
+        #expect(GroundStations.coordinate("-0,1278", limit: 180) == -0.1278)
+        #expect(GroundStations.coordinate("48,", limit: 90) == 48)
+        #expect(GroundStations.coordinate("48.1372, 11.5756", limit: 90) == nil)
+        #expect(GroundStations.coordinate("48,1372, 11,5756", limit: 90) == nil)
+        #expect(GroundStations.coordinate("48,1372;11,5756", limit: 90) == nil)
+        #expect(GroundStations.coordinate("48 11", limit: 90) == nil)
+    }
+
     @Test func windowAnswersADayEitherSide() {
         let window = PassWindow(around: 1_000_000_000_000)
         #expect(window.covers(1_000_000_000_000 + 86_400_000))

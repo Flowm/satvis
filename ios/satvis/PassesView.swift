@@ -168,7 +168,7 @@ private struct Headline: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("\(isOngoing ? "Overhead now" : "Next pass") · \(subject)")
                 .font(.caption)
-                .foregroundStyle(isOngoing ? .green : .secondary)
+                .foregroundStyle(isOngoing ? Color.panelGreen : .secondary)
             Text(pass.countdown(at: now))
                 .font(.title2.monospacedDigit().bold())
             // One line in either mode, or the picker under it moves on a change.
@@ -179,11 +179,18 @@ private struct Headline: View {
                 .foregroundStyle(.secondary)
             // Held for the next pass too, so the headline is one height either way.
             ProgressView(value: isOngoing && pass.end > pass.start ? min(1, max(0, (now - pass.start) / (pass.end - pass.start))) : 0)
-                .tint(.green)
+                .tint(Color.panelGreen)
                 .opacity(isOngoing ? 1 : 0)
                 .accessibilityHidden(!isOngoing)
         }
         .accessibilityElement(children: .combine)
+        // Green only while the pass is under way, as the web app's card.
+        .listRowBackground(
+            Color.panelRaised.overlay {
+                if isOngoing {
+                    LinearGradient(colors: [Color.panelGreen.opacity(0.2), Color.panelGreen.opacity(0.06)], startPoint: .top, endPoint: .bottom)
+                }
+            })
     }
 }
 

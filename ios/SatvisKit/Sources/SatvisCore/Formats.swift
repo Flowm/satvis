@@ -49,4 +49,27 @@ public enum Formats {
     public static func measure(_ value: Double) -> String {
         value.formatted(.number.locale(locale).precision(.fractionLength(0...3)).rounded(rule: .toNearestOrAwayFromZero))
     }
+
+    /// "Sun, Oct 25" or "Sun 25 Oct": the clock deck's day, in UTC, in the region's
+    /// order of day and month, as the web app writes it. Punctuation is the comma
+    /// English writes before a month, none of the region's: Foundation's own is
+    /// "Sun 25. Oct" for en_DE, the browser's "Sun, 25 Oct".
+    public static func weekdayDate(_ date: Date) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        let parts = calendar.dateComponents([.weekday, .day, .month], from: date)
+        let day = String(format: "%02d", parts.day!)
+        let month = months[parts.month! - 1]
+        // A pattern's quoted literals could hold either letter.
+        let pattern = (DateFormatter.dateFormat(fromTemplate: "ddMMM", options: 0, locale: locale) ?? "").replacing(/'[^']*'/, with: "")
+        let dayFirst = (pattern.firstIndex(of: "d") ?? pattern.endIndex) < (pattern.firstIndex(of: "M") ?? pattern.endIndex)
+        return "\(weekdays[parts.weekday! - 1])\(dayFirst ? " \(day) \(month)" : ", \(month) \(day)")"
+    }
+
+    /// The same in every region, as the web app's: the browser's locale data has
+    /// "Sept" for en-GB and "June" for en-AU, Apple's has neither.
+    private static let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+    /// See `weekdays`.
+    private static let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 }
