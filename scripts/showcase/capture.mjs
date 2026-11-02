@@ -5,7 +5,8 @@
 // about page's carousel both show. `pnpm update-showcase [name…]` retakes only those named.
 //
 // The app runs on Vite's dev server, which proxies /api to satvis.space, or to
-// SATVIS_API_PROXY: a plugin's preset that is not deployed needs its local worker.
+// SATVIS_API_PROXY: a plugin's preset that is not deployed needs its local worker. proxy.mjs
+// stands in between and serves the element sets pinned in pinned.json.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -14,6 +15,8 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { createServer } from "vite";
 import { parse } from "yaml";
+
+import { PROXY_URL, startProxy } from "./proxy.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const customDir = path.join(repoRoot, "data", "custom");
@@ -28,7 +31,7 @@ const SCALE = 2;
  */
 const PICTURE = { width: 1600, height: 1000 };
 /**
- * Past this, a low orbit is drawn away from where it was: the satellites are placed from
+ * Past this, a low orbit that is not pinned is drawn away from where it was: it is placed from
  * today's element sets. Measured: 26 days out, the ISS was over desert where the App Store
  * screenshot, taken from element sets of its own week, has the Tyrrhenian Sea.
  */
@@ -151,7 +154,7 @@ async function take(context, base, bookmark) {
   console.log(`${bookmark.name} (${bookmark.preset}, ${bookmark.pictureAt}): ${url}`);
   const days = Math.abs(Date.now() - Date.parse(bookmark.pictureAt)) / 86_400_000;
   if (days > DRIFT_DAYS) {
-    console.warn(`  ${Math.round(days)} days from now: a low orbit is drawn away from where it was then`);
+    console.warn(`  ${Math.round(days)} days from now: a low orbit not in pinned.json is drawn away from where it was then`);
   }
   const page = await context.newPage();
   page.on("pageerror", (error) => console.warn(`  page error: ${error.message}`));
@@ -190,6 +193,9 @@ if (bookmarks.length === 0) {
   process.exit(1);
 }
 
+const stopProxy = await startProxy(process.env.SATVIS_API_PROXY ?? "https://satvis.space");
+// Read by vite.config.ts as the server starts.
+process.env.SATVIS_API_PROXY = PROXY_URL;
 const server = await createServer({ root: repoRoot, server: { port: 0, strictPort: false }, logLevel: "warn" });
 await server.listen();
 const base = server.resolvedUrls.local[0];
@@ -206,5 +212,6 @@ try {
 } finally {
   await browser.close();
   await server.close();
+  stopProxy();
 }
 process.exit(failed ? 1 : 0);

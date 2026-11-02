@@ -555,11 +555,11 @@ nonisolated class SatvisUITests: XCTestCase {
     // The App Store screenshots: the Bookmarks sheet's three featured bookmarks,
     // opened from their cards as anyone would, so they show what one shows. Globe, sky,
     // ISS: the first three are the search result's. Only scripts/screenshots.sh
-    // takes them, against BASE_URL.
+    // takes them, against BASE_URL, at the bookmark's `pictureAt` in the core config.
 
     @MainActor
     func testScreenshot1Globe() throws {
-        let app = try openFeatured("Weather satellites", at: "2026-10-04T08:52:00")
+        let app = try openFeatured("Weather satellites")
         screenshot(app, "1Globe")
     }
 
@@ -568,7 +568,7 @@ nonisolated class SatvisUITests: XCTestCase {
     // left an iPad's cliffs coarse.
     @MainActor
     func testScreenshot2Sky() throws {
-        let app = try openFeatured("Sky over Lauterbrunnen", at: "2026-10-04T19:22:00", wait: 60)
+        let app = try openFeatured("Sky over Lauterbrunnen", wait: 60)
         screenshot(app, "2Sky")
     }
 
@@ -576,18 +576,18 @@ nonisolated class SatvisUITests: XCTestCase {
     // to make out.
     @MainActor
     func testScreenshot3ISS() throws {
-        let app = try openFeatured("Follow the ISS", at: "2026-10-04T08:17:40")
+        let app = try openFeatured("Follow the ISS")
         screenshot(app, "3ISS")
     }
 
-    /// Launches on BASE_URL's site with its clock stopped at `time` (UTC), so
+    /// Launches on BASE_URL's site with its clock stopped at TIME (UTC), so
     /// that every device shows the same moment, opens the featured bookmark of that name from
     /// the Bookmarks sheet, which leaves a stopped clock where it is, and waits
     /// `wait` seconds for the tiles.
     @MainActor
-    func openFeatured(_ name: String, at time: String, wait: UInt32 = 20) throws -> XCUIApplication {
+    func openFeatured(_ name: String, wait: UInt32 = 20) throws -> XCUIApplication {
         let environment = ProcessInfo.processInfo.environment
-        guard environment["SCREENSHOTS"] != nil else {
+        guard environment["SCREENSHOTS"] != nil, let time = environment["TIME"] else {
             throw XCTSkip("Taken by scripts/screenshots.sh")
         }
         let app = XCUIApplication()

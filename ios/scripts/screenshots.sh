@@ -3,7 +3,9 @@
 # simulator per App Store size, with a clean status bar, exports the
 # screenshots it attaches to ios/screenshots/raw/, and captions them into
 # ios/screenshots/. BASE_URL replaces https://satvis.space as the page the
-# views are opened on. Names as arguments (2Sky) retake only those shots.
+# views are opened on, which the app reaches through scripts/showcase/proxy.mjs
+# for the element sets the moments were picked with. Names as arguments (2Sky)
+# retake only those shots.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -19,15 +21,15 @@ iPhone Duo||closed
 iPhone Duo open|iPhone Duo|open
 iPad Pro 13-inch (M5)"
 
-# Each screenshot: its test's name, the time its test stops the clock at (UTC),
-# and its caption.
-shots="1Globe 2026-10-04T08:52:00 Watch satellites orbit live
-2Sky 2026-10-04T19:22:00 Find satellites in your sky
-3ISS 2026-10-04T08:17:40 Follow the ISS in orbit"
+# Each screenshot: its test's name, the featured bookmark it opens, whose
+# pictureAt in the core config its test stops the clock at, and its caption.
+shots="1Globe|Weather satellites|Watch satellites orbit live
+2Sky|Sky over Lauterbrunnen|Find satellites in your sky
+3ISS|Follow the ISS|Follow the ISS in orbit"
 
 if [ $# -gt 0 ]; then
-  shots=$(echo "$shots" | grep -E "^($(echo "$*" | tr ' ' '|')) ")
-  for name in $(echo "$shots" | cut -d' ' -f1); do
+  shots=$(echo "$shots" | grep -E "^($(echo "$*" | tr ' ' '|'))\|")
+  for name in $(echo "$shots" | cut -d'|' -f1); do
     rm -f "screenshots/"*" - $name.png" "screenshots/raw/"*" - $name.png"
   done
 else
@@ -36,11 +38,22 @@ fi
 rm -rf build/screenshots-*.xcresult
 mkdir -p screenshots/raw
 
+# PROXY_URL in proxy.mjs
+site=http://127.0.0.1:5198
+node ../scripts/showcase/proxy.mjs "${BASE_URL:-https://satvis.space}" &
+trap "kill $!" EXIT
+curl -fs --retry 10 --retry-connrefused -o /dev/null "$site/api/groups.json"
+
 udids=
 set --
 while IFS='|' read -r device type hinge; do
+  # The iPhone Duo takes only its own build of the runtime, which has the same name.
   udid=$(scripts/simulator-udid.sh "$device" "$runtime" 2>/dev/null) ||
-    udid=$(xcrun simctl create "$device" "${type:-$device}" "$(echo "$runtime" | tr -d ' ')")
+    udid=$(xcrun simctl list runtimes | grep "^$runtime (" | sed 's/.* - //' | while read -r id; do
+      # A refusal comes on stdout.
+      created=$(xcrun simctl create "$device" "${type:-$device}" "$id" 2>&1) && echo "$created" && break
+    done)
+  [ -n "$udid" ] || { echo "No $runtime runtime takes $device" >&2; exit 1; }
   xcrun simctl shutdown "$udid" 2>/dev/null || true
   xcrun simctl erase "$udid"
   xcrun simctl boot "$udid"
@@ -63,13 +76,19 @@ xcodebuild build-for-testing -project satvis.xcodeproj -scheme satvis "$@"
 # its own: given with any other override, an iPad shows the weekday the date had
 # in 2000 (Wed 4 Oct). Only the screenshot tests: one that fails leaves
 # xcodebuild hanging (AGENTS.md).
-while read -r name time caption; do
+while IFS='|' read -r name bookmark caption; do
+  time=$(cd .. && node --input-type=module -e '
+    import fs from "node:fs";
+    import { parse } from "yaml";
+    const presets = parse(fs.readFileSync("worker/src/config/satvis.core.yaml", "utf8")).presets;
+    const bookmark = presets.flatMap((preset) => preset.featured ?? []).find(({ name }) => name === process.argv[1]);
+    console.log(new Date(bookmark.pictureAt).toISOString().slice(0, 19));' "$bookmark")
   instant=$(date -u -r "$(date -j -f %Y-%m-%dT%H:%M:%S "$time" +%s)" +%Y-%m-%dT%H:%M:%S.000Z)
   for udid in $udids; do
     xcrun simctl status_bar "$udid" override --time "$instant"
   done
   result=build/screenshots-$name.xcresult
-  TEST_RUNNER_SCREENSHOTS=1 TEST_RUNNER_BASE_URL="${BASE_URL:-https://satvis.space}" xcodebuild test-without-building -project satvis.xcodeproj -scheme satvis \
+  TEST_RUNNER_SCREENSHOTS=1 TEST_RUNNER_BASE_URL="$site" TEST_RUNNER_TIME="$time" xcodebuild test-without-building -project satvis.xcodeproj -scheme satvis \
     -resultBundlePath "$result" -only-testing:"satvisUITests/SatvisUITests/testScreenshot$name" "$@"
 
   # Named "<device> - <name>.png"

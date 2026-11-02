@@ -397,12 +397,12 @@ struct CameraRig {
 
     /// The map camera a frame is drawn from, as the free one or around what is
     /// followed, partway through any flight on the map, on a view of
-    /// `aspectRatio`; `target` is where what has an id is.
-    private mutating func mapPose(uptime: Double, aspectRatio: Double, target: (String) -> SIMD3<Double>?) -> CameraPose {
+    /// `aspectRatio`; `target` is where what has an id is at `now`.
+    private mutating func mapPose(uptime: Double, time now: Double, aspectRatio: Double, target: (String, Double) -> SIMD3<Double>?) -> CameraPose {
         var map = mapCamera ?? MapCamera.home(aspectRatio: aspectRatio)
         map.clamp(aspectRatio: aspectRatio)
         mapCamera = map
-        if case .tracking(let id) = cameraMode, let position = target(id) {
+        if case .tracking(let id) = cameraMode, let position = target(id, now) {
             let place = geodeticPosition(position)
             let held = trackingMap ?? TrackedMap(map)
             map = MapCamera(latitude: place.latitude, longitude: place.longitude, span: held.span, heading: held.heading)
@@ -426,12 +426,12 @@ struct CameraRig {
     /// Where the frame drawn at `time` (UTC milliseconds) on a view of
     /// `aspectRatio` is seen from: the free camera, what is tracked or the sky
     /// view, partway through any flight between them. `model` is how the tracked
-    /// satellite's 3D model can be framed, `target` where what has an id is, and
-    /// `groundHeight` the ground's height in metres at a place. Nil before the
-    /// view has a size, and nil, with the cameras put back home, where the pose
-    /// is not finite.
+    /// satellite's 3D model can be framed, `target` where what has an id is at a
+    /// time (UTC milliseconds), and `groundHeight` the ground's height in metres
+    /// at a place. Nil before the view has a size, and nil, with the cameras put
+    /// back home, where the pose is not finite.
     mutating func pose(
-        uptime: Double, time now: Double, aspectRatio: Double, model: (String) -> TrackedModel, target: (String) -> SIMD3<Double>?,
+        uptime: Double, time now: Double, aspectRatio: Double, model: (String) -> TrackedModel, target: (String, Double) -> SIMD3<Double>?,
         groundHeight: (GeoCoordinate) -> Double?
     ) -> CameraPose? {
         guard var orbitCamera else {
@@ -439,7 +439,7 @@ struct CameraRig {
         }
         if drawnProjection == .twoD {
             inertialAngle = nil
-            let pose = mapPose(uptime: uptime, aspectRatio: aspectRatio, target: target)
+            let pose = mapPose(uptime: uptime, time: now, aspectRatio: aspectRatio, target: target)
             guard pose.isFinite else {
                 let map = mapCamera
                 log.fault("Map camera not finite: \(String(describing: map), privacy: .public)")
@@ -476,8 +476,11 @@ struct CameraRig {
         }
         var pose = orbitCamera.pose()
         frameModel(model)
-        if case .tracking(let id) = cameraMode, let target = target(id) {
-            pose = trackingCamera.pose(target: target)
+        if case .tracking(let id) = cameraMode, let position = target(id, now) {
+            // As CesiumJS tells the velocity: by where it is a millisecond on, or one
+            // before at the end of what is known.
+            let velocity = target(id, now + 1).map { ($0 - position) * 1000 } ?? target(id, now - 1).map { (position - $0) * 1000 } ?? .zero
+            pose = trackingCamera.pose(target: position, velocity: velocity)
         }
         if let flight = poseFlight {
             if cameraMode != .sky {

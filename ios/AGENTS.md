@@ -39,9 +39,10 @@ variables they take. `make run` opens no simulator window; follow the app with
   fixed catalog with no worker to answer (`TestCatalog.swift`).
 - **`screenshots`** erases one simulator per App Store size, the default
   `iPhone 18 Pro` among them and an iPhone Duo closed and another open, and
-  shoots the Bookmarks sheet's featured bookmarks on the live site
-  (`scripts/screenshots.sh`). `SHOTS=2Sky` retakes one whose tiles had not
-  loaded.
+  shoots the Bookmarks sheet's featured bookmarks on the live site, at their
+  `pictureAt` and with the element sets the web pictures are taken with
+  (`scripts/screenshots.sh`, README "Configuration"). `SHOTS=2Sky` retakes
+  one whose tiles had not loaded.
 - **`fold`** and **`unfold`** close and open an iPhone Duo simulator, which
   simctl, XCTest and the size classes alone cannot: `scripts/hinge.swift` sends
   DeviceHub's hinge event through private API. Closed, the Duo is a phone's
@@ -85,7 +86,9 @@ writes to the root and appends to the top-level `AGENTS.md`.
 
 ## Parity with the web app
 
-`SatvisKit/Tests/SatvisCoreTests/Fixtures/parity.json` and
+`SatvisKit/Tests/SatvisCoreTests/Fixtures/parity.json`,
+`SatvisKit/Tests/SatvisRenderTests/Fixtures/tracking-frames.json` (the axes
+CesiumJS's tracking camera holds its offset in) and
 `SatvisCore/Shared/web-tables.json` are written from the web app's own code by
 `pnpm update-parity-fixtures` at the repository root; never edit them by hand.
 Their text is en-US: a suite that compares it pins `Formats.locale` with

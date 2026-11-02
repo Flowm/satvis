@@ -188,7 +188,9 @@ facts, keyed by NORAD id). Tags and presets reach clients with the group index,
   panel ([ADR 0011](docs/adr/0011-bookmarks.md)): each a `name`, a `thumbnail` and
   a `query` of url parameters against the preset's `defaults`, none for the default
   view. `pnpm update-showcase` takes each picture at its `pictureAt`, a moment
-  close to today: the element sets are today's. It writes a plugin's to
+  close to today: the element sets are today's, except the orbits pinned in
+  `scripts/showcase/pinned.json`, for a close-up of one satellite, which then holds
+  its moment for good. It writes a plugin's to
   `data/custom/<plugin>/showcase/`, which the plugin's `sync.sh` copies to
   `showcase/` in its output, so they are served as `data/showcase/<name>.webp`:
 
@@ -205,7 +207,13 @@ facts, keyed by NORAD id). Tags and presets reach clients with the group index,
   The script needs a GPU, the network, `pnpm update-imagery`, `pnpm update-starmap`
   and the models submodule, and says which is missing. It runs the app on Vite's dev
   server, so set `SATVIS_API_PROXY` to a local worker for a preset not yet deployed;
-  `pnpm update-showcase "Weather on a map"` retakes one.
+  `pnpm update-showcase "Weather on a map"` retakes one. To pin the ISS instead, record
+  its element set as a group serves it, and pick a `pictureAt` within a day or two of
+  its epoch:
+
+  ```bash
+  curl -s https://satvis.space/api/gp/stations.json | jq '[.[] | select(.NORAD_CAT_ID == 25544) | del(.metadata)]' > scripts/showcase/pinned.json
+  ```
 
 `pnpm --filter satvis-worker generate-groups` merges the core config, every
 `data/custom/*/satvis.yaml` (with `extraRecordsFile` element sets inlined) and the
