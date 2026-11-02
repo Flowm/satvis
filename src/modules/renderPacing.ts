@@ -5,7 +5,7 @@
 // second and kept the GPU 52% busy; 0.5 s drew 2 and kept it 6% busy. A LEO satellite
 // crosses about 0.5 device pixels a second there, so the frames in between were the same.
 
-import { Cartesian3, type JulianDate, PerspectiveFrustum } from "@cesium/core";
+import { Cartesian3, Ellipsoid, type JulianDate, OrthographicOffCenterFrustum, PerspectiveFrustum } from "@cesium/core";
 import { type Scene, SceneMode } from "@cesium/engine";
 
 import { EARTH_ROTATION_RAD_S, MU_KM3_S2 } from "./Orbit";
@@ -68,6 +68,22 @@ const GROUND_RADIUS_METRES = 6_340_000;
 
 /** Metres an orbit's line may lie off its samples: the drift ramped out of its loop, 54 km for NOAA 20. */
 const LINE_DRIFT_METRES = 100_000;
+
+/**
+ * Radians toward the pole a satellite is taken to be in 2D, which stretches a parallel by
+ * 1/cos(latitude). The native app's `RenderPacing.mapPixelRate` takes this alone; here the
+ * bound must also hold until the next one, so a fast clock can widen it.
+ */
+const MAP_LATITUDE_MARGIN = (5 * Math.PI) / 180;
+
+/** Radians: the latitude at which 2D's stretch stops growing, 11.5 there, as in the native app. */
+const MAP_STRETCH_LATITUDE = (85 * Math.PI) / 180;
+
+/** WGS84's first eccentricity squared, from geocentric to geodetic latitude. */
+const WGS84_ECCENTRICITY_SQUARED = 1 - (Ellipsoid.WGS84.radii.z / Ellipsoid.WGS84.radii.x) ** 2;
+
+/** The components that reach away from their satellite, which 2D takes at the widest stretch. */
+export const REACHING_COMPONENTS: readonly string[] = ["Orbit", "Orbit track", "Sensor cone", "Ground track"];
 
 /** The Earth's gravitational parameter, m³/s². */
 const MU_M3_S2 = MU_KM3_S2 * 1e9;
@@ -249,16 +265,19 @@ export class RenderPacer {
     const scene = this.#scene;
     const { camera } = scene;
     const frustum = camera.frustum;
-    if (scene.mode !== SceneMode.SCENE3D || !(frustum instanceof PerspectiveFrustum) || frustum.fov === undefined) {
-      return this.#limits.floor;
-    }
-    const pixelsPerRadian = maxPixelsPerRadian(scene.drawingBufferWidth, scene.drawingBufferHeight, frustum.fov);
-    // Simulation seconds until the next bound and through the render after it.
-    const horizon = (RECOMPUTE_MS / 1000) * Math.abs(this.#sources.multiplier()) + this.#limits.ceiling;
     const components = this.#sources.components();
     if (!components.every((name) => PACED_COMPONENTS.has(name))) {
       return this.#limits.floor;
     }
+    // Simulation seconds until the next bound and through the render after it.
+    const horizon = (RECOMPUTE_MS / 1000) * Math.abs(this.#sources.multiplier()) + this.#limits.ceiling;
+    if (scene.mode === SceneMode.SCENE2D && frustum instanceof OrthographicOffCenterFrustum && frustum.left !== undefined && frustum.right !== undefined) {
+      return this.#mapBound(time, components, horizon, scene.drawingBufferWidth / (frustum.right - frustum.left));
+    }
+    if (scene.mode !== SceneMode.SCENE3D || !(frustum instanceof PerspectiveFrustum) || frustum.fov === undefined) {
+      return this.#limits.floor;
+    }
+    const pixelsPerRadian = maxPixelsPerRadian(scene.drawingBufferWidth, scene.drawingBufferHeight, frustum.fov);
     const orbitLine = components.includes("Orbit");
     const trackLine = components.includes("Orbit track");
     const lines = orbitLine || trackLine;
@@ -331,6 +350,39 @@ export class RenderPacer {
       rate = Math.max(rate, Number.isFinite(nearest) ? Math.min(shell, angularRate(nearest, speed, horizon)) : shell);
     }
     return renderTimeChange(rate, pixelsPerRadian, this.#limits);
+  }
+
+  /**
+   * The 2D map's interval: each satellite at its ground speed, stretched as the map stretches
+   * its latitude. REACHING_COMPONENTS take the furthest stretch: a line, a cone, or a ground
+   * track's swath (METimage's 1,335 km either side).
+   */
+  #mapBound(time: JulianDate, components: readonly string[], horizon: number, pixelsPerMetre: number): number {
+    const reaching = REACHING_COMPONENTS.some((name) => components.includes(name));
+    const models = components.includes("3D model");
+    let rate = 0;
+    for (const satellite of this.#sources.satellites()) {
+      // Cesium loads a model only on rendered frames.
+      if (models && satellite.model?.pending) {
+        return this.#limits.floor;
+      }
+      const bound = this.#orbitBound(satellite.props.orbit);
+      let latitude = MAP_STRETCH_LATITUDE;
+      if (!reaching) {
+        const position = satellite.props.trajectory.entityPosition?.getValue(time, this.#position);
+        if (!position) {
+          continue;
+        }
+        // Geodetic as on the ground, never nearer the equator than above it; Cesium's exact
+        // conversion iterates, for every satellite.
+        const geocentric = Math.abs(Math.asin(position.z / Cartesian3.magnitude(position)));
+        const geodetic = Math.atan(Math.tan(geocentric) / (1 - WGS84_ECCENTRICITY_SQUARED));
+        latitude = Math.min(geodetic + Math.max(MAP_LATITUDE_MARGIN, bound.turnRate * horizon), MAP_STRETCH_LATITUDE);
+      }
+      // Infinite or NaN for an unbounded orbit, which keeps the floor.
+      rate = Math.max(rate, (bound.speed * Ellipsoid.WGS84.maximumRadius) / bound.inner / Math.cos(latitude));
+    }
+    return renderTimeChange(rate, pixelsPerMetre, this.#limits);
   }
 
   /** `orbit`'s bound, kept for as long as the orbit is. */

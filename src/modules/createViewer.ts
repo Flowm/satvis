@@ -65,6 +65,36 @@ export function createViewer(container: string | Element): Viewer {
   // `clock.canAnimate`, time stops, `maximumRenderTimeChange` requests no frame, and
   // the primitive never finishes. The clock froze on the first ground-track corridor.
   viewer.allowDataSourcesToSuspendAnimation = false;
+  updateEntitiesOnRenderedFrames(viewer);
 
   return viewer;
+}
+
+/**
+ * Cesium updates every entity in `clock.onTick`, rendered frame or not; under render on
+ * demand the update waits for `preRender`, raised only for a rendered frame, with the same
+ * time. Starlink idle in Chromium: 5.7 frames rendered a second, the update 225 ms a second.
+ * Not while tracking: the tick asks for the tracked entity's bounding sphere, which
+ * GeometryVisualizer throws on for an entity it has not updated, stopping the render loop.
+ * It asks for the selected entity's too, so `infoBox` and `selectionIndicator` must stay off.
+ */
+function updateEntitiesOnRenderedFrames(viewer: Viewer): void {
+  const { scene, dataSourceDisplay } = viewer;
+  const update = dataSourceDisplay.update.bind(dataSourceDisplay);
+  let updatePending = false;
+  // Its result only suspends the clock, which allowDataSourcesToSuspendAnimation turns off.
+  dataSourceDisplay.update = (time) => {
+    if (scene.requestRenderMode && !viewer.trackedEntity) {
+      updatePending = true;
+      return true;
+    }
+    updatePending = false;
+    return update(time);
+  };
+  scene.preRender.addEventListener((_scene, time) => {
+    if (updatePending) {
+      updatePending = false;
+      update(time);
+    }
+  });
 }

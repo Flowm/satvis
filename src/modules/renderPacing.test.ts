@@ -1,10 +1,21 @@
-import { Cartesian3, Event, JulianDate, Math as CesiumMath, PerspectiveFrustum } from "@cesium/core";
+import { Cartesian3, Ellipsoid, Event, JulianDate, Math as CesiumMath, OrthographicOffCenterFrustum, PerspectiveFrustum } from "@cesium/core";
 import { type Scene, SceneMode } from "@cesium/engine";
 import { describe, expect, test, vi } from "vitest";
 
 import { EARTH_ROTATION_RAD_S } from "./Orbit";
 import type Orbit from "./Orbit";
-import { DEFAULT_LIMITS, type PacedSatellite, RenderPacer, angularRate, distanceToShell, lineDistance, lineSpeed, maxPixelsPerRadian, renderTimeChange } from "./renderPacing";
+import {
+  DEFAULT_LIMITS,
+  type PacedSatellite,
+  REACHING_COMPONENTS,
+  RenderPacer,
+  angularRate,
+  distanceToShell,
+  lineDistance,
+  lineSpeed,
+  maxPixelsPerRadian,
+  renderTimeChange,
+} from "./renderPacing";
 import type { SampleVisitor } from "./util/GridPositionProperty";
 
 /** Metres the line distance takes off for the drift; LINE_DRIFT_METRES. */
@@ -162,8 +173,17 @@ describe("RenderPacer", () => {
     };
   }
 
-  function interval(satellites: PacedSatellite[], components: string[], cameraRadius?: number): number {
-    const scene = stubScene(cameraRadius);
+  /** The whole 2D map across the drawing buffer's width. */
+  function stubMap() {
+    const scene = stubScene();
+    const halfWidth = Math.PI * Ellipsoid.WGS84.maximumRadius;
+    const frustum = new OrthographicOffCenterFrustum();
+    Object.assign(frustum, { left: -halfWidth, right: halfWidth, bottom: -halfWidth / 2, top: halfWidth / 2 });
+    return { ...scene, mode: SceneMode.SCENE2D, camera: { ...scene.camera, frustum } };
+  }
+
+  /** The interval the pacer sets for `satellites` drawing `components`, once the camera has rested in `scene`. */
+  function interval(satellites: PacedSatellite[], components: string[], scene: Pick<ReturnType<typeof stubScene>, "preUpdate" | "maximumRenderTimeChange"> = stubScene()): number {
     const pacer = new RenderPacer(scene as unknown as Scene, { satellites: () => satellites, components: () => components, multiplier: () => 1 });
     // The first frame sees the camera arrive; the bound is taken once it has rested.
     const now = vi.spyOn(performance, "now").mockReturnValue(0);
@@ -218,12 +238,32 @@ describe("RenderPacer", () => {
     });
 
     test("keep the floor for a camera between the orbit and the ground", () => {
-      expect(interval([leo(["Point", "Ground track"])], ["Point", "Ground track"], 6_800_000)).toBe(DEFAULT_LIMITS.floor);
+      expect(interval([leo(["Point", "Ground track"])], ["Point", "Ground track"], stubScene(6_800_000))).toBe(DEFAULT_LIMITS.floor);
     });
 
     test("count only where a satellite draws one", () => {
       // Below a LEO shell, the satellite on the far side of the Earth, which draws no ground track.
-      expect(interval([leo(["Point"])], ["Point", "Ground track"], 6_800_000)).toBeGreaterThan(DEFAULT_LIMITS.floor);
+      expect(interval([leo(["Point"])], ["Point", "Ground track"], stubScene(6_800_000))).toBeGreaterThan(DEFAULT_LIMITS.floor);
+    });
+  });
+
+  describe("in 2D", () => {
+    const at = (latitude: number) => satellite({ position: Cartesian3.fromRadians(0, CesiumMath.toRadians(latitude), 500_000), perigeeKm: 6_871, apogeeKm: 6_881 });
+
+    test("paces a satellite by its ground speed, stretched with its latitude", () => {
+      const equator = interval([at(0)], ["Point"], stubMap());
+      expect(equator).toBeGreaterThan(DEFAULT_LIMITS.floor);
+      // 10 km/s at the shell's inner 6,821 km, carried to the map's radius and stretched as at 5°.
+      const metresPerSecond = (10_000 * Ellipsoid.WGS84.maximumRadius) / 6_821_000 / Math.cos(CesiumMath.toRadians(5));
+      expect(equator).toBeCloseTo(0.5 / ((metresPerSecond * 2266) / (2 * Math.PI * Ellipsoid.WGS84.maximumRadius)), 4);
+      expect(interval([at(60)], ["Point"], stubMap())).toBeLessThan(equator);
+    });
+
+    test("takes what reaches away from a satellite at the stretch's limit, and keeps the floor for what has no bound", () => {
+      for (const reaching of REACHING_COMPONENTS) {
+        expect(interval([at(0)], ["Point", reaching], stubMap()), reaching).toBeCloseTo(interval([at(85)], ["Point"], stubMap()), 6);
+      }
+      expect(interval([at(0)], ["Point", "Ground station link"], stubMap())).toBe(DEFAULT_LIMITS.floor);
     });
   });
 });
