@@ -116,8 +116,9 @@ groups:
 # live and with a group or a single satellite, so they show the present. One without a
 # `query` is the default view. The about page shows the default preset's from its own
 # copy (about.html), which src/config/featured.test.ts holds to these. `pictureAt` is
-# the moment `pnpm update-showcase` pictures, and the App Store screenshots' too, which
-# ios/satvisUITests names again; it is not served.
+# the moment `pnpm update-showcase` pictures, and the App Store screenshots' too
+# (ios/scripts/screenshots.sh), with the element sets in scripts/showcase/pinned.json;
+# it is not served.
 presets:
   - name: default
     title: Satvis - 3D Satellite Tracker & Sky View
@@ -144,16 +145,16 @@ presets:
     featured:
       - name: Weather satellites
         thumbnail: showcase/globe.webp
-        pictureAt: 2026-10-04T08:52Z
+        pictureAt: 2026-11-01T08:52Z
       # The ISS alone: the rest of the Stations group crowds the close-up.
       - name: Follow the ISS
         thumbnail: showcase/iss.webp
-        pictureAt: 2026-10-04T08:17:40Z
+        pictureAt: 2026-10-04T08:18:30Z
         query: { tags: "", sats: ISS (ZARYA), track: ISS (ZARYA), elements: "Point,Label,Orbit,3D model", layers: VersaTiles }
       # Every active satellite, as many as the sky holds: past the label budget, points alone.
       - name: Sky over Lauterbrunnen
         thumbnail: showcase/sky.webp
-        pictureAt: 2026-10-04T19:22Z
+        pictureAt: 2026-11-01T17:32Z
         query: { scene: Sky, gs: "46.5935,7.9091,Lauterbrunnen", terrain: ReEarth, layers: VersaTiles, stars: DeepStar2K, tags: Active }
 
 # Static per-satellite facts, matched by NORAD_CAT_ID alone; `name` is documentation

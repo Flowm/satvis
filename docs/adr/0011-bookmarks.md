@@ -109,5 +109,13 @@ bookmarks' pictures are precached so the panel works offline.
 - **A featured bookmark's picture is a moment, not the present.** The sky one shows a
   night sky on its card and a daylight one at noon. Retaken weeks after its
   `pictureAt`, it places a low orbit from element sets that far from the moment: the
-  ISS drawn over desert where the App Store screenshot of the same minute has the sea.
+  ISS drawn over desert where the App Store screenshot of the same minute had the sea.
+  So the satellite a close-up follows has its element sets pinned
+  (`scripts/showcase/pinned.json`), which `proxy.mjs` serves in place of the live ones
+  to the web pictures and the App Store screenshots alike. Only the orbits it names
+  are pinned: drift among the globe's or the sky's crowd of points does not show, and
+  a snapshot of every group would be megabytes. A pinned moment stays a few days from
+  its epoch, and the daylight passes over a place come and go with the orbit's
+  precession: in November 2026 every one was in the south, so the ISS is pinned to the
+  element set of 5 October, which the e2e fixtures had kept, over the Mediterranean.
 - **A bookmark's meaning can drift** with its preset's defaults, as any link's can.
