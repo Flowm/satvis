@@ -207,8 +207,10 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.textFields["Name"].waitForExistence(timeout: 5))
         XCTAssertLessThan(names().firstIndex(of: "Testhausen") ?? .max, names().firstIndex(of: "Probeburg") ?? .min)
 
+        // Slowly, and held over the target: let go on arrival with every core busy,
+        // the drag ended before the drop session saw the target, in 2 runs of 12.
         let grip = app.descendants(matching: .any)["Reorder Probeburg"]
-        grip.press(forDuration: 1, thenDragTo: app.descendants(matching: .any)["Reorder Testhausen"])
+        grip.press(forDuration: 1, thenDragTo: app.descendants(matching: .any)["Reorder Testhausen"], withVelocity: .slow, thenHoldForDuration: 1)
         let moved = XCTNSPredicateExpectation(
             predicate: NSPredicate { _, _ in (names().firstIndex(of: "Probeburg") ?? .max) < (names().firstIndex(of: "Testhausen") ?? .min) },
             object: nil)
