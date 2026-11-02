@@ -47,8 +47,13 @@ curl -fs --retry 10 --retry-connrefused -o /dev/null "$site/api/groups.json"
 udids=
 set --
 while IFS='|' read -r device type hinge; do
+  # The iPhone Duo takes only its own build of the runtime, which has the same name.
   udid=$(scripts/simulator-udid.sh "$device" "$runtime" 2>/dev/null) ||
-    udid=$(xcrun simctl create "$device" "${type:-$device}" "$(echo "$runtime" | tr -d ' ')")
+    udid=$(xcrun simctl list runtimes | grep "^$runtime (" | sed 's/.* - //' | while read -r id; do
+      # A refusal comes on stdout.
+      created=$(xcrun simctl create "$device" "${type:-$device}" "$id" 2>&1) && echo "$created" && break
+    done)
+  [ -n "$udid" ] || { echo "No $runtime runtime takes $device" >&2; exit 1; }
   xcrun simctl shutdown "$udid" 2>/dev/null || true
   xcrun simctl erase "$udid"
   xcrun simctl boot "$udid"
