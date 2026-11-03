@@ -539,6 +539,20 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssertEqual(menuToggle(app).label, "Menu")
     }
 
+    // On a phone a menu entry's sheet takes the place of a satellite's: SwiftUI
+    // presents one sheet at a time, and the entry opened nothing.
+    @MainActor
+    func testOpensASheetOverASatellitesSheet() throws {
+        let app = search("METOP-C")
+        try XCTSkipIf(isRoomy(app), "A regular width's satellite panel is a card")
+        app.buttons["Details of METOP-C"].tap()
+        XCTAssert(app.navigationBars["METOP-C"].waitForExistence(timeout: 10))
+        openMenu(app)
+        app.buttons["Bookmarks"].tap()
+        XCTAssert(app.navigationBars["Bookmarks"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.navigationBars["METOP-C"].exists)
+    }
+
     // A station's panel closes on the way into its sky view: as a card it covered
     // the corner's buttons and the compass tape.
     @MainActor

@@ -181,6 +181,9 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   title (`panelRoom`) rather than capped by a frame, which grows to its cap. The
   column's entries scroll too, under a fixed toggle, where they are taller than
   the room above the clock deck.
+- The sheets over the globe are one `sheet(item:)` (`AppSheet`): SwiftUI presents
+  one at a time from a view, and a changed item swaps one for the next, as a menu
+  entry tapped under an iPhone's info sheet does.
 - Bookmarks are the web app's (ADR 0011, `BookmarksView.swift`): the code that
   describes and names them (`Bookmarks` in SatvisCore) is held to its
   `src/modules/util/bookmarks.ts` by the parity fixtures. The featured ones are

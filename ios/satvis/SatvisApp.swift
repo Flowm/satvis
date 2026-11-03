@@ -381,6 +381,11 @@ struct ContentView: View {
         .onChange(of: showsBookmarks || showsBrowser || showsAbout) { _, presenting in
             if presenting {
                 panel = nil
+                // The satellite's sheet gives way to it, and does not come back
+                // over a scene a bookmark opened.
+                if sizeClass != .regular {
+                    session.select(nil)
+                }
                 if sizeClass != .regular, showsTools {
                     showsTools = false
                     foldedFor = .some(session.selection)
@@ -392,40 +397,33 @@ struct ContentView: View {
                 }
             }
         }
-        .sheet(isPresented: $showsBookmarks) {
-            // The column stays folded over the scene a bookmark opened, as a tap on
-            // the globe leaves it.
-            BookmarksView(session: session) { foldedFor = nil }
-        }
-        .sheet(isPresented: $showsBrowser) {
-            BrowserView(catalog: session.catalog) { session.select(.satellite($0.id)) }
-        }
-        .sheet(isPresented: $showsAbout) {
-            AboutView(session: session)
-        }
-        .sheet(isPresented: $showsAcknowledgements) {
-            NavigationStack {
-                AcknowledgementsView(map: session.mapCredits)
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { showsAcknowledgements = false }
+        .sheet(item: sheet) { sheet in
+            switch sheet {
+            case .bookmarks:
+                // The column stays folded over the scene a bookmark opened, as a tap on
+                // the globe leaves it.
+                BookmarksView(session: session) { foldedFor = nil }
+            case .browser:
+                BrowserView(catalog: session.catalog) { session.select(.satellite($0.id)) }
+            case .about:
+                AboutView(session: session)
+            case .acknowledgements:
+                NavigationStack {
+                    AcknowledgementsView(map: session.mapCredits)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { showsAcknowledgements = false }
+                            }
                         }
-                    }
+                }
+            case .info:
+                // Dense, as the card: Liquid Glass showed the globe behind it
+                // magnified and blurred, under the name and the first rows.
+                infoPanel
+                    .presentationBackground(Color.panelSurface.opacity(PanelDensity.dense.opacity))
+                    .presentationDetents([.medium, .large])
+                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
             }
-        }
-        .sheet(
-            isPresented: Binding {
-                sizeClass != .regular && session.selection != nil
-            } set: {
-                if !$0 { session.select(nil) }
-            }
-        ) {
-            // Dense, as the card: Liquid Glass showed the globe behind it
-            // magnified and blurred, under the name and the first rows.
-            infoPanel
-                .presentationBackground(Color.panelSurface.opacity(PanelDensity.dense.opacity))
-                .presentationDetents([.medium, .large])
-                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .task {
             await session.run()
@@ -446,6 +444,43 @@ struct ContentView: View {
         // shortened the panel past fitting, swapping in a scrolling one: a new
         // view, which dropped the field's focus. The sheets keep their own room.
         .ignoresSafeArea(.keyboard)
+    }
+
+    /// The sheet shown, of all of them: SwiftUI presents one at a time from a view,
+    /// and a menu entry tapped under a satellite's sheet opened nothing. A changed
+    /// item swaps one sheet for the other.
+    private var sheet: Binding<AppSheet?> {
+        Binding {
+            if showsAcknowledgements {
+                .acknowledgements
+            } else if showsAbout {
+                .about
+            } else if showsBookmarks {
+                .bookmarks
+            } else if showsBrowser {
+                .browser
+            } else if sizeClass != .regular && session.selection != nil {
+                .info
+            } else {
+                nil
+            }
+        } set: { sheet in
+            guard sheet == nil else {
+                return
+            }
+            if showsAcknowledgements {
+                showsAcknowledgements = false
+            } else if showsAbout {
+                showsAbout = false
+            } else if showsBookmarks {
+                showsBookmarks = false
+            } else if showsBrowser {
+                showsBrowser = false
+            } else if sizeClass != .regular {
+                // Not as an iPhone Duo opens, where the card takes the sheet's place.
+                session.select(nil)
+            }
+        }
     }
 
     /// Starts picking a spot from the Locations panel, out of the globe's way.
@@ -585,6 +620,15 @@ struct ContentView: View {
             session.stopTracking(animated: true)
         }
     }
+}
+
+/// What a sheet over the globe shows.
+private enum AppSheet: Identifiable {
+    case bookmarks, browser, about, acknowledgements
+    /// The info panel, on a compact width; a card elsewhere.
+    case info
+
+    var id: Self { self }
 }
 
 extension View {
