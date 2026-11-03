@@ -118,6 +118,14 @@ brushed like the launch years; a direction is picked in the legend.
 - A dawn-dusk orbit lands at either end, by which side of 06:00 or 18:00 its nodes fall.
   "Dawn-dusk" has no agreed bound; the bands take a crossing within an hour of either, where
   the catalog thins out: 663 satellites within the hour, 89 in the next quarter.
+- The heading switches to a 24-hour view, 00:00 to 24:00, where each satellite counts
+  twice: northbound at its LTAN, southbound at its LTDN. It is how operators and launch
+  providers quote an orbit, and it shows a dawn-dusk orbit in one piece. The daylit view
+  stays the default, for the Flocks above. A picked range keeps any satellite with a
+  crossing of the picked direction in it; with no range, the view's own hours stand in, so a
+  direction alone picks the daylit crossing's in the daylit view and every sun-sync
+  satellite in the 24-hour one. The stats count the daylit crossings in either view, one per
+  satellite. Back in the daylit view, a range outside 06:00-18:00 is dropped.
 
 ## Consequences
 

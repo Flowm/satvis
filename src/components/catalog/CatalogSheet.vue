@@ -81,6 +81,7 @@
               <catalog-crossing-histogram
                 v-model:range="sheet.crossingHours.value"
                 v-model:direction="sheet.crossingDirection.value"
+                v-model:view="sheet.crossingView.value"
                 v-model:scale="sheet.crossingScale.value"
                 :crossings="sheet.result.value.crossings"
                 :height="opened === 'crossing' ? openHeight - 119 : heroHeight - 15"

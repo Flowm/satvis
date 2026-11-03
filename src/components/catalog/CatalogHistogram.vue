@@ -2,10 +2,23 @@
 <template>
   <div ref="rootEl" class="histogram cs-measured">
     <div class="cs-tileHead">
-      <UIcon :name="icon" class="cs-mute" /> <span :title="titleHint">{{ title }}</span>
-      <span v-if="range" class="cs-dim cs-num">{{ formatRange(range) }}</span>
+      <UIcon :name="icon" class="cs-mute" /> <span class="histogram__title" :title="titleHint">{{ title }}</span>
+      <span v-if="range" class="histogram__range cs-dim cs-num">{{ formatRange(range) }}</span>
       <span class="cs-headEnd">
         <button v-if="range || picked" type="button" class="cs-reset" @click="reset">reset</button>
+        <span v-if="views" class="histogram__scales" role="group" :aria-label="viewsLabel">
+          <button
+            v-for="option in views"
+            :key="option.view"
+            type="button"
+            :aria-pressed="view === option.view"
+            :aria-label="option.name"
+            :title="option.hint"
+            @click="emit('update:view', option.view)"
+          >
+            {{ option.label }}
+          </button>
+        </span>
         <span class="histogram__scales" role="group" aria-label="Scale">
           <button
             v-for="option in SCALES"
@@ -143,6 +156,18 @@ export interface HistogramSeries {
   counts: Map<number, number>;
 }
 
+/** An x axis the heading can switch to. */
+export interface HistogramView {
+  /** What picking it emits. */
+  view: string;
+  /** In the heading. */
+  label: string;
+  /** The button's accessible name. */
+  name: string;
+  /** On hover. */
+  hint: string;
+}
+
 /** The series' colours, in order; one series alone takes the theme's link and accent instead. */
 const SERIES_COLORS = ["#74c0fc", "#ffa94d"];
 
@@ -179,11 +204,18 @@ const props = defineProps<{
   height: number;
   /** Opened large, with its stats. */
   open: boolean;
+  /** X axes to pick from in the heading, beside the scales. */
+  views?: readonly HistogramView[];
+  /** The picked one's `view`. */
+  view?: string;
+  /** The views' group, as a screen reader names it. */
+  viewsLabel?: string;
 }>();
 const emit = defineEmits<{
   "update:range": [range: [number, number] | null];
   "update:picked": [label: string | null];
   "update:scale": [scale: HistogramScale];
+  "update:view": [view: string];
   "toggle-open": [];
 }>();
 
@@ -337,6 +369,18 @@ function brushEnd(): void {
 </script>
 
 <style scoped>
+/* One line in a narrow tile: the range gives way, which the bars and its chip show too. */
+.histogram__title {
+  white-space: nowrap;
+}
+
+.histogram__range {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .histogram__stats {
   display: flex;
   flex-wrap: wrap;

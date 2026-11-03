@@ -9,6 +9,7 @@ import {
   type CatalogFilter,
   type CatalogRow,
   type CrossingDirection,
+  type CrossingView,
   catalogRows,
   crossfilter,
   FACET_BY_KEY,
@@ -39,10 +40,12 @@ const launchYears = ref<[number, number] | null>(null);
 const shape = ref<ShapeBox | null>(null);
 /** The box dragged on the apogee-perigee plot. */
 const apsides = ref<ApsisBox | null>(null);
-/** Hours of the sun-sync daylit crossing, brushed on its chart, from inclusive to exclusive. */
+/** Hours of a sun-sync crossing, brushed on its chart, from inclusive to exclusive. */
 const crossingHours = ref<[number, number] | null>(null);
 /** The crossing direction picked in the chart's legend. */
 const crossingDirection = ref<CrossingDirection | null>(null);
+/** The crossing chart's view, the daylit crossing alone at first (ADR 0012). */
+const crossingView = ref<CrossingView>("daylit");
 /** Name or NORAD id. */
 const query = ref("");
 /** Lists only what the globe shows. */
@@ -84,6 +87,7 @@ export function useCatalogFilters(catalog: SatelliteCatalog) {
     apsides: apsides.value,
     crossingHours: crossingHours.value,
     crossingDirection: crossingDirection.value,
+    crossingView: crossingView.value,
     query: query.value,
     activeOnly: activeOnly.value,
   }));
@@ -202,6 +206,7 @@ export function useCatalogFilters(catalog: SatelliteCatalog) {
     apsides,
     crossingHours,
     crossingDirection,
+    crossingView,
     query,
     activeOnly,
     sortKey,

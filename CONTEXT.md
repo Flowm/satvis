@@ -110,7 +110,8 @@ discussion; sharpen them here when they drift.
   sun-sync orbit holds both (`ltanHoursOf`).
 - **Daylit crossing**: whichever node of a sun-sync orbit falls between 06:00 and 18:00,
   with its direction: what "a 10:30 orbit" means. The catalog's chart counts each
-  satellite once there (`daylitCrossingOf`, ADR 0012).
+  satellite once there (`daylitCrossingOf`, ADR 0012), or, in its 24-hour view, at both
+  nodes (`crossingsOf`).
 - **Programme**: GCAT's name for the project a payload belongs to, often a phase of one
   ("Starlink 2MO S1"). Upstream metadata, `program`.
 - **Constellation**: the family a programme belongs to, its first word ("Starlink"). The

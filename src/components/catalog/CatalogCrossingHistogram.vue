@@ -1,22 +1,30 @@
-<!-- Sun-sync satellites by when and which way they cross the equator in daylight; dragging picks a range of times. -->
+<!-- Sun-sync satellites by when and which way they cross the equator, in daylight or at both nodes; dragging picks a range of times. -->
 <template>
   <catalog-histogram
     v-model:picked="direction"
     icon="lucide:sunrise"
     title="Sun-sync crossing"
-    title-hint="When a sun-sync satellite crosses the equator in daylight, in mean solar time, and which way: southbound at its descending node, northbound at its ascending node. The night crossing is 12 hours off. Away from the equator a pass comes earlier or later than this, by about an hour at 60° latitude, and the other way round for the other direction."
+    :title-hint="`${VIEW_HINTS[view]} Away from the equator a pass comes earlier or later than this, by about an hour at 60° latitude, and the other way round for the other direction.`"
     pick-hint="drag to pick times"
-    chart-label="Sun-sync satellites by the local time and direction of their daylit equator crossing"
-    :bins="BINS"
+    :chart-label="
+      view === 'daylit'
+        ? 'Sun-sync satellites by the local time and direction of their daylit equator crossing'
+        : 'Sun-sync satellites by the local time of their ascending and descending node'
+    "
+    :bins="bins"
     :series="series"
     v-model:scale="scale"
     :range="binRange"
     :format-bin="(bin) => `${formatLocalTime(hoursOf(bin))}–${formatLocalTime(hoursOf(bin + 1))}`"
     :format-range="() => `${formatLocalTime(range![0])}–${formatLocalTime(range![1])}`"
     :ticks="ticks"
-    :bands="BANDS"
+    :bands="bands"
     :height="height"
     :open="open"
+    :views="VIEWS"
+    :view="view"
+    views-label="Hours"
+    @update:view="pickView($event as CrossingView)"
     @update:range="emit('update:range', $event && [hoursOf($event[0]), hoursOf($event[1] + 1)])"
     @toggle-open="emit('toggle-open')"
   >
@@ -25,7 +33,7 @@
         ><b>{{ formatInteger(stats.total) }}</b> sun-sync, under the other filters</span
       >
       <span
-        >southbound <b>{{ stats.southboundShare }}%</b></span
+        >{{ view === "daylit" ? "southbound" : "southbound by day" }} <b>{{ stats.southboundShare }}%</b></span
       >
       <span v-for="regime in REGIMES" :key="regime.label" :title="regime.hint"
         >{{ regime.label }} <b>{{ stats.shares[regime.label] }}%</b></span
@@ -38,12 +46,12 @@
 import { computed } from "vue";
 
 import type { HistogramScale } from "../../composables/useCatalogFilters";
-import { CROSSING_BIN_HOURS, CROSSING_FROM_HOURS, type CrossingDirection, formatLocalTime } from "../../modules/catalogFacets";
+import { CROSSING_BIN_HOURS, CROSSING_VIEW_HOURS, type CrossingDirection, type CrossingView, formatLocalTime } from "../../modules/catalogFacets";
 import { formatInteger } from "../../modules/util/formats";
-import CatalogHistogram, { type HistogramBand, type HistogramSeries, type HistogramTick } from "./CatalogHistogram.vue";
+import CatalogHistogram, { type HistogramBand, type HistogramSeries, type HistogramTick, type HistogramView } from "./CatalogHistogram.vue";
 
 const props = defineProps<{
-  /** Per direction, crossing bin -> sun-sync satellites, under every filter but the crossing. */
+  /** Per direction, crossing bin from 00:00 -> sun-sync satellites, under every filter but the crossing. */
   crossings: Record<CrossingDirection, Map<number, number>>;
   /** Hours, from inclusive to exclusive. */
   range: [number, number] | null;
@@ -56,13 +64,40 @@ const emit = defineEmits<{ "update:range": [range: [number, number] | null]; "to
 const scale = defineModel<HistogramScale>("scale", { required: true });
 /** The direction picked in the legend. */
 const direction = defineModel<CrossingDirection | null>("direction", { required: true });
+/** The hours shown, picked in the heading. */
+const view = defineModel<CrossingView>("view", { required: true });
+
+/** The views, as the heading names them. */
+const VIEWS: HistogramView[] = [
+  { view: "daylit", label: "12h", name: "Daylit crossing, 06:00–18:00", hint: "06:00–18:00: each satellite once, at its daylit crossing" },
+  { view: "fullDay", label: "24h", name: "Both crossings, 00:00–24:00", hint: "00:00–24:00: each satellite twice, at its ascending and its descending node" },
+];
+/** What each view shows, the title's hint. */
+const VIEW_HINTS: Record<CrossingView, string> = {
+  daylit:
+    "When a sun-sync satellite crosses the equator in daylight, in mean solar time, and which way: southbound at its descending node, northbound at its ascending node. The night crossing is 12 hours off.",
+  fullDay:
+    "When a sun-sync satellite crosses the equator, in mean solar time, at both nodes: northbound at its ascending node (LTAN), southbound at its descending node (LTDN), 12 hours apart. Each satellite counts twice.",
+};
 
 /** Bins per hour. */
 const PER_HOUR = 1 / CROSSING_BIN_HOURS;
-/** Every bin of the 12 daylit hours. */
-const BINS = Array.from({ length: 12 * PER_HOUR }, (_, i) => i);
 /** A bin's start, in hours of the day. */
-const hoursOf = (bin: number) => CROSSING_FROM_HOURS + bin * CROSSING_BIN_HOURS;
+const hoursOf = (bin: number) => bin * CROSSING_BIN_HOURS;
+/** The view's hours, from inclusive to exclusive. */
+const viewHours = computed(() => CROSSING_VIEW_HOURS[view.value]);
+/** Every bin of the view's hours. */
+const bins = computed(() => {
+  const [from, to] = viewHours.value;
+  return Array.from({ length: (to - from) * PER_HOUR }, (_, i) => from * PER_HOUR + i);
+});
+
+/** Switches the view, dropping a range of times the daylit view cannot show. */
+function pickView(next: CrossingView): void {
+  const [from, to] = CROSSING_VIEW_HOURS[next];
+  if (props.range && (props.range[0] < from || props.range[1] > to)) emit("update:range", null);
+  view.value = next;
+}
 
 /** Both ends' hint: a dawn-dusk orbit lands at either, by which side of 06:00 or 18:00 its nodes fall. */
 const DAWN_DUSK_HINT = "Dawn-dusk: crossing within an hour of 06:00 or 18:00, so the orbit rides the terminator, in sunlight most of the year";
@@ -74,7 +109,9 @@ const REGIMES = [
   { label: "dusk", hours: [17, 18], hint: DAWN_DUSK_HINT },
 ] as const;
 /** The regimes shaded behind the bars. */
-const BANDS: HistogramBand[] = REGIMES.map(({ label, hours: [from, to] }) => ({ at: (from - CROSSING_FROM_HOURS) * PER_HOUR, width: (to - from) * PER_HOUR, label }));
+const bands = computed<HistogramBand[]>(() =>
+  REGIMES.map(({ label, hours: [from, to] }) => ({ at: (from - viewHours.value[0]) * PER_HOUR, width: (to - from) * PER_HOUR, label })),
+);
 
 /** The directions, southbound at the bottom: most morning orbits, the busiest. */
 const series = computed<HistogramSeries[]>(() => [
@@ -83,26 +120,28 @@ const series = computed<HistogramSeries[]>(() => [
 ]);
 
 /** The picked hours as bins, inclusive. */
-const binRange = computed<[number, number] | null>(
-  () => props.range && [Math.round((props.range[0] - CROSSING_FROM_HOURS) * PER_HOUR), Math.round((props.range[1] - CROSSING_FROM_HOURS) * PER_HOUR) - 1],
-);
+const binRange = computed<[number, number] | null>(() => props.range && [Math.round(props.range[0] * PER_HOUR), Math.round(props.range[1] * PER_HOUR) - 1]);
 
-/** A tick every hour, labelled every 3 hours where narrow, else every 2, or every hour opened wide. */
+/** A tick every hour, labelled every 3 hours where narrow, else every 2, or every hour opened wide; twice that apart across the full day. */
 function ticks(width: number): HistogramTick[] {
-  const labelEvery = width < 380 ? 3 : props.open && width >= 900 ? 1 : 2;
-  return Array.from({ length: 13 }, (_, i) => ({ at: i * PER_HOUR, label: i % labelEvery === 0 ? formatLocalTime(CROSSING_FROM_HOURS + i) : "" }));
+  const [from, to] = viewHours.value;
+  const labelEvery = (width < 380 ? 3 : props.open && width >= 900 ? 1 : 2) * (view.value === "daylit" ? 1 : 2);
+  return Array.from({ length: to - from + 1 }, (_, i) => ({ at: i * PER_HOUR, label: i % labelEvery === 0 ? formatLocalTime(from + i) : "" }));
 }
 
-/** The opened chart's total, the southbound share, and each regime's share. */
+/** The daylit hours, where each satellite has exactly one crossing. */
+const [DAYLIT_FROM, DAYLIT_TO] = CROSSING_VIEW_HOURS.daylit;
+/** The opened chart's total, the southbound share, and each regime's share, by the daylit crossings alone in either view. */
 const stats = computed(() => {
   let total = 0;
   let southbound = 0;
   const counts: Record<string, number> = {};
   for (const [way, map] of Object.entries(props.crossings)) {
     for (const [bin, count] of map) {
+      const hours = hoursOf(bin);
+      if (hours < DAYLIT_FROM || hours >= DAYLIT_TO) continue;
       total += count;
       if (way === "southbound") southbound += count;
-      const hours = hoursOf(bin);
       for (const {
         label,
         hours: [from, to],
