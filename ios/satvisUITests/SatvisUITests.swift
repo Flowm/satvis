@@ -46,8 +46,14 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Clear all"].exists)
         // Beside the column, not over it.
         XCTAssertGreaterThan(search.frame.minX, entry.frame.maxX)
+        // Below the list's foot on an iPad mini in landscape, where the lazy list has
+        // no row for it until scrolled to.
         let group = app.staticTexts["Weather"].firstMatch
-        XCTAssert(group.waitForExistence(timeout: 10))
+        XCTAssert(app.staticTexts["Active"].firstMatch.waitForExistence(timeout: 10))
+        for _ in 0..<6 where !(group.exists && group.isHittable) {
+            app.collectionViews.firstMatch.swipeUp()
+        }
+        XCTAssert(group.isHittable)
         group.tap()
         XCTAssert(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Details of '")).firstMatch.waitForExistence(timeout: 10))
         entry.tap()
