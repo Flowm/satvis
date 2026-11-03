@@ -45,10 +45,18 @@ extension EnvironmentValues {
 
 /// The web app's menu column: one panel, the Menu toggle over a rule and the
 /// entries under it, each its icon and its name, folding to the toggle alone so
-/// that a phone's width is left to the globe.
+/// that a phone's width is left to the globe. The entries scroll where they are
+/// taller than `maxHeight` leaves them, as on a phone in landscape or at the larger
+/// text sizes.
 struct ToolMenu<Tools: View>: View {
     @Binding var isOpen: Bool
+    /// How tall the column may be; nil where it may be as tall as it is.
+    var maxHeight: CGFloat?
     @ViewBuilder let tools: Tools
+    /// The toggle's row, measured.
+    @State private var toggleHeight: CGFloat = 0
+    /// The entries, measured.
+    @State private var toolsHeight: CGFloat?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -64,6 +72,7 @@ struct ToolMenu<Tools: View>: View {
             }
             .buttonStyle(ToolRowStyle())
             .accessibilityLabel(isOpen ? "Close menu" : "Menu")
+            .onGeometryChange(for: CGFloat.self, of: \.size.height) { toggleHeight = $0 }
 
             if isOpen {
                 // In at once, where they will stand, for the growing panel to
@@ -71,7 +80,16 @@ struct ToolMenu<Tools: View>: View {
                 // them. Out faded, inside the shrinking panel.
                 Group {
                     Divider()
-                    tools
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            tools
+                        }
+                    }
+                    .scrollBounceBehavior(.basedOnSize)
+                    .onScrollGeometryChange(for: CGFloat.self, of: \.contentSize.height) { _, height in
+                        toolsHeight = height
+                    }
+                    .frame(height: shownToolsHeight)
                 }
                 .transition(.asymmetric(insertion: .identity, removal: .opacity))
             }
@@ -82,6 +100,17 @@ struct ToolMenu<Tools: View>: View {
         .clipShape(.rect(cornerRadius: 16))
         .panel()
         .animation(.snappy(duration: 0.2), value: isOpen)
+    }
+
+    /// The entries' height, or the room under the toggle and its rule where that is less.
+    private var shownToolsHeight: CGFloat? {
+        guard let toolsHeight else {
+            return nil
+        }
+        guard let maxHeight else {
+            return toolsHeight
+        }
+        return min(toolsHeight, max(maxHeight - toggleHeight - 1, PanelMetrics.row))
     }
 }
 

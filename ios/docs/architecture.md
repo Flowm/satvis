@@ -178,7 +178,9 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   column where it is regular, as on the web, closed under the info card it opens
   (`BrowserPanel`); a sheet where it is compact, a list too long for a phone's
   card (`BrowserView`). The panel's list scrolls itself, told the room under the
-  title (`panelRoom`) rather than capped by a frame, which grows to its cap.
+  title (`panelRoom`) rather than capped by a frame, which grows to its cap. The
+  column's entries scroll too, under a fixed toggle, where they are taller than
+  the room above the clock deck.
 - Bookmarks are the web app's (ADR 0011, `BookmarksView.swift`): the code that
   describes and names them (`Bookmarks` in SatvisCore) is held to its
   `src/modules/util/bookmarks.ts` by the parity fixtures. The featured ones are

@@ -231,7 +231,7 @@ struct ContentView: View {
         .overlay(alignment: .topLeading) {
             GeometryReader { _ in
                 HStack(alignment: .top, spacing: PanelMetrics.gap) {
-                    ToolMenu(isOpen: $showsTools) {
+                    ToolMenu(isOpen: $showsTools, maxHeight: panelMaxHeight) {
                         // The web app's menu column: its entries, icons, order and hints.
                         ToolEntry(
                             title: "Bookmarks", image: .lucideBookmark, hint: "Featured and saved views, links you opened, and the way back to the default view"

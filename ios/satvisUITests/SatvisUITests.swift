@@ -180,6 +180,28 @@ nonisolated class SatvisUITests: XCTestCase {
         }
     }
 
+    // At the largest text the menu column is taller than a phone: its entries
+    // scroll under the toggle, and the last of them is still reached.
+    @MainActor
+    func testScrollsTheMenuAtTheLargestText() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launchEnvironment["SATVIS_API"] = "http://127.0.0.1:9"
+        app.launchEnvironment["SATVIS_TEST_CATALOG"] = "1"
+        app.launchEnvironment["SATVIS_LINK"] = "/"
+        app.launch()
+        openMenu(app)
+        let about = app.buttons["About"]
+        // Dragged from inside the column, under the toggle, whichever entries are there.
+        let toggle = menuToggle(app).coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        for _ in 0..<4 where !(about.exists && about.isHittable) {
+            toggle.withOffset(CGVector(dx: 0, dy: 400)).press(forDuration: 0.05, thenDragTo: toggle.withOffset(CGVector(dx: 0, dy: 100)))
+        }
+        XCTAssert(about.isHittable)
+        about.tap()
+        XCTAssert(app.navigationBars["About Satvis"].waitForExistence(timeout: 10))
+    }
+
     // Locations is a panel beside the menu, as on the web: a link's stations are
     // saved from it, dragged into place by their grips and removed by their
     // crosses, and a pick on the globe that is cancelled opens it again.
