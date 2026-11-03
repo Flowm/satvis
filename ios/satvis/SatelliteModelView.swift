@@ -39,7 +39,10 @@ struct SatelliteModelView: View {
             CloseUpMetalView(frameRate: context.frameRate) { result in
                 switch result {
                 case .success(let closeUp):
-                    closeUp.onState = { state = $0 }
+                    // The state's binding alone: capturing the view captures the
+                    // storage holding `closeUp`, which then never went.
+                    let state = $state
+                    closeUp.onState = { state.wrappedValue = $0 }
                     closeUp.onGPUFault = context.onGPUFault
                     self.closeUp = closeUp
                 case .failure(let error):
