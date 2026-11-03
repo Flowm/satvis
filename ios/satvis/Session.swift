@@ -329,8 +329,9 @@ final class Session {
 
     /// Opens a link: what it shows replaces what is shown, as on the web. `records`
     /// keeps it among the opened links (ADR 0011): one the system hands over, or the
-    /// about page's, as a visit starts with on the web.
-    func open(_ link: Link, records: Bool = false) {
+    /// about page's, as a visit starts with on the web. `picturing` is a bookmark
+    /// to picture once it has loaded.
+    func open(_ link: Link, records: Bool = false, picturing bookmark: String? = nil) {
         guard started else {
             pendingLink = (link, records)
             return
@@ -339,6 +340,8 @@ final class Session {
             await apply(link, settings: true)
             if records {
                 await recordOpened()
+            } else if let bookmark {
+                await picture(bookmark)
             }
         }
     }
@@ -472,12 +475,19 @@ final class Session {
 
     /// Opens a bookmark's scene, carrying the link's parameters no store owns.
     /// Without a `time` it is live: a paused or fast clock at the present has none either.
-    func open(_ scene: SceneLink) {
+    func open(_ scene: SceneLink, picturing bookmark: String? = nil) {
         let carried = Bookmarks.carriedItems(of: link(sharing: false).query)
         if scene.query["time"] == nil, ViewerClock.launchTime == nil {
             clock.goLive()
         }
-        open(scene.link(carrying: carried))
+        open(scene.link(carrying: carried), picturing: bookmark)
+    }
+
+    /// Opens a bookmark from the Bookmarks sheet, and pictures one of the device's
+    /// that has no picture: an opened link left before it had loaded.
+    func open(_ bookmark: Bookmark) {
+        let unpictured = bookmark.kind != .featured && bookmarks.pictures[bookmark.id] == nil
+        open(bookmark.scene, picturing: unpictured ? bookmark.id : nil)
     }
 
     /// The preset as it opens: every scene parameter dropped, the clock live.
@@ -516,15 +526,21 @@ final class Session {
     private static let pictureWidth = 480
 
     /// Keeps the link just opened among the opened ones, unless it shows the
-    /// preset as it opens or is among the featured and saved bookmarks, and pictures
-    /// it once it has loaded: everything active drawn, the sky view landed, and
-    /// three seconds for the tiles. Not if the user has moved on by then.
+    /// preset as it opens or is among the featured and saved bookmarks, and pictures it.
     private func recordOpened() async {
         let opened = here
         guard !opened.query.isEmpty, !(featured + bookmarks.saved).contains(where: { $0.scene == opened }) else {
             return
         }
         let link = bookmarks.recordOpened(name: Bookmarks.defaultName(summary(opened)), scene: opened)
+        await picture(link.id)
+    }
+
+    /// Pictures the scene just opened for a bookmark once it has loaded: everything
+    /// active drawn, the sky view landed, and three seconds for the tiles. Not if the
+    /// user has moved on by then.
+    private func picture(_ bookmark: String) async {
+        let opened = here
         let start = ContinuousClock.now
         try? await Task.sleep(for: .seconds(3))
         while ContinuousClock.now - start < .seconds(20) {
@@ -540,7 +556,7 @@ final class Session {
         else {
             return
         }
-        bookmarks.setPicture(link.id, picture)
+        bookmarks.setPicture(bookmark, picture)
     }
 
     // MARK: Sky view

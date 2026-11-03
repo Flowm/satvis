@@ -177,7 +177,7 @@ struct BookmarksView: View {
     private func card(_ bookmark: Bookmark, isCurrent: Bool) -> some View {
         let summary = session.summary(bookmark.scene)
         return Button {
-            session.open(bookmark.scene)
+            session.open(bookmark)
             onOpen()
             dismiss()
         } label: {
