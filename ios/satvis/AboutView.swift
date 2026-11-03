@@ -11,6 +11,9 @@ struct AboutView: View {
     @ScaledMetric(relativeTo: .body) private var iconDrop: CGFloat = 6
     @Environment(\.dismiss) private var dismiss
 
+    /// What the sky view is aimed by: "phone" on an iPad read wrong.
+    private static let device = UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
+
     /// The web app's feature rows, each with the Lucide icon the about page gives it.
     private static let features: [(icon: ImageResource, text: LocalizedStringKey)] = [
         (.lucideOrbit, "Visualize satellites on a 3D globe in real time, propagated on the device with SGP4 from CelesTrak's element sets"),
@@ -22,7 +25,7 @@ struct AboutView: View {
         (.lucideInfo, "Select a satellite to see its orbit, its next passes over your locations and its spacecraft details: country, operator, manufacturer, bus, mass and size"),
         (.lucideCrosshair, "Track a satellite: the camera flies to it and follows it along its orbit"),
         (.lucideMapPin, "Save your location or any point you pick on the map, then list the upcoming passes over it and get a notification before one starts"),
-        (.lucideTelescope, "Find satellites overhead in the ground-level sky view, aimed by dragging or by pointing your phone"),
+        (.lucideTelescope, "Find satellites overhead in the ground-level sky view, aimed by dragging or by pointing your \(device)"),
         (.lucideEye, "See which satellites you could spot: the sky view dims those in Earth's shadow, too far away or in a daylit sky"),
         (.lucideLayers, "Lay the globe over the base map and terrain you choose: satellite imagery, Earth at night or the day's VIIRS imagery"),
         (.lucideBookmark, "Start from the featured views, bookmark your own, and share any view as a link: it opens the same view on satvis.space"),
@@ -37,7 +40,7 @@ struct AboutView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         hero
                         Text(
-                            "Satvis is a free, open-source satellite tracker for iPhone and iPad. It draws more than 16,000 satellites on a 3D globe in real time: Starlink, GPS, weather satellites, the ISS and many more. Set your location and it predicts when each one passes overhead. The sky view shows the sky from where you stand. Point your phone up to see the satellites in that direction."
+                            "Satvis is a free, open-source satellite tracker for iPhone and iPad. It draws more than 16,000 satellites on a 3D globe in real time: Starlink, GPS, weather satellites, the ISS and many more. Set your location and it predicts when each one passes overhead. The sky view shows the sky from where you stand. Point your \(Self.device) up to see the satellites in that direction."
                         )
                     }
                     // A clear row is still clipped to its card's rounded corners: the
