@@ -15,10 +15,14 @@ public protocol StationStorage {
 }
 
 extension StationStorage {
-    /// The stations as last saved. One saved before stations had ids gets a new
-    /// one on every read, until `StationList` saves it back.
+    /// The stations as last saved, read one at a time, so one that does not
+    /// decode drops alone rather than the list, which the next edit would then
+    /// keep empty. One saved before stations had ids gets a new one on every
+    /// read, until `StationList` saves it back.
     public func stations() -> [GroundStation] {
-        stationData().map { GroundStations.normalized((try? JSONDecoder().decode([GroundStation].self, from: $0)) ?? []) } ?? []
+        stationData().map { data in
+            GroundStations.normalized(((try? JSONDecoder().decode([Lenient<GroundStation>].self, from: data)) ?? []).compactMap(\.value))
+        } ?? []
     }
 
     /// Keeps `stations` as the saved ones.

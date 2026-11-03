@@ -44,6 +44,13 @@ private final class MemoryStationStorage: StationStorage {
         #expect(StationList(storage: storage).saved.map(\.id) == list.saved.map(\.id))
     }
 
+    // A station that does not decode drops alone, not the whole list.
+    @Test func readsTheStationsThatDecode() {
+        let storage = MemoryStationStorage(
+            stationJSON: Data(#"[{"latitude": 48.1351, "longitude": 11.582, "name": "Munich"}, {"latitude": "north"}]"#.utf8))
+        #expect(StationList(storage: storage).saved.map(\.name) == ["Munich"])
+    }
+
     @Test func showsALinksStationInASavedOnesPlaceOnce() {
         var list = StationList(storage: MemoryStationStorage())
         list.setSaved([munich])
