@@ -514,6 +514,28 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(start.waitForExistence(timeout: 5))
     }
 
+    // A station's panel closes on the way into its sky view: as a card it covered
+    // the corner's buttons and the compass tape.
+    @MainActor
+    func testClosesAStationsPanelForItsSky() {
+        let app = launch(link: "/?gs=48.1372,11.5756,Munich")
+        openMenu(app)
+        app.buttons["Locations"].tap()
+        // A link's station has no panel of its own until saved.
+        let save = app.buttons["Save"].firstMatch
+        XCTAssert(save.waitForExistence(timeout: 5))
+        save.tap()
+        let show = app.buttons["Show passes"].firstMatch
+        XCTAssert(show.waitForExistence(timeout: 5))
+        show.tap()
+        let sky = app.buttons["View the sky from here"]
+        XCTAssert(sky.waitForExistence(timeout: 10))
+        sky.tap()
+        XCTAssert(app.buttons["Leave the sky view"].waitForExistence(timeout: 20))
+        XCTAssert(sky.waitForNonExistence(timeout: 5))
+        XCTAssertFalse(app.navigationBars["Munich"].exists)
+    }
+
     /// Whether the app has an iPad's width, where the menu column opens from the
     /// start and never folds: an iPhone Duo opened has it too, and is no `.pad`.
     @MainActor

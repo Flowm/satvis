@@ -547,7 +547,8 @@ final class Session {
 
     /// A panel's way into the sky view, with the terrain on: the horizon is the
     /// view's point. One turned off in the view stays off, and a link keeps its own
-    /// (`lookUp`).
+    /// (`lookUp`). A station's card closes, as an iPad's covered the corner's
+    /// buttons and the compass tape; a satellite's stays.
     func enterSky(at id: UUID) {
         guard passes.station(id) != nil else {
             return
@@ -556,6 +557,9 @@ final class Session {
             terrain = true
         }
         lookUp(at: id)
+        if case .station = selection {
+            select(nil)
+        }
     }
 
     /// Stands on a ground station and looks up (`Focus.enterSky`), if it is one.
