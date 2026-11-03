@@ -522,7 +522,8 @@ nonisolated class SatvisUITests: XCTestCase {
     }
 
     // The web app's `bench=true` opens the benchmark panel; Close puts it away,
-    // and the Graphics panel brings it back.
+    // and the Graphics panel brings it back, closing with the menu, which the
+    // benchmark's panel stood over.
     @MainActor
     func testOpensTheBenchmarkFromALink() {
         let app = launch(link: "/?bench=true")
@@ -534,6 +535,8 @@ nonisolated class SatvisUITests: XCTestCase {
         app.buttons["Graphics"].tap()
         flip(app, "Benchmark")
         XCTAssert(start.waitForExistence(timeout: 5))
+        XCTAssert(app.switches["Benchmark"].waitForNonExistence(timeout: 5))
+        XCTAssertEqual(menuToggle(app).label, "Menu")
     }
 
     // A station's panel closes on the way into its sky view: as a card it covered

@@ -310,6 +310,13 @@ struct ContentView: View {
                 panel = nil
             }
         }
+        // The benchmark's panel stood over the Graphics panel that opened it.
+        .onChange(of: session.showsBenchmark) { _, shows in
+            if shows {
+                panel = nil
+                showsTools = false
+            }
+        }
         // Out of the way of the sky the compass now aims, as on the web.
         .onChange(of: session.aim.compass.isAiming && !session.aim.compass.isProbing) { _, aiming in
             if aiming, panel == .sky {
