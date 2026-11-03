@@ -129,10 +129,21 @@ private final class Delivered: Sendable {
         let delivered = Delivered()
 
         await loader.load(["weather"], deliver: delivered.deliver)
-        await loader.revalidate(["weather"], deliver: delivered.deliver)
         #expect(delivered.names.isEmpty)
         await loader.load(["weather"], deliver: delivered.deliver)
         #expect(delivered.names == [["METEOR"]])
+    }
+
+    // A return to the foreground loads a group whose first load failed, and only one asked for.
+    @Test func revalidationLoadsAGroupThatDidNotLoad() async throws {
+        let worker = StubWorker([.offline, .json(weather("METEOR"), etag: "a")])
+        let loader = GroupLoader(repository: GroupRepository(client: worker.client, store: temporaryStore(), snapshot: nil))
+        let delivered = Delivered()
+
+        await loader.load(["weather"], deliver: delivered.deliver)
+        await loader.revalidate(["weather", "gps"], deliver: delivered.deliver)
+        #expect(delivered.names == [["METEOR"]])
+        #expect(worker.requests.withLock { $0.map { $0.url!.path } } == ["/api/gp/weather.json", "/api/gp/weather.json"])
     }
 
     // A background refresh wants the newest element sets, but predicts from the kept
