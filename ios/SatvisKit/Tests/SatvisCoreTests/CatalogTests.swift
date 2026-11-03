@@ -62,6 +62,24 @@ import Testing
         #expect(catalog.entries.values.first?.record == newer)
     }
 
+    // A satellite gone under its old name is followed by its catalog number: to the
+    // newest element set where two entries share it, whatever order the dictionary lists them in.
+    @Test func followsARenamedSatelliteToItsNewestElementSet() throws {
+        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        var older = records[0]
+        older.name = "OBJECT B"
+        var newer = records[0]
+        newer.name = "OBJECT C"
+        newer.meanElements.epoch.dayOfYear += 1
+        var catalog = Catalog()
+        catalog.add([older, newer, records[1]], tags: ["Weather"], group: "weather")
+
+        let gone = "\(records[0].satnum)|OBJECT A"
+        #expect(catalog.entry(orSuccessorOf: gone)?.name == "OBJECT C")
+        let found = catalog.entries(orSuccessorsOf: [gone, Catalog.id(of: records[1]), "99999|DECAYED"])
+        #expect(found.mapValues(\.name) == [gone: "OBJECT C", Catalog.id(of: records[1]): records[1].name])
+    }
+
     // A group's newer copy is the whole group: what it no longer serves, renamed
     // or decayed since the copy kept on disk, leaves it.
     @Test func dropsWhatAGroupNoLongerServes() throws {

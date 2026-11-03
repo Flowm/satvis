@@ -35,11 +35,45 @@ public struct Catalog: Sendable {
     /// replaced it, as a renamed satellite keeps: CelesTrak names a new launch
     /// "OBJECT A" until it knows.
     public func entry(orSuccessorOf id: String) -> CatalogEntry? {
-        if let entry = entries[id] {
-            return entry
+        entries(orSuccessorsOf: [id])[id]
+    }
+
+    /// `entry(orSuccessorOf:)` for many ids, walking the catalog once at most. Where
+    /// two entries share the catalog number, the newest element set's is the
+    /// successor, then the lesser id.
+    public func entries(orSuccessorsOf ids: some Sequence<String>) -> [String: CatalogEntry] {
+        var found: [String: CatalogEntry] = [:]
+        var lost: [Substring: [String]] = [:]
+        for id in ids {
+            if let entry = entries[id] {
+                found[id] = entry
+            } else {
+                lost[Self.satnum(of: id), default: []].append(id)
+            }
         }
-        let satnum = Self.satnum(of: id)
-        return entries.values.first { $0.satnum == satnum }
+        guard !lost.isEmpty else {
+            return found
+        }
+        var successors: [Substring: CatalogEntry] = [:]
+        for entry in entries.values {
+            let satnum = Self.satnum(of: entry.id)
+            guard lost[satnum] != nil else {
+                continue
+            }
+            if let kept = successors[satnum] {
+                let epochs = (entry.record.meanElements.epoch.julianDate, kept.record.meanElements.epoch.julianDate)
+                guard epochs.0 > epochs.1 || (epochs.0 == epochs.1 && entry.id < kept.id) else {
+                    continue
+                }
+            }
+            successors[satnum] = entry
+        }
+        for (satnum, ids) in lost {
+            for id in ids {
+                found[id] = successors[satnum]
+            }
+        }
+        return found
     }
 
     /// The tags each group was last added with, which its entries carry.

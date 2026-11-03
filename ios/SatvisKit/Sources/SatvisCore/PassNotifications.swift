@@ -149,9 +149,10 @@ extension PassNotificationPlan {
         clock: @Sendable () -> Double = { Date().timeIntervalSince1970 * 1000 },
         predict: @escaping Predictor = { PassStore.predict($0, settings: $1, window: $2) }
     ) async -> PassNotificationPlan? {
+        let found = catalog.entries(orSuccessorsOf: alerts.flatMap(\.satellites))
         let jobs = alerts.flatMap { alert in
             let settings = PassStore.Settings(stations: alert.stations(among: settings.stations), mode: settings.mode)
-            return alert.satellites.compactMap { catalog.entry(orSuccessorOf: $0) }.map { ($0, settings) }
+            return alert.satellites.compactMap { found[$0] }.map { ($0, settings) }
         }
         let window = PassWindow(around: now)
         let prediction = Task.detached(priority: .utility) { await Self.predict(jobs, window: window, with: predict) }
