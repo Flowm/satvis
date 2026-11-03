@@ -254,6 +254,18 @@ public struct BookmarkLists: Sendable, Hashable, Codable {
         self.opened = opened
     }
 
+    private enum CodingKeys: String, CodingKey {
+        case saved, opened
+    }
+
+    /// Read a bookmark at a time, so one this build cannot read drops alone, not
+    /// the lists, which the next edit would then keep empty.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        saved = try container.decode([Lenient<Bookmark>].self, forKey: .saved).compactMap(\.value)
+        opened = try container.decode([Lenient<Bookmark>].self, forKey: .opened).compactMap(\.value)
+    }
+
     /// Saves a scene under `name`, and takes its link off the opened ones.
     @discardableResult
     public mutating func save(name: String, scene: SceneLink, id: String, at: Double) -> Bookmark {

@@ -463,8 +463,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     public func setSatellites(_ prepared: PreparedSatellites) {
-        let ids = Set(prepared.satellites.map(\.id))
-        modelLevels = modelLevels.filter { ids.contains($0.key) }
+        // The index built off the main thread: a set of 16,000 ids here was the
+        // kind of cost `prepare` takes off it.
+        modelLevels = modelLevels.filter { prepared.indexByID[$0.key] != nil }
         points.install(prepared)
         keepModelsInUse()
         overlay.isStale = true

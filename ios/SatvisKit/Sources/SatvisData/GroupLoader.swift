@@ -20,6 +20,8 @@ public actor GroupLoader {
     private let sleep: @Sendable (Duration) async throws -> Void
     /// Groups handed over at least once.
     private var loaded: Set<String> = []
+    /// Groups asked for, loaded or not, which a revalidation asks for again.
+    private var asked: Set<String> = []
     /// One load per group at a time, which every caller asking for it awaits.
     private var loading: [String: Task<Void, Never>] = [:]
 
@@ -68,6 +70,7 @@ public actor GroupLoader {
     /// answer follows by itself. A group asked for again while it loads is not
     /// loaded twice: the second ask awaits the first, whose `deliver` takes it.
     public func load(_ groups: [String], deliver: @escaping Deliver) async {
+        asked.formUnion(groups)
         await withTaskGroup(of: Void.self) { tasks in
             for group in groups where !loaded.contains(group) {
                 tasks.addTask { await self.load(group, deliver: deliver) }
@@ -77,11 +80,15 @@ public actor GroupLoader {
 
     /// Asks the worker again for each of `groups` loaded so far, side by side,
     /// which costs a 304 for each that has not changed, and hands over what it
-    /// answers.
+    /// answers. One asked for that did not load is loaded again: a first launch on
+    /// a network that dropped it went without it until relaunched.
     public func revalidate(_ groups: [String], deliver: @escaping Deliver) async {
         await withTaskGroup(of: Void.self) { tasks in
             for group in groups where loaded.contains(group) {
                 tasks.addTask { await self.fetch(group, deliver: deliver) }
+            }
+            for group in groups where !loaded.contains(group) && asked.contains(group) {
+                tasks.addTask { await self.load(group, deliver: deliver) }
             }
         }
     }

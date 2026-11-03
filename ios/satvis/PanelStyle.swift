@@ -200,8 +200,10 @@ enum PanelMetrics {
     /// the rounded corners.
     static let edge = gap
     /// From the safe area's top to what sits under the menu toggle and the corner's
-    /// first button.
-    static let underTopRow = edge + row + gap
+    /// first button, rows that grow with the text by `scale`.
+    static func underTopRow(scale: CGFloat) -> CGFloat {
+        edge + row * scale + gap
+    }
     /// A panel's corners, a card's and the info card's.
     static let radius: CGFloat = 16
 }

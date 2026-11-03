@@ -25,6 +25,20 @@ import Testing
         #expect(storage.picture("saved-1") != nil)
     }
 
+    // A bookmark this build cannot read drops alone, not the lists.
+    @Test func readsTheBookmarksItCan() throws {
+        let storage = BookmarkStorage(directory: URL.temporaryDirectory.appending(path: "bookmarks-\(UUID())"))
+        defer { try? FileManager.default.removeItem(at: storage.directory) }
+        var lists = BookmarkLists()
+        lists.save(name: "Home", scene: SceneLink(path: "/", query: ["tags": "GNSS"]), id: "saved-1", at: 1)
+        storage.keep(lists)
+        let file = storage.directory.appending(path: "bookmarks.json")
+        var json = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        json["saved"] = (json["saved"] as? [Any] ?? []) + [["kind": "future"]]
+        try JSONSerialization.data(withJSONObject: json).write(to: file)
+        #expect(storage.lists() == lists)
+    }
+
     @Test func startsEmptyOnAFileItCannotRead() throws {
         let storage = BookmarkStorage(directory: URL.temporaryDirectory.appending(path: "bookmarks-\(UUID())"))
         defer { try? FileManager.default.removeItem(at: storage.directory) }

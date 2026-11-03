@@ -46,8 +46,14 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Clear all"].exists)
         // Beside the column, not over it.
         XCTAssertGreaterThan(search.frame.minX, entry.frame.maxX)
+        // Below the list's foot on an iPad mini in landscape, where the lazy list has
+        // no row for it until scrolled to.
         let group = app.staticTexts["Weather"].firstMatch
-        XCTAssert(group.waitForExistence(timeout: 10))
+        XCTAssert(app.staticTexts["Active"].firstMatch.waitForExistence(timeout: 10))
+        for _ in 0..<6 where !(group.exists && group.isHittable) {
+            app.collectionViews.firstMatch.swipeUp()
+        }
+        XCTAssert(group.isHittable)
         group.tap()
         XCTAssert(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Details of '")).firstMatch.waitForExistence(timeout: 10))
         entry.tap()
@@ -180,22 +186,35 @@ nonisolated class SatvisUITests: XCTestCase {
         }
     }
 
+    // At the largest text the menu column is taller than a phone: its entries
+    // scroll under the toggle, and the last of them is still reached.
+    @MainActor
+    func testScrollsTheMenuAtTheLargestText() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launchEnvironment["SATVIS_API"] = "http://127.0.0.1:9"
+        app.launchEnvironment["SATVIS_TEST_CATALOG"] = "1"
+        app.launchEnvironment["SATVIS_LINK"] = "/"
+        app.launch()
+        openMenu(app)
+        let about = app.buttons["About"]
+        // Dragged from inside the column, under the toggle, whichever entries are there.
+        let toggle = menuToggle(app).coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        for _ in 0..<4 where !(about.exists && about.isHittable) {
+            toggle.withOffset(CGVector(dx: 0, dy: 400)).press(forDuration: 0.05, thenDragTo: toggle.withOffset(CGVector(dx: 0, dy: 100)))
+        }
+        XCTAssert(about.isHittable)
+        about.tap()
+        XCTAssert(app.navigationBars["About Satvis"].waitForExistence(timeout: 10))
+    }
+
     // Locations is a panel beside the menu, as on the web: a link's stations are
     // saved from it, dragged into place by their grips and removed by their
     // crosses, and a pick on the globe that is cancelled opens it again.
     @MainActor
     func testEditsLocationsInTheirPanel() {
-        // A link's stations are saved ones if an interrupted run left them saved.
-        var app = launch()
-        openMenu(app)
-        app.buttons["Locations"].tap()
-        XCTAssert(app.buttons["Pick on globe"].waitForExistence(timeout: 5))
-        for name in ["Testhausen", "Probeburg"] where app.buttons["Remove \(name)"].exists {
-            app.buttons["Remove \(name)"].tap()
-        }
-        app.terminate()
-
-        app = launch(link: "/?gs=48.1372,11.5756,Testhausen_47.2692,11.4041,Probeburg")
+        // Each launch starts with no saved stations (`TestCatalog.stationDefaults`).
+        let app = launch(link: "/?gs=48.1372,11.5756,Testhausen_47.2692,11.4041,Probeburg")
         openMenu(app)
         app.buttons["Locations"].tap()
         for _ in 0..<2 {
@@ -500,7 +519,8 @@ nonisolated class SatvisUITests: XCTestCase {
     }
 
     // The web app's `bench=true` opens the benchmark panel; Close puts it away,
-    // and the Graphics panel brings it back.
+    // and the Graphics panel brings it back, closing with the menu, which the
+    // benchmark's panel stood over.
     @MainActor
     func testOpensTheBenchmarkFromALink() {
         let app = launch(link: "/?bench=true")
@@ -512,6 +532,44 @@ nonisolated class SatvisUITests: XCTestCase {
         app.buttons["Graphics"].tap()
         flip(app, "Benchmark")
         XCTAssert(start.waitForExistence(timeout: 5))
+        XCTAssert(app.switches["Benchmark"].waitForNonExistence(timeout: 5))
+        XCTAssertEqual(menuToggle(app).label, "Menu")
+    }
+
+    // On a phone a menu entry's sheet takes the place of a satellite's: SwiftUI
+    // presents one sheet at a time, and the entry opened nothing.
+    @MainActor
+    func testOpensASheetOverASatellitesSheet() throws {
+        let app = search("METOP-C")
+        try XCTSkipIf(isRoomy(app), "A regular width's satellite panel is a card")
+        app.buttons["Details of METOP-C"].tap()
+        XCTAssert(app.navigationBars["METOP-C"].waitForExistence(timeout: 10))
+        openMenu(app)
+        app.buttons["Bookmarks"].tap()
+        XCTAssert(app.navigationBars["Bookmarks"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.navigationBars["METOP-C"].exists)
+    }
+
+    // A station's panel closes on the way into its sky view: as a card it covered
+    // the corner's buttons and the compass tape.
+    @MainActor
+    func testClosesAStationsPanelForItsSky() {
+        let app = launch(link: "/?gs=48.1372,11.5756,Munich")
+        openMenu(app)
+        app.buttons["Locations"].tap()
+        // A link's station has no panel of its own until saved.
+        let save = app.buttons["Save"].firstMatch
+        XCTAssert(save.waitForExistence(timeout: 5))
+        save.tap()
+        let show = app.buttons["Show passes"].firstMatch
+        XCTAssert(show.waitForExistence(timeout: 5))
+        show.tap()
+        let sky = app.buttons["View the sky from here"]
+        XCTAssert(sky.waitForExistence(timeout: 10))
+        sky.tap()
+        XCTAssert(app.buttons["Leave the sky view"].waitForExistence(timeout: 20))
+        XCTAssert(sky.waitForNonExistence(timeout: 5))
+        XCTAssertFalse(app.navigationBars["Munich"].exists)
     }
 
     /// Whether the app has an iPad's width, where the menu column opens from the

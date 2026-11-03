@@ -10,6 +10,7 @@ struct BrowserView: View {
     let catalog: CatalogModel
     let onShow: (CatalogEntry) -> Void
     @State private var query = ""
+    @FocusState private var isSearching: Bool
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -19,6 +20,8 @@ struct BrowserView: View {
                 dismiss()
             }
             .searchable(text: $query, prompt: "Search satellites")
+            .searchFocused($isSearching)
+            .loadsEverythingWhenFocused(isSearching, catalog: catalog)
             .navigationTitle("Satellites")
             .navigationBarTitleDisplayMode(.inline)
             .panelSheet()
@@ -58,7 +61,7 @@ struct BrowserPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PanelSearchField(text: $query, prompt: "Search satellites")
+            PanelSearchField(text: $query, prompt: "Search satellites", catalog: catalog)
                 .padding(12)
                 .onGeometryChange(for: CGFloat.self, of: \.size.height) { searchHeight = $0 }
             BrowserList(catalog: catalog, query: query, onShow: onShow)
@@ -110,8 +113,23 @@ private struct BrowserList: View {
     @State private var searching = false
     @State private var expanded: Set<String> = []
     @State private var members: [String: [CatalogEntry]] = [:]
+    /// A satellite a few rows into the group expanded last, scrolled into view, and
+    /// the list no further, once the group loads.
+    @State private var revealed: String?
 
     var body: some View {
+        ScrollViewReader { proxy in
+            list
+                // The last group's opened below the list's foot, showing nothing.
+                .onChange(of: revealed) {
+                    if let revealed {
+                        withAnimation { proxy.scrollTo(revealed) }
+                    }
+                }
+        }
+    }
+
+    private var list: some View {
         List {
             Group {
                 if searching, results == nil {
@@ -184,9 +202,16 @@ private struct BrowserList: View {
         } set: { open in
             if open {
                 expanded.insert(tag)
-                Task { members[tag] = await catalog.entries(tagged: tag) }
+                Task {
+                    let entries = await catalog.entries(tagged: tag)
+                    members[tag] = entries
+                    revealed = entries.prefix(4).last?.id
+                }
             } else {
                 expanded.remove(tag)
+                if members[tag]?.contains(where: { $0.id == revealed }) == true {
+                    revealed = nil
+                }
             }
         }
     }
@@ -218,6 +243,8 @@ private struct ActiveCount: View {
 private struct PanelSearchField: View {
     @Binding var text: String
     let prompt: LocalizedStringKey
+    let catalog: CatalogModel
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         HStack(spacing: 6) {
@@ -229,6 +256,8 @@ private struct PanelSearchField: View {
                 .autocorrectionDisabled()
                 .submitLabel(.search)
                 .accessibilityAddTraits(.isSearchField)
+                .focused($isFocused)
+                .loadsEverythingWhenFocused(isFocused, catalog: catalog)
             if !text.isEmpty {
                 Button("Clear search", systemImage: "xmark.circle.fill") { text = "" }
                     .labelStyle(.iconOnly)
@@ -319,6 +348,18 @@ private struct SatelliteRow: View {
                 .foregroundStyle(.secondary)
         }
         .contentShape(.rect)
+    }
+}
+
+extension View {
+    /// Loads every group as the search field takes focus: a search looks through
+    /// all of them, and the biggest took seconds after the first letter.
+    fileprivate func loadsEverythingWhenFocused(_ isFocused: Bool, catalog: CatalogModel) -> some View {
+        task(id: isFocused) {
+            if isFocused {
+                await catalog.loadAll()
+            }
+        }
     }
 }
 

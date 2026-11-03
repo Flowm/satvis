@@ -51,6 +51,30 @@ final class PreparedModel: @unchecked Sendable {
         radius = asset.radius
     }
 
+    /// A model file on the GPU, shared with whatever holds it already: the globe and
+    /// the Spacecraft tab's close-up each held the ISS's 128 MB otherwise. Nil if
+    /// any step fails.
+    @MainActor
+    static func shared(
+        _ file: String, loader: @escaping @Sendable (String) async -> Data?, device: MTLDevice, priority: TaskPriority
+    ) async -> PreparedModel? {
+        SharedModels.held = SharedModels.held.filter { $0.value.model != nil }
+        if let model = SharedModels.held[file]?.model, model.vertices.device === device {
+            return model
+        }
+        if let pending = SharedModels.loading[file] {
+            return await pending.value
+        }
+        let task = Task { await load(file, loader: loader, device: device, priority: priority) }
+        SharedModels.loading[file] = task
+        let model = await task.value
+        SharedModels.loading[file] = nil
+        if let model {
+            SharedModels.held[file] = WeakModel(model: model)
+        }
+        return model
+    }
+
     /// A model file fetched, read and put on the GPU off the main thread; nil if any step fails.
     static func load(
         _ file: String, loader: @escaping @Sendable (String) async -> Data?, device: MTLDevice, priority: TaskPriority
@@ -88,6 +112,21 @@ final class PreparedModel: @unchecked Sendable {
                 indexBufferOffset: part.indexStart * MemoryLayout<UInt32>.stride)
         }
     }
+}
+
+/// The models on the GPU by file, held weakly: each lets go when the last of its
+/// holders does.
+@MainActor
+private enum SharedModels {
+    /// By file, loaded; a file whose model went is dropped on the next ask.
+    static var held: [String: WeakModel] = [:]
+    /// One load per file at a time, which every caller asking for it awaits.
+    static var loading: [String: Task<PreparedModel?, Never>] = [:]
+}
+
+/// A model the cache does not keep alive.
+private struct WeakModel {
+    weak var model: PreparedModel?
 }
 
 /// Mirrors `ModelInstance` in Shaders/Models.msl.
@@ -229,7 +268,7 @@ final class SatelliteModels {
         models[file] = .loading
         let device = device
         Task {
-            let prepared = await PreparedModel.load(file, loader: loader, device: device, priority: .utility)
+            let prepared = await PreparedModel.shared(file, loader: loader, device: device, priority: .utility)
             guard wanted?.contains(file) ?? true else {
                 return
             }

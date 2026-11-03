@@ -55,7 +55,8 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   label around a model, which copy is drawn (`ModelLevel`, ADR 0007) and the
   tracking distance follow the web app's `componentKinds.ts` and its `ModelSize`
   class; the info panel's close-up (`ModelCloseUp`) follows its
-  `ModelCloseUp.ts`.
+  `ModelCloseUp.ts`. A model both draw is on the GPU once
+  (`PreparedModel.shared`).
 - The star maps are the web app's `DeepStar1K` and `DeepStar2K`, the Map
   panel's choice (`StarMap`, `StarMapName`), fetched from the site and kept like
   the GP data (`GroupRepository.starMap`), not shipped: `data/starmap/` is built
@@ -177,7 +178,12 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   column where it is regular, as on the web, closed under the info card it opens
   (`BrowserPanel`); a sheet where it is compact, a list too long for a phone's
   card (`BrowserView`). The panel's list scrolls itself, told the room under the
-  title (`panelRoom`) rather than capped by a frame, which grows to its cap.
+  title (`panelRoom`) rather than capped by a frame, which grows to its cap. The
+  column's entries scroll too, under a fixed toggle, where they are taller than
+  the room above the clock deck.
+- The sheets over the globe are one `sheet(item:)` (`AppSheet`): SwiftUI presents
+  one at a time from a view, and a changed item swaps one for the next, as a menu
+  entry tapped under an iPhone's info sheet does.
 - Bookmarks are the web app's (ADR 0011, `BookmarksView.swift`): the code that
   describes and names them (`Bookmarks` in SatvisCore) is held to its
   `src/modules/util/bookmarks.ts` by the parity fixtures. The featured ones are

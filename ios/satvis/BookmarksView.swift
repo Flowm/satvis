@@ -69,7 +69,8 @@ struct BookmarksView: View {
             ScrollView {
                 VStack(spacing: 12) {
                     SegmentedTabs(selection: Binding(get: { tab }, set: show), tabs: tabs)
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
+                    // Top-aligned: a wrapped name centred its neighbours in their row.
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12, alignment: .top)], spacing: 12) {
                         ForEach(shown) { bookmark in
                             card(bookmark, isCurrent: bookmark.scene == here)
                         }
@@ -176,7 +177,7 @@ struct BookmarksView: View {
     private func card(_ bookmark: Bookmark, isCurrent: Bool) -> some View {
         let summary = session.summary(bookmark.scene)
         return Button {
-            session.open(bookmark.scene)
+            session.open(bookmark)
             onOpen()
             dismiss()
         } label: {
@@ -335,18 +336,20 @@ struct BookmarkCard: View {
 /// on its card and in About's carousel.
 struct BookmarkFacts: View {
     let summary: BookmarkSummary
+    /// The icons' side, with the text.
+    @ScaledMetric(relativeTo: .caption) private var iconSide = 12.0
 
     var body: some View {
         Group {
             Label {
                 Text(summary.what)
             } icon: {
-                Image(.lucideOrbit).resizable().frame(width: 12, height: 12)
+                Image(.lucideOrbit).resizable().frame(width: iconSide, height: iconSide)
             }
             Label {
                 Text(summary.where)
             } icon: {
-                Image(whereIcon).resizable().frame(width: 12, height: 12)
+                Image(whereIcon).resizable().frame(width: iconSide, height: iconSide)
             }
         }
         .foregroundStyle(.secondary)

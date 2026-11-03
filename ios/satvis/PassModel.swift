@@ -188,20 +188,30 @@ nonisolated struct UserDefaultsStationStorage: StationStorage {
     private static let stationsKey = "groundStations"
     private static let modeKey = "overpassMode"
 
+    /// The app's, or on the UI tests' catalog defaults of their own (`TestCatalog`).
+    private static var defaults: UserDefaults {
+        #if DEBUG
+            if let defaults = TestCatalog.stationDefaults {
+                return defaults
+            }
+        #endif
+        return .standard
+    }
+
     func stationData() -> Data? {
-        UserDefaults.standard.data(forKey: Self.stationsKey)
+        Self.defaults.data(forKey: Self.stationsKey)
     }
 
     func setStationData(_ data: Data) {
-        UserDefaults.standard.set(data, forKey: Self.stationsKey)
+        Self.defaults.set(data, forKey: Self.stationsKey)
     }
 
     func modeName() -> String? {
-        UserDefaults.standard.string(forKey: Self.modeKey)
+        Self.defaults.string(forKey: Self.modeKey)
     }
 
     func setModeName(_ name: String) {
-        UserDefaults.standard.set(name, forKey: Self.modeKey)
+        Self.defaults.set(name, forKey: Self.modeKey)
     }
 }
 

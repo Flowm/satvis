@@ -81,5 +81,18 @@
             }
             return BookmarkStorage(directory: URL.temporaryDirectory.appending(path: "UITestBookmarks-\(UUID())", directoryHint: .isDirectory))
         }
+
+        /// Defaults of their own for the stations, emptied as each launch on the test
+        /// catalog starts, so a test starts with none and leaves none in the app's
+        /// own list, as a run on a device did; nil unless asked for. Unchecked:
+        /// UserDefaults is thread-safe, as its documentation says, but not Sendable.
+        nonisolated(unsafe) static let stationDefaults: UserDefaults? = {
+            guard ProcessInfo.processInfo.environment["SATVIS_TEST_CATALOG"] != nil else {
+                return nil
+            }
+            let suite = "UITestStations"
+            UserDefaults().removePersistentDomain(forName: suite)
+            return UserDefaults(suiteName: suite)
+        }()
     }
 #endif
