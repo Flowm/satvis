@@ -69,7 +69,8 @@ struct BookmarksView: View {
             ScrollView {
                 VStack(spacing: 12) {
                     SegmentedTabs(selection: Binding(get: { tab }, set: show), tabs: tabs)
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
+                    // Top-aligned: a wrapped name centred its neighbours in their row.
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12, alignment: .top)], spacing: 12) {
                         ForEach(shown) { bookmark in
                             card(bookmark, isCurrent: bookmark.scene == here)
                         }
