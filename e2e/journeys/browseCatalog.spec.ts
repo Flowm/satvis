@@ -146,5 +146,54 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await expect(sheet).toBeHidden();
       await expect(page.getByRole("region", { name: "Satellites" })).toBeHidden();
     });
+
+    test("the sun-sync crossing chart filters the same over 12 and 24 hours", async ({ page }) => {
+      await openApp(page, "");
+      await openMenu(page, "Satellites");
+      await page.getByRole("button", { name: "Browse and filter the catalog" }).click();
+      const sheet = page.getByRole("region", { name: "Satellite catalog" });
+      const tile = sheet.locator(".catalogSheet__tile", { hasText: "Sun-sync crossing" });
+      const count = sheet.locator(".catalogSheet__count");
+      const chips = sheet.locator(".cs-chip");
+      const reset = () => tile.getByRole("button", { name: "reset" }).click();
+      /** Drags across the bars from one hour to another, on a chart showing `shown` hours. */
+      const brush = async (from: number, to: number, shown: [number, number]) => {
+        const bars = tile.locator("svg.histogram__bars");
+        await bars.scrollIntoViewIfNeeded();
+        const box = (await bars.boundingBox())!;
+        // Each end in the middle of its 15-minute bin.
+        const xAt = (hours: number) => box.x + ((hours - shown[0]) / (shown[1] - shown[0])) * box.width;
+        const y = box.y + box.height / 2;
+        await page.mouse.move(xAt(from + 0.125), y);
+        await page.mouse.down();
+        await page.mouse.move(xAt(to - 0.125), y, { steps: 4 });
+        await page.mouse.up();
+      };
+
+      // Any 12 hours hold one of a satellite's two crossings: the whole daylit chart, and the
+      // first half of the day.
+      await brush(6, 18, [6, 18]);
+      await expect(chips).toHaveText(["Crossing 06:00–18:00"]);
+      const sunSync = (await count.textContent())!;
+      expect(Number(sunSync.replace(/\D/g, ""))).toBeGreaterThan(0);
+      await reset();
+
+      // A direction alone filters by the daylit crossing in either view.
+      await tile.getByRole("button", { name: "southbound", exact: true }).click();
+      const southbound = (await count.textContent())!;
+      await tile.getByRole("button", { name: "Both crossings, 00:00–24:00" }).click();
+      await expect(tile.locator(".histogram__xAxis")).toContainText("24:00");
+      await expect(count).toHaveText(southbound);
+      await reset();
+
+      await brush(0, 12, [0, 24]);
+      await expect(chips).toHaveText(["Crossing 00:00–12:00"]);
+      await expect(count).toHaveText(sunSync);
+
+      // Back over 12 hours, the range keeps what the chart shows of it.
+      await brush(4, 8, [0, 24]);
+      await tile.getByRole("button", { name: "Daylit crossing, 06:00–18:00" }).click();
+      await expect(chips).toHaveText(["Crossing 06:00–08:00"]);
+    });
   });
 }

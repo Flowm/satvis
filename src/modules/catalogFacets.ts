@@ -29,11 +29,6 @@ export const CROSSING_BIN_HOURS = 0.25;
 /** Hours, where a daylit crossing's day starts; it ends 12 hours later. */
 export const CROSSING_FROM_HOURS = 6;
 
-/** The crossing chart's views: the daylit crossing alone, or both of a satellite's nodes across the day. */
-export type CrossingView = "daylit" | "fullDay";
-/** Hours each view spans, from inclusive to exclusive. */
-export const CROSSING_VIEW_HOURS: Readonly<Record<CrossingView, [number, number]>> = { daylit: [CROSSING_FROM_HOURS, CROSSING_FROM_HOURS + 12], fullDay: [0, 24] };
-
 /** The orbit tree's leaf for satellites whose class has no kind. */
 export const NO_KIND = "Other";
 /** The constellation of a satellite GCAT does not list yet. */
@@ -205,9 +200,9 @@ export function daylitCrossingOf(ltanHours: number): EquatorCrossing {
   return daylit ? { hours: ltanHours, direction: "northbound" } : { hours: (ltanHours + 12) % 24, direction: "southbound" };
 }
 
-/** Both of a sun-sync orbit's crossings: the daylit one and, 12 hours off, the night one. */
-export function crossingsOf(daylit: EquatorCrossing): [EquatorCrossing, EquatorCrossing] {
-  return [daylit, { hours: (daylit.hours + 12) % 24, direction: daylit.direction === "northbound" ? "southbound" : "northbound" }];
+/** Both of a sun-sync orbit's crossings: this one and, 12 hours off, the other node's. */
+export function crossingsOf(crossing: EquatorCrossing): [EquatorCrossing, EquatorCrossing] {
+  return [crossing, { hours: (crossing.hours + 12) % 24, direction: crossing.direction === "northbound" ? "southbound" : "northbound" }];
 }
 
 /** "550", "20.2k", "171k": km, short enough for a chart's axis. */
@@ -322,15 +317,13 @@ export interface CatalogFilter {
   /** The box on the apogee-perigee plot. */
   apsides: ApsisBox | null;
   /**
-   * Hours a crossing falls in, from inclusive to exclusive; a satellite without one is out while
-   * set. Null takes the view's hours, so a direction alone picks the daylit crossing's in the
-   * daylit view, and either node's in the full day, where every satellite has both.
+   * Hours either of a satellite's crossings falls in, from inclusive to exclusive; a satellite
+   * without one is out while set. Null takes the daylit hours, so a direction alone picks the
+   * daylit crossing's: every satellite crosses both ways in a day.
    */
   crossingHours: [number, number] | null;
   /** That crossing's direction. */
   crossingDirection: CrossingDirection | null;
-  /** The crossing chart's view: which of a satellite's crossings it counts. */
-  crossingView: CrossingView;
   /** Name or satnum, case-insensitive. */
   query: string;
   /** Only what the globe shows. */
@@ -351,7 +344,7 @@ export interface Crossfilter {
   shapeRows: CatalogRow[];
   /** Rows passing every filter but the apsis box: that plot's bright points. */
   apsisRows: CatalogRow[];
-  /** Per direction, crossing bin (from 00:00) -> rows passing every filter but the crossing, at each crossing the view counts. */
+  /** Per direction, crossing bin (from 00:00) -> rows passing every filter but the crossing, at both of a row's crossings. */
   crossings: Record<CrossingDirection, Map<number, number>>;
 }
 
@@ -373,7 +366,7 @@ function outsideCrossing(crossing: EquatorCrossing | undefined, filter: CatalogF
   if (crossing === undefined) {
     return true;
   }
-  const [from, to] = filter.crossingHours ?? CROSSING_VIEW_HOURS[filter.crossingView];
+  const [from, to] = filter.crossingHours ?? [CROSSING_FROM_HOURS, CROSSING_FROM_HOURS + 12];
   return !crossingsOf(crossing).some(({ hours, direction }) => hours >= from && hours < to && (filter.crossingDirection === null || direction === filter.crossingDirection));
 }
 
@@ -404,17 +397,14 @@ export function crossfilter(rows: readonly CatalogRow[], filter: CatalogFilter, 
     }
   };
 
-  const [viewFrom, viewTo] = CROSSING_VIEW_HOURS[filter.crossingView];
   const countCrossing = (row: CatalogRow) => {
     if (row.crossing === undefined) {
       return;
     }
     for (const { hours, direction } of crossingsOf(row.crossing)) {
-      if (hours >= viewFrom && hours < viewTo) {
-        const map = crossings[direction];
-        const bin = Math.floor(hours / CROSSING_BIN_HOURS);
-        map.set(bin, (map.get(bin) ?? 0) + 1);
-      }
+      const map = crossings[direction];
+      const bin = Math.floor(hours / CROSSING_BIN_HOURS);
+      map.set(bin, (map.get(bin) ?? 0) + 1);
     }
   };
 

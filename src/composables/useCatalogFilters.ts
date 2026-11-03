@@ -9,7 +9,6 @@ import {
   type CatalogFilter,
   type CatalogRow,
   type CrossingDirection,
-  type CrossingView,
   catalogRows,
   crossfilter,
   FACET_BY_KEY,
@@ -44,8 +43,6 @@ const apsides = ref<ApsisBox | null>(null);
 const crossingHours = ref<[number, number] | null>(null);
 /** The crossing direction picked in the chart's legend. */
 const crossingDirection = ref<CrossingDirection | null>(null);
-/** The crossing chart's view, the daylit crossing alone at first (ADR 0012). */
-const crossingView = ref<CrossingView>("daylit");
 /** Name or NORAD id. */
 const query = ref("");
 /** Lists only what the globe shows. */
@@ -60,6 +57,10 @@ export type HistogramScale = "linear" | "sqrt" | "log";
 const launchScale = ref<HistogramScale>("sqrt");
 /** Linear: no bin vanishes, and the directions compare across bars (ADR 0012). */
 const crossingScale = ref<HistogramScale>("linear");
+/** The crossing chart's hours: the daylit crossing alone, 06:00-18:00, or both of a satellite's in the 24-hour view. */
+export type CrossingView = "daylit" | "fullDay";
+/** The daylit crossing at first, where the Flocks image (ADR 0012). */
+const crossingView = ref<CrossingView>("daylit");
 
 /** The orbit facet's order, for sorting the list by orbit. */
 const orbitRank = (row: CatalogRow): number => FACET_BY_KEY.orbit.order!.indexOf(orbitLeafOf(row.orbitClass, row.orbitKind));
@@ -87,7 +88,6 @@ export function useCatalogFilters(catalog: SatelliteCatalog) {
     apsides: apsides.value,
     crossingHours: crossingHours.value,
     crossingDirection: crossingDirection.value,
-    crossingView: crossingView.value,
     query: query.value,
     activeOnly: activeOnly.value,
   }));
