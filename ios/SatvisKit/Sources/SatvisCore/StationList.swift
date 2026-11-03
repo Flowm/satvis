@@ -125,6 +125,13 @@ public struct StationList {
         return saved.contains { $0.id == station.id } ? station.id : nil
     }
 
+    /// Drops a station, saved or a link's.
+    public mutating func remove(_ id: UUID) {
+        visiting.removeAll { $0.id == id }
+        setSaved(saved.filter { $0.id != id })
+        combine()
+    }
+
     /// Shows a link's stations with this view, without saving them.
     public mutating func setVisiting(_ stations: [GroundStation]) {
         visiting = GroundStations.normalized(stations)

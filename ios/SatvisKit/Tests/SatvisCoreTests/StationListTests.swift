@@ -73,6 +73,18 @@ private final class MemoryStationStorage: StationStorage {
         #expect(!list.isVisiting(berlin.id))
     }
 
+    @Test func removesASavedStationOrALinks() {
+        let storage = MemoryStationStorage()
+        var list = StationList(storage: storage)
+        list.setSaved([munich])
+        list.setVisiting([berlin])
+        list.remove(berlin.id)
+        #expect(list.visiting.isEmpty)
+        list.remove(munich.id)
+        #expect(list.shown.isEmpty)
+        #expect(storage.stations().isEmpty)
+    }
+
     @Test func answersAnAddInAStationsPlaceWithThatStation() {
         var list = StationList(storage: MemoryStationStorage())
         list.setSaved([munich])

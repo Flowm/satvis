@@ -538,3 +538,34 @@ on-screen keyboard covers the panel's foot while it is up, as it does every pane
 iPhone's sheet is unchanged. Bookmarks and About are still centred sheets on the iPad.
 The UI tests passed on both; `testEditsLocationsInTheirPanel` failed once on the iPhone
 in the full run (the drag did not move Probeburg) and passed twice alone.
+
+## Native app: the globe menu, held open with a finger
+
+**Procedure.** The iPhone 17e and iPad mini (A20 Pro) simulators, iOS 27.2, on the live
+site with `gs=48.1372,11.5756,Munich`: a finger held 0.6 s and 1 s on the globe, on the
+Munich pin, and in the sky view; held 0.7 s and then dragged 150 pt; two fingers held
+0.8 s; a pinch; a drag and a tap after a hold; `testPlacesAndRemovesAStationFromTheGlobe`
+and the whole UI suite.
+
+**Result, 2026-11-03.** A held finger opens a popover pointing at it, headed by the
+place's coordinates in the region's format (19,43°, 4,07° in a German region), with Add
+ground station here and Look up from here; on a pin, the station's name, Look up from
+here and a red Remove ground station. Add placed the pin under the finger and opened the
+station's panel, as Pick on globe does; Look up flew into the sky view standing there;
+Remove took the pin away, its heading kept as the popover faded. The open Components
+panel stayed open under it. Three faults found and fixed on the way: anchored on the
+globe view, the arrow pointed 45 pt (the safe area's inset) below the finger; dragged on
+after the hold, the finger turned the globe out from under the menu; and the hold was
+told by `SpatialEventGesture`'s event id, the same for every touch, so after the first
+hold every later tap on the globe was dropped. Lifted at 0.6 s, SwiftUI still reports a
+tap, which closed the panel until the held touch's tap was dropped; at 1 s it reports
+none. Nothing opens in the sky view, where a finger resting 0.7 s and then dragged still
+aims the view, nor for two fingers held still; a pinch still zooms. Through the
+simulator tool, the first tap outside the popover after a long press was sometimes not
+delivered and it stayed open; XCUITest's taps closed it every time. The whole UI suite passed on the iPhone 17e (32
+tests, 4 skipped), and the new test and the menu's tap test on the iPad mini. On the 2D
+map, a hold opens the menu and Add places a station (`testAddsAStationFromTheMap`). Not
+checked: a device, the haptic as it opens, a pointer's click and hold on an iPad, and a
+second touch within the ~0.3 s after a 0.6 s hold lifts, while SwiftUI waits on a double
+tap: it clears the hold before the held touch's tap is reported, which may then select or
+close the panel. XCUITest waits for the app to idle before each tap and came 1.5 s late.

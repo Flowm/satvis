@@ -680,6 +680,44 @@ final class Session {
         perform(focus.doubleTap(Self.hits(renderer, at: point, viewSize: size)))
     }
 
+    /// What a finger held on the globe opens the globe menu on: a station's pin,
+    /// else the ground. Nil off the globe and in the sky view.
+    func menuSubject(at point: CGPoint, viewSize size: CGSize) -> GlobeMenuSubject? {
+        guard let renderer, observer == nil else {
+            return nil
+        }
+        if let hit = renderer.entity(at: point, viewSize: size), case .station(let id) = Selection(rendererID: hit), passes.station(id) != nil {
+            return .station(id)
+        }
+        return renderer.groundPoint(at: point, viewSize: size).map(GlobeMenuSubject.ground)
+    }
+
+    /// The globe menu's Add ground station here: placed and its panel opened, as
+    /// Pick on globe places one.
+    func addStation(at place: GeoCoordinate) {
+        if let id = addStation(place) {
+            select(.station(id))
+        }
+    }
+
+    /// The globe menu's Look up from here: a station placed there, and the sky
+    /// view entered on it.
+    func lookUp(from place: GeoCoordinate) {
+        if let id = addStation(place) {
+            enterSky(at: id)
+        }
+    }
+
+    /// The globe menu's Remove ground station.
+    func removeStation(_ id: UUID) {
+        editStations { $0.remove(id) }
+    }
+
+    /// Adds a station, and says which it became.
+    private func addStation(_ place: GeoCoordinate) -> UUID? {
+        editStations { $0.add(latitude: place.latitude, longitude: place.longitude) }
+    }
+
     /// What the renderer has under `point`, for a tap.
     private static func hits(_ renderer: GlobeRenderer, at point: CGPoint, viewSize size: CGSize) -> Focus.Tap {
         Focus.Tap(ground: { renderer.groundPoint(at: point, viewSize: size) }, entity: { renderer.entity(at: point, viewSize: size) })

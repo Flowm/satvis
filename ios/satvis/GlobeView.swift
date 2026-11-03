@@ -5,10 +5,10 @@ import os
 
 private let log = Logger(subsystem: "org.frcy.app.satvis", category: "globe")
 
-/// The Metal globe, steered by drag, pinch and twist; what a tap or a double tap
-/// means is the caller's. The gestures are SwiftUI's, so that the controls laid
-/// over the globe, the clock deck's timeline among them, take the touches that
-/// land on them first.
+/// The Metal globe, steered by drag, pinch and twist; what a tap, a double tap or
+/// a finger held still means is the caller's. The gestures are SwiftUI's, so that
+/// the controls laid over the globe, the clock deck's timeline among them, take
+/// the touches that land on them first.
 struct GlobeView: View {
     /// Called once the renderer exists, so the satellites can be handed to it.
     let onRenderer: (GlobeRenderer) -> Void
@@ -17,6 +17,9 @@ struct GlobeView: View {
     /// Where on the view, and the view's size; called once no double tap can follow.
     let onTap: (CGPoint, CGSize) -> Void
     let onDoubleTap: (CGPoint, CGSize) -> Void
+    /// Where one finger was held still, and the view's size; true if that opened
+    /// something, and the finger then lifts as no tap and drags nothing.
+    var onHold: (CGPoint, CGSize) -> Bool = { _, _ in false }
     /// Asked with a drag's translation so far, and the most fingers down during
     /// it, whether it may move the view.
     var mayDrag: (CGSize, Int) -> Bool = { _, _ in true }
@@ -39,6 +42,15 @@ struct GlobeView: View {
     /// comes after its fingers have drifted. Back to 0 once the last lifts, or the
     /// system takes the touches.
     @GestureState private var mostFingers = 0
+    /// Where the touch now down began; nil between touches. Not keyed by the
+    /// events' ids, which SwiftUI gives every touch alike.
+    @GestureState private var touchedAt: CGPoint?
+    /// Whether the touch now down, or else the last one, opened something on hold.
+    /// Kept past the lift for the tap reported once no double tap can follow.
+    @State private var wasHeld = false
+
+    /// iOS's long press, as on the web (`TOUCH_HOLD_MS`).
+    private static let holdDuration = 0.5
 
     var body: some View {
         GeometryReader { proxy in
@@ -50,15 +62,26 @@ struct GlobeView: View {
             .gesture(
                 SpatialTapGesture(count: 2)
                     .onEnded { onDoubleTap($0.location, size) }
-                    .exclusively(before: SpatialTapGesture().onEnded { onTap($0.location, size) })
+                    .exclusively(
+                        before: SpatialTapGesture().onEnded {
+                            if !wasHeld {
+                                onTap($0.location, size)
+                            }
+                        })
             )
-            .simultaneousGesture(SpatialTapGesture().onEnded { _ in onEveryTap() })
+            .simultaneousGesture(
+                SpatialTapGesture().onEnded { _ in
+                    if !wasHeld {
+                        onEveryTap()
+                    }
+                }
+            )
             .simultaneousGesture(
                 DragGesture(minimumDistance: 1)
                     .onChanged { value in
                         let delta = SIMD2(Double(value.translation.width - lastTranslation.width), Double(value.translation.height - lastTranslation.height))
                         lastTranslation = value.translation
-                        if mayDrag(value.translation, mostFingers) {
+                        if !wasHeld, mayDrag(value.translation, mostFingers) {
                             renderer?.drag(by: delta, viewSize: size)
                         }
                     }
@@ -69,7 +92,25 @@ struct GlobeView: View {
                     .updating($mostFingers) { events, most, _ in
                         most = max(most, events.filter { $0.phase == .active }.count)
                     }
+                    .updating($touchedAt) { events, at, _ in
+                        at = at ?? events.first { $0.phase == .active }?.location
+                    }
             )
+            .simultaneousGesture(
+                // Within LongPressGesture's 10 pt of where it began, so a drag never opens it.
+                LongPressGesture(minimumDuration: Self.holdDuration)
+                    .onEnded { _ in
+                        guard mostFingers <= 1, let touchedAt else {
+                            return
+                        }
+                        wasHeld = onHold(touchedAt, size)
+                    }
+            )
+            .onChange(of: touchedAt == nil) { _, lifted in
+                if !lifted {
+                    wasHeld = false
+                }
+            }
             .simultaneousGesture(
                 MagnifyGesture()
                     .onChanged { value in
