@@ -140,7 +140,7 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
         updateDrawing()
         let device = device
         Task {
-            let prepared = await PreparedModel.load(file, loader: loader, device: device, priority: .userInitiated)
+            let prepared = await PreparedModel.shared(file, loader: loader, device: device, priority: .userInitiated)
             guard generation == self.generation else {
                 return
             }

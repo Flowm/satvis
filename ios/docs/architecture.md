@@ -55,7 +55,8 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   label around a model, which copy is drawn (`ModelLevel`, ADR 0007) and the
   tracking distance follow the web app's `componentKinds.ts` and its `ModelSize`
   class; the info panel's close-up (`ModelCloseUp`) follows its
-  `ModelCloseUp.ts`.
+  `ModelCloseUp.ts`. A model both draw is on the GPU once
+  (`PreparedModel.shared`).
 - The star maps are the web app's `DeepStar1K` and `DeepStar2K`, the Map
   panel's choice (`StarMap`, `StarMapName`), fetched from the site and kept like
   the GP data (`GroupRepository.starMap`), not shipped: `data/starmap/` is built
