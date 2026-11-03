@@ -732,7 +732,9 @@ final class Session {
             perform(focus.stationsChanged(to: Set(stations.map(\.id))))
             // Alerts are for the saved stations only.
             alerts.forgetStations(except: Set(passes.saved.map(\.id)))
-            await alerts.reschedule()
+            // Not awaited: the next edit's pin waited out this plan, seconds over a
+            // large group. The plans still run one at a time.
+            Task { await alerts.reschedule() }
         }
     }
 
