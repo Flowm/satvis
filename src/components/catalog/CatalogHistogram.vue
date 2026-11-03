@@ -48,12 +48,10 @@
           @pointerleave="hoverIndex = null"
         >
           <template v-for="band in bandsShown" :key="band.at">
-            <g :class="{ 'histogram__band--faint': band.faint }">
-              <rect :x="band.at" :width="band.width" y="0" height="100" class="histogram__band" />
-              <!-- Edges, so bands that meet stay apart. -->
-              <line :x1="band.at" :x2="band.at" y1="0" y2="100" class="histogram__bandEdge" />
-              <line :x1="band.at + band.width" :x2="band.at + band.width" y1="0" y2="100" class="histogram__bandEdge" />
-            </g>
+            <rect :x="band.at" :width="band.width" y="0" height="100" class="histogram__band" />
+            <!-- Edges, so bands that meet stay apart. -->
+            <line :x1="band.at" :x2="band.at" y1="0" y2="100" class="histogram__bandEdge" />
+            <line :x1="band.at + band.width" :x2="band.at + band.width" y1="0" y2="100" class="histogram__bandEdge" />
           </template>
           <line v-for="tick in yTicks" :key="tick.value" x1="0" :x2="bins.length" :y1="100 - tick.height" :y2="100 - tick.height" class="histogram__grid" />
           <rect v-if="hoverIndex !== null" :x="hoverIndex" width="1" y="0" height="100" class="histogram__hover" />
@@ -109,10 +107,8 @@ export interface HistogramBand {
   at: number;
   /** In bins. */
   width: number;
-  /** Above the bars; empty for none. */
+  /** Above the bars. */
   label: string;
-  /** Shaded lighter. */
-  faint?: boolean;
 }
 
 /** A y axis tick. */
@@ -447,10 +443,6 @@ function brushEnd(): void {
 
 .histogram__band {
   fill: #ffffff0a;
-}
-
-.histogram__band--faint {
-  opacity: 0.5;
 }
 
 .histogram__bandLabels {

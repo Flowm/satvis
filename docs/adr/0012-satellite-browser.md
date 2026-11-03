@@ -122,9 +122,8 @@ brushed like the launch years; a direction is picked in the legend.
   twice: northbound at its LTAN, southbound at its LTDN. It is how operators and launch
   providers quote an orbit, and it keeps a dawn-dusk constellation together, whichever side
   of 18:00 its ascending nodes fall. There dawn and dusk take an hour either side of 06:00
-  and 18:00, both holding every dawn-dusk orbit; morning and afternoon are shaded again,
-  fainter, at their night crossing. The daylit view stays the default (see the alternatives
-  rejected).
+  and 18:00, both holding every dawn-dusk orbit. The daylit view stays the default (see the
+  alternatives rejected).
 - The filter means the same in both views. A picked range keeps a satellite with either
   crossing in it, of the picked direction if one is picked. A direction alone picks the
   daylit crossing's, as every satellite crosses both ways in a day; the 24-hour chart greys

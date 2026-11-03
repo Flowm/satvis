@@ -142,17 +142,13 @@ const REGIMES = [
 /** Px, the narrowest chart whose 24 hours fit "morning" beside "afternoon". */
 const FULL_DAY_LABELS_WIDTH = 380;
 
-/** The regimes shaded behind the bars; in the 24-hour view morning and afternoon fainter again at their night crossing, and AM and PM where narrow. */
+/** The regimes shaded behind the bars; in the 24-hour view AM and PM where narrow. */
 function bands(width: number): HistogramBand[] {
-  const [from] = viewDef.value.hours;
   const fullDay = view.value === "fullDay";
-  const bandOf = ([start, end]: readonly [number, number], label: string): HistogramBand => ({ at: (start - from) * PER_HOUR, width: (end - start) * PER_HOUR, label });
-  return REGIMES.flatMap((regime) => {
-    if (!fullDay) return [bandOf(regime.hours, regime.label)];
-    const label = width < FULL_DAY_LABELS_WIDTH ? regime.short : regime.label;
-    if ("fullDayHours" in regime) return [bandOf(regime.fullDayHours, label)];
-    const band = bandOf(regime.hours, label);
-    return [band, { ...band, at: ((regime.hours[0] + 12) % 24) * PER_HOUR, label: "", faint: true }];
+  return REGIMES.map((regime) => {
+    const [start, end] = fullDay && "fullDayHours" in regime ? regime.fullDayHours : regime.hours;
+    const label = fullDay && width < FULL_DAY_LABELS_WIDTH ? regime.short : regime.label;
+    return { at: (start - viewDef.value.hours[0]) * PER_HOUR, width: (end - start) * PER_HOUR, label };
   });
 }
 
