@@ -190,6 +190,18 @@ describe("ground station edits", () => {
     expect(observed()).toBe("Berlin");
   });
 
+  test("looking up from a new station appends it and stands on it", () => {
+    const { sat, observed } = stations("Munich");
+    sat.observeNewStation({ lat: 47.26921, lon: 11.40409 });
+    expect(sat.groundStations.at(-1)).toEqual({ lat: 47.2692, lon: 11.4041 });
+    expect(sat.observerStation).toBe(3);
+
+    // One already listed is not added again, but is stood on.
+    sat.observeNewStation(BERLIN);
+    expect(sat.groundStations).toHaveLength(4);
+    expect(observed()).toBe("Berlin");
+  });
+
   test("looking up from the device moves the one Geolocation station there, first, and stands on it", () => {
     const { sat, observed } = stations("Berlin");
     sat.observeGeolocation(47.26921, 11.40409);

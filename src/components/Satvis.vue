@@ -242,6 +242,7 @@
     <!-- Outside showUI: it stays visible with hidden UI and in minimalUI. -->
     <entity-info-panel />
     <sky-hud />
+    <globe-menu @open="dropGlobePress" />
     <!-- Pause, speed and scrubbing; `createViewer` builds no Cesium clock widgets. -->
     <clock-deck v-if="showUI" />
     <benchmark-panel v-if="showBenchmark" @close="showBenchmark = false" />
@@ -276,6 +277,7 @@ import BookmarkPanel from "./BookmarkPanel.vue";
 import CatalogSheet from "./catalog/CatalogSheet.vue";
 import ClockDeck from "./ClockDeck.vue";
 import EntityInfoPanel from "./EntityInfoPanel.vue";
+import GlobeMenu from "./GlobeMenu.vue";
 import GroundStationList from "./GroundStationList.vue";
 import SatelliteBrowser from "./SatelliteBrowser.vue";
 import SegmentedControl from "./SegmentedControl.vue";
@@ -476,13 +478,21 @@ onBeforeUnmount(() => {
 /** Pixels a press on the globe may travel and still count as a tap rather than a drag. */
 const TAP_SLOP_PX = 8;
 
-/** The press on the globe that may close the menu on release. */
+/** The press on the globe that may close the menu on release; dropped where it opens the globe menu. */
 let globePress: { id: number; x: number; y: number } | undefined;
 
-/** The main button on the globe only. A second finger is a pinch, so it drops the pending press. */
+/**
+ * The main button on the globe only, and not with Control, which opens the globe menu as a right click does.
+ * A second finger is a pinch, so it drops the pending press.
+ */
 function onPointerDown(event: PointerEvent): void {
-  const onGlobe = event.target === cc.viewer.scene.canvas && event.button === 0;
+  const onGlobe = event.target === cc.viewer.scene.canvas && event.button === 0 && !event.ctrlKey;
   globePress = event.isPrimary && onGlobe ? { id: event.pointerId, x: event.clientX, y: event.clientY } : undefined;
+}
+
+/** A finger held to open the globe menu lifts as no tap. */
+function dropGlobePress(): void {
+  globePress = undefined;
 }
 
 /**
