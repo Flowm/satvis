@@ -247,6 +247,74 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Pick on globe"].waitForExistence(timeout: 5))
     }
 
+    // A finger held on the globe opens its menu, as a right click does on the web,
+    // and leaves the open panel open: Add places a station and opens its panel, and
+    // the menu held on its pin removes it.
+    @MainActor
+    func testPlacesAndRemovesAStationFromTheGlobe() {
+        let app = launch()
+        openMenu(app)
+        app.buttons["Components"].tap()
+        let panel = app.descendants(matching: .any)["Orbit track"]
+        XCTAssert(panel.waitForExistence(timeout: 5))
+        // On the globe, right of its middle and below the panel, which reaches 475 pt
+        // down a 390 × 844 phone. On the window, for an iPhone Duo opened.
+        let spot = app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.6))
+        let add = app.buttons["Add ground station here"]
+        // Until the globe has drawn a frame to find the ground in. Just past the
+        // hold: lifted at 0.6 s, SwiftUI still reports a tap, which closed the panel;
+        // at 1 s it reports none.
+        for _ in 0..<3 where !add.exists {
+            spot.press(forDuration: 0.6)
+            _ = add.waitForExistence(timeout: 5)
+        }
+        XCTAssert(add.exists)
+        XCTAssert(panel.exists, "The hold closed the panel as a tap would")
+        add.tap()
+        let sky = app.buttons["View the sky from here"]
+        XCTAssert(sky.waitForExistence(timeout: 5))
+        // The station's own, not the panel's: a phone's sheet covers the pin.
+        app.navigationBars.buttons["Close"].firstMatch.tap()
+        XCTAssert(sky.waitForNonExistence(timeout: 5))
+
+        spot.press(forDuration: 1)
+        let remove = app.buttons["Remove ground station"]
+        XCTAssert(remove.waitForExistence(timeout: 5))
+        XCTAssertFalse(add.exists)
+        remove.tap()
+        // No pin there now: the ground's menu again.
+        XCTAssert(remove.waitForNonExistence(timeout: 5))
+        spot.press(forDuration: 1)
+        XCTAssert(add.waitForExistence(timeout: 5))
+
+        // A tap elsewhere closes it, and the next tap on the globe is a tap again,
+        // which closes the panel: SwiftUI gives every touch the same id, which had
+        // kept the first hold for good.
+        app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.9)).tap()
+        XCTAssert(add.waitForNonExistence(timeout: 5))
+        if !panel.exists {
+            openMenu(app)
+            app.buttons["Components"].tap()
+            XCTAssert(panel.waitForExistence(timeout: 5))
+        }
+        spot.tap()
+        XCTAssert(panel.waitForNonExistence(timeout: 5))
+    }
+
+    // The 2D map finds its ground apart from the globe's.
+    @MainActor
+    func testAddsAStationFromTheMap() {
+        let app = launch(link: "/?scene=2D")
+        let spot = app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+        let add = app.buttons["Add ground station here"]
+        for _ in 0..<3 where !add.exists {
+            spot.press(forDuration: 1)
+            _ = add.waitForExistence(timeout: 5)
+        }
+        add.tap()
+        XCTAssert(app.buttons["View the sky from here"].waitForExistence(timeout: 5))
+    }
+
     // My location stands where the device is, kept as "Geolocation", first in the
     // list, and Back to the globe leaves the sky view again.
     @MainActor

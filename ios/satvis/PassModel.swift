@@ -61,6 +61,11 @@ final class PassModel {
         edit { $0.setGeolocation(latitude: latitude, longitude: longitude) }
     }
 
+    /// Drops a station, saved or a link's.
+    func remove(_ id: UUID) {
+        edit { $0.remove(id) }
+    }
+
     /// Shows a link's stations with this view, without saving them.
     func setVisiting(_ stations: [GroundStation]) {
         edit { $0.setVisiting(stations) }

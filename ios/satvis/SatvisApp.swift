@@ -72,6 +72,8 @@ struct ContentView: View {
     /// Whether the last tap on the globe closed the menu, for its selection to
     /// keep once no double tap can follow.
     @State private var tapClosedMenu = false
+    /// The menu a finger held on the globe opened, while it is open.
+    @State private var globeMenu: OpenGlobeMenu?
     /// Where the menu column and the top corner's buttons are, in the window.
     @State private var menuFrame: CGRect?
     @State private var cornerFrame: CGRect?
@@ -119,6 +121,10 @@ struct ContentView: View {
                 session.tap(at: point, viewSize: size, keepingSelection: tapClosedMenu)
             },
             onDoubleTap: { session.doubleTap(at: $0, viewSize: $1) },
+            onHold: { point, size in
+                globeMenu = session.menuSubject(at: point, viewSize: size).map { OpenGlobeMenu(subject: $0, point: point, passes: session.passes) }
+                return globeMenu != nil
+            },
             mayDrag: session.aim.mayDrag(_:fingers:),
             takePinch: session.aim.takePinch,
             isTransparent: session.aim.passthrough.isShowing,
@@ -126,6 +132,18 @@ struct ContentView: View {
             frameRate: session.frameRate
         )
         .ignoresSafeArea()
+        .overlay {
+            // In the whole screen's points, as the globe reports them: anchored on the
+            // globe view itself, the arrow pointed the safe area's inset too low.
+            Color.clear
+                .frame(width: 1, height: 1)
+                .popover(item: $globeMenu) { menu in
+                    GlobeMenu(menu: menu, session: session)
+                }
+                .position(globeMenu?.point ?? .zero)
+                .ignoresSafeArea()
+        }
+        .sensoryFeedback(.impact, trigger: globeMenu?.id) { _, opened in opened != nil }
         .background {
             // Hidden by the opaque globe but while the sky view shows it.
             CameraPreview(layer: session.aim.passthrough.previewLayer)

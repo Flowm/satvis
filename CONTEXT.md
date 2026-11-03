@@ -295,6 +295,9 @@ discussion; sharpen them here when they drift.
 - **Menu and panel**: the menu is the column of entries at the top left (Map,
   Globe, Sky, Graphics and the rest); each entry opens its panel beside it. "The
   Map panel", never "the Map menu".
+- **Globe menu**: the short menu a right click or a held finger opens on the
+  globe, to add a ground station there or look up from it, or to remove the
+  station whose pin it is on. Never on its own "the menu", which is the column.
 - **Parity fixture**: an output of the web app's own code for a fixed element
   set: a position, a pass, a url round trip. The native app's tests must
   reproduce it, so the fixtures are regenerated from the web code, never edited

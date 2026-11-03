@@ -63,6 +63,11 @@ export class GroundStationEntity {
     this.#viewer.entities.remove(this.#entity);
   }
 
+  /** Whether `entity`, as a pick reports it, is this station's pin. */
+  draws(entity: unknown): boolean {
+    return entity === this.#entity;
+  }
+
   get isSelected(): boolean {
     return this.#viewer.selectedEntity === this.#entity;
   }

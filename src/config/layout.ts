@@ -5,3 +5,9 @@
  * read a variable.
  */
 export const PHONE_WIDTH = 640;
+
+/**
+ * Milliseconds a still finger on the globe holds before its menu opens: iOS's long press.
+ * Cesium's own default is 1.5 s.
+ */
+export const TOUCH_HOLD_MS = 500;

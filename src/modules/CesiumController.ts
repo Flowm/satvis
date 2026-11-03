@@ -1,8 +1,9 @@
-import { Cartesian3, Cartographic, Color, JulianDate, Math as CesiumMath, Matrix4, PerspectiveFrustum, TimeInterval, defined } from "@cesium/core";
+import { type Cartesian2, Cartesian3, Cartographic, Color, JulianDate, Math as CesiumMath, Matrix4, PerspectiveFrustum, TimeInterval, defined } from "@cesium/core";
 import {
   type CesiumWidget,
   Credit,
   ImageryLayer,
+  KeyboardEventModifier,
   Resource,
   type Scene,
   sampleTerrainMostDetailed,
@@ -20,6 +21,7 @@ import utc from "dayjs/plugin/utc";
 import { usePostHog } from "../composables/usePostHog";
 import { defaultViewDistance } from "../config/defaultView";
 import { parseLayer } from "../config/layers";
+import { TOUCH_HOLD_MS } from "../config/layout";
 import { type FrameRate, msaaSamplesFor, resolutionScaleFor, targetFrameRateFor } from "../config/rendering";
 import { type StarMapSources, starMapSources } from "../config/starMaps";
 import { type ImageryContext, type ImageryProviderEntry, imageryProviders, type TerrainProviderEntry, terrainProviders } from "./CesiumLayerProviders";
@@ -36,6 +38,9 @@ import { smootherstep } from "./util/easing";
 import { Suppressible } from "./util/Suppressible";
 
 dayjs.extend(utc);
+
+/** Where the globe menu opens, in canvas pixels, and what it opens on: a station's pin, or a place on the ground. */
+export type GlobeMenuPlace = { x: number; y: number } & ({ station: number } | { lat: number; lon: number });
 
 /**
  * Degrees. A little north, so Europe clears the limb without cutting off the southern hemisphere.
@@ -110,6 +115,8 @@ export class CesiumController {
   #pickMode = false;
 
   #onGlobePick: (lat: number, lon: number) => void = () => {};
+
+  #onGlobeMenu: (place: GlobeMenuPlace) => void = () => {};
 
   #onSurfaceFailure: (name: string, error: unknown) => void = () => {};
   #onTerrainFailure: (name: string, error: unknown) => void = () => {};
@@ -446,6 +453,24 @@ export class CesiumController {
         this.#pickGlobe(event);
       }
     }, ScreenSpaceEventType.LEFT_CLICK);
+
+    // A click, not the browser's `contextmenu`, which macOS raises on the press and so
+    // would open a menu at the start of every right-drag zoom. Control-click is macOS's right click,
+    // and Cesium reports a touch held still as one.
+    const openMenu = (event: ScreenSpaceEventHandler.PositionedEvent) => this.#openGlobeMenu(event);
+    handler.setInputAction(openMenu, ScreenSpaceEventType.RIGHT_CLICK);
+    handler.setInputAction(openMenu, ScreenSpaceEventType.LEFT_CLICK, KeyboardEventModifier.CTRL);
+    this.viewer.scene.canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+
+    // Cesium times every handler's hold by one global, read as a touch starts, and a held touch is no
+    // LEFT_CLICK in any of them: the globe menu's shorter hold only where it opens, so a slow tap elsewhere
+    // still selects or places. Captured before the canvas's handlers; Firefox gets touch events.
+    const cesiumHold = ScreenSpaceEventHandler.touchHoldDelayMilliseconds;
+    const setHold = () => {
+      ScreenSpaceEventHandler.touchHoldDelayMilliseconds = this.skyView.active || this.#pickMode ? cesiumHold : TOUCH_HOLD_MS;
+    };
+    this.viewer.container.addEventListener("pointerdown", setHold, { capture: true });
+    this.viewer.container.addEventListener("touchstart", setHold, { capture: true, passive: true });
   }
 
   /** The canvas shows a crosshair, not a class on the page: Cesium's own widgets keep their cursors. */
@@ -457,6 +482,11 @@ export class CesiumController {
   /** A click in pick mode that hit the globe, in degrees. Do not truth-test: 0 is a valid coordinate. */
   onGlobePick(callback: (lat: number, lon: number) => void): void {
     this.#onGlobePick = callback;
+  }
+
+  /** A right click or a held finger on a station's pin or on the globe. Not in the sky view, whose ground is underfoot. */
+  onGlobeMenu(callback: (place: GlobeMenuPlace) => void): void {
+    this.#onGlobeMenu = callback;
   }
 
   /** A surface model's tileset failed to load; the scene has already dropped it. */
@@ -481,12 +511,38 @@ export class CesiumController {
   }
 
   #pickGlobe(event: ScreenSpaceEventHandler.PositionedEvent): void {
-    const cartesian = this.viewer.camera.pickEllipsoid(event.position);
+    const at = this.#globeAt(event.position);
+    if (at) {
+      this.#onGlobePick(at.lat, at.lon);
+    }
+  }
+
+  /** The ellipsoid under a canvas position, in degrees; undefined off the globe or the 2D map. */
+  #globeAt(position: Cartesian2): { lat: number; lon: number } | undefined {
+    const cartesian = this.viewer.camera.pickEllipsoid(position);
     if (!defined(cartesian)) {
+      return undefined;
+    }
+    const cartographic = Cartographic.fromCartesian(cartesian);
+    return { lat: CesiumMath.toDegrees(cartographic.latitude), lon: CesiumMath.toDegrees(cartographic.longitude) };
+  }
+
+  #openGlobeMenu(event: ScreenSpaceEventHandler.PositionedEvent): void {
+    if (this.skyView.active) {
       return;
     }
-    const cartographicPosition = Cartographic.fromCartesian(cartesian);
-    this.#onGlobePick(CesiumMath.toDegrees(cartographicPosition.latitude), CesiumMath.toDegrees(cartographicPosition.longitude));
+    const { x, y } = event.position;
+    const picked: unknown = this.viewer.scene.pick(event.position);
+    const entity = defined(picked) ? (picked as { id?: unknown }).id : undefined;
+    const station = this.sats.groundStations.find((candidate) => candidate.draws(entity));
+    if (station) {
+      this.#onGlobeMenu({ x, y, station: station.index });
+      return;
+    }
+    const at = this.#globeAt(event.position);
+    if (at) {
+      this.#onGlobeMenu({ x, y, ...at });
+    }
   }
 
   /** Cesium's own chrome is only the fullscreen button. */

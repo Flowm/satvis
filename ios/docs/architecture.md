@@ -109,6 +109,16 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   meet, RotateGesture reports NaN, and a NaN heading drew a black globe until
   relaunch (TestFlight build 15). A camera that is not finite anyway is put back
   home and logged as a fault.
+- One finger held still for half a second opens the globe menu where it
+  touched (`GlobeMenu`), as a right click does on the web: a station placed or
+  looked up from there, or the station under it looked up from or removed. It is
+  a popover anchored at the point, since a SwiftUI `Menu` opens only from a
+  control and `contextMenu` knows no point and lifts the whole view. SwiftUI
+  still reports a tap when a hold just past half a second lifts, which closed the
+  open panel, so `GlobeView` drops the tap of a finger that opened the menu, and
+  its drag, which turned the globe out from under it; a hold that opens nothing,
+  as in the sky view, stays a drag. The touch is followed by a `GestureState`,
+  not by `SpatialEventGesture`'s event ids, which are the same for every touch.
 
 ## The sky view
 

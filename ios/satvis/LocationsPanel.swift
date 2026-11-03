@@ -24,7 +24,7 @@ struct LocationsPanel: View {
                         } onShow: {
                             onSelect(station.id)
                         } onRemove: {
-                            passes.setStations(passes.saved.filter { $0.id != station.id })
+                            passes.remove(station.id)
                         } onMove: { moved, offset in
                             move(moved, by: offset)
                         } onDrop: { dropped in

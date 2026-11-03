@@ -46,7 +46,7 @@ export async function addStationHere(page: Page, name: string): Promise<void> {
 }
 
 /** Clicks the canvas where the named entity is drawn. Ground stations and satellites alike. */
-export async function clickEntity(page: Page, name: string): Promise<void> {
+export async function clickEntity(page: Page, name: string, button: "left" | "right" = "left"): Promise<void> {
   const at = await page.evaluate((wanted) => {
     const { viewer } = window.cc!;
     const collections = [viewer.entities, ...Array.from({ length: viewer.dataSources.length }, (_, index) => viewer.dataSources.get(index).entities)];
@@ -59,7 +59,7 @@ export async function clickEntity(page: Page, name: string): Promise<void> {
   if (!at) {
     throw new Error(`${name} is not drawn`);
   }
-  await page.mouse.click(at.x, at.y);
+  await page.mouse.click(at.x, at.y, { button });
 }
 
 /**

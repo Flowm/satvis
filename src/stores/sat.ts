@@ -143,6 +143,11 @@ export const useSatStore = defineStore(
       replaceStations([...stations.value, station], observerStation.value);
     }
 
+    /** The globe menu's Look up from here: appended, and the observer there. */
+    function observeNewStation(station: SerializedGroundStation): void {
+      replaceStations([...stations.value, station], stations.value.length);
+    }
+
     /** My location's: the Geolocation station where the device is (`withGeolocation`), the observer where it was. */
     function placeGeolocation(lat: number, lon: number): void {
       replaceStations(withGeolocation(stations.value, lat, lon), observerAfterGeolocation(stations.value, observerStation.value));
@@ -194,6 +199,7 @@ export const useSatStore = defineStore(
       setGroundStations,
       setObserverStation,
       addGroundStation,
+      observeNewStation,
       observeGeolocation,
       placeGeolocation,
       removeGroundStation,
