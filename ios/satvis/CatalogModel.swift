@@ -142,8 +142,13 @@ final class CatalogModel {
 
     /// Searching looks through everything, so it loads everything.
     func search(_ query: String) async -> [CatalogEntry] {
-        await load(groups)
+        await loadAll()
         return catalog.search(query)
+    }
+
+    /// Every group of the preset, for a search about to start.
+    func loadAll() async {
+        await load(groups)
     }
 
     func setTag(_ tag: String, enabled: Bool) async {
