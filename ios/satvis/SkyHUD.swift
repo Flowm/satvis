@@ -17,6 +17,9 @@ struct SkyHUD: View {
     /// The info card over the trailing side, in the HUD's frame, for the lock's
     /// card to stand clear of it where it reaches the lower half.
     var infoCard: CGRect?
+    /// Where the clock deck starts, in the HUD's frame, for the lock's card to stand
+    /// above it; nil while it is hidden.
+    var deckTop: CGFloat?
     /// The session's word for the user, over the lock's card.
     var notice: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -28,7 +31,8 @@ struct SkyHUD: View {
                 // Up as the ground arrives: projected against a camera still in
                 // flight, the tapes would swim across the screen.
                 SkyInstruments(
-                    renderer: renderer, controls: controls, infoCard: infoCard, notice: notice, size: proxy.size, date: context.date, onOpen: onOpen
+                    renderer: renderer, controls: controls, infoCard: infoCard, deckTop: deckTop, notice: notice, size: proxy.size, date: context.date,
+                    onOpen: onOpen
                 )
                 .opacity(settled ? 1 : 0)
                 .allowsHitTesting(settled)
@@ -53,6 +57,7 @@ private struct SkyInstruments: View {
     let renderer: GlobeRenderer
     let controls: TopControls?
     let infoCard: CGRect?
+    let deckTop: CGFloat?
     let notice: String?
     let size: CGSize
     let date: Date
@@ -93,7 +98,9 @@ private struct SkyInstruments: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.bottom, 136)
+            // Above the deck, which grows with the text; 136 points held it at the
+            // default size.
+            .padding(.bottom, deckTop.map { size.height - $0 + 12 } ?? 136)
             .padding(.trailing, infoCard.map { $0.maxY > size.height / 2 ? size.width - $0.minX + PanelMetrics.gap : 0 } ?? 0)
         }
     }

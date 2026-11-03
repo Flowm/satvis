@@ -86,6 +86,8 @@ struct ContentView: View {
     @State private var cardFrame: CGRect?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
+    /// Dynamic Type's scale, as the menu toggle and the corner's buttons take it.
+    @ScaledMetric(relativeTo: .body) private var textScale = 1.0
 
     /// Hides the menu column, its panel, the clock deck and the corner's buttons, for
     /// a picture of the globe. The menu closes first, so Show UI brings none of it back
@@ -135,7 +137,7 @@ struct ContentView: View {
                 // In the renderer's frame, the whole screen, since it projects into it.
                 SkyHUD(
                     renderer: renderer, onOpen: { session.select(.satellite($0)) }, controls: topControls, infoCard: showsCard ? cardFrame : nil,
-                    notice: session.notice ?? session.aim.cameraWarning
+                    deckTop: showsUI ? deckFrame?.minY : nil, notice: session.notice ?? session.aim.cameraWarning
                 )
                 .ignoresSafeArea()
             }
@@ -147,7 +149,7 @@ struct ContentView: View {
             // benchmark panel shows its own measurements in its place.
             if session.showsPerformance, !session.showsBenchmark, let renderer = session.renderer {
                 PerformanceOverlay(renderer: renderer)
-                    .padding(.top, sizeClass == .regular ? PanelMetrics.edge : PanelMetrics.underTopRow)
+                    .padding(.top, sizeClass == .regular ? PanelMetrics.edge : underTopRow)
             }
         }
         .overlay(alignment: .topTrailing) {
@@ -333,7 +335,7 @@ struct ContentView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .panel()
-                .padding(.top, PanelMetrics.underTopRow)
+                .padding(.top, underTopRow)
             }
         }
         .overlay(alignment: .bottom) {
@@ -364,7 +366,7 @@ struct ContentView: View {
             }
             // A benchmark panel taller than the room scrolls under the top row
             // rather than running off the top, as on an iPhone Duo opened.
-            .padding(.top, PanelMetrics.underTopRow)
+            .padding(.top, underTopRow)
         }
         .onChange(of: session.isPicking) { _, picking in
             if !picking, let selection = pickingFromLocations {
@@ -514,6 +516,11 @@ struct ContentView: View {
         }
         // The card covers the buttons, and the tapes run round it instead.
         return TopControls(menu: menuFrame, buttons: showsCard ? cardFrame ?? cornerFrame : cornerFrame)
+    }
+
+    /// Under the menu toggle and the corner's first button.
+    private var underTopRow: CGFloat {
+        PanelMetrics.underTopRow(scale: textScale)
     }
 
     /// Whether the info panel is a card over the globe rather than a sheet.

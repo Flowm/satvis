@@ -336,18 +336,20 @@ struct BookmarkCard: View {
 /// on its card and in About's carousel.
 struct BookmarkFacts: View {
     let summary: BookmarkSummary
+    /// The icons' side, with the text.
+    @ScaledMetric(relativeTo: .caption) private var iconSide = 12.0
 
     var body: some View {
         Group {
             Label {
                 Text(summary.what)
             } icon: {
-                Image(.lucideOrbit).resizable().frame(width: 12, height: 12)
+                Image(.lucideOrbit).resizable().frame(width: iconSide, height: iconSide)
             }
             Label {
                 Text(summary.where)
             } icon: {
-                Image(whereIcon).resizable().frame(width: 12, height: 12)
+                Image(whereIcon).resizable().frame(width: iconSide, height: iconSide)
             }
         }
         .foregroundStyle(.secondary)
