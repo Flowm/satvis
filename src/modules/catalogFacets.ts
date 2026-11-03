@@ -73,18 +73,15 @@ export interface CatalogRow {
   inclinationDeg: number;
   /** Days from the element set's epoch to when the rows were built. */
   ageDays: number;
-  /** Sun-sync rows only. */
-  crossing: DaylitCrossing | undefined;
+  /** Sun-sync rows only: the daylit crossing. */
+  crossing: EquatorCrossing | undefined;
 }
 
-/** Which node an orbit crosses the equator at in daylight. */
+/** Which way an orbit crosses the equator: southbound at its descending node, northbound at its ascending node. */
 export type CrossingDirection = "southbound" | "northbound";
 
-/**
- * A sun-sync orbit's daylit equator crossing: its local time, 06:00 to 18:00, at the element
- * set's epoch. The other node is 12 hours off, at night.
- */
-export interface DaylitCrossing {
+/** A sun-sync orbit's equator crossing at one node: its local time at the element set's epoch, and its direction. */
+export interface EquatorCrossing {
   /** Hours of mean solar time. */
   hours: number;
   direction: CrossingDirection;
@@ -198,9 +195,14 @@ const MS_PER_DAY = 86_400_000;
 const UNIX_EPOCH_JULIAN_DATE = 2440587.5;
 
 /** The node between 06:00 and 18:00, where the equator is in daylight in every season. */
-export function daylitCrossingOf(ltanHours: number): DaylitCrossing {
+export function daylitCrossingOf(ltanHours: number): EquatorCrossing {
   const daylit = ltanHours >= CROSSING_FROM_HOURS && ltanHours < CROSSING_FROM_HOURS + 12;
   return daylit ? { hours: ltanHours, direction: "northbound" } : { hours: (ltanHours + 12) % 24, direction: "southbound" };
+}
+
+/** Both of a sun-sync orbit's crossings: this one and, 12 hours off, the other node's. */
+export function crossingsOf(crossing: EquatorCrossing): [EquatorCrossing, EquatorCrossing] {
+  return [crossing, { hours: (crossing.hours + 12) % 24, direction: crossing.direction === "northbound" ? "southbound" : "northbound" }];
 }
 
 /** "550", "20.2k", "171k": km, short enough for a chart's axis. */
@@ -314,9 +316,13 @@ export interface CatalogFilter {
   shape: ShapeBox | null;
   /** The box on the apogee-perigee plot. */
   apsides: ApsisBox | null;
-  /** Hours of the daylit crossing, from inclusive to exclusive; a satellite without one is out while set. */
+  /**
+   * Hours either of a satellite's crossings falls in, from inclusive to exclusive; a satellite
+   * without one is out while set. Null takes the daylit hours, so a direction alone picks the
+   * daylit crossing's: every satellite crosses both ways in a day.
+   */
   crossingHours: [number, number] | null;
-  /** Likewise. */
+  /** That crossing's direction. */
   crossingDirection: CrossingDirection | null;
   /** Name or satnum, case-insensitive. */
   query: string;
@@ -338,7 +344,7 @@ export interface Crossfilter {
   shapeRows: CatalogRow[];
   /** Rows passing every filter but the apsis box: that plot's bright points. */
   apsisRows: CatalogRow[];
-  /** Per direction, crossing bin (from CROSSING_FROM_HOURS) -> rows passing every filter but the crossing. */
+  /** Per direction, crossing bin (from 00:00) -> rows passing every filter but the crossing, at both of a row's crossings. */
   crossings: Record<CrossingDirection, Map<number, number>>;
 }
 
@@ -355,13 +361,13 @@ function outsideApsides(row: CatalogRow, box: ApsisBox): boolean {
   return outside(row.perigeeKm, box.perigeeKm) || outside(row.apogeeKm, box.apogeeKm);
 }
 
-/** Outside the picked hours or direction, or without a crossing at all. */
-function outsideCrossing(crossing: DaylitCrossing | undefined, filter: CatalogFilter): boolean {
+/** No crossing in the picked hours with the picked direction, or no crossing at all. */
+function outsideCrossing(crossing: EquatorCrossing | undefined, filter: CatalogFilter): boolean {
   if (crossing === undefined) {
     return true;
   }
-  const hours = filter.crossingHours;
-  return (hours !== null && (crossing.hours < hours[0] || crossing.hours >= hours[1])) || (filter.crossingDirection !== null && crossing.direction !== filter.crossingDirection);
+  const [from, to] = filter.crossingHours ?? [CROSSING_FROM_HOURS, CROSSING_FROM_HOURS + 12];
+  return !crossingsOf(crossing).some(({ hours, direction }) => hours >= from && hours < to && (filter.crossingDirection === null || direction === filter.crossingDirection));
 }
 
 /**
@@ -392,9 +398,12 @@ export function crossfilter(rows: readonly CatalogRow[], filter: CatalogFilter, 
   };
 
   const countCrossing = (row: CatalogRow) => {
-    if (row.crossing !== undefined) {
-      const map = crossings[row.crossing.direction];
-      const bin = Math.floor((row.crossing.hours - CROSSING_FROM_HOURS) / CROSSING_BIN_HOURS);
+    if (row.crossing === undefined) {
+      return;
+    }
+    for (const { hours, direction } of crossingsOf(row.crossing)) {
+      const map = crossings[direction];
+      const bin = Math.floor(hours / CROSSING_BIN_HOURS);
       map.set(bin, (map.get(bin) ?? 0) + 1);
     }
   };

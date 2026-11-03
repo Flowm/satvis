@@ -118,6 +118,18 @@ brushed like the launch years; a direction is picked in the legend.
 - A dawn-dusk orbit lands at either end, by which side of 06:00 or 18:00 its nodes fall.
   "Dawn-dusk" has no agreed bound; the bands take a crossing within an hour of either, where
   the catalog thins out: 663 satellites within the hour, 89 in the next quarter.
+- The heading switches to a 24-hour view, 00:00 to 24:00, where each satellite counts
+  twice: northbound at its LTAN, southbound at its LTDN. It is how operators and launch
+  providers quote an orbit, and it keeps a dawn-dusk constellation together, whichever side
+  of 18:00 its ascending nodes fall. There dawn and dusk take an hour either side of 06:00
+  and 18:00, both holding every dawn-dusk orbit. The daylit view stays the default (see the
+  alternatives rejected).
+- The filter means the same in both views. A picked range keeps a satellite with either
+  crossing in it, of the picked direction if one is picked. A direction alone picks the
+  daylit crossing's, as every satellite crosses both ways in a day; the 24-hour chart greys
+  its night half then. The opened stats count the daylit crossings, one per satellite.
+- Back in the daylit view, a range is trimmed to 06:00-18:00, or dropped when it lies
+  outside. A range does not wrap past midnight.
 
 ## Consequences
 
@@ -151,9 +163,10 @@ brushed like the launch years; a direction is picked in the legend.
   one tree, two definitions of "sun-sync" would contradict each other.
 - **Bounds fitted to GCAT's codes.** They reached the same agreement, but GCAT publishes its
   own, and a satellite should land in the same kind whichever source classified it.
-- **Both nodes on a 24-hour axis.** The second node is the first plus 12 hours, so it adds
-  no information, counts every satellite twice, and a brush over 10:00-12:00 would mix
-  morning orbits with the orbits whose night crossing falls there. A switch between LTAN
+- **Both nodes on a 24-hour axis, by default.** The second node is the first plus 12 hours,
+  so it adds no information, counts every satellite twice, and a brush over 10:00-12:00
+  mixes morning orbits with the orbits whose night crossing falls there; a picked direction
+  separates them. It is the heading's second view, for those who quote an LTAN. A switch between LTAN
   and LTDN puts half the catalog at night whichever it shows.
 - **A large tile over the whole charts column.** It hid the charts it was filtering
   against. Opening in place keeps them beside it.

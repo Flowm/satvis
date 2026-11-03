@@ -73,7 +73,17 @@ function rows(): CatalogRow[] {
 }
 
 function filter(patch: Partial<CatalogFilter> = {}): CatalogFilter {
-  return { facets: {}, launchYears: null, shape: null, apsides: null, crossingHours: null, crossingDirection: null, query: "", activeOnly: false, ...patch };
+  return {
+    facets: {},
+    launchYears: null,
+    shape: null,
+    apsides: null,
+    crossingHours: null,
+    crossingDirection: null,
+    query: "",
+    activeOnly: false,
+    ...patch,
+  };
 }
 
 describe("catalogRows", () => {
@@ -160,13 +170,30 @@ describe("crossfilter", () => {
 
     const morning = crossfilter(all, filter({ crossingHours: [6, 12], facets: { orbit: new Set(["LEO/S"]) } }), new Set());
     expect(morning.matched.map((row) => row.name)).toEqual(["NEWBIE"]);
-    expect([...morning.crossings.southbound]).toEqual([[29, 1]]);
-    expect([...morning.crossings.northbound]).toEqual([[9, 1]]);
+    // Both crossings count: NEWBIE's southbound at 20:16 too.
+    expect([...morning.crossings.southbound].toSorted(([a], [b]) => a - b)).toEqual([
+      [53, 1],
+      [81, 1],
+    ]);
+    expect([...morning.crossings.northbound].toSorted(([a], [b]) => a - b)).toEqual([
+      [5, 1],
+      [33, 1],
+    ]);
     expect(morning.counts.orbit.get("LEO/S")).toBe(1);
 
     const southbound = crossfilter(all, filter({ crossingDirection: "southbound" }), new Set());
     expect(southbound.matched.map((row) => row.name)).toEqual(["IMAGER"]);
-    expect(southbound.crossings.northbound.size).toBe(1);
+    expect(southbound.crossings.northbound.size).toBe(2);
+  });
+
+  test("filters a range of night hours by the crossing in it", () => {
+    const all = rows();
+    // IMAGER northbound at 01:19 and southbound at 13:19; NEWBIE northbound at 08:16 and southbound at 20:16.
+    const evening = crossfilter(all, filter({ crossingHours: [20, 21] }), new Set());
+    expect(evening.matched.map((row) => row.name)).toEqual(["NEWBIE"]);
+    const northboundAtNight = crossfilter(all, filter({ crossingHours: [0, 6], crossingDirection: "northbound" }), new Set());
+    expect(northboundAtNight.matched.map((row) => row.name)).toEqual(["IMAGER"]);
+    expect(crossfilter(all, filter({ crossingHours: [0, 6], crossingDirection: "southbound" }), new Set()).matched).toEqual([]);
   });
 
   test("gates every count by the query and by what the globe shows", () => {

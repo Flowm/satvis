@@ -1,24 +1,13 @@
-<!-- Counts per bin on a linear, square-root or log scale, picked in the heading, with axes; dragging across the bars picks a range of bins, and a series' legend entry picks the series. -->
+<!-- Counts per bin on a linear, square-root or log scale, picked in the heading beside the chart's own controls, with axes; dragging across the bars picks a range of bins, and a series' legend entry picks the series. -->
 <template>
   <div ref="rootEl" class="histogram cs-measured">
     <div class="cs-tileHead">
-      <UIcon :name="icon" class="cs-mute" /> <span :title="titleHint">{{ title }}</span>
-      <span v-if="range" class="cs-dim cs-num">{{ formatRange(range) }}</span>
+      <UIcon :name="icon" class="cs-mute" /> <span class="histogram__title" :title="titleHint">{{ title }}</span>
+      <span v-if="range" class="histogram__range cs-dim cs-num">{{ formatRange(range) }}</span>
       <span class="cs-headEnd">
         <button v-if="range || picked" type="button" class="cs-reset" @click="reset">reset</button>
-        <span class="histogram__scales" role="group" aria-label="Scale">
-          <button
-            v-for="option in SCALES"
-            :key="option.scale"
-            type="button"
-            :aria-pressed="scale === option.scale"
-            :aria-label="option.name"
-            :title="option.hint"
-            @click="emit('update:scale', option.scale)"
-          >
-            {{ option.label }}
-          </button>
-        </span>
+        <slot name="controls" />
+        <catalog-segments :model-value="scale" :options="SCALES" label="Scale" @update:model-value="emit('update:scale', $event)" />
         <catalog-tile-toggle :open="open" :label="title.charAt(0).toLowerCase() + title.slice(1)" @click="emit('toggle-open')" />
       </span>
     </div>
@@ -37,13 +26,13 @@
       </button>
     </div>
     <div class="histogram__chart">
-      <div class="histogram__yAxis cs-num" :class="{ 'histogram__yAxis--banded': bands?.length }" :style="{ height: `${height}px` }">
+      <div class="histogram__yAxis cs-num" :class="{ 'histogram__yAxis--banded': bandsShown.length }" :style="{ height: `${height}px` }">
         <span v-for="tick in yTicks" :key="tick.value" :style="{ bottom: `${tick.height}%` }">{{ tick.label }}</span>
       </div>
       <div class="histogram__plot">
         <!-- Above the bars, which reach the top. -->
-        <div v-if="bands?.length" class="histogram__bandLabels">
-          <span v-for="band in bands" :key="band.at" :style="{ left: `${((band.at + band.width / 2) / bins.length) * 100}%` }">{{ band.label }}</span>
+        <div v-if="bandsShown.length" class="histogram__bandLabels">
+          <span v-for="band in bandsShown" :key="band.at" :style="{ left: `${((band.at + band.width / 2) / bins.length) * 100}%` }">{{ band.label }}</span>
         </div>
         <svg
           ref="svgEl"
@@ -58,7 +47,7 @@
           @pointerup="brushEnd"
           @pointerleave="hoverIndex = null"
         >
-          <template v-for="band in bands" :key="band.at">
+          <template v-for="band in bandsShown" :key="band.at">
             <rect :x="band.at" :width="band.width" y="0" height="100" class="histogram__band" />
             <!-- Edges, so bands that meet stay apart. -->
             <line :x1="band.at" :x2="band.at" y1="0" y2="100" class="histogram__bandEdge" />
@@ -101,6 +90,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 import type { HistogramScale } from "../../composables/useCatalogFilters";
 import { formatInteger, formatNumber } from "../../modules/util/formats";
+import CatalogSegments, { type SegmentOption } from "./CatalogSegments.vue";
 import CatalogTileToggle from "./CatalogTileToggle.vue";
 
 /** An x axis tick. */
@@ -173,8 +163,8 @@ const props = defineProps<{
   formatRange: (range: [number, number]) => string;
   /** The x axis ticks for the chart's width in px. */
   ticks: (width: number) => readonly HistogramTick[];
-  /** Shaded spans behind the bars. */
-  bands?: readonly HistogramBand[];
+  /** The shaded spans behind the bars for the chart's width in px. */
+  bands?: (width: number) => readonly HistogramBand[];
   /** Px, the bars' height. */
   height: number;
   /** Opened large, with its stats. */
@@ -188,10 +178,10 @@ const emit = defineEmits<{
 }>();
 
 /** The scales to pick from, as the heading names them. */
-const SCALES: { scale: HistogramScale; label: string; name: string; hint: string }[] = [
-  { scale: "linear", label: "lin", name: "Linear scale", hint: "Linear: bars in proportion to their counts" },
-  { scale: "sqrt", label: "√", name: "Square-root scale", hint: "Square root: the tallest bars do not flatten the rest" },
-  { scale: "log", label: "log", name: "Log scale", hint: "Logarithmic, of the count plus one: every power of ten alike, and one still shows" },
+const SCALES: SegmentOption<HistogramScale>[] = [
+  { value: "linear", label: "lin", name: "Linear scale", hint: "Linear: bars in proportion to their counts" },
+  { value: "sqrt", label: "√", name: "Square-root scale", hint: "Square root: the tallest bars do not flatten the rest" },
+  { value: "log", label: "log", name: "Log scale", hint: "Logarithmic, of the count plus one: every power of ten alike, and one still shows" },
 ];
 
 /** Clears the range and the picked series. */
@@ -214,12 +204,17 @@ onBeforeUnmount(() => observer?.disconnect());
 
 /** The x axis's ticks, for the chart's width. */
 const xTicks = computed(() => props.ticks(width.value));
+/** The bands, for the chart's width. */
+const bandsShown = computed(() => props.bands?.(width.value) ?? []);
 
-/** Each bin's count across the series. */
+/** Each shown bin's count across the series; counts outside the bins do not set the scale. */
 const totals = computed(() => {
   const result = new Map<number, number>();
-  for (const { counts } of props.series) {
-    for (const [bin, count] of counts) result.set(bin, (result.get(bin) ?? 0) + count);
+  for (const bin of props.bins) {
+    result.set(
+      bin,
+      props.series.reduce((total, { counts }) => total + (counts.get(bin) ?? 0), 0),
+    );
   }
   return result;
 });
@@ -337,6 +332,18 @@ function brushEnd(): void {
 </script>
 
 <style scoped>
+/* One line in a narrow tile: the range gives way, which the bars and its chip show too. */
+.histogram__title {
+  white-space: nowrap;
+}
+
+.histogram__range {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .histogram__stats {
   display: flex;
   flex-wrap: wrap;
@@ -490,37 +497,6 @@ function brushEnd(): void {
   display: block;
   font-size: 10px;
   color: var(--cs-mute);
-}
-
-.histogram__scales {
-  display: inline-flex;
-  margin-right: 2px;
-  border-radius: 4px;
-  box-shadow: inset 0 0 0 1px var(--cs-line);
-}
-
-.histogram__scales button {
-  min-width: 22px;
-  padding: 0 4px;
-  border: none;
-  background: none;
-  color: var(--cs-mute);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
-  line-height: 16px;
-  cursor: pointer;
-}
-
-.histogram__scales button:hover {
-  color: var(--cs-text);
-}
-
-.histogram__scales button[aria-pressed="true"] {
-  border-radius: 4px;
-  background: #ffffff1a;
-  color: var(--cs-text);
 }
 
 .histogram__tip b {
