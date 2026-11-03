@@ -1,7 +1,8 @@
-import type { CesiumWidget } from "@cesium/engine";
+import { Cartesian2 } from "@cesium/core";
+import type { CesiumWidget, Scene } from "@cesium/engine";
 import { describe, expect, it } from "vitest";
 
-import { reportableError, skipUnsizedFrames } from "./CesiumController";
+import { reportableError, skipUnsizedFrames, skipUnsizedPicks } from "./CesiumController";
 
 /**
  * A fake widget that counts renders and ticks. The `render` of Cesium ticks the
@@ -77,6 +78,52 @@ describe("skipUnsizedFrames", () => {
 
     expect(state.renders).toBe(1);
     expect(state.ticks).toBe(2);
+  });
+});
+
+describe("skipUnsizedPicks", () => {
+  /** A fake scene whose pick throws without a drawing buffer, as Cesium's pick frustum does. */
+  function fakeScene(width: number, height: number) {
+    const scene = {
+      drawingBufferWidth: width,
+      drawingBufferHeight: height,
+      pick(this: unknown) {
+        if (scene.drawingBufferWidth === 0 || scene.drawingBufferHeight === 0) {
+          throw new Error("drawingBufferWidth must be greater than zero.");
+        }
+        return { id: "picked", self: this };
+      },
+    };
+    return scene as unknown as Scene & { drawingBufferWidth: number; drawingBufferHeight: number };
+  }
+
+  it("picks as Cesium does while the drawing buffer has a size", () => {
+    const scene = fakeScene(1110, 500);
+    skipUnsizedPicks(scene);
+
+    expect(scene.pick(new Cartesian2(1, 1))).toEqual({ id: "picked", self: scene });
+  });
+
+  it.each([
+    ["zero width", 0, 500],
+    ["zero height", 1110, 0],
+    ["zero both", 0, 0],
+  ])("picks nothing, and does not throw, on %s", (_case, width, height) => {
+    const scene = fakeScene(width, height);
+    skipUnsizedPicks(scene);
+
+    expect(scene.pick(new Cartesian2(1, 1))).toBeUndefined();
+  });
+
+  it("picks again after the canvas has a size", () => {
+    const scene = fakeScene(0, 0);
+    skipUnsizedPicks(scene);
+
+    scene.pick(new Cartesian2(1, 1));
+    scene.drawingBufferWidth = 1110;
+    scene.drawingBufferHeight = 500;
+
+    expect(scene.pick(new Cartesian2(1, 1))).toEqual({ id: "picked", self: scene });
   });
 });
 

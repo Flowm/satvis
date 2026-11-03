@@ -42,9 +42,16 @@ function fakeViewer() {
       // A desktop window: Cesium's 60° is then the horizontal angle.
       camera: {
         frustum: new PerspectiveFrustum({ fov: CesiumMath.toRadians(60), aspectRatio: 1400 / 900 }),
-        getPixelSize: () => viewer.metresPerPixel,
+        getPixelSize: (_sphere: BoundingSphere, width: number, height: number) => {
+          if (width === 0 || height === 0) {
+            throw new Error("drawingBufferWidth must be greater than zero.");
+          }
+          return viewer.metresPerPixel;
+        },
       },
       canvas: { clientWidth: 1400, clientHeight: 900 },
+      drawingBufferWidth: 1400,
+      drawingBufferHeight: 900,
       globe: { ellipsoid: { maximumRadius: 6378137 } },
       frameState: {},
       postRender: { addEventListener: (listener: () => void) => (postRender.add(listener), () => postRender.delete(listener)) },
@@ -382,6 +389,17 @@ describe("SatelliteComponentCollection 3D model with a lower-detail copy", () =>
     expect(shown(model)).toBe(true);
     expect(shown(copy)).toBe(true);
     loading.delete(model);
+    expect(shown(model)).toBe(true);
+    expect(shown(copy)).toBe(false);
+  });
+
+  test("keeps the level it draws while the drawing buffer is gone", async () => {
+    const { viewer, model, copy, shown, setModelRadius, setMetresPerPixel } = await withCopy();
+    setModelRadius(65);
+    setMetresPerPixel(0.5);
+    shown(model);
+    // Withdrawn on context loss, as an Android tab sent to the background does.
+    (viewer.scene as { drawingBufferWidth: number }).drawingBufferWidth = 0;
     expect(shown(model)).toBe(true);
     expect(shown(copy)).toBe(false);
   });
