@@ -183,9 +183,9 @@ public enum SatelliteDetails {
                 rows.append(.init(label: "OBJECT_ID", value: id))
             }
             rows += [
-                ("NORAD_CAT_ID", omm.noradCatID), ("INCLINATION", javaScriptString(omm.inclination)), ("RA_OF_ASC_NODE", javaScriptString(omm.raOfAscNode)),
-                ("ECCENTRICITY", javaScriptString(omm.eccentricity)), ("ARG_OF_PERICENTER", javaScriptString(omm.argOfPericenter)),
-                ("MEAN_ANOMALY", javaScriptString(omm.meanAnomaly)), ("MEAN_MOTION", javaScriptString(omm.meanMotion)), ("BSTAR", javaScriptString(omm.bstar)),
+                ("NORAD_CAT_ID", omm.noradCatID), ("INCLINATION", jsNumberString(omm.inclination)), ("RA_OF_ASC_NODE", jsNumberString(omm.raOfAscNode)),
+                ("ECCENTRICITY", jsNumberString(omm.eccentricity)), ("ARG_OF_PERICENTER", jsNumberString(omm.argOfPericenter)),
+                ("MEAN_ANOMALY", jsNumberString(omm.meanAnomaly)), ("MEAN_MOTION", jsNumberString(omm.meanMotion)), ("BSTAR", jsNumberString(omm.bstar)),
             ].map { Elements.Row(label: $0.0, value: $0.1) }
             return .omm(epoch: epoch, rows: rows)
         }
@@ -269,43 +269,4 @@ private func formatHours(_ hours: Double) -> String {
     let totalMinutes = Int((hours * 60).rounded()) % (24 * 60)
     let (hh, mm) = (totalMinutes / 60, totalMinutes % 60)
     return "\(hh < 10 ? "0" : "")\(hh):\(mm < 10 ? "0" : "")\(mm)"
-}
-
-/// A number as JavaScript's `String(number)` writes it: the shortest digits that
-/// read back to it, in fixed notation from 1e-7 up to 1e21.
-public func javaScriptString(_ value: Double) -> String {
-    guard value.isFinite else {
-        return value.isNaN ? "NaN" : (value < 0 ? "-Infinity" : "Infinity")
-    }
-    if value == 0 {
-        return "0"
-    }
-    let magnitude = abs(value)
-    guard magnitude >= 1e-7, magnitude < 1e21 else {
-        return "\(value)".replacingOccurrences(of: "e-0", with: "e-").replacingOccurrences(of: "e+", with: "e+")
-    }
-    // Swift's description is the shortest round trip too; only the notation differs.
-    let description = "\(magnitude)"
-    let parts = description.lowercased().split(separator: "e")
-    let mantissa = parts[0]
-    let exponent = parts.count > 1 ? Int(parts[1])! : 0
-    let mantissaParts = mantissa.split(separator: ".", omittingEmptySubsequences: false)
-    var digits = String(mantissaParts[0]) + (mantissaParts.count > 1 ? String(mantissaParts[1]) : "")
-    var pointAt = mantissaParts[0].count + exponent
-    while digits.hasPrefix("0") && digits.count > 1 {
-        digits.removeFirst()
-        pointAt -= 1
-    }
-    while digits.hasSuffix("0") && digits.count > 1 {
-        digits.removeLast()
-    }
-    let sign = value < 0 ? "-" : ""
-    if pointAt <= 0 {
-        return sign + "0." + String(repeating: "0", count: -pointAt) + digits
-    }
-    if pointAt >= digits.count {
-        return sign + digits + String(repeating: "0", count: pointAt - digits.count)
-    }
-    let index = digits.index(digits.startIndex, offsetBy: pointAt)
-    return sign + digits[..<index] + "." + digits[index...]
 }

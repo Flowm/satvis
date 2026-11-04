@@ -71,12 +71,18 @@ import Testing
     }
 
     @Test func writesNumbersAsJavaScriptDoes() {
-        #expect(javaScriptString(0.00003476) == "0.00003476")
-        #expect(javaScriptString(14.21475762) == "14.21475762")
-        #expect(javaScriptString(2900) == "2900")
-        #expect(javaScriptString(92.5) == "92.5")
-        #expect(javaScriptString(-0.000033860869) == "-0.000033860869")
-        #expect(javaScriptString(1.5e-8) == "1.5e-8")
+        #expect(jsNumberString(0.00003476) == "0.00003476")
+        #expect(jsNumberString(14.21475762) == "14.21475762")
+        #expect(jsNumberString(2900) == "2900")
+        #expect(jsNumberString(92.5) == "92.5")
+        #expect(jsNumberString(-0.000033860869) == "-0.000033860869")
+        #expect(jsNumberString(1.5e-8) == "1.5e-8")
+        #expect(jsNumberString(5e-7) == "5e-7")
+        #expect(jsNumberString(-3.2e-7) == "-3.2e-7")
+        #expect(jsNumberString(1e-6) == "0.000001")
+        #expect(jsNumberString(1e21) == "1e+21")
+        #expect(jsNumberString(1e20) == "100000000000000000000")
+        #expect(jsNumberString(-1.23e22) == "-1.23e+22")
     }
 
     // The web app's own cases (entityInfo.test.ts): a code the table lacks shows
