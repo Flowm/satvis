@@ -189,7 +189,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var recordsIdle = false
 
     /// Lets go of what is kept only for later: the surface's tiles and terrain
-    /// out of view, and its decoded sources. For iOS's memory warning.
+    /// out of view, and its decoded sources. For iOS's memory warning, and as the
+    /// app leaves the foreground.
     public func trimMemory() {
         surface.trim()
         pacer.needsDraw = true

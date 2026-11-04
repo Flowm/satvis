@@ -314,6 +314,9 @@ final class Session {
         var kept = benchmark.abandon(on: self) ?? link(sharing: false)
         kept.query.items.removeAll { $0.key == "time" }
         UserDefaults.standard.set(kept.url(site: site).absoluteString, forKey: Self.viewKey)
+        // iOS ends the largest apps in the background first, and the tiles kept
+        // for coming back were most of a few hundred megabytes.
+        renderer?.trimMemory()
     }
 
     // MARK: Links
