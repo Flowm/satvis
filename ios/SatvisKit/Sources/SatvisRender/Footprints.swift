@@ -20,11 +20,15 @@ final class GroundOverlay {
     nonisolated static let spanMilliseconds = 300_000.0
     private static let refreshMilliseconds = 1000.0
 
-    let texture: MTLTexture
+    /// The cube drawn into, made when ground tracks are shown and dropped when they
+    /// are hidden: 25 MB of GPU memory, for a component off by default.
+    private var cube: MTLTexture?
+    /// Bound in the cube's place: a texture the shaders declare must be bound, even
+    /// where `hasCoverage` keeps them from sampling it.
+    private let placeholder: MTLTexture
     private var drawnAt: Double?
-    /// False to begin with: a new texture holds whatever was in its memory, so the
-    /// first frame clears it whether or not there is anything to draw.
-    private var isEmpty = false
+    /// Whether the corridors drawn last were none.
+    private var isEmpty = true
     /// Set when the satellites change, so the next frame draws them.
     var isStale = true
     /// Whether corridors are being worked out, off the main thread.
@@ -39,34 +43,46 @@ final class GroundOverlay {
     /// iPad mini spent 1.4 ms of GPU a frame sampling an empty overlay.
     var hasCoverage: Bool { drawnAt != nil && !isEmpty }
 
+    /// The texture for the passes to bind.
+    var texture: MTLTexture { cube ?? placeholder }
+
     init?(device: MTLDevice) {
-        let descriptor = MTLTextureDescriptor.textureCubeDescriptor(pixelFormat: .r8Unorm, size: Self.size, mipmapped: false)
-        descriptor.usage = [.renderTarget, .shaderRead]
-        descriptor.storageMode = .private
-        guard let texture = device.makeTexture(descriptor: descriptor) else {
+        guard let placeholder = Self.makeCube(size: 1, device: device) else {
             return nil
         }
-        self.texture = texture
+        self.placeholder = placeholder
     }
 
-    /// Draws the ground tracks into the overlay when they are due, or clears it
-    /// once when they are switched off. They are worked out off the main thread
-    /// and drawn by the first frame after: for 8,000 Starlink satellites that work
-    /// took 7 ms on a Mac, once a second, a dropped frame on a phone.
+    /// An overlay cube `size` texels a side, which only the GPU writes and reads.
+    static func makeCube(size: Int, device: MTLDevice) -> MTLTexture? {
+        let descriptor = MTLTextureDescriptor.textureCubeDescriptor(pixelFormat: .r8Unorm, size: size, mipmapped: false)
+        descriptor.usage = [.renderTarget, .shaderRead]
+        descriptor.storageMode = .private
+        return device.makeTexture(descriptor: descriptor)
+    }
+
+    /// Draws the ground tracks into the overlay when they are due, or drops it when
+    /// they are switched off. They are worked out off the main thread and drawn by
+    /// the first frame after: for 8,000 Starlink satellites that work took 7 ms on
+    /// a Mac, once a second, a dropped frame on a phone.
     func encode(_ commands: MTLCommandBuffer, pipeline: MTLRenderPipelineState, satellites: [PointSatellite], at now: Double, enabled: Bool, device: MTLDevice) {
         if !enabled {
-            if !isEmpty {
-                draw(commands, pipeline: pipeline, vertices: nil, count: 0)
-                isEmpty = true
-            }
+            cube = nil
             drawnAt = nil
             built = nil
             return
         }
+        // Holds whatever was in its memory until drawn, which `drawnAt` waits for.
+        // Without one, corridors worked out would wait for it, and be worked out
+        // again each time the last landed.
+        guard let cube = cube ?? Self.makeCube(size: Self.size, device: device) else {
+            return
+        }
+        self.cube = cube
         if let built {
             let vertices = built.vertices
             let buffer = vertices.isEmpty ? nil : device.makeBuffer(copying: vertices)
-            draw(commands, pipeline: pipeline, vertices: buffer, count: vertices.count)
+            Self.draw(commands, into: cube, pipeline: pipeline, vertices: buffer, count: vertices.count)
             isEmpty = vertices.isEmpty
             drawnAt = built.at
             self.built = nil
@@ -86,10 +102,11 @@ final class GroundOverlay {
         }
     }
 
-    func draw(_ commands: MTLCommandBuffer, pipeline: MTLRenderPipelineState, vertices: MTLBuffer?, count: Int) {
+    /// Clears each face of `cube` and draws the corridors in `vertices` into it.
+    static func draw(_ commands: MTLCommandBuffer, into cube: MTLTexture, pipeline: MTLRenderPipelineState, vertices: MTLBuffer?, count: Int) {
         for face in 0..<6 {
             let pass = MTLRenderPassDescriptor()
-            pass.colorAttachments[0].texture = texture
+            pass.colorAttachments[0].texture = cube
             pass.colorAttachments[0].slice = face
             pass.colorAttachments[0].loadAction = .clear
             pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)

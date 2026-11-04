@@ -1,4 +1,5 @@
 import Metal
+import SatvisCore
 import Testing
 import simd
 
@@ -147,7 +148,7 @@ import simd
         descriptor.fragmentFunction = libraries.fast.makeFunction(name: "overlayFragment")
         descriptor.colorAttachments[0].pixelFormat = .r8Unorm
         let pipeline = try await device.makeRenderPipelineState(descriptor: descriptor)
-        let overlay = try #require(GroundOverlay(device: device))
+        let cube = try #require(GroundOverlay.makeCube(size: GroundOverlay.size, device: device))
 
         // A corridor across `direction`, 200 km wide.
         let centre = normalize(direction)
@@ -155,7 +156,7 @@ import simd
         let vertices = GroundOverlay.corridor(from: centre - 0.01 * along, to: centre + 0.01 * along, starboardKm: 100, portKm: 100)
         let buffer = try #require(vertices.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) })
         let commands = try #require(queue.makeCommandBuffer())
-        overlay.draw(commands, pipeline: pipeline, vertices: buffer, count: vertices.count)
+        GroundOverlay.draw(commands, into: cube, pipeline: pipeline, vertices: buffer, count: vertices.count)
 
         // Sampled at the corridor and on the far side of the Earth.
         let sampler = try await device.makeLibrary(
@@ -174,7 +175,7 @@ import simd
         var directions = [SIMD3<Float>(centre), SIMD3<Float>(-centre)]
         let encoder = try #require(commands.makeComputeCommandEncoder())
         encoder.setComputePipelineState(probe)
-        encoder.setTexture(overlay.texture, index: 0)
+        encoder.setTexture(cube, index: 0)
         encoder.setBuffer(output, offset: 0, index: 0)
         encoder.setBytes(&directions, length: MemoryLayout<SIMD3<Float>>.stride * 2, index: 1)
         encoder.dispatchThreads(MTLSize(width: 2, height: 1, depth: 1), threadsPerThreadgroup: MTLSize(width: 2, height: 1, depth: 1))
@@ -186,6 +187,52 @@ import simd
         let values = output.contents().bindMemory(to: Float.self, capacity: 2)
         #expect(values[0] > 0.2, "nothing drawn where \(direction) samples")
         #expect(values[1] == 0, "drawn on the far side of \(direction)")
+    }
+
+    // The cube is made when ground tracks are shown and dropped when they are
+    // hidden. A new one holds whatever was in its memory, so the globe samples
+    // none before corridors are drawn into it, the second time as the first.
+    @MainActor
+    @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func makesTheGroundOverlayOnlyWhileShown() async throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let queue = try #require(device.makeCommandQueue())
+        let libraries = try await ShaderLibrary.make(device: device)
+        let descriptor = MTLRenderPipelineDescriptor()
+        descriptor.vertexFunction = libraries.precise.makeFunction(name: "overlayVertex")
+        descriptor.fragmentFunction = libraries.fast.makeFunction(name: "overlayFragment")
+        descriptor.colorAttachments[0].pixelFormat = .r8Unorm
+        let pipeline = try await device.makeRenderPipelineState(descriptor: descriptor)
+        let epoch = try #require(ISO8601DateFormatter().date(from: "2026-10-01T06:00:00Z")).timeIntervalSince1970 * 1000
+        let iss = OrbitMotionTests.records[1]
+        let trajectory = try #require(SampledTrajectory(try SGP4Propagator(iss.meanElements), around: epoch))
+        let satellite = PointSatellite(
+            id: "ISS", name: "ISS", trajectory: trajectory, color: SIMD4(1, 1, 1, 1),
+            footprint: Footprint(swath: SwathExtents(starboardKm: 100, portKm: 100), coneHalfAngleDegrees: 10))
+        let overlay = try #require(GroundOverlay(device: device))
+        func frame(shown: Bool) throws {
+            let commands = try #require(queue.makeCommandBuffer())
+            overlay.encode(commands, pipeline: pipeline, satellites: [satellite], at: epoch, enabled: shown, device: device)
+            commands.commit()
+        }
+        func show() async throws {
+            try frame(shown: true)
+            #expect(overlay.texture.width == GroundOverlay.size)
+            #expect(!overlay.hasCoverage)
+            // Worked out off the main thread, and drawn by the frame after.
+            let deadline = Date().addingTimeInterval(10)
+            while !overlay.hasCoverage, Date() < deadline {
+                try await Task.sleep(for: .milliseconds(10))
+                try frame(shown: true)
+            }
+            #expect(overlay.hasCoverage)
+        }
+
+        #expect(overlay.texture.width == 1)
+        try await show()
+        try frame(shown: false)
+        #expect(overlay.texture.width == 1)
+        #expect(!overlay.hasCoverage)
+        try await show()
     }
     // A satellite is its point and its name: a tap on the name, far from the
     // point, picks it, and a tap on a point beats a neighbour's name over it.
