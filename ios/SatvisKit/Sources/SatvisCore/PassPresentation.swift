@@ -196,6 +196,7 @@ public struct PassTimelineLayout: Sendable {
     }
 }
 
-private func two(_ value: Int) -> String {
+/// At least two digits, zero-padded.
+func two(_ value: Int) -> String {
     value < 10 ? "0\(value)" : "\(value)"
 }

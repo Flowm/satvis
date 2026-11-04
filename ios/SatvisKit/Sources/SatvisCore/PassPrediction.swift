@@ -80,7 +80,7 @@ public struct PassFinder: Sendable {
     }
 
     /// Minutes per revolution, from SGP4's recovered mean motion.
-    public var orbitalPeriod: Double { 2 * Double.pi / propagator.meanMotion }
+    private var orbitalPeriod: Double { 2 * Double.pi / propagator.meanMotion }
 
     /// The web app predicts no passes for a satellite slower than two revolutions
     /// a day: a geostationary one is overhead all the time or never.

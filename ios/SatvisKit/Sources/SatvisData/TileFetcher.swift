@@ -13,7 +13,7 @@ public actor TileFetcher {
     /// Sends one request. A seam for tests; the app uses its own URLSession.
     public typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
-    public static let cacheBytes = 500 * 1024 * 1024
+    private static let cacheBytes = 500 * 1024 * 1024
     private static let defaultPause: TimeInterval = 30
     private let transport: Transport
     private let maximumRequests: Int

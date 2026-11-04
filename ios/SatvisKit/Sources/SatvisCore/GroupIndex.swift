@@ -24,7 +24,7 @@ public struct GroupIndex: Sendable, Hashable, Decodable {
     }
 
     /// The name of the preset a route opens with: `name` if there is one, else the default.
-    public func presetName(_ name: String?) -> String {
+    private func presetName(_ name: String?) -> String {
         name.flatMap { presets[$0] == nil ? nil : $0 } ?? Preset.defaultName
     }
 

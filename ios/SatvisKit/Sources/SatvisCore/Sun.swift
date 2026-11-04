@@ -6,7 +6,7 @@ import simd
 public enum Sun {
     /// A unit vector in the true-of-date equatorial frame, which is TEME to the
     /// precision this formula has.
-    public static func directionTEME(epochMilliseconds: Double) -> SIMD3<Double> {
+    private static func directionTEME(epochMilliseconds: Double) -> SIMD3<Double> {
         let n = epochMilliseconds / msPerDay + 2440587.5 - 2451545.0
         let degrees = Double.pi / 180
         let meanLongitude = (280.460 + 0.9856474 * n) * degrees

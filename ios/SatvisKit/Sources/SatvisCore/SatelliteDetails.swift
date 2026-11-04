@@ -193,7 +193,7 @@ public enum SatelliteDetails {
 
     /// More than this many days from the epoch, either way, a position may be off
     /// (entityInfo.ts's `STALE_ELEMENTS_DAYS`): only the latest element set is kept.
-    public static let staleElementsDays = 10.0
+    private static let staleElementsDays = 10.0
 
     /// The epoch in UTC milliseconds since 1970, as entityInfo.ts's `epochMs`.
     public static func epochMilliseconds(julianDate: Double) -> Double {
@@ -211,7 +211,6 @@ public enum SatelliteDetails {
 
     static func formatEpoch(julianDate: Double) -> String {
         let utc = civilDate(epochMilliseconds: epochMilliseconds(julianDate: julianDate).rounded())
-        func two(_ value: Int) -> String { value < 10 ? "0\(value)" : "\(value)" }
         return "\(utc.year)-\(two(utc.month))-\(two(utc.day)) \(two(utc.hour)):\(two(utc.minute)):\(two(utc.second))"
     }
 }
@@ -268,5 +267,5 @@ private func wrapHours(_ hours: Double) -> Double {
 private func formatHours(_ hours: Double) -> String {
     let totalMinutes = Int((hours * 60).rounded()) % (24 * 60)
     let (hh, mm) = (totalMinutes / 60, totalMinutes % 60)
-    return "\(hh < 10 ? "0" : "")\(hh):\(mm < 10 ? "0" : "")\(mm)"
+    return "\(two(hh)):\(two(mm))"
 }
