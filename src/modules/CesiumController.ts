@@ -77,6 +77,20 @@ export function skipUnsizedFrames(widget: CesiumWidget): void {
   };
 }
 
+/**
+ * Picks nothing without a drawing buffer, where Cesium's pick frustum throws. A tap
+ * still arrives then, and the Viewer's own click and double-click handlers pick too.
+ */
+export function skipUnsizedPicks(scene: Scene): void {
+  const proxied = scene.pick;
+  scene.pick = function guardedPick(this: Scene, ...args: Parameters<Scene["pick"]>) {
+    if (scene.drawingBufferWidth === 0 || scene.drawingBufferHeight === 0) {
+      return undefined;
+    }
+    return proxied.apply(this, args);
+  };
+}
+
 export class CesiumController {
   viewer: Viewer;
 
@@ -133,6 +147,7 @@ export class CesiumController {
     this.#createInputHandler();
     this.#addErrorHandler();
     skipUnsizedFrames(this.viewer.cesiumWidget);
+    skipUnsizedPicks(this.viewer.scene);
 
     this.sats = new SatelliteManager(this.viewer);
     this.renderPacer = new RenderPacer(this.viewer.scene, {

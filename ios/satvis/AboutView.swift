@@ -25,9 +25,15 @@ struct AboutView: View {
         (.lucideInfo, "Select a satellite to see its orbit, its next passes over your locations and its spacecraft details: country, operator, manufacturer, bus, mass and size"),
         (.lucideCrosshair, "Track a satellite: the camera flies to it and follows it along its orbit"),
         (.lucideMapPin, "Save your location or any point you pick on the map, then list the upcoming passes over it and get a notification before one starts"),
-        (.lucideTelescope, "Find satellites overhead in the ground-level sky view, aimed by dragging or by pointing your \(device), with the camera's picture of the sky behind them"),
+        (
+            .lucideTelescope,
+            "Find satellites overhead in the ground-level sky view, aimed by dragging or by pointing your \(device), with the camera's picture of the sky behind them"
+        ),
         (.lucideEye, "See which satellites you could spot: the sky view dims those in Earth's shadow, too far away or in a daylit sky"),
-        (.lucideLayers, "View the globe in 3D or flattened to 2D, over the base map, star field and terrain you choose: satellite imagery, Earth at night or the day's VIIRS imagery"),
+        (
+            .lucideLayers,
+            "View the globe in 3D or flattened to 2D, over the base map, star field and terrain you choose: satellite imagery, Earth at night or the day's VIIRS imagery"
+        ),
         (.lucideBookmark, "Start from the featured views, bookmark your own, and share any view as a link: it opens the same view on satvis.space"),
         (.lucideLink, "Open satvis.space links straight in the app"),
         (.lucideWifiOff, "Keep using it offline, from the satellite data it last fetched"),

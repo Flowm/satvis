@@ -326,6 +326,10 @@ export class ModelSize {
       return undefined;
     }
     const { scene } = this.#viewer;
+    // A frame skipped for a lost drawing buffer still ticks the clock, which asks this; Cesium throws on it.
+    if (scene.drawingBufferWidth === 0 || scene.drawingBufferHeight === 0) {
+      return undefined;
+    }
     const fillsView = Math.hypot(scene.canvas.clientWidth, scene.canvas.clientHeight);
     const metresPerPixel = scene.camera.getPixelSize(sphere, scene.drawingBufferWidth, scene.drawingBufferHeight);
     // Zero with the camera inside the sphere, where Cesium measures no distance to it.
