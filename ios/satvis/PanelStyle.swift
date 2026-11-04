@@ -101,6 +101,15 @@ extension View {
             .labelsHidden()
             .background(Color.panelRaised, in: .capsule)
     }
+
+    /// Hands `action` where the view is in the window, and again as that changes.
+    func reportsFrame(_ action: @escaping (CGRect) -> Void) -> some View {
+        onGeometryChange(for: CGRect.self) {
+            $0.frame(in: .global)
+        } action: {
+            action($0)
+        }
+    }
 }
 
 /// The surface of `panel(in:)`, as dense as the environment says.

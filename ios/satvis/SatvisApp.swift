@@ -198,11 +198,7 @@ struct ContentView: View {
             // The menu toggle's name's weight, for strokes as heavy as its icon's.
             .font(.body.weight(.medium))
             .buttonStyle(PanelButtonStyle(square: true))
-            .onGeometryChange(for: CGRect.self) {
-                $0.frame(in: .global)
-            } action: {
-                cornerFrame = $0
-            }
+            .reportsFrame { cornerFrame = $0 }
             .padding(PanelMetrics.edge)
             // Under the info card, which has its own Track and close.
             .opacity(showsCard ? 0 : 1)
@@ -231,11 +227,7 @@ struct ContentView: View {
                             Color.clear.panel()
                                 .environment(\.panelDensity, .dense)
                         }
-                        .onGeometryChange(for: CGRect.self) {
-                            $0.frame(in: .global)
-                        } action: {
-                            cardFrame = $0
-                        }
+                        .reportsFrame { cardFrame = $0 }
                         .padding(.top, frame.minY - room.minY)
                         .padding(.trailing, room.maxX - frame.maxX)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -279,11 +271,7 @@ struct ContentView: View {
                         }
                     }
                     .environment(\.toolNamesFolded, !roomy && panel != nil)
-                    .onGeometryChange(for: CGRect.self) {
-                        $0.frame(in: .global)
-                    } action: {
-                        menuFrame = $0
-                    }
+                    .reportsFrame { menuFrame = $0 }
                     if let panel {
                         ToolPanelView(panel: panel, maxHeight: panelMaxHeight, onClose: { self.panel = nil }) {
                             switch panel {
@@ -313,11 +301,7 @@ struct ContentView: View {
                 .frame(maxWidth: panelReach, alignment: .topLeading)
                 .padding(PanelMetrics.edge)
             }
-            .onGeometryChange(for: CGRect.self) {
-                $0.frame(in: .global)
-            } action: {
-                toolsFrame = $0
-            }
+            .reportsFrame { toolsFrame = $0 }
             .shown(showsUI)
         }
         // Open from the start where there is room, as the web app's is on a desktop
@@ -375,11 +359,7 @@ struct ContentView: View {
                     OpenStreetMapCredit(isOwed: session.mapCredits.contains(.openStreetMap)) { showsAcknowledgements = true }
                 }
                 .frame(maxWidth: .infinity)
-                .onGeometryChange(for: CGRect.self) {
-                    $0.frame(in: .global)
-                } action: {
-                    deckFrame = $0
-                }
+                .reportsFrame { deckFrame = $0 }
                 .shown(showsUI)
             }
             // A benchmark panel taller than the room scrolls under the top row
