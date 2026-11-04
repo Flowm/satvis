@@ -46,20 +46,11 @@ public struct OrbitCamera: Sendable, Equatable {
     /// the heading the shorter way round.
     public static func between(_ from: OrbitCamera, _ to: OrbitCamera, t: Double) -> OrbitCamera {
         let eased = SkyFlight.ease(t)
-        let a = from.up
-        let b = to.up
-        let angle = acos(min(max(dot(a, b), -1), 1))
-        var unit = b
-        if angle > 1e-9, eased < 1 {
-            var axis = cross(a, b)
-            if length(axis) < 1e-12 {
-                axis = abs(a.x) < 0.9 ? cross(a, SIMD3(1, 0, 0)) : cross(a, SIMD3(0, 1, 0))
-            }
-            unit = simd_quatd(angle: angle * eased, axis: normalize(axis)).act(a)
-        }
-        let altitude = exp(log(from.altitude) + (log(to.altitude) - log(from.altitude)) * eased)
-        let turn = remainder(to.heading - from.heading, 2 * .pi)
-        return OrbitCamera(latitude: asin(min(max(unit.z, -1), 1)), longitude: atan2(unit.y, unit.x), altitude: altitude, heading: from.heading + turn * eased)
+        let unit = greatCircle(from: from.up, to: to.up, t: eased)
+        let altitude = logarithmicMix(from.altitude, to.altitude, t: eased)
+        return OrbitCamera(
+            latitude: asin(min(max(unit.z, -1), 1)), longitude: atan2(unit.y, unit.x), altitude: altitude,
+            heading: headingMix(from.heading, to.heading, t: eased))
     }
 
     /// The screen's up and right on the globe, as unit vectors in the fixed frame.

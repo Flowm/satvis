@@ -99,12 +99,11 @@ struct MapCamera: Sendable, Equatable {
     static func between(_ from: MapCamera, _ to: MapCamera, t: Double) -> MapCamera {
         let eased = SkyFlight.ease(min(max(t, 0), 1))
         let east = remainder(to.longitude - from.longitude, 2 * .pi)
-        let turn = remainder(to.heading - from.heading, 2 * .pi)
         return MapCamera(
             latitude: from.latitude + (to.latitude - from.latitude) * eased,
             longitude: remainder(from.longitude + east * eased, 2 * .pi),
-            span: exp(log(from.span) + (log(to.span) - log(from.span)) * eased),
-            heading: from.heading + turn * eased)
+            span: logarithmicMix(from.span, to.span, t: eased),
+            heading: headingMix(from.heading, to.heading, t: eased))
     }
 
     /// The screen's right and up on the map, east and north as x and y.

@@ -27,18 +27,8 @@ struct PoseFlight {
     /// the attitude turned the shortest way.
     static func pose(from: CameraPose, to: CameraPose, t: Double) -> CameraPose {
         let eased = SkyFlight.ease(t)
-        let a = normalize(from.position)
-        let b = normalize(to.position)
-        let angle = acos(min(max(dot(a, b), -1), 1))
-        var direction = b
-        if angle > 1e-9, eased < 1 {
-            var axis = cross(a, b)
-            if length(axis) < 1e-12 {
-                axis = abs(a.x) < 0.9 ? cross(a, SIMD3(1, 0, 0)) : cross(a, SIMD3(0, 1, 0))
-            }
-            direction = simd_quatd(angle: angle * eased, axis: normalize(axis)).act(a)
-        }
-        let radius = exp(log(length(from.position)) + (log(length(to.position)) - log(length(from.position))) * eased)
+        let direction = greatCircle(from: normalize(from.position), to: normalize(to.position), t: eased)
+        let radius = logarithmicMix(length(from.position), length(to.position), t: eased)
         let basis = simd_double3x3(simd_slerp(SkyFlight.attitude(from), SkyFlight.attitude(to), eased).normalized)
         let fieldOfView: Double? =
             if let start = from.verticalFieldOfView, let end = to.verticalFieldOfView { start + (end - start) * eased } else { to.verticalFieldOfView }
@@ -46,4 +36,28 @@ struct PoseFlight {
             position: direction * radius, right: basis.columns.0, up: basis.columns.1, back: basis.columns.2, verticalFieldOfView: fieldOfView,
             near: min(from.near, to.near))
     }
+}
+
+/// The unit vector `t` of the way from `a` to `b` along the great circle between
+/// them; antipodal ones have no unique circle, so any is taken.
+func greatCircle(from a: SIMD3<Double>, to b: SIMD3<Double>, t: Double) -> SIMD3<Double> {
+    let angle = acos(min(max(dot(a, b), -1), 1))
+    guard angle > 1e-9, t < 1 else {
+        return b
+    }
+    var axis = cross(a, b)
+    if length(axis) < 1e-12 {
+        axis = abs(a.x) < 0.9 ? cross(a, SIMD3(1, 0, 0)) : cross(a, SIMD3(0, 1, 0))
+    }
+    return simd_quatd(angle: angle * t, axis: normalize(axis)).act(a)
+}
+
+/// `t` of the way from `a` to `b`, evenly in the logarithm.
+func logarithmicMix(_ a: Double, _ b: Double, t: Double) -> Double {
+    exp(log(a) + (log(b) - log(a)) * t)
+}
+
+/// The heading `t` of the way from `a` to `b` in radians, the shorter way round.
+func headingMix(_ a: Double, _ b: Double, t: Double) -> Double {
+    a + remainder(b - a, 2 * .pi) * t
 }
