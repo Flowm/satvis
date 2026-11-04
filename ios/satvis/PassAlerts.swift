@@ -23,7 +23,7 @@ final class PassAlerts {
     @ObservationIgnored private let loader: GroupLoader
     /// Where the stations and mode are read from, with no `PassModel` about in a
     /// background refresh.
-    @ObservationIgnored private let stationStorage: any StationStorage
+    @ObservationIgnored private let stationStorage: StationStorage
     @ObservationIgnored private let center = UNUserNotificationCenter.current()
     @ObservationIgnored private let presenter = Presenter()
     @ObservationIgnored private var scheduling: Task<PassNotificationPlan?, Never>?
@@ -31,7 +31,7 @@ final class PassAlerts {
     @ObservationIgnored private var nextRefresh: Date?
     @ObservationIgnored private var clearing: Task<Void, Never>?
 
-    init(loader: GroupLoader, stationStorage: any StationStorage = UserDefaultsStationStorage()) {
+    init(loader: GroupLoader, stationStorage: StationStorage = .app) {
         self.loader = loader
         self.stationStorage = stationStorage
         alerts = UserDefaults.standard.data(forKey: Self.key).map(PassAlert.decodeAll) ?? []

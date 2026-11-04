@@ -3,27 +3,31 @@ import Testing
 
 @testable import SatvisCore
 
-/// The other side of the storage seam from the app's `UserDefaults`.
-private final class MemoryStationStorage: StationStorage {
-    var stationJSON: Data?
-    var modeRaw: String?
-
-    init(stationJSON: Data? = nil) {
-        self.stationJSON = stationJSON
-    }
-
-    func stationData() -> Data? { stationJSON }
-    func setStationData(_ data: Data) { stationJSON = data }
-    func modeName() -> String? { modeRaw }
-    func setModeName(_ name: String) { modeRaw = name }
-}
-
-@Suite struct StationListTests {
+@Suite final class StationListTests {
     private let munich = GroundStation(latitude: 48.1351, longitude: 11.582, name: "Munich")
     private let berlin = GroundStation(latitude: 52.52, longitude: 13.405, name: "Berlin")
+    /// The defaults `storage(stationJSON:)` made, removed after each test.
+    private var suites: [String] = []
+
+    deinit {
+        for suite in suites {
+            UserDefaults.standard.removePersistentDomain(forName: suite)
+        }
+    }
+
+    /// Storage over defaults of its own, holding `stationJSON` as the saved stations.
+    private func storage(stationJSON: String? = nil) -> StationStorage {
+        let suite = UUID().uuidString
+        suites.append(suite)
+        let storage = StationStorage(defaults: UserDefaults(suiteName: suite)!)
+        if let stationJSON {
+            storage.setStationData(Data(stationJSON.utf8))
+        }
+        return storage
+    }
 
     @Test func keepsTheListAndModeInTheStorage() {
-        let storage = MemoryStationStorage()
+        let storage = storage()
         var list = StationList(storage: storage)
         #expect(list.saved.isEmpty)
         list.setSaved([munich, berlin])
@@ -37,7 +41,7 @@ private final class MemoryStationStorage: StationStorage {
     // Saved before stations had ids: read once, the ids given are saved back,
     // so every later read, the background refresh's too, has the same ones.
     @Test func keepsTheIdsGivenToAnOldList() {
-        let storage = MemoryStationStorage(stationJSON: Data(#"[{"latitude": 48.1351, "longitude": 11.582, "name": "Munich"}]"#.utf8))
+        let storage = storage(stationJSON: #"[{"latitude": 48.1351, "longitude": 11.582, "name": "Munich"}]"#)
         let list = StationList(storage: storage)
         #expect(list.saved.map(\.name) == ["Munich"])
         #expect(storage.stations().map(\.id) == list.saved.map(\.id))
@@ -46,13 +50,12 @@ private final class MemoryStationStorage: StationStorage {
 
     // A station that does not decode drops alone, not the whole list.
     @Test func readsTheStationsThatDecode() {
-        let storage = MemoryStationStorage(
-            stationJSON: Data(#"[{"latitude": 48.1351, "longitude": 11.582, "name": "Munich"}, {"latitude": "north"}]"#.utf8))
+        let storage = storage(stationJSON: #"[{"latitude": 48.1351, "longitude": 11.582, "name": "Munich"}, {"latitude": "north"}]"#)
         #expect(StationList(storage: storage).saved.map(\.name) == ["Munich"])
     }
 
     @Test func showsALinksStationInASavedOnesPlaceOnce() {
-        var list = StationList(storage: MemoryStationStorage())
+        var list = StationList(storage: storage())
         list.setSaved([munich])
         list.setVisiting([GroundStation(latitude: 48.1351, longitude: 11.582, name: "Munich"), berlin])
         #expect(list.visiting.map(\.id) == [berlin.id])
@@ -62,7 +65,7 @@ private final class MemoryStationStorage: StationStorage {
     }
 
     @Test func savesAVisitUnderItsId() {
-        let storage = MemoryStationStorage()
+        let storage = storage()
         var list = StationList(storage: storage)
         list.setSaved([munich])
         list.setVisiting([berlin])
@@ -74,7 +77,7 @@ private final class MemoryStationStorage: StationStorage {
     }
 
     @Test func removesASavedStationOrALinks() {
-        let storage = MemoryStationStorage()
+        let storage = storage()
         var list = StationList(storage: storage)
         list.setSaved([munich])
         list.setVisiting([berlin])
@@ -86,7 +89,7 @@ private final class MemoryStationStorage: StationStorage {
     }
 
     @Test func answersAnAddInAStationsPlaceWithThatStation() {
-        var list = StationList(storage: MemoryStationStorage())
+        var list = StationList(storage: storage())
         list.setSaved([munich])
         #expect(list.add(latitude: 48.135_149, longitude: 11.582, name: "Munich") == munich.id)
         #expect(list.saved.count == 1)
@@ -98,7 +101,7 @@ private final class MemoryStationStorage: StationStorage {
     // Each look from where the user stands moves the one Geolocation station,
     // to the front, and drops any others of the name an edit left.
     @Test func keepsOneGeolocationFirst() {
-        var list = StationList(storage: MemoryStationStorage())
+        var list = StationList(storage: storage())
         let here = GroundStation(latitude: 1, longitude: 2, name: StationList.geolocation)
         let again = GroundStation(latitude: 3, longitude: 4, name: StationList.geolocation)
         list.setSaved([munich, here, again])
@@ -107,7 +110,7 @@ private final class MemoryStationStorage: StationStorage {
         #expect(list.saved.map(\.id) == [here.id, munich.id])
         #expect(list.saved.first?.latitude == 10)
 
-        var fresh = StationList(storage: MemoryStationStorage())
+        var fresh = StationList(storage: storage())
         let added = fresh.setGeolocation(latitude: 10, longitude: 20)
         #expect(fresh.saved.map(\.id) == [added])
     }

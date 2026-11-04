@@ -1,20 +1,29 @@
 import Foundation
 
-/// Where the station list and the overpass mode are kept: on the device and
-/// synced nowhere, as stations are often where the user lives.
-public protocol StationStorage {
+/// Where the station list and the overpass mode are kept: in `UserDefaults`, on
+/// the device and synced nowhere, as stations are often where the user lives.
+public struct StationStorage {
+    /// The keys existing installs saved them under.
+    private static let stationsKey = "groundStations"
+    private static let modeKey = "overpassMode"
+
+    private let defaults: UserDefaults
+
+    public init(defaults: UserDefaults) {
+        self.defaults = defaults
+    }
+
     /// The saved stations as JSON, as `[GroundStation]` encodes them; nil before
     /// any were saved.
-    func stationData() -> Data?
-    /// Keeps `data` as the saved stations.
-    func setStationData(_ data: Data)
-    /// The overpass mode's raw value.
-    func modeName() -> String?
-    /// Keeps `name` as the overpass mode's raw value.
-    func setModeName(_ name: String)
-}
+    func stationData() -> Data? {
+        defaults.data(forKey: Self.stationsKey)
+    }
 
-extension StationStorage {
+    /// Keeps `data` as the saved stations.
+    func setStationData(_ data: Data) {
+        defaults.set(data, forKey: Self.stationsKey)
+    }
+
     /// The stations as last saved, read one at a time, so one that does not
     /// decode drops alone rather than the list, which the next edit would then
     /// keep empty. One saved before stations had ids gets a new one on every
@@ -35,12 +44,12 @@ extension StationStorage {
 
     /// The overpass mode as last saved: by elevation until one is.
     public var mode: OverpassMode {
-        modeName().flatMap(OverpassMode.init(rawValue:)) ?? .elevation
+        defaults.string(forKey: Self.modeKey).flatMap(OverpassMode.init(rawValue:)) ?? .elevation
     }
 
     /// Keeps the overpass mode.
     public func saveMode(_ mode: OverpassMode) {
-        setModeName(mode.rawValue)
+        defaults.set(mode.rawValue, forKey: Self.modeKey)
     }
 
     /// The stations and mode as last saved, for predicting with no model about:
@@ -61,13 +70,13 @@ public struct StationList {
     /// among them.
     public private(set) var shown: [GroundStation]
     /// Where every edit is kept as it is made.
-    private let storage: any StationStorage
+    private let storage: StationStorage
 
     /// The name the device's position is saved under, as on the web.
     public static let geolocation = "Geolocation"
 
     /// The stations as last saved in `storage`, with no visits.
-    public init(storage: any StationStorage) {
+    public init(storage: StationStorage) {
         self.storage = storage
         saved = storage.stations()
         shown = saved

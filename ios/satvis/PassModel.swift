@@ -23,7 +23,7 @@ final class PassModel {
     /// out from them.
     @ObservationIgnored private(set) var revision = 0
     @ObservationIgnored private let store = PassStore()
-    @ObservationIgnored private let storage: any StationStorage
+    @ObservationIgnored private let storage: StationStorage
     @ObservationIgnored private var list: StationList
 
     /// Satellites per message to the store: enough to keep every core busy.
@@ -32,7 +32,7 @@ final class PassModel {
     /// publication redraws what reads the passes, so not per chunk.
     private static let publishInterval: TimeInterval = 0.5
 
-    init(storage: any StationStorage = UserDefaultsStationStorage()) {
+    init(storage: StationStorage = .app) {
         self.storage = storage
         list = StationList(storage: storage)
         saved = list.saved
@@ -187,36 +187,15 @@ final class PassModel {
     }
 }
 
-/// The stations and mode in `UserDefaults`, under the keys and in the format
-/// existing installs saved them with.
-nonisolated struct UserDefaultsStationStorage: StationStorage {
-    private static let stationsKey = "groundStations"
-    private static let modeKey = "overpassMode"
-
+extension StationStorage {
     /// The app's, or on the UI tests' catalog defaults of their own (`TestCatalog`).
-    private static var defaults: UserDefaults {
+    nonisolated static var app: StationStorage {
         #if DEBUG
             if let defaults = TestCatalog.stationDefaults {
-                return defaults
+                return StationStorage(defaults: defaults)
             }
         #endif
-        return .standard
-    }
-
-    func stationData() -> Data? {
-        Self.defaults.data(forKey: Self.stationsKey)
-    }
-
-    func setStationData(_ data: Data) {
-        Self.defaults.set(data, forKey: Self.stationsKey)
-    }
-
-    func modeName() -> String? {
-        Self.defaults.string(forKey: Self.modeKey)
-    }
-
-    func setModeName(_ name: String) {
-        Self.defaults.set(name, forKey: Self.modeKey)
+        return StationStorage(defaults: .standard)
     }
 }
 
