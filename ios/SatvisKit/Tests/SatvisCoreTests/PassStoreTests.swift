@@ -6,7 +6,7 @@ import Testing
 @Suite struct PassStoreTests {
     private func entries() throws -> [CatalogEntry] {
         var catalog = Catalog()
-        catalog.add(try GPRecord.decodePayload(Parity.fixture("parity-input")), tags: ["parity"])
+        catalog.add(try GPRecord.decodePayload(Parity.fixture("parity-input")), tags: ["parity"], group: "parity")
         return catalog.entries(tagged: "parity")
     }
 
@@ -207,7 +207,7 @@ import Testing
     // Only what has to be predicted again is.
     @Test func predictsOnlyWhatIsMissing() async throws {
         var catalog = Catalog()
-        catalog.add(try GPRecord.decodePayload(Parity.fixture("parity-input")), tags: ["parity"])
+        catalog.add(try GPRecord.decodePayload(Parity.fixture("parity-input")), tags: ["parity"], group: "parity")
         let entries = catalog.entries(tagged: "parity")
         let time = try #require(utcMilliseconds(iso: "2026-10-02T12:00:00"))
         let store = PassStore()
