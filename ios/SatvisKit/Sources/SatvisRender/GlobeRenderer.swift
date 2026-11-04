@@ -950,16 +950,15 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         overlay.encode(commands, pipeline: overlayPipeline, satellites: points.satellites, at: now, enabled: components.contains(.groundTrack), device: device)
         var surfaceTiles: [Surface.Tile] = []
-        if let imagery, let map = pose.mapCamera {
-            let selection = surface.selectMap(map, viewportPixels: size)
-            let drawn = Set(selection.draw.map(\.key))
-            let bakes = selection.bake.filter { drawn.contains($0.key) } + selection.bake.filter { !drawn.contains($0.key) }
-            surface.encodeBakes(bakes, base: imagery, commands: commands)
-            surfaceTiles = selection.draw.filter { $0.texture != nil }
-        } else if let imagery {
-            let selection = surface.select(
-                eye: pose.position, viewProjection: drawnFrame.viewProjection, viewportHeightPixels: size.y,
-                verticalFieldOfView: pose.verticalFieldOfView(aspectRatio: size.x / size.y), pixelsPerPoint: pixelScale)
+        if let imagery {
+            let selection =
+                if let map = pose.mapCamera {
+                    surface.selectMap(map, viewportPixels: size)
+                } else {
+                    surface.select(
+                        eye: pose.position, viewProjection: drawnFrame.viewProjection, viewportHeightPixels: size.y,
+                        verticalFieldOfView: pose.verticalFieldOfView(aspectRatio: size.x / size.y), pixelsPerPoint: pixelScale)
+                }
             // What is drawn now first, then the children waiting to replace it.
             let drawn = Set(selection.draw.map(\.key))
             let bakes = selection.bake.filter { drawn.contains($0.key) } + selection.bake.filter { !drawn.contains($0.key) }
