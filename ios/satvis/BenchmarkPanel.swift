@@ -73,17 +73,10 @@ struct BenchmarkPanel: View {
     }
 
     private var progress: Double {
-        switch benchmark.phase {
-        case .idle, .cancelled: 0
-        case .loading(let index), .settling(let index), .measuring(let index): Double(index) / Double(Benchmark.plan.count)
-        case .done: 1
-        }
-    }
-
-    private var current: Int? {
-        switch benchmark.phase {
-        case .loading(let index), .settling(let index), .measuring(let index): index
-        default: nil
+        if let scene = benchmark.phase.scene {
+            Double(scene) / Double(Benchmark.plan.count)
+        } else {
+            benchmark.phase == .done ? 1 : 0
         }
     }
 
@@ -99,7 +92,7 @@ struct BenchmarkPanel: View {
             .font(.caption2.weight(.semibold))
             .foregroundStyle(.secondary)
             ForEach(Array(Benchmark.plan.enumerated()), id: \.offset) { index, scene in
-                row(scene, result: benchmark.results.indices.contains(index) ? benchmark.results[index] : nil, isCurrent: index == current)
+                row(scene, result: benchmark.results.indices.contains(index) ? benchmark.results[index] : nil, isCurrent: index == benchmark.phase.scene)
             }
         }
     }
