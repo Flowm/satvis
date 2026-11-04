@@ -143,7 +143,7 @@ final class Surface {
         descriptor.colorAttachments[0].pixelFormat = .rgba8Unorm
         bakePipeline = try device.makeRenderPipelineState(descriptor: descriptor)
         let grid = SurfaceMesh.indices()
-        indexBuffer = grid.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count)! }
+        indexBuffer = device.makeBuffer(copying: grid)!
         indexCount = grid.count
         let samplerDescriptor = MTLSamplerDescriptor()
         samplerDescriptor.minFilter = .linear
@@ -364,7 +364,7 @@ final class Surface {
             terrain: terrain.source.map { source in
                 (source.sample, Terrain.skirtHeight(level: terrain.key?.level ?? 0))
             })
-        guard let vertices = mesh.vertices.withUnsafeBytes({ device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) }) else {
+        guard let vertices = device.makeBuffer(copying: mesh.vertices) else {
             return tile.draped != nil
         }
         tile.draped = (vertices, terrain.key)
@@ -648,7 +648,7 @@ final class Surface {
         }
         let bounds = Projection.geographic.bounds(key)
         let mesh = SurfaceMesh(bounds: bounds, level: key.level)
-        let buffer = mesh.vertices.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count)! }
+        let buffer = device.makeBuffer(copying: mesh.vertices)!
         let tile = Tile(key: key, bounds: bounds, vertices: buffer, centre: mesh.centre, radius: mesh.radius, samples: mesh.samples)
         tiles[key] = tile
         return tile

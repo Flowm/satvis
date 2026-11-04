@@ -179,11 +179,11 @@ public struct PreparedSatellites: @unchecked Sendable {
         cones =
             coneList.isEmpty
             ? nil
-            : coneList.withUnsafeBytes { bytes in device.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count).map { ($0, coneList.count) } }
+            : device.makeBuffer(copying: coneList).map { ($0, coneList.count) }
         labels =
             satellites.count <= LabelAtlas.maximumLabels
             ? LabelAtlas(names: satellites.map(\.name), scale: labelScale, device: device).flatMap { atlas in
-                atlas.instances.withUnsafeBytes { bytes in device.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count).map { (atlas, $0) } }
+                device.makeBuffer(copying: atlas.instances).map { (atlas, $0) }
             } : nil
     }
 }

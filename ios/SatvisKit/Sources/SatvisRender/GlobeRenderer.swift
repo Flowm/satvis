@@ -290,12 +290,6 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
 
         // Vertex functions from the precise library, fragment functions from the fast.
-        func function(_ name: String, in library: MTLLibrary = libraries.precise) throws -> MTLFunction {
-            guard let function = library.makeFunction(name: name) else {
-                throw RendererError.missingFunction(name)
-            }
-            return function
-        }
         // One pass where the GPU can read its render targets in place: the HDR
         // image and the depth stay in tile memory, and the screen is the scene
         // pass's second target, written by the tonemap alone.
@@ -309,8 +303,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             fastVertex: Bool = false
         ) throws -> MTLRenderPipelineState {
             let descriptor = MTLRenderPipelineDescriptor()
-            descriptor.vertexFunction = try function(vertex, in: fastVertex ? libraries.fast : libraries.precise)
-            descriptor.fragmentFunction = try function(fragment, in: libraries.fast)
+            descriptor.vertexFunction = try (fastVertex ? libraries.fast : libraries.precise).function(vertex)
+            descriptor.fragmentFunction = try libraries.fast.function(fragment)
             descriptor.colorAttachments[0].pixelFormat = format
             if !writesColor {
                 descriptor.colorAttachments[0].writeMask = []
@@ -320,12 +314,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
                 descriptor.colorAttachments[1].writeMask = []
             }
             if blend {
-                let attachment = descriptor.colorAttachments[0]!
-                attachment.isBlendingEnabled = true
-                attachment.sourceRGBBlendFactor = premultiplied ? .one : .sourceAlpha
-                attachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
-                attachment.sourceAlphaBlendFactor = .one
-                attachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+                descriptor.colorAttachments[0].blendOver(premultiplied: premultiplied)
             }
             if depth {
                 descriptor.depthAttachmentPixelFormat = Self.depthFormat
@@ -361,7 +350,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         tonemapPipeline = try pipeline("fullscreenVertex", "tonemapFragment", format: view.colorPixelFormat, depth: false)
         tonemapTilePipeline = try tileTonemap.map { fragment in
             let descriptor = MTLRenderPipelineDescriptor()
-            descriptor.vertexFunction = try function("fullscreenVertex")
+            descriptor.vertexFunction = try libraries.precise.function("fullscreenVertex")
             descriptor.fragmentFunction = fragment
             descriptor.colorAttachments[0].pixelFormat = Self.hdrFormat
             descriptor.colorAttachments[0].writeMask = []
@@ -392,8 +381,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         linearSampler = device.makeSamplerState(descriptor: samplerDescriptor)!
 
         func upload<Vertex: BitwiseCopyable>(_ mesh: EllipsoidMesh<Vertex>) -> (MTLBuffer, MTLBuffer, Int) {
-            let vertices = mesh.vertices.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count)! }
-            let indices = mesh.indices.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count)! }
+            let vertices = device.makeBuffer(copying: mesh.vertices)!
+            let indices = device.makeBuffer(copying: mesh.indices)!
             return (vertices, indices, mesh.indices.count)
         }
         surface = try Surface(device: device, library: libraries.precise, site: URL(string: "https://satvis.space/")!)
@@ -408,7 +397,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         tileSampler = device.makeSamplerState(descriptor: tileSamplerDescriptor)!
         skyShell = upload(Meshes.skyShell())
         let ringIndices = Meshes.grid(columns: Self.skyRingColumns, rows: Self.skyRingRows)
-        guard let ringBuffer = ringIndices.withUnsafeBytes({ device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) }) else {
+        guard let ringBuffer = device.makeBuffer(copying: ringIndices) else {
             throw RendererError.noDevice
         }
         skyRing = (ringBuffer, ringIndices.count)
@@ -1433,6 +1422,34 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             unseenOpacity: judgement?.uniforms.unseenOpacity ?? 1,
             skyIsDark: judgement?.uniforms.skyIsDark ?? 0,
             mapCentre: pose.mapCamera.map { SIMD2<Float>(Float($0.longitude), Float($0.latitude)) } ?? SIMD2())
+    }
+}
+
+extension MTLDevice {
+    /// A new buffer holding a copy of `array`.
+    func makeBuffer<Element>(copying array: [Element]) -> MTLBuffer? {
+        array.withUnsafeBytes { makeBuffer(bytes: $0.baseAddress!, length: $0.count) }
+    }
+}
+
+extension MTLLibrary {
+    /// The function called `name`, or an error naming it.
+    func function(_ name: String) throws -> MTLFunction {
+        guard let function = makeFunction(name: name) else {
+            throw RendererError.missingFunction(name)
+        }
+        return function
+    }
+}
+
+extension MTLRenderPipelineColorAttachmentDescriptor {
+    /// Source over: alpha-weighted, or as is for a premultiplied source.
+    func blendOver(premultiplied: Bool = false) {
+        isBlendingEnabled = true
+        sourceRGBBlendFactor = premultiplied ? .one : .sourceAlpha
+        destinationRGBBlendFactor = .oneMinusSourceAlpha
+        sourceAlphaBlendFactor = .one
+        destinationAlphaBlendFactor = .oneMinusSourceAlpha
     }
 }
 

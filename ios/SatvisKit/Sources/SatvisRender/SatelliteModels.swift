@@ -34,9 +34,7 @@ final class PreparedModel: @unchecked Sendable {
     }
 
     private init?(_ asset: ModelAsset, textures: [MTLTexture?], device: MTLDevice) {
-        guard let vertices = asset.vertices.withUnsafeBytes({ device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) }),
-            let indices = asset.indices.withUnsafeBytes({ device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) })
-        else {
+        guard let vertices = device.makeBuffer(copying: asset.vertices), let indices = device.makeBuffer(copying: asset.indices) else {
             return nil
         }
         self.vertices = vertices
@@ -176,15 +174,9 @@ struct ModelPipelines {
 
     /// One of the two, not yet built.
     static func descriptor(blended: Bool, vertex: MTLLibrary, fragment: MTLLibrary, targets: Targets) throws -> MTLRenderPipelineDescriptor {
-        func function(_ name: String, in library: MTLLibrary) throws -> MTLFunction {
-            guard let function = library.makeFunction(name: name) else {
-                throw RendererError.missingFunction(name)
-            }
-            return function
-        }
         let descriptor = MTLRenderPipelineDescriptor()
-        descriptor.vertexFunction = try function("modelVertex", in: vertex)
-        descriptor.fragmentFunction = try function(blended ? "modelFragment" : "modelOpaqueFragment", in: fragment)
+        descriptor.vertexFunction = try vertex.function("modelVertex")
+        descriptor.fragmentFunction = try fragment.function(blended ? "modelFragment" : "modelOpaqueFragment")
         descriptor.colorAttachments[0].pixelFormat = targets.color
         if let screen = targets.screen {
             descriptor.colorAttachments[1].pixelFormat = screen
@@ -193,12 +185,7 @@ struct ModelPipelines {
         descriptor.depthAttachmentPixelFormat = targets.depth
         descriptor.rasterSampleCount = targets.sampleCount
         if blended {
-            let attachment = descriptor.colorAttachments[0]!
-            attachment.isBlendingEnabled = true
-            attachment.sourceRGBBlendFactor = .sourceAlpha
-            attachment.destinationRGBBlendFactor = .oneMinusSourceAlpha
-            attachment.sourceAlphaBlendFactor = .one
-            attachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+            descriptor.colorAttachments[0].blendOver()
         }
         return descriptor
     }

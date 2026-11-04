@@ -65,7 +65,7 @@ final class GroundOverlay {
         }
         if let built {
             let vertices = built.vertices
-            let buffer = vertices.isEmpty ? nil : vertices.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) }
+            let buffer = vertices.isEmpty ? nil : device.makeBuffer(copying: vertices)
             draw(commands, pipeline: pipeline, vertices: buffer, count: vertices.count)
             isEmpty = vertices.isEmpty
             drawnAt = built.at
