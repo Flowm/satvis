@@ -88,19 +88,27 @@ public struct Catalog: Sendable {
     @discardableResult
     public mutating func add(_ records: [GPRecord], tags: [String], group: String) -> Bool {
         var changed = false
-        groupTags[group] = Set(tags)
+        // One copy each, which the group's new entries share.
+        let tagSet = Set(tags)
+        let groups: Set = [group]
+        groupTags[group] = tagSet
         var served = Set<String>()
         for record in records {
             let id = Self.id(of: record)
             served.insert(id)
             guard var entry = entries[id] else {
-                entries[id] = CatalogEntry(id: id, record: record, tags: Set(tags), groups: [group])
+                entries[id] = CatalogEntry(id: id, record: record, tags: tagSet, groups: groups)
                 changed = true
                 continue
             }
             let before = entry
             entry.groups.insert(group)
-            entry.tags = self.tags(of: entry.groups)
+            // Assigned only when they differ, else a newer element set stored below
+            // would carry a copy of its own.
+            let tags = entry.groups == groups ? tagSet : self.tags(of: entry.groups)
+            if tags != entry.tags {
+                entry.tags = tags
+            }
             if record != entry.record, record.meanElements.epoch.julianDate >= entry.record.meanElements.epoch.julianDate {
                 entry.record = record
             }

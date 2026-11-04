@@ -58,7 +58,8 @@ extension GPRecord {
     /// A group's payload, `/api/gp/<group>.json`. A record that is neither an OMM
     /// nor a TLE pair is skipped rather than failing the group, as on the web.
     public static func decodePayload(_ data: Data) throws -> [GPRecord] {
-        try elements(of: data).compactMap(record)
+        var bags = Bags()
+        return try elements(of: data).compactMap { record($0, bags: &bags) }
     }
 
     /// A group as the worker serves it, for keeping: as `decodePayload`, but a
@@ -68,7 +69,8 @@ extension GPRecord {
     /// showed them.
     public static func decodeGroup(_ data: Data) throws -> [GPRecord] {
         let raw = try elements(of: data)
-        let records = raw.compactMap(record)
+        var bags = Bags()
+        let records = raw.compactMap { record($0, bags: &bags) }
         guard records.isEmpty == raw.isEmpty else {
             throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "No record of \(raw.count) decodes"))
         }
@@ -133,15 +135,21 @@ extension GPRecord {
         return changed ? Data(bytes) : nil
     }
 
-    /// One served record, or nil when it is neither an OMM nor a TLE pair.
-    private static func record(_ element: Any) -> GPRecord? {
+    /// The metadata bags a payload has given so far, for its records to share:
+    /// Starlink's 11,182 records carry 553 different bags. One a record, every
+    /// active satellite's took 27 MB for the session; shared, 5 MB.
+    private typealias Bags = Set<[String: JSONValue]>
+
+    /// One served record, or nil when it is neither an OMM nor a TLE pair. Its
+    /// metadata is the bag in `bags` equal to it, where there is one.
+    private static func record(_ element: Any, bags: inout Bags) -> GPRecord? {
         guard let fields = element as? NSDictionary else {
             return nil
         }
         let name = string(fields["OBJECT_NAME"])
         var metadata: [String: JSONValue] = [:]
         if let bag = fields["metadata"].flatMap(JSONValue.init(jsonObject:)), case .object(let values) = bag {
-            metadata = values
+            metadata = bags.insert(values).memberAfterInsert
         }
 
         if let line1 = string(fields["TLE_LINE1"]), let line2 = string(fields["TLE_LINE2"]) {
