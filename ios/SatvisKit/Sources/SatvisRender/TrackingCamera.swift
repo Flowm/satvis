@@ -20,8 +20,7 @@ struct CameraPose: Equatable {
 
     /// The projection for a viewport of this shape.
     func projection(aspectRatio: Double) -> simd_double4x4 {
-        OrbitCamera.projection(
-            verticalFieldOfView: verticalFieldOfView ?? OrbitCamera.verticalFieldOfView(aspectRatio: aspectRatio), aspectRatio: aspectRatio, near: near)
+        OrbitCamera.projection(verticalFieldOfView: verticalFieldOfView(aspectRatio: aspectRatio), aspectRatio: aspectRatio, near: near)
     }
 
     /// Whether no coordinate is NaN or infinite.
@@ -37,13 +36,6 @@ struct CameraPose: Equatable {
     /// A rotation from the fixed frame into the camera's, looking down -Z.
     func view() -> simd_double4x4 {
         simd_double4x4(rows: [SIMD4(right, 0), SIMD4(up, 0), SIMD4(back, 0), SIMD4(0, 0, 0, 1)])
-    }
-
-    /// Height above the WGS84 ellipsoid, near enough: CesiumJS's eye height.
-    var eyeHeight: Double {
-        let p = position
-        let ellipsoidRadius = 1 / sqrt((p.x * p.x + p.y * p.y) / (ellipsoidRadii.x * ellipsoidRadii.x) + p.z * p.z / (ellipsoidRadii.z * ellipsoidRadii.z))
-        return length(p) * (1 - ellipsoidRadius)
     }
 }
 
@@ -76,8 +68,6 @@ public struct TrackingCamera: Sendable, Equatable {
 
     /// Where Earth's surface is at rest, radians per second.
     private static let earthRotation = SIMD3(0, 0, 7.292_115e-5)
-    /// CesiumJS's `GRAVITATIONALPARAMETER`, m³/s².
-    private static let gravitationalParameter = 3.986_004_418e14
     /// Past this semi-major axis, in metres, the frame turns north-up: 1.25 times
     /// WGS84's equatorial radius, as CesiumJS has it.
     private static let northUpSemiMajorAxis = 1.25 * 6_378_137.0
@@ -91,7 +81,7 @@ public struct TrackingCamera: Sendable, Equatable {
         let up = normalize(target)
         let inertialVelocity = velocity + cross(earthRotation, target)
         let speed = length(inertialVelocity)
-        let semiMajorAxis = -gravitationalParameter / (speed * speed - 2 * gravitationalParameter / length(target))
+        let semiMajorAxis = -OrbitMotion.gravitationalParameter / (speed * speed - 2 * OrbitMotion.gravitationalParameter / length(target))
         if semiMajorAxis < 0 || semiMajorAxis > northUpSemiMajorAxis {
             let west = cross(SIMD3(0, 0, 1), -up)
             if length(west) > 1e-7 {

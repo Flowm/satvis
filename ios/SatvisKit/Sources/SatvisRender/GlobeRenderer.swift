@@ -1426,7 +1426,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             cameraPosition: SIMD3<Float>(position),
             sunDirection: SIMD3<Float>(Sun.directionFixed(epochMilliseconds: now)),
             viewportSize: SIMD2<Float>(size),
-            eyeHeight: Float(pose.eyeHeight),
+            eyeHeight: Float(heightAboveEllipsoid(pose.position)),
             // On the map, CesiumJS's camera distance in 2D, which the lighting fades by.
             cameraDistance: Float(pose.mapCamera?.lightingDistance ?? length(position)),
             pointSize: Float(6 * pixelScale),

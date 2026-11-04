@@ -52,8 +52,7 @@ struct MapCamera: Sendable, Equatable {
     /// there, so a switch to 2D keeps the place. From where the globe's whole disc
     /// is in sight, the home view, where the web app's morph lands.
     static func matching(_ globe: OrbitCamera, aspectRatio: Double) -> MapCamera {
-        let halfNarrow = atan(tan(OrbitCamera.fieldOfView / 2) * min(aspectRatio, 1 / aspectRatio))
-        if ellipsoidRadii.x / globe.radius <= sin(halfNarrow) {
+        if ellipsoidRadii.x / globe.radius <= sin(OrbitCamera.halfNarrowFieldOfView(aspectRatio: aspectRatio)) {
             return home(aspectRatio: aspectRatio)
         }
         var map = MapCamera(

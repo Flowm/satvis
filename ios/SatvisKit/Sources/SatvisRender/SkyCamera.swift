@@ -112,10 +112,7 @@ public struct SkyCamera: Sendable, Equatable {
 
     /// The observer's east, north and up in the fixed frame.
     var frame: (east: SIMD3<Double>, north: SIMD3<Double>, up: SIMD3<Double>) {
-        let phi = latitude * .pi / 180
-        let lambda = longitude * .pi / 180
-        let up = SIMD3(cos(phi) * cos(lambda), cos(phi) * sin(lambda), sin(phi))
-        let east = SIMD3(-sin(lambda), cos(lambda), 0.0)
+        let (east, _, up) = eastNorthUp(latitude: latitude * .pi / 180, longitude: longitude * .pi / 180)
         return (east, cross(up, east), up)
     }
 

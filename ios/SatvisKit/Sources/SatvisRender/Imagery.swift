@@ -71,8 +71,7 @@ enum Projection: Sendable {
     }
 
     func column(longitude: Double, level: Int) -> Double {
-        let columns = Double(self == .geographic ? 2 << level : 1 << level)
-        return (longitude + 180) / 360 * columns
+        (longitude + 180) / 360 * Double(columns(level))
     }
 
     func columns(_ level: Int) -> Int { self == .geographic ? 2 << level : 1 << level }

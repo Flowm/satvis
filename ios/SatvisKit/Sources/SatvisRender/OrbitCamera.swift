@@ -28,16 +28,13 @@ public struct OrbitCamera: Sendable, Equatable {
     /// Where the web app opens (`CesiumController.setDefaultView`): above 25° N 15° E,
     /// far enough that the globe fills 82 % of the screen's narrow side.
     public static func home(aspectRatio: Double) -> OrbitCamera {
-        let halfNarrow = atan(tan(fieldOfView / 2) * min(aspectRatio, 1 / aspectRatio))
-        let distance = ellipsoidRadii.x / sin(0.82 * halfNarrow)
+        let distance = ellipsoidRadii.x / sin(0.82 * halfNarrowFieldOfView(aspectRatio: aspectRatio))
         return OrbitCamera(latitude: 25 * .pi / 180, longitude: 15 * .pi / 180, altitude: distance - ellipsoidRadii.x)
     }
 
     var radius: Double { ellipsoidRadii.x + altitude }
 
-    var up: SIMD3<Double> {
-        SIMD3(cos(latitude) * cos(longitude), cos(latitude) * sin(longitude), sin(latitude))
-    }
+    var up: SIMD3<Double> { eastNorthUp(latitude: latitude, longitude: longitude).up }
 
     public var position: SIMD3<Double> { up * radius }
 
@@ -55,8 +52,7 @@ public struct OrbitCamera: Sendable, Equatable {
 
     /// The screen's up and right on the globe, as unit vectors in the fixed frame.
     private var screenAxes: (up: SIMD3<Double>, right: SIMD3<Double>) {
-        let north = SIMD3(-sin(latitude) * cos(longitude), -sin(latitude) * sin(longitude), cos(latitude))
-        let east = SIMD3(-sin(longitude), cos(longitude), 0.0)
+        let (east, north, _) = eastNorthUp(latitude: latitude, longitude: longitude)
         let screenUp = cos(heading) * north - sin(heading) * east
         let screenRight = sin(heading) * north + cos(heading) * east
         return (screenUp, screenRight)
@@ -65,6 +61,11 @@ public struct OrbitCamera: Sendable, Equatable {
     func pose() -> CameraPose {
         let (screenUp, screenRight) = screenAxes
         return CameraPose(position: position, right: screenRight, up: screenUp, back: up)
+    }
+
+    /// Half the field of view across the screen's narrower side.
+    static func halfNarrowFieldOfView(aspectRatio: Double) -> Double {
+        atan(tan(fieldOfView / 2) * min(aspectRatio, 1 / aspectRatio))
     }
 
     /// The field of view up the screen: the 60° spans the longer side.
