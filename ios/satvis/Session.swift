@@ -172,7 +172,7 @@ final class Session {
         aim = SkyAim(globe: globe)
         bindGlobe()
         aim.show = { [weak self] text in self?.show(text) }
-        starMapLoader.onUnavailable = { [weak self] _ in self?.starMap = .deepStar1K }
+        starMapLoader.onUnavailable = { [weak self] in self?.starMap = .deepStar1K }
     }
 
     /// Fetches a 3D model by its path under /data/models/, for the globe and the info
@@ -408,7 +408,7 @@ final class Session {
             // A clock pinned for a screenshot stays where it was put.
             if ViewerClock.launchTime == nil {
                 if let time = scene.time {
-                    clock.pin(at: (time.timeIntervalSince1970 * 1000).rounded(.down))
+                    clock.scrub(to: (time.timeIntervalSince1970 * 1000).rounded(.down))
                 } else if clock.clock.isOffPresent(at: ViewerClock.real()) {
                     // However it left the present, as a link without `time` is live.
                     clock.goLive()

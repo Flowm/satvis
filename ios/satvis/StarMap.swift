@@ -16,7 +16,7 @@ final class StarMap {
     /// The fetch of `wanted` under way, cancelled when another map is chosen.
     private var loading: Task<Void, Never>?
     /// Told of a map neither kept nor fetched, while another is drawn in its place.
-    var onUnavailable: ((StarMapName) -> Void)?
+    var onUnavailable: (() -> Void)?
 
     init(globe: GlobeBinding, repository: GroupRepository) {
         self.globe = globe
@@ -49,7 +49,7 @@ final class StarMap {
         if let fetched = await repository.starMap(map) {
             draw(fetched, as: map)
         } else if map != .deepStar1K, drawn != map, !Task.isCancelled {
-            onUnavailable?(map)
+            onUnavailable?()
         }
     }
 

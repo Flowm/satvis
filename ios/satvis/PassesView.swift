@@ -40,7 +40,7 @@ struct PassesSections: View {
     @State private var held = Held()
 
     var body: some View {
-        let (all, settled, progress) = list
+        let (all, settled, progress) = subject.passes(in: passes, at: now)
         let visible = all.visible(at: now, past: showsPast)
         let next = visible.first { $0.end >= now }
         let subjects = Set(visible.map(subjectName))
@@ -128,10 +128,6 @@ struct PassesSections: View {
             return (passes, self.passes.mode)
         }
         return held.subject == subjectID ? (held.passes, held.mode) : nil
-    }
-
-    private var list: (passes: [Pass], settled: Bool, progress: (done: Int, total: Int)?) {
-        subject.passes(in: passes, at: now)
     }
 
     private var subjectID: String {

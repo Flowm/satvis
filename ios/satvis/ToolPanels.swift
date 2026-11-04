@@ -555,7 +555,7 @@ struct SkyPanel: View {
 
     var body: some View {
         let inSky = session.observer != nil
-        let here = session.observer.flatMap { id in session.passes.stations.first { $0.id == id } }
+        let here = session.observer.flatMap(session.passes.station)
         // The Geolocation station is My location's, so it has no row of its own.
         let places = session.passes.stations.filter { $0.name != StationList.geolocation }
         PanelSection("Look up from") {

@@ -16,9 +16,12 @@
     /// Each star map is there too, as black faces: the real ones are fetched and
     /// kept, and a test that found one kept by an earlier run passed only there.
     enum TestCatalog {
+        /// Whether the launch asked for the test catalog.
+        nonisolated static let isRequested = ProcessInfo.processInfo.environment["SATVIS_TEST_CATALOG"] != nil
+
         /// The catalog unpacked into a store's layout, or nil unless asked for.
         static func store() -> PayloadStore? {
-            guard ProcessInfo.processInfo.environment["SATVIS_TEST_CATALOG"] != nil,
+            guard isRequested,
                 let url = Bundle.main.url(forResource: "UITestCatalog", withExtension: "json"),
                 let catalog = try? JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any],
                 let index = catalog["index"], let groups = catalog["groups"] as? [String: Any]
@@ -67,7 +70,7 @@
         /// the catalog and not what an earlier run kept from a worker, which the
         /// repository reads first; nil unless asked for.
         static func keptStore() -> PayloadStore? {
-            guard ProcessInfo.processInfo.environment["SATVIS_TEST_CATALOG"] != nil else {
+            guard isRequested else {
                 return nil
             }
             return PayloadStore(directory: URL.temporaryDirectory.appending(path: "UITestKept-\(UUID())", directoryHint: .isDirectory))
@@ -76,7 +79,7 @@
         /// A bookmark storage of its own for each launch on the test catalog, so a
         /// test starts with no bookmarks whatever an earlier run saved; nil unless asked for.
         static func bookmarkStorage() -> BookmarkStorage? {
-            guard ProcessInfo.processInfo.environment["SATVIS_TEST_CATALOG"] != nil else {
+            guard isRequested else {
                 return nil
             }
             return BookmarkStorage(directory: URL.temporaryDirectory.appending(path: "UITestBookmarks-\(UUID())", directoryHint: .isDirectory))
@@ -87,7 +90,7 @@
         /// own list, as a run on a device did; nil unless asked for. Unchecked:
         /// UserDefaults is thread-safe, as its documentation says, but not Sendable.
         nonisolated(unsafe) static let stationDefaults: UserDefaults? = {
-            guard ProcessInfo.processInfo.environment["SATVIS_TEST_CATALOG"] != nil else {
+            guard isRequested else {
                 return nil
             }
             let suite = "UITestStations"

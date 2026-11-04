@@ -94,10 +94,7 @@ struct ContentView: View {
     /// a picture of the globe. The menu closes first, so Show UI brings none of it back
     /// open, as on the web.
     private func hideUI() {
-        panel = nil
-        if sizeClass != .regular {
-            showsTools = false
-        }
+        clearTheGlobe()
         showsUI = false
     }
 
@@ -110,10 +107,7 @@ struct ContentView: View {
                 let foldsColumn = sizeClass != .regular && showsTools
                 tapClosedMenu = !session.isPicking && (panel != nil || foldsColumn)
                 if tapClosedMenu {
-                    panel = nil
-                    if foldsColumn {
-                        showsTools = false
-                    }
+                    clearTheGlobe()
                 }
             },
             onTap: { point, size in

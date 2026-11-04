@@ -30,7 +30,7 @@ final class BookmarkModel {
 
     /// With its picture, taken before.
     func save(name: String, scene: SceneLink, picture: Data?) -> Bookmark {
-        let bookmark = lists.save(name: name, scene: scene, id: newID(.saved), at: Self.now())
+        let bookmark = lists.save(name: name, scene: scene, id: newID(.saved), at: ViewerClock.real())
         if let picture {
             setPicture(bookmark.id, picture)
         }
@@ -41,12 +41,12 @@ final class BookmarkModel {
     /// Its picture comes later, by `setPicture`.
     func recordOpened(name: String, scene: SceneLink) -> Bookmark {
         defer { persist() }
-        return lists.recordOpened(name: name, scene: scene, id: newID(.opened), at: Self.now())
+        return lists.recordOpened(name: name, scene: scene, id: newID(.opened), at: ViewerClock.real())
     }
 
     func keep(_ id: String, name: String) -> Bookmark? {
         defer { persist() }
-        return lists.keep(id, name: name, at: Self.now())
+        return lists.keep(id, name: name, at: ViewerClock.real())
     }
 
     func rename(_ id: String, to name: String) {
@@ -98,10 +98,6 @@ final class BookmarkModel {
     /// Unique within the device's lists, which are all it is compared against.
     private func newID(_ kind: Bookmark.Kind) -> String {
         nextID += 1
-        return "\(kind.rawValue)-\(String(Int(Self.now()), radix: 36))-\(String(nextID, radix: 36))"
-    }
-
-    private static func now() -> Double {
-        (Date().timeIntervalSince1970 * 1000).rounded(.down)
+        return "\(kind.rawValue)-\(String(Int(ViewerClock.real()), radix: 36))-\(String(nextID, radix: 36))"
     }
 }
