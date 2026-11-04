@@ -32,9 +32,9 @@ import simd
         let device = try #require(MTLCreateSystemDefaultDevice())
         let libraries = try await ShaderLibrary.make(device: device)
         let closeUp = try await ShaderLibrary.makeFast(device: device, files: ShaderLibrary.models)
-        var uses = [(ModelCloseUp.targets, closeUp, closeUp), (GlobeRenderer.modelTargets(tileTonemap: false), libraries.precise, libraries.fast)]
+        var uses = [(ModelCloseUp.targets, closeUp, closeUp), (ScenePipelines.modelTargets(tileTonemap: false), libraries.precise, libraries.fast)]
         if device.supportsFamily(.apple4) {
-            uses.append((GlobeRenderer.modelTargets(tileTonemap: true), libraries.precise, libraries.fast))
+            uses.append((ScenePipelines.modelTargets(tileTonemap: true), libraries.precise, libraries.fast))
         }
         for (targets, vertex, fragment) in uses {
             let opaque = try ModelPipelines.descriptor(blended: false, vertex: vertex, fragment: fragment, targets: targets)

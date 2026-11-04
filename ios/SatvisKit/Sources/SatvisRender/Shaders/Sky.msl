@@ -66,7 +66,7 @@ vertex SkyOut skyAtmosphereVertex(uint vid [[vertex_id]], const device float4 *p
     return skyAtmosphere(positions[vid].xyz, frame);
 }
 
-// Mirrors skyRingColumns and skyRingRows in GlobeRenderer.swift.
+// Mirrors skyRingColumns and skyRingRows in ScenePipelines.swift.
 constant int skyRingColumns = 512;
 constant int skyRingRows = 16;
 
