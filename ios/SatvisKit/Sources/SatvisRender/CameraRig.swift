@@ -8,7 +8,7 @@ private let log = Logger(subsystem: "org.frcy.app.satvis", category: "globe")
 /// Which camera the view is seen through, and so what the gestures steer: the free
 /// camera over the globe, or one following a satellite or a ground station. The
 /// sky view (M6) is a third.
-public enum CameraMode: Sendable, Equatable {
+enum CameraMode: Sendable, Equatable {
     case orbit
     /// Following what has this id.
     case tracking(String)

@@ -11,17 +11,17 @@ public struct SkyCamera: Sendable, Equatable {
     public var latitude: Double
     public var longitude: Double
     /// Metres above the ellipsoid of the ground under the observer.
-    public var groundHeight: Double = 0
+    var groundHeight: Double = 0
     /// From camera axes (right +X, up +Y, back +Z) into east, north, up.
     public var attitude: simd_quatd
     /// Radians, up the screen.
     public var verticalFieldOfView = defaultFieldOfView
 
     /// Above the ground, as a person holds a phone.
-    public static let eyeHeight = 2.0
-    public static let defaultFieldOfView = 75 * Double.pi / 180
+    static let eyeHeight = 2.0
+    static let defaultFieldOfView = 75 * Double.pi / 180
     public static let defaultPitch = 30 * Double.pi / 180
-    public static let fieldOfViewRange = (10 * Double.pi / 180)...(100 * Double.pi / 180)
+    static let fieldOfViewRange = (10 * Double.pi / 180)...(100 * Double.pi / 180)
 
     /// Facing the equator, where the geostationary belt is, up from the horizon
     /// by the default pitch: the horizon on screen, since the pitch is under half

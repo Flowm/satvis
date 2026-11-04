@@ -66,7 +66,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The cameras, their flights and what the gestures steer.
     private var rig = CameraRig()
     /// Which camera the view is seen through (`CameraRig`).
-    public var cameraMode: CameraMode { rig.cameraMode }
+    var cameraMode: CameraMode { rig.cameraMode }
     /// The sky view's camera, while it is on the ground.
     public var skyCamera: SkyCamera? { rig.skyCamera }
     /// A line's triangle strip, two vertices a point: `lineNodes` samples in

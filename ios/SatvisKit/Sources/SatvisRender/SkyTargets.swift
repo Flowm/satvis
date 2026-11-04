@@ -53,7 +53,7 @@ struct SkyJudgement {
 extension GlobeRenderer {
     /// The satellites above the horizon and on screen, as the last frame drew them,
     /// within `radius` points of the middle: only they are judged for visibility.
-    public func skyTargets(viewSize: CGSize, within radius: Double = .infinity) -> [SkyTarget] {
+    func skyTargets(viewSize: CGSize, within radius: Double = .infinity) -> [SkyTarget] {
         guard isSkySettled, let camera = skyCamera, let lastFrame else {
             return []
         }
