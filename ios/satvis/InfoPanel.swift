@@ -63,13 +63,7 @@ struct InfoPanel: View {
                 .raisedRows()
             }
             .panelList()
-            // Here, where the alert was switched: on a phone the panel is a sheet
-            // over the bottom of the screen, where the session's notices are.
-            .overlay(alignment: .bottom) {
-                if let message = alerts.message {
-                    NoticeBanner(text: message).padding(.bottom, 12)
-                }
-            }
+            .alertNotice(alerts)
             .navigationTitle(entry.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -101,9 +95,7 @@ struct InfoPanel: View {
                 if let onTrack {
                     ToolbarSpacer(.fixed, placement: .topBarTrailing)
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
-                            onTrack(!isTracked)
-                        }
+                        Button.track(isTracked, onTrack: onTrack)
                     }
                 }
                 ToolbarSpacer(.fixed, placement: .topBarTrailing)
@@ -246,6 +238,25 @@ extension View {
     fileprivate func raisedRows() -> some View {
         listRowBackground(Color.panelRaised)
     }
+
+    /// What switching an alert said, here where it was switched: on a phone the
+    /// panel is a sheet over the bottom of the screen, where the session's notices are.
+    fileprivate func alertNotice(_ alerts: PassAlerts) -> some View {
+        overlay(alignment: .bottom) {
+            if let message = alerts.message {
+                NoticeBanner(text: message).padding(.bottom, 12)
+            }
+        }
+    }
+}
+
+extension Button<Label<Text, Image>> {
+    /// A panel's Track, or Stop tracking while it is followed.
+    fileprivate static func track(_ isTracked: Bool, onTrack: @escaping (Bool) -> Void) -> Self {
+        Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
+            onTrack(!isTracked)
+        }
+    }
 }
 
 /// The Orbit tab's live position, worked out once a second for all four rows, so they
@@ -337,11 +348,7 @@ struct StationPanel: View {
                 .raisedRows()
             }
             .panelList()
-            .overlay(alignment: .bottom) {
-                if let message = alerts.message {
-                    NoticeBanner(text: message).padding(.bottom, 12)
-                }
-            }
+            .alertNotice(alerts)
             .navigationTitle(station.displayName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -369,9 +376,7 @@ struct StationPanel: View {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button("View the sky from here", systemImage: "binoculars", action: onSky)
                     if let onTrack {
-                        Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
-                            onTrack(!isTracked)
-                        }
+                        Button.track(isTracked, onTrack: onTrack)
                     }
                 }
                 ToolbarSpacer(.fixed, placement: .topBarTrailing)
