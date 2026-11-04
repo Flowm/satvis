@@ -116,8 +116,6 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The device's own clock, for `clock`.
     public static let wallClock: @Sendable (_ ahead: Double) -> Double = { (Date().timeIntervalSince1970 + $0) * 1000 }
 
-    private static let framesInFlight = 3
-
     private nonisolated let device: MTLDevice
     private let queue: MTLCommandQueue
     private let pipelines: ScenePipelines
@@ -145,12 +143,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// What the sky view's instruments worked out, kept between frames.
     var skyCache = SkyCache()
     private let meter = FrameMeter()
-    private let faults = GPUFaults()
+    private let loop: FrameLoop
+    /// The pictures asked of the next frame, for bookmarks.
+    private let snapshots = SnapshotRequests()
 
     /// Called with the first frame the GPU fails of each kind, which it logs.
     public var onGPUFault: (@MainActor @Sendable (GPUFault) -> Void)? {
-        get { faults.onFault }
-        set { faults.onFault = newValue }
+        get { loop.faults.onFault }
+        set { loop.faults.onFault = newValue }
     }
 
     /// Whether frames are measured, for the performance overlay; nothing is
@@ -203,16 +203,6 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// The size the last frame was drawn at, in pixels.
     public var drawableSize: CGSize? { lastFrame.map { CGSize(width: $0.size.x, height: $0.size.y) } }
-    private var pointFrameBuffers: [MTLBuffer?]
-    /// A picture asked for of the next frame that can be read: its width in pixels,
-    /// and who waits for it.
-    private var snapshotRequest: (id: Int, width: Int, continuation: CheckedContinuation<Data?, Never>)?
-    private var snapshotCount = 0
-    private var frameIndex = 0
-    private let inFlight = DispatchSemaphore(value: framesInFlight)
-    private let drawables = DrawableGate()
-    /// When the frames begun are shown, which their content is timed to.
-    private let presentation = FramePresentation()
 
     /// Compiles the shaders, which takes a second or two, without holding up the
     /// main thread, then takes over drawing the view. `naturalEarth` is the folder
@@ -243,7 +233,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         self.overlay = overlay
         surface = try Surface(device: device, library: libraries.precise, site: URL(string: "https://satvis.space/")!)
         models = SatelliteModels(device: device)
-        pointFrameBuffers = Array(repeating: nil, count: Self.framesInFlight)
+        loop = FrameLoop(queue: queue)
         screenScale = Double(view.contentScaleFactorForPoints)
         pixelScale = screenScale
         pin = Textures.texture2D(StationPin.bitmap(), device: device, queue: queue)
@@ -492,24 +482,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The next frame as a JPEG `width` pixels across, for a bookmark's card; nil
     /// where none comes within two seconds, as in the background.
     public func snapshot(width: Int) async -> Data? {
-        snapshotCount += 1
-        let id = snapshotCount
-        return await withCheckedContinuation { continuation in
-            snapshotRequest?.continuation.resume(returning: nil)
-            snapshotRequest = (id, width, continuation)
-            Task {
-                try? await Task.sleep(for: .seconds(2))
-                finishSnapshot(id, nil)
-            }
-        }
-    }
-
-    private func finishSnapshot(_ id: Int, _ data: Data?) {
-        guard let request = snapshotRequest, request.id == id else {
-            return
-        }
-        snapshotRequest = nil
-        request.continuation.resume(returning: data)
+        await snapshots.next(width: width)
     }
 
     /// The most frames a second the screen shows.
@@ -521,18 +494,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         #endif
     }
 
-    /// Whether the app is in front, where the GPU is the app's.
-    private static var isActive: Bool {
-        #if canImport(UIKit)
-            UIApplication.shared.applicationState == .active
-        #else
-            true
-        #endif
-    }
-
     public func draw(in view: MTKView) {
         let interval = 1 / Double(max(1, view.preferredFramesPerSecond))
-        drawables.setBehind((presentation.perFrame ?? 0) > interval)
+        loop.drawables.setBehind((loop.presentation.perFrame ?? 0) > interval)
         // A change of projection that fades draws one frame more of the old one,
         // and keeps it to fade from; one that does not shows the new at once.
         let keepsFrame = rig.drawnProjection != rig.shownProjection && rig.fadesProjection && lastFrame != nil
@@ -541,7 +505,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         // A drawable can be read only from a view asked for readable ones, which
         // cannot keep them in tile memory: asked for one frame, and back after.
-        view.framebufferOnly = snapshotRequest == nil && !keepsFrame
+        view.framebufferOnly = !snapshots.isWaiting && !keepsFrame
         guard rig.orbitCamera != nil, let hdr, let depth else {
             return
         }
@@ -549,7 +513,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         let started = ProcessInfo.processInfo.systemUptime
         // Flights and the clock as they stand when the frame is shown; drags as the
         // touches stand now.
-        let shown = presentation.predict(at: started, refresh: 1 / Double(Self.displayMaximumFramesPerSecond), interval: interval)
+        let shown = loop.presentation.predict(at: started, refresh: 1 / Double(Self.displayMaximumFramesPerSecond), interval: interval)
         let now = clock(shown - ProcessInfo.processInfo.systemUptime)
         let size = SIMD2(Double(hdr.width), Double(hdr.height))
         let pose = rig.pose(
@@ -561,7 +525,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             }
             return
         }
-        guard let target = beginFrame(view, measuring: measuring) else {
+        guard let target = loop.begin(view, measuring: measuring) else {
             if measuring {
                 meter.skipped(cpuSeconds: ProcessInfo.processInfo.systemUptime - started)
             }
@@ -584,11 +548,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         } else {
             encodeFade(onto: target.drawable.texture, commands: commands, at: shown)
         }
-        encodeSnapshot(of: target.drawable, into: commands)
+        snapshots.encode(of: target.drawable, into: commands, device: device)
         let committed = ProcessInfo.processInfo.systemUptime
         let cpu = committed - started - target.waitedForBuffer - target.waitedForDrawable
-        let id = presentation.began(committed: committed, cpu: cpu, shown: shown)
-        commands.addCompletedHandler { [presentation, meter] buffer in
+        let id = loop.presentation.began(committed: committed, cpu: cpu, shown: shown)
+        commands.addCompletedHandler { [presentation = loop.presentation, meter] buffer in
             let (start, end) = (buffer.gpuStartTime, buffer.gpuEndTime)
             presentation.done(id, start: start, end: end)
             if measuring {
@@ -609,70 +573,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// measured, in the sky view and while tracking.
     private func mustDraw(pose: CameraPose, time: Double, size: SIMD2<Double>) -> Bool {
         let paced =
-            (!measuresFrames || recordsIdle) && snapshotRequest == nil && cameraMode == .orbit && !fade.isFading && rig.drawnProjection == rig.shownProjection
+            (!measuresFrames || recordsIdle) && !snapshots.isWaiting && cameraMode == .orbit && !fade.isFading && rig.drawnProjection == rig.shownProjection
         return pacer.mustDraw(
             pose: pose, time: time, paced: paced, settled: surface.isSettled, content: contentRevision,
             pixelRate: { FramePacer.pixelRate(points, components: components, links: links, pose: pose, time: time, size: size) },
             linkSpan: { FramePacer.linkSpan(links, shown: components.contains(.groundStationLink), around: time) })
-    }
-
-    /// A command buffer once one of the frames in flight is free, and the drawable
-    /// it ends on, with how long each was waited for while measuring; nil, the
-    /// frame given back, where either is missing or no drawable is free yet.
-    private func beginFrame(_ view: MTKView, measuring: Bool) -> (
-        commands: MTLCommandBuffer, drawable: CAMetalDrawable, screen: MTLRenderPassDescriptor, waitedForBuffer: Double, waitedForDrawable: Double
-    )? {
-        // The simulator's drawables say nothing of being presented, so there
-        // every frame takes one, as MTKView's own loop does.
-        #if !targetEnvironment(simulator)
-            let maximumDrawables = (view.layer as? CAMetalLayer)?.maximumDrawableCount ?? 3
-            guard drawables.mayTake(maximum: maximumDrawables, at: ProcessInfo.processInfo.systemUptime) else {
-                return nil
-            }
-        #endif
-        let waitStarted = measuring ? ProcessInfo.processInfo.systemUptime : 0
-        inFlight.wait()
-        let waitedForBuffer = measuring ? ProcessInfo.processInfo.systemUptime - waitStarted : 0
-        // Taken only once a frame is free: taken before, a drawable was held while
-        // the main thread waited on a GPU running behind (every orbit on).
-        let drawableStarted = ProcessInfo.processInfo.systemUptime
-        let currentDrawable = view.currentDrawable
-        let waitedForDrawable = ProcessInfo.processInfo.systemUptime - drawableStarted
-        if currentDrawable != nil {
-            drawables.drawableTaken(waited: waitedForDrawable, interval: 1 / Double(max(1, view.preferredFramesPerSecond)))
-        }
-        guard let drawable = currentDrawable, let screen = view.currentRenderPassDescriptor, let commands = queue.makeCommandBuffer() else {
-            if currentDrawable != nil {
-                drawables.drawableUnused()
-            }
-            inFlight.signal()
-            return nil
-        }
-        #if !targetEnvironment(simulator)
-            let gate = drawables
-            let presentation = presentation
-            drawable.addPresentedHandler { [weak view] presented in
-                presentation.shown(at: presented.presentedTime)
-                if gate.beginsTurnedAwayFrame(afterPresenting: presented.presentedTime > 0) {
-                    // Drawn outside MTKView's loop, which stops in the background.
-                    Task { @MainActor in
-                        if Self.isActive {
-                            view?.draw()
-                        }
-                    }
-                }
-            }
-        #endif
-        let semaphore = inFlight
-        let faults = faults
-        commands.addCompletedHandler { buffer in
-            semaphore.signal()
-            if buffer.status == .error {
-                faults.record(buffer.error)
-            }
-        }
-        frameIndex = (frameIndex + 1) % Self.framesInFlight
-        return (commands, drawable, screen, waitedForBuffer, waitedForDrawable)
     }
 
     /// The frame's uniforms and what it places, and the passes ahead of the
@@ -733,19 +638,6 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
     }
 
-    /// A copy of the drawable for the picture asked for, where it can be read.
-    private func encodeSnapshot(of drawable: CAMetalDrawable, into commands: MTLCommandBuffer) {
-        // Taken off as it is queued: the frames already in flight would copy it again.
-        if let request = snapshotRequest, !drawable.texture.isFramebufferOnly,
-            let copy = Snapshot.encodeCopy(of: drawable.texture, into: commands, device: device)
-        {
-            snapshotRequest = nil
-            commands.addCompletedHandler { _ in
-                request.continuation.resume(returning: copy.jpeg(width: request.width))
-            }
-        }
-    }
-
     /// This frame's stencils, and how wide each 3D model is drawn, in a buffer
     /// the GPU is not still reading.
     private func pointFrames(at now: Double, models: [ModelPlacement]) -> MTLBuffer? {
@@ -753,10 +645,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         guard length > 0 else {
             return nil
         }
-        if (pointFrameBuffers[frameIndex]?.length ?? 0) < length {
-            pointFrameBuffers[frameIndex] = device.makeBuffer(length: length, options: .storageModeShared)
-        }
-        guard let buffer = pointFrameBuffers[frameIndex] else {
+        guard let buffer = loop.pointFrameBuffer(length: length, device: device) else {
             return nil
         }
         points.writeFrames(at: now, into: buffer)
