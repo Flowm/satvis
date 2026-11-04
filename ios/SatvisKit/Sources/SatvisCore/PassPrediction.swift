@@ -21,8 +21,6 @@ public struct SwathExtents: Sendable, Hashable {
     /// The web app's 200 km for a satellite whose record carries no extents.
     public static let `default` = SwathExtents(starboardKm: 100, portKm: 100)
 
-    public var widthKm: Double { starboardKm + portKm }
-
     /// The record's own extents, which the worker writes as a pair or not at all.
     public init?(metadata: [String: JSONValue]) {
         guard let starboard = metadata["swathStarboardKm"]?.number, let port = metadata["swathPortKm"]?.number else {
@@ -106,11 +104,12 @@ public struct PassFinder: Sendable {
 
     // MARK: Elevation
 
-    /// `Orbit.computePassesElevation`: within each reach of the station, found as
-    /// the swath search finds them, steps of a tenth of an orbit; in each, the peak
-    /// by golden section and the rise and set by bisection, to 10 ms. A pass that
-    /// runs over a step is carried on into the next.
-    public func elevationPasses(over station: GroundStation, from start: Double, to end: Double, minElevation: Double = 5, maxPasses: Int = .max) -> [Pass] {
+    /// `Orbit.computePassesElevation`, above its default 5°: within each reach of
+    /// the station, found as the swath search finds them, steps of a tenth of an
+    /// orbit; in each, the peak by golden section and the rise and set by
+    /// bisection, to 10 ms. A pass that runs over a step is carried on into the next.
+    public func elevationPasses(over station: GroundStation, from start: Double, to end: Double) -> [Pass] {
+        let minElevation = 5.0
         let observer = (latitude: station.latitude * deg2rad, longitude: station.longitude * deg2rad, height: 0.0)
         let lookAt = { (time: Double) -> (azimuth: Double, elevation: Double)? in
             fixedPosition(at: time.rounded(.towardZero)).map { lookAngles(observer: observer, satellite: $0) }
@@ -156,9 +155,6 @@ public struct PassFinder: Sendable {
                         measure: .elevation(
                             maxElevation: peak.elevation, azimuthStart: azimuthAt(passStart), azimuthApex: azimuthAt(peak.timeMs), azimuthEnd: azimuthAt(passEnd),
                             apex: peak.timeMs)))
-                if passes.count >= maxPasses {
-                    return passes
-                }
             }
         }
         return passes
@@ -169,7 +165,7 @@ public struct PassFinder: Sendable {
     /// `Orbit.computePassesSwath`: the reaches of the wider extent, each the pass
     /// for a symmetric swath, cut to where the station's side is served for an
     /// asymmetric one, with the closest approach by golden section.
-    public func swathPasses(over station: GroundStation, swath: SwathExtents, from startMs: Double, to endMs: Double, maxPasses: Int = .max) -> [Pass] {
+    public func swathPasses(over station: GroundStation, swath: SwathExtents, from startMs: Double, to endMs: Double) -> [Pass] {
         let swathWidth = swath.starboardKm + swath.portKm
         let maxExtent = max(swath.starboardKm, swath.portKm)
         let distanceAt = { (time: Double) in self.subpointDistanceKm(station, time) }
@@ -185,9 +181,6 @@ public struct PassFinder: Sendable {
                     Pass(
                         satellite: "", satelliteName: "", station: station.displayName, stationID: station.id, start: start, end: end,
                         measure: .swath(minDistance: closest.value, minDistanceTime: closest.timeMs, swathWidth: swathWidth)))
-                if passes.count >= maxPasses {
-                    return passes
-                }
             }
         }
         return passes

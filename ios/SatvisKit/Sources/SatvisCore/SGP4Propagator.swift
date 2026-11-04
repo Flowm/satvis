@@ -109,8 +109,4 @@ public final class SGP4Propagator: Sendable {
     public func state(epochMilliseconds: Double) throws(SGP4Error) -> TEMEState {
         try state(minutesSinceEpoch: (julianDate(epochMilliseconds: epochMilliseconds) - epochJulianDate) * 1440)
     }
-
-    public func state(at date: Date) throws(SGP4Error) -> TEMEState {
-        try state(epochMilliseconds: (date.timeIntervalSince1970 * 1000).rounded(.down))
-    }
 }

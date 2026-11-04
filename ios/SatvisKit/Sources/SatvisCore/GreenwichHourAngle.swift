@@ -23,10 +23,6 @@ public func greenwichHourAngle(epochMilliseconds: Double) -> Double {
     return angleAt0h + rotationRate * secondsSinceMidnight
 }
 
-public func greenwichHourAngle(at date: Date) -> Double {
-    greenwichHourAngle(epochMilliseconds: (date.timeIntervalSince1970 * 1000).rounded())
-}
-
 private let gmstC0 = 6.0 * 3600 + 41 * 60 + 50.54841
 private let gmstC1 = 8640184.812866
 private let gmstC2 = 0.093104
