@@ -210,7 +210,7 @@ public enum SatelliteDetails {
     }
 
     static func formatEpoch(julianDate: Double) -> String {
-        let utc = civilDate(epochMilliseconds: ((julianDate - 2440587.5) * msPerDay).rounded())
+        let utc = civilDate(epochMilliseconds: epochMilliseconds(julianDate: julianDate).rounded())
         func two(_ value: Int) -> String { value < 10 ? "0\(value)" : "\(value)" }
         return "\(utc.year)-\(two(utc.month))-\(two(utc.day)) \(two(utc.hour)):\(two(utc.minute)):\(two(utc.second))"
     }

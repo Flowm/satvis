@@ -371,12 +371,21 @@ func lookAngles(observer: (latitude: Double, longitude: Double, height: Double),
     return (atan2(-topE, topS) + .pi, asin(topZ / range))
 }
 
+/// The ellipsoid satellite.js's `geodeticToEcf` and `eciToGeodetic` take.
+enum WGS84 {
+    /// The equatorial radius, kilometres.
+    static let a = 6378.137
+    /// The first eccentricity squared, from the polar radius as satellite.js works it out.
+    static let e2: Double = {
+        let b = 6356.7523142
+        let f = (a - b) / a
+        return 2 * f - f * f
+    }()
+}
+
 /// satellite.js's `geodeticToEcf`: radians and kilometres in, kilometres out.
 func geodeticToEcf(latitude: Double, longitude: Double, height: Double) -> SIMD3<Double> {
-    let a = 6378.137
-    let b = 6356.7523142
-    let f = (a - b) / a
-    let e2 = 2 * f - f * f
+    let (a, e2) = (WGS84.a, WGS84.e2)
     let normal = a / (1 - e2 * (sin(latitude) * sin(latitude))).squareRoot()
     return SIMD3(
         (normal + height) * cos(latitude) * cos(longitude), (normal + height) * cos(latitude) * sin(longitude), (normal * (1 - e2) + height) * sin(latitude))

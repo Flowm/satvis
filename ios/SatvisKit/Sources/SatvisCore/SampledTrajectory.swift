@@ -31,7 +31,7 @@ public struct SampledTrajectory: Sendable {
         guard periodMilliseconds.isFinite, periodMilliseconds > 0, epochMilliseconds.isFinite else {
             return nil
         }
-        let anchor = (propagator.epochJulianDate - 2440587.5) * msPerDay
+        let anchor = SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate)
         let step = periodMilliseconds / Self.samplesPerOrbit
         let first = Int(((epochMilliseconds - Self.orbitsBack * periodMilliseconds - anchor) / step).rounded(.down)) - Self.stencil / 2
         let last = Int(((epochMilliseconds + Self.orbitsForward * periodMilliseconds - anchor) / step).rounded(.up)) + Self.stencil / 2
