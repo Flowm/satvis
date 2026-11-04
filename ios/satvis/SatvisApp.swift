@@ -53,16 +53,15 @@ struct SatvisApp: App {
 /// selected, and the clock deck. Views only: what they do is the session's.
 struct ContentView: View {
     @Bindable var session: Session
-    @State private var showsBookmarks = false
-    @State private var showsBrowser = false
-    @State private var showsAcknowledgements = false
-    @State private var showsAbout = false
+    /// The sheet a menu entry or the map's credit opened; never the info sheet,
+    /// which is the selection's.
+    @State private var openSheet: AppSheet?
     @State private var showsTools = false
     /// The Graphics panel's Hide UI, as the web app's (`hideUI`).
     @State private var showsUI = true
-    /// What was selected when a sheet folded the column on a phone, to unfold it
-    /// again when the sheet closes; nil while no sheet folded it.
-    @State private var foldedFor: Selection??
+    /// Whether a sheet folded the column on a phone, to unfold it again when the
+    /// sheet closes.
+    @State private var sheetFoldedColumn = false
     /// What was selected when picking a spot started from the Locations panel,
     /// which opens again if the pick is cancelled; a placed station opens its own
     /// panel instead. Nil while no pick started there.
@@ -248,14 +247,14 @@ struct ContentView: View {
                         ToolEntry(
                             title: "Bookmarks", image: .lucideBookmark, hint: "Featured and saved views, links you opened, and the way back to the default view"
                         ) {
-                            showsBookmarks = true
+                            openSheet = .bookmarks
                         }
                         // A panel where there is room, as on the web; on a phone a sheet.
                         ToolEntry(title: "Satellites", image: .lucideOrbit, hint: "Search and pick which satellites to show", isSelected: panel == .satellites) {
                             if sizeClass == .regular {
                                 panel = panel == .satellites ? nil : .satellites
                             } else {
-                                showsBrowser = true
+                                openSheet = .browser
                             }
                         }
                         entry(.components, image: .lucideSatellite, hint: "Orbits, ground tracks, labels and sensor cones")
@@ -267,7 +266,7 @@ struct ContentView: View {
                         // The web app's About button, kept off the corner, which holds
                         // the ways back alone.
                         ToolEntry(title: "About", image: .lucideInfo, hint: "What Satvis is, what it does, where its data comes from, and its credits") {
-                            showsAbout = true
+                            openSheet = .about
                         }
                     }
                     .environment(\.toolNamesFolded, !roomy && panel != nil)
@@ -356,7 +355,7 @@ struct ContentView: View {
                 // Flush with the bottom edge, as on the web.
                 ClockDeck(clock: session.clock, passes: session.passes, satellite: session.selectedSatellite) {
                     // Where the web app has its credit line.
-                    OpenStreetMapCredit(isOwed: session.mapCredits.contains(.openStreetMap)) { showsAcknowledgements = true }
+                    OpenStreetMapCredit(isOwed: session.mapCredits.contains(.openStreetMap)) { openSheet = .acknowledgements }
                 }
                 .frame(maxWidth: .infinity)
                 .reportsFrame { deckFrame = $0 }
@@ -378,7 +377,7 @@ struct ContentView: View {
         // A sheet folds the column on a phone and unfolds it again as it closes,
         // unless what was done in it is on the globe now: a panel opened there
         // would be under the column.
-        .onChange(of: showsBookmarks || showsBrowser || showsAbout) { _, presenting in
+        .onChange(of: openSheet != nil && openSheet != .acknowledgements) { _, presenting in
             if presenting {
                 panel = nil
                 // The satellite's sheet gives way to it, and does not come back
@@ -388,11 +387,11 @@ struct ContentView: View {
                 }
                 if sizeClass != .regular, showsTools {
                     showsTools = false
-                    foldedFor = .some(session.selection)
+                    sheetFoldedColumn = true
                 }
-            } else if let selection = foldedFor {
-                foldedFor = nil
-                if session.selection == selection {
+            } else if sheetFoldedColumn {
+                sheetFoldedColumn = false
+                if session.selection == nil {
                     showsTools = true
                 }
             }
@@ -402,7 +401,7 @@ struct ContentView: View {
             case .bookmarks:
                 // The column stays folded over the scene a bookmark opened, as a tap on
                 // the globe leaves it.
-                BookmarksView(session: session) { foldedFor = nil }
+                BookmarksView(session: session) { sheetFoldedColumn = false }
             case .browser:
                 BrowserView(catalog: session.catalog) { session.select(.satellite($0.id)) }
             case .about:
@@ -412,7 +411,7 @@ struct ContentView: View {
                     AcknowledgementsView(map: session.mapCredits)
                         .toolbar {
                             ToolbarItem(placement: .confirmationAction) {
-                                Button("Done") { showsAcknowledgements = false }
+                                Button("Done") { openSheet = nil }
                             }
                         }
                 }
@@ -451,14 +450,8 @@ struct ContentView: View {
     /// item swaps one sheet for the other.
     private var sheet: Binding<AppSheet?> {
         Binding {
-            if showsAcknowledgements {
-                .acknowledgements
-            } else if showsAbout {
-                .about
-            } else if showsBookmarks {
-                .bookmarks
-            } else if showsBrowser {
-                .browser
+            if let openSheet {
+                openSheet
             } else if sizeClass != .regular && session.selection != nil {
                 .info
             } else {
@@ -468,14 +461,8 @@ struct ContentView: View {
             guard sheet == nil else {
                 return
             }
-            if showsAcknowledgements {
-                showsAcknowledgements = false
-            } else if showsAbout {
-                showsAbout = false
-            } else if showsBookmarks {
-                showsBookmarks = false
-            } else if showsBrowser {
-                showsBrowser = false
+            if openSheet != nil {
+                openSheet = nil
             } else if sizeClass != .regular {
                 // Not as an iPhone Duo opens, where the card takes the sheet's place.
                 session.select(nil)
