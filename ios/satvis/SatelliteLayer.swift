@@ -1,27 +1,24 @@
 import Foundation
-import Observation
 import SatvisCore
 import SatvisRender
 
 /// The active satellites on the globe, each with its window kept around the
 /// clock's instant.
-@Observable
 final class SatelliteLayer {
-    private(set) var count = 0
-    @ObservationIgnored private let store = TrajectoryStore()
-    @ObservationIgnored private let globe: GlobeBinding
+    private let store = TrajectoryStore()
+    private let globe: GlobeBinding
     /// The entries `show` was last given, as the catalog keeps them.
-    @ObservationIgnored private var shownEntries: [CatalogEntry] = []
+    private var shownEntries: [CatalogEntry] = []
     /// Bumped by every `show`, so that a set made before one is not taken for it.
-    @ObservationIgnored private var showCount = 0
+    private var showCount = 0
     /// The `showCount` that what the renderer draws was made after; -1 before anything.
-    @ObservationIgnored private var drawnShowCount = -1
+    private var drawnShowCount = -1
     /// Components a `show` gave with a set not drawn yet, handed over with it: given
     /// at once, 3D models for the set still drawn loaded 77 models, 490 MB.
-    @ObservationIgnored private var pendingComponents: (components: SatelliteComponents, show: Int)?
+    private var pendingComponents: (components: SatelliteComponents, show: Int)?
     /// How long the last refresh that resampled anything took to be handed to the
     /// renderer, in seconds.
-    @ObservationIgnored private var refreshSeconds = 0.0
+    private var refreshSeconds = 0.0
 
     init(globe: GlobeBinding) {
         self.globe = globe
@@ -85,7 +82,6 @@ final class SatelliteLayer {
         // Capped above the slowest measured, 1.8 s in a Debug build: a refresh the app
         // was suspended through would shift the next windows days past the clock.
         defer { refreshSeconds = min((ContinuousClock.now - started) / .seconds(1), 2) }
-        count = satellites.count
         let components = pendingComponents.flatMap { show >= $0.show ? $0.components : nil }
         await globe.setSatellites(satellites, components: components) { [weak self] in
             guard let self else {
