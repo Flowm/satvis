@@ -176,4 +176,9 @@ struct Lenient<Value: Decodable>: Decodable {
     init(from decoder: Decoder) throws {
         value = try? Value(from: decoder)
     }
+
+    /// The elements of a JSON array that decode; none when `data` is no array.
+    static func array(from data: Data) -> [Value] {
+        ((try? JSONDecoder().decode([Lenient].self, from: data)) ?? []).compactMap(\.value)
+    }
 }

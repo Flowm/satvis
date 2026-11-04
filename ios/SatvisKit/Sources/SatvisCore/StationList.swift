@@ -21,7 +21,7 @@ extension StationStorage {
     /// read, until `StationList` saves it back.
     public func stations() -> [GroundStation] {
         stationData().map { data in
-            GroundStations.normalized(((try? JSONDecoder().decode([Lenient<GroundStation>].self, from: data)) ?? []).compactMap(\.value))
+            GroundStations.normalized(Lenient<GroundStation>.array(from: data))
         } ?? []
     }
 
