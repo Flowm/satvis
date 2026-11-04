@@ -566,12 +566,9 @@ private struct TrackedMap {
     var span: Double
     /// Radians, as `MapCamera.heading`.
     var heading: Double
+}
 
-    init(span: Double, heading: Double) {
-        self.span = span
-        self.heading = heading
-    }
-
+extension TrackedMap {
     /// As `map` frames its centre.
     init(_ map: MapCamera) {
         self.init(span: map.span, heading: map.heading)

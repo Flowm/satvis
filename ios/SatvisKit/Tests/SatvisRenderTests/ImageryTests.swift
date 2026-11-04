@@ -1,5 +1,6 @@
 import Foundation
 import Metal
+import SatvisCore
 import Testing
 import simd
 
@@ -114,15 +115,15 @@ import simd
         let device = try #require(MTLCreateSystemDefaultDevice())
         let libraries = try await ShaderLibrary.make(device: device)
         let surface = try Surface(device: device, library: libraries.precise, site: URL(string: "https://satvis.space/")!)
-        #expect(surface.groundHeight(latitude: 46.59, longitude: 7.91) == 0)
+        #expect(surface.groundHeight(GeoCoordinate(latitude: 46.59, longitude: 7.91)) == 0)
         let revision = surface.terrainRevision
         surface.setTerrain(true)
-        #expect(surface.groundHeight(latitude: 46.59, longitude: 7.91) == nil)
+        #expect(surface.groundHeight(GeoCoordinate(latitude: 46.59, longitude: 7.91)) == nil)
         #expect(surface.terrainRevision == revision + 1)
         surface.setTerrain(true)
         #expect(surface.terrainRevision == revision + 1)
         surface.setTerrain(false)
-        #expect(surface.groundHeight(latitude: 46.59, longitude: 7.91) == 0)
+        #expect(surface.groundHeight(GeoCoordinate(latitude: 46.59, longitude: 7.91)) == 0)
         #expect(surface.terrainRevision == revision + 2)
     }
 

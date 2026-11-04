@@ -31,10 +31,6 @@ struct Bounds: Equatable {
     var south: Double
     var east: Double
     var north: Double
-
-    func contains(latitude: Double, longitude: Double) -> Bool {
-        west <= longitude && longitude <= east && south <= latitude && latitude <= north
-    }
 }
 
 enum Projection: Sendable {

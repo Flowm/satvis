@@ -86,11 +86,7 @@ final class GroundOverlay {
         }
     }
 
-    func drawForTest(_ commands: MTLCommandBuffer, pipeline: MTLRenderPipelineState, vertices: MTLBuffer, count: Int) {
-        draw(commands, pipeline: pipeline, vertices: vertices, count: count)
-    }
-
-    private func draw(_ commands: MTLCommandBuffer, pipeline: MTLRenderPipelineState, vertices: MTLBuffer?, count: Int) {
+    func draw(_ commands: MTLCommandBuffer, pipeline: MTLRenderPipelineState, vertices: MTLBuffer?, count: Int) {
         for face in 0..<6 {
             let pass = MTLRenderPassDescriptor()
             pass.colorAttachments[0].texture = texture

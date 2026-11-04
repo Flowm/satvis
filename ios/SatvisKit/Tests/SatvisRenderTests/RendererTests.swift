@@ -155,7 +155,7 @@ import simd
         let vertices = GroundOverlay.corridor(from: centre - 0.01 * along, to: centre + 0.01 * along, starboardKm: 100, portKm: 100)
         let buffer = try #require(vertices.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) })
         let commands = try #require(queue.makeCommandBuffer())
-        overlay.drawForTest(commands, pipeline: pipeline, vertices: buffer, count: vertices.count)
+        overlay.draw(commands, pipeline: pipeline, vertices: buffer, count: vertices.count)
 
         // Sampled at the corridor and on the far side of the Earth.
         let sampler = try await device.makeLibrary(

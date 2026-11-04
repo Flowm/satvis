@@ -68,7 +68,7 @@ struct ModelAsset {
         guard let document = try JSONSerialization.jsonObject(with: json) as? [String: Any] else {
             throw Failure.malformed("JSON")
         }
-        var reader = Reader(document: document, binary: binary)
+        let reader = Reader(document: document, binary: binary)
         materials = (document["materials"] as? [[String: Any]] ?? []).map { reader.material($0) }
         // A primitive without a material takes glTF's default.
         materials.append(Material())
@@ -79,7 +79,7 @@ struct ModelAsset {
         let roots = scene?["nodes"] as? [Int] ?? Array((reader.nodes.indices))
         var visits = 0
         for root in roots {
-            try add(node: root, parent: matrix_identity_float4x4, reader: &reader, depth: 0, visits: &visits)
+            try add(node: root, parent: matrix_identity_float4x4, reader: reader, depth: 0, visits: &visits)
         }
         guard !vertices.isEmpty else {
             throw Failure.malformed("no triangles")
@@ -98,7 +98,7 @@ struct ModelAsset {
     /// listing the same child twice at every level is reached 2^depth times.
     private static let maximumNodeVisits = 65_536
 
-    private mutating func add(node index: Int, parent: simd_float4x4, reader: inout Reader, depth: Int, visits: inout Int) throws {
+    private mutating func add(node index: Int, parent: simd_float4x4, reader: Reader, depth: Int, visits: inout Int) throws {
         visits += 1
         guard depth < 64, visits <= Self.maximumNodeVisits, let node = reader.nodes[safe: index] else {
             throw Failure.malformed("node \(index)")
@@ -106,15 +106,15 @@ struct ModelAsset {
         let transform = parent * Self.transform(of: node)
         if let mesh = node["mesh"] as? Int, let primitives = reader.meshes[safe: mesh]?["primitives"] as? [[String: Any]] {
             for primitive in primitives where (primitive["mode"] as? Int ?? 4) == 4 {
-                try add(primitive, transform: transform, reader: &reader)
+                try add(primitive, transform: transform, reader: reader)
             }
         }
         for child in node["children"] as? [Int] ?? [] {
-            try add(node: child, parent: transform, reader: &reader, depth: depth + 1, visits: &visits)
+            try add(node: child, parent: transform, reader: reader, depth: depth + 1, visits: &visits)
         }
     }
 
-    private mutating func add(_ primitive: [String: Any], transform: simd_float4x4, reader: inout Reader) throws {
+    private mutating func add(_ primitive: [String: Any], transform: simd_float4x4, reader: Reader) throws {
         let mesh = try reader.mesh(primitive)
         guard !mesh.positions.isEmpty, !mesh.indices.isEmpty else {
             return
@@ -289,7 +289,7 @@ private struct Reader {
         return Textures.image(bytes, maximumSide: 4096)
     }
 
-    mutating func mesh(_ primitive: [String: Any]) throws -> PrimitiveMesh {
+    func mesh(_ primitive: [String: Any]) throws -> PrimitiveMesh {
         let attributes = primitive["attributes"] as? [String: Int] ?? [:]
         if let draco = (primitive["extensions"] as? [String: Any])?["KHR_draco_mesh_compression"] as? [String: Any] {
             return try decodeDraco(draco)

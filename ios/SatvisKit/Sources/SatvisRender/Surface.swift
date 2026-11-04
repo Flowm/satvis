@@ -406,16 +406,17 @@ final class Surface {
 
     /// The ground's height at a place, metres above the ellipsoid, from the finest
     /// terrain tile loaded there; nil before any has. 0 with the terrain off.
-    func groundHeight(latitude: Double, longitude: Double) -> Double? {
+    func groundHeight(_ place: GeoCoordinate) -> Double? {
         guard terrainEnabled else {
             return 0
         }
+        let latitude = place.latitude
         // Rows and columns become integers below, which traps on a coordinate far
         // out of range: nothing past the poles, and longitudes wrapped.
-        guard latitude.isFinite, longitude.isFinite, abs(latitude) <= 90 else {
+        guard latitude.isFinite, place.longitude.isFinite, abs(latitude) <= 90 else {
             return nil
         }
-        let longitude = wrappedLongitude(longitude)
+        let longitude = wrappedLongitude(place.longitude)
         for level in stride(from: Terrain.maximumLevel, through: 0, by: -1) {
             let row = Int(Projection.geographic.row(latitude: latitude, level: level))
             let column = Int(Projection.geographic.column(longitude: longitude, level: level))
