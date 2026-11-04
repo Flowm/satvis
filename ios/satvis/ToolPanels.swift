@@ -747,13 +747,7 @@ struct GraphicsPanel: View {
         }
         PanelSection("Measurement") {
             PanelCard {
-                Toggle(
-                    "FPS",
-                    isOn: Binding {
-                        session.showsPerformance
-                    } set: {
-                        session.setShowsPerformance($0)
-                    })
+                Toggle("FPS", isOn: $session.showsPerformance)
                 Toggle(
                     "Benchmark",
                     isOn: Binding {

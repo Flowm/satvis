@@ -129,7 +129,10 @@ final class Session {
     /// The web app's FPS switch, which the app shows as its performance overlay.
     /// Kept where the web keeps it, in the link as `fps=true`: a link the app
     /// does not otherwise read, written back as it came.
-    var showsPerformance: Bool { foreign.showsPerformance }
+    var showsPerformance: Bool {
+        get { foreign.showsPerformance }
+        set { foreign.showsPerformance = newValue }
+    }
     /// Drawable pixels per point, the web app's `pixelratio`: `1`, `1.5`, or
     /// `native` for the screen's own. Fewer pixels for frames the GPU finishes in
     /// time; kept in links as on the web.
@@ -314,10 +317,6 @@ final class Session {
     }
 
     // MARK: Links
-
-    func setShowsPerformance(_ shows: Bool) {
-        foreign.showsPerformance = shows
-    }
 
     func setShowsBenchmark(_ shows: Bool) {
         if !shows {
