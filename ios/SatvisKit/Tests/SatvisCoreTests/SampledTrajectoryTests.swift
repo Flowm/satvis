@@ -190,7 +190,8 @@ import simd
 }
 
 @Suite struct MalformedRecordTests {
-    // A number no Int holds is dropped, not a crash: `Double("nan")` parses.
+    // A number no Int holds is no crash, and fields the app does not read are
+    // ignored whatever they hold.
     @Test func survivesNumbersNoIntegerHolds() throws {
         let json = """
             [{"OBJECT_NAME": "ODD", "NORAD_CAT_ID": 1e20, "EPOCH": "2026-10-01T00:00:00", "MEAN_MOTION": 15, "ECCENTRICITY": 0.001,
@@ -198,9 +199,6 @@ import simd
               "MEAN_MOTION_DOT": 0, "MEAN_MOTION_DDOT": 0, "EPHEMERIS_TYPE": "nan", "ELEMENT_SET_NO": 1e300, "REV_AT_EPOCH": "inf"}]
             """
         let records = try GPRecord.decodePayload(Data(json.utf8))
-        #expect(records.count == 1)
-        if case .omm(let omm) = records.first?.elements {
-            #expect(omm.ephemerisType == nil && omm.elementSetNo == nil && omm.revAtEpoch == nil)
-        }
+        #expect(records.map(\.satnum) == ["1e+20"])
     }
 }
