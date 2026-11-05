@@ -18,12 +18,12 @@
     "type-check": "tsc"
   },
   "devDependencies": {
-    "@cloudflare/vitest-plugin": "1.4.6",
+    "@cloudflare/vitest-plugin": "1.5.1",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "typescript": "catalog:",
-    "vitest": "^5.0.5",
-    "wrangler": "^4.151.3",
+    "vitest": "^5.1.0",
+    "wrangler": "^4.157.0",
     "yaml": "^2.9.1"
   }
 }
