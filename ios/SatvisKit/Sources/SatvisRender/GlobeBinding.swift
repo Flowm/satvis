@@ -126,7 +126,7 @@ public final class GlobeBinding {
     public init() {}
 
     /// Whether a globe is attached.
-    public var isAttached: Bool { globe != nil }
+    var isAttached: Bool { globe != nil }
 
     /// Takes over a globe, and sets everything on it: the loaders before what
     /// fetches through them, the camera after the stations it may follow, and the

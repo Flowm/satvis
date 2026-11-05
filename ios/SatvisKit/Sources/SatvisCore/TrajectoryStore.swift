@@ -9,12 +9,29 @@ public actor TrajectoryStore {
         public var trajectory: SampledTrajectory
     }
 
-    private var propagators: [(record: GPRecord, propagator: SGP4Propagator)] = []
-    private var trajectories: [SampledTrajectory?] = []
-    /// When SGP4 refused a satellite's whole window, e.g. long after it decayed.
-    /// Not drawn, and sampled again only once the clock is an orbit away from
-    /// there, so a clock scrubbed past a decay and back brings it back.
-    private var failedAt: [Int: Double] = [:]
+    /// A satellite in the set, and its window.
+    private struct Slot {
+        var record: GPRecord
+        var propagator: SGP4Propagator
+        var trajectory: SampledTrajectory?
+        /// When SGP4 refused the whole window, e.g. long after it decayed. Not
+        /// drawn, and sampled again only once the clock is an orbit away from
+        /// there, so a clock scrubbed past a decay and back brings it back.
+        var failedAt: Double?
+
+        /// Whether the window has to be sampled for this instant.
+        func isStale(at time: Double) -> Bool {
+            guard !(trajectory?.isFresh(at: time) ?? false) else {
+                return false
+            }
+            if let failedAt, abs(time - failedAt) < SampledTrajectory.periodMilliseconds(propagator) {
+                return false
+            }
+            return true
+        }
+    }
+
+    private var slots: [Slot] = []
     /// A replacement that resampled nothing still changes what is drawn.
     private var changedSinceRefresh = false
 
@@ -25,29 +42,21 @@ public actor TrajectoryStore {
     /// drawn, as the web app draws them; one already in the set keeps its window,
     /// so that switching a group on does not resample every other one.
     public func replace(with records: [GPRecord]) {
-        var kept: [String: (propagator: SGP4Propagator, trajectory: SampledTrajectory?, failedAt: Double?)] = [:]
-        for (index, entry) in propagators.enumerated() {
-            kept[Self.key(entry.record)] = (entry.propagator, trajectories[index], failedAt[index])
+        var kept: [String: Slot] = [:]
+        for slot in slots {
+            kept[Self.key(slot.record)] = slot
         }
         var seen = Set<String>()
-        var nextPropagators: [(record: GPRecord, propagator: SGP4Propagator)] = []
-        var nextTrajectories: [SampledTrajectory?] = []
-        var nextFailedAt: [Int: Double] = [:]
+        var next: [Slot] = []
         for record in records where seen.insert(Catalog.id(of: record)).inserted {
-            if let old = kept[Self.key(record)] {
-                if let failed = old.failedAt {
-                    nextFailedAt[nextPropagators.count] = failed
-                }
-                nextPropagators.append((record, old.propagator))
-                nextTrajectories.append(old.trajectory)
+            if var slot = kept[Self.key(record)] {
+                slot.record = record
+                next.append(slot)
             } else if let propagator = try? SGP4Propagator(record.meanElements) {
-                nextPropagators.append((record, propagator))
-                nextTrajectories.append(nil)
+                next.append(Slot(record: record, propagator: propagator))
             }
         }
-        propagators = nextPropagators
-        trajectories = nextTrajectories
-        failedAt = nextFailedAt
+        slots = next
         changedSinceRefresh = true
     }
 
@@ -94,36 +103,27 @@ public actor TrajectoryStore {
     public func refresh(at epochMilliseconds: Double) -> [Entry]? {
         var changed = changedSinceRefresh
         changedSinceRefresh = false
-        func isStale(_ index: Int, at time: Double) -> Bool {
-            guard !(trajectories[index]?.isFresh(at: time) ?? false) else {
-                return false
-            }
-            if let failed = failedAt[index], abs(time - failed) < SampledTrajectory.periodMilliseconds(propagators[index].propagator) {
-                return false
-            }
-            return true
-        }
-        var stale = propagators.indices.filter { isStale($0, at: epochMilliseconds) }
+        var stale = slots.indices.filter { slots[$0].isStale(at: epochMilliseconds) }
         if !stale.isEmpty {
-            stale = propagators.indices.filter { index in
-                isStale(index, at: epochMilliseconds) || isStale(index, at: epochMilliseconds - Self.batchMilliseconds)
-                    || isStale(index, at: epochMilliseconds + Self.batchMilliseconds)
+            stale = slots.indices.filter { index in
+                slots[index].isStale(at: epochMilliseconds) || slots[index].isStale(at: epochMilliseconds - Self.batchMilliseconds)
+                    || slots[index].isStale(at: epochMilliseconds + Self.batchMilliseconds)
             }
         }
-        let sampled = Self.sample(stale.map { propagators[$0].propagator }, around: epochMilliseconds)
+        let sampled = Self.sample(stale.map { slots[$0].propagator }, around: epochMilliseconds)
         for (index, trajectory) in zip(stale, sampled) {
-            failedAt[index] = trajectory == nil ? epochMilliseconds : nil
+            slots[index].failedAt = trajectory == nil ? epochMilliseconds : nil
             // A satellite that stays refused changes nothing that is drawn.
-            if trajectory != nil || trajectories[index] != nil {
+            if trajectory != nil || slots[index].trajectory != nil {
                 changed = true
             }
-            trajectories[index] = trajectory
+            slots[index].trajectory = trajectory
         }
         guard changed else {
             return nil
         }
-        return zip(propagators, trajectories).compactMap { satellite, trajectory in
-            trajectory.map { Entry(record: satellite.record, trajectory: $0) }
+        return slots.compactMap { slot in
+            slot.trajectory.map { Entry(record: slot.record, trajectory: $0) }
         }
     }
 }

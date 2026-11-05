@@ -51,17 +51,6 @@ struct SkyJudgement {
 }
 
 extension GlobeRenderer {
-    /// The satellites above the horizon and on screen, as the last frame drew them,
-    /// within `radius` points of the middle: only they are judged for visibility.
-    public func skyTargets(viewSize: CGSize, within radius: Double = .infinity) -> [SkyTarget] {
-        guard isSkySettled, let camera = skyCamera, let lastFrame else {
-            return []
-        }
-        return skyCache.targets(
-            in: lastFrame, camera: camera, unseen: unseen, satellites: points.installed, viewSize: viewSize, within: radius,
-            uptime: ProcessInfo.processInfo.systemUptime)
-    }
-
     /// What the crosshair holds (`SkyCache.lock`); nil until the sky view has
     /// landed.
     public func skyLock(viewSize: CGSize) -> SkyTarget? {
@@ -72,7 +61,7 @@ extension GlobeRenderer {
         }
         return skyCache.lock(
             in: lastFrame, camera: camera, unseen: unseen, satellites: points.installed, viewSize: viewSize, uptime: ProcessInfo.processInfo.systemUptime,
-            terrain: surface.terrainRevision, groundHeight: { self.surface.groundHeight(latitude: $0.latitude, longitude: $0.longitude) })
+            terrain: surface.terrainRevision, groundHeight: { self.surface.groundHeight($0) })
     }
 
     /// Where a direction in the sky is drawn, in points; nil behind the camera.
@@ -90,7 +79,7 @@ extension GlobeRenderer {
         }
         return skyCache.trace(
             of: id, in: lastFrame, camera: camera, satellites: points.installed, viewSize: viewSize, terrain: surface.terrainRevision,
-            groundHeight: { self.surface.groundHeight(latitude: $0.latitude, longitude: $0.longitude) })
+            groundHeight: { self.surface.groundHeight($0) })
     }
 }
 

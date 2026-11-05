@@ -138,7 +138,8 @@ struct QuantizedMesh: Sendable {
     /// The height and normal under a point of the tile, from the triangle it falls
     /// in. Nil where none covers it, which a well-formed tile never leaves.
     func sample(u x: Double, v y: Double, grid: TriangleGrid) -> (height: Double, normal: SIMD3<Double>?)? {
-        for triangle in grid.triangles(near: x, y) {
+        for index in grid.triangles(near: x, y) {
+            let triangle = Int(index)
             let (a, b, c) = (Int(triangles[3 * triangle]), Int(triangles[3 * triangle + 1]), Int(triangles[3 * triangle + 2]))
             let denominator = (v[b] - v[c]) * (u[a] - u[c]) + (u[c] - u[b]) * (v[a] - v[c])
             guard abs(denominator) > 1e-15 else {
@@ -156,31 +157,53 @@ struct QuantizedMesh: Sendable {
     }
 
     /// The triangles bucketed by where they lie, so finding the one under a point
-    /// does not search them all.
+    /// does not search them all. The buckets are one array, each cell's triangles
+    /// in order: an array a cell took 19 MB for the 96 terrain tiles kept.
     struct TriangleGrid: Sendable {
         static let size = 32
-        private var buckets: [[Int]]
+        /// Where each cell's triangles start in `triangles`, and where the last ends.
+        private var starts: [Int32]
+        private var triangles: [Int32]
 
         init(_ mesh: QuantizedMesh) {
-            buckets = Array(repeating: [], count: Self.size * Self.size)
-            for triangle in 0..<mesh.triangles.count / 3 {
+            // The cells each triangle covers, counted and then filled in.
+            func covered(_ triangle: Int, _ body: (Int) -> Void) {
                 let (a, b, c) = (Int(mesh.triangles[3 * triangle]), Int(mesh.triangles[3 * triangle + 1]), Int(mesh.triangles[3 * triangle + 2]))
                 let (ua, ub, uc) = (mesh.u[a], mesh.u[b], mesh.u[c])
                 let (va, vb, vc) = (mesh.v[a], mesh.v[b], mesh.v[c])
                 for row in Self.cell(min(va, vb, vc))...Self.cell(max(va, vb, vc)) {
                     for column in Self.cell(min(ua, ub, uc))...Self.cell(max(ua, ub, uc)) {
-                        buckets[row * Self.size + column].append(triangle)
+                        body(row * Self.size + column)
                     }
                 }
             }
+            let triangleCount = mesh.triangles.count / 3
+            var starts = [Int32](repeating: 0, count: Self.size * Self.size + 1)
+            for triangle in 0..<triangleCount {
+                covered(triangle) { starts[$0 + 1] += 1 }
+            }
+            for cell in 1..<starts.count {
+                starts[cell] += starts[cell - 1]
+            }
+            var next = starts
+            var triangles = [Int32](repeating: 0, count: Int(starts[starts.count - 1]))
+            for triangle in 0..<triangleCount {
+                covered(triangle) { cell in
+                    triangles[Int(next[cell])] = Int32(triangle)
+                    next[cell] += 1
+                }
+            }
+            self.starts = starts
+            self.triangles = triangles
         }
 
         private static func cell(_ value: Double) -> Int {
             min(max(Int(value * Double(size)), 0), size - 1)
         }
 
-        func triangles(near u: Double, _ v: Double) -> [Int] {
-            buckets[Self.cell(v) * Self.size + Self.cell(u)]
+        func triangles(near u: Double, _ v: Double) -> ArraySlice<Int32> {
+            let cell = Self.cell(v) * Self.size + Self.cell(u)
+            return triangles[Int(starts[cell])..<Int(starts[cell + 1])]
         }
     }
 }

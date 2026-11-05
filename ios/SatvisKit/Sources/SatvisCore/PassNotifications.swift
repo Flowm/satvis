@@ -31,7 +31,7 @@ public struct PassAlert: Codable, Hashable, Sendable {
     /// Alerts as saved, read one at a time, so an alert saved in an older shape
     /// drops alone.
     public static func decodeAll(from data: Data) -> [PassAlert] {
-        ((try? JSONDecoder().decode([Lenient].self, from: data)) ?? []).compactMap(\.value)
+        Lenient<PassAlert>.array(from: data)
     }
 
     /// The stations its passes are over, out of the saved ones.
@@ -39,15 +39,6 @@ public struct PassAlert: Codable, Hashable, Sendable {
         switch subject {
         case .satellite: saved
         case .station(let id): saved.filter { $0.id == id }
-        }
-    }
-
-    /// An alert, or nil for one that no longer decodes.
-    private struct Lenient: Decodable {
-        let value: PassAlert?
-
-        init(from decoder: Decoder) throws {
-            value = try? PassAlert(from: decoder)
         }
     }
 }

@@ -41,7 +41,7 @@ public enum Formats {
     /// A number as JavaScript's `String(value)` writes it, every digit kept, in the
     /// region's separators.
     public static func number(_ value: Double) -> String {
-        decimal(javaScriptString(value))
+        decimal(jsNumberString(value))
     }
 
     /// "2,857.123": up to three decimals, the rest rounded half away from zero, as

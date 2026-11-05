@@ -138,8 +138,7 @@ public struct LinkState: Sendable, Hashable {
 
     public init(
         elements: [String], sats: [String], xsats: [String], tags: [String], gs: [LinkStation], track: String, overpass: String, layers: [String],
-        terrain: String, stars: StarMapName = .tycho1K, scene: String = "3D", unseen: UnseenMode = .dim, camera: CameraFrame = .fixed, pixelRatio: String = "native",
-        time: String?
+        terrain: String, stars: StarMapName, scene: String, unseen: UnseenMode, camera: CameraFrame, pixelRatio: String, time: String?
     ) {
         self.elements = elements
         self.sats = sats
@@ -225,7 +224,7 @@ public enum LinkCodec {
 
     /// Query -> state. An absent parameter is its default; an unusable one too,
     /// and is named in `invalid`.
-    public static func decode(_ query: LinkQuery, defaults: LinkState) -> (state: LinkState, invalid: [String]) {
+    private static func decode(_ query: LinkQuery, defaults: LinkState) -> (state: LinkState, invalid: [String]) {
         var state = defaults
         var invalid: [String] = []
         for field in schema where !field.read(query[field.name], &state, defaults) {
@@ -236,7 +235,7 @@ public enum LinkCodec {
 
     /// State -> the parameters that differ from the defaults, in order. One that
     /// cannot be written is left out rather than written as something else.
-    public static func encode(_ state: LinkState, defaults: LinkState) -> [(String, String)] {
+    private static func encode(_ state: LinkState, defaults: LinkState) -> [(String, String)] {
         schema.compactMap { field in
             guard let value = field.write(state), value != field.write(defaults) else {
                 return nil

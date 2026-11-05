@@ -384,14 +384,3 @@ private enum ShareSheet {
         top.present(sheet, animated: true)
     }
 }
-
-extension View {
-    /// Where the view is, for a share sheet's popover to point at.
-    fileprivate func reportsFrame(_ action: @escaping (CGRect) -> Void) -> some View {
-        onGeometryChange(for: CGRect.self) {
-            $0.frame(in: .global)
-        } action: {
-            action($0)
-        }
-    }
-}

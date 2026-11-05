@@ -8,7 +8,7 @@ private let log = Logger(subsystem: "org.frcy.app.satvis", category: "globe")
 /// Which camera the view is seen through, and so what the gestures steer: the free
 /// camera over the globe, or one following a satellite or a ground station. The
 /// sky view (M6) is a third.
-public enum CameraMode: Sendable, Equatable {
+enum CameraMode: Sendable, Equatable {
     case orbit
     /// Following what has this id.
     case tracking(String)
@@ -451,6 +451,38 @@ struct CameraRig {
             lastPose = pose
             return pose
         }
+        orbitCamera = freeCamera(orbitCamera, uptime: uptime, time: now)
+        var pose = orbitCamera.pose()
+        frameModel(model)
+        if case .tracking(let id) = cameraMode, let position = target(id, now) {
+            // As CesiumJS tells the velocity: by where it is a millisecond on, or one
+            // before at the end of what is known.
+            let velocity = target(id, now + 1).map { ($0 - position) * 1000 } ?? target(id, now - 1).map { (position - $0) * 1000 } ?? .zero
+            pose = trackingCamera.pose(target: position, velocity: velocity)
+        }
+        if let flight = poseFlight {
+            if cameraMode != .sky {
+                pose = PoseFlight.pose(from: flight.from, to: pose, t: flight.progress(at: uptime))
+            }
+            if flight.isOver(at: uptime) || cameraMode == .sky {
+                poseFlight = nil
+            }
+        }
+        if cameraMode == .sky, let camera = skyCamera {
+            pose = skyPose(camera, uptime: uptime, aspectRatio: aspectRatio, groundHeight: groundHeight)
+        }
+        guard pose.isFinite else {
+            resetCameras(orbitCamera, aspectRatio: aspectRatio)
+            return nil
+        }
+        lastPose = pose
+        return pose
+    }
+
+    /// The free camera from `camera` at `uptime` and the clock at `now`: partway
+    /// through any flight home, and turned with the Earth in the inertial frame.
+    private mutating func freeCamera(_ camera: OrbitCamera, uptime: Double, time now: Double) -> OrbitCamera {
+        var orbitCamera = camera
         if let flight = homeFlight {
             // Called off by anything else the camera is asked to do.
             let t = (uptime - flight.start) / Self.homeFlightDuration
@@ -474,65 +506,57 @@ struct CameraRig {
         } else {
             inertialAngle = nil
         }
-        var pose = orbitCamera.pose()
-        frameModel(model)
-        if case .tracking(let id) = cameraMode, let position = target(id, now) {
-            // As CesiumJS tells the velocity: by where it is a millisecond on, or one
-            // before at the end of what is known.
-            let velocity = target(id, now + 1).map { ($0 - position) * 1000 } ?? target(id, now - 1).map { (position - $0) * 1000 } ?? .zero
-            pose = trackingCamera.pose(target: position, velocity: velocity)
+        return orbitCamera
+    }
+
+    /// The sky view from `skyCamera` on the ground, partway through any flight
+    /// down to it or back up.
+    private mutating func skyPose(
+        _ skyCamera: SkyCamera, uptime: Double, aspectRatio: Double, groundHeight: (GeoCoordinate) -> Double?
+    ) -> CameraPose {
+        var camera = skyCamera
+        // Up at once out of the ground; down gently onto finer terrain as it loads.
+        if let ground = groundHeight(GeoCoordinate(latitude: camera.latitude, longitude: camera.longitude)) {
+            camera.groundHeight = ground > camera.groundHeight ? ground : camera.groundHeight + (ground - camera.groundHeight) * 0.1
         }
-        if let flight = poseFlight {
-            if cameraMode != .sky {
-                pose = PoseFlight.pose(from: flight.from, to: pose, t: flight.progress(at: uptime))
-            }
-            if flight.isOver(at: uptime) || cameraMode == .sky {
-                poseFlight = nil
-            }
+        // Read again every frame, as the screen turns under the picture.
+        if let passthrough {
+            camera.verticalFieldOfView = passthrough.verticalFieldOfView(viewAspectRatio: aspectRatio)
         }
-        if cameraMode == .sky, var camera = skyCamera {
-            // Up at once out of the ground; down gently onto finer terrain as it loads.
-            if let ground = groundHeight(GeoCoordinate(latitude: camera.latitude, longitude: camera.longitude)) {
-                camera.groundHeight = ground > camera.groundHeight ? ground : camera.groundHeight + (ground - camera.groundHeight) * 0.1
-            }
-            // Read again every frame, as the screen turns under the picture.
-            if let passthrough {
-                camera.verticalFieldOfView = passthrough.verticalFieldOfView(viewAspectRatio: aspectRatio)
-            }
-            skyCamera = camera
-            pose = camera.pose()
-            if var flight = skyFlight {
-                var over = SkyCamera(latitude: camera.latitude, longitude: camera.longitude, azimuth: camera.azimuth, pitch: -.pi / 2)
-                over.groundHeight = camera.groundHeight
-                let overPose = over.pose()
-                let offset = flight.offset ?? SkyFlight.offset(from: flight.globe, to: pose, over: overPose)
-                flight.offset = offset
-                skyFlight = flight
-                pose = SkyFlight.pose(from: flight.globe, to: pose, over: overPose, offset: offset, t: flight.progress(at: uptime))
-                if flight.isOver(at: uptime) {
-                    if flight.entering {
-                        skyFlight = nil
-                    } else {
-                        landOnGlobe()
-                    }
+        self.skyCamera = camera
+        var pose = camera.pose()
+        if var flight = skyFlight {
+            var over = SkyCamera(latitude: camera.latitude, longitude: camera.longitude, azimuth: camera.azimuth, pitch: -.pi / 2)
+            over.groundHeight = camera.groundHeight
+            let overPose = over.pose()
+            let offset = flight.offset ?? SkyFlight.offset(from: flight.globe, to: pose, over: overPose)
+            flight.offset = offset
+            skyFlight = flight
+            pose = SkyFlight.pose(from: flight.globe, to: pose, over: overPose, offset: offset, t: flight.progress(at: uptime))
+            if flight.isOver(at: uptime) {
+                if flight.entering {
+                    skyFlight = nil
+                } else {
+                    landOnGlobe()
                 }
             }
         }
-        guard pose.isFinite else {
-            // Drawn from, it leaves nothing on screen until the app is relaunched.
-            let mode = cameraMode
-            log.fault("Camera not finite: \(String(describing: orbitCamera), privacy: .public), \(String(describing: mode), privacy: .public)")
-            self.orbitCamera = OrbitCamera.home(aspectRatio: aspectRatio)
-            trackingCamera = TrackingCamera()
-            homeFlight = nil
-            poseFlight = nil
-            if cameraMode == .sky {
-                landOnGlobe()
-            }
-            return nil
-        }
-        lastPose = pose
         return pose
+    }
+
+    /// Puts the cameras back home after a pose that is not finite: drawn from, it
+    /// leaves nothing on screen until the app is relaunched. `orbitCamera` is the
+    /// free camera the pose was worked out from, for the log.
+    private mutating func resetCameras(_ orbitCamera: OrbitCamera, aspectRatio: Double) {
+        let mode = cameraMode
+        log.fault("Camera not finite: \(String(describing: orbitCamera), privacy: .public), \(String(describing: mode), privacy: .public)")
+        self.orbitCamera = OrbitCamera.home(aspectRatio: aspectRatio)
+        trackingCamera = TrackingCamera()
+        homeFlight = nil
+        poseFlight = nil
+        if cameraMode == .sky {
+            landOnGlobe()
+        }
     }
 }
 
@@ -542,12 +566,9 @@ private struct TrackedMap {
     var span: Double
     /// Radians, as `MapCamera.heading`.
     var heading: Double
+}
 
-    init(span: Double, heading: Double) {
-        self.span = span
-        self.heading = heading
-    }
-
+extension TrackedMap {
     /// As `map` frames its centre.
     init(_ map: MapCamera) {
         self.init(span: map.span, heading: map.heading)

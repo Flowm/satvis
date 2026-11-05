@@ -103,7 +103,8 @@ final class Surface {
 
     private let device: MTLDevice
     private let bakePipeline: MTLRenderPipelineState
-    private let indices: MTLBuffer
+    /// The triangles of every tile, whose vertices are `vertices(_:)`.
+    let indexBuffer: MTLBuffer
     let indexCount: Int
     private let sampler: MTLSamplerState
     private var tiles: [TileKey: Tile] = [:]
@@ -142,7 +143,7 @@ final class Surface {
         descriptor.colorAttachments[0].pixelFormat = .rgba8Unorm
         bakePipeline = try device.makeRenderPipelineState(descriptor: descriptor)
         let grid = SurfaceMesh.indices()
-        indices = grid.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count)! }
+        indexBuffer = device.makeBuffer(copying: grid)!
         indexCount = grid.count
         let samplerDescriptor = MTLSamplerDescriptor()
         samplerDescriptor.minFilter = .linear
@@ -151,8 +152,6 @@ final class Surface {
         samplerDescriptor.tAddressMode = .clampToEdge
         sampler = device.makeSamplerState(descriptor: samplerDescriptor)!
     }
-
-    var indexBuffer: MTLBuffer { indices }
 
     /// Changes the base map, or a daily one's day, and bakes every tile again, the
     /// nearest first.
@@ -190,6 +189,11 @@ final class Surface {
         terrainEnabled ? tile.draped?.vertices ?? tile.vertices : tile.vertices
     }
 
+    /// The finest level the imagery is refined to.
+    private var imageryMaximumLevel: Int {
+        max(source.maximumLevel + (source.tileSize == 512 && source.projection == .geographic ? 1 : 0), 6)
+    }
+
     /// The tiles to draw this frame, each with a texture. A tile is refined only
     /// once its four children have one, so the globe never shows a hole.
     /// The screen-space error is in the drawing's own pixels, as CesiumJS measures
@@ -210,13 +214,12 @@ final class Surface {
         terrainOffset = Terrain.offset(pixelsPerPoint: pixelsPerPoint)
         let planes = Self.planes(viewProjection)
         let eyeLatLon = geodetic(eye)
-        let imageryLevel = max(source.maximumLevel + (source.tileSize == 512 && source.projection == .geographic ? 1 : 0), 6)
         // With terrain, as fine as the terrain goes, whatever the imagery does: the
         // ground's grid is the surface tile's, and stopped where Natural Earth
         // stops, at level 6, it laid level-4 terrain under the sky view, a grid
         // 20 km apart that leaves a valley a plain. Past its own finest level
         // the imagery is drawn magnified from it.
-        let maximumLevel = terrainEnabled ? max(imageryLevel, Terrain.maximumLevel + terrainOffset) : imageryLevel
+        let maximumLevel = terrainEnabled ? max(imageryMaximumLevel, Terrain.maximumLevel + terrainOffset) : imageryMaximumLevel
         let sseFactor = viewportHeightPixels / (2 * tan(verticalFieldOfView / 2))
         var draw: [Tile] = []
         var bake: [Tile] = []
@@ -268,7 +271,7 @@ final class Surface {
             return (lastSelection.draw, [])
         }
         frame += 1
-        let maximumLevel = max(source.maximumLevel + (source.tileSize == 512 && source.projection == .geographic ? 1 : 0), 6)
+        let maximumLevel = imageryMaximumLevel
         let metresPerPixel = map.span / max(viewportPixels.x, viewportPixels.y)
         let half = map.boundingHalfExtent(aspectRatio: aspectRatio)
         var draw: [Tile] = []
@@ -361,7 +364,7 @@ final class Surface {
             terrain: terrain.source.map { source in
                 (source.sample, Terrain.skirtHeight(level: terrain.key?.level ?? 0))
             })
-        guard let vertices = mesh.vertices.withUnsafeBytes({ device.makeBuffer(bytes: $0.baseAddress!, length: $0.count) }) else {
+        guard let vertices = device.makeBuffer(copying: mesh.vertices) else {
             return tile.draped != nil
         }
         tile.draped = (vertices, terrain.key)
@@ -403,16 +406,17 @@ final class Surface {
 
     /// The ground's height at a place, metres above the ellipsoid, from the finest
     /// terrain tile loaded there; nil before any has. 0 with the terrain off.
-    func groundHeight(latitude: Double, longitude: Double) -> Double? {
+    func groundHeight(_ place: GeoCoordinate) -> Double? {
         guard terrainEnabled else {
             return 0
         }
+        let latitude = place.latitude
         // Rows and columns become integers below, which traps on a coordinate far
         // out of range: nothing past the poles, and longitudes wrapped.
-        guard latitude.isFinite, longitude.isFinite, abs(latitude) <= 90 else {
+        guard latitude.isFinite, place.longitude.isFinite, abs(latitude) <= 90 else {
             return nil
         }
-        let longitude = wrappedLongitude(longitude)
+        let longitude = wrappedLongitude(place.longitude)
         for level in stride(from: Terrain.maximumLevel, through: 0, by: -1) {
             let row = Int(Projection.geographic.row(latitude: latitude, level: level))
             let column = Int(Projection.geographic.column(longitude: longitude, level: level))
@@ -645,7 +649,7 @@ final class Surface {
         }
         let bounds = Projection.geographic.bounds(key)
         let mesh = SurfaceMesh(bounds: bounds, level: key.level)
-        let buffer = mesh.vertices.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count)! }
+        let buffer = device.makeBuffer(copying: mesh.vertices)!
         let tile = Tile(key: key, bounds: bounds, vertices: buffer, centre: mesh.centre, radius: mesh.radius, samples: mesh.samples)
         tiles[key] = tile
         return tile
@@ -872,16 +876,8 @@ struct SurfaceMesh {
     /// Triangles for every tile's grid and skirt, wound counter-clockwise from
     /// outside.
     static func indices() -> [UInt32] {
-        let n = UInt32(size)
-        let stride = n + 1
-        var indices: [UInt32] = []
-        for row in 0..<n {
-            for column in 0..<n {
-                let a = row * stride + column
-                let b = a + stride
-                indices += [a, b, a + 1, a + 1, b, b + 1]
-            }
-        }
+        let stride = UInt32(size) + 1
+        var indices = Meshes.grid(columns: size, rows: size)
         let skirtStart = stride * stride
         let ring = UInt32(edge.count)
         for i in 0..<ring {

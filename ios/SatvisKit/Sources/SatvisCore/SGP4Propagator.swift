@@ -107,14 +107,6 @@ public final class SGP4Propagator: Sendable {
     /// `propagate` counts it. A JavaScript Date holds whole milliseconds, so the
     /// instant should be one.
     public func state(epochMilliseconds: Double) throws(SGP4Error) -> TEMEState {
-        let utc = civilDate(epochMilliseconds: epochMilliseconds)
-        let julianDate = jday(
-            year: utc.year, month: utc.month, day: utc.day, hour: Double(utc.hour), minute: Double(utc.minute), second: Double(utc.second),
-            millisecond: Double(utc.millisecond))
-        return try state(minutesSinceEpoch: (julianDate - epochJulianDate) * 1440)
-    }
-
-    public func state(at date: Date) throws(SGP4Error) -> TEMEState {
-        try state(epochMilliseconds: (date.timeIntervalSince1970 * 1000).rounded(.down))
+        try state(minutesSinceEpoch: (julianDate(epochMilliseconds: epochMilliseconds) - epochJulianDate) * 1440)
     }
 }

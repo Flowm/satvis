@@ -3,7 +3,7 @@ import Testing
 
 @testable import SatvisRender
 
-/// `GlobeRenderer.chooseModelLevel`, with a satellite whose model has one copy up to 100 points.
+/// `ModelPlacer.chooseModelLevel`, with a satellite whose model has one copy up to 100 points.
 @MainActor @Suite struct ModelLevelChoiceTests {
     private let lods = [ModelLod(file: "ISS-(ZARYA)-low.glb", maxPoints: 100)]
 
@@ -12,7 +12,7 @@ import Testing
         current: Int?, tracked: Bool = false, failed: Set<Int> = [], points: [Int: Double] = [:], loaded: Set<Int> = []
     ) -> (level: Int, asked: [Int]) {
         var asked: [Int] = []
-        let level = GlobeRenderer.chooseModelLevel(
+        let level = ModelPlacer.chooseModelLevel(
             current: current, lods: lods, tracked: tracked, failed: { failed.contains($0) }, points: { points[$0] },
             loaded: {
                 asked.append($0)

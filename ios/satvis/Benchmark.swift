@@ -19,6 +19,14 @@ final class Benchmark {
         case measuring(Int)
         case done
         case cancelled
+
+        /// The index of the scene being loaded, settled or measured; nil outside a run.
+        var scene: Int? {
+            switch self {
+            case .loading(let index), .settling(let index), .measuring(let index): index
+            default: nil
+            }
+        }
     }
 
     /// The scenes the device runs, cheap to heavy: the web app's axes of count and
@@ -96,12 +104,7 @@ final class Benchmark {
     /// The settings the scenes' links change and the app keeps between launches.
     @ObservationIgnored private var savedSettings: (baseLayer: BaseLayer, terrain: Bool, mode: OverpassMode)?
 
-    var isRunning: Bool {
-        switch phase {
-        case .loading, .settling, .measuring: true
-        default: false
-        }
-    }
+    var isRunning: Bool { phase.scene != nil }
 
     /// Runs every scene in turn on `session`, then opens the view it found. A run
     /// `SATVIS_BENCHMARK` started sends its results itself.

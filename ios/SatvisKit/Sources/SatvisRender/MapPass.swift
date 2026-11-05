@@ -8,7 +8,7 @@ import SatvisCore
 struct MapPass {
     /// A line: two quads of six vertices a segment, `lineNodes` segments at most
     /// (`mapLineVertex`).
-    private static let lineVertices = 12 * GlobeRenderer.lineNodes
+    private static let lineVertices = 12 * ScenePass.lineNodes
 
     /// The tiles, flat (`mapGlobeVertex`, `mapGlobeFragment`).
     let tiles: MTLRenderPipelineState

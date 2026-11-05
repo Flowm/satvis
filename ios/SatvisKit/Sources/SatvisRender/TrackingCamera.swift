@@ -20,8 +20,7 @@ struct CameraPose: Equatable {
 
     /// The projection for a viewport of this shape.
     func projection(aspectRatio: Double) -> simd_double4x4 {
-        OrbitCamera.projection(
-            verticalFieldOfView: verticalFieldOfView ?? OrbitCamera.verticalFieldOfView(aspectRatio: aspectRatio), aspectRatio: aspectRatio, near: near)
+        OrbitCamera.projection(verticalFieldOfView: verticalFieldOfView(aspectRatio: aspectRatio), aspectRatio: aspectRatio, near: near)
     }
 
     /// Whether no coordinate is NaN or infinite.
@@ -38,29 +37,22 @@ struct CameraPose: Equatable {
     func view() -> simd_double4x4 {
         simd_double4x4(rows: [SIMD4(right, 0), SIMD4(up, 0), SIMD4(back, 0), SIMD4(0, 0, 0, 1)])
     }
-
-    /// Height above the WGS84 ellipsoid, near enough: CesiumJS's eye height.
-    var eyeHeight: Double {
-        let p = position
-        let ellipsoidRadius = 1 / sqrt((p.x * p.x + p.y * p.y) / (ellipsoidRadii.x * ellipsoidRadii.x) + p.z * p.z / (ellipsoidRadii.z * ellipsoidRadii.z))
-        return length(p) * (1 - ellipsoidRadius)
-    }
 }
 
 /// A camera that follows a satellite, looking at it from an offset it holds in the
 /// frame the web app's tracking view does (`axes`). It opens where that view does
 /// (`viewFrom` 0, −3600 km, 4200 km: behind it on the y axis and above); dragging
 /// circles it, pinching closes in.
-public struct TrackingCamera: Sendable, Equatable {
+struct TrackingCamera: Sendable, Equatable {
     /// Radians from the frame's y axis towards its x: from north towards east, for
     /// what holds still.
-    public var heading = Double.pi
+    var heading = Double.pi
     /// Radians above the satellite's horizon.
-    public var pitch = atan2(4200.0, 3600.0)
+    var pitch = atan2(4200.0, 3600.0)
     /// Metres from the satellite.
-    public var range = (3600.0 * 3600 + 4200 * 4200).squareRoot() * 1000
+    var range = (3600.0 * 3600 + 4200 * 4200).squareRoot() * 1000
 
-    public init() {}
+    init() {}
 
     /// Close up on a 3D model, as the web app tracks one while its model is on:
     /// along (9, −10, 9) in `axes`, six model radii away, so a cubesat and the ISS
@@ -76,8 +68,6 @@ public struct TrackingCamera: Sendable, Equatable {
 
     /// Where Earth's surface is at rest, radians per second.
     private static let earthRotation = SIMD3(0, 0, 7.292_115e-5)
-    /// CesiumJS's `GRAVITATIONALPARAMETER`, m³/s².
-    private static let gravitationalParameter = 3.986_004_418e14
     /// Past this semi-major axis, in metres, the frame turns north-up: 1.25 times
     /// WGS84's equatorial radius, as CesiumJS has it.
     private static let northUpSemiMajorAxis = 1.25 * 6_378_137.0
@@ -91,7 +81,7 @@ public struct TrackingCamera: Sendable, Equatable {
         let up = normalize(target)
         let inertialVelocity = velocity + cross(earthRotation, target)
         let speed = length(inertialVelocity)
-        let semiMajorAxis = -gravitationalParameter / (speed * speed - 2 * gravitationalParameter / length(target))
+        let semiMajorAxis = -OrbitMotion.gravitationalParameter / (speed * speed - 2 * OrbitMotion.gravitationalParameter / length(target))
         if semiMajorAxis < 0 || semiMajorAxis > northUpSemiMajorAxis {
             let west = cross(SIMD3(0, 0, 1), -up)
             if length(west) > 1e-7 {
@@ -122,7 +112,7 @@ public struct TrackingCamera: Sendable, Equatable {
 
     /// Circles the satellite: across turns the heading, up and down the pitch.
     /// Ignores a gesture that is not finite, as `OrbitCamera.rotate` says why.
-    public mutating func orbit(by points: SIMD2<Double>, longerSide: Double) {
+    mutating func orbit(by points: SIMD2<Double>, longerSide: Double) {
         guard points.isFinite, longerSide > 0 else {
             return
         }
@@ -131,7 +121,7 @@ public struct TrackingCamera: Sendable, Equatable {
         pitch = min(max(pitch + points.y * radiansPerPoint, 5 * .pi / 180), 89 * .pi / 180)
     }
 
-    public mutating func zoom(by scale: Double) {
+    mutating func zoom(by scale: Double) {
         guard scale.isFinite, scale > 0 else {
             return
         }
@@ -139,7 +129,7 @@ public struct TrackingCamera: Sendable, Equatable {
         range = min(max(range / scale, 1), 100_000_000)
     }
 
-    public mutating func rotate(by radians: Double) {
+    mutating func rotate(by radians: Double) {
         guard radians.isFinite else {
             return
         }

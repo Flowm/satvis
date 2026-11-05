@@ -10,7 +10,7 @@ import Foundation
 /// got there: a link's time, a scrub, a pass, a pause, a fast speed.
 public struct SimulationClock: Sendable, Equatable {
     /// Cesium's shuttle-ring ticks, the ladder's rungs on either side of zero.
-    public static let speedTicks: [Double] = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 21600, 43200, 86400]
+    private static let speedTicks: [Double] = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 21600, 43200, 86400]
     public static let ladder: [Double] = speedTicks.reversed().map { -$0 } + speedTicks
     /// Closer than this to the present counts as at it: a minute, the granularity
     /// a link records.

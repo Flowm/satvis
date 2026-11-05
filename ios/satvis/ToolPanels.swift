@@ -555,7 +555,7 @@ struct SkyPanel: View {
 
     var body: some View {
         let inSky = session.observer != nil
-        let here = session.observer.flatMap { id in session.passes.stations.first { $0.id == id } }
+        let here = session.observer.flatMap(session.passes.station)
         // The Geolocation station is My location's, so it has no row of its own.
         let places = session.passes.stations.filter { $0.name != StationList.geolocation }
         PanelSection("Look up from") {
@@ -713,7 +713,7 @@ struct Note: View {
 /// How the globe is drawn and what that costs, and hiding the UI: the web app's
 /// Graphics panel, less the scene effects and MSAA, which the app does not switch,
 /// and Render only on change, which it always does but while the FPS overlay or the
-/// benchmark measures (`GlobeRenderer.mustDraw`).
+/// benchmark measures (`FramePacer.mustDraw`).
 struct GraphicsPanel: View {
     @Bindable var session: Session
     let hideUI: () -> Void
@@ -747,13 +747,7 @@ struct GraphicsPanel: View {
         }
         PanelSection("Measurement") {
             PanelCard {
-                Toggle(
-                    "FPS",
-                    isOn: Binding {
-                        session.showsPerformance
-                    } set: {
-                        session.setShowsPerformance($0)
-                    })
+                Toggle("FPS", isOn: $session.showsPerformance)
                 Toggle(
                     "Benchmark",
                     isOn: Binding {

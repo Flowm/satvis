@@ -11,17 +11,17 @@ public struct SkyCamera: Sendable, Equatable {
     public var latitude: Double
     public var longitude: Double
     /// Metres above the ellipsoid of the ground under the observer.
-    public var groundHeight: Double = 0
+    var groundHeight: Double = 0
     /// From camera axes (right +X, up +Y, back +Z) into east, north, up.
     public var attitude: simd_quatd
     /// Radians, up the screen.
     public var verticalFieldOfView = defaultFieldOfView
 
     /// Above the ground, as a person holds a phone.
-    public static let eyeHeight = 2.0
-    public static let defaultFieldOfView = 75 * Double.pi / 180
+    static let eyeHeight = 2.0
+    static let defaultFieldOfView = 75 * Double.pi / 180
     public static let defaultPitch = 30 * Double.pi / 180
-    public static let fieldOfViewRange = (10 * Double.pi / 180)...(100 * Double.pi / 180)
+    static let fieldOfViewRange = (10 * Double.pi / 180)...(100 * Double.pi / 180)
 
     /// Facing the equator, where the geostationary belt is, up from the horizon
     /// by the default pitch: the horizon on screen, since the pitch is under half
@@ -112,10 +112,7 @@ public struct SkyCamera: Sendable, Equatable {
 
     /// The observer's east, north and up in the fixed frame.
     var frame: (east: SIMD3<Double>, north: SIMD3<Double>, up: SIMD3<Double>) {
-        let phi = latitude * .pi / 180
-        let lambda = longitude * .pi / 180
-        let up = SIMD3(cos(phi) * cos(lambda), cos(phi) * sin(lambda), sin(phi))
-        let east = SIMD3(-sin(lambda), cos(lambda), 0.0)
+        let (east, _, up) = eastNorthUp(latitude: latitude * .pi / 180, longitude: longitude * .pi / 180)
         return (east, cross(up, east), up)
     }
 

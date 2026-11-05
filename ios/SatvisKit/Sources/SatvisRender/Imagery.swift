@@ -3,18 +3,18 @@ import Foundation
 /// A tile in a quadtree over the globe. Row 0 is the northernmost. In the
 /// geographic scheme, level 0 is two tiles side by side, west and east; in Web
 /// Mercator, one.
-public struct TileKey: Hashable, Sendable, CustomStringConvertible {
-    public var level: Int
-    public var x: Int
-    public var y: Int
+struct TileKey: Hashable, Sendable, CustomStringConvertible {
+    var level: Int
+    var x: Int
+    var y: Int
 
-    public init(level: Int, x: Int, y: Int) {
+    init(level: Int, x: Int, y: Int) {
         self.level = level
         self.x = x
         self.y = y
     }
 
-    public var description: String { "\(level)/\(x)/\(y)" }
+    var description: String { "\(level)/\(x)/\(y)" }
 
     var parent: TileKey? {
         level > 0 ? TileKey(level: level - 1, x: x / 2, y: y / 2) : nil
@@ -31,10 +31,6 @@ struct Bounds: Equatable {
     var south: Double
     var east: Double
     var north: Double
-
-    func contains(latitude: Double, longitude: Double) -> Bool {
-        west <= longitude && longitude <= east && south <= latitude && latitude <= north
-    }
 }
 
 enum Projection: Sendable {
@@ -71,8 +67,7 @@ enum Projection: Sendable {
     }
 
     func column(longitude: Double, level: Int) -> Double {
-        let columns = Double(self == .geographic ? 2 << level : 1 << level)
-        return (longitude + 180) / 360 * columns
+        (longitude + 180) / 360 * Double(columns(level))
     }
 
     func columns(_ level: Int) -> Int { self == .geographic ? 2 << level : 1 << level }

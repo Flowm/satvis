@@ -78,6 +78,47 @@ import simd
         }
     }
 
+    // The grid finds the triangle a search of them all, in order, finds first. On an
+    // edge two triangles hold the point, and give it heights and normals differing in
+    // their last bits: filled in reverse, the cells changed 2,570 of these samples.
+    @Test func samplesTheFirstTriangleUnderAPoint() throws {
+        let mesh = try Self.tile()
+        let grid = QuantizedMesh.TriangleGrid(mesh)
+        let normals = try #require(mesh.normals)
+        let count = mesh.triangles.count / 3
+        func corners(_ triangle: Int) -> (Int, Int, Int) {
+            (Int(mesh.triangles[3 * triangle]), Int(mesh.triangles[3 * triangle + 1]), Int(mesh.triangles[3 * triangle + 2]))
+        }
+        func searched(_ x: Double, _ y: Double) -> (height: Double, normal: SIMD3<Double>)? {
+            let (u, v) = (mesh.u, mesh.v)
+            for triangle in 0..<count {
+                let (a, b, c) = corners(triangle)
+                guard x >= min(u[a], u[b], u[c]), x <= max(u[a], u[b], u[c]), y >= min(v[a], v[b], v[c]), y <= max(v[a], v[b], v[c]) else {
+                    continue
+                }
+                let denominator = (v[b] - v[c]) * (u[a] - u[c]) + (u[c] - u[b]) * (v[a] - v[c])
+                guard abs(denominator) > 1e-15 else {
+                    continue
+                }
+                let wa = ((v[b] - v[c]) * (x - u[c]) + (u[c] - u[b]) * (y - v[c])) / denominator
+                let wb = ((v[c] - v[a]) * (x - u[c]) + (u[a] - u[c]) * (y - v[c])) / denominator
+                let wc = 1 - wa - wb
+                if wa >= -1e-9, wb >= -1e-9, wc >= -1e-9 {
+                    let height = wa * mesh.heights[a] + wb * mesh.heights[b] + wc * mesh.heights[c]
+                    return (height, normalize(wa * normals[a] + wb * normals[b] + wc * normals[c]))
+                }
+            }
+            return nil
+        }
+        for triangle in stride(from: 0, to: count, by: 3) {
+            let (a, b, _) = corners(triangle)
+            let (x, y) = (mesh.u[a] + (mesh.u[b] - mesh.u[a]) / 3, mesh.v[a] + (mesh.v[b] - mesh.v[a]) / 3)
+            let expected = try #require(searched(x, y))
+            let sample = try #require(mesh.sample(u: x, v: y, grid: grid))
+            #expect(sample.height == expected.height && sample.normal == expected.normal, "at \(x), \(y)")
+        }
+    }
+
     // On a 3x screen the surface is refined two levels past the terrain, as the
     // web app's would be at a point a texel; never past Re:Earth's level 14.
     @Test func takesTheTerrainFromAsCoarseATileAsTheWebApp() {

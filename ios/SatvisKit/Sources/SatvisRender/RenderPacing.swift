@@ -17,7 +17,7 @@ struct OrbitMotion: Equatable {
 
     /// The Earth's rotation, in radians a second.
     static let earthRotationRate = 7.2921158553e-5
-    /// The Earth's gravitational parameter, in m³/s².
+    /// The Earth's gravitational parameter, in m³/s²: CesiumJS's `GRAVITATIONALPARAMETER`.
     static let gravitationalParameter = 3.986004418e14
     /// Metres the interpolation may run outside the samples' radii.
     static let shellMargin = 50_000.0

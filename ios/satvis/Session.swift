@@ -129,7 +129,10 @@ final class Session {
     /// The web app's FPS switch, which the app shows as its performance overlay.
     /// Kept where the web keeps it, in the link as `fps=true`: a link the app
     /// does not otherwise read, written back as it came.
-    var showsPerformance: Bool { foreign.showsPerformance }
+    var showsPerformance: Bool {
+        get { foreign.showsPerformance }
+        set { foreign.showsPerformance = newValue }
+    }
     /// Drawable pixels per point, the web app's `pixelratio`: `1`, `1.5`, or
     /// `native` for the screen's own. Fewer pixels for frames the GPU finishes in
     /// time; kept in links as on the web.
@@ -169,7 +172,7 @@ final class Session {
         aim = SkyAim(globe: globe)
         bindGlobe()
         aim.show = { [weak self] text in self?.show(text) }
-        starMapLoader.onUnavailable = { [weak self] _ in self?.starMap = .deepStar1K }
+        starMapLoader.onUnavailable = { [weak self] in self?.starMap = .deepStar1K }
     }
 
     /// Fetches a 3D model by its path under /data/models/, for the globe and the info
@@ -311,13 +314,12 @@ final class Session {
         var kept = benchmark.abandon(on: self) ?? link(sharing: false)
         kept.query.items.removeAll { $0.key == "time" }
         UserDefaults.standard.set(kept.url(site: site).absoluteString, forKey: Self.viewKey)
+        // iOS ends the largest apps in the background first, and the tiles kept
+        // for coming back were most of a few hundred megabytes.
+        renderer?.trimMemory()
     }
 
     // MARK: Links
-
-    func setShowsPerformance(_ shows: Bool) {
-        foreign.showsPerformance = shows
-    }
 
     func setShowsBenchmark(_ shows: Bool) {
         if !shows {
@@ -409,7 +411,7 @@ final class Session {
             // A clock pinned for a screenshot stays where it was put.
             if ViewerClock.launchTime == nil {
                 if let time = scene.time {
-                    clock.pin(at: (time.timeIntervalSince1970 * 1000).rounded(.down))
+                    clock.scrub(to: (time.timeIntervalSince1970 * 1000).rounded(.down))
                 } else if clock.clock.isOffPresent(at: ViewerClock.real()) {
                     // However it left the present, as a link without `time` is live.
                     clock.goLive()

@@ -108,7 +108,9 @@ public struct PreparedSatellites: @unchecked Sendable {
     /// How fast what each satellite draws can move, in the same order; nil for one
     /// with no sample.
     let motions: [OrbitMotion?]
-    /// Each satellite's place by its id, the first where two share one.
+    /// Each satellite's place by its id, the first where two share one. Built
+    /// with the buffers, off the main thread: 6 ms of it on an iPad mini for
+    /// 16,762 satellites.
     let indexByID: [String: Int]
 
     init(_ satellites: [PointSatellite], device: MTLDevice, labelScale: Double) {
@@ -179,11 +181,11 @@ public struct PreparedSatellites: @unchecked Sendable {
         cones =
             coneList.isEmpty
             ? nil
-            : coneList.withUnsafeBytes { bytes in device.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count).map { ($0, coneList.count) } }
+            : device.makeBuffer(copying: coneList).map { ($0, coneList.count) }
         labels =
             satellites.count <= LabelAtlas.maximumLabels
             ? LabelAtlas(names: satellites.map(\.name), scale: labelScale, device: device).flatMap { atlas in
-                atlas.instances.withUnsafeBytes { bytes in device.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count).map { (atlas, $0) } }
+                device.makeBuffer(copying: atlas.instances).map { (atlas, $0) }
             } : nil
     }
 }
@@ -194,7 +196,7 @@ final class SatellitePoints {
     private(set) var prepared: PreparedSatellites?
     /// Counts the installs, so what is kept per satellite knows to start over.
     private(set) var generation = 0
-    private var indexByID: [String: Int] = [:]
+    private var indexByID: [String: Int] { prepared?.indexByID ?? [:] }
 
     var satellites: [PointSatellite] { prepared?.satellites ?? [] }
     var count: Int { satellites.count }
@@ -202,9 +204,6 @@ final class SatellitePoints {
     func install(_ prepared: PreparedSatellites) {
         self.prepared = prepared
         generation += 1
-        // Built with the buffers, off the main thread: 6 ms of it on an iPad mini
-        // for 16,762 satellites.
-        indexByID = prepared.indexByID
     }
 
     /// Where each satellite's stencil sits at this instant, written into `buffer`.

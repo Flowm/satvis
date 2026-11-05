@@ -5,30 +5,26 @@ import Foundation
 /// it: whatever lacks the expected shape is dropped, so an index written before a
 /// field existed reads as one without it.
 public struct GroupIndex: Sendable, Hashable, Decodable {
-    /// When the last refresh ran, as ISO 8601. Empty before the first one.
-    public var updated: String
     public var groups: [GroupStatus]
     public var presets: [String: Preset]
 
-    public init(updated: String = "", groups: [GroupStatus] = [], presets: [String: Preset] = [:]) {
-        self.updated = updated
+    public init(groups: [GroupStatus] = [], presets: [String: Preset] = [:]) {
         self.groups = groups
         self.presets = presets
     }
 
     enum CodingKeys: String, CodingKey {
-        case updated, groups, presets
+        case groups, presets
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        updated = (try? container.decodeIfPresent(String.self, forKey: .updated)) ?? ""
         groups = try container.decode([Lenient<GroupStatus>].self, forKey: .groups).compactMap(\.value)
         presets = ((try? container.decodeIfPresent([String: Lenient<Preset>].self, forKey: .presets)) ?? [:]).compactMapValues(\.value)
     }
 
     /// The name of the preset a route opens with: `name` if there is one, else the default.
-    public func presetName(_ name: String?) -> String {
+    private func presetName(_ name: String?) -> String {
         name.flatMap { presets[$0] == nil ? nil : $0 } ?? Preset.defaultName
     }
 
@@ -57,27 +53,23 @@ public struct GroupIndex: Sendable, Hashable, Decodable {
 
 public struct GroupStatus: Sendable, Hashable, Decodable {
     public var name: String
-    /// When the group's records were last written. Nil before the first success.
-    public var updated: String?
     public var count: Int
     /// What the user enables to show the group's satellites.
     public var tags: [String]
 
-    public init(name: String, updated: String? = nil, count: Int = 0, tags: [String] = []) {
+    public init(name: String, count: Int = 0, tags: [String] = []) {
         self.name = name
-        self.updated = updated
         self.count = count
         self.tags = tags
     }
 
     enum CodingKeys: String, CodingKey {
-        case name, updated, count, tags
+        case name, count, tags
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         name = try container.decode(String.self, forKey: .name)
-        updated = try? container.decodeIfPresent(String.self, forKey: .updated)
         count = (try? container.decodeIfPresent(Int.self, forKey: .count)) ?? 0
         tags = (try? container.decodeIfPresent([String].self, forKey: .tags)) ?? []
     }
@@ -175,5 +167,10 @@ struct Lenient<Value: Decodable>: Decodable {
 
     init(from decoder: Decoder) throws {
         value = try? Value(from: decoder)
+    }
+
+    /// The elements of a JSON array that decode; none when `data` is no array.
+    static func array(from data: Data) -> [Value] {
+        ((try? JSONDecoder().decode([Lenient].self, from: data)) ?? []).compactMap(\.value)
     }
 }
