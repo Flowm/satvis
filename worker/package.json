@@ -7,18 +7,18 @@
   "scripts": {
     "deploy": "pnpm generate-groups && wrangler deploy",
     "deploy:preview": "pnpm generate-groups && wrangler versions upload --preview-alias preview-$(git rev-parse --short=8 HEAD)",
-    "dev": "pnpm generate-groups && wrangler dev --port 8080",
+    "dev": "pnpm generate-groups && wrangler dev --port 8787",
     "generate-groups": "node scripts/generate-groups.mjs",
     "generate-types": "wrangler types src/worker-configuration.d.ts",
     "push-catalog": "node scripts/push-catalog.mjs",
     "push-gp": "pnpm generate-groups && node scripts/push-gp.mjs",
-    "lint": "pnpm generate-groups && oxlint && oxfmt --check && tsc --noEmit",
+    "lint": "pnpm generate-groups && pnpm generate-types && oxlint && oxfmt --check && tsc --noEmit",
     "lint:fix": "oxlint --fix && oxfmt --write",
-    "test": "pnpm generate-groups && vitest run && node --test scripts/check-routes.mjs scripts/check-disk-store.mjs",
-    "type-check": "tsc"
+    "test": "pnpm generate-groups && pnpm generate-types && vitest run && node --test scripts/check-routes.mjs scripts/check-disk-store.mjs",
+    "type-check": "pnpm generate-types && tsc --noEmit"
   },
   "devDependencies": {
-    "@cloudflare/vitest-plugin": "1.5.1",
+    "@cloudflare/vitest-plugin": "^1.5.1",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "typescript": "catalog:",

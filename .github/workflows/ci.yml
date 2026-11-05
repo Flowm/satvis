@@ -36,7 +36,9 @@ jobs:
       - name: Install dependencies
         run: pnpm ci
       - name: Run tests
-        run: pnpm test && pnpm --filter satvis-worker test
+        run: pnpm test
+      - name: Run worker tests
+        run: pnpm test:worker
   build:
     runs-on: ubuntu-latest
     steps:

@@ -7,7 +7,7 @@
 //
 // Usage:
 //   SATVIS_REFRESH_TOKEN=<token> pnpm --filter satvis-worker push-gp
-//   SATVIS_INGEST_URL=http://localhost:8080/api/ingest SATVIS_REFRESH_TOKEN=... node scripts/push-gp.mjs
+//   SATVIS_INGEST_URL=http://localhost:8787/api/ingest SATVIS_REFRESH_TOKEN=... node scripts/push-gp.mjs
 //
 // Exits non-zero when the POST fails or when the run wrote no group at all.
 

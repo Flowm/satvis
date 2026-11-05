@@ -243,9 +243,9 @@ export default defineConfig({
     headers: CROSS_ORIGIN_ISOLATION_HEADERS,
     proxy: {
       // Proxy /api to production by default so `pnpm dev` works out of the box.
-      // Point at a local worker with SATVIS_API_PROXY=http://localhost:8080.
+      // Point at a local worker with API_PROXY=http://localhost:8787.
       "/api": {
-        target: process.env.SATVIS_API_PROXY ?? "https://satvis.space",
+        target: process.env.API_PROXY ?? "https://satvis.space",
         changeOrigin: true,
       },
     },
@@ -256,7 +256,7 @@ export default defineConfig({
     headers: CROSS_ORIGIN_ISOLATION_HEADERS,
     proxy: {
       "/api": {
-        target: process.env.SATVIS_API_PROXY ?? "https://satvis.space",
+        target: process.env.API_PROXY ?? "https://satvis.space",
         changeOrigin: true,
       },
     },

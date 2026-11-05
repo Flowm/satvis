@@ -66,7 +66,7 @@ writes to the root and appends to the top-level `AGENTS.md`.
 ## The worker
 
 - `SATVIS_API` in the launch environment replaces satvis.space:
-  `make run API=…`, e.g. a local worker at `http://localhost:8080`
+  `make run API=…`, e.g. a local worker at `http://localhost:8787`
   (`pnpm dev:worker` at the repository root), or a scheme environment variable
   in Xcode. `SATVIS_TIME` (ISO 8601, UTC) pins the clock at that instant and
   pauses it, for screenshots and for checking the lighting. `SATVIS_LINK` opens
