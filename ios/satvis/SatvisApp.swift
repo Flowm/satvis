@@ -171,10 +171,18 @@ struct ContentView: View {
                 } else {
                     Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
                     if session.observer != nil {
-                        Button(
-                            session.aim.compass.isAiming ? "Stop aiming by compass" : "Aim by compass",
-                            systemImage: session.aim.compass.isAiming ? "location.north.circle.fill" : "location.north.circle"
-                        ) { session.aim.toggleCompass() }
+                        Button {
+                            session.aim.toggleCompass()
+                        } label: {
+                            Label {
+                                Text(session.aim.compass.isAiming ? "Stop aiming by compass" : "Aim by compass")
+                            } icon: {
+                                // The menu toggle's Lucide side, Dynamic Type scaling it as the symbols beside it.
+                                Image(.lucideCompass).resizable().frame(width: 22 * textScale, height: 22 * textScale)
+                            }
+                        }
+                        // Lucide has no filled compass: on, it takes the accent, as on the web.
+                        .buttonStyle(PanelButtonStyle(emphasis: session.aim.compass.isAiming ? .accent : .plain, square: true))
                         Button(
                             session.aim.passthrough.isShowing ? "Hide the camera" : "Show the camera",
                             systemImage: session.aim.passthrough.isShowing ? "camera.fill" : "camera"
