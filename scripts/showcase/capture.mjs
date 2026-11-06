@@ -3,6 +3,7 @@
 // Chromium on the GPU and the real network, and read from the globe's canvas alone, so no
 // panel or instrument is in it. Each gets one picture, 1600×1000 WebP, which its card and the
 // about page's carousel both show. `pnpm update-showcase [name…]` retakes only those named.
+// Retaking the globe redraws the link preview drawn around it (og-image.mjs).
 //
 // The app runs on Vite's dev server, which proxies /api to satvis.space, or to
 // SATVIS_API_PROXY: a plugin's preset that is not deployed needs its local worker. proxy.mjs
@@ -16,6 +17,7 @@ import { chromium } from "@playwright/test";
 import { createServer } from "vite";
 import { parse } from "yaml";
 
+import { drawOgImage, OG_IMAGE_SOURCE } from "./og-image.mjs";
 import { PROXY_URL, startProxy } from "./proxy.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -204,10 +206,16 @@ const browser = await chromium.launch({ channel: "chromium", args: ["--use-angle
 let failed = false;
 try {
   const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: SCALE });
+  let ogImageSourceTaken = false;
   for (const bookmark of bookmarks) {
     // One at a time: each scene has the GPU to itself while it settles.
     // eslint-disable-next-line no-await-in-loop
-    failed = !(await take(context, base, bookmark)) || failed;
+    const taken = await take(context, base, bookmark);
+    failed = !taken || failed;
+    ogImageSourceTaken ||= taken && bookmark.file === OG_IMAGE_SOURCE;
+  }
+  if (ogImageSourceTaken) {
+    await drawOgImage();
   }
 } finally {
   await browser.close();
