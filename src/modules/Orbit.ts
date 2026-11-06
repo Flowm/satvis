@@ -1,8 +1,8 @@
 import dayjs from "dayjs";
 import * as satellitejs from "satellite.js";
 
-import type { SwathExtents } from "../config/satelliteMetadata";
-import { createSatrec, type GpRecord } from "./util/gp";
+import type { SwathExtents } from "@/config/satelliteMetadata";
+import { createSatrec, type GpRecord } from "@/modules/util/gp";
 
 const deg2rad = Math.PI / 180;
 const rad2deg = 180 / Math.PI;

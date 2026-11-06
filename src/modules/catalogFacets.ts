@@ -1,15 +1,16 @@
 // The catalog sheet's model (ADR 0012): rows, facets, a filter and crossfilter counts.
 // Cesium-free and Vue-free, so node-env vitest exercises it.
 
-import { gcatCategoryLabel, gcatClassLabel } from "../config/gcatCodes";
-import { ORBIT_KINDS, type OrbitClass, orbitKindLabel } from "../config/orbitClass";
-import { SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, satcatLabel } from "../config/satcatCodes";
-import { satelliteModel } from "../config/satelliteMetadata";
+import { gcatCategoryLabel, gcatClassLabel } from "@/config/gcatCodes";
+import { ORBIT_KINDS, type OrbitClass, orbitKindLabel } from "@/config/orbitClass";
+import { SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, satcatLabel } from "@/config/satcatCodes";
+import { satelliteModel } from "@/config/satelliteMetadata";
+import { formatFixed, formatInteger, formatNumber } from "@/modules/util/formats";
+import { ascendingNodeDegOf, orbitShapeOf } from "@/modules/util/gp";
+import { ltanHoursOf } from "@/modules/util/orbitFacts";
+
 import { isCustom } from "./customSatellites";
 import type { CatalogEntry } from "./SatelliteCatalog";
-import { formatFixed, formatInteger, formatNumber } from "./util/formats";
-import { ascendingNodeDegOf, orbitShapeOf } from "./util/gp";
-import { ltanHoursOf } from "./util/orbitFacts";
 
 /** A facet value for a field GCAT or SATCAT leaves empty. */
 export const UNKNOWN = "Unknown";

@@ -6,7 +6,7 @@
 // Retaking the globe redraws the link preview drawn around it (og-image.mjs).
 //
 // The app runs on Vite's dev server, which proxies /api to satvis.space, or to
-// SATVIS_API_PROXY: a plugin's preset that is not deployed needs its local worker. proxy.mjs
+// API_PROXY: a plugin's preset that is not deployed needs its local worker. proxy.mjs
 // stands in between and serves the element sets pinned in pinned.json.
 
 import fs from "node:fs";
@@ -195,9 +195,9 @@ if (bookmarks.length === 0) {
   process.exit(1);
 }
 
-const stopProxy = await startProxy(process.env.SATVIS_API_PROXY ?? "https://satvis.space");
+const stopProxy = await startProxy(process.env.API_PROXY ?? "https://satvis.space");
 // Read by vite.config.ts as the server starts.
-process.env.SATVIS_API_PROXY = PROXY_URL;
+process.env.API_PROXY = PROXY_URL;
 const server = await createServer({ root: repoRoot, server: { port: 0, strictPort: false }, logLevel: "warn" });
 await server.listen();
 const base = server.resolvedUrls.local[0];

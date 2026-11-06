@@ -29,8 +29,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import { type FacetDef, type FacetItem, pickedFirst } from "../../modules/catalogFacets";
-import { formatInteger } from "../../modules/util/formats";
+import { type FacetDef, type FacetItem, pickedFirst } from "@/modules/catalogFacets";
+import { formatInteger } from "@/modules/util/formats";
+
 import CatalogTileToggle from "./CatalogTileToggle.vue";
 
 const props = defineProps<{

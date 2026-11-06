@@ -3,16 +3,17 @@ import { Entity, type Property, SceneMode, Transforms } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import type { ModelLod } from "../config/satelliteMetadata";
+import type { ModelLod } from "@/config/satelliteMetadata";
+import { parseGpPayload, type GpRecord } from "@/modules/util/gp";
+import { GroundTrackBatch } from "@/modules/util/GroundTrackBatch";
+import { InlinePassSource } from "@/modules/util/passSource";
+import { BatchedLine, PolylineBatch } from "@/modules/util/PolylineBatch";
+import { InlineSampleSource } from "@/modules/util/sampleSource";
+
 import { modelMinimumPixelSize } from "./componentKinds";
 import type { GroundStation } from "./PassPredictor";
 import { CatalogEntry } from "./SatelliteCatalog";
 import { SatelliteComponentCollection } from "./SatelliteComponentCollection";
-import { parseGpPayload, type GpRecord } from "./util/gp";
-import { GroundTrackBatch } from "./util/GroundTrackBatch";
-import { InlinePassSource } from "./util/passSource";
-import { BatchedLine, PolylineBatch } from "./util/PolylineBatch";
-import { InlineSampleSource } from "./util/sampleSource";
 
 const LINK = "Ground station link";
 

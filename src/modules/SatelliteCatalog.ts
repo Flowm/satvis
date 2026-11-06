@@ -1,11 +1,11 @@
 // The non-reactive registry of known satellites. Must stay Cesium-free: node-env
 // vitest exercises it.
 
-import { type OrbitClass, type OrbitKind, resolveOrbitKind } from "../config/orbitClass";
-import type { ElementsEntry } from "../config/presets";
-import type { SatelliteMetadata } from "../config/satelliteMetadata";
-import { computedOrbitKindOf, epochMsOf, orbitClassOf, parseGpPayload, recordName, recordSatnum, type GpRecord } from "./util/gp";
-import { fetchGpGroup, fetchGpIndex } from "./util/gpSource";
+import { type OrbitClass, type OrbitKind, resolveOrbitKind } from "@/config/orbitClass";
+import type { ElementsEntry } from "@/config/presets";
+import type { SatelliteMetadata } from "@/config/satelliteMetadata";
+import { computedOrbitKindOf, epochMsOf, orbitClassOf, parseGpPayload, recordName, recordSatnum, type GpRecord } from "@/modules/util/gp";
+import { fetchGpGroup, fetchGpIndex } from "@/modules/util/gpSource";
 
 export class CatalogEntry {
   /** satnum + "|" + name, after a source's prefix if it has one. */

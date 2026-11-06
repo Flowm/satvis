@@ -1,6 +1,6 @@
 import posthogClient from "posthog-js/dist/module.full.no-external";
 
-import { sanitizePostHogEvent } from "../modules/util/posthogPrivacy";
+import { sanitizePostHogEvent } from "@/modules/util/posthogPrivacy";
 
 let initialized = false;
 

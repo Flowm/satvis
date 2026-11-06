@@ -10,13 +10,13 @@
 import type { DropdownMenuItem } from "@nuxt/ui";
 import { computed, onBeforeUnmount, ref } from "vue";
 
-import { useController } from "../composables/useController";
-import type { GlobeMenuPlace } from "../modules/CesiumController";
-import { stationLabel } from "../modules/GroundStationEntity";
-import { DeviceDetect } from "../modules/util/DeviceDetect";
-import { formatCoordinates } from "../modules/util/formats";
-import { useCesiumStore } from "../stores/cesium";
-import { useSatStore } from "../stores/sat";
+import { useController } from "@/composables/useController";
+import type { GlobeMenuPlace } from "@/modules/CesiumController";
+import { stationLabel } from "@/modules/GroundStationEntity";
+import { DeviceDetect } from "@/modules/util/DeviceDetect";
+import { formatCoordinates } from "@/modules/util/formats";
+import { useCesiumStore } from "@/stores/cesium";
+import { useSatStore } from "@/stores/sat";
 
 /** Below and right of the click, as a browser's own menu opens; flipped where it would leave the page. */
 const MENU_CONTENT = { side: "bottom", align: "start", sideOffset: 2 } as const;

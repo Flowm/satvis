@@ -1,6 +1,6 @@
 // The sweep matrix: a pure spec-to-steps function, readable before anything renders.
 
-import { SATELLITE_COMPONENTS } from "../../config/components";
+import { SATELLITE_COMPONENTS } from "@/config/components";
 
 export interface BenchmarkStep {
   satelliteCount: number;

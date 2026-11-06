@@ -88,8 +88,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
-import type { HistogramScale } from "../../composables/useCatalogFilters";
-import { formatInteger, formatNumber } from "../../modules/util/formats";
+import type { HistogramScale } from "@/composables/useCatalogFilters";
+import { formatInteger, formatNumber } from "@/modules/util/formats";
+
 import CatalogSegments, { type SegmentOption } from "./CatalogSegments.vue";
 import CatalogTileToggle from "./CatalogTileToggle.vue";
 

@@ -1,6 +1,7 @@
 // Lays out a pass list as a strip, in percentages. Cesium-free so it can be tested.
 
-import { passQuality, type Pass } from "../PassPredictor";
+import { passQuality, type Pass } from "@/modules/PassPredictor";
+
 import { formatFixed } from "./formats";
 
 const HOUR_MS = 3600 * 1000;

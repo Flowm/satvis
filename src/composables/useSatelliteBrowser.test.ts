@@ -2,9 +2,10 @@
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { SatelliteCatalog } from "../modules/SatelliteCatalog";
-import { resetGpSource } from "../modules/util/gpSource";
-import { useSatStore } from "../stores/sat";
+import { SatelliteCatalog } from "@/modules/SatelliteCatalog";
+import { resetGpSource } from "@/modules/util/gpSource";
+import { useSatStore } from "@/stores/sat";
+
 import { useSatelliteBrowser } from "./useSatelliteBrowser";
 
 function omm(name: string, satnum: number): Record<string, unknown> {

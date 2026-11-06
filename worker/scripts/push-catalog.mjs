@@ -7,7 +7,7 @@
 //
 // Usage:
 //   SATVIS_REFRESH_TOKEN=<token> pnpm --filter satvis-worker push-catalog
-//   SATVIS_API_URL=http://localhost:8080 SATVIS_REFRESH_TOKEN=... node scripts/push-catalog.mjs
+//   SATVIS_API_URL=http://localhost:8787 SATVIS_REFRESH_TOKEN=... node scripts/push-catalog.mjs
 //
 // Exits non-zero when any table ends in an error, upstream's or the Worker's, so a
 // scheduler reports it.

@@ -2,9 +2,10 @@
 // five-day window is ~8 ms of SGP4 per satellite per station, so 5,000 satellites
 // are ~40 s that would queue in front of every sample request. Cesium-free.
 
-import type { SwathExtents } from "../../config/satelliteMetadata";
-import Orbit from "../Orbit";
-import type { ElevationPass, GroundStationPosition, SwathPass } from "../Orbit";
+import type { SwathExtents } from "@/config/satelliteMetadata";
+import Orbit from "@/modules/Orbit";
+import type { ElevationPass, GroundStationPosition, SwathPass } from "@/modules/Orbit";
+
 import type { GpRecord } from "./gp";
 
 /** `Pass` in PassPredictor is this plus Cesium's imports. */

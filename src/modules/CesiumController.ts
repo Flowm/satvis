@@ -18,12 +18,16 @@ import type { Viewer } from "@cesium/widgets";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { usePostHog } from "../composables/usePostHog";
-import { defaultViewDistance } from "../config/defaultView";
-import { parseLayer } from "../config/layers";
-import { TOUCH_HOLD_MS } from "../config/layout";
-import { type FrameRate, msaaSamplesFor, resolutionScaleFor, targetFrameRateFor } from "../config/rendering";
-import { type StarMapSources, starMapSources } from "../config/starMaps";
+import { usePostHog } from "@/composables/usePostHog";
+import { defaultViewDistance } from "@/config/defaultView";
+import { parseLayer } from "@/config/layers";
+import { TOUCH_HOLD_MS } from "@/config/layout";
+import { type FrameRate, msaaSamplesFor, resolutionScaleFor, targetFrameRateFor } from "@/config/rendering";
+import { type StarMapSources, starMapSources } from "@/config/starMaps";
+import { DeviceDetect } from "@/modules/util/DeviceDetect";
+import { smootherstep } from "@/modules/util/easing";
+import { Suppressible } from "@/modules/util/Suppressible";
+
 import { type ImageryContext, type ImageryProviderEntry, imageryProviders, type TerrainProviderEntry, terrainProviders } from "./CesiumLayerProviders";
 import { BATCHED_COMPONENTS } from "./componentKinds";
 import { RenderPacer } from "./renderPacing";
@@ -33,9 +37,6 @@ import type { Observer } from "./skyGeometry";
 import { SkyInteraction } from "./SkyInteraction";
 import { SkyView } from "./SkyView";
 import { SurfaceModel } from "./SurfaceModel";
-import { DeviceDetect } from "./util/DeviceDetect";
-import { smootherstep } from "./util/easing";
-import { Suppressible } from "./util/Suppressible";
 
 dayjs.extend(utc);
 

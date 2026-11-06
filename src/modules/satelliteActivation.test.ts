@@ -1,8 +1,9 @@
 import { describe, expect, test } from "vitest";
 
+import type { GpRecord } from "@/modules/util/gp";
+
 import { activeTargetEntries, buildOrder, hideFromActivation, isEnabledByTag, toggledGroup, toggledSatellite } from "./satelliteActivation";
 import { CatalogEntry } from "./SatelliteCatalog";
-import type { GpRecord } from "./util/gp";
 
 /** Minimal CatalogEntry factory — activeTargetEntries only reads key/name/tags. */
 function entry(name: string, satnum: string, tags: string[]): CatalogEntry {

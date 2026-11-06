@@ -2,6 +2,8 @@ import { Cartesian3, Ellipsoid, Event, JulianDate, Math as CesiumMath, Orthograp
 import { type Scene, SceneMode } from "@cesium/engine";
 import { describe, expect, test, vi } from "vitest";
 
+import type { SampleVisitor } from "@/modules/util/GridPositionProperty";
+
 import { EARTH_ROTATION_RAD_S } from "./Orbit";
 import type Orbit from "./Orbit";
 import {
@@ -16,7 +18,6 @@ import {
   maxPixelsPerRadian,
   renderTimeChange,
 } from "./renderPacing";
-import type { SampleVisitor } from "./util/GridPositionProperty";
 
 /** Metres the line distance takes off for the drift; LINE_DRIFT_METRES. */
 const DRIFT = 100_000;

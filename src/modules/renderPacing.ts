@@ -8,11 +8,12 @@
 import { Cartesian3, Ellipsoid, type JulianDate, OrthographicOffCenterFrustum, PerspectiveFrustum } from "@cesium/core";
 import { type Scene, SceneMode } from "@cesium/engine";
 
+import type { SampleVisitor } from "@/modules/util/GridPositionProperty";
+import { trajectoryWindow } from "@/modules/util/trajectoryWindow";
+
 import { EARTH_ROTATION_RAD_S, MU_KM3_S2 } from "./Orbit";
 import type Orbit from "./Orbit";
 import { CONE_RADIUS_METERS } from "./satelliteGraphics";
-import type { SampleVisitor } from "./util/GridPositionProperty";
-import { trajectoryWindow } from "./util/trajectoryWindow";
 
 /** What a satellite offers the pacer. */
 export interface PacedSatellite {

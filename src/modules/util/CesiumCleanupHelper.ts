@@ -54,23 +54,32 @@ export function collectLabelCollections(node: unknown, found: LabelCollectionInt
   return found;
 }
 
-export class CesiumCleanupHelper {
-  /** Report once, not on every reconcile. */
-  static #reported = false;
+/** Report once, not on every reconcile. */
+let reported = false;
 
+/** Loud: a renamed internal makes the drain a no-op whose only symptom is a slower app. */
+function report(problem: string): void {
+  if (reported) {
+    return;
+  }
+  reported = true;
+  console.error(`Cannot drain leftover Cesium glyph billboards: ${problem}. Cesium internals have moved — see CesiumCleanupHelper.`);
+}
+
+export const CesiumCleanupHelper = {
   /**
    * Deferred: labels are unbound in the next `LabelCollection.update`, so the pool is
    * empty until a frame has passed. Below the threshold it does nothing.
    */
-  static cleanup(viewer: Viewer): void {
+  cleanup(viewer: Viewer): void {
     const stop = CesiumCallbackHelper.createPeriodicTickCallback(viewer, 1, () => {
       stop();
       CesiumCleanupHelper.drain(viewer);
     });
-  }
+  },
 
   /** Without the tick deferral, for the unit test. */
-  static drain(viewer: Viewer): number {
+  drain(viewer: Viewer): number {
     const collections = collectLabelCollections(viewer.scene.primitives);
     if (collections.length === 0) {
       // Not a rename: `EntityCluster` creates its label collection on the first
@@ -83,7 +92,7 @@ export class CesiumCleanupHelper {
       const spares = collection._spareBillboards;
       const billboards = collection._glyphBillboardCollection;
       if (!spares || !billboards) {
-        CesiumCleanupHelper.#report("LabelCollection has no _spareBillboards / _glyphBillboardCollection");
+        report("LabelCollection has no _spareBillboards / _glyphBillboardCollection");
         continue;
       }
       if (spares.length < SPARE_BILLBOARD_THRESHOLD) {
@@ -101,19 +110,10 @@ export class CesiumCleanupHelper {
       viewer.scene.requestRender();
     }
     return removed;
-  }
-
-  /** Loud: a renamed internal makes the drain a no-op whose only symptom is a slower app. */
-  static #report(problem: string): void {
-    if (CesiumCleanupHelper.#reported) {
-      return;
-    }
-    CesiumCleanupHelper.#reported = true;
-    console.error(`Cannot drain leftover Cesium glyph billboards: ${problem}. Cesium internals have moved — see CesiumCleanupHelper.`);
-  }
+  },
 
   /** Test seam for the once-only report. */
-  static resetReported(): void {
-    CesiumCleanupHelper.#reported = false;
-  }
-}
+  resetReported(): void {
+    reported = false;
+  },
+};

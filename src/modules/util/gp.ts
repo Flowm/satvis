@@ -3,8 +3,8 @@
 
 import { json2satrec, twoline2satrec, type OMMJsonObject, type SatRec } from "satellite.js";
 
-import type { OrbitClass } from "../../config/orbitClass";
-import type { SatelliteMetadata } from "../../config/satelliteMetadata";
+import type { OrbitClass } from "@/config/orbitClass";
+import type { SatelliteMetadata } from "@/config/satelliteMetadata";
 
 /** `metadata` is the bag the worker attached, absent where it attached none. */
 export type GpRecord = ({ kind: "omm"; omm: OMMJsonObject } | { kind: "tle"; name: string; line1: string; line2: string }) & {

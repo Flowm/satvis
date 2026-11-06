@@ -7,10 +7,10 @@
 import { storeToRefs } from "pinia";
 import { computed, ref, shallowRef } from "vue";
 
-import type { OrbitClass } from "../config/orbitClass";
-import { toggledGroup, toggledSatellite } from "../modules/satelliteActivation";
-import type { CatalogEntry, SatelliteCatalog } from "../modules/SatelliteCatalog";
-import { useSatStore } from "../stores/sat";
+import type { OrbitClass } from "@/config/orbitClass";
+import { toggledGroup, toggledSatellite } from "@/modules/satelliteActivation";
+import type { CatalogEntry, SatelliteCatalog } from "@/modules/SatelliteCatalog";
+import { useSatStore } from "@/stores/sat";
 
 export type BrowserRow =
   | {

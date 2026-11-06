@@ -2,11 +2,12 @@ import { JulianDate } from "@cesium/core";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { gcatCategoryLabel, gcatClassLabel } from "../../config/gcatCodes";
-import type { OrbitClass } from "../../config/orbitClass";
-import { satcatLabel, SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, SATCAT_ORBIT_TYPE } from "../../config/satcatCodes";
-import { swathExtentsOf, type SatelliteMetadata } from "../../config/satelliteMetadata";
-import type Orbit from "../Orbit";
+import { gcatCategoryLabel, gcatClassLabel } from "@/config/gcatCodes";
+import type { OrbitClass } from "@/config/orbitClass";
+import { satcatLabel, SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, SATCAT_ORBIT_TYPE } from "@/config/satcatCodes";
+import { swathExtentsOf, type SatelliteMetadata } from "@/config/satelliteMetadata";
+import type Orbit from "@/modules/Orbit";
+
 import { formatInteger, formatMeasure, formatNumber } from "./formats";
 import { derivedOrbitRows, orbitRegimeLabel } from "./orbitFacts";
 

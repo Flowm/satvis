@@ -2,9 +2,10 @@
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { SatelliteCatalog } from "../modules/SatelliteCatalog";
-import { resetGpSource } from "../modules/util/gpSource";
-import { useSatStore } from "../stores/sat";
+import { SatelliteCatalog } from "@/modules/SatelliteCatalog";
+import { resetGpSource } from "@/modules/util/gpSource";
+import { useSatStore } from "@/stores/sat";
+
 import { SHOW_CAP, useCatalogFilters } from "./useCatalogFilters";
 
 function omm(name: string, satnum: number, metadata: Record<string, unknown> = {}, inclination = 51): Record<string, unknown> {

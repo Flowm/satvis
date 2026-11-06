@@ -5,8 +5,9 @@ import { beforeEach, describe, expect, test } from "vitest";
 import { createApp } from "vue";
 import { createMemoryHistory, createRouter, type Router } from "vue-router";
 
-import { useCesiumStore } from "../../stores/cesium";
-import { useSatStore } from "../../stores/sat";
+import { useCesiumStore } from "@/stores/cesium";
+import { useSatStore } from "@/stores/sat";
+
 import type { Query } from "./urlCodec";
 import piniaUrlSync, { adjustUrlDefault, arrivalParam } from "./urlSync";
 

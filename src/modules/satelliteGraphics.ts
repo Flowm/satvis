@@ -2,9 +2,9 @@ import { FixedFrameTransforms, HeadingPitchRoll, Math as CesiumMath } from "@ces
 import type { Cartesian3, Quaternion } from "@cesium/core";
 import { SceneMode } from "@cesium/engine";
 
-import type { OrbitClass } from "../config/orbitClass";
-import type { SwathExtents } from "../config/satelliteMetadata";
-import type { RibbonSwath } from "./util/groundTrackRibbon";
+import type { OrbitClass } from "@/config/orbitClass";
+import type { SwathExtents } from "@/config/satelliteMetadata";
+import type { RibbonSwath } from "@/modules/util/groundTrackRibbon";
 
 // Pure geometry decisions for the satellite components, testable without a Cesium scene.
 

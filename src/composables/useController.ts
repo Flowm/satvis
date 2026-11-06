@@ -2,7 +2,7 @@
 
 import { inject, type InjectionKey } from "vue";
 
-import type { CesiumController } from "../modules/CesiumController";
+import type { CesiumController } from "@/modules/CesiumController";
 
 export const controllerKey: InjectionKey<CesiumController> = Symbol("cesiumController");
 

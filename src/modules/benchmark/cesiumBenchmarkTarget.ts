@@ -2,11 +2,12 @@
 
 import type { JulianDate } from "@cesium/core";
 
-import { useCesiumStore } from "../../stores/cesium";
-import { useSatStore } from "../../stores/sat";
-import type { CesiumController } from "../CesiumController";
-import { EMPTY_SCENE, type DesiredScene } from "../SatelliteManager";
-import { desiredScene } from "../sceneSync";
+import type { CesiumController } from "@/modules/CesiumController";
+import { EMPTY_SCENE, type DesiredScene } from "@/modules/SatelliteManager";
+import { desiredScene } from "@/modules/sceneSync";
+import { useCesiumStore } from "@/stores/cesium";
+import { useSatStore } from "@/stores/sat";
+
 import { formatComponents, type BenchmarkStep } from "./benchmarkPlan";
 import type { BenchmarkOptions, BenchmarkTarget, FootprintSample, MeasureOptions, SceneApplied } from "./benchmarkRunner";
 import { FrameSampler, type FrameSample } from "./frameSampler";

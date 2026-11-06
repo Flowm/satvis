@@ -2,8 +2,18 @@ import { Cartesian3, JulianDate } from "@cesium/core";
 import { SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
-import type { ElementsEntry } from "../config/presets";
-import type { SerializedGroundStation } from "../stores/sat";
+import type { ElementsEntry } from "@/config/presets";
+import { CesiumCleanupHelper } from "@/modules/util/CesiumCleanupHelper";
+import { sameValue } from "@/modules/util/equality";
+import { approximatePeriodMinutes, type GpRecord } from "@/modules/util/gp";
+import { GroundTrackBatch } from "@/modules/util/GroundTrackBatch";
+import { type PassSource, WorkerPassSource } from "@/modules/util/passSource";
+import { PolylineBatch } from "@/modules/util/PolylineBatch";
+import { type SampleChunk, type SampleSource, WorkerSampleSource } from "@/modules/util/sampleSource";
+import { SuppressibleSet } from "@/modules/util/Suppressible";
+import { WINDOW_ORBITS_BACK, WINDOW_ORBITS_FORWARD } from "@/modules/util/trajectoryWindow";
+import type { SerializedGroundStation } from "@/stores/sat";
+
 import { ORBIT_LINE_COLOR, ORBIT_TRACK_LINE_COLOR } from "./componentKinds";
 import { CUSTOM_KEY_PREFIX, CUSTOM_TAG, isCustom } from "./customSatellites";
 import { GroundStationEntity, type GroundStationPositionData } from "./GroundStationEntity";
@@ -13,15 +23,6 @@ import { activeTargetEntries, buildOrder } from "./satelliteActivation";
 import { type CatalogEntry, SatelliteCatalog } from "./SatelliteCatalog";
 import { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { cancelPendingTrack, returnAfterTracking } from "./trackFlight";
-import { CesiumCleanupHelper } from "./util/CesiumCleanupHelper";
-import { sameValue } from "./util/equality";
-import { approximatePeriodMinutes, type GpRecord } from "./util/gp";
-import { GroundTrackBatch } from "./util/GroundTrackBatch";
-import { type PassSource, WorkerPassSource } from "./util/passSource";
-import { PolylineBatch } from "./util/PolylineBatch";
-import { type SampleChunk, type SampleSource, WorkerSampleSource } from "./util/sampleSource";
-import { SuppressibleSet } from "./util/Suppressible";
-import { WINDOW_ORBITS_BACK, WINDOW_ORBITS_FORWARD } from "./util/trajectoryWindow";
 
 /**
  * How long one frame may spend instantiating satellites. Measured at 5,000

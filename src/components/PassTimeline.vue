@@ -30,8 +30,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import { formatCountdown, passSummary, type Pass } from "../modules/PassPredictor";
-import { passTimelineLayout } from "../modules/util/passTimeline";
+import { formatCountdown, passSummary, type Pass } from "@/modules/PassPredictor";
+import { passTimelineLayout } from "@/modules/util/passTimeline";
 
 const props = defineProps<{
   /** The same passes the table shows, in the same order. */

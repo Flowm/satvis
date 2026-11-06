@@ -40,7 +40,7 @@ workspace package) and a native iOS app in `ios/`.
 `package.json` holds the scripts. What it does not say:
 
 - `pnpm lint` covers both packages, but `pnpm test` covers only the frontend —
-  the worker suite is `pnpm --filter satvis-worker test`, which also starts
+  the worker suite is `pnpm test:worker`, which also starts
   `wrangler dev` to check the asset routing (`worker/scripts/check-routes.mjs`).
   `pnpm test:build` checks `dist/sw.js` after a build.
 - `pnpm update-parity-fixtures` reruns the web code the native app is held to

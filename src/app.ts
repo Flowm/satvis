@@ -3,16 +3,17 @@ import ui from "@nuxt/ui/vue-plugin";
 import { createPinia } from "pinia";
 import { createApp } from "vue";
 
+import { recordOpenedLink } from "@/composables/useBookmarks";
+import { controllerKey } from "@/composables/useController";
+import { usePWAUpdate } from "@/composables/usePWAUpdate";
+import { ionAccessToken } from "@/config/ion";
+import { resolvePreset, updateMetadata } from "@/config/presets";
+import { CesiumController } from "@/modules/CesiumController";
+import { createViewer } from "@/modules/createViewer";
+import { startSceneSync } from "@/modules/sceneSync";
+import piniaUrlSync from "@/modules/util/urlSync";
+
 import App from "./App.vue";
-import { recordOpenedLink } from "./composables/useBookmarks";
-import { controllerKey } from "./composables/useController";
-import { usePWAUpdate } from "./composables/usePWAUpdate";
-import { ionAccessToken } from "./config/ion";
-import { resolvePreset, updateMetadata } from "./config/presets";
-import { CesiumController } from "./modules/CesiumController";
-import { createViewer } from "./modules/createViewer";
-import { startSceneSync } from "./modules/sceneSync";
-import piniaUrlSync from "./modules/util/urlSync";
 import { router } from "./router";
 
 declare global {
@@ -21,8 +22,6 @@ declare global {
     cc?: CesiumController;
   }
 }
-
-usePWAUpdate({ autoUpdate: true });
 
 // Before the viewer: every ion asset resolves through this token (src/config/ion.ts).
 Ion.defaultAccessToken = ionAccessToken;
@@ -35,7 +34,7 @@ window.cc = cc;
 
 // Frames for a page the browser presents none in, such as an automated pane.
 if (new URLSearchParams(window.location.search).has("framems")) {
-  void import("./modules/benchmark/framePump").then(({ installFramePumpIfRequested }) => installFramePumpIfRequested(viewer, window.location.search));
+  void import("@/modules/benchmark/framePump").then(({ installFramePumpIfRequested }) => installFramePumpIfRequested(viewer, window.location.search));
 }
 
 const preset = resolvePreset();
@@ -61,6 +60,8 @@ void recordOpenedLink(cc, router);
 app.use(ui);
 
 app.mount("#app");
+
+usePWAUpdate({ autoUpdate: true });
 
 /**
  * The index.html loading screen is removed, not hidden, or the document keeps a second <h1>.

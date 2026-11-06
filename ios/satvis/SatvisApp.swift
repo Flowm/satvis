@@ -9,7 +9,7 @@ struct SatvisApp: App {
     @State private var session: Session
 
     /// `SATVIS_API` in the launch environment replaces satvis.space, e.g. a local
-    /// worker at http://localhost:8080.
+    /// worker at http://localhost:8787.
     static let site = ProcessInfo.processInfo.environment["SATVIS_API"].flatMap(URL.init(string:)) ?? WorkerClient.production
 
     init() {

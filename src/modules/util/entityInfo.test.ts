@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
-import Orbit from "../Orbit";
+import Orbit from "@/modules/Orbit";
+
 import { formatEpoch, getElementsInfo, getSatelliteInfo, type SatelliteInfo, staleElementsNotice, STALE_ELEMENTS_DAYS } from "./entityInfo";
 import { parseGpPayload, type GpRecord } from "./gp";
 

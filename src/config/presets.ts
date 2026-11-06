@@ -3,9 +3,9 @@
 // The presets and the tags of each group are defined in the worker's YAML config
 // and served with the group index, so every client starts from the same ones.
 
-import type { Bookmark } from "../modules/util/bookmarks";
-import { fetchGpIndex } from "../modules/util/gpSource";
-import type { Query } from "../modules/util/urlCodec";
+import type { Bookmark } from "@/modules/util/bookmarks";
+import { fetchGpIndex } from "@/modules/util/gpSource";
+import type { Query } from "@/modules/util/urlCodec";
 
 /**
  * A source is a GP group name, fetched from the probed GP base. A search-only source gets

@@ -58,14 +58,14 @@
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 
-import { SHOW_CAP } from "../../composables/useCatalogFilters";
-import { useController } from "../../composables/useController";
-import { type OrbitClass, orbitColor } from "../../config/orbitClass";
-import { isCustom, parseCustomElements } from "../../modules/customSatellites";
-import { formatInteger } from "../../modules/util/formats";
-import { computedOrbitKindOf, epochMsOf, type GpRecord, orbitClassOf, recordName, recordSatnum } from "../../modules/util/gp";
-import { useCustomSatelliteStore } from "../../stores/customSatellites";
-import { useSatStore } from "../../stores/sat";
+import { SHOW_CAP } from "@/composables/useCatalogFilters";
+import { useController } from "@/composables/useController";
+import { type OrbitClass, orbitColor } from "@/config/orbitClass";
+import { isCustom, parseCustomElements } from "@/modules/customSatellites";
+import { formatInteger } from "@/modules/util/formats";
+import { computedOrbitKindOf, epochMsOf, type GpRecord, orbitClassOf, recordName, recordSatnum } from "@/modules/util/gp";
+import { useCustomSatelliteStore } from "@/stores/customSatellites";
+import { useSatStore } from "@/stores/sat";
 
 defineProps<{ loading: boolean }>();
 const emit = defineEmits<{ added: [names: string[]] }>();

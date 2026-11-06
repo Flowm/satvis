@@ -32,9 +32,9 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
 
-import type { BrowserRow } from "../composables/useSatelliteBrowser";
-import { ORBIT_CLASS_COLOR } from "../config/orbitClass";
-import { formatInteger } from "../modules/util/formats";
+import type { BrowserRow } from "@/composables/useSatelliteBrowser";
+import { ORBIT_CLASS_COLOR } from "@/config/orbitClass";
+import { formatInteger } from "@/modules/util/formats";
 
 const props = defineProps<{ row: BrowserRow }>();
 const emit = defineEmits<{

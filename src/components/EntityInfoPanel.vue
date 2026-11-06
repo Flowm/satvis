@@ -225,16 +225,17 @@ import { useToast } from "@nuxt/ui/composables/useToast";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 
-import { useController } from "../composables/useController";
-import { type InfoTab, useSelectedEntity } from "../composables/useSelectedEntity";
-import { externalLinks } from "../config/externalLinks";
-import { ORBIT_CLASS_COLOR } from "../config/orbitClass";
-import { SKY_MODE } from "../config/viewModes";
-import { formatCountdown, passSummary, type Pass } from "../modules/PassPredictor";
-import { formatInteger } from "../modules/util/formats";
-import { notifyPasses } from "../modules/util/passNotifications";
-import { useCesiumStore } from "../stores/cesium";
-import { useSatStore } from "../stores/sat";
+import { useController } from "@/composables/useController";
+import { type InfoTab, useSelectedEntity } from "@/composables/useSelectedEntity";
+import { externalLinks } from "@/config/externalLinks";
+import { ORBIT_CLASS_COLOR } from "@/config/orbitClass";
+import { SKY_MODE } from "@/config/viewModes";
+import { formatCountdown, passSummary, type Pass } from "@/modules/PassPredictor";
+import { formatInteger } from "@/modules/util/formats";
+import { notifyPasses } from "@/modules/util/passNotifications";
+import { useCesiumStore } from "@/stores/cesium";
+import { useSatStore } from "@/stores/sat";
+
 import PassTimeline from "./PassTimeline.vue";
 import SatelliteModelView from "./SatelliteModelView.vue";
 import SegmentedControl from "./SegmentedControl.vue";

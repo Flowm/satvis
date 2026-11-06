@@ -4,8 +4,9 @@
 import { JulianDate } from "@cesium/core";
 import { computed, onUnmounted, ref } from "vue";
 
-import { isOffPresent, rungFor, LADDER } from "../modules/util/clockDeck";
-import { useCesiumStore } from "../stores/cesium";
+import { isOffPresent, rungFor, LADDER } from "@/modules/util/clockDeck";
+import { useCesiumStore } from "@/stores/cesium";
+
 import { useController } from "./useController";
 
 /** Every write here re-renders the deck, and the tick listener runs at render rate. */

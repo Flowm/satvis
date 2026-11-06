@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
-import { SATELLITE_COMPONENTS } from "../../config/components";
+import { SATELLITE_COMPONENTS } from "@/config/components";
+
 import {
   boolean,
   closedStringList,

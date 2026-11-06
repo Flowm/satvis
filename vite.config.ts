@@ -226,6 +226,7 @@ export default defineConfig({
     }),
   ],
   resolve: {
+    tsconfigPaths: true,
     alias: [
       // Stubs satellite.js's unused Emscripten bundles, which raise fifteen "externalized
       // for browser compatibility" warnings.
@@ -234,6 +235,8 @@ export default defineConfig({
     ],
   },
   test: {
+    // Tests that need a DOM opt in per file with `// @vitest-environment jsdom`.
+    environment: "node",
     include: ["src/**/*.test.ts"],
     setupFiles: ["src/test/setup.ts"],
   },
@@ -243,9 +246,9 @@ export default defineConfig({
     headers: CROSS_ORIGIN_ISOLATION_HEADERS,
     proxy: {
       // Proxy /api to production by default so `pnpm dev` works out of the box.
-      // Point at a local worker with SATVIS_API_PROXY=http://localhost:8080.
+      // Point at a local worker with API_PROXY=http://localhost:8787.
       "/api": {
-        target: process.env.SATVIS_API_PROXY ?? "https://satvis.space",
+        target: process.env.API_PROXY ?? "https://satvis.space",
         changeOrigin: true,
       },
     },
@@ -256,7 +259,7 @@ export default defineConfig({
     headers: CROSS_ORIGIN_ISOLATION_HEADERS,
     proxy: {
       "/api": {
-        target: process.env.SATVIS_API_PROXY ?? "https://satvis.space",
+        target: process.env.API_PROXY ?? "https://satvis.space",
         changeOrigin: true,
       },
     },

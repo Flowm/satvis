@@ -2,8 +2,8 @@ import { Cartesian3, NearFarScalar } from "@cesium/core";
 import { BillboardGraphics, Entity, HeightReference, HorizontalOrigin, VerticalOrigin } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
-import icon from "../images/icons/pin.svg";
-import { formatCoordinates } from "./util/formats";
+import icon from "@/images/icons/pin.svg";
+import { formatCoordinates } from "@/modules/util/formats";
 
 export interface GroundStationPositionData {
   latitude: number;

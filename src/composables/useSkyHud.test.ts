@@ -1,7 +1,8 @@
 import { Math as CesiumMath } from "@cesium/core";
 import { describe, expect, test } from "vitest";
 
-import { fovxFromFovy, MAX_FOVY, MIN_FOVY } from "../modules/SkyView";
+import { fovxFromFovy, MAX_FOVY, MIN_FOVY } from "@/modules/SkyView";
+
 import { headingOffset, majorStep, stepFor, TICKS_WANTED } from "./useSkyHud";
 
 const span = (fovy: number, width: number, height: number): number => CesiumMath.toDegrees(fovxFromFovy(CesiumMath.toRadians(fovy), width / height));

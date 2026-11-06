@@ -56,10 +56,10 @@
 import { useVirtualizer } from "@tanstack/vue-virtual";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
-import type { SortKey } from "../../composables/useCatalogFilters";
-import { orbitColor, orbitKindLabel } from "../../config/orbitClass";
-import type { CatalogRow } from "../../modules/catalogFacets";
-import { formatInteger, formatFixed } from "../../modules/util/formats";
+import type { SortKey } from "@/composables/useCatalogFilters";
+import { orbitColor, orbitKindLabel } from "@/config/orbitClass";
+import type { CatalogRow } from "@/modules/catalogFacets";
+import { formatInteger, formatFixed } from "@/modules/util/formats";
 
 const props = defineProps<{ rows: readonly CatalogRow[]; active: ReadonlySet<string>; sortKey: SortKey; sortDescending: boolean }>();
 const emit = defineEmits<{ sort: [key: SortKey]; toggle: [name: string]; info: [name: string] }>();

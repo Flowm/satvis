@@ -3,7 +3,8 @@
 
 import { describe, expect, test } from "vitest";
 
-import Orbit from "../Orbit";
+import Orbit from "@/modules/Orbit";
+
 import { parseGpPayload, type GpRecord } from "./gp";
 import { derivedOrbitRows, isSunSynchronous, orbitRegimeLabel } from "./orbitFacts";
 

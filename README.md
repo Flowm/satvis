@@ -74,8 +74,8 @@ models; a plugin with its own models adds a `models.yaml` at its root
 To run the frontend against a local worker:
 
 ```
-pnpm dev:worker                                     # wrangler dev on :8080
-SATVIS_API_PROXY=http://localhost:8080 pnpm dev     # frontend proxies /api → local worker
+pnpm dev:worker                                     # wrangler dev on :8787
+API_PROXY=http://localhost:8787 pnpm dev            # frontend proxies /api → local worker
 ```
 
 A refresh fills Workers KV: the upstream tables first, then the GP data, which is
@@ -83,8 +83,8 @@ enriched from them. Each reports per source and needs a bearer token, because on
 run pulls ~7 MB from CelesTrak against a 250 MB/day per-IP cap:
 
 ```
-curl -X POST -H "Authorization: Bearer $REFRESH_TOKEN" http://localhost:8080/api/upstream/refresh
-curl -X POST -H "Authorization: Bearer $REFRESH_TOKEN" http://localhost:8080/api/refresh
+curl -X POST -H "Authorization: Bearer $REFRESH_TOKEN" http://localhost:8787/api/upstream/refresh
+curl -X POST -H "Authorization: Bearer $REFRESH_TOKEN" http://localhost:8787/api/refresh
 ```
 
 Then `GET /api/groups.json` lists the refreshed groups and
@@ -207,7 +207,7 @@ facts, keyed by NORAD id). Tags and presets reach clients with the group index,
 
   The script needs a GPU, the network, `pnpm update-imagery`, `pnpm update-starmap`
   and the models submodule, and says which is missing. It runs the app on Vite's dev
-  server, so set `SATVIS_API_PROXY` to a local worker for a preset not yet deployed;
+  server, so set `API_PROXY` to a local worker for a preset not yet deployed;
   `pnpm update-showcase "Weather on a map"` retakes one. To pin the ISS instead, record
   its element set as a group serves it, and pick a `pictureAt` within a day or two of
   its epoch:

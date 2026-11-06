@@ -8,6 +8,8 @@
 import { Cartesian2, type JulianDate } from "@cesium/core";
 import { Entity, type Scene, type ScreenSpaceEventHandler, ScreenSpaceEventType } from "@cesium/engine";
 
+import type { UnseenMode } from "@/modules/util/visibility";
+
 import type { SkyAppearance } from "./componentKinds";
 import { browserOrientationEvents, CompassAiming } from "./DeviceAim";
 import type { SatelliteComponentCollection } from "./SatelliteComponentCollection";
@@ -17,7 +19,6 @@ import { type GestureIntent, lookAfterDrag, SkyGestures } from "./skyGestures";
 import { SkyMovement } from "./SkyMovement";
 import { groundHides, nearestTarget, type SkyTarget, skyTargets } from "./SkyTargets";
 import type { SkyView } from "./SkyView";
-import type { UnseenMode } from "./util/visibility";
 
 /** In CSS pixels. */
 export const CAPTURE_RADIUS = 60;

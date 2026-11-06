@@ -1,8 +1,8 @@
 import { defineStore } from "pinia";
 import { ref, watch } from "vue";
 
-import { type Bookmark, type BookmarkKind, type Link, parseBookmarks, sameLink, withOpened } from "../modules/util/bookmarks";
-import { localStorageOrNone } from "../modules/util/localStorage";
+import { type Bookmark, type BookmarkKind, type Link, parseBookmarks, sameLink, withOpened } from "@/modules/util/bookmarks";
+import { localStorageOrNone } from "@/modules/util/localStorage";
 
 /** Per browser, not in the url: a bookmark is a link to a scene, not part of one (docs/adr/0011-bookmarks.md). */
 const STORAGE_KEY: Record<Exclude<BookmarkKind, "featured">, string> = {

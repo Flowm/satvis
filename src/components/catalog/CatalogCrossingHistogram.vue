@@ -40,9 +40,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import type { CrossingView, HistogramScale } from "../../composables/useCatalogFilters";
-import { CROSSING_BIN_HOURS, CROSSING_FROM_HOURS, type CrossingDirection, formatLocalTime } from "../../modules/catalogFacets";
-import { formatInteger } from "../../modules/util/formats";
+import type { CrossingView, HistogramScale } from "@/composables/useCatalogFilters";
+import { CROSSING_BIN_HOURS, CROSSING_FROM_HOURS, type CrossingDirection, formatLocalTime } from "@/modules/catalogFacets";
+import { formatInteger } from "@/modules/util/formats";
+
 import CatalogHistogram, { type HistogramBand, type HistogramSeries, type HistogramTick } from "./CatalogHistogram.vue";
 import CatalogSegments, { type SegmentOption } from "./CatalogSegments.vue";
 

@@ -70,6 +70,8 @@ const server = await createServer({
   root: repoRoot,
   configFile: false,
   appType: "custom",
+  // configFile is off, so the @/ path alias from tsconfig.json has to be enabled here.
+  resolve: { tsconfigPaths: true },
   logLevel: "error",
   optimizeDeps: { noDiscovery: true },
   server: { middlewareMode: true, hmr: false },

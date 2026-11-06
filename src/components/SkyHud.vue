@@ -61,12 +61,12 @@
 import { storeToRefs } from "pinia";
 import { computed, onUnmounted, watch } from "vue";
 
-import { useController } from "../composables/useController";
-import { useSkyCompass } from "../composables/useSkyCompass";
-import { useSkyHud, type TapeTick } from "../composables/useSkyHud";
-import { SKY_MODE } from "../config/viewModes";
-import { lockPosition, VISIBILITY_LABEL } from "../modules/skyCard";
-import { useCesiumStore } from "../stores/cesium";
+import { useController } from "@/composables/useController";
+import { useSkyCompass } from "@/composables/useSkyCompass";
+import { useSkyHud, type TapeTick } from "@/composables/useSkyHud";
+import { SKY_MODE } from "@/config/viewModes";
+import { lockPosition, VISIBILITY_LABEL } from "@/modules/skyCard";
+import { useCesiumStore } from "@/stores/cesium";
 
 /**
  * Not Tailwind: it emits no CSS for a class built at runtime.

@@ -2,7 +2,7 @@
 // fresh stations: the store compares against what it holds, so an in-place edit is
 // invisible to it. The order decides where the sky view stands (docs/adr/0003-sky-view.md).
 
-import type { SerializedGroundStation } from "../../stores/sat";
+import type { SerializedGroundStation } from "@/stores/sat";
 
 export const MAX_LATITUDE = 90;
 export const MAX_LONGITUDE = 180;

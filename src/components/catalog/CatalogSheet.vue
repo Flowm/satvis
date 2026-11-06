@@ -214,12 +214,13 @@ import "./catalog.css";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-import { SHOW_CAP, useCatalogFilters } from "../../composables/useCatalogFilters";
-import { useController } from "../../composables/useController";
-import { ORBIT_CLASS_HINT, orbitColor, orbitKindHint, SUN_SYNC_COLOR } from "../../config/orbitClass";
-import { FACET_BY_KEY, FACETS, type FacetDef, type FacetKey, facetBranches, facetItems, NO_KIND, NO_PROGRAM, parseOrbitLeaf } from "../../modules/catalogFacets";
-import { formatInteger } from "../../modules/util/formats";
-import { useSatStore } from "../../stores/sat";
+import { SHOW_CAP, useCatalogFilters } from "@/composables/useCatalogFilters";
+import { useController } from "@/composables/useController";
+import { ORBIT_CLASS_HINT, orbitColor, orbitKindHint, SUN_SYNC_COLOR } from "@/config/orbitClass";
+import { FACET_BY_KEY, FACETS, type FacetDef, type FacetKey, facetBranches, facetItems, NO_KIND, NO_PROGRAM, parseOrbitLeaf } from "@/modules/catalogFacets";
+import { formatInteger } from "@/modules/util/formats";
+import { useSatStore } from "@/stores/sat";
+
 import CatalogApsisPlot from "./CatalogApsisPlot.vue";
 import CatalogCrossingHistogram from "./CatalogCrossingHistogram.vue";
 import CatalogCustomDialog from "./CatalogCustomDialog.vue";

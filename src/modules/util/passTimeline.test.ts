@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
-import type { Pass } from "../PassPredictor";
+import type { Pass } from "@/modules/PassPredictor";
+
 import { passBand, passTimelineLayout } from "./passTimeline";
 
 const T0 = Date.UTC(2026, 6, 1, 12, 0, 0);

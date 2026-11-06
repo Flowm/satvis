@@ -2,7 +2,7 @@ import { Cartesian3 } from "@cesium/core";
 import { type Camera, type Entity } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
-import { smootherstep } from "./util/easing";
+import { smootherstep } from "@/modules/util/easing";
 
 export interface CameraPose {
   destination: Cartesian3;

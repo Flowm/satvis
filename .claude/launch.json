@@ -22,7 +22,7 @@
       "name": "worker",
       "runtimeExecutable": "mise",
       "runtimeArgs": ["exec", "--", "pnpm", "run", "dev:worker"],
-      "port": 8080,
+      "port": 8787,
       "autoPort": false
     }
   ]

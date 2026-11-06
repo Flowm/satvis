@@ -28,11 +28,11 @@
 <script setup lang="ts">
 import { ref, useTemplateRef, watch } from "vue";
 
-import { useBookmarks } from "../composables/useBookmarks";
-import { type Bookmark, type Link, sameLink } from "../modules/util/bookmarks";
-import { attachCarousel } from "../modules/util/carousel";
+import { useBookmarks } from "@/composables/useBookmarks";
+import { type Bookmark, type Link, sameLink } from "@/modules/util/bookmarks";
+import { attachCarousel } from "@/modules/util/carousel";
 
-import "../css/about.css";
+import "@/css/about.css";
 
 const open = ref(false);
 const content = ref("");

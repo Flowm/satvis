@@ -3,7 +3,8 @@
 
 import { constants, gstime, type SatRec } from "satellite.js";
 
-import type Orbit from "../Orbit";
+import type Orbit from "@/modules/Orbit";
+
 import { formatFixed } from "./formats";
 
 const RAD_TO_DEG = 180 / Math.PI;

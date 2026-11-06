@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest";
 
-import type { SatelliteMetadata } from "../config/satelliteMetadata";
+import type { SatelliteMetadata } from "@/config/satelliteMetadata";
+import type { GpRecord } from "@/modules/util/gp";
+
 import {
   type CatalogFilter,
   type CatalogRow,
@@ -21,7 +23,6 @@ import {
 } from "./catalogFacets";
 import { CUSTOM_KEY_PREFIX, CUSTOM_TAG } from "./customSatellites";
 import { SatelliteCatalog } from "./SatelliteCatalog";
-import type { GpRecord } from "./util/gp";
 
 const NOW = Date.UTC(2026, 9, 18);
 

@@ -3,13 +3,14 @@ import { SampledPositionProperty, Transforms } from "@cesium/engine";
 import type { InterpolationAlgorithm } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
+import { CesiumCallbackHelper } from "@/modules/util/CesiumCallbackHelper";
+import "@/modules/util/CesiumSampledPositionRawValueAccess";
+import { drawablePositions } from "@/modules/util/drawablePositions";
+import { GridPositionProperty, type SampleVisitor } from "@/modules/util/GridPositionProperty";
+import type { SampleChunk, TrajectorySampler } from "@/modules/util/sampleSource";
+import { trajectoryWindow } from "@/modules/util/trajectoryWindow";
+
 import type Orbit from "./Orbit";
-import "./util/CesiumSampledPositionRawValueAccess";
-import { CesiumCallbackHelper } from "./util/CesiumCallbackHelper";
-import { drawablePositions } from "./util/drawablePositions";
-import { GridPositionProperty, type SampleVisitor } from "./util/GridPositionProperty";
-import type { SampleChunk, TrajectorySampler } from "./util/sampleSource";
-import { trajectoryWindow } from "./util/trajectoryWindow";
 
 /**
  * Cesium 1.143's LagrangePolynomialApproximation typings lag the widened InterpolationAlgorithm interface.
