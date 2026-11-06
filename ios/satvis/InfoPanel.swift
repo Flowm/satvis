@@ -374,7 +374,7 @@ struct StationPanel: View {
                 }
                 ToolbarSpacer(.fixed, placement: .topBarTrailing)
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button("View the sky from here", systemImage: "binoculars", action: onSky)
+                    Button("View the sky from here", image: .lucideTelescope, action: onSky)
                     if let onTrack {
                         Button.track(isTracked, onTrack: onTrack)
                     }
