@@ -6,13 +6,9 @@
       v-for="(station, index) in stations"
       :key="index"
       class="gsList__row"
-      :class="{ 'gsList__row--observer': observing(index), 'gsList__row--dragged': drag?.from === index, 'gsList__row--settling': settling }"
+      :class="{ 'gsList__row--dragged': drag?.from === index, 'gsList__row--settling': settling }"
       :style="{ transform: `translateY(${offsetOf(index)}px)` }"
     >
-      <!-- Where the sky view stands, while it is up: the Sky panel and a location's panel choose it. -->
-      <span class="gsList__rank" :class="{ 'gsList__rank--observer': observing(index) }" :title="observing(index) ? 'The sky view stands here' : undefined">
-        {{ observing(index) ? "◉" : index + 1 }}
-      </span>
       <!-- Keyboard-operable as well as draggable: dragging is the only other way to reorder. -->
       <span
         class="gsList__grip"
@@ -58,7 +54,12 @@
         @keydown.enter="commit"
         @keydown.esc="abandon($event, formatNumber(station.lon))"
       />
-      <button type="button" class="gsList__remove" title="Remove" @click="removeAt(index)">×</button>
+      <span class="gsList__actions">
+        <button type="button" class="gsList__button gsList__show" aria-label="Show passes" title="Show passes" @click="showPasses(index)">
+          <UIcon name="lucide:chevron-right" />
+        </button>
+        <button type="button" class="gsList__button gsList__remove" title="Remove" @click="removeAt(index)">×</button>
+      </span>
     </div>
 
     <div class="toolbarTitle">Add</div>
@@ -73,7 +74,6 @@
     </button>
 
     <div v-if="pickMode" class="toolbarNote gsList__pickNote">Choose a spot on the globe for the station.</div>
-    <div v-if="sceneMode === SKY_MODE" class="toolbarNote">The sky view stands at ◉.</div>
   </div>
 </template>
 
@@ -81,20 +81,29 @@
 import { storeToRefs } from "pinia";
 import { nextTick, ref } from "vue";
 
+import { useController } from "@/composables/useController";
 import { useGeolocation } from "@/composables/useGeolocation";
-import { SKY_MODE } from "@/config/viewModes";
+import { useSelectedEntity } from "@/composables/useSelectedEntity";
 import { formatNumber } from "@/modules/util/formats";
 import { dragShift, dropIndex, MAX_LATITUDE, MAX_LONGITUDE, parseCoordinate } from "@/modules/util/groundStationEdits";
 import { useCesiumStore } from "@/stores/cesium";
 import { useSatStore } from "@/stores/sat";
 
 const satStore = useSatStore();
-const { groundStations: stations, observerStation } = storeToRefs(satStore);
-const { pickMode, sceneMode } = storeToRefs(useCesiumStore());
-
-/** Whether the sky view is up and stands on station `index`. */
-const observing = (index: number): boolean => sceneMode.value === SKY_MODE && index === observerStation.value;
+const { groundStations: stations } = storeToRefs(satStore);
+const { pickMode } = storeToRefs(useCesiumStore());
 const { pending: locating, locate } = useGeolocation();
+
+const cc = useController();
+const { preferredTab } = useSelectedEntity(cc);
+const emit = defineEmits<{ "show-info": [] }>();
+
+/** Selects the station, as a click on its pin does, with its info panel on the passes. */
+function showPasses(index: number): void {
+  preferredTab.value = "passes";
+  cc.sats.groundStations[index]?.select();
+  emit("show-info");
+}
 
 /**
  * Puts back what the store kept (rounded, or the old value if refused). Vue does not:
@@ -241,11 +250,6 @@ function offsetOf(index: number): number {
   box-shadow: inset 0 1px var(--panel-hairline);
 }
 
-.gsList__row--observer {
-  background-color: #4a5b50;
-  opacity: 1;
-}
-
 /* See `settling`. */
 .gsList__row--settling {
   transition: none;
@@ -256,20 +260,6 @@ function offsetOf(index: number): number {
   position: relative;
   transition: none;
   z-index: 1;
-}
-
-.gsList__rank {
-  color: color-mix(in srgb, var(--panel-green) 60%, transparent);
-  flex: none;
-  font-size: 11px;
-  line-height: 24px;
-  text-align: center;
-  user-select: none;
-  width: 12px;
-}
-
-.gsList__rank--observer {
-  color: var(--panel-green);
 }
 
 .gsList__grip {
@@ -334,21 +324,32 @@ function offsetOf(index: number): number {
   width: 52px;
 }
 
-.gsList__remove {
+/* Laid out with the row's own gap; a finger's row gives the pair one area (below). */
+.gsList__actions {
+  display: contents;
+}
+
+.gsList__button {
+  align-items: center;
   background: none;
   border: none;
   color: var(--panel-ink);
   cursor: pointer;
+  display: flex;
   flex: none;
   font-size: 15px;
+  justify-content: center;
   line-height: 1;
   opacity: 0.6;
   padding: 0 1px;
 }
 
+.gsList__button:hover {
+  opacity: 1;
+}
+
 .gsList__remove:hover {
   color: var(--panel-destructive);
-  opacity: 1;
 }
 
 /* Pick mode stays on until a click on the globe. */
@@ -363,22 +364,19 @@ function offsetOf(index: number): number {
 }
 
 /* A finger: the iOS app's two-line row, the name over its coordinates, with the grip and
-   the cross a row square. Inputs at 16px, under which iOS Safari zooms in on focus. */
+   the buttons a row square. Inputs at 16px, under which iOS Safari zooms in on focus. */
 @media (pointer: coarse) {
   .gsList__row {
     display: grid;
     grid-template-areas:
-      "rank grip name name remove"
-      "rank grip lat lon remove";
-    grid-template-columns: 12px 32px 1fr 1fr 32px;
-    column-gap: 6px;
+      "grip name name actions"
+      "grip lat lon actions";
+    /* 8 to 9: a latitude has a digit fewer than a longitude. */
+    grid-template-columns: 28px minmax(0, 8fr) minmax(0, 9fr) 64px;
+    column-gap: 4px;
     height: auto;
     min-height: var(--toolbar-row);
     padding: 4px 6px;
-  }
-
-  .gsList__rank {
-    grid-area: rank;
   }
 
   .gsList__grip {
@@ -408,10 +406,16 @@ function offsetOf(index: number): number {
     grid-area: lon;
   }
 
-  .gsList__remove {
-    grid-area: remove;
+  /* Two 32px buttons with no gap between them, each as wide as the cross alone was. */
+  .gsList__actions {
     align-self: stretch;
+    display: flex;
+    grid-area: actions;
+  }
+
+  .gsList__button {
     font-size: 22px;
+    width: 32px;
   }
 
   /* Latitude over longitude where halves would cut -149.5585 short: a 375px phone's
@@ -420,10 +424,10 @@ function offsetOf(index: number): number {
   @container (width < 258px) {
     .gsList__row {
       grid-template-areas:
-        "rank grip name remove"
-        "rank grip lat remove"
-        "rank grip lon remove";
-      grid-template-columns: 12px 32px 1fr 32px;
+        "grip name actions"
+        "grip lat actions"
+        "grip lon actions";
+      grid-template-columns: 28px 1fr 64px;
     }
   }
 }

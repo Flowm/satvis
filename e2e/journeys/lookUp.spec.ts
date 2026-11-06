@@ -102,8 +102,6 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   await waitForSky(page);
   await expect.poll(() => page.evaluate(() => window.cc!.skyView.observer?.lat)).toBe(47.27);
   expect(stations(page).map((station) => station[2])).toEqual(["Geolocation", "Munich"]);
-  await openMenu(page, "Locations");
-  await expect(page.locator(".gsList__row").first().locator(".gsList__rank")).toHaveText("◉");
 
   await openMenu(page, "Globe");
   await menuSwitch(page, "3D").click();

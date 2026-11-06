@@ -69,7 +69,7 @@
         </label>
       </toolbar-panel>
       <toolbar-panel v-show="openMenu === 'gs'" title="Locations" class="toolbarPanel--locations" @close="closePanel('gs')">
-        <ground-station-list />
+        <ground-station-list @show-info="onShowInfo" />
       </toolbar-panel>
       <toolbar-panel v-show="openMenu === 'map'" title="Map" @close="closePanel('map')">
         <!-- Both groups bind by provider, not token, so a url layer with an opacity
