@@ -1,6 +1,6 @@
-// Two rules that exist only in the generated dist/sw.js: a data url opened in the address bar
-// must not get the app shell (vite.config.ts says why), and nothing from Cesium ion or
-// Google's tile hosts may be cached.
+// Rules that exist only in the generated dist/sw.js: a data url opened in the address bar
+// must not get the app shell (vite.config.ts says why), the link preview is not precached,
+// and nothing from Cesium ion or Google's tile hosts may be cached.
 
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
@@ -43,6 +43,11 @@ test("the app's own routes still get the shell offline", () => {
   for (const pathname of ["/", "/ot", "/embedded", "/about"]) {
     assert.equal(servesShell(pathname), true, pathname);
   }
+});
+
+test("the link preview is not precached", () => {
+  // Only scrapers fetch it, so no visitor should download it with the app.
+  assert.equal(sw.includes("og-image"), false);
 });
 
 test("nothing from Cesium ion or Google's tile hosts is cached", () => {
