@@ -26,7 +26,7 @@
           :class="{ 'catalogList__row--shown': active.has(item.row.name) }"
           :style="{ gridTemplateColumns: template, transform: `translateY(${item.start}px)` }"
         >
-          <input type="checkbox" class="cs-check" :checked="active.has(item.row.name)" :aria-label="`Toggle ${item.row.name}`" @change="emit('toggle', item.row.name)" />
+          <input type="checkbox" class="panelCheckbox" :checked="active.has(item.row.name)" :aria-label="`Toggle ${item.row.name}`" @change="emit('toggle', item.row.name)" />
           <span class="catalogList__dot" :style="{ background: orbitColor(item.row.orbitClass, item.row.orbitKind) }" :title="orbitTitle(item.row)" />
           <span
             v-for="column in columns"

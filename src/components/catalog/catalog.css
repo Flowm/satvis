@@ -197,12 +197,3 @@
   scrollbar-color: #ffffff33 transparent;
   scrollbar-width: thin;
 }
-
-.cs-check {
-  flex: none;
-  width: 15px;
-  height: 15px;
-  margin: 0;
-  accent-color: var(--cs-accent);
-  cursor: pointer;
-}
