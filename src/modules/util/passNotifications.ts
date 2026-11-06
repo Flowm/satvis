@@ -2,7 +2,8 @@
 
 import dayjs from "dayjs";
 
-import type { Pass } from "../PassPredictor";
+import type { Pass } from "@/modules/PassPredictor";
+
 import { PushManager } from "./PushManager";
 
 /** One per page, so its duplicate check spans every panel that asks. */

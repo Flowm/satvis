@@ -8,7 +8,8 @@ import { Color, GeometryInstance, JulianDate, TimeInterval } from "@cesium/core"
 import { Appearance, BlendingState, Material, Primitive, type Scene, SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
-import type { SampledTrajectory } from "../SampledTrajectory";
+import type { SampledTrajectory } from "@/modules/SampledTrajectory";
+
 import { CesiumCallbackHelper } from "./CesiumCallbackHelper";
 import { driveBuild } from "./driveBuild";
 import { groundTrackRibbon, RIBBON_HEIGHT_METERS, type RibbonSwath, TRACK_SECONDS_ATTRIBUTE } from "./groundTrackRibbon";

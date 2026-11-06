@@ -4,11 +4,12 @@
 import { Cartesian3, Cartographic, Ray } from "@cesium/core";
 import { type Cesium3DTileset, createGooglePhotorealistic3DTileset, createOsmBuildingsAsync, type Scene } from "@cesium/engine";
 
-import { surfaceEffects, type SurfaceTileset } from "../config/surfaceModels";
-import { SKY_MODE } from "../config/viewModes";
+import { surfaceEffects, type SurfaceTileset } from "@/config/surfaceModels";
+import { SKY_MODE } from "@/config/viewModes";
+import { DeviceDetect } from "@/modules/util/DeviceDetect";
+
 import type { Observer } from "./skyGeometry";
 import { isPlausibleGroundHeight } from "./SkyView";
-import { DeviceDetect } from "./util/DeviceDetect";
 
 export interface SurfaceModelDeps {
   scene: Scene;

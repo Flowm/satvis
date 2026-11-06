@@ -18,7 +18,8 @@ import {
 import { Viewer } from "@cesium/widgets";
 import YAML from "yaml";
 
-import { installFramePumpIfRequested } from "../modules/benchmark/framePump";
+import { installFramePumpIfRequested } from "@/modules/benchmark/framePump";
+
 import { glbStats, type GlbStats } from "./glbStats";
 
 /** Only the keys: the importers are never called, so nothing is bundled or fetched. */

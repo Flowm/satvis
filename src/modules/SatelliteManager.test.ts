@@ -3,11 +3,12 @@ import { Entity, SceneMode, Transforms } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { parseGpPayload } from "@/modules/util/gp";
+import { InlinePassSource } from "@/modules/util/passSource";
+import { InlineSampleSource } from "@/modules/util/sampleSource";
+
 import { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { type DesiredScene, SatelliteManager } from "./SatelliteManager";
-import { parseGpPayload } from "./util/gp";
-import { InlinePassSource } from "./util/passSource";
-import { InlineSampleSource } from "./util/sampleSource";
 
 const TLES = [
   "ISS (ZARYA)\n1 25544U 98067A   18342.69352573  .00002284  00000-0  41838-4 0  9992\n2 25544  51.6407 229.0798 0005166 124.8351 329.3296 15.54069892145658",

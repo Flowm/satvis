@@ -81,12 +81,12 @@
 import { storeToRefs } from "pinia";
 import { nextTick, ref } from "vue";
 
-import { useGeolocation } from "../composables/useGeolocation";
-import { SKY_MODE } from "../config/viewModes";
-import { formatNumber } from "../modules/util/formats";
-import { dragShift, dropIndex, MAX_LATITUDE, MAX_LONGITUDE, parseCoordinate } from "../modules/util/groundStationEdits";
-import { useCesiumStore } from "../stores/cesium";
-import { useSatStore } from "../stores/sat";
+import { useGeolocation } from "@/composables/useGeolocation";
+import { SKY_MODE } from "@/config/viewModes";
+import { formatNumber } from "@/modules/util/formats";
+import { dragShift, dropIndex, MAX_LATITUDE, MAX_LONGITUDE, parseCoordinate } from "@/modules/util/groundStationEdits";
+import { useCesiumStore } from "@/stores/cesium";
+import { useSatStore } from "@/stores/sat";
 
 const satStore = useSatStore();
 const { groundStations: stations, observerStation } = storeToRefs(satStore);

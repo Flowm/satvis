@@ -1,15 +1,15 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-import { layerProvider } from "../config/layers";
-import { FRAME_RATES, type FrameRate, MSAA_RATES, PIXEL_RATIOS, currentDevicePixelRatio, defaultMsaaRate } from "../config/rendering";
-import { BUILTIN_STAR_MAP, STAR_MAPS } from "../config/starMaps";
-import { SURFACE_MODELS } from "../config/surfaceModels";
-import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "../config/viewModes";
-import { baseLayerNames, imageryProviderNames, terrainProviderNames } from "../modules/CesiumLayerProviders";
-import { sameValue } from "../modules/util/equality";
-import { boolean, enumString, layerList, timestamp, toMinuteIso } from "../modules/util/urlCodec";
-import { UNSEEN_MODES, type UnseenMode } from "../modules/util/visibility";
+import { layerProvider } from "@/config/layers";
+import { FRAME_RATES, type FrameRate, MSAA_RATES, PIXEL_RATIOS, currentDevicePixelRatio, defaultMsaaRate } from "@/config/rendering";
+import { BUILTIN_STAR_MAP, STAR_MAPS } from "@/config/starMaps";
+import { SURFACE_MODELS } from "@/config/surfaceModels";
+import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "@/config/viewModes";
+import { baseLayerNames, imageryProviderNames, terrainProviderNames } from "@/modules/CesiumLayerProviders";
+import { sameValue } from "@/modules/util/equality";
+import { boolean, enumString, layerList, timestamp, toMinuteIso } from "@/modules/util/urlCodec";
+import { UNSEEN_MODES, type UnseenMode } from "@/modules/util/visibility";
 
 export const useCesiumStore = defineStore(
   "cesium",

@@ -37,8 +37,8 @@
 import type { DropdownMenuItem } from "@nuxt/ui";
 import { computed, nextTick, ref, watch } from "vue";
 
-import { type Bookmark, type BookmarkSummary, timeAgo } from "../modules/util/bookmarks";
-import { DeviceDetect } from "../modules/util/DeviceDetect";
+import { type Bookmark, type BookmarkSummary, timeAgo } from "@/modules/util/bookmarks";
+import { DeviceDetect } from "@/modules/util/DeviceDetect";
 
 /** `draft` is the name being typed, held by the panel, whose footer can save it too. */
 const props = defineProps<{ bookmark: Bookmark; summary: BookmarkSummary; current: boolean; renaming: boolean; draft: string }>();

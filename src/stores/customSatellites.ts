@@ -1,9 +1,10 @@
 import { defineStore } from "pinia";
 import { shallowRef, watch } from "vue";
 
-import { CUSTOM_TAG, serializeCustomRecords } from "../modules/customSatellites";
-import { type GpRecord, parseGpPayload, recordName } from "../modules/util/gp";
-import { localStorageOrNone } from "../modules/util/localStorage";
+import { CUSTOM_TAG, serializeCustomRecords } from "@/modules/customSatellites";
+import { type GpRecord, parseGpPayload, recordName } from "@/modules/util/gp";
+import { localStorageOrNone } from "@/modules/util/localStorage";
+
 import { useSatStore } from "./sat";
 
 /** Where the records are kept, as a GP payload. */

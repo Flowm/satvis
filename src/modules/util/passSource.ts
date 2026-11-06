@@ -1,7 +1,8 @@
 // Where a satellite's passes come from; shaped like sampleSource. No inline fallback
 // for a dead worker: 40 s of prediction on the main thread is worse than an empty table.
 
-import type { SwathExtents } from "../../config/satelliteMetadata";
+import type { SwathExtents } from "@/config/satelliteMetadata";
+
 import type { GpRecord } from "./gp";
 import { runPassCommand, type PassCommand, type PassRequest, type PassResponse, type PassStation, type WorkerPass } from "./passWorker";
 

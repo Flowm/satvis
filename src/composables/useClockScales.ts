@@ -16,8 +16,9 @@ import {
   releaseVelocity,
   timelineTicks,
   LADDER,
-} from "../modules/util/clockDeck";
-import { DeviceDetect } from "../modules/util/DeviceDetect";
+} from "@/modules/util/clockDeck";
+import { DeviceDetect } from "@/modules/util/DeviceDetect";
+
 import type { ViewerClock } from "./useViewerClock";
 
 const scrollBehavior = (): ScrollBehavior => (DeviceDetect.prefersReducedMotion() ? "auto" : "smooth");

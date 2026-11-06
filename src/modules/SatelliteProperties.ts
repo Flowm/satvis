@@ -1,19 +1,12 @@
-import type { OrbitClass } from "../config/orbitClass";
-import {
-  DEFAULT_CONE_FOV_DEG,
-  DEFAULT_SWATH_KM,
-  satelliteModel,
-  swathExtentsOf,
-  type SatelliteMetadata,
-  type SatelliteModel,
-  type SwathExtents,
-} from "../config/satelliteMetadata";
+import type { OrbitClass } from "@/config/orbitClass";
+import { DEFAULT_CONE_FOV_DEG, DEFAULT_SWATH_KM, satelliteModel, swathExtentsOf, type SatelliteMetadata, type SatelliteModel, type SwathExtents } from "@/config/satelliteMetadata";
+import type { PassPredictorSource } from "@/modules/util/passSource";
+import type { TrajectorySampler } from "@/modules/util/sampleSource";
+
 import Orbit from "./Orbit";
 import { PassPredictor } from "./PassPredictor";
 import { SampledTrajectory } from "./SampledTrajectory";
 import type { CatalogEntry } from "./SatelliteCatalog";
-import type { PassPredictorSource } from "./util/passSource";
-import type { TrajectorySampler } from "./util/sampleSource";
 
 export class SatelliteProperties {
   entry: CatalogEntry;

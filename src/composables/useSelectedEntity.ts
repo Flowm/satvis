@@ -10,16 +10,16 @@ import { JulianDate } from "@cesium/core";
 import { storeToRefs } from "pinia";
 import { computed, markRaw, ref, shallowRef, watch, type Ref, type ShallowRef } from "vue";
 
-import { SKY_MODE } from "../config/viewModes";
-import type { CesiumController } from "../modules/CesiumController";
-import type { GroundStationEntity } from "../modules/GroundStationEntity";
-import { filterPasses, toPassRows, type Pass, type PassRow } from "../modules/PassPredictor";
-import type { SatelliteComponentCollection } from "../modules/SatelliteComponentCollection";
-import { CesiumCallbackHelper } from "../modules/util/CesiumCallbackHelper";
-import { getElementsInfo, getSatelliteInfo, staleElementsNotice, type ElementsInfo, type SatelliteInfo } from "../modules/util/entityInfo";
-import { formatFixed } from "../modules/util/formats";
-import { useCesiumStore } from "../stores/cesium";
-import { useSatStore } from "../stores/sat";
+import { SKY_MODE } from "@/config/viewModes";
+import type { CesiumController } from "@/modules/CesiumController";
+import type { GroundStationEntity } from "@/modules/GroundStationEntity";
+import { filterPasses, toPassRows, type Pass, type PassRow } from "@/modules/PassPredictor";
+import type { SatelliteComponentCollection } from "@/modules/SatelliteComponentCollection";
+import { CesiumCallbackHelper } from "@/modules/util/CesiumCallbackHelper";
+import { getElementsInfo, getSatelliteInfo, staleElementsNotice, type ElementsInfo, type SatelliteInfo } from "@/modules/util/entityInfo";
+import { formatFixed } from "@/modules/util/formats";
+import { useCesiumStore } from "@/stores/cesium";
+import { useSatStore } from "@/stores/sat";
 
 export type Selection = { kind: "satellite"; sat: SatelliteComponentCollection } | { kind: "groundstation"; gs: GroundStationEntity };
 

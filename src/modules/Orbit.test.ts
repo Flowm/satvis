@@ -2,8 +2,9 @@ import dayjs from "dayjs";
 import * as satellitejs from "satellite.js";
 import { describe, expect, test } from "vitest";
 
+import { parseGpPayload, type GpRecord } from "@/modules/util/gp";
+
 import Orbit from "./Orbit";
-import { parseGpPayload, type GpRecord } from "./util/gp";
 
 const TLE = "ISS (ZARYA)\n1 25544U 98067A   18342.69352573  .00002284  00000-0  41838-4 0  9992\n2 25544  51.6407 229.0798 0005166 124.8351 329.3296 15.54069892145658";
 

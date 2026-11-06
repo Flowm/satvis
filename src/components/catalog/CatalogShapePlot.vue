@@ -19,8 +19,9 @@
 </template>
 
 <script setup lang="ts">
-import { SUN_SYNC_COLOR } from "../../config/orbitClass";
-import { type CatalogRow, formatKm, type ShapeBox } from "../../modules/catalogFacets";
+import { SUN_SYNC_COLOR } from "@/config/orbitClass";
+import { type CatalogRow, formatKm, type ShapeBox } from "@/modules/catalogFacets";
+
 import CatalogScatter, { type ScatterAxis, type ScatterScale } from "./CatalogScatter.vue";
 
 defineProps<{

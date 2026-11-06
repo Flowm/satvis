@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { parseGpPayload, type GpRecord } from "@/modules/util/gp";
+import { resetGpSource } from "@/modules/util/gpSource";
+
 import { SatelliteCatalog } from "./SatelliteCatalog";
-import { parseGpPayload, type GpRecord } from "./util/gp";
-import { resetGpSource } from "./util/gpSource";
 
 /** ALPHA appears in both groups (same satnum + name) to exercise dedup and tag union. */
 function ommRecord(name: string, satnum: number): GpRecord {

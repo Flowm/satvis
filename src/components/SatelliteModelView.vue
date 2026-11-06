@@ -15,9 +15,9 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
 
-import { type CloseUpState, ModelCloseUp } from "../modules/ModelCloseUp";
-import { modelUrl } from "../modules/satelliteGraphics";
-import { DeviceDetect } from "../modules/util/DeviceDetect";
+import { type CloseUpState, ModelCloseUp } from "@/modules/ModelCloseUp";
+import { modelUrl } from "@/modules/satelliteGraphics";
+import { DeviceDetect } from "@/modules/util/DeviceDetect";
 
 const props = defineProps<{
   /** Path under /data/models/, from the satellite's metadata. */

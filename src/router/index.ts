@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory, type Router } from "vue-router";
 
-import Satvis from "../components/Satvis.vue";
-import { usePostHog } from "../composables/usePostHog";
+import Satvis from "@/components/Satvis.vue";
+import { usePostHog } from "@/composables/usePostHog";
 
 const base = document.location.pathname.match(".*/")?.[0] ?? "/";
 

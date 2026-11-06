@@ -9,10 +9,10 @@ import { expect, test } from "vitest";
 import { createApp } from "vue";
 import { parse } from "yaml";
 
-import { summarize } from "../modules/util/bookmarks";
-import { type FieldSpec, paramOf, type Query } from "../modules/util/urlCodec";
-import { useCesiumStore } from "../stores/cesium";
-import { useSatStore } from "../stores/sat";
+import { summarize } from "@/modules/util/bookmarks";
+import { type FieldSpec, paramOf, type Query } from "@/modules/util/urlCodec";
+import { useCesiumStore } from "@/stores/cesium";
+import { useSatStore } from "@/stores/sat";
 
 const root = (path: string): string => fileURLToPath(new URL(`../../${path}`, import.meta.url));
 

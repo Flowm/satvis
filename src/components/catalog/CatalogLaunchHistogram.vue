@@ -32,8 +32,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import type { HistogramScale } from "../../composables/useCatalogFilters";
-import { formatInteger } from "../../modules/util/formats";
+import type { HistogramScale } from "@/composables/useCatalogFilters";
+import { formatInteger } from "@/modules/util/formats";
+
 import CatalogHistogram, { type HistogramTick } from "./CatalogHistogram.vue";
 
 const props = defineProps<{

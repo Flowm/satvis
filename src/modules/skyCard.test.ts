@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "vitest";
 
+import { setFormatLocale } from "@/modules/util/formats";
+
 import { lockPosition } from "./skyCard";
-import { setFormatLocale } from "./util/formats";
 
 afterEach(() => setFormatLocale("en-US"));
 

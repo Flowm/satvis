@@ -19,10 +19,11 @@ import {
   leavesByParent,
   orbitLeafOf,
   type ShapeBox,
-} from "../modules/catalogFacets";
-import { hideFromActivation } from "../modules/satelliteActivation";
-import type { SatelliteCatalog } from "../modules/SatelliteCatalog";
-import { useSatStore } from "../stores/sat";
+} from "@/modules/catalogFacets";
+import { hideFromActivation } from "@/modules/satelliteActivation";
+import type { SatelliteCatalog } from "@/modules/SatelliteCatalog";
+import { useSatStore } from "@/stores/sat";
+
 import { useSatelliteBrowser } from "./useSatelliteBrowser";
 
 /** The most names one show writes to `sats=`, which every bookmark copies (ADR 0012). */

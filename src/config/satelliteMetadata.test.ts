@@ -1,10 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { SatelliteCatalog } from "../modules/SatelliteCatalog";
-import { SatelliteProperties } from "../modules/SatelliteProperties";
-import type { GpRecord } from "../modules/util/gp";
-import { InlinePassSource } from "../modules/util/passSource";
-import { InlineSampleSource } from "../modules/util/sampleSource";
+import { SatelliteCatalog } from "@/modules/SatelliteCatalog";
+import { SatelliteProperties } from "@/modules/SatelliteProperties";
+import type { GpRecord } from "@/modules/util/gp";
+import { InlinePassSource } from "@/modules/util/passSource";
+import { InlineSampleSource } from "@/modules/util/sampleSource";
+
 import { satelliteModel, type SatelliteMetadata } from "./satelliteMetadata";
 
 /** Minimal OMM record, with metadata attached as the worker does it. */

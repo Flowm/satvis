@@ -3,8 +3,9 @@
 
 import { readonly, type Ref, ref } from "vue";
 
-import type { CesiumController } from "../modules/CesiumController";
-import type { CompassOutcome } from "../modules/DeviceAim";
+import type { CesiumController } from "@/modules/CesiumController";
+import type { CompassOutcome } from "@/modules/DeviceAim";
+
 import { useToastProxy } from "./useToastProxy";
 
 /** The sensor needs a secure context. */

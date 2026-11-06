@@ -5,26 +5,27 @@
 import { JulianDate } from "@cesium/core";
 import { nextTick, watch } from "vue";
 
-import { currentPosition } from "../composables/useGeolocation";
-import { useToastProxy } from "../composables/useToastProxy";
-import type { FrameRate } from "../config/rendering";
-import { satelliteModel } from "../config/satelliteMetadata";
-import { BUILTIN_STAR_MAP, starMapRecovery } from "../config/starMaps";
-import { surfaceModelLabel } from "../config/surfaceModels";
-import { SKY_MODE } from "../config/viewModes";
-import { useCesiumStore } from "../stores/cesium";
-import { useCustomSatelliteStore } from "../stores/customSatellites";
-import { useSatStore } from "../stores/sat";
+import { currentPosition } from "@/composables/useGeolocation";
+import { useToastProxy } from "@/composables/useToastProxy";
+import type { FrameRate } from "@/config/rendering";
+import { satelliteModel } from "@/config/satelliteMetadata";
+import { BUILTIN_STAR_MAP, starMapRecovery } from "@/config/starMaps";
+import { surfaceModelLabel } from "@/config/surfaceModels";
+import { SKY_MODE } from "@/config/viewModes";
+import { isOffPresent } from "@/modules/util/clockDeck";
+import type { GpRecord } from "@/modules/util/gp";
+import { toMinuteIso } from "@/modules/util/urlCodec";
+import { adjustUrlDefault, arrivalParam } from "@/modules/util/urlSync";
+import type { UnseenMode } from "@/modules/util/visibility";
+import { useCesiumStore } from "@/stores/cesium";
+import { useCustomSatelliteStore } from "@/stores/customSatellites";
+import { useSatStore } from "@/stores/sat";
+
 import { terrainLabel } from "./CesiumLayerProviders";
 import { activeTargetEntries } from "./satelliteActivation";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import type { DesiredScene } from "./SatelliteManager";
 import type { Observer } from "./skyGeometry";
-import { isOffPresent } from "./util/clockDeck";
-import type { GpRecord } from "./util/gp";
-import { toMinuteIso } from "./util/urlCodec";
-import { adjustUrlDefault, arrivalParam } from "./util/urlSync";
-import type { UnseenMode } from "./util/visibility";
 
 /** Enough to keep a fast clock multiplier from hammering the history api. */
 const MIN_CLOCK_WRITE_MS = 1000;

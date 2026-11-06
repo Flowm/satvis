@@ -12,8 +12,8 @@
 
 import { Cartesian3, Math as CesiumMath, Matrix3, Quaternion } from "@cesium/core";
 
-import { DeviceDetect } from "./util/DeviceDetect";
-import { smootherstep } from "./util/easing";
+import { DeviceDetect } from "@/modules/util/DeviceDetect";
+import { smootherstep } from "@/modules/util/easing";
 
 /** A camera pose in world coordinates, with the vertical angle it is seen through. */
 export interface Pose {

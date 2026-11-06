@@ -53,8 +53,9 @@
 import { useToast } from "@nuxt/ui/composables/useToast";
 import { computed, ref, watch } from "vue";
 
-import { useBookmarks } from "../composables/useBookmarks";
-import type { Bookmark, BookmarkKind } from "../modules/util/bookmarks";
+import { useBookmarks } from "@/composables/useBookmarks";
+import type { Bookmark, BookmarkKind } from "@/modules/util/bookmarks";
+
 import BookmarkCard from "./BookmarkCard.vue";
 
 /** The kind of bookmark a tab lists. */

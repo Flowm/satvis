@@ -97,12 +97,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 
-import { useLadder, useTimeline } from "../composables/useClockScales";
-import { useController } from "../composables/useController";
-import { useSelectedEntity } from "../composables/useSelectedEntity";
-import { useViewerClock } from "../composables/useViewerClock";
-import { arrowStep, CHIP_PX, clockLabel, dateLabel, LADDER, multiplierLabel, passMarks, rateLabel, REAL_TIME_RUNG } from "../modules/util/clockDeck";
-import { DeviceDetect } from "../modules/util/DeviceDetect";
+import { useLadder, useTimeline } from "@/composables/useClockScales";
+import { useController } from "@/composables/useController";
+import { useSelectedEntity } from "@/composables/useSelectedEntity";
+import { useViewerClock } from "@/composables/useViewerClock";
+import { arrowStep, CHIP_PX, clockLabel, dateLabel, LADDER, multiplierLabel, passMarks, rateLabel, REAL_TIME_RUNG } from "@/modules/util/clockDeck";
+import { DeviceDetect } from "@/modules/util/DeviceDetect";
 
 const clock = useViewerClock();
 const { now, playing, multiplier, rung, offPresent, togglePlaying, goLive } = clock;

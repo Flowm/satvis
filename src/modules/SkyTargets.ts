@@ -7,9 +7,10 @@
 import { Cartesian2, Cartesian3, Math as CesiumMath, JulianDate, Matrix3, Ray } from "@cesium/core";
 import { type Scene, SceneTransforms } from "@cesium/engine";
 
+import { inEarthShadow, sunDirection, type Visibility, visibility } from "@/modules/util/visibility";
+
 import type { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { enuDirection, normalizeAzimuth, type ObserverFrame } from "./skyGeometry";
-import { inEarthShadow, sunDirection, type Visibility, visibility } from "./util/visibility";
 
 export interface LookAngles {
   /** Degrees clockwise from north. */

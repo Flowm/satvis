@@ -226,6 +226,7 @@ export default defineConfig({
     }),
   ],
   resolve: {
+    tsconfigPaths: true,
     alias: [
       // Stubs satellite.js's unused Emscripten bundles, which raise fifteen "externalized
       // for browser compatibility" warnings.

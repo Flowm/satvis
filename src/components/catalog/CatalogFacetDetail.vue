@@ -50,8 +50,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 
-import type { FacetDef, FacetItem } from "../../modules/catalogFacets";
-import { formatInteger, formatFixed } from "../../modules/util/formats";
+import type { FacetDef, FacetItem } from "@/modules/catalogFacets";
+import { formatInteger, formatFixed } from "@/modules/util/formats";
+
 import CatalogTileToggle from "./CatalogTileToggle.vue";
 
 const props = defineProps<{ def: FacetDef; items: readonly FacetItem[]; picked: ReadonlySet<string> }>();

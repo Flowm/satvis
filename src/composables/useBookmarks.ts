@@ -5,14 +5,15 @@ import { useToast } from "@nuxt/ui/composables/useToast";
 import { computed, reactive, ref } from "vue";
 import { type Router, useRouter } from "vue-router";
 
-import { DEFAULT_PRESET, presetNameOf, presetPath, resolvePreset } from "../config/presets";
-import type { CesiumController } from "../modules/CesiumController";
-import { type Bookmark, type BookmarkSummary, defaultName, type Link, sameLink, sameQuery, summarize, withoutTime } from "../modules/util/bookmarks";
-import { DeviceDetect } from "../modules/util/DeviceDetect";
-import { captureThumbnail, sceneSettled } from "../modules/util/thumbnail";
-import type { Query } from "../modules/util/urlCodec";
-import { foreignParams, syncedParams, syncedQuery, urlHydrated } from "../modules/util/urlSync";
-import { useBookmarkStore } from "../stores/bookmarks";
+import { DEFAULT_PRESET, presetNameOf, presetPath, resolvePreset } from "@/config/presets";
+import type { CesiumController } from "@/modules/CesiumController";
+import { type Bookmark, type BookmarkSummary, defaultName, type Link, sameLink, sameQuery, summarize, withoutTime } from "@/modules/util/bookmarks";
+import { DeviceDetect } from "@/modules/util/DeviceDetect";
+import { captureThumbnail, sceneSettled } from "@/modules/util/thumbnail";
+import type { Query } from "@/modules/util/urlCodec";
+import { foreignParams, syncedParams, syncedQuery, urlHydrated } from "@/modules/util/urlSync";
+import { useBookmarkStore } from "@/stores/bookmarks";
+
 import { useController } from "./useController";
 
 /** Per preset path, its defaults, which a bookmark's query is relative to. Filled as cards ask. */

@@ -44,9 +44,9 @@
 import { useVirtualizer } from "@tanstack/vue-virtual";
 import { computed, ref } from "vue";
 
-import { useController } from "../composables/useController";
-import { type BrowserRow, useSatelliteBrowser } from "../composables/useSatelliteBrowser";
-import { formatInteger } from "../modules/util/formats";
+import { useController } from "@/composables/useController";
+import { type BrowserRow, useSatelliteBrowser } from "@/composables/useSatelliteBrowser";
+import { formatInteger } from "@/modules/util/formats";
 
 const ROW_HEIGHT = 28;
 

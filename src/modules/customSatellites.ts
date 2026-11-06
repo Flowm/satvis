@@ -3,8 +3,9 @@
 
 import { sgp4 } from "satellite.js";
 
+import { createSatrec, type GpRecord, parseGpPayload, recordName, recordSatnum } from "@/modules/util/gp";
+
 import type { CatalogEntry } from "./SatelliteCatalog";
-import { createSatrec, type GpRecord, parseGpPayload, recordName, recordSatnum } from "./util/gp";
 
 /** The tag every custom satellite carries, and the group the catalog lists them under. */
 export const CUSTOM_TAG = "Custom";

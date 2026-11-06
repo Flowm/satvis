@@ -3,8 +3,8 @@
 import { Tonemapper } from "@cesium/engine";
 import { Viewer } from "@cesium/widgets";
 
-import { useConstantStylePoints } from "./util/ConstantStylePointVisualizer";
-import { DeviceDetect } from "./util/DeviceDetect";
+import { useConstantStylePoints } from "@/modules/util/ConstantStylePointVisualizer";
+import { DeviceDetect } from "@/modules/util/DeviceDetect";
 
 /**
  * No `animation` or `timeline` widget: `ClockDeck.vue` replaces both.

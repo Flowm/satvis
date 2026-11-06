@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { fetchGpIndex, type GpIndex } from "../modules/util/gpSource";
+import { fetchGpIndex, type GpIndex } from "@/modules/util/gpSource";
+
 import { presetNameOf, presetPath, resolvePreset } from "./presets";
 
-vi.mock("../modules/util/gpSource", () => ({ fetchGpIndex: vi.fn() }));
+vi.mock("@/modules/util/gpSource", () => ({ fetchGpIndex: vi.fn() }));
 
 const INDEX: GpIndex = {
   groups: [

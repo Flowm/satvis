@@ -51,8 +51,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-import { ORBIT_CLASS_COLOR, orbitColor, SUN_SYNC_COLOR } from "../../config/orbitClass";
-import { type CatalogRow, formatOpenRange } from "../../modules/catalogFacets";
+import { ORBIT_CLASS_COLOR, orbitColor, SUN_SYNC_COLOR } from "@/config/orbitClass";
+import { type CatalogRow, formatOpenRange } from "@/modules/catalogFacets";
+
 import CatalogTileToggle from "./CatalogTileToggle.vue";
 
 /** One of the plot's axes. */

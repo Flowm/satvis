@@ -19,7 +19,8 @@
 </template>
 
 <script setup lang="ts">
-import { type ApsisBox, type CatalogRow, formatKm } from "../../modules/catalogFacets";
+import { type ApsisBox, type CatalogRow, formatKm } from "@/modules/catalogFacets";
+
 import CatalogScatter, { type ScatterAxis, type ScatterScale } from "./CatalogScatter.vue";
 
 defineProps<{

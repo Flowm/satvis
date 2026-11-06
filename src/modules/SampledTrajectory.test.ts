@@ -4,10 +4,11 @@ import dayjs from "dayjs";
 import { propagate } from "satellite.js";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
+import { createSatrec, parseGpPayload, type GpRecord } from "@/modules/util/gp";
+import { InlineSampleSource, type SampleChunk, type TrajectorySampler } from "@/modules/util/sampleSource";
+
 import Orbit from "./Orbit";
 import { SampledTrajectory } from "./SampledTrajectory";
-import { createSatrec, parseGpPayload, type GpRecord } from "./util/gp";
-import { InlineSampleSource, type SampleChunk, type TrajectorySampler } from "./util/sampleSource";
 
 const TLE = "ISS (ZARYA)\n1 25544U 98067A   18342.69352573  .00002284  00000-0  41838-4 0  9992\n2 25544  51.6407 229.0798 0005166 124.8351 329.3296 15.54069892145658";
 

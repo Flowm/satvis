@@ -1,9 +1,10 @@
 import { Cartesian2, Cartesian3, Math as CesiumMath } from "@cesium/core";
 import { describe, expect, test } from "vitest";
 
+import { sunDirection } from "@/modules/util/visibility";
+
 import { observerFrame } from "./skyGeometry";
 import { directionToWorld, lookAngles, nearestTarget, type SkyTarget, sunElevation } from "./SkyTargets";
-import { sunDirection } from "./util/visibility";
 
 const MUNICH = { lat: 48.14, lon: 11.58 };
 const frameAt = (lat: number, lon: number, height = 2) => observerFrame(Cartesian3.fromDegrees(lon, lat, height));

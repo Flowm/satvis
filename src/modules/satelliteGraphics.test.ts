@@ -2,7 +2,8 @@ import { Cartesian3, FixedFrameTransforms, HeadingPitchRoll, Quaternion } from "
 import { SceneMode } from "@cesium/engine";
 import { describe, expect, test } from "vitest";
 
-import { SCENE_MODES, SKY_MODE } from "../config/viewModes";
+import { SCENE_MODES, SKY_MODE } from "@/config/viewModes";
+
 import {
   cesiumSceneMode,
   coneDescription,

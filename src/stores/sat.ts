@@ -1,8 +1,8 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-import { SATELLITE_COMPONENTS } from "../config/components";
-import { sameValue } from "../modules/util/equality";
+import { SATELLITE_COMPONENTS } from "@/config/components";
+import { sameValue } from "@/modules/util/equality";
 import {
   moved,
   observerAfterGeolocation,
@@ -13,8 +13,8 @@ import {
   repositioned,
   withGeolocation,
   without,
-} from "../modules/util/groundStationEdits";
-import { closedStringList, enumString, groundStationList, plainString, stringList, tildeEscapedStringList } from "../modules/util/urlCodec";
+} from "@/modules/util/groundStationEdits";
+import { closedStringList, enumString, groundStationList, plainString, stringList, tildeEscapedStringList } from "@/modules/util/urlCodec";
 
 export interface SerializedGroundStation {
   lat: number;

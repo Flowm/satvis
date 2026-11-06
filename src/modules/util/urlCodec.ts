@@ -5,8 +5,8 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { formatLayer, parseLayer } from "../../config/layers";
-import type { SerializedGroundStation } from "../../stores/sat";
+import { formatLayer, parseLayer } from "@/config/layers";
+import type { SerializedGroundStation } from "@/stores/sat";
 
 dayjs.extend(utc);
 

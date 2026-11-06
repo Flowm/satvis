@@ -2,13 +2,14 @@ import { Cartesian3, JulianDate } from "@cesium/core";
 import { CallbackProperty, Camera, Entity, EntityView, type Scene, SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
+import type { PassPredictorSource } from "@/modules/util/passSource";
+import type { SampleChunk, TrajectorySampler } from "@/modules/util/sampleSource";
+
 import { type Component, type ComponentHost, componentKind, deferPointToModel, modelCopies, ModelSize, type SatelliteBatches, type SkyAppearance } from "./componentKinds";
 import type { GroundStation } from "./PassPredictor";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import { SatelliteProperties } from "./SatelliteProperties";
 import { cancelPendingTrack, trackEntity, trackWhenReady, type CameraPose } from "./trackFlight";
-import type { PassPredictorSource } from "./util/passSource";
-import type { SampleChunk, TrajectorySampler } from "./util/sampleSource";
 
 type SatelliteComponentName = string;
 

@@ -21,16 +21,17 @@ import {
 import type { Viewer } from "@cesium/widgets";
 import CesiumSensorVolumes from "cesium-sensor-volumes";
 
-import type { SATELLITE_COMPONENTS } from "../config/components";
-import { defaultViewDistance } from "../config/defaultView";
-import { modelLevel } from "../config/modelLevels";
-import { ORBIT_CLASS_COLOR, type OrbitClass } from "../config/orbitClass";
-import type { ModelLod } from "../config/satelliteMetadata";
+import type { SATELLITE_COMPONENTS } from "@/config/components";
+import { defaultViewDistance } from "@/config/defaultView";
+import { modelLevel } from "@/config/modelLevels";
+import { ORBIT_CLASS_COLOR, type OrbitClass } from "@/config/orbitClass";
+import type { ModelLod } from "@/config/satelliteMetadata";
+import { drawable } from "@/modules/util/drawablePositions";
+import { GroundTrack, type GroundTrackBatch } from "@/modules/util/GroundTrackBatch";
+import { BatchedLine, type PolylineBatch } from "@/modules/util/PolylineBatch";
+
 import { coneDescription, coneOrientation, groundTrackSwath, modelUrl, orbitPathTimes, orbitTrackTimes, orbitUsesPathGraphic } from "./satelliteGraphics";
 import type { SatelliteProperties } from "./SatelliteProperties";
-import { drawable } from "./util/drawablePositions";
-import { GroundTrack, type GroundTrackBatch } from "./util/GroundTrackBatch";
-import { BatchedLine, type PolylineBatch } from "./util/PolylineBatch";
 
 /** A BatchedLine when merged into a shared orbit batch, a GroundTrack in the ground-track batch. */
 export type Component = Entity | BatchedLine | GroundTrack;

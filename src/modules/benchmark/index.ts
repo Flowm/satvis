@@ -1,6 +1,7 @@
 // The `window.bench` console handle, shared with the panel.
 
-import type { CesiumController } from "../CesiumController";
+import type { CesiumController } from "@/modules/CesiumController";
+
 import {
   CUMULATIVE_COMPONENT_SETS,
   DEFAULT_CLOCK_MULTIPLIERS,

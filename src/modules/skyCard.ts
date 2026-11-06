@@ -1,9 +1,10 @@
 // What the sky view's lock card says of a satellite (SkyHud.vue), held to the native
 // app's (SkyCard.swift) by the parity fixtures.
 
+import { formatInteger } from "@/modules/util/formats";
+import type { Visibility } from "@/modules/util/visibility";
+
 import { compassPoint, normalizeAzimuth } from "./skyGeometry";
-import { formatInteger } from "./util/formats";
-import type { Visibility } from "./util/visibility";
 
 /** The verdict as the card's chip says it. */
 export const VISIBILITY_LABEL: Record<Visibility, string> = {

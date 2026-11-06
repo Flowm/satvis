@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 /// <reference types="vite-plugin-pwa/client" />
 
-import type { CesiumController } from "./modules/CesiumController";
+import type { CesiumController } from "@/modules/CesiumController";
 
 declare global {
   const __BUILD_DATE__: string;

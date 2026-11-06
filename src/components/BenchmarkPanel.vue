@@ -279,7 +279,7 @@
 import { storeToRefs } from "pinia";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 
-import { useController } from "../composables/useController";
+import { useController } from "@/composables/useController";
 import {
   CUMULATIVE_COMPONENT_SETS,
   DEFAULT_OPTIONS,
@@ -311,9 +311,9 @@ import {
   type RepeatCheck,
   type ReportRow,
   type ScalingFit,
-} from "../modules/benchmark";
-import { useCesiumStore } from "../stores/cesium";
-import { useSatStore } from "../stores/sat";
+} from "@/modules/benchmark";
+import { useCesiumStore } from "@/stores/cesium";
+import { useSatStore } from "@/stores/sat";
 
 const emit = defineEmits<{ close: [] }>();
 

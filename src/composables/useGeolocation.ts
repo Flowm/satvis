@@ -3,8 +3,9 @@
 
 import { readonly, type Ref, ref } from "vue";
 
-import type { Observer } from "../modules/skyGeometry";
-import { useSatStore } from "../stores/sat";
+import type { Observer } from "@/modules/skyGeometry";
+import { useSatStore } from "@/stores/sat";
+
 import { useToastProxy } from "./useToastProxy";
 
 /** A cold fix takes this long; shorter turns a slow success into a failure. */

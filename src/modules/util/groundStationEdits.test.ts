@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
-import type { SerializedGroundStation } from "../../stores/sat";
+import type { SerializedGroundStation } from "@/stores/sat";
+
 import {
   dragShift,
   dropIndex,

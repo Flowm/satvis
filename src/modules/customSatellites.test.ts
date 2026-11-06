@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
 
+import { epochMsOf, orbitClassOf, parseGpPayload, recordName, recordSatnum } from "@/modules/util/gp";
+
 import { parseCustomElements, serializeCustomRecords } from "./customSatellites";
-import { epochMsOf, orbitClassOf, parseGpPayload, recordName, recordSatnum } from "./util/gp";
 
 const LINE1 = "1 25544U 98067A   18342.69352573  .00002284  00000-0  41838-4 0  9992";
 const LINE2 = "2 25544  51.6407 229.0798 0005166 124.8351 329.3296 15.54069892145658";

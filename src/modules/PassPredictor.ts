@@ -2,11 +2,12 @@ import { JulianDate, TimeInterval, TimeIntervalCollection } from "@cesium/core";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import type { SwathExtents } from "../config/satelliteMetadata";
+import type { SwathExtents } from "@/config/satelliteMetadata";
+import { formatFixed } from "@/modules/util/formats";
+import type { PassPredictorSource, WorkerPass } from "@/modules/util/passSource";
+
 import type { GroundStationPosition } from "./Orbit";
 import { compassPoint } from "./skyGeometry";
-import { formatFixed } from "./util/formats";
-import type { PassPredictorSource, WorkerPass } from "./util/passSource";
 
 dayjs.extend(utc);
 

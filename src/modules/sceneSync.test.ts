@@ -5,10 +5,11 @@ import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { nextTick } from "vue";
 
-import { BUILTIN_STAR_MAP } from "../config/starMaps";
-import { SKY_MODE } from "../config/viewModes";
-import { useCesiumStore } from "../stores/cesium";
-import { useSatStore } from "../stores/sat";
+import { BUILTIN_STAR_MAP } from "@/config/starMaps";
+import { SKY_MODE } from "@/config/viewModes";
+import { useCesiumStore } from "@/stores/cesium";
+import { useSatStore } from "@/stores/sat";
+
 import type { CatalogEntry } from "./SatelliteCatalog";
 import type { DesiredScene } from "./SatelliteManager";
 import { type SceneTarget, startSceneSync } from "./sceneSync";
@@ -16,7 +17,7 @@ import type { Observer } from "./skyGeometry";
 
 /** The url the page was opened on. */
 const url = vi.hoisted(() => ({ elements: undefined as string | undefined, adjustUrlDefault: vi.fn() }));
-vi.mock("./util/urlSync", () => ({
+vi.mock("@/modules/util/urlSync", () => ({
   arrivalParam: (param: string) => (param === "elements" ? url.elements : undefined),
   adjustUrlDefault: url.adjustUrlDefault,
 }));
