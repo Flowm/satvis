@@ -10,8 +10,7 @@
     "consistent-function-scoping": "off",
     "import/no-unassigned-import": ["warn", { "allow": ["**/*.css", "**/CesiumSampledPositionRawValueAccess"] }],
     "no-console": "off",
-    "no-underscore-dangle": "off",
-    "typescript/no-extraneous-class": "off"
+    "no-underscore-dangle": "off"
   },
   "env": {
     "builtin": true,

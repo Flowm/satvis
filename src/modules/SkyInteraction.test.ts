@@ -14,6 +14,7 @@ describe("SkyInteraction", () => {
   test("stop turns off a compass switched on during the entry flight", async () => {
     vi.useFakeTimers();
     const listeners = new Set<(event: unknown) => void>();
+    // oxlint-disable-next-line typescript/no-extraneous-class -- an empty stand-in for the browser class
     vi.stubGlobal("DeviceOrientationEvent", class {});
     vi.stubGlobal("window", {
       addEventListener: (_type: string, listener: (event: unknown) => void) => listeners.add(listener),
