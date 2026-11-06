@@ -22,8 +22,6 @@ declare global {
   }
 }
 
-usePWAUpdate({ autoUpdate: true });
-
 // Before the viewer: every ion asset resolves through this token (src/config/ion.ts).
 Ion.defaultAccessToken = ionAccessToken;
 
@@ -61,6 +59,8 @@ void recordOpenedLink(cc, router);
 app.use(ui);
 
 app.mount("#app");
+
+usePWAUpdate({ autoUpdate: true });
 
 /**
  * The index.html loading screen is removed, not hidden, or the document keeps a second <h1>.
