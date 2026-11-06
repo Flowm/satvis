@@ -5,7 +5,7 @@
     </button>
     <input
       ref="groupCheckbox"
-      class="browser-checkbox"
+      class="browser-checkbox panelCheckbox"
       type="checkbox"
       :checked="row.state === 'all'"
       :aria-label="`Toggle group ${row.tag}`"
@@ -16,7 +16,7 @@
   </div>
 
   <div v-else class="browser-row browser-row--sat">
-    <input class="browser-checkbox" type="checkbox" :checked="row.checked" :aria-label="`Toggle ${row.name}`" @click.stop="emit('toggle-sat', row.name)" />
+    <input class="browser-checkbox panelCheckbox" type="checkbox" :checked="row.checked" :aria-label="`Toggle ${row.name}`" @click.stop="emit('toggle-sat', row.name)" />
     <span class="browser-label browser-label--sat" @click="emit('toggle-sat', row.name)">{{ row.name }}</span>
     <span class="browser-orbit" :style="{ color: ORBIT_CLASS_COLOR[row.orbitClass] }" :title="`${row.orbitClass} — the colour this satellite's point is drawn in`">{{
       row.orbitClass
@@ -92,15 +92,6 @@ watch(() => (props.row.kind === "group" ? props.row.state : undefined), syncInde
 
 .browser-chevron:hover {
   color: var(--panel-ink);
-}
-
-.browser-checkbox {
-  flex: 0 0 auto;
-  width: 15px;
-  height: 15px;
-  margin: 0;
-  cursor: pointer;
-  accent-color: #2f9e44;
 }
 
 .browser-row--sat .browser-checkbox {

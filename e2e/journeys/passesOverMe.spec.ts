@@ -1,6 +1,6 @@
 import { clockMs, openApp } from "../support/app";
 import { expect, test } from "../support/test";
-import { addStationHere, showInfo } from "../support/ui";
+import { addStationHere, openMenu, showInfo } from "../support/ui";
 
 const ISS = "ISS (ZARYA)";
 
@@ -35,4 +35,11 @@ test("the ISS lists its passes over my location, and a pass can be jumped to", a
   // To the minute, and the clock runs on: the pass's start minute or the one after.
   await expect.poll(() => Date.parse(new URL(page.url()).searchParams.get("time") ?? "") - (startMs - (startMs % 60_000))).toBeGreaterThanOrEqual(0);
   expect(Date.parse(new URL(page.url()).searchParams.get("time")!) - startMs).toBeLessThan(120_000);
+
+  // A location's row opens that station's passes.
+  await openMenu(page, "Locations");
+  await page.locator(".gsList__row").first().getByRole("button", { name: "Show passes" }).click();
+  await expect(panel.locator(".head__name")).toHaveText("Munich");
+  await expect(panel.getByRole("tab", { name: /Passes/ })).toHaveAttribute("aria-selected", "true");
+  await expect(rows.first()).toBeVisible();
 });
