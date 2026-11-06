@@ -36,6 +36,9 @@ struct GlobeMenu: View {
     let menu: OpenGlobeMenu
     let session: Session
     @Environment(\.dismiss) private var dismiss
+    /// A panel row's Lucide icon side, which the SF Symbol is centred in, so the
+    /// names line up.
+    @ScaledMetric(relativeTo: .body) private var iconSide = 20.0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -47,11 +50,11 @@ struct GlobeMenu: View {
             Divider()
             switch menu.subject {
             case .ground(let place):
-                item("Add ground station here", systemImage: "mappin.and.ellipse") { session.addStation(at: place) }
+                item("Add ground station here", image: .lucideMapPinPlus) { session.addStation(at: place) }
                 Divider()
-                item("Look up from here", systemImage: "binoculars") { session.lookUp(from: place) }
+                item("Look up from here", image: .lucideTelescope) { session.lookUp(from: place) }
             case .station(let id):
-                item("Look up from here", systemImage: "binoculars") { session.enterSky(at: id) }
+                item("Look up from here", image: .lucideTelescope) { session.enterSky(at: id) }
                 Divider()
                 item("Remove ground station", systemImage: "trash", role: .destructive) { session.removeStation(id) }
             }
@@ -60,16 +63,35 @@ struct GlobeMenu: View {
         .presentationCompactAdaptation(.popover)
     }
 
+    /// An entry with a Lucide icon, as the web app's.
+    private func item(_ title: LocalizedStringKey, image: ImageResource, action: @escaping () -> Void) -> some View {
+        item(title, action: action) {
+            Image(image).resizable().frame(width: iconSide, height: iconSide)
+        }
+    }
+
+    /// An entry with an SF Symbol.
     private func item(_ title: LocalizedStringKey, systemImage: String, role: ButtonRole? = nil, action: @escaping () -> Void) -> some View {
+        item(title, role: role, action: action) {
+            Image(systemName: systemImage)
+        }
+    }
+
+    /// An entry, which closes the menu before it acts.
+    private func item(_ title: LocalizedStringKey, role: ButtonRole? = nil, action: @escaping () -> Void, @ViewBuilder icon: () -> some View) -> some View {
         Button(role: role) {
             dismiss()
             action()
         } label: {
-            Label(title, systemImage: systemImage)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .contentShape(.rect)
+            Label {
+                Text(title)
+            } icon: {
+                icon().frame(width: iconSide)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .foregroundStyle(role == .destructive ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
