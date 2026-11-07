@@ -218,7 +218,9 @@ floor; the floor column shows it.
 two full-screen per-pixel costs: **4× MSAA** (Cesium's default) and
 **`highDynamicRange`** (set in `createViewer.ts`). `quality: high` renders at full
 device pixels, which quadruples both on a Retina display. Atmosphere, fog, globe
-lighting and sun/moon/starfield together came to under 1.5 ms. A component that
+lighting and sun/moon/starfield together came to under 1.5 ms. Cesium's
+order-independent translucency, its default, cost half of every frame at any size
+(two float32 targets); satvis switches it off (`CesiumController`). A component that
 is cheap on the CPU but adds fragments looks free in the marginal-cost table and
 still costs frames. Read `gpuMs` beside `cpuMs`; where `gpuMs` is blank, compare
 `frameMs` with the display's fastest interval.
