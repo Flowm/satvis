@@ -642,6 +642,17 @@ describe("SatelliteComponentCollection sky appearance", () => {
     expect(dark).toBeLessThan(daylight);
   });
 
+  test("leaves the model undimmed while it dims the point", async () => {
+    const { sat, viewer } = await setup();
+    sat.show(["Point", "3D model"]);
+    const model = sat.components["3D model"] as Entity;
+
+    sat.skyAppearance = "dimmedDark";
+    expect(model.show).toBe(true);
+    expect(model.model!.color).toBeUndefined();
+    expect(alpha((sat.components.Point as Entity).point!.color, viewer.clock.currentTime)).toBeLessThan(1);
+  });
+
   test("hides the point, the label and the model, and shows them again", async () => {
     const { sat } = await setup();
     sat.show(["Point", "Label", "3D model"]);

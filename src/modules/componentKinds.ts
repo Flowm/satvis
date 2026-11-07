@@ -99,22 +99,20 @@ export interface ComponentKind {
 /** Converted once and shared by every point, like Cesium's own Color constants. */
 const POINT_COLOR = Object.fromEntries(Object.entries(ORBIT_CLASS_COLOR).map(([orbitClass, hex]) => [orbitClass, Color.fromCssColorString(hex)])) as Record<OrbitClass, Color>;
 
+/** The point's and the label's; a model is never dimmed, only hidden. */
 interface Palette {
   point: Record<OrbitClass, Color>;
   outline: Color;
-  /** Multiplied into the model's own colours, the default blend; undefined leaves them. */
-  model: Color | undefined;
 }
 
 /** The normal colours, or all of them at `alpha`. */
 function palette(alpha?: number): Palette {
   if (alpha === undefined) {
-    return { point: POINT_COLOR, outline: Color.DIMGREY, model: undefined };
+    return { point: POINT_COLOR, outline: Color.DIMGREY };
   }
   return {
     point: Object.fromEntries(Object.entries(POINT_COLOR).map(([orbitClass, color]) => [orbitClass, color.withAlpha(alpha)])) as Record<OrbitClass, Color>,
     outline: Color.DIMGREY.withAlpha(alpha),
-    model: Color.WHITE.withAlpha(alpha),
   };
 }
 
@@ -610,12 +608,8 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
       return atSatellite(host, "model", modelGraphics(host, model.file, 0));
     },
     bind: bindAtSatellite,
-    appear: (component, host) =>
-      appearAtSatellite(component, host, ({ model }, colors) => {
-        if (model) {
-          model.color = colors.model && new ConstantProperty(colors.model);
-        }
-      }),
+    /** Shown or hidden, never dimmed: docs/adr/0010-sky-visibility.md. */
+    appear: (component, host) => appearAtSatellite(component, host, () => {}),
   },
 
   "Ground station link": {
