@@ -599,3 +599,18 @@ skipped on its test catalog. Not checked: an iPad or any device's screen, where 
 build was only installed and launched; an upgrade over a version whose cached launch
 screen is still the logo's #0b222d; and a touch on the globe in the first second, which
 reaches it under the black.
+
+## Native app on the Mac: mouse, trackpad, keys and menus
+
+**Procedure.** `make run-mac`. On the globe: drag to turn it; scroll with a mouse
+wheel and with two fingers on a trackpad to zoom; pinch and twist on the trackpad;
+click a satellite, then double-click the globe; right-click and Control-click the
+globe for the globe menu. Click the globe, then press the arrows, + and -, and
+Escape with a panel open, with a satellite selected, and after Hide UI. Try each
+command of the View menu and Edit > Copy Link to This View (⇧⌘C), and check the
+link it copies. Cover the window with another and check in Activity Monitor that
+Satvis's GPU use falls to nothing.
+
+**Result.** Not yet run: an agent's shell has no accessibility access to drive the
+Mac app, and Automation Mode, which Mac UI tests need, asks for the user's
+password.

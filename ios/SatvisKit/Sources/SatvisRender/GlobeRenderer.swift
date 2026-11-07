@@ -546,12 +546,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         await snapshots.next(width: width)
     }
 
-    /// The most frames a second the screen shows.
+    /// The most frames a second the screen shows: on a Mac, the key window's.
     public static var displayMaximumFramesPerSecond: Int {
         #if canImport(UIKit)
             (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.maximumFramesPerSecond ?? 60
         #else
-            60
+            NSScreen.main?.maximumFramesPerSecond ?? 60
         #endif
     }
 

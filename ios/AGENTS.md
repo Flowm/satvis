@@ -127,7 +127,9 @@ centimetre.
   not by itself: `SATVIS_BENCHMARK=print` printed nothing until launched with
   `open -n --env NSUnbufferedIO=YES --env SATVIS_BENCHMARK=print --stdout <file>`.
   Its results are also the proof that it draws, since an agent's shell has no
-  screen-recording access to shoot its window.
+  screen-recording or accessibility access to shoot or drive its window; the
+  window must be uncovered, as the globe draws nothing while it is hidden
+  (0 frames recorded).
 - **A simulator keeps its cached launch screen across reinstalls.** Judge
   launch-screen changes on a simulator that never had the app, or after
   `simctl erase`; the screen shows for ~1.5 s, so record it with

@@ -9,7 +9,8 @@ private let log = Logger(subsystem: "org.frcy.app.satvis", category: "globe")
 /// The Metal globe, steered by drag, pinch and twist; what a tap, a double tap or
 /// a finger held still means is the caller's. The gestures are SwiftUI's, so that
 /// the controls laid over the globe, the clock deck's timeline among them, take
-/// the touches that land on them first.
+/// the touches that land on them first. On a Mac the view takes the mouse, the
+/// trackpad and the keys itself (`GlobePointer`), as AppKit hands them to it.
 struct GlobeView: View {
     /// Called once the renderer exists, so the satellites can be handed to it.
     let onRenderer: (GlobeRenderer) -> Void
@@ -33,6 +34,8 @@ struct GlobeView: View {
     var pixelRatio = "native"
     /// Frames a second at most, the Graphics panel's.
     let frameRate: Int
+    /// The Escape key, pressed while the globe has the keyboard: on a Mac.
+    var onEscape: () -> Void = {}
 
     @State private var renderer: GlobeRenderer?
     @State private var lastTranslation = CGSize.zero
@@ -55,86 +58,138 @@ struct GlobeView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let size = proxy.size
-            MetalView(pixelRatio: pixelRatio, frameRate: frameRate, isTransparent: isTransparent) { renderer in
-                self.renderer = renderer
-                onRenderer(renderer)
-            }
-            .gesture(
-                SpatialTapGesture(count: 2)
-                    .onEnded { onDoubleTap($0.location, size) }
-                    .exclusively(
-                        before: SpatialTapGesture().onEnded {
+            #if os(macOS)
+                MetalView(pixelRatio: pixelRatio, frameRate: frameRate, isTransparent: isTransparent, pointer: pointer, onRenderer: attach)
+            #else
+                let size = proxy.size
+                MetalView(pixelRatio: pixelRatio, frameRate: frameRate, isTransparent: isTransparent, onRenderer: attach)
+                    .gesture(
+                        SpatialTapGesture(count: 2)
+                            .onEnded { onDoubleTap($0.location, size) }
+                            .exclusively(
+                                before: SpatialTapGesture().onEnded {
+                                    if !wasHeld {
+                                        onTap($0.location, size)
+                                    }
+                                })
+                    )
+                    .simultaneousGesture(
+                        SpatialTapGesture().onEnded { _ in
                             if !wasHeld {
-                                onTap($0.location, size)
+                                onEveryTap()
                             }
-                        })
-            )
-            .simultaneousGesture(
-                SpatialTapGesture().onEnded { _ in
-                    if !wasHeld {
-                        onEveryTap()
-                    }
-                }
-            )
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 1)
-                    .onChanged { value in
-                        let delta = SIMD2(Double(value.translation.width - lastTranslation.width), Double(value.translation.height - lastTranslation.height))
-                        lastTranslation = value.translation
-                        if !wasHeld, mayDrag(value.translation, mostFingers) {
-                            renderer?.drag(by: delta, viewSize: size)
+                        }
+                    )
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 1)
+                            .onChanged { value in
+                                let delta = SIMD2(Double(value.translation.width - lastTranslation.width), Double(value.translation.height - lastTranslation.height))
+                                lastTranslation = value.translation
+                                if !wasHeld, mayDrag(value.translation, mostFingers) {
+                                    renderer?.drag(by: delta, viewSize: size)
+                                }
+                            }
+                            .onEnded { _ in lastTranslation = .zero }
+                    )
+                    .simultaneousGesture(
+                        SpatialEventGesture()
+                            .updating($mostFingers) { events, most, _ in
+                                most = max(most, events.filter { $0.phase == .active }.count)
+                            }
+                            .updating($touchedAt) { events, at, _ in
+                                at = at ?? events.first { $0.phase == .active }?.location
+                            }
+                    )
+                    .simultaneousGesture(
+                        // Within LongPressGesture's 10 pt of where it began, so a drag never opens it.
+                        LongPressGesture(minimumDuration: Self.holdDuration)
+                            .onEnded { _ in
+                                guard mostFingers <= 1, let touchedAt else {
+                                    return
+                                }
+                                wasHeld = onHold(touchedAt, size)
+                            }
+                    )
+                    .onChange(of: touchedAt == nil) { _, lifted in
+                        if !lifted {
+                            wasHeld = false
                         }
                     }
-                    .onEnded { _ in lastTranslation = .zero }
-            )
-            .simultaneousGesture(
-                SpatialEventGesture()
-                    .updating($mostFingers) { events, most, _ in
-                        most = max(most, events.filter { $0.phase == .active }.count)
-                    }
-                    .updating($touchedAt) { events, at, _ in
-                        at = at ?? events.first { $0.phase == .active }?.location
-                    }
-            )
-            .simultaneousGesture(
-                // Within LongPressGesture's 10 pt of where it began, so a drag never opens it.
-                LongPressGesture(minimumDuration: Self.holdDuration)
-                    .onEnded { _ in
-                        guard mostFingers <= 1, let touchedAt else {
-                            return
-                        }
-                        wasHeld = onHold(touchedAt, size)
-                    }
-            )
-            .onChange(of: touchedAt == nil) { _, lifted in
-                if !lifted {
-                    wasHeld = false
-                }
-            }
-            .simultaneousGesture(
-                MagnifyGesture()
-                    .onChanged { value in
-                        let scale = value.magnification / lastMagnification
-                        lastMagnification = value.magnification
-                        if !takePinch(scale) {
-                            renderer?.zoom(by: scale)
-                        }
-                    }
-                    .onEnded { _ in lastMagnification = 1 }
-            )
-            .simultaneousGesture(
-                RotateGesture()
-                    .onChanged { value in
-                        let radians = (value.rotation - lastRotation).radians
-                        lastRotation = value.rotation
-                        renderer?.rotate(by: radians)
-                    }
-                    .onEnded { _ in lastRotation = .zero }
-            )
+                    .simultaneousGesture(
+                        MagnifyGesture()
+                            .onChanged { value in
+                                let scale = value.magnification / lastMagnification
+                                lastMagnification = value.magnification
+                                if !takePinch(scale) {
+                                    renderer?.zoom(by: scale)
+                                }
+                            }
+                            .onEnded { _ in lastMagnification = 1 }
+                    )
+                    .simultaneousGesture(
+                        RotateGesture()
+                            .onChanged { value in
+                                let radians = (value.rotation - lastRotation).radians
+                                lastRotation = value.rotation
+                                renderer?.rotate(by: radians)
+                            }
+                            .onEnded { _ in lastRotation = .zero }
+                    )
+            #endif
         }
     }
+
+    private func attach(_ renderer: GlobeRenderer) {
+        self.renderer = renderer
+        onRenderer(renderer)
+    }
+
+    #if os(macOS)
+        /// The mouse, the trackpad and the keys on the globe, as the touches are on
+        /// an iPhone: a right click is the held finger, a scroll the pinch.
+        private var pointer: GlobePointer {
+            GlobePointer(
+                click: onTap,
+                everyClick: onEveryTap,
+                doubleClick: onDoubleTap,
+                secondaryClick: { _ = onHold($0, $1) },
+                drag: { delta, translation, size in
+                    if mayDrag(translation, 1) {
+                        renderer?.drag(by: delta, viewSize: size)
+                    }
+                },
+                zoom: { scale in
+                    if !takePinch(scale) {
+                        renderer?.zoom(by: scale)
+                    }
+                },
+                rotate: { renderer?.rotate(by: $0) },
+                escape: onEscape
+            )
+        }
+    #endif
 }
+
+#if os(macOS)
+    /// What the mouse, the trackpad and the keys do on the globe; each point is in
+    /// the view's points from its top-left corner, with the view's size.
+    struct GlobePointer {
+        /// A click, once no double click can follow.
+        let click: (CGPoint, CGSize) -> Void
+        /// As each click lifts, a double click's first included.
+        let everyClick: () -> Void
+        let doubleClick: (CGPoint, CGSize) -> Void
+        /// A right click, or a click with Control held.
+        let secondaryClick: (CGPoint, CGSize) -> Void
+        /// A step of a drag, its translation so far, and the view's size.
+        let drag: (SIMD2<Double>, CGSize, CGSize) -> Void
+        /// Nearer for a scale above 1.
+        let zoom: (Double) -> Void
+        /// Clockwise, in radians.
+        let rotate: (Double) -> Void
+        let escape: () -> Void
+    }
+#endif
 
 /// The MTKView the renderer draws into, and nothing else.
 private struct MetalView {
@@ -142,11 +197,17 @@ private struct MetalView {
     let frameRate: Int
     /// Clear where the scene leaves the sky, over the camera's picture.
     let isTransparent: Bool
+    #if os(macOS)
+        let pointer: GlobePointer
+    #endif
     let onRenderer: (GlobeRenderer) -> Void
 
     func makeView() -> ScaledMTKView {
         let view = ScaledMTKView(frame: .zero, device: MTLCreateSystemDefaultDevice())
         view.pixelRatio = pixelRatio
+        #if os(macOS)
+            view.pointer = pointer
+        #endif
         // Over 60 on an iPhone only with CADisableMinimumFrameDurationOnPhone in Info.plist.
         view.preferredFramesPerSecond = frameRate
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
@@ -164,6 +225,9 @@ private struct MetalView {
 
     func update(_ view: ScaledMTKView) {
         view.pixelRatio = pixelRatio
+        #if os(macOS)
+            view.pointer = pointer
+        #endif
         // Opaque otherwise, which spares the compositor blending the globe.
         #if os(macOS)
             view.layer?.isOpaque = !isTransparent
@@ -204,9 +268,156 @@ private final class ScaledMTKView: MTKView {
     }
 
     #if os(macOS)
+        /// What the mouse, the trackpad and the keys do on the globe, set on every
+        /// update of the view.
+        var pointer: GlobePointer?
+        /// Where the mouse went down, and where the drag last was; nil between clicks.
+        private var downAt: CGPoint?
+        private var lastAt = CGPoint.zero
+        private var dragged = false
+        /// The click waiting out the double-click interval.
+        private var pendingClick: Task<Void, Never>?
+        private var occlusionObserver: NSObjectProtocol?
+
+        /// Points a click may wander and stay a click.
+        private static let clickSlop = 3.0
+        /// Points an arrow key moves the globe, as a drag would.
+        private static let keyStep = 40.0
+        /// How much nearer + brings it, and - takes it back.
+        private static let keyZoom = 1.25
+
+        override var acceptsFirstResponder: Bool { true }
+
+        /// A click on the globe of a window in the back acts at once, as the web
+        /// app's canvas does.
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             applyPixelRatio()
+            watchOcclusion()
+        }
+
+        /// Draws nothing while the window is hidden, minimised or covered: AppKit
+        /// keeps the view's display link running behind other windows, and the
+        /// moving satellites would keep the GPU busy for no one.
+        private func watchOcclusion() {
+            if let occlusionObserver {
+                NotificationCenter.default.removeObserver(occlusionObserver)
+            }
+            occlusionObserver = window.map { window in
+                NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main) {
+                    [weak self] _ in
+                    MainActor.assumeIsolated { self?.pauseWhileHidden() }
+                }
+            }
+            pauseWhileHidden()
+        }
+
+        private func pauseWhileHidden() {
+            isPaused = !(window?.occlusionState.contains(.visible) ?? false)
+        }
+
+        /// In the view's points from its top-left corner, as SwiftUI places them.
+        private func point(of event: NSEvent) -> CGPoint {
+            let point = convert(event.locationInWindow, from: nil)
+            return CGPoint(x: point.x, y: isFlipped ? point.y : bounds.height - point.y)
+        }
+
+        override func mouseDown(with event: NSEvent) {
+            if event.modifierFlags.contains(.control) {
+                return rightMouseDown(with: event)
+            }
+            window?.makeFirstResponder(self)
+            let at = point(of: event)
+            downAt = at
+            lastAt = at
+            dragged = false
+            if event.clickCount > 1 {
+                pendingClick?.cancel()
+            }
+        }
+
+        override func mouseDragged(with event: NSEvent) {
+            guard let downAt, let pointer else {
+                return
+            }
+            let at = point(of: event)
+            let translation = CGSize(width: at.x - downAt.x, height: at.y - downAt.y)
+            guard dragged || hypot(translation.width, translation.height) > Self.clickSlop else {
+                return
+            }
+            dragged = true
+            pointer.drag(SIMD2(at.x - lastAt.x, at.y - lastAt.y), translation, bounds.size)
+            lastAt = at
+        }
+
+        override func mouseUp(with event: NSEvent) {
+            defer { downAt = nil }
+            guard downAt != nil, !dragged, let pointer else {
+                return
+            }
+            let at = point(of: event)
+            let size = bounds.size
+            pointer.everyClick()
+            if event.clickCount == 2 {
+                pointer.doubleClick(at, size)
+            } else if event.clickCount == 1 {
+                pendingClick?.cancel()
+                pendingClick = Task {
+                    try? await Task.sleep(for: .seconds(NSEvent.doubleClickInterval))
+                    if !Task.isCancelled {
+                        pointer.click(at, size)
+                    }
+                }
+            }
+        }
+
+        override func rightMouseDown(with event: NSEvent) {
+            window?.makeFirstResponder(self)
+            pendingClick?.cancel()
+            pointer?.secondaryClick(point(of: event), bounds.size)
+        }
+
+        override func scrollWheel(with event: NSEvent) {
+            pointer?.zoom(ScrollZoom.scale(deltaY: Double(event.scrollingDeltaY), precise: event.hasPreciseScrollingDeltas))
+        }
+
+        override func magnify(with event: NSEvent) {
+            pointer?.zoom(exp(Double(event.magnification)))
+        }
+
+        /// AppKit turns counter-clockwise for a positive rotation, SwiftUI clockwise.
+        override func rotate(with event: NSEvent) {
+            pointer?.rotate(-Double(event.rotation) * .pi / 180)
+        }
+
+        /// The arrows move the globe as a drag by `keyStep` would, + and - zoom, and
+        /// Escape is the caller's.
+        override func keyDown(with event: NSEvent) {
+            guard let pointer else {
+                return super.keyDown(with: event)
+            }
+            let step = Self.keyStep
+            let move: SIMD2<Double>? =
+                switch event.specialKey {
+                case .leftArrow: SIMD2(step, 0)
+                case .rightArrow: SIMD2(-step, 0)
+                case .upArrow: SIMD2(0, step)
+                case .downArrow: SIMD2(0, -step)
+                default: nil
+                }
+            if let move {
+                pointer.drag(move, CGSize(width: move.x, height: move.y), bounds.size)
+            } else if event.charactersIgnoringModifiers == "\u{1B}" {
+                pointer.escape()
+            } else if ["+", "="].contains(event.charactersIgnoringModifiers) {
+                pointer.zoom(Self.keyZoom)
+            } else if event.charactersIgnoringModifiers == "-" {
+                pointer.zoom(1 / Self.keyZoom)
+            } else {
+                super.keyDown(with: event)
+            }
         }
 
         override func viewDidChangeBackingProperties() {

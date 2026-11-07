@@ -338,7 +338,21 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   compass and camera (`SkyDevices.swift`), whose controls are not shown.
 - The globe's `MTKView` sizes its own drawable on the Mac (`ScaledMTKView`): AppKit
   sizes it by the window's backing scale, which changes when the window moves to
-  another display, and the Graphics panel's pixel ratio has to win over it.
+  another display, and the Graphics panel's pixel ratio has to win over it. It
+  draws nothing while the window is covered or minimised, which AppKit's display
+  link does not stop by itself.
+- On the Mac the globe takes AppKit's events itself (`GlobePointer` in
+  `GlobeView.swift`) rather than SwiftUI's touch gestures: a drag turns it past a
+  3-point slop, a click selects once the double-click interval has passed, a
+  right click or a Control-click opens the globe menu, as on the web, and a
+  scroll zooms as a browser's wheel zooms the web app's globe (`ScrollZoom`);
+  the trackpad's pinch and twist are the iPhone's. With the globe clicked, the
+  arrows move it, + and - zoom, and Escape shows the UI, else closes the panel,
+  else the selection, as the web app's Escape does.
+- The menu bar (`SatvisCommands`) holds the menu column's entries, the
+  projection, the way home, Hide UI and the view's link. What only the window
+  holds, its panel, sheets and Hide UI, reaches it as a focused scene value
+  (`WindowCommands`).
 - Pass notifications are planned again on a timer while the app runs
   (`PassAlerts.requestRefresh`), as a Mac has no background refresh.
 - Files go under a folder named by the bundle id in Application Support and

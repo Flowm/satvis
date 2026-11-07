@@ -36,6 +36,7 @@ struct SatvisApp: App {
                     .environment(\.verticalSizeClass, .regular)
             }
             .defaultSize(width: 1280, height: 800)
+            .commands { SatvisCommands(session: session) }
         #else
             WindowGroup {
                 ContentView(session: session)
@@ -123,6 +124,18 @@ struct ContentView: View {
         showsUI = false
     }
 
+    /// Escape on the globe, as on the web: shows the UI again, else closes the
+    /// panel, else lets go of what is selected.
+    private func escape() {
+        if !showsUI {
+            showsUI = true
+        } else if panel != nil {
+            panel = nil
+        } else if session.selection != nil {
+            session.select(nil)
+        }
+    }
+
     var body: some View {
         GlobeView(
             onRenderer: session.attach,
@@ -147,9 +160,28 @@ struct ContentView: View {
             takePinch: session.aim.takePinch,
             isTransparent: session.aim.passthrough.isShowing,
             pixelRatio: session.pixelRatio,
-            frameRate: session.frameRate
+            frameRate: session.frameRate,
+            onEscape: escape
         )
         .ignoresSafeArea()
+        #if os(macOS)
+            .focusedSceneValue(
+                \.windowCommands,
+                WindowCommands(
+                    showsUI: showsUI,
+                    toggleUI: {
+                        if showsUI {
+                            hideUI()
+                        } else {
+                            showsUI = true
+                        }
+                    },
+                    togglePanel: { which in panel = panel == which ? nil : which },
+                    openBookmarks: { openSheet = .bookmarks },
+                    openAbout: { openSheet = .about }
+                )
+            )
+        #endif
         .overlay {
             // In the whole screen's points, as the globe reports them: anchored on the
             // globe view itself, the arrow pointed the safe area's inset too low.

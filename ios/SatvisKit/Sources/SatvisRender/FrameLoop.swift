@@ -71,7 +71,7 @@ final class FrameLoop {
                 if gate.beginsTurnedAwayFrame(afterPresenting: presented.presentedTime > 0) {
                     // Drawn outside MTKView's loop, which stops in the background.
                     Task { @MainActor in
-                        if Self.isActive {
+                        if Self.isShowing(view) {
                             view?.draw()
                         }
                     }
@@ -99,12 +99,13 @@ final class FrameLoop {
         return pointFrameBuffers[index]
     }
 
-    /// Whether the app is in front, where the GPU is the app's.
-    private static var isActive: Bool {
+    /// Whether `view` is on screen, where the GPU is the app's: the app in front
+    /// on iOS, the window not hidden on a Mac.
+    private static func isShowing(_ view: MTKView?) -> Bool {
         #if canImport(UIKit)
             UIApplication.shared.applicationState == .active
         #else
-            true
+            view?.window?.occlusionState.contains(.visible) ?? false
         #endif
     }
 }
