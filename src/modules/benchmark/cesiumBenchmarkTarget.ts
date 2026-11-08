@@ -1,70 +1,65 @@
-// The Cesium-bound target: scene requests become reconciles, the render loop becomes frame samples.
+// The Cesium-bound target: a scene step opens its link, a sweep step reconciles the satellite
+// manager directly.
 
-import type { JulianDate } from "@cesium/core";
+import { nextTick } from "vue";
+import type { LocationQuery } from "vue-router";
 
 import type { CesiumController } from "@/modules/CesiumController";
 import { EMPTY_SCENE, type DesiredScene } from "@/modules/SatelliteManager";
 import { desiredScene } from "@/modules/sceneSync";
+import { foreignParams } from "@/modules/util/urlSync";
+import { router } from "@/router";
 import { useCesiumStore } from "@/stores/cesium";
 import { useSatStore } from "@/stores/sat";
 
-import { formatComponents, type BenchmarkStep } from "./benchmarkPlan";
-import type { BenchmarkOptions, BenchmarkTarget, FootprintSample, MeasureOptions, SceneApplied } from "./benchmarkRunner";
-import { FrameSampler, type FrameSample } from "./frameSampler";
-import { GPU_TIMER_TRUST_FACTOR } from "./report";
+import { type BenchmarkStep, isSceneStep, type SceneStep, SWEEP_GROUND_STATION, type SweepStep } from "./benchmarkPlan";
+import type { BenchmarkOptions, BenchmarkTarget, FootprintSample, MeasureOptions, SceneApplied, StepMeasurement } from "./benchmarkRunner";
+import { type FrameMeter, frameMeterFor } from "./frameMeter";
 
 declare global {
   /** `performance.measureUserAgentSpecificMemory()` is not in the dom lib (not Baseline). */
   interface MemoryMeasurement {
+    /** Every scope's. */
     bytes: number;
+    /** By scope and type. */
     breakdown: Array<{ bytes: number; types: string[]; attribution: Array<{ url: string; scope: string }> }>;
   }
 
   interface Performance {
+    /** Chromium only, and only cross-origin isolated. */
     measureUserAgentSpecificMemory?: () => Promise<MemoryMeasurement>;
-    /**
-     * Chrome only. Not bucketed: eight consecutive reads gave eight distinct
-     * values, with or without --enable-precise-memory-info. See FrameSample.heap.
-     */
+    /** Chrome only. Not bucketed: eight consecutive reads gave eight distinct values, with or without --enable-precise-memory-info. */
     memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number };
+  }
+
+  interface Navigator {
+    /** Chromium only, in GB, rounded down to a power of two. */
+    deviceMemory?: number;
   }
 }
 
-/** About 2 s at 60 fps. */
-const LIVE_WINDOW_FRAMES = 120;
-
+/** The figures' MB are MiB. */
 const BYTES_PER_MB = 1024 * 1024;
 
-/** A result is usually a frame or two away; give up after ~1 s rather than leak. */
-const GPU_QUERY_POLL_MS = 4;
-const GPU_QUERY_MAX_POLLS = 250;
-
-export interface LiveReadout {
-  fps: number;
-  frameMs: number;
-  p95Ms: number;
-  worstMs: number;
-  cpuMs: number;
-  /** Undefined without a GPU clock, or with one that contradicts the frame rate. */
-  gpuMs: number | undefined;
-  jankPct: number;
-  /** The window's heap floor, not the live set. Undefined outside Chrome. */
-  heapMb: number | undefined;
-  /** The gap to the floor is uncollected garbage; see FrameSample.heap. */
-  heapPeakMb: number | undefined;
-  satellites: number;
-  components: string;
-  clock: number;
-  entities: number;
-  primitives: number;
-}
-
-/**
- * Lets in-flight sample-window top-ups become collectable. One scene read 550 MB
- * at +6 s and 544 MB at +16 s, against 1044 and 1295 MB with the clock running.
- */
+/** Lets in-flight sample-window top-ups become collectable: one scene read 550 MB at +6 s, 544 MB at +16 s. */
 const FOOTPRINT_QUIESCE_MS = 6000;
 
+/** As the native app: the largest groups come from the worker on a first run. */
+const LOAD_TIMEOUT_MS = 90_000;
+/** Groups arrive one by one, so a scene is loaded once its count has held this long. */
+const LOAD_STEADY_MS = 2000;
+/** How often a loading scene's count is read. */
+const LOAD_POLL_MS = 250;
+
+/** Graphics settings a scene's link leaves as the user set them, as the native app keeps its pixel ratio. */
+const KEPT_PARAMS = ["pixelratio", "framerate", "msaa", "fps"];
+
+/** The graphics settings of `query` that every scene keeps (`KEPT_PARAMS`). */
+export function keptParams(query: LocationQuery): LocationQuery {
+  return Object.fromEntries(KEPT_PARAMS.flatMap((param) => (query[param] === undefined ? [] : [[param, query[param]]])));
+}
+
+/** Resolves early on abort; never rejects. */
 const wait = (ms: number, signal: AbortSignal): Promise<void> =>
   new Promise((resolve) => {
     if (signal.aborted || ms <= 0) {
@@ -107,12 +102,6 @@ const nextFrames = (count: number, timeoutMs = 1000): Promise<void> =>
     requestAnimationFrame(step);
   });
 
-/** The sampler and epoch current when the query started. See `#endGpuQuery`. */
-interface GpuTarget {
-  sampler: FrameSampler;
-  epoch: number;
-}
-
 /**
  * The API needs cross-origin isolation (`COOP: same-origin`, `COEP: credentialless`),
  * a property of how the page is served rather than of the browser.
@@ -130,224 +119,149 @@ function gpuName(): string {
   }
 }
 
+/** Chrome's JS heap, garbage included; null elsewhere. */
+const heapNowMb = (): number | null => {
+  const bytes = performance.memory?.usedJSHeapSize;
+  return bytes === undefined ? null : bytes / BYTES_PER_MB;
+};
+
+/** The web app as the runner drives it. */
 export class CesiumBenchmarkTarget implements BenchmarkTarget {
   readonly #cc: CesiumController;
 
-  readonly #live = new FrameSampler(LIVE_WINDOW_FRAMES);
+  /** Shared with the performance panel and `bench.watch()`. */
+  readonly meter: FrameMeter;
 
-  #sweep: FrameSampler | undefined;
-
-  #preUpdateAt = 0;
-
-  /** Duration of the clock tick that preceded this frame; see #instrumentClockTick. */
-  #tickMs = 0;
-
-  /** `EXT_disjoint_timer_query_webgl2`. */
-  #timerExt: { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number } | undefined;
-
-  #gl: WebGL2RenderingContext | undefined;
-
-  /** At most one in flight: one per frame would queue hundreds and force a flush on each. */
-  #queryInFlight: { query: WebGLQuery; targets: GpuTarget[] } | undefined;
-
-  /** The sweep's, from prepare(). */
+  /** The run's, for its `tag`. */
   #options: BenchmarkOptions | undefined;
 
   /**
-   * State before the first prepare(), held until restore() so a run that throws still restores it.
+   * State before the first prepare(), held until restore() so a run that throws still
+   * restores it: a sweep bypasses the store, a scene run navigates.
    */
-  #saved: { requestRenderMode: boolean; shouldAnimate: boolean; multiplier: number; scene: DesiredScene } | undefined;
+  #saved: { requestRenderMode: boolean; shouldAnimate: boolean; multiplier: number; scene: DesiredScene; fullPath: string; swept: boolean } | undefined;
 
   constructor(cc: CesiumController) {
     this.#cc = cc;
-    const { scene } = cc.viewer;
-    // Cesium runs position updates in clock onTick, before preUpdate, so `cpu`
-    // excludes them on purpose; see README.
-    this.#initGpuTimer(scene);
-    this.#instrumentClockTick();
-    scene.preUpdate.addEventListener(() => {
-      this.#preUpdateAt = performance.now();
-      this.#beginGpuQuery();
-    });
-    scene.postRender.addEventListener(() => {
-      const now = performance.now();
-      const cpuMs = now - this.#preUpdateAt;
-      this.#live.push(now, cpuMs, this.#tickMs);
-      this.#sweep?.push(now, cpuMs, this.#tickMs);
-      // After the timing marks, so the read does not inflate them.
-      const bytes = performance.memory?.usedJSHeapSize;
-      if (bytes !== undefined) {
-        const mb = bytes / BYTES_PER_MB;
-        this.#live.pushHeap(mb);
-        this.#sweep?.pushHeap(mb);
-      }
-      this.#endGpuQuery();
-    });
+    this.meter = frameMeterFor(cc.viewer, () => cc.sats.visibleSatellites.length);
   }
 
-  /** On ANGLE/Metal it returned several frame intervals per frame, so the report gates it. */
-  #initGpuTimer(scene: object): void {
-    try {
-      // `context` is Cesium-internal, but it is the context the app draws with.
-      const gl = (scene as { context?: { _gl?: WebGL2RenderingContext } }).context?._gl;
-      const ext = gl?.getExtension("EXT_disjoint_timer_query_webgl2") as { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number } | null;
-      if (gl && ext) {
-        this.#gl = gl;
-        this.#timerExt = ext;
-      }
-    } catch {
-      // The GPU timer is optional.
-    }
-  }
-
-  #beginGpuQuery(): void {
-    const gl = this.#gl;
-    const ext = this.#timerExt;
-    if (!gl || !ext || this.#queryInFlight) {
-      return;
-    }
-    try {
-      const query = gl.createQuery();
-      if (!query) {
-        return;
-      }
-      gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
-      const targets: GpuTarget[] = [{ sampler: this.#live, epoch: this.#live.epoch }];
-      if (this.#sweep) {
-        targets.push({ sampler: this.#sweep, epoch: this.#sweep.epoch });
-      }
-      this.#queryInFlight = { query, targets };
-    } catch {
-      this.#timerExt = undefined;
-    }
-  }
-
-  #endGpuQuery(): void {
-    const gl = this.#gl;
-    const ext = this.#timerExt;
-    const pending = this.#queryInFlight;
-    if (!gl || !ext || !pending) {
-      return;
-    }
-    const { query, targets } = pending;
-    this.#queryInFlight = undefined;
-    try {
-      gl.endQuery(ext.TIME_ELAPSED_EXT);
-    } catch {
-      gl.deleteQuery(query);
-      this.#timerExt = undefined;
-      return;
-    }
-    // Poll, and deliver only to the samplers and epochs the query started under.
-    // Delivering to whatever was open on arrival leaked warmup frames and the
-    // previous step: a 0-satellite step after a 5,000 one read 24 ms.
-    let attempts = 0;
-    const poll = (): void => {
-      attempts += 1;
-      try {
-        if (gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) {
-          // A disjoint means the GPU was interrupted and the timing is invalid.
-          if (!gl.getParameter(ext.GPU_DISJOINT_EXT)) {
-            const ns = gl.getQueryParameter(query, gl.QUERY_RESULT) as number;
-            for (const target of targets) {
-              if (target.sampler.epoch === target.epoch) {
-                target.sampler.pushGpu(ns / 1e6);
-              }
-            }
-          }
-          gl.deleteQuery(query);
-          return;
-        }
-        if (attempts > GPU_QUERY_MAX_POLLS) {
-          gl.deleteQuery(query);
-          return;
-        }
-        setTimeout(poll, GPU_QUERY_POLL_MS);
-      } catch {
-        this.#timerExt = undefined;
-      }
-    };
-    setTimeout(poll, GPU_QUERY_POLL_MS);
-  }
-
-  /** Sampled continuously, sweep or not. */
-  live(): LiveReadout {
-    const { fps, wall, cpu, gpu, heap, jankRatio } = this.#live.snapshot();
-    const gpuMs = gpu?.mean;
-    return {
-      fps,
-      frameMs: wall?.mean ?? 0,
-      p95Ms: wall?.p95 ?? 0,
-      worstMs: wall?.max ?? 0,
-      cpuMs: cpu?.mean ?? 0,
-      // The report's per-run GPU gate, applied per snapshot.
-      gpuMs: gpuMs !== undefined && wall !== undefined && wall.p50 > 0 && gpuMs <= wall.p50 * GPU_TIMER_TRUST_FACTOR ? gpuMs : undefined,
-      jankPct: jankRatio * 100,
-      heapMb: heap?.min,
-      heapPeakMb: heap?.max,
-      satellites: this.#cc.sats.visibleSatellites.length,
-      components: formatComponents(this.#cc.sats.enabledComponents),
-      clock: this.#cc.viewer.clock.multiplier,
-      entities: this.#cc.viewer.entities.values.length,
-      primitives: this.#cc.viewer.scene.primitives.length,
-    };
-  }
-
-  environment(): Record<string, string | number> {
+  /** Under the names both apps send. */
+  environment(): Record<string, string | number | boolean> {
     const { canvas } = this.#cc.viewer.scene;
+    const store = useCesiumStore();
     return {
-      build: `${__BUILD_SHA__} ${__BUILD_DATE__}`,
-      mode: import.meta.env.DEV ? "dev (unminified — numbers are pessimistic)" : "production build",
-      userAgent: navigator.userAgent,
-      gpu: gpuName(),
-      canvas: `${canvas.width}x${canvas.height}`,
-      devicePixelRatio: window.devicePixelRatio,
-      frameRate: useCesiumStore().frameRate,
-      hardwareConcurrency: navigator.hardwareConcurrency,
+      app_version: __BUILD_SHA__,
+      app_build_date: __BUILD_DATE__,
+      app_build_mode: import.meta.env.DEV ? "dev" : "production",
+      app_pixel_ratio: store.pixelRatio,
+      app_frame_rate: store.frameRate,
+      device_user_agent: navigator.userAgent,
+      device_gpu: gpuName(),
+      device_drawable_pixels: `${canvas.width}x${canvas.height}`,
+      device_screen_scale: window.devicePixelRatio,
+      device_processor_count: navigator.hardwareConcurrency,
+      ...(navigator.deviceMemory !== undefined && { device_memory_gb: navigator.deviceMemory }),
       // A hidden tab presents no frames, which invalidates the run.
-      visibility: document.visibilityState,
-      crossOriginIsolated: String(window.crossOriginIsolated),
+      device_visibility: document.visibilityState,
+      device_cross_origin_isolated: window.crossOriginIsolated,
     };
   }
 
-  /**
-   * Wraps `clock.tick` instead of adding an `onTick` listener: Cesium raises
-   * listeners in registration order, and the ones that matter are registered
-   * before this target exists, so a listener would miss them.
-   */
-  #instrumentClockTick(): void {
-    const { clock } = this.#cc.viewer;
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    const original = clock.tick;
-    clock.tick = (): JulianDate => {
-      const started = performance.now();
-      try {
-        return original.call(clock);
-      } finally {
-        this.#tickMs = performance.now() - started;
-      }
+  /** Read as the run ends: the meter measures the display only once `prepare` installs it. */
+  displayEnvironment(): Record<string, number> {
+    return {
+      app_frame_budget_ms: Number(this.meter.refreshMs(useCesiumStore().frameRate).toFixed(2)),
+      device_max_fps: Math.round(1000 / this.meter.refreshMs("max")),
     };
   }
 
-  async prepare(options: BenchmarkOptions): Promise<void> {
+  /** A sweep also stops pacing, runs the clock and loads the whole catalog. */
+  async prepare(options: BenchmarkOptions, steps: readonly BenchmarkStep[]): Promise<void> {
     this.#options = options;
     const { clock } = this.#cc.viewer;
     const cesiumStore = useCesiumStore();
-    this.#saved ??= { requestRenderMode: cesiumStore.requestRenderMode, shouldAnimate: clock.shouldAnimate, multiplier: clock.multiplier, scene: desiredScene(useSatStore()) };
-    // requestRenderMode skips idle frames, and a stopped clock skips position
-    // updates; either would measure idleness. Set through the store so the Render
-    // menu's switch follows.
-    cesiumStore.requestRenderMode = false;
-    clock.shouldAnimate = true;
-    // Otherwise the sweep measures group downloads.
-    await this.#cc.sats.catalog.ensureAll();
+    const swept = steps.some((step) => !isSceneStep(step));
+    this.#saved ??= {
+      requestRenderMode: cesiumStore.requestRenderMode,
+      shouldAnimate: clock.shouldAnimate,
+      multiplier: clock.multiplier,
+      scene: desiredScene(useSatStore()),
+      fullPath: router.currentRoute.value.fullPath,
+      swept,
+    };
+    this.meter.acquire("benchmark");
+    if (swept) {
+      // A stopped clock skips position updates, which would measure idleness. Set through
+      // the store so the Graphics panel's switch follows.
+      cesiumStore.requestRenderMode = false;
+      clock.shouldAnimate = true;
+      // Otherwise the sweep measures group downloads.
+      await this.#cc.sats.catalog.ensureAll();
+    }
   }
 
+  /** Distinct names, within `tag`. */
   catalogSize(): number {
     return this.#names().length;
   }
 
-  async apply(step: BenchmarkStep): Promise<SceneApplied> {
+  /** A scene step opens its link; a sweep step builds its set. */
+  apply(step: BenchmarkStep, signal: AbortSignal): Promise<SceneApplied> {
+    return isSceneStep(step) ? this.#open(step, signal) : this.#build(step);
+  }
+
+  /** Waits until everything active is drawn and has held. */
+  async #open(step: SceneStep, signal: AbortSignal): Promise<SceneApplied> {
+    const { scene } = step;
+    const current = router.currentRoute.value.query;
+    // `bench=true`, never `run`: going back to this link must not start another run.
+    const query = { ...foreignParams(current), ...keptParams(current), bench: "true", ...scene.query };
+    if (scene.query.time === undefined) {
+      // A paused or fast clock stays off `time` for its first minute; a scene without one is live.
+      this.#cc.goLive();
+    }
+    // Paced: measured idle, as outside the benchmark.
+    useCesiumStore().requestRenderMode = step.paced;
+    const opened = performance.now();
+    await router.replace({ path: scene.route, query });
+    await nextTick();
+    await Promise.race([this.#cc.sats.catalog.ensureTags(useSatStore().enabledTags), wait(LOAD_TIMEOUT_MS, signal)]);
+
+    const sats = this.#cc.sats;
+    let steadySince: number | undefined;
+    let last = -1;
+    let timedOut = false;
+    while (!signal.aborted) {
+      // eslint-disable-next-line no-await-in-loop
+      await wait(LOAD_POLL_MS, signal);
+      const now = performance.now();
+      const drawn = sats.visibleSatellites.length;
+      const complete = !sats.building && drawn === sats.activeSatellites.length && (!this.#cc.skyView.active || this.#cc.skyView.settled);
+      // From when it is complete and its count holds, which a scene that completes without a
+      // change of count, as the sky view does when its flight lands, starts as well.
+      if (!complete || drawn !== last) {
+        steadySince = complete ? now : undefined;
+      } else {
+        steadySince ??= now;
+      }
+      last = drawn;
+      if (steadySince !== undefined && now - steadySince >= LOAD_STEADY_MS) {
+        break;
+      }
+      if (now - opened > LOAD_TIMEOUT_MS) {
+        timedOut = true;
+        break;
+      }
+    }
+    const loadedMs = performance.now() - opened - (timedOut ? 0 : LOAD_STEADY_MS);
+    // No scene measures the info panel: a link opens none, and one opened since would cost its own frames.
+    this.#cc.viewer.selectedEntity = undefined;
+    return { ...this.#applied(), clearMs: 0, buildMs: Math.max(loadedMs, 0), timedOut };
+  }
+
+  /** From a cleared scene at ×1; the step's clock only once built. */
+  async #build(step: SweepStep): Promise<SceneApplied> {
     const names = this.#names().slice(0, step.satelliteCount);
     const { clock } = this.#cc.viewer;
 
@@ -370,7 +284,11 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
 
     // Only now, so the warmup absorbs the first refreshes at the new rate.
     clock.multiplier = step.clockMultiplier;
+    return { ...this.#applied(), clearMs, buildMs };
+  }
 
+  /** What the app drew, once a step is built or loaded. */
+  #applied(): Omit<SceneApplied, "clearMs" | "buildMs"> {
     const satellites = this.#cc.sats.visibleSatellites;
     const componentInstances: Record<string, number> = {};
     for (const satellite of satellites) {
@@ -382,26 +300,21 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
       satellitesVisible: satellites.length,
       componentsDrawn: this.#cc.sats.enabledComponents,
       componentInstances,
-      clockMultiplier: clock.multiplier,
+      clockMultiplier: this.#cc.viewer.clock.multiplier,
       entities: this.#cc.viewer.entities.values.length,
       primitives: this.#cc.viewer.scene.primitives.length,
-      clearMs,
-      buildMs,
     };
   }
 
-  async measure(options: MeasureOptions): Promise<FrameSample> {
-    const sampler = new FrameSampler();
-    this.#sweep = sampler;
-    try {
-      await wait(options.warmupMs, options.signal);
-      // Drop the warmup's shader compiles and buffer uploads.
-      sampler.reset();
-      await wait(options.sampleMs, options.signal);
-      return sampler.snapshot();
-    } finally {
-      this.#sweep = undefined;
-    }
+  /** The memory figure is Chrome's heap as the sample ends. */
+  async measure(_step: BenchmarkStep, options: MeasureOptions): Promise<StepMeasurement> {
+    await wait(options.warmupMs, options.signal);
+    options.onRecording?.();
+    this.meter.startRecording();
+    await wait(options.sampleMs, options.signal);
+    const metered = this.meter.stopRecording();
+    const refreshMs = this.meter.refreshMs(useCesiumStore().frameRate);
+    return { ...metered, refreshMs, memoryMb: heapNowMb() };
   }
 
   /**
@@ -413,7 +326,6 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     if (!canMeasureFootprint() || !measure) {
       return undefined;
     }
-    const startedAt = performance.now();
     // Stop the clock first, or the reading measures propagation churn. One scene
     // at 5,000 satellites with orbits, seconds apart:
     //
@@ -431,7 +343,6 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
         totalMb: result.bytes / BYTES_PER_MB,
         jsMb: (js?.bytes ?? result.bytes) / BYTES_PER_MB,
         workerMb: workerBytes / BYTES_PER_MB,
-        elapsedMs: performance.now() - startedAt,
       };
     } catch {
       // A refusal costs the row its footprint, not the sweep.
@@ -441,24 +352,41 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     }
   }
 
+  /** As the panel closes mid-run: the view put back is then without it. */
+  dropPanel(): void {
+    if (this.#saved) {
+      const { path, query } = router.resolve(this.#saved.fullPath);
+      const { bench: _bench, ...rest } = query;
+      this.#saved.fullPath = router.resolve({ path, query: rest }).fullPath;
+    }
+  }
+
+  /** Back to the view `prepare` saved: a sweep's scene, or a scene run's link. */
   async restore(): Promise<void> {
     const saved = this.#saved;
+    this.meter.release("benchmark");
     if (!saved) {
       return;
     }
+    this.#saved = undefined;
     const { clock } = this.#cc.viewer;
+    if (saved.swept) {
+      // The sweep bypassed the store, so sceneSync's watcher will not fire.
+      this.#cc.sats.reconcile(desiredScene(useSatStore()));
+    } else {
+      // The user's view, the run's own `bench=run` and `benchscenes` gone.
+      const { path, query } = router.resolve(saved.fullPath);
+      const { benchscenes: _scenes, ...rest } = query;
+      await router.replace({ path, query: { ...rest, ...(rest.bench === "run" && { bench: "true" }) } });
+      await nextTick();
+    }
     useCesiumStore().requestRenderMode = saved.requestRenderMode;
     clock.shouldAnimate = saved.shouldAnimate;
     clock.multiplier = saved.multiplier;
-    // The sweep bypassed the store, so sceneSync's watcher will not fire.
-    this.#cc.sats.reconcile(desiredScene(useSatStore()));
-    this.#saved = undefined;
     await nextFrames(1);
   }
 
-  /**
-   * Sorted, so "the first 500" is stable across runs; deduplicated because activation matches by name.
-   */
+  /** Sorted, so "the first 500" is stable across runs; deduplicated, as activation matches by name. */
   #names(): string[] {
     const tag = this.#options?.tag;
     const entries = tag ? this.#cc.sats.catalog.entriesWithTag(tag) : this.#cc.sats.catalog.entries;
@@ -466,13 +394,10 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
     return [...new Set(entries.map((entry) => entry.name))].sort();
   }
 
+  /** A sweep's scene, with a station where it draws links. */
   #scene(enabledSatellites: string[], components: readonly string[]): DesiredScene {
-    const station = this.#options?.groundStation;
-    return {
-      ...EMPTY_SCENE,
-      enabledSatellites,
-      components: [...components],
-      groundStations: station ? [{ lat: station.lat, lon: station.lon, name: "Benchmark" }] : [],
-    };
+    // Links draw only to a station, and predict every pass of the satellites they show.
+    const station = components.includes("Ground station link") ? [{ ...SWEEP_GROUND_STATION, name: "Benchmark" }] : [];
+    return { ...EMPTY_SCENE, enabledSatellites, components: [...components], groundStations: station };
   }
 }

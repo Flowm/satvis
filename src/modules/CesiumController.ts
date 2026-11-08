@@ -601,10 +601,6 @@ export class CesiumController {
     this.viewer.scene.requestRender();
   }
 
-  set showFps(value: boolean) {
-    this.viewer.scene.debugShowFramesPerSecond = value;
-  }
-
   /**
    * Rejects if the faces fail to fetch. Fetched here, not by Cesium: Cesium fetches
    * inside `Scene.render`, where a 404 (`DeepStar2K` is absent until

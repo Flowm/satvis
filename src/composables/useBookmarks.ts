@@ -7,7 +7,7 @@ import { type Router, useRouter } from "vue-router";
 
 import { DEFAULT_PRESET, presetNameOf, presetPath, resolvePreset } from "@/config/presets";
 import type { CesiumController } from "@/modules/CesiumController";
-import { type Bookmark, type BookmarkSummary, defaultName, type Link, sameLink, sameQuery, summarize, withoutTime } from "@/modules/util/bookmarks";
+import { type Bookmark, type BookmarkSummary, defaultName, type Link, sameLink, sameQuery, summarize, withoutBenchmarkRun, withoutTime } from "@/modules/util/bookmarks";
 import { DeviceDetect } from "@/modules/util/DeviceDetect";
 import { captureThumbnail, sceneSettled } from "@/modules/util/thumbnail";
 import type { Query } from "@/modules/util/urlCodec";
@@ -172,7 +172,7 @@ export async function recordOpenedLink(cc: CesiumController, router: Router): Pr
     return;
   }
   await urlHydrated();
-  const query = syncedQuery();
+  const query = withoutBenchmarkRun(syncedQuery());
   if (Object.keys(query).length === 0) {
     return;
   }

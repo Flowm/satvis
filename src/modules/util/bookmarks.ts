@@ -56,6 +56,19 @@ export function withoutTime({ time: _time, ...rest }: Query): Query {
   return rest;
 }
 
+/**
+ * The query with a benchmark run it asks for as the open panel alone (ADR 0016): a link
+ * that starts a run is not one to keep.
+ */
+export function withoutBenchmarkRun<Q extends Readonly<Record<string, unknown>>>(query: Q): Q {
+  if (query.bench !== "run") {
+    return query;
+  }
+  const { benchscenes: _scenes, ...rest } = query;
+  // Only `benchscenes` goes, which every query may lack.
+  return { ...rest, bench: "true" } as unknown as Q;
+}
+
 /** Whether two links open the same scene. */
 export const sameLink = (a: Link, b: Link): boolean => a.path === b.path && sameQuery(a.query, b.query);
 

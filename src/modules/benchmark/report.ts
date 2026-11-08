@@ -1,68 +1,99 @@
-// Pure run-to-tables functions, shared by the console and the panel so they cannot disagree.
+// A sweep's tables (ADR 0016). The native app's SweepReport is held to them by a parity
+// fixture, so change both together.
 
-import { formatComponents, formatSeries } from "./benchmarkPlan";
-import type { BenchmarkResult, BenchmarkRun } from "./benchmarkRunner";
+import { formatComponents, formatSeries, type PlanSpec } from "./benchmarkPlan";
 
-const round = (value: number, digits = 2): number => Number(value.toFixed(digits));
-
-const blankOr = (value: number | undefined, digits = 2): number | "" => (value === undefined ? "" : round(value, digits));
-
-const cpuMs = (result: BenchmarkResult): number => result.frames.cpu?.mean ?? 0;
-
-const tickMs = (result: BenchmarkResult): number => result.frames.tick?.mean ?? 0;
-
-/**
- * Render plus clock tick: the quantity every fit uses.
- *
- * `cpuMs` alone misses the entity position updates, which Cesium runs in an
- * `onTick` listener; a fit of it had Point holding 60 fps to 1.66 million
- * satellites. `frameMs` is quantised by vsync: at 120 Hz it sat at 8.33 ms from 0
- * to 1,000 points while this sum went 0.64 to 1.21 ms. This sum is continuous:
- * 0.64, 0.96, 1.21, 6.25, 8.95, 11.52 ms over 0 to 5,000 points.
- */
-const mainThreadMs = (result: BenchmarkResult): number => cpuMs(result) + tickMs(result);
-
-/**
- * The lowest frame time in the series: GPU work and the vsync wait, which
- * `frameMs` cannot separate. A floor past the budget makes the fit irrelevant.
- */
-const floorMs = (results: readonly BenchmarkResult[]): number => Math.min(...results.map((result) => result.frames.wall?.mean ?? Infinity));
-
-/** Not a footprint on its own; see `FrameSample.heap`. */
-const heapFloorMb = (result: BenchmarkResult): number | undefined => result.frames.heap?.min;
-
-const heapPeakMb = (result: BenchmarkResult): number | undefined => result.frames.heap?.max;
-
-const footprintJsMb = (result: BenchmarkResult): number | undefined => result.footprint?.jsMb;
-
-const seriesOf = (result: BenchmarkResult): string => formatSeries(result.step.components, result.applied.clockMultiplier);
-
-/** Without the closing repeat, which would weight one scene twice and hide the drift. */
-const measured = (run: BenchmarkRun): BenchmarkResult[] => run.results.filter((result) => !result.step.repeat);
-
-/**
- * A frame presenting every 14 ms cannot take 49 ms of GPU time. 1.5× the frame
- * interval leaves room for noise and GPU-bound scenes.
- */
-export const GPU_TIMER_TRUST_FACTOR = 1.5;
-
-/** On ANGLE/Metal (Apple silicon) the timer reported ~49 ms per frame at 70 fps. */
-export function gpuTimerTrustworthy(run: BenchmarkRun): boolean {
-  const pairs = run.results
-    .map((result) => ({ gpu: result.frames.gpu?.p50, wall: result.frames.wall?.p50 }))
-    .filter((pair): pair is { gpu: number; wall: number } => pair.gpu !== undefined && pair.wall !== undefined && pair.wall > 0);
-  if (pairs.length === 0) {
-    return false;
-  }
-  const overruns = pairs.filter((pair) => pair.gpu > pair.wall * GPU_TIMER_TRUST_FACTOR).length;
-  // One odd step is noise; a majority overrunning is the driver.
-  return overruns * 2 <= pairs.length;
+/** Times in milliseconds; null where the app cannot say. */
+export interface SweepResult {
+  /** Asked for; `visible` is drawn. */
+  satelliteCount: number;
+  /** Asked for; `componentsDrawn` is drawn. */
+  components: string[];
+  /** The clock rate the app ran at, which it can refuse. */
+  clock: number;
+  /** The closing re-run of the first step, left out of every derived table. */
+  repeat: boolean;
+  /** Satellites drawn, which can differ from the count asked for. */
+  visible: number;
+  componentsDrawn: string[];
+  /** Satellites drawing each component, by name. */
+  componentInstances: Record<string, number>;
+  /** Wall time to a complete scene, spread over frames. */
+  buildMs: number;
+  /** Teardown of the previous scene. */
+  clearMs: number;
+  /** Frame intervals, one fewer than the frames drawn. */
+  frames: number;
+  /** 0 where fewer than two frames were drawn. */
+  fps: number;
+  /** The mean frame interval: GPU work and the vsync wait, for the scaling floor. */
+  frameMs: number | null;
+  /**
+   * The main thread's work on a frame, which sets the frame rate: on the web Cesium's whole
+   * frame callback, the clock tick included, since neither half works alone (a fit of the
+   * render alone had Point holding 60 fps to 1.66 million satellites; vsync flattened the
+   * frame time at 8.33 ms from 0 to 1,000 points while this went 0.64 to 1.21 ms).
+   */
+  cpuMs: number | null;
+  /** Nearest-rank 95th percentile. */
+  cpuP95Ms: number | null;
+  /** Null without a GPU timer, or once the web's has overrun its frames (`FrameMeter`). */
+  gpuMs: number | null;
+  /** Nearest-rank 95th percentile. */
+  gpuP95Ms: number | null;
+  /** The larger side's share of frames over budget. */
+  overBudgetPct: number | null;
+  /** The busier side's busy share. */
+  loadPct: number | null;
+  /** The CPU's share alone, the floor of load where the GPU's is unknown. */
+  cpuBusyPct: number | null;
+  /** Percent of one core, every thread: propagation off the main thread too. */
+  cpuTotalPct: number | null;
+  /** Chrome's heap floor and peak over the step: garbage included, only slopes mean anything. */
+  heapMb: number | null;
+  /** See `heapMb`. */
+  heapPeakMb: number | null;
+  /** Absolute: measureUserAgentSpecificMemory's JavaScript on the web, phys_footprint natively. */
+  footprintMb: number | null;
+  /** Every scope's, workers included (`FootprintSample.totalMb`). */
+  footprintTotalMb: number | null;
+  /** Worker scopes' alone. */
+  footprintWorkerMb: number | null;
+  /** This app's own figures, as `x_<name>` columns; they compare with nothing on the other. */
+  extras: Record<string, number | null>;
 }
 
+/** A sweep's run as the tables read it; its fields are `BenchmarkRun`'s. */
+export interface SweepRun {
+  results: readonly SweepResult[];
+  startedAtIso: string;
+  spec?: PlanSpec;
+  environment: Record<string, unknown>;
+  options: Record<string, unknown>;
+  catalogSize: number;
+  cancelled: boolean;
+}
+
+/** Rounded as `Number.prototype.toFixed` rounds; the native app's `jsFixed` matches it. */
+const round = (value: number, digits = 2): number => Number(value.toFixed(digits));
+
+/** A missing figure blank, as the CSV writes it. */
+const blankOr = (value: number | null | undefined, digits = 2): number | "" => (value === null || value === undefined ? "" : round(value, digits));
+
+/** 0 where the app cannot say. */
+const cpuMs = (result: SweepResult): number => result.cpuMs ?? 0;
+
+/** The tables' series: the set, and the clock past ×1. */
+const seriesOf = (result: SweepResult): string => formatSeries(result.components, result.clock);
+
+/** Without the closing repeat, which would weight one scene twice and hide the drift. */
+const measured = (run: SweepRun): SweepResult[] => run.results.filter((result) => !result.repeat);
+
+/** A row of the per-step table and the CSV: `SweepResult` rounded, missing figures blank. */
 export interface ReportRow {
+  /** Asked for; `visible` is drawn. */
   sats: number;
   components: string;
-  /** Multiple of real time. */
   clock: number;
   repeat: boolean;
   /** Blank unless the app drew something other than what was asked for. */
@@ -71,88 +102,85 @@ export interface ReportRow {
   /** Below MIN_TRUSTWORTHY_FRAMES the row is noise. */
   frames: number;
   fps: number;
-  frameMs: number;
-  p95Ms: number;
-  worstMs: number;
-  cpuMs: number;
-  cpuP95Ms: number;
-  /** A row where `tickMs` dwarfs `cpuMs` is propagation-bound. */
-  tickMs: number;
-  /** Blank without the timer extension, or when `gpuTimerTrustworthy` fails. */
+  cpuMs: number | "";
   gpuMs: number | "";
-  jankPct: number;
+  loadPct: number | "";
+  cpuBusyPct: number | "";
+  cpuP95Ms: number | "";
+  gpuP95Ms: number | "";
+  overBudgetPct: number | "";
+  cpuTotalPct: number | "";
   buildMs: number;
   clearMs: number;
-  entities: number;
-  primitives: number;
-  /**
-   * The heap floor, an input to `memoryFits` and not a footprint. Csv and json
-   * only, never the printed tables. See `FrameSample.heap`.
-   */
   heapMb: number | "";
-  /** `heapPeakMb - heapMb` is the window's allocation rate. */
+  /** `heapPeakMb - heapMb` is the step's allocation rate. */
   heapPeakMb: number | "";
-  /** Absolute JavaScript footprint, garbage excluded; blank unless captured. */
   footprintMb: number | "";
-  /** See FootprintSample.workerMb. */
-  footprintWorkerMb: number | "";
-  /** Includes DOM and worker memory. */
   footprintTotalMb: number | "";
+  footprintWorkerMb: number | "";
+  [extra: `x_${string}`]: number | "";
 }
 
-export function reportRows(run: BenchmarkRun): ReportRow[] {
-  // Once per run: trust in the driver's clock is a property of the machine.
-  const trustGpu = gpuTimerTrustworthy(run);
+/** Every step, the repeat included. */
+export function reportRows(run: SweepRun): ReportRow[] {
   return run.results.map((result) => {
-    const requested = formatComponents(result.step.components);
-    const drawn = formatComponents(result.applied.componentsDrawn);
-    const gpu = trustGpu ? result.frames.gpu?.mean : undefined;
-    return {
-      sats: result.step.satelliteCount,
+    const requested = formatComponents(result.components);
+    const drawn = formatComponents(result.componentsDrawn);
+    const row: ReportRow = {
+      sats: result.satelliteCount,
       components: requested,
-      clock: result.applied.clockMultiplier,
-      repeat: result.step.repeat,
+      clock: result.clock,
+      repeat: result.repeat,
       drawn: drawn === requested ? "" : drawn,
-      visible: result.applied.satellitesVisible,
-      frames: result.frames.frames,
-      fps: round(result.frames.fps, 1),
-      frameMs: round(result.frames.wall?.mean ?? 0),
-      p95Ms: round(result.frames.wall?.p95 ?? 0),
-      worstMs: round(result.frames.wall?.max ?? 0),
-      cpuMs: round(cpuMs(result)),
-      cpuP95Ms: round(result.frames.cpu?.p95 ?? 0),
-      tickMs: round(tickMs(result)),
-      gpuMs: gpu === undefined ? "" : round(gpu),
-      jankPct: round(result.frames.jankRatio * 100, 1),
-      buildMs: round(result.applied.buildMs),
-      clearMs: round(result.applied.clearMs),
-      entities: result.applied.entities,
-      primitives: result.applied.primitives,
-      heapMb: blankOr(heapFloorMb(result), 1),
-      heapPeakMb: blankOr(heapPeakMb(result), 1),
-      footprintMb: blankOr(footprintJsMb(result), 1),
-      footprintTotalMb: blankOr(result.footprint?.totalMb, 1),
-      footprintWorkerMb: blankOr(result.footprint?.workerMb, 1),
+      visible: result.visible,
+      frames: result.frames,
+      fps: round(result.fps, 1),
+      cpuMs: blankOr(result.cpuMs),
+      gpuMs: blankOr(result.gpuMs),
+      loadPct: blankOr(result.loadPct, 1),
+      cpuBusyPct: blankOr(result.cpuBusyPct, 1),
+      cpuP95Ms: blankOr(result.cpuP95Ms),
+      gpuP95Ms: blankOr(result.gpuP95Ms),
+      overBudgetPct: blankOr(result.overBudgetPct, 1),
+      cpuTotalPct: blankOr(result.cpuTotalPct, 1),
+      buildMs: round(result.buildMs),
+      clearMs: round(result.clearMs),
+      heapMb: blankOr(result.heapMb, 1),
+      heapPeakMb: blankOr(result.heapPeakMb, 1),
+      footprintMb: blankOr(result.footprintMb, 1),
+      footprintTotalMb: blankOr(result.footprintTotalMb, 1),
+      footprintWorkerMb: blankOr(result.footprintWorkerMb, 1),
     };
+    // eslint-disable-next-line unicorn/no-array-sort -- a fresh array
+    for (const name of Object.keys(result.extras).sort()) {
+      row[`x_${name}`] = blankOr(result.extras[name]);
+    }
+    return row;
   });
 }
 
+/** CPU time against satellites drawn, per series. */
 export interface ScalingFit {
+  /** As `formatSeries` names it. */
   series: string;
+  /** Steps fitted. */
   points: number;
-  /** Least-squares slope of `mainThreadMs`. */
-  mainMsPer1000: number;
-  baseMainMs: number;
+  /** Least-squares slope of main-thread ms. */
+  cpuMsPer1000: number;
+  /** The intercept: the series without satellites. */
+  baseCpuMs: number;
+  /** Read it before the slope. */
   r2: number;
-  /** GPU work plus the vsync wait. Read it against 16.7 ms before `satsAt60fps`. */
+  /** Read it against 16.7 ms before `satsAt60fps`. */
   floorMs: number;
   /**
-   * Where the fit crosses 16.7 ms, assuming the GPU is not the limit (at 5,000
-   * points: 11.52 ms main thread, 11.72 ms frame). Blank when the floor is past the budget.
+   * Where the fit crosses 16.7 ms, assuming the GPU is not the limit (at 5,000 points:
+   * 11.52 ms main thread, 11.72 ms frame). Blank when the floor is past the budget.
    */
   satsAt60fps: number | "";
 }
 
+/** Undefined under two points, or with every x the same. */
 function leastSquares(points: readonly { x: number; y: number }[]): { slope: number; intercept: number; r2: number } | undefined {
   if (points.length < 2) {
     return undefined;
@@ -172,37 +200,36 @@ function leastSquares(points: readonly { x: number; y: number }[]): { slope: num
   return { slope, intercept, r2: ssTot === 0 ? 1 : 1 - ssRes / ssTot };
 }
 
+/** What the scaling table reads its headroom against. */
 const FRAME_BUDGET_60FPS_MS = 1000 / 60;
 
-/** Measured steps grouped by series; `keep` drops results a fit cannot use. */
-function bySeries(run: BenchmarkRun, keep: (result: BenchmarkResult) => boolean = () => true): Map<string, BenchmarkResult[]> {
-  const groups = new Map<string, BenchmarkResult[]>();
+/** The measured steps, by series. */
+function bySeries(run: SweepRun): Map<string, SweepResult[]> {
+  const groups = new Map<string, SweepResult[]>();
   for (const result of measured(run)) {
-    if (!keep(result)) {
-      continue;
-    }
     const key = seriesOf(result);
     groups.set(key, [...(groups.get(key) ?? []), result]);
   }
   return groups;
 }
 
-export function scalingFits(run: BenchmarkRun): ScalingFit[] {
+/** Against the satellites drawn, not requested. */
+export function scalingFits(run: SweepRun): ScalingFit[] {
   const fits: ScalingFit[] = [];
   for (const [series, results] of bySeries(run)) {
-    // Against the satellites drawn, not requested.
-    const fit = leastSquares(results.map((result) => ({ x: result.applied.satellitesVisible, y: mainThreadMs(result) })));
+    const fit = leastSquares(results.map((result) => ({ x: result.visible, y: cpuMs(result) })));
     if (!fit) {
       continue;
     }
-    const floor = floorMs(results);
+    // GPU work and the vsync wait, which the frame time cannot separate.
+    const floor = Math.min(...results.map((result) => result.frameMs ?? Infinity));
     const headroom = FRAME_BUDGET_60FPS_MS - fit.intercept;
     const reachable = Number.isFinite(floor) && floor < FRAME_BUDGET_60FPS_MS;
     fits.push({
       series,
       points: results.length,
-      mainMsPer1000: round(fit.slope * 1000, 3),
-      baseMainMs: round(fit.intercept),
+      cpuMsPer1000: round(fit.slope * 1000, 3),
+      baseCpuMs: round(fit.intercept),
       r2: round(fit.r2, 3),
       floorMs: Number.isFinite(floor) ? round(floor) : 0,
       satsAt60fps: reachable && fit.slope > 0 && headroom > 0 ? Math.round(headroom / fit.slope) : "",
@@ -211,151 +238,162 @@ export function scalingFits(run: BenchmarkRun): ScalingFit[] {
   return fits;
 }
 
+/** Memory against satellites drawn, per series. */
 export interface MemoryFit {
+  /** As `formatSeries` names it. */
   series: string;
-  /** Points behind the floor fit; 0, with the four fields below undefined, when there was nothing to fit. */
+  /** Points behind the heap fit; 0, with the four fields below blank, when there was nothing to fit. */
   points: number;
   /** Slope of the heap floor against satellites drawn. */
-  mbPer1000Sats: number | undefined;
-  kbPerSatellite: number | undefined;
+  mbPer1000Sats: number | "";
+  /** The same slope, in KB per satellite. */
+  kbPerSatellite: number | "";
   /** Not a footprint: baseline plus standing garbage. Kept only to expose a wild fit. */
-  baseMb: number | undefined;
+  baseMb: number | "";
   /** Check it before trusting `kbPerSatellite`. */
-  r2: number | undefined;
+  r2: number | "";
   /**
-   * The slope from captured footprints, an independent check on `kbPerSatellite`
-   * (one run: 54.0 vs 54.4 KB). Its own points and r², because a refused capture
-   * shrinks only this fit.
+   * The slope from absolute footprints: on the web an independent check on `kbPerSatellite`
+   * (one run: 54.0 vs 54.4 KB), natively the only one.
    */
-  absoluteKbPerSatellite: number | undefined;
+  absoluteKbPerSatellite: number | "";
+  /** Points behind the absolute fit. */
   absolutePoints: number;
-  absoluteR2: number | undefined;
+  /** Of the absolute fit. */
+  absoluteR2: number | "";
 }
 
-/** Points for a fit, dropping the results that have no value for `pick`. */
-const pointsOf = (results: readonly BenchmarkResult[], pick: (result: BenchmarkResult) => number | undefined): { x: number; y: number }[] =>
+/** Against satellites drawn, the steps without the figure left out. */
+const pointsOf = (results: readonly SweepResult[], pick: (result: SweepResult) => number | null): { x: number; y: number }[] =>
   results.flatMap((result) => {
     const y = pick(result);
-    return y === undefined ? [] : [{ x: result.applied.satellitesVisible, y }];
+    return y === null ? [] : [{ x: result.visible, y }];
   });
 
-const withFootprints = (results: readonly BenchmarkResult[]): { x: number; y: number }[] => pointsOf(results, footprintJsMb);
-
 /**
- * Memory per satellite from the heap floor within one series. Standing garbage is
- * a near-common offset across one pass, so it lands in the intercept: a 5,000
- * satellite scene read +269.9 and +269.4 MB over its zero row on two passes. Against
- * forced collections the slope read 53.7 vs 52.5 KB (r² 0.999). A GC mid-series
- * breaks it (−2.8 MB per 1,000, r² 0.002), so read r² first.
+ * Memory per satellite within one series. Standing garbage is a near-common offset across one
+ * pass, so on the web it lands in the intercept: against forced collections the heap slope
+ * read 53.7 vs 52.5 KB (r² 0.999). A GC mid-series breaks it (−2.8 MB per 1,000, r² 0.002), so
+ * read r² first.
  */
-export function memoryFits(run: BenchmarkRun): MemoryFit[] {
+export function memoryFits(run: SweepRun): MemoryFit[] {
   const fits: MemoryFit[] = [];
-  // Every series: the absolute fit does not depend on heap readings.
   for (const [series, results] of bySeries(run)) {
-    const floorPoints = pointsOf(results, heapFloorMb);
-    const floorFit = leastSquares(floorPoints);
-    const absolutePoints = withFootprints(results);
+    const heapPoints = pointsOf(results, (result) => result.heapMb);
+    const heapFit = leastSquares(heapPoints);
+    const absolutePoints = pointsOf(results, (result) => result.footprintMb);
     const absoluteFit = leastSquares(absolutePoints);
-    if (floorFit === undefined && absoluteFit === undefined) {
+    if (heapFit === undefined && absoluteFit === undefined) {
       continue;
     }
     fits.push({
       series,
-      points: floorFit === undefined ? 0 : floorPoints.length,
-      mbPer1000Sats: floorFit === undefined ? undefined : round(floorFit.slope * 1000, 1),
-      kbPerSatellite: floorFit === undefined ? undefined : round(floorFit.slope * 1024, 1),
-      baseMb: floorFit === undefined ? undefined : round(floorFit.intercept, 1),
-      r2: floorFit === undefined ? undefined : round(floorFit.r2, 3),
-      absoluteKbPerSatellite: absoluteFit === undefined ? undefined : round(absoluteFit.slope * 1024, 1),
+      points: heapFit === undefined ? 0 : heapPoints.length,
+      mbPer1000Sats: heapFit === undefined ? "" : round(heapFit.slope * 1000, 1),
+      kbPerSatellite: heapFit === undefined ? "" : round(heapFit.slope * 1024, 1),
+      baseMb: heapFit === undefined ? "" : round(heapFit.intercept, 1),
+      r2: heapFit === undefined ? "" : round(heapFit.r2, 3),
+      absoluteKbPerSatellite: absoluteFit === undefined ? "" : round(absoluteFit.slope * 1024, 1),
       absolutePoints: absolutePoints.length,
-      absoluteR2: absoluteFit === undefined ? undefined : round(absoluteFit.r2, 3),
+      absoluteR2: absoluteFit === undefined ? "" : round(absoluteFit.r2, 3),
     });
   }
   return fits;
 }
 
+/** What a set adds over its largest strict subset, at one count and clock. */
 export interface MarginalCost {
+  /** Asked for. */
   sats: number;
   clock: number;
+  /** The components `over` lacks. */
   added: string;
+  /** The subset, measured at the same count and clock. */
   over: string;
-  deltaMainMs: number;
+  /** CPU time over the subset's. */
+  deltaCpuMs: number;
+  /** `deltaCpuMs` in microseconds per satellite drawn; 0 with none. */
   usPerSatellite: number;
 }
 
 /**
- * Differences rows of the same count and clock; across clocks, propagation would
- * be charged to a component. Each set is compared with its largest strict subset,
- * which serves both the cumulative and the isolated sweep.
+ * Differences rows of the same count and clock; across clocks, propagation would be charged
+ * to a component. Each set is compared with its largest strict subset, which serves both the
+ * cumulative and the isolated sweep.
  */
-export function marginalCosts(run: BenchmarkRun): MarginalCost[] {
-  const byCondition = new Map<string, BenchmarkResult[]>();
+export function marginalCosts(run: SweepRun): MarginalCost[] {
+  const byCondition = new Map<string, SweepResult[]>();
   for (const result of measured(run)) {
-    const key = `${result.step.satelliteCount}@${result.applied.clockMultiplier}`;
+    const key = `${result.satelliteCount}@${result.clock}`;
     byCondition.set(key, [...(byCondition.get(key) ?? []), result]);
   }
   const costs: MarginalCost[] = [];
   const buckets = [...byCondition.values()];
   // eslint-disable-next-line unicorn/no-array-sort -- already a fresh array
-  buckets.sort((a, b) => (a[0]?.step.satelliteCount ?? 0) - (b[0]?.step.satelliteCount ?? 0));
+  buckets.sort((a, b) => (a[0]?.satelliteCount ?? 0) - (b[0]?.satelliteCount ?? 0));
   for (const results of buckets) {
     for (const result of results) {
-      const own = new Set(result.step.components);
-      let baseline: BenchmarkResult | undefined;
+      const own = new Set(result.components);
+      let baseline: SweepResult | undefined;
       for (const candidate of results) {
-        const other = candidate.step.components;
+        const other = candidate.components;
         if (other.length >= own.size || !other.every((component) => own.has(component))) {
           continue;
         }
-        if (baseline === undefined || other.length > baseline.step.components.length) {
+        if (baseline === undefined || other.length > baseline.components.length) {
           baseline = candidate;
         }
       }
       if (!baseline) {
         continue;
       }
-      const base = new Set(baseline.step.components);
-      const delta = mainThreadMs(result) - mainThreadMs(baseline);
-      const drawn = result.applied.satellitesVisible;
+      const base = new Set(baseline.components);
+      const delta = cpuMs(result) - cpuMs(baseline);
       costs.push({
-        sats: result.step.satelliteCount,
-        clock: result.applied.clockMultiplier,
-        added: formatComponents(result.step.components.filter((component) => !base.has(component))),
-        over: formatComponents(baseline.step.components),
-        deltaMainMs: round(delta),
-        usPerSatellite: drawn > 0 ? round((delta * 1000) / drawn, 1) : 0,
+        sats: result.satelliteCount,
+        clock: result.clock,
+        added: formatComponents(result.components.filter((component) => !base.has(component))),
+        over: formatComponents(baseline.components),
+        deltaCpuMs: round(delta),
+        usPerSatellite: result.visible > 0 ? round((delta * 1000) / result.visible, 1) : 0,
       });
     }
   }
   return costs;
 }
 
+/** What a clock past ×1 costs one scene. */
 export interface PropagationCost {
+  /** Asked for. */
   sats: number;
   components: string;
   clock: number;
-  tickMs: number;
-  /** Over the same scene at ×1. */
-  deltaTickMs: number;
-  usPerSatellite: number;
-  /** For contrast: propagation does not touch it, so a flat `cpuMs` is expected. */
+  /** At this clock. */
   cpuMs: number;
+  /** Over the same scene at ×1: what a faster clock costs the frame rate. */
+  deltaCpuMs: number;
+  /** `deltaCpuMs` in microseconds per satellite drawn; 0 with none. */
+  usPerSatellite: number;
+  /** At this clock. */
+  cpuTotalPct: number | "";
+  /** Over ×1: what it costs every thread, propagation off the main thread included. */
+  deltaCpuTotalPct: number | "";
 }
 
 /**
- * Each clock rate against ×1 for the same scene. Differenced on `tickMs`: `cpuMs`
- * read −0.08 ms at 5,000 points at ×10000, for 462 ms frames that were 95%
- * `SampledTrajectory.update`.
+ * Each clock rate against ×1 for the same scene. Propagation is paid per simulated quarter
+ * orbit, so it grows with the rate: on the web on the main thread, in the clock tick (95 % of
+ * 462 ms frames at ×10000); natively off it, where only total CPU sees it.
  */
-export function propagationCosts(run: BenchmarkRun): PropagationCost[] {
-  const byScene = new Map<string, BenchmarkResult[]>();
+export function propagationCosts(run: SweepRun): PropagationCost[] {
+  const byScene = new Map<string, SweepResult[]>();
   for (const result of measured(run)) {
-    const key = `${result.step.satelliteCount}|${formatComponents(result.step.components)}`;
+    const key = `${result.satelliteCount}|${formatComponents(result.components)}`;
     byScene.set(key, [...(byScene.get(key) ?? []), result]);
   }
   const costs: PropagationCost[] = [];
   for (const results of byScene.values()) {
-    const baseline = results.find((result) => result.applied.clockMultiplier === 1);
+    const baseline = results.find((result) => result.clock === 1);
     if (!baseline || results.length < 2) {
       continue;
     }
@@ -363,16 +401,16 @@ export function propagationCosts(run: BenchmarkRun): PropagationCost[] {
       if (result === baseline) {
         continue;
       }
-      const delta = tickMs(result) - tickMs(baseline);
-      const drawn = result.applied.satellitesVisible;
+      const delta = cpuMs(result) - cpuMs(baseline);
       costs.push({
-        sats: result.step.satelliteCount,
-        components: formatComponents(result.step.components),
-        clock: result.applied.clockMultiplier,
-        tickMs: round(tickMs(result)),
-        deltaTickMs: round(delta),
-        usPerSatellite: drawn > 0 ? round((delta * 1000) / drawn, 1) : 0,
+        sats: result.satelliteCount,
+        components: formatComponents(result.components),
+        clock: result.clock,
         cpuMs: round(cpuMs(result)),
+        deltaCpuMs: round(delta),
+        usPerSatellite: result.visible > 0 ? round((delta * 1000) / result.visible, 1) : 0,
+        cpuTotalPct: blankOr(result.cpuTotalPct, 1),
+        deltaCpuTotalPct: result.cpuTotalPct === null || baseline.cpuTotalPct === null ? "" : round(result.cpuTotalPct - baseline.cpuTotalPct, 1),
       });
     }
   }
@@ -380,29 +418,36 @@ export function propagationCosts(run: BenchmarkRun): PropagationCost[] {
   return costs.sort((a, b) => a.sats - b.sats || a.clock - b.clock);
 }
 
+/** The first step against its closing re-run. */
 export interface RepeatCheck {
+  /** Asked for. */
   sats: number;
   components: string;
   clock: number;
-  firstMainMs: number;
-  repeatMainMs: number;
+  /** The first pass's. */
+  firstCpuMs: number;
+  /** The re-run's. */
+  repeatCpuMs: number;
   /** Positive means the app got slower over the run. */
-  mainDriftPct: number;
+  cpuDriftPct: number;
+  /** The first pass's. */
   firstBuildMs: number;
+  /** The re-run's. */
   repeatBuildMs: number;
   /** Usually strongly negative: the first build pays for warmup. */
   buildDriftPct: number;
   // No heap drift: on three healthy runs the floor moved -14.6%, -10.2% and +638%.
-  // To find a leak, repeat one scene with a forced GC between passes.
 }
 
+/** Past it, and past `MIN_MEANINGFUL_DRIFT_MS`, the app moved under the sweep. */
 export const MAX_TRUSTWORTHY_DRIFT_PCT = 10;
 
-/** At 0 satellites `mainThreadMs` is under 2 ms, so 10% alone is noise. */
+/** At 0 satellites main-thread time is under 2 ms, so 10% alone is noise. */
 export const MIN_MEANINGFUL_DRIFT_MS = 1;
 
+/** Past both drift thresholds. */
 export const isDrifted = (check: RepeatCheck): boolean =>
-  Math.abs(check.mainDriftPct) > MAX_TRUSTWORTHY_DRIFT_PCT && Math.abs(check.repeatMainMs - check.firstMainMs) >= MIN_MEANINGFUL_DRIFT_MS;
+  Math.abs(check.cpuDriftPct) > MAX_TRUSTWORTHY_DRIFT_PCT && Math.abs(check.repeatCpuMs - check.firstCpuMs) >= MIN_MEANINGFUL_DRIFT_MS;
 
 /** A linear series measured 0.999, one broken by a mid-series GC 0.002. */
 export const MIN_TRUSTWORTHY_MEMORY_R2 = 0.9;
@@ -410,52 +455,58 @@ export const MIN_TRUSTWORTHY_MEMORY_R2 = 0.9;
 /** Two points always give r² 1.0. */
 export const MIN_MEMORY_FIT_POINTS = 3;
 
-export const memoryFitTrustworthy = (fit: MemoryFit): boolean => fit.r2 !== undefined && fit.points >= MIN_MEMORY_FIT_POINTS && fit.r2 >= MIN_TRUSTWORTHY_MEMORY_R2;
+/** The heap fit, by its points and r². */
+export const memoryFitTrustworthy = (fit: MemoryFit): boolean => fit.r2 !== "" && fit.points >= MIN_MEMORY_FIT_POINTS && fit.r2 >= MIN_TRUSTWORTHY_MEMORY_R2;
 
 /** Checked on its own points and r²: a refused capture shrinks only this fit. */
 export const absoluteFitTrustworthy = (fit: MemoryFit): boolean =>
-  fit.absoluteKbPerSatellite !== undefined && fit.absolutePoints >= MIN_MEMORY_FIT_POINTS && (fit.absoluteR2 ?? 0) >= MIN_TRUSTWORTHY_MEMORY_R2;
+  fit.absoluteKbPerSatellite !== "" && fit.absolutePoints >= MIN_MEMORY_FIT_POINTS && fit.absoluteR2 !== "" && fit.absoluteR2 >= MIN_TRUSTWORTHY_MEMORY_R2;
 
-export const hasFootprints = (run: BenchmarkRun): boolean => run.results.some((result) => result.footprint !== undefined);
+/** Whether any step captured an absolute footprint. */
+export const hasFootprints = (run: SweepRun): boolean => run.results.some((result) => result.footprintMb !== null);
 
-const driftPct = (first: number, repeat: number): number => (first === 0 ? 0 : round(((repeat - first) / first) * 100, 1));
+/** Percent, positive where the repeat got slower. `first` must not be 0. */
+export const driftPct = (first: number, repeat: number): number => ((repeat - first) / first) * 100;
+/** 0 where `first` is. */
+const roundedDriftPct = (first: number, repeat: number): number => (first === 0 ? 0 : round(driftPct(first, repeat), 1));
 
-/**
- * The first step against its re-run at the end. A small `mainDriftPct` is what
- * makes the other tables readable. Measured on `mainThreadMs`: `cpuMs` is under
- * 2 ms at small counts, where noise reads as 25% drift.
- */
-export function repeatChecks(run: BenchmarkRun): RepeatCheck[] {
+/** A small `cpuDriftPct` makes the other tables readable. */
+export function repeatChecks(run: SweepRun): RepeatCheck[] {
   const checks: RepeatCheck[] = [];
-  for (const repeat of run.results.filter((result) => result.step.repeat)) {
+  for (const repeat of run.results.filter((result) => result.repeat)) {
     const first = measured(run).find(
       (candidate) =>
-        candidate.step.satelliteCount === repeat.step.satelliteCount &&
-        candidate.applied.clockMultiplier === repeat.applied.clockMultiplier &&
-        formatComponents(candidate.step.components) === formatComponents(repeat.step.components),
+        candidate.satelliteCount === repeat.satelliteCount && candidate.clock === repeat.clock && formatComponents(candidate.components) === formatComponents(repeat.components),
     );
     if (!first) {
       continue;
     }
     checks.push({
-      sats: repeat.step.satelliteCount,
-      components: formatComponents(repeat.step.components),
-      clock: repeat.applied.clockMultiplier,
-      firstMainMs: round(mainThreadMs(first)),
-      repeatMainMs: round(mainThreadMs(repeat)),
-      mainDriftPct: driftPct(mainThreadMs(first), mainThreadMs(repeat)),
-      firstBuildMs: round(first.applied.buildMs),
-      repeatBuildMs: round(repeat.applied.buildMs),
-      buildDriftPct: driftPct(first.applied.buildMs, repeat.applied.buildMs),
+      sats: repeat.satelliteCount,
+      components: formatComponents(repeat.components),
+      clock: repeat.clock,
+      firstCpuMs: round(cpuMs(first)),
+      repeatCpuMs: round(cpuMs(repeat)),
+      cpuDriftPct: roundedDriftPct(cpuMs(first), cpuMs(repeat)),
+      firstBuildMs: round(first.buildMs),
+      repeatBuildMs: round(repeat.buildMs),
+      buildDriftPct: roundedDriftPct(first.buildMs, repeat.buildMs),
     });
   }
   return checks;
 }
 
+/** Frame intervals a step needs before its timings mean anything. */
+export const MIN_TRUSTWORTHY_FRAMES = 20;
+
+/** The steps under `MIN_TRUSTWORTHY_FRAMES`. */
+export const thinRows = (run: SweepRun): ReportRow[] => reportRows(run).filter((row) => row.frames < MIN_TRUSTWORTHY_FRAMES);
+
+/** Right-aligned, as the table's columns are. */
 const pad = (value: string | number, width: number): string => String(value).padStart(width);
 
-/** For pasting into an issue. */
-export function formatTable(run: BenchmarkRun): string {
+/** For pasting into an issue. Both apps print the same text, character for character. */
+export function formatTable(run: SweepRun): string {
   const rows = reportRows(run);
   // No heap column: beside frame times the floor reads as a footprint.
   const showFootprint = rows.some((row) => row.footprintMb !== "");
@@ -465,20 +516,20 @@ export function formatTable(run: BenchmarkRun): string {
     "clock",
     "frames",
     "fps",
-    "frameMs",
-    "p95",
-    "worst",
     "cpuMs",
-    "cpuP95",
-    "tickMs",
     "gpuMs",
-    "jank%",
+    "load%",
+    "cpuP95",
+    "gpuP95",
+    "over%",
+    "total%",
     "build",
     ...(showFootprint ? ["footprint"] : []),
     "components",
   ];
   // 10 for footprint: the name is 9 characters, and a width of 8 ran it into `build`.
-  const widths = [6, 8, 7, 7, 7, 8, 7, 8, 7, 7, 8, 7, 6, 8, ...(showFootprint ? [10] : [])];
+  const widths = [6, 8, 7, 7, 7, 8, 8, 7, 8, 8, 7, 7, 8, ...(showFootprint ? [10] : [])];
+  const blank = (value: number | ""): string | number => (value === "" ? "—" : value);
   const lines = [header.map((name, index) => (index < widths.length ? pad(name, widths[index] as number) : ` ${name}`)).join("")];
   for (const row of rows) {
     const values = [
@@ -487,16 +538,15 @@ export function formatTable(run: BenchmarkRun): string {
       `x${row.clock}`,
       row.frames,
       row.fps,
-      row.frameMs,
-      row.p95Ms,
-      row.worstMs,
-      row.cpuMs,
-      row.cpuP95Ms,
-      row.tickMs,
-      row.gpuMs === "" ? "—" : row.gpuMs,
-      row.jankPct,
+      blank(row.cpuMs),
+      blank(row.gpuMs),
+      row.loadPct === "" && row.cpuBusyPct !== "" ? `≥${row.cpuBusyPct}` : blank(row.loadPct),
+      blank(row.cpuP95Ms),
+      blank(row.gpuP95Ms),
+      blank(row.overBudgetPct),
+      blank(row.cpuTotalPct),
       row.buildMs,
-      ...(showFootprint ? [row.footprintMb] : []),
+      ...(showFootprint ? [blank(row.footprintMb)] : []),
     ];
     const suffix = `${row.repeat ? " (repeat)" : ""}${row.drawn ? ` (drew ${row.drawn})` : ""}`;
     lines.push(`${values.map((value, index) => pad(value, widths[index] as number)).join("")} ${row.components}${suffix}`);
@@ -504,141 +554,83 @@ export function formatTable(run: BenchmarkRun): string {
   return lines.join("\n");
 }
 
-export function toCsv(run: BenchmarkRun): string {
+/** The per-step rows, extras as `x_` columns; empty without a step. */
+export function toCsv(run: SweepRun): string {
   const rows = reportRows(run);
   const first = rows[0];
   if (!first) {
     return "";
   }
   const keys = Object.keys(first) as (keyof ReportRow)[];
-  const escape = (value: string | number | boolean): string =>
-    typeof value === "string" && (value.includes(",") || value.includes('"')) ? `"${value.replaceAll('"', '""')}"` : String(value);
+  const escape = (value: string | number | boolean | undefined): string =>
+    typeof value === "string" && (value.includes(",") || value.includes('"')) ? `"${value.replaceAll('"', '""')}"` : String(value ?? "");
   return [keys.join(","), ...rows.map((row) => keys.map((key) => escape(row[key])).join(","))].join("\n");
 }
 
-export function toJson(run: BenchmarkRun): string {
-  return JSON.stringify(
-    {
-      startedAtIso: run.startedAtIso,
-      spec: run.spec,
-      environment: run.environment,
-      options: run.options,
-      catalogSize: run.catalogSize,
-      cancelled: run.cancelled,
-      rows: reportRows(run),
-      scaling: scalingFits(run),
-      memory: memoryFits(run),
-      marginal: marginalCosts(run),
-      propagation: propagationCosts(run),
-      repeat: repeatChecks(run),
-      componentInstances: run.results.map((result) => ({
-        sats: result.step.satelliteCount,
-        components: formatComponents(result.step.components),
-        clock: result.applied.clockMultiplier,
-        instances: result.applied.componentInstances,
-      })),
-    },
-    null,
-    2,
-  );
+/** As both apps export it. */
+export function sweepReport(run: SweepRun): Record<string, unknown> {
+  return {
+    startedAtIso: run.startedAtIso,
+    spec: run.spec,
+    environment: run.environment,
+    options: run.options,
+    catalogSize: run.catalogSize,
+    cancelled: run.cancelled,
+    rows: reportRows(run),
+    scaling: scalingFits(run),
+    memory: memoryFits(run),
+    marginal: marginalCosts(run),
+    propagation: propagationCosts(run),
+    repeat: repeatChecks(run),
+    componentInstances: run.results.map((result) => ({
+      sats: result.satelliteCount,
+      components: formatComponents(result.components),
+      clock: result.clock,
+      instances: result.componentInstances,
+    })),
+  };
 }
 
-export const MIN_TRUSTWORTHY_FRAMES = 20;
+/** `sweepReport`, indented. */
+export const toJson = (run: SweepRun): string => JSON.stringify(sweepReport(run), null, 2);
 
-export const thinRows = (run: BenchmarkRun): ReportRow[] => reportRows(run).filter((row) => row.frames < MIN_TRUSTWORTHY_FRAMES);
-
-export function logRun(run: BenchmarkRun): void {
-  const title = `satvis benchmark — ${run.results.length} steps${run.cancelled ? " (cancelled)" : ""}`;
-  console.group(title);
+/** Every table to the console, with a warning where one cannot be read. */
+export function logRun(run: SweepRun): void {
+  console.group(`satvis benchmark — ${run.results.length} steps${run.cancelled ? " (cancelled)" : ""}`);
   console.log("environment", run.environment);
   console.log("options", run.options, `catalog: ${run.catalogSize}`);
   const thin = thinRows(run);
   if (thin.length > 0) {
     console.warn(
       `${thin.length}/${run.results.length} steps sampled fewer than ${MIN_TRUSTWORTHY_FRAMES} frames — treat their timings as noise.`,
-      run.environment.visibility === "hidden" ? "The tab was hidden; a hidden tab suspends the render loop entirely." : "",
+      run.environment.device_visibility === "hidden" ? "The tab was hidden; a hidden tab suspends the render loop entirely." : "",
     );
   }
-  const anyGpu = run.results.some((result) => result.frames.gpu !== undefined);
-  if (!anyGpu) {
-    console.log("gpuMs: unavailable — this browser offers no EXT_disjoint_timer_query_webgl2.");
-  } else if (!gpuTimerTrustworthy(run)) {
-    console.warn(
-      `gpuMs: withheld — the driver's timer reported more than ${GPU_TIMER_TRUST_FACTOR}× the frame interval on most steps, ` +
-        "which a frame that presented cannot have cost. Known to happen on ANGLE/Metal. Read frameMs against cpuMs instead: " +
-        "the gap between them is the GPU, and if frameMs is well above the display's fastest interval the scene is GPU-bound.",
+  if (!run.results.some((result) => result.gpuMs !== null)) {
+    console.log(
+      "gpuMs: unavailable — the browser has no EXT_disjoint_timer_query_webgl2, or its timer overran the frames (ANGLE/Metal). " +
+        "Read fps against cpuMs instead: if the frame interval is well above both cpuMs and the display's fastest interval, the scene is GPU-bound.",
     );
   }
   console.log("%cper step", "font-weight:bold");
   console.table(reportRows(run));
-  console.log("%cscaling with satellite count (main-thread frame time: render + clock tick)", "font-weight:bold");
+  console.log("%cscaling with satellite count (CPU ms a frame)", "font-weight:bold");
   console.table(scalingFits(run));
   const memory = memoryFits(run);
   if (memory.length > 0) {
-    console.log("%cmemory growth with satellite count (heap floor, relative)", "font-weight:bold");
-    // No baseMb: a bare MB figure reads as a total.
-    console.table(
-      memory.map((fit) => ({
-        series: fit.series,
-        points: fit.points,
-        mbPer1000Sats: fit.mbPer1000Sats,
-        kbPerSatellite: fit.kbPerSatellite,
-        r2: fit.r2,
-        absoluteKbPerSatellite: fit.absoluteKbPerSatellite,
-        absoluteR2: fit.absoluteR2,
-      })),
-    );
-    const untrustworthy = memory.filter((fit) => fit.r2 !== undefined && !memoryFitTrustworthy(fit));
+    console.log("%cmemory growth with satellite count", "font-weight:bold");
+    console.table(memory);
+    const untrustworthy = memory.filter((fit) => fit.r2 !== "" && !memoryFitTrustworthy(fit));
     if (untrustworthy.length > 0) {
       console.warn(
         `memory: ${untrustworthy.map((fit) => `${fit.series} (r² ${fit.r2}, ${fit.points} points)`).join(", ")} cannot be read — ` +
-          `a fit needs at least ${MIN_MEMORY_FIT_POINTS} counts (two points always fit their own line) and r² ${MIN_TRUSTWORTHY_MEMORY_R2}, ` +
-          "or else a garbage collection landed inside the series and its offset is not common to the rows. Sweep more counts, or re-run.",
+          `a fit needs at least ${MIN_MEMORY_FIT_POINTS} counts and r² ${MIN_TRUSTWORTHY_MEMORY_R2}, or a garbage collection landed inside the series. Sweep more counts, or re-run.`,
       );
     }
-    if (hasFootprints(run)) {
-      console.log(
-        "absoluteKbPerSatellite comes from absolute footprints (measureUserAgentSpecificMemory) rather than sampled floors. " +
-          "Where the two agree, both are trustworthy; a wide gap means the growth fit straddled a collection.",
-      );
-      const weakAbsolute = memory.filter((fit) => fit.absoluteKbPerSatellite !== undefined && !absoluteFitTrustworthy(fit));
-      if (weakAbsolute.length > 0) {
-        console.warn(
-          `absoluteKbPerSatellite: ${weakAbsolute.map((fit) => `${fit.series} (r² ${fit.absoluteR2}, ${fit.absolutePoints} points)`).join(", ")} cannot be read — ` +
-            "fewer captures than counts, so a step's capture was refused. Re-run.",
-        );
-      }
-    } else {
-      console.log(
-        "Slopes only, and only within a series: the heap floor includes uncollected garbage, so the intercept is not a total. " +
-          "Checked against forced collections the slope came within 2% (53.7 vs 52.5 KB per satellite). For absolute figures re-run with captureFootprint.",
-      );
-    }
-  } else if (!run.results.some((result) => result.frames.heap !== undefined) && !hasFootprints(run)) {
-    console.log("memory: unavailable — performance.memory is Chrome-only and no footprint was captured, so there is nothing to fit.");
   } else {
-    console.log(`memory: not fitted — a slope needs at least two satellite counts per series (${MIN_MEMORY_FIT_POINTS} to be readable). Sweep more counts.`);
+    console.log(`memory: not fitted — a slope needs at least two satellite counts per series (${MIN_MEMORY_FIT_POINTS} to be readable), and a memory reading.`);
   }
-  const captured = run.results.filter((result) => result.footprint !== undefined);
-  if (captured.length > 0) {
-    const waitedMs = captured.reduce((total, result) => total + (result.footprint?.elapsedMs ?? 0), 0);
-    console.log("%cabsolute memory footprint (garbage excluded)", "font-weight:bold");
-    console.table(
-      captured.map((result) => ({
-        sats: result.applied.satellitesVisible,
-        components: formatComponents(result.step.components),
-        jsMb: round(result.footprint?.jsMb ?? 0, 1),
-        totalMb: round(result.footprint?.totalMb ?? 0, 1),
-        workerMb: round(result.footprint?.workerMb ?? 0, 1),
-      })),
-    );
-    console.log(`${captured.length} captures cost ${Math.round(waitedMs / 1000)} s of waiting — the call resolves only when a collection happens.`);
-  } else if (run.environment.crossOriginIsolated !== "true") {
-    console.log(
-      "footprint: unavailable — the page is not cross-origin isolated, so measureUserAgentSpecificMemory is not exposed. Needs COOP: same-origin and COEP: credentialless.",
-    );
-  }
-  console.log("%cmarginal cost per component (main-thread frame time)", "font-weight:bold");
+  console.log("%cmarginal cost per component (CPU ms a frame)", "font-weight:bold");
   console.table(marginalCosts(run));
   // An empty table would read as "propagation is free".
   const propagation = propagationCosts(run);
@@ -653,7 +645,7 @@ export function logRun(run: BenchmarkRun): void {
     const drifted = repeats.filter(isDrifted);
     if (drifted.length > 0) {
       console.warn(
-        `The first step measured ${drifted.map((check) => `${check.mainDriftPct > 0 ? "+" : ""}${check.mainDriftPct}% (${round(check.repeatMainMs - check.firstMainMs)} ms)`).join(", ")} differently when re-run at the end — ` +
+        `The first step measured ${drifted.map((check) => `${check.cpuDriftPct > 0 ? "+" : ""}${check.cpuDriftPct}% (${round(check.repeatCpuMs - check.firstCpuMs)} ms)`).join(", ")} differently when re-run at the end — ` +
           `over ${MAX_TRUSTWORTHY_DRIFT_PCT}% and ${MIN_MEANINGFUL_DRIFT_MS} ms, so the app moved under the sweep and the trends above are that as much as the scenes.`,
       );
     }

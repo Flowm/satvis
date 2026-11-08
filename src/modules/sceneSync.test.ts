@@ -65,7 +65,6 @@ function fakeTarget() {
     pixelRatio: "native",
     msaa: "4",
     frameRate: "60",
-    showFps: false,
     requestRenderMode: true,
     background: false,
     pickMode: false,
@@ -172,14 +171,12 @@ describe("startSceneSync", () => {
 
     store.terrainProvider = "CesiumWorldTerrain";
     store.cameraMode = "Inertial";
-    store.showFps = true;
     store.background = false;
     store.unseen = "hide";
     await nextTick();
 
     expect(target.terrainProvider).toBe("CesiumWorldTerrain");
     expect(target.cameraMode).toBe("Inertial");
-    expect(target.showFps).toBe(true);
     expect(target.skyInteraction.unseen).toBe("hide");
   });
 

@@ -1,12 +1,10 @@
 import { describe, expect, test } from "vitest";
 
-import { buildPlan, CUMULATIVE_COMPONENT_SETS, estimateDurationMs, formatSeries, ISOLATED_COMPONENT_SETS, type BenchmarkStep } from "./benchmarkPlan";
-import type { BenchmarkResult, BenchmarkRun, SceneApplied } from "./benchmarkRunner";
-import { FrameSampler, JANK_MS, seriesStats } from "./frameSampler";
+import { buildPlan, CUMULATIVE_COMPONENT_SETS, estimateDurationMs, formatSeries, ISOLATED_COMPONENT_SETS, type SweepStep } from "./benchmarkPlan";
+import type { BenchmarkResult } from "./benchmarkRunner";
 import {
   absoluteFitTrustworthy,
   formatTable,
-  gpuTimerTrustworthy,
   hasFootprints,
   isDrifted,
   marginalCosts,
@@ -17,11 +15,14 @@ import {
   reportRows,
   type RepeatCheck,
   scalingFits,
+  type SweepResult,
+  type SweepRun,
   thinRows,
   toCsv,
 } from "./report";
+import { sweepResultOf } from "./sweepResults";
 
-/** A result carrying only what the report reads. */
+/** A result carrying only what the report reads; main-thread time is `cpuMs + tickMs`, as the web measures it. */
 function result(options: {
   sats: number;
   components: string[];
@@ -36,134 +37,71 @@ function result(options: {
   frames?: number;
   heapMb?: readonly number[];
   footprintMb?: number;
-}): BenchmarkResult {
-  const clock = options.clock ?? 1;
-  const components = options.components;
-  const step: BenchmarkStep = {
-    satelliteCount: options.sats,
-    components,
-    clockMultiplier: clock,
-    repeat: options.repeat ?? false,
-    label: "",
-  };
-  const applied: SceneApplied = {
-    satellitesVisible: options.visible ?? options.sats,
-    componentsDrawn: components,
-    componentInstances: {},
-    clockMultiplier: clock,
-    entities: 0,
-    primitives: 0,
-    clearMs: 0,
-    buildMs: options.buildMs ?? 0,
-  };
-  const frames = options.frames ?? 100;
+  cpuTotalPct?: number;
+}): SweepResult {
+  const wall = options.wallMs ?? 10;
   return {
-    step,
-    applied,
-    frames: {
-      frames,
-      fps: 100,
-      wall: seriesStats([options.wallMs ?? 10]),
-      cpu: seriesStats([options.cpuMs]),
-      tick: seriesStats([options.tickMs ?? 0]),
-      gpu: options.gpuMs === undefined ? undefined : seriesStats([options.gpuMs]),
-      heap: options.heapMb === undefined ? undefined : seriesStats(options.heapMb),
-      jankRatio: 0,
-    },
-    footprint: options.footprintMb === undefined ? undefined : { totalMb: options.footprintMb * 1.4, jsMb: options.footprintMb, workerMb: 0, elapsedMs: 17_000 },
+    satelliteCount: options.sats,
+    components: options.components,
+    clock: options.clock ?? 1,
+    repeat: options.repeat ?? false,
+    visible: options.visible ?? options.sats,
+    componentsDrawn: options.components,
+    componentInstances: {},
+    buildMs: options.buildMs ?? 0,
+    clearMs: 0,
+    frames: options.frames ?? 100,
+    fps: 100,
+    frameMs: wall,
+    cpuMs: options.cpuMs + (options.tickMs ?? 0),
+    cpuP95Ms: options.cpuMs + (options.tickMs ?? 0),
+    gpuMs: options.gpuMs ?? null,
+    gpuP95Ms: options.gpuMs ?? null,
+    overBudgetPct: 0,
+    loadPct: null,
+    cpuBusyPct: null,
+    cpuTotalPct: options.cpuTotalPct ?? null,
+    heapMb: options.heapMb === undefined ? null : Math.min(...options.heapMb),
+    heapPeakMb: options.heapMb === undefined ? null : Math.max(...options.heapMb),
+    footprintMb: options.footprintMb ?? null,
+    footprintTotalMb: options.footprintMb === undefined ? null : options.footprintMb * 1.4,
+    footprintWorkerMb: options.footprintMb === undefined ? null : 0,
+    extras: { tick_ms: options.tickMs ?? 0 },
   };
 }
 
-const run = (results: BenchmarkResult[]): BenchmarkRun => ({
+const run = (results: SweepResult[]): SweepRun => ({
+  results,
   startedAtIso: "2026-01-01T00:00:00.000Z",
   spec: { satelliteCounts: [], componentSets: [] },
   environment: {},
   options: { warmupMs: 0, sampleMs: 0 },
   catalogSize: 0,
-  results,
   cancelled: false,
 });
 
-describe("seriesStats", () => {
-  test("no values means no stats, rather than a row of zeroes", () => {
-    expect(seriesStats([])).toBeUndefined();
+describe("sweepResultOf", () => {
+  const measured = (recording: Partial<BenchmarkResult["recording"]>, tickMs: number[] = [], heapMb: number[] = []): BenchmarkResult => ({
+    step: { satelliteCount: 10, components: ["Point"], clockMultiplier: 1, repeat: false, label: "10" },
+    applied: { satellitesVisible: 10, componentsDrawn: ["Point"], componentInstances: {}, clockMultiplier: 1, entities: 0, primitives: 0, clearMs: 0, buildMs: 0 },
+    recording: { intervals: [], cpu: [], gpu: [], skippedCpu: [], ...recording },
+    tickMs,
+    heapMb,
+    gpuCappedPct: null,
+    refreshMs: 1000 / 60,
+    memoryMb: null,
+    footprint: undefined,
   });
 
-  test("percentiles come off the sorted values, whatever order they arrived in", () => {
-    const stats = seriesStats([50, 10, 30, 20, 40]);
-    expect(stats).toMatchObject({ min: 10, max: 50, mean: 30, p50: 30 });
+  test("the render is the frame's CPU time less its tick", () => {
+    const row = sweepResultOf(measured({ intervals: [10, 10], cpu: [5, 7] }, [2, 3]));
+    expect([row.frames, row.fps, row.frameMs]).toEqual([2, 100, 10]);
+    expect(row.extras).toMatchObject({ tick_ms: 2.5, render_ms: 3.5 });
   });
 
-  test("the input array is left in its arrival order", () => {
-    const values = [3, 1, 2];
-    seriesStats(values);
-    expect(values).toEqual([3, 1, 2]);
-  });
-});
-
-describe("FrameSampler", () => {
-  test("the first push only sets the origin, so one timestamp is no frame", () => {
-    const sampler = new FrameSampler();
-    sampler.push(1000);
-    expect(sampler.frames).toBe(0);
-    expect(sampler.snapshot().wall).toBeUndefined();
-  });
-
-  test("deltas between timestamps become the wall series", () => {
-    const sampler = new FrameSampler();
-    for (const [index, time] of [0, 10, 20, 30].entries()) {
-      sampler.push(1000 + time, index);
-    }
-    const snapshot = sampler.snapshot();
-    expect(snapshot.frames).toBe(3);
-    expect(snapshot.fps).toBeCloseTo(100);
-    expect(snapshot.wall?.mean).toBe(10);
-  });
-
-  test("reset bumps the epoch, so a reading in flight can tell it is stale", () => {
-    const sampler = new FrameSampler();
-    const issued = sampler.epoch;
-    sampler.pushGpu(5);
-    expect(sampler.snapshot().gpu?.mean).toBe(5);
-
-    sampler.reset();
-    expect(sampler.epoch).not.toBe(issued);
-    // What the collector does with a stale reading: nothing.
-    if (sampler.epoch === issued) {
-      sampler.pushGpu(250);
-    }
-    expect(sampler.snapshot().gpu).toBeUndefined();
-
-    // A reading issued after the reset still lands.
-    sampler.pushGpu(7);
-    expect(sampler.snapshot().gpu?.mean).toBe(7);
-  });
-
-  test("frames slower than 30 fps count as jank", () => {
-    const sampler = new FrameSampler();
-    sampler.push(0);
-    sampler.push(10);
-    sampler.push(10 + JANK_MS + 1);
-    const snapshot = sampler.snapshot();
-    expect(snapshot.jankRatio).toBeCloseTo(0.5);
-  });
-
-  test("reset drops the samples but keeps the origin, so no frame is lost at the seam", () => {
-    const sampler = new FrameSampler();
-    sampler.push(0);
-    sampler.push(100);
-    sampler.reset();
-    sampler.push(110);
-    expect(sampler.frames).toBe(1);
-    expect(sampler.snapshot().wall?.mean).toBe(10);
-  });
-
-  test("a limit makes the window roll rather than grow", () => {
-    const sampler = new FrameSampler(2);
-    for (let i = 0; i <= 10; i += 1) {
-      sampler.push(i * 10);
-    }
-    expect(sampler.frames).toBe(2);
+  test("the heap's lowest and highest reading, blank where none was read", () => {
+    expect(sweepResultOf(measured({ intervals: [10] }, [], [413, 86.3, 462.2]))).toMatchObject({ heapMb: 86.3, heapPeakMb: 462.2 });
+    expect(sweepResultOf(measured({ intervals: [10] }))).toMatchObject({ heapMb: null, heapPeakMb: null, gpuMs: null });
   });
 });
 
@@ -193,7 +131,7 @@ describe("buildPlan", () => {
 
   test("the first step is re-run last, and marked", () => {
     const steps = buildPlan({ satelliteCounts: [10, 20], componentSets: [["Point"]] });
-    const last = steps[steps.length - 1] as BenchmarkStep;
+    const last = steps[steps.length - 1] as SweepStep;
     expect(steps).toHaveLength(3);
     expect(last.repeat).toBe(true);
     expect(last.satelliteCount).toBe(10);
@@ -231,7 +169,7 @@ describe("scalingFits", () => {
       ]),
     );
     expect(fits).toHaveLength(1);
-    expect(fits[0]).toMatchObject({ series: "Point", mainMsPer1000: 10, baseMainMs: 5, r2: 1 });
+    expect(fits[0]).toMatchObject({ series: "Point", cpuMsPer1000: 10, baseCpuMs: 5, r2: 1 });
   });
 
   test("clock rates are separate series, never one averaged fit", () => {
@@ -244,7 +182,7 @@ describe("scalingFits", () => {
       ]),
     );
     expect(fits.map((fit) => fit.series)).toEqual(["Point", "Point @ ×100"]);
-    expect(fits[1]?.mainMsPer1000).toBe(40);
+    expect(fits[1]?.cpuMsPer1000).toBe(40);
   });
 
   test("the repeat step is left out, so it cannot weight one point twice", () => {
@@ -255,15 +193,15 @@ describe("scalingFits", () => {
         result({ sats: 0, components: ["Point"], cpuMs: 500, repeat: true }),
       ]),
     );
-    expect(fits[0]).toMatchObject({ points: 2, mainMsPer1000: 10, baseMainMs: 5 });
+    expect(fits[0]).toMatchObject({ points: 2, cpuMsPer1000: 10, baseCpuMs: 5 });
   });
 
   test("the fit counts the clock tick, not just the render", () => {
     const fits = scalingFits(run([result({ sats: 0, components: ["Point"], cpuMs: 1, tickMs: 0 }), result({ sats: 1000, components: ["Point"], cpuMs: 1, tickMs: 10 })]));
 
     // cpuMs is flat across these two rows; all the growth is in the tick.
-    expect(fits[0]?.mainMsPer1000).toBe(10);
-    expect(fits[0]?.baseMainMs).toBe(1);
+    expect(fits[0]?.cpuMsPer1000).toBe(10);
+    expect(fits[0]?.baseCpuMs).toBe(1);
   });
 
   test("satsAt60fps is blank when the floor alone has eaten the budget", () => {
@@ -289,8 +227,8 @@ describe("marginalCosts", () => {
       ]),
     );
     expect(costs).toEqual([
-      { sats: 100, clock: 1, added: "Label", over: "Point", deltaMainMs: 4, usPerSatellite: 40 },
-      { sats: 100, clock: 1, added: "Orbit", over: "Point + Label", deltaMainMs: 6, usPerSatellite: 60 },
+      { sats: 100, clock: 1, added: "Label", over: "Point", deltaCpuMs: 4, usPerSatellite: 40 },
+      { sats: 100, clock: 1, added: "Orbit", over: "Point + Label", deltaCpuMs: 6, usPerSatellite: 60 },
     ]);
   });
 
@@ -314,22 +252,31 @@ describe("propagationCosts", () => {
         result({ sats: 200, components: ["Point"], clock: 1000, cpuMs: 1, tickMs: 110 }),
       ]),
     );
-    expect(costs.map((cost) => [cost.clock, cost.deltaTickMs, cost.usPerSatellite])).toEqual([
+    expect(costs.map((cost) => [cost.clock, cost.deltaCpuMs, cost.usPerSatellite])).toEqual([
       [100, 20, 100],
       [1000, 100, 500],
     ]);
   });
 
-  test("sees a cost that cpuMs cannot", () => {
+  test("total CPU sees propagation off the main thread, which main-thread time cannot", () => {
+    // As natively: the main thread's frame barely moves, the background threads take the rate.
     const costs = propagationCosts(
-      run([result({ sats: 5000, components: ["Point"], cpuMs: 1.28, tickMs: 0.2 }), result({ sats: 5000, components: ["Point"], clock: 10000, cpuMs: 1.2, tickMs: 460 })]),
+      run([
+        result({ sats: 5000, components: ["Point"], cpuMs: 1.28, cpuTotalPct: 12 }),
+        result({ sats: 5000, components: ["Point"], clock: 10000, cpuMs: 1.3, cpuTotalPct: 185.5 }),
+      ]),
     );
-
-    // cpuMs went *down* between these two rows; the tick went up by 460 ms.
     expect(costs).toHaveLength(1);
-    expect(costs[0]?.deltaTickMs).toBeCloseTo(459.8, 1);
-    expect(costs[0]?.usPerSatellite).toBeGreaterThan(90);
-    expect(costs[0]?.cpuMs).toBeLessThan(costs[0]?.tickMs ?? 0);
+    expect(costs[0]?.deltaCpuMs).toBeCloseTo(0.02, 2);
+    expect(costs[0]?.cpuTotalPct).toBe(185.5);
+    expect(costs[0]?.deltaCpuTotalPct).toBe(173.5);
+  });
+
+  test("total CPU is blank where either step lacks it", () => {
+    const costs = propagationCosts(
+      run([result({ sats: 10, components: ["Point"], cpuMs: 1 }), result({ sats: 10, components: ["Point"], clock: 100, cpuMs: 2, cpuTotalPct: 20 })]),
+    );
+    expect(costs[0]?.deltaCpuTotalPct).toBe("");
   });
 
   test("without a x1 row there is nothing to difference against", () => {
@@ -354,17 +301,17 @@ describe("repeatChecks", () => {
       ]),
     );
     expect(checks).toHaveLength(1);
-    expect(checks[0]).toMatchObject({ sats: 100, firstMainMs: 10, repeatMainMs: 11, mainDriftPct: 10, firstBuildMs: 800, repeatBuildMs: 200, buildDriftPct: -75 });
+    expect(checks[0]).toMatchObject({ sats: 100, firstCpuMs: 10, repeatCpuMs: 11, cpuDriftPct: 10, firstBuildMs: 800, repeatBuildMs: 200, buildDriftPct: -75 });
   });
 
   test("drift is only untrustworthy when it is both proportional and material", () => {
-    const check = (firstMainMs: number, repeatMainMs: number): RepeatCheck => ({
+    const check = (firstCpuMs: number, repeatCpuMs: number): RepeatCheck => ({
       sats: 0,
       components: "Point",
       clock: 1,
-      firstMainMs,
-      repeatMainMs,
-      mainDriftPct: ((repeatMainMs - firstMainMs) / firstMainMs) * 100,
+      firstCpuMs,
+      repeatCpuMs,
+      cpuDriftPct: ((repeatCpuMs - firstCpuMs) / firstCpuMs) * 100,
       firstBuildMs: 0,
       repeatBuildMs: 0,
       buildDriftPct: 0,
@@ -389,57 +336,9 @@ describe("gpu timing", () => {
     expect(rows[0]?.gpuMs).toBe(9);
   });
 
-  test("a GPU-bound scene, where gpu approaches the frame interval, is still believed", () => {
-    const rows = reportRows(run([result({ sats: 0, components: ["Point"], cpuMs: 1, gpuMs: 13.5, wallMs: 14 })]));
-    expect(rows[0]?.gpuMs).toBe(13.5);
-  });
-
-  test("a timer claiming more GPU than the frame it presented in is withheld", () => {
-    // The ANGLE/Metal case.
-    const bad = run([result({ sats: 0, components: ["Point"], cpuMs: 1, gpuMs: 49, wallMs: 14 })]);
-    expect(gpuTimerTrustworthy(bad)).toBe(false);
-    expect(reportRows(bad)[0]?.gpuMs).toBe("");
-  });
-
-  test("one odd step does not discredit a run, a majority does", () => {
-    const mostlyFine = run([
-      result({ sats: 0, components: ["Point"], cpuMs: 1, gpuMs: 9, wallMs: 14 }),
-      result({ sats: 1, components: ["Point"], cpuMs: 1, gpuMs: 9, wallMs: 14 }),
-      result({ sats: 2, components: ["Point"], cpuMs: 1, gpuMs: 60, wallMs: 14 }),
-    ]);
-    expect(gpuTimerTrustworthy(mostlyFine)).toBe(true);
-
-    const mostlyBad = run([
-      result({ sats: 0, components: ["Point"], cpuMs: 1, gpuMs: 60, wallMs: 14 }),
-      result({ sats: 1, components: ["Point"], cpuMs: 1, gpuMs: 60, wallMs: 14 }),
-      result({ sats: 2, components: ["Point"], cpuMs: 1, gpuMs: 9, wallMs: 14 }),
-    ]);
-    expect(gpuTimerTrustworthy(mostlyBad)).toBe(false);
-  });
-
   test("no GPU samples at all is blank, not zero", () => {
     const none = run([result({ sats: 0, components: ["Point"], cpuMs: 1 })]);
-    expect(gpuTimerTrustworthy(none)).toBe(false);
     expect(reportRows(none)[0]?.gpuMs).toBe("");
-  });
-
-  test("the sampler keeps GPU timings as their own population", () => {
-    const sampler = new FrameSampler();
-    sampler.push(0);
-    sampler.push(10, 1);
-    sampler.push(20, 1);
-    // Two frames, one GPU result — they arrive out of step and are not paired.
-    sampler.pushGpu(8);
-    const snap = sampler.snapshot();
-    expect(snap.frames).toBe(2);
-    expect(snap.gpu?.mean).toBe(8);
-  });
-
-  test("reset clears GPU timings with everything else", () => {
-    const sampler = new FrameSampler();
-    sampler.pushGpu(8);
-    sampler.reset();
-    expect(sampler.snapshot().gpu).toBeUndefined();
   });
 });
 
@@ -598,7 +497,7 @@ describe("the footprint capture", () => {
     const fits = memoryFits(
       run([result({ sats: 0, components: ["Point"], cpuMs: 1, visible: 0, heapMb: [10] }), result({ sats: 1000, components: ["Point"], cpuMs: 1, visible: 1000, heapMb: [60] })]),
     );
-    expect(fits[0]?.absoluteKbPerSatellite).toBeUndefined();
+    expect(fits[0]?.absoluteKbPerSatellite).toBe("");
     expect(reportRows(run([result({ sats: 0, components: ["Point"], cpuMs: 1 })]))[0]?.footprintMb).toBe("");
   });
 
@@ -665,44 +564,5 @@ describe("the raw heap columns", () => {
     const rows = reportRows(run([result({ sats: 0, components: ["Point"], cpuMs: 1 })]));
     expect(rows[0]?.heapMb).toBe("");
     expect(rows[0]?.heapPeakMb).toBe("");
-  });
-});
-
-describe("FrameSampler heap series", () => {
-  test("a frame without a reading is still a frame", () => {
-    const sampler = new FrameSampler();
-    sampler.push(0);
-    sampler.push(10);
-    sampler.push(20);
-    expect(sampler.snapshot().frames).toBe(2);
-    expect(sampler.snapshot().heap).toBeUndefined();
-  });
-
-  test("the heap is its own population, min and max over the window", () => {
-    const sampler = new FrameSampler();
-    sampler.push(0);
-    sampler.push(10);
-    sampler.pushHeap(413);
-    sampler.pushHeap(86.3);
-    sampler.pushHeap(462.2);
-    const heap = sampler.snapshot().heap;
-    expect(heap?.min).toBe(86.3);
-    expect(heap?.max).toBe(462.2);
-  });
-
-  test("reset drops the heap samples with the rest of the warmup", () => {
-    const sampler = new FrameSampler();
-    sampler.pushHeap(999);
-    sampler.reset();
-    sampler.pushHeap(40);
-    expect(sampler.snapshot().heap?.max).toBe(40);
-  });
-
-  test("a limit rolls the heap window too, so the live readout stays recent", () => {
-    const sampler = new FrameSampler(2);
-    sampler.pushHeap(900);
-    sampler.pushHeap(41);
-    sampler.pushHeap(42);
-    expect(sampler.snapshot().heap?.max).toBe(42);
   });
 });

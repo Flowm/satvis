@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { type Bookmark, defaultName, OPENED_LIMIT, parseBookmarks, sameLink, sameQuery, summarize, timeAgo, withOpened, withoutTime } from "./bookmarks";
+import { type Bookmark, defaultName, OPENED_LIMIT, parseBookmarks, sameLink, sameQuery, summarize, timeAgo, withOpened, withoutBenchmarkRun, withoutTime } from "./bookmarks";
 
 /** The `/` preset's. */
 const DEFAULTS = { tags: "Weather" };
@@ -74,6 +74,12 @@ describe("withOpened", () => {
     expect(links).toHaveLength(OPENED_LIMIT);
     expect(links[0]!.query.sats).toBe(`SAT ${OPENED_LIMIT + 2}`);
   });
+});
+
+// ADR 0016: a link that starts a run is kept as the open panel alone.
+test("withoutBenchmarkRun keeps a run's link as the panel open", () => {
+  expect(withoutBenchmarkRun({ tags: "GNSS", bench: "run", benchscenes: "a,b" })).toEqual({ tags: "GNSS", bench: "true" });
+  expect(withoutBenchmarkRun({ bench: "true", benchscenes: "a" })).toEqual({ bench: "true", benchscenes: "a" });
 });
 
 test("withoutTime keeps the rest of the scene", () => {

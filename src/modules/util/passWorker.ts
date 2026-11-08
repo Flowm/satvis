@@ -46,6 +46,8 @@ export interface PassRequest {
 export interface PassResponse {
   batchId: number;
   replies: PassReply[];
+  /** The worker's time on the batch, in milliseconds, for the benchmark's total CPU. */
+  workMs?: number;
 }
 
 /** Shared by the worker and the inline source. */
@@ -77,9 +79,10 @@ const inWorkerScope = typeof (globalThis as { window?: unknown }).window === "un
 
 if (inWorkerScope) {
   self.addEventListener("message", (event: MessageEvent<PassRequest>) => {
+    const started = performance.now();
     const { batchId, commands } = event.data;
     const replies = commands.map((command) => runPassCommand(command));
-    const response: PassResponse = { batchId, replies };
+    const response: PassResponse = { batchId, replies, workMs: performance.now() - started };
     // DedicatedWorkerGlobalScope.postMessage takes no target origin.
     // eslint-disable-next-line unicorn/require-post-message-target-origin
     (self as unknown as { postMessage(message: PassResponse): void }).postMessage(response);

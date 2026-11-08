@@ -766,3 +766,31 @@ body.clock-deck .cesium-viewer-bottom {
     --credit-left: var(--credit-corner-left);
   }
 }
+
+/* The performance panel and the benchmark under it, where the entity info panel opens.
+   Touches between and around them reach the globe. */
+/* Beside #toolbarRight, not under it: the corner grows a button as a satellite is tracked. */
+.measurement {
+  position: fixed;
+  top: calc(var(--edge) + var(--safe-top));
+  right: calc(var(--edge) + var(--safe-right) + var(--toolbar-row) + var(--toolbar-gap));
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: calc(100vw - 2 * var(--edge) - var(--toolbar-row) - var(--toolbar-gap) - var(--safe-left) - var(--safe-right));
+  max-height: calc(100dvh - 2 * var(--edge) - var(--safe-top));
+  pointer-events: none;
+}
+
+/* The performance panel keeps its height; the benchmark takes the rest and scrolls. */
+.measurement > * {
+  flex: none;
+  pointer-events: auto;
+}
+
+.measurement > .bench {
+  flex: 0 1 auto;
+  min-height: 0;
+}

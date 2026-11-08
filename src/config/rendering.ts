@@ -73,3 +73,16 @@ export type FrameRate = (typeof FRAME_RATES)[number];
 export function targetFrameRateFor(rate: FrameRate): number | undefined {
   return rate === "max" ? undefined : Number(rate) * 1.05;
 }
+
+/** The performance panel (`fps`): hidden, compact, or expanded into the frame-time graph. */
+export const FPS_PANELS = ["false", "true", "graph"] as const;
+/** As the url spells it (`fps`). */
+export type FpsPanel = (typeof FPS_PANELS)[number];
+
+/**
+ * The benchmark panel (`bench`): hidden, open, or open with a run to start once the scene
+ * has loaded, which then reads `true` again so the link does not spread (ADR 0016).
+ */
+export const BENCHMARK_MODES = ["false", "true", "run"] as const;
+/** As the url spells it (`bench`). */
+export type BenchmarkMode = (typeof BENCHMARK_MODES)[number];

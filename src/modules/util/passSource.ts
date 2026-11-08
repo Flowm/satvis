@@ -5,6 +5,7 @@ import type { SwathExtents } from "@/config/satelliteMetadata";
 
 import type { GpRecord } from "./gp";
 import { runPassCommand, type PassCommand, type PassRequest, type PassResponse, type PassStation, type WorkerPass } from "./passWorker";
+import { addWorkerTime } from "./workerTime";
 
 export type { PassStation, WorkerPass };
 
@@ -65,7 +66,10 @@ export class WorkerPassSource implements PassSource {
     }
     try {
       this.#worker = new Worker(new URL("./passWorker.ts", import.meta.url), { type: "module" });
-      this.#worker.addEventListener("message", (event: MessageEvent<PassResponse>) => this.#accept(event.data));
+      this.#worker.addEventListener("message", (event: MessageEvent<PassResponse>) => {
+        addWorkerTime(event.data.workMs);
+        this.#accept(event.data);
+      });
       this.#worker.addEventListener("error", (event) => this.#giveUp(event.message || "worker error"));
     } catch (error) {
       this.#giveUp(error instanceof Error ? error.message : String(error));

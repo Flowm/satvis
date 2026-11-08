@@ -11,6 +11,7 @@ function fakeTarget(prepare: () => Promise<void>): { target: BenchmarkTarget; ca
   const calls: string[] = [];
   const target: BenchmarkTarget = {
     environment: () => ({}),
+    displayEnvironment: () => ({}),
     prepare: () => {
       calls.push("prepare");
       return prepare();
@@ -29,7 +30,15 @@ function fakeTarget(prepare: () => Promise<void>): { target: BenchmarkTarget; ca
         buildMs: 0,
       });
     },
-    measure: () => Promise.resolve({ frames: 0, fps: 0, wall: undefined, cpu: undefined, tick: undefined, gpu: undefined, heap: undefined, jankRatio: 0 }),
+    measure: () =>
+      Promise.resolve({
+        recording: { intervals: [], cpu: [], gpu: [], skippedCpu: [] },
+        tickMs: [],
+        heapMb: [],
+        gpuCappedPct: null,
+        refreshMs: 1000 / 60,
+        memoryMb: null,
+      }),
     measureFootprint: () => Promise.resolve(undefined),
     restore: () => {
       calls.push("restore");
@@ -54,7 +63,7 @@ describe("BenchmarkRunner", () => {
     const { target } = fakeTarget(prepare);
     const runner = new BenchmarkRunner(target);
 
-    const sweep = runner.start(SPEC, OPTIONS);
+    const sweep = runner.sweep(SPEC, OPTIONS);
     expect(runner.running).toBe(true);
 
     release();
@@ -67,8 +76,8 @@ describe("BenchmarkRunner", () => {
     const { target, calls } = fakeTarget(prepare);
     const runner = new BenchmarkRunner(target);
 
-    const sweep = runner.start(SPEC, OPTIONS);
-    await expect(runner.start(SPEC, OPTIONS)).rejects.toThrow("already running");
+    const sweep = runner.sweep(SPEC, OPTIONS);
+    await expect(runner.sweep(SPEC, OPTIONS)).rejects.toThrow("already running");
 
     release();
     const run = await sweep;
@@ -80,12 +89,12 @@ describe("BenchmarkRunner", () => {
     const { target, calls } = fakeTarget(() => Promise.reject(new Error("catalog failed")));
     const runner = new BenchmarkRunner(target);
 
-    await expect(runner.start(SPEC, OPTIONS)).rejects.toThrow("catalog failed");
+    await expect(runner.sweep(SPEC, OPTIONS)).rejects.toThrow("catalog failed");
     expect(calls).toEqual(["prepare", "restore"]);
     expect(runner.running).toBe(false);
     expect(runner.run).toBeUndefined();
 
-    await expect(runner.start(SPEC, OPTIONS)).rejects.toThrow("catalog failed");
+    await expect(runner.sweep(SPEC, OPTIONS)).rejects.toThrow("catalog failed");
     expect(calls).toEqual(["prepare", "restore", "prepare", "restore"]);
   });
 });
