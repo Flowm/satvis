@@ -471,11 +471,6 @@ struct ComponentsPanel: View {
                     })
             }
         }
-        if catalog.components.contains(.label), catalog.activeEntries.count > SatelliteComponents.labelBudget {
-            Text("Labels show for up to \(SatelliteComponents.labelBudget) satellites")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
     }
 }
 

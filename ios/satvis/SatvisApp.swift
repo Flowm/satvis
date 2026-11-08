@@ -153,14 +153,15 @@ struct ContentView: View {
                 .ignoresSafeArea()
             }
         }
-        .overlay(alignment: .top) {
-            // Between the menu and the corner's buttons, level with them where there
-            // is room for it; on a phone under them, the "Menu" pill reaching into
-            // the middle. Under the menu panel too, which covers it while open. The
-            // benchmark panel shows its own measurements in its place.
-            if session.showsPerformance, !session.showsBenchmark, let renderer = session.renderer {
-                PerformanceOverlay(renderer: renderer)
-                    .padding(.top, sizeClass == .regular ? PanelMetrics.edge : underTopRow)
+        .overlay(alignment: .topTrailing) {
+            // In the top-right corner under its buttons, by their measured height, so
+            // one added while tracking moves it down. The info card, in the buttons'
+            // place, covers it while open. Shown through a
+            // benchmark run too, as on the web.
+            if session.showsPerformance, let renderer = session.renderer {
+                PerformanceOverlay(session: session, renderer: renderer)
+                    .padding(.top, (cornerFrame?.height ?? 0) + PanelMetrics.gap)
+                    .padding(PanelMetrics.edge)
             }
         }
         .overlay(alignment: .topTrailing) {
@@ -350,8 +351,8 @@ struct ContentView: View {
                     NoticeBanner(text: notice)
                 }
                 // Above the clock, clear of the buttons down either side.
-                if session.showsBenchmark, let renderer = session.renderer {
-                    BenchmarkPanel(session: session, renderer: renderer)
+                if session.showsBenchmark, session.renderer != nil {
+                    BenchmarkPanel(session: session)
                         .padding(.horizontal, 16)
                 }
                 // Flush with the bottom edge, as on the web.
