@@ -119,6 +119,10 @@ groups:
 # the moment `pnpm update-showcase` pictures, and the App Store screenshots' too
 # (ios/scripts/screenshots.sh), with the element sets in scripts/showcase/pinned.json;
 # it is not served.
+# `benchmark` are the scenes the benchmark measures (ADR 0016), links against `defaults`
+# as `featured` are, cheap to heavy. `id` names a scene's fields in a report: keep it when
+# the scene keeps its meaning. `paced: true` measures it idle. A preset with none is
+# served these, on this route.
 presets:
   - name: default
     title: Satvis - 3D Satellite Tracker & Sky View
@@ -156,6 +160,34 @@ presets:
         thumbnail: showcase/sky.webp
         pictureAt: 2026-11-01T17:32Z
         query: { scene: Sky, gs: "46.5935,7.9091,Lauterbrunnen", terrain: ReEarth, layers: VersaTiles, stars: DeepStar2K, tags: Active }
+    # The axes of count and component, the 3D model close up and the sky view, which the
+    # tests on an iPad mini found to differ most (ios/docs/manual-verification.md), and two idle.
+    # The globe alone is the floor under every other scene: in Chrome on an M4 Pro at 2880×1800
+    # it took 14.5 ms of GPU a frame, the default view with its 74 satellites 14.3.
+    benchmark:
+      - { id: default_view, name: Default view · Points and labels }
+      - { id: globe, name: Globe · No satellites, query: { tags: "" } }
+      - { id: default_view_idle, name: Default view · Idle, paced: true }
+      - { id: starlink_points, name: Starlink · Points, query: { tags: Starlink, elements: Point } }
+      - { id: active_points, name: All active · Points, query: { tags: Active, elements: Point } }
+      - id: weather_all_components
+        name: Weather · Every component
+        query: { elements: "Point,Label,Orbit,Orbit track,Ground track,Sensor cone" }
+      - id: weather_all_components_idle
+        name: Weather · Idle
+        query: { elements: "Point,Label,Orbit,Orbit track,Ground track,Sensor cone" }
+        paced: true
+      # 121 nodes an orbit.
+      - { id: active_orbits, name: All active · Orbits, query: { tags: Active, elements: "Point,Orbit" } }
+      - id: iss_model_tracked
+        name: ISS · 3D model, tracked
+        query: { tags: "", sats: ISS (ZARYA), track: ISS (ZARYA), elements: "Point,Label,Orbit,3D model" }
+      - id: sky_view
+        name: Sky view · Lauterbrunnen
+        query: { scene: Sky, gs: "46.5935,7.9091,Lauterbrunnen", terrain: ReEarth }
+      - id: sky_active
+        name: Sky view · All active
+        query: { scene: Sky, gs: "46.5935,7.9091,Lauterbrunnen", terrain: ReEarth, tags: Active }
 
 # Static per-satellite facts, matched by NORAD_CAT_ID alone; `name` is documentation
 # only. Absent satellites get the defaults in src/config/satelliteMetadata.ts.
