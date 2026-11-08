@@ -89,8 +89,8 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   view back. Parameters the app does not honour (`surface`, `msaa`…) are kept as
   they came and written into every link it makes. Past a component's budget it
   switches off once, on the crossing, as on the web (ADR 0001,
-  `ComponentBudgets`); labels past theirs are not drawn even when switched back
-  on, as their atlas would outgrow a texture. Sharing is the Bookmarks sheet's,
+  `ComponentBudgets`); switched back on, labels draw at any count, a quad per
+  glyph from one glyph atlas (`LabelText`). Sharing is the Bookmarks sheet's,
   which hands the system's share sheet the link itself, so that it shows the
   site's own preview. The top-right corner is the web app's `#toolbarRight`,
   with the same buttons and labels, and Hide UI is the Graphics panel's first
@@ -213,9 +213,13 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
 
 ## The Graphics panel
 
-- The Graphics panel's "FPS" is the web app's FPS switch, kept in links as
-  `fps=true` as the web keeps it (`PerformanceOverlay.swift`, `FrameStats`).
-  Read it on a device: the simulator runs on the Mac's CPU and GPU. For where
+- The Graphics panel's "FPS" is the web app's performance panel, kept in links
+  as `fps=true`, or `fps=graph` with the last five seconds' graph of each frame's
+  work against the frame budget a tap opens (`PerformanceOverlay.swift`, `FrameMeter` in `FrameStats.swift`). It
+  shows fps, CPU and GPU ms, load, memory and satellites, defined as the web's
+  (ADR 0016), measured only while something asks (`measureFrames(_:for:)`), and
+  never changes pacing: paced, it says so, and the load is the figure. Read it
+  on a device: the simulator runs on the Mac's CPU and GPU. For where
   the time goes, profile a Release build with Instruments' Time Profiler
   (`xcrun xctrace record --template "Time Profiler" --attach <pid>`). Pointing
   `SATVIS_API` at `https://satvis.space`, without the slash, measures the real
@@ -249,19 +253,33 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   one chosen, not a steady divisor below it: at 45 fps the eye trails a
   satellite 12.6 ms on average, at 30 16.7.
 - The Graphics panel's "Benchmark" is the web app's `bench=true`, kept in links
-  the same way (`Benchmark.swift`, `BenchmarkPanel.swift`,
-  `BenchmarkReport.swift`): each scene's link opened in turn, waited for until
-  everything active is drawn (`SatelliteLayer.draws`), then settled and recorded
-  (`FrameRecording`). `process_cpu_pct` is every thread's, SwiftUI's included,
+  the same way (`Benchmark.swift`, `Benchmark/BenchmarkPanel.swift`,
+  `BenchmarkReport.swift`, ADR 0016): the route's benchmark scenes, served with
+  its preset in the group index (`GroupIndex.benchmarkScenes(preset:)`), each
+  scene's link opened in turn, waited for until everything active is drawn
+  (`SatelliteLayer.draws`), then settled and recorded (`FrameRecording`). Only an
+  unpaced scene draws every frame (`drawsEveryFrame`). The report is the web's,
+  version 8, its metrics held to the web's by a parity fixture; this app's own
+  figures go as `x_` ones. `cpu_total_pct` is every thread's, SwiftUI's included,
   which the sky view's instruments spend more of than its renderer. `memory_mb`
-  and `gpu_memory_mb` carry what earlier scenes left cached. A frame's GPU span
+  and `x_gpu_memory_mb` carry what earlier scenes left cached. A frame's GPU span
   includes other work the GPU does meanwhile, such as SwiftUI drawing the sky
-  view's instruments. Bump `Benchmark.version` when the scenes or the metrics
-  change. `SATVIS_BENCHMARK` in the launch environment runs it at once, sends
-  the results itself and prints them as JSON, for a device driven from the Mac;
-  `SATVIS_BENCHMARK=print` only prints them, and `SATVIS_BENCHMARK_SCENES`
-  (scene ids by commas) runs only those:
+  view's instruments. Bump `BenchmarkReport.version`, on both apps, when the
+  metrics change; the scenes change in the worker config. A `bench=run` link
+  runs it at once and prints the report, `benchscenes` naming the scenes, and
+  reads as `bench=true` from then on. `SATVIS_BENCHMARK` in the launch
+  environment does the same and sends the results itself, for a device driven
+  from the Mac; `SATVIS_BENCHMARK=print` only prints them, and
+  `SATVIS_BENCHMARK_SCENES` (scene ids by commas) runs only those:
   `xcrun devicectl device process launch --console --device <name> --environment-variables '{"SATVIS_BENCHMARK":"1"}' org.frcy.app.satvis`.
+- The panel's Sweep tab is the web app's sweep (`BenchmarkSweep.swift`): each
+  step shows the first N of the whole catalog by name through
+  `Session.showSweep`, with its components past every budget, and is read by the
+  web's tables (`SweepPlan`, `SweepReport`, held to it by a parity fixture). The
+  clock, the passes and the view come back at the end, and revalidation waits
+  while a run goes. A step with ground station links adds the benchmark's
+  station, which they need to draw. `SATVIS_SWEEP=quick|run|cumulative|clock`
+  runs one at launch and prints its JSON, as `SATVIS_BENCHMARK` does for scenes.
 
 ## Element sets, stations and passes
 

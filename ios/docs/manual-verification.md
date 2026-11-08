@@ -218,6 +218,9 @@ view); without the glass while measuring, 10.5.
 
 ## Native app: the pixel ratio, and the panel open while tracking
 
+Superseded in part: the scene with the panel open is gone from the benchmark (ADR 0016),
+as a `track=` link opens no panel. The pixel ratio findings stand.
+
 **Procedure.** Release build on the iPad mini (`iPad14,1`, 60 Hz), the benchmark run with
 `SATVIS_BENCHMARK=print` over the default view, all orbits and the ISS tracked with its
 panel open, launched on `?pixelratio=native`, `1.5` and `1`. Then screenshots of
