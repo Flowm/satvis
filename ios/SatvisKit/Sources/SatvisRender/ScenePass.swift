@@ -228,9 +228,7 @@ struct ScenePass {
             encoder.setDepthStencilState(cameraMode == .sky ? pipelines.depthTest : pipelines.noDepth)
             encoder.setVertexBytes(&occludedByEarth, length: MemoryLayout<Int32>.size, index: 5)
             encoder.setRenderPipelineState(pipelines.labelPipeline)
-            encoder.setVertexBuffer(labels.instances, offset: 0, index: 4)
-            encoder.setFragmentTexture(labels.atlas.texture, index: 0)
-            encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: labels.atlas.instances.count)
+            labels.draw(encoder)
         }
     }
 

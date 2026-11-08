@@ -28,6 +28,8 @@ import Testing
         #expect(vocabulary["unseen"] == UnseenMode.allCases.map(\.rawValue))
         #expect(vocabulary["cameras"] == CameraFrame.allCases.map(\.rawValue))
         #expect(vocabulary["pixelRatios"] == LinkCodec.pixelRatios)
+        #expect(vocabulary["fpsPanels"] == SceneState.FPSPanel.allCases.map(\.rawValue))
+        #expect(vocabulary["benchmarkModes"] == SceneState.BenchmarkMode.allCases.map(\.rawValue))
     }
 
     @Test func readsAndWritesEachKindAsTheWebAppDoes() throws {
@@ -43,6 +45,8 @@ import Testing
                 switch kind {
                 case "plainString": #expect(FieldKind<String>.plain.parse(raw) == want as? String, "\(label)")
                 case "overpass": #expect(FieldKind<String>.oneOf(LinkCodec.overpassModes).parse(raw) == want as? String, "\(label)")
+                case "fpsPanel": #expect(FieldKind<SceneState.FPSPanel>.enumeration.parse(raw)?.rawValue == want as? String, "\(label)")
+                case "benchmarkMode": #expect(FieldKind<SceneState.BenchmarkMode>.enumeration.parse(raw)?.rawValue == want as? String, "\(label)")
                 case "stringList": #expect(FieldKind<[String]>.list.parse(raw) == want as? [String], "\(label)")
                 case "tildeEscapedStringList": #expect(FieldKind<[String]>.tildeEscapedList.parse(raw) == want as? [String], "\(label)")
                 case "components": #expect(FieldKind<[String]>.closedList(LinkCodec.components).parse(raw) == want as? [String], "\(label)")
@@ -66,6 +70,9 @@ import Testing
                 switch kind {
                 case "plainString": #expect(FieldKind<String>.plain.format(input as! String) == want, "\(label)")
                 case "overpass": #expect(FieldKind<String>.oneOf(LinkCodec.overpassModes).format(input as! String) == want, "\(label)")
+                case "fpsPanel": #expect(SceneState.FPSPanel(rawValue: input as! String).flatMap(FieldKind<SceneState.FPSPanel>.enumeration.format) == want, "\(label)")
+                case "benchmarkMode":
+                    #expect(SceneState.BenchmarkMode(rawValue: input as! String).flatMap(FieldKind<SceneState.BenchmarkMode>.enumeration.format) == want, "\(label)")
                 case "stringList": #expect(FieldKind<[String]>.list.format(input as! [String]) == want, "\(label)")
                 case "tildeEscapedStringList": #expect(FieldKind<[String]>.tildeEscapedList.format(input as! [String]) == want, "\(label)")
                 case "components": #expect(FieldKind<[String]>.closedList(LinkCodec.components).format(input as! [String]) == want, "\(label)")

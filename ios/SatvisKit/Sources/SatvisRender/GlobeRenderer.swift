@@ -76,6 +76,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             if !components.contains(.model) {
                 placer.reset()
             }
+            // Next turn, once a set handed over with these components is installed:
+            // labelling the set going out, all 16,893 active, took a core for a whole scene.
+            Task { labelIfShown() }
         }
     }
     /// What the free camera holds still in. Tracking keeps the satellite's own
@@ -125,6 +128,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var stars: MTLTexture?
     private var hdr: MTLTexture?
     private var depth: MTLTexture?
+    /// Setting the names of satellites prepared unlabelled (`labelIfShown`).
+    private var isLabelling = false
     let points = SatellitePoints()
     let models: SatelliteModels
     private var placer = ModelPlacer()
@@ -153,15 +158,32 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         set { loop.faults.onFault = newValue }
     }
 
-    /// Whether frames are measured, for the performance overlay; nothing is
-    /// timed while it is off.
-    public var measuresFrames = false {
-        didSet {
-            if measuresFrames != oldValue {
-                meter.reset()
-            }
+    /// Who measures the frames: the performance panel, the benchmark. Nothing is
+    /// timed while no one does, and measuring never changes how frames are paced.
+    private var measurers: Set<String> = []
+
+    /// Whether frames are measured.
+    public var measuresFrames: Bool { !measurers.isEmpty }
+
+    /// Measures frames for `user`, or stops once its last user does.
+    public func measureFrames(_ on: Bool, for user: String) {
+        let was = measuresFrames
+        if on {
+            measurers.insert(user)
+        } else {
+            measurers.remove(user)
+        }
+        if measuresFrames != was {
+            meter.reset()
         }
     }
+
+    /// Draws every frame, for a benchmark step measured unpaced; otherwise frames
+    /// are paced as anywhere else in the app.
+    public var drawsEveryFrame = false
+
+    /// Whether the last frame was paced: drawn only once something could have moved.
+    public private(set) var isPaced = false
 
     /// The last frame of the other projection, fading out over the frames since
     /// the change.
@@ -170,23 +192,38 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// counting up alone.
     private var contentRevision: Int { surface.revision + models.revision + overlay.revision }
     /// The frames' averages over the last half second, while measured.
-    public var frameStats: FrameStats? { measuresFrames ? meter.stats : nil }
+    public var frameStats: FrameStats? {
+        guard measuresFrames, var stats = meter.stats else {
+            return nil
+        }
+        stats.paced = isPaced
+        stats.idle = isIdle(framesPerSecond: stats.framesPerSecond)
+        return stats
+    }
 
-    /// Records every frame until `stopRecordingFrames`, measuring meanwhile. A
-    /// measured frame is never skipped, unless `idle`.
-    public func startRecordingFrames(idle: Bool = false) {
-        measuresFrames = true
-        recordsIdle = idle
+    /// Paced at under half the display's rate: dragging the globe, paced still, draws every frame.
+    private func isIdle(framesPerSecond: Double?) -> Bool {
+        isPaced && (framesPerSecond ?? 0) < Double(Self.displayMaximumFramesPerSecond) / 2
+    }
+
+    /// The frames drawn over the last `recentWindow`, oldest first, while measured.
+    public var recentFrames: [MeteredFrame] { measuresFrames ? meter.recentFrames : [] }
+
+    /// How far back `recentFrames` reaches, in seconds.
+    public static let recentWindow = FrameMeter.graphWindow
+
+    /// Records every frame until `stopRecordingFrames`, measuring meanwhile.
+    public func startRecordingFrames() {
+        measureFrames(true, for: "recording")
         meter.startRecording(at: ProcessInfo.processInfo.systemUptime)
     }
 
     public func stopRecordingFrames() -> FrameRecording {
-        recordsIdle = false
-        return meter.stopRecording(at: ProcessInfo.processInfo.systemUptime)
+        defer { measureFrames(false, for: "recording") }
+        var recording = meter.stopRecording(at: ProcessInfo.processInfo.systemUptime)
+        recording.idle = isIdle(framesPerSecond: recording.framesPerSecond)
+        return recording
     }
-
-    /// Whether the frames recorded are skipped as they are unmeasured.
-    private var recordsIdle = false
 
     /// Lets go of what is kept only for later: the surface's tiles and terrain
     /// out of view, and its decoded sources. For iOS's memory warning, and as the
@@ -201,6 +238,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// Satellites handed to the renderer, drawn or not.
     public var satelliteCount: Int { points.count }
+    /// How many of those draw a sensor cone, and how many a 3D model.
+    public var conesAndModels: (cones: Int, models: Int) { (points.prepared?.cones?.count ?? 0, points.prepared?.modelled.count ?? 0) }
 
     /// The size the last frame was drawn at, in pixels.
     public var drawableSize: CGSize? { lastFrame.map { CGSize(width: $0.size.x, height: $0.size.y) } }
@@ -269,12 +308,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     /// Packs satellites for drawing, off the main thread. Hand the result to
-    /// `setSatellites`.
-    public nonisolated func prepare(_ satellites: [PointSatellite]) async -> PreparedSatellites {
+    /// `setSatellites`. Unlabelled, it sets no names: tens of milliseconds for 16,000.
+    public nonisolated func prepare(_ satellites: [PointSatellite], labelled: Bool = true) async -> PreparedSatellites {
         let device = device
         let scale = screenScale
         return await Task.detached(priority: .userInitiated) {
-            PreparedSatellites(satellites, device: device, labelScale: scale)
+            PreparedSatellites(satellites, device: device, labelScale: labelled ? scale : nil)
         }.value
     }
 
@@ -282,8 +321,29 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         placer.keep(prepared)
         points.install(prepared)
         keepModelsInUse()
+        labelIfShown()
         overlay.isStale = true
         pacer.needsDraw = true
+    }
+
+    /// Sets the names of satellites prepared unlabelled, once labels are shown.
+    private func labelIfShown() {
+        guard components.contains(.label), let prepared = points.prepared, prepared.labels == nil, !prepared.satellites.isEmpty, !isLabelling else {
+            return
+        }
+        isLabelling = true
+        let generation = points.generation
+        let (device, scale) = (device, screenScale)
+        Task {
+            let labelled = await Task.detached(priority: .userInitiated) { prepared.labelled(scale: scale, device: device) }.value
+            isLabelling = false
+            if points.generation == generation {
+                points.installLabels(labelled)
+                pacer.needsDraw = true
+            } else {
+                labelIfShown()
+            }
+        }
     }
 
     /// Keeps only the models of the satellites drawn with theirs.
@@ -446,7 +506,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         let judgement = isSkySettled && unseen == .hide ? skyCamera.map { SkyJudgement(camera: $0, at: lastFrame.time, unseen: unseen) } : nil
         return lastFrame.entity(
             at: point, viewSize: viewSize, stations: stations, satellites: points.installed, components: components,
-            labels: points.prepared?.labels?.atlas.instances,
+            labels: points.prepared?.labels?.sizes,
             hidden: { position in judgement.map { $0.opacity(of: position, from: lastFrame.eye) == 0 } ?? false })
     }
 
@@ -557,7 +617,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             let (start, end) = (buffer.gpuStartTime, buffer.gpuEndTime)
             presentation.done(id, start: start, end: end)
             if measuring {
-                meter.gpu(start: start, end: end)
+                meter.gpu(start: start, end: end, frame: id)
             }
         }
         commands.present(target.drawable)
@@ -566,15 +626,16 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             let ended = ProcessInfo.processInfo.systemUptime
             meter.frame(
                 cpuSeconds: ended - started - target.waitedForBuffer - target.waitedForDrawable, bufferWaitSeconds: target.waitedForBuffer,
-                drawableWaitSeconds: target.waitedForDrawable, at: ended, satellites: points.count)
+                drawableWaitSeconds: target.waitedForDrawable, at: ended, satellites: points.count, paced: isPaced,
+                displayInterval: 1 / Double(Self.displayMaximumFramesPerSecond), id: id)
         }
     }
 
-    /// Whether the frame has to be drawn (`FramePacer`): every frame is, while
-    /// measured, in the sky view and while tracking.
+    /// Whether the frame has to be drawn (`FramePacer`): every frame is in the sky
+    /// view, while tracking, and for a benchmark step measured unpaced.
     private func mustDraw(pose: CameraPose, time: Double, size: SIMD2<Double>) -> Bool {
-        let paced =
-            (!measuresFrames || recordsIdle) && !snapshots.isWaiting && cameraMode == .orbit && !fade.isFading && rig.drawnProjection == rig.shownProjection
+        let paced = !drawsEveryFrame && !snapshots.isWaiting && cameraMode == .orbit && !fade.isFading && rig.drawnProjection == rig.shownProjection
+        isPaced = paced
         return pacer.mustDraw(
             pose: pose, time: time, paced: paced, settled: surface.isSettled, content: contentRevision,
             pixelRate: { FramePacer.pixelRate(points, components: components, links: links, pose: pose, time: time, size: size) },

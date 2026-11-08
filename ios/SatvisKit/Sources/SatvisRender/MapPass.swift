@@ -55,7 +55,7 @@ struct MapPass {
     /// over everything, as on the globe. `stepsLines` lets a line small on the map
     /// step over samples.
     func drawSatellites(
-        _ encoder: MTLRenderCommandEncoder, count: Int, components: SatelliteComponents, labels: (atlas: LabelAtlas, instances: MTLBuffer)?, stepsLines: Bool,
+        _ encoder: MTLRenderCommandEncoder, count: Int, components: SatelliteComponents, labels: LabelText?, stepsLines: Bool,
         depthTest: MTLDepthStencilState, noDepth: MTLDepthStencilState
     ) {
         encoder.setDepthStencilState(depthTest)
@@ -76,9 +76,7 @@ struct MapPass {
         if components.contains(.label), let labels {
             encoder.setDepthStencilState(noDepth)
             encoder.setRenderPipelineState(self.labels)
-            encoder.setVertexBuffer(labels.instances, offset: 0, index: 4)
-            encoder.setFragmentTexture(labels.atlas.texture, index: 0)
-            encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: labels.atlas.instances.count)
+            labels.draw(encoder)
         }
     }
 }

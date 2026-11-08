@@ -1,19 +1,35 @@
 // Satellite names beside their points, as the web app's LabelGraphics draws them:
 // left-aligned 10 px to the right, or 4 px past the edge of a 3D model drawn
-// wider, shown from 2 km away, fading out between 60,000 and 80,000 km. The text itself is drawn once per name by Core Text into
-// an atlas (LabelAtlas.swift).
+// wider, shown from 2 km away, fading out between 60,000 and 80,000 km. A quad
+// per glyph, from an atlas Core Text draws each glyph into once (LabelAtlas.swift),
+// twice: each label's outlines, then its fills.
 //
 // Over the globe, as Cesium draws them while it does not depth-test against the
 // terrain: a label goes whole with its satellite behind the Earth, and is not cut
 // off where it overhangs the globe. The sky view tests depth instead, so a
 // mountain hides what is behind it.
 
-// Mirrors LabelInstance in LabelAtlas.swift.
-struct LabelInstance {
+// Mirrors LabelGlyph in LabelAtlas.swift.
+struct LabelGlyph {
     float4 uvRect;
-    float2 size;
+    float4 rect;
     uint satellite;
+    uint fill;
 };
+
+/// Where a corner of a glyph's quad lies from its satellite, in points, as
+/// everything placed on the screen is: vertex 0 at its top left, 3 at its bottom right.
+inline float2 labelOffset(LabelGlyph glyph, uint vid, PointFrame satellite) {
+    float2 corner = float2(vid & 1, vid >> 1);
+    float gap = max(10.0, satellite.modelPoints / 2.0 + 4.0);
+    return float2(gap + glyph.rect.x + corner.x * glyph.rect.z, glyph.rect.y + (1.0 - corner.y) * glyph.rect.w);
+}
+
+/// The same corner in the atlas: its outline, or its fill, half the atlas lower.
+inline float2 labelUV(LabelGlyph glyph, uint vid) {
+    float2 corner = float2(vid & 1, vid >> 1);
+    return mix(glyph.uvRect.xy, glyph.uvRect.zw, corner) + float2(0.0, glyph.fill != 0 ? 0.5 : 0.0);
+}
 
 struct LabelOut {
     float4 position [[position]];
@@ -39,9 +55,9 @@ inline bool isBehindEarth(float3 eye, float3 toPoint) {
 
 vertex LabelOut labelVertex(uint vid [[vertex_id]], uint iid [[instance_id]], const device packed_float3 *samples [[buffer(0)]],
                             constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
-                            const device PointFrame *frames [[buffer(3)]], const device LabelInstance *labels [[buffer(4)]],
+                            const device PointFrame *frames [[buffer(3)]], const device LabelGlyph *glyphs [[buffer(4)]],
                             constant int &occludedByEarth [[buffer(5)]]) {
-    LabelInstance label = labels[iid];
+    LabelGlyph label = glyphs[iid];
     LabelOut out;
     float3 position, relative;
     out.position = float4(0.0, 0.0, -2.0, 1.0);
@@ -58,13 +74,9 @@ vertex LabelOut labelVertex(uint vid [[vertex_id]], uint iid [[instance_id]], co
     if (clip.w <= 0.0) {
         return out;
     }
-    float2 corner = float2(vid & 1, vid >> 1);
-    float gap = max(10.0, frames[label.satellite].modelPoints / 2.0 + 4.0);
-    // The label's size is in points, as everything placed on the screen is.
-    float2 offset = float2(gap + corner.x * label.size.x, (0.5 - corner.y) * label.size.y) * frame.pixelScale;
-    clip.xy += offset * 2.0 / frame.viewportSize * clip.w;
+    clip.xy += labelOffset(label, vid, frames[label.satellite]) * frame.pixelScale * 2.0 / frame.viewportSize * clip.w;
     out.position = clip;
-    out.uv = mix(label.uvRect.xy, label.uvRect.zw, corner);
+    out.uv = labelUV(label, vid);
     out.alpha = (1.0 - clamp((distance - 6e7) / 2e7, 0.0, 1.0)) * skyOpacity(position, relative, frame);
     if (out.alpha <= 0.0) {
         out.position = float4(0.0, 0.0, -2.0, 1.0);

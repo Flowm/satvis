@@ -66,6 +66,19 @@ import Testing
         #expect(SceneState.read(LinkQuery(parsing: "bench=true"), presetDefaults: [:]).scene.foreign.showsBenchmark)
     }
 
+    // ADR 0016: the graph and a run asked for by a link, each set back in place.
+    @Test func readsAndWritesTheGraphAndABenchmarkRun() {
+        var scene = SceneState.read(LinkQuery(parsing: "fps=graph&bench=run&benchscenes=a,b&framems=16"), presetDefaults: [:]).scene
+        #expect(scene.foreign.fpsPanel == .graph && scene.foreign.showsPerformance)
+        #expect(scene.foreign.benchmarkMode == .run && scene.foreign.benchmarkScenes == ["a", "b"])
+        scene.foreign.showsPerformance = true
+        #expect(scene.foreign.fpsPanel == .graph)
+        scene.foreign.benchmarkMode = .open
+        scene.foreign.benchmarkScenes = []
+        #expect(written(scene) == "fps=graph&bench=true&framems=16")
+        #expect(SceneState.read(LinkQuery(parsing: "fps=Graph"), presetDefaults: [:]).scene.foreign.fpsPanel == .off)
+    }
+
     @Test func namesTheComponentsOnlyWhereTheLinkHasElements() {
         let named = SceneState.read(LinkQuery(parsing: "elements=Point,Label"), presetDefaults: [:])
         #expect(named.scene.components == [.point, .label])

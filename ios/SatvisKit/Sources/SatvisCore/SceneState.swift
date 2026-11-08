@@ -75,8 +75,8 @@ public struct SceneState: Sendable, Equatable {
 
     /// What a link carries that the app does not show (ADR 0001's foreign
     /// parameters), written back as it came into every link the app makes. The
-    /// web app's FPS switch and benchmark panel are kept among them, where the web
-    /// keeps them, as `fps=true` and `bench=true`.
+    /// performance and benchmark panels are kept among them, read with the web
+    /// app's kinds (`fps`, `bench`, `benchscenes`), which the parity fixture holds.
     public struct Foreign: Sendable, Hashable {
         /// In the order the link carried them.
         public var query: LinkQuery
@@ -86,30 +86,70 @@ public struct SceneState: Sendable, Equatable {
             self.query = query
         }
 
-        /// The web app's FPS switch, shown as the performance overlay.
+        /// The performance panel, `fps`: hidden, compact, or its frame-time graph.
+        public var fpsPanel: FPSPanel {
+            get { value("fps").flatMap(FieldKind<FPSPanel>.enumeration.parse) ?? .off }
+            set { setValue("fps", newValue == .off ? nil : newValue.rawValue) }
+        }
+
+        /// The benchmark panel, `bench`, and whether a link asks for a run.
+        public var benchmarkMode: BenchmarkMode {
+            get { value("bench").flatMap(FieldKind<BenchmarkMode>.enumeration.parse) ?? .off }
+            set { setValue("bench", newValue == .off ? nil : newValue.rawValue) }
+        }
+
+        /// The scene ids a `bench=run` link measures, without the drift repeat;
+        /// empty runs them all.
+        public var benchmarkScenes: [String] {
+            get { value("benchscenes").flatMap(FieldKind<[String]>.list.parse) ?? [] }
+            set { setValue("benchscenes", newValue.isEmpty ? nil : FieldKind<[String]>.list.format(newValue)) }
+        }
+
+        /// Whether the performance panel shows, compact or as its graph.
         public var showsPerformance: Bool {
-            get { flag("fps") }
-            set { setFlag("fps", newValue) }
+            get { fpsPanel != .off }
+            set { fpsPanel = newValue ? (fpsPanel == .off ? .compact : fpsPanel) : .off }
         }
 
-        /// The benchmark panel.
+        /// Whether the benchmark panel shows.
         public var showsBenchmark: Bool {
-            get { flag("bench") }
-            set { setFlag("bench", newValue) }
+            get { benchmarkMode != .off }
+            set { benchmarkMode = newValue ? (benchmarkMode == .off ? .open : benchmarkMode) : .off }
         }
 
-        /// On where its last value is `true`.
-        private func flag(_ key: String) -> Bool {
-            query.items.contains { $0.key == key && $0.values.last == "true" }
+        /// Its last value: the one that decides, as the web app's store reads it.
+        private func value(_ key: String) -> String? {
+            query.items.last { $0.key == key }?.values.last ?? nil
         }
 
-        /// Switched on at the end, as a link that never named it gets it.
-        private mutating func setFlag(_ key: String, _ on: Bool) {
+        /// Set at the end, as a link that never named it gets it; nil removes it.
+        private mutating func setValue(_ key: String, _ value: String?) {
+            if let index = query.items.firstIndex(where: { $0.key == key }), let value {
+                query.items.removeAll { $0.key == key }
+                query.items.insert(LinkQuery.Item(key: key, values: [value]), at: min(index, query.items.count))
+                return
+            }
             query.items.removeAll { $0.key == key }
-            if on {
-                query.items.append(LinkQuery.Item(key: key, values: ["true"]))
+            if let value {
+                query.items.append(LinkQuery.Item(key: key, values: [value]))
             }
         }
+    }
+
+    /// The performance panel's states, as `fps` carries them.
+    public enum FPSPanel: String, CaseIterable, Sendable {
+        case off = "false"
+        case compact = "true"
+        case graph
+    }
+
+    /// The benchmark panel's states, as `bench` carries them (ADR 0016): `run`
+    /// starts a run once the scene has loaded and then reads `open`, so the link
+    /// does not spread.
+    public enum BenchmarkMode: String, CaseIterable, Sendable {
+        case off = "false"
+        case open = "true"
+        case run
     }
 
     /// The scene a link shows over its preset's `presetDefaults`, and the

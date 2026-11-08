@@ -146,6 +146,7 @@
       "framerate",
       "fps",
       "bench",
+      "benchscenes",
       "bg",
       "time"
     ]

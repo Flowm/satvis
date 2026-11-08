@@ -20,7 +20,7 @@ public protocol Globe: AnyObject {
     func setTerrain(_ enabled: Bool)
     func setStations(_ stations: [StationMarker])
     func setLinks(_ links: [StationLink])
-    func prepare(_ satellites: [PointSatellite]) async -> Prepared
+    func prepare(_ satellites: [PointSatellite], labelled: Bool) async -> Prepared
     func setSatellites(_ prepared: Prepared)
     func setStarMap(faces: [Data])
     func enterSky(_ camera: SkyCamera, animated: Bool)
@@ -199,7 +199,7 @@ public final class GlobeBinding {
         }
         satellitesGeneration += 1
         let mine = satellitesGeneration
-        let prepared = await globe.prepare(satellites.list)
+        let prepared = await globe.prepare(satellites.list, labelled: (satellites.components ?? components).contains(.label))
         if mine == satellitesGeneration {
             if let components = satellites.components {
                 self.components = components

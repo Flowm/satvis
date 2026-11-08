@@ -27,6 +27,27 @@ const inputPath = path.join(fixtureDir, "parity-input.json");
 const outputPath = path.join(fixtureDir, "parity.json");
 const tablesPath = path.join(repoRoot, "ios/SatvisKit/Sources/SatvisCore/Shared/web-tables.json");
 const trackingFramesPath = path.join(repoRoot, "ios/SatvisKit/Tests/SatvisRenderTests/Fixtures/tracking-frames.json");
+const frameSummariesPath = path.join(repoRoot, "ios/SatvisKit/Tests/SatvisRenderTests/Fixtures/frame-summaries.json");
+const sweepPath = path.join(repoRoot, "ios/SatvisKit/Tests/SatvisRenderTests/Fixtures/sweep.json");
+
+/** Containers this long or shorter, and those holding only plain values, are written on one line. */
+const INLINE_JSON_LENGTH = 120;
+
+/** JSON indented by two spaces, with short and flat containers kept on one line, so a recording does not take a line a frame nor a table row a line a column. */
+function compactJson(value, indent = "") {
+  const inline = JSON.stringify(value);
+  if (value === null || typeof value !== "object" || inline.length <= INLINE_JSON_LENGTH || Object.values(value).every((item) => item === null || typeof item !== "object")) {
+    return inline;
+  }
+  const inner = `${indent}  `;
+  const items = Array.isArray(value)
+    ? value.map((item) => `${inner}${compactJson(item, inner)}`)
+    : Object.entries(value)
+        .filter(([, item]) => item !== undefined)
+        .map(([key, item]) => `${inner}${JSON.stringify(key)}: ${compactJson(item, inner)}`);
+  const [open, close] = Array.isArray(value) ? ["[", "]"] : ["{", "}"];
+  return items.length === 0 ? `${open}${close}` : `${open}\n${items.join(",\n")}\n${indent}${close}`;
+}
 
 const MS_PER_MINUTE = 60_000;
 // Around each element set's epoch: back a day, the epoch, half an orbit or so,
@@ -320,7 +341,7 @@ try {
   // vue-router's own parser and serializer, as the web app's does.
   const codec = await runner.import("/src/modules/util/urlCodec.ts");
   const { parseQuery, stringifyQuery } = await runner.import("vue-router");
-  const { PIXEL_RATIOS } = await runner.import("/src/config/rendering.ts");
+  const { PIXEL_RATIOS, FPS_PANELS, BENCHMARK_MODES } = await runner.import("/src/config/rendering.ts");
   const { UNSEEN_MODES } = await runner.import("/src/modules/util/visibility.ts");
   const { CAMERA_MODES } = await runner.import("/src/config/viewModes.ts");
   const { STAR_MAPS } = await runner.import("/src/config/starMaps.ts");
@@ -335,6 +356,8 @@ try {
     unseen: [...UNSEEN_MODES],
     cameras: [...CAMERA_MODES],
     pixelRatios: [...PIXEL_RATIOS],
+    fpsPanels: [...FPS_PANELS],
+    benchmarkModes: [...BENCHMARK_MODES],
   };
   const kinds = {
     plainString: codec.plainString(),
@@ -345,6 +368,9 @@ try {
     groundStationList: codec.groundStationList(),
     timestamp: codec.timestamp(),
     overpass: codec.enumString(vocabulary.overpass),
+    // The native app keeps these among the foreign parameters, read with the web's kinds.
+    fpsPanel: codec.enumString(vocabulary.fpsPanels),
+    benchmarkMode: codec.enumString(vocabulary.benchmarkModes),
   };
   const PARSE_CASES = {
     plainString: ["", "ISS (ZARYA)", "a,b~c"],
@@ -402,6 +428,8 @@ try {
       "",
     ],
     overpass: ["elevation", "swath", "Swath", ""],
+    fpsPanel: ["true", "graph", "false", "Graph", ""],
+    benchmarkMode: ["true", "run", "false", "RUN", ""],
   };
   const FORMAT_CASES = {
     plainString: ["", "ISS (ZARYA)"],
@@ -424,6 +452,8 @@ try {
     ],
     timestamp: [null, "2026-10-04T20:46:59.999Z", "2026-10-04T20:46Z"],
     overpass: ["elevation", "swath", "bogus"],
+    fpsPanel: ["graph", "true"],
+    benchmarkMode: ["run", "true"],
   };
   // `value` is absent where the kind refuses the input.
   const answer = (entry, attempt) => (attempt.ok ? Object.assign(entry, { value: attempt.value }) : entry);
@@ -658,6 +688,268 @@ try {
     ),
   );
 
+  // The benchmark's comparable core (ADR 0016): recordings in, the figures both apps report
+  // out. Even and uneven paces, paced, no GPU, overlapping GPU spans, either side over budget,
+  // and the smallest counts, where a percentile's rank shows.
+  const { summarize } = await runner.import("/src/modules/benchmark/frameSummary.ts");
+  const { sceneMetrics } = await runner.import("/src/modules/benchmark/benchmarkReport.ts");
+  const HZ60 = 1000 / 60;
+  const repeat = (count, value) => Array.from({ length: count }, () => value);
+  const FRAME_RECORDINGS = [
+    {
+      name: "even 60 Hz",
+      refreshMs: HZ60,
+      recording: { intervals: repeat(100, HZ60), cpu: repeat(101, 4.2), gpu: repeat(101, 9.1), skippedCpu: [], durationMs: 1683.3, gpuActiveMs: 919.1, totalCpuMs: 1130.2 },
+    },
+    {
+      name: "uneven",
+      refreshMs: HZ60,
+      recording: { intervals: [...repeat(90, 16.7), ...repeat(10, 50.1)], cpu: [1, 3], gpu: [8, 10], skippedCpu: [], durationMs: 2004, gpuActiveMs: 18 },
+    },
+    { name: "two refreshes at 32.5 ms", refreshMs: HZ60, recording: { intervals: [16.7, 32.5], cpu: [2, 2, 2], gpu: [], skippedCpu: [], durationMs: 49.2 } },
+    {
+      name: "30 fps chosen",
+      refreshMs: 1000 / 30,
+      recording: { intervals: [33.3, 33.4, 50.1, 66.7], cpu: [5, 5, 5, 5, 5], gpu: [12, 12, 12, 12, 12], skippedCpu: [], durationMs: 183.5, gpuActiveMs: 60 },
+    },
+    {
+      name: "paced, idle",
+      refreshMs: HZ60,
+      recording: { intervals: [250, 980, 1000], cpu: [3, 3, 3, 3], gpu: [7, 7, 7, 7], skippedCpu: repeat(120, 0.05), durationMs: 2300, gpuActiveMs: 28, totalCpuMs: 41.5 },
+    },
+    {
+      name: "idle, the GPU clocked down",
+      refreshMs: HZ60,
+      recording: { intervals: [250, 300], cpu: [3, 3, 3], gpu: [28, 29, 27], skippedCpu: repeat(30, 0.05), durationMs: 600, gpuActiveMs: 84, idle: true },
+    },
+    { name: "CPU-bound, no GPU timer", refreshMs: HZ60, recording: { intervals: [20, 22, 21], cpu: [18, 19, 20, 19], gpu: [], skippedCpu: [], durationMs: 63 } },
+    {
+      name: "GPU busier",
+      refreshMs: HZ60,
+      recording: { intervals: [100, 100], cpu: [30, 30, 20], gpu: [5, 5, 5], skippedCpu: [10, 10], durationMs: 500, gpuActiveMs: 15 },
+    },
+    { name: "one frame", refreshMs: HZ60, recording: { intervals: [], cpu: [4], gpu: [9], skippedCpu: [], durationMs: 16, gpuActiveMs: 9 } },
+    { name: "two frames", refreshMs: HZ60, recording: { intervals: [16.6], cpu: [4, 5], gpu: [], skippedCpu: [], durationMs: 33 } },
+    {
+      name: "GPU over budget on half",
+      refreshMs: HZ60,
+      recording: { intervals: [33.3, 16.7, 33.3], cpu: [5, 5, 5, 5], gpu: [20, 20, 10, 10], skippedCpu: [], durationMs: 100, gpuActiveMs: 60 },
+    },
+    { name: "nothing", refreshMs: HZ60, recording: { intervals: [], cpu: [], gpu: [], skippedCpu: [] } },
+    // One frame in 400 over budget is 0.25 %, a tie `toFixed` rounds up and `%f` down.
+    {
+      name: "one in 400 over",
+      refreshMs: HZ60,
+      recording: { intervals: repeat(399, HZ60), cpu: [...repeat(399, 2), 20], gpu: [], skippedCpu: [], durationMs: 6650 },
+    },
+  ];
+  // The report's rounded figures too, numbers only, after a load of 1.25 s, itself a tie.
+  const reported = (entry, summary) =>
+    Object.fromEntries(
+      Object.entries(
+        sceneMetrics({ id: "x", satellites: 74, loadSeconds: 1.25, timedOut: false, idle: entry.recording.idle ?? false, summary, memoryMb: null, memorySource: null, extras: {} }),
+      ).filter(([, value]) => value === null || typeof value === "number"),
+    );
+  const frameSummaries = FRAME_RECORDINGS.map((entry) => {
+    const summary = summarize(entry.recording, entry.refreshMs);
+    return Object.assign({}, entry, { summary, metrics: reported(entry, summary) });
+  });
+
+  // A sweep's plans and tables (ADR 0016): both apps plan the same steps and read the same
+  // tables, csv and pasted text from what they measured. Ties on the rounding digit (0.125,
+  // 2.675) pin `toFixed`'s rounding; nulls where an app cannot say.
+  const plan = await runner.import("/src/modules/benchmark/benchmarkPlan.ts");
+  const sweepReport = await runner.import("/src/modules/benchmark/report.ts");
+  const benchmarkStatus = await runner.import("/src/modules/benchmark/benchmarkStatus.ts");
+  // Every phase, both kinds, durations either side of the switch to minutes, and drift's signs.
+  const STATUSES = [
+    { phase: "idle", kind: "scenes", index: 0, total: 10, remainingMs: 120_000 },
+    { phase: "idle", kind: "sweep", index: 0, total: 1, remainingMs: 6_400 },
+    { phase: "idle", kind: "sweep", index: 0, total: 0, remainingMs: 0 },
+    { phase: "loading", kind: "scenes", index: 3, total: 7, remainingMs: 89_499 },
+    { phase: "loading", kind: "sweep", index: 0, total: 42, remainingMs: 89_500 },
+    { phase: "settling", kind: "sweep", index: 5, total: 42, remainingMs: 245_000 },
+    { phase: "measuring", kind: "scenes", index: 6, total: 7, remainingMs: 2_500 },
+    { phase: "done", kind: "scenes", index: 0, total: 7, remainingMs: 0, driftPct: 0.04 },
+    { phase: "done", kind: "sweep", index: 0, total: 7, remainingMs: 0, driftPct: -12.25 },
+    { phase: "done", kind: "sweep", index: 0, total: 7, remainingMs: 0, driftPct: null },
+    { phase: "cancelled", kind: "scenes", index: 0, total: 7, remainingMs: 0, measured: 3 },
+  ];
+  const { DEFAULT_OPTIONS } = await runner.import("/src/modules/benchmark/benchmarkRunner.ts");
+  const PLAN_SPECS = [
+    { satelliteCounts: [1000, 0, 100, 100, -5, 2.5], componentSets: plan.CUMULATIVE_COMPONENT_SETS.slice(0, 3), clockMultipliers: [1, 100, 0, 100] },
+    { satelliteCounts: [0, 50], componentSets: [["Point"]], repeatFirstStep: false },
+    { satelliteCounts: [7], componentSets: [[]] },
+  ];
+  const sweepResult = (fields) =>
+    Object.assign(
+      {
+        clock: 1,
+        repeat: false,
+        componentInstances: {},
+        buildMs: 0,
+        clearMs: 0,
+        frames: 120,
+        fps: 60,
+        frameMs: 16.67,
+        cpuP95Ms: null,
+        gpuMs: null,
+        gpuP95Ms: null,
+        overBudgetPct: 0,
+        loadPct: null,
+        cpuBusyPct: null,
+        cpuTotalPct: null,
+        heapMb: null,
+        heapPeakMb: null,
+        footprintMb: null,
+        footprintTotalMb: null,
+        footprintWorkerMb: null,
+        extras: {},
+      },
+      fields,
+      { components: fields.components, componentsDrawn: fields.componentsDrawn ?? fields.components, visible: fields.visible ?? fields.satelliteCount },
+    );
+  const SWEEP_RUNS = [
+    {
+      name: "web isolated with heap, gpu and a repeat",
+      results: [
+        [0, ["Point"], 0.64, 52.4, 3.1],
+        [100, ["Point"], 0.96, 57.71, 3.3],
+        [500, ["Point"], 1.21, 79.3, 3.6],
+        [1000, ["Point"], 2.675, 106.125, 4.2],
+        [0, ["Point", "Label"], 0.7, 53, 3.2],
+        [100, ["Point", "Label"], 1.8, 60.2, 3.5],
+        [500, ["Point", "Label"], 4.9, 84.6, 4.1],
+        [1000, ["Point", "Label"], 8.125, 112.9, 5.05],
+      ]
+        .map(([satelliteCount, components, cpuMs, heap, gpu]) =>
+          sweepResult({
+            satelliteCount,
+            components,
+            cpuMs,
+            cpuP95Ms: cpuMs * 1.3,
+            heapMb: heap,
+            heapPeakMb: heap + 12.5,
+            gpuMs: gpu,
+            gpuP95Ms: gpu * 1.25,
+            loadPct: gpu * 10,
+            cpuBusyPct: cpuMs * 6,
+            buildMs: satelliteCount * 1.45,
+            clearMs: 3.3,
+            extras: { tick_ms: cpuMs / 2, render_ms: cpuMs / 2, entities: satelliteCount },
+          }),
+        )
+        .concat([
+          sweepResult({
+            satelliteCount: 0,
+            components: ["Point"],
+            repeat: true,
+            cpuMs: 0.71,
+            heapMb: 49,
+            gpuMs: 3,
+            buildMs: 12,
+            extras: { tick_ms: 0.3, render_ms: 0.41, entities: 0 },
+          }),
+        ]),
+    },
+    {
+      name: "native clock sweep, total CPU, absolute memory, no heap",
+      results: [1, 10, 100, 1000].flatMap((clock) =>
+        [0, 500, 5000].map((satelliteCount) =>
+          sweepResult({
+            satelliteCount,
+            components: ["Point", "Orbit"],
+            clock,
+            cpuMs: 0.3 + satelliteCount * 0.0001,
+            cpuP95Ms: 0.5 + satelliteCount * 0.0001,
+            cpuTotalPct: 2 + (satelliteCount / 1000) * Math.log10(clock * 10) * 3.33,
+            gpuMs: 3.4 + satelliteCount * 0.0002,
+            fps: clock === 1000 && satelliteCount === 5000 ? 44.8 : 60,
+            overBudgetPct: clock === 1000 && satelliteCount === 5000 ? 33.9 : 0,
+            cpuBusyPct: 2.5,
+            footprintMb: 150 + satelliteCount * 0.0525,
+            buildMs: 300 + satelliteCount * 0.1,
+            extras: { gpu_memory_mb: 80 + satelliteCount / 100, buffer_wait_ms: null },
+          }),
+        ),
+      ),
+    },
+    {
+      name: "a capped component and a thin row",
+      results: [
+        sweepResult({
+          satelliteCount: 0,
+          components: ["Point", "Label"],
+          componentsDrawn: ["Point"],
+          cpuMs: 1,
+          gpuMs: 49,
+          gpuP95Ms: 52,
+          loadPct: 99,
+          cpuBusyPct: 7.1,
+        }),
+        sweepResult({
+          satelliteCount: 100,
+          components: ["Point", "Label"],
+          componentsDrawn: ["Point"],
+          visible: 101,
+          cpuMs: 1.5,
+          gpuMs: 51,
+          frames: 7,
+        }),
+        sweepResult({ satelliteCount: 100, components: ["Point"], cpuMs: 0.125, gpuMs: 2 }),
+      ],
+    },
+    { name: "nothing measured", results: [] },
+  ];
+  const sweepRunOf = (entry) => ({
+    results: entry.results,
+    startedAtIso: "2026-11-07T12:00:00.000Z",
+    spec: { satelliteCounts: [0, 100], componentSets: [["Point"]] },
+    environment: { app_version: "test" },
+    options: { warmupMs: 2000, sampleMs: 4000 },
+    catalogSize: 16762,
+    cancelled: false,
+  });
+  const sweep = {
+    generatedBy: "scripts/parity/generate.mjs",
+    defaults: {
+      satelliteCounts: plan.DEFAULT_SATELLITE_COUNTS,
+      quickSatelliteCounts: plan.QUICK_SATELLITE_COUNTS,
+      clockMultipliers: plan.DEFAULT_CLOCK_MULTIPLIERS,
+      cumulativeComponentSets: plan.CUMULATIVE_COMPONENT_SETS,
+      isolatedComponentSets: plan.ISOLATED_COMPONENT_SETS,
+      clockComponentSets: plan.CLOCK_COMPONENT_SETS,
+      warmupMs: DEFAULT_OPTIONS.warmupMs,
+      sampleMs: DEFAULT_OPTIONS.sampleMs,
+      minTrustworthyFrames: sweepReport.MIN_TRUSTWORTHY_FRAMES,
+      named: plan.NAMED_SWEEPS,
+      groundStation: plan.SWEEP_GROUND_STATION,
+    },
+    statuses: STATUSES.map((status) => ({ status, line: benchmarkStatus.statusLine(status) })),
+    // Either side of the millisecond, both signs, and what has no first step.
+    drifts: [
+      [0.3, 0.25],
+      [10, 11.5],
+      [12, 10.9],
+      [2, 3],
+      [0, 5],
+      [null, 4],
+    ].map(([first, repeated]) => ({ first, repeated, shown: benchmarkStatus.shownDrift(first, repeated) })),
+    plans: PLAN_SPECS.map((spec) => ({ spec, steps: plan.buildPlan(spec), estimateMs: plan.estimateDurationMs(plan.buildPlan(spec), 6000) })),
+    runs: SWEEP_RUNS.map((entry) => {
+      const run = sweepRunOf(entry);
+      return {
+        name: entry.name,
+        run,
+        // Every table, which the csv and the pasted table repeat in their own form.
+        report: sweepReport.sweepReport(run),
+        thin: sweepReport.thinRows(run).length,
+        table: sweepReport.formatTable(run),
+        csv: sweepReport.toCsv(run),
+      };
+    }),
+  };
+
   const output = {
     generatedBy: "scripts/parity/generate.mjs",
     parsed,
@@ -683,6 +975,8 @@ try {
   };
   fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
   fs.writeFileSync(trackingFramesPath, `${JSON.stringify({ generatedBy: "scripts/parity/generate.mjs", frames: trackingFrames }, null, 2)}\n`);
+  fs.writeFileSync(frameSummariesPath, `${compactJson({ generatedBy: "scripts/parity/generate.mjs", cases: frameSummaries })}\n`);
+  fs.writeFileSync(sweepPath, `${compactJson(sweep)}\n`);
 
   const tables = {
     generatedBy: "scripts/parity/generate.mjs",
