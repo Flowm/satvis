@@ -123,7 +123,10 @@ marked, where it was drawn, against the frame budget: the interval the frame rat
 never shorter than the display's. The report sends it as `app_frame_budget_ms`, beside
 `app_frame_rate` as `30`, `60` or `max` in both apps. The graph keeps frames drawn in the
 last 5 s of the clock, not of the last drawn frame, so a pause shows as a gap.
-Below it are the CPU and GPU p95, the share of frames over budget and total CPU. A graph of
+Below it are the CPU and GPU p95, the share of frames over budget and total CPU. The web
+panel draws these as meters and per-side splits by share of the budget, at fixed widths,
+chosen from seven prototypes (branch `claude/perf-panel-prototype-127a32`); the native
+overlay keeps lines of text. A graph of
 frame intervals, with a slow share, was rejected: paced, the intervals are idle by design,
 so the panel had to switch figures with the mode. A hitch outside a frame's work shows as a
 gap. `fps` is in both url codecs: `true` shows the compact panel, `graph` the expanded one,

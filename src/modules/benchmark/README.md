@@ -118,9 +118,12 @@ Compare the two apps row by row on one device. Safari has no GPU timer, so its
 
 ## The performance panel
 
-`?fps=true` shows the compact panel, `?fps=graph` adds the graph of the last 5 s:
-each frame's CPU and GPU time against the frame budget, paced or not, with their p95,
-the share of frames over budget and total CPU. A tap switches between them. Both read
+`?fps=true` shows the compact panel: the frame rate with a dot coloured by load, heap
+and satellites, and meters for CPU and GPU time, whose tick is the frame budget, and for
+load. `?fps=graph` adds the last 5 s: each frame's CPU bar over a pale column of its GPU
+time, against the labelled budget, paced or not, with each side's p95 marked; each side's
+frames split by share of the budget, its red share the over-budget one; then over budget
+and total CPU. A tap switches between them. Both widths are fixed. Both read
 `FrameMeter` (`frameMeter.ts`), which wraps `CesiumWidget.render`, the clock tick and
 the render, and counts a call as a drawn frame only when `postRender` fired in it. Its
 averages, over at least 0.5 s and published as a frame is drawn, feed the panel, its
@@ -128,9 +131,12 @@ recording a scene step. A GPU time that arrives after its window was published c
 in the next. It measures only while the panel or the benchmark panel is open, and never
 changes render pacing: paced, the panel says so, and the load is the figure to read.
 Paced means render-on-demand with nothing tracked, as a tracked satellite is drawn every
-frame. Load reads "≥ n %" where only the CPU side is known. Idle, GPU time reads
-"(idle)" and stays out of load and over budget. The native overlay shows the same, top right under
-the corner's buttons, where the web panel sits.
+frame. Load reads "≥ n" where only the CPU side is known. Idle, the GPU meter reads
+"idle" over a hatched track and its time stays out of load. The graph marks each frame
+idle as it is drawn (paced, more than two display intervals after the one before): its
+GPU mark is faded and stays out of over budget, and with only idle frames timed the
+footer reads "over, CPU". The native overlay shows the same figures as lines of text,
+top right under the corner's buttons, where the web panel sits.
 
 The frame budget is the interval the frame rate asks for, never shorter than the
 display's. The web measures the display from the gaps between 60 animation frames: the
@@ -370,7 +376,11 @@ Cesium's workers `CacheFirst` for 30 days, and those cached responses have no CO
   drawn every frame. Where the mean GPU time of half a second, a recording or the
   graph's 5 s outruns its median frame interval (`gpuCapMs`), each time is capped
   at that interval, as a GPU keeping pace spent at most that on a frame: the GPU
-  then reads the budget and load 100 %. Withholding GPU time for the page's life
+  then reads the budget and load 100 %. Where over half are capped, the panel
+  marks the GPU figure "≤": a ceiling, not a floor. Saturated, the GPU spends the
+  whole interval on each frame, so uncapped it is the cost at full clock; at a
+  capped frame rate it may have clocked down to fill the frame, and then reads
+  16.6 ms at 60 fps for about 13 ms of work at full clock. Withholding GPU time for the page's life
   instead, once it overran, blanked it on the first drag of a large canvas until a
   reload. Rejected
   alternatives: `gl.finish()` does not synchronise in Chrome (WebGL runs in a

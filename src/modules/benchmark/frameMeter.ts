@@ -61,6 +61,8 @@ export interface LiveFrameStats extends FrameSummary {
   satellites: number;
   /** Frames drawn only on change, so fps is low by design and load is the cost. */
   paced: boolean;
+  /** The share of GPU times capped at the frame interval (`gpuCapMs`), in percent; null with none timed. */
+  gpuCappedPct: number | null;
   /** GPU time left out of load (`FrameRecording.idle`). */
   idle: boolean;
 }
@@ -386,6 +388,7 @@ export class FrameMeter {
       satellites: this.#satellites(),
       paced: this.#paced(),
       idle: recording.idle ?? false,
+      gpuCappedPct: gpuCappedPct(window.gpu, window.intervals),
     };
     this.#window = { ...newRecorder(now), lastDrawn: window.lastDrawn };
   }
