@@ -156,7 +156,10 @@ It reads each table's stored `ETag` from `/api/status`, downloads only what
 changed, and reports every table to `PUT /api/upstream/<name>`: the new file as the
 body with upstream's ETag in `X-Upstream-ETag`, or no body with
 `X-Upstream-Status: 304` or `X-Upstream-Error: <message>`. `SATVIS_API_URL` overrides the worker
-(default `https://satvis.space`). It exits non-zero when a table was not refreshed.
+(default `https://satvis.space`). It waits 2 minutes between tables, so a run takes
+about 7: a report of a new file or a 304 costs the Worker more CPU than Workers Free
+allows, and back to back they get a 503. `SATVIS_TABLE_PAUSE_MS=0` skips the wait
+against a local `wrangler dev`. It exits non-zero when a table was not refreshed.
 `POST /api/upstream/refresh` does the same from the worker itself, behind the same
 token.
 
