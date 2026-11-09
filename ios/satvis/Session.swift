@@ -136,9 +136,9 @@ final class Session {
         get { foreign.fpsPanel }
         set { foreign.fpsPanel = newValue }
     }
-    /// Drawable pixels per point, the web app's `pixelratio`: `1`, `1.5`, or
-    /// `native` for the screen's own. Fewer pixels for frames the GPU finishes in
-    /// time; kept in links as on the web.
+    /// Drawable pixels per point, the web app's `pixelratio`: a number, or `native`
+    /// for the screen's own (`PixelRatioLadder`).
+    /// Fewer pixels for frames the GPU finishes in time; kept in links as on the web.
     var pixelRatio = "native"
     /// Frames a second the globe is drawn at, at most. Not read from links, where
     /// the web app keeps its own as `framerate`, but kept between launches, as the

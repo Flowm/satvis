@@ -179,7 +179,12 @@
         <div class="toolbarTitle">Frame rate</div>
         <segmented-control v-model="frameRate" label="Frame rate" :options="FRAME_RATE_OPTIONS" />
         <div class="toolbarTitle">Pixel ratio</div>
-        <segmented-control v-model="pixelRatio" label="Pixel ratio" :options="PIXEL_RATIO_OPTIONS" />
+        <segmented-control
+          :model-value="offeredPixelRatio(pixelRatio, devicePixelRatio)"
+          label="Pixel ratio"
+          :options="PIXEL_RATIO_OPTIONS"
+          @update:model-value="pixelRatio = $event!"
+        />
         <button type="button" class="toolbarDisclosure" :aria-expanded="graphicsAdvanced" @click="graphicsAdvanced = !graphicsAdvanced">
           Advanced
           <UIcon name="lucide:chevron-right" class="toolbarDisclosure__chevron" />
@@ -265,7 +270,7 @@ import { useSelectedEntity } from "@/composables/useSelectedEntity";
 import { compassAvailable, useSkyCompass } from "@/composables/useSkyCompass";
 import { SATELLITE_COMPONENTS } from "@/config/components";
 import { PHONE_WIDTH } from "@/config/layout";
-import { FRAME_RATES, MSAA_RATES, pixelRatiosFor } from "@/config/rendering";
+import { FRAME_RATES, MSAA_RATES, offeredPixelRatio, pixelRatiosFor, pixelRatioValue } from "@/config/rendering";
 import { availableStarMaps, BUILTIN_STAR_MAP, STAR_MAP_LABELS, type StarMapName } from "@/config/starMaps";
 import { type MapGroup, SURFACE_MODEL_LABELS, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, surfaceModelLabel, viewModeNote } from "@/config/surfaceModels";
 import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "@/config/viewModes";
@@ -339,9 +344,12 @@ void availableStarMaps().then((names) => {
   starMapOptions.value = names;
 });
 
-/** The top rung by the screen's own ratio; the url keeps `native`, so a link opens at each screen's own. */
-const nativeLabel = `${formatNumber(Number(window.devicePixelRatio.toFixed(2)))}x`;
-const PIXEL_RATIO_OPTIONS = pixelRatiosFor(window.devicePixelRatio).map((ratio) => ({ value: ratio, label: ratio === "native" ? nativeLabel : `${ratio}x` }));
+const devicePixelRatio = window.devicePixelRatio;
+/** Each rung by the ratio it draws at here; the url keeps `native`, so a link opens at each screen's own. */
+const PIXEL_RATIO_OPTIONS = pixelRatiosFor(devicePixelRatio).map((ratio) => ({
+  value: ratio,
+  label: `${formatNumber(Number(pixelRatioValue(ratio, devicePixelRatio).toFixed(2)))}x`,
+}));
 
 /** The same function the globe reads, so the menu and the globe cannot disagree. */
 const effects = computed(() => surfaceEffects(surfaceModel.value, sceneMode.value));

@@ -578,7 +578,7 @@ export class CesiumController {
   }
 
   /**
-   * Drawing-buffer pixels per CSS pixel (`PIXEL_RATIOS`). With
+   * Drawing-buffer pixels per CSS pixel: `native` or a number, as `pixelratio` holds it. With
    * `useBrowserRecommendedResolution` false, Cesium multiplies by the display's
    * ratio. No explicit render: `CesiumWidget.resize` requests one every frame.
    */

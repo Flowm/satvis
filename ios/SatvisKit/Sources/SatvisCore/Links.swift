@@ -168,8 +168,6 @@ public enum LinkCodec {
     public static let terrains = ["None", "ReEarth"]
     public static let overpassModes = ["elevation", "swath"]
     public static let scenes = ["3D", "2D", "Sky"]
-    /// The web app's `PIXEL_RATIOS` (src/config/rendering.ts).
-    public static let pixelRatios = ["1", "1.5", "native"]
 
     /// One parameter: how it reads into the state and writes out of it.
     struct Field: Sendable {
@@ -211,7 +209,7 @@ public enum LinkCodec {
         Field("scene", \.scene, .oneOf(scenes)),
         Field("unseen", \.unseen, .enumeration),
         Field("camera", \.camera, .enumeration),
-        Field("pixelratio", \.pixelRatio, .oneOf(pixelRatios)),
+        Field("pixelratio", \.pixelRatio, .ratioOrNative(PixelRatioLadder.range)),
         Field("time", \.time, .timestamp),
     ]
 
@@ -273,6 +271,18 @@ extension FieldKind where Value == String {
 
     static func oneOf(_ values: [String]) -> Self {
         Self(parse: { values.contains($0) ? $0 : nil }, format: { values.contains($0) ? $0 : nil })
+    }
+
+    /// `native`, or a plain decimal in `range` written as JavaScript writes the
+    /// number (`ratioOrNative`): `2.0` reads as `2`. ASCII digits only, as `\d` is
+    /// in JavaScript.
+    static func ratioOrNative(_ range: ClosedRange<Double>) -> Self {
+        let read: @Sendable (String) -> String? = { raw in
+            if raw == "native" { return raw }
+            guard raw.wholeMatch(of: /[0-9]+(\.[0-9]+)?/) != nil, let value = Double(raw), range.contains(value) else { return nil }
+            return PixelRatioLadder.written(value)
+        }
+        return Self(parse: read, format: read)
     }
 }
 

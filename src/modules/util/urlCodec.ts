@@ -50,6 +50,33 @@ export function enumString(values: readonly string[]): FieldKind<string> {
   };
 }
 
+/**
+ * `native`, or a plain decimal from `min` to `max`, written as JavaScript writes the
+ * number: `2.0` reads as `2`. No exponent, sign or spaces, which `Number` would take.
+ */
+export function ratioOrNative(min: number, max: number): FieldKind<string> {
+  const read = (raw: unknown): string | undefined => {
+    if (raw === "native") {
+      return raw;
+    }
+    if (typeof raw !== "string" || !/^\d+(\.\d+)?$/.test(raw)) {
+      return undefined;
+    }
+    const value = Number(raw);
+    return value >= min && value <= max ? String(value) : undefined;
+  };
+  return {
+    parse: (raw) => {
+      const value = read(raw);
+      return value === undefined ? FAIL : ok(value);
+    },
+    format: (value) => {
+      const written = read(value);
+      return written === undefined ? FAIL : ok(written);
+    },
+  };
+}
+
 /** Only `true` and `false`, so `?fps=false` cannot read as truthy. */
 export function boolean(): FieldKind<boolean> {
   return {

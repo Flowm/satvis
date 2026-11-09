@@ -10,7 +10,7 @@ import {
   type FpsPanel,
   type FrameRate,
   MSAA_RATES,
-  PIXEL_RATIOS,
+  PIXEL_RATIO_RANGE,
   currentDevicePixelRatio,
   defaultMsaaRate,
 } from "@/config/rendering";
@@ -19,7 +19,7 @@ import { SURFACE_MODELS } from "@/config/surfaceModels";
 import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "@/config/viewModes";
 import { baseLayerNames, imageryProviderNames, terrainProviderNames } from "@/modules/CesiumLayerProviders";
 import { sameValue } from "@/modules/util/equality";
-import { boolean, enumString, layerList, stringList, timestamp, toMinuteIso } from "@/modules/util/urlCodec";
+import { boolean, enumString, layerList, ratioOrNative, stringList, timestamp, toMinuteIso } from "@/modules/util/urlCodec";
 import { UNSEEN_MODES, type UnseenMode } from "@/modules/util/visibility";
 
 export const useCesiumStore = defineStore(
@@ -176,7 +176,7 @@ export const useCesiumStore = defineStore(
         { name: "sceneMode", url: "scene", kind: enumString(SCENE_MODES) },
         { name: "unseen", url: "unseen", kind: enumString([...UNSEEN_MODES]) },
         { name: "cameraMode", url: "camera", kind: enumString(CAMERA_MODES) },
-        { name: "pixelRatio", url: "pixelratio", kind: enumString([...PIXEL_RATIOS]) },
+        { name: "pixelRatio", url: "pixelratio", kind: ratioOrNative(...PIXEL_RATIO_RANGE) },
         { name: "msaa", url: "msaa", kind: enumString([...MSAA_RATES]) },
         { name: "frameRate", url: "framerate", kind: enumString([...FRAME_RATES]) },
         { name: "fpsPanel", url: "fps", kind: enumString(FPS_PANELS) },

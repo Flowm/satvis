@@ -734,15 +734,26 @@ struct GraphicsPanel: View {
                 selection: $session.frameRate,
                 options: Session.frameRates.map { ($0 == Session.maximumFrameRate ? "Max" : "\($0) fps", $0) })
         }
-        // The web app's ladder (src/config/rendering.ts): the fixed rungs below
-        // the screen's own ratio, then the screen's, so it only offers savings.
+        // Each rung named by the ratio it draws at here; a link keeps `native`, so
+        // it opens at each screen's own. A ratio off the ladder, from a link or a
+        // scene saved on another ladder, gets a segment of its own: a Picker whose
+        // selection matches no tag is undefined.
+        let offered = PixelRatioLadder.offered(session.pixelRatio, screen: displayScale)
+        let ratios = PixelRatioLadder.rungs(screen: displayScale) + (offered == nil ? [session.pixelRatio] : [])
         PanelSection("Pixel ratio") {
             Segments(
                 title: "Pixel ratio",
-                selection: $session.pixelRatio,
-                options: LinkCodec.pixelRatios.filter { $0 == "native" || (Double($0) ?? 0) < displayScale }.map { ratio in
-                    (ratio == "native" ? "\(Double(displayScale).formatted(.number.precision(.fractionLength(0...2))))x" : "\(ratio)x", ratio)
-                })
+                selection: Binding {
+                    offered ?? session.pixelRatio
+                } set: {
+                    session.pixelRatio = $0
+                },
+                options:
+                    ratios
+                    .sorted { PixelRatioLadder.value($0, screen: displayScale) < PixelRatioLadder.value($1, screen: displayScale) }
+                    .map { ratio in
+                        ("\(PixelRatioLadder.value(ratio, screen: displayScale).formatted(.number.precision(.fractionLength(0...2))))x", ratio)
+                    })
         }
     }
 }

@@ -283,7 +283,7 @@ discussion; sharpen them here when they drift.
   fixed, so switching moves nothing else.
 - **Rung**: one detent of the speed ladder, from Cesium's shuttle-ring ticks (1×
   to 86400× in both directions, `SPEED_TICKS`). The ladder rests on a rung, never
-  between two.
+  between two. Also an option of the **pixel ratio ladder**.
 
 ## Apps
 
@@ -313,6 +313,10 @@ discussion; sharpen them here when they drift.
 - **Idle**: the app on screen with nobody touching it and the clock at ×1, its
   frames paced. A paced benchmark scene measures what that costs, as **load**,
   not how fast it draws: its frame rate is low by design.
+- **Pixel ratio ladder**: the Graphics panel's pixel ratios, cheapest first: 1, a
+  **rung** halfway to the display's own from a ratio of 2, then `native`, each named
+  by the ratio it draws at. A link may name any ratio from 1 to 4; the panel marks the
+  rung that draws the same. Unlike the speed ladder's, a value may sit between rungs.
 - **Load**: the share of each second the busier of the CPU and the GPU spends on
   the frames. Near 100 % that side bounds the frame rate; idle, it is what render
   pacing saves.
