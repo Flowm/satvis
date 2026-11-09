@@ -1,6 +1,10 @@
 import SatvisCore
 import SwiftUI
 
+#if os(macOS)
+    import AppKit
+#endif
+
 /// The web app's Bookmarks panel (BookmarkPanel.vue): the featured and saved
 /// bookmarks and the opened links as cards, the way back to the default view, and
 /// saving the scene. A sheet, as the other long lists are.
@@ -91,7 +95,7 @@ struct BookmarksView: View {
                 }
             }
             .navigationTitle("Bookmarks")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .panelSheet()
             .toolbar {
                 // The view on screen, where the corner's Share button was; made when
@@ -229,9 +233,9 @@ struct BookmarksView: View {
     }
 
     /// A featured bookmark's picture is the site's, kept once fetched; the others' are the device's.
-    private func picture(_ bookmark: Bookmark) -> UIImage? {
+    private func picture(_ bookmark: Bookmark) -> Image? {
         let data = bookmark.kind == .featured ? bookmark.thumbnail.flatMap { session.featuredPictures[$0] } : bookmarks.pictures[bookmark.id]
-        return data.flatMap(UIImage.init(data:))
+        return data.flatMap(Image.init(encoded:))
     }
 
     private func startRename(_ bookmark: Bookmark) {
@@ -275,7 +279,7 @@ struct BookmarksView: View {
 struct BookmarkCard: View {
     let bookmark: Bookmark
     let summary: BookmarkSummary
-    let picture: UIImage?
+    let picture: Image?
     let isCurrent: Bool
 
     private static let live = Color(red: 0x8F / 255, green: 0xE3 / 255, blue: 0x9B / 255)
@@ -315,7 +319,7 @@ struct BookmarkCard: View {
 
     @ViewBuilder private var image: some View {
         if let picture {
-            Image(uiImage: picture).resizable().scaledToFill()
+            picture.resizable().scaledToFill()
         } else {
             Image(systemName: "photo").foregroundStyle(.tertiary)
         }
@@ -367,20 +371,31 @@ struct BookmarkFacts: View {
 /// sheet's coordinates: SwiftUI's global space inside a sheet starts at the
 /// sheet's corner, not the window's, where the popover pointed at first.
 private enum ShareSheet {
-    /// Over whatever is presented, the Bookmarks sheet itself.
-    static func present(_ url: URL, from rect: CGRect) {
-        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
-        guard var top = scene?.keyWindow?.rootViewController else {
-            return
+    #if os(macOS)
+        /// The share menu under `rect`, in the key window: the Bookmarks sheet's.
+        static func present(_ url: URL, from rect: CGRect) {
+            guard let view = NSApplication.shared.keyWindow?.contentView else {
+                return
+            }
+            let target = view.isFlipped ? rect : CGRect(x: rect.minX, y: view.bounds.height - rect.maxY, width: rect.width, height: rect.height)
+            NSSharingServicePicker(items: [url]).show(relativeTo: target, of: view, preferredEdge: .minY)
         }
-        while let presented = top.presentedViewController, !presented.isBeingDismissed {
-            top = presented
+    #else
+        /// Over whatever is presented, the Bookmarks sheet itself.
+        static func present(_ url: URL, from rect: CGRect) {
+            let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
+            guard var top = scene?.keyWindow?.rootViewController else {
+                return
+            }
+            while let presented = top.presentedViewController, !presented.isBeingDismissed {
+                top = presented
+            }
+            let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+            if let popover = sheet.popoverPresentationController {
+                popover.sourceView = top.view
+                popover.sourceRect = rect
+            }
+            top.present(sheet, animated: true)
         }
-        let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        if let popover = sheet.popoverPresentationController {
-            popover.sourceView = top.view
-            popover.sourceRect = rect
-        }
-        top.present(sheet, animated: true)
-    }
+    #endif
 }

@@ -12,10 +12,18 @@ import SwiftUI
 extension Color {
     /// What floats over the globe, the info panel and the sheets: the web app's
     /// `#1c1c1e`.
-    static let panelSurface = Color(uiColor: .secondarySystemGroupedBackground.atBaseLevel)
+    #if canImport(UIKit)
+        static let panelSurface = Color(uiColor: .secondarySystemGroupedBackground.atBaseLevel)
+    #else
+        static let panelSurface = Color(red: 0x1C / 255, green: 0x1C / 255, blue: 0x1E / 255)
+    #endif
     /// A row or a card on a surface: the web app's `#2c2c2e`, which a sheet's list
     /// rows already are.
-    static let panelRaised = Color(uiColor: .tertiarySystemGroupedBackground.atBaseLevel)
+    #if canImport(UIKit)
+        static let panelRaised = Color(uiColor: .tertiarySystemGroupedBackground.atBaseLevel)
+    #else
+        static let panelRaised = Color(red: 0x2C / 255, green: 0x2C / 255, blue: 0x2E / 255)
+    #endif
     /// The web app's `#edffff`. The secondary style is this, fainter: the web app's
     /// muted ink is it at 60 %.
     static let panelInk = Color(red: 0xED / 255, green: 1, blue: 1)
@@ -24,6 +32,12 @@ extension Color {
     /// The web app's filled button, `#3d7f93`: the cyan darkened to carry the ink,
     /// which on the cyan itself reads at 1.4 to 1.
     static let panelPrimary = Color(red: 0x3D / 255, green: 0x7F / 255, blue: 0x93 / 255)
+    /// A segmented control's thumb: the system's dark gray 2, `#636366`.
+    #if canImport(UIKit)
+        static let systemGray2 = Color(uiColor: .systemGray2)
+    #else
+        static let systemGray2 = Color(red: 0x63 / 255, green: 0x63 / 255, blue: 0x66 / 255)
+    #endif
     /// What is chosen, and a tab's count: the web app's `#ffffff1f`.
     static let panelSelected = Color.white.opacity(0x1F / 255)
     /// "Not where it rests", as on the web: the clock deck's reset, a stale element set.
@@ -32,15 +46,17 @@ extension Color {
     static let panelGreen = Color(red: 0x4A / 255, green: 0xDE / 255, blue: 0x80 / 255)
 }
 
-extension UIColor {
-    /// Resolved at the base level wherever it is drawn: a sheet's elevated level
-    /// lifts the grouped backgrounds a step, `#2c2c2e` and `#3a3a3c`.
-    fileprivate var atBaseLevel: UIColor {
-        UIColor { traits in
-            self.resolvedColor(with: traits.modifyingTraits { $0.userInterfaceLevel = .base })
+#if canImport(UIKit)
+    extension UIColor {
+        /// Resolved at the base level wherever it is drawn: a sheet's elevated level
+        /// lifts the grouped backgrounds a step, `#2c2c2e` and `#3a3a3c`.
+        fileprivate var atBaseLevel: UIColor {
+            UIColor { traits in
+                self.resolvedColor(with: traits.modifyingTraits { $0.userInterfaceLevel = .base })
+            }
         }
     }
-}
+#endif
 
 /// How much of the globe a surface over it hides: the web app's
 /// `--panel-surface-float` and `--panel-surface-dense`.
@@ -82,8 +98,12 @@ extension View {
     /// A navigation stack's list on what is behind it, the info panel's surface:
     /// the list's background and the stack's cleared, which were black on an iPad.
     func panelList() -> some View {
-        scrollContentBackground(.hidden)
-            .containerBackground(.clear, for: .navigation)
+        #if os(macOS)
+            scrollContentBackground(.hidden)
+        #else
+            scrollContentBackground(.hidden)
+                .containerBackground(.clear, for: .navigation)
+        #endif
     }
 
     /// A sheet on the dense surface, as the info panel: the system's is solid, or

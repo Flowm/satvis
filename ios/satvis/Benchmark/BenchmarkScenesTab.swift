@@ -1,7 +1,6 @@
 import SatvisCore
 import SatvisRender
 import SwiftUI
-import UIKit
 
 /// The route's benchmark scenes (ADR 0016): each a row from the start, ticked to
 /// run, filled as it is measured, and opened in place for the rest of its figures.
@@ -198,7 +197,7 @@ struct BenchmarkScenesTab: View {
                 }
                 Button("Copy report") {
                     if let json = try? JSONSerialization.data(withJSONObject: benchmark.report, options: [.prettyPrinted, .sortedKeys]) {
-                        UIPasteboard.general.string = String(decoding: json, as: UTF8.self)
+                        Platform.copy(String(decoding: json, as: UTF8.self))
                         copied = "Copied the report."
                     }
                 }

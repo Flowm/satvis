@@ -137,14 +137,14 @@ struct GlobeView: View {
 }
 
 /// The MTKView the renderer draws into, and nothing else.
-private struct MetalView: UIViewRepresentable {
+private struct MetalView {
     let pixelRatio: String
     let frameRate: Int
     /// Clear where the scene leaves the sky, over the camera's picture.
     let isTransparent: Bool
     let onRenderer: (GlobeRenderer) -> Void
 
-    func makeUIView(context: Context) -> ScaledMTKView {
+    func makeView() -> ScaledMTKView {
         let view = ScaledMTKView(frame: .zero, device: MTLCreateSystemDefaultDevice())
         view.pixelRatio = pixelRatio
         // Over 60 on an iPhone only with CADisableMinimumFrameDurationOnPhone in Info.plist.
@@ -162,20 +162,37 @@ private struct MetalView: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ view: ScaledMTKView, context: Context) {
+    func update(_ view: ScaledMTKView) {
         view.pixelRatio = pixelRatio
         // Opaque otherwise, which spares the compositor blending the globe.
-        view.layer.isOpaque = !isTransparent
+        #if os(macOS)
+            view.layer?.isOpaque = !isTransparent
+        #else
+            view.layer.isOpaque = !isTransparent
+        #endif
         if view.preferredFramesPerSecond != frameRate {
             view.preferredFramesPerSecond = frameRate
         }
     }
 }
 
+#if os(macOS)
+    extension MetalView: NSViewRepresentable {
+        func makeNSView(context: Context) -> ScaledMTKView { makeView() }
+        func updateNSView(_ view: ScaledMTKView, context: Context) { update(view) }
+    }
+#else
+    extension MetalView: UIViewRepresentable {
+        func makeUIView(context: Context) -> ScaledMTKView { makeView() }
+        func updateUIView(_ view: ScaledMTKView, context: Context) { update(view) }
+    }
+#endif
+
 /// Drawn at the pixel ratio asked for: fewer pixels a point than the screen's,
 /// which the system scales up to it, for frames the GPU can finish in time.
 /// UIKit sets a view's scale to the screen's when it joins a window, so the
-/// ratio is set again then.
+/// ratio is set again then; AppKit sizes the drawable by the window's scale, which
+/// changes as the window moves to another display, so it is sized here instead.
 private final class ScaledMTKView: MTKView {
     /// The web app's `pixelratio`, read against the screen's scale (`PixelRatioLadder`).
     var pixelRatio = "native" {
@@ -186,15 +203,45 @@ private final class ScaledMTKView: MTKView {
         }
     }
 
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        applyPixelRatio()
-    }
-
-    private func applyPixelRatio() {
-        guard window != nil else {
-            return
+    #if os(macOS)
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            applyPixelRatio()
         }
-        contentScaleFactor = PixelRatioLadder.value(pixelRatio, screen: traitCollection.displayScale)
-    }
+
+        override func viewDidChangeBackingProperties() {
+            super.viewDidChangeBackingProperties()
+            applyPixelRatio()
+        }
+
+        override func setFrameSize(_ size: NSSize) {
+            super.setFrameSize(size)
+            applyPixelRatio()
+        }
+
+        private func applyPixelRatio() {
+            guard let window else {
+                return
+            }
+            let scale = PixelRatioLadder.value(pixelRatio, screen: window.backingScaleFactor)
+            autoResizeDrawable = false
+            layer?.contentsScale = scale
+            let size = CGSize(width: (bounds.width * scale).rounded(), height: (bounds.height * scale).rounded())
+            if size.width > 0, size.height > 0, size != drawableSize {
+                drawableSize = size
+            }
+        }
+    #else
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            applyPixelRatio()
+        }
+
+        private func applyPixelRatio() {
+            guard window != nil else {
+                return
+            }
+            contentScaleFactor = PixelRatioLadder.value(pixelRatio, screen: traitCollection.displayScale)
+        }
+    #endif
 }

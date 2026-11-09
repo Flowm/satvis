@@ -1,10 +1,13 @@
-import BackgroundTasks
 import Foundation
 import Observation
 import SatvisCore
 import SatvisData
 import UserNotifications
 import os
+
+#if canImport(BackgroundTasks)
+    import BackgroundTasks
+#endif
 
 nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category: "notifications")
 
@@ -30,6 +33,10 @@ final class PassAlerts {
     /// When the last plan wanted to be woken to plan again.
     @ObservationIgnored private var nextRefresh: Date?
     @ObservationIgnored private var clearing: Task<Void, Never>?
+    #if os(macOS)
+        /// The wait for the next prediction, standing in for iOS's background refresh.
+        @ObservationIgnored private var refreshing: Task<Void, Never>?
+    #endif
 
     init(loader: GroupLoader, stationStorage: StationStorage = .app) {
         self.loader = loader
@@ -98,20 +105,41 @@ final class PassAlerts {
     }
 
     /// Asks iOS to wake the app to predict again before the pending notifications
-    /// run out, within four hours, while there is anything to predict.
+    /// run out, within four hours, while there is anything to predict. A Mac has
+    /// no background refresh: it predicts again then while the app runs, and once
+    /// it quits, the notifications already scheduled still come.
     func requestRefresh() {
         // Nothing to predict without a saved station either, as `schedule` finds.
         guard !alerts.isEmpty, !stationStorage.passSettings.stations.isEmpty else {
-            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.refreshTaskID)
+            #if os(macOS)
+                refreshing?.cancel()
+            #else
+                BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.refreshTaskID)
+            #endif
             return
         }
-        let request = BGAppRefreshTaskRequest(identifier: Self.refreshTaskID)
-        request.earliestBeginDate = nextRefresh.map { max($0, Date()) } ?? Date(timeIntervalSinceNow: 4 * 3600)
-        do {
-            try BGTaskScheduler.shared.submit(request)
-        } catch {
-            log.error("No background refresh: \(error, privacy: .public)")
-        }
+        let begin = nextRefresh.map { max($0, Date()) } ?? Date(timeIntervalSinceNow: 4 * 3600)
+        #if os(macOS)
+            refreshing?.cancel()
+            refreshing = Task { [weak self] in
+                // No sooner than iOS would wake the app, so a plan due already
+                // cannot spin.
+                try? await Task.sleep(for: .seconds(max(begin.timeIntervalSinceNow, 15 * 60)))
+                guard let self, !Task.isCancelled else {
+                    return
+                }
+                await reschedule()
+                requestRefresh()
+            }
+        #else
+            let request = BGAppRefreshTaskRequest(identifier: Self.refreshTaskID)
+            request.earliestBeginDate = begin
+            do {
+                try BGTaskScheduler.shared.submit(request)
+            } catch {
+                log.error("No background refresh: \(error, privacy: .public)")
+            }
+        #endif
     }
 
     private func schedule() async -> PassNotificationPlan? {

@@ -30,7 +30,7 @@ public actor TileFetcher {
 
     /// The fetcher the app uses: its own URLSession with a disk cache in Caches.
     public static func shared() -> TileFetcher {
-        let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?.appending(path: "Tiles", directoryHint: .isDirectory)
+        let directory = (try? FileManager.default.appFolder(.cachesDirectory))?.appending(path: "Tiles", directoryHint: .isDirectory)
         let configuration = URLSessionConfiguration.default
         configuration.urlCache = URLCache(memoryCapacity: 16 * 1024 * 1024, diskCapacity: cacheBytes, directory: directory)
         configuration.timeoutIntervalForRequest = 15

@@ -5,7 +5,6 @@ import Observation
 import SatvisCore
 import SatvisData
 import SatvisRender
-import UIKit
 
 nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category: "imagery")
 
@@ -650,7 +649,7 @@ final class Session {
     /// the other, unless reduced motion cuts.
     private func setProjection(_ projection: GlobeProjection, animated: Bool) {
         self.projection = projection
-        globe.setProjection(projection, animated: animated && !UIAccessibility.isReduceMotionEnabled)
+        globe.setProjection(projection, animated: animated && !Platform.reducesMotion)
     }
 
     /// The globe button (`Focus.goHome`).
@@ -793,7 +792,7 @@ final class Session {
         if catalog.tracked != focus.trackedSatellite {
             catalog.setTracked(focus.trackedSatellite)
         }
-        let motion = !UIAccessibility.isReduceMotionEnabled
+        let motion = !Platform.reducesMotion
         for command in commands {
             switch command {
             case .track(let target, let animated):

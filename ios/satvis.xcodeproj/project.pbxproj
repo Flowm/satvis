@@ -50,6 +50,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				macOS/Info.plist,
 			);
 			target = 579DA86F218C123A00B417CB /* satvis */;
 		};
@@ -420,31 +421,41 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 57A0C0DE0000000000000016 /* Base.xcconfig */;
 			buildSettings = {
+				"ARCHS[sdk=macosx*]" = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = satvis.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "satvis-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphone*]" = "macOS/*";
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=macosx*]" = "iOS/*";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = satvis/Info.plist;
+				"INFOPLIST_FILE[sdk=macosx*]" = satvis/macOS/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Satvis;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "The camera shows the sky behind the satellites in the sky view, so you can tell which is which. Nothing it sees is recorded or sent.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Your location lets Satvis tell you when satellites pass over you, and show what is in the sky above you.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arm64;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = org.frcy.app.satvis;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				"PRODUCT_NAME[sdk=macosx*]" = Satvis;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
@@ -457,32 +468,41 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 57A0C0DE0000000000000016 /* Base.xcconfig */;
 			buildSettings = {
-				EXCLUDED_SOURCE_FILE_NAMES = UITestCatalog.json;
+				"ARCHS[sdk=macosx*]" = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = satvis.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "satvis-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphone*]" = "UITestCatalog.json macOS/*";
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=macosx*]" = "UITestCatalog.json iOS/*";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = satvis/Info.plist;
+				"INFOPLIST_FILE[sdk=macosx*]" = satvis/macOS/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Satvis;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "The camera shows the sky behind the satellites in the sky view, so you can tell which is which. Nothing it sees is recorded or sent.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Your location lets Satvis tell you when satellites pass over you, and show what is in the sky above you.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UIRequiredDeviceCapabilities = arm64;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = org.frcy.app.satvis;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				"PRODUCT_NAME[sdk=macosx*]" = Satvis;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;

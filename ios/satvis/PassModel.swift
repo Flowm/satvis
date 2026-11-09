@@ -205,8 +205,16 @@ extension StationStorage {
 func currentLocation() async -> CLLocationCoordinate2D? {
     await withTaskGroup(of: CLLocationCoordinate2D?.self) { group in
         group.addTask {
-            let session = CLServiceSession(authorization: .whenInUse)
-            defer { session.invalidate() }
+            #if os(macOS)
+                // No service session on a Mac: the prompt is asked for by a
+                // manager kept until the fix comes.
+                let manager = CLLocationManager()
+                manager.requestWhenInUseAuthorization()
+                defer { withExtendedLifetime(manager) {} }
+            #else
+                let session = CLServiceSession(authorization: .whenInUse)
+                defer { session.invalidate() }
+            #endif
             do {
                 for try await update in CLLocationUpdate.liveUpdates() {
                     if let location = update.location {

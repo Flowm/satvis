@@ -37,7 +37,7 @@ struct SegmentedTabs<Value: Hashable>: View {
             .frame(maxWidth: .infinity, minHeight: 28)
             .background {
                 if isSelected {
-                    Capsule().fill(Color(uiColor: .systemGray2)).matchedGeometryEffect(id: "thumb", in: thumb)
+                    Capsule().fill(Color.systemGray2).matchedGeometryEffect(id: "thumb", in: thumb)
                 }
             }
             .contentShape(.capsule)

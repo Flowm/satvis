@@ -328,10 +328,30 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   ("Share usage data" in About), PostHog is not set up at all, so nothing is
   sent, not even its remote config.
 
+## The Mac
+
+- The Mac app is this target built for macOS (ADR 0017): the views are shared,
+  laid out as an iPad's, since the Mac's window is given the regular size
+  classes. `Platform.swift` answers what UIKit and AppKit answer apart (reduced
+  motion, the clipboard, images, the device for the benchmark), and
+  `satvis/macOS/` holds what only the Mac has, such as the stand-ins for the
+  compass and camera (`SkyDevices.swift`), whose controls are not shown.
+- The globe's `MTKView` sizes its own drawable on the Mac (`ScaledMTKView`): AppKit
+  sizes it by the window's backing scale, which changes when the window moves to
+  another display, and the Graphics panel's pixel ratio has to win over it.
+- Pass notifications are planned again on a timer while the app runs
+  (`PassAlerts.requestRefresh`), as a Mac has no background refresh.
+- Files go under a folder named by the bundle id in Application Support and
+  Caches (`FileManager.appFolder`, SatvisData): the same place inside the sandbox,
+  and the user's own Library outside it, where an unsigned build runs.
+
 ## Packaging
 
 - `Info.plist` is generated from `INFOPLIST_KEY_*` build settings. The file
-  `satvis/Info.plist` holds only the keys that have no build setting.
+  `satvis/Info.plist` holds the keys that have no build setting, and those only an
+  iPhone or iPad takes, which a build setting would write into the Mac's too;
+  the Mac's is `satvis/macOS/Info.plist`, its entitlements
+  `satvis-macOS.entitlements`, with the sandbox the Mac App Store requires.
 - The app icon (`AppIcon.icon`) and the launch image are cut from
   `public/logo.svg`: counting its `<path>`s from 0, 0 is the #0b222d background,
   1–3 sky, 4–6 hills, 7–49 shuttle and 50–51 exhaust. Cut them again when the
@@ -345,4 +365,4 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   and the smoke clear together from 1 s, the shuttle most of the way up, and
   are gone at 1.5 s. It takes no touches: they reach the globe under it. Reduce
   Motion and a launch with `SATVIS_TEST_CATALOG`, `SATVIS_TIME` or a benchmark
-  skip it.
+  skip it, and so does the Mac, which has no launch screen for it to start from.

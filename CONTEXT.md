@@ -287,11 +287,13 @@ discussion; sharpen them here when they drift.
 
 ## Apps
 
-- **Native app**: the iOS app that draws the globe and its controls itself, with
-  no web view, and reads the same worker endpoints as the web app
-  (`docs/adr/0009-native-ios-app.md`). It replaces the **WebView app**, the
-  earlier iOS app that showed satvis.space in a web view, kept only as the tag
-  `ios-webview-final`. "The iOS app" means the native app.
+- **Native app**: the app for iPhone, iPad and Mac that draws the globe and its
+  controls itself, with no web view, and reads the same worker endpoints as the
+  web app (`docs/adr/0009-native-ios-app.md`). It replaces the **WebView app**,
+  the earlier iOS app that showed satvis.space in a web view, kept only as the tag
+  `ios-webview-final`. "The iOS app" means the native app on an iPhone or iPad;
+  **the Mac app** is the same app built for macOS
+  (`docs/adr/0017-native-mac-app.md`).
 - **Menu and panel**: the menu is the column of entries at the top left (Map,
   Globe, Sky, Graphics and the rest); each entry opens its panel beside it. "The
   Map panel", never "the Map menu".

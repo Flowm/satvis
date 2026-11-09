@@ -23,11 +23,15 @@ UDID = $(or $(shell scripts/simulator-udid.sh "$(DEVICE)" "$(RUNTIME)"),$(error 
 DERIVED_DATA = build/DerivedData
 APP = $(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/satvis.app
 XCODEBUILD = xcodebuild -project satvis.xcodeproj -scheme satvis -derivedDataPath $(DERIVED_DATA) -destination id=$(UDID) CODE_SIGNING_ALLOWED=NO
+# Unsigned, so it runs outside the sandbox, and keeps its files in the user's own
+# Library under org.frcy.app.satvis.
+MAC_APP = $(DERIVED_DATA)-mac/Build/Products/Debug/Satvis.app
+XCODEBUILD_MAC = xcodebuild -project satvis.xcodeproj -scheme satvis -derivedDataPath $(DERIVED_DATA)-mac -destination platform=macOS CODE_SIGNING_ALLOWED=NO
 SOURCES = satvis satvisUITests SatvisKit
 
 .DEFAULT_GOAL := help
 
-.PHONY: build test test-kit run fold unfold logs format lint screenshots screenshots-upload screenshots-download metadata-download metadata-upload clean help
+.PHONY: build test test-kit run build-mac run-mac fold unfold logs format lint screenshots screenshots-upload screenshots-download metadata-download metadata-upload clean help
 
 build: ## Build the app for the simulator | DEVICE RUNTIME UDID
 	$(XCODEBUILD) build
@@ -43,6 +47,12 @@ run: build ## Build and launch the app on the simulator | DEVICE RUNTIME UDID AP
 	xcrun simctl boot $(UDID) 2>/dev/null || true
 	xcrun simctl install $(UDID) $(APP)
 	xcrun simctl launch --terminate-running-process $(UDID) org.frcy.app.satvis
+
+build-mac: ## Build the Mac app
+	$(XCODEBUILD_MAC) build
+
+run-mac: build-mac ## Build and open the Mac app | API
+	open -n $(if $(API),--env SATVIS_API=$(API)) $(MAC_APP)
 
 fold unfold: DEVICE = iPhone Duo
 fold unfold: ## Close or open an iPhone Duo simulator | DEVICE RUNTIME UDID

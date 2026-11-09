@@ -5,7 +5,11 @@ import SwiftUI
 
 @main
 struct SatvisApp: App {
-    @UIApplicationDelegateAdaptor private var delegate: AppDelegate
+    #if os(macOS)
+        @NSApplicationDelegateAdaptor private var delegate: AppDelegate
+    #else
+        @UIApplicationDelegateAdaptor private var delegate: AppDelegate
+    #endif
     @State private var session: Session
 
     /// `SATVIS_API` in the launch environment replaces satvis.space, e.g. a local
@@ -19,22 +23,42 @@ struct SatvisApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
-            ContentView(session: session)
-                .overlay { LaunchAnimation() }
-                .preferredColorScheme(.dark)
-                .tint(Color.panelAccent)
-        }
-        // Element sets drift, and the four days ahead move on: predict the pass
-        // notifications again from the newest. The next refresh is asked for
-        // first, so that one that runs out of time does not end the chain, and
-        // again once the new notifications say when they run out.
-        .backgroundTask(.appRefresh(PassAlerts.refreshTaskID)) {
-            await session.alerts.requestRefresh()
-            await session.alerts.reschedule()
-            await session.alerts.requestRefresh()
-        }
+        #if os(macOS)
+            // One window, as on the iPhone: the app has one session, and a second
+            // window would run it twice and take its globe over.
+            Window("Satvis", id: "globe") {
+                ContentView(session: session)
+                    .preferredColorScheme(.dark)
+                    .tint(Color.panelAccent)
+                    // A Mac has no size classes: its window is laid out as an iPad's,
+                    // the menu column open and the info panel a card, as on the web.
+                    .environment(\.horizontalSizeClass, .regular)
+                    .environment(\.verticalSizeClass, .regular)
+            }
+            .defaultSize(width: 1280, height: 800)
+        #else
+            WindowGroup {
+                ContentView(session: session)
+                    // The launch screen's logo lifting off; a Mac has no launch screen.
+                    .overlay { LaunchAnimation() }
+                    .preferredColorScheme(.dark)
+                    .tint(Color.panelAccent)
+            }
+            .backgroundTask(.appRefresh(PassAlerts.refreshTaskID)) { await refreshPassAlerts() }
+        #endif
     }
+
+    #if os(iOS)
+        /// Element sets drift, and the four days ahead move on: predicts the pass
+        /// notifications again from the newest. The next refresh is asked for
+        /// first, so that one that runs out of time does not end the chain, and
+        /// again once the new notifications say when they run out.
+        private func refreshPassAlerts() async {
+            session.alerts.requestRefresh()
+            await session.alerts.reschedule()
+            session.alerts.requestRefresh()
+        }
+    #endif
 
     private static func repository(site: URL) -> GroupRepository {
         #if DEBUG
@@ -138,12 +162,14 @@ struct ContentView: View {
                 .ignoresSafeArea()
         }
         .sensoryFeedback(.impact, trigger: globeMenu?.id) { _, opened in opened != nil }
-        .background {
-            // Hidden by the opaque globe but while the sky view shows it.
-            CameraPreview(layer: session.aim.passthrough.previewLayer)
+        #if os(iOS)
+            .background {
+                // Hidden by the opaque globe but while the sky view shows it.
+                CameraPreview(layer: session.aim.passthrough.previewLayer)
                 .background(.black)
                 .ignoresSafeArea()
-        }
+            }
+        #endif
         .overlay {
             if session.observer != nil, let renderer = session.renderer {
                 // In the renderer's frame, the whole screen, since it projects into it.
@@ -172,25 +198,28 @@ struct ContentView: View {
                     Button("Show UI", systemImage: "eye") { showsUI = true }
                 } else {
                     Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
-                    if session.observer != nil {
-                        Button {
-                            session.aim.toggleCompass()
-                        } label: {
-                            Label {
-                                Text(session.aim.compass.isAiming ? "Stop aiming by compass" : "Aim by compass")
-                            } icon: {
-                                // The menu toggle's Lucide side, Dynamic Type scaling it as the symbols beside it.
-                                Image(.lucideCompass).resizable().frame(width: 22 * textScale, height: 22 * textScale)
+                    // A Mac has no motion sensor to aim by, nor a camera facing the sky.
+                    #if os(iOS)
+                        if session.observer != nil {
+                            Button {
+                                session.aim.toggleCompass()
+                            } label: {
+                                Label {
+                                    Text(session.aim.compass.isAiming ? "Stop aiming by compass" : "Aim by compass")
+                                } icon: {
+                                    // The menu toggle's Lucide side, Dynamic Type scaling it as the symbols beside it.
+                                    Image(.lucideCompass).resizable().frame(width: 22 * textScale, height: 22 * textScale)
+                                }
                             }
+                            // Lucide has no filled compass: on, it takes the accent, as on the web.
+                            .buttonStyle(PanelButtonStyle(emphasis: session.aim.compass.isAiming ? .accent : .plain, square: true))
+                            Button(
+                                session.aim.passthrough.isShowing ? "Hide the camera" : "Show the camera",
+                                systemImage: session.aim.passthrough.isShowing ? "camera.fill" : "camera"
+                            ) { session.aim.togglePassthrough() }
+                            .disabled(session.aim.isStartingCamera)
                         }
-                        // Lucide has no filled compass: on, it takes the accent, as on the web.
-                        .buttonStyle(PanelButtonStyle(emphasis: session.aim.compass.isAiming ? .accent : .plain, square: true))
-                        Button(
-                            session.aim.passthrough.isShowing ? "Hide the camera" : "Show the camera",
-                            systemImage: session.aim.passthrough.isShowing ? "camera.fill" : "camera"
-                        ) { session.aim.togglePassthrough() }
-                        .disabled(session.aim.isStartingCamera)
-                    }
+                    #endif
                     // The way out of following something once its panel is closed.
                     if session.tracked != nil {
                         Button("Stop tracking", systemImage: "video.slash") { session.stopTracking(animated: true) }
@@ -433,9 +462,11 @@ struct ContentView: View {
         }
         // A satvis.space link the system hands over, universal link or not.
         .onOpenURL { session.open(Link($0.absoluteString), records: true) }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
-            session.renderer?.trimMemory()
-        }
+        #if canImport(UIKit)
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+                session.renderer?.trimMemory()
+            }
+        #endif
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active: session.becameActive()

@@ -2,7 +2,8 @@
 
 The native app: SwiftUI with no web view, reading the same worker as the web
 app. Developed with Xcode 27.2, Swift 6 with MainActor default isolation in the
-app target, iOS 26 and later. Xcode Cloud builds, numbers and publishes every
+app target, iOS 26 and later, and macOS 26 on Apple silicon from the same target
+(ADR 0017). Xcode Cloud builds, numbers and publishes every
 release; there is no fastlane. CI (`.github/workflows/ios.yml`) pins Xcode 27.2
 and lints with its `swift format`: a newer formatter's rules can fail
 `make lint` there. CI moves with the Xcode the app is developed on, since Xcode
@@ -20,7 +21,11 @@ later, the app fills an iPhone Duo's screens edge to edge.
   (`vallado/VENDOR.md`), and `DracoBridge` wraps Draco.
 - `satvis/` and `satvisUITests/` are folder-synchronized: a file added on disk
   joins its target, with no `project.pbxproj` edit. A new package product does
-  need one.
+  need one. What only an iPhone or only a Mac has goes in `satvis/iOS/` or
+  `satvis/macOS/`, which `EXCLUDED_SOURCE_FILE_NAMES` keeps out of the other's
+  build; a call each has its own way of making goes through `Platform.swift`.
+  Build the Mac with `make build-mac` after a change to shared code: the iOS
+  build compiles none of its `#if os(macOS)` paths.
 
 **Before adding, moving or looking for a file, or changing how any part of the
 app works**, read `docs/architecture.md`, the app part by part.
@@ -118,6 +123,11 @@ centimetre.
   reach the dark cover display**: `app.swipeUp()` and `app.coordinate(…).tap()`
   do nothing, and the screenshot is black. Gesture on `app.windows.firstMatch`,
   and shoot the screen the app is on, as the screenshot tests do.
+- **The Mac app's output to a file is buffered until it exits**, which it does
+  not by itself: `SATVIS_BENCHMARK=print` printed nothing until launched with
+  `open -n --env NSUnbufferedIO=YES --env SATVIS_BENCHMARK=print --stdout <file>`.
+  Its results are also the proof that it draws, since an agent's shell has no
+  screen-recording access to shoot its window.
 - **A simulator keeps its cached launch screen across reinstalls.** Judge
   launch-screen changes on a simulator that never had the app, or after
   `simctl erase`; the screen shows for ~1.5 s, so record it with

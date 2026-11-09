@@ -6,15 +6,27 @@ import SatvisCore
 import SatvisData
 import SatvisRender
 import StoreKit
-import UIKit
 
-/// Set up as PostHog's iOS guide has it, from the app delegate.
-final class AppDelegate: NSObject, UIApplicationDelegate {
-    func application(_: UIApplication, didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        Analytics.setup(site: SatvisApp.site)
-        return true
+#if canImport(UIKit)
+    import UIKit
+
+    /// Set up as PostHog's iOS guide has it, from the app delegate.
+    final class AppDelegate: NSObject, UIApplicationDelegate {
+        func application(_: UIApplication, didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+            Analytics.setup(site: SatvisApp.site)
+            return true
+        }
     }
-}
+#else
+    import AppKit
+
+    /// Set up as PostHog's macOS guide has it, from the app delegate.
+    final class AppDelegate: NSObject, NSApplicationDelegate {
+        func applicationDidFinishLaunching(_: Notification) {
+            Analytics.setup(site: SatvisApp.site)
+        }
+    }
+#endif
 
 /// Usage, counted in the web app's PostHog project: a page view with the view's
 /// link whenever the view changes, as the web app's address bar makes one, so
@@ -87,7 +99,9 @@ final class Analytics {
         let config = PostHogConfig(projectToken: projectToken, host: host)
         config.personProfiles = .never
         config.captureScreenViews = false
-        config.surveys = false
+        #if os(iOS)
+            config.surveys = false
+        #endif
         config.capturePushNotificationSubscriptions = false
         config.capturePushNotificationOpened = false
         // On by default, and each sends what the privacy policy says is not: a
@@ -95,8 +109,10 @@ final class Analytics {
         // place and text of rapid taps.
         config.preloadFeatureFlags = false
         config.setDefaultPersonProperties = false
-        config.rageClickConfig.enabled = false
-        config.captureAutocaptureElementText = false
+        #if os(iOS)
+            config.rageClickConfig.enabled = false
+            config.captureAutocaptureElementText = false
+        #endif
         config.setBeforeSend(Self.sanitized)
         PostHogSDK.shared.setup(config)
         if optingIn {
@@ -108,7 +124,11 @@ final class Analytics {
             PostHogSDK.shared.close()
             return
         }
-        PostHogSDK.shared.register(["platform": "ios"])
+        #if os(macOS)
+            PostHogSDK.shared.register(["platform": "macos"])
+        #else
+            PostHogSDK.shared.register(["platform": "ios"])
+        #endif
         isSetUp = true
         Task {
             // App Store, TestFlight or Xcode, so a test build is one filter away.

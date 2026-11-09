@@ -65,10 +65,10 @@ struct InfoPanel: View {
             .panelList()
             .alertNotice(alerts)
             .navigationTitle(entry.name)
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 // Drawn here: a navigationSubtitle shows one line, and drops the chips' second.
-                ToolbarItem(placement: .title) {
+                ToolbarItem(placement: .barTitle) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(entry.name)
                             .font(.headline)
@@ -85,21 +85,21 @@ struct InfoPanel: View {
                     )
                     // A menu rather than text selection, which would copy whichever of the two lines a press lands on.
                     .contextMenu {
-                        Button("Copy Name", systemImage: "doc.on.doc") { UIPasteboard.general.string = entry.name }
-                        Button("Copy Catalog Number", systemImage: "number") { UIPasteboard.general.string = entry.satnum }
+                        Button("Copy Name", systemImage: "doc.on.doc") { Platform.copy(entry.name) }
+                        Button("Copy Catalog Number", systemImage: "number") { Platform.copy(entry.satnum) }
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .barTrailing) {
                     AlertButton(subject: .satellite(entry.id), satellites: [entry], passes: passes, alerts: alerts)
                 }
                 if let onTrack {
-                    ToolbarSpacer(.fixed, placement: .topBarTrailing)
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarSpacer(.fixed, placement: .barTrailing)
+                    ToolbarItem(placement: .barTrailing) {
                         Button.track(isTracked, onTrack: onTrack)
                     }
                 }
-                ToolbarSpacer(.fixed, placement: .topBarTrailing)
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarSpacer(.fixed, placement: .barTrailing)
+                ToolbarItem(placement: .barTrailing) {
                     Button("Close", systemImage: "xmark", action: onClose)
                 }
             }
@@ -225,7 +225,11 @@ extension View {
 
     /// A section close under the title and over the tab's cards, as the web app's tab row is.
     fileprivate func tabHeader() -> some View {
-        listSectionMargins(.top, 0).listSectionSpacing(.compact)
+        #if os(macOS)
+            self
+        #else
+            listSectionMargins(.top, 0).listSectionSpacing(.compact)
+        #endif
     }
 
     /// A row on the panel's background rather than in a card, edge to edge: the tab row heads the cards below.
@@ -350,16 +354,16 @@ struct StationPanel: View {
             .panelList()
             .alertNotice(alerts)
             .navigationTitle(station.displayName)
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
-                ToolbarItem(placement: .title) {
+                ToolbarItem(placement: .barTitle) {
                     Text(station.displayName)
                         .font(.headline)
                         .lineLimit(1)
                         .leadingTitle()
                 }
                 // By what they do: the station itself, where to look from, and away.
-                ToolbarItemGroup(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .barTrailing) {
                     // A station a link brought is the link's until saved: alerts and
                     // names are for the user's own, which persist.
                     if passes.isVisiting(station.id) {
@@ -372,15 +376,15 @@ struct StationPanel: View {
                         AlertButton(subject: .station(station.id), satellites: catalog.activeEntries, passes: passes, alerts: alerts)
                     }
                 }
-                ToolbarSpacer(.fixed, placement: .topBarTrailing)
-                ToolbarItemGroup(placement: .topBarTrailing) {
+                ToolbarSpacer(.fixed, placement: .barTrailing)
+                ToolbarItemGroup(placement: .barTrailing) {
                     Button("View the sky from here", image: .lucideTelescope, action: onSky)
                     if let onTrack {
                         Button.track(isTracked, onTrack: onTrack)
                     }
                 }
-                ToolbarSpacer(.fixed, placement: .topBarTrailing)
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarSpacer(.fixed, placement: .barTrailing)
+                ToolbarItem(placement: .barTrailing) {
                     Button("Close", systemImage: "xmark", action: onClose)
                 }
             }

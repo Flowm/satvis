@@ -2,7 +2,6 @@ import Foundation
 import Observation
 import SatvisCore
 import SatvisRender
-import UIKit
 
 /// The web app's scene benchmark (ADR 0016), the first scene measured again at
 /// the end for drift. The results stay on the device unless the user sends them
@@ -288,17 +287,13 @@ final class Benchmark {
 
     /// The device and the app's settings, as the report's `device_` and `app_` keys.
     static func environment(renderer: GlobeRenderer, session: Session) -> [String: Any] {
-        var system = utsname()
-        uname(&system)
-        let identifier = withUnsafeBytes(of: system.machine) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
         let info = Bundle.main.infoDictionary ?? [:]
-        let screen = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen
         var environment: [String: Any] = [
             "app_version": info["CFBundleShortVersionString"] as? String ?? "",
             "app_build": info["CFBundleVersion"] as? String ?? "",
-            "device_model_identifier": identifier,
-            "device_kind": UIDevice.current.model,
-            "device_os_version": UIDevice.current.systemVersion,
+            "device_model_identifier": Platform.modelIdentifier,
+            "device_kind": Platform.deviceKind,
+            "device_os_version": Platform.systemVersion,
             "device_processor_count": ProcessInfo.processInfo.activeProcessorCount,
             "device_memory_gb": NSDecimalNumber(string: String(format: "%.1f", Double(ProcessInfo.processInfo.physicalMemory) / 1_073_741_824)),
             "device_low_power_mode": ProcessInfo.processInfo.isLowPowerModeEnabled,
@@ -308,9 +303,9 @@ final class Benchmark {
             "app_frame_budget_ms": NSDecimalNumber(string: String(format: "%.2f", session.frameBudgetMilliseconds)),
             "device_thermal_state_start": name(ProcessInfo.processInfo.thermalState),
         ]
-        if let screen {
-            environment["device_screen_pixels"] = "\(Int(screen.nativeBounds.width))x\(Int(screen.nativeBounds.height))"
-            environment["device_screen_scale"] = screen.nativeScale
+        if let screen = Platform.screen {
+            environment["device_screen_pixels"] = "\(Int(screen.pixels.width))x\(Int(screen.pixels.height))"
+            environment["device_screen_scale"] = screen.scale
             environment["device_max_fps"] = screen.maximumFramesPerSecond
         }
         if let size = renderer.drawableSize {
