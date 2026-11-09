@@ -13,13 +13,13 @@ test("runs the scenes ticked and opens a measured row", async ({ page }) => {
 
   await panel.getByRole("checkbox", { name: "All scenes" }).uncheck();
   await expect(panel.getByRole("button", { name: "Run 0 scenes" })).toBeDisabled();
-  await panel.getByRole("checkbox", { name: "Default view · Points and labels", exact: true }).check();
+  await panel.getByRole("checkbox", { name: "Default view", exact: true }).check();
   await panel.getByRole("button", { name: "Run 1 scene" }).click();
   // Tabs lock while a run is going.
   await expect(panel.getByRole("tab", { name: "Sweep" })).toBeDisabled();
   await expect(panel.getByRole("status")).toHaveText("Done", { timeout: 60_000 });
 
-  const row = panel.getByRole("row", { name: /Points and labels/ });
+  const row = panel.getByRole("row", { name: /Default view/ });
   await expect(row).toContainText(/\d+ satellites/);
   await row.click();
   // The performance panel's figures.
@@ -57,7 +57,7 @@ test("closing the panel mid-run stops the run, and the view it puts back keeps i
   await openApp(page, "bench=true");
   const panel = page.locator(".bench");
   await panel.getByRole("checkbox", { name: "All scenes" }).uncheck();
-  await panel.getByRole("checkbox", { name: "Default view · Points and labels", exact: true }).check();
+  await panel.getByRole("checkbox", { name: "Default view", exact: true }).check();
   await panel.getByRole("button", { name: "Run 1 scene" }).click();
   await expect(panel.getByRole("status")).toHaveText(/^1 of 1 · /);
   await panel.getByRole("button", { name: "Close" }).click();
