@@ -353,6 +353,12 @@ panel runs to the margin over Share and the globe button; beside them at 280 pt,
 peeked out past it. On the iPad the names stay. The column opens and closes in about 0.2 s,
 the rows uncovered by the growing panel rather than showing ahead of it.
 
+**Result, 2026-11-09.** Graphics, regrouped as the web app's: Hide UI, FPS and Benchmark
+on one card with no title, a hairline between each two, then Frame rate and Pixel ratio,
+each a segmented control under its title, and one note, "Lower is faster. Native is 3x."
+on one line, on an iPhone 18 Pro simulator. The whole panel shows without scrolling. The
+UI tests that open it (Hide UI, FPS, Benchmark) passed.
+
 ## Native app: the Sky panel, and dimming what cannot be seen
 
 **Procedure.** A never-used iPhone 18 Pro simulator on iOS 27, opened on

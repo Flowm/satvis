@@ -715,12 +715,24 @@ struct GraphicsPanel: View {
     @Environment(\.displayScale) private var displayScale
 
     var body: some View {
-        // First, so a phone shows it without scrolling.
-        PanelSection("Interface") {
-            PanelCard {
-                Place(Text("Hide UI"), image: .lucideEyeOff, action: hideUI)
-            }
-            Note("For a clear view of the globe. Show UI, top right, brings it back.")
+        // Hide UI first, so a phone shows it without scrolling, and the frame rate
+        // in view under it, as the web app's panel.
+        PanelCard {
+            Place(Text("Hide UI"), image: .lucideEyeOff, action: hideUI)
+            Toggle("FPS", isOn: $session.showsPerformance)
+            Toggle(
+                "Benchmark",
+                isOn: Binding {
+                    session.showsBenchmark
+                } set: {
+                    session.setShowsBenchmark($0)
+                })
+        }
+        PanelSection("Frame rate") {
+            Segments(
+                title: "Frame rate",
+                selection: $session.frameRate,
+                options: Session.frameRates.map { ($0 == Session.maximumFrameRate ? "Max" : "\($0) fps", $0) })
         }
         // The web app's ladder (src/config/rendering.ts): the fixed rungs below
         // the screen's own ratio, then the screen's, so it only offers savings.
@@ -731,26 +743,7 @@ struct GraphicsPanel: View {
                 options: LinkCodec.pixelRatios.filter { $0 == "native" || (Double($0) ?? 0) < displayScale }.map { ratio in
                     (ratio == "native" ? "Native" : "\(ratio)x", ratio)
                 })
-            Note("Native is this screen's \(Double(displayScale).formatted(.number.precision(.fractionLength(0...2))))x. Fewer pixels draw faster.")
-        }
-        PanelSection("Frame rate") {
-            Segments(
-                title: "Frame rate",
-                selection: $session.frameRate,
-                options: Session.frameRates.map { ($0 == Session.maximumFrameRate ? "Max" : "\($0) fps", $0) })
-            Note("At most this many frames a second. Fewer save battery.")
-        }
-        PanelSection("Measurement") {
-            PanelCard {
-                Toggle("FPS", isOn: $session.showsPerformance)
-                Toggle(
-                    "Benchmark",
-                    isOn: Binding {
-                        session.showsBenchmark
-                    } set: {
-                        session.setShowsBenchmark($0)
-                    })
-            }
+            Note("Lower is faster. Native is \(Double(displayScale).formatted(.number.precision(.fractionLength(0...2))))x.")
         }
     }
 }
