@@ -158,26 +158,11 @@
         <div class="toolbarNote">In Earth's shadow, too far away or during daylight.</div>
       </toolbar-panel>
       <toolbar-panel v-show="openMenu === 'render'" title="Graphics" @close="closePanel('render')">
-        <!-- First, so a phone shows it without scrolling. -->
-        <div class="toolbarTitle">Interface</div>
-        <button ref="hideUIButton" type="button" class="toolbarPlace" @click="hideUI">
+        <!-- Hide UI first, so a phone shows it without scrolling; the frame rate next, as the native app keeps it in a phone's view. -->
+        <button ref="hideUIButton" type="button" class="toolbarPlace" title="For a clear view of the globe. Show UI, top right, brings it back." @click="hideUI">
           <UIcon name="lucide:eye-off" class="toolbarPlace__icon" />
           <span class="toolbarPlace__label">Hide UI</span>
         </button>
-        <div class="toolbarNote">For a clear view of the globe. Show UI, top right, brings it back.</div>
-        <!-- The native app's order, which keeps the frame rate in a phone's view. Ladders rather than switches; see src/config/rendering.ts. -->
-        <div class="toolbarTitle">Pixel ratio</div>
-        <segmented-control v-model="pixelRatio" label="Pixel ratio" :options="PIXEL_RATIO_OPTIONS" />
-        <div class="toolbarNote">Native is this screen's {{ formatNumber(nativeRatio) }}x. Fewer pixels draw faster.</div>
-        <div class="toolbarTitle">Frame rate</div>
-        <segmented-control v-model="frameRate" label="Frame rate" :options="FRAME_RATE_OPTIONS" />
-        <div class="toolbarNote">At most this many frames a second. Fewer save battery.</div>
-        <label class="toolbarSwitch">
-          <input v-model="requestRenderMode" type="checkbox" />
-          Render only on change
-        </label>
-        <div class="toolbarNote">Draws a frame only when something moves. Turn it off to measure frame times.</div>
-        <div class="toolbarTitle">Measurement</div>
         <label class="toolbarSwitch">
           <input v-model="showFps" type="checkbox" />
           FPS
@@ -186,25 +171,41 @@
           <input v-model="showBenchmark" type="checkbox" />
           Benchmark
         </label>
-        <div class="toolbarTitle">Scene effects</div>
-        <label class="toolbarSwitch">
-          <input v-model="cc.viewer.scene.fog.enabled" type="checkbox" />
-          Fog
+        <label class="toolbarSwitch" title="Draws a frame only when something moves. Turn it off to measure frame times.">
+          <input v-model="requestRenderMode" type="checkbox" />
+          Render only on change
         </label>
-        <label class="toolbarSwitch">
-          <input v-model="cc.viewer.scene.globe.enableLighting" type="checkbox" />
-          Lighting
-        </label>
-        <label class="toolbarSwitch">
-          <input v-model="cc.viewer.scene.highDynamicRange" type="checkbox" />
-          HDR
-        </label>
-        <label class="toolbarSwitch">
-          <input v-model="cc.viewer.scene.globe.showGroundAtmosphere" type="checkbox" />
-          Atmosphere
-        </label>
-        <div class="toolbarTitle">Antialiasing (MSAA)</div>
-        <segmented-control v-model="msaa" label="Antialiasing (MSAA)" :options="MSAA_OPTIONS" />
+        <!-- Ladders rather than switches; see src/config/rendering.ts. -->
+        <div class="toolbarTitle">Frame rate</div>
+        <segmented-control v-model="frameRate" label="Frame rate" :options="FRAME_RATE_OPTIONS" />
+        <div class="toolbarTitle">Pixel ratio</div>
+        <segmented-control v-model="pixelRatio" label="Pixel ratio" :options="PIXEL_RATIO_OPTIONS" />
+        <div class="toolbarNote">Lower is faster. Native is {{ formatNumber(nativeRatio) }}x.</div>
+        <button type="button" class="toolbarDisclosure" :aria-expanded="graphicsAdvanced" @click="graphicsAdvanced = !graphicsAdvanced">
+          Advanced
+          <UIcon name="lucide:chevron-right" class="toolbarDisclosure__chevron" />
+        </button>
+        <template v-if="graphicsAdvanced">
+          <div class="toolbarTitle toolbarTitle--sub">Scene effects</div>
+          <label class="toolbarSwitch">
+            <input v-model="cc.viewer.scene.fog.enabled" type="checkbox" />
+            Fog
+          </label>
+          <label class="toolbarSwitch">
+            <input v-model="cc.viewer.scene.globe.enableLighting" type="checkbox" />
+            Lighting
+          </label>
+          <label class="toolbarSwitch">
+            <input v-model="cc.viewer.scene.highDynamicRange" type="checkbox" />
+            HDR
+          </label>
+          <label class="toolbarSwitch">
+            <input v-model="cc.viewer.scene.globe.showGroundAtmosphere" type="checkbox" />
+            Atmosphere
+          </label>
+          <div class="toolbarTitle toolbarTitle--sub">Antialiasing (MSAA)</div>
+          <segmented-control v-model="msaa" label="Antialiasing (MSAA)" :options="MSAA_OPTIONS" />
+        </template>
       </toolbar-panel>
     </div>
     <!-- The native app's corner, in its order. -->
@@ -314,6 +315,8 @@ const showUIButton = ref<HTMLButtonElement>();
 const isNarrow = (): boolean => window.innerWidth > 0 && window.innerWidth < PHONE_WIDTH;
 
 const menuExpanded = ref(!isNarrow());
+/** Whether the Graphics panel shows its scene effects and MSAA; closed on each page load. */
+const graphicsAdvanced = ref(false);
 
 /** `hint` is the hover text, saying what is behind an entry. */
 const menuItems: { key: MenuKey; label: string; icon: string; hint: string }[] = [
