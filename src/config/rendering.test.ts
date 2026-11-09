@@ -1,16 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  FRAME_RATES,
-  MSAA_RATES,
-  PIXEL_RATIOS,
-  currentDevicePixelRatio,
-  defaultMsaaRate,
-  msaaSamplesFor,
-  pixelRatiosFor,
-  resolutionScaleFor,
-  targetFrameRateFor,
-} from "./rendering";
+import { MSAA_RATES, PIXEL_RATIOS, currentDevicePixelRatio, defaultMsaaRate, frameIntervalFor, msaaSamplesFor, pixelRatiosFor, resolutionScaleFor } from "./rendering";
 
 describe("msaaSamplesFor", () => {
   test("off is one sample, which is how Cesium spells it", () => {
@@ -139,42 +129,9 @@ describe("currentDevicePixelRatio", () => {
   });
 });
 
-/**
- * Frames drawn a second by CesiumWidget's render loop under a cap, its arithmetic copied, on
- * a screen whose frames come 0.1 ms early and late by turns.
- */
-function framesDrawn(cap: number | undefined, refreshMs: number): number {
-  let lastFrameTime = 0;
-  let drawn = 0;
-  for (let frame = 1; frame * refreshMs <= 10_000; frame += 1) {
-    const frameTime = frame * refreshMs + (frame % 2 === 0 ? 0.1 : -0.1);
-    const delta = frameTime - lastFrameTime;
-    if (cap === undefined) {
-      drawn += 1;
-    } else if (delta > 1000 / cap) {
-      drawn += 1;
-      lastFrameTime = frameTime - (delta % (1000 / cap));
-    }
-  }
-  return drawn / 10;
-}
-
-describe("targetFrameRateFor", () => {
+describe("frameIntervalFor", () => {
   test("max sets no cap", () => {
-    expect(targetFrameRateFor("max")).toBeUndefined();
-  });
-
-  test("a cap draws its rate, within its headroom, on a 60 Hz and a 120 Hz screen", () => {
-    for (const rate of FRAME_RATES.filter((capped) => capped !== "max")) {
-      for (const refreshMs of [1000 / 60, 1000 / 120]) {
-        const drawn = framesDrawn(targetFrameRateFor(rate), refreshMs);
-        expect(drawn).toBeGreaterThanOrEqual(Math.min(Number(rate), 1000 / refreshMs) - 0.2);
-        expect(drawn).toBeLessThanOrEqual(Number(rate) * 1.05);
-      }
-    }
-  });
-
-  test("a cap of exactly the screen's rate would have drawn half its frames", () => {
-    expect(framesDrawn(60, 1000 / 60)).toBe(30);
+    expect(frameIntervalFor("max")).toBeUndefined();
+    expect(frameIntervalFor("60")).toBeCloseTo(1000 / 60, 9);
   });
 });

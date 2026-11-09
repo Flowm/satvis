@@ -22,10 +22,11 @@ import { usePostHog } from "@/composables/usePostHog";
 import { defaultViewDistance } from "@/config/defaultView";
 import { parseLayer } from "@/config/layers";
 import { TOUCH_HOLD_MS } from "@/config/layout";
-import { type FrameRate, msaaSamplesFor, resolutionScaleFor, targetFrameRateFor } from "@/config/rendering";
+import { type FrameRate, frameIntervalFor, msaaSamplesFor, resolutionScaleFor } from "@/config/rendering";
 import { type StarMapSources, starMapSources } from "@/config/starMaps";
 import { DeviceDetect } from "@/modules/util/DeviceDetect";
 import { smootherstep } from "@/modules/util/easing";
+import { FrameCap, type RenderLoop, startRenderLoop } from "@/modules/util/frameCap";
 import { Suppressible } from "@/modules/util/Suppressible";
 
 import { type ImageryContext, type ImageryProviderEntry, imageryProviders, type TerrainProviderEntry, terrainProviders } from "./CesiumLayerProviders";
@@ -100,6 +101,12 @@ export class CesiumController {
   /** Sets how far simulation time may run between renders on demand. */
   renderPacer!: RenderPacer;
 
+  /** The frame rate chosen, which the render loop draws at. */
+  readonly frameCap = new FrameCap();
+
+  /** Draws the frames, at the rate `frameCap` allows. */
+  readonly renderLoop: RenderLoop;
+
   skyView!: SkyView;
 
   skyInteraction!: SkyInteraction;
@@ -148,6 +155,7 @@ export class CesiumController {
     this.#createInputHandler();
     this.#addErrorHandler();
     skipUnsizedFrames(this.viewer.cesiumWidget);
+    this.renderLoop = startRenderLoop(this.viewer.cesiumWidget, this.frameCap);
     skipUnsizedPicks(this.viewer.scene);
 
     this.sats = new SatelliteManager(this.viewer);
@@ -587,8 +595,7 @@ export class CesiumController {
 
   /** Frames a second at most. */
   set frameRate(rate: FrameRate) {
-    // Cesium's types leave out undefined, which its docs allow: the browser's own rate.
-    this.viewer.targetFrameRate = targetFrameRateFor(rate) as number;
+    this.frameCap.intervalMs = frameIntervalFor(rate);
   }
 
   /**

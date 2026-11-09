@@ -25,5 +25,5 @@ test("tracking an entity added in the same task leaves the render loop running",
   await waitTicks(page, 5);
   await trackNewPoint(page, 1000);
   await waitTicks(page, 5);
-  expect(await page.evaluate(() => window.cc!.viewer.useDefaultRenderLoop)).toBe(true);
+  expect(await page.evaluate(() => window.cc!.renderLoop.running)).toBe(true);
 });
