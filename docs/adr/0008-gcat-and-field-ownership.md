@@ -141,6 +141,12 @@ change its file before it applied, because a 304 reused the parsed rows. Now:
   parser rejects keeps its old rows, and its status records the error. A file stored
   before rows were kept has none until its next check.
 
+  So a 304 costs the Worker about as much CPU as a new file: 80 ms to 1.2 s a table,
+  against the 10 ms Workers Free allows a request. The rest comes from each runtime
+  instance's undocumented "rollover bank", about 2 s of CPU, which four reports sent
+  back to back used up (`exceededCpu`, a 503). `push-catalog` waits 2 minutes between
+  tables.
+
   This amends the first version of this decision, in which every GP update decompressed
   and parsed the four files itself. That was put at 160 ms; it was most of the update's
   CPU time, and took one push in three or four past the deployed Worker's limit, which

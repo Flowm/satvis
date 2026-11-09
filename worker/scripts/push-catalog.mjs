@@ -7,10 +7,12 @@
 //
 // Usage:
 //   SATVIS_REFRESH_TOKEN=<token> pnpm --filter satvis-worker push-catalog
-//   SATVIS_API_URL=http://localhost:8787 SATVIS_REFRESH_TOKEN=... node scripts/push-catalog.mjs
+//   SATVIS_API_URL=http://localhost:8787 SATVIS_TABLE_PAUSE_MS=0 SATVIS_REFRESH_TOKEN=... node scripts/push-catalog.mjs
 //
 // Exits non-zero when any table ends in an error, upstream's or the Worker's, so a
 // scheduler reports it.
+
+import { setTimeout as sleep } from "node:timers/promises";
 
 import { reportHeaders } from "../src/gp/pushProtocol.ts";
 import { fetchUpstream } from "../src/gp/upstream.ts";
@@ -18,6 +20,12 @@ import { UPSTREAMS } from "../src/gp/upstreams.ts";
 
 const apiUrl = process.env.SATVIS_API_URL ?? "https://satvis.space";
 const token = process.env.SATVIS_REFRESH_TOKEN;
+/**
+ * Between two tables. Workers Free allows 10 ms of CPU a request; a report of a new file
+ * or a 304 takes 80 ms to 1.2 s of an undocumented allowance, and back to back they used
+ * it up after about 2 s of CPU (`exceededCpu`, a 503). Local `wrangler dev` has no limit.
+ */
+const tablePauseMs = Number(process.env.SATVIS_TABLE_PAUSE_MS ?? 120_000);
 
 function fail(message) {
   process.stderr.write(`push-catalog: ${message}\n`);
@@ -71,7 +79,11 @@ async function main() {
   }
   const etags = await storedEtags();
   let failed = false;
-  for (const spec of UPSTREAMS) {
+  for (const [index, spec] of UPSTREAMS.entries()) {
+    if (index > 0) {
+      // eslint-disable-next-line no-await-in-loop -- the pause is the point
+      await sleep(tablePauseMs);
+    }
     // eslint-disable-next-line no-await-in-loop -- one downloaded file in memory at a time; GCAT's is 19 MB
     failed = !(await pushTable(spec, etags[spec.name])) || failed;
   }
