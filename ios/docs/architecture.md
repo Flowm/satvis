@@ -216,8 +216,8 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
 - The Graphics panel's "FPS" is the web app's performance panel, kept in links
   as `fps=true`, or `fps=graph` with the last five seconds' graph of each frame's
   work against the frame budget a tap opens (`PerformanceOverlay.swift`, `FrameMeter` in `FrameStats.swift`). It
-  shows fps, CPU and GPU ms, load, memory and satellites, defined as the web's
-  (ADR 0016), measured only while something asks (`measureFrames(_:for:)`), and
+  shows fps, CPU and GPU ms, load, memory and satellites, defined and laid out as
+  the web's (ADR 0016), measured only while something asks (`measureFrames(_:for:)`), and
   never changes pacing: paced, it says so, and the load is the figure. Read it
   on a device: the simulator runs on the Mac's CPU and GPU. For where
   the time goes, profile a Release build with Instruments' Time Profiler

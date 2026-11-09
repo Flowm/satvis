@@ -135,8 +135,10 @@ frame. Load reads "≥ n" where only the CPU side is known. Idle, the GPU meter 
 "idle" over a hatched track and its time stays out of load. The graph marks each frame
 idle as it is drawn (paced, more than two display intervals after the one before): its
 GPU mark is faded and stays out of over budget, and with only idle frames timed the
-footer reads "over, CPU". The native overlay shows the same figures as lines of text,
-top right under the corner's buttons, where the web panel sits.
+footer reads "over, CPU". After 2 s without a frame, as with the clock paused and
+nothing moving, the panel reads 0 fps and "no frames", its meters and total CPU go blank,
+and the graph says how long it has been. The native overlay is laid out alike, at the same widths in points,
+and sits as the web's does: top right, under the corner's buttons.
 
 The frame budget is the interval the frame rate asks for, never shorter than the
 display's. The web measures the display from the gaps between 60 animation frames: the
