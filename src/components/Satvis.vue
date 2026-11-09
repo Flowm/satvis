@@ -207,6 +207,11 @@
             <input v-model="cc.viewer.scene.globe.showGroundAtmosphere" type="checkbox" />
             Atmosphere
           </label>
+          <label class="toolbarSwitch">
+            <input v-model="cc.orderIndependentTranslucency" type="checkbox" :disabled="!cc.orderIndependentTranslucencySupported" />
+            Translucency (OIT)
+          </label>
+          <div class="toolbarNote">Order-independent: blends overlapping orbits and cones without sorting them. On, frames take about twice as long.</div>
           <div class="toolbarTitle toolbarTitle--sub">Antialiasing (MSAA)</div>
           <segmented-control v-model="msaa" label="Antialiasing (MSAA)" :options="MSAA_OPTIONS" />
         </template>

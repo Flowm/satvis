@@ -44,6 +44,9 @@ dayjs.extend(utc);
 /** Where the globe menu opens, in canvas pixels, and what it opens on: a station's pin, or a place on the ground. */
 export type GlobeMenuPlace = { x: number; y: number } & ({ station: number } | { lat: number; lon: number });
 
+/** As much of Cesium's private `OIT` as is used here. */
+type OrderIndependentTranslucency = { isSupported(): boolean };
+
 /**
  * Degrees. A little north, so Europe clears the limb without cutting off the southern hemisphere.
  */
@@ -140,6 +143,9 @@ export class CesiumController {
 
   #onGlobeMenu: (place: GlobeMenuPlace) => void = () => {};
 
+  /** The view's own instance, kept while `orderIndependentTranslucency` is off. */
+  readonly #oit: OrderIndependentTranslucency | undefined;
+
   #onSurfaceFailure: (name: string, error: unknown) => void = () => {};
   #onTerrainFailure: (name: string, error: unknown) => void = () => {};
 
@@ -147,6 +153,8 @@ export class CesiumController {
     this.#preloadReferenceFrameData();
 
     this.viewer = viewer;
+    this.#oit = this.#view.oit;
+    this.orderIndependentTranslucency = false;
     this.setDefaultView();
 
     this.#camera = new Suppressible<string>("Fixed", (mode) => this.#applyCameraMode(mode));
@@ -606,6 +614,36 @@ export class CesiumController {
     this.skyView.setRequestRenderMode(value);
     // Switching it on otherwise looks like a freeze.
     this.viewer.scene.requestRender();
+  }
+
+  /** False without float blending, where Cesium blends back to front regardless. */
+  get orderIndependentTranslucencySupported(): boolean {
+    return this.#oit?.isSupported() ?? false;
+  }
+
+  /**
+   * Off by default. Its two float32 targets at full canvas size cost half of every frame
+   * (25.1 → 13.3 ms at 6016×3160 on an M4 Pro), for differences only where translucent
+   * geometry overlaps, and its blend is a depth-weighted average, not a correct layering.
+   * Cesium offers only a constructor option, so this swaps the view's instance, which
+   * `Scene` reads every frame; the targets are allocated on first use.
+   */
+  get orderIndependentTranslucency(): boolean {
+    return this.orderIndependentTranslucencySupported && this.#view.oit !== undefined;
+  }
+
+  set orderIndependentTranslucency(enabled: boolean) {
+    this.#view.oit = enabled ? this.#oit : undefined;
+    // Cesium derives a command's OIT copy only while the command is dirty, then reads it
+    // unchecked: a translucent command that stayed clean would throw in `Scene.render`.
+    // A shadow change is the one signal that dirties every command.
+    (this.viewer.scene as unknown as { _frameState: { shadowState: { lastDirtyTime: number } } })._frameState.shadowState.lastDirtyTime++;
+    this.viewer.scene.requestRender();
+  }
+
+  /** Cesium's private `View`. */
+  get #view(): { oit?: OrderIndependentTranslucency } {
+    return (this.viewer.scene as unknown as { _view: { oit?: OrderIndependentTranslucency } })._view;
   }
 
   /**

@@ -54,8 +54,12 @@ satellite alike, so nothing needs to stand apart, and 22% vanished against the b
 A daylight sky emptied by default would look broken. `?unseen=hide` hides them
 instead, and the crosshair skips them; `?unseen=show` draws them like the rest. The
 Sky panel offers the three under "Out of sight", disabled on the globe, where nothing
-is judged. Only the point, the label and the 3D model change; orbits and tracks do
-not.
+is judged. Only the point and the label are dimmed; orbits and tracks do not change.
+A 3D model is hidden with them but never dimmed. Translucent, a model stops culling
+its back faces, and without order-independent translucency, which costs half of
+every frame and is off (`CesiumController`), its faces blend in the order they are
+stored. The opaque alternatives (mixing in the sky's colour or black, darkening,
+desaturating) made it look like another object rather than a faded one.
 
 **The appearance is the satellite's, written only when it changes.** The sky view
 writes each satellite's `skyAppearance` every frame, and the satellite restyles its
