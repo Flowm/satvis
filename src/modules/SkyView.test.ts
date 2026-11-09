@@ -282,6 +282,21 @@ describe("the scene state the view borrows", () => {
     await roundTrip(true);
   });
 
+  // Leaving the sky view used to put back the setting from its entry over one changed since,
+  // as a benchmark scene does (ADR 0016).
+  test("puts back render on demand as the store last set it", async () => {
+    cut();
+    const scene = stubScene(false);
+    const view = new SkyView(scene as unknown as Scene);
+    await view.enter({ lat: 47.3879, lon: 12.3077 });
+    view.setRequestRenderMode(false);
+    expect(scene.requestRenderMode).toBe(false);
+    await view.exit();
+    expect(scene.requestRenderMode).toBe(false);
+    view.setRequestRenderMode(true);
+    expect(scene.requestRenderMode).toBe(true);
+  });
+
   test("lets the ground occlude labels while the view is up, and puts their distance back", async () => {
     cut();
     const labels = { coarseDepthTestDistance: 635_675, isDestroyed: () => false };

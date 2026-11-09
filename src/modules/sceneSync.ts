@@ -58,7 +58,6 @@ export interface SceneTarget {
   pixelRatio: string;
   msaa: string;
   frameRate: FrameRate;
-  showFps: boolean;
   requestRenderMode: boolean;
   background: boolean;
   pickMode: boolean;
@@ -328,12 +327,6 @@ export function startSceneSync(cc: SceneTarget): void {
       cc.frameRate = rate;
     },
     { immediate: true },
-  );
-  watch(
-    () => cesiumStore.showFps,
-    (show) => {
-      cc.showFps = show;
-    },
   );
   watch(
     () => cesiumStore.requestRenderMode,

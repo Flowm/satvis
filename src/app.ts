@@ -34,7 +34,7 @@ window.cc = cc;
 
 // Frames for a page the browser presents none in, such as an automated pane.
 if (new URLSearchParams(window.location.search).has("framems")) {
-  void import("@/modules/benchmark/framePump").then(({ installFramePumpIfRequested }) => installFramePumpIfRequested(viewer, window.location.search));
+  void import("@/modules/benchmark/framePump").then(({ installFramePumpIfRequested }) => installFramePumpIfRequested(viewer, window.location.search, () => cc.renderLoop.stop()));
 }
 
 const preset = resolvePreset();

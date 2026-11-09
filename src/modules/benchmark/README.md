@@ -1,16 +1,25 @@
 # Benchmarking framework
 
-The framework answers three questions repeatably:
+The framework runs two kinds of benchmark, both lists of steps (ADR 0016):
 
-- How does the frame cost scale with the number of satellites?
-- What does each satellite component cost on top of the ones already drawn?
-- What does a faster clock (more frequent propagation) cost?
+- **Scene runs** measure the route's benchmark scenes, the same ones the native app
+  runs, and report them in the schema both apps send. They answer what the web app
+  costs against the native app on one device.
+- **Sweeps** answer three questions repeatably, in both apps:
+  - How does the frame cost scale with the number of satellites?
+  - What does each satellite component cost on top of the ones already drawn?
+  - What does a faster clock (more frequent propagation) cost?
 
 ## Run it
 
 Open **Menu → Graphics → Measurement → Benchmark**, or add `?bench=true` to the url
 (`cesium.showBenchmark`). Opening the panel loads the framework and installs
-`window.bench` for the console.
+`window.bench` for the console. The Scenes tab runs the scenes ticked, all of them
+with the drift repeat; a measured row opens for the rest of its figures. The Sweep tab
+runs a sweep of the counts, components and clock rates it is given; the named sweeps
+and every other option are the console's. The header's status line says where
+a run is, whoever started it, the console included. The native app's panel has the same
+options and wording.
 
 Measure a production build. A dev build is unminified and runs Vue in development
 mode, so its numbers are pessimistic:
@@ -22,13 +31,16 @@ pnpm build && pnpm preview
 Then use the panel, or the console:
 
 ```js
+await bench.scenes(); // every scene, then the first again: resolves to the report
+await bench.scenes({ only: ["default_view", "starlink_points"] }); // no drift repeat
+bench.report; // the last scene run's report
+bench.send(); // sends it as the PostHog `benchmark` event, as the panel's Send does
 bench.quick(); // 3 counts × 8 isolated sets: checks the harness
 bench.run(); // 5 counts × 8 isolated sets: each component's own cost
 bench.cumulative(); // 5 counts × 9 growing sets: cost on top of what is already drawn
 bench.clock(); // 5 counts × 4 clock rates: the propagation axis
 bench.run({ satelliteCounts: [0, 500, 5000], componentSets: [["Point", "Orbit"]] });
 bench.run({ clockMultipliers: [1, 100] }); // any sweep can take the clock axis
-bench.run({ groundStation: { lat: 48.18, lon: 11.75 } }); // switches pass prediction on
 bench.run({ tag: "Starlink" }); // pins the population
 bench.run({ captureFootprint: true }); // absolute memory per step, ~17 s each
 bench.run({ repeatFirstStep: false }); // skips the closing drift check
@@ -40,38 +52,137 @@ bench.json();
 bench.text();
 ```
 
-Every sweep ends with a re-run of its first step. A step costs
-`warmupMs + sampleMs` (2 s + 4 s by default) plus its build.
+Every run ends with a re-run of its first step. A sweep step costs
+`warmupMs + sampleMs` (2 s + 4 s by default) plus its build, a scene 3 s + 5 s plus
+its load.
+
+`?bench=run` opens the panel and runs the scenes once the page has loaded;
+`&benchscenes=<id>,<id>` runs only those. The url reads `bench=true` from the start
+of the run, so a reload, a bookmark or Recent starts none, and the run never sends:
+it logs the report and sets `bench.report`. It is the one handle on Safari added to
+the Home Screen, which has no console.
 
 Keep the tab in the foreground. A hidden tab presents no frames.
 
-## What it measures
+## Scene runs
 
-A step is one point in the sweep **satellite count × component set × clock
+The scenes are the preset's `benchmark:` list in the worker config
+(`worker/src/config/satvis.core.yaml`), written like featured bookmarks: an `id`, a
+`name`, a `query` against the preset's defaults, and `paced` for a scene measured
+idle. A preset without a list is served the default preset's, which keep the route
+`/`: `bench.scenes()` on another route opens `/?bench=run` instead. Keep an `id` when
+renaming a scene, so its reports stay comparable; the report carries the definitions
+it ran.
+
+A step opens the scene's link (keeping `pixelratio`, `framerate`, `msaa` and `fps`),
+waits until everything active is drawn and the count has held for 2 s (90 s at most,
+then measured anyway as `timed_out`), deselects, settles 3 s and records 5 s. An
+unpaced scene switches render-on-demand off; a paced one keeps it on, so its frame
+rate is low by design and `load_pct` is its cost. At the end the view the run found
+comes back.
+
+**Idle frames run on a slower GPU.** Paced at under half the display's rate, a
+recording is `idle`: the GPU clocks down between frames and times each 1.7 to 2 times
+slower than drawn every frame. In Chromium on a Mac the same frame read 28 ms idle and
+17 ms while dragging; plain WebGL, without Cesium, showed it too. So idle,
+`over_budget_pct` and `load_pct` count the CPU alone, and `gpu_ms` is still reported, but
+read it only against other idle recordings. Dragging a paced globe draws every frame and
+is not idle.
+
+The report is one flat set of PostHog properties: the environment (`app_`,
+`device_`, with `app_frame_rate` as `30`, `60` or `max` and `app_frame_budget_ms` the
+budget it gives on that display), `benchmark_version` (8), `benchmark_platform`, `benchmark_scenes`,
+`benchmark_definitions`, `benchmark_drift_pct`, and `scene_<id>_<metric>` per step.
+The metrics are defined once, by `summarize` in `frameSummary.ts`; the native app is
+held to it by a parity fixture (`pnpm update-parity-fixtures`).
+
+| Metric                       | Meaning                                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------------------- |
+| `fps`                        | Drawn frames a second                                                                              |
+| `cpu_ms`, `cpu_p95_ms`       | The whole frame callback, clock tick and render, per drawn frame                                   |
+| `gpu_ms`, `gpu_p95_ms`       | GPU time per frame, empty without a believable timer                                               |
+| `over_budget_pct`            | The larger side's share of frames whose work outlasted the frame budget; idle, the CPU's           |
+| `cpu_total_pct`              | Every thread's CPU, in % of one core; a floor on the web                                           |
+| `cpu_busy_pct`               | The CPU's busy share, skipped frames included: load's floor where GPU is unknown                   |
+| `load_pct`                   | The busier side's share, only when both are known; idle, the CPU's                                 |
+| `memory_mb`, `memory_source` | `js_heap` on the web, `phys_footprint` on iOS: never compare the two                               |
+| `satellites`, `load_s`       | Satellites drawn, and the time to load the scene                                                   |
+| `idle`                       | Paced, frames over two refreshes apart: `gpu_ms` read at the idle clock, budget and load the CPU's |
+| `x_<name>`                   | One app's own figures: the web's `tick_ms`, `render_ms` and `gpu_capped_pct`, iOS's waits and more |
+
+`x_gpu_capped_pct` above 0 says the web's GPU was saturated: those frames' times were
+capped at the median interval (`gpuCapMs`), so `gpu_ms` reads short of the work.
+
+Compare the two apps row by row on one device. Safari has no GPU timer, so its
+`load_pct` is empty; compare `cpu_ms` and `cpu_busy_pct` then.
+
+## The performance panel
+
+`?fps=true` shows the compact panel: the frame rate with a dot coloured by load, heap
+and satellites, and meters for CPU and GPU time, whose tick is the frame budget, and for
+load. `?fps=graph` adds the last 5 s: each frame's CPU bar over a pale column of its GPU
+time, against the labelled budget, paced or not, with each side's p95 marked; each side's
+frames split by share of the budget, its red share the over-budget one; then over budget
+and total CPU. A tap switches between them. Both widths are fixed. Both read
+`FrameMeter` (`frameMeter.ts`), which wraps `CesiumWidget.render`, the clock tick and
+the render, and counts a call as a drawn frame only when `postRender` fired in it. Its
+averages, over at least 0.5 s and published as a frame is drawn, feed the panel, its
+recording a scene step. A GPU time that arrives after its window was published counts
+in the next. It measures only while the panel or the benchmark panel is open, and never
+changes render pacing: paced, the panel says so, and the load is the figure to read.
+Paced means render-on-demand with nothing tracked, as a tracked satellite is drawn every
+frame. Load reads "≥ n" where only the CPU side is known. Idle, the GPU meter reads
+"idle" over a hatched track and its time stays out of load. The graph marks each frame
+idle as it is drawn (paced, more than two display intervals after the one before): its
+GPU mark is faded and stays out of over budget, and with only idle frames timed the
+footer reads "over, CPU". After 2 s without a frame, as with the clock paused and
+nothing moving, the panel reads 0 fps and "no frames", its meters and total CPU go blank,
+and the graph says how long it has been. The native overlay is laid out alike, at the same widths in points,
+and sits as the web's does: top right, under the corner's buttons.
+
+The frame budget is the interval the frame rate asks for, never shorter than the
+display's. The web measures the display from the gaps between 60 animation frames: the
+shortest gaps that hold half of them, averaged around their median (`displayIntervalMs`). An
+iPad loading the page skips refreshes, and the median gap read 25 to 28 ms on its 60 Hz
+screen; Safari's late frames leave catch-up gaps of 5 to 14 ms, and its timestamps are whole
+milliseconds. A busy iPad mini draws 18 to 24 ms apart, off the refresh, for 20 s and more,
+which no rule over gaps can read, so the web measures again every 10 s and whenever frames
+come faster than the display it read, keeping the shortest. A screen at 120 Hz whose every
+frame takes more than a refresh reads 60 until a lighter moment. The native app takes the
+screen's `maximumFramesPerSecond`.
+
+## What a sweep measures
+
+A sweep step is one point in the sweep **satellite count × component set × clock
 rate**. The clock axis is ×1 only, unless you ask for more.
 
-| Column             | Meaning                                                                      |
-| ------------------ | ---------------------------------------------------------------------------- |
-| `fps`, `frameMs`   | Time between presented frames. Flattens against vsync and the frame rate cap |
-| `cpuMs`            | `preUpdate` → `postRender`: the render only                                  |
-| `tickMs`           | `clock.tick()`, every `onTick` listener included. Propagation shows here     |
-| `gpuMs`            | GPU time per frame, blank when the driver's timer is not believable          |
-| `p95`, `worst`     | Percentiles of `frameMs`                                                     |
-| `frames`           | Sample size. Read it first: rows under 20 frames are noise                   |
-| `jankPct`          | Share of frames slower than 33 ms                                            |
-| `clock`            | Clock rate, as a multiple of real time                                       |
-| `buildMs`          | Wall time to a **complete** scene, spread over frames                        |
-| `clearMs`          | Teardown of the previous scene                                               |
-| `visible`          | Satellites drawn, which can differ from the count requested                  |
-| `drawn`            | Components drawn, when they differ from the ones requested                   |
-| `heapMb`           | Heap low-water mark. Input to the memory fit, csv/json only                  |
-| `heapPeakMb`       | High-water mark. `heapPeakMb - heapMb` is the allocation rate. csv/json only |
-| `footprintMb`      | Absolute JS footprint, garbage excluded. Only with `captureFootprint`        |
-| `footprintTotalMb` | JS plus DOM and workers. csv/json only                                       |
+The Steps table shows the performance panel's figures, in its order.
+
+| Column                     | Meaning                                                                      |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| `fps`                      | Drawn frames a second. Flattens against vsync and the frame rate cap         |
+| `cpuMs`, `cpuP95Ms`        | The frame's main-thread time, tick and render: what sets the frame rate      |
+| `gpuMs`, `gpuP95Ms`        | GPU time per frame, blank when the driver's timer is not believable          |
+| `loadPct`, `cpuBusyPct`    | The busier side's share; the CPU's alone is load's floor where GPU is blank  |
+| `overBudgetPct`            | The larger side's share of frames whose work outlasted the frame budget      |
+| `cpuTotalPct`              | Every thread's CPU over the step, in % of one core; a floor on the web       |
+| `x_tick_ms`, `x_render_ms` | `clock.tick()` and the render alone. Web extras                              |
+| `frames`                   | Sample size. Read it first: rows under 20 frames are noise                   |
+| `clock`                    | Clock rate, as a multiple of real time                                       |
+| `buildMs`                  | Wall time to a **complete** scene, spread over frames                        |
+| `clearMs`                  | Teardown of the previous scene                                               |
+| `visible`                  | Satellites drawn, which can differ from the count requested                  |
+| `drawn`                    | Components drawn, when they differ from the ones requested                   |
+| `heapMb`                   | Heap low-water mark. Input to the memory fit, csv/json only                  |
+| `heapPeakMb`               | High-water mark. `heapPeakMb - heapMb` is the allocation rate. csv/json only |
+| `footprintMb`              | Absolute JS footprint, garbage excluded. Only with `captureFootprint`        |
+| `footprintTotalMb`         | JS plus DOM and workers. csv/json only                                       |
+
+The mean frame interval is kept off the rows; the scaling floor reads it.
 
 ### Scaling
 
-A least-squares fit of main-thread time (`cpuMs + tickMs`) against `visible`, per
+A least-squares fit of CPU time (`cpuMs`, the tick included) against `visible`, per
 series (component set **and** clock rate). It reports ms per 1,000 satellites, the
 cost at zero, r², the frame-time **floor**, and `satsAt60fps`.
 
@@ -92,7 +203,7 @@ The fit uses the sum because neither part works alone:
   "15.5% of frames missed a tick".
 
 The sum is continuous: 0.64, 0.96, 1.21, 6.25, 8.95, 11.52 ms over 0 → 5,000
-points. With points only, `cpuMs + tickMs` against `frameMs` was 1.06 of 8.66 ms
+points. With points only, the frame's CPU time against `frameMs` was 1.06 of 8.66 ms
 at zero satellites and **14.65 of 14.90 ms** at 5,000. The fixed floor is GPU
 work. The part that grows with the count is main-thread work, almost all of it
 the tick.
@@ -117,23 +228,26 @@ the main thread handles its replies in a separate task, inside neither
 `clock.tick()` nor `preUpdate` → `postRender`. That work lands only in `frameMs`.
 At 5,000 satellites and ×100000: `frameMs` 106.1, `cpuMs` 0.86, `tickMs` 3.44,
 `gpuMs` 17.8 — about 85 ms unattributed, at 9.4 fps. Below about ×1000 the
-residue is small. Above it, treat `cpuMs + tickMs` as a floor and read `frameMs`
+residue is small. Above it, treat `cpuMs` as a floor and read `frameMs`
 beside it. The reply handler is the suspect, not a confirmed cause; a profile is
 needed to find out.
+
+The figures above predate the frame meter, which times the tick and the render as one
+`cpuMs`; the web's split is in the extras `tick_ms` and `render_ms`.
 
 ### Marginal cost
 
 Each set is differenced against its largest strict subset measured at the same
-count and clock, on `cpuMs + tickMs`. In a cumulative sweep that is the cost of the
+count and clock, on `cpuMs`. In a cumulative sweep that is the cost of the
 component just added. In an isolated sweep it is the component's cost over Point.
 
 ### Propagation
 
-Each clock rate is differenced against ×1 for the same scene, on `tickMs`, with
-`cpuMs` beside it for contrast. The table appears only when the clock was swept.
+Each clock rate is differenced against ×1 for the same scene, on `cpuMs` and on
+total CPU, which includes the workers. The table appears only when the clock was swept.
 
-`cpuMs` cannot see propagation. At 5,000 points at ×10000 (2.2 fps, 462 ms
-frames) a `cpuMs` delta read **−0.08 ms**, while instrumentation put 95% of wall
+The render alone cannot see propagation. At 5,000 points at ×10000 (2.2 fps, 462 ms
+frames) its delta read **−0.08 ms**, while instrumentation put 95% of wall
 time in `SampledTrajectory.update`.
 
 The clock rate is a propagation axis because `SampledTrajectory` refreshes its
@@ -146,7 +260,7 @@ per-satellite propagation.
 ### Drift
 
 The first step is re-run at the end and compared with the original. Shader caches,
-the JIT and the heap change over a sweep of several minutes. A `mainDriftPct` over
+the JIT and the heap change over a sweep of several minutes. A `cpuDriftPct` over
 10% (and over 1 ms) means the app moved under the sweep; the panel and `logRun`
 warn. The repeat is excluded from every other table. `buildDriftPct` is usually
 strongly negative (see `buildMs` below).
@@ -172,7 +286,7 @@ marks the row and `logRun` warns; re-run the sweep.
 There is no heap drift column: on healthy runs the floor moved −14.6%, −10.2% and
 +638%.
 
-**Absolute footprint.** `captureFootprint` (panel: settings → extras) adds a
+**Absolute footprint.** `captureFootprint` (console only) adds a
 figure per step from `performance.measureUserAgentSpecificMemory()`, with garbage
 excluded. The panel then shows a `footprint` column and an `absolute`
 KB-per-satellite beside the derived one. One run measured 54.4 derived against
@@ -182,9 +296,8 @@ a capture can be refused for one step.
 
 The call resolves only at a natural major collection: **14–19 s, mean 17 s**
 over six calls. It does not disturb the frame median (8.33 ms during a call and
-idle). The panel estimate includes it: the default panel sweep reads `≈ 0m 38s`
-without it and `≈ 2m 20s` with it. It needs cross-origin isolation; where the page
-is not isolated the switch is disabled and says why.
+idle), but adds that much to every step. It needs cross-origin isolation, which only
+dev and preview have.
 
 **This is the only leak check that works.** On a clean run the first step and its
 repeat measured 36.2 and 38.7 MB absolute, where their heap floors read 35.0 and
@@ -242,9 +355,8 @@ Cesium's workers `CacheFirst` for 30 days, and those cached responses have no CO
   with a model, so a store-driven sweep could not measure them at 1,000. Do not touch the toolbar during a run.
   `restore()` puts back the store's scene, `requestRenderMode`, `shouldAnimate`
   and the clock multiplier.
-- **Render-on-demand is switched off while the panel is open**, because with it on
-  frame gaps measure idleness. If you switch it back on, the panel shows a warning.
-  A sweep also forces the clock to run.
+- **A sweep switches render-on-demand off**, because with it on frame gaps measure
+  idleness, and forces the clock to run. A scene run follows each scene's `paced`.
 - **`buildMs` is wall time, not the freeze.** Satellites are built to a per-frame
   budget (`SatelliteManager.#build`), and the step waits for `buildSettled()`. At
   5,000 points a build that blocked for 908 ms in one frame now takes about
@@ -260,10 +372,19 @@ Cesium's workers `CacheFirst` for 30 days, and those cached responses have no CO
 - **`tickMs` wraps `clock.tick`, not an `onTick` listener.** Listeners run in
   registration order, and the ones that matter are registered with the viewer,
   before the panel.
-- **`gpuMs` is withheld when the driver's timer is wrong.** On ANGLE/Metal,
-  `EXT_disjoint_timer_query_webgl2` reported 49 ms for frames presented every
-  14 ms. A row fails when its GPU time exceeds 1.5× its frame interval
-  (`GPU_TIMER_TRUST_FACTOR`), and the column blanks when most rows fail. Rejected
+- **A saturated GPU's times are capped at the frame interval.** On ANGLE/Metal,
+  `EXT_disjoint_timer_query_webgl2` counts a frame's wait in the queue as well as
+  its work: 49 ms for frames presented every 14 ms, and 37 ms for 19 ms of work
+  drawn every frame. Where the mean GPU time of half a second, a recording or the
+  graph's 5 s outruns its median frame interval (`gpuCapMs`), each time is capped
+  at that interval, as a GPU keeping pace spent at most that on a frame: the GPU
+  then reads the budget and load 100 %. Where over half are capped, the panel
+  marks the GPU figure "≤": a ceiling, not a floor. Saturated, the GPU spends the
+  whole interval on each frame, so uncapped it is the cost at full clock; at a
+  capped frame rate it may have clocked down to fill the frame, and then reads
+  16.6 ms at 60 fps for about 13 ms of work at full clock. Withholding GPU time for the page's life
+  instead, once it overran, blanked it on the first drag of a large canvas until a
+  reload. Rejected
   alternatives: `gl.finish()` does not synchronise in Chrome (WebGL runs in a
   separate GPU process), and timing a tight `scene.render()` loop measures
   queueing, not execution.
@@ -275,28 +396,28 @@ Cesium's workers `CacheFirst` for 30 days, and those cached responses have no CO
 - **The whole catalog loads before the first step** (`catalog.ensureAll()`).
   Counts are sliced from the sorted names, so the first 500 are stable, but which
   500 depends on the route's preset. Use `tag` to pin the population.
-- **Ground stations are off by default.** A station switches pass prediction on
-  for every satellite, a large cost unrelated to drawing. Give it its own run.
+- **Only ground station links bring a station.** A step with them adds the
+  benchmark's station (`SWEEP_GROUND_STATION`), which they need to draw, and so
+  pays for predicting the passes of every satellite it shows.
 
 ## Shape
 
-Only `cesiumBenchmarkTarget.ts` and the pump know about Cesium. The sampler, plan,
-report and runner are pure and unit-tested (`benchmark.test.ts`, and
-`benchmarkRunner.test.ts` with a fake target), as is the pump's frame queue
-(`framePump.test.ts`).
+Only `cesiumBenchmarkTarget.ts`, the frame meter and the pump know about Cesium. The
+summary, plan, reports and runner are pure and unit-tested (`benchmark.test.ts`,
+`frameSummary.test.ts`, `benchmarkReport.test.ts`, and `benchmarkRunner.test.ts` with a
+fake target), as is the pump's frame queue (`framePump.test.ts`).
 
-- `frameSampler.ts` — timestamps in, percentiles out.
-- `benchmarkPlan.ts` — the sweep matrix.
-- `report.ts` — rows, fits, marginal, propagation and drift tables, csv/json.
+- `frameMeter.ts` — what every frame costs, for the performance panel and the steps.
+- `frameSummary.ts` — a recording in, the comparable metrics out.
+- `sweepResults.ts` — a web sweep step as both apps' tables read it.
+- `benchmarkPlan.ts` — the scene steps and the sweep matrix.
+- `benchmarkReport.ts` — the scene run's report, as both apps send it.
+- `report.ts` — a sweep's rows, fits, marginal, propagation and drift tables, csv/json.
 - `benchmarkRunner.ts` — the loop over a `BenchmarkTarget`.
 - `cesiumBenchmarkTarget.ts` — the Cesium-bound target.
 - `framePump.ts` — the `?framems` pump.
 - `index.ts` — `window.bench`.
-- `../../components/BenchmarkPanel.vue` — the panel.
+- `../../components/PerformancePanel.vue` and `../../components/benchmark/` — the panels.
 
-The panel is an async component and the pump is a separate chunk, so neither runs
-for a normal visitor. The PWA precache fetches both (about 36 KB), so the panel
-works offline.
-
-Cesium's own frame counter (the `showFps` toggle) is separate. It is an independent
-check on the panel's fps, and the panel moves down to keep it visible.
+The panels are async components and the pump is a separate chunk, so none runs for a
+normal visitor. The PWA precache fetches them, so the panels work offline.

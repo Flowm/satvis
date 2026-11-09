@@ -56,6 +56,7 @@ describe("resolvePreset", () => {
         ["starlink", ["Starlink", "Active"]],
       ],
       featured: [],
+      benchmarkScenes: [],
     });
   });
 
@@ -78,6 +79,12 @@ describe("resolvePreset", () => {
     ]);
   });
 
+  test("carries the benchmark scenes the index serves it", async () => {
+    const scenes = [{ id: "weather", name: "Weather", route: "/", query: {}, paced: false }];
+    vi.mocked(fetchGpIndex).mockResolvedValue({ ...INDEX, presets: { ...INDEX.presets, ot: { ...INDEX.presets.ot!, benchmark: scenes } } });
+    expect((await resolvePreset("/ot")).benchmarkScenes).toEqual(scenes);
+  });
+
   // `/ot` without the plugin that defines it, and anything inherited from Object.
   test.each(["/move", "/toString", "/ot"])("falls back to the default preset for %s when it names none", async (path) => {
     vi.mocked(fetchGpIndex).mockResolvedValue({ ...INDEX, presets: { default: INDEX.presets.default! } });
@@ -86,6 +93,6 @@ describe("resolvePreset", () => {
 
   test("registers nothing when the index carries no presets", async () => {
     vi.mocked(fetchGpIndex).mockResolvedValue({ groups: INDEX.groups, presets: {} });
-    expect(await resolvePreset("/")).toEqual({ name: "default", title: "Satvis", defaults: {}, elements: [], featured: [] });
+    expect(await resolvePreset("/")).toEqual({ name: "default", title: "Satvis", defaults: {}, elements: [], featured: [], benchmarkScenes: [] });
   });
 });

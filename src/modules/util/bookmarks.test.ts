@@ -1,6 +1,19 @@
 import { describe, expect, test } from "vitest";
 
-import { type Bookmark, defaultName, OPENED_LIMIT, parseBookmarks, sameLink, sameQuery, summarize, timeAgo, withOpened, withoutTime } from "./bookmarks";
+import {
+  type Bookmark,
+  defaultName,
+  OPENED_LIMIT,
+  parseBookmarks,
+  sameLink,
+  sameQuery,
+  summarize,
+  timeAgo,
+  withOpened,
+  withoutBenchmarkRun,
+  withoutTime,
+  withoutViewer,
+} from "./bookmarks";
 
 /** The `/` preset's. */
 const DEFAULTS = { tags: "Weather" };
@@ -76,6 +89,12 @@ describe("withOpened", () => {
   });
 });
 
+// ADR 0016: a link that starts a run is kept as the open panel alone.
+test("withoutBenchmarkRun keeps a run's link as the panel open", () => {
+  expect(withoutBenchmarkRun({ tags: "GNSS", bench: "run", benchscenes: "a,b" })).toEqual({ tags: "GNSS", bench: "true" });
+  expect(withoutBenchmarkRun({ bench: "true", benchscenes: "a" })).toEqual({ bench: "true", benchscenes: "a" });
+});
+
 test("withoutTime keeps the rest of the scene", () => {
   expect(withoutTime({ tags: "GNSS", time: "2026-10-05T11:00Z" })).toEqual({ tags: "GNSS" });
 });
@@ -111,4 +130,11 @@ test("timeAgo", () => {
   expect(timeAgo(now - 5 * 60_000, now)).toBe("5 min ago");
   expect(timeAgo(now - 3 * 3_600_000, now)).toBe("3 h ago");
   expect(timeAgo(now - 50 * 3_600_000, now)).toBe("2 d ago");
+});
+
+// The performance panel is the viewer's, not the scene's.
+test("a bookmark keeps no viewer parameter, saved before or since", () => {
+  expect(withoutViewer({ tags: "GNSS", fps: "graph" })).toEqual({ tags: "GNSS" });
+  const json = JSON.stringify([{ id: "a", kind: "saved", name: "", path: "/", query: { tags: "GNSS", fps: "true" }, at: 1 }]);
+  expect(parseBookmarks(json, "saved")[0]!.query).toEqual({ tags: "GNSS" });
 });

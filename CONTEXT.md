@@ -311,8 +311,39 @@ discussion; sharpen them here when they drift.
   `RenderPacing`. The sky view and tracking are never paced. The web's Graphics
   panel turns it off and on as "Render only on change"; the native app always paces.
 - **Idle**: the app on screen with nobody touching it and the clock at ×1, its
-  frames paced. A benchmark's idle scene measures what that costs, as **load**,
+  frames paced. A paced benchmark scene measures what that costs, as **load**,
   not how fast it draws: its frame rate is low by design.
 - **Load**: the share of each second the busier of the CPU and the GPU spends on
   the frames. Near 100 % that side bounds the frame rate; idle, it is what render
   pacing saves.
+
+## Benchmark
+
+- **Benchmark scene**: a named link the benchmark measures, written like a featured
+  bookmark (a query against its preset's defaults) but with no picture. Each preset
+  can list its own; a preset that lists none uses the default preset's, each still
+  opened on the default preset's route. Not a preset, and not the `scene` url
+  parameter.
+- **Benchmark step**: one thing the benchmark sets up and measures: a link, plus
+  what a link cannot say (how many satellites, past the label and model budgets),
+  measured paced or unpaced. Both apps run steps the same way, so a step means the
+  same on each.
+- **Sweep**: steps generated from parameters, satellite count × component set ×
+  clock rate, rather than written as scenes. Both apps run them, from the benchmark
+  panel's Sweep tab; the web's console runs them as `bench.run()`, the native app's
+  launch as `SATVIS_SWEEP`.
+- **Run**: one pass over a list of steps, ending in a report, and closing with the
+  first step again to show whether the app drifted under it: the change in its CPU
+  time, shown only past 1 ms. Runs of the same
+  scenes on the web app and the native app compare row by row on one device; across
+  devices nothing is meant to match.
+- **CPU time** (of a frame): the main thread's work to produce one drawn frame,
+  advancing the clock included, waits for the GPU or the display not. What the
+  propagation worker does is in neither app's.
+- **Total CPU**: every thread's CPU time over a step, in percent of one core: what
+  propagation and pass prediction cost besides the main thread. On the web a floor,
+  the frame callbacks plus the time the workers report.
+- **Over budget**: a drawn frame whose CPU or GPU work outlasted the interval the
+  chosen frame rate asks for, its budget; the performance panel and the benchmark
+  report the larger side's share. Replaced "slow frame", which counted frame
+  intervals and meant nothing paced.

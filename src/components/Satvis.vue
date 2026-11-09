@@ -245,7 +245,11 @@
     <globe-menu @open="dropGlobePress" />
     <!-- Pause, speed and scrubbing; `createViewer` builds no Cesium clock widgets. -->
     <clock-deck v-if="showUI" />
-    <benchmark-panel v-if="showBenchmark" @close="showBenchmark = false" />
+    <!-- One column at the top right: the performance panel, the benchmark below it. -->
+    <div v-if="showFps || showBenchmark" class="measurement">
+      <performance-panel v-if="showFps" />
+      <benchmark-panel v-if="showBenchmark" @close="showBenchmark = false" />
+    </div>
   </div>
 </template>
 
@@ -287,8 +291,9 @@ import ToolbarPanel from "./ToolbarPanel.vue";
 
 type MenuKey = "bookmarks" | "cat" | "sat" | "gs" | "map" | "globe" | "sky" | "render";
 
-/** Async, so the benchmark stays out of the main bundle. */
-const BenchmarkPanel = defineAsyncComponent(() => import("./BenchmarkPanel.vue"));
+/** Async, so the benchmark and the performance panel stay out of the main bundle. */
+const BenchmarkPanel = defineAsyncComponent(() => import("./benchmark/BenchmarkPanel.vue"));
+const PerformancePanel = defineAsyncComponent(() => import("./PerformancePanel.vue"));
 
 const cc = useController();
 /** The Bookmarks panel's Share this view, in its header. */

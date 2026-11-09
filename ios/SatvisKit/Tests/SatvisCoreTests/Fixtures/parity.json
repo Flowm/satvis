@@ -8824,6 +8824,16 @@
         "1",
         "1.5",
         "native"
+      ],
+      "fpsPanels": [
+        "false",
+        "true",
+        "graph"
+      ],
+      "benchmarkModes": [
+        "false",
+        "true",
+        "run"
       ]
     },
     "presets": {
@@ -9482,6 +9492,72 @@
           },
           {
             "input": "bogus"
+          }
+        ]
+      },
+      {
+        "kind": "fpsPanel",
+        "parses": [
+          {
+            "raw": "true",
+            "value": "true"
+          },
+          {
+            "raw": "graph",
+            "value": "graph"
+          },
+          {
+            "raw": "false",
+            "value": "false"
+          },
+          {
+            "raw": "Graph"
+          },
+          {
+            "raw": ""
+          }
+        ],
+        "formats": [
+          {
+            "input": "graph",
+            "value": "graph"
+          },
+          {
+            "input": "true",
+            "value": "true"
+          }
+        ]
+      },
+      {
+        "kind": "benchmarkMode",
+        "parses": [
+          {
+            "raw": "true",
+            "value": "true"
+          },
+          {
+            "raw": "run",
+            "value": "run"
+          },
+          {
+            "raw": "false",
+            "value": "false"
+          },
+          {
+            "raw": "RUN"
+          },
+          {
+            "raw": ""
+          }
+        ],
+        "formats": [
+          {
+            "input": "run",
+            "value": "run"
+          },
+          {
+            "input": "true",
+            "value": "true"
           }
         ]
       }

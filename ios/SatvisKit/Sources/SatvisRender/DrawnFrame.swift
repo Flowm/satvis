@@ -49,7 +49,7 @@ struct DrawnFrame {
     /// there. `hidden` says whether a satellite at a position is drawn at all.
     func entity(
         at point: CGPoint, viewSize: CGSize, stations: [StationMarker], satellites: some DrawnSatellites, components: SatelliteComponents,
-        labels: [LabelInstance]?, hidden: (SIMD3<Double>) -> Bool = { _ in false }
+        labels: [SIMD2<Float>]?, hidden: (SIMD3<Double>) -> Bool = { _ in false }
     ) -> String? {
         guard viewSize.width > 0 else {
             return nil
@@ -82,7 +82,7 @@ struct DrawnFrame {
             let distance = simd.distance(position, eye)
             // On the map at any height, as Shaders/Map.msl draws them.
             if let labels, index < labels.count, mapCamera != nil || (distance > 2000 && distance < 8e7) {
-                let size = labels[index].size
+                let size = labels[index]
                 let width = Double(size.x)
                 let height = Double(size.y)
                 let gap = max(10, (modelWidths[index] ?? 0) / 2 + 4)

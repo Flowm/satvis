@@ -69,6 +69,8 @@ export type Sgp4Reply =
 export interface Sgp4Response {
   batchId: number;
   replies: Sgp4Reply[];
+  /** The worker's time on the batch, in milliseconds, for the benchmark's total CPU. */
+  workMs?: number;
 }
 
 /** Where this element set's grid is anchored, in epoch milliseconds. */
@@ -189,9 +191,10 @@ const inWorkerScope = typeof (globalThis as { window?: unknown }).window === "un
 if (inWorkerScope) {
   const cache = new SatrecCache();
   self.addEventListener("message", (event: MessageEvent<Sgp4Request>) => {
+    const started = performance.now();
     const { batchId, commands } = event.data;
     const replies = commands.map((command) => runCommand(cache, command));
-    const response: Sgp4Response = { batchId, replies };
+    const response: Sgp4Response = { batchId, replies, workMs: performance.now() - started };
     const buffers = replies.filter((reply): reply is { kind: "chunk"; chunk: Sgp4Chunk } => reply.kind === "chunk").map((reply) => reply.chunk.positionsFixed.buffer);
     (self as unknown as { postMessage(message: Sgp4Response, transfer: Transferable[]): void }).postMessage(response, buffers);
   });

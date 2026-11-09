@@ -67,11 +67,16 @@ export function frameQueue(frameMs: number, now: () => number): FrameQueue {
 }
 
 /**
- * Calls `resize` and `render` itself (Cesium's manual-loop mode). Toggling
- * `useDefaultRenderLoop` alone is a no-op: a suspended loop never cleared its
- * running flag, so the setter does not start a new one.
+ * Calls `resize` and `render` itself, once `stopLoop` has stopped the loop that drew
+ * before: Cesium's own unless given.
  */
-export function installFramePumpIfRequested(viewer: Viewer, search: string): void {
+export function installFramePumpIfRequested(
+  viewer: Viewer,
+  search: string,
+  stopLoop = (): void => {
+    viewer.useDefaultRenderLoop = false;
+  },
+): void {
   const frameMs = requestedFrameMs(search);
   if (frameMs === undefined) {
     return;
@@ -81,7 +86,7 @@ export function installFramePumpIfRequested(viewer: Viewer, search: string): voi
   window.requestAnimationFrame = (callback) => queue.request(callback);
   window.cancelAnimationFrame = (handle) => queue.cancel(handle);
 
-  viewer.useDefaultRenderLoop = false;
+  stopLoop();
 
   let warnedAboutSize = false;
   const channel = new MessageChannel();

@@ -4,14 +4,11 @@ import SatvisCore
 import SatvisRender
 import UIKit
 
-/// The app's benchmark, the web app's (`?bench=true`, src/modules/benchmark) cut
-/// to what a phone answers: a fixed list of scenes, each opened by its link,
-/// waited for, settled and measured, and the first measured again at the end to
-/// show whether the device warmed up or the app drifted under the run. The view
-/// comes back as it was. The results stay on the device unless the user sends
-/// them.
+/// The web app's scene benchmark (ADR 0016), the first scene measured again at
+/// the end for drift. The results stay on the device unless the user sends them.
 @Observable
 final class Benchmark {
+    /// Where a run is, by the step it is on; a sweep's too.
     enum Phase: Equatable {
         case idle
         case loading(Int)
@@ -20,7 +17,7 @@ final class Benchmark {
         case done
         case cancelled
 
-        /// The index of the scene being loaded, settled or measured; nil outside a run.
+        /// Nil outside a run.
         var scene: Int? {
             switch self {
             case .loading(let index), .settling(let index), .measuring(let index): index
@@ -29,136 +26,132 @@ final class Benchmark {
         }
     }
 
-    /// The scenes the device runs, cheap to heavy: the web app's axes of count and
-    /// component, the 3D model close up and the sky view, which the tests on an
-    /// iPad mini found to differ most (ios/docs/manual-verification.md), and two
-    /// idle.
-    static let scenes = [
-        BenchmarkScene(
-            id: "default_view", title: "Default view", subtitle: "Points and labels", detail: "The default preset's satellites, points and labels, on the globe",
-            link: "/"),
-        BenchmarkScene(
-            id: "default_view_idle", title: "Default view", subtitle: "Idle",
-            detail: "The default preset idle at x1, each frame drawn only once something can have moved half a pixel", link: "/", idle: true),
-        BenchmarkScene(
-            id: "starlink_points", title: "Starlink", subtitle: "Points", detail: "The Starlink group, points only", link: "/?tags=Starlink&elements=Point"),
-        BenchmarkScene(
-            id: "active_points", title: "All active", subtitle: "Points", detail: "Every active satellite, points only", link: "/?tags=Active&elements=Point"),
-        BenchmarkScene(
-            id: "weather_all_components", title: "Weather", subtitle: "Every component",
-            detail: "Weather satellites with points, labels, orbits, orbit and ground tracks, and sensor cones",
-            link: "/?tags=Weather&elements=Point,Label,Orbit,Orbit+track,Ground+track,Sensor+cone"),
-        BenchmarkScene(
-            id: "weather_all_components_idle", title: "Weather", subtitle: "Idle",
-            detail: "Weather satellites with every component idle at x1, each frame drawn only once something can have moved half a pixel",
-            link: "/?tags=Weather&elements=Point,Label,Orbit,Orbit+track,Ground+track,Sensor+cone", idle: true),
-        BenchmarkScene(
-            id: "active_orbits", title: "All active", subtitle: "Orbits", detail: "Every active satellite with its orbit, 121 nodes each",
-            link: "/?tags=Active&elements=Point,Orbit"),
-        BenchmarkScene(
-            id: "iss_model_tracked", title: "ISS", subtitle: "3D model, tracked", detail: "The ISS alone, its 3D model followed close up, with its orbit",
-            link: "/?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model"),
-        BenchmarkScene(
-            id: "iss_model_tracked_panel", title: "ISS", subtitle: "Tracked, panel open",
-            detail: "The ISS alone, its 3D model followed close up, with its orbit and its info panel open",
-            link: "/?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model", keepsPanel: true),
-        BenchmarkScene(
-            id: "sky_view", title: "Sky view", subtitle: "Lauterbrunnen", detail: "Looking up from Lauterbrunnen, on terrain, the default preset's satellites",
-            link: "/?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen&terrain=ReEarth"),
-        BenchmarkScene(
-            id: "sky_active", title: "Sky view", subtitle: "All active", detail: "Looking up from Lauterbrunnen, on terrain, every active satellite",
-            link: "/?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen&tags=Active&terrain=ReEarth"),
-    ]
-    /// Changed when the scenes or the metrics change, so results can be told apart.
-    static let version = 7
-
-    /// How long a scene may take to load before it is measured anyway: the
-    /// largest groups come from the worker on a first run.
+    /// The largest groups come from the worker on a first run.
     static let loadTimeout: Duration = .seconds(90)
-    /// After loading, for the tiles, the model and the shader caches to settle.
+    /// For the tiles, the model and the shader caches.
     static let settle: Duration = .seconds(3)
+    /// Each scene's recording.
     static let measure: Duration = .seconds(5)
-    /// The scenes and the drift check (`BenchmarkScene.plan`), or only those
-    /// `SATVIS_BENCHMARK_SCENES` in the launch environment names.
-    static var plan: [BenchmarkScene] {
-        BenchmarkScene.plan(scenes, only: ProcessInfo.processInfo.environment["SATVIS_BENCHMARK_SCENES"])
-    }
-
-    /// `SATVIS_BENCHMARK` in the launch environment runs the benchmark at once,
-    /// sends its results where usage is shared and prints them as JSON to
-    /// standard output: for a device driven from the Mac (`xcrun devicectl device
-    /// process launch --console`). `SATVIS_BENCHMARK=print` only prints them.
-    static let runsAtLaunch = ProcessInfo.processInfo.environment["SATVIS_BENCHMARK"] != nil
-    private static let sendsAtLaunch = runsAtLaunch && ProcessInfo.processInfo.environment["SATVIS_BENCHMARK"] != "print"
+    /// `SATVIS_BENCHMARK` runs the benchmark at launch, sends its results where usage
+    /// is shared and prints them as JSON, for `devicectl device process launch --console`;
+    /// `=print` only prints. Only a developer can set it, so it alone may send unasked.
+    static let runsAtLaunch = ProcessInfo.processInfo.environment["SATVIS_BENCHMARK"] != nil || SweepBenchmark.launchSpec != nil
+    private static let sendsAtLaunch = ProcessInfo.processInfo.environment["SATVIS_BENCHMARK"].map { $0 != "print" } ?? false
+    /// Scene ids by commas, as `benchscenes`.
+    private static let launchScenes = (ProcessInfo.processInfo.environment["SATVIS_BENCHMARK_SCENES"] ?? "").split(separator: ",").map(String.init)
     /// Whether that run has begun: SwiftUI may run the session's task again.
     @ObservationIgnored private var ranAtLaunch = false
 
     private(set) var phase = Phase.idle
+    /// As the index served them.
+    private(set) var scenes: [BenchmarkScene] = []
+    /// The drift check last; before a run, what a run would measure.
+    private(set) var steps: [BenchmarkStep] = []
     private(set) var results: [BenchmarkResult] = []
-    /// What the device was doing when the run began and ended.
     private(set) var environment: [String: Any] = [:]
     private(set) var submitted = false
+    /// By id; every one served while nil.
+    var selection: [String]?
+    var sweepSpec = SweepSpec(satelliteCounts: SweepPlan.satelliteCounts, componentSets: [["Point", "Label"]])
+    private(set) var stepStarted: Date?
     @ObservationIgnored private var run: Task<Void, Never>?
     /// The user's view while a run shows its scenes, opened again at its end.
     @ObservationIgnored private(set) var savedLink: Link?
-    /// The settings the scenes' links change and the app keeps between launches.
+    /// What the scenes' links change and the app keeps between launches.
     @ObservationIgnored private var savedSettings: (baseLayer: BaseLayer, terrain: Bool, mode: OverpassMode)?
+    /// The clock's rate and play state, which each scene without a `time` sets live.
+    @ObservationIgnored private var savedClock: (multiplier: Double, playing: Bool)?
 
-    var isRunning: Bool { phase.scene != nil }
+    /// Shares this run's guard: one run at a time.
+    let sweep = SweepBenchmark()
 
-    /// Runs every scene in turn on `session`, then opens the view it found. A run
-    /// `SATVIS_BENCHMARK` started sends its results itself.
-    func start(on session: Session) {
+    /// A scene run or a sweep.
+    var isRunning: Bool { phase.scene != nil || sweep.isRunning }
+
+    /// The current preset's scenes, from the group index.
+    static func served(on session: Session) -> [BenchmarkScene] {
+        session.catalog.index?.benchmarkScenes(preset: session.catalog.presetName) ?? []
+    }
+
+    /// Runs the route's scenes, or `only` those without the drift check, then opens
+    /// the view it found, or `restoring` where a link that starts the run is still
+    /// being applied.
+    func start(on session: Session, only: [String] = [], prints: Bool = false, sends: Bool = false, restoring: Link? = nil) {
         guard !isRunning, let renderer = session.renderer else {
             return
         }
         results = []
         submitted = false
-        // Running from here on, so a second start finds it so.
+        if !only.isEmpty {
+            selection = only
+        }
         phase = .loading(0)
+        stepStarted = Date()
         environment = Self.environment(renderer: renderer, session: session)
-        savedLink = session.link(sharing: false)
+        savedLink = restoring ?? session.link(sharing: false)
         savedSettings = (session.baseLayer, session.terrain, session.passes.mode)
+        savedClock = (session.clock.clock.multiplier, session.clock.clock.isPlaying)
         run = Task {
-            renderer.measuresFrames = true
-            for (index, scene) in Self.plan.enumerated() {
+            // The scenes come with the group index, which a first launch waits for.
+            for _ in 0..<120 where Self.served(on: session).isEmpty && !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+            scenes = Self.served(on: session)
+            steps = BenchmarkScene.plan(scenes, only: only)
+            renderer.measureFrames(true, for: "benchmark")
+            for (index, step) in steps.enumerated() {
                 guard !Task.isCancelled else {
                     break
                 }
-                if let result = await measure(scene, index: index, session: session, renderer: renderer) {
+                if let result = await measure(step, index: index, session: session, renderer: renderer) {
                     results.append(result)
                 }
             }
+            renderer.drawsEveryFrame = false
+            renderer.measureFrames(false, for: "benchmark")
             environment["device_thermal_state_end"] = Self.name(ProcessInfo.processInfo.thermalState)
             // Read again at the end: a run started at launch can begin before the
             // first frame at the link's pixel ratio has been drawn.
             if let size = renderer.drawableSize {
                 environment["device_drawable_pixels"] = "\(Int(size.width))x\(Int(size.height))"
             }
-            phase = Task.isCancelled ? .cancelled : .done
+            phase = Task.isCancelled || steps.isEmpty ? .cancelled : .done
             if let savedLink {
                 session.open(savedLink)
             }
+            restoreClock(on: session)
             savedLink = nil
             savedSettings = nil
-            if Self.runsAtLaunch, phase == .done {
-                if Self.sendsAtLaunch {
+            if phase == .done {
+                if sends {
                     submit(with: session.analytics)
                 }
-                if let json = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
+                if prints, let json = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
                     print(String(decoding: json, as: UTF8.self))
                 }
             }
         }
     }
 
-    /// The run `SATVIS_BENCHMARK` asks for, once.
+    /// Unless a scene run is going.
+    func startSweep(_ spec: SweepSpec, on session: Session, prints: Bool = false) {
+        guard !isRunning else {
+            return
+        }
+        sweep.start(spec, on: session, prints: prints)
+    }
+
+    /// What `SATVIS_BENCHMARK` or `SATVIS_SWEEP` asks for, once.
     func startAtLaunch(on session: Session) {
         guard Self.runsAtLaunch, !ranAtLaunch else {
             return
         }
         ranAtLaunch = true
-        start(on: session)
+        if let spec = SweepBenchmark.launchSpec {
+            startSweep(spec, on: session, prints: true)
+        } else {
+            start(on: session, only: Self.launchScenes, prints: true, sends: Self.sendsAtLaunch)
+        }
     }
 
     /// `closing` as the panel closes: the view opened again is then without it.
@@ -167,37 +160,66 @@ final class Benchmark {
             savedLink?.query.items.removeAll { $0.key == "bench" }
         }
         run?.cancel()
+        sweep.cancel(closing: closing)
     }
 
-    /// Stops a run as the app leaves the foreground, where iOS draws no frames to
-    /// measure, and puts the user's settings back at once: iOS may end the app
-    /// before the run's own restore, which left the last scene's base map,
-    /// terrain and pass mode kept as the user's. The user's view, to keep.
+    /// Stops a run as the app leaves the foreground, where iOS draws no frames, and
+    /// puts the user's settings back at once, as iOS may end the app before the
+    /// run's own restore. Returns the user's view.
     func abandon(on session: Session) -> Link? {
+        if sweep.isRunning {
+            return sweep.abandon(on: session)
+        }
         guard isRunning else {
             return nil
         }
         run?.cancel()
+        session.renderer?.drawsEveryFrame = false
         if let savedSettings {
             session.baseLayer = savedSettings.baseLayer
             session.terrain = savedSettings.terrain
             session.passes.setMode(savedSettings.mode)
         }
+        restoreClock(on: session)
         return savedLink
     }
 
-    private func measure(_ scene: BenchmarkScene, index: Int, session: Session, renderer: GlobeRenderer) async -> BenchmarkResult? {
+    /// Once, at the run's end or as it is abandoned.
+    private func restoreClock(on session: Session) {
+        guard let savedClock else {
+            return
+        }
+        self.savedClock = nil
+        session.clock.setMultiplier(savedClock.multiplier)
+        if session.clock.clock.isPlaying != savedClock.playing {
+            session.clock.togglePlaying()
+        }
+    }
+
+    /// Opens the scene, waits until it is drawn and steady, settles and records;
+    /// nil once cancelled.
+    private func measure(_ step: BenchmarkStep, index: Int, session: Session, renderer: GlobeRenderer) async -> BenchmarkResult? {
         phase = .loading(index)
+        stepStarted = Date()
         let opened = ContinuousClock.now
-        // At the pixel ratio the run began at, which the scenes' links do not name.
-        var link = Link(scene.link)
+        // At the pixel ratio the run began at and with the performance panel as
+        // it is, which the scenes' links do not name.
+        var link = step.scene.link
         if let ratio = environment["app_pixel_ratio"] as? String, ratio != "native" {
             link.query.items.append(LinkQuery.Item(key: "pixelratio", values: [ratio]))
         }
+        if session.fpsPanel != .off {
+            link.query.items.append(LinkQuery.Item(key: "fps", values: [session.fpsPanel.rawValue]))
+        }
+        // A paused or fast clock stays off `time` for its first minute, which `open`
+        // would leave as it is: a scene without one is live, as on the web.
+        if step.scene.query["time"] == nil {
+            session.clock.goLive()
+        }
+        // Paced: measured idle, as outside the benchmark.
+        renderer.drawsEveryFrame = !step.paced
         session.open(link)
-        // Loaded once everything active is drawn and has stayed so for two
-        // seconds: groups arrive one by one, and are handed to the renderer
-        // packed, off the main thread.
+        // Two seconds steady: groups arrive one by one, packed off the main thread.
         var steady: ContinuousClock.Instant?
         var last = -1
         var timedOut = false
@@ -225,49 +247,32 @@ final class Benchmark {
             }
         }
         let loaded = ContinuousClock.now - opened - (timedOut ? .zero : .seconds(2))
-        // A tracking link selects what it follows; its panel would cover the
-        // scene measured and cost its own frames, unless that is what is measured.
-        if !scene.keepsPanel {
-            session.select(nil)
-        }
+        // No scene measures the info panel: a link opens none, and one opened
+        // since would cost its own frames.
+        session.select(nil)
         phase = .settling(index)
         try? await Task.sleep(for: Self.settle)
         phase = .measuring(index)
-        let (cpuBefore, wallBefore) = (Self.processCPUSeconds(), ContinuousClock.now)
-        renderer.startRecordingFrames(idle: scene.idle)
+        renderer.startRecordingFrames()
         try? await Task.sleep(for: Self.measure)
         let recording = renderer.stopRecordingFrames()
-        let processCPU = Self.processCPUSeconds() - cpuBefore
-        let wall = (ContinuousClock.now - wallBefore) / .seconds(1)
         guard !Task.isCancelled else {
             return nil
         }
-        let maximumRate = GlobeRenderer.displayMaximumFramesPerSecond
         return BenchmarkResult(
-            id: scene.id, title: scene.title, detail: scene.detail,
-            satellites: renderer.satelliteCount, loadSeconds: max(loaded / .seconds(1), 0),
+            id: step.id, satellites: renderer.satelliteCount, loadSeconds: max(loaded / .seconds(1), 0),
             timedOut: timedOut, recording: recording, memoryMegabytes: MemoryFootprint.megabytes(), gpuMemoryMegabytes: renderer.gpuMemoryMegabytes,
-            processCPUPercent: wall > 0 ? processCPU / wall * 100 : nil, refreshMilliseconds: 1000 / Double(min(session.frameRate, maximumRate)),
-            idle: scene.idle)
+            refreshMilliseconds: session.frameBudgetMilliseconds)
     }
 
-    /// The CPU time every thread of the app has used, in seconds.
-    private static func processCPUSeconds() -> Double {
-        var usage = rusage()
-        getrusage(RUSAGE_SELF, &usage)
-        func seconds(_ time: timeval) -> Double { Double(time.tv_sec) + Double(time.tv_usec) / 1e6 }
-        return seconds(usage.ru_utime) + seconds(usage.ru_stime)
-    }
-
-    /// The first scene against its repeat at the end (`BenchmarkReport.drift`).
+    /// As the status line shows it.
     var drift: Double? {
-        BenchmarkReport.drift(results, planned: Self.plan.count)
+        let steps = BenchmarkReport.driftSteps(results, planned: steps.count)
+        return BenchmarkStatus.shownDrift(first: steps?.first.recording.meanCPU, repeated: steps?.repeated.recording.meanCPU)
     }
 
-    /// Sends the results to the web app's PostHog project, with what they depend
-    /// on: the device, the system, the build and the screen. Only on the user's
-    /// word, or a `SATVIS_BENCHMARK` launch's, and only where usage is counted at
-    /// all.
+    /// To the web app's PostHog project, only on the user's word or a
+    /// `SATVIS_BENCHMARK` launch's, and only where usage is counted at all.
     func submit(with analytics: Analytics) {
         guard phase == .done, !submitted else {
             return
@@ -275,13 +280,13 @@ final class Benchmark {
         submitted = analytics.send("benchmark", properties: report)
     }
 
-    /// The results as they are sent (`BenchmarkReport.properties`).
+    /// The event's properties, as the web app's `sceneRunProperties`.
     var report: [String: Any] {
-        BenchmarkReport.properties(environment: environment, version: Self.version, results: results, planned: Self.plan.count)
+        BenchmarkReport.properties(environment: environment, scenes: scenes, results: results, planned: steps.count, cancelled: phase == .cancelled)
     }
 
-    /// What the frame times depend on beyond the app.
-    private static func environment(renderer: GlobeRenderer, session: Session) -> [String: Any] {
+    /// The device and the app's settings, as the report's `device_` and `app_` keys.
+    static func environment(renderer: GlobeRenderer, session: Session) -> [String: Any] {
         var system = utsname()
         uname(&system)
         let identifier = withUnsafeBytes(of: system.machine) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
@@ -297,7 +302,9 @@ final class Benchmark {
             "device_memory_gb": NSDecimalNumber(string: String(format: "%.1f", Double(ProcessInfo.processInfo.physicalMemory) / 1_073_741_824)),
             "device_low_power_mode": ProcessInfo.processInfo.isLowPowerModeEnabled,
             "app_pixel_ratio": session.pixelRatio,
-            "app_frame_rate": session.frameRate,
+            // The web app's words for it, and the budget it gives on this screen.
+            "app_frame_rate": session.frameRate == Session.maximumFrameRate ? "max" : String(session.frameRate),
+            "app_frame_budget_ms": NSDecimalNumber(string: String(format: "%.2f", session.frameBudgetMilliseconds)),
             "device_thermal_state_start": name(ProcessInfo.processInfo.thermalState),
         ]
         if let screen {
@@ -311,7 +318,8 @@ final class Benchmark {
         return environment
     }
 
-    private static func name(_ state: ProcessInfo.ThermalState) -> String {
+    /// As the report names it.
+    static func name(_ state: ProcessInfo.ThermalState) -> String {
         switch state {
         case .nominal: "nominal"
         case .fair: "fair"

@@ -39,7 +39,7 @@ private final class RecordingGlobe: Globe {
     func setTerrain(_ enabled: Bool) { calls.append("terrain \(enabled)") }
     func setStations(_ stations: [StationMarker]) { calls.append("stations \(stations.map(\.id))") }
     func setLinks(_ links: [StationLink]) { calls.append("links \(links.map(\.satellite))") }
-    func prepare(_ satellites: [PointSatellite]) async -> Int {
+    func prepare(_ satellites: [PointSatellite], labelled: Bool) async -> Int {
         packed += 1
         calls.append("prepare \(packed)")
         return packed

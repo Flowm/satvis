@@ -95,15 +95,25 @@ interface IndexPreset {
   groups: { name: string; searchOnly?: boolean }[];
   /** As the config writes them, which the app reads leniently. */
   featured?: unknown[];
+  /** As the worker serves them, with their route. */
+  benchmark?: unknown[];
 }
 
-/** The fixture's group index, its presets with the core config's featured bookmarks, so the specs open the shipped ones. */
+/**
+ * The fixture's group index, its presets with the core config's featured bookmarks and
+ * benchmark scenes, so the specs open the shipped ones.
+ */
 export function fixtureIndex(): { groups: unknown[]; presets: Record<string, IndexPreset> } {
   const index = JSON.parse(readFileSync(`${FIXTURE_DIR}groups.json`, "utf8")) as ReturnType<typeof fixtureIndex>;
-  const core = (parse(readFileSync(CORE_CONFIG, "utf8")) as { presets: { name: string; featured?: unknown[] }[] }).presets;
-  for (const { name, featured } of core) {
+  const core = (parse(readFileSync(CORE_CONFIG, "utf8")) as { presets: { name: string; featured?: unknown[]; benchmark?: Record<string, unknown>[] }[] }).presets;
+  for (const { name, featured, benchmark } of core) {
     if (index.presets[name] && featured) {
       index.presets[name].featured = featured;
+    }
+    if (index.presets[name] && benchmark) {
+      // What worker/src/gp/configValidation.ts serves: the route, and the defaults filled in.
+      const route = name === "default" ? "/" : `/${name}`;
+      index.presets[name].benchmark = benchmark.map((scene) => Object.assign({ query: {}, paced: false }, scene, { route }));
     }
   }
   return index;

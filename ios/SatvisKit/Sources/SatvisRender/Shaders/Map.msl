@@ -117,8 +117,8 @@ vertex PointOut mapPointVertex(uint iid [[vertex_id]], const device packed_float
 /// camera has no distance to fade them by.
 vertex LabelOut mapLabelVertex(uint vid [[vertex_id]], uint iid [[instance_id]], const device packed_float3 *samples [[buffer(0)]],
                                constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
-                               const device PointFrame *frames [[buffer(3)]], const device LabelInstance *labels [[buffer(4)]]) {
-    LabelInstance label = labels[iid];
+                               const device PointFrame *frames [[buffer(3)]], const device LabelGlyph *glyphs [[buffer(4)]]) {
+    LabelGlyph label = glyphs[iid];
     LabelOut out;
     out.position = float4(0.0, 0.0, -2.0, 1.0);
     out.alpha = 0.0;
@@ -128,12 +128,9 @@ vertex LabelOut mapLabelVertex(uint vid [[vertex_id]], uint iid [[instance_id]],
         return out;
     }
     float4 clip = frame.viewProjection * float4(mapPosition(position, frame), 1.0);
-    float2 corner = float2(vid & 1, vid >> 1);
-    float gap = max(10.0, frames[label.satellite].modelPoints / 2.0 + 4.0);
-    float2 offset = float2(gap + corner.x * label.size.x, (0.5 - corner.y) * label.size.y) * frame.pixelScale;
-    clip.xy += offset * 2.0 / frame.viewportSize * clip.w;
+    clip.xy += labelOffset(label, vid, frames[label.satellite]) * frame.pixelScale * 2.0 / frame.viewportSize * clip.w;
     out.position = clip;
-    out.uv = mix(label.uvRect.xy, label.uvRect.zw, corner);
+    out.uv = labelUV(label, vid);
     out.alpha = 1.0;
     return out;
 }

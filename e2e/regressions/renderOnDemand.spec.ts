@@ -1,5 +1,5 @@
 // requestRenderMode (createViewer.ts) with every CallbackProperty user on: a paused
-// clock must draw nothing. Not under `bench=true`, which turns the mode off.
+// clock must draw nothing. Not during a benchmark sweep or unpaced scene, which turn the mode off.
 
 import { openApp, rendersOverTicks, waitForOpenedLinkThumbnail, waitForQuiet, waitTicks } from "../support/app";
 import { expect, test } from "../support/test";

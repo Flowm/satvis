@@ -203,6 +203,18 @@ export class SkyView {
     return this.#phase !== "off";
   }
 
+  /**
+   * Render on demand as the store asks. While the view is up it keeps it off and puts the
+   * setting back on exit, so a change meanwhile goes to what it puts back.
+   */
+  setRequestRenderMode(on: boolean): void {
+    if (this.#saved) {
+      this.#saved.requestRenderMode = on;
+      return;
+    }
+    this.#scene.requestRenderMode = on;
+  }
+
   /** False during a flight, when the aim is the destination rather than where the camera looks. */
   get settled(): boolean {
     return this.#phase === "live";

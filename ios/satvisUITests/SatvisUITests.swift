@@ -573,13 +573,16 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(stamp.label.contains("Sun, Oct 04 UTC"), "The clock read \(stamp.label)")
     }
 
-    // The web app's `fps=true` shows the performance overlay; the Graphics panel's
-    // FPS switches it off.
+    // The web app's `fps=graph` shows the performance panel with its graph, which
+    // a tap folds away; the Graphics panel's FPS switches it off.
     @MainActor
     func testShowsPerformanceFromALink() {
-        let app = launch(link: "/?fps=true")
+        let app = launch(link: "/?fps=graph")
         let overlay = app.descendants(matching: .any)["Performance"]
         XCTAssert(overlay.waitForExistence(timeout: 30))
+        XCTAssertEqual(overlay.value as? String, "Graph")
+        overlay.tap()
+        XCTAssertEqual(overlay.value as? String, "Compact")
         openMenu(app)
         app.buttons["Graphics"].tap()
         flip(app, "FPS")
@@ -592,7 +595,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testOpensTheBenchmarkFromALink() {
         let app = launch(link: "/?bench=true")
-        let start = app.buttons["Start"]
+        let start = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Run '")).firstMatch
         XCTAssert(start.waitForExistence(timeout: 30))
         app.buttons["Close"].firstMatch.tap()
         XCTAssert(start.waitForNonExistence(timeout: 5))
@@ -602,6 +605,59 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(start.waitForExistence(timeout: 5))
         XCTAssert(app.switches["Benchmark"].waitForNonExistence(timeout: 5))
         XCTAssertEqual(menuToggle(app).label, "Menu")
+    }
+
+    // `bench=run` runs the scenes it names at once and leaves the panel open on the
+    // results; the performance panel stays up through the run.
+    @MainActor
+    func testRunsTheBenchmarkFromALink() {
+        let app = launch(link: "/?bench=run&benchscenes=default_view&fps=true")
+        XCTAssert(app.buttons["Cancel"].waitForExistence(timeout: 30))
+        XCTAssert(app.descendants(matching: .any)["Performance"].exists)
+        XCTAssert(app.buttons["Run 1 scene"].waitForExistence(timeout: 120))
+        XCTAssertEqual(app.staticTexts["Benchmark status"].label, "Done")
+    }
+
+    // As the web app's panel: the scenes ticked run alone, and a measured row
+    // opens in place for the rest of its figures.
+    @MainActor
+    func testRunsTheTickedScenesAndOpensARow() {
+        let app = launch(link: "/?bench=true")
+        let all = app.descendants(matching: .any)["checkbox All scenes"]
+        XCTAssert(all.waitForExistence(timeout: 30))
+        all.tap()
+        XCTAssertFalse(app.buttons["Run 0 scenes"].isEnabled)
+        app.descendants(matching: .any)["checkbox default_view"].tap()
+        app.buttons["Run 1 scene"].tap()
+        let status = app.staticTexts["Benchmark status"]
+        XCTAssert(status.waitForExistence(timeout: 5))
+        XCTAssert(waitForLabel(status, "Done", timeout: 120), status.label)
+        app.staticTexts.matching(NSPredicate(format: "label ENDSWITH ' satellites'")).firstMatch.tap()
+        XCTAssert(app.descendants(matching: .any)["Scene details"].waitForExistence(timeout: 5))
+        XCTAssert(app.staticTexts["total CPU"].exists)
+    }
+
+    // A sweep from the panel's settings, its steps and drift tables after it.
+    @MainActor
+    func testRunsASweep() {
+        let app = launch(link: "/?bench=true&elements=Point")
+        let sweep = app.buttons["Sweep"]
+        XCTAssert(sweep.waitForExistence(timeout: 30))
+        sweep.tap()
+        let counts = app.textFields["Counts"]
+        counts.tap()
+        // Return puts the keyboard away, which would cover the button.
+        counts.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 30) + "0, 50\n")
+        // Two counts, and the first again at the end.
+        let run = app.buttons["Run 3 steps"]
+        XCTAssert(run.waitForExistence(timeout: 5))
+        run.tap()
+        XCTAssert(app.buttons["Cancel"].waitForExistence(timeout: 10))
+        let status = app.staticTexts["Benchmark status"]
+        // Without a drift: the steps differ by under the millisecond it needs.
+        XCTAssert(waitForLabel(status, "Done", timeout: 120), status.label)
+        XCTAssert(app.staticTexts["Steps"].exists)
+        XCTAssert(app.staticTexts["Drift: the first step again at the end"].exists)
     }
 
     // On a phone a menu entry's sheet takes the place of a satellite's: SwiftUI
@@ -687,6 +743,13 @@ nonisolated class SatvisUITests: XCTestCase {
         app.launchEnvironment["SATVIS_LINK"] = link
         app.launch()
         return app
+    }
+
+    /// Whether `element`'s label starts with `prefix` within `timeout` seconds.
+    @MainActor
+    private func waitForLabel(_ element: XCUIElement, _ prefix: String, timeout: TimeInterval) -> Bool {
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label BEGINSWITH %@", prefix), object: element)
+        return XCTWaiter().wait(for: [expectation], timeout: timeout) == .completed
     }
 
     /// Launches and searches the satellite browser.

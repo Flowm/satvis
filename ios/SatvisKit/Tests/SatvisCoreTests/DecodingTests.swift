@@ -169,4 +169,17 @@ import Testing
         #expect(index.featured(preset: nil).map(\.id) == ["featured-default-0"])
         #expect(GroupIndex().featured(preset: nil).isEmpty)
     }
+
+    // As the worker serves them (ADR 0016): with their route, a preset with none
+    // given the default's; an entry of the wrong shape dropped.
+    @Test func readsBenchmarkScenes() throws {
+        let payload = #"""
+            {"updated": "", "groups": [],
+             "presets": {"default": {"groups": [], "benchmark": [{"id": "idle", "name": "Idle", "route": "/", "query": {"tags": "GNSS", "fps": true}, "paced": true},
+                                                                 {"id": "no_route", "name": "No route"}]}}}
+            """#
+        let index = try JSONDecoder().decode(GroupIndex.self, from: Data(payload.utf8))
+        #expect(index.benchmarkScenes(preset: "nope") == [BenchmarkScene(id: "idle", name: "Idle", route: "/", query: ["tags": "GNSS"], paced: true)])
+        #expect(GroupIndex().benchmarkScenes(preset: nil).isEmpty)
+    }
 }

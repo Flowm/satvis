@@ -4,6 +4,7 @@
 
 import type { GpRecord } from "./gp";
 import { runCommand, SatrecCache, type Sgp4Chunk, type Sgp4Command, type Sgp4Request, type Sgp4Response } from "./sgp4Worker";
+import { addWorkerTime } from "./workerTime";
 
 export type SampleChunk = Sgp4Chunk;
 
@@ -128,7 +129,10 @@ export class WorkerSampleSource implements SampleSource {
           inFlight: new Map(),
           silenceTimer: undefined,
         };
-        lane.worker.addEventListener("message", (event: MessageEvent<Sgp4Response>) => this.#accept(lane, event.data));
+        lane.worker.addEventListener("message", (event: MessageEvent<Sgp4Response>) => {
+          addWorkerTime(event.data.workMs);
+          this.#accept(lane, event.data);
+        });
         lane.worker.addEventListener("error", (event) => this.#giveUp(event.message || "worker error"));
         this.#lanes.push(lane);
       }

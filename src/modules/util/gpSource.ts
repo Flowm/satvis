@@ -23,6 +23,19 @@ export interface GpPreset {
   groups: { name: string; searchOnly?: boolean }[];
   /** Links against `defaults`, each with its card's picture as a path on the site. */
   featured?: { name: string; thumbnail: string; query: Record<string, string> }[];
+  /** The scenes the benchmark measures on this route, the default preset's where it lists none. */
+  benchmark?: BenchmarkScene[];
+}
+
+/** worker/src/gp/types.ts BenchmarkScene (ADR 0016). */
+export interface BenchmarkScene {
+  /** Names the scene's fields in a report. */
+  id: string;
+  name: string;
+  /** The path it opens on, which need not be the route it was served for. */
+  route: string;
+  query: Record<string, string>;
+  paced: boolean;
 }
 
 export interface GpIndex {
@@ -59,12 +72,20 @@ function parsePreset(raw: unknown): GpPreset | undefined {
           : [],
       )
     : undefined;
+  const benchmark = Array.isArray(raw.benchmark)
+    ? raw.benchmark.flatMap((entry: unknown): BenchmarkScene[] =>
+        isObject(entry) && typeof entry.id === "string" && typeof entry.name === "string" && typeof entry.route === "string"
+          ? [{ id: entry.id, name: entry.name, route: entry.route, query: isObject(entry.query) ? stringValues(entry.query) : {}, paced: entry.paced === true }]
+          : [],
+      )
+    : undefined;
   return {
     groups,
     ...(typeof raw.title === "string" && { title: raw.title }),
     ...(typeof raw.description === "string" && { description: raw.description }),
     ...(isObject(raw.defaults) && { defaults: stringValues(raw.defaults) }),
     ...(featured && { featured }),
+    ...(benchmark && { benchmark }),
   };
 }
 

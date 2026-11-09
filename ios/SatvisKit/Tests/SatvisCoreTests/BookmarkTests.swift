@@ -70,6 +70,15 @@ import Testing
         #expect(Bookmarks.ownedParameters.isSuperset(of: LinkCodec.parameters))
         #expect(Bookmarks.ownedParameters.contains("stars") && !Bookmarks.ownedParameters.contains("framems"))
     }
+
+    // The performance panel is the viewer's: it stays as it is through every bookmark opened.
+    @Test func carriesThePerformancePanelPastABookmark() {
+        let old = Bookmark(id: "x", kind: .saved, name: "", scene: SceneLink(path: "/", query: ["tags": "GNSS", "fps": "true"]), at: 0)
+        #expect(old.scene.query == ["tags": "GNSS"])
+        let here = LinkQuery(parsing: "tags=OT&fps=graph")
+        #expect(Bookmarks.ownedQuery(of: here) == ["tags": "OT"])
+        #expect(old.scene.link(carrying: Bookmarks.carriedItems(of: here)).query.string == "fps=graph&tags=GNSS")
+    }
 }
 
 @Suite struct BookmarkListTests {

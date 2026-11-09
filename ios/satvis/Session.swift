@@ -126,12 +126,15 @@ final class Session {
     /// What the last link carried that the app does not show (ADR 0001's foreign
     /// parameters), written back into every link the app makes.
     private var foreign = SceneState.Foreign()
-    /// The web app's FPS switch, which the app shows as its performance overlay.
-    /// Kept where the web keeps it, in the link as `fps=true`: a link the app
-    /// does not otherwise read, written back as it came.
+    /// The performance panel, the web app's: in the link as `fps=true`, or
+    /// `fps=graph` with its frame-time graph open.
     var showsPerformance: Bool {
         get { foreign.showsPerformance }
         set { foreign.showsPerformance = newValue }
+    }
+    var fpsPanel: SceneState.FPSPanel {
+        get { foreign.fpsPanel }
+        set { foreign.fpsPanel = newValue }
     }
     /// Drawable pixels per point, the web app's `pixelratio`: `1`, `1.5`, or
     /// `native` for the screen's own. Fewer pixels for frames the GPU finishes in
@@ -150,6 +153,9 @@ final class Session {
     static let frameRates = [30, 60, maximumFrameRate]
     /// "Max": no screen is faster, so `preferredFramesPerSecond` gives the screen's own.
     static let maximumFrameRate = 120
+    /// The frame budget, past which a frame is over budget: the interval the frame
+    /// rate asks for, never shorter than the screen's.
+    var frameBudgetMilliseconds: Double { 1000 / Double(min(frameRate, GlobeRenderer.displayMaximumFramesPerSecond)) }
     /// The benchmark panel, the web app's `bench=true`, kept in the link the same
     /// way; open through a run, whose scenes' links do not carry it, until the
     /// view it saved is open again.
@@ -297,7 +303,8 @@ final class Session {
     /// Asks for everything again: a suspended app can sit on old element sets
     /// for days, and its notifications on old passes.
     func becameActive() {
-        guard Date().timeIntervalSince(revalidated) > 60 else {
+        // Fresh records mid-run would rebuild the scene under measurement.
+        guard Date().timeIntervalSince(revalidated) > 60, !benchmark.isRunning else {
             return
         }
         revalidated = Date()
@@ -317,6 +324,20 @@ final class Session {
         // iOS ends the largest apps in the background first, and the tiles kept
         // for coming back were most of a few hundred megabytes.
         renderer?.trimMemory()
+    }
+
+    // MARK: Benchmark sweeps
+
+    /// Shows the satellites `names`, by name, with `components` past every
+    /// budget and nothing followed or selected: a sweep step, which no link can say.
+    func showSweep(names: Set<String>, components: SatelliteComponents) async {
+        perform(focus.clear())
+        await catalog.open(preset: catalog.presetName, activation: Activation(enabledSatellites: names), components: components, named: components)
+    }
+
+    /// The sweep's ground station as the only visiting one, or none.
+    func setSweepStation(_ station: GroundStation?) {
+        editStations { $0.setVisiting(station.map { [$0] } ?? []) }
     }
 
     // MARK: Links
@@ -395,6 +416,28 @@ final class Session {
         let preset = link.preset.flatMap { index?.presets[$0] != nil ? $0 : nil }
         let (scene, named) = SceneState.read(link.query, presetDefaults: index?.presetDefaults(named: preset) ?? [:])
         foreign = scene.foreign
+        // A link that asks for a run (ADR 0016) starts one once the globe is up,
+        // and reads as the open panel from then on, so the view the run keeps,
+        // Recent and a share start none. It never sends.
+        if foreign.benchmarkMode == .run {
+            let only = foreign.benchmarkScenes
+            foreign.benchmarkMode = .open
+            foreign.benchmarkScenes = []
+            // The view to return to is this link, which the run's first scene would
+            // stop applying before its tracking or sky view.
+            var restoring = link
+            restoring.query.items = link.query.items.compactMap { item in
+                switch item.key {
+                case "benchscenes": nil
+                case "bench": LinkQuery.Item(key: "bench", values: [SceneState.BenchmarkMode.open.rawValue])
+                default: item
+                }
+            }
+            Task {
+                await globe.untilAttached()
+                benchmark.start(on: self, only: only, prints: true, restoring: restoring)
+            }
+        }
         showsBenchmark = foreign.showsBenchmark
         if benchmark.isRunning {
             showsBenchmark = true

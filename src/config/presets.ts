@@ -4,7 +4,7 @@
 // and served with the group index, so every client starts from the same ones.
 
 import type { Bookmark } from "@/modules/util/bookmarks";
-import { fetchGpIndex } from "@/modules/util/gpSource";
+import { type BenchmarkScene, fetchGpIndex } from "@/modules/util/gpSource";
 import type { Query } from "@/modules/util/urlCodec";
 
 /**
@@ -22,6 +22,8 @@ export interface Preset {
   elements: ElementsEntry[];
   /** Its featured bookmarks, in the config's order (ADR 0011). */
   featured: Bookmark[];
+  /** What the benchmark measures from this route, in the config's order (ADR 0016). */
+  benchmarkScenes: BenchmarkScene[];
 }
 
 /** The preset of `/` and of any path naming no preset. */
@@ -54,7 +56,7 @@ export async function resolvePreset(path: string = window.location.pathname): Pr
   const preset = presets[name];
   if (preset === undefined) {
     console.warn("The group index carries no presets, so no groups are registered");
-    return { name, title: shellTitle, defaults: {}, elements: [], featured: [] };
+    return { name, title: shellTitle, defaults: {}, elements: [], featured: [], benchmarkScenes: [] };
   }
 
   const tagsOf = new Map(groups.map((group) => [group.name, group.tags ?? []]));
@@ -76,6 +78,7 @@ export async function resolvePreset(path: string = window.location.pathname): Pr
       query,
       at: 0,
     })),
+    benchmarkScenes: preset.benchmark ?? [],
   };
 }
 

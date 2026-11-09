@@ -106,6 +106,30 @@ export interface PresetDefinition {
   groups: PresetGroup[];
   /** Shown in this route's Bookmarks panel, in this order. */
   featured?: FeaturedBookmark[];
+  /**
+   * What the benchmark measures on this route, in this order (ADR 0016). A preset that
+   * lists none is served the default preset's.
+   */
+  benchmark?: BenchmarkScene[];
+}
+
+/**
+ * A link the benchmark opens and measures (ADR 0016), written like a featured bookmark
+ * but with no picture.
+ */
+export interface BenchmarkScene {
+  /** Names the scene's fields in a report, so it outlives a change of `name`. */
+  id: string;
+  name: string;
+  /**
+   * The path the scene opens on, `/` or `/<preset>`: its own preset's, or the default
+   * preset's where it was served to a preset with none, whose groups `query` names.
+   */
+  route: string;
+  /** Url parameters (ADR 0001), only those that deviate from the route's preset's defaults. */
+  query: Record<string, string>;
+  /** Idle: its frames paced, so its frame rate is low by design and its load is the cost. */
+  paced: boolean;
 }
 
 /**

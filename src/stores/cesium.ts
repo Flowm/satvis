@@ -2,13 +2,24 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
 import { layerProvider } from "@/config/layers";
-import { FRAME_RATES, type FrameRate, MSAA_RATES, PIXEL_RATIOS, currentDevicePixelRatio, defaultMsaaRate } from "@/config/rendering";
+import {
+  BENCHMARK_MODES,
+  type BenchmarkMode,
+  FPS_PANELS,
+  FRAME_RATES,
+  type FpsPanel,
+  type FrameRate,
+  MSAA_RATES,
+  PIXEL_RATIOS,
+  currentDevicePixelRatio,
+  defaultMsaaRate,
+} from "@/config/rendering";
 import { BUILTIN_STAR_MAP, STAR_MAPS } from "@/config/starMaps";
 import { SURFACE_MODELS } from "@/config/surfaceModels";
 import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "@/config/viewModes";
 import { baseLayerNames, imageryProviderNames, terrainProviderNames } from "@/modules/CesiumLayerProviders";
 import { sameValue } from "@/modules/util/equality";
-import { boolean, enumString, layerList, timestamp, toMinuteIso } from "@/modules/util/urlCodec";
+import { boolean, enumString, layerList, stringList, timestamp, toMinuteIso } from "@/modules/util/urlCodec";
 import { UNSEEN_MODES, type UnseenMode } from "@/modules/util/visibility";
 
 export const useCesiumStore = defineStore(
@@ -31,14 +42,30 @@ export const useCesiumStore = defineStore(
     /** Frames a second at most; 60, as on iOS, spares the battery. */
     const frameRate = ref<FrameRate>("60");
     const background = ref(true);
-    const showFps = ref(false);
+    /** The performance panel: closed, compact or expanded to its graph; `fps` in the link, which bookmarks leave out. */
+    const fpsPanel = ref<FpsPanel>("false");
+    /** Whether the performance panel shows, compact or expanded. */
+    const showFps = computed({
+      get: () => fpsPanel.value !== "false",
+      set: (show: boolean) => {
+        fpsPanel.value = show ? (fpsPanel.value === "false" ? "true" : fpsPanel.value) : "false";
+      },
+    });
     const pickMode = ref(false);
     /**
      * Matches createViewer. Held here because the scene property is not reactive. Not URL-synced.
      */
     const requestRenderMode = ref(true);
     /** The benchmark panel (src/modules/benchmark). */
-    const showBenchmark = ref(false);
+    const benchmarkMode = ref<BenchmarkMode>("false");
+    const showBenchmark = computed({
+      get: () => benchmarkMode.value !== "false",
+      set: (show: boolean) => {
+        benchmarkMode.value = show ? (benchmarkMode.value === "false" ? "true" : benchmarkMode.value) : "false";
+      },
+    });
+    /** The scene ids a `bench=run` link measures, without the drift repeat; empty runs them all. */
+    const benchmarkScenes = ref<string[]>([]);
 
     // Read-only, so setLayers enforces "at most one base layer".
     const activeLayers = ref<string[]>(["NaturalEarth"]);
@@ -129,9 +156,12 @@ export const useCesiumStore = defineStore(
       msaa,
       frameRate,
       background,
+      fpsPanel,
       showFps,
       pickMode,
+      benchmarkMode,
       showBenchmark,
+      benchmarkScenes,
       requestRenderMode,
     };
   },
@@ -149,8 +179,9 @@ export const useCesiumStore = defineStore(
         { name: "pixelRatio", url: "pixelratio", kind: enumString([...PIXEL_RATIOS]) },
         { name: "msaa", url: "msaa", kind: enumString([...MSAA_RATES]) },
         { name: "frameRate", url: "framerate", kind: enumString([...FRAME_RATES]) },
-        { name: "showFps", url: "fps", kind: boolean() },
-        { name: "showBenchmark", url: "bench", kind: boolean() },
+        { name: "fpsPanel", url: "fps", kind: enumString(FPS_PANELS) },
+        { name: "benchmarkMode", url: "bench", kind: enumString(BENCHMARK_MODES) },
+        { name: "benchmarkScenes", url: "benchscenes", kind: stringList() },
         { name: "background", url: "bg", kind: boolean() },
         { name: "time", url: "time", kind: timestamp() },
       ],

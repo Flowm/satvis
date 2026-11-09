@@ -56,6 +56,30 @@ export function withoutTime({ time: _time, ...rest }: Query): Query {
   return rest;
 }
 
+/**
+ * The query with a benchmark run it asks for as the open panel alone (ADR 0016): a link
+ * that starts a run is not one to keep.
+ */
+export function withoutBenchmarkRun<Q extends Readonly<Record<string, unknown>>>(query: Q): Q {
+  if (query.bench !== "run") {
+    return query;
+  }
+  const { benchscenes: _scenes, ...rest } = query;
+  // Only `benchscenes` goes, which every query may lack.
+  return { ...rest, bench: "true" } as unknown as Q;
+}
+
+/**
+ * Parameters the stores own that set up the viewer, not the scene: no bookmark keeps them,
+ * and each one opened keeps the page's. The performance panel stays open across scenes.
+ */
+export const VIEWER_PARAMS: ReadonlySet<string> = new Set(["fps"]);
+
+/** The query without the viewer's parameters. */
+export function withoutViewer(query: Query): Query {
+  return Object.fromEntries(Object.entries(query).filter(([param]) => !VIEWER_PARAMS.has(param)));
+}
+
 /** Whether two links open the same scene. */
 export const sameLink = (a: Link, b: Link): boolean => a.path === b.path && sameQuery(a.query, b.query);
 
@@ -150,20 +174,23 @@ export function parseBookmarks(json: string | null, kind: BookmarkKind): Bookmar
     if (!Array.isArray(parsed)) {
       return [];
     }
-    return parsed.filter(
-      (item): item is Bookmark =>
-        typeof item === "object" &&
-        item !== null &&
-        typeof item.id === "string" &&
-        typeof item.name === "string" &&
-        typeof item.path === "string" &&
-        typeof item.at === "number" &&
-        typeof item.query === "object" &&
-        item.query !== null &&
-        Object.values(item.query as object).every((v) => typeof v === "string") &&
-        (item.thumbnail === undefined || typeof item.thumbnail === "string") &&
-        item.kind === kind,
-    );
+    // Bookmarks saved before `VIEWER_PARAMS` kept the panel too.
+    return parsed
+      .filter(
+        (item): item is Bookmark =>
+          typeof item === "object" &&
+          item !== null &&
+          typeof item.id === "string" &&
+          typeof item.name === "string" &&
+          typeof item.path === "string" &&
+          typeof item.at === "number" &&
+          typeof item.query === "object" &&
+          item.query !== null &&
+          Object.values(item.query as object).every((v) => typeof v === "string") &&
+          (item.thumbnail === undefined || typeof item.thumbnail === "string") &&
+          item.kind === kind,
+      )
+      .map((bookmark) => Object.assign(bookmark, { query: withoutViewer(bookmark.query) }));
   } catch {
     return [];
   }

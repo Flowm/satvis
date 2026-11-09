@@ -98,7 +98,7 @@ public struct PreparedSatellites: @unchecked Sendable {
     let satellites: [PointSatellite]
     let samples: MTLBuffer?
     let instances: MTLBuffer?
-    let labels: (atlas: LabelAtlas, instances: MTLBuffer)?
+    private(set) var labels: LabelText?
     /// The sensor cones, for the satellites that have one.
     let cones: (buffer: MTLBuffer, count: Int)?
     /// The satellites with a 3D model, by index: a handful among thousands.
@@ -113,7 +113,8 @@ public struct PreparedSatellites: @unchecked Sendable {
     /// 16,762 satellites.
     let indexByID: [String: Int]
 
-    init(_ satellites: [PointSatellite], device: MTLDevice, labelScale: Double) {
+    /// Without a `labelScale`, no labels (`labelled`).
+    init(_ satellites: [PointSatellite], device: MTLDevice, labelScale: Double?) {
         self.satellites = satellites
         indexByID = Dictionary(satellites.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
         modelled = satellites.indices.filter { satellites[$0].model != nil }
@@ -182,11 +183,14 @@ public struct PreparedSatellites: @unchecked Sendable {
             coneList.isEmpty
             ? nil
             : device.makeBuffer(copying: coneList).map { ($0, coneList.count) }
-        labels =
-            satellites.count <= LabelAtlas.maximumLabels
-            ? LabelAtlas(names: satellites.map(\.name), scale: labelScale, device: device).flatMap { atlas in
-                device.makeBuffer(copying: atlas.instances).map { (atlas, $0) }
-            } : nil
+        labels = labelScale.flatMap { LabelText(names: satellites.map(\.name), scale: $0, device: device) }
+    }
+
+    /// The same, with labels.
+    func labelled(scale: Double, device: MTLDevice) -> PreparedSatellites {
+        var copy = self
+        copy.labels = LabelText(names: satellites.map(\.name), scale: scale, device: device)
+        return copy
     }
 }
 
@@ -204,6 +208,12 @@ final class SatellitePoints {
     func install(_ prepared: PreparedSatellites) {
         self.prepared = prepared
         generation += 1
+    }
+
+    /// The installed satellites with their labels: the same satellites, so what is
+    /// kept per satellite stands.
+    func installLabels(_ labelled: PreparedSatellites) {
+        prepared = labelled
     }
 
     /// Where each satellite's stencil sits at this instant, written into `buffer`.

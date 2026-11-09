@@ -145,3 +145,22 @@ test("Share this view hands on the page's link", async ({ page }) => {
   await expect(toasts(page, "Link copied")).toContainText("Science satellites");
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(page.url());
 });
+
+// The performance panel is the viewer's: a bookmark neither keeps nor closes it.
+test("the performance panel stays open through every bookmark", async ({ page }) => {
+  await openApp(page, "fps=graph", { live: true });
+  const panel = page.getByRole("region", { name: "Bookmarks" });
+  const performance = page.getByRole("button", { name: "Performance" });
+  await openMenu(page, "Bookmarks");
+  await expect(panel.getByRole("button", { name: "Default view" }), "the panel alone is no scene").toBeDisabled();
+  await panel.getByRole("tab", { name: /Featured/ }).click();
+  await panel.locator(".bookmarkCard").filter({ hasText: "Follow the ISS" }).getByRole("button").first().click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("track")).toBe("ISS (ZARYA)");
+  expect(new URL(page.url()).searchParams.get("fps")).toBe("graph");
+  await expect(performance.locator("canvas")).toBeVisible();
+
+  await openMenu(page, "Bookmarks");
+  await panel.getByRole("button", { name: "Default view" }).click();
+  await expect.poll(() => new URL(page.url()).search).toBe("?fps=graph");
+  await expect(performance).toBeVisible();
+});

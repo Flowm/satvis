@@ -103,6 +103,45 @@ describe("validatePresets", () => {
     expect(() => validatePresets([{ name: "default", groups: ["weather"], featured: [entry] }], groups)).toThrow(message);
   });
 
+  it("serves each scene on its preset's route, and the default preset's to a preset with none", () => {
+    const benchmark = [
+      { id: "eo_points", name: "EO", query: { tags: "eo", elements: "Point" } },
+      { id: "idle", name: "Idle", paced: true },
+    ];
+    const presets = validatePresets(
+      [
+        { name: "default", groups: ["weather"], benchmark },
+        { name: "own", groups: ["weather"], benchmark: [{ id: "mine", name: "Mine" }] },
+        { name: "none", groups: ["weather"] },
+      ],
+      groups,
+    );
+    const defaults = [
+      { id: "eo_points", name: "EO", route: "/", query: { tags: "eo", elements: "Point" }, paced: false },
+      { id: "idle", name: "Idle", route: "/", query: {}, paced: true },
+    ];
+    expect(presets.map((preset) => preset.benchmark)).toEqual([defaults, [{ id: "mine", name: "Mine", route: "/own", query: {}, paced: false }], defaults]);
+  });
+
+  it.each([
+    [{ name: "A" }, '"id" must match'],
+    [{ id: "Bad-id", name: "A" }, '"id" must match'],
+    [{ id: "a" }, '"name" must be a non-empty string'],
+    [{ id: "a", name: "A", query: { elements: ["Point"] } }, '"elements" must be a string'],
+    [{ id: "a", name: "A", paced: "yes" }, '"paced" must be a boolean'],
+    [{ id: "a", name: "A", query: { tags: "sar" } }, 'benchmark "a": tag "sar"'],
+  ])("refuses the benchmark scene %j", (entry, message) => {
+    expect(() => validatePresets([{ name: "default", groups: ["weather"], benchmark: [entry] }], groups)).toThrow(message);
+  });
+
+  it("refuses two benchmark scenes with one id", () => {
+    const benchmark = [
+      { id: "a", name: "A" },
+      { id: "a", name: "B" },
+    ];
+    expect(() => validatePresets([{ name: "default", groups: ["weather"], benchmark }], groups)).toThrow('duplicate id "a"');
+  });
+
   it("needs a default preset", () => {
     expect(() => validatePresets([{ name: "other", groups: ["weather"] }], groups)).toThrow('no "default" preset');
   });

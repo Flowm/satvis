@@ -51,6 +51,13 @@ public struct GroupIndex: Sendable, Hashable, Decodable {
     }
 }
 
+extension GroupIndex {
+    /// The benchmark scenes of the preset a route opens with.
+    public func benchmarkScenes(preset name: String?) -> [BenchmarkScene] {
+        preset(named: name)?.benchmark ?? []
+    }
+}
+
 public struct GroupStatus: Sendable, Hashable, Decodable {
     public var name: String
     public var count: Int
@@ -87,20 +94,24 @@ public struct Preset: Sendable, Hashable, Decodable {
     public var groups: [PresetGroup]
     /// Shown in this route's Bookmarks sheet, in this order.
     public var featured: [FeaturedBookmark]
+    /// What the benchmark measures from this route, the default preset's where
+    /// the config lists none, as the worker serves them.
+    public var benchmark: [BenchmarkScene]
 
     public init(
         title: String? = nil, description: String? = nil, defaults: [String: String] = [:], groups: [PresetGroup] = [],
-        featured: [FeaturedBookmark] = []
+        featured: [FeaturedBookmark] = [], benchmark: [BenchmarkScene] = []
     ) {
         self.title = title
         self.description = description
         self.defaults = defaults
         self.groups = groups
         self.featured = featured
+        self.benchmark = benchmark
     }
 
     enum CodingKeys: String, CodingKey {
-        case title, description, defaults, groups, featured
+        case title, description, defaults, groups, featured, benchmark
     }
 
     public init(from decoder: Decoder) throws {
@@ -110,6 +121,7 @@ public struct Preset: Sendable, Hashable, Decodable {
         defaults = ((try? container.decodeIfPresent([String: JSONValue].self, forKey: .defaults)) ?? [:]).compactMapValues(\.string)
         groups = try container.decode([Lenient<PresetGroup>].self, forKey: .groups).compactMap(\.value)
         featured = ((try? container.decodeIfPresent([Lenient<FeaturedBookmark>].self, forKey: .featured)) ?? []).compactMap(\.value)
+        benchmark = ((try? container.decodeIfPresent([Lenient<BenchmarkScene>].self, forKey: .benchmark)) ?? []).compactMap(\.value)
     }
 }
 

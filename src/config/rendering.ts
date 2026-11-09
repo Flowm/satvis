@@ -65,11 +65,20 @@ export const FRAME_RATES = ["30", "60", "max"] as const;
 
 export type FrameRate = (typeof FRAME_RATES)[number];
 
-/**
- * Cesium's `targetFrameRate`, none for `max`. Cesium draws only once more than the whole
- * interval has passed, so a cap of exactly the screen's rate skips every frame that comes a
- * hair early: 60 on a 60 Hz screen with 0.1 ms of jitter drew 30 a second. The headroom keeps them.
- */
-export function targetFrameRateFor(rate: FrameRate): number | undefined {
-  return rate === "max" ? undefined : Number(rate) * 1.05;
+/** The interval between frames a rate asks for (`FrameCap`), none for `max`. */
+export function frameIntervalFor(rate: FrameRate): number | undefined {
+  return rate === "max" ? undefined : 1000 / Number(rate);
 }
+
+/** The performance panel (`fps`): hidden, compact, or expanded into the frame-time graph. */
+export const FPS_PANELS = ["false", "true", "graph"] as const;
+/** As the url spells it (`fps`). */
+export type FpsPanel = (typeof FPS_PANELS)[number];
+
+/**
+ * The benchmark panel (`bench`): hidden, open, or open with a run to start once the scene
+ * has loaded, which then reads `true` again so the link does not spread (ADR 0016).
+ */
+export const BENCHMARK_MODES = ["false", "true", "run"] as const;
+/** As the url spells it (`bench`). */
+export type BenchmarkMode = (typeof BENCHMARK_MODES)[number];

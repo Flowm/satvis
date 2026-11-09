@@ -19,8 +19,7 @@ public struct SatelliteComponents: OptionSet, Sendable, Hashable {
     /// Past these many active satellites the web app switches a component off,
     /// once, on the crossing (`COMPONENT_BUDGETS`): labels stop being readable,
     /// every link is a line, and every model is drawn alone. Only a satellite with
-    /// a model file counts against the models' budget. Labels past theirs are not
-    /// drawn here even when switched back on: their atlas would outgrow a texture.
+    /// a model file counts against the models' budget.
     public static let labelBudget = 200
     public static let linkBudget = 500
     public static let modelBudget = 200

@@ -3,7 +3,7 @@
 // No Cloudflare APIs: the script imports it through node type stripping.
 
 import { isModelPath } from "./modelLods.ts";
-import { type FeaturedBookmark, GROUP_NAME_RE, type PresetDefinition, type SatelliteEntry } from "./types.ts";
+import { type BenchmarkScene, type FeaturedBookmark, GROUP_NAME_RE, type PresetDefinition, type SatelliteEntry } from "./types.ts";
 
 /** A config entry as YAML parsed it: nothing about its shape is trusted until it is checked here. */
 type Raw = Record<string, any>;
@@ -280,6 +280,49 @@ function validateFeatured(featured: unknown, where: string): FeaturedBookmark[] 
   });
 }
 
+/** A scene id: a report key part, so no character the metric names would have to escape. */
+const BENCHMARK_ID_RE = /^[a-z0-9_]+$/;
+
+/** A preset's benchmark scenes, on `route`; `paced` defaults to false. */
+function validateBenchmark(benchmark: unknown, where: string, route: string): BenchmarkScene[] | undefined {
+  if (benchmark === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(benchmark)) {
+    throw new Error(`${where}: "benchmark" must be an array`);
+  }
+  const ids = new Set<string>();
+  return benchmark.map((entry: Raw, i): BenchmarkScene => {
+    const at = `${where} benchmark[${i}]`;
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error(`${at}: must be an object`);
+    }
+    if (typeof entry.id !== "string" || !BENCHMARK_ID_RE.test(entry.id)) {
+      throw new Error(`${at}: "id" must match ${BENCHMARK_ID_RE}`);
+    }
+    if (ids.has(entry.id)) {
+      throw new Error(`${at}: duplicate id ${JSON.stringify(entry.id)}`);
+    }
+    ids.add(entry.id);
+    if (typeof entry.name !== "string" || entry.name === "") {
+      throw new Error(`${at}: "name" must be a non-empty string`);
+    }
+    const query = entry.query ?? {};
+    if (query === null || typeof query !== "object" || Array.isArray(query)) {
+      throw new Error(`${at}: "query" must be an object of url parameters`);
+    }
+    for (const [param, value] of Object.entries(query)) {
+      if (typeof value !== "string") {
+        throw new Error(`${at}: ${JSON.stringify(param)} must be a string, as the url would carry it`);
+      }
+    }
+    if (entry.paced !== undefined && typeof entry.paced !== "boolean") {
+      throw new Error(`${at}: "paced" must be a boolean`);
+    }
+    return { id: entry.id, name: entry.name, route, query, paced: entry.paced ?? false };
+  });
+}
+
 /** A preset group entry is a bare name or { name, searchOnly }; it comes out as the object. */
 export function validatePresets(presets: Raw[], groups: Raw[]): PresetDefinition[] {
   const byName = new Map(groups.map((group) => [group.name, group]));
@@ -340,10 +383,19 @@ export function validatePresets(presets: Raw[], groups: Raw[]): PresetDefinition
     checkTags(defaults.tags, "default tag");
     const featured = validateFeatured(preset.featured, where);
     featured?.forEach(({ name, query }) => checkTags(query.tags, `featured ${JSON.stringify(name)}: tag`));
-    return { ...preset, groups: presetGroups, ...(featured && { featured }) } as PresetDefinition;
+    const benchmark = validateBenchmark(preset.benchmark, where, preset.name === DEFAULT_PRESET ? "/" : `/${preset.name}`);
+    benchmark?.forEach(({ id, query }) => checkTags(query.tags, `benchmark ${JSON.stringify(id)}: tag`));
+    return { ...preset, groups: presetGroups, ...(featured && { featured }), ...(benchmark && { benchmark }) } as PresetDefinition;
   });
-  if (!seen.has(DEFAULT_PRESET)) {
+  const fallback = normalized.find(({ name }) => name === DEFAULT_PRESET);
+  if (fallback === undefined) {
     throw new Error(`no ${JSON.stringify(DEFAULT_PRESET)} preset: every route that names none falls back to it`);
+  }
+  // Served rather than looked up by each client, so both apps measure the same scenes and
+  // a report holds what was served. The scenes keep the default route, whose groups their
+  // tags name.
+  for (const preset of normalized) {
+    preset.benchmark ??= fallback.benchmark;
   }
   return normalized;
 }

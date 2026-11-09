@@ -70,7 +70,7 @@ import simd
         #expect(MemoryLayout<GlobeVertex>.stride == 48)
         #expect(MemoryLayout<PointInstance>.stride == 32)
         #expect(MemoryLayout<PointFrame>.stride == 12)
-        #expect(MemoryLayout<LabelInstance>.stride == 32)
+        #expect(MemoryLayout<LabelGlyph>.stride == 48)
         #expect(MemoryLayout<StationInstance>.stride == 16)
         #expect(MemoryLayout<LinkInstance>.stride == 24)
         #expect(MemoryLayout<ModelVertex>.stride == 48)
@@ -103,13 +103,35 @@ import simd
         #expect(simd.distance(rebuilt, value) < 0.01)
     }
 
-    @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func packsEveryLabelIntoTheAtlas() throws {
-        let names = (0..<200).map { "SATELLITE-\($0)" }
+    // Past the 200 a name each would fit, and every glyph on the atlas, outline above
+    // fill; each label's outlines, then its fills, label by label.
+    @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func setsEveryLabelFromOneGlyphAtlas() throws {
+        let names = (0..<5000).map { "SATELLITE-\($0)" } + ["", "ДЕМОНСТРАТОР"]
         let device = try #require(MTLCreateSystemDefaultDevice())
-        let atlas = try #require(LabelAtlas(names: names, scale: 3, device: device))
-        #expect(atlas.instances.count == 200)
-        #expect(atlas.instances.allSatisfy { $0.uvRect.z <= 1 && $0.uvRect.w <= 1 && $0.size.x > 0 })
-        #expect(atlas.instances.map(\.satellite) == (0..<200).map(UInt32.init))
+        let text = try #require(LabelText(names: names, scale: 3, device: device))
+        #expect(text.sizes.count == names.count)
+        #expect(text.sizes.allSatisfy { $0.x > 0 && $0.y > 0 })
+        #expect(text.sizes[0].x < text.sizes[4999].x)
+        // A digit or letter a glyph each, "SATELLITE-" ten of them; the hyphen too; twice.
+        #expect(text.glyphCount == 2 * (names.prefix(5000).reduce(0) { $0 + $1.count } + "ДЕМОНСТРАТОР".count))
+        #expect(text.texture.height < 2048)
+        let glyphs = try #require(text.glyphs).contents().bindMemory(to: LabelGlyph.self, capacity: text.glyphCount)
+        let all = UnsafeBufferPointer(start: glyphs, count: text.glyphCount)
+        #expect(all.allSatisfy { $0.uvRect.z <= 1 && $0.uvRect.w <= 0.5 && $0.rect.z > 0 })
+        #expect(all.first?.satellite == 0 && all.last?.satellite == UInt32(names.count - 1))
+        // Each name left to right.
+        #expect(all[1].rect.x > all[0].rect.x)
+        let first = "SATELLITE-0".count
+        #expect(all.prefix(first).allSatisfy { $0.fill == 0 } && all[first..<(2 * first)].allSatisfy { $0.fill == 1 && $0.satellite == 0 })
+        #expect(all[2 * first].satellite == 1 && all[2 * first].fill == 0)
+    }
+
+    // A space draws nothing and has no cell; the atlas must still count it as held.
+    @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func keepsTheAtlasForNamesWithSpaces() throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let first = try #require(LabelText(names: ["ISS (ZARYA)"], scale: 1.75, device: device))
+        let again = try #require(LabelText(names: ["ISS (ZARYA)", "ISS"], scale: 1.75, device: device))
+        #expect(first.texture === again.texture)
     }
 
     // From the satellite, the camera is south of it and above its horizon, and
