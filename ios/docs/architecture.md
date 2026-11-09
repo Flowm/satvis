@@ -340,7 +340,8 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   launch image shows no hills) stacked where `UILaunchScreen` centres the
   240-point logo, on black (`LaunchBackground`) rather than the logo's
   #0b222d, so that the globe comes up out of space with no change of colour. The
-  shuttle climbs for 0.9 s after 0.3 s of ignition; the background starts to
-  clear at 1 s, the shuttle most of the way up, and the globe takes touches
-  from then; the smoke is gone at 1.5 s. Reduce Motion only fades it, and a launch
-  with `SATVIS_TEST_CATALOG`, `SATVIS_TIME` or a benchmark skips it.
+  shuttle climbs for 0.9 s after 0.3 s of ignition; the background, the sky
+  and the smoke clear together from 1 s, the shuttle most of the way up, and
+  are gone at 1.5 s. It takes no touches: they reach the globe under it. Reduce
+  Motion and a launch with `SATVIS_TEST_CATALOG`, `SATVIS_TIME` or a benchmark
+  skip it.

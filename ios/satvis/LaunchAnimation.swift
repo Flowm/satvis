@@ -6,13 +6,11 @@ import SwiftUI
 /// stacked where the system centred the whole logo, so nothing jumps as the app
 /// takes over. The background is black, as space behind the globe is, and
 /// clears once the shuttle has almost left the screen, so the globe comes up out
-/// of it with no change of colour.
+/// of it with no change of colour. The globe takes every touch meanwhile.
 struct LaunchAnimation: View {
     /// Whether the animation is over, and the view gone.
     @State private var isOver = Self.isSkipped
     @State private var hasStarted = false
-    /// Whether the background is clearing, and the globe takes the touches.
-    @State private var isClearing = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// A launch that is driven or measured shows the globe alone: the UI tests
@@ -34,71 +32,61 @@ struct LaunchAnimation: View {
     private static let columnWidth: CGFloat = 15.5
     private static let nozzles: CGFloat = 442
     private static let cloudTop: CGFloat = 476
-    /// Seconds until the background starts to clear, the shuttle most of the way
-    /// up, and from then to the last of the smoke.
-    private static func cover(_ reduceMotion: Bool) -> Double { reduceMotion ? 0.1 : 1 }
-    private static let clearing = 0.5
+    /// Seconds from the first frame to the last of the smoke.
+    private static let duration = 1.5
 
     private struct Frame {
         /// How far the shuttle has climbed, from the pad to out of sight.
         var climb: CGFloat = 0
         /// The shuttle's sideways rumble, in points.
         var rumble: CGFloat = 0
-        /// The exhaust clouds' scale, and the exhaust's opacity.
+        /// The exhaust clouds' scale.
         var cloud: CGFloat = 1
-        var smoke: CGFloat = 1
-        /// The background's and the sky's opacity over the globe.
+        /// The opacity of the background, the sky and the exhaust over the globe.
         var veil: CGFloat = 1
     }
 
     var body: some View {
-        if !isOver {
+        // Reduce Motion goes from the launch screen straight to the globe.
+        if !isOver, !reduceMotion {
             GeometryReader { geometry in
                 KeyframeAnimator(initialValue: Frame(), trigger: hasStarted) { frame in
                     picture(frame, height: geometry.size.height)
                 } keyframes: { _ in
-                    // Reduce Motion keeps the picture still and only clears it.
-                    let moves: CGFloat = reduceMotion ? 0 : 1
                     KeyframeTrack(\.climb) {
                         LinearKeyframe(0, duration: 0.3)
-                        LinearKeyframe(moves, duration: 0.9, timingCurve: .easeIn)
-                        LinearKeyframe(moves, duration: 1)
+                        LinearKeyframe(1, duration: 0.9, timingCurve: .easeIn)
+                        LinearKeyframe(1, duration: 1)
                     }
                     KeyframeTrack(\.rumble) {
                         LinearKeyframe(0, duration: 0.1)
                         for step in 0..<12 {
-                            LinearKeyframe((step.isMultiple(of: 2) ? 1.2 : -1.2) * moves, duration: 0.05)
+                            LinearKeyframe(step.isMultiple(of: 2) ? 1.2 : -1.2, duration: 0.05)
                         }
                         LinearKeyframe(0, duration: 0.05)
                     }
                     KeyframeTrack(\.cloud) {
                         LinearKeyframe(1, duration: 0.1)
-                        LinearKeyframe(1 + 0.35 * moves, duration: 0.2, timingCurve: .easeOut)
-                        LinearKeyframe(1 + 1.2 * moves, duration: 0.9, timingCurve: .easeOut)
-                        LinearKeyframe(1 + 1.2 * moves, duration: 1)
+                        LinearKeyframe(1.35, duration: 0.2, timingCurve: .easeOut)
+                        LinearKeyframe(2.2, duration: 0.9, timingCurve: .easeOut)
+                        LinearKeyframe(2.2, duration: 1)
                     }
-                    KeyframeTrack(\.smoke) {
-                        LinearKeyframe(1, duration: Self.cover(reduceMotion))
-                        LinearKeyframe(1 - moves, duration: Self.clearing)
-                        LinearKeyframe(1 - moves, duration: 1)
-                    }
+                    // Clears once the shuttle is most of the way up.
                     KeyframeTrack(\.veil) {
-                        LinearKeyframe(1, duration: Self.cover(reduceMotion))
-                        LinearKeyframe(0, duration: Self.clearing - 0.15)
+                        LinearKeyframe(1, duration: 1)
+                        LinearKeyframe(0, duration: Self.duration - 1.05)
                         LinearKeyframe(0, duration: 1)
                     }
                 }
             }
             .ignoresSafeArea()
-            .allowsHitTesting(!isClearing)
+            .allowsHitTesting(false)
             .accessibilityHidden(true)
             .task {
                 hasStarted = true
                 // Before the tracks end, which hold their last values until then: an
                 // animator that has run out goes back to its first frame.
-                try? await Task.sleep(for: .seconds(Self.cover(reduceMotion)))
-                isClearing = true
-                try? await Task.sleep(for: .seconds(Self.clearing))
+                try? await Task.sleep(for: .seconds(Self.duration))
                 isOver = true
             }
         }
@@ -107,8 +95,6 @@ struct LaunchAnimation: View {
     private func picture(_ frame: Frame, height: CGFloat) -> some View {
         // From the pad to the whole shuttle past the top edge.
         let rise = frame.climb * (height / 2 + Self.side / 2)
-        // Still, the shuttle and its exhaust go with the background.
-        let smoke = reduceMotion ? frame.veil : frame.smoke
         return ZStack {
             Color(.launchBackground)
                 .opacity(frame.veil)
@@ -134,10 +120,9 @@ struct LaunchAnimation: View {
                 }
                 // As one picture, or the clouds show through each other as they fade.
                 .compositingGroup()
-                .opacity(smoke)
+                .opacity(frame.veil)
                 Image(.launchShuttle)
                     .offset(x: frame.rumble, y: -rise)
-                    .opacity(reduceMotion ? frame.veil : 1)
             }
             .frame(width: Self.side, height: Self.side)
         }
