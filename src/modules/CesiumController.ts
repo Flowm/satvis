@@ -596,7 +596,7 @@ export class CesiumController {
    * scene property is not reactive.
    */
   set requestRenderMode(value: boolean) {
-    this.viewer.scene.requestRenderMode = value;
+    this.skyView.setRequestRenderMode(value);
     // Switching it on otherwise looks like a freeze.
     this.viewer.scene.requestRender();
   }
