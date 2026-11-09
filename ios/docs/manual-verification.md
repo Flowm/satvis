@@ -353,6 +353,16 @@ panel runs to the margin over Share and the globe button; beside them at 280 pt,
 peeked out past it. On the iPad the names stay. The column opens and closes in about 0.2 s,
 the rows uncovered by the growing panel rather than showing ahead of it.
 
+**Result, 2026-11-09.** Graphics, regrouped as the web app's: Hide UI, FPS and Benchmark
+on one card with no title, a hairline between each two, then Frame rate and Pixel ratio,
+each a segmented control under its title, with no notes. Pixel ratio reads 1x, 2x, 3x
+on an iPhone 18 Pro simulator, its middle rung halfway to the screen's own, and
+fits at the XXL text size. 2x took a tap and the globe drew on. The whole panel shows
+without scrolling. The UI tests that open it (Hide UI, FPS, Benchmark) passed. Opened
+on `/?pixelratio=1.3`, the globe drew soft and Pixel ratio read 1x, 1,3x, 2x, 3x with
+1,3x picked (a German simulator); picking 2x dropped the 1,3x segment and sharpened the
+globe. Checked on the iPhone 18 Pro only, not the iPhone 17e or the iPad.
+
 ## Native app: the Sky panel, and dimming what cannot be seen
 
 **Procedure.** A never-used iPhone 18 Pro simulator on iOS 27, opened on

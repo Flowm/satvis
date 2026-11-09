@@ -342,7 +342,7 @@ try {
   // vue-router's own parser and serializer, as the web app's does.
   const codec = await runner.import("/src/modules/util/urlCodec.ts");
   const { parseQuery, stringifyQuery } = await runner.import("vue-router");
-  const { PIXEL_RATIOS, FPS_PANELS, BENCHMARK_MODES } = await runner.import("/src/config/rendering.ts");
+  const { PIXEL_RATIO_RANGE, FPS_PANELS, BENCHMARK_MODES, offeredPixelRatio, pixelRatioValue, pixelRatiosFor } = await runner.import("/src/config/rendering.ts");
   const { UNSEEN_MODES } = await runner.import("/src/modules/util/visibility.ts");
   const { CAMERA_MODES } = await runner.import("/src/config/viewModes.ts");
   const { STAR_MAPS } = await runner.import("/src/config/starMaps.ts");
@@ -356,10 +356,18 @@ try {
     scenes: ["3D", "2D", "Sky"],
     unseen: [...UNSEEN_MODES],
     cameras: [...CAMERA_MODES],
-    pixelRatios: [...PIXEL_RATIOS],
+    pixelRatioRange: [...PIXEL_RATIO_RANGE],
     fpsPanels: [...FPS_PANELS],
     benchmarkModes: [...BENCHMARK_MODES],
   };
+  // What a `pixelratio` draws at on a screen, and the Graphics panel's rungs there.
+  const sampleRatios = ["1", "1.3", "1.5", "1.75", "2", "2.25", "3", "4", "native"];
+  const pixelRatioLadders = [1, 1.25, 1.5, 2, 2.625, 2.75, 3, 3.5].map((screen) => ({
+    screen,
+    rungs: [...pixelRatiosFor(screen)],
+    values: Object.fromEntries(sampleRatios.map((ratio) => [ratio, pixelRatioValue(ratio, screen)])),
+    offered: Object.fromEntries(sampleRatios.map((ratio) => [ratio, offeredPixelRatio(ratio, screen) ?? null])),
+  }));
   const kinds = {
     plainString: codec.plainString(),
     stringList: codec.stringList(),
@@ -372,8 +380,10 @@ try {
     // The native app keeps these among the foreign parameters, read with the web's kinds.
     fpsPanel: codec.enumString(vocabulary.fpsPanels),
     benchmarkMode: codec.enumString(vocabulary.benchmarkModes),
+    pixelRatio: codec.ratioOrNative(...vocabulary.pixelRatioRange),
   };
   const PARSE_CASES = {
+    pixelRatio: ["native", "1", "1.3", "4", "2.0", "01.50", "0.5", "4.01", "", " 2", "+2", "1e0", ".5", "2.", "Infinity", "Native", "١"],
     plainString: ["", "ISS (ZARYA)", "a,b~c"],
     stringList: ["", ",", "Weather", "GNSS,,Weather,", "Space Station,OT"],
     tildeEscapedStringList: ["", "NOAA~19", "ISS (ZARYA),NOAA 19", "A~B~C,,D"],
@@ -433,6 +443,7 @@ try {
     benchmarkMode: ["true", "run", "false", "RUN", ""],
   };
   const FORMAT_CASES = {
+    pixelRatio: ["native", "2", "2.0", "1.75", "9", "bogus"],
     plainString: ["", "ISS (ZARYA)"],
     stringList: [[], ["Weather"], ["GNSS", "Space Station"], ["a,b"]],
     tildeEscapedStringList: [[], ["NOAA 19"], ["A~B"], ["a,b"]],
@@ -478,7 +489,7 @@ try {
     { name: "scene", kind: codec.enumString(vocabulary.scenes) },
     { name: "unseen", kind: codec.enumString(vocabulary.unseen) },
     { name: "camera", kind: codec.enumString(vocabulary.cameras) },
-    { name: "pixelratio", kind: codec.enumString(vocabulary.pixelRatios) },
+    { name: "pixelratio", kind: kinds.pixelRatio },
     { name: "time", kind: kinds.timestamp },
   ];
   const owned = new Set(schema.map((spec) => spec.name));
@@ -972,7 +983,7 @@ try {
     bookmarks: { now: BOOKMARK_NOW, summaries, ages, openedLimit: bookmarks.OPENED_LIMIT },
     // Each case is [lodSets index, diameter, current level, level].
     modelLevels: { hysteresis: MODEL_LEVEL_HYSTERESIS, lodSets: LOD_SETS, cases: modelLevels },
-    links: { vocabulary, presets: PRESETS, defaults: globalDefaults, fieldKinds, cases: links, sanitized },
+    links: { vocabulary, presets: PRESETS, defaults: globalDefaults, fieldKinds, cases: links, sanitized, pixelRatioLadders },
   };
   fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
   fs.writeFileSync(trackingFramesPath, `${JSON.stringify({ generatedBy: "scripts/parity/generate.mjs", frames: trackingFrames }, null, 2)}\n`);

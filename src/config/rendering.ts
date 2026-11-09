@@ -36,28 +36,61 @@ export function currentDevicePixelRatio(): number {
 }
 
 /**
- * Drawing-buffer pixels per CSS pixel, along one axis. On a ratio-2 display an empty
- * globe costs 29.6 ms at native and 9.8 ms at 1 (3.10 ms/Mpx). The top rung is
- * `native`, not `2`, so a ratio-3 phone can still draw at its own resolution.
+ * The ratios a `pixelratio` link may name besides `native`, in drawing-buffer pixels per
+ * CSS pixel along one axis. On a ratio-2 display an empty globe costs 29.6 ms
+ * at native and 9.8 ms at 1 (3.10 ms/Mpx). The top bound keeps a link from asking for a
+ * drawing buffer no GPU allocates.
  */
-export const PIXEL_RATIOS = ["1", "1.5", "native"] as const;
-
-export type PixelRatio = (typeof PIXEL_RATIOS)[number];
+export const PIXEL_RATIO_RANGE = [1, 4] as const;
 
 /**
- * The fixed rungs strictly below the display's ratio, then `native`: the menu only offers
- * savings. The url is not narrowed, so `?pixelratio=1.5` still supersamples on ratio 1.
+ * Below it the halfway rung saves too little to offer: 1.25 on a ratio-1.5 display
+ * still draws 69% of native's pixels.
  */
-export function pixelRatiosFor(devicePixelRatio: number): readonly PixelRatio[] {
-  return PIXEL_RATIOS.filter((ratio) => ratio === "native" || Number(ratio) < devicePixelRatio);
+export const MID_PIXEL_RATIO_FROM = 2;
+
+/** Halfway from 1 to the display's ratio, to a quarter so its label stays short: 1.5 at 2, 2 at 3, 1.75 at 2.625. */
+export function midPixelRatio(devicePixelRatio: number): number {
+  return Math.min(Math.round(((1 + devicePixelRatio) / 2) * 4) / 4, PIXEL_RATIO_RANGE[1]);
+}
+
+/** The ratio a rung draws at on this display; 1 for a nonsense display ratio. */
+export function pixelRatioValue(ratio: string, devicePixelRatio: number): number {
+  if (!(devicePixelRatio > 0)) {
+    return 1;
+  }
+  return ratio === "native" ? devicePixelRatio : Number(ratio);
+}
+
+/**
+ * 1, halfway from a ratio of 2, then `native`, each but `native` strictly below the
+ * display's ratio: the menu only offers savings. The url is not narrowed, so
+ * `?pixelratio=1.5` still supersamples on ratio 1.
+ */
+export function pixelRatiosFor(devicePixelRatio: number): readonly string[] {
+  const rungs: string[] = [];
+  if (devicePixelRatio > 1) {
+    rungs.push("1");
+  }
+  if (devicePixelRatio >= MID_PIXEL_RATIO_FROM) {
+    rungs.push(String(midPixelRatio(devicePixelRatio)));
+  }
+  rungs.push("native");
+  return rungs;
+}
+
+/** The rung the menu marks for `ratio`: the offered one drawing at the same ratio, as `native` for a link's `2` on ratio 2. */
+export function offeredPixelRatio(ratio: string, devicePixelRatio: number): string | undefined {
+  const value = pixelRatioValue(ratio, devicePixelRatio);
+  return pixelRatiosFor(devicePixelRatio).find((rung) => pixelRatioValue(rung, devicePixelRatio) === value);
 }
 
 /** Cesium multiplies `resolutionScale` by the device ratio when `useBrowserRecommendedResolution` is false. */
 export function resolutionScaleFor(ratio: string, devicePixelRatio: number): number {
-  if (ratio === "native" || devicePixelRatio <= 0) {
+  if (!(devicePixelRatio > 0)) {
     return 1;
   }
-  return Number(ratio) / devicePixelRatio;
+  return pixelRatioValue(ratio, devicePixelRatio) / devicePixelRatio;
 }
 
 /** The native app's choices (`Session.frameRates`): frames a second, or the screen's own rate. */

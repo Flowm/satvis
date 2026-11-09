@@ -121,7 +121,7 @@ struct ContentView: View {
             mayDrag: session.aim.mayDrag(_:fingers:),
             takePinch: session.aim.takePinch,
             isTransparent: session.aim.passthrough.isShowing,
-            pixelRatio: Double(session.pixelRatio),
+            pixelRatio: session.pixelRatio,
             frameRate: session.frameRate
         )
         .ignoresSafeArea()

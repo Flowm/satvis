@@ -225,8 +225,9 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   `SATVIS_API` at `https://satvis.space`, without the slash, measures the real
   data and counts nothing (see Analytics).
 - The Graphics panel's "Pixel ratio" is the web app's (`pixelratio`, kept in
-  links): the globe drawn at 1 or 1.5 pixels a point instead of the screen's
-  own, which the system scales up (`ScaledMTKView` in `GlobeView.swift`). The
+  links): the globe drawn at 1 pixel a point, or halfway to the screen's own
+  (2 on a 3x iPhone; `PixelRatioLadder`), instead of the screen's own,
+  which the system scales up (`ScaledMTKView` in `GlobeView.swift`). The
   renderer sizes everything placed on the screen in points times the drawable's
   pixels a point, labels included, so only the sharpness changes; the map
   refines a level less, as its error is measured in the drawable's pixels. On an

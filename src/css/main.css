@@ -368,6 +368,49 @@ body {
   opacity: 0.5;
 }
 
+/* A section heading inside a folded one, a step quieter. */
+.toolbarTitle--sub {
+  margin-top: 10px;
+  font-weight: 500;
+}
+
+/* A section heading that folds what follows: the Graphics panel's Advanced. */
+.toolbarDisclosure {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 16px 0 0;
+  padding: 2px 4px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--panel-muted);
+  font-size: var(--text-section);
+  font-weight: 600;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .toolbarDisclosure:hover {
+    color: var(--panel-ink);
+  }
+}
+
+.toolbarDisclosure:focus-visible {
+  outline: 2px solid var(--panel-accent);
+}
+
+.toolbarDisclosure__chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.15s;
+}
+
+.toolbarDisclosure[aria-expanded="true"] .toolbarDisclosure__chevron {
+  transform: rotate(90deg);
+}
+
 /* Zero width with a full minimum, so the note wraps instead of widening the panel. */
 .toolbarNote {
   width: 0;
@@ -628,7 +671,8 @@ body {
   .toolbarSwitch,
   .toolbarSwitch input,
   .panelCheckbox,
-  .toolbarPlace {
+  .toolbarPlace,
+  .toolbarDisclosure__chevron {
     transition: none;
   }
 }

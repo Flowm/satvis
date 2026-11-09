@@ -8820,10 +8820,9 @@
         "Fixed",
         "Inertial"
       ],
-      "pixelRatios": [
-        "1",
-        "1.5",
-        "native"
+      "pixelRatioRange": [
+        1,
+        4
       ],
       "fpsPanels": [
         "false",
@@ -9558,6 +9557,92 @@
           {
             "input": "true",
             "value": "true"
+          }
+        ]
+      },
+      {
+        "kind": "pixelRatio",
+        "parses": [
+          {
+            "raw": "native",
+            "value": "native"
+          },
+          {
+            "raw": "1",
+            "value": "1"
+          },
+          {
+            "raw": "1.3",
+            "value": "1.3"
+          },
+          {
+            "raw": "4",
+            "value": "4"
+          },
+          {
+            "raw": "2.0",
+            "value": "2"
+          },
+          {
+            "raw": "01.50",
+            "value": "1.5"
+          },
+          {
+            "raw": "0.5"
+          },
+          {
+            "raw": "4.01"
+          },
+          {
+            "raw": ""
+          },
+          {
+            "raw": " 2"
+          },
+          {
+            "raw": "+2"
+          },
+          {
+            "raw": "1e0"
+          },
+          {
+            "raw": ".5"
+          },
+          {
+            "raw": "2."
+          },
+          {
+            "raw": "Infinity"
+          },
+          {
+            "raw": "Native"
+          },
+          {
+            "raw": "١"
+          }
+        ],
+        "formats": [
+          {
+            "input": "native",
+            "value": "native"
+          },
+          {
+            "input": "2",
+            "value": "2"
+          },
+          {
+            "input": "2.0",
+            "value": "2"
+          },
+          {
+            "input": "1.75",
+            "value": "1.75"
+          },
+          {
+            "input": "9"
+          },
+          {
+            "input": "bogus"
           }
         ]
       }
@@ -10383,13 +10468,11 @@
           "scene": "3D",
           "unseen": "dim",
           "camera": "Fixed",
-          "pixelratio": "native",
+          "pixelratio": "2",
           "time": null
         },
-        "invalid": [
-          "pixelratio"
-        ],
-        "written": "msaa=4"
+        "invalid": [],
+        "written": "msaa=4&pixelratio=2"
       },
       {
         "preset": "default",
@@ -10568,6 +10651,244 @@
       {
         "url": "https://satvis.space/?xgs=48.1351,11.5820",
         "sanitized": "https://satvis.space/?xgs=48.1351,11.5820"
+      }
+    ],
+    "pixelRatioLadders": [
+      {
+        "screen": 1,
+        "rungs": [
+          "native"
+        ],
+        "values": {
+          "1": 1,
+          "2": 2,
+          "3": 3,
+          "4": 4,
+          "1.3": 1.3,
+          "1.5": 1.5,
+          "1.75": 1.75,
+          "2.25": 2.25,
+          "native": 1
+        },
+        "offered": {
+          "1": "native",
+          "2": null,
+          "3": null,
+          "4": null,
+          "1.3": null,
+          "1.5": null,
+          "1.75": null,
+          "2.25": null,
+          "native": "native"
+        }
+      },
+      {
+        "screen": 1.25,
+        "rungs": [
+          "1",
+          "native"
+        ],
+        "values": {
+          "1": 1,
+          "2": 2,
+          "3": 3,
+          "4": 4,
+          "1.3": 1.3,
+          "1.5": 1.5,
+          "1.75": 1.75,
+          "2.25": 2.25,
+          "native": 1.25
+        },
+        "offered": {
+          "1": "1",
+          "2": null,
+          "3": null,
+          "4": null,
+          "1.3": null,
+          "1.5": null,
+          "1.75": null,
+          "2.25": null,
+          "native": "native"
+        }
+      },
+      {
+        "screen": 1.5,
+        "rungs": [
+          "1",
+          "native"
+        ],
+        "values": {
+          "1": 1,
+          "2": 2,
+          "3": 3,
+          "4": 4,
+          "1.3": 1.3,
+          "1.5": 1.5,
+          "1.75": 1.75,
+          "2.25": 2.25,
+          "native": 1.5
+        },
+        "offered": {
+          "1": "1",
+          "2": null,
+          "3": null,
+          "4": null,
+          "1.3": null,
+          "1.5": "native",
+          "1.75": null,
+          "2.25": null,
+          "native": "native"
+        }
+      },
+      {
+        "screen": 2,
+        "rungs": [
+          "1",
+          "1.5",
+          "native"
+        ],
+        "values": {
+          "1": 1,
+          "2": 2,
+          "3": 3,
+          "4": 4,
+          "1.3": 1.3,
+          "1.5": 1.5,
+          "1.75": 1.75,
+          "2.25": 2.25,
+          "native": 2
+        },
+        "offered": {
+          "1": "1",
+          "2": "native",
+          "3": null,
+          "4": null,
+          "1.3": null,
+          "1.5": "1.5",
+          "1.75": null,
+          "2.25": null,
+          "native": "native"
+        }
+      },
+      {
+        "screen": 2.625,
+        "rungs": [
+          "1",
+          "1.75",
+          "native"
+        ],
+        "values": {
+          "1": 1,
+          "2": 2,
+          "3": 3,
+          "4": 4,
+          "1.3": 1.3,
+          "1.5": 1.5,
+          "1.75": 1.75,
+          "2.25": 2.25,
+          "native": 2.625
+        },
+        "offered": {
+          "1": "1",
+          "2": null,
+          "3": null,
+          "4": null,
+          "1.3": null,
+          "1.5": null,
+          "1.75": "1.75",
+          "2.25": null,
+          "native": "native"
+        }
+      },
+      {
+        "screen": 2.75,
+        "rungs": [
+          "1",
+          "2",
+          "native"
+        ],
+        "values": {
+          "1": 1,
+          "2": 2,
+          "3": 3,
+          "4": 4,
+          "1.3": 1.3,
+          "1.5": 1.5,
+          "1.75": 1.75,
+          "2.25": 2.25,
+          "native": 2.75
+        },
+        "offered": {
+          "1": "1",
+          "2": "2",
+          "3": null,
+          "4": null,
+          "1.3": null,
+          "1.5": null,
+          "1.75": null,
+          "2.25": null,
+          "native": "native"
+        }
+      },
+      {
+        "screen": 3,
+        "rungs": [
+          "1",
+          "2",
+          "native"
+        ],
+        "values": {
+          "1": 1,
+          "2": 2,
+          "3": 3,
+          "4": 4,
+          "1.3": 1.3,
+          "1.5": 1.5,
+          "1.75": 1.75,
+          "2.25": 2.25,
+          "native": 3
+        },
+        "offered": {
+          "1": "1",
+          "2": "2",
+          "3": "native",
+          "4": null,
+          "1.3": null,
+          "1.5": null,
+          "1.75": null,
+          "2.25": null,
+          "native": "native"
+        }
+      },
+      {
+        "screen": 3.5,
+        "rungs": [
+          "1",
+          "2.25",
+          "native"
+        ],
+        "values": {
+          "1": 1,
+          "2": 2,
+          "3": 3,
+          "4": 4,
+          "1.3": 1.3,
+          "1.5": 1.5,
+          "1.75": 1.75,
+          "2.25": 2.25,
+          "native": 3.5
+        },
+        "offered": {
+          "1": "1",
+          "2": null,
+          "3": null,
+          "4": null,
+          "1.3": null,
+          "1.5": null,
+          "1.75": null,
+          "2.25": "2.25",
+          "native": "native"
+        }
       }
     ]
   }

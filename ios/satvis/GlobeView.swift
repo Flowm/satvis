@@ -1,4 +1,5 @@
 import MetalKit
+import SatvisCore
 import SatvisRender
 import SwiftUI
 import os
@@ -28,8 +29,8 @@ struct GlobeView: View {
     var takePinch: (Double) -> Bool = { _ in false }
     /// Clear where the scene leaves the sky, over the camera's picture.
     var isTransparent = false
-    /// Drawable pixels per point, the web app's `pixelratio`; nil for the screen's own.
-    var pixelRatio: Double?
+    /// The web app's `pixelratio`: a number, or `native` for the screen's own.
+    var pixelRatio = "native"
     /// Frames a second at most, the Graphics panel's.
     let frameRate: Int
 
@@ -137,7 +138,7 @@ struct GlobeView: View {
 
 /// The MTKView the renderer draws into, and nothing else.
 private struct MetalView: UIViewRepresentable {
-    let pixelRatio: Double?
+    let pixelRatio: String
     let frameRate: Int
     /// Clear where the scene leaves the sky, over the camera's picture.
     let isTransparent: Bool
@@ -176,8 +177,8 @@ private struct MetalView: UIViewRepresentable {
 /// UIKit sets a view's scale to the screen's when it joins a window, so the
 /// ratio is set again then.
 private final class ScaledMTKView: MTKView {
-    /// Nil for the screen's own.
-    var pixelRatio: Double? {
+    /// The web app's `pixelratio`, read against the screen's scale (`PixelRatioLadder`).
+    var pixelRatio = "native" {
         didSet {
             if pixelRatio != oldValue {
                 applyPixelRatio()
@@ -194,6 +195,6 @@ private final class ScaledMTKView: MTKView {
         guard window != nil else {
             return
         }
-        contentScaleFactor = pixelRatio.map { CGFloat($0) } ?? traitCollection.displayScale
+        contentScaleFactor = PixelRatioLadder.value(pixelRatio, screen: traitCollection.displayScale)
     }
 }

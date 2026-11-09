@@ -8,6 +8,7 @@ import {
   decode,
   encode,
   enumString,
+  ratioOrNative,
   groundStationList,
   layerList,
   plainString,
@@ -57,6 +58,28 @@ describe("enumString", () => {
 
   test("refuses to format a non-member", () => {
     expect(kind.format("Garbage").ok).toBe(false);
+  });
+});
+
+describe("ratioOrNative", () => {
+  const kind = ratioOrNative(1, 4);
+
+  test("accepts native and any decimal in range, ends included", () => {
+    for (const raw of ["native", "1", "1.3", "2.25", "4"]) {
+      expect(kind.parse(raw)).toEqual({ ok: true, value: raw });
+    }
+  });
+
+  test("reads a number as JavaScript writes it, so the url settles on one spelling", () => {
+    expect(kind.parse("2.0")).toEqual({ ok: true, value: "2" });
+    expect(kind.parse("01.50")).toEqual({ ok: true, value: "1.5" });
+    expect(kind.format("2.0")).toEqual({ ok: true, value: "2" });
+  });
+
+  test("rejects what is out of range or not a plain decimal", () => {
+    for (const raw of ["0.5", "4.01", "", " 2", "+2", "1e0", ".5", "2.", "Infinity", "NaN", "Native"]) {
+      expect(kind.parse(raw).ok).toBe(false);
+    }
   });
 });
 

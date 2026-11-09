@@ -18,7 +18,9 @@ import Testing
     }
 
     @Test func honoursTheVocabulariesTheFixturesWereWrittenFor() throws {
-        let vocabulary = try #require(Self.links()["vocabulary"] as? [String: [String]])
+        let vocabularies = try #require(Self.links()["vocabulary"] as? [String: Any])
+        #expect(vocabularies["pixelRatioRange"] as? [Double] == [PixelRatioLadder.range.lowerBound, PixelRatioLadder.range.upperBound])
+        let vocabulary = vocabularies.compactMapValues { $0 as? [String] }
         #expect(vocabulary["components"] == LinkCodec.components)
         #expect(vocabulary["layers"] == LinkCodec.layers)
         #expect(vocabulary["terrain"] == LinkCodec.terrains)
@@ -27,9 +29,23 @@ import Testing
         #expect(vocabulary["scenes"] == LinkCodec.scenes)
         #expect(vocabulary["unseen"] == UnseenMode.allCases.map(\.rawValue))
         #expect(vocabulary["cameras"] == CameraFrame.allCases.map(\.rawValue))
-        #expect(vocabulary["pixelRatios"] == LinkCodec.pixelRatios)
         #expect(vocabulary["fpsPanels"] == SceneState.FPSPanel.allCases.map(\.rawValue))
         #expect(vocabulary["benchmarkModes"] == SceneState.BenchmarkMode.allCases.map(\.rawValue))
+    }
+
+    @Test func climbsThePixelRatioLadderAsTheWebAppDoes() throws {
+        let ladders = try #require(Self.links()["pixelRatioLadders"] as? [[String: Any]])
+        #expect(!ladders.isEmpty)
+        for ladder in ladders {
+            let screen = try #require((ladder["screen"] as? NSNumber)?.doubleValue)
+            #expect(PixelRatioLadder.rungs(screen: screen) == ladder["rungs"] as? [String], "\(screen)")
+            let values = try #require(ladder["values"] as? [String: NSNumber])
+            let offered = try #require(ladder["offered"] as? [String: Any])
+            for ratio in values.keys {
+                #expect(PixelRatioLadder.value(ratio, screen: screen) == values[ratio]?.doubleValue, "\(ratio) at \(screen)")
+                #expect(PixelRatioLadder.offered(ratio, screen: screen) == offered[ratio] as? String, "\(ratio) at \(screen)")
+            }
+        }
     }
 
     @Test func readsAndWritesEachKindAsTheWebAppDoes() throws {
@@ -44,6 +60,7 @@ import Testing
                 let label = "\(kind) parses \"\(raw)\""
                 switch kind {
                 case "plainString": #expect(FieldKind<String>.plain.parse(raw) == want as? String, "\(label)")
+                case "pixelRatio": #expect(FieldKind<String>.ratioOrNative(PixelRatioLadder.range).parse(raw) == want as? String, "\(label)")
                 case "overpass": #expect(FieldKind<String>.oneOf(LinkCodec.overpassModes).parse(raw) == want as? String, "\(label)")
                 case "fpsPanel": #expect(FieldKind<SceneState.FPSPanel>.enumeration.parse(raw)?.rawValue == want as? String, "\(label)")
                 case "benchmarkMode": #expect(FieldKind<SceneState.BenchmarkMode>.enumeration.parse(raw)?.rawValue == want as? String, "\(label)")
@@ -69,6 +86,7 @@ import Testing
                     "\(kind) formats \((try? JSONSerialization.data(withJSONObject: input ?? NSNull(), options: .fragmentsAllowed)).map { String(decoding: $0, as: UTF8.self) } ?? "?")"
                 switch kind {
                 case "plainString": #expect(FieldKind<String>.plain.format(input as! String) == want, "\(label)")
+                case "pixelRatio": #expect(FieldKind<String>.ratioOrNative(PixelRatioLadder.range).format(input as! String) == want, "\(label)")
                 case "overpass": #expect(FieldKind<String>.oneOf(LinkCodec.overpassModes).format(input as! String) == want, "\(label)")
                 case "fpsPanel": #expect(SceneState.FPSPanel(rawValue: input as! String).flatMap(FieldKind<SceneState.FPSPanel>.enumeration.format) == want, "\(label)")
                 case "benchmarkMode":
