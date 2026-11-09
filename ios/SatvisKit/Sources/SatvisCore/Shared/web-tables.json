@@ -144,7 +144,6 @@
       "pixelratio",
       "msaa",
       "framerate",
-      "fps",
       "bench",
       "benchscenes",
       "bg",

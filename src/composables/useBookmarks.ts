@@ -7,7 +7,19 @@ import { type Router, useRouter } from "vue-router";
 
 import { DEFAULT_PRESET, presetNameOf, presetPath, resolvePreset } from "@/config/presets";
 import type { CesiumController } from "@/modules/CesiumController";
-import { type Bookmark, type BookmarkSummary, defaultName, type Link, sameLink, sameQuery, summarize, withoutBenchmarkRun, withoutTime } from "@/modules/util/bookmarks";
+import {
+  type Bookmark,
+  type BookmarkSummary,
+  defaultName,
+  type Link,
+  sameLink,
+  sameQuery,
+  summarize,
+  VIEWER_PARAMS,
+  withoutBenchmarkRun,
+  withoutTime,
+  withoutViewer,
+} from "@/modules/util/bookmarks";
 import { DeviceDetect } from "@/modules/util/DeviceDetect";
 import { captureThumbnail, sceneSettled } from "@/modules/util/thumbnail";
 import type { Query } from "@/modules/util/urlCodec";
@@ -33,6 +45,9 @@ function defaultsFor(path: string): Query {
  * compare equal to the route they open. A bookmark never changes it: another preset is a page load.
  */
 const routePath = ref(presetPath(presetNameOf(window.location.pathname)));
+/** The parameters a bookmark keeps: the stores' own, but the viewer's. */
+const sceneParams = (): ReadonlySet<string> => new Set([...syncedParams()].filter((param) => !VIEWER_PARAMS.has(param)));
+
 /** The route's preset's featured bookmarks, once the group index has arrived. */
 const featured = ref<readonly Bookmark[]>([]);
 void resolvePreset().then((preset) => {
@@ -53,7 +68,7 @@ export function useBookmarks() {
   const route = computed(() => router.currentRoute.value);
   // The scene's own parameters, as the url states them.
   const current = computed<Query>(() => {
-    const owned = syncedParams();
+    const owned = sceneParams();
     return Object.fromEntries(Object.entries(route.value.query).flatMap(([param, value]) => (owned.has(param) && typeof value === "string" ? [[param, value]] : [])));
   });
   const isDefault = computed(() => Object.keys(current.value).length === 0);
@@ -71,7 +86,7 @@ export function useBookmarks() {
    * sync reads the route's preset defaults only once, at startup.
    */
   function open(bookmark: Bookmark): void {
-    const query = { ...foreignParams(route.value.query), ...bookmark.query };
+    const query = { ...foreignParams(route.value.query, sceneParams()), ...withoutViewer(bookmark.query) };
     if (bookmark.path === routePath.value) {
       // A paused or fast clock stays off `time` for its first minute, so a url without
       // one would leave it paused or fast: a bookmark without `time` is live.
@@ -90,7 +105,7 @@ export function useBookmarks() {
   /** The route's preset as it opens: every scene parameter dropped, the clock live. */
   function openDefault(): void {
     cc.goLive();
-    void router.push({ query: foreignParams(route.value.query) });
+    void router.push({ query: foreignParams(route.value.query, sceneParams()) });
   }
 
   /** Saves the scene on screen, named after what it shows. */
@@ -172,7 +187,7 @@ export async function recordOpenedLink(cc: CesiumController, router: Router): Pr
     return;
   }
   await urlHydrated();
-  const query = withoutBenchmarkRun(syncedQuery());
+  const query = withoutViewer(withoutBenchmarkRun(syncedQuery()));
   if (Object.keys(query).length === 0) {
     return;
   }
@@ -186,7 +201,7 @@ export async function recordOpenedLink(cc: CesiumController, router: Router): Pr
 
   await sceneSettled(cc.viewer.scene, { minMs: 3000, maxMs: 20_000, ready: () => !cc.sats.building && (!cc.skyView.active || cc.skyView.settled) });
   // A visitor who moved on would leave a picture of something else.
-  if (!sameQuery(withoutTime(syncedQuery()), withoutTime(query))) {
+  if (!sameQuery(withoutTime(withoutViewer(syncedQuery())), withoutTime(query))) {
     return;
   }
   const thumbnail = await captureThumbnail(cc.viewer.scene);

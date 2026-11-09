@@ -60,8 +60,12 @@ public struct Bookmark: Sendable, Hashable, Codable, Identifiable {
         self.at = at
     }
 
-    /// The scene it opens; two bookmarks of one scene open the same.
-    public var scene: SceneLink { SceneLink(path: path, query: query) }
+    /// The scene it opens; two bookmarks of one scene open the same. Without what
+    /// one saved before the viewer's parameters (`fps`) left the owned ones kept.
+    public var scene: SceneLink {
+        let owned = Bookmarks.ownedParameters
+        return SceneLink(path: path, query: query.filter { owned.contains($0.key) })
+    }
 }
 
 /// What a card says under a bookmark's name.

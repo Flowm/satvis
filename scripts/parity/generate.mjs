@@ -108,6 +108,7 @@ try {
   const { sampleInterval, gridAnchorEpochMs } = await runner.import("/src/modules/util/sgp4Worker.ts");
   const { default: Orbit } = await runner.import("/src/modules/Orbit.ts");
   const entityInfo = await runner.import("/src/modules/util/entityInfo.ts");
+  const { VIEWER_PARAMS } = await runner.import("/src/modules/util/bookmarks.ts");
   const satcatCodes = await runner.import("/src/config/satcatCodes.ts");
   const gcatCodes = await runner.import("/src/config/gcatCodes.ts");
   const { externalLinks } = await runner.import("/src/config/externalLinks.ts");
@@ -989,12 +990,12 @@ try {
     // `{satnum}` stands where the catalog number goes.
     externalLinks: externalLinks("{satnum}"),
     bookmarks: {
-      // The parameters the web app's stores own, which a bookmark keeps and the rest
-      // of a link carries past it. Read from the stores' urlsync configs: creating the
-      // stores here would need the router and the globe.
-      ownedParams: ["sat", "cesium"].flatMap((store) =>
-        [...fs.readFileSync(path.join(repoRoot, `src/stores/${store}.ts`), "utf8").matchAll(/\burl: "([a-z]+)"/g)].map((match) => match[1]),
-      ),
+      // The parameters the web app's stores own but the viewer's, which a bookmark keeps
+      // and the rest of a link carries past it. Read from the stores' urlsync configs:
+      // creating the stores here would need the router and the globe.
+      ownedParams: ["sat", "cesium"]
+        .flatMap((store) => [...fs.readFileSync(path.join(repoRoot, `src/stores/${store}.ts`), "utf8").matchAll(/\burl: "([a-z]+)"/g)].map((match) => match[1]))
+        .filter((param) => !VIEWER_PARAMS.has(param)),
     },
   };
   fs.mkdirSync(path.dirname(tablesPath), { recursive: true });

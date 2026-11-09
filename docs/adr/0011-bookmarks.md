@@ -84,6 +84,12 @@ another preset (ADR 0001, Defaults). A bookmark records its preset's path (`/`, 
 however the page was reached, so `/index.html` or a path naming no preset is the route
 it opens; its card is described against that preset. Foreign parameters go along.
 
+**The performance panel belongs to the viewer, not the scene.** `fps` is a store's,
+but no bookmark keeps it (`VIEWER_PARAMS`), and every bookmark and the default view
+open with the page's own, as foreign parameters do: someone measuring keeps the panel
+open while going from scene to scene. Bookmarks saved earlier with `fps` drop it when
+read. The native app follows through the shared table of owned parameters.
+
 **A gallery of cards, from a prototype of three panels.** A sectioned list read like
 settings; a panel of one chip per changed setting, each undoable alone, explained the
 scene but not where to go. Cards with pictures were the quickest to tell apart. Each
