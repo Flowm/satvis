@@ -21,6 +21,7 @@ struct SatvisApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(session: session)
+                .overlay { LaunchAnimation() }
                 .preferredColorScheme(.dark)
                 .tint(Color.panelAccent)
         }
