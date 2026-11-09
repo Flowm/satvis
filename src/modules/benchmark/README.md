@@ -32,7 +32,7 @@ Then use the panel, or the console:
 
 ```js
 await bench.scenes(); // every scene, then the first again: resolves to the report
-await bench.scenes({ only: ["default_view", "starlink_points"] }); // no drift repeat
+await bench.scenes({ only: ["default_view", "active_points"] }); // no drift repeat
 bench.report; // the last scene run's report
 bench.send(); // sends it as the PostHog `benchmark` event, as the panel's Send does
 bench.quick(); // 3 counts × 8 isolated sets: checks the harness

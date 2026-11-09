@@ -24,7 +24,7 @@ test("a bench=run link runs the scenes it names, then reads as the open panel", 
   // Unpaced is never idle; the GPU's capped share is known wherever its timer is.
   expect(report.scene_default_view_idle).toBe(false);
   expect(report).toHaveProperty("scene_default_view_x_gpu_capped_pct");
-  await expect(panel.getByRole("row", { name: /Points and labels/ })).toContainText(/\d+[.,]\d/);
+  await expect(panel.getByRole("row", { name: /Default view/ })).toContainText(/\d+[.,]\d/);
   await expect(panel.getByRole("button", { name: "Send results" })).toBeDisabled();
 
   // The view the run found, back as it was, and pacing with it.
