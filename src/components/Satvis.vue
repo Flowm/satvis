@@ -180,7 +180,6 @@
         <segmented-control v-model="frameRate" label="Frame rate" :options="FRAME_RATE_OPTIONS" />
         <div class="toolbarTitle">Pixel ratio</div>
         <segmented-control v-model="pixelRatio" label="Pixel ratio" :options="PIXEL_RATIO_OPTIONS" />
-        <div class="toolbarNote">Lower is faster. Native is {{ formatNumber(nativeRatio) }}x.</div>
         <button type="button" class="toolbarDisclosure" :aria-expanded="graphicsAdvanced" @click="graphicsAdvanced = !graphicsAdvanced">
           Advanced
           <UIcon name="lucide:chevron-right" class="toolbarDisclosure__chevron" />
@@ -340,8 +339,9 @@ void availableStarMaps().then((names) => {
   starMapOptions.value = names;
 });
 
-const nativeRatio = Number(window.devicePixelRatio.toFixed(2));
-const PIXEL_RATIO_OPTIONS = pixelRatiosFor(window.devicePixelRatio).map((ratio) => ({ value: ratio, label: ratio === "native" ? "Native" : `${ratio}x` }));
+/** The top rung by the screen's own ratio; the url keeps `native`, so a link opens at each screen's own. */
+const nativeLabel = `${formatNumber(Number(window.devicePixelRatio.toFixed(2)))}x`;
+const PIXEL_RATIO_OPTIONS = pixelRatiosFor(window.devicePixelRatio).map((ratio) => ({ value: ratio, label: ratio === "native" ? nativeLabel : `${ratio}x` }));
 
 /** The same function the globe reads, so the menu and the globe cannot disagree. */
 const effects = computed(() => surfaceEffects(surfaceModel.value, sceneMode.value));

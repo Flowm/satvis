@@ -741,9 +741,8 @@ struct GraphicsPanel: View {
                 title: "Pixel ratio",
                 selection: $session.pixelRatio,
                 options: LinkCodec.pixelRatios.filter { $0 == "native" || (Double($0) ?? 0) < displayScale }.map { ratio in
-                    (ratio == "native" ? "Native" : "\(ratio)x", ratio)
+                    (ratio == "native" ? "\(Double(displayScale).formatted(.number.precision(.fractionLength(0...2))))x" : "\(ratio)x", ratio)
                 })
-            Note("Lower is faster. Native is \(Double(displayScale).formatted(.number.precision(.fractionLength(0...2))))x.")
         }
     }
 }
