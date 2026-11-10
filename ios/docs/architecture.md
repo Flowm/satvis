@@ -335,3 +335,13 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   `public/logo.svg`: counting its `<path>`s from 0, 0 is the #0b222d background,
   1–3 sky, 4–6 hills, 7–49 shuttle and 50–51 exhaust. Cut them again when the
   logo changes.
+- The launch animation (`LaunchAnimation.swift`, over `ContentView`) starts as
+  the launch screen, its sky, shuttle and exhaust as `launch-*` image sets (the
+  launch image shows no hills) stacked where `UILaunchScreen` centres the
+  240-point logo, on black (`LaunchBackground`) rather than the logo's
+  #0b222d, so that the globe comes up out of space with no change of colour. The
+  shuttle climbs for 0.9 s after 0.3 s of ignition; the background, the sky
+  and the smoke clear together from 1 s, the shuttle most of the way up, and
+  are gone at 1.5 s. It takes no touches: they reach the globe under it. Reduce
+  Motion and a launch with `SATVIS_TEST_CATALOG`, `SATVIS_TIME` or a benchmark
+  skip it.
