@@ -582,3 +582,20 @@ checked: a device, the haptic as it opens, a pointer's click and hold on an iPad
 second touch within the ~0.3 s after a 0.6 s hold lifts, while SwiftUI waits on a double
 tap: it clears the hold before the held touch's tap is reported, which may then select or
 close the panel. XCUITest waits for the app to idle before each tap and came 1.5 s late.
+
+## Native app: the launch animation
+
+**Procedure.** An iPhone 18 Pro simulator that never had the app, iOS 27.2, on the live
+site: the app launched twice with `simctl io recordVideo` running and the second launch
+read a frame every 0.1 s; once more with Reduce Motion on
+(`defaults write com.apple.Accessibility ReduceMotionEnabled`); then the whole UI suite.
+
+**Result, 2026-11-10.** The first frame the app draws is the launch screen's, the logo
+where the system centred it, on black. The smoke grows on the pad, each cloud under its
+column, the shuttle is past the top edge at 1.2 s, and the globe comes up under the
+smoke from 1 s, clear at 1.5 s. With Reduce Motion the launch screen gives way to the
+globe and nothing moves. The UI suite passed (35 tests, 4 skipped), the animation
+skipped on its test catalog. Not checked: an iPad or any device's screen, where the
+build was only installed and launched; an upgrade over a version whose cached launch
+screen is still the logo's #0b222d; and a touch on the globe in the first second, which
+reaches it under the black.
