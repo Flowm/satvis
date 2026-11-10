@@ -91,7 +91,8 @@ is not idle.
 
 The report is one flat set of PostHog properties: the environment (`app_`,
 `device_`, with `app_frame_rate` as `30`, `60` or `max` and `app_frame_budget_ms` the
-budget it gives on that display), `benchmark_version` (8), `benchmark_platform`, `benchmark_scenes`,
+budget it gives on that display, and on the web `app_oit`, whether the run drew with
+order-independent translucency, the Graphics switch), `benchmark_version` (8), `benchmark_platform`, `benchmark_scenes`,
 `benchmark_definitions`, `benchmark_drift_pct`, and `scene_<id>_<metric>` per step.
 The metrics are defined once, by `summarize` in `frameSummary.ts`; the native app is
 held to it by a parity fixture (`pnpm update-parity-fixtures`).

@@ -16,7 +16,7 @@ test("a bench=run link runs the scenes it names, then reads as the open panel", 
   const panel = page.locator(".bench");
   await expect(panel.getByRole("status")).toHaveText("Done", { timeout: 60_000 });
   const report = await page.evaluate(() => (window as unknown as { bench: { report: Record<string, unknown> } }).bench.report);
-  expect(report).toMatchObject({ benchmark_version: 8, benchmark_platform: "web", benchmark_scenes: ["default_view"] });
+  expect(report).toMatchObject({ benchmark_version: 8, benchmark_platform: "web", benchmark_scenes: ["default_view"], app_oit: false });
   // A GitHub runner's SwiftShader draws this 5 s scene at 4 to 8 fps.
   expect(report.scene_default_view_frames).toBeGreaterThan(5);
   expect(report.scene_default_view_cpu_ms).toBeGreaterThan(0);

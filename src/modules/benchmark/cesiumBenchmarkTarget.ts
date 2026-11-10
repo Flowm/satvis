@@ -156,6 +156,8 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
       app_build_mode: import.meta.env.DEV ? "dev" : "production",
       app_pixel_ratio: store.pixelRatio,
       app_frame_rate: store.frameRate,
+      // The web's alone: the native app has no order-independent translucency.
+      app_oit: this.#cc.orderIndependentTranslucency,
       device_user_agent: navigator.userAgent,
       device_gpu: gpuName(),
       device_drawable_pixels: `${canvas.width}x${canvas.height}`,
