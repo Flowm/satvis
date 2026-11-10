@@ -86,13 +86,14 @@ onMounted(async () => {
   panel.selected.value = scenes.map((scene) => scene.id);
   // A link asked for a run (ADR 0016). Rewritten first, so neither Back, a bookmark nor a
   // share starts another; the run then saves and restores the link as it now reads.
-  if (cesiumStore.benchmarkMode === "run") {
+  const mode = cesiumStore.benchmarkMode;
+  if (mode === "run" || mode === "send") {
     const only = [...cesiumStore.benchmarkScenes];
     if (only.length > 0) {
       panel.selected.value = only;
     }
     await router.replace({ query: withoutBenchmarkRun(router.currentRoute.value.query) });
-    void panel.startScenes(only);
+    void panel.startScenes(only, mode === "send");
   }
 });
 

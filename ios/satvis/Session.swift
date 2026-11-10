@@ -418,9 +418,10 @@ final class Session {
         foreign = scene.foreign
         // A link that asks for a run (ADR 0016) starts one once the globe is up,
         // and reads as the open panel from then on, so the view the run keeps,
-        // Recent and a share start none. It never sends.
-        if foreign.benchmarkMode == .run {
+        // Recent and a share start none. Only `send` sends the report.
+        if foreign.benchmarkMode == .run || foreign.benchmarkMode == .send {
             let only = foreign.benchmarkScenes
+            let sends = foreign.benchmarkMode == .send
             foreign.benchmarkMode = .open
             foreign.benchmarkScenes = []
             // The view to return to is this link, which the run's first scene would
@@ -435,7 +436,7 @@ final class Session {
             }
             Task {
                 await globe.untilAttached()
-                benchmark.start(on: self, only: only, prints: true, restoring: restoring)
+                benchmark.start(on: self, only: only, prints: true, sends: sends, restoring: restoring)
             }
         }
         showsBenchmark = foreign.showsBenchmark

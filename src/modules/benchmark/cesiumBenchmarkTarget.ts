@@ -7,6 +7,7 @@ import type { LocationQuery } from "vue-router";
 import type { CesiumController } from "@/modules/CesiumController";
 import { EMPTY_SCENE, type DesiredScene } from "@/modules/SatelliteManager";
 import { desiredScene } from "@/modules/sceneSync";
+import { withoutBenchmarkRun } from "@/modules/util/bookmarks";
 import { foreignParams } from "@/modules/util/urlSync";
 import { router } from "@/router";
 import { useCesiumStore } from "@/stores/cesium";
@@ -376,10 +377,10 @@ export class CesiumBenchmarkTarget implements BenchmarkTarget {
       // The sweep bypassed the store, so sceneSync's watcher will not fire.
       this.#cc.sats.reconcile(desiredScene(useSatStore()));
     } else {
-      // The user's view, the run's own `bench=run` and `benchscenes` gone.
+      // The user's view, the run's own `bench=run` or `send` and `benchscenes` gone.
       const { path, query } = router.resolve(saved.fullPath);
-      const { benchscenes: _scenes, ...rest } = query;
-      await router.replace({ path, query: { ...rest, ...(rest.bench === "run" && { bench: "true" }) } });
+      const { benchscenes: _scenes, ...rest } = withoutBenchmarkRun(query);
+      await router.replace({ path, query: rest });
       await nextTick();
     }
     useCesiumStore().requestRenderMode = saved.requestRenderMode;

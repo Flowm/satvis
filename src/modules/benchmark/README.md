@@ -35,6 +35,7 @@ await bench.scenes(); // every scene, then the first again: resolves to the repo
 await bench.scenes({ only: ["default_view", "active_points"] }); // no drift repeat
 bench.report; // the last scene run's report
 bench.send(); // sends it as the PostHog `benchmark` event, as the panel's Send does
+await bench.scenes({ send: true }); // runs, then sends where usage is counted
 bench.quick(); // 3 counts × 8 isolated sets: checks the harness
 bench.run(); // 5 counts × 8 isolated sets: each component's own cost
 bench.cumulative(); // 5 counts × 9 growing sets: cost on top of what is already drawn
@@ -57,10 +58,11 @@ Every run ends with a re-run of its first step. A sweep step costs
 its load.
 
 `?bench=run` opens the panel and runs the scenes once the page has loaded;
-`&benchscenes=<id>,<id>` runs only those. The url reads `bench=true` from the start
-of the run, so a reload, a bookmark or Recent starts none, and the run never sends:
-it logs the report and sets `bench.report`. It is the one handle on Safari added to
-the Home Screen, which has no console.
+`&benchscenes=<id>,<id>` runs only those. The run logs the report and sets
+`bench.report`; `?bench=send` also sends it at the end, as Send does, where usage is
+counted (satvis.space). The url reads `bench=true` from the start of the run, so a
+reload, a bookmark or Recent starts none. A link is the one handle on Safari added to
+the Home Screen, which has no console. The native app takes the same links.
 
 Keep the tab in the foreground. A hidden tab presents no frames.
 

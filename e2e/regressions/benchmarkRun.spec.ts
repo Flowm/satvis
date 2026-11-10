@@ -34,6 +34,21 @@ test("a bench=run link runs the scenes it names, then reads as the open panel", 
   expect(opened).not.toContain('"run"');
 });
 
+// `send` runs as `run` does and then sends, where usage is counted: PostHog loads only on
+// satvis.space, so here it says it did not.
+test("a bench=send link runs, reads as the open panel, and sends only where usage is counted", async ({ page }) => {
+  test.setTimeout(90_000);
+  const logged: string[] = [];
+  page.on("console", (message) => logged.push(message.text()));
+  await openApp(page, "bench=send&benchscenes=default_view");
+  await expect.poll(() => new URL(page.url()).searchParams.get("bench")).toBe("true");
+  const panel = page.locator(".bench");
+  await expect(panel.getByRole("status")).toHaveText("Done", { timeout: 60_000 });
+  expect(await page.evaluate(() => (window as unknown as { bench: { sent: boolean } }).bench.sent)).toBe(false);
+  expect(logged).toContain("[bench] not sent: usage is not counted here");
+  await expect(panel.getByRole("button", { name: "Send results" })).toBeDisabled();
+});
+
 // Unknown ids planned nothing, and the run read "Done" with nothing measured.
 test.describe("naming no served scene", () => {
   test.use({ allowConsoleErrors: /No scene matches/ });

@@ -92,6 +92,7 @@ describe("withOpened", () => {
 // ADR 0016: a link that starts a run is kept as the open panel alone.
 test("withoutBenchmarkRun keeps a run's link as the panel open", () => {
   expect(withoutBenchmarkRun({ tags: "GNSS", bench: "run", benchscenes: "a,b" })).toEqual({ tags: "GNSS", bench: "true" });
+  expect(withoutBenchmarkRun({ bench: "send", benchscenes: "a" })).toEqual({ bench: "true" });
   expect(withoutBenchmarkRun({ bench: "true", benchscenes: "a" })).toEqual({ bench: "true", benchscenes: "a" });
 });
 

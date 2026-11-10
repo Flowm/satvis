@@ -440,7 +440,7 @@ try {
     ],
     overpass: ["elevation", "swath", "Swath", ""],
     fpsPanel: ["true", "graph", "false", "Graph", ""],
-    benchmarkMode: ["true", "run", "false", "RUN", ""],
+    benchmarkMode: ["true", "run", "send", "false", "RUN", ""],
   };
   const FORMAT_CASES = {
     pixelRatio: ["native", "2", "2.0", "1.75", "9", "bogus"],
@@ -465,7 +465,7 @@ try {
     timestamp: [null, "2026-10-04T20:46:59.999Z", "2026-10-04T20:46Z"],
     overpass: ["elevation", "swath", "bogus"],
     fpsPanel: ["graph", "true"],
-    benchmarkMode: ["run", "true"],
+    benchmarkMode: ["run", "send", "true"],
   };
   // `value` is absent where the kind refuses the input.
   const answer = (entry, attempt) => (attempt.ok ? Object.assign(entry, { value: attempt.value }) : entry);
