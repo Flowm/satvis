@@ -1,9 +1,11 @@
 // The benchmark panel (ADR 0016) as a visitor uses it: a subset of the scenes ticked and run, a
 // measured row opened for the rest of its figures, and a sweep run from its settings, with
-// its tables and exports. The native app's panel offers the same.
+// its tables and exports. The native app's panel offers the same. A run folds the menu off the
+// scenes it measures.
 
 import { openApp } from "../support/app";
 import { expect, test } from "../support/test";
+import { openMenu } from "../support/ui";
 
 test("runs the scenes ticked and opens a measured row", async ({ page }) => {
   test.setTimeout(90_000);
@@ -14,7 +16,10 @@ test("runs the scenes ticked and opens a measured row", async ({ page }) => {
   await panel.getByRole("checkbox", { name: "All scenes" }).uncheck();
   await expect(panel.getByRole("button", { name: "Run 0 scenes" })).toBeDisabled();
   await panel.getByRole("checkbox", { name: "Default view", exact: true }).check();
+  await openMenu(page, "Graphics");
   await panel.getByRole("button", { name: "Run 1 scene" }).click();
+  await expect(page.getByRole("region", { name: "Graphics" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Open menu" })).toHaveAttribute("aria-expanded", "false");
   // Tabs lock while a run is going.
   await expect(panel.getByRole("tab", { name: "Sweep" })).toBeDisabled();
   await expect(panel.getByRole("status")).toHaveText("Done", { timeout: 60_000 });

@@ -8832,7 +8832,8 @@
       "benchmarkModes": [
         "false",
         "true",
-        "run"
+        "run",
+        "send"
       ]
     },
     "presets": {
@@ -9539,6 +9540,10 @@
             "value": "run"
           },
           {
+            "raw": "send",
+            "value": "send"
+          },
+          {
             "raw": "false",
             "value": "false"
           },
@@ -9553,6 +9558,10 @@
           {
             "input": "run",
             "value": "run"
+          },
+          {
+            "input": "send",
+            "value": "send"
           },
           {
             "input": "true",

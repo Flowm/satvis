@@ -258,7 +258,7 @@
     <!-- One column at the top right: the performance panel, the benchmark below it. -->
     <div v-if="showFps || showBenchmark" class="measurement">
       <performance-panel v-if="showFps" />
-      <benchmark-panel v-if="showBenchmark" @close="showBenchmark = false" />
+      <benchmark-panel v-if="showBenchmark" @close="showBenchmark = false" @run="onBenchmarkRun" />
     </div>
   </div>
 </template>
@@ -545,6 +545,12 @@ function onBookmarkOpened(): void {
   if (isNarrow()) {
     menuExpanded.value = false;
   }
+}
+
+/** Folds the menu off the scenes a run measures. */
+function onBenchmarkRun(): void {
+  closeMenus();
+  menuExpanded.value = false;
 }
 
 /** A cancelled press is no tap. */

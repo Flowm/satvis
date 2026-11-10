@@ -70,7 +70,6 @@ struct BenchmarkScenesTab: View {
     private struct SceneRow {
         var id: String
         var name: String
-        var paced: Bool
         var isRepeat: Bool
         var result: BenchmarkResult?
         var phase: String?
@@ -86,9 +85,9 @@ struct BenchmarkScenesTab: View {
             case .measuring: "Measuring…"
             default: nil
             }
-        var listed = served.map { SceneRow(id: $0.id, name: $0.name, paced: $0.paced, isRepeat: false) }
+        var listed = served.map { SceneRow(id: $0.id, name: $0.name, isRepeat: false) }
         if let step = benchmark.steps.first(where: \.repeat) {
-            listed.append(SceneRow(id: step.id, name: "\(step.scene.name) (repeat)", paced: step.paced, isRepeat: true))
+            listed.append(SceneRow(id: step.id, name: "\(step.scene.name) (repeat)", isRepeat: true))
         }
         return listed.map { row in
             var row = row
@@ -109,7 +108,7 @@ struct BenchmarkScenesTab: View {
             } ?? Array(repeating: "–", count: Self.columns.count)
         let subtitle =
             row.phase
-            ?? [row.result.map { "\($0.satellites.formatted()) satellites" }, row.paced ? "paced" : nil, row.result?.timedOut == true ? "timed out" : nil]
+            ?? [row.result.map { "\($0.satellites.formatted()) satellites" }, row.result?.timedOut == true ? "timed out" : nil]
             .compactMap { $0 }.joined(separator: " · ")
         return HStack(spacing: 6) {
             if row.isRepeat {
@@ -197,10 +196,6 @@ struct BenchmarkScenesTab: View {
                     .buttonStyle(PanelButtonStyle(emphasis: .filled))
                     .disabled(Benchmark.plan(served, selection: benchmark.selection).isEmpty || benchmark.isRunning)
                 }
-                // Sent only on a tap, never by a run a link started.
-                Button(benchmark.submitted ? "Sent" : "Send results") { benchmark.submit(with: session.analytics) }
-                    .buttonStyle(PanelButtonStyle())
-                    .disabled(benchmark.phase != .done || benchmark.submitted || !session.analytics.isSharing)
                 Button("Copy report") {
                     if let json = try? JSONSerialization.data(withJSONObject: benchmark.report, options: [.prettyPrinted, .sortedKeys]) {
                         UIPasteboard.general.string = String(decoding: json, as: UTF8.self)
@@ -209,6 +204,10 @@ struct BenchmarkScenesTab: View {
                 }
                 .buttonStyle(PanelButtonStyle())
                 .disabled(benchmark.isRunning || benchmark.results.isEmpty)
+                // Sent only on a tap, never by a run a link started.
+                Button(benchmark.submitted ? "Sent" : "Send results") { benchmark.submit(with: session.analytics) }
+                    .buttonStyle(PanelButtonStyle())
+                    .disabled(benchmark.phase != .done || benchmark.submitted || !session.analytics.isSharing)
             }
             .font(.subheadline)
             .lineLimit(1)

@@ -30,6 +30,8 @@ export type RunOverrides = Partial<PlanSpec> & Partial<BenchmarkOptions>;
 export interface SceneRunOptions {
   /** Scene ids to run, without the drift repeat; all of them by default. */
   only?: readonly string[];
+  /** Sends the report once the run is done, as `bench=send` does (ADR 0016). */
+  send?: boolean;
   /** The console's log by default. */
   hooks?: RunnerHooks;
 }
@@ -41,13 +43,15 @@ export interface BenchmarkHandle {
   readonly runner: BenchmarkRunner;
   /**
    * The route's benchmark scenes (ADR 0016), the report they make. Scenes served for another
-   * route continue there, with `bench=run`, and this never resolves.
+   * route continue there, with `bench=run` or `bench=send`, and this never resolves.
    */
   scenes(options?: SceneRunOptions): Promise<Record<string, unknown>>;
   /** The last scene run's report, as `scenes` resolved it. */
   readonly report: Record<string, unknown> | undefined;
   /** Sends the last scene run's report where usage is counted; false where it is not. */
   send(): boolean;
+  /** Whether the last scene run's report was sent. */
+  readonly sent: boolean;
   /** Isolated component sets over the default counts. */
   run(overrides?: RunOverrides): Promise<BenchmarkRun<SweepStep>>;
   /** Components added one by one over the default counts. */
@@ -110,8 +114,20 @@ export function installBenchmark(cc: CesiumController): BenchmarkHandle {
   }
 
   let report: Record<string, unknown> | undefined;
+  let sent = false;
 
-  async function scenes({ only = [], hooks: sceneHooks = hooks }: SceneRunOptions = {}): Promise<Record<string, unknown>> {
+  function send(): boolean {
+    const { posthog } = usePostHog();
+    // Initialised only on satvis.space with a project key (usePostHog.ts).
+    if (!report || report.benchmark_cancelled === true || !(posthog as { __loaded?: boolean }).__loaded) {
+      return false;
+    }
+    posthog.capture("benchmark", report);
+    sent = true;
+    return true;
+  }
+
+  async function scenes({ only = [], send: sends = false, hooks: sceneHooks = hooks }: SceneRunOptions = {}): Promise<Record<string, unknown>> {
     const preset = await resolvePreset(router.currentRoute.value.path);
     const served = preset.benchmarkScenes;
     const route = served[0]?.route;
@@ -122,7 +138,7 @@ export function installBenchmark(cc: CesiumController): BenchmarkHandle {
       // The url sync reads a route's preset defaults only at startup, so another route's
       // scenes run after a page load into it.
       const current = router.currentRoute.value.query;
-      const query = { ...foreignParams(current), ...keptParams(current), bench: "run", ...(only.length > 0 && { benchscenes: only.join(",") }) };
+      const query = { ...foreignParams(current), ...keptParams(current), bench: sends ? "send" : "run", ...(only.length > 0 && { benchscenes: only.join(",") }) };
       window.location.assign(router.resolve({ path: route, query }).href);
       return new Promise(() => {});
     }
@@ -135,9 +151,13 @@ export function installBenchmark(cc: CesiumController): BenchmarkHandle {
       throw new Error(`No scene matches ${only.join(", ")}`);
     }
     console.log(`[bench] ${steps.length} scenes, roughly ${Math.round((steps.length * SCENE_STEP_ESTIMATE_MS) / 1000)} s. Keep the tab in the foreground.`);
+    sent = false;
     const run = await runner.start(steps, SCENE_OPTIONS, sceneHooks, { kind: "scenes", scenes: served });
     report = sceneRunProperties(run as BenchmarkRun<SceneStep>);
     console.log("[bench] report", JSON.stringify(report, null, 2));
+    if (sends) {
+      console.log(send() ? "[bench] sent" : "[bench] not sent: usage is not counted here");
+    }
     return report;
   }
 
@@ -159,14 +179,9 @@ export function installBenchmark(cc: CesiumController): BenchmarkHandle {
     get report() {
       return report;
     },
-    send() {
-      const { posthog } = usePostHog();
-      // Initialised only on satvis.space with a project key (usePostHog.ts).
-      if (!report || report.benchmark_cancelled === true || !(posthog as { __loaded?: boolean }).__loaded) {
-        return false;
-      }
-      posthog.capture("benchmark", report);
-      return true;
+    send,
+    get sent() {
+      return sent;
     },
     run: (overrides) => start(NAMED_SWEEPS.run, overrides),
     cumulative: (overrides) => start(NAMED_SWEEPS.cumulative, overrides),

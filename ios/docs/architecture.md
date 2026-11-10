@@ -268,9 +268,10 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   view's instruments. Bump `BenchmarkReport.version`, on both apps, when the
   metrics change; the scenes change in the worker config. A `bench=run` link
   runs it at once and prints the report, `benchscenes` naming the scenes, and
-  reads as `bench=true` from then on. `SATVIS_BENCHMARK` in the launch
-  environment does the same and sends the results itself, for a device driven
-  from the Mac; `SATVIS_BENCHMARK=print` only prints them, and
+  reads as `bench=true` from then on; `bench=send` also sends the results where
+  usage is shared, as on the web. `SATVIS_BENCHMARK` in the launch environment
+  is `bench=send`, for a device driven from the Mac; `SATVIS_BENCHMARK=print`
+  is `bench=run`, and
   `SATVIS_BENCHMARK_SCENES` (scene ids by commas) runs only those:
   `xcrun devicectl device process launch --console --device <name> --environment-variables '{"SATVIS_BENCHMARK":"1"}' org.frcy.app.satvis`.
 - The panel's Sweep tab is the web app's sweep (`BenchmarkSweep.swift`): each

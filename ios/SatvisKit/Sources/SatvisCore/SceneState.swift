@@ -98,7 +98,7 @@ public struct SceneState: Sendable, Equatable {
             set { setValue("bench", newValue == .off ? nil : newValue.rawValue) }
         }
 
-        /// The scene ids a `bench=run` link measures, without the drift repeat;
+        /// The scene ids a `bench=run` or `send` link measures, without the drift repeat;
         /// empty runs them all.
         public var benchmarkScenes: [String] {
             get { value("benchscenes").flatMap(FieldKind<[String]>.list.parse) ?? [] }
@@ -144,12 +144,13 @@ public struct SceneState: Sendable, Equatable {
     }
 
     /// The benchmark panel's states, as `bench` carries them (ADR 0016): `run`
-    /// starts a run once the scene has loaded and then reads `open`, so the link
-    /// does not spread.
+    /// starts a run once the scene has loaded, `send` one that sends its report at
+    /// the end, and both then read `open`, so the link does not spread.
     public enum BenchmarkMode: String, CaseIterable, Sendable {
         case off = "false"
         case open = "true"
         case run
+        case send
     }
 
     /// The scene a link shows over its preset's `presetDefaults`, and the

@@ -64,7 +64,7 @@ export const useCesiumStore = defineStore(
         benchmarkMode.value = show ? (benchmarkMode.value === "false" ? "true" : benchmarkMode.value) : "false";
       },
     });
-    /** The scene ids a `bench=run` link measures, without the drift repeat; empty runs them all. */
+    /** The scene ids a `bench=run` or `send` link measures, without the drift repeat; empty runs them all. */
     const benchmarkScenes = ref<string[]>([]);
 
     // Read-only, so setLayers enforces "at most one base layer".

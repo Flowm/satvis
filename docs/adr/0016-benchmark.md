@@ -107,7 +107,8 @@ it, so that rounding and percentile rank cannot drift apart. Percentiles are nea
 
 **One report, both apps.** The schema has `platform: web | ios`, the environment, the scene
 definitions, the core metrics per step, and each app's own figures as `x_` metrics. Both apps send it as
-the PostHog `benchmark` event, only when the user taps Send, and both export it as JSON.
+the PostHog `benchmark` event, only when the user taps Send or a `bench=send` link asks, and
+both export it as JSON.
 Sweep reports stay in the console and in exports.
 
 **One compact panel replaces both readouts.** Cesium's `debugShowFramesPerSecond` counter
@@ -132,15 +133,19 @@ gap. `fps` is in both url codecs: `true` shows the compact panel, `graph` the ex
 so a shared link about a stutter opens on the graph.
 
 **`bench` starts a run from a link, in both apps, and the link does not spread.** `bench`
-takes `true` (panel open) or `run` (open, and a run starts once the scene has loaded).
-`benchscenes=<id>,<id>` limits the run to those scenes, without the drift repeat. As the
-run starts, `run` is rewritten to `true`, so it never reaches a bookmark, Recent, a share or
-the view restored after the run. A url-started run never sends its results: it prints them
-(console or stdout, and `bench.report` on the web), and the user taps Send. This is the only
-handle on Safari added to the Home Screen, which has no console and which safaridriver
-cannot reach. On iOS, `SATVIS_BENCHMARK` becomes an alias for it and keeps its send mode,
-because only a developer's `devicectl` can set it. `bench.scenes({ only })` gives drivers a
-promise of the report.
+takes `true` (panel open), `run` (open, and a run starts once the scene has loaded) or
+`send` (as `run`, and the report is sent once the run is done). `benchscenes=<id>,<id>`
+limits the run to those scenes, without the drift repeat. As the run starts, `run` and
+`send` are rewritten to `true`, so neither reaches a bookmark, Recent, a share or the view
+restored after the run. Both print the results (console or stdout, and `bench.report` on
+the web). After `run` the user taps Send; `send` sends them as Send does, only where usage
+is counted. A link is the only handle on Safari added to the Home Screen, which has no
+console and which safaridriver cannot reach. Sending was at first left to iOS's launch
+environment, which only a developer's `devicectl` can set, so a web run always waited for a
+tap; one link now drives both apps alike. A `send` link someone follows costs them one run
+and sends one event, only where they count usage, and it reads `true` as the run starts, so
+it travels no further. On iOS, `SATVIS_BENCHMARK` stays an alias: `1` for `send`, `print`
+for `run`. On the web, `bench.scenes({ only, send })` gives drivers a promise of the report.
 
 ## Consequences
 

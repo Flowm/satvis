@@ -5,7 +5,8 @@ import SatvisRender
 import UIKit
 
 /// The web app's scene benchmark (ADR 0016), the first scene measured again at
-/// the end for drift. The results stay on the device unless the user sends them.
+/// the end for drift. The results stay on the device unless the user sends them
+/// or a `bench=send` link or `SATVIS_BENCHMARK` launch asks to.
 @Observable
 final class Benchmark {
     /// Where a run is, by the step it is on; a sweep's too.
@@ -32,9 +33,9 @@ final class Benchmark {
     static let settle: Duration = .seconds(3)
     /// Each scene's recording.
     static let measure: Duration = .seconds(5)
-    /// `SATVIS_BENCHMARK` runs the benchmark at launch, sends its results where usage
-    /// is shared and prints them as JSON, for `devicectl device process launch --console`;
-    /// `=print` only prints. Only a developer can set it, so it alone may send unasked.
+    /// `SATVIS_BENCHMARK` runs the benchmark at launch as a `bench=send` link does: it
+    /// sends its results where usage is shared and prints them as JSON, for
+    /// `devicectl device process launch --console`; `=print` only prints, as `bench=run`.
     static let runsAtLaunch = ProcessInfo.processInfo.environment["SATVIS_BENCHMARK"] != nil || SweepBenchmark.launchSpec != nil
     private static let sendsAtLaunch = ProcessInfo.processInfo.environment["SATVIS_BENCHMARK"].map { $0 != "print" } ?? false
     /// Scene ids by commas, as `benchscenes`.
@@ -271,8 +272,8 @@ final class Benchmark {
         return BenchmarkStatus.shownDrift(first: steps?.first.recording.meanCPU, repeated: steps?.repeated.recording.meanCPU)
     }
 
-    /// To the web app's PostHog project, only on the user's word or a
-    /// `SATVIS_BENCHMARK` launch's, and only where usage is counted at all.
+    /// To the web app's PostHog project, only on the user's word, a `bench=send`
+    /// link's or a `SATVIS_BENCHMARK` launch's, and only where usage is counted at all.
     func submit(with analytics: Analytics) {
         guard phase == .done, !submitted else {
             return

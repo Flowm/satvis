@@ -61,7 +61,7 @@ export function withoutTime({ time: _time, ...rest }: Query): Query {
  * that starts a run is not one to keep.
  */
 export function withoutBenchmarkRun<Q extends Readonly<Record<string, unknown>>>(query: Q): Q {
-  if (query.bench !== "run") {
+  if (query.bench !== "run" && query.bench !== "send") {
     return query;
   }
   const { benchscenes: _scenes, ...rest } = query;

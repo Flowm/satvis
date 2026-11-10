@@ -110,8 +110,9 @@ export type FpsPanel = (typeof FPS_PANELS)[number];
 
 /**
  * The benchmark panel (`bench`): hidden, open, or open with a run to start once the scene
- * has loaded, which then reads `true` again so the link does not spread (ADR 0016).
+ * has loaded, `send` sending its report at the end. Both then read `true` again, so the link
+ * does not spread (ADR 0016).
  */
-export const BENCHMARK_MODES = ["false", "true", "run"] as const;
+export const BENCHMARK_MODES = ["false", "true", "run", "send"] as const;
 /** As the url spells it (`bench`). */
 export type BenchmarkMode = (typeof BENCHMARK_MODES)[number];

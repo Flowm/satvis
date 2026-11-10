@@ -75,9 +75,9 @@
     <button v-else type="button" class="bench__button bench__button--primary" :disabled="panel.sceneSteps.value.length === 0" @click="void panel.startScenes()">
       {{ runLabel }}
     </button>
+    <button type="button" class="bench__button" :disabled="!panel.report.value" @click="void copyReport()">Copy report</button>
     <!-- Sent only on a tap, never by a run a link started. -->
     <button type="button" class="bench__button" :disabled="!sendable" @click="panel.send()">{{ panel.sent.value ? "Sent" : "Send results" }}</button>
-    <button type="button" class="bench__button" :disabled="!panel.report.value" @click="void copyReport()">Copy report</button>
     <p class="bench__caption bench__actions-caption">{{ copied || sendCaption }}</p>
   </div>
 </template>
@@ -95,7 +95,6 @@ interface SceneRow {
   id: string;
   name: string;
   repeat: boolean;
-  paced: boolean;
   result: SceneResult | undefined;
   current: boolean;
   subtitle: string;
@@ -123,18 +122,16 @@ const rows = computed<SceneRow[]>(() => {
   const currentId = progress?.kind === "scenes" ? run?.steps[progress.index]?.id : undefined;
   const repeat = run?.steps.find((step) => step.repeat);
   const listed = [
-    ...panel.scenes.value.map((scene) => ({ id: scene.id, name: scene.name, paced: scene.paced, repeat: false })),
-    ...(repeat ? [{ id: repeat.id, name: repeat.label, paced: repeat.paced, repeat: true }] : []),
+    ...panel.scenes.value.map((scene) => ({ id: scene.id, name: scene.name, repeat: false })),
+    ...(repeat ? [{ id: repeat.id, name: repeat.label, repeat: true }] : []),
   ];
-  return listed.map(({ id, name, paced, repeat: isRepeat }) => {
+  return listed.map(({ id, name, repeat: isRepeat }) => {
     const result = results.get(id);
     const current = id === currentId && progress !== undefined;
     const subtitle = current
       ? `${phaseLabel(progress.phase, "scenes")}…`
-      : [result ? `${formatInteger(result.satellites)} satellites` : undefined, paced ? "paced" : undefined, result?.timedOut ? "timed out" : undefined]
-          .filter(Boolean)
-          .join(" · ");
-    return { id, name, paced, repeat: isRepeat, result, current, subtitle };
+      : [result ? `${formatInteger(result.satellites)} satellites` : undefined, result?.timedOut ? "timed out" : undefined].filter(Boolean).join(" · ");
+    return { id, name, repeat: isRepeat, result, current, subtitle };
   });
 });
 
