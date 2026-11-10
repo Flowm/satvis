@@ -75,9 +75,9 @@
     <button v-else type="button" class="bench__button bench__button--primary" :disabled="panel.sceneSteps.value.length === 0" @click="void panel.startScenes()">
       {{ runLabel }}
     </button>
+    <button type="button" class="bench__button" :disabled="!panel.report.value" @click="void copyReport()">Copy report</button>
     <!-- Sent only on a tap, never by a run a link started. -->
     <button type="button" class="bench__button" :disabled="!sendable" @click="panel.send()">{{ panel.sent.value ? "Sent" : "Send results" }}</button>
-    <button type="button" class="bench__button" :disabled="!panel.report.value" @click="void copyReport()">Copy report</button>
     <p class="bench__caption bench__actions-caption">{{ copied || sendCaption }}</p>
   </div>
 </template>

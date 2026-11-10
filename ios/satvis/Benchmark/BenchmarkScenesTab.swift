@@ -196,10 +196,6 @@ struct BenchmarkScenesTab: View {
                     .buttonStyle(PanelButtonStyle(emphasis: .filled))
                     .disabled(Benchmark.plan(served, selection: benchmark.selection).isEmpty || benchmark.isRunning)
                 }
-                // Sent only on a tap, never by a run a link started.
-                Button(benchmark.submitted ? "Sent" : "Send results") { benchmark.submit(with: session.analytics) }
-                    .buttonStyle(PanelButtonStyle())
-                    .disabled(benchmark.phase != .done || benchmark.submitted || !session.analytics.isSharing)
                 Button("Copy report") {
                     if let json = try? JSONSerialization.data(withJSONObject: benchmark.report, options: [.prettyPrinted, .sortedKeys]) {
                         UIPasteboard.general.string = String(decoding: json, as: UTF8.self)
@@ -208,6 +204,10 @@ struct BenchmarkScenesTab: View {
                 }
                 .buttonStyle(PanelButtonStyle())
                 .disabled(benchmark.isRunning || benchmark.results.isEmpty)
+                // Sent only on a tap, never by a run a link started.
+                Button(benchmark.submitted ? "Sent" : "Send results") { benchmark.submit(with: session.analytics) }
+                    .buttonStyle(PanelButtonStyle())
+                    .disabled(benchmark.phase != .done || benchmark.submitted || !session.analytics.isSharing)
             }
             .font(.subheadline)
             .lineLimit(1)
