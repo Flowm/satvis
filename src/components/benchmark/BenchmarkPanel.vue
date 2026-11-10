@@ -52,7 +52,8 @@ import { provideBenchmarkPanel, type Tab } from "./benchmarkPanel";
 import BenchmarkScenes from "./BenchmarkScenes.vue";
 import BenchmarkSweep from "./BenchmarkSweep.vue";
 
-const emit = defineEmits<{ close: [] }>();
+/** `run` as a run starts, from the panel, a link or the console. */
+const emit = defineEmits<{ close: []; run: [] }>();
 
 const TABS: { value: Tab; label: string }[] = [
   { value: "scenes", label: "Scenes" },
@@ -70,6 +71,12 @@ watch(panel.revision, () => {
   const kind = panel.bench.runner.progress?.kind;
   if (kind && panel.tab.value !== kind) {
     panel.tab.value = kind;
+  }
+});
+
+watch(panel.running, (running) => {
+  if (running) {
+    emit("run");
   }
 });
 
