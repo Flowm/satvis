@@ -1,6 +1,7 @@
 // The tables the satellite table is built from (ADR 0006, 0008, 0018): SATCAT, GCAT's
-// catalog, organisations and payloads, and CEOS's lists as one file. Each is stored as the file upstream served,
-// gzip-compressed, with its parsed rows and a status beside it. Two paths store them,
+// catalog, organisations and payloads, and CEOS's lists as one file. Each is stored as the
+// file upstream served, or the one its spec put together, gzip-compressed, with its parsed
+// rows and a status beside it. Two paths store them,
 // PUT /api/upstream/<name> (push-catalog) and the Worker's own fetch; every GP update
 // reads the rows. None is a group source: a missing table costs enrichment and fails no group.
 
@@ -42,7 +43,7 @@ export interface UpstreamFetch {
   ms: number;
   /** The file as served, on a 200. */
   body?: string;
-  /** The ETag served with `body`, to send as If-None-Match next time. */
+  /** The ETag served with `body`, to send as If-None-Match next time; an assembled table's version. */
   etag?: string;
   /** The stored file is current: upstream answered 304, or an assembled table's version stands. */
   notModified?: boolean;
@@ -78,7 +79,10 @@ async function assembleUpstream(
   }
 }
 
-/** Never throws. Conditional on `etag`, the stored file's, so an unchanged table costs a 304. */
+/**
+ * Never throws. Conditional on `etag`, the stored file's, so an unchanged table costs a
+ * 304, or an assembled table the request for its version.
+ */
 export async function fetchUpstream(fetchImpl: FetchImpl, spec: UpstreamSpec<unknown>, etag?: string): Promise<UpstreamFetch> {
   if (spec.assemble !== undefined) {
     return assembleUpstream(fetchImpl, spec, spec.assemble, etag);
@@ -202,7 +206,7 @@ export async function refreshUpstream<T>(spec: UpstreamSpec<T>, store: GroupStor
 }
 
 /**
- * The stored rows, not the file: parsing all four files put a GP update over the
+ * The stored rows, not the file: parsing the files put a GP update over the
  * deployed Worker's 2 s CPU limit now and then (ADR 0008). Undefined when none are
  * stored: the GP update then enriches without this table.
  */

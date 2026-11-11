@@ -2,7 +2,7 @@
 status: accepted
 ---
 
-# CEOS as the satellite table's fourth contributor: the instruments a satellite carries
+# CEOS as the satellite table's fifth contributor: the instruments a satellite carries
 
 The satellite table says what a satellite is and where it came from (ADR 0006, 0008),
 but not what it observes with. A swath is curated for 20 satellites
@@ -22,7 +22,7 @@ November 2026 and matched against the 5,822 satellites served outside Starlink.
 
 ## Decision
 
-**CEOS is a fifth upstream table, `ceos`, and the satellite table's fourth
+**CEOS is a fifth upstream table, `ceos`, and the satellite table's fifth
 contributor.** It owns one field, `instruments`: a list in which each instrument has a
 `name`, and where CEOS gives them a `fullName`, a `kind`, its waveband classes
 (`bands`), its finest resolution (`resolutionM`) and its nominal swath width
@@ -49,7 +49,7 @@ plural category ("Imaging multi-spectral radiometers (vis/IR)").
 **A NORAD id is believed only where SATCAT's launch date confirms it.** CEOS records a
 constellation as one mission with one unit's id, so the id alone gives BlackSky's 2016
 mission to a satellite launched in 2026. A mission is kept when it launched no more
-than a day before the satellite did:
+than a day before the satellite did, by calendar date in UTC:
 
 - the same launch, within a day: 276 of the 302 matches (32 differ by a day, a launch
   near midnight UTC);
@@ -80,7 +80,7 @@ low orbit: CEOS gives a geostationary imager 500 km.
 - **254 served satellites carry 740 instruments.** All 20 satellites with a curated
   swath are among them, each with the instrument its swath belongs to.
 - **Not every instrument has every figure**: of the 740, 687 have a full name beyond the
-  short one, 735 a kind, 523 bands, 383 a resolution and 337 a swath.
+  short one, 735 a kind, 523 bands, 383 a resolution and 337 a nominal swath.
 - **Coverage follows who answers the survey**: by GCAT purpose, 56 of 102 weather
   satellites and 33 of 70 Earth science ones, but 88 of 650 imaging ones. Commercial
   constellations and military imagers are mostly absent.
@@ -125,8 +125,12 @@ low orbit: CEOS gives a geostationary imager 500 km.
   identifiers, so the time the registry was generated is part of the ETag; whether a
   corrected figure regenerates it is not known. `/api/status` shows when the file was
   last replaced.
-- **The API is a beta**, and says its paths and fields may change. A renamed field
-  fails the parse, so the stored file stands and `/api/status` reports the error.
+- **The API is a beta**, and says its paths and fields may change. A field the parser
+  reads that is missing from any entry, a waveband's instrument without its
+  `instrument_id`, an `instrument_details` entry without its `~`-separated fields, a
+  figure that is neither a number nor null, or missions without `pagination.has_more`
+  fails the parse, so the stored file stands and `/api/status` reports the error. A
+  change in what a field means, or in its words, is not caught.
 - **Does the mission list stay unpaged?** Sending a `limit` caps it at 100. The parser
   refuses an answer that says more pages follow.
 - **The waveband classes have gaps**: Sentinel-2's MSI is VIS and SWIR, with no NIR.

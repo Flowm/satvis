@@ -257,7 +257,7 @@ export interface UpstreamStatus {
    * version. A failure leaves it, so a table that keeps failing goes stale.
    */
   checked?: string;
-  /** The stored file's ETag, sent as If-None-Match next time. */
+  /** The stored file's ETag, sent as If-None-Match next time; an assembled table's version, compared. */
   etag?: string;
   /** The stored file's size, uncompressed. */
   bytes?: number;

@@ -123,9 +123,27 @@ describe("getSatelliteInfo", () => {
     expect(getSatelliteInfo(ISS, "LEO", {}).instruments).toEqual([]);
   });
 
-  test("gives no swath off a low orbit, where nothing sweeps", () => {
-    const [ahi] = getSatelliteInfo(ISS, "GEO", { instruments: [{ name: "AHI", resolutionM: 500, nominalSwathKm: 500 }] }).instruments;
-    expect(ahi!.rows).toEqual([["Resolution", "500 m"]]);
+  test("gives no nominal swath off a low orbit, where nothing sweeps", () => {
+    for (const orbitClass of ["MEO", "GEO", "HEO"] as const) {
+      const [ahi] = getSatelliteInfo(ISS, orbitClass, { instruments: [{ name: "AHI", resolutionM: 500, nominalSwathKm: 500 }] }).instruments;
+      expect(ahi!.rows, orbitClass).toEqual([["Resolution", "500 m"]]);
+    }
+  });
+
+  // A curated row can give any shape; SatelliteDetailsTests.swift holds the native app to the same.
+  test("reads malformed instruments as the native app does, leaving out what is not of its type", () => {
+    const malformed = [
+      { fullName: "No name" },
+      "MODIS",
+      { name: 7 },
+      { name: "GEDI", fullName: 3, kind: null, bands: ["NIR", 2, null], resolutionM: null, nominalSwathKm: "4", retired: "yes" },
+      { name: "EMIT", bands: "SWIR", resolutionM: "60" },
+    ];
+    expect(getSatelliteInfo(ISS, "LEO", { instruments: malformed as never }).instruments).toEqual([
+      { name: "GEDI", retired: false, rows: [["Bands", "NIR"]] },
+      { name: "EMIT", retired: false, rows: [] },
+    ]);
+    expect(getSatelliteInfo(ISS, "LEO", { instruments: "MODIS" as never }).instruments).toEqual([]);
   });
 
   test("omits every row the record does not carry, rather than showing defaults", () => {

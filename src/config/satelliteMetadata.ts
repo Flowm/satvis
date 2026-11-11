@@ -33,12 +33,12 @@ export interface SatelliteInstrument {
   /** Metres: its finest band's, so Landsat's OLI says 15, its panchromatic band. */
   resolutionM?: number;
   /**
-   * Km: the nominal width across both sides. Not the swath extents, which are calibrated
-   * and drawn, and meaningless off a low orbit: CEOS gives a geostationary imager 500 km.
+   * Km: the nominal width across both sides, not the calibrated swath extents. Shown only
+   * on a low orbit: CEOS gives a geostationary imager 500 km.
    */
   nominalSwathKm?: number;
   /** Its mission is over, though the satellite is still up. */
-  retired?: boolean;
+  retired?: true;
 }
 
 /** Every field is optional; a consumer applies its default (DEFAULT_*, SatelliteProperties). */
@@ -91,7 +91,7 @@ export interface SatelliteMetadata {
 
   /**
    * From CEOS, for the few hundred satellites its agencies report: the ones still flown
-   * first. Hosted payloads are their host's, so the ISS carries a dozen.
+   * first. Hosted payloads are their host's, so the ISS carries 15.
    */
   instruments?: SatelliteInstrument[];
 

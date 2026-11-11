@@ -70,6 +70,11 @@ describe("CEOS.assemble", () => {
     expect(file.error).toBe("the snapshot changed during the download");
   });
 
+  it("fails on a version without the time the snapshot was generated", async () => {
+    const file = await fetchUpstream(ceosFetch(ceosAnswers({ version: { registry_version: CEOS_VERSION.registry_version } })), CEOS, CEOS_ETAG);
+    expect(file.error).toBe("no registry_version or registry_generated_at in /meta");
+  });
+
   it("fails whole when one download does, naming it", async () => {
     const answers = ceosAnswers();
     const band = [...answers.keys()].at(-1)!;
@@ -82,7 +87,7 @@ describe("CEOS.assemble", () => {
 });
 
 describe("parseCeos", () => {
-  it("keys a mission by its NORAD id, each instrument with its name, kind, bands, resolution and swath", () => {
+  it("keys a mission by its NORAD id, each instrument with its name, kind, bands, resolution and nominal swath", () => {
     expect(parseCeos(ceosFile({ missions: [TERRA] }))).toEqual({
       "25994": [{ name: "Terra", launchDate: "1999-12-18", instruments: [ASTER, MODIS] }],
     });
@@ -163,6 +168,22 @@ describe("parseCeos", () => {
     expect(() => parseCeos(ceosFile({ combinations: [{ mission: 204, instrument: 416 }] }))).toThrow("no mission_id field in combinations");
     expect(() => parseCeos(ceosFile({ missions: [ceosMission({})] }))).toThrow(/no records/);
   });
+
+  it("throws on a list whose shape changed below its fields, rather than storing what it lost", () => {
+    const renamedIds = [{ waveband_id: 2, abbr: "VIS", instruments: [{ id: 416 }] }];
+    expect(() => parseCeos(ceosFile({ wavebands: renamedIds }))).toThrow("no instrument_id in waveband VIS");
+    const otherSeparators = { ...TERRA, instrument_details: "ASTER;High resolution optical imagers, MODIS;Imaging multi-spectral radiometers" };
+    expect(() => parseCeos(ceosFile({ missions: [otherSeparators] }))).toThrow(/instrument_details is not name~type/);
+    const textFigures = [
+      ...CEOS_INSTRUMENTS.filter(({ name_short: name }) => name !== "MODIS"),
+      { instrument_id: 395, name_short: "MODIS", name_full: "MODIS", spatial_resolution_best: "250", swath_width_max: 2330 },
+    ];
+    expect(() => parseCeos(ceosFile({ missions: [TERRA], instruments: textFigures }))).toThrow('spatial_resolution_best is not a number: "250"');
+    const file = JSON.parse(ceosFile()) as { missions: { pagination: Record<string, unknown> } };
+    const { has_more: _renamed, ...pagination } = file.missions.pagination;
+    file.missions.pagination = { ...pagination, more: false };
+    expect(() => parseCeos(JSON.stringify(file))).toThrow("no pagination.has_more in missions");
+  });
 });
 
 describe("ceosBags", () => {
@@ -188,6 +209,15 @@ describe("ceosBags", () => {
   it("allows the day by which the two sources differ on a launch near midnight", () => {
     expect(ceosBags(rows, { "25994": { launchDate: "1999-12-19" } })).toHaveProperty("25994");
     expect(ceosBags(rows, { "25994": { launchDate: "1999-12-20" } })).not.toHaveProperty("25994");
+  });
+
+  it("compares calendar dates in UTC, reading a launch time without a zone as UTC", () => {
+    for (const launch of ["1999-12-18T00:30:00", "1999-12-18 00:30"]) {
+      const early = parseCeos(ceosFile({ missions: [{ ...TERRA, launch_date: launch }] }));
+      expect(ceosBags(early, { "25994": { launchDate: "1999-12-19" } })).toHaveProperty("25994");
+    }
+    const late = parseCeos(ceosFile({ missions: [{ ...TERRA, launch_date: "1999-12-17T23:30:00" }] }));
+    expect(ceosBags(late, { "25994": { launchDate: "1999-12-19" } })).not.toHaveProperty("25994");
   });
 
   it("claims nothing for a satellite whose launch SATCAT does not give", () => {

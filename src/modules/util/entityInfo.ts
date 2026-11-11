@@ -76,26 +76,38 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
     ...(unusualStatus !== undefined && { status: unusualStatus }),
     orbitRows: [["Orbit", regime], ...derivedOrbitRows(orbit)],
     spacecraftRows: spacecraftRows(metadata, status),
-    instruments: (metadata.instruments ?? []).map((instrument) => instrumentInfo(instrument, orbitClass)),
+    instruments: (Array.isArray(metadata.instruments) ? (metadata.instruments as unknown[]) : []).flatMap((instrument) => instrumentInfo(instrument, orbitClass) ?? []),
   };
 }
 
-/** The swath only on a low orbit: elsewhere nothing sweeps, and CEOS's figure means nothing. */
-function instrumentInfo({ name, fullName, kind, bands, resolutionM, nominalSwathKm, retired }: SatelliteInstrument, orbitClass: OrbitClass): InstrumentInfo {
+/**
+ * Undefined for an entry without a name. A curated row can give any shape, which is read
+ * as the native app's `SatelliteDetails.instruments` reads it: a field of another type is
+ * left out.
+ */
+function instrumentInfo(instrument: unknown, orbitClass: OrbitClass): InstrumentInfo | undefined {
+  if (typeof instrument !== "object" || instrument === null) {
+    return undefined;
+  }
+  const { name, fullName, kind, bands, resolutionM, nominalSwathKm, retired } = instrument as Record<keyof SatelliteInstrument, unknown>;
+  if (typeof name !== "string") {
+    return undefined;
+  }
   const rows: [string, string][] = [];
-  if (kind !== undefined) {
+  if (typeof kind === "string") {
     rows.push(["Kind", kind]);
   }
-  if (bands !== undefined && bands.length > 0) {
-    rows.push(["Bands", bands.join(" · ")]);
+  const bandNames = Array.isArray(bands) ? bands.filter((band): band is string => typeof band === "string") : [];
+  if (bandNames.length > 0) {
+    rows.push(["Bands", bandNames.join(" · ")]);
   }
-  if (resolutionM !== undefined) {
+  if (typeof resolutionM === "number") {
     rows.push(["Resolution", resolutionM < 1000 ? `${formatNumber(resolutionM)} m` : `${formatNumber(resolutionM / 1000)} km`]);
   }
-  if (nominalSwathKm !== undefined && orbitClass === "LEO") {
+  if (typeof nominalSwathKm === "number" && orbitClass === "LEO") {
     rows.push(["Nominal swath", `${formatNumber(nominalSwathKm)} km`]);
   }
-  return { name, ...(fullName !== undefined && { fullName }), retired: retired === true, rows };
+  return { name, ...(typeof fullName === "string" && { fullName }), retired: retired === true, rows };
 }
 
 /** "Orbit type" stays here: SATCAT's codes say docked, landed or impacted, a state of the spacecraft. */

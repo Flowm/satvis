@@ -135,8 +135,8 @@ public enum SatelliteDetails {
         public var rows: [(String, String)]
     }
 
-    /// The Instruments tab: the record's `instruments`, CEOS's (ADR 0018). The swath only
-    /// on a low orbit: elsewhere nothing sweeps, and CEOS's figure means nothing.
+    /// The Instruments tab: the record's `instruments`, CEOS's (ADR 0018). A curated row can
+    /// give any shape: an entry without a name is skipped, a field of another type left out.
     public static func instruments(_ record: GPRecord) -> [Instrument] {
         (record.metadata["instruments"]?.array ?? []).compactMap { instrument in
             guard case .object(let fields) = instrument, let name = fields["name"]?.string else {

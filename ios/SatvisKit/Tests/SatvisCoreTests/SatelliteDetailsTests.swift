@@ -71,12 +71,34 @@ import Testing
     }
 
     // entityInfo.test.ts's case: CEOS gives a geostationary imager 500 km, which sweeps nothing.
-    @Test func leavesTheNominalSwathOffAHighOrbit() throws {
-        var record = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first { $0.orbitClass == .geo })
+    @Test(arguments: [OrbitClass.meo, .geo, .heo]) func leavesTheNominalSwathOffALowOrbit(_ orbitClass: OrbitClass) throws {
+        var record = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first { $0.orbitClass == orbitClass })
         record.metadata["instruments"] = .array([.object(["name": .string("AHI"), "resolutionM": .number(500), "nominalSwathKm": .number(500)])])
         let ahi = try #require(SatelliteDetails.instruments(record).first)
         #expect(ahi.rows.map { [$0.0, $0.1] } == [["Resolution", "500 m"]])
         #expect(!ahi.isRetired)
+    }
+
+    // entityInfo.test.ts's case: a curated row can give any shape.
+    @Test func readsMalformedInstrumentsAsTheWebAppDoes() throws {
+        var record = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first { $0.orbitClass == .leo })
+        record.metadata["instruments"] = .array([
+            .object(["fullName": .string("No name")]),
+            .string("MODIS"),
+            .object(["name": .number(7)]),
+            .object([
+                "name": .string("GEDI"), "fullName": .number(3), "kind": .null, "bands": .array([.string("NIR"), .number(2), .null]), "resolutionM": .null,
+                "nominalSwathKm": .string("4"), "retired": .string("yes"),
+            ]),
+            .object(["name": .string("EMIT"), "bands": .string("SWIR"), "resolutionM": .string("60")]),
+        ])
+        let instruments = SatelliteDetails.instruments(record)
+        #expect(instruments.map(\.name) == ["GEDI", "EMIT"])
+        #expect(instruments.map(\.fullName) == [nil, nil])
+        #expect(instruments.map(\.isRetired) == [false, false])
+        #expect(instruments.map { $0.rows.map { [$0.0, $0.1] } } == [[["Bands", "NIR"]], []])
+        record.metadata["instruments"] = .string("MODIS")
+        #expect(SatelliteDetails.instruments(record).isEmpty)
     }
 
     // entityInfo.test.ts's cases.

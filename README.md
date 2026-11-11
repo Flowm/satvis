@@ -323,7 +323,7 @@ browser. A satellite in no table carries no metadata and gets the defaults in
 `src/config/satelliteMetadata.ts`.
 
 The five upstream tables (SATCAT, GCAT's catalog, organisations and payloads, and
-CEOS's lists as one file) are stored in KV as the files upstream served, gzip-compressed, beside their parsed
+CEOS's lists as one file) are stored in KV as the files upstream served, CEOS's put together, gzip-compressed, beside their parsed
 rows, which each GP update reads. Every check parses the stored file again, a 304
 too, so a parser change applies after the next `push-catalog`. They are stored
 only by `push-catalog` and `POST /api/upstream/refresh`; a new file that does not

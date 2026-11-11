@@ -1,4 +1,5 @@
 import SatvisCore
+import SatvisRender
 import SwiftUI
 
 /// What the web app's EntityInfoPanel shows for a satellite: who it is, then its
@@ -60,7 +61,7 @@ struct InfoPanel: View {
                     case .spacecraft:
                         spacecraft(modelFile: modelFile, facts: spacecraftFacts, links: links)
                     case .instruments:
-                        self.instruments(instruments)
+                        instrumentCards(instruments)
                     default:
                         PassesSections(subject: .satellite(entry), clock: clock, passes: passes)
                     }
@@ -189,7 +190,7 @@ struct InfoPanel: View {
     }
 
     /// What it observes with, a card an instrument, and under the last whose list it is.
-    @ViewBuilder private func instruments(_ instruments: [SatelliteDetails.Instrument]) -> some View {
+    @ViewBuilder private func instrumentCards(_ instruments: [SatelliteDetails.Instrument]) -> some View {
         ForEach(Array(instruments.enumerated()), id: \.offset) { index, instrument in
             Section {
                 InstrumentHeading(instrument: instrument)
@@ -199,7 +200,7 @@ struct InfoPanel: View {
             } footer: {
                 if index == instruments.count - 1 {
                     // CC BY 4.0 asks for the credit where the data is shown.
-                    Link("CEOS MIM Database, CC BY 4.0", destination: URL(string: "https://database.eohandbook.com")!)
+                    Link(Credit.instruments.text, destination: Credit.instruments.link!)
                         .font(.footnote)
                 }
             }
