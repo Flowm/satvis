@@ -11,19 +11,6 @@ import simd
 /// the aim back.
 @Observable
 final class SkyCompass {
-    /// What switching it on came to, for the words in front of the user.
-    enum Outcome: Equatable {
-        case aiming
-        /// No motion sensor here, as in the simulator.
-        case unsupported
-        /// A sensor, but no north to measure from.
-        case noHeading
-        /// Granted, but no reading came.
-        case silent
-        /// The user dragged during the probe, and that was the end of it.
-        case takenBack
-    }
-
     private(set) var isAiming = false
     /// Waiting for the sensor to speak, within `probeSeconds`: aiming, but not
     /// yet known to work.

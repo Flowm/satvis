@@ -25,8 +25,8 @@ APP = $(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/satvis.app
 XCODEBUILD = xcodebuild -project satvis.xcodeproj -scheme satvis -derivedDataPath $(DERIVED_DATA) -destination id=$(UDID) CODE_SIGNING_ALLOWED=NO
 # Unsigned, so it runs outside the sandbox, and keeps its files in the user's own
 # Library under org.frcy.app.satvis.
-MAC_APP = $(DERIVED_DATA)-mac/Build/Products/Debug/Satvis.app
-XCODEBUILD_MAC = xcodebuild -project satvis.xcodeproj -scheme satvis -derivedDataPath $(DERIVED_DATA)-mac -destination platform=macOS CODE_SIGNING_ALLOWED=NO
+MAC_APP = $(DERIVED_DATA)/Build/Products/Debug/Satvis.app
+XCODEBUILD_MAC = xcodebuild -project satvis.xcodeproj -scheme satvis -derivedDataPath $(DERIVED_DATA) -destination platform=macOS CODE_SIGNING_ALLOWED=NO
 SOURCES = satvis satvisUITests SatvisKit
 
 .DEFAULT_GOAL := help

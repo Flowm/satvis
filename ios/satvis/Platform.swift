@@ -1,17 +1,12 @@
 import Foundation
+import SatvisRender
 import SwiftUI
-
-#if canImport(UIKit)
-    import UIKit
-#else
-    import AppKit
-#endif
 
 /// What the app asks of the system where an iPhone and a Mac answer it apart.
 enum Platform {
     /// Whether the user asked for less motion.
     static var reducesMotion: Bool {
-        #if canImport(UIKit)
+        #if os(iOS)
             UIAccessibility.isReduceMotionEnabled
         #else
             NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -36,7 +31,7 @@ enum Platform {
 
     /// "iPhone", "iPad" or "Mac".
     static var deviceKind: String {
-        #if canImport(UIKit)
+        #if os(iOS)
             UIDevice.current.model
         #else
             "Mac"
@@ -45,32 +40,28 @@ enum Platform {
 
     /// The system's version, "26.1".
     static var systemVersion: String {
-        #if canImport(UIKit)
-            UIDevice.current.systemVersion
-        #else
-            let version = ProcessInfo.processInfo.operatingSystemVersion
-            return version.patchVersion == 0
-                ? "\(version.majorVersion).\(version.minorVersion)" : "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
-        #endif
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        return version.patchVersion == 0
+            ? "\(version.majorVersion).\(version.minorVersion)" : "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
     }
 
-    /// The screen the app is on: its pixels, pixels a point and most frames a second.
-    static var screen: (pixels: CGSize, scale: CGFloat, maximumFramesPerSecond: Int)? {
-        #if canImport(UIKit)
+    /// The screen the globe is on: its pixels and pixels a point.
+    static var screen: (pixels: CGSize, scale: CGFloat)? {
+        #if os(iOS)
             (UIApplication.shared.connectedScenes.first as? UIWindowScene).map { scene in
-                (scene.screen.nativeBounds.size, scene.screen.nativeScale, scene.screen.maximumFramesPerSecond)
+                (scene.screen.nativeBounds.size, scene.screen.nativeScale)
             }
         #else
-            NSScreen.main.map { screen in
+            (GlobeRenderer.window?.screen ?? NSScreen.main).map { screen in
                 let scale = screen.backingScaleFactor
-                return (CGSize(width: screen.frame.width * scale, height: screen.frame.height * scale), scale, screen.maximumFramesPerSecond)
+                return (CGSize(width: screen.frame.width * scale, height: screen.frame.height * scale), scale)
             }
         #endif
     }
 
     /// The app's icon as the home screen or the Dock shows it.
     static var appIcon: Image? {
-        #if canImport(UIKit)
+        #if os(iOS)
             // The flattened icon Xcode writes for the home screen.
             UIImage(named: "AppIcon60x60").map(Image.init(uiImage:))
         #else
@@ -78,9 +69,29 @@ enum Platform {
         #endif
     }
 
+    /// Each time the system runs short of memory: UIKit's memory warning, or a
+    /// Mac's memory pressure, which has no such notification.
+    static func memoryWarnings() -> AsyncStream<Void> {
+        AsyncStream { continuation in
+            #if os(iOS)
+                let watching = Task {
+                    for await _ in NotificationCenter.default.notifications(named: UIApplication.didReceiveMemoryWarningNotification) {
+                        continuation.yield()
+                    }
+                }
+                continuation.onTermination = { _ in watching.cancel() }
+            #else
+                let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
+                source.setEventHandler { continuation.yield() }
+                continuation.onTermination = { _ in source.cancel() }
+                source.activate()
+            #endif
+        }
+    }
+
     /// Puts `text` on the clipboard.
     static func copy(_ text: String) {
-        #if canImport(UIKit)
+        #if os(iOS)
             UIPasteboard.general.string = text
         #else
             NSPasteboard.general.clearContents()
@@ -92,7 +103,7 @@ enum Platform {
 extension Image {
     /// The picture encoded in `data`, a JPEG or PNG; nil where it does not decode.
     init?(encoded data: Data) {
-        #if canImport(UIKit)
+        #if os(iOS)
             guard let image = UIImage(data: data) else {
                 return nil
             }
@@ -102,18 +113,6 @@ extension Image {
                 return nil
             }
             self.init(nsImage: image)
-        #endif
-    }
-}
-
-extension View {
-    /// The navigation title small, in the bar, as a sheet shows it; a Mac's has
-    /// only that one.
-    func inlineNavigationTitle() -> some View {
-        #if os(macOS)
-            self
-        #else
-            navigationBarTitleDisplayMode(.inline)
         #endif
     }
 }
@@ -139,30 +138,12 @@ extension View {
 }
 
 extension ToolbarItemPlacement {
-    /// The leading end of an iPhone's navigation bar, the start of a Mac's toolbar.
-    static var barLeading: ToolbarItemPlacement {
-        #if os(macOS)
-            .navigation
-        #else
-            .topBarLeading
-        #endif
-    }
-
     /// The title's place in the bar.
     static var barTitle: ToolbarItemPlacement {
         #if os(macOS)
             .principal
         #else
             .title
-        #endif
-    }
-
-    /// The trailing end of an iPhone's navigation bar, a Mac's toolbar's.
-    static var barTrailing: ToolbarItemPlacement {
-        #if os(macOS)
-            .primaryAction
-        #else
-            .topBarTrailing
         #endif
     }
 }

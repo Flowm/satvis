@@ -97,11 +97,17 @@ final class PassAlerts {
             return await self.schedule()
         }
         scheduling = task
-        return await withTaskCancellationHandler {
+        let plan = await withTaskCancellationHandler {
             await task.value
         } onCancel: {
             task.cancel()
         }
+        // The next refresh is due by the new plan: at launch, on activation and
+        // after each edit alike.
+        if plan != nil {
+            requestRefresh()
+        }
+        return plan
     }
 
     /// Asks iOS to wake the app to predict again before the pending notifications
@@ -129,7 +135,6 @@ final class PassAlerts {
                     return
                 }
                 await reschedule()
-                requestRefresh()
             }
         #else
             let request = BGAppRefreshTaskRequest(identifier: Self.refreshTaskID)

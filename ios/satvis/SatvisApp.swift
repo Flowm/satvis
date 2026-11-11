@@ -5,19 +5,20 @@ import SwiftUI
 
 @main
 struct SatvisApp: App {
-    #if os(macOS)
-        @NSApplicationDelegateAdaptor private var delegate: AppDelegate
-    #else
-        @UIApplicationDelegateAdaptor private var delegate: AppDelegate
-    #endif
     @State private var session: Session
 
     /// `SATVIS_API` in the launch environment replaces satvis.space, e.g. a local
     /// worker at http://localhost:8787.
     static let site = ProcessInfo.processInfo.environment["SATVIS_API"].flatMap(URL.init(string:)) ?? WorkerClient.production
 
+    #if os(macOS)
+        /// The About window's id.
+        static let aboutWindow = "about"
+    #endif
+
     init() {
         let site = Self.site
+        Analytics.setup(site: site)
         let loader = GroupLoader(repository: Self.repository(site: site))
         _session = State(initialValue: Session(loader: loader, site: site, alerts: PassAlerts(loader: loader)))
     }
@@ -26,6 +27,7 @@ struct SatvisApp: App {
         #if os(macOS)
             // One window, as on the iPhone: the app has one session, and a second
             // window would run it twice and take its globe over.
+            // AppKit keeps its frame between launches ("NSWindow Frame globe").
             Window("Satvis", id: "globe") {
                 ContentView(session: session)
                     .preferredColorScheme(.dark)
@@ -34,9 +36,22 @@ struct SatvisApp: App {
                     // the menu column open and the info panel a card, as on the web.
                     .environment(\.horizontalSizeClass, .regular)
                     .environment(\.verticalSizeClass, .regular)
+                    // An upright iPad mini's width, the narrowest the regular layout
+                    // is drawn for: the column, a panel and the info card side by side.
+                    .frame(minWidth: 744, minHeight: 600)
             }
             .defaultSize(width: 1280, height: 800)
+            .windowResizability(.contentMinSize)
             .commands { SatvisCommands(session: session) }
+            // A window of its own, as a Mac app's About is, beside the globe.
+            Window("About Satvis", id: Self.aboutWindow) {
+                AboutView(session: session)
+                    .preferredColorScheme(.dark)
+                    .tint(Color.panelAccent)
+                    .frame(minWidth: 420, minHeight: 480)
+            }
+            .defaultSize(width: 480, height: 720)
+            .windowResizability(.contentMinSize)
         #else
             WindowGroup {
                 ContentView(session: session)
@@ -52,12 +67,11 @@ struct SatvisApp: App {
     #if os(iOS)
         /// Element sets drift, and the four days ahead move on: predicts the pass
         /// notifications again from the newest. The next refresh is asked for
-        /// first, so that one that runs out of time does not end the chain, and
-        /// again once the new notifications say when they run out.
+        /// first, so that one that runs out of time does not end the chain;
+        /// `reschedule` asks again once the new notifications say when they run out.
         private func refreshPassAlerts() async {
             session.alerts.requestRefresh()
             await session.alerts.reschedule()
-            session.alerts.requestRefresh()
         }
     #endif
 
@@ -113,6 +127,9 @@ struct ContentView: View {
     @State private var cardFrame: CGRect?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
+    #if os(macOS)
+        @Environment(\.openWindow) private var openWindow
+    #endif
     /// Dynamic Type's scale, as the menu toggle and the corner's buttons take it.
     @ScaledMetric(relativeTo: .body) private var textScale = 1.0
 
@@ -161,7 +178,8 @@ struct ContentView: View {
             isTransparent: session.aim.passthrough.isShowing,
             pixelRatio: session.pixelRatio,
             frameRate: session.frameRate,
-            onEscape: escape
+            onEscape: escape,
+            onSpace: session.clock.togglePlaying
         )
         .ignoresSafeArea()
         #if os(macOS)
@@ -176,9 +194,20 @@ struct ContentView: View {
                             showsUI = true
                         }
                     },
-                    togglePanel: { which in panel = panel == which ? nil : which },
-                    openBookmarks: { openSheet = .bookmarks },
-                    openAbout: { openSheet = .about }
+                    panel: panel,
+                    showPanel: { which in
+                        if which != nil {
+                            showsUI = true
+                            showsTools = true
+                        }
+                        panel = which
+                    },
+                    openBookmarks: {
+                        // The popover hangs off the column's entry.
+                        showsUI = true
+                        showsTools = true
+                        openSheet = .bookmarks
+                    }
                 )
             )
         #endif
@@ -314,6 +343,12 @@ struct ContentView: View {
                         ) {
                             openSheet = .bookmarks
                         }
+                        #if os(macOS)
+                            .popover(isPresented: bookmarksPopover, arrowEdge: .trailing) {
+                                BookmarksView(session: session)
+                                .frame(width: 560, height: 640)
+                            }
+                        #endif
                         // A panel where there is room, as on the web; on a phone a sheet.
                         ToolEntry(title: "Satellites", image: .lucideOrbit, hint: "Search and pick which satellites to show", isSelected: panel == .satellites) {
                             if sizeClass == .regular {
@@ -331,7 +366,11 @@ struct ContentView: View {
                         // The web app's About button, kept off the corner, which holds
                         // the ways back alone.
                         ToolEntry(title: "About", image: .lucideInfo, hint: "What Satvis is, what it does, where its data comes from, and its credits") {
-                            openSheet = .about
+                            #if os(macOS)
+                                openWindow(id: SatvisApp.aboutWindow)
+                            #else
+                                openSheet = .about
+                            #endif
                         }
                     }
                     .environment(\.toolNamesFolded, !roomy && panel != nil)
@@ -494,11 +533,11 @@ struct ContentView: View {
         }
         // A satvis.space link the system hands over, universal link or not.
         .onOpenURL { session.open(Link($0.absoluteString), records: true) }
-        #if canImport(UIKit)
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+        .task {
+            for await _ in Platform.memoryWarnings() {
                 session.renderer?.trimMemory()
             }
-        #endif
+        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active: session.becameActive()
@@ -506,6 +545,20 @@ struct ContentView: View {
             default: break
             }
         }
+        #if os(macOS)
+            // A Mac app is never sent to the background: it quits, which keeps the
+            // view as going to the background does on an iPhone.
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+                session.keepView()
+            }
+            // The one session lives as long as its window: reopened, the window
+            // would start it again over the scene it shows.
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
+                if let window = note.object as? NSWindow, window === GlobeRenderer.window {
+                    NSApplication.shared.terminate(nil)
+                }
+            }
+        #endif
         // The keyboard rose under the clock deck into a panel being edited, and
         // shortened the panel past fitting, swapping in a scrolling one: a new
         // view, which dropped the field's focus. The sheets keep their own room.
@@ -518,7 +571,7 @@ struct ContentView: View {
     private var sheet: Binding<AppSheet?> {
         Binding {
             if let openSheet {
-                openSheet
+                openSheet.isPopover ? nil : openSheet
             } else if sizeClass != .regular && session.selection != nil {
                 .info
             } else {
@@ -536,6 +589,19 @@ struct ContentView: View {
             }
         }
     }
+
+    #if os(macOS)
+        /// Bookmarks, shown from its entry in the column rather than as a sheet.
+        private var bookmarksPopover: Binding<Bool> {
+            Binding {
+                openSheet == .bookmarks
+            } set: { shown in
+                if !shown, openSheet == .bookmarks {
+                    openSheet = nil
+                }
+            }
+        }
+    #endif
 
     /// Starts picking a spot from the Locations panel, out of the globe's way.
     private func pickFromLocations() {
@@ -688,6 +754,15 @@ private enum AppSheet: Identifiable {
     case info
 
     var id: Self { self }
+
+    /// Shown as a popover from its entry in the column: Bookmarks on a Mac.
+    var isPopover: Bool {
+        #if os(macOS)
+            self == .bookmarks
+        #else
+            false
+        #endif
+    }
 }
 
 extension View {

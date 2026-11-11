@@ -9,19 +9,6 @@ import SatvisRender
 /// Aiming the sky view with the device, which a Mac cannot.
 @Observable
 final class SkyCompass {
-    /// What switching it on came to, for the words in front of the user.
-    enum Outcome: Equatable {
-        case aiming
-        /// No motion sensor here.
-        case unsupported
-        /// A sensor, but no north to measure from.
-        case noHeading
-        /// Granted, but no reading came.
-        case silent
-        /// The user dragged during the probe, and that was the end of it.
-        case takenBack
-    }
-
     /// Never: there is no sensor to aim by.
     let isAiming = false
     /// Never waiting for a sensor.
@@ -39,17 +26,6 @@ final class SkyCompass {
 /// The camera's picture behind the sky view, which a Mac's camera cannot show.
 @Observable
 final class SkyPassthrough {
-    /// What switching it on came to, for the words in front of the user.
-    enum Outcome: Equatable {
-        case showing
-        /// No back camera here.
-        case noCamera
-        /// Access refused, now or before.
-        case denied
-        /// Switched off again while it started.
-        case stopped
-    }
-
     /// Never shown.
     let isShowing = false
     /// Never interrupted, never having started.

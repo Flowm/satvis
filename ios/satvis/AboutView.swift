@@ -11,21 +11,20 @@ struct AboutView: View {
     @ScaledMetric(relativeTo: .body) private var iconDrop: CGFloat = 6
     @Environment(\.dismiss) private var dismiss
 
+    /// The about page's opening.
+    private static let introduction: LocalizedStringKey =
+        "Satvis is a free, open-source satellite tracker for iPhone, iPad and Mac. It draws more than 16,000 satellites on a 3D globe in real time: Starlink, GPS, weather satellites, the ISS and many more. Set your location and it predicts when each one passes overhead. The sky view shows the sky from where you stand.\(pointing)"
     #if os(macOS)
-        /// The about page's opening, for the Mac.
-        private static let introduction: LocalizedStringKey =
-            "Satvis is a free, open-source satellite tracker for iPhone, iPad and Mac. It draws more than 16,000 satellites on a 3D globe in real time: Starlink, GPS, weather satellites, the ISS and many more. Set your location and it predicts when each one passes overhead. The sky view shows the sky from where you stand."
-        /// How the sky view is aimed: a Mac has no motion sensor or camera to aim by.
+        /// A Mac has no motion sensor or camera to aim the sky view by.
+        private static let pointing = ""
+        /// How the sky view is aimed.
         private static let skyViewFeature: LocalizedStringKey = "Find satellites overhead in the ground-level sky view, aimed by dragging"
     #else
-        /// The about page's opening, with what the sky view is aimed by.
-        private static let introduction: LocalizedStringKey =
-            "Satvis is a free, open-source satellite tracker for iPhone and iPad. It draws more than 16,000 satellites on a 3D globe in real time: Starlink, GPS, weather satellites, the ISS and many more. Set your location and it predicts when each one passes overhead. The sky view shows the sky from where you stand. Point your \(device) up to see the satellites in that direction."
-        /// What the sky view is aimed by: "phone" on an iPad read wrong.
-        private static let device = UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
+        /// How the sky view is aimed by the device.
+        private static let pointing = " Point your \(Platform.deviceKind) up to see the satellites in that direction."
         /// How the sky view is aimed, the device and its camera among them.
         private static let skyViewFeature: LocalizedStringKey =
-            "Find satellites overhead in the ground-level sky view, aimed by dragging or by pointing your \(device), with the camera's picture of the sky behind them"
+            "Find satellites overhead in the ground-level sky view, aimed by dragging or by pointing your \(Platform.deviceKind), with the camera's picture of the sky behind them"
     #endif
 
     /// The web app's feature rows, each with the Lucide icon the about page gives it.
@@ -110,13 +109,16 @@ struct AboutView: View {
                 }
             }
             .navigationTitle("About Satvis")
-            .inlineNavigationTitle()
+            .toolbarTitleDisplayMode(.inline)
             .panelSheet()
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+            #if os(iOS)
+                // A window of its own on a Mac, closed by its own button.
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
+                    }
                 }
-            }
+            #endif
         }
     }
 

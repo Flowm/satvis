@@ -7,27 +7,6 @@ import SatvisData
 import SatvisRender
 import StoreKit
 
-#if canImport(UIKit)
-    import UIKit
-
-    /// Set up as PostHog's iOS guide has it, from the app delegate.
-    final class AppDelegate: NSObject, UIApplicationDelegate {
-        func application(_: UIApplication, didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-            Analytics.setup(site: SatvisApp.site)
-            return true
-        }
-    }
-#else
-    import AppKit
-
-    /// Set up as PostHog's macOS guide has it, from the app delegate.
-    final class AppDelegate: NSObject, NSApplicationDelegate {
-        func applicationDidFinishLaunching(_: Notification) {
-            Analytics.setup(site: SatvisApp.site)
-        }
-    }
-#endif
-
 /// Usage, counted in the web app's PostHog project: a page view with the view's
 /// link whenever the view changes, as the web app's address bar makes one, so
 /// the same insights count both. Nothing that identifies the user: no person
@@ -99,20 +78,18 @@ final class Analytics {
         let config = PostHogConfig(projectToken: projectToken, host: host)
         config.personProfiles = .never
         config.captureScreenViews = false
-        #if os(iOS)
-            config.surveys = false
-        #endif
         config.capturePushNotificationSubscriptions = false
         config.capturePushNotificationOpened = false
         // On by default, and each sends what the privacy policy says is not: a
         // flag request with the install's identifier on every launch, and the
         // place and text of rapid taps.
         config.preloadFeatureFlags = false
-        config.setDefaultPersonProperties = false
         #if os(iOS)
             config.rageClickConfig.enabled = false
             config.captureAutocaptureElementText = false
+            config.surveys = false
         #endif
+        config.setDefaultPersonProperties = false
         config.setBeforeSend(Self.sanitized)
         PostHogSDK.shared.setup(config)
         if optingIn {

@@ -46,7 +46,8 @@ does not need it.
   `SkyPassthrough` have Mac stand-ins that refuse, and their controls are not
   shown. No background refresh: the pass notifications are planned again on a
   timer while the app runs, and those scheduled still come once it quits.
-- **The sandbox** is the Mac App Store's requirement (`satvis-macOS.entitlements`).
+- **The sandbox** is the Mac App Store's requirement (`ENABLE_APP_SANDBOX`, with
+  its network and location rights, for the Mac's SDK alone).
   An unsigned build, as `make run-mac` makes, runs outside it, where Application
   Support and Caches are the user's, shared by every app, so the app keeps to a
   folder named by its bundle id in them.

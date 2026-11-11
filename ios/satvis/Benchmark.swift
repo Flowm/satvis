@@ -302,11 +302,11 @@ final class Benchmark {
             "app_frame_rate": session.frameRate == Session.maximumFrameRate ? "max" : String(session.frameRate),
             "app_frame_budget_ms": NSDecimalNumber(string: String(format: "%.2f", session.frameBudgetMilliseconds)),
             "device_thermal_state_start": name(ProcessInfo.processInfo.thermalState),
+            "device_max_fps": GlobeRenderer.displayMaximumFramesPerSecond,
         ]
         if let screen = Platform.screen {
             environment["device_screen_pixels"] = "\(Int(screen.pixels.width))x\(Int(screen.pixels.height))"
             environment["device_screen_scale"] = screen.scale
-            environment["device_max_fps"] = screen.maximumFramesPerSecond
         }
         if let size = renderer.drawableSize {
             environment["device_drawable_pixels"] = "\(Int(size.width))x\(Int(size.height))"

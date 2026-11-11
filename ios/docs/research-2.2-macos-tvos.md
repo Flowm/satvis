@@ -70,136 +70,16 @@ Intel Mac would run it.
 
 ## macOS
 
-### How to bring it to the Mac
+Built in 2.2: ADR 0017 records the route and what the Mac does without, and
+`docs/architecture.md`, "The Mac", how it was built. What was found here and
+belongs to neither:
 
-| Route | Work | Verdict |
-|---|---|---|
-| iOS app on Apple silicon ("Designed for iPad") | None. It may already be offered: check the app's Mac availability in App Store Connect | An iPad app in a window: touch semantics, no menus, no scroll-wheel zoom |
-| Mac Catalyst | Rebuild Draco for Catalyst (no slice), then UIKit-on-Mac | Pays for a Mac build and still feels like an iPad |
-| **Native SwiftUI (AppKit)** | `#if os(macOS)` glue plus Mac input, menus and a window | **Recommended.** SatvisKit is native macOS already |
-
-### Project and packaging
-
-- **Target.** Add *Mac* to the existing `satvis` target's supported destinations
-  (a multiplatform target). It keeps the bundle id `org.frcy.app.satvis`, which
-  gives **universal purchase** on the existing record (app 1441084766). Add the
-  platform with "Add Platform" in App Store Connect. Once two platforms are
-  approved, neither can be removed.
-- **Folder sync.** `satvis/` is folder-synchronized. Leave the iOS-only files
-  (`SkyCompass`, `SkyPassthrough`, `CameraPreview`) out of the Mac build with
-  platform filters on the synchronized group.
-- **Info.plist.** Limit these keys to iOS with `[sdk=iphoneos*]` conditional
-  settings: `UILaunchScreen`, `CADisableMinimumFrameDurationOnPhone`,
-  `UIBackgroundModes`, `BGTaskSchedulerPermittedIdentifiers` and the scene
-  manifest.
-- **Entitlements.** The Mac App Store requires the App Sandbox. Give the Mac
-  build its own entitlements file:
-  - `com.apple.security.app-sandbox`
-  - `com.apple.security.network.client`
-  - `com.apple.security.personal-information.location` (the Geolocation station)
-  - `applinks:satvis.space`
-- **Storage.** In the sandbox, Application Support is the app's own container, so
-  `PayloadStore`, `KeptTiles` and `BookmarkStorage` work unchanged.
-- **Icon.** `AppIcon.icon` (Icon Composer) covers macOS.
-- **Screenshots.** One of 1280×800, 1440×900, 2560×1600 or 2880×1800.
-  `scripts/screenshots.sh` needs a Mac path: shoot the window, not a simulator.
-- **Deployment target.** macOS 26 matches iOS 26, and it is the last macOS that
-  runs on Intel; macOS 27 runs on Apple silicon only. To include Intel, build
-  x86_64 (Draco has the slice) and test the non-apple4 render path on an Intel
-  Mac. To leave Intel out, build arm64 only.
-
-### Code changes, by area
-
-- **The `MTKView` hosts** (`GlobeView.MetalView`, `ScaledMTKView`,
-  `SatelliteModelView`):
-  - Use `NSViewRepresentable`, `viewDidMoveToWindow` and
-    `viewDidChangeBackingProperties`. A window moved to another display changes
-    its scale.
-  - Set the pixel ratio through `layer.contentsScale` or `drawableSize`, not
-    `contentScaleFactor`.
-- **Frame rate.**
-  - `GlobeRenderer` returns a fixed 60 off UIKit. Read
-    `NSScreen.maximumFramesPerSecond` instead (ProMotion MacBook Pros reach 120,
-    external displays more), again whenever the window changes screen.
-  - `FrameLoop` treats the app as always active off UIKit. Use the window's
-    occlusion state, so that a hidden window draws nothing.
-- **App lifecycle.**
-  - The app delegate becomes `NSApplicationDelegateAdaptor`.
-  - Replace the memory-warning notification with
-    `DispatchSource.makeMemoryPressureSource`, which feeds `trimMemory`.
-  - Read reduce-motion from SwiftUI's `accessibilityReduceMotion` instead of
-    `UIAccessibility` (this also works on iOS).
-- **UIKit types.**
-  - `UIImage` becomes `NSImage`, or `Image(data:)` through a small shim.
-  - `UIPasteboard` becomes `NSPasteboard`.
-  - The share sheet (`UIActivityViewController`) becomes `ShareLink`, which iOS
-    has too.
-  - `UIDevice` (About, Benchmark's `device_kind`) becomes `ProcessInfo` and
-    `sysctl hw.model`.
-- **Panel colours.** `PanelStyle`'s `UIColor` levels move to colours of its own,
-  or to `NSColor` equivalents.
-- **Layout.** macOS has no `horizontalSizeClass`, so treat the Mac as regular:
-  the open column and the Satellites panel beside it, as on the web. On a Mac
-  `presentationDetents` do nothing and a sheet is a modal sheet. Make the panels
-  that the iPad shows as sheets into side panels or popovers on the Mac.
-- **Pass alerts.**
-  - Notifications work fully on macOS.
-  - `BGTaskScheduler` does not exist there. Plan the alerts again on launch,
-    on activation and on a timer while the app runs.
-  - While the app is quit, the alerts already scheduled still fire but are not
-    refreshed. A login-item agent would fix that, but is too much for 2.2.
-- **Sky view.**
-  - No compass (CoreMotion has no `CMMotionManager` on macOS) and no
-    passthrough: a Mac camera faces the user.
-  - It is the web's desktop sky view: aimed by dragging, zoomed by wheel and
-    pinch (ADR 0003, ADR 0004 "a silent sensor is a refusal").
-  - Hide the compass and camera buttons.
-
-### Input: the largest Mac-only piece
-
-Follow the web app on a desktop, as the iPad follows it on touch:
-
-- **Drag** with the mouse turns the globe. `DragGesture` works with a mouse.
-- **Scroll wheel and two-finger scroll** zoom. SwiftUI has no raw wheel gesture,
-  so override `scrollWheel(with:)` on the `MTKView` subclass. Tell a precise
-  trackpad delta from wheel lines (`hasPreciseScrollingDeltas`).
-- **Trackpad pinch and rotate** work as they are: `MagnifyGesture` and
-  `RotateGesture` run on macOS. Guard against NaN as on iOS.
-- **Right-click** opens the globe menu, as on the web. The half-second hold
-  stays for the trackpad's force click. The `GlobeMenu` popover anchored at a
-  point works on macOS.
-- **Click** selects and **double-click** flies. `SpatialTapGesture` works.
-- **Keyboard** (none of this exists today):
-  - Arrow keys turn the globe and +/− zoom.
-  - Esc closes the panel or the selection.
-  - Space plays or pauses the clock.
-  - ⌘F finds a satellite, ⌘C copies the link, ⌘⇧H hides the UI.
-- **Pointer feedback** is optional: hover highlights or cursors over
-  satellites. The web shows none today.
-
-### Window and menus
-
-- **One window.** Use a `Window` scene, not a `WindowGroup`. One `Session`
-  drives one globe; iOS already turns off multiple scenes for the same reason.
-  Restore the window's frame, set a minimum size, and support full screen.
-  Check that `FramePacer` draws while a window is being resized live.
-- **Menu bar** (`CommandMenu`):
-  - **View:** 3D / 2D, Sky View, Hide UI, the base layer.
-  - **Satellite:** Find, Track, Info.
-  - **Bookmarks.**
-  - **Help:** satvis.space, About.
-- **Settings scene.** It can hold About's "Share usage data", or it can stay in
-  About.
-- **Links.** Universal links work on macOS with the same associated domain.
-  `onOpenURL` is already wired up.
-
-### Testing and release
-
-- **UI tests** run natively on macOS, with no simulator. Add a Mac destination
-  to `make test`, and a `generic/platform=macOS` build to the GitHub iOS job.
-- **Xcode Cloud** needs a macOS archive workflow. TestFlight works on Mac.
-- **The privacy manifest and privacy label** are the same as iOS. PostHog tells
-  the platforms apart by `$os`.
+- Once two platforms are approved in App Store Connect, neither can be removed.
+- Mac App Store screenshots are one of 1280×800, 1440×900, 2560×1600 or
+  2880×1800, shot from the window: `scripts/screenshots.sh` has no Mac path yet.
+- Xcode Cloud needs a macOS archive workflow; TestFlight works on a Mac.
+- PostHog tells the platforms apart by `$os`; the privacy manifest and label are
+  the same as iOS's.
 
 ---
 
@@ -362,16 +242,8 @@ first:
    - Extract `SatvisSession`.
    - Add tvOS to the package.
    - Add the CI builds for macOS and tvOS.
-   - Make `ShareLink` and `accessibilityReduceMotion` replace their UIKit
-     counterparts on iOS as well.
-2. **macOS:**
-   - Add the destination and the AppKit shims until it compiles.
-   - Mouse, wheel and keyboard input.
-   - The window and menu commands.
-   - Sandbox and entitlements.
-   - Re-planning the alerts without background tasks.
-   - Mac UI tests and screenshots.
-   - The Xcode Cloud workflow, then TestFlight.
+2. **macOS:** built (ADR 0017), but for Mac UI tests and screenshots, and the
+   Xcode Cloud workflow, then TestFlight.
 3. **tvOS prototype:** a focusable `MTKView` that takes remote swipes, zooms by
    clicks, and selects by a reticle, run on an A12 Apple TV. It answers the two
    real risks, input under the focus engine and GPU time at TV resolution,

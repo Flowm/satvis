@@ -64,45 +64,62 @@ struct InfoPanel: View {
             }
             .panelList()
             .alertNotice(alerts)
-            .navigationTitle(entry.name)
-            .inlineNavigationTitle()
-            .toolbar {
-                // Drawn here: a navigationSubtitle shows one line, and drops the chips' second.
-                ToolbarItem(placement: .barTitle) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(entry.name)
-                            .font(.headline)
-                            // The buttons leave the title less room than the system title had.
-                            .minimumScaleFactor(0.8)
-                        subheading(propagator)
-                    }
-                    .font(.footnote)
-                    .lineLimit(1)
-                    .leadingTitle()
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(
-                        "\(entry.name), catalog number \(entry.satnum), \(SatelliteDetails.chips(entry.record, propagator: propagator).joined(separator: ", "))"
-                    )
-                    // A menu rather than text selection, which would copy whichever of the two lines a press lands on.
-                    .contextMenu {
-                        Button("Copy Name", systemImage: "doc.on.doc") { Platform.copy(entry.name) }
-                        Button("Copy Catalog Number", systemImage: "number") { Platform.copy(entry.satnum) }
-                    }
-                }
-                ToolbarItem(placement: .barTrailing) {
+            #if os(macOS)
+                .cardHeader {
+                    title(propagator)
+                } actions: {
                     AlertButton(subject: .satellite(entry.id), satellites: [entry], passes: passes, alerts: alerts)
-                }
-                if let onTrack {
-                    ToolbarSpacer(.fixed, placement: .barTrailing)
-                    ToolbarItem(placement: .barTrailing) {
+                    if let onTrack {
                         Button.track(isTracked, onTrack: onTrack)
                     }
-                }
-                ToolbarSpacer(.fixed, placement: .barTrailing)
-                ToolbarItem(placement: .barTrailing) {
                     Button("Close", systemImage: "xmark", action: onClose)
                 }
-            }
+            #else
+                .navigationTitle(entry.name)
+                .toolbarTitleDisplayMode(.inline)
+                .toolbar {
+                    // Drawn here: a navigationSubtitle shows one line, and drops the chips' second.
+                    ToolbarItem(placement: .barTitle) {
+                        title(propagator)
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        AlertButton(subject: .satellite(entry.id), satellites: [entry], passes: passes, alerts: alerts)
+                    }
+                    if let onTrack {
+                        ToolbarSpacer(.fixed, placement: .primaryAction)
+                        ToolbarItem(placement: .primaryAction) {
+                            Button.track(isTracked, onTrack: onTrack)
+                        }
+                    }
+                    ToolbarSpacer(.fixed, placement: .primaryAction)
+                    ToolbarItem(placement: .primaryAction) {
+                        Button("Close", systemImage: "xmark", action: onClose)
+                    }
+                }
+            #endif
+        }
+    }
+
+    /// The name, over its catalog number and chips.
+    private func title(_ propagator: SGP4Propagator?) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(entry.name)
+                .font(.headline)
+                // The buttons leave the title less room than the system title had.
+                .minimumScaleFactor(0.8)
+            subheading(propagator)
+        }
+        .font(.footnote)
+        .lineLimit(1)
+        .leadingTitle()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "\(entry.name), catalog number \(entry.satnum), \(SatelliteDetails.chips(entry.record, propagator: propagator).joined(separator: ", "))"
+        )
+        // A menu rather than text selection, which would copy whichever of the two lines a press lands on.
+        .contextMenu {
+            Button("Copy Name", systemImage: "doc.on.doc") { Platform.copy(entry.name) }
+            Button("Copy Catalog Number", systemImage: "number") { Platform.copy(entry.satnum) }
         }
     }
 
@@ -222,6 +239,24 @@ extension View {
     fileprivate func leadingTitle() -> some View {
         frame(minWidth: 0, idealWidth: 10_000, maxWidth: .infinity, alignment: .leading)
     }
+
+    #if os(macOS)
+        /// The card's title and buttons in a bar of its own, where an iPhone's
+        /// navigation bar has them: a Mac's navigation stack has no bar, and hands
+        /// both to the window's.
+        fileprivate func cardHeader(@ViewBuilder title: () -> some View, @ViewBuilder actions: () -> some View) -> some View {
+            safeAreaBar(edge: .top, spacing: 0) {
+                HStack(spacing: 0) {
+                    title()
+                    actions()
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(PanelButtonStyle())
+                }
+                .padding(.leading, 16)
+                .padding(.trailing, 4)
+            }
+        }
+    #endif
 
     /// A section close under the title and over the tab's cards, as the web app's tab row is.
     fileprivate func tabHeader() -> some View {
@@ -353,41 +388,35 @@ struct StationPanel: View {
             }
             .panelList()
             .alertNotice(alerts)
-            .navigationTitle(station.displayName)
-            .inlineNavigationTitle()
-            .toolbar {
-                ToolbarItem(placement: .barTitle) {
-                    Text(station.displayName)
-                        .font(.headline)
-                        .lineLimit(1)
-                        .leadingTitle()
-                }
-                // By what they do: the station itself, where to look from, and away.
-                ToolbarItemGroup(placement: .barTrailing) {
-                    // A station a link brought is the link's until saved: alerts and
-                    // names are for the user's own, which persist.
-                    if passes.isVisiting(station.id) {
-                        Button("Save station", systemImage: "plus.circle") { passes.save(station.id) }
-                    } else {
-                        Button("Rename", systemImage: "pencil") {
-                            draftName = station.name ?? ""
-                            renaming = true
-                        }
-                        AlertButton(subject: .station(station.id), satellites: catalog.activeEntries, passes: passes, alerts: alerts)
-                    }
-                }
-                ToolbarSpacer(.fixed, placement: .barTrailing)
-                ToolbarItemGroup(placement: .barTrailing) {
-                    Button("View the sky from here", image: .lucideTelescope, action: onSky)
-                    if let onTrack {
-                        Button.track(isTracked, onTrack: onTrack)
-                    }
-                }
-                ToolbarSpacer(.fixed, placement: .barTrailing)
-                ToolbarItem(placement: .barTrailing) {
+            #if os(macOS)
+                .cardHeader {
+                    title
+                } actions: {
+                    stationActions
+                    skyActions
                     Button("Close", systemImage: "xmark", action: onClose)
                 }
-            }
+            #else
+                .navigationTitle(station.displayName)
+                .toolbarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .barTitle) {
+                        title
+                    }
+                    // By what they do: the station itself, where to look from, and away.
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        stationActions
+                    }
+                    ToolbarSpacer(.fixed, placement: .primaryAction)
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        skyActions
+                    }
+                    ToolbarSpacer(.fixed, placement: .primaryAction)
+                    ToolbarItem(placement: .primaryAction) {
+                        Button("Close", systemImage: "xmark", action: onClose)
+                    }
+                }
+            #endif
             .alert("Rename station", isPresented: $renaming) {
                 TextField("unnamed", text: $draftName)
                 Button("Cancel", role: .cancel) {}
@@ -400,6 +429,36 @@ struct StationPanel: View {
                     passes.setStations(stations)
                 }
             }
+        }
+    }
+
+    /// The station's name.
+    private var title: some View {
+        Text(station.displayName)
+            .font(.headline)
+            .lineLimit(1)
+            .leadingTitle()
+    }
+
+    /// The station itself: a station a link brought is the link's until saved, and
+    /// alerts and names are for the user's own, which persist.
+    @ViewBuilder private var stationActions: some View {
+        if passes.isVisiting(station.id) {
+            Button("Save station", systemImage: "plus.circle") { passes.save(station.id) }
+        } else {
+            Button("Rename", systemImage: "pencil") {
+                draftName = station.name ?? ""
+                renaming = true
+            }
+            AlertButton(subject: .station(station.id), satellites: catalog.activeEntries, passes: passes, alerts: alerts)
+        }
+    }
+
+    /// Where to look from.
+    @ViewBuilder private var skyActions: some View {
+        Button("View the sky from here", image: .lucideTelescope, action: onSky)
+        if let onTrack {
+            Button.track(isTracked, onTrack: onTrack)
         }
     }
 }

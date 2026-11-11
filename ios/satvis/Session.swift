@@ -315,14 +315,18 @@ final class Session {
 
     func enteredBackground() {
         alerts.requestRefresh()
-        // Kept without its time: the app reopens on the present. Not a benchmark
-        // scene: the view the run began from.
-        var kept = benchmark.abandon(on: self) ?? link(sharing: false)
-        kept.query.items.removeAll { $0.key == "time" }
-        UserDefaults.standard.set(kept.url(site: site).absoluteString, forKey: Self.viewKey)
+        keepView()
         // iOS ends the largest apps in the background first, and the tiles kept
         // for coming back were most of a few hundred megabytes.
         renderer?.trimMemory()
+    }
+
+    /// Keeps the view for the next launch, without its time: the app reopens on
+    /// the present. Not a benchmark scene: the view the run began from.
+    func keepView() {
+        var kept = benchmark.abandon(on: self) ?? link(sharing: false)
+        kept.query.items.removeAll { $0.key == "time" }
+        UserDefaults.standard.set(kept.url(site: site).absoluteString, forKey: Self.viewKey)
     }
 
     // MARK: Benchmark sweeps

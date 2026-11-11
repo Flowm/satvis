@@ -23,10 +23,10 @@ struct BrowserView: View {
             .searchFocused($isSearching)
             .loadsEverythingWhenFocused(isSearching, catalog: catalog)
             .navigationTitle("Satellites")
-            .inlineNavigationTitle()
+            .toolbarTitleDisplayMode(.inline)
             .panelSheet()
             .toolbar {
-                ToolbarItem(placement: .barLeading) {
+                ToolbarItem(placement: .navigation) {
                     ClearAllButton(catalog: catalog)
                 }
                 ToolbarItem(placement: .confirmationAction) {

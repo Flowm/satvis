@@ -1,13 +1,10 @@
 import SatvisCore
 import SwiftUI
 
-#if os(macOS)
-    import AppKit
-#endif
-
 /// The web app's Bookmarks panel (BookmarkPanel.vue): the featured and saved
 /// bookmarks and the opened links as cards, the way back to the default view, and
-/// saving the scene. A sheet, as the other long lists are.
+/// saving the scene. A sheet, as the other long lists are; on a Mac a popover from
+/// its entry in the menu column, which leaves the globe in sight.
 struct BookmarksView: View {
     let session: Session
     /// A bookmark or the default view was opened, and the sheet closes on it.
@@ -95,21 +92,19 @@ struct BookmarksView: View {
                 }
             }
             .navigationTitle("Bookmarks")
-            .inlineNavigationTitle()
+            .toolbarTitleDisplayMode(.inline)
             .panelSheet()
-            .toolbar {
-                // The view on screen, where the corner's Share button was; made when
-                // tapped, so that a clock off the present gives its minute then.
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Share this view", systemImage: "square.and.arrow.up") {
-                        ShareSheet.present(session.link(sharing: true).url(site: session.site), from: frames[Self.shareButton] ?? .zero)
+            #if os(iOS)
+                // A popover on a Mac has no toolbar, and closes by a click outside it.
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        shareButton
                     }
-                    .reportsFrame { frames[Self.shareButton] = $0 }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
+                    }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            #endif
             // Under the cards with their names, as the web app's footer: the bottom
             // bar's glass shows icons alone.
             .safeAreaInset(edge: .bottom) {
@@ -124,6 +119,9 @@ struct BookmarksView: View {
                             dismiss()
                         }
                         .disabled(here.query.isEmpty)
+                        #if os(macOS)
+                            shareButton
+                        #endif
                         Spacer()
                         // Filled, as the web app's: the sheet's main action.
                         Group {
@@ -176,6 +174,15 @@ struct BookmarksView: View {
                 bookmarks.release(bookmark.id)
             }
         }
+    }
+
+    /// The view on screen, where the corner's Share button was; made when tapped,
+    /// so that a clock off the present gives its minute then.
+    private var shareButton: some View {
+        Button("Share this view", systemImage: "square.and.arrow.up") {
+            ShareSheet.present(session.link(sharing: true).url(site: session.site), from: frames[Self.shareButton] ?? .zero)
+        }
+        .reportsFrame { frames[Self.shareButton] = $0 }
     }
 
     private func card(_ bookmark: Bookmark, isCurrent: Bool) -> some View {
@@ -372,9 +379,10 @@ struct BookmarkFacts: View {
 /// sheet's corner, not the window's, where the popover pointed at first.
 private enum ShareSheet {
     #if os(macOS)
-        /// The share menu under `rect`, in the key window: the Bookmarks sheet's.
+        /// The share menu under `rect`, in the window clicked in: the Bookmarks
+        /// popover's, which need not be the key window.
         static func present(_ url: URL, from rect: CGRect) {
-            guard let view = NSApplication.shared.keyWindow?.contentView else {
+            guard let view = (NSApplication.shared.currentEvent?.window ?? NSApplication.shared.keyWindow)?.contentView else {
                 return
             }
             let target = view.isFlipped ? rect : CGRect(x: rect.minX, y: view.bounds.height - rect.maxY, width: rect.width, height: rect.height)

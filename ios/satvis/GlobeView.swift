@@ -36,6 +36,8 @@ struct GlobeView: View {
     let frameRate: Int
     /// The Escape key, pressed while the globe has the keyboard: on a Mac.
     var onEscape: () -> Void = {}
+    /// The space bar, pressed while the globe has the keyboard: on a Mac.
+    var onSpace: () -> Void = {}
 
     @State private var renderer: GlobeRenderer?
     @State private var lastTranslation = CGSize.zero
@@ -164,7 +166,8 @@ struct GlobeView: View {
                     }
                 },
                 rotate: { renderer?.rotate(by: $0) },
-                escape: onEscape
+                escape: onEscape,
+                space: onSpace
             )
         }
     #endif
@@ -178,16 +181,21 @@ struct GlobeView: View {
         let click: (CGPoint, CGSize) -> Void
         /// As each click lifts, a double click's first included.
         let everyClick: () -> Void
+        /// The second click of two, the iPhone's double tap.
         let doubleClick: (CGPoint, CGSize) -> Void
-        /// A right click, or a click with Control held.
+        /// A right click, a click with Control held or a force click: the iPhone's
+        /// finger held still.
         let secondaryClick: (CGPoint, CGSize) -> Void
-        /// A step of a drag, its translation so far, and the view's size.
-        let drag: (SIMD2<Double>, CGSize, CGSize) -> Void
+        /// A step of a drag, then its translation so far, and the view's size.
+        let drag: (_ step: SIMD2<Double>, _ translation: CGSize, _ size: CGSize) -> Void
         /// Nearer for a scale above 1.
         let zoom: (Double) -> Void
         /// Clockwise, in radians.
         let rotate: (Double) -> Void
+        /// The Escape key.
         let escape: () -> Void
+        /// The space bar.
+        let space: () -> Void
     }
 #endif
 
@@ -205,9 +213,6 @@ private struct MetalView {
     func makeView() -> ScaledMTKView {
         let view = ScaledMTKView(frame: .zero, device: MTLCreateSystemDefaultDevice())
         view.pixelRatio = pixelRatio
-        #if os(macOS)
-            view.pointer = pointer
-        #endif
         // Over 60 on an iPhone only with CADisableMinimumFrameDurationOnPhone in Info.plist.
         view.preferredFramesPerSecond = frameRate
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
@@ -229,11 +234,7 @@ private struct MetalView {
             view.pointer = pointer
         #endif
         // Opaque otherwise, which spares the compositor blending the globe.
-        #if os(macOS)
-            view.layer?.isOpaque = !isTransparent
-        #else
-            view.layer.isOpaque = !isTransparent
-        #endif
+        (view.layer as? CAMetalLayer)?.isOpaque = !isTransparent
         if view.preferredFramesPerSecond != frameRate {
             view.preferredFramesPerSecond = frameRate
         }
@@ -275,9 +276,14 @@ private final class ScaledMTKView: MTKView {
         private var downAt: CGPoint?
         private var lastAt = CGPoint.zero
         private var dragged = false
+        /// The click now down was pressed through to a force click, and lifts as
+        /// no click.
+        private var forced = false
         /// The click waiting out the double-click interval.
         private var pendingClick: Task<Void, Never>?
-        private var occlusionObserver: NSObjectProtocol?
+        private var windowObservers: [NSObjectProtocol] = []
+        /// The window's first responder, watched for a field letting go of the keyboard.
+        private var responderObservation: NSKeyValueObservation?
 
         /// Points a click may wander and stay a click.
         private static let clickSlop = 3.0
@@ -295,25 +301,54 @@ private final class ScaledMTKView: MTKView {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             applyPixelRatio()
-            watchOcclusion()
+            watchWindow()
+            if window == nil {
+                pendingClick?.cancel()
+            }
+            GlobeRenderer.window = window
+            takeKeys()
+        }
+
+        /// Takes the keyboard where nothing else in the window has it, so the keys
+        /// work on the globe from the start, as on the web, without a click first.
+        private func takeKeys() {
+            guard let window, window.firstResponder == nil || window.firstResponder === window else {
+                return
+            }
+            window.makeFirstResponder(self)
+        }
+
+        /// Follows the window as it is covered and as it comes to the front, and
+        /// lets go of the one it left.
+        private func watchWindow() {
+            for observer in windowObservers {
+                NotificationCenter.default.removeObserver(observer)
+            }
+            windowObservers = []
+            responderObservation = nil
+            guard let window else {
+                return
+            }
+            let center = NotificationCenter.default
+            windowObservers = [
+                center.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.pauseWhileHidden() }
+                },
+                // The panel that had the keyboard closed while another window was in front.
+                center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.takeKeys() }
+                },
+            ]
+            // A panel's field that closes leaves the keyboard with the window.
+            responderObservation = window.observe(\.firstResponder) { @Sendable [weak self] _, _ in
+                Task { @MainActor in self?.takeKeys() }
+            }
+            pauseWhileHidden()
         }
 
         /// Draws nothing while the window is hidden, minimised or covered: AppKit
         /// keeps the view's display link running behind other windows, and the
         /// moving satellites would keep the GPU busy for no one.
-        private func watchOcclusion() {
-            if let occlusionObserver {
-                NotificationCenter.default.removeObserver(occlusionObserver)
-            }
-            occlusionObserver = window.map { window in
-                NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main) {
-                    [weak self] _ in
-                    MainActor.assumeIsolated { self?.pauseWhileHidden() }
-                }
-            }
-            pauseWhileHidden()
-        }
-
         private func pauseWhileHidden() {
             isPaused = !(window?.occlusionState.contains(.visible) ?? false)
         }
@@ -333,6 +368,7 @@ private final class ScaledMTKView: MTKView {
             downAt = at
             lastAt = at
             dragged = false
+            forced = false
             if event.clickCount > 1 {
                 pendingClick?.cancel()
             }
@@ -344,7 +380,7 @@ private final class ScaledMTKView: MTKView {
             }
             let at = point(of: event)
             let translation = CGSize(width: at.x - downAt.x, height: at.y - downAt.y)
-            guard dragged || hypot(translation.width, translation.height) > Self.clickSlop else {
+            guard !forced, dragged || hypot(translation.width, translation.height) > Self.clickSlop else {
                 return
             }
             dragged = true
@@ -354,15 +390,16 @@ private final class ScaledMTKView: MTKView {
 
         override func mouseUp(with event: NSEvent) {
             defer { downAt = nil }
-            guard downAt != nil, !dragged, let pointer else {
+            guard downAt != nil, !dragged, !forced, let pointer else {
                 return
             }
             let at = point(of: event)
             let size = bounds.size
             pointer.everyClick()
-            if event.clickCount == 2 {
+            // A third click starts over, as a third tap does on an iPhone.
+            if event.clickCount.isMultiple(of: 2) {
                 pointer.doubleClick(at, size)
-            } else if event.clickCount == 1 {
+            } else {
                 pendingClick?.cancel()
                 pendingClick = Task {
                     try? await Task.sleep(for: .seconds(NSEvent.doubleClickInterval))
@@ -379,6 +416,17 @@ private final class ScaledMTKView: MTKView {
             pointer?.secondaryClick(point(of: event), bounds.size)
         }
 
+        /// A trackpad pressed through to its second stage, where the iPhone's finger
+        /// is held still: the click goes no further.
+        override func pressureChange(with event: NSEvent) {
+            guard event.stage == 2, !forced, !dragged, let downAt else {
+                return
+            }
+            forced = true
+            pendingClick?.cancel()
+            pointer?.secondaryClick(downAt, bounds.size)
+        }
+
         override func scrollWheel(with event: NSEvent) {
             pointer?.zoom(ScrollZoom.scale(deltaY: Double(event.scrollingDeltaY), precise: event.hasPreciseScrollingDeltas))
         }
@@ -393,7 +441,7 @@ private final class ScaledMTKView: MTKView {
         }
 
         /// The arrows move the globe as a drag by `keyStep` would, + and - zoom, and
-        /// Escape is the caller's.
+        /// Escape and the space bar are the caller's.
         override func keyDown(with event: NSEvent) {
             guard let pointer else {
                 return super.keyDown(with: event)
@@ -411,6 +459,8 @@ private final class ScaledMTKView: MTKView {
                 pointer.drag(move, CGSize(width: move.x, height: move.y), bounds.size)
             } else if event.charactersIgnoringModifiers == "\u{1B}" {
                 pointer.escape()
+            } else if event.charactersIgnoringModifiers == " " {
+                pointer.space()
             } else if ["+", "="].contains(event.charactersIgnoringModifiers) {
                 pointer.zoom(Self.keyZoom)
             } else if event.charactersIgnoringModifiers == "-" {

@@ -12,14 +12,14 @@ import SwiftUI
 extension Color {
     /// What floats over the globe, the info panel and the sheets: the web app's
     /// `#1c1c1e`.
-    #if canImport(UIKit)
+    #if os(iOS)
         static let panelSurface = Color(uiColor: .secondarySystemGroupedBackground.atBaseLevel)
     #else
         static let panelSurface = Color(red: 0x1C / 255, green: 0x1C / 255, blue: 0x1E / 255)
     #endif
     /// A row or a card on a surface: the web app's `#2c2c2e`, which a sheet's list
     /// rows already are.
-    #if canImport(UIKit)
+    #if os(iOS)
         static let panelRaised = Color(uiColor: .tertiarySystemGroupedBackground.atBaseLevel)
     #else
         static let panelRaised = Color(red: 0x2C / 255, green: 0x2C / 255, blue: 0x2E / 255)
@@ -33,7 +33,7 @@ extension Color {
     /// which on the cyan itself reads at 1.4 to 1.
     static let panelPrimary = Color(red: 0x3D / 255, green: 0x7F / 255, blue: 0x93 / 255)
     /// A segmented control's thumb: the system's dark gray 2, `#636366`.
-    #if canImport(UIKit)
+    #if os(iOS)
         static let systemGray2 = Color(uiColor: .systemGray2)
     #else
         static let systemGray2 = Color(red: 0x63 / 255, green: 0x63 / 255, blue: 0x66 / 255)
@@ -46,7 +46,7 @@ extension Color {
     static let panelGreen = Color(red: 0x4A / 255, green: 0xDE / 255, blue: 0x80 / 255)
 }
 
-#if canImport(UIKit)
+#if os(iOS)
     extension UIColor {
         /// Resolved at the base level wherever it is drawn: a sheet's elevated level
         /// lifts the grouped backgrounds a step, `#2c2c2e` and `#3a3a3c`.
