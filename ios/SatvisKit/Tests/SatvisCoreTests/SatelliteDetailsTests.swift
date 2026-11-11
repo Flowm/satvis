@@ -3,8 +3,8 @@ import Testing
 
 @testable import SatvisCore
 
-/// The info panel's header, Orbit and Spacecraft tabs, held to what the web app's
-/// entityInfo.ts writes for the same records.
+/// The info panel's header, Orbit, Spacecraft and Instruments tabs, held to what the
+/// web app's entityInfo.ts writes for the same records.
 @Suite(.formatsInEnglishUS) struct SatelliteDetailsTests {
     struct Details: Decodable {
         struct Elements: Decodable {
@@ -15,6 +15,14 @@ import Testing
             let rows: [[String]]?
         }
 
+        /// The web app's `InstrumentInfo`.
+        struct Instrument: Decodable, Equatable {
+            let name: String
+            let fullName: String?
+            let retired: Bool
+            let rows: [[String]]
+        }
+
         /// The web app's `SatelliteInfo`.
         struct Facts: Decodable {
             let orbitClass: String
@@ -22,6 +30,7 @@ import Testing
             let status: String?
             let orbitRows: [[String]]
             let spacecraftRows: [[String]]
+            let instruments: [Instrument]
         }
 
         let facts: Facts
@@ -39,6 +48,10 @@ import Testing
             let propagator = try SGP4Propagator(record.meanElements)
             #expect(SatelliteDetails.orbitFacts(record, propagator: propagator).map { [$0.0, $0.1] } == expected.facts.orbitRows, "\(record.name)")
             #expect(SatelliteDetails.spacecraftFacts(record).map { [$0.0, $0.1] } == expected.facts.spacecraftRows, "\(record.name)")
+            let instruments = SatelliteDetails.instruments(record).map {
+                Details.Instrument(name: $0.name, fullName: $0.fullName, retired: $0.isRetired, rows: $0.rows.map { [$0.0, $0.1] })
+            }
+            #expect(instruments == expected.facts.instruments, "\(record.name)")
             #expect(SatelliteDetails.chips(record, propagator: propagator) == expected.facts.chips, "\(record.name)")
             #expect(SatelliteDetails.status(record) == expected.facts.status, "\(record.name)")
             #expect(record.orbitClass.rawValue == expected.facts.orbitClass, "\(record.name)")
@@ -55,6 +68,15 @@ import Testing
                 #expect(rows.map { [$0.label, $0.value] } == expected.elements.rows, "\(record.name)")
             }
         }
+    }
+
+    // entityInfo.test.ts's case: CEOS gives a geostationary imager 500 km, which sweeps nothing.
+    @Test func leavesTheNominalSwathOffAHighOrbit() throws {
+        var record = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first { $0.orbitClass == .geo })
+        record.metadata["instruments"] = .array([.object(["name": .string("AHI"), "resolutionM": .number(500), "nominalSwathKm": .number(500)])])
+        let ahi = try #require(SatelliteDetails.instruments(record).first)
+        #expect(ahi.rows.map { [$0.0, $0.1] } == [["Resolution", "500 m"]])
+        #expect(!ahi.isRetired)
     }
 
     // entityInfo.test.ts's cases.

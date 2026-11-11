@@ -1469,6 +1469,276 @@
             "Status",
             "Operational"
           ]
+        ],
+        "instruments": [
+          {
+            "name": "SAGE-III",
+            "fullName": "Stratospheric Aerosol and Gas Experiment",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Limb-scanning SW spectrometer"
+              ],
+              [
+                "Bands",
+                "UV · VIS · NIR · SWIR"
+              ]
+            ]
+          },
+          {
+            "name": "TSIS-1/SIM",
+            "fullName": "Total Solar and Spectral Irradiance Sensor 1 - Spectral Irradiance Monitor",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Solar irradiance monitor"
+              ],
+              [
+                "Bands",
+                "UV · VIS · NIR · SWIR"
+              ]
+            ]
+          },
+          {
+            "name": "TSIS-1/TIM",
+            "fullName": "Total Solar and Spectral Irradiance Sensor 1 - Total Irradiance Monitor",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Solar irradiance monitor"
+              ]
+            ]
+          },
+          {
+            "name": "DESIS",
+            "fullName": "DLR Earth Sensing Imaging Spectrometer",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Medium-resolution spectro-radiometer"
+              ],
+              [
+                "Bands",
+                "VIS · NIR"
+              ],
+              [
+                "Resolution",
+                "79 m"
+              ],
+              [
+                "Nominal swath",
+                "57 km"
+              ]
+            ]
+          },
+          {
+            "name": "PHyTIR",
+            "fullName": "Prototype HyspIRI Thermal Infrared Radiometer (PHyTIR)",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "High-resolution nadir-scanning IR spectrometer"
+              ],
+              [
+                "Bands",
+                "TIR"
+              ]
+            ]
+          },
+          {
+            "name": "GEDI",
+            "fullName": "Global Ecosystem Dynamics Investigation Lidar",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Lidar altimeter"
+              ],
+              [
+                "Bands",
+                "NIR"
+              ]
+            ]
+          },
+          {
+            "name": "Spectrometer (OCO-3)",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "High-resolution nadir-scanning SW spectrometer"
+              ],
+              [
+                "Bands",
+                "NIR"
+              ],
+              [
+                "Resolution",
+                "2.25 km"
+              ],
+              [
+                "Nominal swath",
+                "4 km"
+              ]
+            ]
+          },
+          {
+            "name": "EMIT",
+            "fullName": "Earth Surface Mineral Dust Source Investigation",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "High-resolution nadir-scanning SW spectrometer"
+              ],
+              [
+                "Bands",
+                "SWIR"
+              ],
+              [
+                "Resolution",
+                "60 m"
+              ],
+              [
+                "Nominal swath",
+                "80 km"
+              ]
+            ]
+          },
+          {
+            "name": "CIRC (ISS/JEM)",
+            "fullName": "Compact InfraRed Camera (ISS/JEM)",
+            "retired": true,
+            "rows": [
+              [
+                "Kind",
+                "Multi-purpose imaging Vis/IR radiometer"
+              ],
+              [
+                "Bands",
+                "TIR"
+              ],
+              [
+                "Resolution",
+                "130 m"
+              ],
+              [
+                "Nominal swath",
+                "128 km"
+              ]
+            ]
+          },
+          {
+            "name": "SMILES",
+            "fullName": "Superconducting Submillimeter-Wave Limb-Emission Sounder",
+            "retired": true,
+            "rows": [
+              [
+                "Kind",
+                "Limb-scanning MW spectrometer"
+              ],
+              [
+                "Bands",
+                "MW"
+              ]
+            ]
+          },
+          {
+            "name": "HICO",
+            "fullName": "Hyperspectral Imager for the Coastal Ocean",
+            "retired": true,
+            "rows": [
+              [
+                "Kind",
+                "Medium-resolution spectro-radiometer"
+              ],
+              [
+                "Bands",
+                "VIS · NIR"
+              ],
+              [
+                "Resolution",
+                "90 m"
+              ]
+            ]
+          },
+          {
+            "name": "RapidScat",
+            "fullName": "Rapid Scatterometer",
+            "retired": true,
+            "rows": [
+              [
+                "Kind",
+                "Radar scatterometer"
+              ],
+              [
+                "Bands",
+                "Ku-Band"
+              ],
+              [
+                "Resolution",
+                "730 m"
+              ],
+              [
+                "Nominal swath",
+                "1,100 km"
+              ]
+            ]
+          },
+          {
+            "name": "CATS",
+            "fullName": "Cloud-Aerosol Transport System",
+            "retired": true,
+            "rows": [
+              [
+                "Kind",
+                "Atmospheric lidar"
+              ],
+              [
+                "Bands",
+                "VIS · NIR"
+              ]
+            ]
+          },
+          {
+            "name": "LIS",
+            "fullName": "Lightning Imaging Sensor",
+            "retired": true,
+            "rows": [
+              [
+                "Kind",
+                "Lightning imager"
+              ],
+              [
+                "Bands",
+                "NIR"
+              ]
+            ]
+          },
+          {
+            "name": "HEIST",
+            "fullName": "Hyperspectral Earth Imaging Sensor",
+            "retired": true,
+            "rows": [
+              [
+                "Kind",
+                "High-resolution nadir-scanning SW spectrometer"
+              ],
+              [
+                "Resolution",
+                "28 m"
+              ],
+              [
+                "Nominal swath",
+                "38 km"
+              ]
+            ]
+          }
         ]
       },
       "elements": {
@@ -1581,6 +1851,195 @@
             "Status",
             "Operational"
           ]
+        ],
+        "instruments": [
+          {
+            "name": "AMSU-A",
+            "fullName": "Advanced Microwave Sounding Unit-A",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Absorption-band MW radiometer/spectrometer"
+              ],
+              [
+                "Bands",
+                "MW"
+              ],
+              [
+                "Resolution",
+                "48 km"
+              ],
+              [
+                "Nominal swath",
+                "2,054 km"
+              ]
+            ]
+          },
+          {
+            "name": "ASCAT",
+            "fullName": "Advanced Scatterometer",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Radar scatterometer"
+              ],
+              [
+                "Bands",
+                "MW · C-Band"
+              ],
+              [
+                "Resolution",
+                "25 km"
+              ],
+              [
+                "Nominal swath",
+                "500 km"
+              ]
+            ]
+          },
+          {
+            "name": "AVHRR/3",
+            "fullName": "Advanced Very High Resolution Radiometer/3",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Multi-purpose imaging Vis/IR radiometer"
+              ],
+              [
+                "Bands",
+                "VIS · NIR · SWIR · MWIR · TIR"
+              ],
+              [
+                "Resolution",
+                "1.1 km"
+              ],
+              [
+                "Nominal swath",
+                "3,000 km"
+              ]
+            ]
+          },
+          {
+            "name": "GOME-2",
+            "fullName": "Global Ozone Monitoring Experiment - 2",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "High-resolution nadir-scanning SW spectrometer"
+              ],
+              [
+                "Bands",
+                "UV · VIS · NIR"
+              ],
+              [
+                "Resolution",
+                "5 km"
+              ],
+              [
+                "Nominal swath",
+                "960 km"
+              ]
+            ]
+          },
+          {
+            "name": "GRAS",
+            "fullName": "Global Navigation Satellite Systems (GNSS) Receiver for Atmospheric Sounding",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "GNSS radio-occultation receiver"
+              ],
+              [
+                "Bands",
+                "MW"
+              ],
+              [
+                "Resolution",
+                "150 m"
+              ],
+              [
+                "Nominal swath",
+                "30 km"
+              ]
+            ]
+          },
+          {
+            "name": "IASI",
+            "fullName": "Infrared Atmospheric Sounding Interferometer",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Medium-resolution IR spectrometer"
+              ],
+              [
+                "Bands",
+                "MWIR · TIR"
+              ],
+              [
+                "Resolution",
+                "25 km"
+              ],
+              [
+                "Nominal swath",
+                "2,052 km"
+              ]
+            ]
+          },
+          {
+            "name": "MHS",
+            "fullName": "Microwave Humidity Sounder",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Absorption-band MW radiometer/spectrometer"
+              ],
+              [
+                "Bands",
+                "MW"
+              ],
+              [
+                "Resolution",
+                "30 km"
+              ],
+              [
+                "Nominal swath",
+                "1,650 km"
+              ]
+            ]
+          },
+          {
+            "name": "SEM (POES)",
+            "fullName": "Space Environment Monitor",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Space environment monitor"
+              ]
+            ]
+          },
+          {
+            "name": "A-DCS3",
+            "fullName": "Argos Advanced Data Collection System3",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Data collection system"
+              ],
+              [
+                "Bands",
+                "MW"
+              ]
+            ]
+          }
         ]
       },
       "elements": {
@@ -1677,7 +2136,8 @@
             "Status",
             "Operational"
           ]
-        ]
+        ],
+        "instruments": []
       },
       "elements": {
         "kind": "omm",
@@ -1769,6 +2229,119 @@
             "Status",
             "Operational"
           ]
+        ],
+        "instruments": [
+          {
+            "name": "ABI",
+            "fullName": "Advanced Baseline Imager",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Multi-purpose imaging Vis/IR radiometer"
+              ],
+              [
+                "Bands",
+                "VIS · NIR · SWIR · MWIR · TIR"
+              ],
+              [
+                "Resolution",
+                "500 m"
+              ]
+            ]
+          },
+          {
+            "name": "CCOR-1",
+            "fullName": "Compact Coronagraph - 1",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Space environment monitor"
+              ],
+              [
+                "Bands",
+                "VIS"
+              ]
+            ]
+          },
+          {
+            "name": "EXIS",
+            "fullName": "Extreme Ultraviolet and X-ray Irradiance Sensors",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Solar irradiance monitor"
+              ]
+            ]
+          },
+          {
+            "name": "GLM",
+            "fullName": "Geostationary Lightning Mapper",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Lightning imager"
+              ],
+              [
+                "Bands",
+                "NIR"
+              ],
+              [
+                "Resolution",
+                "10 km"
+              ]
+            ]
+          },
+          {
+            "name": "Magnetometer (GOES)",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Magnetometer"
+              ]
+            ]
+          },
+          {
+            "name": "SEISS",
+            "fullName": "Space Environment In Situ Suite",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Space environment monitor"
+              ]
+            ]
+          },
+          {
+            "name": "SUVI",
+            "fullName": "Solar Ultraviolet Imager",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Solar irradiance monitor"
+              ],
+              [
+                "Bands",
+                "UV"
+              ]
+            ]
+          },
+          {
+            "name": "DCS (GOES)",
+            "fullName": "Data Collection System (GOES)",
+            "retired": false,
+            "rows": [
+              [
+                "Kind",
+                "Data collection system"
+              ]
+            ]
+          }
         ]
       },
       "elements": {
@@ -1854,7 +2427,8 @@
             "Status",
             "Partially operational"
           ]
-        ]
+        ],
+        "instruments": []
       },
       "elements": {
         "kind": "omm",
@@ -1916,7 +2490,8 @@
             "3,863 / 651 km"
           ]
         ],
-        "spacecraftRows": []
+        "spacecraftRows": [],
+        "instruments": []
       },
       "elements": {
         "kind": "tle",

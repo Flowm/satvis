@@ -35,7 +35,151 @@
       "launchSite": "TYMSC",
       "opsStatus": "+",
       "orbitType": "ORB",
-      "orbitCenter": "EA"
+      "orbitCenter": "EA",
+      "instruments": [
+        {
+          "name": "SAGE-III",
+          "fullName": "Stratospheric Aerosol and Gas Experiment",
+          "kind": "Limb-scanning SW spectrometer",
+          "bands": [
+            "UV",
+            "VIS",
+            "NIR",
+            "SWIR"
+          ]
+        },
+        {
+          "name": "TSIS-1/SIM",
+          "fullName": "Total Solar and Spectral Irradiance Sensor 1 - Spectral Irradiance Monitor",
+          "kind": "Solar irradiance monitor",
+          "bands": [
+            "UV",
+            "VIS",
+            "NIR",
+            "SWIR"
+          ]
+        },
+        {
+          "name": "TSIS-1/TIM",
+          "fullName": "Total Solar and Spectral Irradiance Sensor 1 - Total Irradiance Monitor",
+          "kind": "Solar irradiance monitor"
+        },
+        {
+          "name": "DESIS",
+          "fullName": "DLR Earth Sensing Imaging Spectrometer",
+          "kind": "Medium-resolution spectro-radiometer",
+          "bands": [
+            "VIS",
+            "NIR"
+          ],
+          "resolutionM": 79,
+          "nominalSwathKm": 57
+        },
+        {
+          "name": "PHyTIR",
+          "fullName": "Prototype HyspIRI Thermal Infrared Radiometer (PHyTIR)",
+          "kind": "High-resolution nadir-scanning IR spectrometer",
+          "bands": [
+            "TIR"
+          ]
+        },
+        {
+          "name": "GEDI",
+          "fullName": "Global Ecosystem Dynamics Investigation Lidar",
+          "kind": "Lidar altimeter",
+          "bands": [
+            "NIR"
+          ]
+        },
+        {
+          "name": "Spectrometer (OCO-3)",
+          "kind": "High-resolution nadir-scanning SW spectrometer",
+          "bands": [
+            "NIR"
+          ],
+          "resolutionM": 2250,
+          "nominalSwathKm": 4
+        },
+        {
+          "name": "EMIT",
+          "fullName": "Earth Surface Mineral Dust Source Investigation",
+          "kind": "High-resolution nadir-scanning SW spectrometer",
+          "bands": [
+            "SWIR"
+          ],
+          "resolutionM": 60,
+          "nominalSwathKm": 80
+        },
+        {
+          "name": "CIRC (ISS/JEM)",
+          "fullName": "Compact InfraRed Camera (ISS/JEM)",
+          "kind": "Multi-purpose imaging Vis/IR radiometer",
+          "bands": [
+            "TIR"
+          ],
+          "resolutionM": 130,
+          "nominalSwathKm": 128,
+          "retired": true
+        },
+        {
+          "name": "SMILES",
+          "fullName": "Superconducting Submillimeter-Wave Limb-Emission Sounder",
+          "kind": "Limb-scanning MW spectrometer",
+          "bands": [
+            "MW"
+          ],
+          "retired": true
+        },
+        {
+          "name": "HICO",
+          "fullName": "Hyperspectral Imager for the Coastal Ocean",
+          "kind": "Medium-resolution spectro-radiometer",
+          "bands": [
+            "VIS",
+            "NIR"
+          ],
+          "resolutionM": 90,
+          "retired": true
+        },
+        {
+          "name": "RapidScat",
+          "fullName": "Rapid Scatterometer",
+          "kind": "Radar scatterometer",
+          "bands": [
+            "Ku-Band"
+          ],
+          "resolutionM": 730,
+          "nominalSwathKm": 1100,
+          "retired": true
+        },
+        {
+          "name": "CATS",
+          "fullName": "Cloud-Aerosol Transport System",
+          "kind": "Atmospheric lidar",
+          "bands": [
+            "VIS",
+            "NIR"
+          ],
+          "retired": true
+        },
+        {
+          "name": "LIS",
+          "fullName": "Lightning Imaging Sensor",
+          "kind": "Lightning imager",
+          "bands": [
+            "NIR"
+          ],
+          "retired": true
+        },
+        {
+          "name": "HEIST",
+          "fullName": "Hyperspectral Earth Imaging Sensor",
+          "kind": "High-resolution nadir-scanning SW spectrometer",
+          "resolutionM": 28,
+          "nominalSwathKm": 38,
+          "retired": true
+        }
+      ]
     }
   },
   {
@@ -75,7 +219,100 @@
       "orbitType": "ORB",
       "orbitCenter": "EA",
       "swathStarboardKm": 1450,
-      "swathPortKm": 1450
+      "swathPortKm": 1450,
+      "instruments": [
+        {
+          "name": "AMSU-A",
+          "fullName": "Advanced Microwave Sounding Unit-A",
+          "kind": "Absorption-band MW radiometer/spectrometer",
+          "bands": [
+            "MW"
+          ],
+          "resolutionM": 48000,
+          "nominalSwathKm": 2054
+        },
+        {
+          "name": "ASCAT",
+          "fullName": "Advanced Scatterometer",
+          "kind": "Radar scatterometer",
+          "bands": [
+            "MW",
+            "C-Band"
+          ],
+          "resolutionM": 25000,
+          "nominalSwathKm": 500
+        },
+        {
+          "name": "AVHRR/3",
+          "fullName": "Advanced Very High Resolution Radiometer/3",
+          "kind": "Multi-purpose imaging Vis/IR radiometer",
+          "bands": [
+            "VIS",
+            "NIR",
+            "SWIR",
+            "MWIR",
+            "TIR"
+          ],
+          "resolutionM": 1100,
+          "nominalSwathKm": 3000
+        },
+        {
+          "name": "GOME-2",
+          "fullName": "Global Ozone Monitoring Experiment - 2",
+          "kind": "High-resolution nadir-scanning SW spectrometer",
+          "bands": [
+            "UV",
+            "VIS",
+            "NIR"
+          ],
+          "resolutionM": 5000,
+          "nominalSwathKm": 960
+        },
+        {
+          "name": "GRAS",
+          "fullName": "Global Navigation Satellite Systems (GNSS) Receiver for Atmospheric Sounding",
+          "kind": "GNSS radio-occultation receiver",
+          "bands": [
+            "MW"
+          ],
+          "resolutionM": 150,
+          "nominalSwathKm": 30
+        },
+        {
+          "name": "IASI",
+          "fullName": "Infrared Atmospheric Sounding Interferometer",
+          "kind": "Medium-resolution IR spectrometer",
+          "bands": [
+            "MWIR",
+            "TIR"
+          ],
+          "resolutionM": 25000,
+          "nominalSwathKm": 2052
+        },
+        {
+          "name": "MHS",
+          "fullName": "Microwave Humidity Sounder",
+          "kind": "Absorption-band MW radiometer/spectrometer",
+          "bands": [
+            "MW"
+          ],
+          "resolutionM": 30000,
+          "nominalSwathKm": 1650
+        },
+        {
+          "name": "SEM (POES)",
+          "fullName": "Space Environment Monitor",
+          "kind": "Space environment monitor"
+        },
+        {
+          "name": "A-DCS3",
+          "fullName": "Argos Advanced Data Collection System3",
+          "kind": "Data collection system",
+          "bands": [
+            "MW"
+          ]
+        }
+      ]
     }
   },
   {
@@ -138,7 +375,66 @@
       "launchSite": "AFETR",
       "opsStatus": "+",
       "orbitType": "ORB",
-      "orbitCenter": "EA"
+      "orbitCenter": "EA",
+      "instruments": [
+        {
+          "name": "ABI",
+          "fullName": "Advanced Baseline Imager",
+          "kind": "Multi-purpose imaging Vis/IR radiometer",
+          "bands": [
+            "VIS",
+            "NIR",
+            "SWIR",
+            "MWIR",
+            "TIR"
+          ],
+          "resolutionM": 500
+        },
+        {
+          "name": "CCOR-1",
+          "fullName": "Compact Coronagraph - 1",
+          "kind": "Space environment monitor",
+          "bands": [
+            "VIS"
+          ]
+        },
+        {
+          "name": "EXIS",
+          "fullName": "Extreme Ultraviolet and X-ray Irradiance Sensors",
+          "kind": "Solar irradiance monitor"
+        },
+        {
+          "name": "GLM",
+          "fullName": "Geostationary Lightning Mapper",
+          "kind": "Lightning imager",
+          "bands": [
+            "NIR"
+          ],
+          "resolutionM": 10000
+        },
+        {
+          "name": "Magnetometer (GOES)",
+          "kind": "Magnetometer"
+        },
+        {
+          "name": "SEISS",
+          "fullName": "Space Environment In Situ Suite",
+          "kind": "Space environment monitor"
+        },
+        {
+          "name": "SUVI",
+          "fullName": "Solar Ultraviolet Imager",
+          "kind": "Solar irradiance monitor",
+          "bands": [
+            "UV"
+          ]
+        },
+        {
+          "name": "DCS (GOES)",
+          "fullName": "Data Collection System (GOES)",
+          "kind": "Data collection system"
+        }
+      ]
     }
   },
   {

@@ -2,7 +2,7 @@ import SatvisCore
 import SwiftUI
 
 /// What the web app's EntityInfoPanel shows for a satellite: who it is, then its
-/// orbit, the spacecraft and its passes, a tab each.
+/// orbit, the spacecraft, its instruments and its passes, a tab each.
 struct InfoPanel: View {
     let entry: CatalogEntry
     let clock: ViewerClock
@@ -24,7 +24,10 @@ struct InfoPanel: View {
         let links = WebTables.shared.externalLinks.compactMap { link in link.url(satnum: entry.satnum).map { (link, $0) } }
         // Only satellites a model manifest lists have one (ADR 0007).
         let modelFile = entry.record.model?.file
-        let tabs: [InfoTab] = modelFile == nil && spacecraftFacts.isEmpty && links.isEmpty ? [.orbit, .passes] : [.orbit, .spacecraft, .passes]
+        // Only the few hundred satellites CEOS lists have any (ADR 0018).
+        let instruments = SatelliteDetails.instruments(entry.record)
+        let hasSpacecraft = modelFile != nil || !spacecraftFacts.isEmpty || !links.isEmpty
+        let tabs: [InfoTab] = [.orbit] + (hasSpacecraft ? [.spacecraft] : []) + (instruments.isEmpty ? [] : [.instruments]) + [.passes]
         NavigationStack {
             List {
                 Section {
@@ -56,6 +59,8 @@ struct InfoPanel: View {
                         orbit(propagator)
                     case .spacecraft:
                         spacecraft(modelFile: modelFile, facts: spacecraftFacts, links: links)
+                    case .instruments:
+                        self.instruments(instruments)
                     default:
                         PassesSections(subject: .satellite(entry), clock: clock, passes: passes)
                     }
@@ -183,6 +188,24 @@ struct InfoPanel: View {
         }
     }
 
+    /// What it observes with, a card an instrument, and under the last whose list it is.
+    @ViewBuilder private func instruments(_ instruments: [SatelliteDetails.Instrument]) -> some View {
+        ForEach(Array(instruments.enumerated()), id: \.offset) { index, instrument in
+            Section {
+                InstrumentHeading(instrument: instrument)
+                ForEach(Array(instrument.rows.enumerated()), id: \.offset) { _, row in
+                    FactRow(label: row.0, value: row.1)
+                }
+            } footer: {
+                if index == instruments.count - 1 {
+                    // CC BY 4.0 asks for the credit where the data is shown.
+                    Link("CEOS MIM Database, CC BY 4.0", destination: URL(string: "https://database.eohandbook.com")!)
+                        .font(.footnote)
+                }
+            }
+        }
+    }
+
     /// The web app's subtitle line: the catalog number, then the chips, the orbit in
     /// its class's colour, the country, and a status other than Operational in amber.
     private func subheading(_ propagator: SGP4Propagator?) -> Text {
@@ -198,7 +221,7 @@ struct InfoPanel: View {
 
 /// The panels' tabs, kept by their raw values.
 enum InfoTab: String {
-    case orbit, spacecraft, passes, location
+    case orbit, spacecraft, instruments, passes, location
 
     /// `tab` where `tabs` has it, else the first: the one chosen last may be one this selection lacks.
     static func resolved(_ tab: InfoTab, among tabs: [InfoTab]) -> InfoTab {
@@ -521,6 +544,38 @@ private struct FactRow: View {
         }
         // One element, "<label>, <value>", as LabeledContent read.
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// An instrument's short name, "Retired" beside it once its mission is over, and its
+/// full name under both, as the web app heads each instrument.
+private struct InstrumentHeading: View {
+    let instrument: SatelliteDetails.Instrument
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(instrument.name)
+                    .font(.headline)
+                if instrument.isRetired {
+                    Text("Retired")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(.quaternary, in: .capsule)
+                }
+            }
+            if let fullName = instrument.fullName {
+                Text(fullName)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .textSelection(.enabled)
+        // One element, "<name>, Retired, <full name>", which heads the rows under it.
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 

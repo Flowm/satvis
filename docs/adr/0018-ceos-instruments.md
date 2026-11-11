@@ -89,10 +89,10 @@ low orbit: CEOS gives a geostationary imager 500 km.
 - **One request a day to CEOS**, and 23 when a snapshot is loaded: 4.7 MB, 535 KB
   stored. Its API allows 30 a second without a key.
 - **`push-catalog` takes two minutes longer**, its pause before a fifth table.
-- **The native app does not list instruments yet.** It reads the bag as opaque JSON, so
-  the field costs it nothing.
-- **CEOS is CC BY 4.0.** The about page and the Instruments tab credit "CEOS MIM
-  Database".
+- **The native app has the same tab**, with the same rows: its `SatelliteDetails` is
+  held to `getSatelliteInfo`'s instruments by the parity fixtures.
+- **CEOS is CC BY 4.0.** The about page, the native app's Acknowledgements and both
+  Instruments tabs credit "CEOS MIM Database".
 
 ## Alternatives rejected
 

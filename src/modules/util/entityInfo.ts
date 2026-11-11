@@ -42,8 +42,8 @@ export interface InstrumentInfo {
 
 /**
  * What the info panel shows of a satellite: a header, the facts as rows for its Orbit
- * and Spacecraft tabs, and its instruments. The two row lists in order are the single
- * list the native app shows.
+ * and Spacecraft tabs, and its instruments. The native app's `SatelliteDetails` writes
+ * the same, held to this by the parity fixtures.
  */
 export interface SatelliteInfo {
   /** Colours the orbit chip. */

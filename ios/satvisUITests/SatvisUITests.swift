@@ -106,6 +106,25 @@ nonisolated class SatvisUITests: XCTestCase {
         }
     }
 
+    // The Instruments tab heads each instrument CEOS lists with its names, Retired
+    // between them once its mission is over, above its facts as rows and, under the
+    // last, the credit CC BY asks for.
+    @MainActor
+    func testListsTheInstruments() {
+        let app = search("INSAT-3D")
+        app.buttons["Details of INSAT-3D"].tap()
+        XCTAssert(app.navigationBars["INSAT-3D"].waitForExistence(timeout: 10))
+        app.buttons["Instruments"].tap()
+        for label in ["Imager (INSAT 3D), Retired, Very High Resolution Radiometer", "Resolution, 1 km", "CEOS MIM Database, CC BY 4.0"] {
+            let row = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
+            // Under a phone's half-height sheet, in a lazy list.
+            for _ in 0..<4 where !row.waitForExistence(timeout: 2) {
+                app.collectionViews.firstMatch.swipeUp()
+            }
+            XCTAssert(row.exists, label)
+        }
+    }
+
     // The Graphics panel's Hide UI hides the menu column, the clock deck and the
     // corner's buttons, as the web app's does, and the corner's Show UI, there
     // alone while they are hidden, brings them back with the panel closed.
