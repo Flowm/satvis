@@ -157,7 +157,7 @@ changed, and reports every table to `PUT /api/upstream/<name>`: the new file as 
 body with upstream's ETag in `X-Upstream-ETag`, or no body with
 `X-Upstream-Status: 304` or `X-Upstream-Error: <message>`. `SATVIS_API_URL` overrides the worker
 (default `https://satvis.space`). It waits 2 minutes between tables, so a run takes
-about 7: a report of a new file or a 304 costs the Worker more CPU than Workers Free
+about 9: a report of a new file or a 304 costs the Worker more CPU than Workers Free
 allows, and back to back they get a 503. `SATVIS_TABLE_PAUSE_MS=0` skips the wait
 against a local `wrangler dev`. It exits non-zero when a table was not refreshed.
 `POST /api/upstream/refresh` does the same from the worker itself, behind the same
@@ -329,7 +329,7 @@ too, so a parser change applies after the next `push-catalog`. They are stored
 only by `push-catalog` and `POST /api/upstream/refresh`; a new file that does not
 parse is refused and the stored one stands. Each download is conditional on the
 stored `ETag`, so an unchanged table costs a 304; CEOS's is its snapshot version,
-one small request before the 21 that make up its file. `pnpm update-gp` keeps its copies
+one small request before the 21 that make up its file, and again after them. `pnpm update-gp` keeps its copies
 in `worker/.cache/<name>.gz`, outside `data/` because everything in `data/` ships;
 deleting one costs a full download, 6.7 MB for SATCAT and 19 MB for GCAT's catalog.
 A missing table leaves every group untouched, only less enriched

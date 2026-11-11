@@ -23,14 +23,14 @@ interface Contribution {
  * bags. `loaded` holds the bags of the contributors before it, by name.
  */
 const CONTRIBUTORS: readonly { name: string; load: (store: GroupStore, loaded: Readonly<Record<string, Bags>>) => Promise<Bags> }[] = [
-  { name: "satcat", load: async (store) => (await loadUpstream(SATCAT, store)) ?? {} },
+  { name: SATCAT.name, load: async (store) => (await loadUpstream(SATCAT, store)) ?? {} },
   {
     name: "gcat",
     // One after another, so each file's text is released before the next.
     load: async (store) => gcatBags(await loadUpstream(GCAT_CATALOG, store), await loadUpstream(GCAT_ORGS, store), await loadUpstream(GCAT_PAYLOADS, store)),
   },
-  // After SATCAT, whose launch dates say which of CEOS's NORAD ids to believe (ADR 0018).
-  { name: "ceos", load: async (store, loaded) => ceosBags(await loadUpstream(CEOS, store), loaded.satcat) },
+  /** After SATCAT, whose launch dates say which of CEOS's NORAD ids to believe (ADR 0018). */
+  { name: CEOS.name, load: async (store, loaded) => ceosBags(await loadUpstream(CEOS, store), loaded[SATCAT.name]) },
 ];
 
 export class SatelliteTable {

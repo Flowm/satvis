@@ -26,19 +26,21 @@ November 2026 and matched against the 5,822 satellites served outside Starlink.
 contributor.** It owns one field, `instruments`: a list in which each instrument has a
 `name`, and where CEOS gives them a `fullName`, a `kind`, its waveband classes
 (`bands`), its finest resolution (`resolutionM`) and its nominal swath width
-(`swathKm`), with `retired` on one whose mission is over.
+(`nominalSwathKm`), with `retired` on one whose mission is over.
 
 **The table is one file put together from 21 downloads**: the missions, the
 instruments, the combinations that say which mission carries which instrument, and each
 of 17 wavebands with its instruments. The missions name their instruments by short name
 alone, and five instruments are named "AIS", so only the combinations join the two. One
-file means one snapshot: no list is ever joined to another's older copy.
-`UpstreamSpec.assemble` is the hook: a spec that has one fetches its own file, in place
-of a conditional GET.
+file is stored or refused whole, so no list is joined to another's copy from an earlier
+day. `UpstreamSpec.assemble` is the hook: a spec that has one fetches its own file, in
+place of a conditional GET.
 
 **The file's ETag is CEOS's snapshot version**, from `/meta`, which CEOS says to ask
 before downloading again: the identifier registry's hash and the time it was generated.
-An unchanged snapshot costs that one request.
+An unchanged snapshot costs that one request. A new one is asked for its version again
+after the downloads, and the file is dropped if it differs: a snapshot loaded between
+two lists would otherwise be stored half old.
 
 **`kind` is CEOS's technology** ("Imaging radar (SAR)", 37 values), or its instrument
 type where it gives none. The technology is singular and specific; the type is a
@@ -61,11 +63,14 @@ known", which a wrong list does not.
 **Missions sharing a NORAD id are merged**: the instruments still flown first, then the
 retired ones, a name counted once.
 
+**`retired` needs CEOS to say the mission is over**: "Mission complete", or "Cancelled".
+TIMED's status is "N/A", and it still flies SABER, which is listed without it.
+
 **The info panel has an Instruments tab**, between Spacecraft and Passes, for a
 satellite that has any. The ISS has 15 instruments, which as rows under the spacecraft
 facts would bury them.
 
-**`swathKm` is shown, never drawn.** It is a nominal total, 1,675 km for SLSTR against
+**`nominalSwathKm` is shown, never drawn.** It is a nominal total, 1,675 km for SLSTR against
 the calibrated 1,000 and 500 per side, so the ground track and the passes keep the
 curated extents (ADR 0002). The panel calls it "Nominal swath", and shows it only on a
 low orbit: CEOS gives a geostationary imager 500 km.
@@ -74,14 +79,14 @@ low orbit: CEOS gives a geostationary imager 500 km.
 
 - **254 served satellites carry 740 instruments.** All 20 satellites with a curated
   swath are among them, each with the instrument its swath belongs to.
-- **Not every instrument has every figure**: of the 740, 686 have a full name beyond the
-  short one, 735 a kind, 523 bands, 382 a resolution and 337 a swath.
+- **Not every instrument has every figure**: of the 740, 687 have a full name beyond the
+  short one, 735 a kind, 523 bands, 383 a resolution and 337 a swath.
 - **Coverage follows who answers the survey**: by GCAT purpose, 56 of 102 weather
   satellites and 33 of 70 Earth science ones, but 88 of 650 imaging ones. Commercial
   constellations and military imagers are mostly absent.
 - **The served payloads grow by 4.5%**: 553 to 578 KB gzip, over the satellites of every
   group but Starlink. Names and kinds alone were 2%.
-- **One request a day to CEOS**, and 22 when a snapshot is loaded: 4.7 MB, 535 KB
+- **One request a day to CEOS**, and 23 when a snapshot is loaded: 4.7 MB, 535 KB
   stored. Its API allows 30 a second without a key.
 - **`push-catalog` takes two minutes longer**, its pause before a fifth table.
 - **The native app does not list instruments yet.** It reads the bag as opaque JSON, so

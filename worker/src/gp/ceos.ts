@@ -20,8 +20,11 @@ export const CEOS_META_URL = `${CEOS_API}/meta`;
  */
 export const CEOS_LIST_URLS = { missions: `${CEOS_API}/missions`, instruments: `${CEOS_API}/instruments`, combinations: `${CEOS_API}/combinations` } as const;
 
-/** The wavebands, and through `/waveband/<id>` each one's instruments: 17 bands, ~2.1 MB. */
+/** The 17 wavebands; each one's instruments are a request of their own, ~2.1 MB in all. */
 export const CEOS_WAVEBANDS_URL = `${CEOS_API}/wavebands`;
+
+/** One waveband, with the instruments that sense in it. */
+export const ceosWavebandUrl = (id: unknown): string => `${CEOS_API}/waveband/${String(id)}`;
 
 /** The metadata keys CEOS owns; no other upstream table may write them (ADR 0008). */
 export const CEOS_KEYS: readonly string[] = ["instruments"];
@@ -34,8 +37,11 @@ const FIELDS = {
   wavebands: ["abbr", "instruments"],
 } as const;
 
-/** The statuses of a mission still flying its instruments; any other retires them. */
-const OPERATING = /^(Operational|Commissioning)/;
+/**
+ * The statuses that retire a mission's instruments. "N/A" and "Uncertain" do not: CEOS
+ * does not say the mission is over.
+ */
+const OVER = /^(Mission complete|Cancelled)/;
 
 /**
  * How far before the satellite's launch a mission's may lie. The two sources disagree by
@@ -47,16 +53,28 @@ const LAUNCH_SLACK_DAYS = 1;
 type Entry = Record<string, unknown>;
 
 /**
- * The file: the version first, then each list as CEOS answered it, the wavebands in the
- * order CEOS lists them. `etag` is the stored file's version.
+ * The snapshot's version, from `/meta`'s answer: the hash is of the identifiers, and the
+ * time says a snapshot was loaded, even one that changed none.
  */
-async function assembleCeos(get: (url: string) => Promise<string>, etag: string | undefined): Promise<{ body: string; etag: string } | undefined> {
-  const meta = JSON.parse(await get(CEOS_META_URL)) as { registry_version?: unknown; registry_generated_at?: unknown };
-  if (typeof meta.registry_version !== "string") {
+function versionOf(meta: string): string {
+  const { registry_version: hash, registry_generated_at: generated } = JSON.parse(meta) as { registry_version?: unknown; registry_generated_at?: unknown };
+  if (typeof hash !== "string") {
     throw new Error("no registry_version in /meta");
   }
-  // The hash is of the identifiers; the time says a snapshot was loaded, even one that changed none.
-  const version = `${meta.registry_version}@${String(meta.registry_generated_at)}`;
+  return `${hash}@${String(generated)}`;
+}
+
+/** The stored file: each list as CEOS answered it, the wavebands in the order CEOS lists them. */
+export function ceosFileOf(lists: { missions: string; instruments: string; combinations: string; wavebands: readonly string[] }): string {
+  return `{"missions":${lists.missions},"instruments":${lists.instruments},"combinations":${lists.combinations},"wavebands":[${lists.wavebands.join(",")}]}`;
+}
+
+/**
+ * `etag` is the stored file's version. The version is asked for again after the lists: a
+ * snapshot loaded between two of them would be stored half old, under the old version.
+ */
+async function assembleCeos(get: (url: string) => Promise<string>, etag: string | undefined): Promise<{ body: string; etag: string } | undefined> {
+  const version = versionOf(await get(CEOS_META_URL));
   if (version === etag) {
     return undefined;
   }
@@ -67,8 +85,11 @@ async function assembleCeos(get: (url: string) => Promise<string>, etag: string 
   if (!Array.isArray(index.wavebands) || index.wavebands.length === 0) {
     throw new Error("no wavebands list");
   }
-  const wavebands = await Promise.all(index.wavebands.map(({ waveband_id: id }) => get(`${CEOS_API}/waveband/${String(id)}`)));
-  return { body: `{"missions":${missions},"instruments":${instruments},"combinations":${combinations},"wavebands":[${wavebands.join(",")}]}`, etag: version };
+  const wavebands = await Promise.all(index.wavebands.map(({ waveband_id: id }) => get(ceosWavebandUrl(id))));
+  if (versionOf(await get(CEOS_META_URL)) !== version) {
+    throw new Error("the snapshot changed during the download");
+  }
+  return { body: ceosFileOf({ missions, instruments, combinations, wavebands }), etag: version };
 }
 
 /** A non-empty list whose first entry has every field the parser reads of it. */
@@ -84,36 +105,42 @@ function listOf(list: unknown, name: keyof typeof FIELDS): Entry[] {
   return list as Entry[];
 }
 
+/** CEOS writes null, or 0, for a figure it does not have. */
 const positive = (value: unknown): number | undefined => (typeof value === "number" && value > 0 ? value : undefined);
 
 /** What the instrument list and the wavebands say of one instrument. */
-interface Detail {
+interface InstrumentDetail {
   name: string;
   fullName?: string;
-  figures: Pick<SatelliteInstrument, "bands" | "resolutionM" | "swathKm">;
+  figures: Pick<SatelliteInstrument, "bands" | "resolutionM" | "nominalSwathKm">;
 }
 
-/** Each instrument's detail, by its id. */
-function instrumentDetails(instruments: Entry[], wavebands: Entry[]): Map<unknown, Detail> {
-  const bands = new Map<unknown, string[]>();
+/**
+ * By instrument id. The names are trimmed as `instrumentsOf` trims the missions' copies
+ * of them: eight short names end in a space or a newline.
+ */
+function instrumentDetails(instruments: Entry[], wavebands: Entry[]): Map<number, InstrumentDetail> {
+  const bands = new Map<number, string[]>();
   for (const { abbr, instruments: tagged } of wavebands) {
     for (const { instrument_id: id } of Array.isArray(tagged) ? (tagged as Entry[]) : []) {
-      if (typeof abbr === "string") {
+      if (typeof abbr === "string" && typeof id === "number") {
         bands.set(id, [...(bands.get(id) ?? []), abbr]);
       }
     }
   }
-  const details = new Map<unknown, Detail>();
-  for (const { instrument_id: id, name_short: name, name_full: fullName, spatial_resolution_best: resolution, swath_width_max: swath } of instruments) {
-    if (typeof name !== "string") {
+  const details = new Map<number, InstrumentDetail>();
+  for (const { instrument_id: id, name_short: short, name_full: full, spatial_resolution_best: resolution, swath_width_max: swath } of instruments) {
+    if (typeof id !== "number" || typeof short !== "string") {
       continue;
     }
+    const name = short.trim();
+    const fullName = typeof full === "string" ? full.trim() : "";
     const resolutionM = positive(resolution);
-    const swathKm = positive(swath);
+    const nominalSwathKm = positive(swath);
     details.set(id, {
       name,
-      ...(typeof fullName === "string" && fullName !== "" && fullName !== name && { fullName }),
-      figures: { ...(bands.has(id) && { bands: bands.get(id) }), ...(resolutionM !== undefined && { resolutionM }), ...(swathKm !== undefined && { swathKm }) },
+      ...(fullName !== "" && fullName !== name && { fullName }),
+      figures: { ...(bands.has(id) && { bands: bands.get(id) }), ...(resolutionM !== undefined && { resolutionM }), ...(nominalSwathKm !== undefined && { nominalSwathKm }) },
     });
   }
   return details;
@@ -125,7 +152,7 @@ function instrumentDetails(instruments: Entry[], wavebands: Entry[]): Map<unknow
  * after it does not move it. `carried` are the mission's instruments by the combinations,
  * matched by name: within one mission a name is its own. The kind is this list's alone.
  */
-function instrumentsOf(listed: string, carried: readonly Detail[]): SatelliteInstrument[] {
+function instrumentsOf(listed: string, carried: readonly InstrumentDetail[]): SatelliteInstrument[] {
   const instruments: SatelliteInstrument[] = [];
   for (const entry of listed.split("|")) {
     const [name, type, , technology] = entry.split("~").map((field) => field.trim());
@@ -158,9 +185,12 @@ export function parseCeos(body: string): CeosRows {
     throw new Error(`one page of the missions: ${String(pagination.returned)} of ${String(pagination.total)}`);
   }
   const details = instrumentDetails(listOf(file.instruments?.instruments, "instruments"), listOf(file.wavebands, "wavebands"));
-  const carried = new Map<unknown, unknown[]>();
+  const byMission = new Map<number, InstrumentDetail[]>();
   for (const { mission_id: mission, instrument_id: instrument } of listOf(file.combinations?.combinations, "combinations")) {
-    carried.set(mission, [...(carried.get(mission) ?? []), instrument]);
+    const detail = typeof instrument === "number" ? details.get(instrument) : undefined;
+    if (typeof mission === "number" && detail !== undefined) {
+      byMission.set(mission, [...(byMission.get(mission) ?? []), detail]);
+    }
   }
 
   const rows: CeosRows = {};
@@ -169,17 +199,14 @@ export function parseCeos(body: string): CeosRows {
     if (typeof noradId !== "number" || noradId <= 0 || typeof launchDate !== "string" || Number.isNaN(Date.parse(launchDate)) || typeof listed !== "string") {
       continue;
     }
-    const instruments = instrumentsOf(
-      listed,
-      (carried.get(id) ?? []).flatMap((instrument) => details.get(instrument) ?? []),
-    );
+    const instruments = instrumentsOf(listed, (typeof id === "number" ? byMission.get(id) : undefined) ?? []);
     if (instruments.length === 0) {
       continue;
     }
     const row: CeosMission = {
       name: typeof name === "string" ? name : "",
       launchDate,
-      ...(!(typeof status === "string" && OPERATING.test(status)) && { retired: true as const }),
+      ...(typeof status === "string" && OVER.test(status) && { retired: true as const }),
       instruments,
     };
     (rows[normalizeSatnumKey(String(noradId))] ??= []).push(row);
@@ -240,6 +267,6 @@ export const CEOS: UpstreamSpec<CeosRows> = {
   assemble: assembleCeos,
   parse: parseCeos,
   timeoutMs: 60_000,
-  // An annual agency survey, with corrections between; push-catalog checks daily.
+  /** An annual agency survey, with corrections between; push-catalog checks daily. */
   staleAfterMs: 10 * 24 * 3600_000,
 };

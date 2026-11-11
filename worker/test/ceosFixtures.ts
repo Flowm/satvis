@@ -1,7 +1,8 @@
 // CEOS's lists as its API serves them, cut to the fields the parser reads and a few it
-// does not. ceos.test.ts, upstream.test.ts and refresh.test.ts share them.
+// does not. ceos.test.ts, refresh.test.ts and api.test.ts share them.
 
-import { CEOS_LIST_URLS, CEOS_META_URL, CEOS_WAVEBANDS_URL } from "../src/gp/ceos.ts";
+import { CEOS_LIST_URLS, CEOS_META_URL, CEOS_WAVEBANDS_URL, ceosFileOf, ceosWavebandUrl } from "../src/gp/ceos.ts";
+import type { FetchImpl } from "../src/gp/download.ts";
 
 type Entry = Record<string, unknown>;
 
@@ -87,6 +88,9 @@ const CEOS_WAVEBANDS: { waveband_id: number; abbr: string; instruments: number[]
 
 export const CEOS_VERSION = { registry_version: "sha256:e574f0c2", registry_generated_at: "2026-10-23T01:37:42Z" };
 
+/** The ETag a file assembled from `CEOS_VERSION` is stored under. */
+export const CEOS_ETAG = `${CEOS_VERSION.registry_version}@${CEOS_VERSION.registry_generated_at}`;
+
 interface CeosParts {
   missions?: Entry[];
   instruments?: Entry[];
@@ -111,13 +115,27 @@ export function ceosAnswers({ missions = Object.values(CEOS_MISSIONS), instrumen
     [CEOS_LIST_URLS.instruments, JSON.stringify({ instruments, total: instruments.length })],
     [CEOS_LIST_URLS.combinations, JSON.stringify({ combinations: combined, total: combined.length })],
     [CEOS_WAVEBANDS_URL, JSON.stringify({ wavebands: bands.map(({ instruments: _tagged, ...band }) => band) })],
-    ...bands.map((band): [string, string] => [`${CEOS_WAVEBANDS_URL.replace(/s$/, "")}/${String(band.waveband_id)}`, JSON.stringify(band)]),
+    ...bands.map((band): [string, string] => [ceosWavebandUrl(band.waveband_id), JSON.stringify(band)]),
   ]);
+}
+
+/** CEOS's API: each URL of `answers`, and a 404 for any other. `asked` collects the requests. */
+export function ceosFetch(answers: Map<string, string>, asked: string[] = []): FetchImpl {
+  return async (url) => {
+    asked.push(url);
+    const body = answers.get(url);
+    return body === undefined ? { status: 404, text: async () => "" } : { status: 200, text: async () => body };
+  };
 }
 
 /** The file the Worker stores: the lists as answered, put together as ceos.ts does. */
 export function ceosFile(parts: CeosParts = {}): string {
   const answers = ceosAnswers(parts);
-  const bands = [...answers].filter(([url]) => url.startsWith(`${CEOS_WAVEBANDS_URL.replace(/s$/, "")}/`)).map(([, body]) => body);
-  return `{"missions":${answers.get(CEOS_LIST_URLS.missions)!},"instruments":${answers.get(CEOS_LIST_URLS.instruments)!},"combinations":${answers.get(CEOS_LIST_URLS.combinations)!},"wavebands":[${bands.join(",")}]}`;
+  const { wavebands } = JSON.parse(answers.get(CEOS_WAVEBANDS_URL)!) as { wavebands: { waveband_id: unknown }[] };
+  return ceosFileOf({
+    missions: answers.get(CEOS_LIST_URLS.missions)!,
+    instruments: answers.get(CEOS_LIST_URLS.instruments)!,
+    combinations: answers.get(CEOS_LIST_URLS.combinations)!,
+    wavebands: wavebands.map(({ waveband_id: id }) => answers.get(ceosWavebandUrl(id))!),
+  });
 }

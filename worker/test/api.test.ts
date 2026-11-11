@@ -1,13 +1,16 @@
 import { env, SELF } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 
+import { CEOS } from "../src/gp/ceos.ts";
 import { GCAT_CATALOG_URL } from "../src/gp/gcat.ts";
 import { groupsConfig } from "../src/gp/groupsConfig.ts";
-import { toIngestBundle } from "../src/gp/pushProtocol.ts";
+import { reportHeaders, toIngestBundle } from "../src/gp/pushProtocol.ts";
 import { collectSources, sourceKey, sourceUrl } from "../src/gp/sources.ts";
 import { kvGroupStore } from "../src/gp/store.ts";
 import type { GroupsIndex, OmmRecord } from "../src/gp/types.ts";
+import { fetchUpstream } from "../src/gp/upstream.ts";
 import { UPSTREAMS } from "../src/gp/upstreams.ts";
+import { CEOS_ETAG, ceosAnswers, ceosFetch } from "./ceosFixtures.ts";
 import { GCAT_CATALOG_LINES, GCAT_ORGS_LINES, gcatCatalog, gcatOrgs } from "./gcatFixtures.ts";
 
 /** Distinct upstream requests per refresh, asserted against the fetch spy after each test. */
@@ -540,6 +543,20 @@ describe("PUT /api/upstream/<name>", () => {
 
     expect((await reportTable("satcat", { "X-Upstream-Error": "HTTP 522" })).status).toBe(200);
     expect((await status()).sources.satcat).toMatchObject({ updated, lastError: "HTTP 522" });
+  });
+
+  it("takes an assembled table as push-catalog reports it: the file under its version, then unchanged", async () => {
+    const ceos = ceosFetch(ceosAnswers());
+    const file = await fetchUpstream(ceos, CEOS);
+    expect((await putTable("ceos", file.body!, reportHeaders(file))).status).toBe(200);
+    const stored = (await status()).sources.ceos!;
+    expect(stored).toMatchObject({ etag: CEOS_ETAG, rows: 3 });
+
+    const unchanged = await fetchUpstream(ceos, CEOS, stored.etag);
+    expect(unchanged.body).toBeUndefined();
+    expect((await reportTable("ceos", reportHeaders(unchanged))).status).toBe(200);
+    expect((await status()).sources.ceos).toMatchObject({ updated: stored.updated, etag: CEOS_ETAG, rows: 3 });
+    expect((await status()).sources.ceos).not.toHaveProperty("lastError");
   });
 
   it("400s a new file without a body, 404s an unknown table, 405s another method", async () => {

@@ -36,7 +36,7 @@ export interface SatelliteInstrument {
    * Km: the nominal width across both sides. Not the swath extents, which are calibrated
    * and drawn, and meaningless off a low orbit: CEOS gives a geostationary imager 500 km.
    */
-  swathKm?: number;
+  nominalSwathKm?: number;
   /** Its mission is over, though the satellite is still up. */
   retired?: boolean;
 }

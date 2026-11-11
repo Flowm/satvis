@@ -145,10 +145,11 @@ async function parseStored<T>(spec: UpstreamSpec<T>, store: GroupStore): Promise
 }
 
 /**
- * Upstream answered 304: it still serves the file stored here, so the check is
- * recorded and an earlier error is resolved. The rows are parsed from the stored file
- * again, so a parser change reaches them at the next check; a file the parser now
- * rejects keeps its old rows and records the error.
+ * Upstream answered 304, or with the version an assembled table is stored under: it
+ * still serves the file stored here, so the check is recorded and an earlier error is
+ * resolved. The rows are parsed from the stored file again, so a parser change reaches
+ * them at the next check; a file the parser now rejects keeps its old rows and records
+ * the error.
  */
 export async function recordUnchanged<T>(spec: UpstreamSpec<T>, store: GroupStore, now: string): Promise<UpstreamStatus> {
   const { lastError: _resolved, lastErrorAt: _resolvedAt, ...previous } = (await store.readStatus(spec.name)) ?? {};

@@ -66,8 +66,8 @@ discussion; sharpen them here when they drift.
 - **Instrument**: one sensor a satellite carries, as CEOS names it ("MODIS"), with its
   full name, its **kind** (CEOS's technology, "Imaging radar (SAR)"), its **bands**
   (CEOS's waveband classes, "VIS", "TIR", "C-Band"), its finest resolution and its
-  **nominal swath**. **Retired** once its mission is over, though the satellite is
-  still up. Upstream metadata, `instruments`, listed in the info panel's Instruments
+  **nominal swath** (`nominalSwathKm`). **Retired** once CEOS says its mission is
+  over, though the satellite is still up. Upstream metadata, `instruments`, listed in the info panel's Instruments
   tab. Not the sensor cone or the swath extents, which are curated and drawn: the
   nominal swath is a published total width, shown and never drawn.
 - **Bus**: a spacecraft design, as GCAT names it (`Starlink V2M`, `A2100`); one

@@ -109,7 +109,8 @@ function headerSafe(text: string): string {
 
 /**
  * The headers of one table's report: a new file travels as the body, with its ETag;
- * a 304 or a failure travels without one, as a header saying which.
+ * an unchanged table or a failure travels without one, as a header saying which. 304
+ * says unchanged for an assembled table too, whose own requests were all answered 200.
  */
 export function reportHeaders(download: UpstreamFetch): Record<string, string> {
   if (download.body !== undefined) {

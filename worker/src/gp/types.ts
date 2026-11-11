@@ -225,7 +225,7 @@ export interface SatelliteInstrument {
   /** Metres: its finest band's, so Landsat's OLI says 15, its panchromatic band. */
   resolutionM?: number;
   /** Km: the nominal width across both sides, not the calibrated swath extents (ADR 0002). */
-  swathKm?: number;
+  nominalSwathKm?: number;
   /** Its mission is over, though the satellite is still up. */
   retired?: true;
 }
@@ -245,16 +245,16 @@ export interface CeosMission {
 export type CeosRows = Record<string, CeosMission[]>;
 
 /**
- * Stored as KV metadata on `status:<name>`, apart from the file, so a 304 or a failure
- * is recorded without rewriting it. Served in /api/status, where push-catalog reads
+ * Stored as KV metadata on `status:<name>`, apart from the file, so an unchanged table
+ * or a failure is recorded without rewriting it. Served in /api/status, where push-catalog reads
  * `etag` to make its download conditional.
  */
 export interface UpstreamStatus {
   /** When the stored file was last replaced. */
   updated?: string;
   /**
-   * When upstream last answered with a file or a 304. A failure leaves it, so a table
-   * that keeps failing goes stale.
+   * When upstream last answered with a file, a 304 or an assembled table's unchanged
+   * version. A failure leaves it, so a table that keeps failing goes stale.
    */
   checked?: string;
   /** The stored file's ETag, sent as If-None-Match next time. */

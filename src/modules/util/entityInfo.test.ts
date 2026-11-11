@@ -101,7 +101,7 @@ describe("getSatelliteInfo", () => {
       kind: "Medium-resolution spectro-radiometer",
       bands: ["VIS", "TIR"],
       resolutionM: 250,
-      swathKm: 2330,
+      nominalSwathKm: 2330,
     };
     const info = getSatelliteInfo(ISS, "LEO", { instruments: [modis, { name: "GEDI" }, { name: "TROPOMI", resolutionM: 3500, retired: true }] });
     expect(info.instruments).toEqual([
@@ -110,7 +110,7 @@ describe("getSatelliteInfo", () => {
         fullName: "MODerate-Resolution Imaging Spectroradiometer",
         retired: false,
         rows: [
-          ["Type", "Medium-resolution spectro-radiometer"],
+          ["Kind", "Medium-resolution spectro-radiometer"],
           ["Bands", "VIS · TIR"],
           ["Resolution", "250 m"],
           ["Nominal swath", "2,330 km"],
@@ -124,7 +124,7 @@ describe("getSatelliteInfo", () => {
   });
 
   test("gives no swath off a low orbit, where nothing sweeps", () => {
-    const [ahi] = getSatelliteInfo(ISS, "GEO", { instruments: [{ name: "AHI", resolutionM: 500, swathKm: 500 }] }).instruments;
+    const [ahi] = getSatelliteInfo(ISS, "GEO", { instruments: [{ name: "AHI", resolutionM: 500, nominalSwathKm: 500 }] }).instruments;
     expect(ahi!.rows).toEqual([["Resolution", "500 m"]]);
   });
 

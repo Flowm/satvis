@@ -36,7 +36,7 @@ export interface InstrumentInfo {
   fullName?: string;
   /** Its mission is over; the panel says so beside the name. */
   retired: boolean;
-  /** Type, Bands, Resolution and Nominal swath, those CEOS gives. */
+  /** Kind, Bands, Resolution and Nominal swath, those CEOS gives. */
   rows: [string, string][];
 }
 
@@ -81,10 +81,10 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
 }
 
 /** The swath only on a low orbit: elsewhere nothing sweeps, and CEOS's figure means nothing. */
-function instrumentInfo({ name, fullName, kind, bands, resolutionM, swathKm, retired }: SatelliteInstrument, orbitClass: OrbitClass): InstrumentInfo {
+function instrumentInfo({ name, fullName, kind, bands, resolutionM, nominalSwathKm, retired }: SatelliteInstrument, orbitClass: OrbitClass): InstrumentInfo {
   const rows: [string, string][] = [];
   if (kind !== undefined) {
-    rows.push(["Type", kind]);
+    rows.push(["Kind", kind]);
   }
   if (bands !== undefined && bands.length > 0) {
     rows.push(["Bands", bands.join(" · ")]);
@@ -92,8 +92,8 @@ function instrumentInfo({ name, fullName, kind, bands, resolutionM, swathKm, ret
   if (resolutionM !== undefined) {
     rows.push(["Resolution", resolutionM < 1000 ? `${formatNumber(resolutionM)} m` : `${formatNumber(resolutionM / 1000)} km`]);
   }
-  if (swathKm !== undefined && orbitClass === "LEO") {
-    rows.push(["Nominal swath", `${formatNumber(swathKm)} km`]);
+  if (nominalSwathKm !== undefined && orbitClass === "LEO") {
+    rows.push(["Nominal swath", `${formatNumber(nominalSwathKm)} km`]);
   }
   return { name, ...(fullName !== undefined && { fullName }), retired: retired === true, rows };
 }

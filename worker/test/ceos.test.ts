@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { CEOS, CEOS_KEYS, CEOS_META_URL, ceosBags, parseCeos } from "../src/gp/ceos.ts";
-import type { FetchImpl } from "../src/gp/download.ts";
 import { GCAT_KEYS } from "../src/gp/gcat.ts";
 import { SATCAT_KEYS } from "../src/gp/satcat.ts";
 import { fetchUpstream } from "../src/gp/upstream.ts";
-import { CEOS_INSTRUMENTS, CEOS_MISSIONS, CEOS_VERSION, ceosAnswers, ceosFile, ceosMission } from "./ceosFixtures.ts";
+import { CEOS_ETAG, CEOS_INSTRUMENTS, CEOS_MISSIONS, CEOS_VERSION, ceosAnswers, ceosFetch, ceosFile, ceosMission } from "./ceosFixtures.ts";
 
 const { TERRA, ECOSTRESS, HICO } = CEOS_MISSIONS;
 
@@ -15,7 +14,7 @@ const ASTER = {
   kind: "High resolution optical imager",
   bands: ["VIS", "TIR"],
   resolutionM: 15,
-  swathKm: 60,
+  nominalSwathKm: 60,
 };
 const MODIS = {
   name: "MODIS",
@@ -23,35 +22,27 @@ const MODIS = {
   kind: "Medium-resolution spectro-radiometer",
   bands: ["VIS", "TIR"],
   resolutionM: 250,
-  swathKm: 2330,
+  nominalSwathKm: 2330,
 };
 const PHYTIR = { name: "PHyTIR", fullName: "Prototype HyspIRI Thermal Infrared Radiometer (PHyTIR)", kind: "High-resolution nadir-scanning IR spectrometer", bands: ["TIR"] };
 const HICO_INSTRUMENT = { name: "HICO", fullName: "Hyperspectral Imager for the Coastal Ocean", kind: "Hyperspectral imagers", bands: ["VIS"], resolutionM: 90 };
 
-/** Answers each of CEOS's URLs from `answers`, counting the requests. */
-function serving(answers: Map<string, string>, asked: string[] = []): FetchImpl {
-  return async (url) => {
-    asked.push(url);
-    const body = answers.get(url);
-    return body === undefined ? { status: 404, text: async () => "" } : { status: 200, text: async () => body };
-  };
-}
-
 describe("CEOS.assemble", () => {
   it("puts the lists and every waveband into one file, versioned by the snapshot", async () => {
     const asked: string[] = [];
-    const file = await fetchUpstream(serving(ceosAnswers(), asked), CEOS);
+    const file = await fetchUpstream(ceosFetch(ceosAnswers(), asked), CEOS);
 
     expect(file.error).toBeUndefined();
     expect(file.body).toBe(ceosFile());
-    expect(file.etag).toBe(`${CEOS_VERSION.registry_version}@${CEOS_VERSION.registry_generated_at}`);
-    expect(asked).toHaveLength(7);
+    expect(file.etag).toBe(CEOS_ETAG);
+    // The version, three lists, the wavebands, two bands, and the version again.
+    expect(asked).toHaveLength(8);
     expect(parseCeos(file.body!)["25994"]![0]!.instruments).toEqual([ASTER, MODIS]);
   });
 
   it("asks only for the version while the stored file's stands", async () => {
     const asked: string[] = [];
-    const file = await fetchUpstream(serving(ceosAnswers(), asked), CEOS, `${CEOS_VERSION.registry_version}@${CEOS_VERSION.registry_generated_at}`);
+    const file = await fetchUpstream(ceosFetch(ceosAnswers(), asked), CEOS, CEOS_ETAG);
 
     expect(file).toMatchObject({ status: 200, notModified: true });
     expect(file.body).toBeUndefined();
@@ -60,15 +51,30 @@ describe("CEOS.assemble", () => {
 
   it("downloads again when a snapshot is loaded, even one with the same identifiers", async () => {
     const reloaded = ceosAnswers({ version: { ...CEOS_VERSION, registry_generated_at: "2026-11-02T00:00:00Z" } });
-    const file = await fetchUpstream(serving(reloaded), CEOS, `${CEOS_VERSION.registry_version}@${CEOS_VERSION.registry_generated_at}`);
+    const file = await fetchUpstream(ceosFetch(reloaded), CEOS, CEOS_ETAG);
     expect(file.body).toBeDefined();
+  });
+
+  it("fails when a snapshot is loaded between the downloads, rather than storing a mix of two", async () => {
+    const answers = ceosAnswers();
+    const asked: string[] = [];
+    const serve = ceosFetch(answers, asked);
+    const file = await fetchUpstream(async (url, init) => {
+      if (asked.length === 1) {
+        answers.set(CEOS_META_URL, JSON.stringify({ ...CEOS_VERSION, registry_generated_at: "2026-11-02T00:00:00Z" }));
+      }
+      return serve(url, init);
+    }, CEOS);
+
+    expect(file.body).toBeUndefined();
+    expect(file.error).toBe("the snapshot changed during the download");
   });
 
   it("fails whole when one download does, naming it", async () => {
     const answers = ceosAnswers();
     const band = [...answers.keys()].at(-1)!;
     answers.delete(band);
-    const file = await fetchUpstream(serving(answers), CEOS);
+    const file = await fetchUpstream(ceosFetch(answers), CEOS);
 
     expect(file.body).toBeUndefined();
     expect(file.error).toBe(`HTTP 404 for ${band}`);
@@ -96,12 +102,21 @@ describe("parseCeos", () => {
       ],
       combinations: [{ mission_id: 7, instrument_id: 2 }],
     });
-    expect(parseCeos(sharing)["40000"]![0]!.instruments).toEqual([{ name: "AIS", fullName: "Automatic Identification System", kind: "Data collection system", swathKm: 600 }]);
+    expect(parseCeos(sharing)["40000"]![0]!.instruments).toEqual([
+      { name: "AIS", fullName: "Automatic Identification System", kind: "Data collection system", nominalSwathKm: 600 },
+    ]);
   });
 
   it("keeps the name and kind of an instrument the combinations do not list", () => {
     const rows = parseCeos(ceosFile({ missions: [TERRA], combinations: [{ mission_id: 204, instrument_id: 395 }] }));
     expect(rows["25994"]![0]!.instruments).toEqual([{ name: "ASTER", kind: "High resolution optical imager" }, MODIS]);
+  });
+
+  it("finds an instrument whose name CEOS ends in a space or a newline", () => {
+    const untrimmed = CEOS_INSTRUMENTS.map((instrument) =>
+      instrument.name_short === "ASTER" ? { ...instrument, name_short: "ASTER \n", name_full: `${String(instrument.name_full)} ` } : instrument,
+    );
+    expect(parseCeos(ceosFile({ missions: [TERRA], instruments: untrimmed }))["25994"]![0]!.instruments).toEqual([ASTER, MODIS]);
   });
 
   it("leaves out a full name that only repeats the short one", () => {
@@ -112,10 +127,16 @@ describe("parseCeos", () => {
     expect(parseCeos(ceosFile({ missions: [TERRA], instruments: repeated }))["25994"]![0]!.instruments[1]).not.toHaveProperty("fullName");
   });
 
-  it("retires the instruments of a mission that is not operating", () => {
+  it("retires the instruments of a mission that is over", () => {
     const [hico, ecostress] = parseCeos(ceosFile({ missions: [ECOSTRESS, HICO] }))["25544"]!;
     expect(hico).toMatchObject({ name: "HICO-on-ISS", retired: true });
     expect(ecostress).not.toHaveProperty("retired");
+  });
+
+  it("retires nothing on a status that does not say the mission is over", () => {
+    for (const status of ["N/A", "Uncertain", "Commissioning", null]) {
+      expect(parseCeos(ceosFile({ missions: [{ ...TERRA, status }] }))["25994"]![0]).not.toHaveProperty("retired");
+    }
   });
 
   it("lists a satellite's missions by launch, whatever order CEOS gives them in", () => {
@@ -177,16 +198,16 @@ describe("ceosBags", () => {
 
   it("counts an instrument two missions name once, retired only if both are", () => {
     const shared = "UVNS~Atmospheric chemistry~~High-resolution nadir-scanning SW spectrometer~Ozone";
-    const twice = parseCeos(
-      ceosFile({
-        missions: [
-          ceosMission({ mission_id: 8, mission_acronym: "Host", norad_id: 65159, launch_date: "2025-08-13", status: "Mission complete", instrument_details: shared }),
-          ceosMission({ mission_id: 9, mission_acronym: "Hosted", norad_id: 65159, launch_date: "2025-08-13", instrument_details: shared }),
-        ],
-      }),
-    );
-    expect(ceosBags(twice, { "65159": { launchDate: "2025-08-13" } })["65159"]).toEqual({
-      instruments: [{ name: "UVNS", kind: "High-resolution nadir-scanning SW spectrometer" }],
+    const over = ceosMission({ mission_id: 8, mission_acronym: "Host", norad_id: 65159, launch_date: "2025-08-13", status: "Mission complete", instrument_details: shared });
+    const flying = ceosMission({ mission_id: 9, mission_acronym: "Hosted", norad_id: 65159, launch_date: "2025-08-14", instrument_details: shared });
+    const launched = { "65159": { launchDate: "2025-08-13" } };
+    const uvns = { name: "UVNS", kind: "High-resolution nadir-scanning SW spectrometer" };
+
+    // By launch, so the mission that is over comes first, then last.
+    expect(ceosBags(parseCeos(ceosFile({ missions: [over, flying] })), launched)["65159"]).toEqual({ instruments: [uvns] });
+    expect(ceosBags(parseCeos(ceosFile({ missions: [{ ...over, launch_date: "2025-08-15" }, flying] })), launched)["65159"]).toEqual({ instruments: [uvns] });
+    expect(ceosBags(parseCeos(ceosFile({ missions: [over, { ...flying, status: "Mission complete" }] })), launched)["65159"]).toEqual({
+      instruments: [{ ...uvns, retired: true }],
     });
   });
 });

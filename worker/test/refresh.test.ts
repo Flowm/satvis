@@ -8,7 +8,7 @@ import { SATCAT } from "../src/gp/satcat.ts";
 import type { GroupsConfig, GroupsIndex, OmmRecord } from "../src/gp/types.ts";
 import { storeUpstream } from "../src/gp/upstream.ts";
 import { UPSTREAMS } from "../src/gp/upstreams.ts";
-import { CEOS_MISSIONS, CEOS_VERSION, ceosAnswers, ceosFile } from "./ceosFixtures.ts";
+import { CEOS_ETAG, CEOS_MISSIONS, CEOS_VERSION, ceosAnswers, ceosFile } from "./ceosFixtures.ts";
 import { GCAT_CATALOG_LINES, GCAT_ORGS_LINES, GCAT_PAYLOADS_LINES, gcatCatalog, gcatOrgs, gcatPayloads } from "./gcatFixtures.ts";
 import { memoryStore } from "./memoryStore.ts";
 
@@ -255,7 +255,7 @@ describe("refreshUpstreams", () => {
     const { store } = memoryStore();
     await storeUpstream(SATCAT, store, SATCAT_CSV, '"abc"', NOW);
     // CEOS's version is asked for, not sent: the stored one stands, so nothing else is.
-    await storeUpstream(CEOS, store, ceosFile(), `${CEOS_VERSION.registry_version}@${CEOS_VERSION.registry_generated_at}`, NOW);
+    await storeUpstream(CEOS, store, ceosFile(), CEOS_ETAG, NOW);
     const asked = new Map<string, string | undefined>();
     const statuses = await refreshUpstreams(store, async (url, init) => {
       asked.set(url, init?.headers?.["If-None-Match"]);
