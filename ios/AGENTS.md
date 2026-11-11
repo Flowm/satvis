@@ -47,7 +47,13 @@ variables they take. `make run` opens no simulator window; follow the app with
   shoots the Bookmarks sheet's featured bookmarks on the live site, at their
   `pictureAt` and with the element sets the web pictures are taken with
   (`scripts/screenshots.sh`, README "Configuration"). `SHOTS=2Sky` retakes
-  one whose tiles had not loaded.
+  one whose tiles had not loaded. It shoots the Mac app's window too, opened on
+  each bookmark's link at 1280×800 points: the terminal needs Screen Recording,
+  and the window must stay uncovered. `PLATFORM=ios` or `macos` takes one
+  platform's alone, here and in the listing tasks.
+- **`metadata-download`** writes the text every platform shares to
+  `metadata/app-info/` and each platform's version to `metadata/ios/<version>/`
+  and `metadata/macos/<version>/`, which `metadata-upload` pushes back.
 - **`fold`** and **`unfold`** close and open an iPhone Duo simulator, which
   simctl, XCTest and the size classes alone cannot: `scripts/hinge.swift` sends
   DeviceHub's hinge event through private API. Closed, the Duo is a phone's

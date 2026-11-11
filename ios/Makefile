@@ -7,6 +7,7 @@
 ## UDID      One simulator exactly, in place of DEVICE and RUNTIME
 ## API       The worker run talks to (default https://satvis.space)
 ## SHOTS     The screenshots to retake alone, e.g. 2Sky
+## PLATFORM  ios or macos: the screenshots and listing tasks do that platform alone (default both)
 ## BASE_URL  The site screenshots opens its views on (default https://satvis.space)
 ## DRY_RUN   The uploads say what they would change, and change nothing
 ## VERSION   The App Store version the downloads fetch (default the one being prepared)
@@ -69,19 +70,19 @@ format: ## Format the Swift sources
 lint: ## Check the Swift sources' format, as CI does
 	swift format lint -r -s $(SOURCES)
 
-screenshots: ## Take the App Store screenshots | SHOTS BASE_URL
+screenshots: ## Take the App Store screenshots | SHOTS BASE_URL PLATFORM
 	scripts/screenshots.sh $(SHOTS)
 
-screenshots-upload: ## Replace the prepared version's screenshots | DRY_RUN
+screenshots-upload: ## Replace the prepared versions' screenshots | DRY_RUN PLATFORM
 	scripts/screenshots-upload.sh
 
-screenshots-download: ## Download a version's screenshots | VERSION
+screenshots-download: ## Download a version's screenshots | VERSION PLATFORM
 	scripts/screenshots-download.sh
 
-metadata-download: ## Download the listing's text to metadata/ | VERSION
+metadata-download: ## Download the listing's text to metadata/ | VERSION PLATFORM
 	scripts/metadata-download.sh
 
-metadata-upload: ## Update the listing's text from metadata/ | DRY_RUN
+metadata-upload: ## Update the listing's text from metadata/ | DRY_RUN PLATFORM
 	scripts/metadata-upload.sh
 
 clean: ## Delete the build and the screenshots

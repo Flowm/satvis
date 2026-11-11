@@ -75,11 +75,16 @@ Built in 2.2: ADR 0017 records the route and what the Mac does without, and
 belongs to neither:
 
 - Once two platforms are approved in App Store Connect, neither can be removed.
+- Releasing the Mac version replaces the iPad app on the Mac App Store, and moves
+  its users to the Mac app (App Store Connect Help, "Manage availability of iPhone
+  and iPad apps on Macs with Apple silicon"). The store setting needs no change.
 - Mac App Store screenshots are one of 1280×800, 1440×900, 2560×1600 or
-  2880×1800, shot from the window: `scripts/screenshots.sh` has no Mac path yet.
+  2880×1800, shot from the window: `make screenshots` shoots it at 1280×800
+  points, and the listing tasks take `PLATFORM=ios` or `macos`.
 - Xcode Cloud needs a macOS archive workflow; TestFlight works on a Mac.
-- PostHog tells the platforms apart by `$os`; the privacy manifest and label are
-  the same as iOS's.
+- PostHog tells the platforms apart by `$os` and by the `platform` the app
+  registers, `ios` or `macos`: a filter on `platform = ios` leaves the Mac out.
+  The privacy manifest and label are the same as iOS's.
 
 ---
 
@@ -224,9 +229,8 @@ first:
   `ci_post_clone.sh`'s PostHog config, which the shared `Config/Base.xcconfig`
   already includes.
 - **App Store Connect.** Add the macOS and tvOS platforms to app 1441084766.
-  Each platform has its own version, screenshots and review. `metadata/` and
-  `make screenshots*` gain a platform dimension. Check what the asc CLI offers
-  for that (`docs/ASC.md`).
+  Each platform has its own version, screenshots and review: `metadata/` holds
+  each platform's text, and the listing tasks take `PLATFORM`.
 - **Docs.**
   - An ADR, "native macOS and tvOS apps", in the shape of ADR 0009, recording
     what each platform drops and why.
@@ -269,5 +273,4 @@ first:
 - **Per-app memory limits on Apple TV.**
 - **The A19 Apple TV's RAM.**
 - **Location accuracy on tvOS.**
-- **Whether adding macOS withdraws the iPad app from Apple silicon Macs.**
 - **Xcode Cloud's official tvOS support.** Only a third-party blog confirms it.
