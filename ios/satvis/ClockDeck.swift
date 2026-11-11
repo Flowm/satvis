@@ -53,9 +53,11 @@ struct ClockDeck<Accessory: View>: View {
                 .ignoresSafeArea(edges: isOpen ? [.bottom, .horizontal] : [])
         }
         .frame(maxWidth: 560)
-        // The scale runs down to the home indicator, and a drag along it went to
-        // the system and switched apps.
-        .defersSystemGestures(on: isOpen ? .bottom : [])
+        #if os(iOS)
+            // The scale runs down to the home indicator, and a drag along it went to
+            // the system and switched apps.
+            .defersSystemGestures(on: isOpen ? .bottom : [])
+        #endif
     }
 
     /// Three columns, the outer two of a width, so the clock stays on the needle

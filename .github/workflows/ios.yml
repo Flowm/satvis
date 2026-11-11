@@ -64,3 +64,6 @@ jobs:
       # package alone. Xcode Cloud runs the UI tests on a simulator.
       - name: Build the app and its UI tests
         run: xcodebuild -project ios/satvis.xcodeproj -scheme satvis -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build/ci CODE_SIGNING_ALLOWED=NO build-for-testing
+      # The same target for the Mac, whose UIKit-free paths nothing else compiles.
+      - name: Build the Mac app
+        run: xcodebuild -project ios/satvis.xcodeproj -scheme satvis -destination 'generic/platform=macOS' -derivedDataPath ios/build/ci CODE_SIGNING_ALLOWED=NO build

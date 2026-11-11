@@ -11,8 +11,21 @@ struct AboutView: View {
     @ScaledMetric(relativeTo: .body) private var iconDrop: CGFloat = 6
     @Environment(\.dismiss) private var dismiss
 
-    /// What the sky view is aimed by: "phone" on an iPad read wrong.
-    private static let device = UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
+    /// The about page's opening.
+    private static let introduction: LocalizedStringKey =
+        "Satvis is a free, open-source satellite tracker for iPhone, iPad and Mac. It draws more than 16,000 satellites on a 3D globe in real time: Starlink, GPS, weather satellites, the ISS and many more. Set your location and it predicts when each one passes overhead. The sky view shows the sky from where you stand.\(pointing)"
+    #if os(macOS)
+        /// A Mac has no motion sensor or camera to aim the sky view by.
+        private static let pointing = ""
+        /// How the sky view is aimed.
+        private static let skyViewFeature: LocalizedStringKey = "Find satellites overhead in the ground-level sky view, aimed by dragging"
+    #else
+        /// How the sky view is aimed by the device.
+        private static let pointing = " Point your \(Platform.deviceKind) up to see the satellites in that direction."
+        /// How the sky view is aimed, the device and its camera among them.
+        private static let skyViewFeature: LocalizedStringKey =
+            "Find satellites overhead in the ground-level sky view, aimed by dragging or by pointing your \(Platform.deviceKind), with the camera's picture of the sky behind them"
+    #endif
 
     /// The web app's feature rows, each with the Lucide icon the about page gives it.
     private static let features: [(icon: ImageResource, text: LocalizedStringKey)] = [
@@ -25,10 +38,7 @@ struct AboutView: View {
         (.lucideInfo, "Select a satellite to see its orbit, its next passes over your locations and its spacecraft details: country, operator, manufacturer, bus, mass and size"),
         (.lucideCrosshair, "Track a satellite: the camera flies to it and follows it along its orbit"),
         (.lucideMapPin, "Save your location or any point you pick on the map, then list the upcoming passes over it and get a notification before one starts"),
-        (
-            .lucideTelescope,
-            "Find satellites overhead in the ground-level sky view, aimed by dragging or by pointing your \(device), with the camera's picture of the sky behind them"
-        ),
+        (.lucideTelescope, skyViewFeature),
         (.lucideEye, "See which satellites you could spot: the sky view dims those in Earth's shadow, too far away or in a daylit sky"),
         (
             .lucideLayers,
@@ -45,9 +55,7 @@ struct AboutView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 16) {
                         hero
-                        Text(
-                            "Satvis is a free, open-source satellite tracker for iPhone and iPad. It draws more than 16,000 satellites on a 3D globe in real time: Starlink, GPS, weather satellites, the ISS and many more. Set your location and it predicts when each one passes overhead. The sky view shows the sky from where you stand. Point your \(Self.device) up to see the satellites in that direction."
-                        )
+                        Text(Self.introduction)
                     }
                     // A clear row is still clipped to its card's rounded corners: the
                     // bottom inset keeps the last line out of them.
@@ -101,22 +109,24 @@ struct AboutView: View {
                 }
             }
             .navigationTitle("About Satvis")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .panelSheet()
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+            #if os(iOS)
+                // A window of its own on a Mac, closed by its own button.
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
+                    }
                 }
-            }
+            #endif
         }
     }
 
     /// The app's icon, its name and the about page's tagline.
     private var hero: some View {
         HStack(spacing: 14) {
-            // The flattened icon Xcode writes for the home screen.
-            if let icon = UIImage(named: "AppIcon60x60") {
-                Image(uiImage: icon)
+            if let icon = Platform.appIcon {
+                icon
                     .resizable()
                     .frame(width: 56, height: 56)
                     .clipShape(.rect(cornerRadius: 12.6, style: .continuous))
@@ -263,8 +273,8 @@ private struct FeaturedSlide: View, Equatable {
                 Color.black
                     .aspectRatio(16 / 10, contentMode: .fit)
                     .overlay {
-                        if let image = picture.flatMap(UIImage.init(data:)) {
-                            Image(uiImage: image).resizable().scaledToFill()
+                        if let image = picture.flatMap(Image.init(encoded:)) {
+                            image.resizable().scaledToFill()
                         } else {
                             Image(systemName: "photo").foregroundStyle(.tertiary)
                         }

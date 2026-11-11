@@ -3,7 +3,8 @@ import SwiftUI
 
 /// The web app's Bookmarks panel (BookmarkPanel.vue): the featured and saved
 /// bookmarks and the opened links as cards, the way back to the default view, and
-/// saving the scene. A sheet, as the other long lists are.
+/// saving the scene. A sheet, as the other long lists are; on a Mac a panel beside
+/// the menu column, as on the web, which leaves the globe in sight.
 struct BookmarksView: View {
     let session: Session
     /// A bookmark or the default view was opened, and the sheet closes on it.
@@ -27,6 +28,8 @@ struct BookmarksView: View {
     /// The share button's key among `frames`, beside the cards' ids.
     private static let shareButton = "share"
     @Environment(\.dismiss) private var dismiss
+    /// The height under a panel's title, on a Mac.
+    @Environment(\.panelRoom) private var room
 
     init(session: Session, onOpen: @escaping () -> Void = {}) {
         self.session = session
@@ -90,22 +93,21 @@ struct BookmarksView: View {
                     tab = Self.openingTab(session)
                 }
             }
-            .navigationTitle("Bookmarks")
-            .navigationBarTitleDisplayMode(.inline)
             .panelSheet()
-            .toolbar {
-                // The view on screen, where the corner's Share button was; made when
-                // tapped, so that a clock off the present gives its minute then.
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Share this view", systemImage: "square.and.arrow.up") {
-                        ShareSheet.present(session.link(sharing: true).url(site: session.site), from: frames[Self.shareButton] ?? .zero)
+            #if os(iOS)
+                // A Mac's panel has its own title and close button, and a title
+                // here would be the window's.
+                .navigationTitle("Bookmarks")
+                .toolbarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        shareButton
                     }
-                    .reportsFrame { frames[Self.shareButton] = $0 }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
+                    }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            #endif
             // Under the cards with their names, as the web app's footer: the bottom
             // bar's glass shows icons alone.
             .safeAreaInset(edge: .bottom) {
@@ -116,10 +118,12 @@ struct BookmarksView: View {
                     HStack {
                         Button("Default view", systemImage: "arrow.counterclockwise") {
                             session.openDefaultView()
-                            onOpen()
-                            dismiss()
+                            opened()
                         }
                         .disabled(here.query.isEmpty)
+                        #if os(macOS)
+                            shareButton
+                        #endif
                         Spacer()
                         // Filled, as the web app's: the sheet's main action.
                         Group {
@@ -166,6 +170,10 @@ struct BookmarksView: View {
                 Button("Cancel", role: .cancel) {}
             }
         }
+        #if os(macOS)
+            // As tall as the panel's room under its title, up to 640 points.
+            .frame(height: min(room ?? 640, 640))
+        #endif
         // Closed, the sheet's undos go with it.
         .onDisappear {
             for bookmark in deleted {
@@ -174,12 +182,29 @@ struct BookmarksView: View {
         }
     }
 
+    /// The view on screen, where the corner's Share button was; made when tapped,
+    /// so that a clock off the present gives its minute then.
+    private var shareButton: some View {
+        Button("Share this view", systemImage: "square.and.arrow.up") {
+            ShareSheet.present(session.link(sharing: true).url(site: session.site), from: frames[Self.shareButton] ?? .zero)
+        }
+        .reportsFrame { frames[Self.shareButton] = $0 }
+    }
+
+    /// Closes the sheet, or the Mac's panel through `onOpen`: there `dismiss`
+    /// would close the globe's window, which quits the app.
+    private func opened() {
+        onOpen()
+        #if os(iOS)
+            dismiss()
+        #endif
+    }
+
     private func card(_ bookmark: Bookmark, isCurrent: Bool) -> some View {
         let summary = session.summary(bookmark.scene)
         return Button {
             session.open(bookmark)
-            onOpen()
-            dismiss()
+            opened()
         } label: {
             BookmarkCard(bookmark: bookmark, summary: summary, picture: picture(bookmark), isCurrent: isCurrent)
         }
@@ -229,9 +254,9 @@ struct BookmarksView: View {
     }
 
     /// A featured bookmark's picture is the site's, kept once fetched; the others' are the device's.
-    private func picture(_ bookmark: Bookmark) -> UIImage? {
+    private func picture(_ bookmark: Bookmark) -> Image? {
         let data = bookmark.kind == .featured ? bookmark.thumbnail.flatMap { session.featuredPictures[$0] } : bookmarks.pictures[bookmark.id]
-        return data.flatMap(UIImage.init(data:))
+        return data.flatMap(Image.init(encoded:))
     }
 
     private func startRename(_ bookmark: Bookmark) {
@@ -275,7 +300,7 @@ struct BookmarksView: View {
 struct BookmarkCard: View {
     let bookmark: Bookmark
     let summary: BookmarkSummary
-    let picture: UIImage?
+    let picture: Image?
     let isCurrent: Bool
 
     private static let live = Color(red: 0x8F / 255, green: 0xE3 / 255, blue: 0x9B / 255)
@@ -315,7 +340,7 @@ struct BookmarkCard: View {
 
     @ViewBuilder private var image: some View {
         if let picture {
-            Image(uiImage: picture).resizable().scaledToFill()
+            picture.resizable().scaledToFill()
         } else {
             Image(systemName: "photo").foregroundStyle(.tertiary)
         }
@@ -367,20 +392,31 @@ struct BookmarkFacts: View {
 /// sheet's coordinates: SwiftUI's global space inside a sheet starts at the
 /// sheet's corner, not the window's, where the popover pointed at first.
 private enum ShareSheet {
-    /// Over whatever is presented, the Bookmarks sheet itself.
-    static func present(_ url: URL, from rect: CGRect) {
-        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
-        guard var top = scene?.keyWindow?.rootViewController else {
-            return
+    #if os(macOS)
+        /// The share menu under `rect`, in the window clicked in.
+        static func present(_ url: URL, from rect: CGRect) {
+            guard let view = (NSApplication.shared.currentEvent?.window ?? NSApplication.shared.keyWindow)?.contentView else {
+                return
+            }
+            let target = view.isFlipped ? rect : CGRect(x: rect.minX, y: view.bounds.height - rect.maxY, width: rect.width, height: rect.height)
+            NSSharingServicePicker(items: [url]).show(relativeTo: target, of: view, preferredEdge: .minY)
         }
-        while let presented = top.presentedViewController, !presented.isBeingDismissed {
-            top = presented
+    #else
+        /// Over whatever is presented, the Bookmarks sheet itself.
+        static func present(_ url: URL, from rect: CGRect) {
+            let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
+            guard var top = scene?.keyWindow?.rootViewController else {
+                return
+            }
+            while let presented = top.presentedViewController, !presented.isBeingDismissed {
+                top = presented
+            }
+            let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+            if let popover = sheet.popoverPresentationController {
+                popover.sourceView = top.view
+                popover.sourceRect = rect
+            }
+            top.present(sheet, animated: true)
         }
-        let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        if let popover = sheet.popoverPresentationController {
-            popover.sourceView = top.view
-            popover.sourceRect = rect
-        }
-        top.present(sheet, animated: true)
-    }
+    #endif
 }

@@ -13,7 +13,7 @@ public struct KeptTiles: Sendable {
     }
 
     public static func applicationSupport() -> KeptTiles {
-        let base = (try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)) ?? URL.temporaryDirectory
+        let base = (try? FileManager.default.appFolder(.applicationSupportDirectory)) ?? URL.temporaryDirectory
         var directory = base.appending(path: "Tiles", directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         var values = URLResourceValues()

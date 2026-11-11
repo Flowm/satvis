@@ -8,17 +8,6 @@ import SatvisRender
 /// picture's, and the compass aims both; a pinch zooms the camera.
 @Observable
 final class SkyPassthrough {
-    /// What switching it on came to, for the words in front of the user.
-    enum Outcome: Equatable {
-        case showing
-        /// No back camera here, as in the simulator.
-        case noCamera
-        /// Access refused, now or before.
-        case denied
-        /// Switched off again while it started.
-        case stopped
-    }
-
     /// Switched on and started: the camera is the sky view's backdrop, but while
     /// the system has taken it away.
     private(set) var isShowing = false

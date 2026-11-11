@@ -101,14 +101,18 @@ struct SatelliteModelView: View {
 }
 
 /// The MTKView the close-up draws into, transparent over the backdrop.
-private struct CloseUpMetalView: UIViewRepresentable {
+private struct CloseUpMetalView {
     let frameRate: Int
     let onCloseUp: (Result<ModelCloseUp, Error>) -> Void
 
-    func makeUIView(context: Context) -> MTKView {
+    func makeView() -> MTKView {
         let view = MTKView(frame: .zero, device: MTLCreateSystemDefaultDevice())
-        view.isOpaque = false
-        view.backgroundColor = .clear
+        #if os(macOS)
+            view.layer?.isOpaque = false
+        #else
+            view.isOpaque = false
+            view.backgroundColor = .clear
+        #endif
         view.preferredFramesPerSecond = frameRate
         Task {
             do {
@@ -120,9 +124,21 @@ private struct CloseUpMetalView: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ view: MTKView, context: Context) {
+    func update(_ view: MTKView) {
         if view.preferredFramesPerSecond != frameRate {
             view.preferredFramesPerSecond = frameRate
         }
     }
 }
+
+#if os(macOS)
+    extension CloseUpMetalView: NSViewRepresentable {
+        func makeNSView(context: Context) -> MTKView { makeView() }
+        func updateNSView(_ view: MTKView, context: Context) { update(view) }
+    }
+#else
+    extension CloseUpMetalView: UIViewRepresentable {
+        func makeUIView(context: Context) -> MTKView { makeView() }
+        func updateUIView(_ view: MTKView, context: Context) { update(view) }
+    }
+#endif

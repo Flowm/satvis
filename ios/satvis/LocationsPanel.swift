@@ -1,3 +1,4 @@
+import CoreLocation
 import SatvisCore
 import SwiftUI
 
@@ -203,7 +204,7 @@ private struct StationRow: View {
     /// A latitude or longitude field, typed with a sign.
     private func coordinate(_ label: String, text: Binding<String>, field: Field) -> some View {
         TextField(label, text: text)
-            .keyboardType(.numbersAndPunctuation)
+            .signedNumberKeyboard()
             .focused($focused, equals: field)
             .submitLabel(.done)
             .accessibilityLabel(label)

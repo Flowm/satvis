@@ -5,7 +5,6 @@ import Observation
 import SatvisCore
 import SatvisData
 import SatvisRender
-import UIKit
 
 nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category: "imagery")
 
@@ -316,14 +315,18 @@ final class Session {
 
     func enteredBackground() {
         alerts.requestRefresh()
-        // Kept without its time: the app reopens on the present. Not a benchmark
-        // scene: the view the run began from.
-        var kept = benchmark.abandon(on: self) ?? link(sharing: false)
-        kept.query.items.removeAll { $0.key == "time" }
-        UserDefaults.standard.set(kept.url(site: site).absoluteString, forKey: Self.viewKey)
+        keepView()
         // iOS ends the largest apps in the background first, and the tiles kept
         // for coming back were most of a few hundred megabytes.
         renderer?.trimMemory()
+    }
+
+    /// Keeps the view for the next launch, without its time: the app reopens on
+    /// the present. Not a benchmark scene: the view the run began from.
+    func keepView() {
+        var kept = benchmark.abandon(on: self) ?? link(sharing: false)
+        kept.query.items.removeAll { $0.key == "time" }
+        UserDefaults.standard.set(kept.url(site: site).absoluteString, forKey: Self.viewKey)
     }
 
     // MARK: Benchmark sweeps
@@ -650,7 +653,7 @@ final class Session {
     /// the other, unless reduced motion cuts.
     private func setProjection(_ projection: GlobeProjection, animated: Bool) {
         self.projection = projection
-        globe.setProjection(projection, animated: animated && !UIAccessibility.isReduceMotionEnabled)
+        globe.setProjection(projection, animated: animated && !Platform.reducesMotion)
     }
 
     /// The globe button (`Focus.goHome`).
@@ -793,7 +796,7 @@ final class Session {
         if catalog.tracked != focus.trackedSatellite {
             catalog.setTracked(focus.trackedSatellite)
         }
-        let motion = !UIAccessibility.isReduceMotionEnabled
+        let motion = !Platform.reducesMotion
         for command in commands {
             switch command {
             case .track(let target, let animated):

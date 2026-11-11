@@ -23,10 +23,10 @@ struct BrowserView: View {
             .searchFocused($isSearching)
             .loadsEverythingWhenFocused(isSearching, catalog: catalog)
             .navigationTitle("Satellites")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .panelSheet()
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigation) {
                     ClearAllButton(catalog: catalog)
                 }
                 ToolbarItem(placement: .confirmationAction) {
@@ -252,7 +252,7 @@ private struct PanelSearchField: View {
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
             TextField(prompt, text: $text)
-                .textInputAutocapitalization(.never)
+                .noAutocapitalization()
                 .autocorrectionDisabled()
                 .submitLabel(.search)
                 .accessibilityAddTraits(.isSearchField)

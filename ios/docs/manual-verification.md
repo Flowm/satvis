@@ -599,3 +599,34 @@ skipped on its test catalog. Not checked: an iPad or any device's screen, where 
 build was only installed and launched; an upgrade over a version whose cached launch
 screen is still the logo's #0b222d; and a touch on the globe in the first second, which
 reaches it under the black.
+
+## Native app on the Mac: mouse, trackpad, keys and menus
+
+**Procedure.** `make run-mac`. On the globe: drag to turn it; scroll with a mouse
+wheel and with two fingers on a trackpad to zoom; pinch and twist on the trackpad;
+click a satellite, then double-click the globe, then triple-click it; right-click,
+Control-click and force-click the globe for the globe menu, and check that a force
+click selects nothing. Without clicking first, press the arrows, + and -, the space
+bar (the clock stops and starts), and Escape with a panel open, with a satellite
+selected, and after Hide UI (⇧⌘H). Type a space in the satellite search and check
+that the clock runs on; pick a satellite there, and check that the arrows turn the
+globe again without a click. Select a satellite and a station, and check that each
+card holds its title and buttons, grey and without a bezel as a panel's close
+button. Check that the globe reaches the window's top edge under its buttons, that
+the column and the corner buttons stay below them, and that dragging that strip
+moves the window and double-clicking it fills the screen. Try each command of the
+View, Satellite and Bookmarks menus, Help's links, Edit > Copy Link to This View
+(⇧⌘C) and the link it copies. Open Bookmarks from its entry and from ⌘B, as a
+panel beside the column, share the view from it, and open a bookmark and the
+default view from it: each closes the panel, not the window. Open About from the
+menu column and the app menu. Move the window to a display with another refresh rate
+and check `device_max_fps` in a benchmark report. Cover the window with another
+and check in Activity Monitor that Satvis's GPU use falls to nothing. Narrow the
+window to its smallest, track a satellite, quit, and check that it opens again
+where and as large as it was, tracking it. Close the window and check that the app
+quits. With a pass alert saved, launch and check
+`log stream --predicate 'subsystem == "org.frcy.app.satvis"'` for no errors.
+
+**Result.** Not yet run: an agent's shell has no accessibility access to drive the
+Mac app, and Automation Mode, which Mac UI tests need, asks for the user's
+password.

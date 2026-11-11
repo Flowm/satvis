@@ -328,10 +328,73 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   ("Share usage data" in About), PostHog is not set up at all, so nothing is
   sent, not even its remote config.
 
+## The Mac
+
+- The Mac app is this target built for macOS (ADR 0017): the views are shared,
+  laid out as an iPad's, since the Mac's window is given the regular size
+  classes. `Platform.swift` answers what UIKit and AppKit answer apart (reduced
+  motion, the clipboard, images, the device for the benchmark), and
+  `satvis/macOS/` holds what only the Mac has, such as the stand-ins for the
+  compass and camera (`SkyDevices.swift`), whose controls are not shown.
+- The globe's `MTKView` sizes its own drawable on the Mac (`ScaledMTKView`): AppKit
+  sizes it by the window's backing scale, which changes when the window moves to
+  another display, and the Graphics panel's pixel ratio has to win over it. It
+  draws nothing while the window is covered or minimised, which AppKit's display
+  link does not stop by itself. The frame rate's ceiling is the refresh rate of
+  the screen the window is on (`GlobeRenderer.window`), as a Mac's displays each
+  have their own.
+- On the Mac the globe takes AppKit's events itself (`GlobePointer` in
+  `GlobeView.swift`) rather than SwiftUI's touch gestures: a drag turns it past a
+  3-point slop, a click selects once the double-click interval has passed, a
+  right click, a Control-click or a force click opens the globe menu, where the
+  iPhone holds a finger still, and a scroll zooms as a browser's wheel zooms the
+  web app's globe (`ScrollZoom`); the trackpad's pinch and twist are the
+  iPhone's. The globe takes the keyboard wherever no field has it, and back
+  from a field that closes (the window's first responder, watched): the arrows
+  move it, + and - zoom, the space bar plays or pauses the clock, and Escape
+  shows the UI, else closes the panel, else the selection, as the web app's
+  Escape does.
+- The menu bar (`SatvisCommands`) holds the menu column's panels, the
+  projection, the sky view, the base map, the way home and Hide UI (⇧⌘H) under
+  View; Find, Track and Info under Satellite; the bookmarks; the view's link
+  (⇧⌘C: ⌘C copies a field's text) and the site's links under Help. What only the
+  window holds, its panels, Bookmarks among them, and Hide UI, reaches it as a focused scene
+  value (`WindowCommands`).
+- The info card draws its title and buttons in a bar of its own
+  (`cardHeader` in `InfoPanel.swift`), as the tool panels' title row with their
+  bezel-less buttons (`titleRowButton`): a Mac's navigation stack has no bar, and
+  hands a toolbar and title to the window's.
+- Bookmarks is a panel beside the column, as the web app's, rather than a sheet
+  over the globe, and About a window of its own. The Bookmarks share stays
+  `NSSharingServicePicker`, as iOS's stays `UIActivityViewController`, rather
+  than `ShareLink`: the link is made as it is tapped, for the clock's minute then.
+- The window hides its title bar, and the globe is drawn up to its top edge
+  under the window's buttons; the panels keep to the safe area below them. The
+  globe's view is handed the clicks in the title bar's strip, and moves the
+  window with them, as the title bar would.
+- The window keeps its frame between launches, as AppKit does by itself, and is
+  no narrower than an upright iPad mini, the narrowest the regular layout is
+  drawn for. Closing it quits the app: the one session lives as long as its
+  window, and a window reopened would start it again over the scene it shows.
+  A Mac app is never sent to the background, so the view is kept for the next
+  launch as it quits (`Session.keepView`).
+- Pass notifications are planned again on a timer while the app runs, set again
+  by every new plan (`PassAlerts.reschedule`), as a Mac has no background
+  refresh: at launch, on activation and after each edit.
+- Memory pressure (`Platform.memoryWarnings`) trims the renderer's caches, as
+  the memory warning does on an iPhone.
+- Files go under a folder named by the bundle id in Application Support and
+  Caches (`FileManager.appFolder`, SatvisData), for the unsigned build outside
+  the sandbox that ADR 0017 describes.
+
 ## Packaging
 
 - `Info.plist` is generated from `INFOPLIST_KEY_*` build settings. The file
-  `satvis/Info.plist` holds only the keys that have no build setting.
+  `satvis/Info.plist` holds the keys that have no build setting, and those only an
+  iPhone or iPad takes, which a build setting would write into the Mac's too;
+  the Mac's is `satvis/macOS/Info.plist`. `satvis.entitlements` serves both;
+  the sandbox the Mac App Store requires, with its network and location rights,
+  is build settings for the Mac's SDK (`ENABLE_APP_SANDBOX` and its kin).
 - The app icon (`AppIcon.icon`) and the launch image are cut from
   `public/logo.svg`: counting its `<path>`s from 0, 0 is the #0b222d background,
   1–3 sky, 4–6 hills, 7–49 shuttle and 50–51 exhaust. Cut them again when the
@@ -345,4 +408,4 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   and the smoke clear together from 1 s, the shuttle most of the way up, and
   are gone at 1.5 s. It takes no touches: they reach the globe under it. Reduce
   Motion and a launch with `SATVIS_TEST_CATALOG`, `SATVIS_TIME` or a benchmark
-  skip it.
+  skip it, and so does the Mac, which has no launch screen for it to start from.

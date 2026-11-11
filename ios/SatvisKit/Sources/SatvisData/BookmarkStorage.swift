@@ -13,7 +13,7 @@ public struct BookmarkStorage: Sendable {
     }
 
     public static func applicationSupport() -> BookmarkStorage {
-        let base = (try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)) ?? URL.temporaryDirectory
+        let base = (try? FileManager.default.appFolder(.applicationSupportDirectory)) ?? URL.temporaryDirectory
         return BookmarkStorage(directory: base.appending(path: "Bookmarks", directoryHint: .isDirectory))
     }
 

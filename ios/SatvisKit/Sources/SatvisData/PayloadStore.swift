@@ -42,7 +42,7 @@ public struct PayloadStore: Sendable {
     /// But out of the user's backups, as Apple's storage guidelines ask of what
     /// can be downloaded again: megabytes of element sets, stale by any restore.
     public static func applicationSupport() throws -> PayloadStore {
-        let base = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        let base = try FileManager.default.appFolder(.applicationSupportDirectory)
         var directory = base.appending(path: "GP", directoryHint: .isDirectory)
         // Best effort: a copy backed up is better than none kept.
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

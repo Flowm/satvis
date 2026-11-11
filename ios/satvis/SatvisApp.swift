@@ -5,36 +5,75 @@ import SwiftUI
 
 @main
 struct SatvisApp: App {
-    @UIApplicationDelegateAdaptor private var delegate: AppDelegate
     @State private var session: Session
 
     /// `SATVIS_API` in the launch environment replaces satvis.space, e.g. a local
     /// worker at http://localhost:8787.
     static let site = ProcessInfo.processInfo.environment["SATVIS_API"].flatMap(URL.init(string:)) ?? WorkerClient.production
 
+    #if os(macOS)
+        /// The About window's id.
+        static let aboutWindow = "about"
+    #endif
+
     init() {
         let site = Self.site
+        Analytics.setup(site: site)
         let loader = GroupLoader(repository: Self.repository(site: site))
         _session = State(initialValue: Session(loader: loader, site: site, alerts: PassAlerts(loader: loader)))
     }
 
     var body: some Scene {
-        WindowGroup {
-            ContentView(session: session)
-                .overlay { LaunchAnimation() }
-                .preferredColorScheme(.dark)
-                .tint(Color.panelAccent)
-        }
-        // Element sets drift, and the four days ahead move on: predict the pass
-        // notifications again from the newest. The next refresh is asked for
-        // first, so that one that runs out of time does not end the chain, and
-        // again once the new notifications say when they run out.
-        .backgroundTask(.appRefresh(PassAlerts.refreshTaskID)) {
-            await session.alerts.requestRefresh()
-            await session.alerts.reschedule()
-            await session.alerts.requestRefresh()
-        }
+        #if os(macOS)
+            // One window, as on the iPhone: the app has one session, and a second
+            // window would run it twice and take its globe over.
+            // AppKit keeps its frame between launches ("NSWindow Frame globe").
+            Window("Satvis", id: "globe") {
+                ContentView(session: session)
+                    .appTheme()
+                    // A Mac has no size classes: its window is laid out as an iPad's,
+                    // the menu column open and the info panel a card, as on the web.
+                    .environment(\.horizontalSizeClass, .regular)
+                    .environment(\.verticalSizeClass, .regular)
+                    // An upright iPad mini's width, the narrowest the regular layout
+                    // is drawn for: the column, a panel and the info card side by side.
+                    .frame(minWidth: 744, minHeight: 600)
+            }
+            // The globe up to the window's top edge, under its buttons, which
+            // the panels stay clear of in the safe area.
+            .windowStyle(.hiddenTitleBar)
+            .defaultSize(width: 1280, height: 800)
+            .windowResizability(.contentMinSize)
+            .commands { SatvisCommands(session: session) }
+            // A window of its own, as a Mac app's About is, beside the globe.
+            Window("About Satvis", id: Self.aboutWindow) {
+                AboutView(session: session)
+                    .appTheme()
+                    .frame(minWidth: 420, minHeight: 480)
+            }
+            .defaultSize(width: 480, height: 720)
+            .windowResizability(.contentMinSize)
+        #else
+            WindowGroup {
+                ContentView(session: session)
+                    // The launch screen's logo lifting off; a Mac has no launch screen.
+                    .overlay { LaunchAnimation() }
+                    .appTheme()
+            }
+            .backgroundTask(.appRefresh(PassAlerts.refreshTaskID)) { await refreshPassAlerts() }
+        #endif
     }
+
+    #if os(iOS)
+        /// Element sets drift, and the four days ahead move on: predicts the pass
+        /// notifications again from the newest. The next refresh is asked for
+        /// first, so that one that runs out of time does not end the chain;
+        /// `reschedule` asks again once the new notifications say when they run out.
+        private func refreshPassAlerts() async {
+            session.alerts.requestRefresh()
+            await session.alerts.reschedule()
+        }
+    #endif
 
     private static func repository(site: URL) -> GroupRepository {
         #if DEBUG
@@ -46,6 +85,13 @@ struct SatvisApp: App {
         #endif
         let store = kept ?? (try? PayloadStore.applicationSupport()) ?? PayloadStore(directory: URL.temporaryDirectory.appending(path: "GP"))
         return GroupRepository(client: WorkerClient(baseURL: site), store: store, snapshot: snapshot)
+    }
+}
+
+extension View {
+    /// Dark, as the web app is, with its cyan for what can be pressed.
+    fileprivate func appTheme() -> some View {
+        preferredColorScheme(.dark).tint(Color.panelAccent)
     }
 }
 
@@ -88,6 +134,9 @@ struct ContentView: View {
     @State private var cardFrame: CGRect?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
+    #if os(macOS)
+        @Environment(\.openWindow) private var openWindow
+    #endif
     /// Dynamic Type's scale, as the menu toggle and the corner's buttons take it.
     @ScaledMetric(relativeTo: .body) private var textScale = 1.0
 
@@ -97,6 +146,18 @@ struct ContentView: View {
     private func hideUI() {
         clearTheGlobe()
         showsUI = false
+    }
+
+    /// Escape on the globe, as on the web: shows the UI again, else closes the
+    /// panel, else lets go of what is selected.
+    private func escape() {
+        if !showsUI {
+            showsUI = true
+        } else if panel != nil {
+            panel = nil
+        } else if session.selection != nil {
+            session.select(nil)
+        }
     }
 
     var body: some View {
@@ -123,9 +184,34 @@ struct ContentView: View {
             takePinch: session.aim.takePinch,
             isTransparent: session.aim.passthrough.isShowing,
             pixelRatio: session.pixelRatio,
-            frameRate: session.frameRate
+            frameRate: session.frameRate,
+            onEscape: escape,
+            onSpace: session.clock.togglePlaying
         )
         .ignoresSafeArea()
+        #if os(macOS)
+            .focusedSceneValue(
+                \.windowCommands,
+                WindowCommands(
+                    showsUI: showsUI,
+                    toggleUI: {
+                        if showsUI {
+                            hideUI()
+                        } else {
+                            showsUI = true
+                        }
+                    },
+                    panel: panel,
+                    showPanel: { which in
+                        if which != nil {
+                            showsUI = true
+                            showsTools = true
+                        }
+                        panel = which
+                    }
+                )
+            )
+        #endif
         .overlay {
             // In the whole screen's points, as the globe reports them: anchored on the
             // globe view itself, the arrow pointed the safe area's inset too low.
@@ -138,12 +224,14 @@ struct ContentView: View {
                 .ignoresSafeArea()
         }
         .sensoryFeedback(.impact, trigger: globeMenu?.id) { _, opened in opened != nil }
-        .background {
-            // Hidden by the opaque globe but while the sky view shows it.
-            CameraPreview(layer: session.aim.passthrough.previewLayer)
+        #if os(iOS)
+            .background {
+                // Hidden by the opaque globe but while the sky view shows it.
+                CameraPreview(layer: session.aim.passthrough.previewLayer)
                 .background(.black)
                 .ignoresSafeArea()
-        }
+            }
+        #endif
         .overlay {
             if session.observer != nil, let renderer = session.renderer {
                 // In the renderer's frame, the whole screen, since it projects into it.
@@ -172,25 +260,28 @@ struct ContentView: View {
                     Button("Show UI", systemImage: "eye") { showsUI = true }
                 } else {
                     Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
-                    if session.observer != nil {
-                        Button {
-                            session.aim.toggleCompass()
-                        } label: {
-                            Label {
-                                Text(session.aim.compass.isAiming ? "Stop aiming by compass" : "Aim by compass")
-                            } icon: {
-                                // The menu toggle's Lucide side, Dynamic Type scaling it as the symbols beside it.
-                                Image(.lucideCompass).resizable().frame(width: 22 * textScale, height: 22 * textScale)
+                    // A Mac has no motion sensor to aim by, nor a camera facing the sky.
+                    #if os(iOS)
+                        if session.observer != nil {
+                            Button {
+                                session.aim.toggleCompass()
+                            } label: {
+                                Label {
+                                    Text(session.aim.compass.isAiming ? "Stop aiming by compass" : "Aim by compass")
+                                } icon: {
+                                    // The menu toggle's Lucide side, Dynamic Type scaling it as the symbols beside it.
+                                    Image(.lucideCompass).resizable().frame(width: 22 * textScale, height: 22 * textScale)
+                                }
                             }
+                            // Lucide has no filled compass: on, it takes the accent, as on the web.
+                            .buttonStyle(PanelButtonStyle(emphasis: session.aim.compass.isAiming ? .accent : .plain, square: true))
+                            Button(
+                                session.aim.passthrough.isShowing ? "Hide the camera" : "Show the camera",
+                                systemImage: session.aim.passthrough.isShowing ? "camera.fill" : "camera"
+                            ) { session.aim.togglePassthrough() }
+                            .disabled(session.aim.isStartingCamera)
                         }
-                        // Lucide has no filled compass: on, it takes the accent, as on the web.
-                        .buttonStyle(PanelButtonStyle(emphasis: session.aim.compass.isAiming ? .accent : .plain, square: true))
-                        Button(
-                            session.aim.passthrough.isShowing ? "Hide the camera" : "Show the camera",
-                            systemImage: session.aim.passthrough.isShowing ? "camera.fill" : "camera"
-                        ) { session.aim.togglePassthrough() }
-                        .disabled(session.aim.isStartingCamera)
-                    }
+                    #endif
                     // The way out of following something once its panel is closed.
                     if session.tracked != nil {
                         Button("Stop tracking", systemImage: "video.slash") { session.stopTracking(animated: true) }
@@ -249,9 +340,14 @@ struct ContentView: View {
                     ToolMenu(isOpen: $showsTools, maxHeight: panelMaxHeight) {
                         // The web app's menu column: its entries, icons, order and hints.
                         ToolEntry(
-                            title: "Bookmarks", image: .lucideBookmark, hint: "Featured and saved views, links you opened, and the way back to the default view"
+                            title: "Bookmarks", image: .lucideBookmark, hint: "Featured and saved views, links you opened, and the way back to the default view",
+                            isSelected: panel == .bookmarks
                         ) {
-                            openSheet = .bookmarks
+                            #if os(macOS)
+                                panel = panel == .bookmarks ? nil : .bookmarks
+                            #else
+                                openSheet = .bookmarks
+                            #endif
                         }
                         // A panel where there is room, as on the web; on a phone a sheet.
                         ToolEntry(title: "Satellites", image: .lucideOrbit, hint: "Search and pick which satellites to show", isSelected: panel == .satellites) {
@@ -270,7 +366,11 @@ struct ContentView: View {
                         // The web app's About button, kept off the corner, which holds
                         // the ways back alone.
                         ToolEntry(title: "About", image: .lucideInfo, hint: "What Satvis is, what it does, where its data comes from, and its credits") {
-                            openSheet = .about
+                            #if os(macOS)
+                                openWindow(id: SatvisApp.aboutWindow)
+                            #else
+                                openSheet = .about
+                            #endif
                         }
                     }
                     .environment(\.toolNamesFolded, !roomy && panel != nil)
@@ -294,6 +394,7 @@ struct ContentView: View {
                             case .globe: GlobePanel(session: session)
                             case .sky: SkyPanel(session: session)
                             case .graphics: GraphicsPanel(session: session, hideUI: hideUI)
+                            case .bookmarks: BookmarksView(session: session) { self.panel = nil }
                             }
                         }
                         .id(panel)
@@ -433,8 +534,10 @@ struct ContentView: View {
         }
         // A satvis.space link the system hands over, universal link or not.
         .onOpenURL { session.open(Link($0.absoluteString), records: true) }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
-            session.renderer?.trimMemory()
+        .task {
+            for await _ in Platform.memoryWarnings() {
+                session.renderer?.trimMemory()
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
@@ -443,6 +546,20 @@ struct ContentView: View {
             default: break
             }
         }
+        #if os(macOS)
+            // A Mac app is never sent to the background: it quits, which keeps the
+            // view as going to the background does on an iPhone.
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+                session.keepView()
+            }
+            // The one session lives as long as its window: reopened, the window
+            // would start it again over the scene it shows.
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
+                if let window = note.object as? NSWindow, window === GlobeRenderer.window {
+                    NSApplication.shared.terminate(nil)
+                }
+            }
+        #endif
         // The keyboard rose under the clock deck into a panel being edited, and
         // shortened the panel past fitting, swapping in a scrolling one: a new
         // view, which dropped the field's focus. The sheets keep their own room.

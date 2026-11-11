@@ -20,12 +20,15 @@ let bottomMargin: CGFloat = 0.03
 /// The display's outline in `frame`, its corner radii as shares of its width:
 /// about 55 pt of an iPhone's 402 and 18 pt of an iPad's 1032. An iPhone Duo's
 /// cover display, 1398 pixels across, has 59 pt of its 466 on the right and 8 pt
-/// along the hinge; its inner one, lying down, 55 pt of 951.
+/// along the hinge; its inner one, lying down, 55 pt of 951. A Mac window,
+/// 1280 or 2560 pixels across, 26 pt of 1280, to cut off its own rounded
+/// corners, which its capture leaves transparent.
 func outline(_ frame: CGRect, pixelWidth: Int) -> CGPath {
     let (left, right): (CGFloat, CGFloat) =
         switch pixelWidth {
         case 1398: (8.0 / 466, 59.0 / 466)
         case 2853: (55.0 / 951, 55.0 / 951)
+        case 1280, 2560: (26.0 / 1280, 26.0 / 1280)
         default: frame.height / frame.width > 1.8 ? (0.137, 0.137) : (0.0174, 0.0174)
         }
     let path = CGMutablePath()

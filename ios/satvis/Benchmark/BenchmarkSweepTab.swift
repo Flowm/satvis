@@ -1,7 +1,6 @@
 import SatvisCore
 import SatvisRender
 import SwiftUI
-import UIKit
 
 /// The sweep (ADR 0016): the first N of the whole catalog with a set of components,
 /// past every budget, at a clock rate, then what the steps add up to. The web
@@ -52,7 +51,7 @@ struct BenchmarkSweepTab: View {
         Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 6) {
             GridRow {
                 label("Counts")
-                TextField("Counts", text: $countsText).keyboardType(.numbersAndPunctuation).textFieldStyle(.roundedBorder)
+                TextField("Counts", text: $countsText).signedNumberKeyboard().textFieldStyle(.roundedBorder)
             }
             GridRow {
                 label("Components")
@@ -63,7 +62,7 @@ struct BenchmarkSweepTab: View {
             }
             GridRow {
                 label("Clock ×")
-                TextField("Clock ×", text: $clocksText).keyboardType(.numbersAndPunctuation).textFieldStyle(.roundedBorder)
+                TextField("Clock ×", text: $clocksText).signedNumberKeyboard().textFieldStyle(.roundedBorder)
             }
         }
         .font(.caption)
@@ -262,7 +261,7 @@ struct BenchmarkSweepTab: View {
         guard let text else {
             return
         }
-        UIPasteboard.general.string = text
+        Platform.copy(text)
         copied = "Copied the \(what)."
     }
 }

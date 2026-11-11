@@ -208,11 +208,7 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
         view.enableSetNeedsDisplay = !animating
         if !animating {
             lastFrame = nil
-            #if canImport(UIKit)
-                view.setNeedsDisplay()
-            #else
-                view.needsDisplay = true
-            #endif
+            view.setNeedsDisplay(view.bounds)
         }
     }
 

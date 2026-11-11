@@ -79,7 +79,7 @@ struct AcknowledgementsView: View {
         }
         .panelSheet()
         .navigationTitle("Acknowledgements")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 
     private func entry(_ title: String, _ detail: String) -> some View {
@@ -110,6 +110,6 @@ private struct LicenceText: View {
         }
         .panelSheet()
         .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }

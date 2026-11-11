@@ -16,3 +16,16 @@ fail() {
 value() {
   printf %s "$1" | plutil -extract "$2" raw -o - - 2>/dev/null || true
 }
+
+# The platforms PLATFORM names, ios or macos, by default both, as asc names them.
+case "${PLATFORM:-}" in
+  "") platforms="IOS MAC_OS" ;;
+  ios) platforms=IOS ;;
+  macos) platforms=MAC_OS ;;
+  *) fail "PLATFORM is ios or macos, not $PLATFORM" ;;
+esac
+
+# Prints the platform's name in ios/metadata/ and in messages: ios or macos.
+folder() {
+  echo "$1" | tr -d _ | tr '[:upper:]' '[:lower:]'
+}

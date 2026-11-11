@@ -546,12 +546,19 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         await snapshots.next(width: width)
     }
 
-    /// The most frames a second the screen shows.
+    #if os(macOS)
+        /// The globe's window, whose screen sets the frame rate: a Mac's displays
+        /// each have their own, and the window moves between them.
+        public static weak var window: NSWindow?
+    #endif
+
+    /// The most frames a second the screen shows: on a Mac, the screen the globe's
+    /// window is on, read again each time.
     public static var displayMaximumFramesPerSecond: Int {
         #if canImport(UIKit)
             (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.maximumFramesPerSecond ?? 60
         #else
-            60
+            (window?.screen ?? NSScreen.main)?.maximumFramesPerSecond ?? 60
         #endif
     }
 

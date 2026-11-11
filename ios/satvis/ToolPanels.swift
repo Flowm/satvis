@@ -7,6 +7,8 @@ import SwiftUI
 /// satellite browser: lists too long for a card.
 enum ToolPanel: Hashable {
     case satellites, components, map, locations, globe, sky, graphics
+    /// A sheet elsewhere; a panel on a Mac, as on the web.
+    case bookmarks
 
     var title: LocalizedStringKey {
         switch self {
@@ -17,6 +19,7 @@ enum ToolPanel: Hashable {
         case .globe: "Globe"
         case .sky: "Sky"
         case .graphics: "Graphics"
+        case .bookmarks: "Bookmarks"
         }
     }
 
@@ -25,12 +28,17 @@ enum ToolPanel: Hashable {
     /// side by side, and on a 402 pt phone the 282 pt left fits -122.2727. The
     /// satellite browser's is the web app's.
     var cardWidth: CGFloat {
-        self == .locations || self == .satellites ? 320 : 260
+        switch self {
+        case .locations, .satellites: 320
+        // Three bookmark cards to a row.
+        case .bookmarks: 520
+        default: 260
+        }
     }
 
     /// Whether it holds a list that scrolls itself, rather than rows the card scrolls.
     var scrollsItself: Bool {
-        self == .satellites
+        self == .satellites || self == .bookmarks
     }
 }
 
@@ -229,11 +237,7 @@ struct ToolPanelView<Content: View>: View {
                     .font(.callout.weight(.semibold))
                 Spacer(minLength: 8)
                 Button("Close", systemImage: "xmark", action: onClose)
-                    .labelStyle(.iconOnly)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: PanelMetrics.row * scale, height: PanelMetrics.row * scale)
-                    .contentShape(.rect)
+                    .titleRowButton(side: PanelMetrics.row * scale)
             }
             .padding(.leading, 12)
             .padding(.trailing, 4)
@@ -581,36 +585,39 @@ struct SkyPanel: View {
                 Note("Locations you add are listed here too.")
             }
         }
-        PanelSection("Aiming") {
-            // Waiting on the sensor, a second tap must not start a second probe.
-            PanelCard {
-                Toggle(
-                    isOn: Binding {
-                        session.aim.compass.isAiming && !session.aim.compass.isProbing
-                    } set: { _ in
-                        session.aim.toggleCompass()
+        // A Mac has no motion sensor to aim by, nor a camera facing the sky.
+        #if os(iOS)
+            PanelSection("Aiming") {
+                // Waiting on the sensor, a second tap must not start a second probe.
+                PanelCard {
+                    Toggle(
+                        isOn: Binding {
+                            session.aim.compass.isAiming && !session.aim.compass.isProbing
+                        } set: { _ in
+                            session.aim.toggleCompass()
+                        }
+                    ) {
+                        Waiting("Use compass", while: session.aim.compass.isProbing, as: "Waiting for the motion sensor")
                     }
-                ) {
-                    Waiting("Use compass", while: session.aim.compass.isProbing, as: "Waiting for the motion sensor")
+                    .disabled(!inSky || session.aim.compass.isProbing)
                 }
-                .disabled(!inSky || session.aim.compass.isProbing)
             }
-        }
-        PanelSection("Camera") {
-            PanelCard {
-                Toggle(
-                    isOn: Binding {
-                        session.aim.passthrough.isShowing
-                    } set: { _ in
-                        session.aim.togglePassthrough()
+            PanelSection("Camera") {
+                PanelCard {
+                    Toggle(
+                        isOn: Binding {
+                            session.aim.passthrough.isShowing
+                        } set: { _ in
+                            session.aim.togglePassthrough()
+                        }
+                    ) {
+                        Waiting("Show camera", while: session.aim.isStartingCamera, as: "Starting the camera")
                     }
-                ) {
-                    Waiting("Show camera", while: session.aim.isStartingCamera, as: "Starting the camera")
+                    .disabled(!inSky || session.aim.isStartingCamera)
                 }
-                .disabled(!inSky || session.aim.isStartingCamera)
+                Note("The sky through the camera, aimed by compass.")
             }
-            Note("The sky through the camera, aimed by compass.")
-        }
+        #endif
         PanelSection("Out of sight") {
             Segments(title: "Out of sight", selection: $session.unseen, options: UnseenMode.allCases.map { ($0.rawValue.capitalized, $0) })
                 .disabled(!inSky)
