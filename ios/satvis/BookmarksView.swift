@@ -3,8 +3,8 @@ import SwiftUI
 
 /// The web app's Bookmarks panel (BookmarkPanel.vue): the featured and saved
 /// bookmarks and the opened links as cards, the way back to the default view, and
-/// saving the scene. A sheet, as the other long lists are; on a Mac a popover from
-/// its entry in the menu column, which leaves the globe in sight.
+/// saving the scene. A sheet, as the other long lists are; on a Mac a panel beside
+/// the menu column, as on the web, which leaves the globe in sight.
 struct BookmarksView: View {
     let session: Session
     /// A bookmark or the default view was opened, and the sheet closes on it.
@@ -28,6 +28,8 @@ struct BookmarksView: View {
     /// The share button's key among `frames`, beside the cards' ids.
     private static let shareButton = "share"
     @Environment(\.dismiss) private var dismiss
+    /// The height under a panel's title, on a Mac.
+    @Environment(\.panelRoom) private var room
 
     init(session: Session, onOpen: @escaping () -> Void = {}) {
         self.session = session
@@ -91,11 +93,12 @@ struct BookmarksView: View {
                     tab = Self.openingTab(session)
                 }
             }
-            .navigationTitle("Bookmarks")
-            .toolbarTitleDisplayMode(.inline)
             .panelSheet()
             #if os(iOS)
-                // A popover on a Mac has no toolbar, and closes by a click outside it.
+                // A Mac's panel has its own title and close button, and a title
+                // here would be the window's.
+                .navigationTitle("Bookmarks")
+                .toolbarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         shareButton
@@ -115,8 +118,7 @@ struct BookmarksView: View {
                     HStack {
                         Button("Default view", systemImage: "arrow.counterclockwise") {
                             session.openDefaultView()
-                            onOpen()
-                            dismiss()
+                            opened()
                         }
                         .disabled(here.query.isEmpty)
                         #if os(macOS)
@@ -168,6 +170,10 @@ struct BookmarksView: View {
                 Button("Cancel", role: .cancel) {}
             }
         }
+        #if os(macOS)
+            // As tall as the panel's room under its title, up to 640 points.
+            .frame(height: min(room ?? 640, 640))
+        #endif
         // Closed, the sheet's undos go with it.
         .onDisappear {
             for bookmark in deleted {
@@ -185,12 +191,20 @@ struct BookmarksView: View {
         .reportsFrame { frames[Self.shareButton] = $0 }
     }
 
+    /// Closes the sheet, or the Mac's panel through `onOpen`: there `dismiss`
+    /// would close the globe's window, which quits the app.
+    private func opened() {
+        onOpen()
+        #if os(iOS)
+            dismiss()
+        #endif
+    }
+
     private func card(_ bookmark: Bookmark, isCurrent: Bool) -> some View {
         let summary = session.summary(bookmark.scene)
         return Button {
             session.open(bookmark)
-            onOpen()
-            dismiss()
+            opened()
         } label: {
             BookmarkCard(bookmark: bookmark, summary: summary, picture: picture(bookmark), isCurrent: isCurrent)
         }
@@ -379,8 +393,7 @@ struct BookmarkFacts: View {
 /// sheet's corner, not the window's, where the popover pointed at first.
 private enum ShareSheet {
     #if os(macOS)
-        /// The share menu under `rect`, in the window clicked in: the Bookmarks
-        /// popover's, which need not be the key window.
+        /// The share menu under `rect`, in the window clicked in.
         static func present(_ url: URL, from rect: CGRect) {
             guard let view = (NSApplication.shared.currentEvent?.window ?? NSApplication.shared.keyWindow)?.contentView else {
                 return

@@ -30,8 +30,7 @@ struct SatvisApp: App {
             // AppKit keeps its frame between launches ("NSWindow Frame globe").
             Window("Satvis", id: "globe") {
                 ContentView(session: session)
-                    .preferredColorScheme(.dark)
-                    .tint(Color.panelAccent)
+                    .appTheme()
                     // A Mac has no size classes: its window is laid out as an iPad's,
                     // the menu column open and the info panel a card, as on the web.
                     .environment(\.horizontalSizeClass, .regular)
@@ -40,14 +39,16 @@ struct SatvisApp: App {
                     // is drawn for: the column, a panel and the info card side by side.
                     .frame(minWidth: 744, minHeight: 600)
             }
+            // The globe up to the window's top edge, under its buttons, which
+            // the panels stay clear of in the safe area.
+            .windowStyle(.hiddenTitleBar)
             .defaultSize(width: 1280, height: 800)
             .windowResizability(.contentMinSize)
             .commands { SatvisCommands(session: session) }
             // A window of its own, as a Mac app's About is, beside the globe.
             Window("About Satvis", id: Self.aboutWindow) {
                 AboutView(session: session)
-                    .preferredColorScheme(.dark)
-                    .tint(Color.panelAccent)
+                    .appTheme()
                     .frame(minWidth: 420, minHeight: 480)
             }
             .defaultSize(width: 480, height: 720)
@@ -57,8 +58,7 @@ struct SatvisApp: App {
                 ContentView(session: session)
                     // The launch screen's logo lifting off; a Mac has no launch screen.
                     .overlay { LaunchAnimation() }
-                    .preferredColorScheme(.dark)
-                    .tint(Color.panelAccent)
+                    .appTheme()
             }
             .backgroundTask(.appRefresh(PassAlerts.refreshTaskID)) { await refreshPassAlerts() }
         #endif
@@ -85,6 +85,13 @@ struct SatvisApp: App {
         #endif
         let store = kept ?? (try? PayloadStore.applicationSupport()) ?? PayloadStore(directory: URL.temporaryDirectory.appending(path: "GP"))
         return GroupRepository(client: WorkerClient(baseURL: site), store: store, snapshot: snapshot)
+    }
+}
+
+extension View {
+    /// Dark, as the web app is, with its cyan for what can be pressed.
+    fileprivate func appTheme() -> some View {
+        preferredColorScheme(.dark).tint(Color.panelAccent)
     }
 }
 
@@ -201,12 +208,6 @@ struct ContentView: View {
                             showsTools = true
                         }
                         panel = which
-                    },
-                    openBookmarks: {
-                        // The popover hangs off the column's entry.
-                        showsUI = true
-                        showsTools = true
-                        openSheet = .bookmarks
                     }
                 )
             )
@@ -339,16 +340,15 @@ struct ContentView: View {
                     ToolMenu(isOpen: $showsTools, maxHeight: panelMaxHeight) {
                         // The web app's menu column: its entries, icons, order and hints.
                         ToolEntry(
-                            title: "Bookmarks", image: .lucideBookmark, hint: "Featured and saved views, links you opened, and the way back to the default view"
+                            title: "Bookmarks", image: .lucideBookmark, hint: "Featured and saved views, links you opened, and the way back to the default view",
+                            isSelected: panel == .bookmarks
                         ) {
-                            openSheet = .bookmarks
+                            #if os(macOS)
+                                panel = panel == .bookmarks ? nil : .bookmarks
+                            #else
+                                openSheet = .bookmarks
+                            #endif
                         }
-                        #if os(macOS)
-                            .popover(isPresented: bookmarksPopover, arrowEdge: .trailing) {
-                                BookmarksView(session: session)
-                                .frame(width: 560, height: 640)
-                            }
-                        #endif
                         // A panel where there is room, as on the web; on a phone a sheet.
                         ToolEntry(title: "Satellites", image: .lucideOrbit, hint: "Search and pick which satellites to show", isSelected: panel == .satellites) {
                             if sizeClass == .regular {
@@ -394,6 +394,7 @@ struct ContentView: View {
                             case .globe: GlobePanel(session: session)
                             case .sky: SkyPanel(session: session)
                             case .graphics: GraphicsPanel(session: session, hideUI: hideUI)
+                            case .bookmarks: BookmarksView(session: session) { self.panel = nil }
                             }
                         }
                         .id(panel)
@@ -571,7 +572,7 @@ struct ContentView: View {
     private var sheet: Binding<AppSheet?> {
         Binding {
             if let openSheet {
-                openSheet.isPopover ? nil : openSheet
+                openSheet
             } else if sizeClass != .regular && session.selection != nil {
                 .info
             } else {
@@ -589,19 +590,6 @@ struct ContentView: View {
             }
         }
     }
-
-    #if os(macOS)
-        /// Bookmarks, shown from its entry in the column rather than as a sheet.
-        private var bookmarksPopover: Binding<Bool> {
-            Binding {
-                openSheet == .bookmarks
-            } set: { shown in
-                if !shown, openSheet == .bookmarks {
-                    openSheet = nil
-                }
-            }
-        }
-    #endif
 
     /// Starts picking a spot from the Locations panel, out of the globe's way.
     private func pickFromLocations() {
@@ -754,15 +742,6 @@ private enum AppSheet: Identifiable {
     case info
 
     var id: Self { self }
-
-    /// Shown as a popover from its entry in the column: Bookmarks on a Mac.
-    var isPopover: Bool {
-        #if os(macOS)
-            self == .bookmarks
-        #else
-            false
-        #endif
-    }
 }
 
 extension View {

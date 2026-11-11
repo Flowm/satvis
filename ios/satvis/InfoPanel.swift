@@ -246,14 +246,20 @@ extension View {
         /// both to the window's.
         fileprivate func cardHeader(@ViewBuilder title: () -> some View, @ViewBuilder actions: () -> some View) -> some View {
             safeAreaBar(edge: .top, spacing: 0) {
-                HStack(spacing: 0) {
-                    title()
-                    actions()
-                        .labelStyle(.iconOnly)
-                        .buttonStyle(PanelButtonStyle())
+                // The tool panels' title row: their close button, and a rule under it.
+                VStack(spacing: 0) {
+                    HStack(spacing: 0) {
+                        title()
+                        Group {
+                            actions()
+                        }
+                        .titleRowButton(side: PanelMetrics.row)
+                    }
+                    .padding(.leading, 16)
+                    .padding(.trailing, 4)
+                    .padding(.vertical, 4)
+                    Divider()
                 }
-                .padding(.leading, 16)
-                .padding(.trailing, 4)
             }
         }
     #endif

@@ -95,6 +95,17 @@ extension View {
         panel(in: .rect(cornerRadius: cornerRadius))
     }
 
+    /// A button in a panel's title row: its icon alone, grey, on a fingertip's
+    /// square, with no bezel, which a Mac's buttons otherwise have.
+    func titleRowButton(side: CGFloat) -> some View {
+        labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .font(.body.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(width: side, height: side)
+            .contentShape(.rect)
+    }
+
     /// A navigation stack's list on what is behind it, the info panel's surface:
     /// the list's background and the stack's cleared, which were black on an iPad.
     func panelList() -> some View {

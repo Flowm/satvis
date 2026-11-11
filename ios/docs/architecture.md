@@ -358,15 +358,20 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   projection, the sky view, the base map, the way home and Hide UI (⇧⌘H) under
   View; Find, Track and Info under Satellite; the bookmarks; the view's link
   (⇧⌘C: ⌘C copies a field's text) and the site's links under Help. What only the
-  window holds, its panel, Bookmarks and Hide UI, reaches it as a focused scene
+  window holds, its panels, Bookmarks among them, and Hide UI, reaches it as a focused scene
   value (`WindowCommands`).
 - The info card draws its title and buttons in a bar of its own
-  (`cardHeader` in `InfoPanel.swift`): a Mac's navigation stack has no bar, and
+  (`cardHeader` in `InfoPanel.swift`), as the tool panels' title row with their
+  bezel-less buttons (`titleRowButton`): a Mac's navigation stack has no bar, and
   hands a toolbar and title to the window's.
-- Bookmarks is a popover from its entry in the column, rather than a sheet over
-  the globe, and About a window of its own. The Bookmarks share stays
+- Bookmarks is a panel beside the column, as the web app's, rather than a sheet
+  over the globe, and About a window of its own. The Bookmarks share stays
   `NSSharingServicePicker`, as iOS's stays `UIActivityViewController`, rather
   than `ShareLink`: the link is made as it is tapped, for the clock's minute then.
+- The window hides its title bar, and the globe is drawn up to its top edge
+  under the window's buttons; the panels keep to the safe area below them. The
+  globe's view is handed the clicks in the title bar's strip, and moves the
+  window with them, as the title bar would.
 - The window keeps its frame between launches, as AppKit does by itself, and is
   no narrower than an upright iPad mini, the narrowest the regular layout is
   drawn for. Closing it quits the app: the one session lives as long as its
@@ -379,8 +384,8 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
 - Memory pressure (`Platform.memoryWarnings`) trims the renderer's caches, as
   the memory warning does on an iPhone.
 - Files go under a folder named by the bundle id in Application Support and
-  Caches (`FileManager.appFolder`, SatvisData): the same place inside the sandbox,
-  and the user's own Library outside it, where an unsigned build runs.
+  Caches (`FileManager.appFolder`, SatvisData), for the unsigned build outside
+  the sandbox that ADR 0017 describes.
 
 ## Packaging
 

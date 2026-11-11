@@ -7,6 +7,8 @@ import SwiftUI
 /// satellite browser: lists too long for a card.
 enum ToolPanel: Hashable {
     case satellites, components, map, locations, globe, sky, graphics
+    /// A sheet elsewhere; a panel on a Mac, as on the web.
+    case bookmarks
 
     var title: LocalizedStringKey {
         switch self {
@@ -17,6 +19,7 @@ enum ToolPanel: Hashable {
         case .globe: "Globe"
         case .sky: "Sky"
         case .graphics: "Graphics"
+        case .bookmarks: "Bookmarks"
         }
     }
 
@@ -25,12 +28,17 @@ enum ToolPanel: Hashable {
     /// side by side, and on a 402 pt phone the 282 pt left fits -122.2727. The
     /// satellite browser's is the web app's.
     var cardWidth: CGFloat {
-        self == .locations || self == .satellites ? 320 : 260
+        switch self {
+        case .locations, .satellites: 320
+        // Three bookmark cards to a row.
+        case .bookmarks: 520
+        default: 260
+        }
     }
 
     /// Whether it holds a list that scrolls itself, rather than rows the card scrolls.
     var scrollsItself: Bool {
-        self == .satellites
+        self == .satellites || self == .bookmarks
     }
 }
 
@@ -229,11 +237,7 @@ struct ToolPanelView<Content: View>: View {
                     .font(.callout.weight(.semibold))
                 Spacer(minLength: 8)
                 Button("Close", systemImage: "xmark", action: onClose)
-                    .labelStyle(.iconOnly)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: PanelMetrics.row * scale, height: PanelMetrics.row * scale)
-                    .contentShape(.rect)
+                    .titleRowButton(side: PanelMetrics.row * scale)
             }
             .padding(.leading, 12)
             .padding(.trailing, 4)

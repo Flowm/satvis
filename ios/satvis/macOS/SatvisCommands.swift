@@ -2,8 +2,8 @@ import SatvisCore
 import SatvisRender
 import SwiftUI
 
-/// What the window offers the menu bar: its panels, Bookmarks and Hide UI, which
-/// are the window's state, not the session's.
+/// What the window offers the menu bar: its panels, Bookmarks among them, and
+/// Hide UI, which are the window's state, not the session's.
 struct WindowCommands {
     let showsUI: Bool
     let toggleUI: () -> Void
@@ -11,7 +11,6 @@ struct WindowCommands {
     let panel: ToolPanel?
     /// Opens a panel, bringing the UI and the column back for it, or closes it for nil.
     let showPanel: (ToolPanel?) -> Void
-    let openBookmarks: () -> Void
 }
 
 extension FocusedValues {
@@ -81,7 +80,7 @@ struct SatvisCommands: Commands {
             info
         }
         CommandMenu("Bookmarks") {
-            Button("Show Bookmarks") { window?.openBookmarks() }
+            Button("Show Bookmarks") { window?.showPanel(.bookmarks) }
                 .keyboardShortcut("b")
                 .disabled(window == nil)
             Button("Save This View") { Task { await session.saveHere() } }

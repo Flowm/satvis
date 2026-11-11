@@ -360,6 +360,11 @@ private final class ScaledMTKView: MTKView {
         }
 
         override func mouseDown(with event: NSEvent) {
+            // The hidden title bar's strip, which the globe is drawn under and is
+            // handed the clicks of: it moves the window, as the title bar would.
+            if let window, event.locationInWindow.y > window.contentLayoutRect.maxY {
+                return event.clickCount == 2 ? Self.titleBarDoubleClick(window) : window.performDrag(with: event)
+            }
             if event.modifierFlags.contains(.control) {
                 return rightMouseDown(with: event)
             }
@@ -371,6 +376,16 @@ private final class ScaledMTKView: MTKView {
             forced = false
             if event.clickCount > 1 {
                 pendingClick?.cancel()
+            }
+        }
+
+        /// What a double click on a title bar does, as the user set it in the
+        /// Desktop & Dock settings: fill the screen, minimise, or nothing.
+        private static func titleBarDoubleClick(_ window: NSWindow) {
+            switch UserDefaults.standard.string(forKey: "AppleActionOnDoubleClick") {
+            case "Minimize": window.miniaturize(nil)
+            case "None": break
+            default: window.zoom(nil)
             }
         }
 
@@ -456,17 +471,14 @@ private final class ScaledMTKView: MTKView {
                 default: nil
                 }
             if let move {
-                pointer.drag(move, CGSize(width: move.x, height: move.y), bounds.size)
-            } else if event.charactersIgnoringModifiers == "\u{1B}" {
-                pointer.escape()
-            } else if event.charactersIgnoringModifiers == " " {
-                pointer.space()
-            } else if ["+", "="].contains(event.charactersIgnoringModifiers) {
-                pointer.zoom(Self.keyZoom)
-            } else if event.charactersIgnoringModifiers == "-" {
-                pointer.zoom(1 / Self.keyZoom)
-            } else {
-                super.keyDown(with: event)
+                return pointer.drag(move, CGSize(width: move.x, height: move.y), bounds.size)
+            }
+            switch event.charactersIgnoringModifiers {
+            case "\u{1B}": pointer.escape()
+            case " ": pointer.space()
+            case "+", "=": pointer.zoom(Self.keyZoom)
+            case "-": pointer.zoom(1 / Self.keyZoom)
+            default: super.keyDown(with: event)
             }
         }
 
