@@ -153,8 +153,9 @@ async function handleIngest({ request, store }: RouteContext): Promise<Response>
 
 /**
  * push-catalog's one call per table (ADR 0008): a body is a new file, which is stored
- * only if it parses; an empty body reports that upstream answered 304
- * (`X-Upstream-Status`) or failed (`X-Upstream-Error`).
+ * only if it parses; an empty body reports that the table is unchanged
+ * (`X-Upstream-Status: 304`, also sent for an assembled table whose version stands) or
+ * failed (`X-Upstream-Error`).
  */
 async function handleUpstreamPut({ request, store, param: name }: RouteContext): Promise<Response> {
   const spec = upstreamSpec(name);

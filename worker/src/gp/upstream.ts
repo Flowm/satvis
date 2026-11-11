@@ -1,6 +1,7 @@
-// The tables the satellite table is built from (ADR 0006, 0008): SATCAT, and GCAT's
-// catalog, organisations and payloads. Each is stored as the file upstream served,
-// gzip-compressed, with its parsed rows and a status beside it. Two paths store them,
+// The tables the satellite table is built from (ADR 0006, 0008, 0018): SATCAT, GCAT's
+// catalog, organisations and payloads, and CEOS's lists as one file. Each is stored as the
+// file upstream served, or the one its spec put together, gzip-compressed, with its parsed
+// rows and a status beside it. Two paths store them,
 // PUT /api/upstream/<name> (push-catalog) and the Worker's own fetch; every GP update
 // reads the rows. None is a group source: a missing table costs enrichment and fails no group.
 
@@ -12,11 +13,17 @@ import type { UpstreamName, UpstreamStatus } from "./types.ts";
 export interface UpstreamSpec<T> {
   /** Its KV keys, its entry in /api/status, and its path in PUT /api/upstream/<name>. */
   name: UpstreamName;
-  /** Where upstream serves the whole table. */
+  /** Where upstream serves the whole table; the first download of an assembled one. */
   url: string;
+  /**
+   * For a table that is several downloads, in place of one conditional GET of `url`: puts
+   * its file together through `get`, which answers a URL's body and throws unless it is a
+   * 200. Answers undefined while `etag`, the stored file's, is still current.
+   */
+  assemble?: (get: (url: string) => Promise<string>, etag: string | undefined) => Promise<{ body: string; etag?: string } | undefined>;
   /** Throws on a body that is not this table, which then is not stored. */
   parse(body: string): T;
-  /** For the download alone. */
+  /** For one download alone. */
   timeoutMs: number;
   /** After this long without a check, /api/status marks the table stale. */
   staleAfterMs: number;
@@ -36,16 +43,50 @@ export interface UpstreamFetch {
   ms: number;
   /** The file as served, on a 200. */
   body?: string;
-  /** The ETag served with `body`, to send as If-None-Match next time. */
+  /** The ETag served with `body`, to send as If-None-Match next time; an assembled table's version. */
   etag?: string;
-  /** Upstream answered 304: the stored file is current. */
+  /** The stored file is current: upstream answered 304, or an assembled table's version stands. */
   notModified?: boolean;
   /** Why the download failed. */
   error?: string;
 }
 
-/** Never throws. Conditional on `etag`, the stored file's, so an unchanged table costs a 304. */
+/** A table that is several downloads, put together by its spec. */
+async function assembleUpstream(
+  fetchImpl: FetchImpl,
+  spec: UpstreamSpec<unknown>,
+  assemble: NonNullable<UpstreamSpec<unknown>["assemble"]>,
+  etag?: string,
+): Promise<UpstreamFetch> {
+  const started = Date.now();
+  const get = async (url: string): Promise<string> => {
+    const { value, error } = await download(fetchImpl, url, { timeoutMs: spec.timeoutMs }, async (res) => {
+      if (res.status !== 200) {
+        throw new Error(`HTTP ${res.status} for ${url}`);
+      }
+      return res.text();
+    });
+    if (value === undefined) {
+      throw new Error(error);
+    }
+    return value;
+  };
+  try {
+    const file = await assemble(get, etag);
+    return { ms: Date.now() - started, status: 200, ...(file ?? { notModified: true }) };
+  } catch (err) {
+    return { ms: Date.now() - started, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * Never throws. Conditional on `etag`, the stored file's, so an unchanged table costs a
+ * 304, or an assembled table the request for its version.
+ */
 export async function fetchUpstream(fetchImpl: FetchImpl, spec: UpstreamSpec<unknown>, etag?: string): Promise<UpstreamFetch> {
+  if (spec.assemble !== undefined) {
+    return assembleUpstream(fetchImpl, spec, spec.assemble, etag);
+  }
   const headers = etag === undefined ? undefined : { "If-None-Match": etag };
   const { ms, value, error } = await download(fetchImpl, spec.url, { timeoutMs: spec.timeoutMs, headers }, async (res): Promise<Omit<UpstreamFetch, "ms">> => {
     if (res.status === 200) {
@@ -108,10 +149,11 @@ async function parseStored<T>(spec: UpstreamSpec<T>, store: GroupStore): Promise
 }
 
 /**
- * Upstream answered 304: it still serves the file stored here, so the check is
- * recorded and an earlier error is resolved. The rows are parsed from the stored file
- * again, so a parser change reaches them at the next check; a file the parser now
- * rejects keeps its old rows and records the error.
+ * Upstream answered 304, or with the version an assembled table is stored under: it
+ * still serves the file stored here, so the check is recorded and an earlier error is
+ * resolved. The rows are parsed from the stored file again, so a parser change reaches
+ * them at the next check; a file the parser now rejects keeps its old rows and records
+ * the error.
  */
 export async function recordUnchanged<T>(spec: UpstreamSpec<T>, store: GroupStore, now: string): Promise<UpstreamStatus> {
   const { lastError: _resolved, lastErrorAt: _resolvedAt, ...previous } = (await store.readStatus(spec.name)) ?? {};
@@ -156,7 +198,7 @@ export async function refreshUpstream<T>(spec: UpstreamSpec<T>, store: GroupStor
     return (await storeUpstream(spec, store, result.body, result.etag, now)).status;
   }
   if (result.notModified) {
-    console.log(`upstream ${spec.name}: HTTP 304 in ${result.ms}ms`);
+    console.log(`upstream ${spec.name}: unchanged (HTTP ${result.status}) in ${result.ms}ms`);
     return recordUnchanged(spec, store, now);
   }
   console.warn(`upstream ${spec.name}: FAILED after ${result.ms}ms — ${result.error}`);
@@ -164,7 +206,7 @@ export async function refreshUpstream<T>(spec: UpstreamSpec<T>, store: GroupStor
 }
 
 /**
- * The stored rows, not the file: parsing all four files put a GP update over the
+ * The stored rows, not the file: parsing the files put a GP update over the
  * deployed Worker's 2 s CPU limit now and then (ADR 0008). Undefined when none are
  * stored: the GP update then enriches without this table.
  */

@@ -24,7 +24,7 @@ import { useSatStore } from "@/stores/sat";
 export type Selection = { kind: "satellite"; sat: SatelliteComponentCollection } | { kind: "groundstation"; gs: GroundStationEntity };
 
 /** The info panel's tabs, as UTabs values and slot names. */
-export type InfoTab = "orbit" | "spacecraft" | "location" | "passes";
+export type InfoTab = "orbit" | "spacecraft" | "instruments" | "location" | "passes";
 
 export interface PositionRow {
   label: string;

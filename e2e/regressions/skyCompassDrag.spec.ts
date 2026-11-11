@@ -67,12 +67,23 @@ test("a nudge leaves the compass aiming; a drag takes the aim back, levels it an
 });
 
 test("a drag during the sensor probe cancels quietly", async ({ page }) => {
+  // Holds the probe's 1.2 s timer (SENSOR_PROBE_MS) until after the drag: on a runner's
+  // SwiftShader the first read after the click came 2 s later, with the probe over.
+  await page.evaluate(() => {
+    const { setTimeout } = window;
+    window.setTimeout = ((handler: () => void, ms?: number) => {
+      if (ms !== 1200) {
+        return setTimeout(handler, ms);
+      }
+      window.setTimeout = setTimeout;
+      (window as { endProbe?: () => void }).endProbe = handler;
+      return 0;
+    }) as typeof setTimeout;
+  });
   await menuSwitch(page, "Use compass").click();
-  // Inside the 1.2 s probe. Aiming starts once the permission request answers, up to
-  // 14 ms after the switch disables, so a single read could land before it.
-  await expect(compassSwitch(page)).toBeDisabled();
-  await expect.poll(async () => (await sky(page)).aiming, { intervals: [20] }).toBe(true);
+  await expect.poll(async () => (await sky(page)).aiming).toBe(true);
   await drag(page, 40, 40);
+  await page.evaluate(() => (window as { endProbe?: () => void }).endProbe!());
   await expect(compassSwitch(page)).toBeEnabled();
   await expect(compassSwitch(page)).not.toBeChecked();
   expect((await sky(page)).aiming).toBe(false);

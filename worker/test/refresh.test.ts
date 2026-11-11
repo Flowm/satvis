@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { CEOS } from "../src/gp/ceos.ts";
 import type { FetchImpl } from "../src/gp/download.ts";
 import { GCAT_CATALOG, GCAT_ORGS, GCAT_PAYLOADS } from "../src/gp/gcat.ts";
 import { refreshGroups, refreshUpstreams } from "../src/gp/refresh.ts";
@@ -7,6 +8,7 @@ import { SATCAT } from "../src/gp/satcat.ts";
 import type { GroupsConfig, GroupsIndex, OmmRecord } from "../src/gp/types.ts";
 import { storeUpstream } from "../src/gp/upstream.ts";
 import { UPSTREAMS } from "../src/gp/upstreams.ts";
+import { CEOS_ETAG, CEOS_MISSIONS, CEOS_VERSION, ceosAnswers, ceosFile } from "./ceosFixtures.ts";
 import { GCAT_CATALOG_LINES, GCAT_ORGS_LINES, GCAT_PAYLOADS_LINES, gcatCatalog, gcatOrgs, gcatPayloads } from "./gcatFixtures.ts";
 import { memoryStore } from "./memoryStore.ts";
 
@@ -129,12 +131,13 @@ describe("refreshGroups", () => {
   });
 });
 
-/** Stores all four tables from the fixtures, as push-catalog would. */
+/** Stores every table from the fixtures, as push-catalog would. */
 async function storeAll(store: Parameters<typeof storeUpstream>[1]): Promise<void> {
   await storeUpstream(SATCAT, store, SATCAT_CSV, undefined, NOW);
   await storeUpstream(GCAT_CATALOG, store, gcatCatalog(GCAT_CATALOG_LINES.ISS, GCAT_CATALOG_LINES.NAUKA), undefined, NOW);
   await storeUpstream(GCAT_ORGS, store, gcatOrgs(...Object.values(GCAT_ORGS_LINES)), undefined, NOW);
   await storeUpstream(GCAT_PAYLOADS, store, gcatPayloads(GCAT_PAYLOADS_LINES.ISS), undefined, NOW);
+  await storeUpstream(CEOS, store, ceosFile({ missions: [CEOS_MISSIONS.ECOSTRESS, CEOS_MISSIONS.BLACKSKY] }), undefined, NOW);
 }
 
 // What a GP update reads from the stored tables; upstream.test.ts covers storing them.
@@ -170,6 +173,7 @@ describe("refreshGroups + stored tables", () => {
       category: "SS",
       class: "C",
       program: "TsM",
+      instruments: [{ name: "PHyTIR", fullName: "Prototype HyspIRI Thermal Infrared Radiometer (PHyTIR)", kind: "High-resolution nadir-scanning IR spectrometer", bands: ["TIR"] }],
     });
     // Nauka is docked, and SATCAT is the only thing that knows it.
     expect(nauka!.metadata).toMatchObject({ orbitType: "DOC", orbitCenter: "25544", country: "Russia", operator: "RKK Energiya" });
@@ -250,16 +254,20 @@ describe("refreshUpstreams", () => {
   it("asks for every table, each conditional on its own stored file", async () => {
     const { store } = memoryStore();
     await storeUpstream(SATCAT, store, SATCAT_CSV, '"abc"', NOW);
+    // CEOS's version is asked for, not sent: the stored one stands, so nothing else is.
+    await storeUpstream(CEOS, store, ceosFile(), CEOS_ETAG, NOW);
     const asked = new Map<string, string | undefined>();
     const statuses = await refreshUpstreams(store, async (url, init) => {
       asked.set(url, init?.headers?.["If-None-Match"]);
-      return { status: 304, text: async () => "" };
+      return url === CEOS.url ? { status: 200, text: async () => JSON.stringify(CEOS_VERSION) } : { status: 304, text: async () => "" };
     });
 
     expect([...asked.keys()]).toEqual(UPSTREAMS.map((spec) => spec.url));
     expect(asked.get(SATCAT.url)).toBe('"abc"');
     expect(asked.get(GCAT_CATALOG.url)).toBeUndefined();
-    expect(Object.keys(statuses)).toEqual(["satcat", "gcat", "gcatOrgs", "gcatPayloads"]);
+    expect(Object.keys(statuses)).toEqual(["satcat", "gcat", "gcatOrgs", "gcatPayloads", "ceos"]);
+    expect(statuses.ceos).toMatchObject({ updated: NOW });
+    expect(statuses.ceos).not.toHaveProperty("lastError");
   });
 
   it("carries on past a table whose store throws", async () => {
@@ -276,10 +284,11 @@ describe("refreshUpstreams", () => {
       [GCAT_CATALOG.url, gcatCatalog(GCAT_CATALOG_LINES.ISS)],
       [GCAT_ORGS.url, gcatOrgs(...Object.values(GCAT_ORGS_LINES))],
       [GCAT_PAYLOADS.url, gcatPayloads(GCAT_PAYLOADS_LINES.ISS)],
+      ...ceosAnswers(),
     ]);
     const statuses = await refreshUpstreams(store, async (url) => ({ status: 200, text: async () => bodies.get(url)!, headers: { get: () => null } }));
 
     expect(statuses.satcat).toMatchObject({ lastError: "store failed: KV put failed" });
-    expect([...files.keys()]).toEqual(["gcat", "gcatOrgs", "gcatPayloads"]);
+    expect([...files.keys()]).toEqual(["gcat", "gcatOrgs", "gcatPayloads", "ceos"]);
   });
 });

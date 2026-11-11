@@ -27,6 +27,9 @@ struct AcknowledgementsView: View {
                 Link(destination: URL(string: "https://planet4589.org/space/gcat/")!) {
                     entry("GCAT", "What each satellite is: its country, operator, manufacturer, bus, mass and size. Data from J. McDowell, planet4589.org, under CC BY 4.0.")
                 }
+                Link(destination: Credit.instruments.link!) {
+                    entry("CEOS MIM Database", "The instruments an Earth observation satellite carries. Under CC BY 4.0.")
+                }
             }
             Section("Data") {
                 // As the models repository's manifest credits each model.

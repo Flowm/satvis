@@ -41,6 +41,9 @@ public struct Credit: Hashable, Sendable {
 
     /// Where the satellites come from, as the web app credits it.
     public static let elementSets = Credit("Satellite TLE data provided by Celestrak", link: "https://celestrak.org/NORAD/elements/")
+
+    /// Where the instruments come from, as the web app credits it.
+    public static let instruments = Credit("CEOS MIM Database, CC BY 4.0", link: "https://database.eohandbook.com")
 }
 
 /// The licences of what the renderer carries.

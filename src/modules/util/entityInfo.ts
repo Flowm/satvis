@@ -5,7 +5,7 @@ import utc from "dayjs/plugin/utc";
 import { gcatCategoryLabel, gcatClassLabel } from "@/config/gcatCodes";
 import type { OrbitClass } from "@/config/orbitClass";
 import { satcatLabel, SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, SATCAT_ORBIT_TYPE } from "@/config/satcatCodes";
-import { swathExtentsOf, type SatelliteMetadata } from "@/config/satelliteMetadata";
+import { swathExtentsOf, type SatelliteInstrument, type SatelliteMetadata } from "@/config/satelliteMetadata";
 import type Orbit from "@/modules/Orbit";
 
 import { formatInteger, formatMeasure, formatNumber } from "./formats";
@@ -29,9 +29,21 @@ const JD_UNIX_EPOCH = 2440587.5;
  */
 export const STALE_ELEMENTS_DAYS = 10;
 
+/** One instrument in the info panel's Instruments tab. */
+export interface InstrumentInfo {
+  name: string;
+  /** Under the name; absent where CEOS has none beyond it. */
+  fullName?: string;
+  /** Its mission is over; the panel says so beside the name. */
+  retired: boolean;
+  /** Kind, Bands, Resolution and Nominal swath, those CEOS gives. */
+  rows: [string, string][];
+}
+
 /**
- * What the info panel shows of a satellite: a header, and the facts as rows for its Orbit
- * and Spacecraft tabs. The two lists in order are the single list the native app shows.
+ * What the info panel shows of a satellite: a header, the facts as rows for its Orbit
+ * and Spacecraft tabs, and its instruments. The native app's `SatelliteDetails` writes
+ * the same, held to this by the parity fixtures.
  */
 export interface SatelliteInfo {
   /** Colours the orbit chip. */
@@ -44,6 +56,8 @@ export interface SatelliteInfo {
   orbitRows: [string, string][];
   /** What it is: payload footprint, owner, hardware and life, from the record's metadata. */
   spacecraftRows: [string, string][];
+  /** What it carries, the instruments still flown first. Empty where CEOS lists none. */
+  instruments: InstrumentInfo[];
 }
 
 /**
@@ -62,7 +76,38 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
     ...(unusualStatus !== undefined && { status: unusualStatus }),
     orbitRows: [["Orbit", regime], ...derivedOrbitRows(orbit)],
     spacecraftRows: spacecraftRows(metadata, status),
+    instruments: (Array.isArray(metadata.instruments) ? (metadata.instruments as unknown[]) : []).flatMap((instrument) => instrumentInfo(instrument, orbitClass) ?? []),
   };
+}
+
+/**
+ * Undefined for an entry without a name. A curated row can give any shape, which is read
+ * as the native app's `SatelliteDetails.instruments` reads it: a field of another type is
+ * left out.
+ */
+function instrumentInfo(instrument: unknown, orbitClass: OrbitClass): InstrumentInfo | undefined {
+  if (typeof instrument !== "object" || instrument === null) {
+    return undefined;
+  }
+  const { name, fullName, kind, bands, resolutionM, nominalSwathKm, retired } = instrument as Record<keyof SatelliteInstrument, unknown>;
+  if (typeof name !== "string") {
+    return undefined;
+  }
+  const rows: [string, string][] = [];
+  if (typeof kind === "string") {
+    rows.push(["Kind", kind]);
+  }
+  const bandNames = Array.isArray(bands) ? bands.filter((band): band is string => typeof band === "string") : [];
+  if (bandNames.length > 0) {
+    rows.push(["Bands", bandNames.join(" · ")]);
+  }
+  if (typeof resolutionM === "number") {
+    rows.push(["Resolution", resolutionM < 1000 ? `${formatNumber(resolutionM)} m` : `${formatNumber(resolutionM / 1000)} km`]);
+  }
+  if (typeof nominalSwathKm === "number" && orbitClass === "LEO") {
+    rows.push(["Nominal swath", `${formatNumber(nominalSwathKm)} km`]);
+  }
+  return { name, ...(typeof fullName === "string" && { fullName }), retired: retired === true, rows };
 }
 
 /** "Orbit type" stays here: SATCAT's codes say docked, landed or impacted, a state of the spacecraft. */

@@ -34,6 +34,8 @@ struct SegmentedTabs<Value: Hashable>: View {
             .font(.subheadline.weight(isSelected ? .semibold : .medium))
             .foregroundStyle(Color.panelInk)
             .lineLimit(1)
+            // "Instruments" has 2 pt to spare in a 375 pt phone's four tabs, and none in bold text.
+            .minimumScaleFactor(0.8)
             .frame(maxWidth: .infinity, minHeight: 28)
             .background {
                 if isSelected {

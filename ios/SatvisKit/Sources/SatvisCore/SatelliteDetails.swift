@@ -58,8 +58,8 @@ public struct WebTables: Sendable, Decodable {
     }()
 }
 
-/// What the info panel's header, Orbit tab and Spacecraft tab say about a satellite,
-/// as the web app's `getSatelliteInfo` and `getElementsInfo` say it
+/// What the info panel's header and its Orbit, Spacecraft and Instruments tabs say
+/// about a satellite, as the web app's `getSatelliteInfo` and `getElementsInfo` say it
 /// (src/modules/util/entityInfo.ts).
 public enum SatelliteDetails {
     /// The Orbit tab's rows: the regime, then what the element set gives.
@@ -122,6 +122,41 @@ public enum SatelliteDetails {
             rows.append(("Decayed", decay))
         }
         return rows
+    }
+
+    /// One instrument in the Instruments tab, the web app's `InstrumentInfo`.
+    public struct Instrument: Sendable {
+        public var name: String
+        /// Under the name; nil where CEOS has none beyond it.
+        public var fullName: String?
+        /// Its mission is over; the panel says so beside the name.
+        public var isRetired: Bool
+        /// Kind, Bands, Resolution and Nominal swath, those CEOS gives.
+        public var rows: [(String, String)]
+    }
+
+    /// The Instruments tab: the record's `instruments`, CEOS's (ADR 0018). A curated row can
+    /// give any shape: an entry without a name is skipped, a field of another type left out.
+    public static func instruments(_ record: GPRecord) -> [Instrument] {
+        (record.metadata["instruments"]?.array ?? []).compactMap { instrument in
+            guard case .object(let fields) = instrument, let name = fields["name"]?.string else {
+                return nil
+            }
+            var rows: [(String, String)] = []
+            if let kind = fields["kind"]?.string {
+                rows.append(("Kind", kind))
+            }
+            if let bands = fields["bands"]?.array?.compactMap(\.string), !bands.isEmpty {
+                rows.append(("Bands", bands.joined(separator: " · ")))
+            }
+            if let metres = fields["resolutionM"]?.number {
+                rows.append(("Resolution", metres < 1000 ? "\(Formats.number(metres)) m" : "\(Formats.number(metres / 1000)) km"))
+            }
+            if let swath = fields["nominalSwathKm"]?.number, record.orbitClass == .leo {
+                rows.append(("Nominal swath", "\(Formats.number(swath)) km"))
+            }
+            return Instrument(name: name, fullName: fields["fullName"]?.string, isRetired: fields["retired"] == .bool(true), rows: rows)
+        }
     }
 
     /// GCAT flags most sizes and some masses as estimates (`estimated`); "~" says so.

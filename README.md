@@ -145,7 +145,7 @@ SATVIS_REFRESH_TOKEN=<token> pnpm --filter satvis-worker push-gp
 Run it on a schedule, at most every 6 h: a run costs ~7 MB, and CelesTrak asks
 for one download per update.
 
-The upstream tables, SATCAT and GCAT, travel apart from the GP data, with their own
+The upstream tables, SATCAT, GCAT and CEOS, travel apart from the GP data, with their own
 script, run daily ([Satellite metadata](#satellite-metadata)):
 
 ```
@@ -157,7 +157,7 @@ changed, and reports every table to `PUT /api/upstream/<name>`: the new file as 
 body with upstream's ETag in `X-Upstream-ETag`, or no body with
 `X-Upstream-Status: 304` or `X-Upstream-Error: <message>`. `SATVIS_API_URL` overrides the worker
 (default `https://satvis.space`). It waits 2 minutes between tables, so a run takes
-about 7: a report of a new file or a 304 costs the Worker more CPU than Workers Free
+about 9: a report of a new file or a 304 costs the Worker more CPU than Workers Free
 allows, and back to back they get a 503. `SATVIS_TABLE_PAUSE_MS=0` skips the wait
 against a local `wrangler dev`. It exits non-zero when a table was not refreshed.
 `POST /api/upstream/refresh` does the same from the worker itself, behind the same
@@ -289,7 +289,7 @@ magnified. `pnpm update-starmap` does the same for the optional star maps.
 ### Satellite metadata
 
 Static per-satellite facts are keyed by NORAD id in one satellite table
-([CONTEXT.md](CONTEXT.md#catalog-and-data)). It has four contributors, and every
+([CONTEXT.md](CONTEXT.md#catalog-and-data)). It has five contributors, and every
 field has one of them as its owner
 ([ADR 0008](docs/adr/0008-gcat-and-field-ownership.md)):
 
@@ -310,19 +310,26 @@ field has one of them as its owner
   still in orbit. GCAT runs about twelve weeks behind on new satellites. The worker
   names GCAT's codes from its organisations table, and lists the values GCAT flags
   as estimates in `estimated`.
+- **CEOS**: the instruments an Earth observation satellite carries, each with its
+  full name, kind, waveband classes, finest resolution and nominal swath, from the
+  [CEOS MIM Database](https://database.eohandbook.com) (CC BY 4.0), for the few
+  hundred satellites its agencies report. A mission's NORAD id counts only where
+  SATCAT's launch date confirms it
+  ([ADR 0018](docs/adr/0018-ceos-instruments.md)).
 
 A curated value wins field by field. The refresh attaches the merged facts to each
 served record under a lowercase `metadata` key, so there is no rule matching in the
 browser. A satellite in no table carries no metadata and gets the defaults in
 `src/config/satelliteMetadata.ts`.
 
-The four upstream tables (SATCAT, and GCAT's catalog, organisations and payloads)
-are stored in KV as the files upstream served, gzip-compressed, beside their parsed
+The five upstream tables (SATCAT, GCAT's catalog, organisations and payloads, and
+CEOS's lists as one file) are stored in KV as the files upstream served, CEOS's put together, gzip-compressed, beside their parsed
 rows, which each GP update reads. Every check parses the stored file again, a 304
 too, so a parser change applies after the next `push-catalog`. They are stored
 only by `push-catalog` and `POST /api/upstream/refresh`; a new file that does not
 parse is refused and the stored one stands. Each download is conditional on the
-stored `ETag`, so an unchanged table costs a 304. `pnpm update-gp` keeps its copies
+stored `ETag`, so an unchanged table costs a 304; CEOS's is its snapshot version,
+one small request before the 21 that make up its file, and again after them. `pnpm update-gp` keeps its copies
 in `worker/.cache/<name>.gz`, outside `data/` because everything in `data/` ships;
 deleting one costs a full download, 6.7 MB for SATCAT and 19 MB for GCAT's catalog.
 A missing table leaves every group untouched, only less enriched

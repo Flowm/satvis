@@ -630,3 +630,22 @@ quits. With a pass alert saved, launch and check
 **Result.** Not yet run: an agent's shell has no accessibility access to drive the
 Mac app, and Automation Mode, which Mac UI tests need, asks for the user's
 password.
+
+## Native app: the Instruments tab
+
+**Procedure.** On the test catalog (`SATVIS_TEST_CATALOG=1`, as `make test` launches
+it), open METOP-C's panel from the satellite search and choose Instruments, then
+INSAT-3D's, whose two instruments CEOS calls retired. On an iPhone, check that the
+four tabs fit the sheet with no name cut short, that each instrument is a card
+headed by its short name over its full name, with Retired beside the name where its
+mission is over, and that the credit under the last card opens CEOS's database.
+Check a satellite CEOS does not list, METOP-B on that catalog, for no such tab. On a
+Mac and an iPad, check the same in the card beside the column.
+
+**Result, 2026-11-11.** iPhone 18 Pro simulator, iOS 27.2, shot while
+`testListsTheInstruments` ran: the four tabs fit, "Instruments" with a few points
+to spare; METOP-C's AMSU-A card read Kind, Bands "MW", Resolution "48 km" and Nominal
+swath "2.054 km" in the simulator's region; INSAT-3D's two cards each had the
+Retired tag, no swath on its geostationary orbit, and "CEOS MIM Database, CC BY 4.0"
+under the second. The link was found by the test, not opened. The Mac app builds;
+its card and an iPad's were not looked at, and neither was METOP-B.

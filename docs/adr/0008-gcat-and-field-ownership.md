@@ -59,6 +59,7 @@ record at refresh time. The new rule is about who may write each field.
 | Physical     | `massKg`, `lengthM`, `diameterM`, `spanM`, `shape`, `estimated` | GCAT                                                             |
 | Purpose      | `category`, `class`                                             | GCAT                                                             |
 | Programme    | `program`                                                       | GCAT (ADR 0012)                                                  |
+| Instruments  | `instruments`                                                   | CEOS (ADR 0018)                                                  |
 | Sensor       | `swathStarboardKm`, `swathPortKm`, `coneFovDeg`                 | curated only                                                     |
 | Mission      | `missionType`                                                   | curated only                                                     |
 | Model        | `modelFile`, `model`                                            | curated (manifest NORAD ids), else derived from `bus` (ADR 0007) |
@@ -117,9 +118,10 @@ that have nothing in common (GP several times a day; SATCAT once or twice a day;
 about weekly). It also meant a parser change, a new field, waited for upstream to
 change its file before it applied, because a 304 reused the parsed rows. Now:
 
-- **Four upstream tables**, each stored as the file upstream served, gzip-compressed,
-  under `upstream:<name>`: SATCAT (`satcat`), and GCAT's catalog (`gcat`), organisations
-  (`gcatOrgs`) and payloads (`gcatPayloads`, for `category` and `class`). Compressed,
+- **Four upstream tables** then (CEOS's came later, ADR 0018), each stored as the file
+  upstream served, gzip-compressed, under `upstream:<name>`: SATCAT (`satcat`), and
+  GCAT's catalog (`gcat`), organisations (`gcatOrgs`) and payloads (`gcatPayloads`, for
+  `category` and `class`). Compressed,
   because GCAT's catalog is 18.4 MiB against KV's 25 MiB value limit, and it grows;
   gzip makes it 2.6 MiB, and decompresses to the file as downloaded.
 - **Two paths store them, and only these.** `PUT /api/upstream/<name>`, which

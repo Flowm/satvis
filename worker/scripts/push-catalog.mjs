@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Downloads the upstream tables (SATCAT, and GCAT's catalog, organisations and payloads)
-// from this machine and reports each to PUT /api/upstream/<name>, apart from the GP data
-// (push-gp.mjs, ADR 0008). Each download is conditional on the Worker's stored ETag, read
-// from /api/status, so an unchanged table costs a 304 and a report without a body. Run
-// daily: SATCAT changes once or twice a day, GCAT about weekly.
+// Downloads the upstream tables (SATCAT, GCAT's catalog, organisations and payloads, and
+// CEOS's lists) from this machine and reports each to PUT /api/upstream/<name>, apart
+// from the GP data (push-gp.mjs, ADR 0008). Each download is conditional on the Worker's
+// stored ETag, read from /api/status, so an unchanged table costs a 304 and a report
+// without a body; CEOS's is its snapshot version, asked for before its 21 downloads. Run
+// daily: SATCAT changes once or twice a day, GCAT about weekly, CEOS a few times a year.
 //
 // Usage:
 //   SATVIS_REFRESH_TOKEN=<token> pnpm --filter satvis-worker push-catalog
@@ -61,7 +62,7 @@ async function pushTable(spec, etag) {
     const outcome = sent.ok ? `stored ${sent.answer.rows} rows` : `REFUSED (HTTP ${sent.status}: ${sent.answer.lastError ?? sent.answer.error})`;
     process.stdout.write(`push-catalog: ${spec.name} HTTP 200 — ${download.body.length} bytes in ${download.ms}ms, ${outcome}\n`);
   } else if (download.notModified) {
-    process.stdout.write(`push-catalog: ${spec.name} 304 not modified (${download.ms}ms)\n`);
+    process.stdout.write(`push-catalog: ${spec.name} not modified, HTTP ${download.status} (${download.ms}ms)\n`);
   } else {
     process.stdout.write(`push-catalog: ${spec.name} FAILED after ${download.ms}ms — ${download.error}; the Worker keeps its stored file\n`);
     ok = false;
