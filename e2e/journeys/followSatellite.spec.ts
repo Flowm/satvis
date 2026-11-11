@@ -50,6 +50,14 @@ for (const [device, options] of Object.entries(DEVICES)) {
         .getByRole("cell")
         .click({ clickCount: 3 });
       expect(await page.evaluate(() => getSelection()?.toString())).toContain("NASA Johnson Space Flight Center");
+      // CEOS's hosted payloads (ADR 0018): each with what CEOS says of it, the retired ones last.
+      await panel.getByRole("tab", { name: "Instruments" }).click();
+      const desis = panel.getByRole("region", { name: "DESIS" });
+      await expect(desis).toContainText("DLR Earth Sensing Imaging Spectrometer");
+      await expect(desis.getByRole("row", { name: /Bands/ })).toContainText("VIS · NIR");
+      await expect(desis.getByRole("row", { name: /Resolution/ })).toContainText("79 m");
+      await expect(desis.getByRole("row", { name: /Nominal swath/ })).toContainText("57 km");
+      await expect(panel.getByRole("region", { name: "HICO" })).toContainText("Retired");
       await panel.getByRole("tab", { name: /Passes/ }).click();
       await expect(panel).toContainText("No ground station set");
       await expect(panel.locator(".model-view")).toHaveCount(0);

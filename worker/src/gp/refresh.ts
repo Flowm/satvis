@@ -68,7 +68,7 @@ export async function refreshGroups(config: GroupsConfig, store: GroupStore, fet
   await store.writeIndex(index);
   const durationMs = Date.now() - startedMs;
   console.log(
-    `gp refresh: done in ${durationMs}ms — ${written} groups written, ${skipped} skipped/failed, enriched from ${table.rows.satcat ?? 0} satcat and ${table.rows.gcat ?? 0} gcat rows`,
+    `gp refresh: done in ${durationMs}ms — ${written} groups written, ${skipped} skipped/failed, enriched from ${table.rows.satcat ?? 0} satcat, ${table.rows.gcat ?? 0} gcat and ${table.rows.ceos ?? 0} ceos rows`,
   );
   return { index, sources: fetched.map(toProbe), written, skipped, durationMs };
 }

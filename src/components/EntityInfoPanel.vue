@@ -215,6 +215,27 @@
             </template>
           </div>
         </template>
+
+        <template #instruments>
+          <div class="tab-body__pad instruments">
+            <section v-for="instrument in instruments" :key="instrument.name" class="instrument" :aria-label="instrument.name">
+              <div class="instrument__name">
+                {{ instrument.name }}
+                <span v-if="instrument.retired" class="instrument__retired">Retired</span>
+              </div>
+              <div v-if="instrument.fullName" class="instrument__full">{{ instrument.fullName }}</div>
+              <table v-if="instrument.rows.length > 0" class="info-table info-table--facts">
+                <tbody>
+                  <tr v-for="[label, value] in instrument.rows" :key="label">
+                    <th>{{ label }}</th>
+                    <td class="right">{{ value }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+            <a class="instruments__source" href="https://database.eohandbook.com" target="_blank" rel="noopener">CEOS MIM Database, CC BY 4.0</a>
+          </div>
+        </template>
       </UTabs>
     </UCard>
   </div>
@@ -284,6 +305,8 @@ const satnum = computed(() => (selection.value?.kind === "satellite" ? selection
 const links = computed(() => (satnum.value ? externalLinks(satnum.value) : []));
 /** Empty for a ground station, or a record with no metadata. */
 const spacecraftRows = computed(() => satelliteInfo.value?.spacecraftRows ?? []);
+/** Empty for all but the few hundred satellites CEOS lists (ADR 0018). */
+const instruments = computed(() => satelliteInfo.value?.instruments ?? []);
 /** Only satellites a model manifest lists have one (ADR 0007). */
 const modelFile = computed(() => (selection.value?.kind === "satellite" ? selection.value.sat.props.model?.file : undefined));
 
@@ -315,6 +338,9 @@ const tabs = computed(() => {
   }
   if (modelFile.value || spacecraftRows.value.length > 0 || links.value.length > 0) {
     items.push({ label: "Spacecraft", slot: "spacecraft", value: "spacecraft" });
+  }
+  if (instruments.value.length > 0) {
+    items.push({ label: "Instruments", slot: "instruments", value: "instruments" });
   }
   items.push({ label: "Passes", slot: "passes", value: "passes", ...(passRows.value.length > 0 ? { badge: passRows.value.length } : {}) });
   // After Passes, so a station opens on it: a preferred tab the selection lacks falls back to the first.
@@ -642,6 +668,38 @@ function notifyForPasses(): void {
   font-size: var(--text-section);
   font-weight: 600;
   line-height: 16px;
+}
+
+.instruments {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.instrument__name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Amber: the app colour for "away from rest", as on the status chip. */
+.instrument__retired {
+  color: var(--panel-amber);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.instrument__full {
+  margin-bottom: 4px;
+  color: #edffffb0;
+  font-size: 12px;
+}
+
+.instruments__source {
+  color: var(--panel-muted);
+  font-size: 11px;
 }
 
 .info-table {

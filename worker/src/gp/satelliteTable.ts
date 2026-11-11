@@ -1,7 +1,8 @@
 // The satellite table (CONTEXT.md): the static facts about each satellite, from the
 // upstream tables and the curated rows, attached to the GP records at refresh time
-// (ADR 0002, 0007, 0008).
+// (ADR 0002, 0007, 0008, 0018).
 
+import { CEOS, ceosBags } from "./ceos.ts";
 import { GCAT_CATALOG, GCAT_ORGS, GCAT_PAYLOADS, gcatBags } from "./gcat.ts";
 import { SATCAT } from "./satcat.ts";
 import { enrichmentSatnum } from "./satnum.ts";
@@ -17,14 +18,19 @@ interface Contribution {
   bags: Bags;
 }
 
-/** The upstream contributors, each read from its stored files; a missing file gives no bags. */
-const CONTRIBUTORS: readonly { name: string; load: (store: GroupStore) => Promise<Bags> }[] = [
+/**
+ * The upstream contributors, each read from its stored files; a missing file gives no
+ * bags. `loaded` holds the bags of the contributors before it, by name.
+ */
+const CONTRIBUTORS: readonly { name: string; load: (store: GroupStore, loaded: Readonly<Record<string, Bags>>) => Promise<Bags> }[] = [
   { name: "satcat", load: async (store) => (await loadUpstream(SATCAT, store)) ?? {} },
   {
     name: "gcat",
     // One after another, so each file's text is released before the next.
     load: async (store) => gcatBags(await loadUpstream(GCAT_CATALOG, store), await loadUpstream(GCAT_ORGS, store), await loadUpstream(GCAT_PAYLOADS, store)),
   },
+  // After SATCAT, whose launch dates say which of CEOS's NORAD ids to believe (ADR 0018).
+  { name: "ceos", load: async (store, loaded) => ceosBags(await loadUpstream(CEOS, store), loaded.satcat) },
 ];
 
 export class SatelliteTable {
@@ -81,9 +87,11 @@ export class SatelliteTable {
   /** From the stored upstream tables and `config`'s curated rows and bus models. */
   static async load(store: GroupStore, config: GroupsConfig): Promise<SatelliteTable> {
     const contributions: Contribution[] = [];
+    const loaded: Record<string, Bags> = {};
     for (const { name, load } of CONTRIBUTORS) {
       // eslint-disable-next-line no-await-in-loop -- one table in memory at a time; GCAT's file is 19 MB
-      contributions.push({ name, bags: await load(store) });
+      loaded[name] = await load(store, loaded);
+      contributions.push({ name, bags: loaded[name] });
     }
     return new SatelliteTable(contributions, config.satellites, config.modelBuses, config.modelLods);
   }

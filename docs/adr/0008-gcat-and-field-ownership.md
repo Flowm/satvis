@@ -59,6 +59,7 @@ record at refresh time. The new rule is about who may write each field.
 | Physical     | `massKg`, `lengthM`, `diameterM`, `spanM`, `shape`, `estimated` | GCAT                                                             |
 | Purpose      | `category`, `class`                                             | GCAT                                                             |
 | Programme    | `program`                                                       | GCAT (ADR 0012)                                                  |
+| Instruments  | `instruments`                                                   | CEOS (ADR 0018)                                                  |
 | Sensor       | `swathStarboardKm`, `swathPortKm`, `coneFovDeg`                 | curated only                                                     |
 | Mission      | `missionType`                                                   | curated only                                                     |
 | Model        | `modelFile`, `model`                                            | curated (manifest NORAD ids), else derived from `bus` (ADR 0007) |

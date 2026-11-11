@@ -35,14 +35,14 @@ discussion; sharpen them here when they drift.
 - **Satellite table**: the static per-satellite facts, keyed by NORAD id and
   independent of the groups that serve those satellites. Contributors: curated
   rows from every config (`worker/src/config/satvis.core.yaml`, plugin configs),
-  `modelFile` rows from the model manifests, and the **upstream tables**, **SATCAT**
-  and **GCAT**, read from KV at refresh time. Every field has one upstream owner, and a
+  `modelFile` rows from the model manifests, and the **upstream tables**, **SATCAT**,
+  **GCAT** and **CEOS**, read from KV at refresh time. Every field has one upstream owner, and a
   curated row may override any field, extending its upstream row rather than
   replacing it (`SatelliteTable`, `docs/adr/0008-gcat-and-field-ownership.md`).
 - **Upstream table**: a catalog stored whole in KV as the file upstream served,
   gzip-compressed, with its parsed rows and a **table status** beside it
-  (`worker/src/gp/upstream.ts`): SATCAT, and GCAT's catalog, organisations and
-  payloads. Stored only by `push-catalog` (`PUT /api/upstream/<name>`) and the
+  (`worker/src/gp/upstream.ts`): SATCAT, GCAT's catalog, organisations and
+  payloads, and CEOS's lists as one file. Stored only by `push-catalog` (`PUT /api/upstream/<name>`) and the
   Worker's own fetch, each conditional on the stored ETag; every check parses the
   file again, and every GP refresh reads the rows. Not a group
   source: it selects nothing and only enriches satellites some group already
@@ -57,6 +57,19 @@ discussion; sharpen them here when they drift.
   orbit. About
   twelve weeks behind on new satellites. CC BY 4.0
   (`docs/adr/0008-gcat-and-field-ownership.md`).
+- **CEOS**: the CEOS MIM database, the space agencies' yearly survey of their Earth
+  observation missions: which instruments a satellite carries, and what each is. One
+  mission per satellite, per hosted payload, or per whole constellation, so its NORAD
+  id is believed only where SATCAT's launch date confirms it. Its upstream table is one
+  file put together from its mission, instrument, combination and waveband lists, with
+  the snapshot's version as its ETag. CC BY 4.0 (`docs/adr/0018-ceos-instruments.md`).
+- **Instrument**: one sensor a satellite carries, as CEOS names it ("MODIS"), with its
+  full name, its **kind** (CEOS's technology, "Imaging radar (SAR)"), its **bands**
+  (CEOS's waveband classes, "VIS", "TIR", "C-Band"), its finest resolution and its
+  **nominal swath**. **Retired** once its mission is over, though the satellite is
+  still up. Upstream metadata, `instruments`, listed in the info panel's Instruments
+  tab. Not the sensor cone or the swath extents, which are curated and drawn: the
+  nominal swath is a published total width, shown and never drawn.
 - **Bus**: a spacecraft design, as GCAT names it (`Starlink V2M`, `A2100`); one
   bus serves many satellites.
 - **Satellite metadata**: the bag of static facts a GP record carries beside its
@@ -64,7 +77,7 @@ discussion; sharpen them here when they drift.
   (`src/config/satelliteMetadata.ts`). Provenance is per field, and decides what
   an absent field means:
   - **curated**: hand-written for a few dozen satellites, attached by the worker;
-  - **upstream**: from SATCAT or GCAT, one owner per field, attached by the worker.
+  - **upstream**: from SATCAT, GCAT or CEOS, one owner per field, attached by the worker.
 
   The orbit class is not in the bag: the frontend derives it from the element set
   (`CatalogEntry.orbitClass`). A satellite in neither table still has one, and uses

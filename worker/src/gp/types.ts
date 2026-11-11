@@ -161,10 +161,10 @@ export interface SatelliteEntry {
 
 /**
  * A table downloaded whole and stored as the file it is (upstream.ts, ADR 0008): SATCAT,
- * and GCAT's catalog, organisations and payloads. Each name is the key of its file and
- * its status, and its entry in /api/status.
+ * GCAT's catalog, organisations and payloads, and CEOS's lists as one file. Each name is the key
+ * of its file and its status, and its entry in /api/status.
  */
-export type UpstreamName = "satcat" | "gcat" | "gcatOrgs" | "gcatPayloads";
+export type UpstreamName = "satcat" | "gcat" | "gcatOrgs" | "gcatPayloads" | "ceos";
 
 /** satnum -> metadata bag, already renamed to the frontend's field names (satcat.ts). */
 export type SatcatRows = Record<string, Record<string, string>>;
@@ -211,6 +211,38 @@ export type GcatOrgNames = Record<string, string>;
 
 /** JCAT -> the payload table's codes, labelled by the frontend (src/config/gcatCodes.ts). */
 export type GcatPayloadRows = Record<string, { category?: string; class?: string; program?: string }>;
+
+/** One instrument, as a record's `instruments` carries it (ADR 0018). */
+export interface SatelliteInstrument {
+  /** CEOS's short name: "MODIS", "MSI (Sentinel-2)". */
+  name: string;
+  /** "MODerate-Resolution Imaging Spectroradiometer"; absent where it only repeats `name`. */
+  fullName?: string;
+  /** What it is, in CEOS's words: its technology ("Imaging radar (SAR)"), else its type. */
+  kind?: string;
+  /** CEOS's waveband classes, shortest wavelength first, then radar bands: "VIS", "TIR", "MW", "C-Band". */
+  bands?: string[];
+  /** Metres: its finest band's, so Landsat's OLI says 15, its panchromatic band. */
+  resolutionM?: number;
+  /** Km: the nominal width across both sides, not the calibrated swath extents (ADR 0002). */
+  swathKm?: number;
+  /** Its mission is over, though the satellite is still up. */
+  retired?: true;
+}
+
+/** One CEOS mission that names a NORAD id and carries instruments (ceos.ts). Not served. */
+export interface CeosMission {
+  /** `mission_acronym`: "Sentinel-2 A", "ECOSTRESS-on-ISS". */
+  name: string;
+  /** ISO date. A hosted payload's is later than its host's; a constellation's is its first unit's. */
+  launchDate: string;
+  /** No instrument carries `retired` here: it is the mission's. */
+  retired?: true;
+  instruments: SatelliteInstrument[];
+}
+
+/** satnum -> the missions CEOS gives that NORAD id, earliest launch first. */
+export type CeosRows = Record<string, CeosMission[]>;
 
 /**
  * Stored as KV metadata on `status:<name>`, apart from the file, so a 304 or a failure

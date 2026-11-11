@@ -94,6 +94,40 @@ describe("getSatelliteInfo", () => {
     expect(info.spacecraftRows.map(([label]) => label)).toEqual(["Swath", "Bus", "Orbit type"]);
   });
 
+  test("lists the instruments apart from the facts, each with the rows CEOS gives it", () => {
+    const modis = {
+      name: "MODIS",
+      fullName: "MODerate-Resolution Imaging Spectroradiometer",
+      kind: "Medium-resolution spectro-radiometer",
+      bands: ["VIS", "TIR"],
+      resolutionM: 250,
+      swathKm: 2330,
+    };
+    const info = getSatelliteInfo(ISS, "LEO", { instruments: [modis, { name: "GEDI" }, { name: "TROPOMI", resolutionM: 3500, retired: true }] });
+    expect(info.instruments).toEqual([
+      {
+        name: "MODIS",
+        fullName: "MODerate-Resolution Imaging Spectroradiometer",
+        retired: false,
+        rows: [
+          ["Type", "Medium-resolution spectro-radiometer"],
+          ["Bands", "VIS · TIR"],
+          ["Resolution", "250 m"],
+          ["Nominal swath", "2,330 km"],
+        ],
+      },
+      { name: "GEDI", retired: false, rows: [] },
+      { name: "TROPOMI", retired: true, rows: [["Resolution", "3.5 km"]] },
+    ]);
+    expect(labels(info)).toEqual(["Orbit", "Apogee / Perigee"]);
+    expect(getSatelliteInfo(ISS, "LEO", {}).instruments).toEqual([]);
+  });
+
+  test("gives no swath off a low orbit, where nothing sweeps", () => {
+    const [ahi] = getSatelliteInfo(ISS, "GEO", { instruments: [{ name: "AHI", resolutionM: 500, swathKm: 500 }] }).instruments;
+    expect(ahi!.rows).toEqual([["Resolution", "500 m"]]);
+  });
+
   test("omits every row the record does not carry, rather than showing defaults", () => {
     // The renderer still draws a DEFAULT_SWATH_KM swath and a DEFAULT_CONE_FOV_DEG cone.
     expect(labels(getSatelliteInfo(ISS, "LEO", {}))).not.toContain("Swath");

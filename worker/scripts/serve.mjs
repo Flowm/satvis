@@ -71,7 +71,7 @@ if (!before.built || after.stored > before.stored) {
  * share of its 250 MB/day per-IP budget: ~7 MB a run is ~29 MB/day.
  */
 const gpDue = (date) => date.getUTCHours() % 6 === 0 && date.getUTCMinutes() === 23;
-/** Daily at 04:47 UTC: SATCAT changes once or twice a day, GCAT about weekly. */
+/** Daily at 04:47 UTC: SATCAT changes once or twice a day, GCAT about weekly, CEOS a few times a year. */
 const tablesDue = (date) => date.getUTCHours() === 4 && date.getUTCMinutes() === 47;
 
 function scheduleTick() {

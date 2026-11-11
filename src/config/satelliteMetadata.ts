@@ -1,9 +1,9 @@
-// Static facts a GP record carries beside its element set (ADR 0002, 0006, 0008). Every
-// field has one owner: curated rows (satvis.core.yaml, plugins, model manifests), SATCAT,
-// or GCAT, and curated rows may override an upstream field (SatelliteTable). A curated
-// field needs no worker change, except the swath pair, whose both-or-neither rule the
-// generator enforces; an upstream field is mapped by its parser (worker/src/gp/satcat.ts,
-// gcat.ts). Cesium-free: node-env vitest exercises it.
+// Static facts a GP record carries beside its element set (ADR 0002, 0006, 0008, 0018).
+// Every field has one owner: curated rows (satvis.core.yaml, plugins, model manifests),
+// SATCAT, GCAT or CEOS, and curated rows may override an upstream field (SatelliteTable).
+// A curated field needs no worker change, except the swath pair, whose both-or-neither
+// rule the generator enforces; an upstream field is mapped by its parser
+// (worker/src/gp/satcat.ts, gcat.ts, ceos.ts). Cesium-free: node-env vitest exercises it.
 
 /** Worker `SatelliteModel` (worker/src/gp/types.ts): a satellite's 3D model and the copies drawn while it is small (ADR 0007). */
 export interface SatelliteModel {
@@ -18,6 +18,27 @@ export interface ModelLod {
   /** Under /data/models/, as the model's file is. */
   file: string;
   maxPoints: number;
+}
+
+/** Worker `SatelliteInstrument`: one instrument the satellite carries, as CEOS lists it (ADR 0018). */
+export interface SatelliteInstrument {
+  /** CEOS's short name: "MODIS", "MSI (Sentinel-2)". */
+  name: string;
+  /** "MODerate-Resolution Imaging Spectroradiometer"; absent where it only repeats `name`. */
+  fullName?: string;
+  /** What it is, in CEOS's words: "Imaging radar (SAR)". */
+  kind?: string;
+  /** CEOS's waveband classes, shortest wavelength first, then radar bands: "VIS", "TIR", "MW", "C-Band". */
+  bands?: string[];
+  /** Metres: its finest band's, so Landsat's OLI says 15, its panchromatic band. */
+  resolutionM?: number;
+  /**
+   * Km: the nominal width across both sides. Not the swath extents, which are calibrated
+   * and drawn, and meaningless off a low orbit: CEOS gives a geostationary imager 500 km.
+   */
+  swathKm?: number;
+  /** Its mission is over, though the satellite is still up. */
+  retired?: boolean;
 }
 
 /** Every field is optional; a consumer applies its default (DEFAULT_*, SatelliteProperties). */
@@ -67,6 +88,12 @@ export interface SatelliteMetadata {
   opOrbit?: string;
   /** GCAT's programme: "Starlink 2MO S1", "OneWeb", "TsM". Its first word names the constellation. */
   program?: string;
+
+  /**
+   * From CEOS, for the few hundred satellites its agencies report: the ones still flown
+   * first. Hosted payloads are their host's, so the ISS carries a dozen.
+   */
+  instruments?: SatelliteInstrument[];
 
   // Raw SATCAT codes, labelled by satcatCodes.ts; absent when upstream's cell is empty.
 
