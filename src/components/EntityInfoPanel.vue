@@ -232,6 +232,10 @@
                   </tr>
                 </tbody>
               </table>
+              <div v-if="instrument.imagery.length > 0" class="imagery">
+                <div class="imagery__title">Imagery</div>
+                <imagery-link v-for="imagery in instrument.imagery" :key="imagery.href" :imagery="imagery" />
+              </div>
             </section>
             <a class="instruments__source" href="https://database.eohandbook.com" target="_blank" rel="noopener">CEOS MIM Database, CC BY 4.0</a>
           </div>
@@ -257,6 +261,7 @@ import { notifyPasses } from "@/modules/util/passNotifications";
 import { useCesiumStore } from "@/stores/cesium";
 import { useSatStore } from "@/stores/sat";
 
+import ImageryLink from "./ImageryLink.vue";
 import PassTimeline from "./PassTimeline.vue";
 import SatelliteModelView from "./SatelliteModelView.vue";
 import SegmentedControl from "./SegmentedControl.vue";
@@ -695,6 +700,16 @@ function notifyForPasses(): void {
   margin-bottom: 4px;
   color: #edffffb0;
   font-size: 12px;
+}
+
+.imagery {
+  margin-top: 6px;
+}
+
+.imagery__title {
+  color: var(--panel-muted);
+  font-size: var(--text-section);
+  font-weight: 600;
 }
 
 .instruments__source {

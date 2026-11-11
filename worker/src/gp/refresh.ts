@@ -1,5 +1,6 @@
 // Store-agnostic: the Worker runs it against KV (api.ts), scripts/update-static-gp.mjs against disk.
 
+import { CEOS } from "./ceos.ts";
 import type { FetchImpl } from "./download.ts";
 import { evaluateGroups } from "./evaluate.ts";
 import { buildStatuses, withConfig } from "./groupsIndex.ts";
@@ -59,6 +60,16 @@ export async function refreshGroups(config: GroupsConfig, store: GroupStore, fet
   } else {
     for (const entry of table.unmatched()) {
       console.warn(`gp refresh: satellite table entry ${entry.noradId}${entry.name ? ` (${entry.name})` : ""} matched no record in any group`);
+    }
+  }
+
+  // One line when CEOS gave nothing, which is a missing table and not a misspelling per satellite.
+  const withoutInstrument = table.imageryWithoutInstrument;
+  if (withoutInstrument.length > 0 && !table.rows[CEOS.name]) {
+    console.warn(`gp refresh: no satellite has instruments from CEOS, so no app shows the imagery of ${new Set(withoutInstrument.map(({ noradId }) => noradId)).size} of them`);
+  } else {
+    for (const { noradId, instrument } of withoutInstrument) {
+      console.warn(`gp refresh: imagery manifest: satellite ${noradId} has no instrument ${JSON.stringify(instrument)}, so no app shows its imagery`);
     }
   }
 

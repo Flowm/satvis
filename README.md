@@ -220,8 +220,9 @@ facts, keyed by NORAD id). Tags and presets reach clients with the group index,
   ```
 
 `pnpm --filter satvis-worker generate-groups` merges the core config, every
-`data/custom/*/satvis.yaml` (with `extraRecordsFile` element sets inlined) and the
-model manifests into the gitignored `worker/src/config/satvis.generated.json`.
+`data/custom/*/satvis.yaml` (with `extraRecordsFile` element sets inlined), the
+model manifests and the imagery manifest into the gitignored
+`worker/src/config/satvis.generated.json`.
 The worker scripts run it themselves.
 
 A plugin can also ship files: `pnpm update-custom-data` runs each
@@ -289,7 +290,7 @@ magnified. `pnpm update-starmap` does the same for the optional star maps.
 ### Satellite metadata
 
 Static per-satellite facts are keyed by NORAD id in one satellite table
-([CONTEXT.md](CONTEXT.md#catalog-and-data)). It has five contributors, and every
+([CONTEXT.md](CONTEXT.md#catalog-and-data)). It has six contributors, and every
 field has one of them as its owner
 ([ADR 0008](docs/adr/0008-gcat-and-field-ownership.md)):
 
@@ -300,6 +301,11 @@ field has one of them as its owner
   ([ADR 0002](docs/adr/0002-static-satellite-metadata.md)).
 - **Model manifests**: a satellite's `modelFile`, by NORAD id, or by GCAT bus for
   a constellation, applied at refresh time ([ADR 0007](docs/adr/0007-model-manifest.md)).
+- **Imagery manifest**: the layers of NASA GIBS, EUMETView and the Copernicus
+  Browser that show one of a satellite's instruments, hand-written in
+  `worker/src/config/satvis.imagery.yaml`. The
+  Instruments tab links each to its provider's viewer
+  ([ADR 0019](docs/adr/0019-imagery-manifest.md)).
 - **SATCAT**: launch date and site, operational status, orbit type and centre,
   from the CelesTrak [SATCAT](https://celestrak.org/satcat/) for every served
   satellite. Raw SATCAT codes go over the wire; `src/config/satcatCodes.ts` turns

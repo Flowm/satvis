@@ -35,7 +35,8 @@ discussion; sharpen them here when they drift.
 - **Satellite table**: the static per-satellite facts, keyed by NORAD id and
   independent of the groups that serve those satellites. Contributors: curated
   rows from every config (`worker/src/config/satvis.core.yaml`, plugin configs),
-  `modelFile` rows from the model manifests, and the **upstream tables**, **SATCAT**,
+  `modelFile` rows from the model manifests, `imagery` from the imagery manifest,
+  and the **upstream tables**, **SATCAT**,
   **GCAT** and **CEOS**, read from KV at refresh time. Every field has one upstream owner, and a
   curated row may override any field, extending its upstream row rather than
   replacing it (`SatelliteTable`, `docs/adr/0008-gcat-and-field-ownership.md`).
@@ -70,6 +71,23 @@ discussion; sharpen them here when they drift.
   over, though the satellite is still up. Upstream metadata, `instruments`, listed in the info panel's Instruments
   tab. Not the sensor cone or the swath extents, which are curated and drawn: the
   nominal swath is a published total width, shown and never drawn.
+- **Imagery manifest**: the hand-written list of the layers that show an instrument,
+  `worker/src/config/satvis.imagery.yaml`. Written by satellite, then instrument; the
+  generator turns it into each satellite's `imagery`
+  (`docs/adr/0019-imagery-manifest.md`).
+- **Instrument imagery**: one layer of one imagery provider that shows one
+  **instrument** of one satellite, as a record's `imagery` carries it: the provider,
+  the layer's id there, what the picture is, and when it has frames. Curated metadata,
+  linked from the Instruments tab under its instrument, the default first. A layer
+  named for a service ("GOES-East") is the imagery of whichever satellite provides it
+  now, from the day it took over. Not a
+  **basemap** or an **overlay**, which the Map panel draws on the globe.
+- **Imagery provider**: a service that holds instrument imagery and has its own viewer
+  for it (`gibs`, `eumetview`, `copernicus-browser`). A record names it; each app has a
+  table of the ones it knows (`src/config/instrumentImagery.ts`). Not
+  `imageryProviders` in `CesiumLayerProviders.ts`, the Map panel's layers.
+- **Merged layer**: instrument imagery that shows several satellites, not told apart:
+  a Copernicus Browser dataset is the whole constellation's. Listed under each of them.
 - **Bus**: a spacecraft design, as GCAT names it (`Starlink V2M`, `A2100`); one
   bus serves many satellites.
 - **Satellite metadata**: the bag of static facts a GP record carries beside its

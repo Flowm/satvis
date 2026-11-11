@@ -60,6 +60,7 @@ record at refresh time. The new rule is about who may write each field.
 | Purpose      | `category`, `class`                                             | GCAT                                                             |
 | Programme    | `program`                                                       | GCAT (ADR 0012)                                                  |
 | Instruments  | `instruments`                                                   | CEOS (ADR 0018)                                                  |
+| Imagery      | `imagery`                                                       | curated only (the imagery manifest, ADR 0019)                    |
 | Sensor       | `swathStarboardKm`, `swathPortKm`, `coneFovDeg`                 | curated only                                                     |
 | Mission      | `missionType`                                                   | curated only                                                     |
 | Model        | `modelFile`, `model`                                            | curated (manifest NORAD ids), else derived from `bus` (ADR 0007) |

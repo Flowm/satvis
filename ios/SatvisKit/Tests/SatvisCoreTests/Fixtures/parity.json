@@ -1484,7 +1484,8 @@
                 "Bands",
                 "UV · VIS · NIR · SWIR"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "TSIS-1/SIM",
@@ -1499,7 +1500,8 @@
                 "Bands",
                 "UV · VIS · NIR · SWIR"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "TSIS-1/TIM",
@@ -1510,7 +1512,8 @@
                 "Kind",
                 "Solar irradiance monitor"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "DESIS",
@@ -1533,7 +1536,8 @@
                 "Nominal swath",
                 "57 km"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "PHyTIR",
@@ -1548,7 +1552,8 @@
                 "Bands",
                 "TIR"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "GEDI",
@@ -1563,7 +1568,8 @@
                 "Bands",
                 "NIR"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "Spectrometer (OCO-3)",
@@ -1585,7 +1591,8 @@
                 "Nominal swath",
                 "4 km"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "EMIT",
@@ -1608,7 +1615,8 @@
                 "Nominal swath",
                 "80 km"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "CIRC (ISS/JEM)",
@@ -1631,7 +1639,8 @@
                 "Nominal swath",
                 "128 km"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "SMILES",
@@ -1646,7 +1655,8 @@
                 "Bands",
                 "MW"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "HICO",
@@ -1665,7 +1675,8 @@
                 "Resolution",
                 "90 m"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "RapidScat",
@@ -1688,7 +1699,8 @@
                 "Nominal swath",
                 "1,100 km"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "CATS",
@@ -1703,7 +1715,8 @@
                 "Bands",
                 "VIS · NIR"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "LIS",
@@ -1718,7 +1731,8 @@
                 "Bands",
                 "NIR"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "HEIST",
@@ -1737,7 +1751,8 @@
                 "Nominal swath",
                 "38 km"
               ]
-            ]
+            ],
+            "imagery": []
           }
         ]
       },
@@ -1874,7 +1889,8 @@
                 "Nominal swath",
                 "2,054 km"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "ASCAT",
@@ -1897,7 +1913,8 @@
                 "Nominal swath",
                 "500 km"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "AVHRR/3",
@@ -1920,6 +1937,14 @@
                 "Nominal swath",
                 "3,000 km"
               ]
+            ],
+            "imagery": [
+              {
+                "label": "Natural colour and fog, six orbits stacked",
+                "detail": "since 2020",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=eps:m03_rgb_natural_fog"
+              }
             ]
           },
           {
@@ -1943,7 +1968,8 @@
                 "Nominal swath",
                 "960 km"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "GRAS",
@@ -1966,7 +1992,8 @@
                 "Nominal swath",
                 "30 km"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "IASI",
@@ -1989,7 +2016,8 @@
                 "Nominal swath",
                 "2,052 km"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "MHS",
@@ -2012,7 +2040,8 @@
                 "Nominal swath",
                 "1,650 km"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "SEM (POES)",
@@ -2023,7 +2052,8 @@
                 "Kind",
                 "Space environment monitor"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "A-DCS3",
@@ -2038,7 +2068,8 @@
                 "Bands",
                 "MW"
               ]
-            ]
+            ],
+            "imagery": []
           }
         ]
       },
@@ -2248,6 +2279,14 @@
                 "Resolution",
                 "500 m"
               ]
+            ],
+            "imagery": [
+              {
+                "label": "GeoColor",
+                "detail": "every 10 min, last 90 days",
+                "viewer": "NASA Worldview",
+                "href": "https://worldview.earthdata.nasa.gov/?l=GOES-East_ABI_GeoColor"
+              }
             ]
           },
           {
@@ -2263,7 +2302,8 @@
                 "Bands",
                 "VIS"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "EXIS",
@@ -2274,7 +2314,8 @@
                 "Kind",
                 "Solar irradiance monitor"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "GLM",
@@ -2293,7 +2334,8 @@
                 "Resolution",
                 "10 km"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "Magnetometer (GOES)",
@@ -2303,7 +2345,8 @@
                 "Kind",
                 "Magnetometer"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "SEISS",
@@ -2314,7 +2357,8 @@
                 "Kind",
                 "Space environment monitor"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "SUVI",
@@ -2329,7 +2373,8 @@
                 "Bands",
                 "UV"
               ]
-            ]
+            ],
+            "imagery": []
           },
           {
             "name": "DCS (GOES)",
@@ -2340,7 +2385,8 @@
                 "Kind",
                 "Data collection system"
               ]
-            ]
+            ],
+            "imagery": []
           }
         ]
       },

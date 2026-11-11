@@ -1,13 +1,13 @@
 // The satellite table (CONTEXT.md): the static facts about each satellite, from the
 // upstream tables and the curated rows, attached to the GP records at refresh time
-// (ADR 0002, 0007, 0008, 0018).
+// (ADR 0002, 0007, 0008, 0018, 0019).
 
 import { CEOS, ceosBags } from "./ceos.ts";
 import { GCAT_CATALOG, GCAT_ORGS, GCAT_PAYLOADS, gcatBags } from "./gcat.ts";
 import { SATCAT } from "./satcat.ts";
 import { enrichmentSatnum } from "./satnum.ts";
 import type { GroupStore } from "./store.ts";
-import type { GpRecord, GroupsConfig, ModelLod, SatelliteEntry, SatelliteModel } from "./types.ts";
+import type { GpRecord, GroupsConfig, ModelLod, SatelliteEntry, SatelliteImagery, SatelliteInstrument, SatelliteModel } from "./types.ts";
 import { loadUpstream } from "./upstream.ts";
 
 type Bags = Record<string, Record<string, unknown>>;
@@ -45,6 +45,12 @@ export class SatelliteTable {
   readonly rows: Readonly<Record<string, number>>;
 
   /**
+   * The imagery no app shows, because its satellite has no instrument of that name
+   * (ADR 0019): the manifest misspells it, CEOS renamed it, or no CEOS table is stored.
+   */
+  readonly imageryWithoutInstrument: readonly { noradId: number; instrument: string }[];
+
+  /**
    * Upstream bags first, in no particular order: each field has one owner (ADR 0008).
    * Curated rows extend them field by field, and a bus model fills in only where no
    * model is named (ADR 0007). Whatever file a satellite ends with becomes its `model`,
@@ -80,8 +86,18 @@ export class SatelliteTable {
         facts.set(satnum, { ...metadata, modelFile, model });
       }
     }
+    const imageryWithoutInstrument: { noradId: number; instrument: string }[] = [];
+    for (const [satnum, { imagery, instruments }] of facts) {
+      if (!Array.isArray(imagery)) {
+        continue;
+      }
+      const names = new Set(Array.isArray(instruments) ? (instruments as SatelliteInstrument[]).map((instrument) => instrument.name) : []);
+      const missing = new Set((imagery as SatelliteImagery[]).map((entry) => entry.instrument).filter((instrument) => !names.has(instrument)));
+      imageryWithoutInstrument.push(...[...missing].map((instrument) => ({ noradId: Number(satnum), instrument })));
+    }
     this.#facts = facts;
     this.rows = rows;
+    this.imageryWithoutInstrument = imageryWithoutInstrument;
   }
 
   /** From the stored upstream tables and `config`'s curated rows and bus models. */

@@ -131,6 +131,43 @@ describe("refreshGroups", () => {
   });
 });
 
+const imagery = (instrument: string) => [{ instrument, provider: "gibs", layer: "a", label: "A", kind: "rgb" }];
+
+describe("refreshGroups + imagery", () => {
+  const RECORDS = [{ OBJECT_NAME: "ISS (ZARYA)", NORAD_CAT_ID: 25544 }];
+
+  it("warns about the imagery of an instrument CEOS does not give the satellite", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const config: GroupsConfig = { ...CONFIG, satellites: [{ noradId: 25544, metadata: { imagery: [...imagery("PHyTIR"), ...imagery("HICO")] } }] };
+    const { store, groups } = memoryStore();
+    await storeAll(store);
+    await refreshGroups(config, store, okFetch(RECORDS));
+
+    expect((groups.get("stations")!.records as OmmRecord[])[0]!.metadata).toMatchObject({ imagery: [...imagery("PHyTIR"), ...imagery("HICO")] });
+    const messages = warn.mock.calls.map((call) => String(call[0]));
+    expect(messages.filter((m) => m.includes("imagery"))).toEqual(['gp refresh: imagery manifest: satellite 25544 has no instrument "HICO", so no app shows its imagery']);
+    warn.mockRestore();
+  });
+
+  it("says so once when no CEOS table is stored", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const config: GroupsConfig = {
+      ...CONFIG,
+      satellites: [
+        { noradId: 25544, metadata: { imagery: imagery("PHyTIR") } },
+        { noradId: 25994, decayed: true, metadata: { imagery: imagery("MODIS") } },
+      ],
+    };
+    const { store, groups } = memoryStore();
+    await refreshGroups(config, store, okFetch(RECORDS));
+
+    expect((groups.get("stations")!.records as OmmRecord[])[0]!.metadata).toEqual({ imagery: imagery("PHyTIR") });
+    const messages = warn.mock.calls.map((call) => String(call[0]));
+    expect(messages.filter((m) => m.includes("imagery"))).toEqual(["gp refresh: no satellite has instruments from CEOS, so no app shows the imagery of 2 of them"]);
+    warn.mockRestore();
+  });
+});
+
 /** Stores every table from the fixtures, as push-catalog would. */
 async function storeAll(store: Parameters<typeof storeUpstream>[1]): Promise<void> {
   await storeUpstream(SATCAT, store, SATCAT_CSV, undefined, NOW);

@@ -43,6 +43,7 @@ describe("validateGroups", () => {
     expect(() => validateGroups([{ name: "a", satellites: [{ noradId: 1, metadata: { swathPortKm: 10 } }] }])).toThrow("swath needs both");
     expect(() => validateGroups([{ name: "a", satellites: [{ upstreamName: "X", metadata: { missionType: "EO" } }] }])).toThrow('"metadata" requires a "noradId"');
     expect(() => validateGroups([{ name: "a", satellites: [{ noradId: 1, metadata: { model: { file: "a.glb" } } }] }])).toThrow('"model" is derived from "modelFile"');
+    expect(() => validateSatelliteTable([{ noradId: 1, imagery: [] }], "core")).toThrow('"imagery" comes from the imagery manifest');
   });
 });
 

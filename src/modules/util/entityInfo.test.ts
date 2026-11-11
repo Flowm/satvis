@@ -115,9 +115,10 @@ describe("getSatelliteInfo", () => {
           ["Resolution", "250 m"],
           ["Nominal swath", "2,330 km"],
         ],
+        imagery: [],
       },
-      { name: "GEDI", retired: false, rows: [] },
-      { name: "TROPOMI", retired: true, rows: [["Resolution", "3.5 km"]] },
+      { name: "GEDI", retired: false, rows: [], imagery: [] },
+      { name: "TROPOMI", retired: true, rows: [["Resolution", "3.5 km"]], imagery: [] },
     ]);
     expect(labels(info)).toEqual(["Orbit", "Apogee / Perigee"]);
     expect(getSatelliteInfo(ISS, "LEO", {}).instruments).toEqual([]);
@@ -140,10 +141,66 @@ describe("getSatelliteInfo", () => {
       { name: "EMIT", bands: "SWIR", resolutionM: "60" },
     ];
     expect(getSatelliteInfo(ISS, "LEO", { instruments: malformed as never }).instruments).toEqual([
-      { name: "GEDI", retired: false, rows: [["Bands", "NIR"]] },
-      { name: "EMIT", retired: false, rows: [] },
+      { name: "GEDI", retired: false, rows: [["Bands", "NIR"]], imagery: [] },
+      { name: "EMIT", retired: false, rows: [], imagery: [] },
     ]);
     expect(getSatelliteInfo(ISS, "LEO", { instruments: "MODIS" as never }).instruments).toEqual([]);
+  });
+
+  test("gives each instrument the imagery that shows it, as links to the providers it knows", () => {
+    const imagery = [
+      { instrument: "MODIS", provider: "gibs", layer: "MODIS_Terra_CorrectedReflectance_TrueColor", label: "True colour", kind: "rgb", period: "P1D", start: "2000-02-24" },
+      {
+        instrument: "MISR",
+        provider: "gibs",
+        layer: "MISR_AM1_Ellipsoid_Radiance_RGB_AN",
+        label: "True colour, camera An",
+        kind: "rgb",
+        period: "P1D",
+        start: "2017-09-01",
+        end: "2022-10-12",
+      },
+      { instrument: "MODIS", provider: "eumetview", layer: "msg_fes:rgb natural", label: "Natural colour", kind: "rgb" },
+      { instrument: "MODIS", provider: "elsewhere", layer: "a", label: "A", kind: "rgb" },
+      { instrument: "ASTER", provider: "gibs", layer: "a", label: "Of an instrument it does not carry", kind: "rgb" },
+    ];
+    const info = getSatelliteInfo(ISS, "LEO", { instruments: [{ name: "MODIS" }, { name: "MISR" }, { name: "CERES" }], imagery });
+
+    expect(info.instruments.map((instrument) => instrument.imagery)).toEqual([
+      [
+        {
+          label: "True colour",
+          detail: "daily since 2000",
+          viewer: "NASA Worldview",
+          href: "https://worldview.earthdata.nasa.gov/?l=MODIS_Terra_CorrectedReflectance_TrueColor",
+        },
+        { label: "Natural colour", viewer: "EUMETView", href: "https://view.eumetsat.int/productviewer?v=msg_fes:rgb%20natural" },
+      ],
+      [
+        {
+          label: "True colour, camera An",
+          detail: "daily, 2017–2022",
+          viewer: "NASA Worldview",
+          href: "https://worldview.earthdata.nasa.gov/?l=MISR_AM1_Ellipsoid_Radiance_RGB_AN&t=2022-10-12",
+        },
+      ],
+      [],
+    ]);
+  });
+
+  // SatelliteDetailsTests.swift holds the native app to the same.
+  test("reads malformed imagery as the native app does, leaving out what is not of its type", () => {
+    const malformed = [
+      "MODIS",
+      { instrument: "MODIS", provider: "gibs", layer: "a" },
+      { instrument: "MODIS", provider: "gibs", layer: 7, label: "A" },
+      { instrument: "MODIS", provider: "toString", layer: "a", label: "A" },
+      { instrument: "MODIS", provider: "gibs", layer: "a", label: "A", period: 1, start: 2018, end: null, window: ["P90D"], merged: "yes" },
+    ];
+    const [modis] = getSatelliteInfo(ISS, "LEO", { instruments: [{ name: "MODIS" }], imagery: malformed as never }).instruments;
+
+    expect(modis!.imagery).toEqual([{ label: "A", viewer: "NASA Worldview", href: "https://worldview.earthdata.nasa.gov/?l=a" }]);
+    expect(getSatelliteInfo(ISS, "LEO", { instruments: [{ name: "MODIS" }], imagery: "gibs" as never }).instruments[0]!.imagery).toEqual([]);
   });
 
   test("omits every row the record does not carry, rather than showing defaults", () => {

@@ -125,6 +125,26 @@ nonisolated class SatvisUITests: XCTestCase {
         }
     }
 
+    // An instrument's imagery is one row under its facts, naming the default layer and
+    // how many stand behind it, which opens a menu of them, each a link to its provider's viewer.
+    @MainActor
+    func testOpensAnInstrumentsImageryFromAMenu() {
+        let app = search("METEOSAT-12 (MTG-I1)")
+        app.buttons["Details of METEOSAT-12 (MTG-I1)"].tap()
+        XCTAssert(app.navigationBars["METEOSAT-12 (MTG-I1)"].waitForExistence(timeout: 10))
+        app.buttons["Instruments"].tap()
+        let imagery = app.buttons["Imagery"]
+        // Under a phone's half-height sheet, in a lazy list.
+        for _ in 0..<3 where !imagery.waitForExistence(timeout: 2) {
+            app.collectionViews.firstMatch.swipeUp()
+        }
+        XCTAssertEqual(imagery.value as? String, "GeoColour + 1")
+        imagery.tap()
+        for layer in ["GeoColour", "True colour"] {
+            XCTAssert(app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", layer)).firstMatch.waitForExistence(timeout: 5), layer)
+        }
+    }
+
     // The Graphics panel's Hide UI hides the menu column, the clock deck and the
     // corner's buttons, as the web app's does, and the corner's Show UI, there
     // alone while they are hidden, brings them back with the panel closed.

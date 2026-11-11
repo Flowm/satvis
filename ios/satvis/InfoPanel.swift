@@ -197,6 +197,9 @@ struct InfoPanel: View {
                 ForEach(Array(instrument.rows.enumerated()), id: \.offset) { _, row in
                     FactRow(label: row.0, value: row.1)
                 }
+                if !instrument.imagery.isEmpty {
+                    ImageryRow(layers: instrument.imagery)
+                }
             } footer: {
                 if index == instruments.count - 1 {
                     // CC BY 4.0 asks for the credit where the data is shown.
@@ -577,6 +580,45 @@ private struct InstrumentHeading: View {
         // One element, "<name>, Retired, <full name>", which heads the rows under it.
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// The layers that show an instrument, one row opening a menu of them, each a link to
+/// the layer in its provider's viewer: a row each, with its detail, would bury the next instrument.
+private struct ImageryRow: View {
+    let layers: [SatelliteDetails.Imagery]
+
+    var body: some View {
+        Menu {
+            ForEach(layers, id: \.self) { layer in
+                if let url = URL(string: layer.href) {
+                    Link(destination: url) {
+                        Label(layer.label, systemImage: "arrow.up.right")
+                        Text(layer.detail.map { "\($0) · \(layer.viewer)" } ?? layer.viewer)
+                    }
+                }
+            }
+        } label: {
+            HStack {
+                Text("Imagery")
+                Spacer(minLength: 8)
+                Text(summary)
+                    .foregroundStyle(.secondary)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(.rect)
+        }
+        // A Menu paints its label in the tint, through the styles set inside it.
+        .tint(.primary)
+        .accessibilityLabel("Imagery")
+        .accessibilityValue(summary)
+    }
+
+    /// The default layer, and how many stand behind it.
+    private var summary: String {
+        layers.count == 1 ? layers[0].label : "\(layers[0].label) + \(layers.count - 1)"
     }
 }
 

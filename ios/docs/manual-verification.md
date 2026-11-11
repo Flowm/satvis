@@ -639,8 +639,13 @@ INSAT-3D's, whose two instruments CEOS calls retired. On an iPhone, check that t
 four tabs fit the sheet with no name cut short, that each instrument is a card
 headed by its short name over its full name, with Retired beside the name where its
 mission is over, and that the credit under the last card opens CEOS's database.
-Check a satellite CEOS does not list, METOP-B on that catalog, for no such tab. On a
-Mac and an iPad, check the same in the card beside the column.
+Check a satellite CEOS does not list, METOP-B on that catalog, for no such tab. Open
+METEOSAT-12 (MTG-I1)'s, whose FCI has two layers of imagery (ADR 0019): check that
+its card ends in an Imagery row naming the default layer and how many stand behind
+it, that the row opens a menu of the layers, each with when it has frames and its
+provider's viewer under its name, and that choosing one opens that viewer. Check an
+instrument no layer shows, its LI, for no such row. On a Mac and an iPad, check the
+same in the card beside the column.
 
 **Result, 2026-11-11.** iPhone 18 Pro simulator, iOS 27.2, shot while
 `testListsTheInstruments` ran: the four tabs fit, "Instruments" with a few points
@@ -649,3 +654,10 @@ swath "2.054 km" in the simulator's region; INSAT-3D's two cards each had the
 Retired tag, no swath on its geostationary orbit, and "CEOS MIM Database, CC BY 4.0"
 under the second. The link was found by the test, not opened. The Mac app builds;
 its card and an iPad's were not looked at, and neither was METOP-B.
+
+**Result, 2026-11-11, the Imagery row.** The same simulator, shot while
+`testOpensAnInstrumentsImageryFromAMenu` ran: FCI's card ended in "Imagery" with
+"GeoColour + 1" beside it, and the menu listed GeoColour and True colour, each over
+"every 10 min since 2024 · EUMETView", which wrapped onto a second line. The layers
+were found by the test, not chosen, so no viewer was opened. LI's card, the Mac's
+and an iPad's were not looked at.

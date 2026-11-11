@@ -64,6 +64,28 @@ describe("SatelliteTable", () => {
     expect((metadataOf(four!) as { model: object }).model).not.toHaveProperty("lods");
   });
 
+  it("reports the imagery of an instrument its satellite lacks, and serves it as it is", () => {
+    const modis = { instrument: "MODIS", provider: "gibs", layer: "a", label: "A", kind: "rgb" };
+    const table = new SatelliteTable(
+      [{ name: "ceos", bags: { "25994": { instruments: [{ name: "MODIS" }] }, "27424": { instruments: [{ name: "MODIS" }] } } }],
+      [
+        { noradId: 25994, metadata: { imagery: [modis, { ...modis, instrument: "MISR" }, { ...modis, instrument: "MISR", layer: "b" }] } },
+        { noradId: 27424, metadata: { imagery: [{ ...modis, instrument: "Modis" }] } },
+        { noradId: 43013, metadata: { imagery: [{ ...modis, instrument: "VIIRS" }] } },
+      ],
+    );
+    const [terra, aqua, noaa20] = table.enrich([omm("TERRA", 25994), omm("AQUA", 27424), omm("NOAA 20", 43013)]);
+
+    expect(metadataOf(terra!)).toEqual({ instruments: [{ name: "MODIS" }], imagery: [modis, { ...modis, instrument: "MISR" }, { ...modis, instrument: "MISR", layer: "b" }] });
+    expect(metadataOf(aqua!)).toEqual({ instruments: [{ name: "MODIS" }], imagery: [{ ...modis, instrument: "Modis" }] });
+    expect(metadataOf(noaa20!)).toEqual({ imagery: [{ ...modis, instrument: "VIIRS" }] });
+    expect(table.imageryWithoutInstrument).toEqual([
+      { noradId: 25994, instrument: "MISR" },
+      { noradId: 27424, instrument: "Modis" },
+      { noradId: 43013, instrument: "VIIRS" },
+    ]);
+  });
+
   it("counts the rows each upstream table gave", () => {
     const table = new SatelliteTable([satcat({ "1": {}, "2": {} }), gcat({})]);
     expect(table.rows).toEqual({ satcat: 2, gcat: 0 });
