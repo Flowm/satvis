@@ -13,13 +13,16 @@ for (const [device, options] of Object.entries(DEVICES)) {
 
       const panel = page.locator(".entity-info-panel");
       await panel.getByRole("tab", { name: "Instruments" }).click();
-      const abi = panel.getByRole("region", { name: "ABI" });
-      const geocolor = abi.getByRole("link", { name: /GeoColor/ });
-      await expect(geocolor).toContainText("every 10 min, last 90 days · NASA Worldview");
-      await expect(geocolor).toHaveAttribute("href", "https://worldview.earthdata.nasa.gov/?l=GOES-East_ABI_GeoColor");
-      await expect(geocolor).toHaveAttribute("target", "_blank");
-      // An instrument no layer shows has no list.
-      await expect(panel.getByRole("region", { name: "GLM" })).not.toContainText("Imagery");
+      // An instrument no layer shows has no way there.
+      await expect(panel.getByRole("region", { name: "GLM" }).getByRole("button", { name: "Imagery of GLM" })).toHaveCount(0);
+      await panel.getByRole("button", { name: "Imagery of ABI" }).click();
+
+      await expect(panel.getByRole("tab", { name: "Imagery" })).toHaveAttribute("aria-selected", "true");
+      const geocolor = panel.getByRole("article", { name: "ABI GeoColor" });
+      await expect(geocolor).toContainText("every 10 min, last 90 days");
+      const link = geocolor.getByRole("link", { name: /NASA Worldview/ });
+      await expect(link).toHaveAttribute("href", "https://worldview.earthdata.nasa.gov/?l=GOES-East_ABI_GeoColor");
+      await expect(link).toHaveAttribute("target", "_blank");
     });
   });
 }

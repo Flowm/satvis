@@ -10,6 +10,7 @@ import { JulianDate } from "@cesium/core";
 import { storeToRefs } from "pinia";
 import { computed, markRaw, ref, shallowRef, watch, type Ref, type ShallowRef } from "vue";
 
+import type { PreviewCentre } from "@/config/instrumentImagery";
 import { SKY_MODE } from "@/config/viewModes";
 import type { CesiumController } from "@/modules/CesiumController";
 import type { GroundStationEntity } from "@/modules/GroundStationEntity";
@@ -24,7 +25,7 @@ import { useSatStore } from "@/stores/sat";
 export type Selection = { kind: "satellite"; sat: SatelliteComponentCollection } | { kind: "groundstation"; gs: GroundStationEntity };
 
 /** The info panel's tabs, as UTabs values and slot names. */
-export type InfoTab = "orbit" | "spacecraft" | "instruments" | "location" | "passes";
+export type InfoTab = "orbit" | "spacecraft" | "instruments" | "imagery" | "location" | "passes";
 
 export interface PositionRow {
   label: string;
@@ -64,6 +65,8 @@ const elements: ShallowRef<ElementsInfo | null> = shallowRef(null);
 const staleNotice = ref<string | undefined>(undefined);
 /** Resolved once per selection: none of it is time-dependent. */
 const satelliteInfo: ShallowRef<SatelliteInfo | undefined> = shallowRef();
+/** Where the Imagery tab's previews are centred: under the satellite as it was selected, so they do not reload as it moves. */
+const imageryCentre: ShallowRef<PreviewCentre | undefined> = shallowRef();
 
 let controller: CesiumController | undefined;
 let removeTickCallback: (() => void) | undefined;
@@ -165,6 +168,7 @@ function update(time?: JulianDate): void {
     selection.value = next;
     elements.value = next?.kind === "satellite" ? getElementsInfo(next.sat.props.orbit) : null;
     satelliteInfo.value = next?.kind === "satellite" ? getSatelliteInfo(next.sat.props.orbit, next.sat.props.orbitClass, next.sat.props.metadata) : undefined;
+    imageryCentre.value = next?.kind === "satellite" ? (next.sat.props.orbit.positionGeodetic(JulianDate.toDate(now)) ?? undefined) : undefined;
     // A pass picked on one entity's timeline means nothing on the next one's.
     pickedPassMs.value = null;
     satellitePasses.value = [];
@@ -257,6 +261,7 @@ export function useSelectedEntity(instance: CesiumController) {
     elements,
     staleNotice,
     satelliteInfo,
+    imageryCentre,
     canEnterSkyView,
     enterSkyView,
     deselect,

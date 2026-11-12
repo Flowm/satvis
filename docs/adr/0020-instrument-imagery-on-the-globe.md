@@ -5,7 +5,7 @@ status: accepted
 # Instrument imagery on the globe
 
 A record says which provider's layer shows an instrument (ADR 0019), and the
-Instruments tab links it. The same entry is enough to draw the layer on the globe at
+info panel links it. The same entry is enough to draw the layer on the globe at
 the clock's time, as the Map panel's `VIIRS` basemap already was. What was missing:
 which tiles a layer has, how a drawn layer is named in the url, and where it sits
 among the Map panel's layers.
@@ -45,10 +45,23 @@ group has loaded, a name that is still no record's drawable layer leaves the lis
 the url: it is mistyped, or its entry left the manifest. A name given twice is drawn
 once.
 
-**It is shown from the Instruments tab and taken off there or in the Map panel.** Each
-entry the globe can draw has a button beside its link. The Map panel lists what is
-drawn under its overlays, by label and satellite, "GeoColor · GOES 19", so a layer
-can be taken off without finding its satellite again.
+**It is shown from the Imagery tab and taken off there or in the Map panel.** The tab,
+after Instruments, has a card for each entry: the instrument, a picture of the layer,
+when it has frames, a switch that draws it where the globe can, and the link. An
+instrument with imagery has a button in the Instruments tab that opens the tab at its
+cards. The Map panel lists what is drawn under its overlays, by label and satellite,
+"GeoColor · GOES 19", so a layer can be taken off without finding its satellite again.
+
+**The picture is one WMS GetMap of the latest frame**, around where the satellite was
+when it was selected, so it does not reload as the satellite moves: yesterday's for a
+daily GIBS layer, whose today is still filling in, and the last frame of one that
+stopped. It is not the clock's frame, which would mean listing the layer's frames for
+every card. A Copernicus Browser dataset has no WMS open to the app, and no picture.
+
+Listing the imagery under each instrument's facts, as ADR 0019 had it, buried the one
+imager among a geostationary satellite's eight instruments, and a spec sheet, a
+spectrum chart and toggles above the tabs were tried against the tab of cards (the
+`prototype/instrument-imagery-display` branch).
 
 **It lies over the basemap and under the overlays**, the last one shown on top.
 Several may be drawn: GOES-East and GOES-West together are two discs. A layer that

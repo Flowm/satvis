@@ -10,9 +10,16 @@ const LAYER = "GOES-East_ABI_GeoColor";
 
 test("an instrument's imagery is shown on the globe from its tab, follows the clock, and is taken off in the Map panel", async ({ page }) => {
   const times: string[] = [];
+  const previews: string[] = [];
   const stubGibs = async () => {
     await page.route("https://gibs.earthdata.nasa.gov/**", (route) => {
-      const path = new URL(route.request().url()).pathname;
+      const url = new URL(route.request().url());
+      const path = url.pathname;
+      // The Imagery tab's picture of the layer.
+      if (path.startsWith("/wms/")) {
+        previews.push(url.searchParams.get("LAYERS")!);
+        return route.fulfill({ contentType: "image/png", body: PIXEL });
+      }
       if (path.endsWith("/all.xml")) {
         return route.fulfill({
           contentType: "text/xml",
@@ -33,11 +40,12 @@ test("an instrument's imagery is shown on the globe from its tab, follows the cl
   await showInfo(page, "GOES 19");
 
   const panel = page.locator(".entity-info-panel");
-  await panel.getByRole("tab", { name: "Instruments" }).click();
-  const show = panel.getByRole("region", { name: "ABI" }).getByRole("button", { name: "Show GeoColor on the globe" });
-  await expect(show).toHaveAttribute("aria-pressed", "false");
+  await panel.getByRole("tab", { name: "Imagery" }).click();
+  await expect.poll(() => previews).toEqual([LAYER]);
+  const show = panel.getByRole("article", { name: "ABI GeoColor" }).getByRole("switch", { name: "Show GeoColor on the globe" });
+  await expect(show).not.toBeChecked();
   await show.click();
-  await expect(show).toHaveAttribute("aria-pressed", "true");
+  await expect(show).toBeChecked();
 
   await expect.poll(() => [...new Set(times)]).toEqual(["2026-10-03T15:00:00Z"]);
   expect(new URL(page.url()).searchParams.get("imagery")).toBe(`gibs:${LAYER}`);
@@ -52,7 +60,7 @@ test("an instrument's imagery is shown on the globe from its tab, follows the cl
   await menuSwitch(page, "GeoColor · GOES 19").click();
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.imageryLayers.length)).toBe(1);
   expect(new URL(page.url()).searchParams.get("imagery")).toBeNull();
-  await expect(show).toHaveAttribute("aria-pressed", "false");
+  await expect(show).not.toBeChecked();
 });
 
 // GOES 19 is in no group the default route loads.
@@ -190,8 +198,8 @@ test("showing another layer, or another basemap, asks nothing again of a layer a
 
   await showInfo(page, "METEOSAT-12 (MTG-I1)");
   const panel = page.locator(".entity-info-panel");
-  await panel.getByRole("tab", { name: "Instruments" }).click();
-  await panel.getByRole("region", { name: "FCI" }).getByRole("button", { name: "Show GeoColour on the globe" }).click();
+  await panel.getByRole("tab", { name: "Imagery" }).click();
+  await panel.getByRole("switch", { name: "Show GeoColour on the globe" }).click();
   await expect.poll(layerCount).toBe(3);
   await expect.poll(() => asked.eumetViewLists).toBe(1);
 

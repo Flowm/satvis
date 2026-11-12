@@ -83,6 +83,7 @@ fail the build, naming both, as two models for one satellite do.
 **The Instruments tab lists an instrument's imagery under its facts**, each entry as
 a link to the layer in the provider's own viewer, the default first: "GeoColor, every
 10 min, last 90 days · NASA Worldview". Nothing is fetched and nothing is drawn.
+ADR 0020 since draws them, and moved them to an Imagery tab of their own.
 
 **A layer is listed when it is the picture of an instrument that people look for
 first, and its provider states a licence for it**: its true colour or natural colour,
