@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { formatFrame, frameWindow, parseDomain, snapToFrame, withoutLatestFrame } from "./timeDomain";
+import { formatFrame, parseDomain, snapToFrame, withoutLatestFrame } from "./timeDomain";
 
 const at = (iso: string) => Date.parse(iso);
 const TEN_MINUTES = 10 * 60 * 1000;
@@ -55,30 +55,6 @@ describe("snapToFrame", () => {
 
   test("has no frame for an empty domain", () => {
     expect(snapToFrame([], at("2026-10-05T00:00:00Z"))).toBeUndefined();
-  });
-});
-
-describe("frameWindow", () => {
-  test("is one step per frame, aligned to the step", () => {
-    const steps = frameWindow(GOES, at("2026-10-05T11:03:00Z"), TEN_MINUTES, 2);
-    expect(steps).toEqual([
-      { start: at("2026-10-05T10:40:00Z"), frame: at("2026-10-05T10:40:00Z") },
-      { start: at("2026-10-05T10:50:00Z"), frame: at("2026-10-05T10:50:00Z") },
-      { start: at("2026-10-05T11:00:00Z"), frame: at("2026-10-05T11:00:00Z") },
-      { start: at("2026-10-05T11:10:00Z"), frame: at("2026-10-05T11:10:00Z") },
-      { start: at("2026-10-05T11:20:00Z"), frame: at("2026-10-05T11:20:00Z") },
-    ]);
-  });
-
-  // So the live clock does not reload every ten minutes while GIBS has nothing newer.
-  test("merges the steps that show the same frame", () => {
-    const steps = frameWindow(GOES, at("2026-10-05T11:40:00Z"), TEN_MINUTES, 3);
-    expect(steps.map((step) => formatFrame(step.frame, false))).toEqual(["2026-10-05T11:10:00Z", "2026-10-05T11:20:00Z"]);
-    expect(steps[1]!.start).toBe(at("2026-10-05T11:20:00Z"));
-  });
-
-  test("is empty without a domain", () => {
-    expect(frameWindow([], at("2026-10-05T00:00:00Z"), DAY, 3)).toEqual([]);
   });
 });
 

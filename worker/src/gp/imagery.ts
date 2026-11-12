@@ -30,7 +30,9 @@ const OPTIONAL_FIELDS: readonly { key: "period" | "start" | "end" | "window"; is
   { key: "window", is: isDuration, expected: "an ISO 8601 duration" },
 ];
 
-const ENTRY_KEYS = new Set<string>(["provider", "layer", "label", "kind", ...OPTIONAL_FIELDS.map(({ key }) => key), "merged"]);
+const TILE_FORMATS: readonly string[] = ["png", "jpeg"];
+
+const ENTRY_KEYS = new Set<string>(["provider", "layer", "label", "kind", ...OPTIONAL_FIELDS.map(({ key }) => key), "merged", "maxLevel", "format"]);
 
 function isObject(value: unknown): value is Raw {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -54,7 +56,7 @@ function imageryEntry(entry: unknown, where: string): ImageryEntry {
     throw new Error(`${where}: must be an object`);
   }
   checkKeys(entry, ENTRY_KEYS, where);
-  const { provider, layer, label, kind, merged } = entry;
+  const { provider, layer, label, kind, merged, maxLevel, format } = entry;
   if (typeof provider !== "string" || !PROVIDER_RE.test(provider)) {
     throw new Error(`${where}: "provider" must be a lower-case name (got ${JSON.stringify(provider)})`);
   }
@@ -84,7 +86,17 @@ function imageryEntry(entry: unknown, where: string): ImageryEntry {
   if (merged !== undefined && merged !== true) {
     throw new Error(`${where}: "merged" is true or absent`);
   }
-  return { provider, layer, label, kind, ...fields, ...(merged === true && { merged }) };
+  if ((maxLevel === undefined) !== (format === undefined)) {
+    throw new Error(`${where}: "maxLevel" and "format" go together: an app draws the layer from both`);
+  }
+  if (maxLevel !== undefined && (typeof maxLevel !== "number" || !Number.isInteger(maxLevel) || maxLevel < 0 || maxLevel > 24)) {
+    throw new Error(`${where}: "maxLevel" must be a tile level (got ${JSON.stringify(maxLevel)})`);
+  }
+  if (format !== undefined && (typeof format !== "string" || !TILE_FORMATS.includes(format))) {
+    throw new Error(`${where}: "format" must be one of ${TILE_FORMATS.join(", ")} (got ${JSON.stringify(format)})`);
+  }
+  const tiles = maxLevel === undefined ? undefined : { maxLevel: maxLevel as number, format: format as "png" | "jpeg" };
+  return { provider, layer, label, kind, ...fields, ...(merged === true && { merged }), ...tiles };
 }
 
 /**

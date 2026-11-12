@@ -42,6 +42,8 @@ function fakeTarget() {
     globePicked: undefined as ((lat: number, lon: number) => void) | undefined,
     surfaceFailed: undefined as ((name: string, error: unknown) => void) | undefined,
     terrainFailed: undefined as ((name: string, error: unknown) => void) | undefined,
+    // A test calls it once it has put a group's entries in the catalog.
+    catalogChanged: undefined as (() => void) | undefined,
   };
 
   const unavailableStarMaps = new Set<string>();
@@ -56,10 +58,11 @@ function fakeTarget() {
     },
   };
 
-  const catalog = { entries: [] as CatalogEntry[] };
+  const catalog = { entries: [] as CatalogEntry[], allLoaded: false, ensureAll: vi.fn(() => Promise.resolve()) };
 
   const target: SceneTarget & { skyView: { active: boolean } } = {
     imageryLayers: [],
+    instrumentImagery: [],
     terrainProvider: "None",
     cameraMode: "Fixed",
     pixelRatio: "native",
@@ -99,7 +102,9 @@ function fakeTarget() {
       },
       onTrackedChange: () => {},
       cancelPendingTrack: () => {},
-      onCatalogChange: () => {},
+      onCatalogChange: (callback) => {
+        calls.catalogChanged = callback;
+      },
       setCustomRecords: () => {},
       catalog,
     },
@@ -505,6 +510,110 @@ describe("startSceneSync", () => {
     expect(last?.enabledSatellites).toEqual(["ISS"]);
     // The manager diffs against what it was last given, so a live reference would equal itself.
     expect(last?.enabledTags).not.toBe(satStore.enabledTags);
+  });
+
+  describe("instrument imagery", () => {
+    const geocolor = {
+      instrument: "ABI",
+      provider: "gibs",
+      layer: "GOES-East_ABI_GeoColor",
+      label: "GeoColor",
+      kind: "rgb",
+      period: "PT10M",
+      window: "P90D",
+      maxLevel: 7,
+      format: "png",
+    };
+    const goes19 = {
+      key: "60133",
+      name: "GOES 19",
+      tags: ["Weather"],
+      metadata: { imagery: [geocolor, { ...geocolor, layer: "Linked", maxLevel: undefined }] },
+    } as unknown as CatalogEntry;
+    const drawn = { token: "gibs:GOES-East_ABI_GeoColor", provider: "gibs", layer: "GOES-East_ABI_GeoColor", maxLevel: 7, format: "png", daily: false };
+
+    test("is drawn once a record that carries the layer has loaded, and named for the Map panel", async () => {
+      const { target, calls, catalog } = fakeTarget();
+      startSceneSync(target);
+      const store = useCesiumStore();
+
+      store.toggleInstrumentImagery("gibs:GOES-East_ABI_GeoColor", true);
+      await nextTick();
+      expect(target.instrumentImagery).toEqual([]);
+      // Its record may be in a group the route does not load.
+      expect(catalog.ensureAll).toHaveBeenCalledTimes(1);
+
+      catalog.entries = [goes19];
+      calls.catalogChanged!();
+      expect(target.instrumentImagery).toEqual([drawn]);
+      expect(store.instrumentImageryLabels).toEqual({ "gibs:GOES-East_ABI_GeoColor": "GeoColor · GOES 19" });
+
+      store.toggleInstrumentImagery("gibs:GOES-East_ABI_GeoColor", false);
+      await nextTick();
+      expect(target.instrumentImagery).toEqual([]);
+      expect(store.instrumentImageryLabels).toEqual({});
+    });
+
+    test("is left alone by a catalog change that does not touch it, and by a layer the globe cannot draw", async () => {
+      const { target, calls, catalog } = fakeTarget();
+      catalog.entries = [goes19];
+      startSceneSync(target);
+      const store = useCesiumStore();
+      store.instrumentImagery = ["gibs:GOES-East_ABI_GeoColor", "gibs:Linked", "eumetview:mtg_fd:rgb_geocolour"];
+      await nextTick();
+      const first = target.instrumentImagery;
+      expect(first).toEqual([drawn]);
+      expect(catalog.ensureAll).toHaveBeenCalledTimes(1);
+
+      catalog.entries = [...entriesWithTag("Weather", 3), goes19];
+      calls.catalogChanged!();
+      expect(target.instrumentImagery).toBe(first);
+      // Kept while a group that is still loading may carry them.
+      expect(store.instrumentImagery).toHaveLength(3);
+    });
+
+    test("drops a name no record carries as a layer the globe draws, once every group has loaded", async () => {
+      const { target, calls, catalog } = fakeTarget();
+      catalog.entries = [goes19];
+      startSceneSync(target);
+      const store = useCesiumStore();
+      store.instrumentImagery = ["gibs:Mistyped", "gibs:GOES-East_ABI_GeoColor", "gibs:Linked"];
+      await nextTick();
+      expect(store.instrumentImagery).toHaveLength(3);
+
+      catalog.allLoaded = true;
+      calls.catalogChanged!();
+      await nextTick();
+      expect(store.instrumentImagery).toEqual(["gibs:GOES-East_ABI_GeoColor"]);
+      expect(target.instrumentImagery).toEqual([drawn]);
+      // Nowhere is left to look.
+      expect(catalog.ensureAll).toHaveBeenCalledTimes(1);
+    });
+
+    test("looks in every group again at the next catalog change, for a group that failed", async () => {
+      const { target, calls, catalog } = fakeTarget();
+      startSceneSync(target);
+      useCesiumStore().instrumentImagery = ["gibs:GOES-East_ABI_GeoColor"];
+      await nextTick();
+      // The lookup settled with a group missing: not asked again by itself.
+      await nextTick();
+      expect(catalog.ensureAll).toHaveBeenCalledTimes(1);
+
+      calls.catalogChanged!();
+      expect(catalog.ensureAll).toHaveBeenCalledTimes(2);
+      expect(target.instrumentImagery).toEqual([]);
+    });
+
+    test("draws a layer a link names twice once", async () => {
+      const { target, catalog } = fakeTarget();
+      catalog.entries = [goes19];
+      startSceneSync(target);
+      const store = useCesiumStore();
+      store.instrumentImagery = ["gibs:GOES-East_ABI_GeoColor", "gibs:GOES-East_ABI_GeoColor"];
+      await nextTick();
+      expect(target.instrumentImagery).toEqual([drawn]);
+      expect(store.instrumentImagery).toEqual(["gibs:GOES-East_ABI_GeoColor"]);
+    });
   });
 
   describe("the component budgets", () => {

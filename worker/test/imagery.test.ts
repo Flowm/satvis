@@ -8,7 +8,7 @@ const satellite = (noradId: number, instruments: unknown) => ({ noradId, instrum
 
 describe("imageryBySatellite", () => {
   it("gives each satellite its instruments' entries in manifest order", () => {
-    const granule = { ...trueColour, layer: "TrueColor_Granule", label: "True colour, per granule", period: "PT6M", window: "P90D" };
+    const granule = { ...trueColour, layer: "TrueColor_Granule", label: "True colour, per granule", period: "PT6M", window: "P90D", maxLevel: 9, format: "jpeg" };
     const imagery = imageryBySatellite(
       {
         satellites: [
@@ -77,6 +77,9 @@ describe("imageryBySatellite", () => {
     [{ ...trueColour, label: undefined }, '"label" must say what the picture is'],
     [{ ...trueColour, provider: "NASA GIBS" }, '"provider" must be a lower-case name'],
     [{ ...trueColour, merged: "yes" }, '"merged" is true or absent'],
+    [{ ...trueColour, maxLevel: 9 }, '"maxLevel" and "format" go together'],
+    [{ ...trueColour, maxLevel: 9.5, format: "jpeg" }, '"maxLevel" must be a tile level'],
+    [{ ...trueColour, maxLevel: 9, format: "webp" }, '"format" must be one of png, jpeg'],
     ["TrueColor", "must be an object"],
   ])("fails on an entry it cannot read: %#", (entry, message) => {
     expect(() => imageryBySatellite({ satellites: [satellite(43013, { VIIRS: [entry] })] }, "core")).toThrow(message);

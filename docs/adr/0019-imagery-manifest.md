@@ -60,6 +60,7 @@ file and not where models are served:
 - `merged` where it shows other satellites too. A layer that covers less than the
   instrument sees says so in its label: "Natural colour, Europe".
 - An instrument's first entry is its default.
+- `maxLevel` and `format` came later, with drawing the layer (ADR 0020).
 
 **`imagery` is curated only, and stands beside `instruments`**, not inside it, so
 CEOS stays the one owner of that list (ADR 0008). A row of a config may not give it:
@@ -115,9 +116,7 @@ the whole constellation's.
   fixtures, which carry the manifest's entries for Metop-C and GOES 19. The rest of
   what an entry can say is held by unit tests written twice, one case for one.
 - **`imageryProviders` in `CesiumLayerProviders.ts` is another thing**: the Map
-  panel's basemaps and overlays. Its `VIIRS` overlay is NOAA-20's entry here, and
-  `GOES-IR` is a single band of GOES-East's ABI; both would be drawn from this
-  table once it draws layers and lists bands.
+  panel's basemaps and overlays. Its `VIIRS` basemap is NOAA-20's entry here.
 
 ## Alternatives rejected
 

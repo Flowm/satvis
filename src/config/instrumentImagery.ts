@@ -1,6 +1,7 @@
-// Instrument imagery (ADR 0019): the layers of imagery providers that a record's `imagery`
-// says show its instruments, and how each becomes a link. Nothing here is fetched or
-// drawn. Cesium-free: node-env vitest and the parity generator read it.
+// Instrument imagery (ADR 0019, 0020): the layers of imagery providers that a record's
+// `imagery` says show its instruments, how each becomes a link, and which of them the
+// globe can draw. Nothing here is fetched. Cesium-free: node-env vitest and the parity
+// generator read it.
 
 /** Worker `SatelliteImagery` (worker/src/gp/types.ts): one layer that shows one instrument. */
 export interface SatelliteImagery {
@@ -24,6 +25,10 @@ export interface SatelliteImagery {
   window?: string;
   /** It shows other satellites too, not told apart. */
   merged?: true;
+  /** The deepest level worth asking for, in 256-pixel Web Mercator tiles; with `format`, what drawing it needs. */
+  maxLevel?: number;
+  /** The type of its tiles: "png" or "jpeg". */
+  format?: string;
 }
 
 /**
@@ -88,4 +93,48 @@ export function imageryDetail(entry: Pick<SatelliteImagery, "period" | "start" |
   const when = step !== undefined && history?.startsWith("since") ? [`${step} ${history}`] : [step, history];
   const parts = [...when, merged === true ? "with other satellites" : undefined].filter((part): part is string => part !== undefined);
   return parts.length > 0 ? parts.join(", ") : undefined;
+}
+
+/** A layer the globe draws, named in the url by `token` (ADR 0020). */
+export interface DrawnImagery {
+  /** `provider:layer`, which names it in the store and the url. */
+  token: string;
+  /** The service that draws it. */
+  provider: DrawingProvider;
+  layer: string;
+  maxLevel: number;
+  format: "png" | "jpeg";
+  /** A GIBS layer with a frame a day, which GIBS names by its date; any other's it names to the second. */
+  daily: boolean;
+}
+
+/** The imagery providers whose layers the globe draws; of the others it has the link alone. */
+const DRAWING_PROVIDERS = ["gibs", "eumetview"] as const;
+
+type DrawingProvider = (typeof DRAWING_PROVIDERS)[number];
+
+/** `provider:layer`. A provider's name has no colon, so the first one divides them. */
+function imageryToken(provider: string, layer: string): string {
+  return `${provider}:${layer}`;
+}
+
+/**
+ * What the globe needs to draw a record's entry, or undefined where it cannot: another
+ * provider's, one without `maxLevel` and `format`, or a GIBS layer whose period does
+ * not say how its frames are named.
+ */
+export function drawnImagery(entry: unknown): DrawnImagery | undefined {
+  if (typeof entry !== "object" || entry === null) {
+    return undefined;
+  }
+  const { provider, layer, maxLevel, format, period } = entry as Record<keyof SatelliteImagery, unknown>;
+  const drawing = DRAWING_PROVIDERS.find((name) => name === provider);
+  if (drawing === undefined || typeof layer !== "string" || !Number.isInteger(maxLevel) || (format !== "png" && format !== "jpeg")) {
+    return undefined;
+  }
+  const daily = period === "P1D";
+  if (drawing === "gibs" && !daily && !(typeof period === "string" && period.startsWith("PT"))) {
+    return undefined;
+  }
+  return { token: imageryToken(drawing, layer), provider: drawing, layer, maxLevel: maxLevel as number, format, daily };
 }

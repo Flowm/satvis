@@ -137,6 +137,11 @@ export class SatelliteCatalog {
     return Promise.all(loads).then(() => undefined);
   }
 
+  /** Whether every registered group has loaded; false while none is registered. */
+  get allLoaded(): boolean {
+    return this.#registry.size > 0 && [...this.#registry.values()].every((group) => group.loaded);
+  }
+
   /** True for tags without a registered source, e.g. custom records. */
   isTagLoaded(tag: string): boolean {
     for (const group of this.#registry.values()) {

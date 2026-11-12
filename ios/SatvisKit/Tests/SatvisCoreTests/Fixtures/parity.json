@@ -2285,7 +2285,8 @@
                 "label": "GeoColor",
                 "detail": "every 10 min, last 90 days",
                 "viewer": "NASA Worldview",
-                "href": "https://worldview.earthdata.nasa.gov/?l=GOES-East_ABI_GeoColor"
+                "href": "https://worldview.earthdata.nasa.gov/?l=GOES-East_ABI_GeoColor",
+                "token": "gibs:GOES-East_ABI_GeoColor"
               }
             ]
           },

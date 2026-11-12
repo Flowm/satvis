@@ -21,7 +21,7 @@ describe("the NaturalEarth base map", () => {
   });
 
   test("opacity-only overlays stay overlays", () => {
-    expect(overlayLayerNames()).toEqual(["Tiles", "GOES-IR", "Nextrad"]);
+    expect(overlayLayerNames()).toEqual(["Tiles", "Nextrad"]);
   });
 });
 

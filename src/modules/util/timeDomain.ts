@@ -8,12 +8,6 @@ export interface TimeRange {
   step: number;
 }
 
-/** One interval of a window: from `start` until the next step's start, show `frame`. */
-export interface FrameStep {
-  start: number;
-  frame: number;
-}
-
 const DURATION = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/;
 
 function durationMs(duration: string): number | undefined {
@@ -72,24 +66,6 @@ export function snapToFrame(ranges: readonly TimeRange[], time: number): number 
     return range.end;
   }
   return range.start + Math.floor((time - range.start) / range.step) * range.step;
-}
-
-/**
- * The frames for `slots` steps either side of `center`, merged where consecutive steps
- * show the same frame. Steps are aligned to multiples of `stepMs` since the epoch, which
- * is where GIBS puts both its 10-minute and its daily frames.
- */
-export function frameWindow(ranges: readonly TimeRange[], center: number, stepMs: number, slots: number): FrameStep[] {
-  const first = (Math.floor(center / stepMs) - slots) * stepMs;
-  const steps: FrameStep[] = [];
-  for (let slot = 0; slot <= 2 * slots && ranges.length > 0; slot += 1) {
-    const start = first + slot * stepMs;
-    const frame = snapToFrame(ranges, start)!;
-    if (steps.at(-1)?.frame !== frame) {
-      steps.push({ start, frame });
-    }
-  }
-  return steps;
 }
 
 /** A frame as GIBS names it in a tile url: `2026-10-05` for a daily layer, else to the second. */

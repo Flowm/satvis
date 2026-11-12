@@ -238,11 +238,16 @@ describe("SatelliteCatalog lazy loading", () => {
       "/api/gp/stations.json": json(JSON.parse(ommPayload(ommRecord("ISS", 25544)))),
     });
     const catalog = new SatelliteCatalog();
+    // Nothing to have loaded yet.
+    expect(catalog.allLoaded).toBe(false);
     catalog.registerGroups([
       ["weather", ["Weather"]],
       ["stations", ["Stations"]],
     ]);
+    await catalog.ensureTags(["Weather"]);
+    expect(catalog.allLoaded).toBe(false);
     await catalog.ensureAll();
+    expect(catalog.allLoaded).toBe(true);
     expect(catalog.entries).toHaveLength(2);
     expect(requested).toContain("/api/gp/weather.json");
     expect(requested).toContain("/api/gp/stations.json");

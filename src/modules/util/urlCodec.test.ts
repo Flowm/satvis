@@ -25,7 +25,7 @@ const queryString = (params: Readonly<Record<string, string>>): string => {
   const query = new URLSearchParams(params).toString().replaceAll("%2C", ",");
   return query === "" ? "" : `?${query}`;
 };
-const providers = () => ["NaturalEarth", "ArcGis", "VersaTiles", "OSM", "BlackMarble", "Tiles", "GOES-IR", "Nextrad"];
+const providers = () => ["NaturalEarth", "ArcGis", "VersaTiles", "OSM", "BlackMarble", "Tiles", "Nextrad"];
 
 describe("boolean", () => {
   const kind = boolean();
@@ -198,10 +198,6 @@ describe("layerList", () => {
 
   test("refuses to format an unusable opacity", () => {
     expect(kind.format(["OSM_abc"]).ok).toBe(false);
-  });
-
-  test("a hyphenated provider name is fine", () => {
-    expect(kind.parse("GOES-IR")).toEqual({ ok: true, value: ["GOES-IR"] });
   });
 
   test("drops an unknown provider and keeps the rest", () => {

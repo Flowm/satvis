@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { imageryDetail } from "./instrumentImagery";
+import { drawnImagery, imageryDetail } from "./instrumentImagery";
 
 describe("imageryDetail", () => {
   test.each([
@@ -20,5 +20,47 @@ describe("imageryDetail", () => {
 
   test("says nothing where the entry does not", () => {
     expect(imageryDetail({})).toBeUndefined();
+  });
+});
+
+describe("drawnImagery", () => {
+  const trueColour = {
+    instrument: "VIIRS",
+    provider: "gibs",
+    layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor",
+    label: "True colour",
+    kind: "rgb",
+    period: "P1D",
+    maxLevel: 9,
+    format: "jpeg",
+  };
+  const geoColour = { instrument: "FCI", provider: "eumetview", layer: "mtg_fd:rgb_geocolour", label: "GeoColour", kind: "rgb", maxLevel: 7, format: "png" };
+
+  test("reads what the globe needs of a GIBS entry", () => {
+    expect(drawnImagery(trueColour)).toEqual({
+      token: "gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor",
+      provider: "gibs",
+      layer: trueColour.layer,
+      maxLevel: 9,
+      format: "jpeg",
+      daily: true,
+    });
+    expect(drawnImagery({ ...trueColour, period: "PT10M", format: "png" })).toMatchObject({ format: "png", daily: false });
+  });
+
+  test("reads a EUMETView entry, whose service names its own frames, with or without a period", () => {
+    expect(drawnImagery(geoColour)).toEqual({ token: "eumetview:mtg_fd:rgb_geocolour", provider: "eumetview", layer: geoColour.layer, maxLevel: 7, format: "png", daily: false });
+    expect(drawnImagery({ ...geoColour, period: "PT10M" })).toMatchObject({ provider: "eumetview", daily: false });
+  });
+
+  test.each([
+    ["a provider that only has a viewer", { ...trueColour, provider: "copernicus-browser" }],
+    ["no tile set", { ...trueColour, maxLevel: undefined }],
+    ["a tile type it does not draw", { ...trueColour, format: "webp" }],
+    ["a GIBS period that does not say how its frames are named", { ...trueColour, period: "P1M" }],
+    ["a GIBS entry with no period", { ...trueColour, period: undefined }],
+    ["no entry", "gibs"],
+  ])("draws nothing of %s", (_, entry) => {
+    expect(drawnImagery(entry)).toBeUndefined();
   });
 });

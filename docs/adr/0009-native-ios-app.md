@@ -58,7 +58,7 @@ SwiftUI draws all the controls over the `MTKView`.
   the web app asks it) and Natural Earth's copied. VIIRS is GIBS's daily true
   colour from NOAA-20: the clock's day within the days GIBS lists, short of the
   newest, which is still being imaged, as the web app's
-  `GibsTimeLayer` shows it, the map baked again when the day changes. A tile still loading is stood in for by the nearest
+  `GibsImagery` shows it, the map baked again when the day changes. A tile still loading is stood in for by the nearest
   ancestor that has loaded, so the globe never waits on the network.
 - Re:Earth terrain (quantized-mesh, geographic grid, levels 0–14, CC BY 4.0) is a
   toggle and is off by default, as on the web. The sky view turns it on, for the
@@ -163,7 +163,7 @@ it off.
 - Cesium World Terrain and MapTiler terrain
 - Surface models: OSM Buildings and Google Photorealistic (ADR 0005)
 - The Columbus view mode
-- The GOES-IR and Nexrad overlays, and the debug tile grid
+- The Nexrad overlay and the debug tile grid
 - The OSM and ArcGIS basemaps. The OSMF tile policy forbids an app that
   depends on `tile.openstreetmap.org`, and Esri's terms for published apps were
   not worth checking for a second satellite basemap.
