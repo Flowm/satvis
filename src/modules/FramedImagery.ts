@@ -5,6 +5,8 @@
 // Not Cesium's time-dynamic provider (GibsTimeLayer.ts), whose reload empties the layer's
 // tile cache: a globe tile made while the new frame loads, by a zoom, then has no parent
 // tile to draw and shows the basemap. Here such a tile draws the old frame's.
+//
+// A service is one FrameSource (GibsTimeLayer.ts, EumetViewImagery.ts).
 
 import { JulianDate } from "@cesium/core";
 
@@ -19,15 +21,19 @@ export interface FrameLayers<Layer> {
   indexOf(layer: Layer): number;
 }
 
-export interface FramedImagerySource<Layer> {
+/**
+ * A layer of a service, frame by frame. `Shown` is what shows one frame: Cesium's
+ * provider as the service's module makes it, the layer the controller wraps it in.
+ */
+export interface FrameSource<Shown> {
   /** Names the imagery in the warning when its frames cannot be read. */
   name: string;
   /** How often the service lets its list of frames change. */
   refreshMs: number;
   /** The imagery's frames, or undefined when the service cannot be reached or says nothing usable. */
   fetchRanges: (signal: AbortSignal) => Promise<TimeRange[] | undefined>;
-  /** A layer showing `frame`, or the service's latest frame without one. */
-  layer: (frame?: number) => Layer;
+  /** What shows `frame`, or the service's latest frame without one. Not called before `fetchRanges` settles. */
+  show: (frame?: number) => Shown;
 }
 
 export interface FramedImagery<Layer> {
@@ -47,7 +53,7 @@ const SETTLE_TICKS = 2;
  * the way.
  */
 export function showFramedImagery<Layer extends { readonly ready: boolean }>(
-  source: FramedImagerySource<Layer>,
+  source: FrameSource<Layer>,
   layers: FrameLayers<Layer>,
   position: () => number,
   { clock, requestRender, tilesLoaded, signal }: ImageryContext,
@@ -58,7 +64,7 @@ export function showFramedImagery<Layer extends { readonly ready: boolean }>(
   let lastFetch = Date.now();
 
   const add = (frame?: number): Layer => {
-    const layer = source.layer(frame);
+    const layer = source.show(frame);
     layers.add(layer, shown ? layers.indexOf(shown.layer) + 1 : position());
     requestRender();
     return layer;

@@ -36,7 +36,7 @@ function shown(ranges: TimeRange[] | null = RANGES) {
   const lifetime = new AbortController();
   const globe = { loaded: false };
   const fetchRanges = vi.fn(() => Promise.resolve(ranges ?? undefined));
-  const imagery = showFramedImagery<Layer>({ name: "GeoColor", refreshMs: 30 * MINUTE, fetchRanges, layer: (frame) => ({ frame, ready: true }) }, layers, () => 1, {
+  const imagery = showFramedImagery<Layer>({ name: "GeoColor", refreshMs: 30 * MINUTE, fetchRanges, show: (frame) => ({ frame, ready: true }) }, layers, () => 1, {
     clock,
     requestRender: () => {},
     tilesLoaded: () => globe.loaded,

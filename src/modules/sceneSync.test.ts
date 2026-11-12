@@ -530,7 +530,7 @@ describe("startSceneSync", () => {
       tags: ["Weather"],
       metadata: { imagery: [geocolor, { ...geocolor, layer: "Linked", maxLevel: undefined }] },
     } as unknown as CatalogEntry;
-    const drawn = { token: "gibs:GOES-East_ABI_GeoColor", layer: "GOES-East_ABI_GeoColor", maxLevel: 7, format: "png", daily: false };
+    const drawn = { token: "gibs:GOES-East_ABI_GeoColor", provider: "gibs", layer: "GOES-East_ABI_GeoColor", maxLevel: 7, format: "png", daily: false };
 
     test("is drawn once a record that carries the layer has loaded, and named for the Map panel", async () => {
       const { target, calls, catalog } = fakeTarget();

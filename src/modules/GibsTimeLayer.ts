@@ -1,6 +1,8 @@
-// A NASA GIBS layer showing the frame for the simulation time. Cesium reloads the
-// tiles when the clock enters another interval of `times`. GOES-East alone has
-// ~370,000 frames, so `times` covers only a window around the clock.
+// A NASA GIBS layer showing the frame for the simulation time, two ways: frame by frame
+// (FramedImagery.ts) for instrument imagery, and as Cesium's time-dynamic provider for
+// the Map panel's basemap. Cesium reloads that one's tiles when the clock enters another
+// interval of `times`. A 10-minute layer has ~370,000 frames, so `times` covers only a
+// window around the clock.
 //
 // Web Mercator: GIBS's EPSG:4326 tile matrices are not powers of two (3×2 at level 1),
 // so they cannot be a Cesium tiling scheme.
@@ -11,6 +13,7 @@ import { WebMapTileServiceImageryProvider, WebMercatorTilingScheme } from "@cesi
 import { formatFrame, frameWindow, parseDomain, type TimeRange, withoutLatestFrame } from "@/modules/util/timeDomain";
 
 import type { ImageryContext } from "./CesiumLayerProviders";
+import type { FrameSource } from "./FramedImagery";
 
 const GIBS = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best";
 
@@ -31,12 +34,12 @@ export interface GibsTimeLayerOptions {
 const WINDOW_SLOTS = 72;
 
 /** GIBS lets a domain be cached for 30 minutes, so asking sooner gets the same answer. */
-export const REFRESH_MS = 30 * 60 * 1000;
+const REFRESH_MS = 30 * 60 * 1000;
 
 const stepMs = (daily: boolean) => (daily ? 24 * 60 : 10) * 60 * 1000;
 
 /** The layer's frames, or undefined when GIBS cannot be reached or says nothing usable. */
-export async function fetchDomain(options: GibsTimeLayerOptions, signal: AbortSignal): Promise<TimeRange[] | undefined> {
+async function fetchDomain(options: GibsTimeLayerOptions, signal: AbortSignal): Promise<TimeRange[] | undefined> {
   try {
     const response = await fetch(`${GIBS}/1.0.0/${options.layer}/default/GoogleMapsCompatible_Level${options.maximumLevel}/all/all.xml`, { signal });
     const domain = response.ok ? /<Domain>([^<]*)<\/Domain>/.exec(await response.text())?.[1] : undefined;
@@ -64,7 +67,7 @@ function frameIntervals(ranges: readonly TimeRange[], center: number, daily: boo
   );
 }
 
-export function provider(options: GibsTimeLayerOptions, time: Pick<WebMapTileServiceImageryProvider.ConstructorOptions, "clock" | "times" | "dimensions">) {
+function provider(options: GibsTimeLayerOptions, time: Pick<WebMapTileServiceImageryProvider.ConstructorOptions, "clock" | "times" | "dimensions">) {
   return new WebMapTileServiceImageryProvider({
     url: `${GIBS}/${options.layer}/default/{Time}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.${options.format}`,
     layer: options.layer,
@@ -76,6 +79,16 @@ export function provider(options: GibsTimeLayerOptions, time: Pick<WebMapTileSer
     credit: "NASA Global Imagery Browse Services for EOSDIS",
     ...time,
   });
+}
+
+export function gibsFrames(options: GibsTimeLayerOptions): FrameSource<WebMapTileServiceImageryProvider> {
+  return {
+    name: options.layer,
+    refreshMs: REFRESH_MS,
+    fetchRanges: (signal) => fetchDomain(options, signal),
+    // "default" is GIBS's own name for its latest frame.
+    show: (frame) => provider(options, { dimensions: { Time: frame === undefined ? "default" : formatFrame(frame, options.daily) } }),
+  };
 }
 
 export async function createGibsTimeLayer(options: GibsTimeLayerOptions, { clock, requestRender, signal }: ImageryContext): Promise<WebMapTileServiceImageryProvider> {

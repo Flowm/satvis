@@ -256,8 +256,10 @@ export interface SatelliteImagery {
   /** It shows other satellites too, not told apart. */
   merged?: true;
   /**
-   * The deepest level of the layer's tiles, with `format` what an app needs to draw it
-   * (ADR 0020). For GIBS the N of its `GoogleMapsCompatible_LevelN` tile set.
+   * The deepest level worth asking for, in 256-pixel Web Mercator tiles; with `format`
+   * what an app needs to draw the layer (ADR 0020). For GIBS the N of its
+   * `GoogleMapsCompatible_LevelN` tile set; for EUMETView, which draws any tile, the
+   * first level finer than the picture's own pixels.
    */
   maxLevel?: number;
   /** The type of its tiles. */

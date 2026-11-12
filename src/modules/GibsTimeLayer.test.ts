@@ -2,9 +2,9 @@ import { Clock, JulianDate, type TimeIntervalCollection } from "@cesium/core";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { ImageryContext } from "./CesiumLayerProviders";
-import { createGibsTimeLayer, type GibsTimeLayerOptions } from "./GibsTimeLayer";
+import { createGibsTimeLayer, gibsFrames, type GibsTimeLayerOptions } from "./GibsTimeLayer";
 
-const GOES: GibsTimeLayerOptions = { layer: "GOES-East_ABI_Band13_Clean_Infrared", maximumLevel: 6, format: "png", daily: false };
+const GOES: GibsTimeLayerOptions = { layer: "GOES-East_ABI_GeoColor", maximumLevel: 7, format: "png", daily: false };
 const DOMAIN = "2026-10-04T20:00:00Z/2026-10-04T23:50:00Z/PT10M,2026-10-05T01:00:00Z/2026-10-05T11:20:00Z/PT10M";
 
 const domainResponse = (domain: string) => new Response(`<Domains><DimensionDomain><Domain>${domain}</Domain></DimensionDomain></Domains>`);
@@ -45,7 +45,7 @@ describe("createGibsTimeLayer", () => {
     const { clock, context } = harness("2026-10-05T09:47:00Z");
     const layer = await createGibsTimeLayer(GOES, context);
     expect(frameAt(layer.times, clock)).toBe("2026-10-05T09:40:00Z");
-    expect(fetchMock.mock.calls[0]![0]).toContain("/GOES-East_ABI_Band13_Clean_Infrared/default/GoogleMapsCompatible_Level6/all/all.xml");
+    expect(fetchMock.mock.calls[0]![0]).toContain("/GOES-East_ABI_GeoColor/default/GoogleMapsCompatible_Level7/all/all.xml");
   });
 
   test("follows the clock across intervals without a rebuild inside the window", async () => {
@@ -126,5 +126,21 @@ describe("createGibsTimeLayer", () => {
     expect(clock.onTick.numberOfListeners).toBe(before + 1);
     dispose();
     expect(clock.onTick.numberOfListeners).toBe(before);
+  });
+});
+
+describe("gibsFrames", () => {
+  test('names a frame as GIBS does, and its latest one "default"', () => {
+    const frames = gibsFrames(GOES);
+    const frame = Date.parse("2026-10-05T09:40:00Z");
+    expect(frames.show(frame).dimensions).toEqual({ Time: "2026-10-05T09:40:00Z" });
+    expect(frames.show().dimensions).toEqual({ Time: "default" });
+    expect(gibsFrames({ ...GOES, daily: true }).show(frame).dimensions).toEqual({ Time: "2026-10-05" });
+  });
+
+  test("lists a daily layer's frames without the day GIBS is still imaging", async () => {
+    fetchMock.mockResolvedValueOnce(domainResponse("2026-09-01/2026-10-05/P1D"));
+    const ranges = await gibsFrames({ ...GOES, daily: true }).fetchRanges(new AbortController().signal);
+    expect(ranges!.at(-1)!.end).toBe(Date.parse("2026-10-04"));
   });
 });

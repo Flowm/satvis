@@ -3,6 +3,7 @@ import {
   type CesiumWidget,
   Credit,
   ImageryLayer,
+  type ImageryProvider,
   KeyboardEventModifier,
   Resource,
   type Scene,
@@ -29,12 +30,12 @@ import { DeviceDetect } from "@/modules/util/DeviceDetect";
 import { smootherstep } from "@/modules/util/easing";
 import { FrameCap, type RenderLoop, startRenderLoop } from "@/modules/util/frameCap";
 import { Suppressible } from "@/modules/util/Suppressible";
-import { formatFrame } from "@/modules/util/timeDomain";
 
 import { type ImageryContext, type ImageryProviderEntry, imageryProviders, type TerrainProviderEntry, terrainProviders } from "./CesiumLayerProviders";
 import { BATCHED_COMPONENTS } from "./componentKinds";
-import { type FramedImagery, showFramedImagery } from "./FramedImagery";
-import { fetchDomain, provider, REFRESH_MS } from "./GibsTimeLayer";
+import { eumetViewFrames } from "./EumetViewImagery";
+import { type FramedImagery, type FrameSource, showFramedImagery } from "./FramedImagery";
+import { gibsFrames } from "./GibsTimeLayer";
 import { RenderPacer } from "./renderPacing";
 import { cesiumSceneMode } from "./satelliteGraphics";
 import { SatelliteManager } from "./SatelliteManager";
@@ -50,6 +51,12 @@ export type GlobeMenuPlace = { x: number; y: number } & ({ station: number } | {
 
 /** As much of Cesium's private `OIT` as is used here. */
 type OrderIndependentTranslucency = { isSupported(): boolean };
+
+/** A layer of each imagery provider the globe draws, frame by frame. */
+const FRAMES: Record<DrawnImagery["provider"], (imagery: DrawnImagery) => FrameSource<ImageryProvider>> = {
+  gibs: ({ layer, maxLevel, format, daily }) => gibsFrames({ layer, maximumLevel: maxLevel, format, daily }),
+  eumetview: ({ layer, maxLevel, format }) => eumetViewFrames({ layer, maximumLevel: maxLevel, format }),
+};
 
 /**
  * Degrees. A little north, so Europe clears the limb without cutting off the southern hemisphere.
@@ -305,28 +312,14 @@ export class CesiumController {
     const context = this.#imageryContext(this.#instrumentLifetime.signal);
     const aboveBasemap = this.#mapLayers.findLastIndex((name) => imageryProviders[parseLayer(name)!.provider]?.base === true) + 1;
     const shown: FramedImagery<ImageryLayer>[] = [];
-    this.#instrumentImagery.forEach(({ layer, maxLevel, format, daily }, index) => {
-      const options = { layer, maximumLevel: maxLevel, format, daily };
+    this.#instrumentImagery.forEach((drawn, index) => {
+      const frames = FRAMES[drawn.provider](drawn);
       // Over the nearest one below it that has a layer yet: their frame lists arrive in any order.
       const position = () => {
         const below = shown.slice(0, index).findLast((imagery) => imagery.top !== undefined);
         return below ? layers.indexOf(below.top!) + 1 : aboveBasemap;
       };
-      shown.push(
-        showFramedImagery(
-          {
-            name: layer,
-            refreshMs: REFRESH_MS,
-            fetchRanges: (signal) => fetchDomain(options, signal),
-            // "default" is GIBS's own name for its latest frame.
-            layer: (frame) =>
-              ImageryLayer.fromProviderAsync(Promise.resolve(provider(options, { dimensions: { Time: frame === undefined ? "default" : formatFrame(frame, daily) } })), {}),
-          },
-          layers,
-          position,
-          context,
-        ),
-      );
+      shown.push(showFramedImagery({ ...frames, show: (frame) => ImageryLayer.fromProviderAsync(Promise.resolve(frames.show(frame)), {}) }, layers, position, context));
     });
   }
 

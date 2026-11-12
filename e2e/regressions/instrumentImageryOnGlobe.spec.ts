@@ -1,6 +1,6 @@
-// GIBS is stubbed: the layer's time domain is fixed here, and every tile is one
-// transparent pixel. The fixture's GOES 19 carries the imagery manifest's entry for its
-// ABI, with the tile set that lets the globe draw it (ADR 0020).
+// GIBS and EUMETView are stubbed: the layer's frames are fixed here, and every tile is
+// one transparent pixel. The fixture's GOES 19 and Meteosat-12 carry the imagery
+// manifest's entries for their imagers, with what lets the globe draw them (ADR 0020).
 
 import { openApp, PIXEL, setClock } from "../support/app";
 import { expect, test } from "../support/test";
@@ -76,4 +76,44 @@ test("a link's instrument imagery is drawn once its satellite has loaded", async
   await expect.poll(() => [...layers]).toEqual([LAYER]);
   await openMenu(page, "Map");
   await expect(menuSwitch(page, "GeoColor · GOES 19")).toBeChecked();
+});
+
+test("a EUMETView layer is drawn by its WMS, at the frame for the clock", async ({ page }) => {
+  const tiles: URLSearchParams[] = [];
+  const stubEumetView = async () => {
+    await page.route("https://view.eumetsat.int/**", (route) => {
+      const url = new URL(route.request().url());
+      if (url.searchParams.get("request") === "GetCapabilities") {
+        expect(url.pathname).toBe("/geoserver/mtg_fd/rgb_geocolour/ows");
+        return route.fulfill({
+          contentType: "text/xml",
+          body: `<Layer><Layer><Name>rgb_geocolour</Name><EX_GeographicBoundingBox>
+            <westBoundLongitude>-81.28</westBoundLongitude><eastBoundLongitude>81.28</eastBoundLongitude>
+            <southBoundLatitude>-77.35</southBoundLatitude><northBoundLatitude>77.36</northBoundLatitude>
+            </EX_GeographicBoundingBox>
+            <Dimension name="time" units="ISO8601">2026-10-01T00:00:00.000Z/2026-10-05T23:50:00.000Z/PT10M</Dimension></Layer></Layer>`,
+        });
+      }
+      tiles.push(url.searchParams);
+      return route.fulfill({ contentType: "image/png", body: PIXEL });
+    });
+  };
+  await openApp(page, "time=2026-10-03T15:07Z&imagery=eumetview:mtg_fd:rgb_geocolour", { setup: stubEumetView });
+  await page.evaluate(() => (window.cc!.viewer.clock.shouldAnimate = false));
+
+  const asked = (name: string) => [...new Set(tiles.map((tile) => tile.get(name)))];
+  await expect.poll(() => asked("time")).toEqual(["2026-10-03T15:00:00Z"]);
+  expect(asked("layers")).toEqual(["mtg_fd:rgb_geocolour"]);
+  expect(asked("request")).toEqual(["GetMap"]);
+  expect(asked("format")).toEqual(["image/png"]);
+  expect(asked("width")).toEqual(["512"]);
+  // Nothing east of the disc, which ends at 81.28°: the tiles there are never asked for.
+  expect(tiles.every((tile) => Number(tile.get("bbox")!.split(",")[0]) < 81.28)).toBe(true);
+
+  tiles.length = 0;
+  await setClock(page, "2026-10-03T16:07:00Z");
+  await expect.poll(() => asked("time")).toEqual(["2026-10-03T16:00:00Z"]);
+
+  await openMenu(page, "Map");
+  await expect(menuSwitch(page, "GeoColour · METEOSAT-12 (MTG-I1)")).toBeChecked();
 });

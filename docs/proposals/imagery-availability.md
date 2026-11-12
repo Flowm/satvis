@@ -32,7 +32,8 @@ and is marked **checked**.
 7. **Order: links, then hosted layers, then sources that need a catalogue query.**
 8. **A file of its own** for the records.
 9. **The existing `GOES-IR` layer can move into this structure.** GIBS's 90 days of
-   geostationary history are enough; element sets degrade over that time anyway.
+   geostationary history are enough; element sets degrade over that time anyway. It
+   was dropped instead, once GeoColor was drawn on the globe.
 10. **The first slice lists true colour and natural colour only**, one or two layers an
     instrument. The other composites wait until someone asks for them.
 11. **JSTAR Mapper is out**: its tile backend is undocumented, and it keeps serving a
@@ -105,8 +106,7 @@ agencies, KARI, Roscosmos, Airbus/CNES, ASI, CONAE and others).
 - **Geostationary history is 90 days, whatever the time domain says. Checked:** the
   domain of `GOES-East_ABI_Band13_Clean_Infrared` lists frames back to 2019, a tile for
   2026-09-01 answers 200, and tiles for 2026-08-01, 2026-03-01 and 2025-06-01 answer 404.
-  Worldview's own configuration calls it a 90-day rolling window. The existing `GOES-IR`
-  layer builds its frames from that domain.
+  Worldview's own configuration calls it a 90-day rolling window.
 - **Granules. Checked:** `VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule` and its
   Suomi NPP twin serve each 6-minute granule as its own frame, for the last 90 days,
   marked beta; Suomi NPP's end on 2026-11-02 and age out from there. Between 2 and 7 of every 10 sampled daytime granules had tiles. NOAA-21
@@ -410,13 +410,14 @@ Browser's datasets for Sentinel-2, Sentinel-3's OLCI and Landsat's OLI.
   the Copernicus Browser keeps the dataset in its address behind its consent dialog.
 - Nothing is fetched and nothing is drawn, so no credit line changes yet.
 
-**Second: hosted layers on the globe, web.** GIBS is built (ADR 0020): its 11 entries
-are drawn from the Instruments tab with `GibsTimeLayer`.
+**Second: hosted layers on the globe, web.** GIBS and EUMETView are built (ADR 0020):
+their 20 entries are drawn from the Instruments tab, one Cesium layer a frame
+(`FramedImagery.ts`). EUMETView is drawn by its WMS, which needed neither the
+milliseconds nor a tile set.
 
-- Still to do there: the `VIIRS` and `GOES-IR` map layers become two entries among
-  them, `GOES-IR` the first of a second `kind`, a single band.
-- Then EUMETView (a WMTS provider that always sends a time with milliseconds) and JMA
-  (XYZ tiles and its list of frames), which brings Himawari-9 true colour.
+- Still to do there: the `VIIRS` map layer becomes NOAA-20's entry drawn as a basemap.
+  The `GOES-IR` map layer is dropped.
+- Then JMA (XYZ tiles and its list of frames), which brings Himawari-9 true colour.
 - Each provider's credit is shown while its layer is drawn.
 - How a layer is named in the url is ADR 0001's to settle then.
 
@@ -446,7 +447,7 @@ replay, footprints first.
 - The area OPERA's Sentinel-1 product covers.
 - Which Meteosat ran the SEVIRI service at 0° and the rapid scan at each date since
   2020: an entry is right from its `start` and silent before it.
-- Usable zoom levels at EUMETView, and whether the Geo Ring layers work through WMTS.
+- Whether EUMETView's Geo Ring layers work through WMTS.
 - That SLSTR's dataset in the Copernicus Browser opens as an RGB.
 - Element set error for satellites under 600 km, and across a manoeuvre.
 

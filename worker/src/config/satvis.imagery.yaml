@@ -10,9 +10,12 @@
 # the false colour and weather composites: 106 more layers at GIBS and EUMETView,
 # counted per instrument in docs/proposals/imagery-availability.md.
 #
-# `maxLevel` and `format` are what an app needs to draw the layer itself (ADR 0020): a
-# GIBS layer's `GoogleMapsCompatible_LevelN` tile set and its tiles' type. An entry
-# without them is a link only.
+# `maxLevel` and `format` are what an app needs to draw the layer itself (ADR 0020):
+# the deepest level worth asking for, in 256-pixel Web Mercator tiles, and the tiles'
+# type. For GIBS that is the layer's `GoogleMapsCompatible_LevelN` tile set. EUMETView
+# draws any tile, so there it is the first level finer than the picture's own pixels
+# under the satellite, measured from a tile on 2026-11-12. An entry without them is a
+# link only.
 #
 # Layer ids, periods, first frames and tile sets were read from each provider's
 # capabilities on 2026-11-11. Re-check an entry there before copying it: a layer that stops keeps its
@@ -140,6 +143,8 @@ satellites:
           layer: eps:m01_rgb_natural_fog
           label: Natural colour and fog, six orbits stacked
           kind: rgb
+          maxLevel: 6
+          format: png
           start: 2020-09-01
 
   - noradId: 43689
@@ -150,6 +155,8 @@ satellites:
           layer: eps:m03_rgb_natural_fog
           label: Natural colour and fog, six orbits stacked
           kind: rgb
+          maxLevel: 6
+          format: png
           start: 2020-09-01
 
   # A Copernicus Browser `layer` is a dataset id of
@@ -166,6 +173,8 @@ satellites:
           layer: copernicus:sentinel3a_olci_l1_rgb_fullres
           label: True colour, one swath per orbit
           kind: rgb
+          maxLevel: 8
+          format: png
           start: 2020-02-17
         - provider: copernicus-browser
           layer: S3OLCI_CDAS
@@ -181,6 +190,8 @@ satellites:
           layer: copernicus:sentinel3b_olci_l1_rgb_fullres
           label: True colour, one swath per orbit
           kind: rgb
+          maxLevel: 8
+          format: png
           start: 2020-02-17
         - provider: copernicus-browser
           layer: S3OLCI_CDAS
@@ -287,12 +298,16 @@ satellites:
           layer: mtg_fd:rgb_geocolour
           label: GeoColour
           kind: rgb
+          maxLevel: 7
+          format: png
           period: PT10M
           start: 2024-09-23
         - provider: eumetview
           layer: mtg_fd:rgb_truecolour
           label: True colour
           kind: rgb
+          maxLevel: 7
+          format: png
           period: PT10M
           start: 2024-09-23
 
@@ -305,6 +320,8 @@ satellites:
           layer: msg_fes:rgb_natural
           label: Natural colour
           kind: rgb
+          maxLevel: 6
+          format: png
           period: PT15M
           start: 2023-03-21
 
@@ -317,6 +334,8 @@ satellites:
           layer: msg_iodc:rgb_natural
           label: Natural colour
           kind: rgb
+          maxLevel: 6
+          format: png
           period: PT15M
           start: 2022-06-01
 
@@ -329,5 +348,7 @@ satellites:
           layer: msg_rss:rgb_natural_nrt
           label: Natural colour, Europe
           kind: rgb
+          maxLevel: 6
+          format: png
           period: PT5M
           start: 2023-03-28
