@@ -163,7 +163,7 @@ it off.
 - Cesium World Terrain and MapTiler terrain
 - Surface models: OSM Buildings and Google Photorealistic (ADR 0005)
 - The Columbus view mode
-- The GOES-IR and Nexrad overlays, and the debug tile grid
+- The Nexrad overlay and the debug tile grid
 - The OSM and ArcGIS basemaps. The OSMF tile policy forbids an app that
   depends on `tile.openstreetmap.org`, and Esri's terms for published apps were
   not worth checking for a second satellite basemap.

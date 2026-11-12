@@ -127,13 +127,6 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
     alpha: 1,
     base: false,
   },
-  /** GOES-East clean infrared, every 10 minutes for the last few months, over the Americas. */
-  "GOES-IR": {
-    label: "Infrared (GOES-East)",
-    create: (context) => createGibsTimeLayer({ layer: "GOES-East_ABI_Band13_Clean_Infrared", maximumLevel: 6, format: "png", daily: false }, context),
-    alpha: 0.5,
-    base: false,
-  },
   Nextrad: {
     label: "US radar (NEXRAD)",
     create: () =>

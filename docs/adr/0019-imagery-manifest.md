@@ -116,9 +116,7 @@ the whole constellation's.
   fixtures, which carry the manifest's entries for Metop-C and GOES 19. The rest of
   what an entry can say is held by unit tests written twice, one case for one.
 - **`imageryProviders` in `CesiumLayerProviders.ts` is another thing**: the Map
-  panel's basemaps and overlays. Its `VIIRS` overlay is NOAA-20's entry here, and
-  `GOES-IR` is a single band of GOES-East's ABI; both would be drawn from this
-  table once it draws layers and lists bands.
+  panel's basemaps and overlays. Its `VIIRS` basemap is NOAA-20's entry here.
 
 ## Alternatives rejected
 
