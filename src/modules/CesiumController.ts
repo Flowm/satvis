@@ -29,10 +29,12 @@ import { DeviceDetect } from "@/modules/util/DeviceDetect";
 import { smootherstep } from "@/modules/util/easing";
 import { FrameCap, type RenderLoop, startRenderLoop } from "@/modules/util/frameCap";
 import { Suppressible } from "@/modules/util/Suppressible";
+import { formatFrame } from "@/modules/util/timeDomain";
 
 import { type ImageryContext, type ImageryProviderEntry, imageryProviders, type TerrainProviderEntry, terrainProviders } from "./CesiumLayerProviders";
 import { BATCHED_COMPONENTS } from "./componentKinds";
-import { createGibsTimeLayer } from "./GibsTimeLayer";
+import { type FramedImagery, showFramedImagery } from "./FramedImagery";
+import { fetchDomain, provider, REFRESH_MS } from "./GibsTimeLayer";
 import { RenderPacer } from "./renderPacing";
 import { cesiumSceneMode } from "./satelliteGraphics";
 import { SatelliteManager } from "./SatelliteManager";
@@ -126,12 +128,10 @@ export class CesiumController {
   /** The Map panel's layers, in z-order. */
   #mapLayers: string[] = [];
 
-  /** The instrument imagery to draw, and the layers that draw it (ADR 0020). */
+  /** The instrument imagery to draw (ADR 0020). */
   #instrumentImagery: readonly DrawnImagery[] = [];
 
-  #instrumentLayers: ImageryLayer[] = [];
-
-  /** As `#imageryLifetime`, for the instrument imagery alone. */
+  /** Aborted when the instrument imagery is replaced, which takes its layers off. */
   #instrumentLifetime = new AbortController();
 
   /** "Fixed" or "Inertial". The sky view suppresses it with "Fixed". */
@@ -275,8 +275,6 @@ export class CesiumController {
       const { provider, alpha } = parseLayer(layerName)!;
       this.viewer.scene.imageryLayers.add(this.#createImageryLayer(provider, alpha));
     });
-    // removeAll took them too.
-    this.#instrumentLayers = [];
     this.#addInstrumentImagery();
     // Providers resolve asynchronously, so without this render-on-demand never tiles
     // the new layer and the globe stays blank.
@@ -296,33 +294,54 @@ export class CesiumController {
     this.viewer.scene.requestRender();
   }
 
-  /** Over the basemap and under the overlays, the last one on top. */
+  /**
+   * Over the basemap and under the overlays, the last one on top. Each is a layer a
+   * frame (FramedImagery.ts), so its layers come and go as the clock moves.
+   */
   #addInstrumentImagery(): void {
     this.#instrumentLifetime.abort();
     this.#instrumentLifetime = new AbortController();
     const layers = this.viewer.scene.imageryLayers;
-    this.#instrumentLayers.forEach((layer) => layers.remove(layer));
-    const context: ImageryContext = {
+    const context = this.#imageryContext(this.#instrumentLifetime.signal);
+    const aboveBasemap = this.#mapLayers.findLastIndex((name) => imageryProviders[parseLayer(name)!.provider]?.base === true) + 1;
+    const shown: FramedImagery<ImageryLayer>[] = [];
+    this.#instrumentImagery.forEach(({ layer, maxLevel, format, daily }, index) => {
+      const options = { layer, maximumLevel: maxLevel, format, daily };
+      // Over the nearest one below it that has a layer yet: their frame lists arrive in any order.
+      const position = () => {
+        const below = shown.slice(0, index).findLast((imagery) => imagery.top !== undefined);
+        return below ? layers.indexOf(below.top!) + 1 : aboveBasemap;
+      };
+      shown.push(
+        showFramedImagery(
+          {
+            name: layer,
+            refreshMs: REFRESH_MS,
+            fetchRanges: (signal) => fetchDomain(options, signal),
+            // "default" is GIBS's own name for its latest frame.
+            layer: (frame) =>
+              ImageryLayer.fromProviderAsync(Promise.resolve(provider(options, { dimensions: { Time: frame === undefined ? "default" : formatFrame(frame, daily) } })), {}),
+          },
+          layers,
+          position,
+          context,
+        ),
+      );
+    });
+  }
+
+  #imageryContext(signal: AbortSignal): ImageryContext {
+    return {
       clock: this.viewer.clock,
       requestRender: () => this.viewer.scene.requestRender(),
-      signal: this.#instrumentLifetime.signal,
+      tilesLoaded: () => this.viewer.scene.globe.tilesLoaded,
+      signal,
     };
-    const aboveBasemap = this.#mapLayers.findLastIndex((name) => imageryProviders[parseLayer(name)!.provider]?.base === true) + 1;
-    this.#instrumentLayers = this.#instrumentImagery.map(({ layer, maxLevel, format, daily }, index) => {
-      const drawn = ImageryLayer.fromProviderAsync(createGibsTimeLayer({ layer, maximumLevel: maxLevel, format, daily }, context), {});
-      layers.add(drawn, aboveBasemap + index);
-      return drawn;
-    });
   }
 
   #createImageryLayer(imageryProviderName: string, alpha?: number): ImageryLayer {
     const provider = imageryProviders[imageryProviderName] as ImageryProviderEntry;
-    const context: ImageryContext = {
-      clock: this.viewer.clock,
-      requestRender: () => this.viewer.scene.requestRender(),
-      signal: this.#imageryLifetime.signal,
-    };
-    const layer = ImageryLayer.fromProviderAsync(Promise.resolve(provider.create(context)), {});
+    const layer = ImageryLayer.fromProviderAsync(Promise.resolve(provider.create(this.#imageryContext(this.#imageryLifetime.signal))), {});
     layer.alpha = alpha === undefined ? provider.alpha : alpha;
     return layer;
   }

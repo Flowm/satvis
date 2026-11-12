@@ -31,12 +31,12 @@ export interface GibsTimeLayerOptions {
 const WINDOW_SLOTS = 72;
 
 /** GIBS lets a domain be cached for 30 minutes, so asking sooner gets the same answer. */
-const REFRESH_MS = 30 * 60 * 1000;
+export const REFRESH_MS = 30 * 60 * 1000;
 
 const stepMs = (daily: boolean) => (daily ? 24 * 60 : 10) * 60 * 1000;
 
 /** The layer's frames, or undefined when GIBS cannot be reached or says nothing usable. */
-async function fetchDomain(options: GibsTimeLayerOptions, signal: AbortSignal): Promise<TimeRange[] | undefined> {
+export async function fetchDomain(options: GibsTimeLayerOptions, signal: AbortSignal): Promise<TimeRange[] | undefined> {
   try {
     const response = await fetch(`${GIBS}/1.0.0/${options.layer}/default/GoogleMapsCompatible_Level${options.maximumLevel}/all/all.xml`, { signal });
     const domain = response.ok ? /<Domain>([^<]*)<\/Domain>/.exec(await response.text())?.[1] : undefined;
@@ -64,7 +64,7 @@ function frameIntervals(ranges: readonly TimeRange[], center: number, daily: boo
   );
 }
 
-function provider(options: GibsTimeLayerOptions, time: Pick<WebMapTileServiceImageryProvider.ConstructorOptions, "clock" | "times" | "dimensions">) {
+export function provider(options: GibsTimeLayerOptions, time: Pick<WebMapTileServiceImageryProvider.ConstructorOptions, "clock" | "times" | "dimensions">) {
   return new WebMapTileServiceImageryProvider({
     url: `${GIBS}/${options.layer}/default/{Time}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.${options.format}`,
     layer: options.layer,

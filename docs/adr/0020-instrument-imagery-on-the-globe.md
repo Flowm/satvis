@@ -44,14 +44,25 @@ Several may be drawn: GOES-East and GOES-West together are two discs.
 **Showing a layer leaves the Map panel's layers alone.** The controller adds and
 removes instrument imagery by itself, so the basemap is not rebuilt.
 
+**It follows the clock as one Cesium layer a frame** (`FramedImagery.ts`). The frame
+for the clock loads as a layer of its own over the one before it, which is taken off
+once the globe has all of the new one's tiles. A frame that is loading is finished
+before a newer one starts, so a clock that runs faster than frames load still shows
+frames, skipping some.
+
 ## Consequences
 
 - **11 of the 27 entries can be drawn**: every GIBS one. EUMETView's nine and the
   Copernicus Browser's stay links.
-- **A layer follows the clock as the Map panel's time layers do**: the frame for the
-  simulation time, and outside its history its first or last frame. A layer that
-  stopped therefore shows its last frame at today's clock; the entry's text beside the
-  button says when it ended, the globe does not.
+- **Outside its history a layer shows its first or last frame.** One that stopped
+  therefore shows its last frame at today's clock; the entry's text beside the button
+  says when it ended, the globe does not.
+- **A frame change costs a second layer while it loads**, and its tiles are asked for
+  twice where the view moves meanwhile: the old frame's and the new one's.
+- **Cesium's own preloading of the next frame is lost**, which its time-dynamic
+  provider does as the clock nears it.
+- **The Map panel's `VIIRS` and `GOES-IR` still use the time-dynamic provider**
+  (`GibsTimeLayer.ts`) and still lose their tiles on a zoom during a frame change.
 - **GIBS's GeoColor layers list only the frames they still serve**, 90 days, so the
   entry's `window` is not needed to keep the clock inside them. `GOES-IR`'s domain
   lists frames back to 2019 that answer 404; it is not an entry yet.
@@ -71,6 +82,11 @@ removes instrument imagery by itself, so the basemap is not rebuilt.
 - **A table of drawable layers in the frontend, or in the group index.** A second copy
   of what the records carry, or a metadata endpoint by another name.
 - **One layer at a time.** Simpler, but showing GOES-West would hide GOES-East.
+- **Cesium's time-dynamic provider**, as `GibsTimeLayer.ts` uses it for the Map panel.
+  The first version. On a frame change Cesium empties the layer's tile cache, so a
+  globe tile made while the new frame loads, by a zoom, has no parent tile to draw:
+  measured, 13 of 19 tiles in view showed the basemap for as long as the frame took to
+  load, and a clock run fast never let them settle.
 - **A nested `draw` object per entry.** The two fields describe any tile pyramid, and
   every other field of an entry is flat.
 

@@ -13,7 +13,7 @@ function harness(iso: string) {
   const clock = new Clock({ currentTime: JulianDate.fromIso8601(iso), shouldAnimate: false });
   const lifetime = new AbortController();
   const requestRender = vi.fn();
-  const context: ImageryContext = { clock, requestRender, signal: lifetime.signal };
+  const context: ImageryContext = { clock, requestRender, tilesLoaded: () => true, signal: lifetime.signal };
   return {
     clock,
     context,

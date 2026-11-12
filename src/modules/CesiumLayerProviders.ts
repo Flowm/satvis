@@ -24,6 +24,8 @@ const NATURAL_EARTH = "data/imagery/NaturalEarthII";
 export interface ImageryContext {
   clock: Clock;
   requestRender: () => void;
+  /** Whether the globe has every tile it wants, as of the last rendered frame. */
+  tilesLoaded: () => boolean;
   /** Aborted once the layer is removed, to stop listening to the clock. */
   signal: AbortSignal;
 }
