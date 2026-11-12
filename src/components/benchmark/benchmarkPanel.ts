@@ -156,14 +156,14 @@ function createPanel(bench: BenchmarkHandle, enabledComponents: () => readonly s
     return (value.index + within) / Math.max(value.total, 1);
   });
 
-  /** `send`, as a `bench=send` link asks, sends the report once the run is done. */
-  async function startScenes(only?: readonly string[], send = false): Promise<void> {
+  /** `sendWhenDone`, as a `bench=send` link asks, sends the report once the run is done. */
+  async function startScenes(only?: readonly string[], sendWhenDone = false): Promise<void> {
     sent.value = false;
     report.value = undefined;
     failure.value = undefined;
     const ids = only ?? (selected.value.length === scenes.value.length ? [] : sceneSteps.value.map((step) => step.id));
     try {
-      const done = bench.scenes({ only: ids, send, hooks: { onResult: bump, onProgress: bump } });
+      const done = bench.scenes({ only: ids, send: sendWhenDone, hooks: { onResult: bump, onProgress: bump } });
       bump();
       report.value = await done;
       sent.value = bench.sent;
