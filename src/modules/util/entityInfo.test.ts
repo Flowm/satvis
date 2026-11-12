@@ -188,6 +188,17 @@ describe("getSatelliteInfo", () => {
     ]);
   });
 
+  test("names a layer to the globe where the globe can draw it", () => {
+    const geocolor = { instrument: "ABI", provider: "gibs", layer: "GOES-East_ABI_GeoColor", label: "GeoColor", kind: "rgb", period: "PT10M", window: "P90D" };
+    const imagery = [
+      { ...geocolor, maxLevel: 7, format: "png" },
+      { ...geocolor, layer: "Linked" },
+    ];
+    const [abi] = getSatelliteInfo(ISS, "LEO", { instruments: [{ name: "ABI" }], imagery }).instruments;
+
+    expect(abi!.imagery.map((entry) => entry.token)).toEqual(["gibs:GOES-East_ABI_GeoColor", undefined]);
+  });
+
   // SatelliteDetailsTests.swift holds the native app to the same.
   test("reads malformed imagery as the native app does, leaving out what is not of its type", () => {
     const malformed = [

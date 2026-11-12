@@ -20,6 +20,7 @@ import utc from "dayjs/plugin/utc";
 
 import { usePostHog } from "@/composables/usePostHog";
 import { defaultViewDistance } from "@/config/defaultView";
+import type { DrawnImagery } from "@/config/instrumentImagery";
 import { parseLayer } from "@/config/layers";
 import { TOUCH_HOLD_MS } from "@/config/layout";
 import { type FrameRate, frameIntervalFor, msaaSamplesFor, resolutionScaleFor } from "@/config/rendering";
@@ -31,6 +32,7 @@ import { Suppressible } from "@/modules/util/Suppressible";
 
 import { type ImageryContext, type ImageryProviderEntry, imageryProviders, type TerrainProviderEntry, terrainProviders } from "./CesiumLayerProviders";
 import { BATCHED_COMPONENTS } from "./componentKinds";
+import { createGibsTimeLayer } from "./GibsTimeLayer";
 import { RenderPacer } from "./renderPacing";
 import { cesiumSceneMode } from "./satelliteGraphics";
 import { SatelliteManager } from "./SatelliteManager";
@@ -120,6 +122,17 @@ export class CesiumController {
 
   /** Aborted when the imagery layers are replaced, detaching any that follow the clock. */
   #imageryLifetime = new AbortController();
+
+  /** The Map panel's layers, in z-order. */
+  #mapLayers: string[] = [];
+
+  /** The instrument imagery to draw, and the layers that draw it (ADR 0020). */
+  #instrumentImagery: readonly DrawnImagery[] = [];
+
+  #instrumentLayers: ImageryLayer[] = [];
+
+  /** As `#imageryLifetime`, for the instrument imagery alone. */
+  #instrumentLifetime = new AbortController();
 
   /** "Fixed" or "Inertial". The sky view suppresses it with "Fixed". */
   readonly #camera: Suppressible<string>;
@@ -257,10 +270,14 @@ export class CesiumController {
 
   set imageryLayers(newLayerNames: string[]) {
     this.#clearImageryLayers();
+    this.#mapLayers = newLayerNames;
     newLayerNames.forEach((layerName) => {
       const { provider, alpha } = parseLayer(layerName)!;
       this.viewer.scene.imageryLayers.add(this.#createImageryLayer(provider, alpha));
     });
+    // removeAll took them too.
+    this.#instrumentLayers = [];
+    this.#addInstrumentImagery();
     // Providers resolve asynchronously, so without this render-on-demand never tiles
     // the new layer and the globe stays blank.
     this.viewer.scene.requestRender();
@@ -270,6 +287,32 @@ export class CesiumController {
     this.#imageryLifetime.abort();
     this.#imageryLifetime = new AbortController();
     this.viewer.scene.imageryLayers.removeAll();
+  }
+
+  /** The Map panel's layers stay as they are, so showing a layer does not reload the basemap. */
+  set instrumentImagery(imagery: readonly DrawnImagery[]) {
+    this.#instrumentImagery = imagery;
+    this.#addInstrumentImagery();
+    this.viewer.scene.requestRender();
+  }
+
+  /** Over the basemap and under the overlays, the last one on top. */
+  #addInstrumentImagery(): void {
+    this.#instrumentLifetime.abort();
+    this.#instrumentLifetime = new AbortController();
+    const layers = this.viewer.scene.imageryLayers;
+    this.#instrumentLayers.forEach((layer) => layers.remove(layer));
+    const context: ImageryContext = {
+      clock: this.viewer.clock,
+      requestRender: () => this.viewer.scene.requestRender(),
+      signal: this.#instrumentLifetime.signal,
+    };
+    const aboveBasemap = this.#mapLayers.findLastIndex((name) => imageryProviders[parseLayer(name)!.provider]?.base === true) + 1;
+    this.#instrumentLayers = this.#instrumentImagery.map(({ layer, maxLevel, format, daily }, index) => {
+      const drawn = ImageryLayer.fromProviderAsync(createGibsTimeLayer({ layer, maximumLevel: maxLevel, format, daily }, context), {});
+      layers.add(drawn, aboveBasemap + index);
+      return drawn;
+    });
   }
 
   #createImageryLayer(imageryProviderName: string, alpha?: number): ImageryLayer {

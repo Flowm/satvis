@@ -7,12 +7,14 @@ import { nextTick, watch } from "vue";
 
 import { currentPosition } from "@/composables/useGeolocation";
 import { useToastProxy } from "@/composables/useToastProxy";
+import { type DrawnImagery, drawnImagery } from "@/config/instrumentImagery";
 import type { FrameRate } from "@/config/rendering";
 import { satelliteModel } from "@/config/satelliteMetadata";
 import { BUILTIN_STAR_MAP, starMapRecovery } from "@/config/starMaps";
 import { surfaceModelLabel } from "@/config/surfaceModels";
 import { SKY_MODE } from "@/config/viewModes";
 import { isOffPresent } from "@/modules/util/clockDeck";
+import { sameValue } from "@/modules/util/equality";
 import type { GpRecord } from "@/modules/util/gp";
 import { toMinuteIso } from "@/modules/util/urlCodec";
 import { adjustUrlDefault, arrivalParam } from "@/modules/util/urlSync";
@@ -53,6 +55,7 @@ const COMPONENT_BUDGETS: Record<string, ComponentBudget> = {
 /** The part of `CesiumController` this file uses, so a test can stand in without WebGL. */
 export interface SceneTarget {
   imageryLayers: string[];
+  instrumentImagery: DrawnImagery[];
   terrainProvider: string;
   cameraMode: string;
   pixelRatio: string;
@@ -78,7 +81,7 @@ export interface SceneTarget {
     cancelPendingTrack(): void;
     onCatalogChange(callback: () => void): void;
     setCustomRecords(records: readonly GpRecord[]): void;
-    readonly catalog: { readonly entries: readonly CatalogEntry[] };
+    readonly catalog: { readonly entries: readonly CatalogEntry[]; ensureAll(): Promise<void> };
   };
   readonly viewer: {
     readonly clock: {
@@ -456,9 +459,46 @@ export function startSceneSync(cc: SceneTarget): void {
     satStore.repositionObserver(observer.lat, observer.lon);
   });
 
+  // A layer is drawn from the entry of whichever loaded record carries it, so one a
+  // link names appears once such a record has loaded (ADR 0020).
+  let drawn: DrawnImagery[] = [];
+  let lookedEverywhere = false;
+  const drawInstrumentImagery = () => {
+    const wanted = cesiumStore.instrumentImagery;
+    const found = new Map<string, { imagery: DrawnImagery; label: string }>();
+    if (wanted.length > 0) {
+      for (const entry of cc.sats.catalog.entries) {
+        const { imagery } = entry.metadata;
+        for (const item of Array.isArray(imagery) ? imagery : []) {
+          const candidate = drawnImagery(item);
+          if (candidate !== undefined && wanted.includes(candidate.token) && !found.has(candidate.token)) {
+            found.set(candidate.token, { imagery: candidate, label: `${item.label} · ${entry.name}` });
+          }
+        }
+      }
+    }
+    // As for a `sats=` name the catalog lacks: its record may be in a group the route leaves out.
+    if (!lookedEverywhere && wanted.some((token) => !found.has(token))) {
+      lookedEverywhere = true;
+      void cc.sats.catalog.ensureAll();
+    }
+    const next = wanted.flatMap((token) => found.get(token)?.imagery ?? []);
+    // The catalog changes with every group that loads; the layers only when their entries do.
+    if (!sameValue(next, drawn)) {
+      drawn = next;
+      cc.instrumentImagery = next;
+    }
+    const labels = Object.fromEntries([...found].map(([token, { label }]) => [token, label]));
+    if (!sameValue(labels, cesiumStore.instrumentImageryLabels)) {
+      cesiumStore.instrumentImageryLabels = labels;
+    }
+  };
+  watch(() => cesiumStore.instrumentImagery, drawInstrumentImagery, { deep: true, immediate: true });
+
   // The catalog (~10k entries) is not reactive; the revision counter is.
   cc.sats.onCatalogChange(() => {
     satStore.catalogRevision += 1;
+    drawInstrumentImagery();
   });
 
   // Immediate, so the stored custom satellites are in the catalog before the route's groups

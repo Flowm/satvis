@@ -78,7 +78,8 @@ discussion; sharpen them here when they drift.
 - **Instrument imagery**: one layer of one imagery provider that shows one
   **instrument** of one satellite, as a record's `imagery` carries it: the provider,
   the layer's id there, what the picture is, and when it has frames. Curated metadata,
-  linked from the Instruments tab under its instrument, the default first. A layer
+  linked from the Instruments tab under its instrument, the default first, and drawn
+  on the globe from there where the entry carries its tile set (ADR 0020). A layer
   named for a service ("GOES-East") is the imagery of whichever satellite provides it
   now, from the day it took over. Not a
   **basemap** or an **overlay**, which the Map panel draws on the globe.

@@ -60,6 +60,7 @@ file and not where models are served:
 - `merged` where it shows other satellites too. A layer that covers less than the
   instrument sees says so in its label: "Natural colour, Europe".
 - An instrument's first entry is its default.
+- `maxLevel` and `format` came later, with drawing the layer (ADR 0020).
 
 **`imagery` is curated only, and stands beside `instruments`**, not inside it, so
 CEOS stays the one owner of that list (ADR 0008). A row of a config may not give it:

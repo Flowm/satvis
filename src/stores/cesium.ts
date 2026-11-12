@@ -136,6 +136,20 @@ export const useCesiumStore = defineStore(
       setLayers(enabled ? [...without, name] : without);
     }
 
+    /**
+     * The instrument imagery drawn on the globe, each as `provider:layer` (ADR 0020). An
+     * open vocabulary: a layer is drawn once a loaded record carries its entry.
+     */
+    const instrumentImagery = ref<string[]>([]);
+    /** What the Map panel calls each layer that is drawn: "GeoColor · GOES 19". Not URL-synced. */
+    const instrumentImageryLabels = ref<Record<string, string>>({});
+
+    /** The last one shown goes over the others. */
+    function toggleInstrumentImagery(token: string, shown: boolean): void {
+      const without = instrumentImagery.value.filter((entry) => entry !== token);
+      instrumentImagery.value = shown ? [...without, token] : without;
+    }
+
     return {
       layers,
       setLayers,
@@ -143,6 +157,9 @@ export const useCesiumStore = defineStore(
       hasOverlay,
       setBaseLayer,
       toggleOverlay,
+      instrumentImagery,
+      instrumentImageryLabels,
+      toggleInstrumentImagery,
       time,
       setTime,
       terrainProvider,
@@ -170,6 +187,7 @@ export const useCesiumStore = defineStore(
     urlsync: {
       config: [
         { name: "layers", url: "layers", kind: layerList(imageryProviderNames) },
+        { name: "instrumentImagery", url: "imagery", kind: stringList() },
         { name: "terrainProvider", url: "terrain", kind: enumString(terrainProviderNames()) },
         { name: "surfaceModel", url: "surface", kind: enumString(SURFACE_MODELS) },
         { name: "starMap", url: "stars", kind: enumString([...STAR_MAPS]) },

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { imageryDetail } from "./instrumentImagery";
+import { drawnImagery, imageryDetail } from "./instrumentImagery";
 
 describe("imageryDetail", () => {
   test.each([
@@ -20,5 +20,34 @@ describe("imageryDetail", () => {
 
   test("says nothing where the entry does not", () => {
     expect(imageryDetail({})).toBeUndefined();
+  });
+});
+
+describe("drawnImagery", () => {
+  const trueColour = {
+    instrument: "VIIRS",
+    provider: "gibs",
+    layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor",
+    label: "True colour",
+    kind: "rgb",
+    period: "P1D",
+    maxLevel: 9,
+    format: "jpeg",
+  };
+
+  test("reads what the globe needs of a GIBS entry", () => {
+    expect(drawnImagery(trueColour)).toEqual({ token: "gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor", layer: trueColour.layer, maxLevel: 9, format: "jpeg", daily: true });
+    expect(drawnImagery({ ...trueColour, period: "PT10M", format: "png" })).toMatchObject({ format: "png", daily: false });
+  });
+
+  test.each([
+    ["another provider", { ...trueColour, provider: "eumetview" }],
+    ["no tile set", { ...trueColour, maxLevel: undefined }],
+    ["a tile type it does not draw", { ...trueColour, format: "webp" }],
+    ["a step its time layer does not know", { ...trueColour, period: "PT15M" }],
+    ["no step", { ...trueColour, period: undefined }],
+    ["no entry", "gibs"],
+  ])("draws nothing of %s", (_, entry) => {
+    expect(drawnImagery(entry)).toBeUndefined();
   });
 });

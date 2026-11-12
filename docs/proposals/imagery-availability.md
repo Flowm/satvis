@@ -410,16 +410,13 @@ Browser's datasets for Sentinel-2, Sentinel-3's OLCI and Landsat's OLI.
   the Copernicus Browser keeps the dataset in its address behind its consent dialog.
 - Nothing is fetched and nothing is drawn, so no credit line changes yet.
 
-**Second: hosted layers on the globe, web.**
+**Second: hosted layers on the globe, web.** GIBS is built (ADR 0020): its 11 entries
+are drawn from the Instruments tab with `GibsTimeLayer`.
 
-- GIBS first: `GibsTimeLayer` for any entry, started from the Instruments tab, with the
-  entry's `window` as the clamp. The `VIIRS` and `GOES-IR` map layers become two entries
-  among them, `GOES-IR` the first of a second `kind`, a single band.
+- Still to do there: the `VIIRS` and `GOES-IR` map layers become two entries among
+  them, `GOES-IR` the first of a second `kind`, a single band.
 - Then EUMETView (a WMTS provider that always sends a time with milliseconds) and JMA
   (XYZ tiles and its list of frames), which brings Himawari-9 true colour.
-- What drawing needs is added to the entries then, per provider: GIBS's matrix set level
-  and format are not in the layer id (`draw: { level: 9, format: jpeg }`); EUMETView's
-  workspace is.
 - Each provider's credit is shown while its layer is drawn.
 - How a layer is named in the url is ADR 0001's to settle then.
 

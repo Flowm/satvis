@@ -1,6 +1,7 @@
-// Instrument imagery (ADR 0019): the layers of imagery providers that a record's `imagery`
-// says show its instruments, and how each becomes a link. Nothing here is fetched or
-// drawn. Cesium-free: node-env vitest and the parity generator read it.
+// Instrument imagery (ADR 0019, 0020): the layers of imagery providers that a record's
+// `imagery` says show its instruments, how each becomes a link, and which of them the
+// globe can draw. Nothing here is fetched. Cesium-free: node-env vitest and the parity
+// generator read it.
 
 /** Worker `SatelliteImagery` (worker/src/gp/types.ts): one layer that shows one instrument. */
 export interface SatelliteImagery {
@@ -24,6 +25,10 @@ export interface SatelliteImagery {
   window?: string;
   /** It shows other satellites too, not told apart. */
   merged?: true;
+  /** The deepest level of its tiles; with `format`, what drawing it needs. */
+  maxLevel?: number;
+  /** The type of its tiles: "png" or "jpeg". */
+  format?: string;
 }
 
 /**
@@ -88,4 +93,35 @@ export function imageryDetail(entry: Pick<SatelliteImagery, "period" | "start" |
   const when = step !== undefined && history?.startsWith("since") ? [`${step} ${history}`] : [step, history];
   const parts = [...when, merged === true ? "with other satellites" : undefined].filter((part): part is string => part !== undefined);
   return parts.length > 0 ? parts.join(", ") : undefined;
+}
+
+/** A layer the globe draws, named in the url by `token` (ADR 0020). */
+export interface DrawnImagery {
+  /** `provider:layer`, which names it in the store and the url. */
+  token: string;
+  layer: string;
+  maxLevel: number;
+  format: "png" | "jpeg";
+  /** A frame a day, named by its date; otherwise one every 10 minutes. */
+  daily: boolean;
+}
+
+/** `provider:layer`. A provider's name has no colon, so the first one divides them. */
+export function imageryToken(provider: string, layer: string): string {
+  return `${provider}:${layer}`;
+}
+
+/**
+ * What the globe needs to draw a record's entry, or undefined where it cannot: only
+ * GIBS so far, and only the two steps its time layer knows (GibsTimeLayer.ts).
+ */
+export function drawnImagery(entry: unknown): DrawnImagery | undefined {
+  if (typeof entry !== "object" || entry === null) {
+    return undefined;
+  }
+  const { provider, layer, maxLevel, format, period } = entry as Record<keyof SatelliteImagery, unknown>;
+  if (provider !== "gibs" || typeof layer !== "string" || !Number.isInteger(maxLevel) || (format !== "png" && format !== "jpeg") || (period !== "P1D" && period !== "PT10M")) {
+    return undefined;
+  }
+  return { token: imageryToken(provider, layer), layer, maxLevel: maxLevel as number, format, daily: period === "P1D" };
 }

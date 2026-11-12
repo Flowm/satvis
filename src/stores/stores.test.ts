@@ -304,6 +304,16 @@ describe("layer edits", () => {
     expect(cesium.layers).toEqual(["ArcGis", "Nextrad"]);
   });
 
+  test("instrument imagery goes on top of what is shown, once, and off again", () => {
+    const cesium = useCesiumStore();
+    cesium.toggleInstrumentImagery("gibs:A", true);
+    cesium.toggleInstrumentImagery("gibs:B", true);
+    cesium.toggleInstrumentImagery("gibs:A", true);
+    expect(cesium.instrumentImagery).toEqual(["gibs:B", "gibs:A"]);
+    cesium.toggleInstrumentImagery("gibs:B", false);
+    expect(cesium.instrumentImagery).toEqual(["gibs:A"]);
+  });
+
   test("no basemap reads as none", () => {
     const cesium = useCesiumStore();
     cesium.setLayers(["Nextrad"]);

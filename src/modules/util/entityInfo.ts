@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { gcatCategoryLabel, gcatClassLabel } from "@/config/gcatCodes";
-import { IMAGERY_PROVIDERS, imageryDetail, imageryLink, type SatelliteImagery } from "@/config/instrumentImagery";
+import { drawnImagery, IMAGERY_PROVIDERS, imageryDetail, imageryLink, type SatelliteImagery } from "@/config/instrumentImagery";
 import type { OrbitClass } from "@/config/orbitClass";
 import { satcatLabel, SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, SATCAT_ORBIT_TYPE } from "@/config/satcatCodes";
 import { swathExtentsOf, type SatelliteInstrument, type SatelliteMetadata } from "@/config/satelliteMetadata";
@@ -39,6 +39,8 @@ export interface ImageryInfo {
   /** The provider's viewer, which the link opens: "NASA Worldview". */
   viewer: string;
   href: string;
+  /** Names the layer to the globe, where it can draw it (ADR 0020). */
+  token?: string;
 }
 
 /** One record entry of `imagery`, read: what the tab shows of it, and the instrument it belongs under. */
@@ -123,7 +125,11 @@ function instrumentImagery(entry: unknown): InstrumentImagery | undefined {
     ...(rest.merged === true && { merged: true }),
   });
   const known = IMAGERY_PROVIDERS[provider]!;
-  return { instrument, imagery: { label, ...(detail !== undefined && { detail }), viewer: known.viewer, href: imageryLink(known, layer, end) } };
+  const token = drawnImagery(entry)?.token;
+  return {
+    instrument,
+    imagery: { label, ...(detail !== undefined && { detail }), viewer: known.viewer, href: imageryLink(known, layer, end), ...(token !== undefined && { token }) },
+  };
 }
 
 /**

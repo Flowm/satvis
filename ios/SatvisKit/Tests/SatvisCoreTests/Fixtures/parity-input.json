@@ -453,7 +453,9 @@
           "label": "GeoColor",
           "kind": "rgb",
           "period": "PT10M",
-          "window": "P90D"
+          "window": "P90D",
+          "maxLevel": 7,
+          "format": "png"
         }
       ]
     }

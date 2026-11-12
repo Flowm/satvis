@@ -255,6 +255,13 @@ export interface SatelliteImagery {
   window?: string;
   /** It shows other satellites too, not told apart. */
   merged?: true;
+  /**
+   * The deepest level of the layer's tiles, with `format` what an app needs to draw it
+   * (ADR 0020). For GIBS the N of its `GoogleMapsCompatible_LevelN` tile set.
+   */
+  maxLevel?: number;
+  /** The type of its tiles. */
+  format?: "png" | "jpeg";
 }
 
 /**
