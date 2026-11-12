@@ -4,9 +4,10 @@
       v-for="{ instrument, imagery } in layers"
       :key="imagery.href"
       class="card"
-      :class="{ 'card--shown': isShown(imagery) }"
+      :class="{ 'card--drawable': imagery.token, 'card--shown': isShown(imagery) }"
       :data-instrument="instrument"
       :aria-label="`${instrument} ${imagery.label}`"
+      @click="toggle(imagery)"
     >
       <div class="card__preview">
         <img v-if="previewOf(imagery) && !failed.has(imagery.href)" :src="previewOf(imagery)" alt="" loading="lazy" @error="failed.add(imagery.href)" />
@@ -24,13 +25,14 @@
           <USwitch
             v-if="imagery.token"
             :model-value="isShown(imagery)"
-            label="On globe"
+            label="Show"
             size="sm"
             :aria-label="`Show ${imagery.label} on the globe`"
             @update:model-value="cesiumStore.toggleInstrumentImagery(imagery.token, $event)"
+            @click.stop
           />
           <span v-else />
-          <a class="card__open" :href="imagery.href" :title="`Open in ${imagery.viewer}`" target="_blank" rel="noopener">
+          <a class="card__open" :href="imagery.href" :title="`Open in ${imagery.viewer}`" target="_blank" rel="noopener" @click.stop>
             {{ imagery.viewer }}
             <UIcon name="lucide:external-link" />
           </a>
@@ -71,6 +73,13 @@ function previewOf(imagery: ImageryInfo): string | undefined {
   return imagery.preview && props.centre ? imageryPreviewUrl(imagery.preview, props.centre, halfWidthDeg(), new Date()) : undefined;
 }
 
+/** A press anywhere on a card the globe can draw shows it or takes it off; its switch is the keyboard's way. */
+function toggle(imagery: ImageryInfo): void {
+  if (imagery.token !== undefined) {
+    cesiumStore.toggleInstrumentImagery(imagery.token, !isShown(imagery));
+  }
+}
+
 function isShown(imagery: ImageryInfo): boolean {
   return imagery.token !== undefined && cesiumStore.instrumentImagery.includes(imagery.token);
 }
@@ -103,7 +112,16 @@ watch(() => props.focus, reveal);
   background: var(--panel-raised);
 }
 
-.card--shown {
+.card--drawable {
+  cursor: pointer;
+}
+
+.card--drawable:hover {
+  border-color: var(--panel-faint);
+}
+
+.card--shown,
+.card--shown:hover {
   border-color: var(--panel-accent);
   box-shadow: 0 0 0 1px var(--panel-accent);
 }

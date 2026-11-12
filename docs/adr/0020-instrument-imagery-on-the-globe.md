@@ -47,7 +47,8 @@ once.
 
 **It is shown from the Imagery tab and taken off there or in the Map panel.** The tab,
 after Instruments, has a card for each entry: the instrument, a picture of the layer,
-when it has frames, a switch that draws it where the globe can, and the link. An
+when it has frames, a Show switch where the globe can draw it, and the link. A press
+anywhere else on such a card does what the switch does. An
 instrument with imagery has a button in the Instruments tab that opens the tab at its
 cards. The Map panel lists what is drawn under its overlays, by label and satellite,
 "GeoColor · GOES 19", so a layer can be taken off without finding its satellite again.

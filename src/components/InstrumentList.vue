@@ -83,9 +83,13 @@ function rowOf(instrument: InstrumentInfo, label: string): string | undefined {
   cursor: pointer;
 }
 
-.instrument__toggle:hover,
-button.instrument__imagery:hover {
+/* The whole line, so a row whose image button is only a space still lights to the edge. */
+.instrument__line:hover {
   background: #ffffff08;
+}
+
+button.instrument__imagery:hover {
+  background: #ffffff14;
 }
 
 .instrument__chevron {
