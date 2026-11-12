@@ -10,17 +10,35 @@ struct SegmentedTabs<Value: Hashable>: View {
     @Namespace private var thumb
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(tabs, id: \.value) { tab in
-                self.tab(tab.value, tab.title, count: tab.count)
+        // Equal widths where every name fits; else each its own width, scrolled to the
+        // one chosen: a satellite's five tabs on a phone.
+        ViewThatFits(in: .horizontal) {
+            track(scrolls: false)
+            ScrollViewReader { scroller in
+                ScrollView(.horizontal) {
+                    track(scrolls: true)
+                }
+                .scrollIndicators(.hidden)
+                .clipShape(.capsule)
+                .onAppear { scroller.scrollTo(selection) }
+                .onChange(of: selection) { withAnimation(.snappy) { scroller.scrollTo(selection) } }
             }
         }
-        .padding(2)
         .background(Color.panelRaised, in: .capsule)
         .accessibilityElement(children: .contain)
     }
 
-    private func tab(_ value: Value, _ title: String, count: Int) -> some View {
+    private func track(scrolls: Bool) -> some View {
+        HStack(spacing: 0) {
+            ForEach(tabs, id: \.value) { tab in
+                self.tab(tab.value, tab.title, count: tab.count, scrolls: scrolls)
+                    .id(tab.value)
+            }
+        }
+        .padding(2)
+    }
+
+    private func tab(_ value: Value, _ title: String, count: Int, scrolls: Bool) -> some View {
         let isSelected = selection == value
         return Button {
             withAnimation(.snappy) { selection = value }
@@ -34,12 +52,15 @@ struct SegmentedTabs<Value: Hashable>: View {
             .font(.subheadline.weight(isSelected ? .semibold : .medium))
             .foregroundStyle(Color.panelInk)
             .lineLimit(1)
-            // "Instruments" has 2 pt to spare in a 375 pt phone's four tabs, and none in bold text.
-            .minimumScaleFactor(0.8)
-            .frame(maxWidth: .infinity, minHeight: 28)
+            // "Instruments" in a 375 pt phone's four tabs, which leave it about its own width.
+            .minimumScaleFactor(scrolls ? 1 : 0.8)
+            // Some room between the names, which are measured to decide whether they fit.
+            .padding(.horizontal, scrolls ? 12 : 4)
+            .frame(maxWidth: scrolls ? nil : .infinity, minHeight: 28)
             .background {
                 if isSelected {
-                    Capsule().fill(Color.systemGray2).matchedGeometryEffect(id: "thumb", in: thumb)
+                    // One group a track: ViewThatFits builds both.
+                    Capsule().fill(Color.systemGray2).matchedGeometryEffect(id: "thumb\(scrolls)", in: thumb)
                 }
             }
             .contentShape(.capsule)

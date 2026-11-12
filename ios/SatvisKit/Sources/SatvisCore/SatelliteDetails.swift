@@ -160,6 +160,22 @@ public enum SatelliteDetails {
         /// The provider's viewer, which the link opens: "NASA Worldview".
         public var viewer: String
         public var href: String
+        /// What a picture of it needs, for a layer whose provider answers for one.
+        public var preview: ImageryPreview?
+    }
+
+    /// What the Imagery tab needs to ask the provider for a picture of a layer, the web
+    /// app's `ImageryPreview`: one of the layers its globe draws (`drawnImagery`).
+    public struct ImageryPreview: Sendable, Hashable {
+        /// "gibs" or "eumetview".
+        public var provider: String
+        public var layer: String
+        /// "png" or "jpeg".
+        public var format: String
+        /// A GIBS layer with a frame a day, which GIBS names by its date.
+        public var isDaily: Bool
+        /// The last frame's date, of a layer that stopped.
+        public var end: String?
     }
 
     /// One instrument in the Instruments tab, the web app's `InstrumentInfo`.
@@ -211,7 +227,75 @@ public enum SatelliteDetails {
             return nil
         }
         let end = fields["end"]?.string
-        return (instrument, Imagery(label: label, detail: imageryDetail(fields), viewer: known.viewer, href: known.href(layer: layer, end: end)))
+        return (
+            instrument,
+            Imagery(
+                label: label, detail: imageryDetail(fields), viewer: known.viewer, href: known.href(layer: layer, end: end),
+                preview: preview(fields, provider: provider, layer: layer, end: end)
+            )
+        )
+    }
+
+    /// The web app's `drawnImagery`, as a preview: nil for another provider's layer, one
+    /// without `maxLevel` and `format`, or a GIBS layer whose period does not say how its
+    /// frames are named.
+    private static func preview(_ fields: [String: JSONValue], provider: String, layer: String, end: String?) -> ImageryPreview? {
+        guard ["gibs", "eumetview"].contains(provider), let maxLevel = fields["maxLevel"]?.number, maxLevel.isFinite, maxLevel.rounded() == maxLevel,
+            let format = fields["format"]?.string, format == "png" || format == "jpeg"
+        else {
+            return nil
+        }
+        let period = fields["period"]?.string
+        let isDaily = period == "P1D"
+        if provider == "gibs", !isDaily, period?.hasPrefix("PT") != true {
+            return nil
+        }
+        return ImageryPreview(provider: provider, layer: layer, format: format, isDaily: isDaily, end: end)
+    }
+
+    /// Pixels; twice the web card's size, for a Retina screen.
+    private static let previewWidth = 480.0
+    private static let previewHeight = 270.0
+
+    /// A layer's latest frame, `halfWidthDeg` either side of the centre, as one WMS
+    /// picture, the web app's `imageryPreviewUrl`. A stopped layer shows its last frame,
+    /// a daily GIBS one yesterday's, as today's is still filling in. The centre stays
+    /// within 50° of the equator, where a polar orbiter's would show only ice and the
+    /// map's edge. `now` is the wall clock, in milliseconds since 1970.
+    public static func imageryPreviewUrl(_ preview: ImageryPreview, latitude: Double, longitude: Double, halfWidthDeg: Double, now: Double) -> String {
+        let halfHeight = (halfWidthDeg * previewHeight) / previewWidth
+        let latitude = max(-50, min(50, latitude))
+        let bbox = [longitude - halfWidthDeg, latitude - halfHeight, longitude + halfWidthDeg, latitude + halfHeight].map { toFixed($0, 2) }.joined(separator: ",")
+        var query: [(String, String)] = [
+            ("SERVICE", "WMS"), ("REQUEST", "GetMap"), ("VERSION", "1.1.1"), ("SRS", "EPSG:4326"), ("STYLES", ""), ("LAYERS", preview.layer),
+            ("WIDTH", String(Int(previewWidth))), ("HEIGHT", String(Int(previewHeight))), ("BBOX", bbox),
+        ]
+        if preview.provider == "eumetview" {
+            // Transparent, or the night side of a true colour disc comes back white.
+            query += [("FORMAT", "image/png"), ("TRANSPARENT", "TRUE")]
+            return "https://view.eumetsat.int/geoserver/ows?\(formEncoded(query))"
+        }
+        query.append(("FORMAT", "image/\(preview.format)"))
+        if let time = preview.end ?? (preview.isDaily ? isoDate(epochMilliseconds: now - msPerDay) : nil) {
+            query.append(("TIME", time))
+        }
+        return "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?\(formEncoded(query))"
+    }
+
+    /// What `URLSearchParams` leaves as it is.
+    private static let formUnreserved = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789*-._ ")
+
+    /// A query as `URLSearchParams` writes it: a space as "+", the rest of what is not
+    /// `formUnreserved` percent-encoded.
+    private static func formEncoded(_ query: [(String, String)]) -> String {
+        let encode = { (text: String) in (text.addingPercentEncoding(withAllowedCharacters: formUnreserved) ?? text).replacingOccurrences(of: " ", with: "+") }
+        return query.map { "\(encode($0.0))=\(encode($0.1))" }.joined(separator: "&")
+    }
+
+    /// The UTC date of an instant, "2026-11-11", as `toISOString().slice(0, 10)`.
+    private static func isoDate(epochMilliseconds: Double) -> String {
+        let utc = civilDate(epochMilliseconds: epochMilliseconds)
+        return "\(utc.year)-\(two(utc.month))-\(two(utc.day))"
     }
 
     /// When a layer has frames, and of what, as the web app's `imageryDetail` words it:

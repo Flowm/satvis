@@ -3,7 +3,7 @@ import SatvisRender
 import SwiftUI
 
 /// What the web app's EntityInfoPanel shows for a satellite: who it is, then its
-/// orbit, the spacecraft, its instruments and its passes, a tab each.
+/// orbit, the spacecraft, its instruments, their imagery and its passes, a tab each.
 struct InfoPanel: View {
     let entry: CatalogEntry
     let clock: ViewerClock
@@ -16,6 +16,13 @@ struct InfoPanel: View {
     let onClose: () -> Void
     /// The tab chosen last, kept across selections and shared with the station panel, as on the web.
     @AppStorage("infoPanelTab") private var tab = InfoTab.orbit
+    /// The instruments whose facts are unfolded.
+    @State private var openInstruments: Set<String> = []
+    /// The instrument whose imagery button opened the Imagery tab, scrolled to there.
+    @State private var imageryFocus: String?
+    /// Where the Imagery tab's pictures are centred: under the satellite as it was
+    /// selected, so that they do not reload as it moves.
+    @State private var imageryCentre: LivePosition?
 
     private var propagator: SGP4Propagator? { try? SGP4Propagator(entry.record.meanElements) }
 
@@ -27,49 +34,64 @@ struct InfoPanel: View {
         let modelFile = entry.record.model?.file
         // Only the few hundred satellites CEOS lists have any (ADR 0018).
         let instruments = SatelliteDetails.instruments(entry.record)
+        let imagery = instruments.flatMap { instrument in instrument.imagery.map { ImageryLayer(instrument: instrument.name, imagery: $0) } }
         let hasSpacecraft = modelFile != nil || !spacecraftFacts.isEmpty || !links.isEmpty
-        let tabs: [InfoTab] = [.orbit] + (hasSpacecraft ? [.spacecraft] : []) + (instruments.isEmpty ? [] : [.instruments]) + [.passes]
+        let tabs: [InfoTab] =
+            [.orbit] + (hasSpacecraft ? [.spacecraft] : []) + (instruments.isEmpty ? [] : [.instruments]) + (imagery.isEmpty ? [] : [.imagery]) + [.passes]
         NavigationStack {
-            List {
-                Section {
-                    // One row: the notice's TimelineView took a row of its own even while it was empty.
-                    VStack(alignment: .leading, spacing: 0) {
-                        // The web app's notice, amber as the deck's way back to rest.
-                        TimelineView(.periodic(from: .now, by: 1)) { _ in
-                            if let propagator,
-                                let notice = SatelliteDetails.staleElementsNotice(
-                                    epochMilliseconds: SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate), time: clock.now())
-                            {
-                                Label(notice, systemImage: "exclamationmark.triangle")
-                                    .font(.footnote)
-                                    .foregroundStyle(Color.panelAmber)
-                                    .accessibilityHint("Only the latest element set is kept, so positions far from its epoch drift by kilometres to thousands of kilometres.")
-                                    // The cards' text inset, 16 pt on an iPad Air and an iPhone, which a zero-inset row loses.
-                                    .padding(.horizontal, 16)
-                                    .padding(.bottom, 12)
+            ScrollViewReader { scroller in
+                List {
+                    Section {
+                        // One row: the notice's TimelineView took a row of its own even while it was empty.
+                        VStack(alignment: .leading, spacing: 0) {
+                            // The web app's notice, amber as the deck's way back to rest.
+                            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                                if let propagator,
+                                    let notice = SatelliteDetails.staleElementsNotice(
+                                        epochMilliseconds: SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate), time: clock.now())
+                                {
+                                    Label(notice, systemImage: "exclamationmark.triangle")
+                                        .font(.footnote)
+                                        .foregroundStyle(Color.panelAmber)
+                                        .accessibilityHint("Only the latest element set is kept, so positions far from its epoch drift by kilometres to thousands of kilometres.")
+                                        // The cards' text inset, 16 pt on an iPad Air and an iPhone, which a zero-inset row loses.
+                                        .padding(.horizontal, 16)
+                                        .padding(.bottom, 12)
+                                }
                             }
+                            TabPicker(tabs: tabs, tab: $tab, subject: .satellite(entry), clock: clock, passes: passes, imageryCount: imagery.count)
                         }
-                        TabPicker(tabs: tabs, tab: $tab, subject: .satellite(entry), clock: clock, passes: passes)
+                        .bareRow()
                     }
-                    .bareRow()
-                }
-                .tabHeader()
-                Group {
-                    switch InfoTab.resolved(tab, among: tabs) {
-                    case .orbit:
-                        orbit(propagator)
-                    case .spacecraft:
-                        spacecraft(modelFile: modelFile, facts: spacecraftFacts, links: links)
-                    case .instruments:
-                        instrumentCards(instruments)
-                    default:
-                        PassesSections(subject: .satellite(entry), clock: clock, passes: passes)
+                    .tabHeader()
+                    Group {
+                        switch InfoTab.resolved(tab, among: tabs) {
+                        case .orbit:
+                            orbit(propagator)
+                        case .spacecraft:
+                            spacecraft(modelFile: modelFile, facts: spacecraftFacts, links: links)
+                        case .instruments:
+                            instrumentList(instruments)
+                        case .imagery:
+                            ImageryCards(
+                                layers: imagery, centre: imageryCentre, halfWidthDeg: entry.record.orbitClass == .geo ? 72 : 32)
+                        default:
+                            PassesSections(subject: .satellite(entry), clock: clock, passes: passes)
+                        }
                     }
+                    .raisedRows()
                 }
-                .raisedRows()
+                // Either: the button of the instrument focused last opens the tab without changing the focus.
+                .onChange(of: imageryFocus) { reveal(imageryFocus, with: scroller) }
+                .onChange(of: tab) { reveal(imageryFocus, with: scroller) }
             }
             .panelList()
             .alertNotice(alerts)
+            .task(id: entry.id) {
+                openInstruments = []
+                imageryFocus = nil
+                imageryCentre = try? propagator?.livePosition(epochMilliseconds: clock.now())
+            }
             #if os(macOS)
                 .cardHeader {
                     title(propagator)
@@ -189,24 +211,49 @@ struct InfoPanel: View {
         }
     }
 
-    /// What it observes with, a card an instrument, and under the last whose list it is.
-    @ViewBuilder private func instrumentCards(_ instruments: [SatelliteDetails.Instrument]) -> some View {
-        ForEach(Array(instruments.enumerated()), id: \.offset) { index, instrument in
-            Section {
-                InstrumentHeading(instrument: instrument)
-                ForEach(Array(instrument.rows.enumerated()), id: \.offset) { _, row in
-                    FactRow(label: row.0, value: row.1)
-                }
-                if !instrument.imagery.isEmpty {
-                    ImageryRow(layers: instrument.imagery)
-                }
-            } footer: {
-                if index == instruments.count - 1 {
-                    // CC BY 4.0 asks for the credit where the data is shown.
-                    Link(Credit.instruments.text, destination: Credit.instruments.link!)
-                        .font(.footnote)
+    /// What it observes with, a line an instrument and its facts behind a press, and
+    /// under them whose list it is.
+    @ViewBuilder private func instrumentList(_ instruments: [SatelliteDetails.Instrument]) -> some View {
+        // Keeps the resolutions in one column, where some lines have the imagery button.
+        let anyImagery = instruments.contains { !$0.imagery.isEmpty }
+        Section {
+            ForEach(Array(instruments.enumerated()), id: \.offset) { _, instrument in
+                let isOpen = openInstruments.contains(instrument.name)
+                InstrumentLine(
+                    instrument: instrument, isOpen: isOpen, hasImageryColumn: anyImagery,
+                    onToggle: {
+                        withAnimation(.snappy) {
+                            if !isOpen {
+                                openInstruments.insert(instrument.name)
+                            } else {
+                                openInstruments.remove(instrument.name)
+                            }
+                        }
+                    },
+                    onImagery: {
+                        tab = .imagery
+                        imageryFocus = instrument.name
+                    })
+                if isOpen {
+                    InstrumentFacts(instrument: instrument)
                 }
             }
+        } footer: {
+            // CC BY 4.0 asks for the credit where the data is shown.
+            Link(Credit.instruments.text, destination: Credit.instruments.link!)
+                .font(.footnote)
+        }
+    }
+
+    /// The Imagery tab's first card of `instrument` in view, once the tab has its cards:
+    /// the least scroll that shows it, as the web app's, which keeps the first under the tabs.
+    private func reveal(_ instrument: String?, with scroller: ScrollViewProxy) {
+        guard let instrument, tab == .imagery else {
+            return
+        }
+        // The rows the tab switch adds are laid out a pass after it.
+        Task { @MainActor in
+            withAnimation { scroller.scrollTo(ImageryCards.anchor(instrument)) }
         }
     }
 
@@ -225,7 +272,7 @@ struct InfoPanel: View {
 
 /// The panels' tabs, kept by their raw values.
 enum InfoTab: String {
-    case orbit, spacecraft, instruments, passes, location
+    case orbit, spacecraft, instruments, imagery, passes, location
 
     /// `tab` where `tabs` has it, else the first: the one chosen last may be one this selection lacks.
     static func resolved(_ tab: InfoTab, among tabs: [InfoTab]) -> InfoTab {
@@ -241,6 +288,8 @@ private struct TabPicker: View {
     let subject: PassSubject
     let clock: ViewerClock
     let passes: PassModel
+    /// The Imagery tab's count, of its cards.
+    var imageryCount = 0
     @AppStorage("showPastPasses") private var showsPast = false
 
     var body: some View {
@@ -254,7 +303,7 @@ private struct TabPicker: View {
                 } set: {
                     tab = $0
                 },
-                tabs: tabs.map { ($0, $0.rawValue.capitalized, $0 == .passes ? count : 0) })
+                tabs: tabs.map { ($0, $0.rawValue.capitalized, $0 == .passes ? count : $0 == .imagery ? imageryCount : 0) })
         }
     }
 }
@@ -551,74 +600,219 @@ private struct FactRow: View {
     }
 }
 
-/// An instrument's short name, "Retired" beside it once its mission is over, and its
-/// full name under both, as the web app heads each instrument.
-private struct InstrumentHeading: View {
+/// An instrument's line: its name, kind and finest resolution, a press unfolding its
+/// facts, and a button to its imagery where it has any, as the web app's InstrumentList.
+private struct InstrumentLine: View {
     let instrument: SatelliteDetails.Instrument
+    let isOpen: Bool
+    /// Some instrument of the list has imagery: a line without leaves the button's room.
+    let hasImageryColumn: Bool
+    let onToggle: () -> Void
+    let onImagery: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(instrument.name)
-                    .font(.headline)
-                if instrument.isRetired {
-                    Text("Retired")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 1)
-                        .background(.quaternary, in: .capsule)
+        let kind = row("Kind")
+        let resolution = row("Resolution")
+        HStack(spacing: 8) {
+            Button(action: onToggle) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(isOpen ? 90 : 0))
+                    Text(instrument.name)
+                        .fontWeight(.semibold)
+                        .layoutPriority(1)
+                    if let kind {
+                        Text(kind)
+                            .foregroundStyle(.secondary)
+                    }
+                    // Amber: the app colour for "away from rest", as on the status chip.
+                    if instrument.isRetired {
+                        Text("Retired")
+                            .font(.caption)
+                            .foregroundStyle(Color.panelAmber)
+                            .layoutPriority(1)
+                    }
+                    Spacer(minLength: 0)
+                    if let resolution {
+                        Text(resolution)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .layoutPriority(1)
+                    }
                 }
+                .lineLimit(1)
+                .contentShape(.rect)
             }
-            if let fullName = instrument.fullName {
-                Text(fullName)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            .buttonStyle(.plain)
+            .accessibilityLabel([instrument.name, kind, instrument.isRetired ? "Retired" : nil, resolution].compactMap(\.self).joined(separator: ", "))
+            .accessibilityHint(isOpen ? "Hides its facts" : "Shows its facts")
+            if !instrument.imagery.isEmpty {
+                Button("Imagery of \(instrument.name)", systemImage: "photo", action: onImagery)
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(Color.panelAccent)
+                    .frame(width: 32, height: 32)
+            } else if hasImageryColumn {
+                Color.clear.frame(width: 32, height: 32)
             }
         }
-        .textSelection(.enabled)
-        // One element, "<name>, Retired, <full name>", which heads the rows under it.
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
+    }
+
+    private func row(_ label: String) -> String? {
+        instrument.rows.first { $0.0 == label }?.1
     }
 }
 
-/// The layers that show an instrument, one row opening a menu of them, each a link to
-/// the layer in its provider's viewer: a row each, with its detail, would bury the next instrument.
-private struct ImageryRow: View {
-    let layers: [SatelliteDetails.Imagery]
+/// What an unfolded instrument line has under it: the full name, then its facts.
+private struct InstrumentFacts: View {
+    let instrument: SatelliteDetails.Instrument
 
     var body: some View {
-        Menu {
-            ForEach(layers, id: \.self) { layer in
-                if let url = URL(string: layer.href) {
-                    Link(destination: url) {
-                        Label(layer.label, systemImage: "arrow.up.right")
-                        Text(layer.detail.map { "\($0) · \(layer.viewer)" } ?? layer.viewer)
-                    }
-                }
-            }
-        } label: {
-            HStack {
-                Text("Imagery")
-                Spacer(minLength: 8)
-                Text(summary)
-                    .foregroundStyle(.secondary)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .contentShape(.rect)
+        if let fullName = instrument.fullName {
+            Text(fullName)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
         }
-        // A Menu paints its label in the tint, through the styles set inside it.
-        .tint(.primary)
-        .accessibilityLabel("Imagery")
-        .accessibilityValue(summary)
+        ForEach(Array(instrument.rows.enumerated()), id: \.offset) { _, row in
+            FactRow(label: row.0, value: row.1)
+                .font(.subheadline)
+        }
+    }
+}
+
+/// One layer the Imagery tab shows, and the instrument it shows.
+struct ImageryLayer: Hashable {
+    let instrument: String
+    let imagery: SatelliteDetails.Imagery
+}
+
+/// The Imagery tab, the web app's ImageryGallery: a card a layer, with a picture of its
+/// latest frame around the satellite, what it is, and a link to it in its provider's
+/// viewer. The globe draws none of them, so the cards have no switch for it.
+private struct ImageryCards: View {
+    let layers: [ImageryLayer]
+    /// Nil until the satellite's position is known, or where it has none.
+    let centre: LivePosition?
+    let halfWidthDeg: Double
+
+    /// The id of `instrument`'s first card, which its imagery button scrolls to.
+    static func anchor(_ instrument: String) -> String {
+        "imagery:\(instrument)"
     }
 
-    /// The default layer, and how many stand behind it.
-    private var summary: String {
-        layers.count == 1 ? layers[0].label : "\(layers[0].label) + \(layers.count - 1)"
+    var body: some View {
+        ForEach(Array(layers.enumerated()), id: \.offset) { index, layer in
+            let imagery = layer.imagery
+            Section {
+                ImageryPicture(instrument: layer.instrument, label: imagery.label, url: url(imagery.preview), end: imagery.preview?.end)
+                    .listRowInsets(EdgeInsets())
+                    .id(layers.firstIndex { $0.instrument == layer.instrument } == index ? Self.anchor(layer.instrument) : "imagery:\(index)")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(imagery.label)
+                        .font(.headline)
+                    if let detail = imagery.detail {
+                        Text(detail)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                if let href = URL(string: imagery.href) {
+                    Link(destination: href) {
+                        HStack {
+                            Text("Open in \(imagery.viewer)")
+                            Spacer(minLength: 8)
+                            Image(systemName: "arrow.up.right")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .contentShape(.rect)
+                    }
+                    .tint(.primary)
+                    // Without the arrow's own name.
+                    .accessibilityLabel("Open in \(imagery.viewer)")
+                }
+            }
+        }
+    }
+
+    /// Nil for a layer with no preview, and until the centre is known.
+    private func url(_ preview: SatelliteDetails.ImageryPreview?) -> URL? {
+        guard let preview, let centre else {
+            return nil
+        }
+        return URL(
+            string: SatelliteDetails.imageryPreviewUrl(
+                preview, latitude: centre.latitude, longitude: centre.longitude, halfWidthDeg: halfWidthDeg, now: Date.now.timeIntervalSince1970 * 1000))
+    }
+}
+
+/// A layer's picture, 16:9 on black, the instrument on its corner and, of a layer that
+/// stopped, when; "No preview" where there is none or the provider refused it.
+private struct ImageryPicture: View {
+    let instrument: String
+    let label: String
+    let url: URL?
+    let end: String?
+    /// Showing the placeholder, which the picture's accessibility value says.
+    @State private var isMissing = false
+
+    var body: some View {
+        Color(red: 0x0B / 255, green: 0x0D / 255, blue: 0x10 / 255)
+            .aspectRatio(16 / 9, contentMode: .fit)
+            .overlay {
+                if let url {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                                .onAppear { isMissing = false }
+                        case .failure:
+                            placeholder
+                        default:
+                            ProgressView()
+                        }
+                    }
+                } else {
+                    placeholder
+                }
+            }
+            .clipped()
+            .overlay(alignment: .topLeading) {
+                badge(instrument)
+            }
+            .overlay(alignment: .topTrailing) {
+                if let end {
+                    // Amber: the app colour for "away from rest", as on the status chip.
+                    badge("Ended \(end)").foregroundStyle(Color.panelAmber)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel([instrument, label, end.map { "Ended \($0)" }].compactMap(\.self).joined(separator: ", "))
+            .accessibilityValue(isMissing ? "No preview" : "")
+            .accessibilityAddTraits(.isImage)
+    }
+
+    private var placeholder: some View {
+        VStack(spacing: 4) {
+            Image(systemName: "photo")
+            Text("No preview")
+        }
+        .font(.caption)
+        .foregroundStyle(.tertiary)
+        .onAppear { isMissing = true }
+    }
+
+    private func badge(_ text: String) -> some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(.black.opacity(0.7), in: .capsule)
+            .padding(6)
     }
 }
 

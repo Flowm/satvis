@@ -105,7 +105,8 @@ from the same GIBS frame source.
   entry's `window` is not needed to keep the clock inside them.
 - **A link with `imagery` loads every group at once**, before the route's own groups
   could have answered.
-- **The native app draws none of it yet** and ignores the two fields.
+- **The native app draws none of it yet** and ignores the two fields. Its Imagery tab
+  has the same cards, pictures included, without the switch.
 - **The Map panel's `GOES-IR` overlay is gone.** It was one infrared band of
   GOES-East, with the fault above every 10 minutes; GOES-East's GeoColor entry shows
   the same disc by day and night. A link that names it loses it, as it would any

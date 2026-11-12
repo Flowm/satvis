@@ -106,16 +106,22 @@ nonisolated class SatvisUITests: XCTestCase {
         }
     }
 
-    // The Instruments tab heads each instrument CEOS lists with its names, Retired
-    // between them once its mission is over, above its facts as rows and, under the
-    // last, the credit CC BY asks for.
+    // The Instruments tab is a line an instrument CEOS lists, its name, kind, Retired
+    // once its mission is over, and finest resolution, which a press unfolds into its
+    // full name and facts, and under the last the credit CC BY asks for.
     @MainActor
     func testListsTheInstruments() {
         let app = search("INSAT-3D")
         app.buttons["Details of INSAT-3D"].tap()
         XCTAssert(app.navigationBars["INSAT-3D"].waitForExistence(timeout: 10))
         app.buttons["Instruments"].tap()
-        for label in ["Imager (INSAT 3D), Retired, Very High Resolution Radiometer", "Resolution, 1 km", "CEOS MIM Database, CC BY 4.0"] {
+        let imager = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Imager (INSAT 3D), ' AND label ENDSWITH ', Retired, 1 km'")).firstMatch
+        XCTAssert(imager.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Very High Resolution Radiometer"].exists)
+        // No layer shows any of INSAT-3D's instruments.
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Imagery'")).firstMatch.exists)
+        imager.tap()
+        for label in ["Very High Resolution Radiometer", "Resolution, 1 km", "CEOS MIM Database, CC BY 4.0"] {
             let row = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
             // Under a phone's half-height sheet, in a lazy list.
             for _ in 0..<4 where !row.waitForExistence(timeout: 2) {
@@ -125,24 +131,35 @@ nonisolated class SatvisUITests: XCTestCase {
         }
     }
 
-    // An instrument's imagery is one row under its facts, naming the default layer and
-    // how many stand behind it, which opens a menu of them, each a link to its provider's viewer.
+    // An instrument with imagery has a button on its line that opens the Imagery tab,
+    // a card a layer: the picture under the instrument's name, what the layer is, and a
+    // link to it in its provider's viewer.
     @MainActor
-    func testOpensAnInstrumentsImageryFromAMenu() {
+    func testOpensAnInstrumentsImageryFromItsLine() {
         let app = search("METEOSAT-12 (MTG-I1)")
         app.buttons["Details of METEOSAT-12 (MTG-I1)"].tap()
         XCTAssert(app.navigationBars["METEOSAT-12 (MTG-I1)"].waitForExistence(timeout: 10))
         app.buttons["Instruments"].tap()
-        let imagery = app.buttons["Imagery"]
-        // Under a phone's half-height sheet, in a lazy list.
-        for _ in 0..<3 where !imagery.waitForExistence(timeout: 2) {
+        let button = app.buttons["Imagery of FCI"]
+        XCTAssert(button.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Imagery of LI"].exists)
+        button.tap()
+        XCTAssert(app.buttons["Imagery (2)"].waitForExistence(timeout: 5))
+        XCTAssert(app.buttons["Imagery (2)"].isSelected)
+        for layer in ["GeoColour", "True colour"] {
+            let picture = app.images["FCI, \(layer)"]
+            // Under a phone's half-height sheet, in a lazy list.
+            for _ in 0..<3 where !picture.waitForExistence(timeout: 2) {
+                app.collectionViews.firstMatch.swipeUp()
+            }
+            XCTAssert(picture.exists, layer)
+        }
+        XCTAssert(app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'True colour, every 10 min since 2024'")).firstMatch.exists)
+        let link = app.links["Open in EUMETView"].firstMatch
+        for _ in 0..<3 where !link.waitForExistence(timeout: 2) {
             app.collectionViews.firstMatch.swipeUp()
         }
-        XCTAssertEqual(imagery.value as? String, "GeoColour + 1")
-        imagery.tap()
-        for layer in ["GeoColour", "True colour"] {
-            XCTAssert(app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", layer)).firstMatch.waitForExistence(timeout: 5), layer)
-        }
+        XCTAssert(link.exists)
     }
 
     // The Graphics panel's Hide UI hides the menu column, the clock deck and the

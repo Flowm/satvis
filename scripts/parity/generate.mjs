@@ -112,7 +112,8 @@ try {
   const satcatCodes = await runner.import("/src/config/satcatCodes.ts");
   const gcatCodes = await runner.import("/src/config/gcatCodes.ts");
   const { externalLinks } = await runner.import("/src/config/externalLinks.ts");
-  const { IMAGERY_PROVIDERS } = await runner.import("/src/config/instrumentImagery.ts");
+  const instrumentImagery = await runner.import("/src/config/instrumentImagery.ts");
+  const { IMAGERY_PROVIDERS } = instrumentImagery;
 
   const input = fs.readFileSync(inputPath, "utf8");
   const records = gp.parseGpPayload(input);
@@ -223,6 +224,30 @@ try {
     const { orbitClass, chips, status, orbitRows, spacecraftRows, instruments } = entityInfo.getSatelliteInfo(orbit, gp.orbitClassOf(record), record.metadata ?? {});
     return { facts: { orbitClass, chips, status, orbitRows, spacecraftRows, instruments }, elements: entityInfo.getElementsInfo(orbit) };
   });
+
+  // The Imagery tab's pictures: both providers, a stopped layer, the clamp off the pole,
+  // toFixed's ties either side of zero and its "-0.00", the day before a midnight, and
+  // a layer the query has to encode.
+  const daily = { provider: "gibs", layer: "MODIS_Terra_CorrectedReflectance_TrueColor", format: "jpeg", daily: true };
+  const imageryPreviews = [
+    [daily, { latitude: 10, longitude: 20 }, 32, "2026-11-12T03:00:00Z"],
+    [{ ...daily, end: "2022-10-10" }, { latitude: 0, longitude: 0 }, 32, "2026-11-12T03:00:00Z"],
+    [{ provider: "gibs", layer: "GOES-East_ABI_GeoColor", format: "png", daily: false }, { latitude: 0.02, longitude: -75.2 }, 72, "2026-11-12T03:00:00Z"],
+    [daily, { latitude: -85, longitude: 179.5 }, 32, "2026-11-12T03:00:00Z"],
+    [daily, { latitude: 63.4, longitude: -3 }, 32, "2026-11-12T03:00:00Z"],
+    [daily, { latitude: 18.125, longitude: 32.125 }, 32, "2026-11-12T03:00:00Z"],
+    [daily, { latitude: -18.125, longitude: -32.125 }, 32, "2026-11-12T03:00:00Z"],
+    [daily, { latitude: 0, longitude: -32.001 }, 32, "2026-01-01T00:00:00.500Z"],
+    [{ provider: "eumetview", layer: "mtg_fd:rgb_geocolour", format: "png", daily: false }, { latitude: 0, longitude: 0 }, 72, "2026-11-12T03:00:00Z"],
+    [{ provider: "eumetview", layer: "eps:m03_rgb_natural_fog", format: "png", daily: false, end: "2026-01-01" }, { latitude: 40, longitude: 10 }, 32, "2026-11-12T03:00:00Z"],
+    [{ provider: "gibs", layer: "a b/c&d+é", format: "png", daily: true }, { latitude: 0, longitude: 0 }, 32, "2026-11-12T03:00:00Z"],
+  ].map(([preview, centre, halfWidthDeg, now]) => ({
+    preview,
+    centre,
+    halfWidthDeg,
+    nowMs: Date.parse(now),
+    url: instrumentImagery.imageryPreviewUrl(preview, centre, halfWidthDeg, new Date(now)),
+  }));
 
   // Passes over each station from the minute after the epoch, in both modes: the
   // record's own swath (or the default), and an asymmetric one for the satellites
@@ -969,6 +994,7 @@ try {
     propagation,
     grids,
     details,
+    imageryPreviews,
     stations: [...STATIONS, ...edgeStations],
     passes,
     passEdges,

@@ -15,12 +15,22 @@ import Testing
             let rows: [[String]]?
         }
 
+        /// The web app's `ImageryPreview`.
+        struct Preview: Decodable, Equatable {
+            let provider: String
+            let layer: String
+            let format: String
+            let daily: Bool
+            let end: String?
+        }
+
         /// The web app's `ImageryInfo`.
         struct Imagery: Decodable, Equatable {
             let label: String
             let detail: String?
             let viewer: String
             let href: String
+            let preview: Preview?
         }
 
         /// The web app's `InstrumentInfo`.
@@ -46,8 +56,23 @@ import Testing
         let elements: Elements
     }
 
+    /// A picture the Imagery tab asks for, and the url the web app's `imageryPreviewUrl` gives it.
+    struct PreviewCase: Decodable {
+        struct Centre: Decodable {
+            let latitude: Double
+            let longitude: Double
+        }
+
+        let preview: Details.Preview
+        let centre: Centre
+        let halfWidthDeg: Double
+        let nowMs: Double
+        let url: String
+    }
+
     struct Fixture: Decodable {
         let details: [Details]
+        let imageryPreviews: [PreviewCase]
     }
 
     @Test func writesTheWebAppsDetails() throws {
@@ -60,7 +85,11 @@ import Testing
             let instruments = SatelliteDetails.instruments(record).map {
                 Details.Instrument(
                     name: $0.name, fullName: $0.fullName, retired: $0.isRetired, rows: $0.rows.map { [$0.0, $0.1] },
-                    imagery: $0.imagery.map { Details.Imagery(label: $0.label, detail: $0.detail, viewer: $0.viewer, href: $0.href) })
+                    imagery: $0.imagery.map {
+                        Details.Imagery(
+                            label: $0.label, detail: $0.detail, viewer: $0.viewer, href: $0.href,
+                            preview: $0.preview.map { .init(provider: $0.provider, layer: $0.layer, format: $0.format, daily: $0.isDaily, end: $0.end) })
+                    })
             }
             #expect(instruments == expected.facts.instruments, "\(record.name)")
             #expect(SatelliteDetails.chips(record, propagator: propagator) == expected.facts.chips, "\(record.name)")
@@ -165,6 +194,52 @@ import Testing
         #expect(SatelliteDetails.instruments(record)[0].imagery == [.init(label: "A", detail: nil, viewer: "NASA Worldview", href: "https://worldview.earthdata.nasa.gov/?l=a")])
         record.metadata["imagery"] = .string("gibs")
         #expect(SatelliteDetails.instruments(record)[0].imagery.isEmpty)
+    }
+
+    @Test func asksForTheWebAppsPreviews() throws {
+        let fixture = try JSONDecoder().decode(Fixture.self, from: Parity.fixture("parity"))
+        for item in fixture.imageryPreviews {
+            let preview = SatelliteDetails.ImageryPreview(
+                provider: item.preview.provider, layer: item.preview.layer, format: item.preview.format, isDaily: item.preview.daily, end: item.preview.end)
+            let url = SatelliteDetails.imageryPreviewUrl(
+                preview, latitude: item.centre.latitude, longitude: item.centre.longitude, halfWidthDeg: item.halfWidthDeg, now: item.nowMs)
+            #expect(url == item.url)
+        }
+    }
+
+    // instrumentImagery.test.ts's drawnImagery cases, which say what has a preview.
+    @Test func previewsWhatTheWebAppsGlobeDraws() throws {
+        var record = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first)
+        record.metadata["instruments"] = .array([.object(["name": .string("VIIRS")])])
+        let trueColour: [String: JSONValue] = [
+            "instrument": .string("VIIRS"), "provider": .string("gibs"), "layer": .string("VIIRS_NOAA20_CorrectedReflectance_TrueColor"),
+            "label": .string("True colour"), "kind": .string("rgb"), "period": .string("P1D"), "maxLevel": .number(9), "format": .string("jpeg"),
+        ]
+        let geoColour: [String: JSONValue] = [
+            "instrument": .string("VIIRS"), "provider": .string("eumetview"), "layer": .string("mtg_fd:rgb_geocolour"), "label": .string("GeoColour"),
+            "kind": .string("rgb"), "maxLevel": .number(7), "format": .string("png"),
+        ]
+        func preview(_ fields: [String: JSONValue]) -> SatelliteDetails.ImageryPreview? {
+            record.metadata["imagery"] = .array([.object(fields)])
+            return SatelliteDetails.instruments(record)[0].imagery.first?.preview
+        }
+        #expect(preview(trueColour) == .init(provider: "gibs", layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", format: "jpeg", isDaily: true))
+        #expect(
+            preview(trueColour.merging(["period": .string("PT10M"), "format": .string("png")]) { $1 })
+                == .init(provider: "gibs", layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", format: "png", isDaily: false))
+        #expect(preview(trueColour.merging(["end": .string("2025-12-19")]) { $1 })?.end == "2025-12-19")
+        #expect(preview(geoColour) == .init(provider: "eumetview", layer: "mtg_fd:rgb_geocolour", format: "png", isDaily: false))
+        #expect(preview(geoColour.merging(["period": .string("PT10M")]) { $1 })?.isDaily == false)
+        for fields in [
+            trueColour.merging(["provider": .string("copernicus-browser")]) { $1 },
+            trueColour.filter { $0.key != "maxLevel" },
+            trueColour.merging(["maxLevel": .number(9.5)]) { $1 },
+            trueColour.merging(["format": .string("webp")]) { $1 },
+            trueColour.merging(["period": .string("P1M")]) { $1 },
+            trueColour.filter { $0.key != "period" },
+        ] {
+            #expect(preview(fields) == nil, "\(fields)")
+        }
     }
 
     // instrumentImagery.test.ts's cases.
