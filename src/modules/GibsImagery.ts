@@ -24,6 +24,14 @@ export interface GibsOptions {
   daily: boolean;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * How long after it began a listed day may still be filling in: the day itself, and the
+ * swaths that arrive hours behind. The last day of a layer that ended is older, and whole.
+ */
+const FILLING_MS = 2 * DAY_MS;
+
 /** GIBS lets a domain be cached for 30 minutes, so asking sooner gets the same answer. */
 const REFRESH_MS = 30 * 60 * 1000;
 
@@ -33,7 +41,8 @@ async function fetchDomain(options: GibsOptions, signal: AbortSignal): Promise<T
     const response = await fetch(`${GIBS}/1.0.0/${options.layer}/default/GoogleMapsCompatible_Level${options.maximumLevel}/all/all.xml`, { signal });
     const domain = response.ok ? /<Domain>([^<]*)<\/Domain>/.exec(await response.text())?.[1] : undefined;
     const listed = domain ? parseDomain(domain) : [];
-    const ranges = options.daily ? withoutLatestFrame(listed) : listed;
+    const filling = options.daily && Date.now() - (listed.at(-1)?.end ?? 0) < FILLING_MS;
+    const ranges = filling ? withoutLatestFrame(listed) : listed;
     return ranges.length > 0 ? ranges : undefined;
   } catch {
     return undefined;
@@ -55,8 +64,9 @@ export function gibsFrames(options: GibsOptions): FrameSource<WebMapTileServiceI
         tilingScheme: new WebMercatorTilingScheme(),
         maximumLevel: options.maximumLevel,
         credit: "NASA Global Imagery Browse Services for EOSDIS",
-        // "default" is GIBS's own name for its latest frame.
-        dimensions: { Time: frame === undefined ? "default" : formatFrame(frame, options.daily) },
+        // Without the list: GIBS's own name for its latest frame, which for a daily layer
+        // is the day still filling in, so yesterday's.
+        dimensions: { Time: frame !== undefined || options.daily ? formatFrame(frame ?? Date.now() - DAY_MS, options.daily) : "default" },
       }),
   };
 }

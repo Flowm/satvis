@@ -152,3 +152,55 @@ test("instrument imagery lies over a basemap that arrives after it, and under th
   listViirs();
   await expect.poll(order).toEqual([VIIRS, LAYER, "grid"]);
 });
+
+test("showing another layer, or another basemap, asks nothing again of a layer already drawn", async ({ page }) => {
+  const asked = { gibsLists: 0, gibsTiles: 0, eumetViewLists: 0 };
+  const stub = async () => {
+    await page.route("https://gibs.earthdata.nasa.gov/**", (route) => {
+      if (!new URL(route.request().url()).pathname.endsWith("/all.xml")) {
+        asked.gibsTiles += 1;
+        return route.fulfill({ contentType: "image/png", body: PIXEL });
+      }
+      asked.gibsLists += 1;
+      return route.fulfill({
+        contentType: "text/xml",
+        body: "<Domains><DimensionDomain><Domain>2026-10-01T00:00:00Z/2026-10-05T23:50:00Z/PT10M</Domain></DimensionDomain></Domains>",
+      });
+    });
+    await page.route("https://view.eumetsat.int/**", (route) => {
+      if (new URL(route.request().url()).searchParams.get("request") !== "GetCapabilities") {
+        return route.fulfill({ contentType: "image/png", body: PIXEL });
+      }
+      asked.eumetViewLists += 1;
+      return route.fulfill({
+        contentType: "text/xml",
+        body: `<Layer><Dimension name="time" units="ISO8601">2026-10-01T00:00:00.000Z/2026-10-05T23:50:00.000Z/PT10M</Dimension></Layer>`,
+      });
+    });
+  };
+  await openApp(page, `time=2026-10-03T15:07Z&imagery=gibs:${LAYER}`, { setup: stub });
+  await page.evaluate(() => (window.cc!.viewer.clock.shouldAnimate = false));
+  const layerCount = () => page.evaluate(() => window.cc!.viewer.imageryLayers.length);
+  await expect.poll(layerCount).toBe(2);
+  await expect.poll(() => page.evaluate(() => window.cc!.viewer.scene.globe.tilesLoaded)).toBe(true);
+  /** The address of the layer at `index`, bottom first; empty while it has no provider. */
+  const address = (index: number) => page.evaluate((at) => (window.cc!.viewer.imageryLayers.get(at).imageryProvider as { url?: string } | undefined)?.url ?? "", index);
+  const geoColor = await address(1);
+  const tilesBefore = asked.gibsTiles;
+
+  await showInfo(page, "METEOSAT-12 (MTG-I1)");
+  const panel = page.locator(".entity-info-panel");
+  await panel.getByRole("tab", { name: "Instruments" }).click();
+  await panel.getByRole("region", { name: "FCI" }).getByRole("button", { name: "Show GeoColour on the globe" }).click();
+  await expect.poll(layerCount).toBe(3);
+  await expect.poll(() => asked.eumetViewLists).toBe(1);
+
+  await openMenu(page, "Map");
+  await menuSwitch(page, "OpenStreetMap").click();
+  await expect.poll(() => address(0)).toContain("openstreetmap");
+
+  // The same GeoColor layer, still over the basemap and under the newer one.
+  expect(await layerCount()).toBe(3);
+  expect(await address(1)).toBe(geoColor);
+  expect(asked).toEqual({ gibsLists: 1, gibsTiles: tilesBefore, eumetViewLists: 1 });
+});

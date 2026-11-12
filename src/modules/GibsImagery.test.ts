@@ -13,10 +13,12 @@ let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   fetchMock = vi.fn(async () => domainResponse(DOMAIN));
   vi.stubGlobal("fetch", fetchMock);
+  vi.useFakeTimers({ now: Date.parse("2026-10-05T12:00:00Z") });
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("gibsFrames", () => {
@@ -27,10 +29,20 @@ describe("gibsFrames", () => {
     expect(ranges!.at(-1)!.end).toBe(Date.parse("2026-10-05T11:20:00Z"));
   });
 
-  test("lists a daily layer's frames without the day GIBS is still imaging", async () => {
-    fetchMock.mockResolvedValueOnce(domainResponse("2026-09-01/2026-10-05/P1D"));
+  test.each([
+    ["the day GIBS is still imaging", "2026-10-05", "2026-10-04"],
+    // Its last swaths arrive hours into the next day.
+    ["yesterday, while today is not listed yet", "2026-10-04", "2026-10-03"],
+  ])("lists a daily layer's frames without %s", async (_, latest, shown) => {
+    fetchMock.mockResolvedValueOnce(domainResponse(`2026-09-01/${latest}/P1D`));
     const ranges = await gibsFrames({ ...GEOCOLOR, daily: true }).fetchRanges(signal());
-    expect(ranges!.at(-1)!.end).toBe(Date.parse("2026-10-04"));
+    expect(ranges!.at(-1)!.end).toBe(Date.parse(shown));
+  });
+
+  test("keeps the last day of a daily layer that ended", async () => {
+    fetchMock.mockResolvedValueOnce(domainResponse("2000-02-24/2022-10-12/P1D"));
+    const ranges = await gibsFrames({ ...GEOCOLOR, daily: true }).fetchRanges(signal());
+    expect(ranges!.at(-1)!.end).toBe(Date.parse("2022-10-12"));
   });
 
   test.each([
@@ -47,6 +59,9 @@ describe("gibsFrames", () => {
     const frame = Date.parse("2026-10-05T09:40:00Z");
     expect(frames.show(frame).dimensions).toEqual({ Time: "2026-10-05T09:40:00Z" });
     expect(frames.show().dimensions).toEqual({ Time: "default" });
-    expect(gibsFrames({ ...GEOCOLOR, daily: true }).show(frame).dimensions).toEqual({ Time: "2026-10-05" });
+    const daily = gibsFrames({ ...GEOCOLOR, daily: true });
+    expect(daily.show(frame).dimensions).toEqual({ Time: "2026-10-05" });
+    // Without its list a daily layer shows yesterday, not the day still filling in.
+    expect(daily.show().dimensions).toEqual({ Time: "2026-10-04" });
   });
 });

@@ -39,8 +39,11 @@ satellites share is one layer.
 **The layer is drawn from the entry of whichever loaded record carries it.** The url
 holds no tile set, and there is no table of layers beside the records (ADR 0019), so
 `sceneSync` looks the name up among the catalog's entries each time the catalog
-changes. A name no loaded record carries loads every group once, as a `sats=` name the
-catalog lacks does: its satellite may be in a group the route leaves out.
+changes. A name no loaded record carries loads every group, as a `sats=` name the
+catalog lacks does: its satellite may be in a group the route leaves out. Once every
+group has loaded, a name that is still no record's drawable layer leaves the list and
+the url: it is mistyped, or its entry left the manifest. A name given twice is drawn
+once.
 
 **It is shown from the Instruments tab and taken off there or in the Map panel.** Each
 entry the globe can draw has a button beside its link. The Map panel lists what is
@@ -52,14 +55,19 @@ Several may be drawn: GOES-East and GOES-West together are two discs. A layer th
 follows the clock is on the globe only once its service has listed its frames, so the
 controller places each layer over the nearest one below it that is there yet.
 
-**Showing a layer leaves the Map panel's layers alone.** The controller adds and
-removes instrument imagery by itself, so the basemap is not rebuilt.
+**Showing a layer reloads nothing else.** The controller adds and removes each
+instrument layer by itself: the basemap is not rebuilt, a layer already drawn stays
+while another is shown or taken off, and a change in the Map panel leaves the
+instrument imagery on the globe.
 
 **It follows the clock as one Cesium layer a frame** (`FramedImagery.ts`). The frame
 for the clock loads as a layer of its own over the one before it, which is taken off
-once the globe has all of the new one's tiles. A frame that is loading is finished
-before a newer one starts, so a clock that runs faster than frames load still shows
-frames, skipping some. The Map panel's `VIIRS` basemap follows the clock the same way,
+once the new one's own tile requests are answered, or sooner when the globe has
+nothing left to load. The globe's word alone would not do: it waits for the terrain
+and every other layer, which never ends while the view keeps moving. After 20 seconds
+the new frame is shown as far as it got. A frame that is loading is finished before a
+newer one starts, so a clock that runs faster than frames load still shows frames,
+skipping some; it is given up only when the clock returns to the frame that is shown. The Map panel's `VIIRS` basemap follows the clock the same way,
 from the same GIBS frame source.
 
 ## Consequences
@@ -70,7 +78,11 @@ from the same GIBS frame source.
   swath, with the rest of the globe empty; Metop's AVHRR/3 the last six orbits stacked.
 - **Outside its history a layer shows its first or last frame.** One that stopped
   therefore shows its last frame at today's clock; the entry's text beside the button
-  says when it ended, the globe does not.
+  says when it ended, the globe does not. A daily GIBS layer leaves out its newest
+  day while that may still be filling in, two days from its start.
+- **A service that cannot list its frames shows its latest one** and is asked again
+  every minute; a daily GIBS layer shows yesterday meanwhile, since its latest day is
+  the one still filling in.
 - **A frame change costs a second layer while it loads**, and its tiles are asked for
   twice where the view moves meanwhile: the old frame's and the new one's.
 - **Cesium's own preloading of the next frame is lost**, which its time-dynamic

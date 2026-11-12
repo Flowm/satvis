@@ -40,8 +40,18 @@ export interface FrameSource<Shown> {
   refreshMs: number;
   /** The imagery's frames, or undefined when the service cannot be reached or says nothing usable. */
   fetchRanges: (signal: AbortSignal) => Promise<TimeRange[] | undefined>;
-  /** What shows `frame`, or the service's latest frame without one. Not called before `fetchRanges` settles. */
+  /**
+   * What shows `frame`; without one, what to show while the frames cannot be listed:
+   * the service's latest. Not called before `fetchRanges` settles.
+   */
   show: (frame?: number) => Shown;
+}
+
+/** One frame on the globe. */
+export interface Frame<Layer> {
+  layer: Layer;
+  /** Whether every tile it has asked for has arrived; false until it has asked for one. */
+  loaded: () => boolean;
 }
 
 export interface FramedImagery<Layer> {
@@ -49,8 +59,44 @@ export interface FramedImagery<Layer> {
   readonly top: Layer | undefined;
 }
 
-/** Ticks a new layer waits before the globe's word on its tiles counts: it speaks of the last frame drawn. */
+/** Drawn frames a new layer waits before the globe's word on its tiles counts: it speaks of the last frame drawn. */
 const SETTLE_TICKS = 2;
+
+/**
+ * Drawn frames a loading layer has nothing in flight before it counts as whole. Cesium
+ * asks for a few tiles at a time, so between two batches it has nothing for a frame.
+ */
+const IDLE_TICKS = 10;
+
+/** A frame not whole by now is shown as far as it got, so a request that is never answered does not hold the imagery. */
+const MAX_LOAD_MS = 20_000;
+
+/** How soon a service that could not list its frames is asked again. */
+const RETRY_MS = 60_000;
+
+/**
+ * Makes `provider` count its tile requests. Returns whether every one it has made has
+ * been answered, well or not; false until it has made one.
+ */
+export function trackRequests<Args extends unknown[]>(provider: { requestImage: (...args: Args) => Promise<unknown> | undefined }): () => boolean {
+  const request = provider.requestImage.bind(provider);
+  let asked = false;
+  let pending = 0;
+  const answered = () => {
+    pending -= 1;
+  };
+  provider.requestImage = (...args) => {
+    const image = request(...args);
+    // Undefined when Cesium holds the request back for a later frame.
+    if (image) {
+      asked = true;
+      pending += 1;
+      image.then(answered, answered);
+    }
+    return image;
+  };
+  return () => asked && pending === 0;
+}
 
 /**
  * Shows `source` in `layers` until `signal` aborts. Its first layer goes to `position()`,
@@ -58,50 +104,73 @@ const SETTLE_TICKS = 2;
  *
  * A frame that is loading is never given up for a newer one, so a clock running faster
  * than the frames load still shows frames, skipping some, and a jump shows one frame on
- * the way.
+ * the way. It is given up when the clock returns to the frame that is shown.
+ *
+ * The new frame is whole when its own requests are answered, or sooner when the globe
+ * has nothing left to load. The globe alone would not do: it waits for the terrain and
+ * every other layer too, which never ends while the view keeps moving.
  */
-export function showFramedImagery<Layer extends { readonly ready: boolean }>(
-  source: FrameSource<Layer>,
+export function showFramedImagery<Layer>(
+  source: FrameSource<Frame<Layer>>,
   layers: FrameLayers<Layer>,
   position: () => number,
   { clock, requestRender, tilesLoaded, signal }: ImageryContext,
 ): FramedImagery<Layer> {
+  type Shown = Frame<Layer> & { frame: number | undefined };
   let ranges: TimeRange[] | undefined;
-  let shown: { layer: Layer; frame: number | undefined } | undefined;
-  let loading: { layer: Layer; frame: number; ticks: number } | undefined;
-  let lastFetch = Date.now();
+  let shown: Shown | undefined;
+  let loading: (Shown & { ticks: number; idle: number; since: number }) | undefined;
+  let lastFetch = 0;
 
-  const add = (frame?: number): Layer => {
-    const layer = source.show(frame);
-    layers.add(layer, shown ? layers.indexOf(shown.layer) + 1 : position());
+  const add = (frame?: number): Shown => {
+    const made = source.show(frame);
+    layers.add(made.layer, shown ? layers.indexOf(shown.layer) + 1 : position());
     requestRender();
-    return layer;
+    return { ...made, frame };
+  };
+
+  const list = async () => {
+    lastFetch = Date.now();
+    const listed = await source.fetchRanges(signal);
+    ranges = listed ?? ranges;
+    return listed;
   };
 
   const onTick = () => {
     const time = JulianDate.toDate(clock.currentTime).getTime();
-    if (time >= ranges!.at(-1)!.end && Date.now() - lastFetch >= source.refreshMs) {
-      lastFetch = Date.now();
-      void source.fetchRanges(signal).then((fresh) => {
-        ranges = fresh ?? ranges;
-      });
+    // A list that could not be read is asked for again; one that was, once the clock is past its end.
+    const due = ranges === undefined ? RETRY_MS : time >= ranges.at(-1)!.end ? source.refreshMs : Infinity;
+    if (Date.now() - lastFetch >= due) {
+      void list();
     }
+    if (ranges === undefined) {
+      return;
+    }
+    const frame = snapToFrame(ranges, time)!;
 
     if (loading) {
+      if (frame === shown!.frame) {
+        layers.remove(loading.layer);
+        loading = undefined;
+        requestRender();
+        return;
+      }
+      // In request render mode a tick need not draw a frame: this makes the counts below those of drawn frames.
+      requestRender();
       loading.ticks += 1;
-      if (loading.ticks > SETTLE_TICKS && loading.layer.ready && tilesLoaded()) {
+      loading.idle = loading.loaded() ? loading.idle + 1 : 0;
+      const whole = loading.idle >= IDLE_TICKS || (loading.ticks > SETTLE_TICKS && tilesLoaded());
+      if (whole || Date.now() - loading.since >= MAX_LOAD_MS) {
         layers.remove(shown!.layer);
         shown = loading;
         loading = undefined;
-        requestRender();
       }
       return;
     }
-    const frame = snapToFrame(ranges!, time)!;
     if (shown === undefined) {
-      shown = { layer: add(frame), frame };
+      shown = add(frame);
     } else if (frame !== shown.frame) {
-      loading = { layer: add(frame), frame, ticks: 0 };
+      loading = { ...add(frame), ticks: 0, idle: 0, since: Date.now() };
     }
   };
 
@@ -120,17 +189,15 @@ export function showFramedImagery<Layer extends { readonly ready: boolean }>(
     { once: true },
   );
 
-  void source.fetchRanges(signal).then((fetched) => {
+  void list().then((listed) => {
     if (signal.aborted) {
       return;
     }
-    if (!fetched) {
-      // The imagery stays usable, just not in time.
+    if (!listed) {
+      // The imagery stays usable, just not in time, until the service answers.
       console.warn(`[FramedImagery] no time domain for ${source.name}; showing its latest frame`);
-      shown = { layer: add(), frame: undefined };
-      return;
+      shown = add();
     }
-    ranges = fetched;
     signal.addEventListener("abort", clock.onTick.addEventListener(onTick), { once: true });
     onTick();
   });

@@ -114,7 +114,7 @@ const DRAWING_PROVIDERS = ["gibs", "eumetview"] as const;
 type DrawingProvider = (typeof DRAWING_PROVIDERS)[number];
 
 /** `provider:layer`. A provider's name has no colon, so the first one divides them. */
-export function imageryToken(provider: string, layer: string): string {
+function imageryToken(provider: string, layer: string): string {
   return `${provider}:${layer}`;
 }
 
