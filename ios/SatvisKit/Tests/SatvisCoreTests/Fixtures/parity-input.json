@@ -312,6 +312,16 @@
             "MW"
           ]
         }
+      ],
+      "imagery": [
+        {
+          "instrument": "AVHRR/3",
+          "provider": "eumetview",
+          "layer": "eps:m03_rgb_natural_fog",
+          "label": "Natural colour and fog, six orbits stacked",
+          "kind": "rgb",
+          "start": "2020-09-01"
+        }
       ]
     }
   },
@@ -433,6 +443,17 @@
           "name": "DCS (GOES)",
           "fullName": "Data Collection System (GOES)",
           "kind": "Data collection system"
+        }
+      ],
+      "imagery": [
+        {
+          "instrument": "ABI",
+          "provider": "gibs",
+          "layer": "GOES-East_ABI_GeoColor",
+          "label": "GeoColor",
+          "kind": "rgb",
+          "period": "PT10M",
+          "window": "P90D"
         }
       ]
     }

@@ -87,6 +87,10 @@ function validateMetadata(metadata: Raw, where: string): void {
   if (metadata.model !== undefined) {
     throw new Error(`${where}: "model" is derived from "modelFile"; name the file there`);
   }
+  // A row's would bypass the manifest's checks and its slots (ADR 0019).
+  if (metadata.imagery !== undefined) {
+    throw new Error(`${where}: "imagery" comes from the imagery manifest; list the layer there`);
+  }
 }
 
 /** Every other key of a table entry is metadata, so a new field needs no code change. */

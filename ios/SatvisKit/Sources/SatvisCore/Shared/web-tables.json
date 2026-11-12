@@ -125,6 +125,21 @@
       "href": "https://app.keeptrack.space/?sat={satnum}"
     }
   ],
+  "imageryProviders": {
+    "gibs": {
+      "viewer": "NASA Worldview",
+      "link": "https://worldview.earthdata.nasa.gov/?l={layer}",
+      "ended": "&t={end}"
+    },
+    "eumetview": {
+      "viewer": "EUMETView",
+      "link": "https://view.eumetsat.int/productviewer?v={layer}"
+    },
+    "copernicus-browser": {
+      "viewer": "Copernicus Browser",
+      "link": "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId={layer}"
+    }
+  },
   "bookmarks": {
     "ownedParams": [
       "elements",

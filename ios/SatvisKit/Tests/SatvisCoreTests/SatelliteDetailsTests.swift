@@ -15,12 +15,21 @@ import Testing
             let rows: [[String]]?
         }
 
+        /// The web app's `ImageryInfo`.
+        struct Imagery: Decodable, Equatable {
+            let label: String
+            let detail: String?
+            let viewer: String
+            let href: String
+        }
+
         /// The web app's `InstrumentInfo`.
         struct Instrument: Decodable, Equatable {
             let name: String
             let fullName: String?
             let retired: Bool
             let rows: [[String]]
+            let imagery: [Imagery]
         }
 
         /// The web app's `SatelliteInfo`.
@@ -49,7 +58,9 @@ import Testing
             #expect(SatelliteDetails.orbitFacts(record, propagator: propagator).map { [$0.0, $0.1] } == expected.facts.orbitRows, "\(record.name)")
             #expect(SatelliteDetails.spacecraftFacts(record).map { [$0.0, $0.1] } == expected.facts.spacecraftRows, "\(record.name)")
             let instruments = SatelliteDetails.instruments(record).map {
-                Details.Instrument(name: $0.name, fullName: $0.fullName, retired: $0.isRetired, rows: $0.rows.map { [$0.0, $0.1] })
+                Details.Instrument(
+                    name: $0.name, fullName: $0.fullName, retired: $0.isRetired, rows: $0.rows.map { [$0.0, $0.1] },
+                    imagery: $0.imagery.map { Details.Imagery(label: $0.label, detail: $0.detail, viewer: $0.viewer, href: $0.href) })
             }
             #expect(instruments == expected.facts.instruments, "\(record.name)")
             #expect(SatelliteDetails.chips(record, propagator: propagator) == expected.facts.chips, "\(record.name)")
@@ -99,6 +110,82 @@ import Testing
         #expect(instruments.map { $0.rows.map { [$0.0, $0.1] } } == [[["Bands", "NIR"]], []])
         record.metadata["instruments"] = .string("MODIS")
         #expect(SatelliteDetails.instruments(record).isEmpty)
+    }
+
+    // entityInfo.test.ts's cases: a provider this app does not know, an instrument the satellite lacks, a layer that stopped.
+    @Test func givesEachInstrumentTheImageryThatShowsIt() throws {
+        var record = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first)
+        func entry(_ instrument: String, _ provider: String, _ layer: String, _ label: String, _ more: [String: JSONValue] = [:]) -> JSONValue {
+            .object(["instrument": .string(instrument), "provider": .string(provider), "layer": .string(layer), "label": .string(label)].merging(more) { $1 })
+        }
+        record.metadata["instruments"] = .array([.object(["name": .string("MODIS")]), .object(["name": .string("MISR")]), .object(["name": .string("CERES")])])
+        record.metadata["imagery"] = .array([
+            entry("MODIS", "gibs", "MODIS_Terra_CorrectedReflectance_TrueColor", "True colour", ["period": .string("P1D"), "start": .string("2000-02-24")]),
+            entry(
+                "MISR", "gibs", "MISR_AM1_Ellipsoid_Radiance_RGB_AN", "True colour, camera An",
+                ["period": .string("P1D"), "start": .string("2017-09-01"), "end": .string("2022-10-12")]),
+            entry("MODIS", "eumetview", "msg_fes:rgb natural", "Natural colour"),
+            entry("MODIS", "elsewhere", "a", "A"),
+            entry("ASTER", "gibs", "a", "Of an instrument it does not carry"),
+        ])
+        let imagery = SatelliteDetails.instruments(record).map(\.imagery)
+        #expect(
+            imagery == [
+                [
+                    .init(
+                        label: "True colour", detail: "daily since 2000", viewer: "NASA Worldview",
+                        href: "https://worldview.earthdata.nasa.gov/?l=MODIS_Terra_CorrectedReflectance_TrueColor"),
+                    .init(label: "Natural colour", detail: nil, viewer: "EUMETView", href: "https://view.eumetsat.int/productviewer?v=msg_fes:rgb%20natural"),
+                ],
+                [
+                    .init(
+                        label: "True colour, camera An", detail: "daily, 2017–2022", viewer: "NASA Worldview",
+                        href: "https://worldview.earthdata.nasa.gov/?l=MISR_AM1_Ellipsoid_Radiance_RGB_AN&t=2022-10-12")
+                ],
+                [],
+            ])
+    }
+
+    // entityInfo.test.ts's case: a record can give any shape.
+    @Test func readsMalformedImageryAsTheWebAppDoes() throws {
+        var record = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first)
+        record.metadata["instruments"] = .array([.object(["name": .string("MODIS")])])
+        let whole: [String: JSONValue] = ["instrument": .string("MODIS"), "provider": .string("gibs"), "layer": .string("a"), "label": .string("A")]
+        record.metadata["imagery"] = .array([
+            .string("MODIS"),
+            .object(whole.filter { $0.key != "label" }),
+            .object(whole.merging(["layer": .number(7)]) { $1 }),
+            .object(whole.merging(["provider": .string("toString")]) { $1 }),
+            .object(
+                whole.merging([
+                    "period": .number(1), "start": .number(2018), "end": .null, "window": .array([.string("P90D")]),
+                    "merged": .string("yes"),
+                ]) { $1 }),
+        ])
+        #expect(SatelliteDetails.instruments(record)[0].imagery == [.init(label: "A", detail: nil, viewer: "NASA Worldview", href: "https://worldview.earthdata.nasa.gov/?l=a")])
+        record.metadata["imagery"] = .string("gibs")
+        #expect(SatelliteDetails.instruments(record)[0].imagery.isEmpty)
+    }
+
+    // instrumentImagery.test.ts's cases.
+    @Test(
+        arguments: [
+            (["period": "P1D", "start": "2018-01-05"], "daily since 2018"),
+            (["period": "P1D", "start": "2017-09-01", "end": "2022-10-12"], "daily, 2017–2022"),
+            (["period": "P1D", "start": "2025-08-21", "end": "2025-12-19"], "daily, 2025"),
+            (["period": "PT10M", "window": "P90D"], "every 10 min, last 90 days"),
+            (["period": "P1D", "end": "2022-10-12"], "daily, until 2022"),
+            (["period": "PT6M", "window": "P90D", "end": "2026-11-02"], "every 6 min, until 2026"),
+            (["start": "2020-02-17"], "since 2020"),
+            (["period": "P8D", "start": "2020-09-01", "window": "P3M"], "since 2020"),
+            ([:], nil),
+        ] as [([String: String], String?)]) func wordsWhenALayerHasFrames(_ fields: [String: String], _ detail: String?)
+    {
+        #expect(SatelliteDetails.imageryDetail(fields.mapValues { .string($0) }) == detail)
+    }
+
+    @Test func saysALayerShowsOtherSatellitesToo() {
+        #expect(SatelliteDetails.imageryDetail(["merged": .bool(true)]) == "with other satellites")
     }
 
     // entityInfo.test.ts's cases.

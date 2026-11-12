@@ -112,6 +112,7 @@ try {
   const satcatCodes = await runner.import("/src/config/satcatCodes.ts");
   const gcatCodes = await runner.import("/src/config/gcatCodes.ts");
   const { externalLinks } = await runner.import("/src/config/externalLinks.ts");
+  const { IMAGERY_PROVIDERS } = await runner.import("/src/config/instrumentImagery.ts");
 
   const input = fs.readFileSync(inputPath, "utf8");
   const records = gp.parseGpPayload(input);
@@ -1000,6 +1001,8 @@ try {
     gcat: { category: gcatCodes.GCAT_CATEGORY, class: gcatCodes.GCAT_CLASS },
     // `{satnum}` stands where the catalog number goes.
     externalLinks: externalLinks("{satnum}"),
+    // By the name a record's `imagery` entry carries; `{layer}` and `{end}` stand where its own go.
+    imageryProviders: IMAGERY_PROVIDERS,
     bookmarks: {
       // The parameters the web app's stores own but the viewer's, which a bookmark keeps
       // and the rest of a link carries past it. Read from the stores' urlsync configs:

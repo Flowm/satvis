@@ -1,9 +1,11 @@
-// Static facts a GP record carries beside its element set (ADR 0002, 0006, 0008, 0018).
-// Every field has one owner: curated rows (satvis.core.yaml, plugins, model manifests),
+// Static facts a GP record carries beside its element set (ADR 0002, 0006, 0008, 0018, 0019).
+// Every field has one owner: curated rows (satvis.core.yaml, plugins, the model manifests, the imagery manifest),
 // SATCAT, GCAT or CEOS, and curated rows may override an upstream field (SatelliteTable).
 // A curated field needs no worker change, except the swath pair, whose both-or-neither
 // rule the generator enforces; an upstream field is mapped by its parser
 // (worker/src/gp/satcat.ts, gcat.ts, ceos.ts). Cesium-free: node-env vitest exercises it.
+
+import type { SatelliteImagery } from "./instrumentImagery";
 
 /** Worker `SatelliteModel` (worker/src/gp/types.ts): a satellite's 3D model and the copies drawn while it is small (ADR 0007). */
 export interface SatelliteModel {
@@ -94,6 +96,12 @@ export interface SatelliteMetadata {
    * first. Hosted payloads are their host's, so the ISS carries 15.
    */
   instruments?: SatelliteInstrument[];
+
+  /**
+   * From the imagery manifest (ADR 0019): the layers that show one of `instruments`,
+   * an instrument's default first.
+   */
+  imagery?: SatelliteImagery[];
 
   // Raw SATCAT codes, labelled by satcatCodes.ts; absent when upstream's cell is empty.
 

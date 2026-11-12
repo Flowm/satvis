@@ -1,0 +1,307 @@
+# The imagery manifest: which layer of which imagery provider shows which instrument
+# of which satellite (ADR 0019). scripts/generate-groups.mjs gives each satellite its
+# `imagery` from it; the schema is ImageryManifest in src/gp/types.ts.
+#
+# Hand-written: no provider says in a machine-readable way which satellite a layer
+# shows. Listed is the picture people look for first, at the providers that state a
+# licence for it: an instrument's true colour or natural colour, and the day-and-night
+# blend a provider makes of it (GeoColor). An instrument's first entry is its default.
+# Left out are its variants (enhanced, surface reflectance, MISR's other cameras) and
+# the false colour and weather composites: 106 more layers at GIBS and EUMETView,
+# counted per instrument in docs/proposals/imagery-availability.md.
+#
+# Layer ids, periods and first frames were read from each provider's capabilities on
+# 2026-11-11. Re-check an entry there before copying it: a layer that stops keeps its
+# place in the capabilities, so nothing there says it has ended.
+
+satellites:
+  - noradId: 25994
+    name: TERRA
+    instruments:
+      MODIS:
+        - provider: gibs
+          layer: MODIS_Terra_CorrectedReflectance_TrueColor
+          label: True colour
+          kind: rgb
+          period: P1D
+          start: 2000-02-24
+      MISR:
+        # Ended. The nadir camera's, one of nine.
+        - provider: gibs
+          layer: MISR_AM1_Ellipsoid_Radiance_RGB_AN
+          label: True colour, nadir camera
+          kind: rgb
+          period: P1D
+          start: 2017-09-01
+          end: 2022-10-12
+
+  - noradId: 27424
+    name: AQUA
+    instruments:
+      MODIS:
+        - provider: gibs
+          layer: MODIS_Aqua_CorrectedReflectance_TrueColor
+          label: True colour
+          kind: rgb
+          period: P1D
+          start: 2002-07-03
+
+  - noradId: 37849
+    name: SUOMI NPP
+    instruments:
+      VIIRS:
+        # Ended: NOAA stopped the satellite's science data on 2026-11-02.
+        # https://www.nesdis.noaa.gov/news/cessation-of-suomi-national-polar-orbiting-partnership-s-npp-data-users-onafter-november-2-2026
+        - provider: gibs
+          layer: VIIRS_SNPP_CorrectedReflectance_TrueColor
+          label: True colour
+          kind: rgb
+          period: P1D
+          start: 2015-11-24
+          end: 2026-11-02
+
+  - noradId: 43013
+    name: NOAA 20 (JPSS-1)
+    instruments:
+      VIIRS:
+        - provider: gibs
+          layer: VIIRS_NOAA20_CorrectedReflectance_TrueColor
+          label: True colour
+          kind: rgb
+          period: P1D
+          start: 2018-01-05
+
+  - noradId: 54234
+    name: NOAA 21 (JPSS-2)
+    instruments:
+      VIIRS:
+        - provider: gibs
+          layer: VIIRS_NOAA21_CorrectedReflectance_TrueColor
+          label: True colour
+          kind: rgb
+          period: P1D
+          start: 2023-02-10
+
+  - noradId: 58928
+    name: PACE
+    instruments:
+      OCI:
+        - provider: gibs
+          layer: OCI_PACE_True_Color
+          label: True colour
+          kind: rgb
+          period: P1D
+          start: 2024-02-25
+      SPEXone:
+        - provider: gibs
+          layer: SPEXONE_PACE_True_Color
+          label: True colour
+          kind: rgb
+          period: P1D
+          start: 2025-08-21
+      HARP2:
+        # Ended.
+        - provider: gibs
+          layer: HARP2_PACE_True_Color
+          label: True colour
+          kind: rgb
+          period: P1D
+          start: 2025-08-21
+          end: 2026-06-19
+
+  - noradId: 38771
+    name: METOP-B
+    instruments:
+      AVHRR/3:
+        # Six orbits stacked, not one swath, so no period.
+        - provider: eumetview
+          layer: eps:m01_rgb_natural_fog
+          label: Natural colour and fog, six orbits stacked
+          kind: rgb
+          start: 2020-09-01
+
+  - noradId: 43689
+    name: METOP-C
+    instruments:
+      AVHRR/3:
+        - provider: eumetview
+          layer: eps:m03_rgb_natural_fog
+          label: Natural colour and fog, six orbits stacked
+          kind: rgb
+          start: 2020-09-01
+
+  # A Copernicus Browser `layer` is a dataset id of
+  # https://browser.dataspace.copernicus.eu/datasets.txt. A dataset is the whole
+  # constellation's, so it is listed under each unit as `merged`: a link, never one
+  # unit's layer.
+
+  - noradId: 41335
+    name: SENTINEL-3A
+    instruments:
+      OLCI:
+        # One swath an orbit, so no period.
+        - provider: eumetview
+          layer: copernicus:sentinel3a_olci_l1_rgb_fullres
+          label: True colour, one swath per orbit
+          kind: rgb
+          start: 2020-02-17
+        - provider: copernicus-browser
+          layer: S3OLCI_CDAS
+          label: True colour scenes
+          kind: rgb
+          merged: true
+
+  - noradId: 43437
+    name: SENTINEL-3B
+    instruments:
+      OLCI:
+        - provider: eumetview
+          layer: copernicus:sentinel3b_olci_l1_rgb_fullres
+          label: True colour, one swath per orbit
+          kind: rgb
+          start: 2020-02-17
+        - provider: copernicus-browser
+          layer: S3OLCI_CDAS
+          label: True colour scenes
+          kind: rgb
+          merged: true
+
+  - noradId: 40697
+    name: SENTINEL-2A
+    instruments:
+      MSI (Sentinel-2):
+        - provider: copernicus-browser
+          layer: S2_L2A_CDAS
+          label: True colour scenes
+          kind: rgb
+          merged: true
+
+  - noradId: 42063
+    name: SENTINEL-2B
+    instruments:
+      MSI (Sentinel-2):
+        - provider: copernicus-browser
+          layer: S2_L2A_CDAS
+          label: True colour scenes
+          kind: rgb
+          merged: true
+
+  - noradId: 60989
+    name: SENTINEL-2C
+    instruments:
+      MSI (Sentinel-2):
+        - provider: copernicus-browser
+          layer: S2_L2A_CDAS
+          label: True colour scenes
+          kind: rgb
+          merged: true
+
+  - noradId: 39084
+    name: LANDSAT 8
+    instruments:
+      OLI:
+        - provider: copernicus-browser
+          layer: CDAS_L8_L9_LOTL1
+          label: True colour scenes
+          kind: rgb
+          merged: true
+
+  - noradId: 49260
+    name: LANDSAT 9
+    instruments:
+      OLI-2:
+        - provider: copernicus-browser
+          layer: CDAS_L8_L9_LOTL1
+          label: True colour scenes
+          kind: rgb
+          merged: true
+
+  # The layers below are named for a service, not a satellite: GOES-East, Meteosat's
+  # full disc. Each is listed under the satellite that provides the service now, and
+  # its `start` is the day that satellite took over, from the operator's notice, where
+  # the layer has earlier frames: those are another satellite's. No provider publishes
+  # who provides a service, so a handover is made here by hand: move the entries and
+  # set `start`.
+
+  - noradId: 60133
+    name: GOES 19
+    instruments:
+      ABI:
+        # GOES-East since 2025-04-07: https://www.ospo.noaa.gov/data/messages/2025/04/MSG_20250407_1510.html
+        # GIBS keeps a geostationary layer 90 days, whatever its time domain lists.
+        - provider: gibs
+          layer: GOES-East_ABI_GeoColor
+          label: GeoColor
+          kind: rgb
+          period: PT10M
+          window: P90D
+
+  - noradId: 51850
+    name: GOES 18
+    instruments:
+      ABI:
+        # GOES-West since 2023-01-04: https://ospo.noaa.gov/data/messages/2023/01/MSG_20230104_1805.html
+        - provider: gibs
+          layer: GOES-West_ABI_GeoColor
+          label: GeoColor
+          kind: rgb
+          period: PT10M
+          window: P90D
+
+  # Meteosat has two services at 0°: the full disc of the third generation's FCI
+  # (EUMETView's `mtg_fd`), and that of the second generation's SEVIRI (`msg_fes`),
+  # which runs on beside it.
+
+  - noradId: 54743
+    name: METEOSAT-12 (MTG-I1)
+    instruments:
+      FCI:
+        # The only imager of its generation so far, so the service's from its first frame.
+        - provider: eumetview
+          layer: mtg_fd:rgb_geocolour
+          label: GeoColour
+          kind: rgb
+          period: PT10M
+          start: 2024-09-23
+        - provider: eumetview
+          layer: mtg_fd:rgb_truecolour
+          label: True colour
+          kind: rgb
+          period: PT10M
+          start: 2024-09-23
+
+  - noradId: 38552
+    name: METEOSAT-10 (MSG-3)
+    instruments:
+      SEVIRI:
+        # The 0° service: https://osi-saf.eumetsat.int/community/list-of-service-messages/meteosat-10meteosat-11-swap-operations-planned-21032023
+        - provider: eumetview
+          layer: msg_fes:rgb_natural
+          label: Natural colour
+          kind: rgb
+          period: PT15M
+          start: 2023-03-21
+
+  - noradId: 28912
+    name: METEOSAT-9 (MSG-2)
+    instruments:
+      SEVIRI:
+        # The Indian Ocean service at 45.5°E: https://www.eumetsat.int/msg-services
+        - provider: eumetview
+          layer: msg_iodc:rgb_natural
+          label: Natural colour
+          kind: rgb
+          period: PT15M
+          start: 2022-06-01
+
+  - noradId: 40732
+    name: METEOSAT-11 (MSG-4)
+    instruments:
+      SEVIRI:
+        # The rapid scan of Europe at 9.5°E: https://ospo.noaa.gov/data/messages/2023/03/MSG_20230315_1608.html
+        - provider: eumetview
+          layer: msg_rss:rgb_natural_nrt
+          label: Natural colour, Europe
+          kind: rgb
+          period: PT5M
+          start: 2023-03-28

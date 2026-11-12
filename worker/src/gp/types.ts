@@ -230,6 +230,60 @@ export interface SatelliteInstrument {
   retired?: true;
 }
 
+/** One layer of an imagery provider that shows one instrument, as a record's `imagery` carries it (ADR 0019). */
+export interface SatelliteImagery {
+  /** The CEOS short name of the instrument it shows, one of the record's `instruments`. */
+  instrument: string;
+  /** The service that holds it: "gibs". An app leaves out the entries of one it does not know. */
+  provider: string;
+  /** The provider's own id for the layer or dataset: never a url. */
+  layer: string;
+  /** What the picture is: "True colour". */
+  label: string;
+  /** "rgb", a colour picture composed from the instrument's bands, is the only one so far. */
+  kind: string;
+  /** ISO 8601 duration between frames. Absent where there is none to state: one swath an orbit. */
+  period?: string;
+  /**
+   * ISO date of the first frame that is this satellite's: the layer's first, or the day
+   * the satellite took over the service the layer is named for, where that is later.
+   */
+  start?: string;
+  /** ISO date of the last frame, of a layer that stopped. */
+  end?: string;
+  /** ISO 8601 duration: the provider keeps frames this long and no longer, so it has no `start`. */
+  window?: string;
+  /** It shows other satellites too, not told apart. */
+  merged?: true;
+}
+
+/**
+ * The imagery manifest (ADR 0019): worker/src/config/satvis.imagery.yaml. The generator
+ * turns it into each satellite's `imagery`.
+ */
+export interface ImageryManifest {
+  satellites?: ImagerySatellite[];
+}
+
+/** A satellite's instruments, by CEOS short name, each with the imagery that shows it. */
+export interface ImagerySatellite {
+  noradId: number;
+  /** Documentation only, as a satellite table entry's. */
+  name?: string;
+  /**
+   * An instrument's name, spelled as CEOS's short name, to its imagery, the default
+   * first. The refresh warns about a name the satellite's `instruments` lack.
+   */
+  instruments: Record<string, ImageryEntry[]>;
+}
+
+/**
+ * SatelliteImagery's fields, where each is described, without the one the manifest's
+ * shape gives. `merged` is required on a layer listed under several satellites, and
+ * refused on one listed under one.
+ */
+export type ImageryEntry = Omit<SatelliteImagery, "instrument">;
+
 /** One CEOS mission that names a NORAD id and carries instruments (ceos.ts). Not served. */
 export interface CeosMission {
   /** `mission_acronym`: "Sentinel-2 A", "ECOSTRESS-on-ISS". */

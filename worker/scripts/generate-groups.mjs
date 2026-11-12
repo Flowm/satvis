@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Merge the core config with every data/custom/*/satvis.yaml, inline each
 // extraRecordsFile, give each listed satellite its model manifest `modelFile`,
-// each named GCAT bus its model and each model file its lower-detail copies, validate, and write
+// each named GCAT bus its model, each model file its lower-detail copies and each
+// satellite its imagery manifest `imagery`, validate, and write
 // worker/src/config/satvis.generated.json. Works without plugins too.
 
 import fs from "node:fs";
@@ -19,6 +20,7 @@ import {
   validateRemainderTags,
   validateSatelliteTable,
 } from "../src/gp/configValidation.ts";
+import { imageryBySatellite } from "../src/gp/imagery.ts";
 import { isGcatBusName, modelsByBus } from "../src/gp/modelBuses.ts";
 import { isModelPath, modelLodsByFile, parseModelLods } from "../src/gp/modelLods.ts";
 
@@ -34,6 +36,8 @@ const PLUGIN_CONFIG_NAME = "satvis.yaml";
 /** The submodule's and any plugin's list of files under /data/models/ by NORAD id (ADR 0007). */
 const MODEL_MANIFEST_NAME = "models.yaml";
 const modelsManifestPath = path.join(repoRoot, "data", "models", MODEL_MANIFEST_NAME);
+/** The imagery layers that show a satellite's instrument (ADR 0019). */
+const imageryManifestPath = path.join(workerDir, "src", "config", "satvis.imagery.yaml");
 
 function readYaml(file) {
   return YAML.parse(fs.readFileSync(file, "utf8"));
@@ -216,6 +220,11 @@ function main() {
     busAssignments.push(...buses);
     lodClaims.push(...lods);
   }
+  // Once per satellite, with its whole list: the table compares values, not lists.
+  const imagery = imageryBySatellite(readYaml(imageryManifestPath), path.relative(repoRoot, imageryManifestPath));
+  for (const [noradId, entries] of imagery) {
+    table.add(noradId, { metadata: { imagery: entries } }, "the imagery manifest");
+  }
   const satellites = table.entries();
   const modelBuses = modelsByBus(busAssignments);
   const modelLods = modelLodsByFile(lodClaims);
@@ -223,7 +232,7 @@ function main() {
   const generated = { groups, presets, satellites, modelBuses, modelLods };
   fs.writeFileSync(outPath, `${JSON.stringify(generated, null, 2)}\n`);
   process.stdout.write(
-    `Wrote ${path.relative(repoRoot, outPath)} (${groups.length} groups, ${presets.length} presets, ${satellites.length} satellites, ${Object.keys(modelBuses).length} model buses, ${Object.keys(modelLods).length} models with lower-detail copies)\n`,
+    `Wrote ${path.relative(repoRoot, outPath)} (${groups.length} groups, ${presets.length} presets, ${satellites.length} satellites, ${Object.keys(modelBuses).length} model buses, ${Object.keys(modelLods).length} models with lower-detail copies, ${imagery.size} satellites with imagery)\n`,
   );
 }
 

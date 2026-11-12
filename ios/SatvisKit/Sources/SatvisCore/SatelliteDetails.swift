@@ -1,8 +1,8 @@
 import Foundation
 
 /// The tables the native app reads from the web app rather than keeping its own:
-/// SATCAT and GCAT code labels, the external links and the bookmark tables
-/// (Shared/web-tables.json, written by scripts/parity/generate.mjs).
+/// SATCAT and GCAT code labels, the external links, the imagery providers and the
+/// bookmark tables (Shared/web-tables.json, written by scripts/parity/generate.mjs).
 public struct WebTables: Sendable, Decodable {
     public struct Satcat: Sendable, Decodable {
         public var launchSite: [String: String]
@@ -42,6 +42,31 @@ public struct WebTables: Sendable, Decodable {
         }
     }
 
+    /// An imagery provider (src/config/instrumentImagery.ts): the service that holds
+    /// layers showing an instrument, and its own viewer for them.
+    public struct ImageryProvider: Sendable, Decodable {
+        /// The viewer a link opens, as the panel names it.
+        public var viewer: String
+        /// `{layer}` stands where the layer's id goes.
+        public var link: String
+        /// Appended for a layer that stopped, `{end}` its last frame's date.
+        public var ended: String?
+
+        /// What JavaScript's `encodeURIComponent` leaves as it is.
+        private static let unreserved = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()")
+
+        /// The layer in the viewer, as the web app's `imageryLink` writes it: the colon
+        /// of EUMETView's `workspace:layer` stays.
+        public func href(layer: String, end: String?) -> String {
+            let encoded = layer.addingPercentEncoding(withAllowedCharacters: Self.unreserved.union(CharacterSet(charactersIn: ":"))) ?? layer
+            let link = self.link.replacingOccurrences(of: "{layer}", with: encoded)
+            guard let end, let ended else {
+                return link
+            }
+            return link + ended.replacingOccurrences(of: "{end}", with: end.addingPercentEncoding(withAllowedCharacters: Self.unreserved) ?? end)
+        }
+    }
+
     /// The url parameters the web app's stores own, which a bookmark keeps.
     public struct BookmarkTables: Sendable, Decodable {
         public var ownedParams: [String]
@@ -50,6 +75,8 @@ public struct WebTables: Sendable, Decodable {
     public var satcat: Satcat
     public var gcat: Gcat
     public var externalLinks: [Link]
+    /// By the name a record's `imagery` entry carries.
+    public var imageryProviders: [String: ImageryProvider]
     public var bookmarks: BookmarkTables
 
     public static let shared: WebTables = {
@@ -124,6 +151,17 @@ public enum SatelliteDetails {
         return rows
     }
 
+    /// One layer of an instrument's imagery, the web app's `ImageryInfo`.
+    public struct Imagery: Sendable, Hashable {
+        /// What the picture is: "True colour".
+        public var label: String
+        /// When it has frames and of what: "daily since 2018". Nil where the record says nothing.
+        public var detail: String?
+        /// The provider's viewer, which the link opens: "NASA Worldview".
+        public var viewer: String
+        public var href: String
+    }
+
     /// One instrument in the Instruments tab, the web app's `InstrumentInfo`.
     public struct Instrument: Sendable {
         public var name: String
@@ -133,12 +171,16 @@ public enum SatelliteDetails {
         public var isRetired: Bool
         /// Kind, Bands, Resolution and Nominal swath, those CEOS gives.
         public var rows: [(String, String)]
+        /// The layers that show it, its default first, of the providers this app knows. Empty for most.
+        public var imagery: [Imagery]
     }
 
-    /// The Instruments tab: the record's `instruments`, CEOS's (ADR 0018). A curated row can
-    /// give any shape: an entry without a name is skipped, a field of another type left out.
-    public static func instruments(_ record: GPRecord) -> [Instrument] {
-        (record.metadata["instruments"]?.array ?? []).compactMap { instrument in
+    /// The Instruments tab: the record's `instruments`, CEOS's (ADR 0018), each with the
+    /// `imagery` that shows it (ADR 0019). A curated row can give any shape: an entry
+    /// without a name is skipped, a field of another type left out.
+    public static func instruments(_ record: GPRecord, tables: WebTables = .shared) -> [Instrument] {
+        let imagery = (record.metadata["imagery"]?.array ?? []).compactMap { imagery($0, tables: tables) }
+        return (record.metadata["instruments"]?.array ?? []).compactMap { instrument in
             guard case .object(let fields) = instrument, let name = fields["name"]?.string else {
                 return nil
             }
@@ -155,8 +197,58 @@ public enum SatelliteDetails {
             if let swath = fields["nominalSwathKm"]?.number, record.orbitClass == .leo {
                 rows.append(("Nominal swath", "\(Formats.number(swath)) km"))
             }
-            return Instrument(name: name, fullName: fields["fullName"]?.string, isRetired: fields["retired"] == .bool(true), rows: rows)
+            return Instrument(
+                name: name, fullName: fields["fullName"]?.string, isRetired: fields["retired"] == .bool(true), rows: rows,
+                imagery: imagery.filter { $0.instrument == name }.map(\.imagery))
         }
+    }
+
+    /// Nil for an entry without the fields a link needs, or of a provider this app does not know.
+    private static func imagery(_ entry: JSONValue, tables: WebTables) -> (instrument: String, imagery: Imagery)? {
+        guard case .object(let fields) = entry, let instrument = fields["instrument"]?.string, let provider = fields["provider"]?.string,
+            let layer = fields["layer"]?.string, let label = fields["label"]?.string, let known = tables.imageryProviders[provider]
+        else {
+            return nil
+        }
+        let end = fields["end"]?.string
+        return (instrument, Imagery(label: label, detail: imageryDetail(fields), viewer: known.viewer, href: known.href(layer: layer, end: end)))
+    }
+
+    /// When a layer has frames, and of what, as the web app's `imageryDetail` words it:
+    /// "daily since 2018", "every 10 min, last 90 days".
+    static func imageryDetail(_ fields: [String: JSONValue]) -> String? {
+        let start = fields["start"]?.string
+        let end = fields["end"]?.string
+        let year = { (date: String) in String(date.prefix(4)) }
+        var history: String?
+        // An ended layer's window only runs out: what is left of it is not "the last 90 days".
+        if let start, let end {
+            history = year(start) == year(end) ? year(end) : "\(year(start))–\(year(end))"
+        } else if let end {
+            history = "until \(year(end))"
+        } else if let window = fields["window"]?.string, let days = count(window, prefix: "P", unit: "D") {
+            history = "last \(days) days"
+        } else if let start {
+            history = "since \(year(start))"
+        }
+        let step = fields["period"]?.string.flatMap(cadence)
+        let when = if let step, let history, history.hasPrefix("since") { ["\(step) \(history)"] } else { [step, history] }
+        let parts = (when + [fields["merged"] == .bool(true) ? "with other satellites" : nil]).compactMap(\.self)
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
+    }
+
+    /// The digits of an ISO 8601 duration of one unit: "90" of "P90D". Nil for any other.
+    private static func count(_ duration: String, prefix: String, unit: Character) -> Substring? {
+        guard duration.hasPrefix(prefix), duration.last == unit else {
+            return nil
+        }
+        let digits = duration.dropFirst(prefix.count).dropLast()
+        return !digits.isEmpty && digits.allSatisfy { ("0"..."9").contains($0) } ? digits : nil
+    }
+
+    /// "daily", "every 10 min": the periods the manifest has. Nil for any other.
+    private static func cadence(_ period: String) -> String? {
+        period == "P1D" ? "daily" : count(period, prefix: "PT", unit: "M").flatMap { Int($0) }.map { "every \($0) min" }
     }
 
     /// GCAT flags most sizes and some masses as estimates (`estimated`); "~" says so.

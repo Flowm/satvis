@@ -17,9 +17,10 @@ workspace package) and a native iOS app in `ios/`.
   flows through the menus, `regressions/` pins down one past bug each, for what
   needs layout, a GPU or frames. Read `e2e/support/` before writing one: the
   fixtures, the app and menu helpers, and why they count clock ticks (`app.ts`).
-- **`worker/src/gp/types.ts`** — the group, preset and satellite-table config
-  schema, field by field. Read it before editing the core config,
-  `worker/src/config/satvis.core.yaml`, or a plugin's `data/custom/*/satvis.yaml`.
+- **`worker/src/gp/types.ts`** — the group, preset, satellite-table and imagery
+  manifest config schema, field by field. Read it before editing the core config,
+  `worker/src/config/satvis.core.yaml`, the imagery manifest beside it,
+  `satvis.imagery.yaml`, or a plugin's `data/custom/*/satvis.yaml`.
 - **`src/modules/benchmark/README.md`** — read it before measuring what a frame
   costs: the benchmark framework, how the frame cost scales, and its traps.
 - **`ios/AGENTS.md`** — read it before changing, building or testing anything

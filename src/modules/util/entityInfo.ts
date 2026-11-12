@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { gcatCategoryLabel, gcatClassLabel } from "@/config/gcatCodes";
+import { IMAGERY_PROVIDERS, imageryDetail, imageryLink, type SatelliteImagery } from "@/config/instrumentImagery";
 import type { OrbitClass } from "@/config/orbitClass";
 import { satcatLabel, SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, SATCAT_ORBIT_TYPE } from "@/config/satcatCodes";
 import { swathExtentsOf, type SatelliteInstrument, type SatelliteMetadata } from "@/config/satelliteMetadata";
@@ -29,6 +30,23 @@ const JD_UNIX_EPOCH = 2440587.5;
  */
 export const STALE_ELEMENTS_DAYS = 10;
 
+/** One layer of an instrument's imagery, as the Instruments tab links it. */
+export interface ImageryInfo {
+  /** What the picture is: "True colour". */
+  label: string;
+  /** When it has frames and of what: "daily since 2018". Absent where the record says nothing. */
+  detail?: string;
+  /** The provider's viewer, which the link opens: "NASA Worldview". */
+  viewer: string;
+  href: string;
+}
+
+/** One record entry of `imagery`, read: what the tab shows of it, and the instrument it belongs under. */
+interface InstrumentImagery {
+  instrument: string;
+  imagery: ImageryInfo;
+}
+
 /** One instrument in the info panel's Instruments tab. */
 export interface InstrumentInfo {
   name: string;
@@ -38,6 +56,8 @@ export interface InstrumentInfo {
   retired: boolean;
   /** Kind, Bands, Resolution and Nominal swath, those CEOS gives. */
   rows: [string, string][];
+  /** The layers that show it, its default first, of the providers this app knows. Empty for most. */
+  imagery: ImageryInfo[];
 }
 
 /**
@@ -70,14 +90,40 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
   const status = metadata.opsStatus === undefined ? undefined : satcatLabel(SATCAT_OPS_STATUS, metadata.opsStatus);
   const unusualStatus = metadata.opsStatus !== undefined && UNREMARKABLE_STATUS.has(metadata.opsStatus) ? undefined : status;
   const chips = [regime, metadata.country, unusualStatus].filter((chip): chip is string => chip !== undefined);
+  const imagery = (Array.isArray(metadata.imagery) ? (metadata.imagery as unknown[]) : []).flatMap((entry) => instrumentImagery(entry) ?? []);
   return {
     orbitClass,
     chips,
     ...(unusualStatus !== undefined && { status: unusualStatus }),
     orbitRows: [["Orbit", regime], ...derivedOrbitRows(orbit)],
     spacecraftRows: spacecraftRows(metadata, status),
-    instruments: (Array.isArray(metadata.instruments) ? (metadata.instruments as unknown[]) : []).flatMap((instrument) => instrumentInfo(instrument, orbitClass) ?? []),
+    instruments: (Array.isArray(metadata.instruments) ? (metadata.instruments as unknown[]) : []).flatMap((instrument) => instrumentInfo(instrument, orbitClass, imagery) ?? []),
   };
+}
+
+/**
+ * Undefined for an entry without the fields a link needs, or of a provider this app
+ * does not know. Read as the native app's `SatelliteDetails.imagery` reads it.
+ */
+function instrumentImagery(entry: unknown): InstrumentImagery | undefined {
+  if (typeof entry !== "object" || entry === null) {
+    return undefined;
+  }
+  const { instrument, provider, layer, label, ...rest } = entry as Record<keyof SatelliteImagery, unknown>;
+  if (typeof instrument !== "string" || typeof provider !== "string" || typeof layer !== "string" || typeof label !== "string" || !Object.hasOwn(IMAGERY_PROVIDERS, provider)) {
+    return undefined;
+  }
+  const text = (value: unknown) => (typeof value === "string" ? value : undefined);
+  const end = text(rest.end);
+  const detail = imageryDetail({
+    period: text(rest.period),
+    start: text(rest.start),
+    end,
+    window: text(rest.window),
+    ...(rest.merged === true && { merged: true }),
+  });
+  const known = IMAGERY_PROVIDERS[provider]!;
+  return { instrument, imagery: { label, ...(detail !== undefined && { detail }), viewer: known.viewer, href: imageryLink(known, layer, end) } };
 }
 
 /**
@@ -85,7 +131,7 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
  * as the native app's `SatelliteDetails.instruments` reads it: a field of another type is
  * left out.
  */
-function instrumentInfo(instrument: unknown, orbitClass: OrbitClass): InstrumentInfo | undefined {
+function instrumentInfo(instrument: unknown, orbitClass: OrbitClass, imagery: readonly InstrumentImagery[]): InstrumentInfo | undefined {
   if (typeof instrument !== "object" || instrument === null) {
     return undefined;
   }
@@ -107,7 +153,8 @@ function instrumentInfo(instrument: unknown, orbitClass: OrbitClass): Instrument
   if (typeof nominalSwathKm === "number" && orbitClass === "LEO") {
     rows.push(["Nominal swath", `${formatNumber(nominalSwathKm)} km`]);
   }
-  return { name, ...(typeof fullName === "string" && { fullName }), retired: retired === true, rows };
+  const own = imagery.filter((entry) => entry.instrument === name).map((entry) => entry.imagery);
+  return { name, ...(typeof fullName === "string" && { fullName }), retired: retired === true, rows, imagery: own };
 }
 
 /** "Orbit type" stays here: SATCAT's codes say docked, landed or impacted, a state of the spacecraft. */
