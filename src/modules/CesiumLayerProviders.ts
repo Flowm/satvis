@@ -1,4 +1,3 @@
-import { type Clock } from "@cesium/core";
 import {
   ArcGisMapServerImageryProvider,
   CesiumTerrainProvider,
@@ -13,30 +12,21 @@ import {
   WebMapServiceImageryProvider,
 } from "@cesium/engine";
 
-import { createGibsTimeLayer } from "./GibsTimeLayer";
+import type { FrameSource } from "./FramedImagery";
+import { gibsFrames } from "./GibsImagery";
 
 /**
  * Always present (see data/imagery/.gitignore). Its depth is `__IMAGERY_MAX_LEVEL__` in vite.config.ts.
  */
 const NATURAL_EARTH = "data/imagery/NaturalEarthII";
 
-/** What a layer that follows the simulation time needs from the viewer it is added to. */
-export interface ImageryContext {
-  clock: Clock;
-  requestRender: () => void;
-  /** Whether the globe has every tile it wants, as of the last rendered frame. */
-  tilesLoaded: () => boolean;
-  /** Aborted once the layer is removed, to stop listening to the clock. */
-  signal: AbortSignal;
-}
-
-export interface ImageryProviderEntry {
+/** A layer of the Map panel: one that stays as it is, or one that follows the simulation time frame by frame (FramedImagery.ts). */
+export type ImageryProviderEntry = {
   /** The Map panel's name for it; the key stays the url's and the store's (ADR 0001). */
   label: string;
-  create: (context: ImageryContext) => ImageryProvider | Promise<ImageryProvider>;
   alpha: number;
   base: boolean;
-}
+} & ({ create: () => ImageryProvider | Promise<ImageryProvider> } | { frames: () => FrameSource<ImageryProvider> });
 
 export interface TerrainProviderEntry {
   /** The Map panel's name for it. */
@@ -117,7 +107,7 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
    */
   VIIRS: {
     label: "Daily (VIIRS)",
-    create: (context) => createGibsTimeLayer({ layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", maximumLevel: 9, format: "jpeg", daily: true }, context),
+    frames: () => gibsFrames({ layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", maximumLevel: 9, format: "jpeg", daily: true }),
     alpha: 1,
     base: true,
   },

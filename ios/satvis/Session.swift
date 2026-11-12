@@ -850,7 +850,7 @@ final class Session {
     }
 
     /// Keeps a daily base map (VIIRS) on the clock's day, once a second, as the web
-    /// app's GibsTimeLayer moves it with the clock, asking GIBS which days it has
+    /// app's GibsImagery moves it with the clock, asking GIBS which days it has
     /// finished every half hour, as long as GIBS lets its answer be cached.
     private func followImageryDay() async {
         while !Task.isCancelled {

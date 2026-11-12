@@ -6,9 +6,9 @@ status: accepted
 
 A record says which provider's layer shows an instrument (ADR 0019), and the
 Instruments tab links it. The same entry is enough to draw the layer on the globe at
-the clock's time, as the Map panel's `VIIRS` basemap already is (`GibsTimeLayer.ts`).
-What was missing: which tiles a layer has, how a drawn layer is named in the url, and
-where it sits among the Map panel's layers.
+the clock's time, as the Map panel's `VIIRS` basemap already was. What was missing:
+which tiles a layer has, how a drawn layer is named in the url, and where it sits
+among the Map panel's layers.
 
 ## Decision
 
@@ -48,7 +48,9 @@ drawn under its overlays, by label and satellite, "GeoColor · GOES 19", so a la
 can be taken off without finding its satellite again.
 
 **It lies over the basemap and under the overlays**, the last one shown on top.
-Several may be drawn: GOES-East and GOES-West together are two discs.
+Several may be drawn: GOES-East and GOES-West together are two discs. A layer that
+follows the clock is on the globe only once its service has listed its frames, so the
+controller places each layer over the nearest one below it that is there yet.
 
 **Showing a layer leaves the Map panel's layers alone.** The controller adds and
 removes instrument imagery by itself, so the basemap is not rebuilt.
@@ -57,7 +59,8 @@ removes instrument imagery by itself, so the basemap is not rebuilt.
 for the clock loads as a layer of its own over the one before it, which is taken off
 once the globe has all of the new one's tiles. A frame that is loading is finished
 before a newer one starts, so a clock that runs faster than frames load still shows
-frames, skipping some.
+frames, skipping some. The Map panel's `VIIRS` basemap follows the clock the same way,
+from the same GIBS frame source.
 
 ## Consequences
 
@@ -72,9 +75,6 @@ frames, skipping some.
   twice where the view moves meanwhile: the old frame's and the new one's.
 - **Cesium's own preloading of the next frame is lost**, which its time-dynamic
   provider does as the clock nears it.
-- **The Map panel's `VIIRS` basemap still uses the time-dynamic provider**
-  (`GibsTimeLayer.ts`), the last layer that does, and still loses its tiles on a zoom
-  during a frame change, once a day.
 - **GIBS's GeoColor layers list only the frames they still serve**, 90 days, so the
   entry's `window` is not needed to keep the clock inside them.
 - **A link with `imagery` loads every group at once**, before the route's own groups
@@ -83,7 +83,8 @@ frames, skipping some.
 - **The Map panel's `GOES-IR` overlay is gone.** It was one infrared band of
   GOES-East, with the fault above every 10 minutes; GOES-East's GeoColor entry shows
   the same disc by day and night. A link that names it loses it, as it would any
-  unknown layer. `VIIRS` stays: NOAA-20's entry drawn as a basemap.
+  unknown layer. `VIIRS` stays, from the registry: the layer of NOAA-20's entry,
+  drawn as a basemap.
 
 ## Alternatives rejected
 
@@ -94,8 +95,8 @@ frames, skipping some.
 - **A table of drawable layers in the frontend, or in the group index.** A second copy
   of what the records carry, or a metadata endpoint by another name.
 - **One layer at a time.** Simpler, but showing GOES-West would hide GOES-East.
-- **Cesium's time-dynamic provider**, as `GibsTimeLayer.ts` uses it for the Map panel.
-  The first version. On a frame change Cesium empties the layer's tile cache, so a
+- **Cesium's time-dynamic provider**, as the Map panel's `VIIRS` and `GOES-IR` used
+  it. The first version. On a frame change Cesium empties the layer's tile cache, so a
   globe tile made while the new frame loads, by a zoom, has no parent tile to draw:
   measured, 13 of 19 tiles in view showed the basemap for as long as the frame took to
   load, and a clock run fast never let them settle.

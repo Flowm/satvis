@@ -111,7 +111,7 @@ encodes as `+`, and must never be escaped as `-`.
 
 `layers` items are validated against the segment before `_`. Base layers:
 `NaturalEarth`, `ArcGis`, `VersaTiles`, `OSM`, `BlackMarble`, `VIIRS`. Overlays: `Tiles`,
-`Nextrad`. `VIIRS` shows the frame for `time` (`GibsTimeLayer`).
+`Nextrad`. `VIIRS` shows the frame for `time` (`FramedImagery`).
 The Map panel shows one basemap on radios and any number of overlays on checkboxes;
 `base` on the registry entry (`src/modules/CesiumLayerProviders.ts`) decides which is
 which. The optional `_<alpha>` suffix sets the layer's opacity and has no UI control.

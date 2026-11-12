@@ -1,5 +1,5 @@
-// GIBS is stubbed: the layer's time domain is fixed here, and every tile is one
-// transparent pixel.
+// The Map panel's daily basemap (VIIRS) follows the clock frame by frame. GIBS is
+// stubbed: the layer's time domain is fixed here, and every tile is one transparent pixel.
 
 import type { Page } from "@playwright/test";
 
@@ -38,31 +38,37 @@ function stubGibs(page: Page) {
   };
 }
 
-test("the layer requests the frame for the clock, and nothing once removed", async ({ page }) => {
+test("the daily basemap requests the frame for the clock, and nothing once removed", async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 600 });
   const gibs = stubGibs(page);
   await openApp(page, "tags=&layers=VIIRS&time=2026-10-03T15:07Z", { setup: gibs.install, satellites: false });
   await page.evaluate(() => (window.cc!.viewer.clock.shouldAnimate = false));
 
-  expect(gibs.times(VIIRS)).toEqual(["2026-10-03"]);
+  // One layer again once a new day's has replaced the old one's.
+  const settled = () => expect.poll(() => page.evaluate(() => window.cc!.viewer.imageryLayers.length)).toBe(1);
+  await expect.poll(() => gibs.times(VIIRS)).toEqual(["2026-10-03"]);
+  await settled();
 
   gibs.clear();
   await setClock(page, "2026-10-01T16:07:00Z");
   await expect.poll(() => gibs.times(VIIRS)).toEqual(["2026-10-01"]);
+  await settled();
 
   // Past the end of the domain the latest finished day holds.
   gibs.clear();
   await setClock(page, "2026-10-09T12:00:00Z");
   await expect.poll(() => gibs.times(VIIRS)).toEqual(["2026-10-04"]);
+  await settled();
 
   // NaturalEarth replaces VIIRS as the base map.
   const tickListeners = () => page.evaluate(() => window.cc!.viewer.clock.onTick.numberOfListeners);
   const listenersWithLayers = await tickListeners();
   await openMenu(page, "Map");
   await menuSwitch(page, "Natural Earth").click();
-  await expect.poll(() => page.evaluate(() => window.cc!.viewer.imageryLayers.length)).toBe(1);
+  await expect.poll(() => page.evaluate(() => (window.cc!.viewer.imageryLayers.get(0).imageryProvider as { url?: string } | undefined)?.url ?? "")).toContain("NaturalEarth");
+  expect(await page.evaluate(() => window.cc!.viewer.imageryLayers.length)).toBe(1);
   expect(new URL(page.url()).searchParams.get("layers")).toBeNull();
-  // The layer kept the viewer's clock in step with one listener.
+  // The layer followed the viewer's clock with one listener.
   expect(await tickListeners()).toBe(listenersWithLayers - 1);
 
   gibs.clear();

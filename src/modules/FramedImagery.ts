@@ -2,17 +2,25 @@
 // loads as a layer of its own, over the one before it, which stays until the new one's
 // tiles are all there.
 //
-// Not Cesium's time-dynamic provider (GibsTimeLayer.ts), whose reload empties the layer's
-// tile cache: a globe tile made while the new frame loads, by a zoom, then has no parent
-// tile to draw and shows the basemap. Here such a tile draws the old frame's.
+// Not Cesium's time-dynamic provider, whose reload empties the layer's tile cache: a
+// globe tile made while the new frame loads, by a zoom, then has no parent tile to draw
+// and shows what lies under the layer. Here such a tile draws the old frame's.
 //
-// A service is one FrameSource (GibsTimeLayer.ts, EumetViewImagery.ts).
+// A service is one FrameSource (GibsImagery.ts, EumetViewImagery.ts).
 
-import { JulianDate } from "@cesium/core";
+import { type Clock, JulianDate } from "@cesium/core";
 
 import { snapToFrame, type TimeRange } from "@/modules/util/timeDomain";
 
-import type { ImageryContext } from "./CesiumLayerProviders";
+/** What imagery that follows the simulation time needs from the viewer it is shown in. */
+export interface ImageryContext {
+  clock: Clock;
+  requestRender: () => void;
+  /** Whether the globe has every tile it wants, as of the last rendered frame. */
+  tilesLoaded: () => boolean;
+  /** Aborted to take the imagery off the globe. */
+  signal: AbortSignal;
+}
 
 /** What this needs of Cesium's `ImageryLayerCollection`, so a test can stand in for it. */
 export interface FrameLayers<Layer> {
@@ -37,7 +45,7 @@ export interface FrameSource<Shown> {
 }
 
 export interface FramedImagery<Layer> {
-  /** Its upper layer on the globe, once it has one. */
+  /** Its upper layer on the globe, while it has one. */
   readonly top: Layer | undefined;
 }
 
@@ -105,6 +113,8 @@ export function showFramedImagery<Layer extends { readonly ready: boolean }>(
           layers.remove(entry.layer);
         }
       }
+      shown = undefined;
+      loading = undefined;
       requestRender();
     },
     { once: true },

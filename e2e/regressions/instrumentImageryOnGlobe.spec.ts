@@ -117,3 +117,38 @@ test("a EUMETView layer is drawn by its WMS, at the frame for the clock", async 
   await openMenu(page, "Map");
   await expect(menuSwitch(page, "GeoColour · METEOSAT-12 (MTG-I1)")).toBeChecked();
 });
+
+// A layer that follows the clock is on the globe only once its service has listed its frames.
+test("instrument imagery lies over a basemap that arrives after it, and under the overlays", async ({ page }) => {
+  const VIIRS = "VIIRS_NOAA20_CorrectedReflectance_TrueColor";
+  let listViirs!: () => void;
+  const viirsListed = new Promise<void>((resolve) => (listViirs = resolve));
+  const stubGibs = async () => {
+    await page.route("https://gibs.earthdata.nasa.gov/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (!path.endsWith("/all.xml")) {
+        return route.fulfill({ contentType: "image/png", body: PIXEL });
+      }
+      const daily = path.includes(VIIRS);
+      if (daily) {
+        await viirsListed;
+      }
+      const domain = daily ? "2026-09-01/2026-10-05/P1D" : "2026-10-01T00:00:00Z/2026-10-05T23:50:00Z/PT10M";
+      return route.fulfill({ contentType: "text/xml", body: `<Domains><DimensionDomain><Domain>${domain}</Domain></DimensionDomain></Domains>` });
+    });
+  };
+  await openApp(page, `time=2026-10-03T15:07Z&layers=VIIRS,Tiles&imagery=gibs:${LAYER}`, { setup: stubGibs });
+
+  /** The globe's layers bottom first, by GIBS layer; "grid" for the tile grid, which has no address. */
+  const order = () =>
+    page.evaluate(() => {
+      const layers = window.cc!.viewer.imageryLayers;
+      return Array.from({ length: layers.length }, (_, index) => {
+        const provider = layers.get(index).imageryProvider as { url?: string } | undefined;
+        return /best\/([^/]+)\//.exec(provider?.url ?? "")?.[1] ?? "grid";
+      });
+    });
+  await expect.poll(order).toEqual([LAYER, "grid"]);
+  listViirs();
+  await expect.poll(order).toEqual([VIIRS, LAYER, "grid"]);
+});

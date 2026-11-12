@@ -3,8 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { TimeRange } from "@/modules/util/timeDomain";
 
-import type { ImageryContext } from "./CesiumLayerProviders";
-import { showFramedImagery } from "./FramedImagery";
+import { type ImageryContext, showFramedImagery } from "./FramedImagery";
 
 interface Layer {
   frame: number | undefined;
@@ -141,7 +140,7 @@ describe("showFramedImagery", () => {
   });
 
   test("takes its layers off and stops listening once its lifetime ends", async () => {
-    const { frames, setClock, tick, lifetime, listeners } = shown();
+    const { frames, setClock, tick, lifetime, listeners, imagery } = shown();
     await vi.advanceTimersByTimeAsync(0);
     setClock(25);
     tick();
@@ -150,6 +149,8 @@ describe("showFramedImagery", () => {
     lifetime.abort();
     expect(frames()).toEqual([]);
     expect(listeners()).toBe(0);
+    // Nothing is placed over a layer that has left the globe.
+    expect(imagery.top).toBeUndefined();
   });
 
   test("shows nothing when its lifetime ends before its list arrives", async () => {

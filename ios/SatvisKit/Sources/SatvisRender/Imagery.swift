@@ -161,7 +161,7 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
             }
         case .viirs:
             // GIBS's daily true colour from NOAA-20 since 2018, as the web app's
-            // GibsTimeLayer asks for it: Web Mercator WMTS, 256-pixel tiles to level 9,
+            // GibsImagery asks for it: Web Mercator WMTS, 256-pixel tiles to level 9,
             // a frame a day. A composite of swaths, so the gaps near the equator are black.
             ImagerySource(projection: .webMercator, tileSize: 256, maximumLevel: 9, contentType: "image/") { key in
                 URL(
@@ -177,7 +177,7 @@ public enum GIBS {
     static let wmts = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best"
 
     /// Where VIIRS's frames are listed: the capabilities the web app's
-    /// GibsTimeLayer reads its domain from.
+    /// GibsImagery reads its domain from.
     public static let viirsDomain = URL(string: "\(wmts)/1.0.0/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/GoogleMapsCompatible_Level9/all/all.xml")!
 
     /// The finished days a layer's `<Domain>` lists, sorted (`timeDomain.ts`'s

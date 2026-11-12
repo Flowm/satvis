@@ -31,11 +31,11 @@ import { smootherstep } from "@/modules/util/easing";
 import { FrameCap, type RenderLoop, startRenderLoop } from "@/modules/util/frameCap";
 import { Suppressible } from "@/modules/util/Suppressible";
 
-import { type ImageryContext, type ImageryProviderEntry, imageryProviders, type TerrainProviderEntry, terrainProviders } from "./CesiumLayerProviders";
+import { type ImageryProviderEntry, imageryProviders, type TerrainProviderEntry, terrainProviders } from "./CesiumLayerProviders";
 import { BATCHED_COMPONENTS } from "./componentKinds";
 import { eumetViewFrames } from "./EumetViewImagery";
-import { type FramedImagery, type FrameSource, showFramedImagery } from "./FramedImagery";
-import { gibsFrames } from "./GibsTimeLayer";
+import { type FramedImagery, type FrameSource, type ImageryContext, showFramedImagery } from "./FramedImagery";
+import { gibsFrames } from "./GibsImagery";
 import { RenderPacer } from "./renderPacing";
 import { cesiumSceneMode } from "./satelliteGraphics";
 import { SatelliteManager } from "./SatelliteManager";
@@ -51,6 +51,9 @@ export type GlobeMenuPlace = { x: number; y: number } & ({ station: number } | {
 
 /** As much of Cesium's private `OIT` as is used here. */
 type OrderIndependentTranslucency = { isSupported(): boolean };
+
+/** One thing on the globe, which has a Cesium layer only once its imagery does: its upper one, where it has two. */
+type Shown = Pick<FramedImagery<ImageryLayer>, "top">;
 
 /** A layer of each imagery provider the globe draws, frame by frame. */
 const FRAMES: Record<DrawnImagery["provider"], (imagery: DrawnImagery) => FrameSource<ImageryProvider>> = {
@@ -129,17 +132,19 @@ export class CesiumController {
 
   #removeCameraTrackEci: (() => void) | undefined;
 
-  /** Aborted when the imagery layers are replaced, detaching any that follow the clock. */
+  /** Aborted when the Map panel's layers are replaced, detaching any that follow the clock. */
   #imageryLifetime = new AbortController();
-
-  /** The Map panel's layers, in z-order. */
-  #mapLayers: string[] = [];
 
   /** The instrument imagery to draw (ADR 0020). */
   #instrumentImagery: readonly DrawnImagery[] = [];
 
   /** Aborted when the instrument imagery is replaced, which takes its layers off. */
   #instrumentLifetime = new AbortController();
+
+  // What lies under the Map panel's overlays, bottom first: its layers up to its last
+  // basemap, then the instrument imagery.
+  #basemaps: Shown[] = [];
+  #instruments: Shown[] = [];
 
   /** "Fixed" or "Inertial". The sky view suppresses it with "Fixed". */
   readonly #camera: Suppressible<string>;
@@ -276,22 +281,28 @@ export class CesiumController {
   }
 
   set imageryLayers(newLayerNames: string[]) {
-    this.#clearImageryLayers();
-    this.#mapLayers = newLayerNames;
-    newLayerNames.forEach((layerName) => {
-      const { provider, alpha } = parseLayer(layerName)!;
-      this.viewer.scene.imageryLayers.add(this.#createImageryLayer(provider, alpha));
-    });
-    this.#addInstrumentImagery();
-    // Providers resolve asynchronously, so without this render-on-demand never tiles
-    // the new layer and the globe stays blank.
-    this.viewer.scene.requestRender();
-  }
-
-  #clearImageryLayers(): void {
     this.#imageryLifetime.abort();
     this.#imageryLifetime = new AbortController();
     this.viewer.scene.imageryLayers.removeAll();
+    const overlaysFrom = newLayerNames.findLastIndex((name) => imageryProviders[parseLayer(name)!.provider]?.base === true) + 1;
+    const show = (names: string[], below: () => readonly Shown[]): Shown[] => {
+      const group: Shown[] = [];
+      names.forEach((name, index) =>
+        group.push(
+          this.#showMapLayer(
+            name,
+            this.#over(() => [...below(), ...group.slice(0, index)]),
+          ),
+        ),
+      );
+      return group;
+    };
+    this.#basemaps = show(newLayerNames.slice(0, overlaysFrom), () => []);
+    this.#addInstrumentImagery();
+    show(newLayerNames.slice(overlaysFrom), () => [...this.#basemaps, ...this.#instruments]);
+    // Providers resolve asynchronously, so without this render-on-demand never tiles
+    // the new layer and the globe stays blank.
+    this.viewer.scene.requestRender();
   }
 
   /** The Map panel's layers stay as they are, so showing a layer does not reload the basemap. */
@@ -308,19 +319,52 @@ export class CesiumController {
   #addInstrumentImagery(): void {
     this.#instrumentLifetime.abort();
     this.#instrumentLifetime = new AbortController();
-    const layers = this.viewer.scene.imageryLayers;
     const context = this.#imageryContext(this.#instrumentLifetime.signal);
-    const aboveBasemap = this.#mapLayers.findLastIndex((name) => imageryProviders[parseLayer(name)!.provider]?.base === true) + 1;
-    const shown: FramedImagery<ImageryLayer>[] = [];
+    const shown: Shown[] = [];
+    this.#instruments = shown;
     this.#instrumentImagery.forEach((drawn, index) => {
       const frames = FRAMES[drawn.provider](drawn);
-      // Over the nearest one below it that has a layer yet: their frame lists arrive in any order.
-      const position = () => {
-        const below = shown.slice(0, index).findLast((imagery) => imagery.top !== undefined);
-        return below ? layers.indexOf(below.top!) + 1 : aboveBasemap;
-      };
-      shown.push(showFramedImagery({ ...frames, show: (frame) => ImageryLayer.fromProviderAsync(Promise.resolve(frames.show(frame)), {}) }, layers, position, context));
+      const position = this.#over(() => [...this.#basemaps, ...shown.slice(0, index)]);
+      shown.push(
+        showFramedImagery(
+          { ...frames, show: (frame) => ImageryLayer.fromProviderAsync(Promise.resolve(frames.show(frame)), {}) },
+          this.viewer.scene.imageryLayers,
+          position,
+          context,
+        ),
+      );
     });
+  }
+
+  /** One of the Map panel's layers, put at `position()` once it has a layer. */
+  #showMapLayer(name: string, position: () => number): Shown {
+    const { provider, alpha } = parseLayer(name)!;
+    const entry = imageryProviders[provider] as ImageryProviderEntry;
+    const layers = this.viewer.scene.imageryLayers;
+    const layer = (imagery: ImageryProvider | Promise<ImageryProvider>) => {
+      const made = ImageryLayer.fromProviderAsync(Promise.resolve(imagery), {});
+      made.alpha = alpha ?? entry.alpha;
+      return made;
+    };
+    if ("frames" in entry) {
+      const frames = entry.frames();
+      return showFramedImagery({ ...frames, show: (frame) => layer(frames.show(frame)) }, layers, position, this.#imageryContext(this.#imageryLifetime.signal));
+    }
+    const top = layer(entry.create());
+    layers.add(top, position());
+    return { top };
+  }
+
+  /**
+   * Where a layer goes to lie over `below`, bottom first: over the nearest of them
+   * that has a layer yet. A layer that follows the clock has none until its service
+   * has listed its frames, and the lists arrive in any order.
+   */
+  #over(below: () => readonly Shown[]): () => number {
+    return () => {
+      const under = below().findLast((shown) => shown.top !== undefined);
+      return under ? this.viewer.scene.imageryLayers.indexOf(under.top!) + 1 : 0;
+    };
   }
 
   #imageryContext(signal: AbortSignal): ImageryContext {
@@ -330,13 +374,6 @@ export class CesiumController {
       tilesLoaded: () => this.viewer.scene.globe.tilesLoaded,
       signal,
     };
-  }
-
-  #createImageryLayer(imageryProviderName: string, alpha?: number): ImageryLayer {
-    const provider = imageryProviders[imageryProviderName] as ImageryProviderEntry;
-    const layer = ImageryLayer.fromProviderAsync(Promise.resolve(provider.create(this.#imageryContext(this.#imageryLifetime.signal))), {});
-    layer.alpha = alpha === undefined ? provider.alpha : alpha;
-    return layer;
   }
 
   set terrainProvider(terrainProviderName: string) {

@@ -96,7 +96,7 @@ agencies, KARI, Roscosmos, Airbus/CNES, ASI, CONAE and others).
 - **Form.** WMTS, time as a path segment, 1,330 layers in Web Mercator and the same
   1,330 in geographic: 198 pictures, 1,014 derived products, 76 orbit tracks as vector
   tiles, 30 reference layers. The geographic matrix sets are not powers of two, as
-  `GibsTimeLayer.ts` already notes, so Web Mercator stays the one to use.
+  `GibsImagery.ts` already notes, so Web Mercator stays the one to use.
 - **Browser.** Tiles, capabilities and time domains all answer any origin. The response
   says which frame it served (`layer-time-actual`) in a header a page can read. Tiles are
   sent `no-store`, so the browser keeps none of them.
@@ -415,8 +415,8 @@ their 20 entries are drawn from the Instruments tab, one Cesium layer a frame
 (`FramedImagery.ts`). EUMETView is drawn by its WMS, which needed neither the
 milliseconds nor a tile set.
 
-- Still to do there: the `VIIRS` map layer becomes NOAA-20's entry drawn as a basemap.
-  The `GOES-IR` map layer is dropped.
+- The `VIIRS` map layer is drawn the same way, from the layer registry; it could
+  become NOAA-20's entry drawn as a basemap. The `GOES-IR` map layer is dropped.
 - Then JMA (XYZ tiles and its list of frames), which brings Himawari-9 true colour.
 - Each provider's credit is shown while its layer is drawn.
 - How a layer is named in the url is ADR 0001's to settle then.
