@@ -26,7 +26,8 @@ export const WAVEBAND_COLUMNS: readonly WavebandColumn[] = [
   { label: "Radar", colour: "#4db6ac" },
 ];
 
-/** The columns `bands` fill; a class CEOS adds later fills none. */
-export function wavebandColumns(bands: readonly string[]): Set<string> {
-  return new Set(bands.flatMap((band) => (band.endsWith("-Band") ? ["Radar"] : WAVEBAND_COLUMNS.some((column) => column.label === band) ? [band] : [])));
+/** A colour per column, where `bands` fill it; a class CEOS adds later fills none. */
+export function wavebandCells(bands: readonly string[]): (string | undefined)[] {
+  const filled = new Set(bands.map((band) => (band.endsWith("-Band") ? "Radar" : band)));
+  return WAVEBAND_COLUMNS.map((column) => (filled.has(column.label) ? column.colour : undefined));
 }

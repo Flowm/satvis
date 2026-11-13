@@ -10,7 +10,7 @@
       @click="toggle(imagery)"
     >
       <div class="card__preview">
-        <img v-if="previewOf(imagery) && !failed.has(imagery.href)" :src="previewOf(imagery)" alt="" loading="lazy" @error="failed.add(imagery.href)" />
+        <img v-if="previews.get(imagery.href) && !failed.has(imagery.href)" :src="previews.get(imagery.href)" alt="" loading="lazy" @error="failed.add(imagery.href)" />
         <div v-else class="card__placeholder">
           <UIcon name="lucide:image-off" />
           <span>No preview</span>
@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, reactive, useTemplateRef, watch } from "vue";
+import { computed, nextTick, onMounted, reactive, useTemplateRef, watch } from "vue";
 
 import { imageryPreviewUrl, type PreviewCentre } from "@/config/instrumentImagery";
 import type { ImageryInfo } from "@/modules/util/entityInfo";
@@ -66,12 +66,16 @@ const cesiumStore = useCesiumStore();
 /** Previews the provider refused, by link, which show the placeholder instead. */
 const failed = reactive(new Set<string>());
 
-/** A geostationary imager sees a disc about 80° either side; a low one is pictured where it flies. */
-const halfWidthDeg = () => (props.geostationary ? 72 : 32);
-
-function previewOf(imagery: ImageryInfo): string | undefined {
-  return imagery.preview && props.centre ? imageryPreviewUrl(imagery.preview, props.centre, halfWidthDeg(), new Date()) : undefined;
-}
+/**
+ * Each card's picture by link, built once per satellite. A geostationary imager sees a disc
+ * about 80° either side; a low one is pictured where it flies.
+ */
+const previews = computed(() => {
+  const { centre, layers } = props;
+  const halfWidthDeg = props.geostationary ? 72 : 32;
+  const now = new Date();
+  return new Map(layers.flatMap(({ imagery }) => (imagery.preview && centre ? [[imagery.href, imageryPreviewUrl(imagery.preview, centre, halfWidthDeg, now)] as const] : [])));
+});
 
 /** A press anywhere on a card the globe can draw shows it or takes it off; its switch is the keyboard's way. */
 function toggle(imagery: ImageryInfo): void {

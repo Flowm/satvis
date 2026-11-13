@@ -66,8 +66,8 @@ retired ones, a name counted once.
 **`retired` needs CEOS to say the mission is over**: "Mission complete", or "Cancelled".
 TIMED's status is "N/A", and it still flies SABER, which is listed without it.
 
-**The info panel has an Instruments tab**, between Spacecraft and Passes, for a
-satellite that has any. The ISS has 15 instruments, which as rows under the spacecraft
+**The info panel has an Instruments tab**, after Spacecraft, for a satellite that has
+any. The ISS has 15 instruments, which as rows under the spacecraft
 facts would bury them.
 
 **`nominalSwathKm` is shown, never drawn.** It is a nominal total, 1,675 km for SLSTR against

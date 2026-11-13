@@ -29,7 +29,7 @@
             </button>
             <span class="instrument__resolution">{{ rowOf(instrument, "Resolution") ?? "—" }}</span>
             <span v-if="instrument.bands.length > 0" class="bands" role="img" :aria-label="`Bands: ${instrument.bands.join(', ')}`" :title="instrument.bands.join(' · ')">
-              <span v-for="column in WAVEBAND_COLUMNS" :key="column.label" class="bands__cell" :style="filled(instrument, column)" />
+              <span v-for="(colour, index) in wavebandCells(instrument.bands)" :key="index" class="bands__cell" :style="colour && { background: colour }" />
             </span>
             <span v-else-if="anyBands" class="bands bands--none">—</span>
           </div>
@@ -84,7 +84,7 @@
 <script setup lang="ts">
 import { computed, reactive } from "vue";
 
-import { WAVEBAND_COLUMNS, wavebandColumns, type WavebandColumn } from "@/config/wavebands";
+import { WAVEBAND_COLUMNS, wavebandCells } from "@/config/wavebands";
 import type { InstrumentInfo } from "@/modules/util/entityInfo";
 
 /**
@@ -108,13 +108,6 @@ const measured = computed(() => props.instruments.filter(isMeasured));
 const folded = computed(() => props.instruments.filter((instrument) => !isMeasured(instrument)));
 /** Without one, the strip's column and its legend would be empty. */
 const anyBands = computed(() => measured.value.some((instrument) => instrument.bands.length > 0));
-/** Columns filled, by instrument; the bands do not change while the list is shown. */
-const columnsOf = computed(() => new Map(props.instruments.map((instrument) => [instrument.name, wavebandColumns(instrument.bands)])));
-
-function filled(instrument: InstrumentInfo, column: WavebandColumn): { background: string } | undefined {
-  return columnsOf.value.get(instrument.name)?.has(column.label) ? { background: column.colour } : undefined;
-}
-
 function toggle(name: string): void {
   if (!open.delete(name)) {
     open.add(name);

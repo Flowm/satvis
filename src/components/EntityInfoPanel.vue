@@ -379,13 +379,15 @@ const activeTab = computed({
     if (tab) {
       collapsed.value = false;
       preferredTab.value = tab.value;
+      // An Imagery tab opened any other way starts at the top.
+      imageryFocus.value = undefined;
     }
   },
 });
 
 function showImagery(instrument: string): void {
-  imageryFocus.value = instrument;
   activeTab.value = "imagery";
+  imageryFocus.value = instrument;
 }
 
 const tableEl = useTemplateRef<HTMLTableElement>("tableEl");

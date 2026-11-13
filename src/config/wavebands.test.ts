@@ -1,9 +1,12 @@
 import { expect, test } from "vitest";
 
-import { wavebandColumns } from "./wavebands";
+import { WAVEBAND_COLUMNS, wavebandCells } from "./wavebands";
+
+/** The labels of the columns `bands` fill. */
+const filled = (bands: string[]) => WAVEBAND_COLUMNS.filter((_, index) => wavebandCells(bands)[index] !== undefined).map((column) => column.label);
 
 test("fills a column per class, every radar band in one, and none for a class it does not know", () => {
-  expect(wavebandColumns(["VIS", "NIR", "SWIR"])).toEqual(new Set(["VIS", "NIR", "SWIR"]));
-  expect(wavebandColumns(["MW", "Ku-Band", "C-Band"])).toEqual(new Set(["MW", "Radar"]));
-  expect(wavebandColumns(["THz"])).toEqual(new Set());
+  expect(filled(["VIS", "NIR", "SWIR"])).toEqual(["VIS", "NIR", "SWIR"]);
+  expect(filled(["MW", "Ku-Band", "C-Band"])).toEqual(["MW", "Radar"]);
+  expect(filled(["THz"])).toEqual([]);
 });
