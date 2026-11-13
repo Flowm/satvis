@@ -114,6 +114,7 @@ try {
   const { externalLinks } = await runner.import("/src/config/externalLinks.ts");
   const instrumentImagery = await runner.import("/src/config/instrumentImagery.ts");
   const { IMAGERY_PROVIDERS } = instrumentImagery;
+  const { WAVEBAND_COLUMNS, wavebandCells } = await runner.import("/src/config/wavebands.ts");
 
   const input = fs.readFileSync(inputPath, "utf8");
   const records = gp.parseGpPayload(input);
@@ -248,6 +249,16 @@ try {
     nowMs: Date.parse(now),
     url: instrumentImagery.imageryPreviewUrl(preview, centre, halfWidthDeg, new Date(now)),
   }));
+
+  // The Instruments tab's band strips, each once: the records' instruments', then
+  // wavebands.test.ts's radar bands sharing a column, and a class it does not know.
+  const wavebandStrips = [
+    ...new Set(
+      [...details.flatMap((detail) => detail.facts.instruments.map((instrument) => instrument.bands)), ["MW", "Ku-Band", "C-Band"], ["THz", "VIS"]].map((bands) =>
+        JSON.stringify(bands),
+      ),
+    ),
+  ].map((key) => ({ bands: JSON.parse(key), cells: wavebandCells(JSON.parse(key)) }));
 
   // Passes over each station from the minute after the epoch, in both modes: the
   // record's own swath (or the default), and an asymmetric one for the satellites
@@ -995,6 +1006,7 @@ try {
     grids,
     details,
     imageryPreviews,
+    wavebandStrips,
     stations: [...STATIONS, ...edgeStations],
     passes,
     passEdges,
@@ -1029,6 +1041,8 @@ try {
     externalLinks: externalLinks("{satnum}"),
     // By the name a record's `imagery` entry carries; `{layer}` and `{end}` stand where its own go.
     imageryProviders: IMAGERY_PROVIDERS,
+    // The Instruments tab's band strip, shortest wavelength first.
+    wavebandColumns: WAVEBAND_COLUMNS,
     bookmarks: {
       // The parameters the web app's stores own but the viewer's, which a bookmark keeps
       // and the rest of a link carries past it. Read from the stores' urlsync configs:

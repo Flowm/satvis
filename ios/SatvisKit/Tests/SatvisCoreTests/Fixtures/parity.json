@@ -2826,6 +2826,277 @@
       "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=a+b%2Fc%26d%2B%C3%A9&WIDTH=480&HEIGHT=270&BBOX=-32.00%2C-18.00%2C32.00%2C18.00&FORMAT=image%2Fpng&TIME=2026-11-11"
     }
   ],
+  "wavebandStrips": [
+    {
+      "bands": [
+        "UV",
+        "VIS",
+        "NIR",
+        "SWIR"
+      ],
+      "cells": [
+        "#b388ff",
+        "#7fd2ea",
+        "#fff176",
+        "#ffb74d",
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [],
+      "cells": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "VIS",
+        "NIR"
+      ],
+      "cells": [
+        null,
+        "#7fd2ea",
+        "#fff176",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "TIR"
+      ],
+      "cells": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        "#e53935",
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "NIR"
+      ],
+      "cells": [
+        null,
+        null,
+        "#fff176",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "SWIR"
+      ],
+      "cells": [
+        null,
+        null,
+        null,
+        "#ffb74d",
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "MW"
+      ],
+      "cells": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "#81c784",
+        null
+      ]
+    },
+    {
+      "bands": [
+        "Ku-Band"
+      ],
+      "cells": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "#4db6ac"
+      ]
+    },
+    {
+      "bands": [
+        "MW",
+        "C-Band"
+      ],
+      "cells": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "#81c784",
+        "#4db6ac"
+      ]
+    },
+    {
+      "bands": [
+        "VIS",
+        "NIR",
+        "SWIR",
+        "MWIR",
+        "TIR"
+      ],
+      "cells": [
+        null,
+        "#7fd2ea",
+        "#fff176",
+        "#ffb74d",
+        "#ff8a65",
+        "#e53935",
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "UV",
+        "VIS",
+        "NIR"
+      ],
+      "cells": [
+        "#b388ff",
+        "#7fd2ea",
+        "#fff176",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "MWIR",
+        "TIR"
+      ],
+      "cells": [
+        null,
+        null,
+        null,
+        null,
+        "#ff8a65",
+        "#e53935",
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "VIS"
+      ],
+      "cells": [
+        null,
+        "#7fd2ea",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "UV"
+      ],
+      "cells": [
+        "#b388ff",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "MW",
+        "Ku-Band",
+        "C-Band"
+      ],
+      "cells": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "#81c784",
+        "#4db6ac"
+      ]
+    },
+    {
+      "bands": [
+        "THz",
+        "VIS"
+      ],
+      "cells": [
+        null,
+        "#7fd2ea",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    }
+  ],
   "stations": [
     {
       "name": "Munich",

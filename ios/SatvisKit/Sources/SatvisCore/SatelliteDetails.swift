@@ -67,6 +67,14 @@ public struct WebTables: Sendable, Decodable {
         }
     }
 
+    /// A column of the Instruments tab's band strip (src/config/wavebands.ts).
+    public struct WavebandColumn: Sendable, Decodable, Hashable {
+        /// CEOS's abbreviation, or "Radar" for the column every radar band shares.
+        public var label: String
+        /// "#rrggbb".
+        public var colour: String
+    }
+
     /// The url parameters the web app's stores own, which a bookmark keeps.
     public struct BookmarkTables: Sendable, Decodable {
         public var ownedParams: [String]
@@ -77,7 +85,16 @@ public struct WebTables: Sendable, Decodable {
     public var externalLinks: [Link]
     /// By the name a record's `imagery` entry carries.
     public var imageryProviders: [String: ImageryProvider]
+    /// CEOS's waveband classes, shortest wavelength first, then microwave and radar.
+    public var wavebandColumns: [WavebandColumn]
     public var bookmarks: BookmarkTables
+
+    /// A colour per column, where `bands` fill it, the web app's `wavebandCells`: every
+    /// radar band ("Ku-Band") fills the one Radar column, and a class CEOS adds later none.
+    public func wavebandCells(_ bands: [String]) -> [String?] {
+        let filled = Set(bands.map { $0.hasSuffix("-Band") ? "Radar" : $0 })
+        return wavebandColumns.map { filled.contains($0.label) ? $0.colour : nil }
+    }
 
     public static let shared: WebTables = {
         let url = Bundle.module.url(forResource: "web-tables", withExtension: "json", subdirectory: "Shared")!
@@ -187,6 +204,8 @@ public enum SatelliteDetails {
         public var isRetired: Bool
         /// Kind, Bands, Resolution and Nominal swath, those CEOS gives.
         public var rows: [(String, String)]
+        /// CEOS's waveband classes, as the Bands row names them, for the band strip.
+        public var bands: [String]
         /// The layers that show it, its default first, of the providers this app knows. Empty for most.
         public var imagery: [Imagery]
     }
@@ -204,7 +223,8 @@ public enum SatelliteDetails {
             if let kind = fields["kind"]?.string {
                 rows.append(("Kind", kind))
             }
-            if let bands = fields["bands"]?.array?.compactMap(\.string), !bands.isEmpty {
+            let bands = fields["bands"]?.array?.compactMap(\.string) ?? []
+            if !bands.isEmpty {
                 rows.append(("Bands", bands.joined(separator: " · ")))
             }
             if let metres = fields["resolutionM"]?.number {
@@ -214,7 +234,7 @@ public enum SatelliteDetails {
                 rows.append(("Nominal swath", "\(Formats.number(swath)) km"))
             }
             return Instrument(
-                name: name, fullName: fields["fullName"]?.string, isRetired: fields["retired"] == .bool(true), rows: rows,
+                name: name, fullName: fields["fullName"]?.string, isRetired: fields["retired"] == .bool(true), rows: rows, bands: bands,
                 imagery: imagery.filter { $0.instrument == name }.map(\.imagery))
         }
     }

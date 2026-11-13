@@ -106,22 +106,25 @@ nonisolated class SatvisUITests: XCTestCase {
         }
     }
 
-    // The Instruments tab is a line an instrument CEOS lists, its name, kind, Retired
-    // once its mission is over, and finest resolution, which a press unfolds into its
-    // full name and facts, and under the last the credit CC BY asks for.
+    // The Instruments tab is a table, a line an instrument CEOS lists: its name, Retired
+    // once its mission is over, its finest resolution or a dash, and its bands, which a
+    // press unfolds into its kind and facts; under the table, the credit CC BY asks for.
     @MainActor
     func testListsTheInstruments() {
         let app = search("INSAT-3D")
         app.buttons["Details of INSAT-3D"].tap()
         XCTAssert(app.navigationBars["INSAT-3D"].waitForExistence(timeout: 10))
         app.buttons["Instruments"].tap()
-        let imager = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Imager (INSAT 3D), ' AND label ENDSWITH ', Retired, 1 km'")).firstMatch
+        let imager = app.buttons["Imager (INSAT 3D), Retired, 1 km, Bands: VIS, SWIR, MWIR, TIR"]
         XCTAssert(imager.waitForExistence(timeout: 5))
-        XCTAssertFalse(app.staticTexts["Very High Resolution Radiometer"].exists)
-        // No layer shows any of INSAT-3D's instruments.
+        XCTAssert(app.buttons["Sounder (INSAT), Retired, Bands: VIS, MWIR, TIR"].exists)
+        let kind = app.descendants(matching: .any)["Kind, Multi-purpose imaging Vis/IR radiometer"]
+        XCTAssertFalse(kind.exists)
+        // No layer shows any of INSAT-3D's instruments, and each has figures for the table.
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Imagery'")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["Also carries"].exists)
         imager.tap()
-        for label in ["Very High Resolution Radiometer", "Resolution, 1 km", "CEOS MIM Database, CC BY 4.0"] {
+        for label in ["Very High Resolution Radiometer", "Kind, Multi-purpose imaging Vis/IR radiometer", "Resolution, 1 km", "CEOS MIM Database, CC BY 4.0"] {
             let row = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
             // Under a phone's half-height sheet, in a lazy list.
             for _ in 0..<4 where !row.waitForExistence(timeout: 2) {
@@ -129,6 +132,34 @@ nonisolated class SatvisUITests: XCTestCase {
             }
             XCTAssert(row.exists, label)
         }
+    }
+
+    // An instrument CEOS gives no bands, resolution or imagery for is a chip under the
+    // table, which unfolds its facts as a line does.
+    @MainActor
+    func testFoldsTheInstrumentsWithoutFiguresIntoChips() {
+        let app = search("GOES 19")
+        app.buttons["Details of GOES 19"].tap()
+        XCTAssert(app.navigationBars["GOES 19"].waitForExistence(timeout: 10))
+        app.buttons["Instruments"].tap()
+        let exis = app.buttons["EXIS"]
+        // Under a phone's half-height sheet, in a lazy list.
+        for _ in 0..<4 where !exis.waitForExistence(timeout: 2) {
+            app.collectionViews.firstMatch.swipeUp()
+        }
+        XCTAssert(app.staticTexts["Also carries"].exists)
+        for chip in ["Magnetometer (GOES)", "SEISS", "DCS (GOES)"] {
+            XCTAssert(app.buttons[chip].exists, chip)
+        }
+        // CCOR-1 has a band, so a line.
+        XCTAssertFalse(app.buttons["CCOR-1"].exists)
+        XCTAssert(app.buttons["CCOR-1, Bands: VIS"].exists)
+        exis.tap()
+        let kind = app.descendants(matching: .any)["Kind, Solar irradiance monitor"]
+        for _ in 0..<3 where !kind.waitForExistence(timeout: 2) {
+            app.collectionViews.firstMatch.swipeUp()
+        }
+        XCTAssert(kind.exists)
     }
 
     // An instrument with imagery has a button on its line that opens the Imagery tab,

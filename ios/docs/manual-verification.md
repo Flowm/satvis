@@ -633,37 +633,58 @@ password.
 
 ## Native app: the Instruments and Imagery tabs
 
-**Procedure.** On the test catalog (`SATVIS_TEST_CATALOG=1`, as `make test` launches
-it), open METOP-C's panel from the satellite search and choose Instruments, then
-INSAT-3D's, whose two instruments CEOS calls retired. On an iPhone, check that each
-instrument is one line, its name, kind cut short where it must be, Retired in amber
-where its mission is over, and finest resolution in one column; that a press unfolds
-its full name and facts under it, and a second folds them; and that the credit under
-the list opens CEOS's database. Check a satellite CEOS does not list, METOP-B on that
-catalog, for no such tab. Open GOES 19's and METEOSAT-12 (MTG-I1)'s (ADR 0019,
-0020): check that the tab row, five tabs that a phone cannot fit, scrolls with the
-chosen one in view, Imagery with its count; that ABI's and FCI's lines have an image
-button, at the end of the line, and the others room for one; and that it opens the
-Imagery tab with the instrument's first card in view and the tabs still above it.
-Check each card: the picture of the layer's latest frame around the satellite, the
-instrument's name on its corner, the label, when it has frames, and "Open in" the
-provider's viewer, which opens it; no switch, since the native globe draws none of
+**Procedure.** Open GOES 19's panel on the test catalog (`SATVIS_TEST_CATALOG=1`, as
+`make test` launches it) and the ISS's (ISS (ZARYA)) on the live site, both on an
+iPhone and on an iPad, and choose Instruments. Check that it is a table headed
+Instrument, Res and Bands: a line an instrument with a resolution, bands or imagery,
+its short name in bold, Retired in amber where its mission is over, the image button
+where it has imagery, its resolution or "—", and a strip of nine cells lit in the
+legend's colours under the table, every radar band in the one Radar cell. The columns
+past the names line up on every line. On a panel 440 pt wide or more, an iPad's,
+check that each full name follows its short name in grey, cut short with "…", and
+that they all end at the same edge; on a narrower one, an iPhone's, that none is
+shown and a name without Retired runs on into its room. Check that a press on a line,
+its resolution or its strip unfolds the full name, kind and other facts under it,
+wrapping a long value, and a second folds them; that the instruments with none of the
+three are chips under "Also carries", which unfold the same; and that the credit
+under the list opens CEOS's database. Check a satellite CEOS does not list, METOP-B on
+that catalog, for no such tab. On GOES 19 and METEOSAT-12 (MTG-I1) (ADR 0019, 0020),
+check that the tab row, five tabs that a phone cannot fit, scrolls with the chosen one
+in view, Imagery with its count; that the image button opens the Imagery tab with the
+instrument's first card in view and the tabs still above it; and that the Imagery
+tab opened from the tab row starts at the top. Check each card: the picture of the
+layer's latest frame around the satellite, the instrument's name on its corner, the
+label, when it has frames, and "Open in" the provider's viewer, which opens it; no
+Show switch and nothing on a press of the card, since the native globe draws none of
 it. Turn the network off and open another card's satellite for "No preview" in place
-of the picture. On a Mac and an iPad, check the same in the card beside the column.
+of the picture. On a Mac, check the same in the card beside the column.
 
-**Result, 2026-11-12.** iPhone 18 Pro simulator, iOS 27.2, on the test catalog with
-the network on, shot by a UI test not kept: GOES 19's tab row scrolled, with Orbit,
-Spacecraft, Instruments and "Imagery 1" in view and Passes past the edge. Its eight
-instruments were a line each, ABI's "Multi-purpose imagi…" cut short beside "500 m"
-and the image button, CCOR-1's and EXIS's lines with no resolution, the
-resolutions in one column; ABI unfolded into "Advanced Baseline Imager", Kind,
-Bands and Resolution. Its button opened the Imagery tab on its one card, the tabs
-above it: GIBS's GeoColor of the Americas, night side and city lights, "ABI" on the
-corner, "GeoColor", "every 10 min, last 90 days" and "Open in NASA Worldview".
-METEOSAT-12's FCI card showed EUMETView's GeoColour of Africa and the Atlantic,
-"every 10 min since 2024". The live site's GOES 19 carried no `imagery` that day, so
-it had no Imagery tab. The viewer links were not opened, "No preview" was not seen,
-and the scroll to a later card was not checked, as no satellite of the test catalog
-has a second instrument with imagery. The Mac app builds; its card and an iPad's
-were not looked at, and neither were METOP-C, INSAT-3D or METOP-B, which the UI
-tests cover.
+**Result, 2026-11-13, the table.** iPhone 18 Pro and iPad Pro 13-inch (M5)
+simulators, iOS 27.2, shot by a UI test not kept. On the iPhone GOES 19's table had
+ABI with the image button, "500 m" and five lit cells VIS to TIR, CCOR-1 "—" and VIS,
+GLM "10 km" and NIR, SUVI "—" and UV, the legend under them, and EXIS, Magnetometer
+(GOES), SEISS and DCS (GOES) as chips under "Also carries"; ABI unfolded into
+"Advanced Baseline Imager", its Kind wrapped onto a second line, Bands and
+Resolution. The ISS's had 14 lines and TSIS-1/TIM as the one chip: RapidScat's Radar
+cell and SMILES's MW cell lit, HEIST "28 m" with "—" for bands, "Spectrometer (OC…"
+cut short beside "2,25 km" in the simulator's German region, and "CIRC (ISS/J…"
+beside Retired. No full name showed. On the iPad's
+panel every line had its full name, "Advanced Baseline Imager", "Geostationary
+Lightning Map…", all ending at the edge of the Retired column, and ABI unfolded with
+its Kind on one line. A `Grid` holding the table drew nothing on the iPad once a line
+was unfolded, with a vertical `fixedSize` on the facts, and cut a long fact to one
+line without it; the table is a stack of lines, each column as wide as its widest
+entry. The chips and the press on the strip were found by the UI tests, not shot;
+METOP-B, the Mac's card and the Imagery tab's start at the top were not looked at.
+
+**Result, 2026-11-12, the Imagery tab.** iPhone 18 Pro simulator, iOS 27.2, on the
+test catalog with the network on, shot by a UI test not kept: GOES 19's tab row
+scrolled, with Orbit, Spacecraft, Instruments and "Imagery 1" in view and Passes past
+the edge. Its button opened the Imagery tab on its one card, the tabs above it:
+GIBS's GeoColor of the Americas, night side and city lights, "ABI" on the corner,
+"GeoColor", "every 10 min, last 90 days" and "Open in NASA Worldview". METEOSAT-12's
+FCI card showed EUMETView's GeoColour of Africa and the Atlantic, "every 10 min since
+2024". The live site's GOES 19 carried no `imagery` that day, so it had no Imagery
+tab. The viewer links were not opened, "No preview" was not seen, and the scroll to a
+later card was not checked, as no satellite of the test catalog has a second
+instrument with imagery.

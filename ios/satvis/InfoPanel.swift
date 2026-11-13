@@ -23,6 +23,8 @@ struct InfoPanel: View {
     /// Where the Imagery tab's pictures are centred: under the satellite as it was
     /// selected, so that they do not reload as it moves.
     @State private var imageryCentre: LivePosition?
+    /// The panel's width, in points.
+    @State private var panelWidth = 0.0
 
     private var propagator: SGP4Propagator? { try? SGP4Propagator(entry.record.meanElements) }
 
@@ -59,7 +61,15 @@ struct InfoPanel: View {
                                         .padding(.bottom, 12)
                                 }
                             }
-                            TabPicker(tabs: tabs, tab: $tab, subject: .satellite(entry), clock: clock, passes: passes, imageryCount: imagery.count)
+                            TabPicker(
+                                tabs: tabs,
+                                // An Imagery tab opened any other way than an instrument's button starts at the top.
+                                tab: Binding {
+                                    tab
+                                } set: {
+                                    tab = $0
+                                    imageryFocus = nil
+                                }, subject: .satellite(entry), clock: clock, passes: passes, imageryCount: imagery.count)
                         }
                         .bareRow()
                     }
@@ -81,9 +91,12 @@ struct InfoPanel: View {
                     }
                     .raisedRows()
                 }
-                // Either: the button of the instrument focused last opens the tab without changing the focus.
                 .onChange(of: imageryFocus) { reveal(imageryFocus, with: scroller) }
-                .onChange(of: tab) { reveal(imageryFocus, with: scroller) }
+                .onGeometryChange(for: Double.self) {
+                    $0.size.width
+                } action: {
+                    panelWidth = $0
+                }
             }
             .panelList()
             .alertNotice(alerts)
@@ -211,39 +224,32 @@ struct InfoPanel: View {
         }
     }
 
-    /// What it observes with, a line an instrument and its facts behind a press, and
-    /// under them whose list it is.
-    @ViewBuilder private func instrumentList(_ instruments: [SatelliteDetails.Instrument]) -> some View {
-        // Keeps the resolutions in one column, where some lines have the imagery button.
-        let anyImagery = instruments.contains { !$0.imagery.isEmpty }
+    /// What it observes with, and under it whose list it is.
+    private func instrumentList(_ instruments: [SatelliteDetails.Instrument]) -> some View {
         Section {
-            ForEach(Array(instruments.enumerated()), id: \.offset) { _, instrument in
-                let isOpen = openInstruments.contains(instrument.name)
-                InstrumentLine(
-                    instrument: instrument, isOpen: isOpen, hasImageryColumn: anyImagery,
-                    onToggle: {
-                        withAnimation(.snappy) {
-                            if !isOpen {
-                                openInstruments.insert(instrument.name)
-                            } else {
-                                openInstruments.remove(instrument.name)
-                            }
+            InstrumentList(
+                instruments: instruments, open: openInstruments, showsFullNames: panelWidth >= Self.fullNamesWidth,
+                onToggle: { name in
+                    withAnimation(.snappy) {
+                        if openInstruments.remove(name) == nil {
+                            openInstruments.insert(name)
                         }
-                    },
-                    onImagery: {
-                        tab = .imagery
-                        imageryFocus = instrument.name
-                    })
-                if isOpen {
-                    InstrumentFacts(instrument: instrument)
-                }
-            }
+                    }
+                },
+                onImagery: { name in
+                    tab = .imagery
+                    imageryFocus = name
+                })
         } footer: {
             // CC BY 4.0 asks for the credit where the data is shown.
             Link(Credit.instruments.text, destination: Credit.instruments.link!)
                 .font(.footnote)
         }
     }
+
+    /// The web app's 440 px panel, under which a full name would show a word or two
+    /// beside the short one; the unfolded line has it whole.
+    private static let fullNamesWidth = 440.0
 
     /// The Imagery tab's first card of `instrument` in view, once the tab has its cards:
     /// the least scroll that shows it, as the web app's, which keeps the first under the tabs.
@@ -597,89 +603,6 @@ private struct FactRow: View {
         }
         // One element, "<label>, <value>", as LabeledContent read.
         .accessibilityElement(children: .combine)
-    }
-}
-
-/// An instrument's line: its name, kind and finest resolution, a press unfolding its
-/// facts, and a button to its imagery where it has any, as the web app's InstrumentList.
-private struct InstrumentLine: View {
-    let instrument: SatelliteDetails.Instrument
-    let isOpen: Bool
-    /// Some instrument of the list has imagery: a line without leaves the button's room.
-    let hasImageryColumn: Bool
-    let onToggle: () -> Void
-    let onImagery: () -> Void
-
-    var body: some View {
-        let kind = row("Kind")
-        let resolution = row("Resolution")
-        HStack(spacing: 8) {
-            Button(action: onToggle) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                        .rotationEffect(.degrees(isOpen ? 90 : 0))
-                    Text(instrument.name)
-                        .fontWeight(.semibold)
-                        .layoutPriority(1)
-                    if let kind {
-                        Text(kind)
-                            .foregroundStyle(.secondary)
-                    }
-                    // Amber: the app colour for "away from rest", as on the status chip.
-                    if instrument.isRetired {
-                        Text("Retired")
-                            .font(.caption)
-                            .foregroundStyle(Color.panelAmber)
-                            .layoutPriority(1)
-                    }
-                    Spacer(minLength: 0)
-                    if let resolution {
-                        Text(resolution)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                            .layoutPriority(1)
-                    }
-                }
-                .lineLimit(1)
-                .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel([instrument.name, kind, instrument.isRetired ? "Retired" : nil, resolution].compactMap(\.self).joined(separator: ", "))
-            .accessibilityHint(isOpen ? "Hides its facts" : "Shows its facts")
-            if !instrument.imagery.isEmpty {
-                Button("Imagery of \(instrument.name)", systemImage: "photo", action: onImagery)
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(Color.panelAccent)
-                    .frame(width: 32, height: 32)
-            } else if hasImageryColumn {
-                Color.clear.frame(width: 32, height: 32)
-            }
-        }
-    }
-
-    private func row(_ label: String) -> String? {
-        instrument.rows.first { $0.0 == label }?.1
-    }
-}
-
-/// What an unfolded instrument line has under it: the full name, then its facts.
-private struct InstrumentFacts: View {
-    let instrument: SatelliteDetails.Instrument
-
-    var body: some View {
-        if let fullName = instrument.fullName {
-            Text(fullName)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-        }
-        ForEach(Array(instrument.rows.enumerated()), id: \.offset) { _, row in
-            FactRow(label: row.0, value: row.1)
-                .font(.subheadline)
-        }
     }
 }
 

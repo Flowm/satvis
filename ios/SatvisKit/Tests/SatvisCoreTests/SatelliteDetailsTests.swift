@@ -39,6 +39,7 @@ import Testing
             let fullName: String?
             let retired: Bool
             let rows: [[String]]
+            let bands: [String]
             let imagery: [Imagery]
         }
 
@@ -70,9 +71,16 @@ import Testing
         let url: String
     }
 
+    /// A band strip, and the colours the web app's `wavebandCells` fills it with.
+    struct StripCase: Decodable {
+        let bands: [String]
+        let cells: [String?]
+    }
+
     struct Fixture: Decodable {
         let details: [Details]
         let imageryPreviews: [PreviewCase]
+        let wavebandStrips: [StripCase]
     }
 
     @Test func writesTheWebAppsDetails() throws {
@@ -84,7 +92,7 @@ import Testing
             #expect(SatelliteDetails.spacecraftFacts(record).map { [$0.0, $0.1] } == expected.facts.spacecraftRows, "\(record.name)")
             let instruments = SatelliteDetails.instruments(record).map {
                 Details.Instrument(
-                    name: $0.name, fullName: $0.fullName, retired: $0.isRetired, rows: $0.rows.map { [$0.0, $0.1] },
+                    name: $0.name, fullName: $0.fullName, retired: $0.isRetired, rows: $0.rows.map { [$0.0, $0.1] }, bands: $0.bands,
                     imagery: $0.imagery.map {
                         Details.Imagery(
                             label: $0.label, detail: $0.detail, viewer: $0.viewer, href: $0.href,
@@ -137,6 +145,7 @@ import Testing
         #expect(instruments.map(\.fullName) == [nil, nil])
         #expect(instruments.map(\.isRetired) == [false, false])
         #expect(instruments.map { $0.rows.map { [$0.0, $0.1] } } == [[["Bands", "NIR"]], []])
+        #expect(instruments.map(\.bands) == [["NIR"], []])
         record.metadata["instruments"] = .string("MODIS")
         #expect(SatelliteDetails.instruments(record).isEmpty)
     }
@@ -204,6 +213,14 @@ import Testing
             let url = SatelliteDetails.imageryPreviewUrl(
                 preview, latitude: item.centre.latitude, longitude: item.centre.longitude, halfWidthDeg: item.halfWidthDeg, now: item.nowMs)
             #expect(url == item.url)
+        }
+    }
+
+    @Test func fillsTheWebAppsBandStrips() throws {
+        let fixture = try JSONDecoder().decode(Fixture.self, from: Parity.fixture("parity"))
+        #expect(WebTables.shared.wavebandColumns.map(\.label) == ["UV", "VIS", "NIR", "SWIR", "MWIR", "TIR", "FIR", "MW", "Radar"])
+        for strip in fixture.wavebandStrips {
+            #expect(WebTables.shared.wavebandCells(strip.bands) == strip.cells, "\(strip.bands)")
         }
     }
 
