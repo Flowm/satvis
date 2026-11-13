@@ -60,6 +60,8 @@ export interface InstrumentInfo {
   retired: boolean;
   /** Kind, Bands, Resolution and Nominal swath, those CEOS gives. */
   rows: [string, string][];
+  /** CEOS's waveband classes, as the Bands row names them, for the Instruments tab's strip. */
+  bands: string[];
   /** The layers that show it, its default first, of the providers this app knows. Empty for most. */
   imagery: ImageryInfo[];
 }
@@ -166,7 +168,7 @@ function instrumentInfo(instrument: unknown, orbitClass: OrbitClass, imagery: re
     rows.push(["Nominal swath", `${formatNumber(nominalSwathKm)} km`]);
   }
   const own = imagery.filter((entry) => entry.instrument === name).map((entry) => entry.imagery);
-  return { name, ...(typeof fullName === "string" && { fullName }), retired: retired === true, rows, imagery: own };
+  return { name, ...(typeof fullName === "string" && { fullName }), retired: retired === true, rows, bands: bandNames, imagery: own };
 }
 
 /** "Orbit type" stays here: SATCAT's codes say docked, landed or impacted, a state of the spacecraft. */

@@ -115,10 +115,11 @@ describe("getSatelliteInfo", () => {
           ["Resolution", "250 m"],
           ["Nominal swath", "2,330 km"],
         ],
+        bands: ["VIS", "TIR"],
         imagery: [],
       },
-      { name: "GEDI", retired: false, rows: [], imagery: [] },
-      { name: "TROPOMI", retired: true, rows: [["Resolution", "3.5 km"]], imagery: [] },
+      { name: "GEDI", retired: false, rows: [], bands: [], imagery: [] },
+      { name: "TROPOMI", retired: true, rows: [["Resolution", "3.5 km"]], bands: [], imagery: [] },
     ]);
     expect(labels(info)).toEqual(["Orbit", "Apogee / Perigee"]);
     expect(getSatelliteInfo(ISS, "LEO", {}).instruments).toEqual([]);
@@ -141,8 +142,8 @@ describe("getSatelliteInfo", () => {
       { name: "EMIT", bands: "SWIR", resolutionM: "60" },
     ];
     expect(getSatelliteInfo(ISS, "LEO", { instruments: malformed as never }).instruments).toEqual([
-      { name: "GEDI", retired: false, rows: [["Bands", "NIR"]], imagery: [] },
-      { name: "EMIT", retired: false, rows: [], imagery: [] },
+      { name: "GEDI", retired: false, rows: [["Bands", "NIR"]], bands: ["NIR"], imagery: [] },
+      { name: "EMIT", retired: false, rows: [], bands: [], imagery: [] },
     ]);
     expect(getSatelliteInfo(ISS, "LEO", { instruments: "MODIS" as never }).instruments).toEqual([]);
   });
