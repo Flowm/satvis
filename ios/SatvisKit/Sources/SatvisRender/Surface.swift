@@ -20,7 +20,8 @@ final class Surface {
     static let textureSize = 256
     /// Tiles whose texture is kept: about 130 MB.
     private static let maximumTextures = 384
-    /// Source tiles kept decoded for baking.
+    /// Source tiles kept decoded for baking, the base map's and each overlay's,
+    /// besides an overlay's stand-ins (`isStandIn`).
     private static let maximumSources = 64
     private static let bakesPerFrame = 12
     /// Terrain tiles kept decoded, about 30 MB, unless more are in use.
@@ -61,6 +62,9 @@ final class Surface {
         var generation = -1
         var needsBake = true
         var lastUsed = 0
+        /// The frame it was last drawn or waiting for its first bake: unlike
+        /// `lastUsed`, not a refined tile's, which no longer draws from its sources.
+        var lastWanted = 0
         /// The tile's grid laid over the terrain, and the terrain tile it was laid
         /// over: nil for the ellipsoid, where no terrain has loaded.
         var draped: (vertices: MTLBuffer, over: TileKey?)?
@@ -310,6 +314,9 @@ final class Surface {
         }
         visit(TileKey(level: 0, x: 0, y: 0))
         visit(TileKey(level: 0, x: 1, y: 0))
+        for tile in draw + bake {
+            tile.lastWanted = frame
+        }
         evict()
         isSettled = bake.isEmpty && drapes < Self.drapesPerFrame
         lastSelection = isSettled ? (inputs, draw) : nil
@@ -362,6 +369,9 @@ final class Surface {
         }
         visit(TileKey(level: 0, x: 0, y: 0))
         visit(TileKey(level: 0, x: 1, y: 0))
+        for tile in draw + bake {
+            tile.lastWanted = frame
+        }
         evict()
         isSettled = bake.isEmpty
         lastSelection = isSettled ? (inputs, draw) : nil
@@ -775,7 +785,30 @@ final class Surface {
     }
 
     private func overlaps(_ a: Bounds, _ b: Bounds) -> Bool {
+        Self.overlaps(a, b)
+    }
+
+    nonisolated private static func overlaps(_ a: Bounds, _ b: Bounds) -> Bool {
         a.west < b.east && b.west < a.east && a.south < b.north && b.south < a.north
+    }
+
+    /// Whether a surface tile at one of `tiles` draws from `source`'s tile at `key`:
+    /// one it covers, at the level it asks for. A coarser tile under a finer one
+    /// is not: kept for every level zoomed through, EUMETView's, 4 to 5 s each,
+    /// took a minute to clear ahead of the tiles in view.
+    nonisolated static func isWanted(_ key: TileKey, of source: ImagerySource, by tiles: [TileKey]) -> Bool {
+        let bounds = source.projection.bounds(key)
+        return tiles.contains { tile in
+            source.level(forSurface: tile.level) == key.level && overlaps(Projection.geographic.bounds(tile), bounds)
+        }
+    }
+
+    /// Whether an overlay's tile at `key` is one the whole globe is drawn from, at
+    /// surface level 2, or coarser: kept past the budget, as the stand-in for
+    /// whatever is missing. Evicted while zoomed in, they left the base map showing
+    /// on the way out until EUMETView drew them again.
+    nonisolated static func isStandIn(_ key: TileKey, of source: ImagerySource) -> Bool {
+        key.level <= source.level(forSurface: 2)
     }
 
     nonisolated private static func decode(_ data: Data, device: MTLDevice) -> MTLTexture? {
@@ -851,7 +884,7 @@ final class Surface {
         }
         for overlay in overlays {
             let ready = overlay.sources.compactMap { key, state -> (TileKey, Int)? in
-                if case .ready(_, let used) = state { (key, used) } else { nil }
+                if case .ready(_, let used) = state, !Self.isStandIn(key, of: overlay.source) { (key, used) } else { nil }
             }
             for (key, _) in ready.sorted(by: { $0.1 < $1.1 }).prefix(max(ready.count - Self.maximumSources, 0)) {
                 overlay.sources[key] = nil
@@ -897,11 +930,11 @@ final class Surface {
     /// flown past to be sent, as the terrain's are cancelled; and forgets the
     /// failures past their retry interval, which are asked for again anyway.
     private func evictSources() {
-        let waiting = tiles.values.filter { !$0.isComplete && $0.lastUsed >= frame - 60 }
+        let waiting = tiles.values.filter { !$0.isComplete && $0.lastWanted >= frame - 60 }.map(\.key)
         for overlay in overlays {
             for case (let key, .loading(let work)) in overlay.sources {
                 let bounds = overlay.source.projection.bounds(key)
-                if !waiting.contains(where: { overlaps($0.bounds, bounds) }) {
+                if !Self.isWanted(key, of: overlay.source, by: waiting) {
                     work.cancel()
                     overlay.sources[key] = nil
                     markForBake(covering: bounds)
@@ -911,8 +944,7 @@ final class Surface {
         for (key, state) in sources {
             switch state {
             case .loading(let work):
-                let bounds = source.projection.bounds(key)
-                if !waiting.contains(where: { overlaps($0.bounds, bounds) }) {
+                if !Self.isWanted(key, of: source, by: waiting) {
                     work.cancel()
                     sources[key] = nil
                     // Baked again when next drawn, which asks for it again.

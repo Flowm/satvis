@@ -87,6 +87,32 @@ import simd
         #expect(mesh.radius > 0 && mesh.samples.count == 9)
     }
 
+    // A source tile is waited for only at the level a tile in view asks for: the
+    // coarser ones under it, from the levels zoomed through, are not.
+    @Test func waitsOnlyForTheLevelATileInViewAsksFor() {
+        let inView = TileKey(level: 5, x: 33, y: 9)
+        let bounds = Projection.geographic.bounds(inView)
+        for (source, level) in [(Self.gibs, 5), (Self.eumetView, 4)] {
+            let wanted = source.projection.covering(bounds, level: level)
+            #expect(!wanted.isEmpty)
+            #expect(wanted.allSatisfy { Surface.isWanted($0, of: source, by: [inView]) })
+            #expect(!source.projection.covering(bounds, level: 2).contains { Surface.isWanted($0, of: source, by: [inView]) })
+            #expect(!Surface.isWanted(TileKey(level: level, x: 0, y: 0), of: source, by: [inView]))
+        }
+    }
+
+    // An overlay keeps the tiles the whole globe is drawn from, its stand-ins.
+    @Test func keepsTheWholeGlobesTilesAsStandIns() {
+        #expect(Surface.isStandIn(TileKey(level: 2, x: 3, y: 1), of: Self.gibs))
+        #expect(!Surface.isStandIn(TileKey(level: 3, x: 3, y: 1), of: Self.gibs))
+        #expect(Surface.isStandIn(TileKey(level: 1, x: 3, y: 1), of: Self.eumetView))
+        #expect(!Surface.isStandIn(TileKey(level: 2, x: 3, y: 1), of: Self.eumetView))
+    }
+
+    /// GIBS's Web Mercator tiles and EUMETView's 512-pixel geographic ones.
+    static let gibs = ImagerySource(projection: .webMercator, tileSize: 256, maximumLevel: 9, contentType: "image/") { _ in nil }
+    static let eumetView = ImagerySource(projection: .geographic, tileSize: 512, maximumLevel: 5, contentType: "image/") { _ in nil }
+
     // A memory warning drops the tiles the last choice left out, and keeps those it
     // draws from: refined from afar, then nothing in view, the children go.
     @MainActor

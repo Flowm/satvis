@@ -28,7 +28,10 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
 
 - Instrument imagery (ADR 0020) is laid over the base map in the same bake, each
   layer's tiles from its own source (`ImageryOverlay`), the last drawn on top, and
-  keeps its last frame's tiles until the new frame's arrive. `InstrumentImagery`
+  keeps its last frame's tiles until the new frame's arrive, and the tiles the
+  whole globe is drawn from, past the budget, to stand in on the way out of a
+  zoom. A tile still loading that no tile in view asks for at its level is
+  cancelled, base map and overlays alike. `InstrumentImagery`
   in the app target finds each drawn layer among the loaded records and moves it
   to the clock's frame once a second.
 
