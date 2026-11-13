@@ -92,9 +92,11 @@ low orbit: CEOS gives a geostationary imager 500 km.
 - **The native app has the same tab**, with the same rows and band strips: its
   `SatelliteDetails` is held to `getSatelliteInfo`'s instruments and `wavebandCells`
   by the parity fixtures, and reads `WAVEBAND_COLUMNS` from `web-tables.json`. A press
-  on a line's resolution or band strip unfolds it there too, where the web app's
-  name alone does: a finger aims less finely than a pointer. VoiceOver reads those
-  cells on the name, one element a line.
+  anywhere on a line but its image button unfolds it, where the web app's name alone
+  does: a finger aims less finely than a pointer. A line and its facts are list rows
+  of their own, so the list highlights the whole line as it does any row, and an
+  unfolding line moves only the rows under it. VoiceOver reads the line's cells on
+  its name, one element a line.
 - **CEOS is CC BY 4.0.** The about page, the native app's Acknowledgements and both
   Instruments tabs credit "CEOS MIM Database".
 

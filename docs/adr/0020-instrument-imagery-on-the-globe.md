@@ -105,8 +105,16 @@ from the same GIBS frame source.
   entry's `window` is not needed to keep the clock inside them.
 - **A link with `imagery` loads every group at once**, before the route's own groups
   could have answered.
-- **The native app draws none of it yet** and ignores the two fields. Its Imagery tab
-  has the same cards, pictures included, without the switch.
+- **The native app draws it too**, from the same entries, tokens and `imagery`
+  parameter (`InstrumentImagery.swift`), its cards two columns wide where 220 pt cards
+  fit, as the web app's grid. Its globe bakes each surface tile from the base map, so a
+  layer is laid over the base map in the bake (`Surface.setOverlays`), its frame the
+  same frame source's: GIBS's WMTS domain, or EUMETView's capabilities with their
+  bounds, followed once a second. A frame change bakes the tiles again, each drawing the
+  last frame's tile where the new one has not come, so for a moment the globe can
+  show two frames side by side where the web app shows the old one whole. A layer a
+  link names is drawn once a loaded record carries it; the app loads no other groups to
+  find it, and keeps a name no record carries.
 - **The Map panel's `GOES-IR` overlay is gone.** It was one infrared band of
   GOES-East, with the fault above every 10 minutes; GOES-East's GeoColor entry shows
   the same disc by day and night. A link that names it loses it, as it would any

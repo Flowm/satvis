@@ -10,6 +10,7 @@ struct InfoPanel: View {
     let passes: PassModel
     let alerts: PassAlerts
     let closeUp: CloseUpContext
+    let instrumentImagery: InstrumentImagery
     let isTracked: Bool
     /// Nil in the sky view, which follows nothing: the web app hides Track there.
     let onTrack: ((Bool) -> Void)?
@@ -23,6 +24,8 @@ struct InfoPanel: View {
     /// The Imagery tab's pictures, a layer each, built as the satellite is selected:
     /// centred under it then, so that they do not reload as it moves.
     @State private var previews: [URL?] = []
+    /// The cards' width, the tab row's, in points.
+    @State private var cardsWidth = 0.0
 
     private var propagator: SGP4Propagator? { try? SGP4Propagator(entry.record.meanElements) }
 
@@ -51,13 +54,16 @@ struct InfoPanel: View {
                         case .instruments:
                             instrumentList(instruments)
                         case .imagery:
-                            ImageryCards(layers: imagery, previews: previews)
+                            ImageryCards(
+                                layers: imagery, previews: previews, columns: ImageryCards.columns(width: cardsWidth), drawn: instrumentImagery)
                         default:
                             PassesSections(subject: .satellite(entry), clock: clock, passes: passes)
                         }
                     }
                     .raisedRows()
                 }
+                // The Instruments tab's lines and header are shorter than a row of body text.
+                .environment(\.defaultMinListRowHeight, 0)
                 // A tab opens at its top, as the web app's, whose tab bodies are of their own.
                 .id(shownTab)
                 .tabBar {
@@ -83,9 +89,15 @@ struct InfoPanel: View {
                         } set: {
                             tab = $0
                             imageryFocus = nil
-                        }, subject: .satellite(entry), clock: clock, passes: passes, imageryCount: imagery.count)
+                        }, subject: .satellite(entry), clock: clock, passes: passes, imageryCount: imagery.count
+                    )
+                    .onGeometryChange(for: Double.self) {
+                        $0.size.width
+                    } action: {
+                        cardsWidth = $0
+                    }
                 }
-                .onChange(of: imageryFocus) { reveal(imageryFocus, with: scroller) }
+                .onChange(of: imageryFocus) { reveal(imageryFocus, among: imagery, with: scroller) }
             }
             .panelList()
             .alertNotice(alerts)
@@ -242,13 +254,13 @@ struct InfoPanel: View {
     /// The Imagery tab scrolled to `instrument`'s first card, once the tab has its cards.
     /// At the top, where the web app scrolls the least that shows it: a picture fills
     /// most of a phone's sheet, and the least scroll left its link out of sight.
-    private func reveal(_ instrument: String?, with scroller: ScrollViewProxy) {
+    private func reveal(_ instrument: String?, among layers: [ImageryLayer], with scroller: ScrollViewProxy) {
         guard let instrument, tab == .imagery else {
             return
         }
         // The rows the tab switch adds are laid out a pass after it.
         Task { @MainActor in
-            withAnimation { scroller.scrollTo(ImageryCards.anchor(instrument), anchor: .top) }
+            withAnimation { scroller.scrollTo(ImageryCards.anchor(instrument, in: layers, columns: ImageryCards.columns(width: cardsWidth)), anchor: .top) }
         }
     }
 
@@ -592,148 +604,6 @@ private struct FactRow: View {
         }
         // One element, "<label>, <value>", as LabeledContent read.
         .accessibilityElement(children: .combine)
-    }
-}
-
-/// One layer the Imagery tab shows, and the instrument it shows.
-struct ImageryLayer: Hashable {
-    let instrument: String
-    let imagery: SatelliteDetails.Imagery
-}
-
-/// The Imagery tab, the web app's ImageryGallery: a card a layer, with a picture of its
-/// latest frame around the satellite, what it is, and a link to it in its provider's
-/// viewer. The globe draws none of them, so the cards have no switch for it.
-private struct ImageryCards: View {
-    let layers: [ImageryLayer]
-    /// A picture a layer, as `previews` builds them.
-    let previews: [URL?]
-
-    /// A picture of each layer, `halfWidthDeg` either side of `centre`, at `now` in
-    /// milliseconds since 1970; nil for a layer with no preview, and all of them where
-    /// the satellite has no position.
-    static func previews(_ layers: [ImageryLayer], centre: LivePosition?, halfWidthDeg: Double, now: Double) -> [URL?] {
-        layers.map { layer in
-            guard let preview = layer.imagery.preview, let centre else {
-                return nil
-            }
-            return URL(
-                string: SatelliteDetails.imageryPreviewUrl(preview, latitude: centre.latitude, longitude: centre.longitude, halfWidthDeg: halfWidthDeg, now: now))
-        }
-    }
-
-    /// The id of `instrument`'s first card, which its imagery button scrolls to.
-    static func anchor(_ instrument: String) -> String {
-        "imagery:\(instrument)"
-    }
-
-    var body: some View {
-        ForEach(Array(layers.enumerated()), id: \.offset) { index, layer in
-            let imagery = layer.imagery
-            Section {
-                ImageryPicture(instrument: layer.instrument, label: imagery.label, url: previews.indices.contains(index) ? previews[index] : nil, end: imagery.preview?.end)
-                    .listRowInsets(EdgeInsets())
-                    .id(layers.firstIndex { $0.instrument == layer.instrument } == index ? Self.anchor(layer.instrument) : "imagery:\(index)")
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(imagery.label)
-                        .font(.headline)
-                    if let detail = imagery.detail {
-                        Text(detail)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .accessibilityElement(children: .combine)
-                if let href = URL(string: imagery.href) {
-                    Link(destination: href) {
-                        HStack {
-                            Text("Open in \(imagery.viewer)")
-                            Spacer(minLength: 8)
-                            Image(systemName: "arrow.up.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .contentShape(.rect)
-                    }
-                    .tint(.primary)
-                    // Without the arrow's own name.
-                    .accessibilityLabel("Open in \(imagery.viewer)")
-                }
-            }
-        }
-    }
-}
-
-/// A layer's picture, 16:9 on black, the instrument on its corner and, of a layer that
-/// stopped, when; "No preview" where there is none or the provider refused it.
-private struct ImageryPicture: View {
-    let instrument: String
-    let label: String
-    let url: URL?
-    let end: String?
-    /// Showing the placeholder, which the picture's accessibility value says.
-    @State private var isMissing = false
-
-    var body: some View {
-        Color(red: 0x0B / 255, green: 0x0D / 255, blue: 0x10 / 255)
-            .aspectRatio(16 / 9, contentMode: .fit)
-            .overlay {
-                if let url {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                                .onAppear { isMissing = false }
-                        case .failure:
-                            placeholder
-                        default:
-                            ProgressView()
-                        }
-                    }
-                } else {
-                    placeholder
-                }
-            }
-            .clipped()
-            .overlay(alignment: .topLeading) {
-                badge(instrument)
-            }
-            .overlay(alignment: .topTrailing) {
-                if let ended {
-                    // Amber: the app colour for "away from rest", as on the status chip.
-                    badge(ended).foregroundStyle(Color.panelAmber)
-                }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel([instrument, label, ended].compactMap(\.self).joined(separator: ", "))
-            .accessibilityValue(isMissing ? "No preview" : "")
-            .accessibilityAddTraits(.isImage)
-    }
-
-    /// "Ended 2022-10-12", of a layer that stopped.
-    private var ended: String? {
-        end.map { "Ended \($0)" }
-    }
-
-    /// In place of a picture there is none of, or the provider refused.
-    private var placeholder: some View {
-        VStack(spacing: 4) {
-            Image(systemName: "photo")
-            Text("No preview")
-        }
-        .font(.caption)
-        .foregroundStyle(.tertiary)
-        .onAppear { isMissing = true }
-    }
-
-    /// A label on a corner of the picture, legible on any of it.
-    private func badge(_ text: String) -> some View {
-        Text(text)
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 1)
-            .background(.black.opacity(0.7), in: .capsule)
-            .padding(6)
     }
 }
 

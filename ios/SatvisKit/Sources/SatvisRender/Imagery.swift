@@ -1,4 +1,5 @@
 import Foundation
+import SatvisCore
 
 /// A tile in a quadtree over the globe. Row 0 is the northernmost. In the
 /// geographic scheme, level 0 is two tiles side by side, west and east; in Web
@@ -257,6 +258,67 @@ enum Bake {
             let v = (projection.row(latitude: latitude, level: 0) - top) / (bottom - top)
             let y = Float(1 - 2 * t)
             return [BakeVertex(position: SIMD2(-1, y), source: SIMD2(Float(u0), Float(v))), BakeVertex(position: SIMD2(1, y), source: SIMD2(Float(u1), Float(v)))]
+        }
+    }
+}
+
+/// An instrument's layer laid over the base map (ADR 0020), at one of its frames.
+public struct ImageryOverlay: Sendable, Equatable {
+    public var layer: SatelliteDetails.ImageryPreview
+    /// The frame, as the service names it in a request; nil for the service's latest.
+    public var frame: String?
+    /// West, south, east and north in degrees, where the service says the layer ends;
+    /// no tile outside them is asked for.
+    public var bounds: [Double]?
+
+    public init(layer: SatelliteDetails.ImageryPreview, frame: String?, bounds: [Double]?) {
+        self.layer = layer
+        self.frame = frame
+        self.bounds = bounds
+    }
+
+    static let eumetView = "https://view.eumetsat.int/geoserver/ows"
+
+    /// Where its tiles come from, as the web app's `gibsFrames` and `eumetViewFrames` ask
+    /// for them: GIBS's Web Mercator WMTS set, `GoogleMapsCompatible_Level<maxLevel>`;
+    /// EUMETView's WMS in 512-pixel geographic tiles, which have the detail of a
+    /// 256-pixel Web Mercator one two levels down.
+    var source: ImagerySource {
+        let layer = layer
+        let frame = frame
+        switch layer.provider {
+        case .gibs:
+            return ImagerySource(projection: .webMercator, tileSize: 256, maximumLevel: layer.maxLevel, contentType: "image/") { key in
+                URL(
+                    string:
+                        "\(GIBS.wmts)/\(layer.layer)/default/\(frame ?? "default")/GoogleMapsCompatible_Level\(layer.maxLevel)/\(key.level)/\(key.y)/\(key.x).\(layer.format.rawValue)"
+                )
+            }
+        case .eumetview:
+            return ImagerySource(projection: .geographic, tileSize: 512, maximumLevel: max(0, layer.maxLevel - 2), contentType: "image/") { key in
+                let b = Projection.geographic.bounds(key)
+                var components = URLComponents(string: Self.eumetView)
+                components?.queryItems =
+                    [
+                        URLQueryItem(name: "service", value: "WMS"), URLQueryItem(name: "version", value: "1.1.1"), URLQueryItem(name: "request", value: "GetMap"),
+                        URLQueryItem(name: "layers", value: layer.layer), URLQueryItem(name: "styles", value: ""),
+                        URLQueryItem(name: "format", value: "image/\(layer.format.rawValue)"), URLQueryItem(name: "transparent", value: "true"),
+                        URLQueryItem(name: "srs", value: "EPSG:4326"), URLQueryItem(name: "bbox", value: "\(b.west),\(b.south),\(b.east),\(b.north)"),
+                        URLQueryItem(name: "width", value: "512"), URLQueryItem(name: "height", value: "512"),
+                    ] + (frame.map { [URLQueryItem(name: "time", value: $0)] } ?? [])
+                return components?.url
+            }
+        }
+    }
+
+    /// Where its frames are listed: GIBS's WMTS domain for the layer, or the layer's
+    /// own WMS capabilities, which give EUMETView's bounds too.
+    public var framesURL: URL? {
+        switch layer.provider {
+        case .gibs:
+            URL(string: "\(GIBS.wmts)/1.0.0/\(layer.layer)/default/GoogleMapsCompatible_Level\(layer.maxLevel)/all/all.xml")
+        case .eumetview:
+            URL(string: "https://view.eumetsat.int/geoserver/\(layer.layer.replacingOccurrences(of: ":", with: "/"))/ows?service=WMS&version=1.3.0&request=GetCapabilities")
         }
     }
 }

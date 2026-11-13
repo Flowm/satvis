@@ -479,13 +479,32 @@ struct ComponentsPanel: View {
 }
 
 /// What the globe is covered with and drawn against: the web app's Map panel,
-/// less the overlays, surfaces and Tycho star map the app does not draw.
+/// less the overlays, surfaces and Tycho star map the app does not draw. The
+/// instrument imagery shown from a satellite's Imagery tab is listed under its own
+/// heading, to take it off again without finding the satellite (ADR 0020).
 struct MapPanel: View {
     @Bindable var session: Session
 
     var body: some View {
         PanelSection("Basemap") {
             Choices(selection: $session.baseLayer, options: BaseLayer.allCases.map { ($0.title, $0) })
+        }
+        let imagery = session.instrumentImagery
+        if !imagery.tokens.isEmpty {
+            PanelSection("Instrument imagery") {
+                PanelCard {
+                    ForEach(imagery.tokens, id: \.self) { token in
+                        // The layer's id until a record that carries it has loaded.
+                        Toggle(
+                            imagery.labels[token] ?? String(token.drop { $0 != ":" }.dropFirst()),
+                            isOn: Binding {
+                                imagery.isShown(token)
+                            } set: {
+                                imagery.show(token, $0)
+                            })
+                    }
+                }
+            }
         }
         // The web app's names for the two.
         PanelSection("Terrain") {

@@ -26,6 +26,12 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   sources are copied from Re:Earth's `layer.json`, which CesiumJS reads at run
   time; check them against it when the terrain changes.
 
+- Instrument imagery (ADR 0020) is laid over the base map in the same bake, each
+  layer's tiles from its own source (`ImageryOverlay`), the last drawn on top, and
+  keeps its last frame's tiles until the new frame's arrive. `InstrumentImagery`
+  in the app target finds each drawn layer among the loaded records and moves it
+  to the clock's frame once a second.
+
 ## Rendering
 
 - `SatvisRender`'s shaders are `Shaders/*.msl`, compiled at run time by

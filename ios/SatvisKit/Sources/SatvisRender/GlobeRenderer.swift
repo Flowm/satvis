@@ -363,6 +363,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         pacer.needsDraw = true
     }
 
+    /// The instrument imagery over the base map, the last on top (ADR 0020).
+    public func setInstrumentImagery(_ overlays: [ImageryOverlay]) {
+        surface.setOverlays(overlays)
+        pacer.needsDraw = true
+    }
+
     /// Whether the globe follows Re:Earth's terrain, the sky view's ground too.
     /// Off by default, as on the web.
     public func setTerrain(_ enabled: Bool) {

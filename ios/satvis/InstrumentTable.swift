@@ -31,7 +31,9 @@ struct InstrumentList: View {
 }
 
 /// The table: a header, then a line an instrument. Each column past the names is as wide
-/// as its widest entry on any line, so the full names all end at the same edge.
+/// as its widest entry on any line, so the full names all end at the same edge. Each line
+/// and its facts are rows of their own, so that unfolding a line moves only the rows
+/// under it: as one row, the whole table moved while the row grew.
 private struct InstrumentTable: View {
     let instruments: [SatelliteDetails.Instrument]
     let unfolded: Set<String>
@@ -50,26 +52,31 @@ private struct InstrumentTable: View {
 
     var body: some View {
         let columns = Columns(instruments, fullNames: (width ?? 0) >= Self.fullNamesWidth)
-        VStack(alignment: .leading, spacing: 0) {
-            header(columns)
-            Divider()
-            ForEach(instruments, id: \.name) { instrument in
-                line(instrument, columns)
-                if unfolded.contains(instrument.name) {
-                    InstrumentDetails(instrument: instrument, showsName: false)
-                        .padding(.leading, 22)
-                        .padding(.bottom, 10)
-                }
-                Divider().opacity(0.5)
+        header(columns)
+            .padding(.top, 10)
+            .onGeometryChange(for: Double.self) {
+                $0.size.width
+            } action: {
+                width = $0
             }
-            if columns.bands {
-                BandLegend().padding(.top, 8)
+            .tableRow()
+        ForEach(instruments, id: \.name) { instrument in
+            let isOpen = unfolded.contains(instrument.name)
+            line(instrument, columns)
+                .tableRow()
+                .listRowSeparator(isOpen ? .hidden : .visible, edges: .bottom)
+            if isOpen {
+                InstrumentDetails(instrument: instrument, showsName: false)
+                    .padding(.leading, 22)
+                    .padding(.bottom, 10)
+                    .tableRow()
+                    .listRowSeparator(.hidden, edges: .top)
             }
         }
-        .onGeometryChange(for: Double.self) {
-            $0.size.width
-        } action: {
-            width = $0
+        if columns.bands {
+            BandLegend()
+                .padding(.vertical, 10)
+                .tableRow()
         }
     }
 
@@ -134,13 +141,16 @@ private struct InstrumentTable: View {
         .padding(.leading, 8)
     }
 
-    /// An instrument's line, which a press on its name, resolution or bands unfolds.
+    /// An instrument's line, which a press anywhere but on its imagery button unfolds:
+    /// the list hands a row's press to its one button of the automatic style, and
+    /// highlights the row while it is pressed, as any other row's.
     private func line(_ instrument: SatelliteDetails.Instrument, _ columns: Columns) -> some View {
         let isOpen = unfolded.contains(instrument.name)
-        let toggle = { onToggle(instrument.name) }
         let fullName = columns.fullNames ? instrument.fullName : nil
         return HStack(spacing: 0) {
-            Button(action: toggle) {
+            Button {
+                onToggle(instrument.name)
+            } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.semibold))
@@ -149,6 +159,8 @@ private struct InstrumentTable: View {
                         .frame(width: 14)
                     Text(instrument.name)
                         .fontWeight(.semibold)
+                        // The colour, not the hierarchical style, which in a list's button is its tint.
+                        .foregroundStyle(Color.primary)
                         .layoutPriority(1)
                     if let fullName {
                         Text(fullName)
@@ -158,9 +170,7 @@ private struct InstrumentTable: View {
                 .lineLimit(1)
                 .padding(.vertical, 7)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(.rect)
             }
-            .buttonStyle(.plain)
             .accessibilityLabel(
                 [
                     instrument.name, fullName, instrument.isRetired ? "Retired" : nil, instrument.resolution,
@@ -173,7 +183,7 @@ private struct InstrumentTable: View {
                 RetiredTag()
                     .opacity(instrument.isRetired ? 1 : 0)
                     .padding(.leading, 8)
-                    .pressable(toggle)
+                    .accessibilityHidden(true)
             }
             if !instrument.imagery.isEmpty {
                 Button("Imagery of \(instrument.name)", systemImage: "photo") { onImagery(instrument.name) }
@@ -187,7 +197,7 @@ private struct InstrumentTable: View {
             widest(Text(instrument.resolution ?? "—").foregroundStyle(.secondary), of: columns.resolutions)
                 .monospacedDigit()
                 .lineLimit(1)
-                .pressable(toggle)
+                .accessibilityHidden(true)
             if columns.bands {
                 Group {
                     if instrument.bands.isEmpty {
@@ -198,7 +208,7 @@ private struct InstrumentTable: View {
                 }
                 .frame(width: Self.stripWidth, alignment: .leading)
                 .padding(.leading, 10)
-                .pressable(toggle)
+                .accessibilityHidden(true)
             }
         }
         .font(.subheadline)
@@ -222,13 +232,18 @@ private struct FoldedInstruments: View {
                     chip(instrument)
                 }
             }
-            ForEach(instruments.filter { unfolded.contains($0.name) }, id: \.name) { instrument in
-                InstrumentDetails(instrument: instrument, showsName: true)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.white.opacity(0.03), in: .rect(cornerRadius: 6))
-            }
+        }
+        .padding(.vertical, 10)
+        .tableRow()
+        ForEach(instruments.filter { unfolded.contains($0.name) }, id: \.name) { instrument in
+            InstrumentDetails(instrument: instrument, showsName: true)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(0.03), in: .rect(cornerRadius: 6))
+                .padding(.bottom, 10)
+                .tableRow()
+                .listRowSeparator(.hidden, edges: .top)
         }
     }
 
@@ -345,8 +360,11 @@ extension SatelliteDetails.Instrument {
 }
 
 extension View {
-    /// A cell of a line that a press toggles as its name does, which VoiceOver reads on the name.
-    fileprivate func pressable(_ action: @escaping () -> Void) -> some View {
-        contentShape(.rect).onTapGesture(perform: action).accessibilityHidden(true)
+    /// A row of the tab, its height its own: the list's least row height and its rows'
+    /// top and bottom insets are for rows of one line of body text. Its separators run
+    /// from the leading edge, under the chevrons.
+    fileprivate func tableRow() -> some View {
+        listRowInsets(.vertical, 0)
+            .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
     }
 }

@@ -199,6 +199,43 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(link.exists)
     }
 
+    // A card's Show switch draws its layer on the globe, and a press elsewhere on the
+    // card does what the switch does; the Map panel lists what is drawn, to take it off.
+    @MainActor
+    func testShowsALayerOnTheGlobeFromItsCard() {
+        let app = search("METEOSAT-12 (MTG-I1)")
+        app.buttons["Details of METEOSAT-12 (MTG-I1)"].tap()
+        XCTAssert(app.navigationBars["METEOSAT-12 (MTG-I1)"].waitForExistence(timeout: 10))
+        app.buttons["Instruments"].tap()
+        app.buttons["Imagery of FCI"].tap()
+        let show = app.switches["Show GeoColour on the globe"]
+        XCTAssert(show.waitForExistence(timeout: 5))
+        XCTAssertEqual(show.value as? String, "0")
+        flip(app, "Show GeoColour on the globe")
+        XCTAssert(waitForValue(show, "1"))
+        let card = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'GeoColour, '")).firstMatch
+        card.tap()
+        XCTAssert(waitForValue(show, "0"))
+        card.tap()
+        XCTAssert(waitForValue(show, "1"))
+        app.navigationBars.buttons["Close"].firstMatch.tap()
+        openMenu(app)
+        app.buttons["Map"].tap()
+        let listed = app.switches["GeoColour · METEOSAT-12 (MTG-I1)"]
+        XCTAssert(listed.waitForExistence(timeout: 5))
+        flip(app, "GeoColour · METEOSAT-12 (MTG-I1)")
+        XCTAssert(listed.waitForNonExistence(timeout: 5))
+    }
+
+    // A link's `imagery` draws its layers once a loaded record carries them (ADR 0020).
+    @MainActor
+    func testDrawsTheImageryALinkNames() {
+        let app = launch(link: "/?imagery=eumetview:mtg_fd:rgb_geocolour")
+        openMenu(app)
+        app.buttons["Map"].tap()
+        XCTAssert(app.switches["GeoColour · METEOSAT-12 (MTG-I1)"].waitForExistence(timeout: 10))
+    }
+
     // An instrument's imagery button opens the Imagery tab at that instrument's first
     // card, here the second; the tab opened from the tab row starts at the top.
     @MainActor
@@ -840,6 +877,13 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(row.waitForExistence(timeout: 5))
         let control = row.switches.firstMatch
         (control.exists ? control : row).tap()
+    }
+
+    /// Whether `element`'s value is `value` within five seconds.
+    @MainActor
+    private func waitForValue(_ element: XCUIElement, _ value: String) -> Bool {
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value), object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
     }
 
     /// Unfolds the menu column, unless it is open already, as on an iPad.

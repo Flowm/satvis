@@ -181,8 +181,8 @@ public enum SatelliteDetails {
         public var preview: ImageryPreview?
     }
 
-    /// What the Imagery tab needs to ask the provider for a picture of a layer, the web
-    /// app's `ImageryPreview`: one of the layers its globe draws (`drawnImagery`).
+    /// A layer the globe draws, the web app's `DrawnImagery` (ADR 0020), and what the
+    /// Imagery tab needs to ask the provider for a picture of it, its `ImageryPreview`.
     public struct ImageryPreview: Sendable, Hashable {
         /// The providers that answer for a picture, by their keys in the imagery manifest.
         public enum Provider: String, Sendable {
@@ -196,11 +196,25 @@ public enum SatelliteDetails {
 
         public var provider: Provider
         public var layer: String
+        /// The deepest level worth asking for, in 256-pixel Web Mercator tiles.
+        public var maxLevel: Int
         public var format: Format
         /// A GIBS layer with a frame a day, which GIBS names by its date.
         public var isDaily: Bool
         /// The last frame's date, of a layer that stopped.
         public var end: String?
+
+        /// The layer as a link and the drawn list name it, `gibs:GOES-East_ABI_GeoColor`:
+        /// the layer's, not an instrument's, so a layer two satellites share is one.
+        public var token: String { "\(provider.rawValue):\(layer)" }
+    }
+
+    /// The layers of a record the globe can draw, each with its card's label, in the
+    /// record's order.
+    public static func drawableImagery(_ record: GPRecord, tables: WebTables = .shared) -> [(label: String, preview: ImageryPreview)] {
+        (record.metadata["imagery"]?.array ?? []).compactMap { entry in
+            imagery(entry, tables: tables).flatMap { found in found.imagery.preview.map { (found.imagery.label, $0) } }
+        }
     }
 
     /// One instrument in the Instruments tab, the web app's `InstrumentInfo`.
@@ -278,7 +292,7 @@ public enum SatelliteDetails {
         if provider == .gibs, !isDaily, period?.hasPrefix("PT") != true {
             return nil
         }
-        return ImageryPreview(provider: provider, layer: layer, format: format, isDaily: isDaily, end: end)
+        return ImageryPreview(provider: provider, layer: layer, maxLevel: Int(maxLevel), format: format, isDaily: isDaily, end: end)
     }
 
     /// Pixels; twice the web card's size, for a Retina screen.

@@ -17,6 +17,7 @@ public protocol Globe: AnyObject {
     var components: SatelliteComponents { get set }
     var passthrough: CameraLens? { get set }
     func setImagery(_ layer: BaseLayer, site: URL, frame: String?)
+    func setInstrumentImagery(_ overlays: [ImageryOverlay])
     func setTerrain(_ enabled: Bool)
     func setStations(_ stations: [StationMarker])
     func setLinks(_ links: [StationLink])
@@ -70,6 +71,10 @@ public final class GlobeBinding {
     /// The base map, the site its finer levels come from, and a daily one's day;
     /// nil leaves the globe's own.
     public private(set) var imagery: (layer: BaseLayer, site: URL, frame: String?)?
+    /// The instrument imagery over the base map (`GlobeRenderer.setInstrumentImagery`).
+    public var instrumentImagery: [ImageryOverlay] = [] {
+        didSet { globe?.setInstrumentImagery(instrumentImagery) }
+    }
     /// Whether the globe follows the terrain.
     public var terrain = false {
         didSet { globe?.setTerrain(terrain) }
@@ -139,6 +144,7 @@ public final class GlobeBinding {
         if let imagery {
             globe.setImagery(imagery.layer, site: imagery.site, frame: imagery.frame)
         }
+        globe.setInstrumentImagery(instrumentImagery)
         globe.setTerrain(terrain)
         globe.unseen = unseen
         globe.cameraFrame = cameraFrame

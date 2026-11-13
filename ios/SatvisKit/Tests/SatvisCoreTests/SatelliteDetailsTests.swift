@@ -209,7 +209,7 @@ import Testing
         let fixture = try JSONDecoder().decode(Fixture.self, from: Parity.fixture("parity"))
         for item in fixture.imageryPreviews {
             let preview = try SatelliteDetails.ImageryPreview(
-                provider: #require(.init(rawValue: item.preview.provider)), layer: item.preview.layer, format: #require(.init(rawValue: item.preview.format)),
+                provider: #require(.init(rawValue: item.preview.provider)), layer: item.preview.layer, maxLevel: 0, format: #require(.init(rawValue: item.preview.format)),
                 isDaily: item.preview.daily, end: item.preview.end)
             let url = SatelliteDetails.imageryPreviewUrl(
                 preview, latitude: item.centre.latitude, longitude: item.centre.longitude, halfWidthDeg: item.halfWidthDeg, now: item.nowMs)
@@ -241,12 +241,12 @@ import Testing
             record.metadata["imagery"] = .array([.object(fields)])
             return SatelliteDetails.instruments(record)[0].imagery.first?.preview
         }
-        #expect(preview(trueColour) == .init(provider: .gibs, layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", format: .jpeg, isDaily: true))
+        #expect(preview(trueColour) == .init(provider: .gibs, layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", maxLevel: 9, format: .jpeg, isDaily: true))
         #expect(
             preview(trueColour.merging(["period": .string("PT10M"), "format": .string("png")]) { $1 })
-                == .init(provider: .gibs, layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", format: .png, isDaily: false))
+                == .init(provider: .gibs, layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", maxLevel: 9, format: .png, isDaily: false))
         #expect(preview(trueColour.merging(["end": .string("2025-12-19")]) { $1 })?.end == "2025-12-19")
-        #expect(preview(geoColour) == .init(provider: .eumetview, layer: "mtg_fd:rgb_geocolour", format: .png, isDaily: false))
+        #expect(preview(geoColour) == .init(provider: .eumetview, layer: "mtg_fd:rgb_geocolour", maxLevel: 7, format: .png, isDaily: false))
         #expect(preview(geoColour.merging(["period": .string("PT10M")]) { $1 })?.isDaily == false)
         for fields in [
             trueColour.merging(["provider": .string("copernicus-browser")]) { $1 },

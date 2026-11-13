@@ -644,9 +644,9 @@ past the names line up on every line. Where the table is 415 pt wide or more, th
 web app's 440 px panel less its sides, an iPad's, check that each full name follows
 its short name in grey, cut short with "…", and that they all end at the same edge;
 on a narrower one, an iPhone's, that none is shown and a name without Retired runs on
-into its room. Check that a press on a line,
-its resolution or its strip unfolds the full name, kind and other facts under it,
-wrapping a long value, and a second folds them; that the instruments with none of the
+into its room. Check that a press anywhere on a line but its image button highlights
+the whole line and unfolds the full name, kind and other facts under it, wrapping a
+long value, while the lines above stay where they are, and a second folds them; that the instruments with none of the
 three are chips under "Also carries", which unfold the same; and that the credit
 under the list opens CEOS's database. Check a satellite CEOS does not list, METOP-B on
 that catalog, for no such tab. On GOES 19 and METEOSAT-12 (MTG-I1) (ADR 0019, 0020),
@@ -655,12 +655,31 @@ in view, Imagery with its count, and stays above the cards as they scroll. On TE
 whose MODIS layer is the second card, check that MODIS's image button opens the
 Imagery tab with that card at the top under the tabs, as far as the list scrolls; that
 the Imagery tab opened from the tab row after another tab starts at the top; and that
-another satellite's panel opens with every line folded. Check each card: the picture of the
+another satellite's panel opens with every line folded. Check that the cards are two
+columns on an iPad's panel and one on an iPhone's, and each card: the picture of the
 layer's latest frame around the satellite, the instrument's name on its corner, the
-label, when it has frames, and "Open in" the provider's viewer, which opens it; no
-Show switch and nothing on a press of the card, since the native globe draws none of
-it. Turn the network off and open another card's satellite for "No preview" in place
-of the picture. On a Mac, check the same in the card beside the column.
+label, when it has frames, and the provider's viewer, which opens it. Switch Show on
+for a layer: the card is ringed in cyan and the globe shows the layer over the base
+map at the clock's frame, which moves with the clock; a press elsewhere on the card
+takes it off, and another puts it back. Check that the Map panel lists it under
+"Instrument imagery" as "GeoColor · GOES 19", and that its switch there takes it off;
+that a link with `imagery=` draws its layers; and that the credits name the provider.
+Turn the network off and open another card's satellite for "No preview" in place of
+the picture. On a Mac, check the same in the card beside the column.
+
+**Result, 2026-11-13, the globe and the grid.** iPhone 18 Pro and iPad Air 13-inch
+(M4) simulators, iOS 27.2, on the test catalog with the network on, shot by UI tests
+not kept. Launched on `imagery=` links at 03:40 UTC, the iPhone's globe showed
+METEOSAT-12's GeoColour disc over Europe and Africa, night side and city lights;
+TERRA's MODIS true colour, a day's swaths with black gaps between; and GOES-East's
+GeoColor over the Americas and the Atlantic, its disc ending at a straight edge east
+of it. METEOSAT-12's Imagery tab had two cards side by side on the iPad and one on
+the iPhone; GeoColour's Show switch ringed its card and drew the disc. A video of
+the iPhone while MISR's line unfolded and folded showed the header, ASTER and CERES
+at the same height in every frame, MISR's facts fading in under it and the lines
+below moving down. The press highlight, the Map panel's list and a press on a card
+were checked by `testShowsALayerOnTheGlobeFromItsCard`, not shot; the credits and
+the Mac were not looked at.
 
 **Result, 2026-11-13, after review.** iPhone 18 Pro and iPad Air 13-inch (M4)
 simulators, iOS 27.2, on the test catalog with the network on, shot by a UI test not

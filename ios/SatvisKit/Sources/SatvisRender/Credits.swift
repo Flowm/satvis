@@ -1,4 +1,5 @@
 import Foundation
+import SatvisCore
 
 /// A line of the attribution the globe owes, as the web app's credit display
 /// words it.
@@ -14,12 +15,20 @@ public struct Credit: Hashable, Sendable {
     /// What the map is drawn from now: the shipped Natural Earth, which is under
     /// every base map, the base map, and the terrain where it is on, with the
     /// sources its `layer.json` credits.
-    public static func map(baseLayer: BaseLayer, terrain: Bool) -> [Credit] {
+    public static func map(baseLayer: BaseLayer, terrain: Bool, instrumentImagery: [SatelliteDetails.ImageryPreview.Provider] = []) -> [Credit] {
         var credits = [Credit("Imagery courtesy Natural Earth", link: "https://www.naturalearthdata.com")]
         switch baseLayer {
         case .naturalEarth: break
         case .versaTiles: credits.append(Credit("VersaTiles sources", link: "https://versatiles.org/sources/"))
         case .blackMarble, .viirs: credits.append(Credit("NASA Global Imagery Browse Services for EOSDIS", link: "https://earthdata.nasa.gov/gibs"))
+        }
+        // The instrument imagery's providers, each once, as the web app's layers credit them.
+        let gibs = Credit("NASA Global Imagery Browse Services for EOSDIS", link: "https://earthdata.nasa.gov/gibs")
+        if instrumentImagery.contains(.gibs), !credits.contains(gibs) {
+            credits.append(gibs)
+        }
+        if instrumentImagery.contains(.eumetview) {
+            credits.append(Credit("EUMETSAT", link: "https://view.eumetsat.int"))
         }
         if terrain {
             credits += [
