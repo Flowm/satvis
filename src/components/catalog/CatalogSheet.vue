@@ -99,6 +99,15 @@
                 @toggle-open="toggleOpen('apsides')"
               />
             </div>
+            <div :ref="tileRef('band')" class="catalogSheet__tile catalogSheet__tile--wide">
+              <catalog-band-chart
+                :counts="sheet.result.value.counts.band"
+                :picked="sheet.pickedFacets.band"
+                :height="heroHeight"
+                @toggle="sheet.toggle('band', $event)"
+                @clear="sheet.clearFacet('band')"
+              />
+            </div>
           </div>
           <div class="catalogSheet__facets">
             <div
@@ -187,6 +196,7 @@
           @sort="sheet.sortBy"
           @toggle="sheet.toggleSat"
           @info="showInfo"
+          @imagery="showImagery"
         />
         <div class="catalogSheet__globe">
           <button
@@ -216,12 +226,14 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import { SHOW_CAP, useCatalogFilters } from "@/composables/useCatalogFilters";
 import { useController } from "@/composables/useController";
+import { useSelectedEntity } from "@/composables/useSelectedEntity";
 import { ORBIT_CLASS_HINT, orbitColor, orbitKindHint, SUN_SYNC_COLOR } from "@/config/orbitClass";
-import { FACET_BY_KEY, FACETS, type FacetDef, type FacetKey, facetBranches, facetItems, NO_KIND, NO_PROGRAM, parseOrbitLeaf } from "@/modules/catalogFacets";
+import { FACET_BY_KEY, FACETS, type FacetDef, type FacetKey, facetBranches, facetItems, NO_KIND, NO_INSTRUMENT_KIND, NO_PROGRAM, parseOrbitLeaf } from "@/modules/catalogFacets";
 import { formatInteger } from "@/modules/util/formats";
 import { useSatStore } from "@/stores/sat";
 
 import CatalogApsisPlot from "./CatalogApsisPlot.vue";
+import CatalogBandChart from "./CatalogBandChart.vue";
 import CatalogCrossingHistogram from "./CatalogCrossingHistogram.vue";
 import CatalogCustomDialog from "./CatalogCustomDialog.vue";
 import CatalogFacetDetail from "./CatalogFacetDetail.vue";
@@ -234,7 +246,9 @@ import CatalogShapePlot from "./CatalogShapePlot.vue";
 const emit = defineEmits<{ back: []; close: []; expand: []; "show-info": [name: string] }>();
 
 // The catalog, the sheet's state, and the revision that grows as groups load.
-const { sats } = useController();
+const controller = useController();
+const { sats } = controller;
+const { openTab } = useSelectedEntity(controller);
 const sheet = useCatalogFilters(sats.catalog);
 const { catalogRevision } = storeToRefs(useSatStore());
 
@@ -269,7 +283,7 @@ interface Tree {
   note?: () => string | undefined;
 }
 
-/** The orbit and constellation trees. */
+/** The orbit, instrument kind and constellation trees. */
 const TREES: Tree[] = [
   {
     def: FACET_BY_KEY.orbit,
@@ -285,13 +299,19 @@ const TREES: Tree[] = [
     },
   },
   {
+    def: FACET_BY_KEY.kind,
+    top: 6,
+    note: () =>
+      `CEOS's kind of each instrument, under a family. A satellite counts once per kind it carries, and once under a family. "${NO_INSTRUMENT_KIND}" collects instruments CEOS gives no kind.`,
+  },
+  {
     def: FACET_BY_KEY.constellation,
     top: 6,
     note: () => `Grouped by GCAT's programme, under the programme's first word. "${NO_PROGRAM}" collects satellites GCAT does not list yet.`,
   },
 ];
-/** Every facet but the trees, as tiles of bars. */
-const FLAT_FACETS = FACETS.filter((def) => !def.parentOf);
+/** Every facet but the trees and the bands, which have charts of their own, as tiles of bars. */
+const FLAT_FACETS = FACETS.filter((def) => !def.parentOf && def.key !== "band");
 
 /** A facet's values with their counts under the other filters. */
 function itemsOf(def: FacetDef) {
@@ -299,7 +319,7 @@ function itemsOf(def: FacetDef) {
 }
 /** A tree facet's values under their parents. */
 function branchesOf(def: FacetDef) {
-  return facetBranches(def, itemsOf(def));
+  return facetBranches(def, itemsOf(def), sheet.result.value.parentCounts[def.key]);
 }
 
 /** Some match is on the globe, so Hide has something to do. */
@@ -330,6 +350,12 @@ function showInfo(name: string): void {
   sats.select(name);
   full.value = false;
   emit("show-info", name);
+}
+
+/** Like showInfo, at the Imagery tab, as the Instruments tab's imagery button opens it. */
+function showImagery(name: string): void {
+  openTab("imagery");
+  showInfo(name);
 }
 
 /** The custom satellites dialog is open. */
@@ -648,6 +674,11 @@ defineExpose({ escape });
   padding: 8px;
   border-radius: 8px;
   background: var(--cs-raised);
+}
+
+/* The bands chart: seventeen bars need the whole row. */
+.catalogSheet__tile--wide {
+  grid-column: 1 / -1;
 }
 
 /* An opened tile: the whole row, at a fixed height its content scrolls within. */

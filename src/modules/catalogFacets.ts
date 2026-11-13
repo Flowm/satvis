@@ -2,9 +2,11 @@
 // Cesium-free and Vue-free, so node-env vitest exercises it.
 
 import { gcatCategoryLabel, gcatClassLabel } from "@/config/gcatCodes";
+import { readImageryList } from "@/config/instrumentImagery";
 import { ORBIT_KINDS, type OrbitClass, orbitKindLabel } from "@/config/orbitClass";
 import { SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, satcatLabel } from "@/config/satcatCodes";
-import { satelliteModel } from "@/config/satelliteMetadata";
+import { type SatelliteInstrument, satelliteModel } from "@/config/satelliteMetadata";
+import { WAVEBANDS } from "@/config/wavebands";
 import { formatFixed, formatInteger, formatNumber } from "@/modules/util/formats";
 import { ascendingNodeDegOf, orbitShapeOf } from "@/modules/util/gp";
 import { ltanHoursOf } from "@/modules/util/orbitFacts";
@@ -24,6 +26,55 @@ const SIZE_BOUNDS_KG = [10, 100, 500, 1000, 5000];
 export const AGE_BUCKETS = ["Under 1 day", "1–3 days", "3–7 days", "1–2 weeks", "2–4 weeks", "1–3 months", "Over 3 months"] as const;
 /** Days, the upper bound of each age bucket but the last. */
 const AGE_BOUNDS_DAYS = [1, 3, 7, 14, 28, 91];
+
+/** CEOS's waveband classes by wavelength, then the radar bands by frequency. */
+export const BAND_ORDER: readonly string[] = WAVEBANDS.map((waveband) => waveband.band);
+
+/** The data availability facet's values, in its order: what satvis has for a satellite. */
+export const AVAILABILITY = {
+  imagery: "Imagery",
+  mapLayer: "Imagery as a map layer",
+  /** Not every entry with a viewer link: every entry has one. */
+  linkOnly: "Imagery as a viewer link only",
+  instruments: "Instruments (CEOS)",
+  model: "3D model",
+} as const;
+
+/** A row's imagery at its best, best first: what the list's imagery column marks and sorts by. */
+export const IMAGERY_LEVELS = {
+  layer: { rank: 0, mark: "strong", title: AVAILABILITY.mapLayer },
+  link: { rank: 1, mark: "faint", title: AVAILABILITY.linkOnly },
+} as const;
+/** A key of IMAGERY_LEVELS: a layer the globe draws, or a link alone. */
+export type ImageryLevel = keyof typeof IMAGERY_LEVELS;
+
+/**
+ * The instrument kind tree's parents, in its order, each with the CEOS kinds it takes; the
+ * first match wins. CEOS has about 45 kinds, too many for one level.
+ */
+const KIND_FAMILIES: readonly [string, RegExp][] = [
+  ["Optical imagers", /optical imager|Vis\/IR radiometer|spectro-radiometer|hyperspectral|narrow-band channel IR|multi-channel\/direction/i],
+  ["Microwave radiometers", /MW radiometer/i],
+  ["Radar", /radar|scatterometer/i],
+  ["Lidar", /lidar/i],
+  ["Spectrometers and sounders", /spectrometer|sounder|atmospheric chemistry/i],
+  ["Lightning", /lightning/i],
+  ["Sun and Earth radiation", /broad-band radiometer|solar irradiance/i],
+  ["Space environment", /space environment|magnetometer|electric field/i],
+  ["Positioning and gravity", /GNSS|radio-positioning|retroreflector|gradiometer|ranging|star tracker/i],
+  ["Data and communications", /data collection|communications/i],
+];
+/** The family of a kind no other takes. */
+const OTHER_FAMILY = "Other";
+/** An instrument's kind where CEOS gives none, or its placeholders "TBD" and "Other". */
+export const NO_INSTRUMENT_KIND = "Not stated";
+/** Divides a kind leaf's family from its kind; no CEOS kind has one. */
+const KIND_SEPARATOR = "|";
+
+/** First match in KIND_FAMILIES, else OTHER_FAMILY. */
+export function kindFamilyOf(kind: string): string {
+  return KIND_FAMILIES.find(([, pattern]) => pattern.test(kind))?.[0] ?? OTHER_FAMILY;
+}
 
 /** Hours, the crossing chart's bin width. */
 export const CROSSING_BIN_HOURS = 0.25;
@@ -58,7 +109,6 @@ export interface CatalogRow {
   status: string;
   launchSite: string;
   size: string;
-  model: string;
   elementSetAge: string;
   /** GCAT's programme, or NO_PROGRAM. */
   program: string;
@@ -76,6 +126,14 @@ export interface CatalogRow {
   ageDays: number;
   /** Sun-sync rows only: the daylit crossing. */
   crossing: EquatorCrossing | undefined;
+  /** Its instruments' waveband classes; empty where CEOS lists none. */
+  bands: string[];
+  /** Its instruments' kinds, as the kind tree's leaves: "family|kind". */
+  kinds: string[];
+  /** AVAILABILITY values it has. */
+  availability: string[];
+  /** Its imagery at its best. */
+  imagery: ImageryLevel | undefined;
 }
 
 /** Which way an orbit crosses the equator: southbound at its descending node, northbound at its ascending node. */
@@ -110,9 +168,11 @@ export type FacetKey =
   | "bus"
   | "size"
   | "launchSite"
-  | "model"
+  | "availability"
   | "elementSetAge"
-  | "constellation";
+  | "constellation"
+  | "band"
+  | "kind";
 
 /** A facet: how to read it off a row, and how to order and fold its values. */
 export interface FacetDef {
@@ -128,6 +188,15 @@ export interface FacetDef {
   parentOf?: (value: string) => string;
   /** A leaf's display name, where its value is a key. */
   leafLabel?: (value: string) => string;
+  /** A row must have every picked value, not one of them; a pick's count is then what adding it leaves. */
+  matchAll?: true;
+  /** Bars on a square-root scale, where one value's count dwarfs another's. */
+  sqrtBars?: true;
+}
+
+/** A bar's length for a value's count, in the facet's scale. */
+export function barLength(def: FacetDef, count: number): number {
+  return def.sqrtBars ? Math.sqrt(count) : count;
 }
 
 /** "Starlink 2MO S1" -> "Starlink", "Flock-4" -> "Flock". */
@@ -161,6 +230,25 @@ export const FACETS: readonly FacetDef[] = [
     },
   },
   { key: "constellation", label: "Constellation", icon: "lucide:sparkles", values: (row) => [row.program], parentOf: constellationOf },
+  {
+    key: "kind",
+    label: "Instrument kind",
+    icon: "lucide:telescope",
+    values: (row) => row.kinds,
+    order: [...KIND_FAMILIES.map(([family]) => family), OTHER_FAMILY],
+    parentOf: (leaf) => leaf.slice(0, leaf.indexOf(KIND_SEPARATOR)),
+    leafLabel: (leaf) => leaf.slice(leaf.indexOf(KIND_SEPARATOR) + 1),
+  },
+  /** Imagery and a 3D model asks for satellites with both. 13,680 satellites have a model, 21 imagery. */
+  {
+    key: "availability",
+    label: "Data availability",
+    icon: "lucide:database",
+    values: (row) => row.availability,
+    order: Object.values(AVAILABILITY),
+    matchAll: true,
+    sqrtBars: true,
+  },
   { key: "group", label: "Group", icon: "lucide:folder", values: (row) => row.groups },
   { key: "purpose", label: "Purpose", icon: "lucide:target", values: (row) => row.purposes },
   { key: "country", label: "Country", icon: "lucide:flag", values: (row) => [row.country] },
@@ -171,8 +259,9 @@ export const FACETS: readonly FacetDef[] = [
   { key: "bus", label: "Bus", icon: "lucide:box", values: (row) => [row.bus] },
   { key: "size", label: "Size", icon: "lucide:weight", values: (row) => [row.size], order: [...SIZE_CLASSES, UNKNOWN] },
   { key: "launchSite", label: "Launch site", icon: "lucide:rocket", values: (row) => [row.launchSite] },
-  { key: "model", label: "3D model", icon: "lucide:rotate-3d", values: (row) => [row.model] },
   { key: "elementSetAge", label: "Element set age", icon: "lucide:clock", values: (row) => [row.elementSetAge], order: AGE_BUCKETS },
+  /** Drawn by the bands chart, not as a tile. */
+  { key: "band", label: "Band", icon: "lucide:audio-waveform", values: (row) => row.bands, order: BAND_ORDER },
 ];
 
 /** Every facet, by key. */
@@ -253,7 +342,6 @@ function rowOf(key: string, entry: CatalogEntry, groups: string[], nowMs: number
     status: m.opsStatus === undefined ? UNKNOWN : satcatLabel(SATCAT_OPS_STATUS, m.opsStatus),
     launchSite: m.launchSite === undefined ? UNKNOWN : satcatLabel(SATCAT_LAUNCH_SITE, m.launchSite),
     size: bucket(m.massKg, SIZE_BOUNDS_KG, SIZE_CLASSES),
-    model: satelliteModel(m) === undefined ? "Point only" : "Has a 3D model",
     elementSetAge: bucket(ageDays, AGE_BOUNDS_DAYS, AGE_BUCKETS),
     program: m.program ?? NO_PROGRAM,
     launchDate: m.launchDate,
@@ -266,7 +354,31 @@ function rowOf(key: string, entry: CatalogEntry, groups: string[], nowMs: number
     ageDays,
     // An unreadable epoch or node has no crossing, rather than one in no bin.
     crossing: Number.isFinite(ltanHours) ? daylitCrossingOf(ltanHours) : undefined,
+    ...instrumentFacetsOf(m),
   };
+}
+
+/** The facets of what a satellite carries and what satvis has for it. */
+function instrumentFacetsOf(m: CatalogEntry["metadata"]): Pick<CatalogRow, "bands" | "kinds" | "availability" | "imagery"> {
+  const instruments = (Array.isArray(m.instruments) ? (m.instruments as unknown[]) : []).filter(
+    (instrument): instrument is SatelliteInstrument => typeof instrument === "object" && instrument !== null,
+  );
+  const imagery = readImageryList(m.imagery);
+  const bands = new Set<string>();
+  const kinds = new Set<string>();
+  for (const instrument of instruments) {
+    const kind = typeof instrument.kind === "string" && instrument.kind !== "TBD" && instrument.kind !== "Other" ? instrument.kind : NO_INSTRUMENT_KIND;
+    kinds.add(`${kindFamilyOf(kind)}${KIND_SEPARATOR}${kind}`);
+    for (const band of Array.isArray(instrument.bands) ? instrument.bands : []) {
+      bands.add(band);
+    }
+  }
+  const level: ImageryLevel | undefined = imagery.length === 0 ? undefined : imagery.some((entry) => entry.drawn !== undefined) ? "layer" : "link";
+  const availability: string[] = [];
+  if (level !== undefined) availability.push(AVAILABILITY.imagery, level === "layer" ? AVAILABILITY.mapLayer : AVAILABILITY.linkOnly);
+  if (instruments.length > 0) availability.push(AVAILABILITY.instruments);
+  if (satelliteModel(m) !== undefined) availability.push(AVAILABILITY.model);
+  return { bands: [...bands], kinds: [...kinds], availability, imagery: level };
 }
 
 /**
@@ -337,8 +449,10 @@ type Dimension = FacetKey | "launch" | "shape" | "apsides" | "crossing";
 /** A crossfilter's matches and its charts' counts. */
 export interface Crossfilter {
   matched: CatalogRow[];
-  /** Per facet, value -> rows passing every filter but the facet's own. */
+  /** Per facet, value -> rows passing every filter but the facet's own; for a matchAll facet, every filter. */
   counts: Record<FacetKey, Map<string, number>>;
+  /** Per tree facet, parent -> rows counted toward it, each once however many of its leaves it has. */
+  parentCounts: Partial<Record<FacetKey, Map<string, number>>>;
   /** Launch year -> rows passing every filter but the launch years. */
   launches: Map<number, number>;
   /** Rows passing every filter but the shape box: the plot's bright points. */
@@ -378,6 +492,7 @@ function outsideCrossing(crossing: EquatorCrossing | undefined, filter: CatalogF
  */
 export function crossfilter(rows: readonly CatalogRow[], filter: CatalogFilter, active: ReadonlySet<string>): Crossfilter {
   const counts = Object.fromEntries(FACETS.map((def) => [def.key, new Map<string, number>()])) as Record<FacetKey, Map<string, number>>;
+  const parentCounts = Object.fromEntries(FACETS.filter((def) => def.parentOf).map((def) => [def.key, new Map<string, number>()])) as Crossfilter["parentCounts"];
   const launches = new Map<number, number>();
   const crossings: Crossfilter["crossings"] = { southbound: new Map(), northbound: new Map() };
   const matched: CatalogRow[] = [];
@@ -388,8 +503,15 @@ export function crossfilter(rows: readonly CatalogRow[], filter: CatalogFilter, 
 
   const countFacet = (def: FacetDef, row: CatalogRow) => {
     const map = counts[def.key];
-    for (const value of def.values(row)) {
+    const values = def.values(row);
+    for (const value of values) {
       map.set(value, (map.get(value) ?? 0) + 1);
+    }
+    const parents = parentCounts[def.key];
+    if (parents) {
+      for (const parent of new Set(values.map((value) => parentOf(def, value)))) {
+        parents.set(parent, (parents.get(parent) ?? 0) + 1);
+      }
     }
   };
   const countLaunch = (row: CatalogRow) => {
@@ -420,7 +542,8 @@ export function crossfilter(rows: readonly CatalogRow[], filter: CatalogFilter, 
     let failures = 0;
     for (const def of pickedFacets) {
       const picked = filter.facets[def.key]!;
-      if (!def.values(row).some((value) => picked.has(value))) {
+      const values = def.values(row);
+      if (def.matchAll ? ![...picked].every((value) => values.includes(value)) : !values.some((value) => picked.has(value))) {
         failed = def.key;
         failures += 1;
         if (failures > 1) {
@@ -465,12 +588,12 @@ export function crossfilter(rows: readonly CatalogRow[], filter: CatalogFilter, 
         apsisRows.push(row);
       } else if (failed === "crossing") {
         countCrossing(row);
-      } else if (failed !== undefined) {
+      } else if (failed !== undefined && !FACET_BY_KEY[failed].matchAll) {
         countFacet(FACET_BY_KEY[failed], row);
       }
     }
   }
-  return { matched, counts, launches, shapeRows, apsisRows, crossings };
+  return { matched, counts, parentCounts, launches, shapeRows, apsisRows, crossings };
 }
 
 /** A facet value and its count. */
@@ -498,8 +621,8 @@ export interface FacetBranch {
   leaves: FacetItem[];
 }
 
-/** A tree facet's items under their parents. */
-export function facetBranches(def: FacetDef, items: readonly FacetItem[]): FacetBranch[] {
+/** A tree facet's items under their parents, each parent counted by `parentCounts`, else by its leaves' sum. */
+export function facetBranches(def: FacetDef, items: readonly FacetItem[], parentCounts?: ReadonlyMap<string, number>): FacetBranch[] {
   const branches = new Map<string, FacetBranch>();
   for (const item of items) {
     const parent = parentOf(def, item.value);
@@ -507,6 +630,9 @@ export function facetBranches(def: FacetDef, items: readonly FacetItem[]): Facet
     branch.count += item.count;
     branch.leaves.push(item);
     branches.set(parent, branch);
+  }
+  for (const branch of branches.values()) {
+    branch.count = parentCounts?.get(branch.parent) ?? branch.count;
   }
   return [...branches.values()].toSorted((a, b) => orderRank(def, a.parent) - orderRank(def, b.parent) || b.count - a.count || a.parent.localeCompare(b.parent));
 }

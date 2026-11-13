@@ -24,7 +24,8 @@ toggles and search, so its tests and the native app's browser are untouched.
 - Every chart is a filter. Each counts under every filter but its own, so a pick never
   hides its siblings. One pass computes all the counts: a satellite failing no filter
   counts everywhere, and one failing exactly one counts toward that chart alone
-  (`crossfilter` in `src/modules/catalogFacets.ts`).
+  (`crossfilter` in `src/modules/catalogFacets.ts`). Data availability is the one
+  exception: its picks are all-of, so its counts are what adding a value leaves (ADR 0021).
 - Everything is computed in the browser, from the records the groups already serve. There
   is no new endpoint, and no metadata the frontend reads only here.
 
@@ -78,9 +79,10 @@ Starlink holds 18 programmes. A satellite GCAT does not list yet is under "Not i
 yet", not guessed from its name.
 
 **Every other facet is labelled metadata.** Group, purpose, country, operator, owner type,
-status, maker, bus, launch site and 3D model come straight from the bag. So do two
-buckets: size by launch mass, and element set age from the epoch, worked out without a
-satrec (`epochMsOf`).
+status, maker, bus and launch site come straight from the bag. So do two buckets: size by
+launch mass, and element set age from the epoch, worked out without a satrec
+(`epochMsOf`). The 3D model is one value of Data availability, beside the bands chart and
+the instrument kind tree (ADR 0021).
 
 **Apogee × perigee beside orbit shape.** The orbit shape plot puts a satellite at its mean
 altitude, so a Molniya sits among the MEOs. Perigee against apogee, on the same log axis,

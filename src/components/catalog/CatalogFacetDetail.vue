@@ -38,7 +38,7 @@
       >
         <UIcon :name="picked.has(item.value) ? 'lucide:square-check' : 'lucide:square'" class="facetDetail__box" />
         <span class="facetDetail__label" :title="item.value">{{ item.value }}</span>
-        <span class="facetDetail__track"><span :style="{ width: `${(item.count / max) * 100}%` }" /></span>
+        <span class="facetDetail__track"><span :style="{ width: `${(barLength(def, item.count) / max) * 100}%` }" /></span>
         <span class="facetDetail__count cs-num">{{ formatInteger(item.count) }}</span>
         <span class="facetDetail__share cs-num">{{ share(item.count) }}</span>
       </button>
@@ -50,7 +50,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 
-import type { FacetDef, FacetItem } from "@/modules/catalogFacets";
+import { barLength, type FacetDef, type FacetItem } from "@/modules/catalogFacets";
 import { formatInteger, formatFixed } from "@/modules/util/formats";
 
 import CatalogTileToggle from "./CatalogTileToggle.vue";
@@ -71,8 +71,8 @@ const sort = ref<(typeof SORTS)[number]["key"]>("count");
 
 /** Every value's count summed, for the shares. */
 const total = computed(() => props.items.reduce((sum, item) => sum + item.count, 0));
-/** The widest bar's count. */
-const max = computed(() => Math.max(1, ...props.items.map((item) => item.count)));
+/** The widest bar's length. */
+const max = computed(() => Math.max(1, ...props.items.map((item) => barLength(props.def, item.count))));
 
 /** A facet with an order of its own keeps it; the others sort as asked. */
 const shown = computed(() => {

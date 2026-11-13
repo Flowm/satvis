@@ -9,10 +9,13 @@
         :key="column.id"
         type="button"
         class="catalogList__heading"
-        :class="{ 'catalogList__cell--number': column.number }"
+        :class="{ 'catalogList__cell--number': column.number, 'catalogList__cell--mark': column.mark }"
+        :aria-label="column.mark ? `Sort by ${column.label.toLowerCase()}` : undefined"
+        :title="column.mark ? column.label : undefined"
         @click="emit('sort', column.sort)"
       >
-        {{ column.label }}
+        <UIcon v-if="column.mark" :name="column.mark.icon" />
+        <template v-else>{{ column.label }}</template>
         <UIcon v-if="sortKey === column.sort" :name="sortDescending ? 'lucide:arrow-down' : 'lucide:arrow-up'" />
       </button>
       <span />
@@ -32,10 +35,21 @@
             v-for="column in columns"
             :key="column.id"
             class="catalogList__cell"
-            :class="{ 'catalogList__cell--number': column.number, 'cs-num': column.number, 'cs-dim': column.dim }"
+            :class="{ 'catalogList__cell--number': column.number, 'cs-num': column.number, 'cs-dim': column.dim, 'catalogList__cell--mark': column.mark }"
             :title="column.title?.(item.row)"
-            >{{ column.cell(item.row) }}</span
           >
+            <button
+              v-if="column.mark && column.mark.of(item.row)"
+              type="button"
+              class="catalogList__mark"
+              :class="`catalogList__mark--${column.mark.of(item.row)}`"
+              :aria-label="`Show the imagery of ${item.row.name}`"
+              @click="emit('imagery', item.row.name)"
+            >
+              <UIcon :name="column.mark.icon" />
+            </button>
+            <template v-else>{{ column.cell(item.row) }}</template>
+          </span>
           <button
             type="button"
             class="cs-iconBtn catalogList__info"
@@ -58,11 +72,11 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 import type { SortKey } from "@/composables/useCatalogFilters";
 import { orbitColor, orbitKindLabel } from "@/config/orbitClass";
-import type { CatalogRow } from "@/modules/catalogFacets";
+import { type CatalogRow, IMAGERY_LEVELS } from "@/modules/catalogFacets";
 import { formatInteger, formatFixed } from "@/modules/util/formats";
 
 const props = defineProps<{ rows: readonly CatalogRow[]; active: ReadonlySet<string>; sortKey: SortKey; sortDescending: boolean }>();
-const emit = defineEmits<{ sort: [key: SortKey]; toggle: [name: string]; info: [name: string] }>();
+const emit = defineEmits<{ sort: [key: SortKey]; toggle: [name: string]; info: [name: string]; imagery: [name: string] }>();
 
 /** Px, matching the row's CSS height. */
 const ROW_HEIGHT = 26;
@@ -91,11 +105,23 @@ interface Column {
   cell: (row: CatalogRow) => string;
   /** The cell's tooltip. */
   title?: (row: CatalogRow) => string;
+  /** An icon in place of the heading and the cells, drawn strong, faint, or not at all; a drawn one is a button. */
+  mark?: { icon: string; of: (row: CatalogRow) => "strong" | "faint" | undefined };
 }
 
 /** Every column the list can show. */
-const COLUMN: Record<"name" | "year" | "orbit" | "country" | "launched" | "altitude" | "inclination", Column> = {
+const COLUMN: Record<"name" | "imagery" | "year" | "orbit" | "country" | "launched" | "altitude" | "inclination", Column> = {
   name: { id: "name", label: "Name", sort: "name", track: "minmax(110px, 1.6fr)", cell: (row) => row.name },
+  /** The info panel's mark for an instrument with imagery. */
+  imagery: {
+    id: "imagery",
+    label: "Imagery",
+    sort: "imagery",
+    track: "22px",
+    cell: () => "",
+    title: (row) => (row.imagery === undefined ? "" : IMAGERY_LEVELS[row.imagery].title),
+    mark: { icon: "lucide:image", of: (row) => (row.imagery === undefined ? undefined : IMAGERY_LEVELS[row.imagery].mark) },
+  },
   year: { id: "year", label: "Year", sort: "launchDate", track: "44px", number: true, dim: true, cell: (row) => String(row.launchYear ?? "") },
   orbit: { id: "orbit", label: "Orbit", sort: "orbit", track: "minmax(110px, 1fr)", dim: true, cell: orbitLabel, title: orbitTitle },
   country: { id: "country", label: "Country", sort: "country", track: "minmax(60px, 0.7fr)", cell: (row) => row.country },
@@ -106,10 +132,10 @@ const COLUMN: Record<"name" | "year" | "orbit" | "country" | "launched" | "altit
 
 /** Px of list width each column set needs, widest first: the tracks' minimums, gaps and padding. */
 const COLUMN_SETS: [number, Column[]][] = [
-  [600, [COLUMN.name, COLUMN.orbit, COLUMN.country, COLUMN.launched, COLUMN.altitude, COLUMN.inclination]],
-  [480, [COLUMN.name, COLUMN.orbit, COLUMN.launched, COLUMN.altitude]],
-  [380, [COLUMN.name, COLUMN.orbit, COLUMN.year]],
-  [0, [COLUMN.name, COLUMN.year]],
+  [622, [COLUMN.name, COLUMN.orbit, COLUMN.country, COLUMN.launched, COLUMN.altitude, COLUMN.inclination, COLUMN.imagery]],
+  [502, [COLUMN.name, COLUMN.orbit, COLUMN.launched, COLUMN.altitude, COLUMN.imagery]],
+  [402, [COLUMN.name, COLUMN.orbit, COLUMN.year, COLUMN.imagery]],
+  [0, [COLUMN.name, COLUMN.year, COLUMN.imagery]],
 ];
 
 // The list's own width, which picks the column set.
@@ -210,6 +236,36 @@ const visible = computed(() =>
 .catalogList__cell {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.catalogList__cell--mark {
+  display: inline-flex;
+  justify-content: center;
+}
+
+.catalogList__mark {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.catalogList__mark:hover {
+  background: #ffffff14;
+}
+
+.catalogList__mark:focus-visible {
+  outline: 2px solid var(--panel-accent);
+}
+
+.catalogList__mark--strong {
+  color: var(--panel-accent);
+}
+
+.catalogList__mark--faint {
+  color: var(--panel-faint);
 }
 
 .catalogList__cell--number {

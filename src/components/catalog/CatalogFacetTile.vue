@@ -19,7 +19,7 @@
       @click="emit('toggle', item.value)"
     >
       <span class="facetTile__label">{{ item.value }}</span>
-      <span class="facetTile__track"><span :style="{ width: `${(item.count / max) * 100}%` }" /></span>
+      <span class="facetTile__track"><span :style="{ width: `${(barLength(def, item.count) / max) * 100}%` }" /></span>
       <span class="facetTile__count cs-num">{{ formatInteger(item.count) }}</span>
     </button>
     <button v-if="items.length > top" type="button" class="facetTile__more" @click="emit('toggle-open')">+{{ formatInteger(items.length - top) }} more</button>
@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import { type FacetDef, type FacetItem, pickedFirst } from "@/modules/catalogFacets";
+import { barLength, type FacetDef, type FacetItem, pickedFirst } from "@/modules/catalogFacets";
 import { formatInteger } from "@/modules/util/formats";
 
 import CatalogTileToggle from "./CatalogTileToggle.vue";
@@ -45,8 +45,8 @@ const emit = defineEmits<{ toggle: [value: string]; clear: []; "toggle-open": []
 
 /** The picked values first, so a pick never hides behind "+n more". */
 const shown = computed(() => pickedFirst(props.items, (item) => props.picked.has(item.value), props.top));
-/** The widest bar's count. */
-const max = computed(() => Math.max(1, ...props.items.map((item) => item.count)));
+/** The widest bar's length. */
+const max = computed(() => Math.max(1, ...props.items.map((item) => barLength(props.def, item.count))));
 </script>
 
 <style scoped>

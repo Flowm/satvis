@@ -52,6 +52,8 @@ const nowMs = ref(0);
  * selecting a satellite returns there.
  */
 const preferredTab = ref<InfoTab>("orbit");
+/** The info panel's body is folded away; the selection stays. */
+const infoCollapsed = ref(false);
 /** The pass picked off the timeline, by start time. */
 const pickedPassMs = ref<number | null>(null);
 /** Lets the panel say "not yet" instead of "none" (see `PassPredictor.settled`). */
@@ -67,6 +69,12 @@ const staleNotice = ref<string | undefined>(undefined);
 const satelliteInfo: ShallowRef<SatelliteInfo | undefined> = shallowRef();
 /** Where the Imagery tab's previews are centred: under the satellite as it was selected, so they do not reload as it moves. */
 const imageryCentre: ShallowRef<PreviewCentre | undefined> = shallowRef();
+
+/** Opens the info panel at `tab`, unfolded. */
+function openTab(tab: InfoTab): void {
+  preferredTab.value = tab;
+  infoCollapsed.value = false;
+}
 
 let controller: CesiumController | undefined;
 let removeTickCallback: (() => void) | undefined;
@@ -257,6 +265,8 @@ export function useSelectedEntity(instance: CesiumController) {
     pickedPassMs,
     pickPass,
     preferredTab,
+    infoCollapsed,
+    openTab,
     groundStationAvailable,
     elements,
     staleNotice,

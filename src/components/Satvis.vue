@@ -84,12 +84,7 @@
           <input type="checkbox" :checked="hasOverlay(name)" @change="toggleOverlay(name, ($event.target as HTMLInputElement).checked)" />
           {{ imageryLabel(name) }}
         </label>
-        <!-- Instrument imagery shown from a satellite's Instruments tab (ADR 0020): listed
-             here to take it off again. Its layer's id until a record that carries it loads. -->
-        <label v-for="token in instrumentImagery" :key="token" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert.includes('layers') }">
-          <input type="checkbox" checked @change="toggleInstrumentImagery(token, false)" />
-          {{ instrumentImageryLabels[token] ?? token.slice(token.indexOf(":") + 1) }}
-        </label>
+        <map-imagery-layers :open="openMenu === 'map'" :inert="inert.includes('layers')" />
         <div v-if="inertReason('layers')" class="toolbarNote">{{ inertReason("layers") }}</div>
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('terrain') }">Terrain</div>
         <!-- `:checked` shows the terrain in force, not the stored choice, which an
@@ -300,6 +295,7 @@ import ClockDeck from "./ClockDeck.vue";
 import EntityInfoPanel from "./EntityInfoPanel.vue";
 import GlobeMenu from "./GlobeMenu.vue";
 import GroundStationList from "./GroundStationList.vue";
+import MapImageryLayers from "./MapImageryLayers.vue";
 import SatelliteBrowser from "./SatelliteBrowser.vue";
 import SegmentedControl from "./SegmentedControl.vue";
 import SkyHud from "./SkyHud.vue";
@@ -346,23 +342,8 @@ const menuItems: { key: MenuKey; label: string; icon: string; hint: string }[] =
 ];
 
 const cesiumStore = useCesiumStore();
-const {
-  baseLayer,
-  instrumentImagery,
-  instrumentImageryLabels,
-  terrainProvider,
-  surfaceModel,
-  starMap,
-  sceneMode,
-  unseen,
-  cameraMode,
-  pixelRatio,
-  msaa,
-  frameRate,
-  showFps,
-  showBenchmark,
-  requestRenderMode,
-} = storeToRefs(cesiumStore);
+const { baseLayer, terrainProvider, surfaceModel, starMap, sceneMode, unseen, cameraMode, pixelRatio, msaa, frameRate, showFps, showBenchmark, requestRenderMode } =
+  storeToRefs(cesiumStore);
 
 /** Starts with the builtin map, and widens once per page when the probes answer. */
 const starMapOptions = ref<StarMapName[]>([BUILTIN_STAR_MAP]);
@@ -412,7 +393,7 @@ const baseLayers = baseLayerNames();
 const overlayLayers = overlayLayerNames();
 const terrainNames = terrainProviderNames();
 
-const { hasOverlay, setBaseLayer, toggleOverlay, toggleInstrumentImagery } = cesiumStore;
+const { hasOverlay, setBaseLayer, toggleOverlay } = cesiumStore;
 
 const satStore = useSatStore();
 const { enabledComponents, groundStations, observerStation } = storeToRefs(satStore);
