@@ -31,9 +31,11 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   keeps its last frame's tiles until the new frame's arrive, and the tiles the
   whole globe is drawn from, past the budget, to stand in on the way out of a
   zoom. A tile still loading that no tile in view asks for at its level is
-  cancelled, base map and overlays alike. `InstrumentImagery`
-  in the app target finds each drawn layer among the loaded records and moves it
-  to the clock's frame once a second.
+  cancelled, base map and overlays alike. A frame still loading is finished, for
+  up to 20 s, before the newest one asked for meanwhile, so a clock faster than
+  the service skips frames, as on the web. `InstrumentImagery` in the app target
+  finds each drawn layer among the loaded records and, once its service has
+  listed its frames, moves it to the clock's frame once a second.
 
 ## Rendering
 

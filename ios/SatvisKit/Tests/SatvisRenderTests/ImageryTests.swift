@@ -1,9 +1,9 @@
 import Foundation
 import Metal
-import SatvisCore
 import Testing
 import simd
 
+@testable import SatvisCore
 @testable import SatvisRender
 
 @Suite struct ImageryTests {
@@ -134,6 +134,43 @@ import simd
         #expect(surface.tileCount == 2)
     }
 
+    // A clock faster than the service: the frames asked for while one loads wait for
+    // it, rather than cancelling it, and the last of them follows.
+    @MainActor
+    @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func finishesAFrameBeforeTheNext() async throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let queue = try #require(device.makeCommandQueue())
+        let libraries = try await ShaderLibrary.make(device: device)
+        let surface = try Surface(device: device, library: libraries.precise, site: URL(string: "https://satvis.space/")!)
+        let gate = Gate()
+        surface.loader = { _ in
+            await gate.wait()
+            return nil
+        }
+        let layer = SatelliteDetails.ImageryPreview(provider: .eumetview, layer: "mtg_fd:rgb_geocolour", maxLevel: 7, format: .png, isDaily: false, end: nil)
+        let frame = { (time: String) in ImageryOverlay(layer: layer, frame: time, bounds: nil) }
+        surface.setOverlays([frame("08:00")])
+        let wholeGlobe = simd_double4x4(diagonal: SIMD4(3e-8, 3e-8, 3e-8, 1))
+        let (_, bake) = surface.select(eye: SIMD3(2e7, 0, 0), viewProjection: wholeGlobe, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2)
+        let base = try #require(
+            device.makeTexture(descriptor: .texture2DDescriptor(pixelFormat: .rgba8Unorm, width: 4, height: 4, mipmapped: false)))
+        let commands = try #require(queue.makeCommandBuffer())
+        surface.encodeBakes(bake, base: base, commands: commands)
+        commands.commit()
+
+        surface.setOverlays([frame("08:10")])
+        surface.setOverlays([frame("08:20")])
+        #expect(surface.overlayFrames == ["08:00"])
+        await gate.open()
+        for _ in 0..<200 where surface.overlayFrames == ["08:00"] {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(surface.overlayFrames == ["08:20"])
+
+        surface.setOverlays([frame("08:30")])
+        #expect(surface.overlayFrames == ["08:30"])
+    }
+
     // The sky view stands on the ground the Map panel draws: the ellipsoid with the
     // terrain off, and what is worked out from the ground redone when it changes.
     @MainActor
@@ -153,4 +190,24 @@ import simd
         #expect(surface.terrainRevision == revision + 2)
     }
 
+}
+
+/// Holds the loads back until opened.
+private actor Gate {
+    private var isOpen = false
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        if !isOpen {
+            await withCheckedContinuation { waiting.append($0) }
+        }
+    }
+
+    func open() {
+        isOpen = true
+        for continuation in waiting {
+            continuation.resume()
+        }
+        waiting = []
+    }
 }

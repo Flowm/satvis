@@ -26,6 +26,8 @@ final class InstrumentImagery {
         /// EUMETView's, from the same capabilities.
         var bounds: [Double]?
         var asked: Date
+        /// Whether the service has answered, with a list or without.
+        var answered = false
     }
 
     /// A day, in milliseconds.
@@ -74,7 +76,7 @@ final class InstrumentImagery {
     func follow(now: @escaping @MainActor () -> Double, apply: @escaping @MainActor ([ImageryOverlay]) -> Void) async {
         while !Task.isCancelled {
             let time = now()
-            let overlays = tokens.compactMap { token in layers[token].map { overlay($0, at: time) } }
+            let overlays = tokens.compactMap { token in layers[token].flatMap { overlay($0, at: time) } }
             if overlays != drawn {
                 drawn = overlays
                 apply(overlays)
@@ -83,8 +85,10 @@ final class InstrumentImagery {
         }
     }
 
-    /// `layer` at the frame for `time`, its frames asked for when they are due.
-    private func overlay(_ layer: SatelliteDetails.ImageryPreview, at time: Double) -> ImageryOverlay {
+    /// `layer` at the frame for `time`, its frames asked for when they are due. Nil
+    /// until its service first answers, as on the web: its latest frame drawn
+    /// meanwhile would be loaded in full before the clock's.
+    private func overlay(_ layer: SatelliteDetails.ImageryPreview, at time: Double) -> ImageryOverlay? {
         let known = frames[layer.token]
         let refresh: TimeInterval = layer.provider == .gibs ? 30 * 60 : 5 * 60
         let due: TimeInterval? =
@@ -95,6 +99,9 @@ final class InstrumentImagery {
         if let due, Date().timeIntervalSince(known?.asked ?? .distantPast) >= due {
             frames[layer.token, default: Frames(asked: Date())].asked = Date()
             Task { await list(layer) }
+        }
+        guard known?.answered == true else {
+            return nil
         }
         let daily = layer.provider == .gibs && layer.isDaily
         let frame: String? =
@@ -115,6 +122,7 @@ final class InstrumentImagery {
             (response as? HTTPURLResponse)?.statusCode == 200
         else {
             log.error("No frames for \(layer.token, privacy: .public); drawing its latest")
+            frames[layer.token]?.answered = true
             return
         }
         let text = String(decoding: data, as: UTF8.self)
@@ -138,6 +146,7 @@ final class InstrumentImagery {
             known.ranges = ranges
         }
         known.bounds = bounds ?? known.bounds
+        known.answered = true
         frames[layer.token] = known
     }
 }

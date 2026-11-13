@@ -22,7 +22,7 @@ final class Surface {
     private static let maximumTextures = 384
     /// Source tiles kept decoded for baking, the base map's and each overlay's,
     /// besides an overlay's stand-ins (`isStandIn`).
-    private static let maximumSources = 64
+    nonisolated private static let maximumSources = 64
     private static let bakesPerFrame = 12
     /// Terrain tiles kept decoded, about 30 MB, unless more are in use.
     private static let maximumTerrainTiles = 96
@@ -30,6 +30,8 @@ final class Surface {
     private static let drapesPerFrame = 16
     /// Seconds before a failed imagery or terrain tile is asked for again.
     private static let retryInterval: TimeInterval = 60
+    /// Seconds a frame still loading holds off a newer one: the web's `MAX_LOAD_MS`.
+    private static let frameWait: TimeInterval = 20
     private static let maximumScreenSpaceError = 2.0
     /// Counts the terrain tiles that came in and the terrain turned on or off,
     /// for what is worked out from the ground to know it is out of date.
@@ -210,6 +212,10 @@ final class Surface {
         /// The last frame's tiles, drawn where this frame's have not come yet, so that
         /// a frame change does not show the base map meanwhile.
         var previous: [TileKey: MTLTexture] = [:]
+        /// The frame asked for while this one was loading, shown once it has.
+        var next: ImageryOverlay?
+        /// When this frame was first shown.
+        var since = Date()
 
         init(_ imagery: ImageryOverlay) {
             self.imagery = imagery
@@ -219,36 +225,71 @@ final class Surface {
         var limits: Bounds? {
             imagery.bounds.flatMap { $0.count == 4 ? Bounds(west: $0[0], south: $0[1], east: $0[2], north: $0[3]) : nil }
         }
+
+        /// Whether any of this frame's tiles is on its way.
+        var isLoading: Bool {
+            sources.tiles.values.contains { if case .loading = $0 { true } else { false } }
+        }
+
+        /// Shows `next`, keeping this frame's tiles until its own come.
+        func showNext() {
+            guard let next else {
+                return
+            }
+            for case (let key, .ready(let texture, _)) in sources.tiles {
+                previous[key] = texture
+            }
+            // The tiles of the frames before last: what is left of them is coarse.
+            if previous.count > Surface.maximumSources {
+                previous = previous.filter { key, _ in sources.tiles[key] != nil }
+            }
+            sources.clear()
+            sources.source = next.source
+            imagery = next
+            self.next = nil
+            since = Date()
+        }
     }
 
     /// Lays `imagery` over the base map, in order, the last on top, and bakes every tile
-    /// again. A layer at a new frame keeps its last frame's tiles until the new ones come.
+    /// again. A layer at a new frame keeps its last frame's tiles until the new ones
+    /// come, and one whose frame is still loading finishes it first (`showNextFrames`):
+    /// a clock faster than the service skips frames, as on the web, rather than
+    /// cancelling each before it arrives.
     func setOverlays(_ imagery: [ImageryOverlay]) {
-        guard imagery != overlays.map(\.imagery) else {
+        guard imagery != overlays.map({ $0.next ?? $0.imagery }) else {
             return
         }
+        let layersChanged = imagery.map(\.layer.token) != overlays.map(\.imagery.layer.token)
         let kept = Dictionary(overlays.map { ($0.imagery.layer.token, $0) }) { first, _ in first }
         overlays = imagery.map { wanted in
             guard let overlay = kept[wanted.layer.token] else {
                 return Overlay(wanted)
             }
-            if overlay.imagery != wanted {
-                for case (let key, .ready(let texture, _)) in overlay.sources.tiles {
-                    overlay.previous[key] = texture
-                }
-                // The tiles of the frames before last: what is left of them is coarse.
-                if overlay.previous.count > Self.maximumSources {
-                    overlay.previous = overlay.previous.filter { key, _ in overlay.sources.tiles[key] != nil }
-                }
-                overlay.sources.clear()
-                overlay.sources.source = wanted.source
-                overlay.imagery = wanted
-            }
+            overlay.next = wanted == overlay.imagery ? nil : wanted
             return overlay
         }
         for old in kept.values where !overlays.contains(where: { $0 === old }) {
             old.sources.clear()
         }
+        if showNextFrames() || layersChanged {
+            bakeAgain()
+        }
+    }
+
+    /// Moves each overlay to the frame it was last asked for, once its own has loaded
+    /// or has had `frameWait`. Whether any moved.
+    private func showNextFrames() -> Bool {
+        var moved = false
+        for overlay in overlays where overlay.next != nil && (!overlay.isLoading || Date().timeIntervalSince(overlay.since) >= Self.frameWait) {
+            overlay.showNext()
+            moved = true
+        }
+        return moved
+    }
+
+    /// Bakes every tile again, for a change of what is laid over them.
+    private func bakeAgain() {
         generation += 1
         for tile in tiles.values {
             tile.needsBake = true
@@ -704,6 +745,9 @@ final class Surface {
             sources.tiles[key] = texture.map { .ready($0, lastUsed: frame) } ?? .failed(at: Date())
             revision += 1
             markForBake(covering: bounds)
+            if showNextFrames() {
+                bakeAgain()
+            }
             guard texture == nil else {
                 return
             }
@@ -832,6 +876,10 @@ final class Surface {
             }
         }
         evictSources(waiting: waiting)
+        // Cancelled there, or out of time: nothing else would move it on.
+        if showNextFrames() {
+            bakeAgain()
+        }
         evictTerrain()
     }
 
@@ -860,6 +908,9 @@ final class Surface {
 
     /// The tiles kept, textured or not.
     var tileCount: Int { tiles.count }
+
+    /// The frame each overlay shows.
+    var overlayFrames: [String?] { overlays.map(\.imagery.frame) }
 
     /// The base map's source tiles and each overlay's.
     private var allSources: [SourceTiles] {
