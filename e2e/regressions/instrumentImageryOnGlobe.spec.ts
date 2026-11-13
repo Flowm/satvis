@@ -84,15 +84,15 @@ test("the Map panel lists every layer in groups, one open at a time, and shows o
   await openApp(page, "time=2026-10-03T15:07Z", { setup: stubGibs });
   await openMenu(page, "Map");
 
-  const weather = page.getByRole("button", { name: /Weather satellites/ });
-  await expect(weather).toHaveAttribute("aria-expanded", "false");
-  await weather.click();
+  const geo = page.getByRole("button", { name: /GEO satellites/ });
+  await expect(geo).toHaveAttribute("aria-expanded", "false");
+  await geo.click();
   await expect(menuSwitch(page, "METEOSAT-12 · True colour")).toBeVisible();
   await menuSwitch(page, "GOES 19 · GeoColor").click();
   await expect.poll(() => new URL(page.url()).searchParams.get("imagery")).toBe(`gibs:${LAYER}`);
-  await expect(weather).toContainText("1 on");
+  await expect(geo).toContainText("1 on");
 
-  await weather.click();
+  await geo.click();
   await expect(menuSwitch(page, "GOES 19 · GeoColor")).toBeHidden();
 });
 

@@ -175,14 +175,17 @@ import Testing
         let scenes: [String: JSONValue] = [
             "instrument": .string("MSI"), "provider": .string("copernicus-browser"), "layer": .string("S2_L2A"), "label": .string("True colour scenes"), "kind": .string("rgb"),
         ]
+        // Grouped by the orbit, and without the layer that stopped.
+        var goes = record("GOES 19", [.object(geoColor)])
+        goes.meanElements.meanMotion = 1.0027
+        goes.meanElements.eccentricity = 0.0001
         let listings = SatelliteDetails.imageryListings([
-            record("TERRA", [.object(daily), .object(ended)]), record("GOES 19", [.object(geoColor)]), record("SENTINEL-2A", [.object(scenes)]),
+            record("TERRA", [.object(daily), .object(ended)]), goes, record("SENTINEL-2A", [.object(scenes)]),
         ])
         #expect(
             listings.map { [$0.satellite, $0.imagery.label, $0.group.rawValue, $0.token] } == [
-                ["GOES 19", "GeoColor", "weather", "gibs:GOES-East_ABI_GeoColor"],
-                ["TERRA", "True colour", "polar", "gibs:MODIS_Terra_CorrectedReflectance_TrueColor"],
-                ["TERRA", "True colour, nadir camera", "ended", "gibs:MISR_AM1_Ellipsoid_Radiance_RGB_AN"],
+                ["GOES 19", "GeoColor", "geo", "gibs:GOES-East_ABI_GeoColor"],
+                ["TERRA", "True colour", "leo", "gibs:MODIS_Terra_CorrectedReflectance_TrueColor"],
             ])
         #expect(listings[0].imagery.detail == "every 10 min")
         #expect(listings[0].imagery.href == "https://worldview.earthdata.nasa.gov/?l=GOES-East_ABI_GeoColor")

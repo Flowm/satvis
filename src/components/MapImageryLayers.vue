@@ -43,15 +43,12 @@ const props = defineProps<{
 
 /** A group's row, as the panel names it. */
 const GROUP_TITLE: Record<ImageryGroup, string> = {
-  weather: "Weather satellites",
-  polar: "Polar orbiters",
-  ended: "Ended missions",
+  geo: "GEO satellites",
+  leo: "LEO satellites",
 };
-/** Weather satellites have a frame every few minutes, polar orbiters one a day. */
 const GROUP_ICON: Record<ImageryGroup, string> = {
-  weather: "lucide:radio",
-  polar: "lucide:calendar-days",
-  ended: "lucide:archive",
+  geo: "lucide:earth",
+  leo: "lucide:orbit",
 };
 
 const { sats } = useController();

@@ -109,29 +109,29 @@ describe("imageryLayers", () => {
   const ended = { ...daily, layer: "MISR_AM1_Ellipsoid_Radiance_RGB_AN", instrument: "MISR", label: "True colour, nadir camera", end: "2022-10-12" };
   const scenes = { instrument: "MSI", provider: "copernicus-browser", layer: "S2_L2A", label: "True colour scenes", kind: "rgb" };
 
-  test("groups the layers the globe draws by how often they have frames, by satellite name", () => {
+  test("groups the layers the globe draws by the satellite's orbit, by satellite name, and leaves out those that stopped", () => {
     const layers = imageryLayers([
-      { name: "TERRA", satnum: "25994", metadata: { imagery: [daily, ended] } },
-      { name: "GOES 19", satnum: "60133", metadata: { imagery: [geoColor] } },
-      { name: "SENTINEL-2A", satnum: "40697", metadata: { imagery: [scenes] } },
+      { name: "TERRA", satnum: "25994", orbitClass: "LEO", metadata: { imagery: [daily, ended] } },
+      { name: "GOES 19", satnum: "60133", orbitClass: "GEO", metadata: { imagery: [geoColor] } },
+      { name: "SENTINEL-2A", satnum: "40697", orbitClass: "LEO", metadata: { imagery: [scenes] } },
     ]);
     expect(layers.map((layer) => [layer.satellite, layer.label, layer.group, layer.token])).toEqual([
-      ["GOES 19", "GeoColor", "weather", "gibs:GOES-East_ABI_GeoColor"],
-      ["TERRA", "True colour", "polar", "gibs:MODIS_Terra_CorrectedReflectance_TrueColor"],
-      ["TERRA", "True colour, nadir camera", "ended", "gibs:MISR_AM1_Ellipsoid_Radiance_RGB_AN"],
+      ["GOES 19", "GeoColor", "geo", "gibs:GOES-East_ABI_GeoColor"],
+      ["TERRA", "True colour", "leo", "gibs:MODIS_Terra_CorrectedReflectance_TrueColor"],
     ]);
     expect(layers[0]).toMatchObject({ instrument: "ABI", detail: "every 10 min" });
   });
 
   test("lists a satellite's layer once, however many groups carry it, and leaves out an entry the Imagery tab would", () => {
     const layers = imageryLayers([
-      { name: "GOES 19", satnum: "60133", metadata: { imagery: [geoColor] } },
+      { name: "GOES 19", satnum: "60133", orbitClass: "GEO", metadata: { imagery: [geoColor] } },
       {
         name: "GOES 19",
         satnum: "60133",
+        orbitClass: "GEO",
         metadata: { imagery: [geoColor, { ...geoColor, provider: "elsewhere" }, { ...geoColor, layer: 7 }, { ...geoColor, layer: "No_Instrument", instrument: undefined }, null] },
       },
-      { name: "NO IMAGERY", satnum: "1", metadata: {} },
+      { name: "NO IMAGERY", satnum: "1", orbitClass: "LEO", metadata: {} },
     ]);
     expect(layers.map((layer) => layer.key)).toEqual(["60133:gibs:GOES-East_ABI_GeoColor"]);
   });

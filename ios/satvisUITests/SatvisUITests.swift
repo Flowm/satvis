@@ -215,27 +215,27 @@ nonisolated class SatvisUITests: XCTestCase {
         let listed = app.switches["METEOSAT-12 · GeoColour"]
         XCTAssert(listed.waitForExistence(timeout: 10))
         XCTAssertEqual(listed.value as? String, "1")
-        XCTAssertEqual(app.buttons["Weather satellites"].value as? String, "1 on")
+        XCTAssertEqual(app.buttons["GEO satellites"].value as? String, "1 on")
         flip(app, "METEOSAT-12 · GeoColour")
         XCTAssert(waitForValue(listed, "0"))
     }
 
-    // The Map panel lists every layer the records carry, in groups by how often they
-    // have frames, one open at a time (ADR 0021), and draws one from there.
+    // The Map panel lists every layer the records carry, in groups by the satellite's
+    // orbit, one open at a time (ADR 0021), and draws one from there.
     @MainActor
     func testDrawsALayerFromTheMapPanel() {
         let app = launch()
         openMenu(app)
         app.buttons["Map"].tap()
-        let polar = app.buttons["Polar orbiters"]
-        XCTAssert(polar.waitForExistence(timeout: 10))
+        let leo = app.buttons["LEO satellites"]
+        XCTAssert(leo.waitForExistence(timeout: 10))
         // Closed until one is opened, with no layer on.
         XCTAssertFalse(app.switches["TERRA · True colour"].exists)
-        polar.tap()
+        leo.tap()
         flip(app, "TERRA · True colour")
         XCTAssert(waitForValue(app.switches["TERRA · True colour"], "1"))
-        XCTAssertEqual(polar.value as? String, "1 on")
-        app.buttons["Weather satellites"].tap()
+        XCTAssertEqual(leo.value as? String, "1 on")
+        app.buttons["GEO satellites"].tap()
         XCTAssert(app.switches["GOES 19 · GeoColor"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.switches["TERRA · True colour"].exists)
     }

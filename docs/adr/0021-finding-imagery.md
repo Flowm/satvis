@@ -54,17 +54,21 @@ from the orbit. It sorts the satellites with imagery first, and a press on a mar
 satellite at its Imagery tab, as the Instruments tab's imagery button does.
 
 **The Map panel lists every layer the globe can draw, in groups, one open at a time.**
-Under the overlays, "Satellite imagery" holds three groups: weather satellites (a frame
-every few minutes), polar orbiters (daily) and ended missions. Until the user opens or
-closes one, the open group is the first with a layer on, so a layer
-shown from the Imagery tab or a link can be taken off where it is listed. A group's row
-says how many of its layers are on.
+Under the overlays, "Satellite imagery" holds two groups: GEO satellites and LEO
+satellites. Until the user opens or closes one, the open group is the first with a layer
+on, so a layer shown from the Imagery tab or a link can be taken off where it is listed. A
+group's row says how many of its layers are on.
 
-- The group is chosen by the entry's period (`imageryLayers` in
-  `src/config/instrumentImagery.ts`): today that tells the geostationary imagers from the
-  polar orbiters' mosaics. A layer that stopped is ended whatever its period.
+- The group is the satellite's orbit class (`imageryLayers` in
+  `src/config/instrumentImagery.ts`): GEO, and LEO for the rest, as no MEO or HEO satellite
+  has a layer. It replaced groups by the entry's period, weather satellites (a frame every
+  few minutes) and polar orbiters (daily), which a polar orbiter with frames by the minute
+  would have put among the weather satellites; the orbit is what the panel's reader knows.
+- A layer that stopped is not listed: the satellite's Imagery tab has it, and the map is
+  for what is imaged now. One on the globe from a link is listed above the groups, so it
+  can still be taken off.
 - An entry with a viewer link alone is not listed: the satellite's Imagery tab has it, and
-  a fourth group of links was a second place for it in a panel of what the map draws.
+  a third group of links was a second place for it in a panel of what the map draws.
 - A row names the satellite first, "GOES 19 · GeoColor", so a narrow panel cuts the picture's
   name, not the satellite's.
 - The list is read off the records, so opening the Map panel loads every group, as opening

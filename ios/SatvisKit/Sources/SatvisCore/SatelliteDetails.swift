@@ -279,11 +279,10 @@ public enum SatelliteDetails {
     /// A layer of a satellite the globe can draw, as the Map panel lists it (ADR 0021):
     /// the web app's `ImageryLayer`.
     public struct ImageryListing: Sendable, Hashable {
-        /// The Map panel's groups, in its order: by how often a layer has frames, which
-        /// tells the geostationary weather imagers from the polar orbiters' daily mosaics;
-        /// then the layers that stopped.
+        /// The Map panel's groups, in its order: by the satellite's orbit class, GEO, and
+        /// LEO for the rest, as no MEO or HEO satellite has a layer.
         public enum Group: String, CaseIterable, Sendable {
-            case weather, polar, ended
+            case geo, leo
         }
 
         /// Catalog number, provider and layer: unique in the list.
@@ -296,23 +295,24 @@ public enum SatelliteDetails {
         public var group: Group
     }
 
-    /// Every layer `records` carry that the globe can draw, once per satellite, provider
-    /// and layer, by satellite name, then label: the web app's `imageryLayers`. A viewer
-    /// link alone is the satellite's Imagery tab's to offer.
+    /// Every layer `records` carry that the globe can draw and that has not stopped, once
+    /// per satellite, provider and layer, by satellite name, then label: the web app's
+    /// `imageryLayers`. A viewer link alone, or a layer that stopped, is the satellite's
+    /// Imagery tab's to offer.
     public static func imageryListings(_ records: some Sequence<GPRecord>, tables: WebTables = .shared) -> [ImageryListing] {
         var listings: [String: ImageryListing] = [:]
         for record in records {
             for entry in record.metadata["imagery"]?.array ?? [] {
-                guard let found = imagery(entry, tables: tables), let preview = found.imagery.preview else {
+                guard let found = imagery(entry, tables: tables), let preview = found.imagery.preview, preview.end == nil else {
                     continue
                 }
                 let key = "\(record.satnum):\(found.layer)"
                 guard listings[key] == nil else {
                     continue
                 }
-                let group: ImageryListing.Group = preview.end != nil ? .ended : found.period?.hasPrefix("PT") == true ? .weather : .polar
                 listings[key] = ImageryListing(
-                    key: key, satellite: record.name, instrument: found.instrument, imagery: found.imagery, token: preview.token, group: group)
+                    key: key, satellite: record.name, instrument: found.instrument, imagery: found.imagery, token: preview.token,
+                    group: record.orbitClass == .geo ? .geo : .leo)
             }
         }
         return listings.values.sorted {

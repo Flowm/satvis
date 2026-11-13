@@ -555,7 +555,6 @@ private struct SatelliteImagerySection: View {
                                     .foregroundStyle(.secondary)
                             } title: {
                                 HStack(spacing: 4) {
-                                    // The panel fits "Weather satellites" on two lines only, on an iPad too.
                                     Text(Self.title(group.key))
                                         .lineLimit(2)
                                     Spacer(minLength: 0)
@@ -612,19 +611,16 @@ private struct SatelliteImagerySection: View {
     /// A group's row, as the web app names it.
     private static func title(_ group: Listing.Group) -> LocalizedStringKey {
         switch group {
-        case .weather: "Weather satellites"
-        case .polar: "Polar orbiters"
-        case .ended: "Ended missions"
+        case .geo: "GEO satellites"
+        case .leo: "LEO satellites"
         }
     }
 
-    /// A group's mark: a weather satellite has a frame every few minutes, a polar
-    /// orbiter one a day.
+    /// A group's mark.
     private static func icon(_ group: Listing.Group) -> String {
         switch group {
-        case .weather: "dot.radiowaves.left.and.right"
-        case .polar: "calendar"
-        case .ended: "archivebox"
+        case .geo: "globe.europe.africa"
+        case .leo: "circle.dashed"
         }
     }
 }
