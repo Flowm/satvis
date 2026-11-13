@@ -28,6 +28,7 @@ struct SegmentedTabs<Value: Hashable>: View {
         .accessibilityElement(children: .contain)
     }
 
+    /// The tabs in a row: of equal widths, or where it `scrolls`, each of its own.
     private func track(scrolls: Bool) -> some View {
         HStack(spacing: 0) {
             ForEach(tabs, id: \.value) { tab in
@@ -38,6 +39,7 @@ struct SegmentedTabs<Value: Hashable>: View {
         .padding(2)
     }
 
+    /// A tab's button: its name and count, on the thumb while chosen.
     private func tab(_ value: Value, _ title: String, count: Int, scrolls: Bool) -> some View {
         let isSelected = selection == value
         return Button {

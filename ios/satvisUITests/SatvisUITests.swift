@@ -115,9 +115,11 @@ nonisolated class SatvisUITests: XCTestCase {
         app.buttons["Details of INSAT-3D"].tap()
         XCTAssert(app.navigationBars["INSAT-3D"].waitForExistence(timeout: 10))
         app.buttons["Instruments"].tap()
-        let imager = app.buttons["Imager (INSAT 3D), Retired, 1 km, Bands: VIS, SWIR, MWIR, TIR"]
+        // The full names beside the short ones where the panel has room for them, as on the web.
+        let roomy = isRoomy(app)
+        let imager = app.buttons["Imager (INSAT 3D), \(roomy ? "Very High Resolution Radiometer, " : "")Retired, 1 km, Bands: VIS, SWIR, MWIR, TIR"]
         XCTAssert(imager.waitForExistence(timeout: 5))
-        XCTAssert(app.buttons["Sounder (INSAT), Retired, Bands: VIS, MWIR, TIR"].exists)
+        XCTAssert(app.buttons["Sounder (INSAT), \(roomy ? "IR Sounder, " : "")Retired, Bands: VIS, MWIR, TIR"].exists)
         let kind = app.descendants(matching: .any)["Kind, Multi-purpose imaging Vis/IR radiometer"]
         XCTAssertFalse(kind.exists)
         // No layer shows any of INSAT-3D's instruments, and each has figures for the table.
@@ -153,7 +155,7 @@ nonisolated class SatvisUITests: XCTestCase {
         }
         // CCOR-1 has a band, so a line.
         XCTAssertFalse(app.buttons["CCOR-1"].exists)
-        XCTAssert(app.buttons["CCOR-1, Bands: VIS"].exists)
+        XCTAssert(app.buttons["CCOR-1, \(isRoomy(app) ? "Compact Coronagraph - 1, " : "")Bands: VIS"].exists)
         exis.tap()
         let kind = app.descendants(matching: .any)["Kind, Solar irradiance monitor"]
         for _ in 0..<3 where !kind.waitForExistence(timeout: 2) {
@@ -185,12 +187,45 @@ nonisolated class SatvisUITests: XCTestCase {
             }
             XCTAssert(picture.exists, layer)
         }
-        XCTAssert(app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'True colour, every 10 min since 2024'")).firstMatch.exists)
+        let detail = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'True colour, every 10 min since 2024'")).firstMatch
+        for _ in 0..<3 where !detail.waitForExistence(timeout: 2) {
+            app.collectionViews.firstMatch.swipeUp()
+        }
+        XCTAssert(detail.exists)
         let link = app.links["Open in EUMETView"].firstMatch
         for _ in 0..<3 where !link.waitForExistence(timeout: 2) {
             app.collectionViews.firstMatch.swipeUp()
         }
         XCTAssert(link.exists)
+    }
+
+    // An instrument's imagery button opens the Imagery tab at that instrument's first
+    // card, here the second; the tab opened from the tab row starts at the top.
+    @MainActor
+    func testOpensTheImageryTabAtTheInstrumentsCard() {
+        let app = search("TERRA")
+        app.buttons["Details of TERRA"].tap()
+        XCTAssert(app.navigationBars["TERRA"].waitForExistence(timeout: 10))
+        app.buttons["Instruments"].tap()
+        let button = app.buttons["Imagery of MODIS"]
+        XCTAssert(button.waitForExistence(timeout: 5))
+        button.tap()
+        let tabs = app.buttons["Imagery (2)"]
+        XCTAssert(tabs.waitForExistence(timeout: 5))
+        let modis = app.images["MODIS, True colour"]
+        XCTAssert(modis.waitForExistence(timeout: 5))
+        // Whole, and under the pinned tab row, once the scroll has settled.
+        let list = app.collectionViews.firstMatch
+        let shown = NSPredicate { _, _ in modis.frame.minY >= tabs.frame.maxY && modis.frame.maxY <= list.frame.maxY }
+        wait(for: [XCTNSPredicateExpectation(predicate: shown, object: nil)], timeout: 5)
+        // Another tab, then back: the focus is forgotten, and the first card on top.
+        app.buttons["Instruments"].tap()
+        XCTAssert(button.waitForExistence(timeout: 5))
+        tabs.tap()
+        let misr = app.images["MISR, True colour, nadir camera, Ended 2022-10-12"]
+        XCTAssert(misr.waitForExistence(timeout: 5))
+        XCTAssertGreaterThanOrEqual(misr.frame.minY, tabs.frame.maxY)
+        XCTAssertLessThan(misr.frame.minY, tabs.frame.maxY + 60)
     }
 
     // The Graphics panel's Hide UI hides the menu column, the clock deck and the

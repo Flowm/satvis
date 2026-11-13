@@ -44,6 +44,14 @@ extension Color {
     static let panelAmber = Color(red: 1, green: 0xD4 / 255, blue: 0x79 / 255)
     /// The web app's `#4ade80`: what could be seen, the sky view's lock and its chip.
     static let panelGreen = Color(red: 0x4A / 255, green: 0xDE / 255, blue: 0x80 / 255)
+
+    /// "#rrggbb", as the web app's tables write a colour; nil for any other.
+    init?(hex: String) {
+        guard hex.count == 7, hex.hasPrefix("#"), let value = UInt32(hex.dropFirst(), radix: 16) else {
+            return nil
+        }
+        self.init(red: Double(value >> 16 & 0xFF) / 255, green: Double(value >> 8 & 0xFF) / 255, blue: Double(value & 0xFF) / 255)
+    }
 }
 
 #if os(iOS)

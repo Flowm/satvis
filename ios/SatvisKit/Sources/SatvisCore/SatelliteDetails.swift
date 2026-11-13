@@ -184,11 +184,19 @@ public enum SatelliteDetails {
     /// What the Imagery tab needs to ask the provider for a picture of a layer, the web
     /// app's `ImageryPreview`: one of the layers its globe draws (`drawnImagery`).
     public struct ImageryPreview: Sendable, Hashable {
-        /// "gibs" or "eumetview".
-        public var provider: String
+        /// The providers that answer for a picture, by their keys in the imagery manifest.
+        public enum Provider: String, Sendable {
+            case gibs, eumetview
+        }
+
+        /// What a provider's tiles are, by the manifest's `format`.
+        public enum Format: String, Sendable {
+            case png, jpeg
+        }
+
+        public var provider: Provider
         public var layer: String
-        /// "png" or "jpeg".
-        public var format: String
+        public var format: Format
         /// A GIBS layer with a frame a day, which GIBS names by its date.
         public var isDaily: Bool
         /// The last frame's date, of a layer that stopped.
@@ -260,14 +268,14 @@ public enum SatelliteDetails {
     /// without `maxLevel` and `format`, or a GIBS layer whose period does not say how its
     /// frames are named.
     private static func preview(_ fields: [String: JSONValue], provider: String, layer: String, end: String?) -> ImageryPreview? {
-        guard ["gibs", "eumetview"].contains(provider), let maxLevel = fields["maxLevel"]?.number, maxLevel.isFinite, maxLevel.rounded() == maxLevel,
-            let format = fields["format"]?.string, format == "png" || format == "jpeg"
+        guard let provider = ImageryPreview.Provider(rawValue: provider), let maxLevel = fields["maxLevel"]?.number, maxLevel.isFinite,
+            maxLevel.rounded() == maxLevel, let format = fields["format"]?.string.flatMap(ImageryPreview.Format.init)
         else {
             return nil
         }
         let period = fields["period"]?.string
         let isDaily = period == "P1D"
-        if provider == "gibs", !isDaily, period?.hasPrefix("PT") != true {
+        if provider == .gibs, !isDaily, period?.hasPrefix("PT") != true {
             return nil
         }
         return ImageryPreview(provider: provider, layer: layer, format: format, isDaily: isDaily, end: end)
@@ -290,12 +298,12 @@ public enum SatelliteDetails {
             ("SERVICE", "WMS"), ("REQUEST", "GetMap"), ("VERSION", "1.1.1"), ("SRS", "EPSG:4326"), ("STYLES", ""), ("LAYERS", preview.layer),
             ("WIDTH", String(Int(previewWidth))), ("HEIGHT", String(Int(previewHeight))), ("BBOX", bbox),
         ]
-        if preview.provider == "eumetview" {
+        if preview.provider == .eumetview {
             // Transparent, or the night side of a true colour disc comes back white.
             query += [("FORMAT", "image/png"), ("TRANSPARENT", "TRUE")]
             return "https://view.eumetsat.int/geoserver/ows?\(formEncoded(query))"
         }
-        query.append(("FORMAT", "image/\(preview.format)"))
+        query.append(("FORMAT", "image/\(preview.format.rawValue)"))
         if let time = preview.end ?? (preview.isDaily ? isoDate(epochMilliseconds: now - msPerDay) : nil) {
             query.append(("TIME", time))
         }

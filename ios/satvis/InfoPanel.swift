@@ -17,14 +17,12 @@ struct InfoPanel: View {
     /// The tab chosen last, kept across selections and shared with the station panel, as on the web.
     @AppStorage("infoPanelTab") private var tab = InfoTab.orbit
     /// The instruments whose facts are unfolded.
-    @State private var openInstruments: Set<String> = []
+    @State private var unfoldedInstruments: Set<String> = []
     /// The instrument whose imagery button opened the Imagery tab, scrolled to there.
     @State private var imageryFocus: String?
-    /// Where the Imagery tab's pictures are centred: under the satellite as it was
-    /// selected, so that they do not reload as it moves.
-    @State private var imageryCentre: LivePosition?
-    /// The panel's width, in points.
-    @State private var panelWidth = 0.0
+    /// The Imagery tab's pictures, a layer each, built as the satellite is selected:
+    /// centred under it then, so that they do not reload as it moves.
+    @State private var previews: [URL?] = []
 
     private var propagator: SGP4Propagator? { try? SGP4Propagator(entry.record.meanElements) }
 
@@ -40,42 +38,12 @@ struct InfoPanel: View {
         let hasSpacecraft = modelFile != nil || !spacecraftFacts.isEmpty || !links.isEmpty
         let tabs: [InfoTab] =
             [.orbit] + (hasSpacecraft ? [.spacecraft] : []) + (instruments.isEmpty ? [] : [.instruments]) + (imagery.isEmpty ? [] : [.imagery]) + [.passes]
+        let shownTab = InfoTab.resolved(tab, among: tabs)
         NavigationStack {
             ScrollViewReader { scroller in
                 List {
-                    Section {
-                        // One row: the notice's TimelineView took a row of its own even while it was empty.
-                        VStack(alignment: .leading, spacing: 0) {
-                            // The web app's notice, amber as the deck's way back to rest.
-                            TimelineView(.periodic(from: .now, by: 1)) { _ in
-                                if let propagator,
-                                    let notice = SatelliteDetails.staleElementsNotice(
-                                        epochMilliseconds: SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate), time: clock.now())
-                                {
-                                    Label(notice, systemImage: "exclamationmark.triangle")
-                                        .font(.footnote)
-                                        .foregroundStyle(Color.panelAmber)
-                                        .accessibilityHint("Only the latest element set is kept, so positions far from its epoch drift by kilometres to thousands of kilometres.")
-                                        // The cards' text inset, 16 pt on an iPad Air and an iPhone, which a zero-inset row loses.
-                                        .padding(.horizontal, 16)
-                                        .padding(.bottom, 12)
-                                }
-                            }
-                            TabPicker(
-                                tabs: tabs,
-                                // An Imagery tab opened any other way than an instrument's button starts at the top.
-                                tab: Binding {
-                                    tab
-                                } set: {
-                                    tab = $0
-                                    imageryFocus = nil
-                                }, subject: .satellite(entry), clock: clock, passes: passes, imageryCount: imagery.count)
-                        }
-                        .bareRow()
-                    }
-                    .tabHeader()
                     Group {
-                        switch InfoTab.resolved(tab, among: tabs) {
+                        switch shownTab {
                         case .orbit:
                             orbit(propagator)
                         case .spacecraft:
@@ -83,27 +51,51 @@ struct InfoPanel: View {
                         case .instruments:
                             instrumentList(instruments)
                         case .imagery:
-                            ImageryCards(
-                                layers: imagery, centre: imageryCentre, halfWidthDeg: entry.record.orbitClass == .geo ? 72 : 32)
+                            ImageryCards(layers: imagery, previews: previews)
                         default:
                             PassesSections(subject: .satellite(entry), clock: clock, passes: passes)
                         }
                     }
                     .raisedRows()
                 }
-                .onChange(of: imageryFocus) { reveal(imageryFocus, with: scroller) }
-                .onGeometryChange(for: Double.self) {
-                    $0.size.width
-                } action: {
-                    panelWidth = $0
+                // A tab opens at its top, as the web app's, whose tab bodies are of their own.
+                .id(shownTab)
+                .tabBar {
+                    // The web app's notice, amber as the deck's way back to rest.
+                    TimelineView(.periodic(from: .now, by: 1)) { _ in
+                        if let propagator,
+                            let notice = SatelliteDetails.staleElementsNotice(
+                                epochMilliseconds: SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate), time: clock.now())
+                        {
+                            Label(notice, systemImage: "exclamationmark.triangle")
+                                .font(.footnote)
+                                .foregroundStyle(Color.panelAmber)
+                                .accessibilityHint("Only the latest element set is kept, so positions far from its epoch drift by kilometres to thousands of kilometres.")
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 12)
+                        }
+                    }
+                    TabPicker(
+                        tabs: tabs,
+                        // Only an instrument's imagery button opens the Imagery tab at its cards.
+                        tab: Binding {
+                            tab
+                        } set: {
+                            tab = $0
+                            imageryFocus = nil
+                        }, subject: .satellite(entry), clock: clock, passes: passes, imageryCount: imagery.count)
                 }
+                .onChange(of: imageryFocus) { reveal(imageryFocus, with: scroller) }
             }
             .panelList()
             .alertNotice(alerts)
-            .task(id: entry.id) {
-                openInstruments = []
+            // Synchronously, so that no frame shows the last satellite's state on this one.
+            .onChange(of: entry.id, initial: true) {
+                unfoldedInstruments = []
                 imageryFocus = nil
-                imageryCentre = try? propagator?.livePosition(epochMilliseconds: clock.now())
+                let centre = try? propagator?.livePosition(epochMilliseconds: clock.now())
+                previews = ImageryCards.previews(
+                    imagery, centre: centre, halfWidthDeg: entry.record.orbitClass == .geo ? 72 : 32, now: Date.now.timeIntervalSince1970 * 1000)
             }
             #if os(macOS)
                 .cardHeader {
@@ -228,11 +220,11 @@ struct InfoPanel: View {
     private func instrumentList(_ instruments: [SatelliteDetails.Instrument]) -> some View {
         Section {
             InstrumentList(
-                instruments: instruments, open: openInstruments, showsFullNames: panelWidth >= Self.fullNamesWidth,
+                instruments: instruments, unfolded: unfoldedInstruments,
                 onToggle: { name in
                     withAnimation(.snappy) {
-                        if openInstruments.remove(name) == nil {
-                            openInstruments.insert(name)
+                        if unfoldedInstruments.remove(name) == nil {
+                            unfoldedInstruments.insert(name)
                         }
                     }
                 },
@@ -247,19 +239,16 @@ struct InfoPanel: View {
         }
     }
 
-    /// The web app's 440 px panel, under which a full name would show a word or two
-    /// beside the short one; the unfolded line has it whole.
-    private static let fullNamesWidth = 440.0
-
-    /// The Imagery tab's first card of `instrument` in view, once the tab has its cards:
-    /// the least scroll that shows it, as the web app's, which keeps the first under the tabs.
+    /// The Imagery tab scrolled to `instrument`'s first card, once the tab has its cards.
+    /// At the top, where the web app scrolls the least that shows it: a picture fills
+    /// most of a phone's sheet, and the least scroll left its link out of sight.
     private func reveal(_ instrument: String?, with scroller: ScrollViewProxy) {
         guard let instrument, tab == .imagery else {
             return
         }
         // The rows the tab switch adds are laid out a pass after it.
         Task { @MainActor in
-            withAnimation { scroller.scrollTo(ImageryCards.anchor(instrument)) }
+            withAnimation { scroller.scrollTo(ImageryCards.anchor(instrument), anchor: .top) }
         }
     }
 
@@ -346,18 +335,18 @@ extension View {
         }
     #endif
 
-    /// A section close under the title and over the tab's cards, as the web app's tab row is.
-    fileprivate func tabHeader() -> some View {
-        #if os(macOS)
-            self
-        #else
-            listSectionMargins(.top, 0).listSectionSpacing(.compact)
-        #endif
-    }
-
-    /// A row on the panel's background rather than in a card, edge to edge: the tab row heads the cards below.
-    fileprivate func bareRow() -> some View {
-        listRowBackground(Color.clear).listRowSeparator(.hidden).listRowInsets(EdgeInsets())
+    /// The tab row, and what is over it, pinned under the title: the web app's tab
+    /// bodies scroll under theirs.
+    fileprivate func tabBar(@ViewBuilder _ content: () -> some View) -> some View {
+        // The cards as close under the tabs as when the tabs were the list's first row.
+        contentMargins(.top, 16, for: .scrollContent).safeAreaBar(edge: .top, spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+                content()
+            }
+            // The cards' edge.
+            .padding(.horizontal, 16)
+            .padding(.bottom, 4)
+        }
     }
 
     /// The tab's cards raised off the panel, as a sheet's are: the iPad's card is
@@ -454,14 +443,10 @@ struct StationPanel: View {
 
     var body: some View {
         NavigationStack {
+            let shownTab = InfoTab.resolved(tab, among: Self.tabs)
             List {
-                Section {
-                    TabPicker(tabs: Self.tabs, tab: $tab, subject: .station(station, catalog.activeEntries), clock: clock, passes: passes)
-                        .bareRow()
-                }
-                .tabHeader()
                 Group {
-                    switch InfoTab.resolved(tab, among: Self.tabs) {
+                    switch shownTab {
                     case .location:
                         Section {
                             FactRow(label: "Name", value: station.displayName)
@@ -473,6 +458,10 @@ struct StationPanel: View {
                     }
                 }
                 .raisedRows()
+            }
+            .id(shownTab)
+            .tabBar {
+                TabPicker(tabs: Self.tabs, tab: $tab, subject: .station(station, catalog.activeEntries), clock: clock, passes: passes)
             }
             .panelList()
             .alertNotice(alerts)
@@ -617,9 +606,21 @@ struct ImageryLayer: Hashable {
 /// viewer. The globe draws none of them, so the cards have no switch for it.
 private struct ImageryCards: View {
     let layers: [ImageryLayer]
-    /// Nil until the satellite's position is known, or where it has none.
-    let centre: LivePosition?
-    let halfWidthDeg: Double
+    /// A picture a layer, as `previews` builds them.
+    let previews: [URL?]
+
+    /// A picture of each layer, `halfWidthDeg` either side of `centre`, at `now` in
+    /// milliseconds since 1970; nil for a layer with no preview, and all of them where
+    /// the satellite has no position.
+    static func previews(_ layers: [ImageryLayer], centre: LivePosition?, halfWidthDeg: Double, now: Double) -> [URL?] {
+        layers.map { layer in
+            guard let preview = layer.imagery.preview, let centre else {
+                return nil
+            }
+            return URL(
+                string: SatelliteDetails.imageryPreviewUrl(preview, latitude: centre.latitude, longitude: centre.longitude, halfWidthDeg: halfWidthDeg, now: now))
+        }
+    }
 
     /// The id of `instrument`'s first card, which its imagery button scrolls to.
     static func anchor(_ instrument: String) -> String {
@@ -630,7 +631,7 @@ private struct ImageryCards: View {
         ForEach(Array(layers.enumerated()), id: \.offset) { index, layer in
             let imagery = layer.imagery
             Section {
-                ImageryPicture(instrument: layer.instrument, label: imagery.label, url: url(imagery.preview), end: imagery.preview?.end)
+                ImageryPicture(instrument: layer.instrument, label: imagery.label, url: previews.indices.contains(index) ? previews[index] : nil, end: imagery.preview?.end)
                     .listRowInsets(EdgeInsets())
                     .id(layers.firstIndex { $0.instrument == layer.instrument } == index ? Self.anchor(layer.instrument) : "imagery:\(index)")
                 VStack(alignment: .leading, spacing: 2) {
@@ -660,16 +661,6 @@ private struct ImageryCards: View {
                 }
             }
         }
-    }
-
-    /// Nil for a layer with no preview, and until the centre is known.
-    private func url(_ preview: SatelliteDetails.ImageryPreview?) -> URL? {
-        guard let preview, let centre else {
-            return nil
-        }
-        return URL(
-            string: SatelliteDetails.imageryPreviewUrl(
-                preview, latitude: centre.latitude, longitude: centre.longitude, halfWidthDeg: halfWidthDeg, now: Date.now.timeIntervalSince1970 * 1000))
     }
 }
 
@@ -708,17 +699,23 @@ private struct ImageryPicture: View {
                 badge(instrument)
             }
             .overlay(alignment: .topTrailing) {
-                if let end {
+                if let ended {
                     // Amber: the app colour for "away from rest", as on the status chip.
-                    badge("Ended \(end)").foregroundStyle(Color.panelAmber)
+                    badge(ended).foregroundStyle(Color.panelAmber)
                 }
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel([instrument, label, end.map { "Ended \($0)" }].compactMap(\.self).joined(separator: ", "))
+            .accessibilityLabel([instrument, label, ended].compactMap(\.self).joined(separator: ", "))
             .accessibilityValue(isMissing ? "No preview" : "")
             .accessibilityAddTraits(.isImage)
     }
 
+    /// "Ended 2022-10-12", of a layer that stopped.
+    private var ended: String? {
+        end.map { "Ended \($0)" }
+    }
+
+    /// In place of a picture there is none of, or the provider refused.
     private var placeholder: some View {
         VStack(spacing: 4) {
             Image(systemName: "photo")
@@ -729,6 +726,7 @@ private struct ImageryPicture: View {
         .onAppear { isMissing = true }
     }
 
+    /// A label on a corner of the picture, legible on any of it.
     private func badge(_ text: String) -> some View {
         Text(text)
             .font(.caption.weight(.semibold))

@@ -640,24 +640,40 @@ Instrument, Res and Bands: a line an instrument with a resolution, bands or imag
 its short name in bold, Retired in amber where its mission is over, the image button
 where it has imagery, its resolution or "—", and a strip of nine cells lit in the
 legend's colours under the table, every radar band in the one Radar cell. The columns
-past the names line up on every line. On a panel 440 pt wide or more, an iPad's,
-check that each full name follows its short name in grey, cut short with "…", and
-that they all end at the same edge; on a narrower one, an iPhone's, that none is
-shown and a name without Retired runs on into its room. Check that a press on a line,
+past the names line up on every line. Where the table is 415 pt wide or more, the
+web app's 440 px panel less its sides, an iPad's, check that each full name follows
+its short name in grey, cut short with "…", and that they all end at the same edge;
+on a narrower one, an iPhone's, that none is shown and a name without Retired runs on
+into its room. Check that a press on a line,
 its resolution or its strip unfolds the full name, kind and other facts under it,
 wrapping a long value, and a second folds them; that the instruments with none of the
 three are chips under "Also carries", which unfold the same; and that the credit
 under the list opens CEOS's database. Check a satellite CEOS does not list, METOP-B on
 that catalog, for no such tab. On GOES 19 and METEOSAT-12 (MTG-I1) (ADR 0019, 0020),
 check that the tab row, five tabs that a phone cannot fit, scrolls with the chosen one
-in view, Imagery with its count; that the image button opens the Imagery tab with the
-instrument's first card in view and the tabs still above it; and that the Imagery
-tab opened from the tab row starts at the top. Check each card: the picture of the
+in view, Imagery with its count, and stays above the cards as they scroll. On TERRA,
+whose MODIS layer is the second card, check that MODIS's image button opens the
+Imagery tab with that card at the top under the tabs, as far as the list scrolls; that
+the Imagery tab opened from the tab row after another tab starts at the top; and that
+another satellite's panel opens with every line folded. Check each card: the picture of the
 layer's latest frame around the satellite, the instrument's name on its corner, the
 label, when it has frames, and "Open in" the provider's viewer, which opens it; no
 Show switch and nothing on a press of the card, since the native globe draws none of
 it. Turn the network off and open another card's satellite for "No preview" in place
 of the picture. On a Mac, check the same in the card beside the column.
+
+**Result, 2026-11-13, after review.** iPhone 18 Pro and iPad Air 13-inch (M4)
+simulators, iOS 27.2, on the test catalog with the network on, shot by a UI test not
+kept. On the iPhone TERRA's table had ASTER, CERES, MISR, MODIS and MOPITT, the image
+button on MISR and MODIS and no full names; the sheet pulled up kept the tab row under
+the title. MODIS's button opened the Imagery tab with its card, GIBS's daily true
+colour, flush under the tabs; Instruments and back to Imagery showed MISR's card on
+top, "Ended 2022-10-12" on its corner. On the iPad's 540 pt panel every line had its
+full name, and MODIS's button scrolled the list to its end, MISR's link under the tabs
+and MODIS's card whole below. `testOpensTheImageryTabAtTheInstrumentsCard` holds
+both. The Mac app built, and was not opened. Earlier the same day, on the iPad Pro,
+the live ISS (ZARYA)'s 14 lines each had a full name, "Spectrometer (OCO-3)" alone
+without one, Retired on seven, every name ending at Retired's edge.
 
 **Result, 2026-11-13, the table.** iPhone 18 Pro and iPad Pro 13-inch (M5)
 simulators, iOS 27.2, shot by a UI test not kept. On the iPhone GOES 19's table had
