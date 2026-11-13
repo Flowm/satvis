@@ -535,7 +535,8 @@ private struct SatelliteImagerySection: View {
             if !unlisted.isEmpty {
                 PanelCard {
                     ForEach(unlisted, id: \.self) { token in
-                        Toggle(imagery.labels[token] ?? String(token.drop { $0 != ":" }.dropFirst()), isOn: shown(token, open: open))
+                        // Named by its layer's id: no loaded record carries it yet.
+                        Toggle(String(token.drop { $0 != ":" }.dropFirst()), isOn: shown(token, open: open))
                     }
                 }
             }

@@ -151,7 +151,7 @@ import Testing
     }
 
     // instrumentImagery.test.ts's imageryLayers cases: the Map panel's list (ADR 0021).
-    @Test func listsTheLayersByGroupThenSatellite() throws {
+    @Test func listsEachLayerInItsGroupBySatellite() throws {
         let base = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first)
         func record(_ name: String, _ imagery: [JSONValue]) -> GPRecord {
             var record = base

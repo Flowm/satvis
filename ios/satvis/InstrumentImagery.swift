@@ -16,9 +16,6 @@ final class InstrumentImagery {
     /// What is drawn, the last on top, as a link names it: a name no loaded record
     /// carries yet stays, and is drawn once one does.
     private(set) var tokens: [String] = []
-    /// The Map panel's name for each drawn layer a loaded record carries, "GeoColor ·
-    /// GOES 19".
-    private(set) var labels: [String: String] = [:]
     @ObservationIgnored private var layers: [String: SatelliteDetails.ImageryPreview] = [:]
     @ObservationIgnored private var frames: [String: Frames] = [:]
     @ObservationIgnored private var drawn: [ImageryOverlay] = []
@@ -61,19 +58,14 @@ final class InstrumentImagery {
     func resolve(_ entries: some Sequence<CatalogEntry>) {
         let wanted = Set(tokens)
         var found: [String: SatelliteDetails.ImageryPreview] = [:]
-        var named: [String: String] = [:]
         if !wanted.isEmpty {
             for entry in entries where entry.record.metadata["imagery"] != nil {
-                for (label, layer) in SatelliteDetails.drawableImagery(entry.record) where wanted.contains(layer.token) && found[layer.token] == nil {
+                for layer in SatelliteDetails.drawableImagery(entry.record) where wanted.contains(layer.token) && found[layer.token] == nil {
                     found[layer.token] = layer
-                    named[layer.token] = "\(label) · \(entry.name)"
                 }
             }
         }
         layers = found
-        if named != labels {
-            labels = named
-        }
     }
 
     /// Keeps `apply` handed the drawn layers at the frame for `now`, once a second,

@@ -209,12 +209,9 @@ public enum SatelliteDetails {
         public var token: String { "\(provider.rawValue):\(layer)" }
     }
 
-    /// The layers of a record the globe can draw, each with its card's label, in the
-    /// record's order.
-    public static func drawableImagery(_ record: GPRecord, tables: WebTables = .shared) -> [(label: String, preview: ImageryPreview)] {
-        (record.metadata["imagery"]?.array ?? []).compactMap { entry in
-            imagery(entry, tables: tables).flatMap { found in found.imagery.preview.map { (found.imagery.label, $0) } }
-        }
+    /// The layers of a record the globe can draw, in the record's order.
+    public static func drawableImagery(_ record: GPRecord, tables: WebTables = .shared) -> [ImageryPreview] {
+        (record.metadata["imagery"]?.array ?? []).compactMap { imagery($0, tables: tables)?.imagery.preview }
     }
 
     /// One instrument in the Instruments tab, the web app's `InstrumentInfo`.
@@ -262,7 +259,7 @@ public enum SatelliteDetails {
     }
 
     /// Nil for an entry without the fields a link needs, or of a provider this app does not know.
-    private static func imagery(_ entry: JSONValue, tables: WebTables) -> (instrument: String, imagery: Imagery, layer: String, period: String?, end: String?)? {
+    private static func imagery(_ entry: JSONValue, tables: WebTables) -> (instrument: String, imagery: Imagery, layer: String, period: String?)? {
         guard case .object(let fields) = entry, let instrument = fields["instrument"]?.string, let provider = fields["provider"]?.string,
             let layer = fields["layer"]?.string, let label = fields["label"]?.string, let known = tables.imageryProviders[provider]
         else {
@@ -275,7 +272,7 @@ public enum SatelliteDetails {
                 label: label, detail: imageryDetail(fields), viewer: known.viewer, href: known.href(layer: layer, end: end),
                 preview: preview(fields, provider: provider, layer: layer, end: end)
             ),
-            "\(provider):\(layer)", fields["period"]?.string, end
+            "\(provider):\(layer)", fields["period"]?.string
         )
     }
 
@@ -304,7 +301,7 @@ public enum SatelliteDetails {
     /// name, then label: the web app's `imageryLayers`.
     public static func imageryListings(_ records: some Sequence<GPRecord>, tables: WebTables = .shared) -> [ImageryListing] {
         var listings: [String: ImageryListing] = [:]
-        for record in records where record.metadata["imagery"] != nil {
+        for record in records {
             for entry in record.metadata["imagery"]?.array ?? [] {
                 guard let found = imagery(entry, tables: tables) else {
                     continue
@@ -314,7 +311,7 @@ public enum SatelliteDetails {
                     continue
                 }
                 let group: ImageryListing.Group =
-                    found.imagery.preview == nil ? .viewer : found.end != nil ? .ended : found.period?.hasPrefix("PT") == true ? .weather : .polar
+                    found.imagery.preview == nil ? .viewer : found.imagery.preview?.end != nil ? .ended : found.period?.hasPrefix("PT") == true ? .weather : .polar
                 listings[key] = ImageryListing(key: key, satellite: record.name, instrument: found.instrument, imagery: found.imagery, group: group)
             }
         }

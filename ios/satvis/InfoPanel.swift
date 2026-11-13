@@ -23,7 +23,7 @@ struct InfoPanel: View {
     @State private var imageryFocus: String?
     /// The Imagery tab's pictures, a layer each, built as the satellite is selected:
     /// centred under it then, so that they do not reload as it moves.
-    @State private var previews: [URL?] = []
+    @State private var previews: [ImageryLayer: URL] = [:]
     /// The cards' width, the tab row's, in points.
     @State private var cardsWidth = 0.0
 
@@ -81,21 +81,12 @@ struct InfoPanel: View {
                                 .padding(.bottom, 12)
                         }
                     }
-                    TabPicker(
-                        tabs: tabs,
-                        // Only an instrument's imagery button opens the Imagery tab at its cards.
-                        tab: Binding {
-                            tab
-                        } set: {
-                            tab = $0
-                            imageryFocus = nil
-                        }, subject: .satellite(entry), clock: clock, passes: passes, imageryCount: imagery.count
-                    )
-                    .onGeometryChange(for: Double.self) {
-                        $0.size.width
-                    } action: {
-                        cardsWidth = $0
-                    }
+                    TabPicker(tabs: tabs, tab: $tab, subject: .satellite(entry), clock: clock, passes: passes, imageryCount: imagery.count)
+                        .onGeometryChange(for: Double.self) {
+                            $0.size.width
+                        } action: {
+                            cardsWidth = $0
+                        }
                 }
                 .onChange(of: imageryFocus) { reveal(imageryFocus, among: imagery, with: scroller) }
             }
@@ -104,7 +95,6 @@ struct InfoPanel: View {
             // Synchronously, so that no frame shows the last satellite's state on this one.
             .onChange(of: entry.id, initial: true) {
                 unfoldedInstruments = []
-                imageryFocus = nil
                 let centre = try? propagator?.livePosition(epochMilliseconds: clock.now())
                 previews = ImageryCards.previews(
                     imagery, centre: centre, halfWidthDeg: entry.record.orbitClass == .geo ? 72 : 32, now: Date.now.timeIntervalSince1970 * 1000)
@@ -251,9 +241,10 @@ struct InfoPanel: View {
         }
     }
 
-    /// The Imagery tab scrolled to `instrument`'s first card, once the tab has its cards.
-    /// At the top, where the web app scrolls the least that shows it: a picture fills
-    /// most of a phone's sheet, and the least scroll left its link out of sight.
+    /// The Imagery tab scrolled to `instrument`'s first card, once the tab has its cards,
+    /// and the focus let go, so that the same button scrolls there again. At the top,
+    /// where the web app scrolls the least that shows it: a picture fills most of a
+    /// phone's sheet, and the least scroll left its link out of sight.
     private func reveal(_ instrument: String?, among layers: [ImageryLayer], with scroller: ScrollViewProxy) {
         guard let instrument, tab == .imagery else {
             return
@@ -261,6 +252,7 @@ struct InfoPanel: View {
         // The rows the tab switch adds are laid out a pass after it.
         Task { @MainActor in
             withAnimation { scroller.scrollTo(ImageryCards.anchor(instrument, in: layers, columns: ImageryCards.columns(width: cardsWidth)), anchor: .top) }
+            imageryFocus = nil
         }
     }
 

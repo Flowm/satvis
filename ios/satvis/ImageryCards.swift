@@ -15,7 +15,7 @@ struct ImageryLayer: Hashable {
 struct ImageryCards: View {
     let layers: [ImageryLayer]
     /// A picture a layer, as `previews` builds them.
-    let previews: [URL?]
+    let previews: [ImageryLayer: URL]
     let columns: Int
     let drawn: InstrumentImagery
 
@@ -36,15 +36,16 @@ struct ImageryCards: View {
     }
 
     /// A picture of each layer, `halfWidthDeg` either side of `centre`, at `now` in
-    /// milliseconds since 1970; nil for a layer with no preview, and all of them where
-    /// the satellite has no position.
-    static func previews(_ layers: [ImageryLayer], centre: LivePosition?, halfWidthDeg: Double, now: Double) -> [URL?] {
-        layers.map { layer in
-            guard let preview = layer.imagery.preview, let centre else {
-                return nil
+    /// milliseconds since 1970; none for a layer with no preview, nor any where the
+    /// satellite has no position.
+    static func previews(_ layers: [ImageryLayer], centre: LivePosition?, halfWidthDeg: Double, now: Double) -> [ImageryLayer: URL] {
+        guard let centre else {
+            return [:]
+        }
+        return layers.reduce(into: [:]) { previews, layer in
+            previews[layer] = layer.imagery.preview.flatMap {
+                URL(string: SatelliteDetails.imageryPreviewUrl($0, latitude: centre.latitude, longitude: centre.longitude, halfWidthDeg: halfWidthDeg, now: now))
             }
-            return URL(
-                string: SatelliteDetails.imageryPreviewUrl(preview, latitude: centre.latitude, longitude: centre.longitude, halfWidthDeg: halfWidthDeg, now: now))
         }
     }
 
@@ -54,7 +55,7 @@ struct ImageryCards: View {
             ForEach(Array(rows.enumerated()), id: \.offset) { row, indices in
                 HStack(alignment: .top, spacing: Self.gap) {
                     ForEach(indices, id: \.self) { index in
-                        ImageryCard(layer: layers[index], preview: previews.indices.contains(index) ? previews[index] : nil, drawn: drawn)
+                        ImageryCard(layer: layers[index], preview: previews[layers[index]], drawn: drawn)
                     }
                     // The last row's empty places, so that its cards are as wide as the rest.
                     ForEach(indices.count..<columns, id: \.self) { _ in
@@ -103,7 +104,7 @@ private struct ImageryCard: View {
                     Toggle(
                         "Show",
                         isOn: Binding {
-                            drawn.isShown(token)
+                            isShown
                         } set: {
                             drawn.show(token, $0)
                         }

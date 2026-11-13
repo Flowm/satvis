@@ -166,9 +166,11 @@ nonisolated class SatvisUITests: XCTestCase {
 
     // An instrument with imagery has a button on its line that opens the Imagery tab,
     // a card a layer: the picture under the instrument's name, what the layer is, and a
-    // link to it in its provider's viewer.
+    // link to it in its provider's viewer. A card's Show switch draws its layer on the
+    // globe, and a press elsewhere on the card does what the switch does; the Map panel
+    // opens on the group it is in, to take it off there.
     @MainActor
-    func testOpensAnInstrumentsImageryFromItsLine() {
+    func testShowsAnInstrumentsImageryFromItsLine() {
         let app = search("METEOSAT-12 (MTG-I1)")
         app.buttons["Details of METEOSAT-12 (MTG-I1)"].tap()
         XCTAssert(app.navigationBars["METEOSAT-12 (MTG-I1)"].waitForExistence(timeout: 10))
@@ -179,6 +181,16 @@ nonisolated class SatvisUITests: XCTestCase {
         button.tap()
         XCTAssert(app.buttons["Imagery (2)"].waitForExistence(timeout: 5))
         XCTAssert(app.buttons["Imagery (2)"].isSelected)
+        let show = app.switches["Show GeoColour on the globe"]
+        XCTAssert(show.waitForExistence(timeout: 5))
+        XCTAssertEqual(show.value as? String, "0")
+        flip(app, "Show GeoColour on the globe")
+        XCTAssert(waitForValue(show, "1"))
+        let card = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'GeoColour, '")).firstMatch
+        card.tap()
+        XCTAssert(waitForValue(show, "0"))
+        card.tap()
+        XCTAssert(waitForValue(show, "1"))
         for layer in ["GeoColour", "True colour"] {
             let picture = app.images["FCI, \(layer)"]
             // Under a phone's half-height sheet, in a lazy list.
@@ -197,28 +209,6 @@ nonisolated class SatvisUITests: XCTestCase {
             app.collectionViews.firstMatch.swipeUp()
         }
         XCTAssert(link.exists)
-    }
-
-    // A card's Show switch draws its layer on the globe, and a press elsewhere on the
-    // card does what the switch does; the Map panel opens on the group it is in, to take
-    // it off there.
-    @MainActor
-    func testShowsALayerOnTheGlobeFromItsCard() {
-        let app = search("METEOSAT-12 (MTG-I1)")
-        app.buttons["Details of METEOSAT-12 (MTG-I1)"].tap()
-        XCTAssert(app.navigationBars["METEOSAT-12 (MTG-I1)"].waitForExistence(timeout: 10))
-        app.buttons["Instruments"].tap()
-        app.buttons["Imagery of FCI"].tap()
-        let show = app.switches["Show GeoColour on the globe"]
-        XCTAssert(show.waitForExistence(timeout: 5))
-        XCTAssertEqual(show.value as? String, "0")
-        flip(app, "Show GeoColour on the globe")
-        XCTAssert(waitForValue(show, "1"))
-        let card = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'GeoColour, '")).firstMatch
-        card.tap()
-        XCTAssert(waitForValue(show, "0"))
-        card.tap()
-        XCTAssert(waitForValue(show, "1"))
         app.navigationBars.buttons["Close"].firstMatch.tap()
         openMenu(app)
         app.buttons["Map"].tap()
