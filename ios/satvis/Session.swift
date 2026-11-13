@@ -221,7 +221,7 @@ final class Session {
                 return data
             }
             do {
-                let data = try await tiles.tile(request.url, contentType: request.contentType, headers: request.headers)
+                let data = try await tiles.tile(request.url, contentType: request.contentType, headers: request.headers, isDated: request.isDated)
                 if request.keeps {
                     keptTiles.keep(data, for: request.url)
                 }

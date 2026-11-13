@@ -56,3 +56,30 @@ test("nothing from Cesium ion or Google's tile hosts is cached", () => {
     assert.equal(sw.includes(host), false, host);
   }
 });
+
+test("imagery is cached at a dated frame, never at the latest or a day still filling in", () => {
+  const at = sw.indexOf('cacheName:"imagery-frame-cache"');
+  assert.ok(at > 0, "dist/sw.js caches imagery frames");
+  const from = sw.lastIndexOf("registerRoute(", at) + "registerRoute(".length;
+  const matches = new Function(`return ${sw.slice(from, sw.lastIndexOf(",new ", at))}`)();
+  const cached = (url) => matches({ url: new URL(url) });
+  const day = (daysAgo) => new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
+  const gibs = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default";
+  const eumetView = "https://view.eumetsat.int/geoserver/ows?service=WMS&request=GetMap&layers=mtg_fd%3Argb_geocolour";
+  for (const url of [
+    `${gibs}/${day(0)}T15:30:00Z/GoogleMapsCompatible_Level7/3/2/4.png`,
+    `${gibs}/${day(3)}/GoogleMapsCompatible_Level9/3/2/4.jpg`,
+    `${eumetView}&time=2026-11-13T15%3A30%3A00Z&bbox=0,0,45,45`,
+  ]) {
+    assert.equal(cached(url), true, url);
+  }
+  for (const url of [
+    `${gibs}/default/GoogleMapsCompatible_Level7/3/2/4.png`,
+    `${gibs}/${day(1)}/GoogleMapsCompatible_Level9/3/2/4.jpg`,
+    `${gibs.replace("/default", "")}/default/GoogleMapsCompatible_Level7/all/all.xml`,
+    `${eumetView}&bbox=0,0,45,45`,
+    "https://view.eumetsat.int/geoserver/mtg_fd/rgb_geocolour/ows?service=WMS&version=1.3.0&request=GetCapabilities",
+  ]) {
+    assert.equal(cached(url), false, url);
+  }
+});

@@ -723,7 +723,7 @@ final class Surface {
             sources.tiles[key] = .failed(at: Date())
             return
         }
-        let request = TileRequest(url: url, contentType: sources.source.contentType, headers: [:], keeps: sources.source.keeps)
+        let request = TileRequest(url: url, contentType: sources.source.contentType, headers: [:], keeps: sources.source.keeps, isDated: sources.source.isDated)
         let device = device
         let work = Task.detached(priority: .utility) { () -> DecodedTile? in
             guard let data = await loader(request) else {
@@ -1002,6 +1002,8 @@ public struct TileRequest: Sendable {
     public var headers: [String: String]
     /// Kept for good once fetched, rather than in a cache the system may purge.
     public var keeps = false
+    /// A dated frame's, which never changes: cached though its service says not to.
+    public var isDated = false
 }
 
 /// A source tile decoded off the main thread: finished before it is handed over,

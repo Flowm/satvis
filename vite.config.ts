@@ -168,6 +168,30 @@ export default defineConfig({
             },
           },
           {
+            // Imagery at a dated frame, which no longer changes: GIBS's WMTS tiles and
+            // EUMETView's GetMap with a time. GIBS sends `no-store`, so without this a zoom
+            // out or a reload downloads them again. Not the services' latest frame, nor a
+            // day younger than two days, whose last swaths may still be arriving.
+            // Self-contained: workbox writes the function's source into the worker.
+            urlPattern: ({ url }) => {
+              if (url.hostname === "view.eumetsat.int") {
+                return url.pathname === "/geoserver/ows" && /^\d/.test(url.searchParams.get("time") ?? "");
+              }
+              const frame = url.hostname === "gibs.earthdata.nasa.gov" ? /^\/wmts\/epsg3857\/best\/[^/]+\/default\/(\d{4}-\d\d-\d\d)(T[^/]*)?\//.exec(url.pathname) : null;
+              return frame !== null && (frame[2] !== undefined || Date.parse(frame[1]!) <= Date.now() - 2 * 86_400_000);
+            },
+            handler: "CacheFirst",
+            options: {
+              cacheName: "imagery-frame-cache",
+              cacheableResponse: { statuses: [200] },
+              expiration: {
+                maxEntries: 4000,
+                maxAgeSeconds: 7 * 24 * 60 * 60,
+                purgeOnQuotaError: true,
+              },
+            },
+          },
+          {
             urlPattern: /data\/starmap\/.*\.webp$/,
             handler: "CacheFirst",
             options: {

@@ -67,6 +67,16 @@ import simd
         #expect(goes.framesURL()?.absoluteString.hasSuffix("/GoogleMapsCompatible_Level7/all/all.xml") == true)
     }
 
+    // A dated tile is cached for good, so not one of a day whose swaths may still arrive.
+    @Test func cachesOnlyWholeFrames() {
+        let day = { (daysAgo: Double) in Date(timeIntervalSinceNow: -daysAgo * 86_400).formatted(.iso8601.year().month().day()) }
+        #expect(GIBS.isWhole("2026-11-13T15:30:00Z"))
+        #expect(GIBS.isWhole(day(3)))
+        #expect(!GIBS.isWhole(day(1)))
+        #expect(!GIBS.isWhole("default"))
+        #expect(BaseLayer.viirs.source(site: URL(string: "https://satvis.space/")!, frame: day(1)).isDated == false)
+    }
+
     // timeDomain.ts's parseDomain and withoutLatestFrame, for a daily layer: the
     // finished days listed, and its snapToFrame: the clock's day, or the one before
     // a gap, held within them.

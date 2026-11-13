@@ -11,7 +11,8 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   Earth" phase copies it from the web app's `data/imagery` rather than keeping a
   second copy. Tiles come through `TileFetcher`'s cache in Caches, which the
   system may purge; Natural Earth's levels 3 to 5 are kept for good instead
-  (`KeptTiles`).
+  (`KeptTiles`). A whole frame's tile, one to the minute or a day two days on, is
+  cached though GIBS says `no-store` of every tile: it no longer changes.
 - Terrain (`Terrain.swift`) is Re:Earth's quantized mesh, decoded and kept per
   terrain tile; a surface tile's grid is laid over the terrain tile log₂(screen
   scale) levels coarser, since the surface is refined in device pixels where

@@ -32,6 +32,21 @@ import Testing
         }
     }
 
+    // GIBS says `no-store` of every tile; a dated frame's is kept all the same, and the
+    // latest frame's is not.
+    @Test func cachesADatedFramesTileWhateverItsServiceSays() async throws {
+        let cache = URLCache(memoryCapacity: 1024 * 1024, diskCapacity: 0)
+        let fetcher = TileFetcher(transport: { Self.answer($0, type: "image/png", headers: ["Cache-Control": "no-store"]) }, cache: cache)
+        let dated = URL(string: "https://example.org/2026-11-13/tile")!
+        let latest = URL(string: "https://example.org/default/tile")!
+        _ = try await fetcher.tile(dated, contentType: "image/", isDated: true)
+        _ = try await fetcher.tile(latest, contentType: "image/")
+        let kept = try #require(cache.cachedResponse(for: URLRequest(url: dated)))
+        #expect(kept.data == Data([1, 2, 3]))
+        #expect((kept.response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Cache-Control")?.contains("no-store") == false)
+        #expect(cache.cachedResponse(for: URLRequest(url: latest)) == nil)
+    }
+
     @Test func refusesAMissingTile() async {
         let fetcher = TileFetcher { Self.answer($0, type: "image/webp", status: 404) }
         await #expect(throws: WorkerError.status(404, "/tile")) {
