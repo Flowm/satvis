@@ -32,6 +32,11 @@ final class Surface {
     private static let retryInterval: TimeInterval = 60
     /// Seconds a frame still loading holds off a newer one: the web's `MAX_LOAD_MS`.
     private static let frameWait: TimeInterval = 20
+    /// How fast the view's scale changes, natural log a second (35 %), while it counts
+    /// as zooming, and how long after it stops: a pinch passes through levels whose
+    /// tiles would be cancelled before they arrived, half of them in a measured one.
+    private static let zoomRate = 0.3
+    private static let zoomSettle: TimeInterval = 0.15
     private static let maximumScreenSpaceError = 2.0
     /// Counts the terrain tiles that came in and the terrain turned on or off,
     /// for what is worked out from the ground to know it is out of date.
@@ -42,6 +47,13 @@ final class Surface {
     /// Whether the last selection left nothing to bake or lay over the terrain,
     /// so that the next frame would draw the same tiles until `revision` moves.
     private(set) var isSettled = false
+    /// The view's scale when a selection was last made, and when: metres above the
+    /// ellipsoid, or the map's span.
+    private var lastScale: (scale: Double, at: Date)?
+    /// When the view last zoomed (`zoomRate`).
+    private var zoomedAt = Date.distantPast
+    /// Whether source requests are held until the zoom settles.
+    private var holdsRequests = false
     /// CesiumJS's for an ellipsoid of 65-sample tiles, two at level 0.
     private static let levelZeroGeometricError = 6_378_137.0 * 2 * .pi * 0.25 / (65 * 2)
 
@@ -277,6 +289,34 @@ final class Surface {
         }
     }
 
+    /// Notes whether the view is zooming, from its scale now.
+    private func noteScale(_ scale: Double) {
+        let now = Date()
+        if let last = lastScale, abs(Foundation.log(scale / last.scale)) > Self.zoomRate * max(now.timeIntervalSince(last.at), 1e-3) {
+            zoomedAt = now
+        }
+        lastScale = (scale, now)
+    }
+
+    /// Bakes again, once the zoom has settled, the tiles still missing sources, which
+    /// then ask for those of the levels in view.
+    private func holdRequests() {
+        guard !holdsRequests else {
+            return
+        }
+        holdsRequests = true
+        Task {
+            while Date().timeIntervalSince(zoomedAt) < Self.zoomSettle {
+                try? await Task.sleep(for: .seconds(Self.zoomSettle))
+            }
+            holdsRequests = false
+            for tile in tiles.values where !tile.isComplete {
+                tile.needsBake = true
+            }
+            revision += 1
+        }
+    }
+
     /// Moves each overlay to the frame it was last asked for, once its own has loaded
     /// or has had `frameWait`. Whether any moved.
     private func showNextFrames() -> Bool {
@@ -332,6 +372,7 @@ final class Surface {
         if let lastSelection, lastSelection.inputs == inputs {
             return (lastSelection.draw, [])
         }
+        noteScale(max(simd_length(eye) - ellipsoidRadii.z, 1))
         frame += 1
         drapes = 0
         terrainOffset = Terrain.offset(pixelsPerPoint: pixelsPerPoint)
@@ -396,6 +437,7 @@ final class Surface {
         if let lastSelection, lastSelection.inputs == inputs {
             return (lastSelection.draw, [])
         }
+        noteScale(map.span)
         frame += 1
         let maximumLevel = imageryMaximumLevel
         let metresPerPixel = map.span / max(viewportPixels.x, viewportPixels.y)
@@ -718,6 +760,10 @@ final class Surface {
         case .loading, .ready: return
         case .failed(let at) where Date().timeIntervalSince(at) < Self.retryInterval: return
         default: break
+        }
+        if Date().timeIntervalSince(zoomedAt) < Self.zoomSettle {
+            holdRequests()
+            return
         }
         guard let loader, let url = sources.source.url(key) else {
             sources.tiles[key] = .failed(at: Date())

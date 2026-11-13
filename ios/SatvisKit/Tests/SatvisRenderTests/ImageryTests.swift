@@ -190,6 +190,47 @@ import simd
         #expect(surface.overlayFrames == ["08:30"])
     }
 
+    // A pinch passes through levels: nothing is asked for while the view zooms, and
+    // what the tiles in view then lack once it settles.
+    @MainActor
+    @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func holdsRequestsWhileZooming() async throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let queue = try #require(device.makeCommandQueue())
+        let libraries = try await ShaderLibrary.make(device: device)
+        let surface = try Surface(device: device, library: libraries.precise, site: URL(string: "https://satvis.space/")!)
+        let asked = Gauge()
+        surface.loader = { _ in
+            await asked.add()
+            return nil
+        }
+        let layer = SatelliteDetails.ImageryPreview(provider: .eumetview, layer: "mtg_fd:rgb_geocolour", maxLevel: 7, format: .png, isDaily: false, end: nil)
+        surface.setOverlays([ImageryOverlay(layer: layer, frame: "08:00", bounds: nil)])
+        let base = try #require(
+            device.makeTexture(descriptor: .texture2DDescriptor(pixelFormat: .rgba8Unorm, width: 4, height: 4, mipmapped: false)))
+        let wholeGlobe = simd_double4x4(diagonal: SIMD4(3e-8, 3e-8, 3e-8, 1))
+        func draw(from distance: Double) throws {
+            let (_, bake) = surface.select(eye: SIMD3(distance, 0, 0), viewProjection: wholeGlobe, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2)
+            let commands = try #require(queue.makeCommandBuffer())
+            surface.encodeBakes(bake, base: base, commands: commands)
+            commands.commit()
+        }
+
+        _ = surface.select(eye: SIMD3(2e7, 0, 0), viewProjection: wholeGlobe, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2)
+        try draw(from: 1e7)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(await asked.count == 0)
+
+        let revision = surface.revision
+        for _ in 0..<100 where surface.revision == revision {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        try draw(from: 1e7)
+        for _ in 0..<100 where await asked.count == 0 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(await asked.count > 0)
+    }
+
     // The sky view stands on the ground the Map panel draws: the ellipsoid with the
     // terrain off, and what is worked out from the ground redone when it changes.
     @MainActor
@@ -228,5 +269,14 @@ private actor Gate {
             continuation.resume()
         }
         waiting = []
+    }
+}
+
+/// Counts the loads asked for.
+private actor Gauge {
+    private(set) var count = 0
+
+    func add() {
+        count += 1
     }
 }
