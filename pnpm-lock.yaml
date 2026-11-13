@@ -187,6 +187,9 @@ importers:
       '@cesium/widgets':
         specifier: ^16.3.1
         version: 16.3.1
+      '@cogeotiff/core':
+        specifier: ^9.5.0
+        version: 9.5.0
       '@nuxt/ui':
         specifier: ^4.12.0
         version: 4.12.0(27b6bbaf537d03435e1b529e557e4894)
@@ -897,6 +900,10 @@ packages:
     engines: {node: '>=16'}
     cpu: [x64]
     os: [win32]
+
+  '@cogeotiff/core@9.5.0':
+    resolution: {integrity: sha512-BsBlk8UGq9b8aIlUliKweS2V48KK8O3xORjd+IZLBxErr0kHP1WmWnqBRG+JcmNGoPMaE4lUHl/YVbY9UHLr+A==}
+    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -5666,6 +5673,8 @@ snapshots:
 
   '@cloudflare/workerd-windows-64@1.20261103.1':
     optional: true
+
+  '@cogeotiff/core@9.5.0': {}
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:

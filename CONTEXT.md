@@ -284,6 +284,10 @@ discussion; sharpen them here when they drift.
   of the world, so at most one is drawn; any number of overlays lie on top. The
   kind is a fact about the layer (`base` in `imageryProviders`), and it decides
   both the invariant and the menu control.
+- **Geostationary mosaic**: the `GeoMosaic` basemap, an hour's scans of the four
+  geostationary imagers joined on one Web Mercator grid. Made by the separate
+  georing-mosaic project, whose glossary calls one hour a **Slot** and its picture a
+  **Mosaic**; read straight from its bucket (`docs/adr/0022-geostationary-mosaic.md`).
 - **Offline base map**: the `NaturalEarth` basemap, which ships with the app.
   Levels 0–3 are precached, so it is the only basemap guaranteed with no network;
   levels 4–5 are cached as they are viewed.

@@ -13,6 +13,7 @@ import {
 } from "@cesium/engine";
 
 import type { FrameSource } from "./FramedImagery";
+import { geoMosaicFrames } from "./GeoMosaicImagery";
 import { gibsFrames } from "./GibsImagery";
 
 /**
@@ -108,6 +109,16 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
   VIIRS: {
     label: "Daily (VIIRS)",
     frames: () => gibsFrames({ layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", maximumLevel: 9, format: "jpeg", daily: true }),
+    alpha: 1,
+    base: true,
+  },
+  /**
+   * Hourly colour of the geostationary ring, day and night, for the last week. Nothing
+   * poleward of about 81°, where no geostationary satellite sees.
+   */
+  GeoMosaic: {
+    label: "Hourly (geostationary)",
+    frames: geoMosaicFrames,
     alpha: 1,
     base: true,
   },
