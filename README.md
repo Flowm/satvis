@@ -304,7 +304,7 @@ field has one of them as its owner
 - **Imagery manifest**: the layers of NASA GIBS, EUMETView and the Copernicus
   Browser that show one of a satellite's instruments, hand-written in
   `worker/src/config/satvis.imagery.yaml`. The
-  Instruments tab links each to its provider's viewer
+  Imagery tab pictures each and links it to its provider's viewer
   ([ADR 0019](docs/adr/0019-imagery-manifest.md)).
 - **SATCAT**: launch date and site, operational status, orbit type and centre,
   from the CelesTrak [SATCAT](https://celestrak.org/satcat/) for every served

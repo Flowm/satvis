@@ -115,10 +115,11 @@ describe("getSatelliteInfo", () => {
           ["Resolution", "250 m"],
           ["Nominal swath", "2,330 km"],
         ],
+        bands: ["VIS", "TIR"],
         imagery: [],
       },
-      { name: "GEDI", retired: false, rows: [], imagery: [] },
-      { name: "TROPOMI", retired: true, rows: [["Resolution", "3.5 km"]], imagery: [] },
+      { name: "GEDI", retired: false, rows: [], bands: [], imagery: [] },
+      { name: "TROPOMI", retired: true, rows: [["Resolution", "3.5 km"]], bands: [], imagery: [] },
     ]);
     expect(labels(info)).toEqual(["Orbit", "Apogee / Perigee"]);
     expect(getSatelliteInfo(ISS, "LEO", {}).instruments).toEqual([]);
@@ -141,8 +142,8 @@ describe("getSatelliteInfo", () => {
       { name: "EMIT", bands: "SWIR", resolutionM: "60" },
     ];
     expect(getSatelliteInfo(ISS, "LEO", { instruments: malformed as never }).instruments).toEqual([
-      { name: "GEDI", retired: false, rows: [["Bands", "NIR"]], imagery: [] },
-      { name: "EMIT", retired: false, rows: [], imagery: [] },
+      { name: "GEDI", retired: false, rows: [["Bands", "NIR"]], bands: ["NIR"], imagery: [] },
+      { name: "EMIT", retired: false, rows: [], bands: [], imagery: [] },
     ]);
     expect(getSatelliteInfo(ISS, "LEO", { instruments: "MODIS" as never }).instruments).toEqual([]);
   });
@@ -188,15 +189,21 @@ describe("getSatelliteInfo", () => {
     ]);
   });
 
-  test("names a layer to the globe where the globe can draw it", () => {
+  test("names a layer to the globe, and says how to picture it, where the globe can draw it", () => {
     const geocolor = { instrument: "ABI", provider: "gibs", layer: "GOES-East_ABI_GeoColor", label: "GeoColor", kind: "rgb", period: "PT10M", window: "P90D" };
     const imagery = [
       { ...geocolor, maxLevel: 7, format: "png" },
       { ...geocolor, layer: "Linked" },
+      { ...geocolor, layer: "Ended", maxLevel: 7, format: "jpeg", period: "P1D", end: "2026-11-02" },
     ];
     const [abi] = getSatelliteInfo(ISS, "LEO", { instruments: [{ name: "ABI" }], imagery }).instruments;
 
-    expect(abi!.imagery.map((entry) => entry.token)).toEqual(["gibs:GOES-East_ABI_GeoColor", undefined]);
+    expect(abi!.imagery.map((entry) => entry.token)).toEqual(["gibs:GOES-East_ABI_GeoColor", undefined, "gibs:Ended"]);
+    expect(abi!.imagery.map((entry) => entry.preview)).toEqual([
+      { provider: "gibs", layer: "GOES-East_ABI_GeoColor", format: "png", daily: false },
+      undefined,
+      { provider: "gibs", layer: "Ended", format: "jpeg", daily: true, end: "2026-11-02" },
+    ]);
   });
 
   // SatelliteDetailsTests.swift holds the native app to the same.

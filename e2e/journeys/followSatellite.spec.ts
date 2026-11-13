@@ -54,10 +54,16 @@ for (const [device, options] of Object.entries(DEVICES)) {
       await panel.getByRole("tab", { name: "Instruments" }).click();
       const desis = panel.getByRole("region", { name: "DESIS" });
       await expect(desis).toContainText("DLR Earth Sensing Imaging Spectrometer");
-      await expect(desis.getByRole("row", { name: /Bands/ })).toContainText("VIS · NIR");
-      await expect(desis.getByRole("row", { name: /Resolution/ })).toContainText("79 m");
-      await expect(desis.getByRole("row", { name: /Nominal swath/ })).toContainText("57 km");
+      await expect(desis).toContainText("79 m");
+      await expect(desis).not.toContainText("57 km");
+      await desis.getByRole("button", { expanded: false }).click();
+      await expect(desis).toContainText("VIS · NIR");
+      await expect(desis).toContainText("57 km");
       await expect(panel.getByRole("region", { name: "HICO" })).toContainText("Retired");
+      // With neither bands nor a resolution, an instrument is a chip under the table, which opens the same details.
+      await expect(panel.getByRole("region", { name: "TSIS-1/TIM" })).toHaveCount(0);
+      await panel.getByRole("button", { name: "TSIS-1/TIM" }).click();
+      await expect(panel.getByRole("region", { name: "TSIS-1/TIM" })).toContainText("Total Irradiance Monitor");
       await panel.getByRole("tab", { name: /Passes/ }).click();
       await expect(panel).toContainText("No ground station set");
       await expect(panel.locator(".model-view")).toHaveCount(0);

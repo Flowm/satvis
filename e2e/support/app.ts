@@ -36,13 +36,16 @@ export const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAA
 
 /**
  * Serves `/api` from the fixture, and every model as `CUBE_MODEL`, and keeps every request on
- * localhost. A map tile from elsewhere (an image by its extension, as OSM's are) gets a
- * transparent pixel; anything else is aborted.
+ * localhost. A map tile from elsewhere (an image by its extension, as OSM's are) and an
+ * `<img>` (an Imagery tab preview, a WMS GetMap) get a transparent pixel; anything else is aborted.
  */
 export async function useFixtureNetwork(page: Page): Promise<void> {
   await page.route(
     (url) => url.hostname !== "localhost",
-    (route) => (/\.(png|jpe?g|webp)$/.test(new URL(route.request().url()).pathname) ? route.fulfill({ contentType: "image/png", body: PIXEL }) : route.abort("blockedbyclient")),
+    (route) =>
+      /\.(png|jpe?g|webp)$/.test(new URL(route.request().url()).pathname) || route.request().resourceType() === "image"
+        ? route.fulfill({ contentType: "image/png", body: PIXEL })
+        : route.abort("blockedbyclient"),
   );
   await page.route("**/data/models/*.glb", (route) => route.fulfill({ contentType: "model/gltf-binary", body: CUBE_MODEL }));
   await page.route("**/api/groups.json", (route) => route.fulfill({ json: fixtureIndex() }));

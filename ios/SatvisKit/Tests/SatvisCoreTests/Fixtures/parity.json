@@ -1485,6 +1485,12 @@
                 "UV · VIS · NIR · SWIR"
               ]
             ],
+            "bands": [
+              "UV",
+              "VIS",
+              "NIR",
+              "SWIR"
+            ],
             "imagery": []
           },
           {
@@ -1501,6 +1507,12 @@
                 "UV · VIS · NIR · SWIR"
               ]
             ],
+            "bands": [
+              "UV",
+              "VIS",
+              "NIR",
+              "SWIR"
+            ],
             "imagery": []
           },
           {
@@ -1513,6 +1525,7 @@
                 "Solar irradiance monitor"
               ]
             ],
+            "bands": [],
             "imagery": []
           },
           {
@@ -1537,6 +1550,10 @@
                 "57 km"
               ]
             ],
+            "bands": [
+              "VIS",
+              "NIR"
+            ],
             "imagery": []
           },
           {
@@ -1553,6 +1570,9 @@
                 "TIR"
               ]
             ],
+            "bands": [
+              "TIR"
+            ],
             "imagery": []
           },
           {
@@ -1568,6 +1588,9 @@
                 "Bands",
                 "NIR"
               ]
+            ],
+            "bands": [
+              "NIR"
             ],
             "imagery": []
           },
@@ -1591,6 +1614,9 @@
                 "Nominal swath",
                 "4 km"
               ]
+            ],
+            "bands": [
+              "NIR"
             ],
             "imagery": []
           },
@@ -1616,6 +1642,9 @@
                 "80 km"
               ]
             ],
+            "bands": [
+              "SWIR"
+            ],
             "imagery": []
           },
           {
@@ -1640,6 +1669,9 @@
                 "128 km"
               ]
             ],
+            "bands": [
+              "TIR"
+            ],
             "imagery": []
           },
           {
@@ -1655,6 +1687,9 @@
                 "Bands",
                 "MW"
               ]
+            ],
+            "bands": [
+              "MW"
             ],
             "imagery": []
           },
@@ -1675,6 +1710,10 @@
                 "Resolution",
                 "90 m"
               ]
+            ],
+            "bands": [
+              "VIS",
+              "NIR"
             ],
             "imagery": []
           },
@@ -1700,6 +1739,9 @@
                 "1,100 km"
               ]
             ],
+            "bands": [
+              "Ku-Band"
+            ],
             "imagery": []
           },
           {
@@ -1716,6 +1758,10 @@
                 "VIS · NIR"
               ]
             ],
+            "bands": [
+              "VIS",
+              "NIR"
+            ],
             "imagery": []
           },
           {
@@ -1731,6 +1777,9 @@
                 "Bands",
                 "NIR"
               ]
+            ],
+            "bands": [
+              "NIR"
             ],
             "imagery": []
           },
@@ -1752,6 +1801,7 @@
                 "38 km"
               ]
             ],
+            "bands": [],
             "imagery": []
           }
         ]
@@ -1890,6 +1940,9 @@
                 "2,054 km"
               ]
             ],
+            "bands": [
+              "MW"
+            ],
             "imagery": []
           },
           {
@@ -1914,6 +1967,10 @@
                 "500 km"
               ]
             ],
+            "bands": [
+              "MW",
+              "C-Band"
+            ],
             "imagery": []
           },
           {
@@ -1937,6 +1994,13 @@
                 "Nominal swath",
                 "3,000 km"
               ]
+            ],
+            "bands": [
+              "VIS",
+              "NIR",
+              "SWIR",
+              "MWIR",
+              "TIR"
             ],
             "imagery": [
               {
@@ -1969,6 +2033,11 @@
                 "960 km"
               ]
             ],
+            "bands": [
+              "UV",
+              "VIS",
+              "NIR"
+            ],
             "imagery": []
           },
           {
@@ -1992,6 +2061,9 @@
                 "Nominal swath",
                 "30 km"
               ]
+            ],
+            "bands": [
+              "MW"
             ],
             "imagery": []
           },
@@ -2017,6 +2089,10 @@
                 "2,052 km"
               ]
             ],
+            "bands": [
+              "MWIR",
+              "TIR"
+            ],
             "imagery": []
           },
           {
@@ -2041,6 +2117,9 @@
                 "1,650 km"
               ]
             ],
+            "bands": [
+              "MW"
+            ],
             "imagery": []
           },
           {
@@ -2053,6 +2132,7 @@
                 "Space environment monitor"
               ]
             ],
+            "bands": [],
             "imagery": []
           },
           {
@@ -2068,6 +2148,9 @@
                 "Bands",
                 "MW"
               ]
+            ],
+            "bands": [
+              "MW"
             ],
             "imagery": []
           }
@@ -2280,13 +2363,26 @@
                 "500 m"
               ]
             ],
+            "bands": [
+              "VIS",
+              "NIR",
+              "SWIR",
+              "MWIR",
+              "TIR"
+            ],
             "imagery": [
               {
                 "label": "GeoColor",
                 "detail": "every 10 min, last 90 days",
                 "viewer": "NASA Worldview",
                 "href": "https://worldview.earthdata.nasa.gov/?l=GOES-East_ABI_GeoColor",
-                "token": "gibs:GOES-East_ABI_GeoColor"
+                "token": "gibs:GOES-East_ABI_GeoColor",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "GOES-East_ABI_GeoColor",
+                  "format": "png",
+                  "daily": false
+                }
               }
             ]
           },
@@ -2304,6 +2400,9 @@
                 "VIS"
               ]
             ],
+            "bands": [
+              "VIS"
+            ],
             "imagery": []
           },
           {
@@ -2316,6 +2415,7 @@
                 "Solar irradiance monitor"
               ]
             ],
+            "bands": [],
             "imagery": []
           },
           {
@@ -2336,6 +2436,9 @@
                 "10 km"
               ]
             ],
+            "bands": [
+              "NIR"
+            ],
             "imagery": []
           },
           {
@@ -2347,6 +2450,7 @@
                 "Magnetometer"
               ]
             ],
+            "bands": [],
             "imagery": []
           },
           {
@@ -2359,6 +2463,7 @@
                 "Space environment monitor"
               ]
             ],
+            "bands": [],
             "imagery": []
           },
           {
@@ -2375,6 +2480,9 @@
                 "UV"
               ]
             ],
+            "bands": [
+              "UV"
+            ],
             "imagery": []
           },
           {
@@ -2387,6 +2495,7 @@
                 "Data collection system"
               ]
             ],
+            "bands": [],
             "imagery": []
           }
         ]

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { drawnImagery, imageryDetail } from "./instrumentImagery";
+import { drawnImagery, imageryDetail, imageryPreviewUrl } from "./instrumentImagery";
 
 describe("imageryDetail", () => {
   test.each([
@@ -62,5 +62,34 @@ describe("drawnImagery", () => {
     ["no entry", "gibs"],
   ])("draws nothing of %s", (_, entry) => {
     expect(drawnImagery(entry)).toBeUndefined();
+  });
+});
+
+describe("imageryPreviewUrl", () => {
+  const now = new Date("2026-11-12T03:00:00Z");
+  const params = (url: string) => Object.fromEntries(new URL(url).searchParams);
+
+  test("asks GIBS for yesterday's frame of a daily layer, around the centre", () => {
+    const url = imageryPreviewUrl({ provider: "gibs", layer: "MODIS_Terra_CorrectedReflectance_TrueColor", format: "jpeg", daily: true }, { latitude: 10, longitude: 20 }, 32, now);
+    expect(url.startsWith("https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?")).toBe(true);
+    expect(params(url)).toMatchObject({ LAYERS: "MODIS_Terra_CorrectedReflectance_TrueColor", FORMAT: "image/jpeg", TIME: "2026-11-11", BBOX: "-12.00,-8.00,52.00,28.00" });
+  });
+
+  test("shows a stopped layer's last frame, and a sub-daily one's latest", () => {
+    expect(params(imageryPreviewUrl({ provider: "gibs", layer: "a", format: "jpeg", daily: true, end: "2026-11-02" }, { latitude: 0, longitude: 0 }, 32, now)).TIME).toBe(
+      "2026-11-02",
+    );
+    expect(params(imageryPreviewUrl({ provider: "gibs", layer: "a", format: "png", daily: false }, { latitude: 0, longitude: 0 }, 32, now)).TIME).toBeUndefined();
+  });
+
+  test("keeps a polar orbiter's centre off the pole", () => {
+    const url = imageryPreviewUrl({ provider: "gibs", layer: "a", format: "jpeg", daily: true }, { latitude: -85, longitude: 0 }, 32, now);
+    expect(params(url).BBOX).toBe("-32.00,-68.00,32.00,-32.00");
+  });
+
+  test("asks EUMETView for a transparent picture", () => {
+    const url = imageryPreviewUrl({ provider: "eumetview", layer: "mtg_fd:rgb_geocolour", format: "png", daily: false }, { latitude: 0, longitude: 0 }, 72, now);
+    expect(url.startsWith("https://view.eumetsat.int/geoserver/ows?")).toBe(true);
+    expect(params(url)).toMatchObject({ LAYERS: "mtg_fd:rgb_geocolour", FORMAT: "image/png", TRANSPARENT: "TRUE" });
   });
 });

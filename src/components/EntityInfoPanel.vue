@@ -217,27 +217,15 @@
         </template>
 
         <template #instruments>
-          <div class="tab-body__pad instruments">
-            <section v-for="instrument in instruments" :key="instrument.name" class="instrument" :aria-label="instrument.name">
-              <div class="instrument__name">
-                {{ instrument.name }}
-                <span v-if="instrument.retired" class="instrument__retired">Retired</span>
-              </div>
-              <div v-if="instrument.fullName" class="instrument__full">{{ instrument.fullName }}</div>
-              <table v-if="instrument.rows.length > 0" class="info-table info-table--facts">
-                <tbody>
-                  <tr v-for="[label, value] in instrument.rows" :key="label">
-                    <th>{{ label }}</th>
-                    <td class="right">{{ value }}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div v-if="instrument.imagery.length > 0" class="imagery">
-                <div class="imagery__title">Imagery</div>
-                <imagery-link v-for="imagery in instrument.imagery" :key="imagery.href" :imagery="imagery" />
-              </div>
-            </section>
+          <div class="tab-body__pad">
+            <instrument-list :instruments="instruments" @show-imagery="showImagery" />
             <a class="instruments__source" href="https://database.eohandbook.com" target="_blank" rel="noopener">CEOS MIM Database, CC BY 4.0</a>
+          </div>
+        </template>
+
+        <template #imagery>
+          <div class="tab-body__pad">
+            <imagery-gallery :layers="imageryLayers" :centre="imageryCentre" :geostationary="orbitClass === 'GEO'" :focus="imageryFocus" />
           </div>
         </template>
       </UTabs>
@@ -261,7 +249,8 @@ import { notifyPasses } from "@/modules/util/passNotifications";
 import { useCesiumStore } from "@/stores/cesium";
 import { useSatStore } from "@/stores/sat";
 
-import ImageryLink from "./ImageryLink.vue";
+import ImageryGallery from "./ImageryGallery.vue";
+import InstrumentList from "./InstrumentList.vue";
 import PassTimeline from "./PassTimeline.vue";
 import SatelliteModelView from "./SatelliteModelView.vue";
 import SegmentedControl from "./SegmentedControl.vue";
@@ -289,6 +278,7 @@ const {
   elements,
   staleNotice,
   satelliteInfo,
+  imageryCentre,
   canEnterSkyView,
   enterSkyView,
   deselect,
@@ -312,6 +302,10 @@ const links = computed(() => (satnum.value ? externalLinks(satnum.value) : []));
 const spacecraftRows = computed(() => satelliteInfo.value?.spacecraftRows ?? []);
 /** Empty for all but the few hundred satellites CEOS lists (ADR 0018). */
 const instruments = computed(() => satelliteInfo.value?.instruments ?? []);
+/** Every instrument's layers, in the order of the instruments. */
+const imageryLayers = computed(() => instruments.value.flatMap((instrument) => instrument.imagery.map((imagery) => ({ instrument: instrument.name, imagery }))));
+/** The instrument whose imagery button opened the Imagery tab. */
+const imageryFocus = ref<string>();
 /** Only satellites a model manifest lists have one (ADR 0007). */
 const modelFile = computed(() => (selection.value?.kind === "satellite" ? selection.value.sat.props.model?.file : undefined));
 
@@ -347,6 +341,9 @@ const tabs = computed(() => {
   if (instruments.value.length > 0) {
     items.push({ label: "Instruments", slot: "instruments", value: "instruments" });
   }
+  if (imageryLayers.value.length > 0) {
+    items.push({ label: "Imagery", slot: "imagery", value: "imagery", badge: imageryLayers.value.length });
+  }
   items.push({ label: "Passes", slot: "passes", value: "passes", ...(passRows.value.length > 0 ? { badge: passRows.value.length } : {}) });
   // After Passes, so a station opens on it: a preferred tab the selection lacks falls back to the first.
   if (locationRows.value.length > 0) {
@@ -367,6 +364,7 @@ const collapsed = ref(false);
 // The panel is not remounted between entities, so a new selection unfolds it here.
 watch(selection, () => {
   collapsed.value = false;
+  imageryFocus.value = undefined;
 });
 
 const activeTab = computed({
@@ -381,9 +379,16 @@ const activeTab = computed({
     if (tab) {
       collapsed.value = false;
       preferredTab.value = tab.value;
+      // An Imagery tab opened any other way starts at the top.
+      imageryFocus.value = undefined;
     }
   },
 });
+
+function showImagery(instrument: string): void {
+  activeTab.value = "imagery";
+  imageryFocus.value = instrument;
+}
 
 const tableEl = useTemplateRef<HTMLTableElement>("tableEl");
 watch(pickedPassMs, (startMs) => {
@@ -675,44 +680,9 @@ function notifyForPasses(): void {
   line-height: 16px;
 }
 
-.instruments {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.instrument__name {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-/* Amber: the app colour for "away from rest", as on the status chip. */
-.instrument__retired {
-  color: var(--panel-amber);
-  font-size: 11px;
-  font-weight: 400;
-}
-
-.instrument__full {
-  margin-bottom: 4px;
-  color: #edffffb0;
-  font-size: 12px;
-}
-
-.imagery {
-  margin-top: 6px;
-}
-
-.imagery__title {
-  color: var(--panel-muted);
-  font-size: var(--text-section);
-  font-weight: 600;
-}
-
 .instruments__source {
+  display: block;
+  margin-top: 10px;
   color: var(--panel-muted);
   font-size: 11px;
 }

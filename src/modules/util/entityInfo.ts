@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { gcatCategoryLabel, gcatClassLabel } from "@/config/gcatCodes";
-import { drawnImagery, IMAGERY_PROVIDERS, imageryDetail, imageryLink, type SatelliteImagery } from "@/config/instrumentImagery";
+import { drawnImagery, IMAGERY_PROVIDERS, imageryDetail, imageryLink, type ImageryPreview, type SatelliteImagery } from "@/config/instrumentImagery";
 import type { OrbitClass } from "@/config/orbitClass";
 import { satcatLabel, SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, SATCAT_ORBIT_TYPE } from "@/config/satcatCodes";
 import { swathExtentsOf, type SatelliteInstrument, type SatelliteMetadata } from "@/config/satelliteMetadata";
@@ -30,7 +30,7 @@ const JD_UNIX_EPOCH = 2440587.5;
  */
 export const STALE_ELEMENTS_DAYS = 10;
 
-/** One layer of an instrument's imagery, as the Instruments tab links it. */
+/** One layer of an instrument's imagery, as the Imagery tab shows it. */
 export interface ImageryInfo {
   /** What the picture is: "True colour". */
   label: string;
@@ -41,6 +41,8 @@ export interface ImageryInfo {
   href: string;
   /** Names the layer to the globe, where it can draw it (ADR 0020). */
   token?: string;
+  /** What a picture of it needs; with `token`, as the provider draws any layer the globe can. */
+  preview?: ImageryPreview;
 }
 
 /** One record entry of `imagery`, read: what the tab shows of it, and the instrument it belongs under. */
@@ -58,6 +60,8 @@ export interface InstrumentInfo {
   retired: boolean;
   /** Kind, Bands, Resolution and Nominal swath, those CEOS gives. */
   rows: [string, string][];
+  /** CEOS's waveband classes, as the Bands row names them, for the Instruments tab's strip. */
+  bands: string[];
   /** The layers that show it, its default first, of the providers this app knows. Empty for most. */
   imagery: ImageryInfo[];
 }
@@ -125,10 +129,14 @@ function instrumentImagery(entry: unknown): InstrumentImagery | undefined {
     ...(rest.merged === true && { merged: true }),
   });
   const known = IMAGERY_PROVIDERS[provider]!;
-  const token = drawnImagery(entry)?.token;
+  const drawn = drawnImagery(entry);
+  const drawing =
+    drawn === undefined
+      ? {}
+      : { token: drawn.token, preview: { provider: drawn.provider, layer: drawn.layer, format: drawn.format, daily: drawn.daily, ...(end !== undefined && { end }) } };
   return {
     instrument,
-    imagery: { label, ...(detail !== undefined && { detail }), viewer: known.viewer, href: imageryLink(known, layer, end), ...(token !== undefined && { token }) },
+    imagery: { label, ...(detail !== undefined && { detail }), viewer: known.viewer, href: imageryLink(known, layer, end), ...drawing },
   };
 }
 
@@ -160,7 +168,7 @@ function instrumentInfo(instrument: unknown, orbitClass: OrbitClass, imagery: re
     rows.push(["Nominal swath", `${formatNumber(nominalSwathKm)} km`]);
   }
   const own = imagery.filter((entry) => entry.instrument === name).map((entry) => entry.imagery);
-  return { name, ...(typeof fullName === "string" && { fullName }), retired: retired === true, rows, imagery: own };
+  return { name, ...(typeof fullName === "string" && { fullName }), retired: retired === true, rows, bands: bandNames, imagery: own };
 }
 
 /** "Orbit type" stays here: SATCAT's codes say docked, landed or impacted, a state of the spacecraft. */

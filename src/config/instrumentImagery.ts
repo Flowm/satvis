@@ -138,3 +138,57 @@ export function drawnImagery(entry: unknown): DrawnImagery | undefined {
   }
   return { token: imageryToken(drawing, layer), provider: drawing, layer, maxLevel: maxLevel as number, format, daily };
 }
+
+/** What an Imagery tab card needs to ask the provider for a picture of a layer the globe can draw. */
+export interface ImageryPreview extends Pick<DrawnImagery, "provider" | "layer" | "format" | "daily"> {
+  /** The last frame's date, of a layer that stopped. */
+  end?: string;
+}
+
+/** The point a preview is centred on, in degrees. */
+export interface PreviewCentre {
+  latitude: number;
+  longitude: number;
+}
+
+const GIBS_WMS = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi";
+const EUMETVIEW_WMS = "https://view.eumetsat.int/geoserver/ows";
+
+/** Pixels; twice the card's size, for a Retina screen. */
+const PREVIEW_WIDTH = 480;
+const PREVIEW_HEIGHT = 270;
+
+/**
+ * A layer's latest frame, `halfWidthDeg` either side of `centre`, as one WMS picture. A
+ * stopped layer shows its last frame, a daily GIBS one yesterday's, as today's is still
+ * filling in. The centre stays within 50° of the equator, where a polar orbiter's
+ * would show only ice and the map's edge. `now` is the wall clock.
+ */
+export function imageryPreviewUrl(preview: ImageryPreview, centre: PreviewCentre, halfWidthDeg: number, now: Date): string {
+  const halfHeight = (halfWidthDeg * PREVIEW_HEIGHT) / PREVIEW_WIDTH;
+  const latitude = Math.max(-50, Math.min(50, centre.latitude));
+  const bbox = [centre.longitude - halfWidthDeg, latitude - halfHeight, centre.longitude + halfWidthDeg, latitude + halfHeight].map((value) => value.toFixed(2)).join(",");
+  const query = new URLSearchParams({
+    SERVICE: "WMS",
+    REQUEST: "GetMap",
+    VERSION: "1.1.1",
+    SRS: "EPSG:4326",
+    STYLES: "",
+    LAYERS: preview.layer,
+    WIDTH: String(PREVIEW_WIDTH),
+    HEIGHT: String(PREVIEW_HEIGHT),
+    BBOX: bbox,
+  });
+  if (preview.provider === "eumetview") {
+    // Transparent, or the night side of a true colour disc comes back white.
+    query.set("FORMAT", "image/png");
+    query.set("TRANSPARENT", "TRUE");
+    return `${EUMETVIEW_WMS}?${query}`;
+  }
+  query.set("FORMAT", `image/${preview.format}`);
+  const time = preview.end ?? (preview.daily ? new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10) : undefined);
+  if (time !== undefined) {
+    query.set("TIME", time);
+  }
+  return `${GIBS_WMS}?${query}`;
+}
