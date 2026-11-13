@@ -209,9 +209,10 @@ public enum SatelliteDetails {
         public var token: String { "\(provider.rawValue):\(layer)" }
     }
 
-    /// The layers of a record the globe can draw, in the record's order.
-    public static func drawableImagery(_ record: GPRecord, tables: WebTables = .shared) -> [ImageryPreview] {
-        (record.metadata["imagery"]?.array ?? []).compactMap { imagery($0, tables: tables)?.imagery.preview }
+    /// The layers of a record the globe can draw, those with a `preview`, in the
+    /// record's order.
+    public static func drawableImagery(_ record: GPRecord, tables: WebTables = .shared) -> [Imagery] {
+        (record.metadata["imagery"]?.array ?? []).compactMap { imagery($0, tables: tables)?.imagery }.filter { $0.preview != nil }
     }
 
     /// One instrument in the Instruments tab, the web app's `InstrumentInfo`.

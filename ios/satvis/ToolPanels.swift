@@ -506,14 +506,34 @@ struct MapPanel: View {
     }
 }
 
-/// The Map panel's satellite imagery, the web app's MapImageryLayers (ADR 0021): every
-/// layer the loaded records carry, in groups by how often they have frames, one group
+/// The Map panel's satellite imagery, the web app's MapImageryLayers (ADR 0021): the
+/// layers the loaded records carry that have not stopped, in groups by orbit, one group
 /// open at a time. The list is read off the records, so the panel's first showing loads
 /// every group, as the satellite browser does.
 private struct SatelliteImagerySection: View {
     let catalog: CatalogModel
     let imagery: InstrumentImagery
     @State private var isLoading = false
+
+    var body: some View {
+        // Worked out here, where only the catalog is read, so that a switch flipped in the
+        // list does not go through every record again.
+        SatelliteImageryList(
+            listings: SatelliteDetails.imageryListings(catalog.catalog.entries.values.map(\.record)), imagery: imagery, isLoading: isLoading
+        )
+        .task {
+            isLoading = true
+            await catalog.loadAll()
+            isLoading = false
+        }
+    }
+}
+
+/// The satellite imagery's groups and switches.
+private struct SatelliteImageryList: View {
+    let listings: [Listing]
+    let imagery: InstrumentImagery
+    let isLoading: Bool
     /// The group the user opened, or `.some(nil)` for none; nil until they choose, when
     /// the first group with a layer on is open.
     @State private var chosen: Listing.Group??
@@ -521,7 +541,6 @@ private struct SatelliteImagerySection: View {
     typealias Listing = SatelliteDetails.ImageryListing
 
     var body: some View {
-        let listings = SatelliteDetails.imageryListings(catalog.catalog.entries.values.map(\.record))
         let listed = Set(listings.map(\.token))
         let groups = Listing.Group.allCases.compactMap { key -> (key: Listing.Group, layers: [Listing], shown: Int)? in
             let layers = listings.filter { $0.group == key }
@@ -535,8 +554,8 @@ private struct SatelliteImagerySection: View {
             if !unlisted.isEmpty {
                 PanelCard {
                     ForEach(unlisted, id: \.self) { token in
-                        // Named by its layer's id: no loaded record carries it yet.
-                        Toggle(String(token.drop { $0 != ":" }.dropFirst()), isOn: shown(token, open: open))
+                        // By its layer's id while no loaded record carries it.
+                        Toggle(imagery.labels[token] ?? String(token.drop { $0 != ":" }.dropFirst()), isOn: shown(token, open: open))
                     }
                 }
             }
@@ -582,11 +601,6 @@ private struct SatelliteImagerySection: View {
                     }
                 }
             }
-        }
-        .task {
-            isLoading = true
-            await catalog.loadAll()
-            isLoading = false
         }
     }
 

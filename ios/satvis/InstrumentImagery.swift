@@ -16,6 +16,10 @@ final class InstrumentImagery {
     /// What is drawn, the last on top, as a link names it: a name no loaded record
     /// carries yet stays, and is drawn once one does.
     private(set) var tokens: [String] = []
+    /// What each drawn layer is called where a loaded record carries it, for the Map
+    /// panel to name one it does not list, as one that stopped: the web app's
+    /// `instrumentImageryLabels`.
+    private(set) var labels: [String: String] = [:]
     @ObservationIgnored private var layers: [String: SatelliteDetails.ImageryPreview] = [:]
     @ObservationIgnored private var frames: [String: Frames] = [:]
     @ObservationIgnored private var drawn: [ImageryOverlay] = []
@@ -65,15 +69,21 @@ final class InstrumentImagery {
     /// Finds each drawn layer among the loaded records, as the catalog changes.
     func resolve(_ entries: some Sequence<CatalogEntry>) {
         let wanted = Set(tokens)
-        var found: [String: SatelliteDetails.ImageryPreview] = [:]
+        var found: [String: SatelliteDetails.Imagery] = [:]
         if !wanted.isEmpty {
             for entry in entries where entry.record.metadata["imagery"] != nil {
-                for layer in SatelliteDetails.drawableImagery(entry.record) where wanted.contains(layer.token) && found[layer.token] == nil {
-                    found[layer.token] = layer
+                for layer in SatelliteDetails.drawableImagery(entry.record) {
+                    if let token = layer.preview?.token, wanted.contains(token), found[token] == nil {
+                        found[token] = layer
+                    }
                 }
             }
         }
-        layers = found
+        layers = found.compactMapValues(\.preview)
+        let named = found.mapValues(\.label)
+        if named != labels {
+            labels = named
+        }
     }
 
     /// Keeps `apply` handed the drawn layers at the frame for `now`, once a second,
@@ -81,6 +91,9 @@ final class InstrumentImagery {
     /// often as the service lets the list change, until cancelled.
     func follow(now: @escaping @MainActor () -> Double, apply: @escaping @MainActor ([ImageryOverlay]) -> Void) async {
         while !Task.isCancelled {
+            // A layer shown again lists its frames afresh, as on the web, rather than
+            // drawing in full the last frame of a list hours old.
+            frames = frames.filter { tokens.contains($0.key) }
             let time = now()
             let overlays = tokens.compactMap { token in layers[token].flatMap { overlay($0, at: time) } }
             if overlays != drawn {

@@ -251,6 +251,18 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssertEqual(listed.value as? String, "1")
     }
 
+    // A layer that stopped is not in the groups; one a link draws is switched off above
+    // them, by its label as the web names it.
+    @MainActor
+    func testNamesAStoppedLayerALinkDraws() {
+        let app = launch(link: "/?imagery=gibs:MISR_AM1_Ellipsoid_Radiance_RGB_AN")
+        openMenu(app)
+        app.buttons["Map"].tap()
+        let listed = app.switches["True colour, nadir camera"]
+        XCTAssert(listed.waitForExistence(timeout: 10))
+        XCTAssertEqual(listed.value as? String, "1")
+    }
+
     // An instrument's imagery button opens the Imagery tab at that instrument's first
     // card, here the second; the tab opened from the tab row starts at the top.
     @MainActor
