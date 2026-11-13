@@ -25,13 +25,19 @@ final class InstrumentImagery {
         var ranges: [TimeDomain.Range]?
         /// EUMETView's, from the same capabilities.
         var bounds: [Double]?
+        /// The times `ranges` covers, epoch milliseconds, when not all of them.
+        var covers: ClosedRange<Double>?
         var asked: Date
+        var isAsking = false
         /// Whether the service has answered, with a list or without.
         var answered = false
+        /// Whether its last answer was a list.
+        var listed = false
     }
 
     /// A day, in milliseconds.
     private static let day = 86_400_000.0
+    private static let hour = 3_600_000.0
     /// How long after it began a listed day may still be filling in: the day itself,
     /// and the swaths that arrive hours behind.
     private static let filling = 2 * day
@@ -91,14 +97,28 @@ final class InstrumentImagery {
     private func overlay(_ layer: SatelliteDetails.ImageryPreview, at time: Double) -> ImageryOverlay? {
         let known = frames[layer.token]
         let refresh: TimeInterval = layer.provider == .gibs ? 30 * 60 : 5 * 60
+        // A list that could not be read is asked for again; one that was, at once when
+        // the clock leaves the times it covers, and once the clock is past its end.
         let due: TimeInterval? =
-            switch known?.ranges {
-            case nil: known == nil ? 0 : Self.retry
-            case let ranges?: time >= (ranges.last?.end ?? 0) ? refresh : nil
+            if let known {
+                if known.isAsking {
+                    nil
+                } else if !known.listed {
+                    Self.retry
+                } else if let covers = known.covers, !covers.contains(time) {
+                    0
+                } else if time >= (known.ranges?.last?.end ?? 0) {
+                    refresh
+                } else {
+                    nil
+                }
+            } else {
+                0
             }
         if let due, Date().timeIntervalSince(known?.asked ?? .distantPast) >= due {
             frames[layer.token, default: Frames(asked: Date())].asked = Date()
-            Task { await list(layer) }
+            frames[layer.token]?.isAsking = true
+            Task { await list(layer, around: time) }
         }
         guard known?.answered == true else {
             return nil
@@ -115,22 +135,60 @@ final class InstrumentImagery {
         return ImageryOverlay(layer: layer, frame: frame, bounds: known?.bounds)
     }
 
-    /// Asks `layer`'s service for its frames. A list it could not read leaves the last.
-    private func list(_ layer: SatelliteDetails.ImageryPreview) async {
+    /// Asks `layer`'s service for its frames a day either side of `time`, on the hour so
+    /// that other clocks ask the same, or all of them: for a daily layer, whose whole
+    /// list is short, for one with none that near, as one that ended, and for EUMETView,
+    /// which lists them all. Not when the service failed to answer, which would ask for
+    /// the whole megabyte at every retry. A list it could not read leaves the last.
+    private func list(_ layer: SatelliteDetails.ImageryPreview, around time: Double) async {
+        var covers: ClosedRange<Double>?
+        var listing: (ranges: [TimeDomain.Range], bounds: [Double]?)?
+        if layer.provider == .gibs, !layer.isDaily {
+            let hour = (time / Self.hour).rounded(.down) * Self.hour
+            covers = (hour - Self.day)...(hour + Self.day)
+            listing = await fetchFrames(layer, covering: covers)
+        }
+        if (listing == nil && covers == nil) || listing?.ranges.isEmpty == true {
+            covers = nil
+            listing = await fetchFrames(layer, covering: nil)
+        }
+        if listing?.ranges.isEmpty == true {
+            listing = nil
+        }
+        var known = frames[layer.token] ?? Frames(asked: Date())
+        known.isAsking = false
+        known.answered = true
+        known.listed = listing != nil
+        if let listing {
+            known.ranges = listing.ranges
+            known.covers = covers
+            known.bounds = listing.bounds ?? known.bounds
+        } else {
+            log.error("Could not list the frames of \(layer.token, privacy: .public)")
+        }
+        frames[layer.token] = known
+    }
+
+    /// The frames of `layer` its service lists over `covering`, or all of them, maybe
+    /// none; nil when it cannot be reached.
+    private func fetchFrames(_ layer: SatelliteDetails.ImageryPreview, covering: ClosedRange<Double>?) async -> (
+        ranges: [TimeDomain.Range], bounds: [Double]?
+    )? {
         let overlay = ImageryOverlay(layer: layer, frame: nil, bounds: nil)
-        guard let url = overlay.framesURL, let (data, response) = try? await URLSession.shared.data(from: url),
+        guard let url = overlay.framesURL(covering: covering), let (data, response) = try? await URLSession.shared.data(from: url),
             (response as? HTTPURLResponse)?.statusCode == 200
         else {
-            log.error("No frames for \(layer.token, privacy: .public); drawing its latest")
-            frames[layer.token]?.answered = true
-            return
+            return nil
         }
         let text = String(decoding: data, as: UTF8.self)
         var ranges: [TimeDomain.Range]
         var bounds: [Double]?
         switch layer.provider {
         case .gibs:
-            ranges = text.firstMatch(of: /<Domain>([^<]*)<\/Domain>/).map { TimeDomain.parse(String($0.1)) } ?? []
+            guard let domain = text.firstMatch(of: /<Domain>([^<]*)<\/Domain>/) else {
+                return nil
+            }
+            ranges = TimeDomain.parse(String(domain.1))
             // GIBS lists a day while it is still imaging it, and serves what is missing as
             // opaque black, so a daily layer shows the newest finished day.
             if layer.isDaily, let last = ranges.last, Date().timeIntervalSince1970 * 1000 - last.end < Self.filling {
@@ -141,12 +199,6 @@ final class InstrumentImagery {
             ranges = capabilities.ranges
             bounds = capabilities.bounds
         }
-        var known = frames[layer.token] ?? Frames(asked: Date())
-        if !ranges.isEmpty {
-            known.ranges = ranges
-        }
-        known.bounds = bounds ?? known.bounds
-        known.answered = true
-        frames[layer.token] = known
+        return (ranges, bounds)
     }
 }

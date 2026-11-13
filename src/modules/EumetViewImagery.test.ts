@@ -48,7 +48,7 @@ describe("eumetViewFrames", () => {
     vi.stubGlobal("fetch", fetchMock);
     const frames = eumetViewFrames(OPTIONS);
 
-    const ranges = await frames.fetchRanges(new AbortController().signal);
+    const ranges = (await frames.fetchRanges(new AbortController().signal, 0))?.ranges;
     expect(fetchMock.mock.calls[0]![0]).toBe("https://view.eumetsat.int/geoserver/mtg_fd/rgb_geocolour/ows?service=WMS&version=1.3.0&request=GetCapabilities");
     expect(ranges).toHaveLength(1);
 
@@ -67,7 +67,7 @@ describe("eumetViewFrames", () => {
   ])("has no frames when the service %s, and still draws its latest", async (_, answer) => {
     vi.stubGlobal("fetch", vi.fn(answer));
     const frames = eumetViewFrames(OPTIONS);
-    expect(await frames.fetchRanges(new AbortController().signal)).toBeUndefined();
+    expect(await frames.fetchRanges(new AbortController().signal, 0)).toBeUndefined();
     expect(frames.show().rectangle.west).toBeCloseTo(-Math.PI);
   });
 });

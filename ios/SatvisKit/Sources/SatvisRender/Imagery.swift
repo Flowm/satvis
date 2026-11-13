@@ -311,14 +311,18 @@ public struct ImageryOverlay: Sendable, Equatable {
         }
     }
 
-    /// Where its frames are listed: GIBS's WMTS domain for the layer, or the layer's
-    /// own WMS capabilities, which give EUMETView's bounds too.
-    public var framesURL: URL? {
+    /// Where its frames are listed: GIBS's WMTS domain for the layer, over `covering`
+    /// (epoch milliseconds) or all of it, or the layer's own WMS capabilities, which
+    /// list all of EUMETView's and give its bounds too.
+    public func framesURL(covering: ClosedRange<Double>? = nil) -> URL? {
         switch layer.provider {
         case .gibs:
-            URL(string: "\(GIBS.wmts)/1.0.0/\(layer.layer)/default/GoogleMapsCompatible_Level\(layer.maxLevel)/all/all.xml")
+            let name = { (time: Double) in Date(timeIntervalSince1970: time / 1000).formatted(.iso8601) }
+            let range = covering.map { "\(name($0.lowerBound))--\(name($0.upperBound))" } ?? "all"
+            return URL(string: "\(GIBS.wmts)/1.0.0/\(layer.layer)/default/GoogleMapsCompatible_Level\(layer.maxLevel)/all/\(range).xml")
         case .eumetview:
-            URL(string: "https://view.eumetsat.int/geoserver/\(layer.layer.replacingOccurrences(of: ":", with: "/"))/ows?service=WMS&version=1.3.0&request=GetCapabilities")
+            return URL(
+                string: "https://view.eumetsat.int/geoserver/\(layer.layer.replacingOccurrences(of: ":", with: "/"))/ows?service=WMS&version=1.3.0&request=GetCapabilities")
         }
     }
 }

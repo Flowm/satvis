@@ -56,6 +56,15 @@ import simd
             BaseLayer.viirs.source(site: site, frame: "2026-10-04").url(TileKey(level: 3, x: 4, y: 2))?.absoluteString
                 == "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/2026-10-04/GoogleMapsCompatible_Level9/3/2/4.jpg")
         #expect(BaseLayer.viirs.source(site: site).url(TileKey(level: 0, x: 0, y: 0))?.absoluteString.contains("/default/default/") == true)
+        // GibsImagery.ts's domain over a day either side of the clock, or all of it.
+        let goes = ImageryOverlay(
+            layer: SatelliteDetails.ImageryPreview(provider: .gibs, layer: "GOES-East_ABI_GeoColor", maxLevel: 7, format: .png, isDaily: false, end: nil), frame: nil, bounds: nil)
+        let october4 = 1_791_072_000_000.0
+        #expect(
+            goes.framesURL(covering: (october4 + 11 * 3_600_000)...(october4 + 59 * 3_600_000))?.absoluteString
+                == "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/1.0.0/GOES-East_ABI_GeoColor/default/GoogleMapsCompatible_Level7/all/2026-10-04T11:00:00Z--2026-10-06T11:00:00Z.xml"
+        )
+        #expect(goes.framesURL()?.absoluteString.hasSuffix("/GoogleMapsCompatible_Level7/all/all.xml") == true)
     }
 
     // timeDomain.ts's parseDomain and withoutLatestFrame, for a daily layer: the

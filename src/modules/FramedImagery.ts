@@ -29,6 +29,12 @@ export interface FrameLayers<Layer> {
   indexOf(layer: Layer): number;
 }
 
+/** A service's frames, and the times its list covers when it is not all of them. */
+export interface FrameList {
+  ranges: TimeRange[];
+  covers?: { start: number; end: number };
+}
+
 /**
  * A layer of a service, frame by frame. `Shown` is what shows one frame: Cesium's
  * provider as the service's module makes it, the layer the controller wraps it in.
@@ -38,8 +44,11 @@ export interface FrameSource<Shown> {
   name: string;
   /** How often the service lets its list of frames change. */
   refreshMs: number;
-  /** The imagery's frames, or undefined when the service cannot be reached or says nothing usable. */
-  fetchRanges: (signal: AbortSignal) => Promise<TimeRange[] | undefined>;
+  /**
+   * The imagery's frames, all or those around the time `around`, or undefined when the
+   * service cannot be reached or says nothing usable.
+   */
+  fetchRanges: (signal: AbortSignal, around: number) => Promise<FrameList | undefined>;
   /**
    * What shows `frame`; without one, what to show while the frames cannot be listed:
    * the service's latest. Not called before `fetchRanges` settles.
@@ -117,7 +126,10 @@ export function showFramedImagery<Layer>(
   { clock, requestRender, tilesLoaded, signal }: ImageryContext,
 ): FramedImagery<Layer> {
   type Shown = Frame<Layer> & { frame: number | undefined };
-  let ranges: TimeRange[] | undefined;
+  let listing: FrameList | undefined;
+  /** Whether the last ask answered with a list. */
+  let listed = false;
+  let asking = false;
   let shown: Shown | undefined;
   let loading: (Shown & { ticks: number; idle: number; since: number }) | undefined;
   let lastFetch = 0;
@@ -129,19 +141,24 @@ export function showFramedImagery<Layer>(
     return { ...made, frame };
   };
 
-  const list = async () => {
+  const list = async (around: number) => {
     lastFetch = Date.now();
-    const listed = await source.fetchRanges(signal);
-    ranges = listed ?? ranges;
-    return listed;
+    asking = true;
+    const answer = await source.fetchRanges(signal, around).finally(() => (asking = false));
+    listed = answer !== undefined;
+    listing = answer ?? listing;
+    return answer;
   };
 
   const onTick = () => {
     const time = JulianDate.toDate(clock.currentTime).getTime();
-    // A list that could not be read is asked for again; one that was, once the clock is past its end.
-    const due = ranges === undefined ? RETRY_MS : time >= ranges.at(-1)!.end ? source.refreshMs : Infinity;
-    if (Date.now() - lastFetch >= due) {
-      void list();
+    const ranges = listing?.ranges;
+    const covers = listing?.covers;
+    // A list that could not be read is asked for again; one that was, at once when the
+    // clock leaves the times it covers, and once the clock is past its end.
+    const due = !listed || ranges === undefined ? RETRY_MS : covers && (time < covers.start || time > covers.end) ? 0 : time >= ranges.at(-1)!.end ? source.refreshMs : Infinity;
+    if (!asking && Date.now() - lastFetch >= due) {
+      void list(time);
     }
     if (ranges === undefined) {
       return;
@@ -189,11 +206,11 @@ export function showFramedImagery<Layer>(
     { once: true },
   );
 
-  void list().then((listed) => {
+  void list(JulianDate.toDate(clock.currentTime).getTime()).then((answer) => {
     if (signal.aborted) {
       return;
     }
-    if (!listed) {
+    if (!answer) {
       // The imagery stays usable, just not in time, until the service answers.
       console.warn(`[FramedImagery] no time domain for ${source.name}; showing its latest frame`);
       shown = add();

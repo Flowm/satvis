@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { TimeRange } from "@/modules/util/timeDomain";
 
-import { type ImageryContext, showFramedImagery, trackRequests } from "./FramedImagery";
+import { type FrameList, type ImageryContext, showFramedImagery, trackRequests } from "./FramedImagery";
 
 interface Layer {
   frame: number | undefined;
@@ -16,9 +16,9 @@ const RANGES: TimeRange[] = [{ start: START, end: START + 60 * MINUTE, step: 10 
 /**
  * A globe's layer stack and clock, and one imagery shown on it over a basemap. `globe.loaded`
  * is the globe's word on all its tiles, `requests.answered` each frame's on its own;
- * `ranges` null for a service that cannot be reached.
+ * `ranges` null for a service that cannot be reached, `covers` the times a partial list covers.
  */
-function shown(ranges: TimeRange[] | null = RANGES) {
+function shown(ranges: TimeRange[] | null = RANGES, covers?: FrameList["covers"]) {
   const stack: Layer[] = [{ frame: undefined }];
   const layers = {
     add: (layer: Layer, index = stack.length) => void stack.splice(index, 0, layer),
@@ -38,7 +38,7 @@ function shown(ranges: TimeRange[] | null = RANGES) {
   const lifetime = new AbortController();
   const globe = { loaded: false };
   const requests = { answered: false };
-  const fetchRanges = vi.fn(() => Promise.resolve(ranges ?? undefined));
+  const fetchRanges = vi.fn((_signal: AbortSignal, _around: number): Promise<FrameList | undefined> => Promise.resolve(ranges ? { ranges, covers } : undefined));
   const source = { name: "GeoColor", refreshMs: 30 * MINUTE, fetchRanges, show: (frame?: number) => ({ layer: { frame }, loaded: () => requests.answered }) };
   const imagery = showFramedImagery<Layer>(source, layers, () => 1, {
     clock,
@@ -134,13 +134,32 @@ describe("showFramedImagery", () => {
     expect(frames()).toEqual([60]);
     expect(fetchRanges).toHaveBeenCalledTimes(1);
 
-    fetchRanges.mockResolvedValueOnce([{ ...RANGES[0]!, end: START + 70 * MINUTE }]);
+    fetchRanges.mockResolvedValueOnce({ ranges: [{ ...RANGES[0]!, end: START + 70 * MINUTE }] });
     await vi.advanceTimersByTimeAsync(30 * MINUTE);
     tick();
     expect(fetchRanges).toHaveBeenCalledTimes(2);
     await vi.advanceTimersByTimeAsync(0);
     tick(4);
     expect(frames()).toEqual([70]);
+  });
+
+  test("asks at once for the frames around the clock when it leaves the times a list covers", async () => {
+    const { frames, setClock, tick, globe, fetchRanges } = shown(RANGES, { start: START, end: START + 60 * MINUTE });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchRanges).toHaveBeenLastCalledWith(expect.anything(), START + 15 * MINUTE);
+    globe.loaded = true;
+
+    const later = Promise.withResolvers<FrameList>();
+    fetchRanges.mockReturnValueOnce(later.promise);
+    setClock(90);
+    tick(3);
+    expect(fetchRanges).toHaveBeenCalledTimes(2);
+    expect(fetchRanges).toHaveBeenLastCalledWith(expect.anything(), START + 90 * MINUTE);
+    later.resolve({ ranges: [{ start: START + 60 * MINUTE, end: START + 120 * MINUTE, step: 10 * MINUTE }], covers: { start: START + 60 * MINUTE, end: START + 120 * MINUTE } });
+    await vi.advanceTimersByTimeAsync(0);
+    tick(8);
+    expect(fetchRanges).toHaveBeenCalledTimes(2);
+    expect(frames()).toEqual([90]);
   });
 
   test("shows the new frame once its own requests are answered, though the globe is still loading", async () => {
@@ -199,7 +218,7 @@ describe("showFramedImagery", () => {
     await vi.advanceTimersByTimeAsync(59_000);
     tick();
     expect(fetchRanges).toHaveBeenCalledTimes(1);
-    fetchRanges.mockResolvedValueOnce(RANGES);
+    fetchRanges.mockResolvedValueOnce({ ranges: RANGES });
     await vi.advanceTimersByTimeAsync(1000);
     tick();
     expect(fetchRanges).toHaveBeenCalledTimes(2);
