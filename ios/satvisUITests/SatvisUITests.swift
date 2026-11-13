@@ -200,7 +200,8 @@ nonisolated class SatvisUITests: XCTestCase {
     }
 
     // A card's Show switch draws its layer on the globe, and a press elsewhere on the
-    // card does what the switch does; the Map panel lists what is drawn, to take it off.
+    // card does what the switch does; the Map panel opens on the group it is in, to take
+    // it off there.
     @MainActor
     func testShowsALayerOnTheGlobeFromItsCard() {
         let app = search("METEOSAT-12 (MTG-I1)")
@@ -221,10 +222,32 @@ nonisolated class SatvisUITests: XCTestCase {
         app.navigationBars.buttons["Close"].firstMatch.tap()
         openMenu(app)
         app.buttons["Map"].tap()
-        let listed = app.switches["GeoColour · METEOSAT-12 (MTG-I1)"]
-        XCTAssert(listed.waitForExistence(timeout: 5))
-        flip(app, "GeoColour · METEOSAT-12 (MTG-I1)")
-        XCTAssert(listed.waitForNonExistence(timeout: 5))
+        let listed = app.switches["METEOSAT-12 · GeoColour"]
+        XCTAssert(listed.waitForExistence(timeout: 10))
+        XCTAssertEqual(listed.value as? String, "1")
+        XCTAssertEqual(app.buttons["Weather satellites"].value as? String, "1 on")
+        flip(app, "METEOSAT-12 · GeoColour")
+        XCTAssert(waitForValue(listed, "0"))
+    }
+
+    // The Map panel lists every layer the records carry, in groups by how often they
+    // have frames, one open at a time (ADR 0021), and draws one from there.
+    @MainActor
+    func testDrawsALayerFromTheMapPanel() {
+        let app = launch()
+        openMenu(app)
+        app.buttons["Map"].tap()
+        let polar = app.buttons["Polar orbiters"]
+        XCTAssert(polar.waitForExistence(timeout: 10))
+        // Closed until one is opened, with no layer on.
+        XCTAssertFalse(app.switches["TERRA · True colour"].exists)
+        polar.tap()
+        flip(app, "TERRA · True colour")
+        XCTAssert(waitForValue(app.switches["TERRA · True colour"], "1"))
+        XCTAssertEqual(polar.value as? String, "1 on")
+        app.buttons["Weather satellites"].tap()
+        XCTAssert(app.switches["GOES 19 · GeoColor"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.switches["TERRA · True colour"].exists)
     }
 
     // A link's `imagery` draws its layers once a loaded record carries them (ADR 0020).
@@ -233,7 +256,9 @@ nonisolated class SatvisUITests: XCTestCase {
         let app = launch(link: "/?imagery=eumetview:mtg_fd:rgb_geocolour")
         openMenu(app)
         app.buttons["Map"].tap()
-        XCTAssert(app.switches["GeoColour · METEOSAT-12 (MTG-I1)"].waitForExistence(timeout: 10))
+        let listed = app.switches["METEOSAT-12 · GeoColour"]
+        XCTAssert(listed.waitForExistence(timeout: 10))
+        XCTAssertEqual(listed.value as? String, "1")
     }
 
     // An instrument's imagery button opens the Imagery tab at that instrument's first

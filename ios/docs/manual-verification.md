@@ -661,9 +661,9 @@ layer's latest frame around the satellite, the instrument's name on its corner, 
 label, when it has frames, and the provider's viewer, which opens it. Switch Show on
 for a layer: the card is ringed in cyan and the globe shows the layer over the base
 map at the clock's frame, which moves with the clock; a press elsewhere on the card
-takes it off, and another puts it back. Check that the Map panel lists it under
-"Instrument imagery" as "GeoColor · GOES 19", and that its switch there takes it off;
-that a link with `imagery=` draws its layers; and that the credits name the provider.
+takes it off, and another puts it back. Check that the Map panel lists it as "GOES
+19 · GeoColor", and that its switch there takes it off; that a link with `imagery=`
+draws its layers; and that the credits name the provider.
 Turn the network off and open another card's satellite for "No preview" in place of
 the picture. On a Mac, check the same in the card beside the column.
 
@@ -723,3 +723,26 @@ FCI card showed EUMETView's GeoColour of Africa and the Atlantic, "every 10 min 
 tab. The viewer links were not opened, "No preview" was not seen, and the scroll to a
 later card was not checked, as no satellite of the test catalog has a second
 instrument with imagery.
+
+## Native app: the Map panel's satellite imagery
+
+**Procedure.** Open the Map panel on an iPhone and an iPad, with no layer on. Check
+that "Satellite imagery" lists Weather satellites, Polar orbiters, Ended missions and
+Viewer links, each with its icon and its count of layers, all closed, and that the
+names fit, "Weather satellites" on two lines. Open Polar orbiters: its layers list
+under it, "TERRA · True colour" with the satellite's name first. Switch one on: the
+globe draws it, the group's count reads "1 on" in cyan and the group stays open.
+Switch it off: the group stays open too. Open Weather satellites: Polar orbiters
+closes. Launch on a link with `imagery=`: the group with that layer opens on its own.
+A Viewer links row opens the provider's viewer. Turn the network off before the first
+open of the panel for "Loading the imagery list…" until the catalog arrives.
+
+**Result, 2026-11-13.** iPhone 18 Pro and iPad Air 13-inch (M4) simulators, iOS 27.2,
+on the test catalog with the network on, shot by a UI test not kept. On the iPhone the
+four groups' names fit, "Weather satellites" on two lines, "3" and its chevron beside
+it; Polar orbiters opened on METOP-C's natural colour and TERRA's true colour, and
+TERRA's switch drew the MODIS swaths and showed "1 on". The iPad's panel is as narrow
+and showed the same. `testDrawsALayerFromTheMapPanel`, `testDrawsTheImageryALinkNames` and
+`testShowsALayerOnTheGlobeFromItsCard` hold the switches, the counts, the group a link
+opens and one group open at a time. The viewer links, the loading text and the Mac
+were not looked at.

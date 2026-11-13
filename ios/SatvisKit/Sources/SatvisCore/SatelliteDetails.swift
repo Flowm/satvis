@@ -262,7 +262,7 @@ public enum SatelliteDetails {
     }
 
     /// Nil for an entry without the fields a link needs, or of a provider this app does not know.
-    private static func imagery(_ entry: JSONValue, tables: WebTables) -> (instrument: String, imagery: Imagery)? {
+    private static func imagery(_ entry: JSONValue, tables: WebTables) -> (instrument: String, imagery: Imagery, layer: String, period: String?, end: String?)? {
         guard case .object(let fields) = entry, let instrument = fields["instrument"]?.string, let provider = fields["provider"]?.string,
             let layer = fields["layer"]?.string, let label = fields["label"]?.string, let known = tables.imageryProviders[provider]
         else {
@@ -274,8 +274,57 @@ public enum SatelliteDetails {
             Imagery(
                 label: label, detail: imageryDetail(fields), viewer: known.viewer, href: known.href(layer: layer, end: end),
                 preview: preview(fields, provider: provider, layer: layer, end: end)
-            )
+            ),
+            "\(provider):\(layer)", fields["period"]?.string, end
         )
+    }
+
+    /// A layer of a satellite as the Map panel lists it (ADR 0021), the web app's
+    /// `ImageryLayer`.
+    public struct ImageryListing: Sendable, Hashable {
+        /// The Map panel's groups, in its order: by how often a layer has frames, which
+        /// tells the geostationary weather imagers from the polar orbiters' daily mosaics;
+        /// then the layers that stopped, and those the globe cannot draw.
+        public enum Group: String, CaseIterable, Sendable {
+            case weather, polar, ended, viewer
+        }
+
+        /// Catalog number, provider and layer: unique in the list.
+        public var key: String
+        public var satellite: String
+        public var instrument: String
+        public var imagery: Imagery
+        public var group: Group
+
+        /// Where the globe draws it; nil for a link alone.
+        public var token: String? { imagery.preview?.token }
+    }
+
+    /// Every layer `records` carry, once per satellite, provider and layer, by satellite
+    /// name, then label: the web app's `imageryLayers`.
+    public static func imageryListings(_ records: some Sequence<GPRecord>, tables: WebTables = .shared) -> [ImageryListing] {
+        var listings: [String: ImageryListing] = [:]
+        for record in records where record.metadata["imagery"] != nil {
+            for entry in record.metadata["imagery"]?.array ?? [] {
+                guard let found = imagery(entry, tables: tables) else {
+                    continue
+                }
+                let key = "\(record.satnum):\(found.layer)"
+                guard listings[key] == nil else {
+                    continue
+                }
+                let group: ImageryListing.Group =
+                    found.imagery.preview == nil ? .viewer : found.end != nil ? .ended : found.period?.hasPrefix("PT") == true ? .weather : .polar
+                listings[key] = ImageryListing(key: key, satellite: record.name, instrument: found.instrument, imagery: found.imagery, group: group)
+            }
+        }
+        return listings.values.sorted {
+            switch $0.satellite.localizedStandardCompare($1.satellite) {
+            case .orderedAscending: true
+            case .orderedDescending: false
+            case .orderedSame: $0.imagery.label.localizedStandardCompare($1.imagery.label) == .orderedAscending
+            }
+        }
     }
 
     /// The web app's `drawnImagery`, as a preview: nil for another provider's layer, one

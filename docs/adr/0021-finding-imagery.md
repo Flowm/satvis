@@ -78,8 +78,9 @@ list's footer and its filter chip; imagery is a map layer.
   compression, once a session.
 - A tree's parent count is no longer the sum of its leaves where a satellite has several.
   The orbit and constellation trees give a satellite one leaf, so theirs are unchanged.
-- The native app has neither the catalog sheet nor this Map section; its Instruments tab
-  is still where it finds imagery.
+- The native app has this Map section, the same groups and rows read from its own
+  records (`imageryListings` in `SatelliteDetails.swift`), but not the catalog sheet's
+  bands chart, Data availability facet or imagery column.
 
 ## Alternatives rejected
 

@@ -150,6 +150,57 @@ import Testing
         #expect(SatelliteDetails.instruments(record).isEmpty)
     }
 
+    // instrumentImagery.test.ts's imageryLayers cases: the Map panel's list (ADR 0021).
+    @Test func listsTheLayersByGroupThenSatellite() throws {
+        let base = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first)
+        func record(_ name: String, _ imagery: [JSONValue]) -> GPRecord {
+            var record = base
+            record.name = name
+            record.metadata["imagery"] = .array(imagery)
+            return record
+        }
+        let geoColor: [String: JSONValue] = [
+            "instrument": .string("ABI"), "provider": .string("gibs"), "layer": .string("GOES-East_ABI_GeoColor"), "label": .string("GeoColor"), "kind": .string("rgb"),
+            "period": .string("PT10M"), "maxLevel": .number(7),
+            "format": .string("png"),
+        ]
+        let daily: [String: JSONValue] = [
+            "instrument": .string("MODIS"), "provider": .string("gibs"), "layer": .string("MODIS_Terra_CorrectedReflectance_TrueColor"), "label": .string("True colour"),
+            "kind": .string("rgb"),
+            "period": .string("P1D"), "maxLevel": .number(9), "format": .string("jpeg"),
+        ]
+        let ended = daily.merging([
+            "layer": .string("MISR_AM1_Ellipsoid_Radiance_RGB_AN"), "instrument": .string("MISR"), "label": .string("True colour, nadir camera"), "end": .string("2022-10-12"),
+        ]) { $1 }
+        let scenes: [String: JSONValue] = [
+            "instrument": .string("MSI"), "provider": .string("copernicus-browser"), "layer": .string("S2_L2A"), "label": .string("True colour scenes"), "kind": .string("rgb"),
+        ]
+        let listings = SatelliteDetails.imageryListings([
+            record("TERRA", [.object(daily), .object(ended)]), record("GOES 19", [.object(geoColor)]), record("SENTINEL-2A", [.object(scenes)]),
+        ])
+        #expect(
+            listings.map { [$0.satellite, $0.imagery.label, $0.group.rawValue, $0.token ?? "-"] } == [
+                ["GOES 19", "GeoColor", "weather", "gibs:GOES-East_ABI_GeoColor"],
+                ["SENTINEL-2A", "True colour scenes", "viewer", "-"],
+                ["TERRA", "True colour", "polar", "gibs:MODIS_Terra_CorrectedReflectance_TrueColor"],
+                ["TERRA", "True colour, nadir camera", "ended", "gibs:MISR_AM1_Ellipsoid_Radiance_RGB_AN"],
+            ])
+        #expect(listings[0].imagery.detail == "every 10 min")
+        #expect(listings[0].imagery.href == "https://worldview.earthdata.nasa.gov/?l=GOES-East_ABI_GeoColor")
+
+        let once = SatelliteDetails.imageryListings([
+            record("GOES 19", [.object(geoColor)]),
+            record(
+                "GOES 19",
+                [
+                    .object(geoColor), .object(geoColor.merging(["provider": .string("elsewhere")]) { $1 }), .object(geoColor.merging(["layer": .number(7)]) { $1 }),
+                    .object(geoColor.merging(["layer": .string("No_Instrument"), "instrument": .null]) { $1 }), .null,
+                ]),
+            record("NO IMAGERY", []),
+        ])
+        #expect(once.map(\.key) == ["\(base.satnum):gibs:GOES-East_ABI_GeoColor"])
+    }
+
     // entityInfo.test.ts's cases: a provider this app does not know, an instrument the satellite lacks, a layer that stopped.
     @Test func givesEachInstrumentTheImageryThatShowsIt() throws {
         var record = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first)
