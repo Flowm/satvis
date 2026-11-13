@@ -11,7 +11,8 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   Earth" phase copies it from the web app's `data/imagery` rather than keeping a
   second copy. Tiles come through `TileFetcher`'s cache in Caches, which the
   system may purge; Natural Earth's levels 3 to 5 are kept for good instead
-  (`KeptTiles`).
+  (`KeptTiles`). A whole frame's tile, one to the minute or a day two days on, is
+  cached though GIBS says `no-store` of every tile: it no longer changes.
 - Terrain (`Terrain.swift`) is Re:Earth's quantized mesh, decoded and kept per
   terrain tile; a surface tile's grid is laid over the terrain tile log₂(screen
   scale) levels coarser, since the surface is refined in device pixels where
@@ -25,6 +26,18 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   the clock deck for five seconds from when the terrain is drawn. The terrain's
   sources are copied from Re:Earth's `layer.json`, which CesiumJS reads at run
   time; check them against it when the terrain changes.
+
+- Instrument imagery (ADR 0020) is laid over the base map in the same bake, each
+  layer's tiles from its own source (`ImageryOverlay`), the last drawn on top, and
+  keeps its last frame's tiles until the new frame's arrive, and the tiles the
+  whole globe is drawn from, past the budget, to stand in on the way out of a
+  zoom. A tile still loading that no tile in view asks for at its level is
+  cancelled, base map and overlays alike, and while the view zooms nothing new is
+  asked for until it settles, 0.15 s after. A frame still loading is finished, for
+  up to 20 s, before the newest one asked for meanwhile, so a clock faster than
+  the service skips frames, as on the web. `InstrumentImagery` in the app target
+  finds each drawn layer among the loaded records and, once its service has
+  listed its frames, moves it to the clock's frame once a second.
 
 ## Rendering
 

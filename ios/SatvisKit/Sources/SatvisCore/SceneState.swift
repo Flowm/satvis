@@ -30,6 +30,8 @@ public struct SceneState: Sendable, Equatable {
     /// The imagery a link names, by provider, in order: the app draws the last of
     /// its base maps among them.
     public var layers: [String]
+    /// The instrument imagery drawn on the globe, each `provider:layer` (ADR 0020).
+    public var imagery: [String]
     /// Whether the globe follows Re:Earth's terrain.
     public var terrain: Bool
     /// The star map a link names; the app draws its `drawn`.
@@ -49,7 +51,8 @@ public struct SceneState: Sendable, Equatable {
     public init(
         activation: Activation = Activation(), components: SatelliteComponents = [.point, .label], stations: [LinkStation] = [],
         selectedStation: LinkStation? = nil, sky: Bool = false, projection: GlobeProjection = .threeD, observer: LinkStation? = nil, tracked: String? = nil,
-        overpassMode: OverpassMode = .elevation, layers: [String] = ["NaturalEarth"], terrain: Bool = false, starMap: StarMapName = .tycho1K, unseen: UnseenMode = .dim,
+        overpassMode: OverpassMode = .elevation, layers: [String] = ["NaturalEarth"], imagery: [String] = [], terrain: Bool = false, starMap: StarMapName = .tycho1K,
+        unseen: UnseenMode = .dim,
         cameraFrame: CameraFrame = .fixed,
         pixelRatio: String = "native",
         time: Date? = nil, foreign: Foreign = Foreign()
@@ -64,6 +67,7 @@ public struct SceneState: Sendable, Equatable {
         self.tracked = tracked
         self.overpassMode = overpassMode
         self.layers = layers
+        self.imagery = imagery
         self.terrain = terrain
         self.starMap = starMap
         self.unseen = unseen
@@ -171,6 +175,7 @@ public struct SceneState: Sendable, Equatable {
             tracked: state.track.isEmpty ? nil : state.track,
             overpassMode: OverpassMode(rawValue: state.overpass) ?? .elevation,
             layers: state.layerProviders,
+            imagery: state.imagery,
             terrain: state.terrain == "ReEarth",
             starMap: state.stars,
             unseen: state.unseen,
@@ -206,6 +211,7 @@ public struct SceneState: Sendable, Equatable {
             track: tracked ?? "",
             overpass: overpassMode.rawValue,
             layers: layers,
+            imagery: imagery,
             terrain: terrain ? "ReEarth" : "None",
             stars: starMap,
             scene: sky ? "Sky" : projection.rawValue,

@@ -112,10 +112,11 @@ the whole constellation's.
   before. Its `end` was written by hand.
 - **Without a stored CEOS table no imagery is shown**, since nothing has instruments.
   The refresh says so in one line.
-- **The native app shows the same**, as one row per instrument that opens a menu of
-  its layers. Its `SatelliteDetails` is held to `getSatelliteInfo` by the parity
-  fixtures, which carry the manifest's entries for Metop-C and GOES 19. The rest of
-  what an entry can say is held by unit tests written twice, one case for one.
+- **The native app shows the same**, in an Imagery tab of its own since ADR 0020.
+  Its `SatelliteDetails` is held to `getSatelliteInfo` by the parity fixtures, which
+  carry the manifest's entries for Metop-C and GOES 19, and its preview urls to
+  `imageryPreviewUrl`. The rest of what an entry can say is held by unit tests
+  written twice, one case for one.
 - **`imageryProviders` in `CesiumLayerProviders.ts` is another thing**: the Map
   panel's basemaps and overlays. Its `VIIRS` basemap is NOAA-20's entry here.
 

@@ -69,6 +69,8 @@ final class Session {
             globe.setImagery(baseLayer, site: site, frame: imageryFrame)
         }
     }
+    /// The instrument imagery drawn over the base map (ADR 0020), kept in links as `imagery`.
+    let instrumentImagery = InstrumentImagery()
     /// Whether the globe follows Re:Earth's terrain: off by default, as on the web.
     var terrain = UserDefaults.standard.bool(forKey: "terrain") {
         didSet {
@@ -105,7 +107,11 @@ final class Session {
     }()
 
     /// What the map is drawn from now, to credit.
-    var mapCredits: [Credit] { Credit.map(baseLayer: baseLayer, terrain: terrain) }
+    var mapCredits: [Credit] {
+        Credit.map(
+            baseLayer: baseLayer, terrain: terrain,
+            instrumentImagery: instrumentImagery.tokens.compactMap { SatelliteDetails.ImageryPreview.Provider(rawValue: String($0.prefix { $0 != ":" })) })
+    }
 
     /// The site's privacy policy, which covers the app.
     var privacyPolicy: URL { site.appending(path: "data/privacy.html") }
@@ -215,7 +221,7 @@ final class Session {
                 return data
             }
             do {
-                let data = try await tiles.tile(request.url, contentType: request.contentType, headers: request.headers)
+                let data = try await tiles.tile(request.url, contentType: request.contentType, headers: request.headers, isDated: request.isDated)
                 if request.keeps {
                     keptTiles.keep(data, for: request.url)
                 }
@@ -258,6 +264,10 @@ final class Session {
             Task { await loadFeaturedPictures() },
             Task { await predictPasses() },
             Task { await followImageryDay() },
+            Task { await watchInstrumentImagery() },
+            Task {
+                await instrumentImagery.follow(now: { self.clock.now() }) { self.globe.instrumentImagery = $0 }
+            },
             Task { await countViews() },
         ]
         await withTaskCancellationHandler {
@@ -391,6 +401,7 @@ final class Session {
             tracked: focus.trackedSatellite.flatMap { catalog.catalog.entries[$0]?.name },
             overpassMode: passes.mode,
             layers: [baseLayer.rawValue],
+            imagery: instrumentImagery.tokens,
             terrain: terrain,
             starMap: starMap,
             unseen: unseen,
@@ -451,6 +462,7 @@ final class Session {
             if let base = scene.layers.compactMap(BaseLayer.init(rawValue:)).last {
                 baseLayer = base
             }
+            instrumentImagery.set(scene.imagery)
             terrain = scene.terrain
             starMap = scene.starMap
             pixelRatio = scene.pixelRatio
@@ -870,6 +882,15 @@ final class Session {
                 }
             }
             try? await Task.sleep(for: .seconds(1))
+        }
+    }
+
+    /// Finds the drawn instrument imagery among the loaded records whenever the catalog
+    /// or what is drawn changes: a layer a link names is drawn once a record carrying
+    /// it has loaded.
+    private func watchInstrumentImagery() async {
+        for await (catalog, _) in Observations({ (self.catalog.catalog, self.instrumentImagery.tokens) }) {
+            instrumentImagery.resolve(catalog.entries.values)
         }
     }
 

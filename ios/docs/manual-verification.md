@@ -631,33 +631,161 @@ quits. With a pass alert saved, launch and check
 Mac app, and Automation Mode, which Mac UI tests need, asks for the user's
 password.
 
-## Native app: the Instruments tab
+## Native app: the Instruments and Imagery tabs
 
-**Procedure.** On the test catalog (`SATVIS_TEST_CATALOG=1`, as `make test` launches
-it), open METOP-C's panel from the satellite search and choose Instruments, then
-INSAT-3D's, whose two instruments CEOS calls retired. On an iPhone, check that the
-four tabs fit the sheet with no name cut short, that each instrument is a card
-headed by its short name over its full name, with Retired beside the name where its
-mission is over, and that the credit under the last card opens CEOS's database.
-Check a satellite CEOS does not list, METOP-B on that catalog, for no such tab. Open
-METEOSAT-12 (MTG-I1)'s, whose FCI has two layers of imagery (ADR 0019): check that
-its card ends in an Imagery row naming the default layer and how many stand behind
-it, that the row opens a menu of the layers, each with when it has frames and its
-provider's viewer under its name, and that choosing one opens that viewer. Check an
-instrument no layer shows, its LI, for no such row. On a Mac and an iPad, check the
-same in the card beside the column.
+**Procedure.** Open GOES 19's panel on the test catalog (`SATVIS_TEST_CATALOG=1`, as
+`make test` launches it) and the ISS's (ISS (ZARYA)) on the live site, both on an
+iPhone and on an iPad, and choose Instruments. Check that it is a table headed
+Instrument, Res and Bands: a line an instrument with a resolution, bands or imagery,
+its short name in bold, Retired in amber where its mission is over, the image button
+where it has imagery, its resolution or "—", and a strip of nine cells lit in the
+legend's colours under the table, every radar band in the one Radar cell. The columns
+past the names line up on every line. Where the table is 415 pt wide or more, the
+web app's 440 px panel less its sides, an iPad's, check that each full name follows
+its short name in grey, cut short with "…", and that they all end at the same edge;
+on a narrower one, an iPhone's, that none is shown and a name without Retired runs on
+into its room. Check that a press anywhere on a line but its image button highlights
+the whole line and unfolds the full name, kind and other facts under it, wrapping a
+long value, while the lines above stay where they are, and a second folds them; that the instruments with none of the
+three are chips under "Also carries", which unfold the same; and that the credit
+under the list opens CEOS's database. Check a satellite CEOS does not list, METOP-B on
+that catalog, for no such tab. On GOES 19 and METEOSAT-12 (MTG-I1) (ADR 0019, 0020),
+check that the tab row, five tabs that a phone cannot fit, scrolls with the chosen one
+in view, Imagery with its count, and stays above the cards as they scroll. On TERRA,
+whose MODIS layer is the second card, check that MODIS's image button opens the
+Imagery tab with that card at the top under the tabs, as far as the list scrolls; that
+the Imagery tab opened from the tab row after another tab starts at the top; and that
+another satellite's panel opens with every line folded. Check that the cards are two
+columns on an iPad's panel and one on an iPhone's, and each card: the picture of the
+layer's latest frame around the satellite, the instrument's name on its corner, the
+label, when it has frames, and the provider's viewer, which opens it. Switch Show on
+for a layer: the card is ringed in cyan and the globe shows the layer over the base
+map at the clock's frame, which moves with the clock; a press elsewhere on the card
+takes it off, and another puts it back. Check that the Map panel lists it as "GOES
+19 · GeoColor", and that its switch there takes it off; that a link with `imagery=`
+draws its layers; and that the credits name the provider.
+Turn the network off and open another card's satellite for "No preview" in place of
+the picture. On a Mac, check the same in the card beside the column.
 
-**Result, 2026-11-11.** iPhone 18 Pro simulator, iOS 27.2, shot while
-`testListsTheInstruments` ran: the four tabs fit, "Instruments" with a few points
-to spare; METOP-C's AMSU-A card read Kind, Bands "MW", Resolution "48 km" and Nominal
-swath "2.054 km" in the simulator's region; INSAT-3D's two cards each had the
-Retired tag, no swath on its geostationary orbit, and "CEOS MIM Database, CC BY 4.0"
-under the second. The link was found by the test, not opened. The Mac app builds;
-its card and an iPad's were not looked at, and neither was METOP-B.
+**Result, 2026-11-13, the globe and the grid.** iPhone 18 Pro and iPad Air 13-inch
+(M4) simulators, iOS 27.2, on the test catalog with the network on, shot by UI tests
+not kept. Launched on `imagery=` links at 03:40 UTC, the iPhone's globe showed
+METEOSAT-12's GeoColour disc over Europe and Africa, night side and city lights;
+TERRA's MODIS true colour, a day's swaths with black gaps between; and GOES-East's
+GeoColor over the Americas and the Atlantic, its disc ending at a straight edge east
+of it. METEOSAT-12's Imagery tab had two cards side by side on the iPad and one on
+the iPhone; GeoColour's Show switch ringed its card and drew the disc. A video of
+the iPhone while MISR's line unfolded and folded showed the header, ASTER and CERES
+at the same height in every frame, MISR's facts fading in under it and the lines
+below moving down. The press highlight, the Map panel's list and a press on a card
+were checked by `testShowsALayerOnTheGlobeFromItsCard`, not shot; the credits and
+the Mac were not looked at.
 
-**Result, 2026-11-11, the Imagery row.** The same simulator, shot while
-`testOpensAnInstrumentsImageryFromAMenu` ran: FCI's card ended in "Imagery" with
-"GeoColour + 1" beside it, and the menu listed GeoColour and True colour, each over
-"every 10 min since 2024 · EUMETView", which wrapped onto a second line. The layers
-were found by the test, not chosen, so no viewer was opened. LI's card, the Mac's
-and an iPad's were not looked at.
+**Result, 2026-11-13, after review.** iPhone 18 Pro and iPad Air 13-inch (M4)
+simulators, iOS 27.2, on the test catalog with the network on, shot by a UI test not
+kept. On the iPhone TERRA's table had ASTER, CERES, MISR, MODIS and MOPITT, the image
+button on MISR and MODIS and no full names; the sheet pulled up kept the tab row under
+the title. MODIS's button opened the Imagery tab with its card, GIBS's daily true
+colour, flush under the tabs; Instruments and back to Imagery showed MISR's card on
+top, "Ended 2022-10-12" on its corner. On the iPad's 540 pt panel every line had its
+full name, and MODIS's button scrolled the list to its end, MISR's link under the tabs
+and MODIS's card whole below. `testOpensTheImageryTabAtTheInstrumentsCard` holds
+both. The Mac app built, and was not opened. Earlier the same day, on the iPad Pro,
+the live ISS (ZARYA)'s 14 lines each had a full name, "Spectrometer (OCO-3)" alone
+without one, Retired on seven, every name ending at Retired's edge.
+
+**Result, 2026-11-13, the table.** iPhone 18 Pro and iPad Pro 13-inch (M5)
+simulators, iOS 27.2, shot by a UI test not kept. On the iPhone GOES 19's table had
+ABI with the image button, "500 m" and five lit cells VIS to TIR, CCOR-1 "—" and VIS,
+GLM "10 km" and NIR, SUVI "—" and UV, the legend under them, and EXIS, Magnetometer
+(GOES), SEISS and DCS (GOES) as chips under "Also carries"; ABI unfolded into
+"Advanced Baseline Imager", its Kind wrapped onto a second line, Bands and
+Resolution. The ISS's had 14 lines and TSIS-1/TIM as the one chip: RapidScat's Radar
+cell and SMILES's MW cell lit, HEIST "28 m" with "—" for bands, "Spectrometer (OC…"
+cut short beside "2,25 km" in the simulator's German region, and "CIRC (ISS/J…"
+beside Retired. No full name showed. On the iPad's
+panel every line had its full name, "Advanced Baseline Imager", "Geostationary
+Lightning Map…", all ending at the edge of the Retired column, and ABI unfolded with
+its Kind on one line. A `Grid` holding the table drew nothing on the iPad once a line
+was unfolded, with a vertical `fixedSize` on the facts, and cut a long fact to one
+line without it; the table is a stack of lines, each column as wide as its widest
+entry. The chips and the press on the strip were found by the UI tests, not shot;
+METOP-B, the Mac's card and the Imagery tab's start at the top were not looked at.
+
+**Result, 2026-11-12, the Imagery tab.** iPhone 18 Pro simulator, iOS 27.2, on the
+test catalog with the network on, shot by a UI test not kept: GOES 19's tab row
+scrolled, with Orbit, Spacecraft, Instruments and "Imagery 1" in view and Passes past
+the edge. Its button opened the Imagery tab on its one card, the tabs above it:
+GIBS's GeoColor of the Americas, night side and city lights, "ABI" on the corner,
+"GeoColor", "every 10 min, last 90 days" and "Open in NASA Worldview". METEOSAT-12's
+FCI card showed EUMETView's GeoColour of Africa and the Atlantic, "every 10 min since
+2024". The live site's GOES 19 carried no `imagery` that day, so it had no Imagery
+tab. The viewer links were not opened, "No preview" was not seen, and the scroll to a
+later card was not checked, as no satellite of the test catalog has a second
+instrument with imagery.
+
+## Native app: the Map panel's satellite imagery
+
+**Procedure.** Open the Map panel on an iPhone and an iPad, with no layer on. Check
+that "Satellite imagery" lists GEO satellites and LEO satellites, each with its icon
+and its count of layers, all closed, with no viewer link and no layer that stopped, and
+that the names fit. Open LEO satellites: its layers list under it, "TERRA · True colour"
+with the satellite's name first. Switch one on: the globe draws it, the group's count
+reads "1 on" in cyan and the group stays open. Switch it off: the group stays open too.
+Open GEO satellites: LEO satellites closes. Launch on a link with `imagery=`: the group with that layer opens on its own.
+Turn the network off before the first
+open of the panel for "Loading the imagery list…" until the catalog arrives. With a
+layer on, zoom far out and back in, then switch it off: the globe shows the base map
+alone. On METEOSAT-12's GeoColour over Black Marble, pinch in three times and out
+again: the tiles in view arrive without waiting on those of the levels passed, and
+no stretch of the base map shows on the way out.
+
+**Result, 2026-11-13.** iPhone 18 Pro and iPad Air 13-inch (M4) simulators, iOS 27.2,
+on the test catalog with the network on, shot by a UI test not kept. On the iPhone the
+four groups' names fit, "Weather satellites" on two lines, "3" and its chevron beside
+it; Polar orbiters opened on METOP-C's natural colour and TERRA's true colour, and
+TERRA's switch drew the MODIS swaths and showed "1 on". The iPad's panel is as narrow
+and showed the same. `testDrawsALayerFromTheMapPanel`, `testDrawsTheImageryALinkNames` and
+`testShowsALayerOnTheGlobeFromItsCard` hold the switches, the counts, the group a link
+opens and one group open at a time. The viewer links, the loading text and the Mac
+were not looked at.
+
+**Result, 2026-11-13, GEO and LEO groups.** iPhone 18 Pro simulator, iOS 27.2, test
+catalog, shot by a UI test not kept: GEO satellites with 3 layers (GOES 19, METEOSAT-12's
+two) and LEO satellites with 2, TERRA's stopped MISR layer left out, the names on one
+line. `testNamesAStoppedLayerALinkDraws` holds that a link's stopped layer is switched off
+above the groups by its label. The iPad was not looked at.
+
+**Result, 2026-11-13, tile loading.** iPhone 18 Pro simulator, iOS 27.2, on the test
+catalog with the network on, shot by UI tests not kept, with the overlay tiles logged
+by a build not kept. Before the fix, the zoom on GeoColour left 47 tiles loading at
+the deepest level, and by the last pinch out a tile waited 67 s at the median; the way
+out showed the base map in stair-stepped patches; and GeoColour switched off after
+zooming out stayed on the globe at the 8 s shot. After it, 64 tiles of the levels
+passed were cancelled, the deepest level had nothing left loading 12 s after its
+pinch, the way out showed blurred GeoColour sharpening, and the switch left Natural
+Earth alone. MODIS's last tile of the first pinch came after 7.5 s instead of 13.5 s.
+A step back on the timeline kept GeoColour on the globe in each shot a second apart
+until the new frame came.
+
+## Native app: instrument imagery's tile loading
+
+**Procedure.** On the simulator with the network on and an empty app cache, log each tile
+request with its host, whether the cache answered and how long it took (temporary logging
+in `TileFetcher.tile`). Draw METEOSAT-12's GeoColour over Black Marble, 8 hours back, and
+play at 600×: the frames follow the clock, skipping some, rather than holding the first.
+Draw GOES 19's GeoColor: its frames are listed a day either side of the clock, in well under
+a second, and its tiles start once that list arrives. Pinch in three times and out three
+times on METEOSAT-12, then on TERRA's MODIS: tiles are asked for once each pinch settles,
+none for the levels passed through; the base map's tiles arrive while EUMETView's take their
+seconds; a zoom out back to tiles seen before takes them from the cache.
+
+**Result, 2026-11-13.** iPhone 18 Pro simulator, iOS 27.2, Debug, test catalog, live GIBS
+and EUMETView, through UI tests not kept. At 600× METEOSAT-12 moved through the frames from
+09:46 to 16:42, where before it held 08:30 for 40 s (153 of 160 requests cancelled). GOES's
+frame list came in 0.3 s (476 bytes; the whole one is 1 MB, 4.7 s) and its first tiles a
+second after. Per pinch in, MODIS asked for 49, 23 and 12 tiles (126, 76 and 56 before;
+the web asks 39, 21 and 8) and METEOSAT-12 for 19 and 10 (66 and 28 before), with Black
+Marble's tiles answered in a median 0.8 s meanwhile. On the last zoom out 16 MODIS tiles
+came from the cache; the earlier ones settled at levels not loaded on the way in. The 20 s
+limit on a frame that does not finish, and the iPad, were not looked at.

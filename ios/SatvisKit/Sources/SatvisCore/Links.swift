@@ -117,6 +117,8 @@ public struct LinkState: Sendable, Hashable {
     public var track: String
     public var overpass: String
     public var layers: [String]
+    /// The instrument imagery drawn on the globe, each `provider:layer` (ADR 0020).
+    public var imagery: [String]
     public var terrain: String
     /// In the web app's whole vocabulary, Tycho1K included, which the app draws as
     /// DeepStar1K (`StarMapName.drawn`): a link keeps what it asked for.
@@ -133,12 +135,12 @@ public struct LinkState: Sendable, Hashable {
 
     /// The web app's defaults before any preset (src/stores).
     public static let global = LinkState(
-        elements: ["Point", "Label"], sats: [], xsats: [], tags: [], gs: [], track: "", overpass: "elevation", layers: ["NaturalEarth"], terrain: "None",
+        elements: ["Point", "Label"], sats: [], xsats: [], tags: [], gs: [], track: "", overpass: "elevation", layers: ["NaturalEarth"], imagery: [], terrain: "None",
         stars: .tycho1K, scene: "3D", unseen: .dim, camera: .fixed, pixelRatio: "native", time: nil)
 
     public init(
         elements: [String], sats: [String], xsats: [String], tags: [String], gs: [LinkStation], track: String, overpass: String, layers: [String],
-        terrain: String, stars: StarMapName, scene: String, unseen: UnseenMode, camera: CameraFrame, pixelRatio: String, time: String?
+        imagery: [String], terrain: String, stars: StarMapName, scene: String, unseen: UnseenMode, camera: CameraFrame, pixelRatio: String, time: String?
     ) {
         self.elements = elements
         self.sats = sats
@@ -148,6 +150,7 @@ public struct LinkState: Sendable, Hashable {
         self.track = track
         self.overpass = overpass
         self.layers = layers
+        self.imagery = imagery
         self.terrain = terrain
         self.stars = stars
         self.scene = scene
@@ -204,6 +207,7 @@ public enum LinkCodec {
         Field("track", \.track, .plain),
         Field("overpass", \.overpass, .oneOf(overpassModes)),
         Field("layers", \.layers, .layerList(layers)),
+        Field("imagery", \.imagery, .list),
         Field("terrain", \.terrain, .oneOf(terrains)),
         Field("stars", \.stars, .enumeration),
         Field("scene", \.scene, .oneOf(scenes)),

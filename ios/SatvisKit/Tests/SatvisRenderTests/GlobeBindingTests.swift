@@ -36,6 +36,11 @@ private final class RecordingGlobe: Globe {
         didSet { calls.append("passthrough \(passthrough.map { "\($0.tanHalfLongSide)" } ?? "-")") }
     }
     func setImagery(_ layer: BaseLayer, site: URL, frame: String?) { calls.append("imagery \(layer.rawValue) \(frame ?? "-")") }
+    func setInstrumentImagery(_ overlays: [ImageryOverlay]) {
+        if !overlays.isEmpty {
+            calls.append("instrument imagery \(overlays.map(\.layer.token))")
+        }
+    }
     func setTerrain(_ enabled: Bool) { calls.append("terrain \(enabled)") }
     func setStations(_ stations: [StationMarker]) { calls.append("stations \(stations.map(\.id))") }
     func setLinks(_ links: [StationLink]) { calls.append("links \(links.map(\.satellite))") }

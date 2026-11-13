@@ -30,7 +30,7 @@ test("zooming while a new frame loads keeps the old frame on the globe", async (
   const stubGibs = async () => {
     await page.route("https://gibs.earthdata.nasa.gov/**", async (route) => {
       const path = new URL(route.request().url()).pathname;
-      if (path.endsWith("/all.xml")) {
+      if (path.endsWith(".xml")) {
         return route.fulfill({
           contentType: "text/xml",
           body: "<Domains><DimensionDomain><Domain>2026-10-01T00:00:00Z/2026-10-05T23:50:00Z/PT10M</Domain></DimensionDomain></Domains>",

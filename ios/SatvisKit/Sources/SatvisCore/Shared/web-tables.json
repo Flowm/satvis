@@ -140,6 +140,44 @@
       "link": "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId={layer}"
     }
   },
+  "wavebandColumns": [
+    {
+      "label": "UV",
+      "colour": "#b388ff"
+    },
+    {
+      "label": "VIS",
+      "colour": "#7fd2ea"
+    },
+    {
+      "label": "NIR",
+      "colour": "#fff176"
+    },
+    {
+      "label": "SWIR",
+      "colour": "#ffb74d"
+    },
+    {
+      "label": "MWIR",
+      "colour": "#ff8a65"
+    },
+    {
+      "label": "TIR",
+      "colour": "#e53935"
+    },
+    {
+      "label": "FIR",
+      "colour": "#ad1457"
+    },
+    {
+      "label": "MW",
+      "colour": "#81c784"
+    },
+    {
+      "label": "Radar",
+      "colour": "#4db6ac"
+    }
+  ],
   "bookmarks": {
     "ownedParams": [
       "elements",

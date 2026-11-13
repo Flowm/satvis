@@ -479,7 +479,8 @@ struct ComponentsPanel: View {
 }
 
 /// What the globe is covered with and drawn against: the web app's Map panel,
-/// less the overlays, surfaces and Tycho star map the app does not draw.
+/// less the overlays, surfaces and Tycho star map the app does not draw, with every
+/// satellite's imagery under its own heading (ADR 0021).
 struct MapPanel: View {
     @Bindable var session: Session
 
@@ -487,6 +488,7 @@ struct MapPanel: View {
         PanelSection("Basemap") {
             Choices(selection: $session.baseLayer, options: BaseLayer.allCases.map { ($0.title, $0) })
         }
+        SatelliteImagerySection(catalog: session.catalog, imagery: session.instrumentImagery)
         // The web app's names for the two.
         PanelSection("Terrain") {
             Segments(title: "Terrain", selection: $session.terrain, options: [("None", false), ("Re:Earth", true)])
@@ -500,6 +502,139 @@ struct MapPanel: View {
                     session.starMap = $0
                 },
                 options: StarMapName.drawable.map { ($0.title, $0) })
+        }
+    }
+}
+
+/// The Map panel's satellite imagery, the web app's MapImageryLayers (ADR 0021): the
+/// layers the loaded records carry that have not stopped, in groups by orbit, one group
+/// open at a time. The list is read off the records, so the panel's first showing loads
+/// every group, as the satellite browser does.
+private struct SatelliteImagerySection: View {
+    let catalog: CatalogModel
+    let imagery: InstrumentImagery
+    @State private var isLoading = false
+
+    var body: some View {
+        // Worked out here, where only the catalog is read, so that a switch flipped in the
+        // list does not go through every record again.
+        SatelliteImageryList(
+            listings: SatelliteDetails.imageryListings(catalog.catalog.entries.values.map(\.record)), imagery: imagery, isLoading: isLoading
+        )
+        .task {
+            isLoading = true
+            await catalog.loadAll()
+            isLoading = false
+        }
+    }
+}
+
+/// The satellite imagery's groups and switches.
+private struct SatelliteImageryList: View {
+    let listings: [Listing]
+    let imagery: InstrumentImagery
+    let isLoading: Bool
+    /// The group the user opened, or `.some(nil)` for none; nil until they choose, when
+    /// the first group with a layer on is open.
+    @State private var chosen: Listing.Group??
+
+    typealias Listing = SatelliteDetails.ImageryListing
+
+    var body: some View {
+        let listed = Set(listings.map(\.token))
+        let groups = Listing.Group.allCases.compactMap { key -> (key: Listing.Group, layers: [Listing], shown: Int)? in
+            let layers = listings.filter { $0.group == key }
+            return layers.isEmpty ? nil : (key, layers, layers.filter { imagery.isShown($0.token) }.count)
+        }
+        let open = chosen ?? groups.first { $0.shown > 0 }?.key
+        // Before the list arrives, or while its record has not loaded, so that a layer on
+        // the globe can still be taken off.
+        let unlisted = imagery.tokens.filter { !listed.contains($0) }
+        PanelSection("Satellite imagery") {
+            if !unlisted.isEmpty {
+                PanelCard {
+                    ForEach(unlisted, id: \.self) { token in
+                        // By its layer's id while no loaded record carries it.
+                        Toggle(imagery.labels[token] ?? String(token.drop { $0 != ":" }.dropFirst()), isOn: shown(token, open: open))
+                    }
+                }
+            }
+            if groups.isEmpty {
+                Text(isLoading ? "Loading the imagery list…" : "No satellite has imagery.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                PanelCard {
+                    ForEach(groups, id: \.key) { group in
+                        Button {
+                            chosen = .some(open == group.key ? nil : group.key)
+                        } label: {
+                            PanelRow {
+                                Image(systemName: Self.icon(group.key))
+                                    .foregroundStyle(.secondary)
+                            } title: {
+                                HStack(spacing: 4) {
+                                    Text(Self.title(group.key))
+                                        .lineLimit(2)
+                                    Spacer(minLength: 0)
+                                    Text(group.shown > 0 ? "\(group.shown) on" : "\(group.layers.count)")
+                                        .font(.footnote)
+                                        .foregroundStyle(group.shown > 0 ? Color.panelAccent : .secondary)
+                                        .monospacedDigit()
+                                        .fixedSize()
+                                    Image(systemName: open == group.key ? "chevron.up" : "chevron.down")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.tertiary)
+                                        .fixedSize()
+                                }
+                            }
+                        }
+                        .buttonStyle(PanelRowStyle())
+                        .accessibilityLabel(Self.title(group.key))
+                        .accessibilityValue(group.shown > 0 ? "\(group.shown) on" : group.layers.count == 1 ? "1 layer" : "\(group.layers.count) layers")
+                        .accessibilityHint(open == group.key ? "Hides its layers" : "Shows its layers")
+                        if open == group.key {
+                            ForEach(group.layers, id: \.key) { layer in
+                                row(layer, open: open)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// A layer's switch, named satellite first, "GOES 19 · GeoColor", so that a narrow
+    /// panel cuts the picture's name; "METEOSAT-12", not "METEOSAT-12 (MTG-I1)".
+    private func row(_ layer: Listing, open: Listing.Group?) -> some View {
+        Toggle("\(layer.satellite.replacing(/\s*\(.*\)$/, with: "")) · \(layer.imagery.label)", isOn: shown(layer.token, open: open))
+    }
+
+    /// Whether the layer `token` names is on the globe, and a switch's way to set it,
+    /// which keeps `open` open: else taking off a group's last layer closed the group
+    /// under the finger.
+    private func shown(_ token: String, open: Listing.Group?) -> Binding<Bool> {
+        Binding {
+            imagery.isShown(token)
+        } set: {
+            chosen = chosen ?? .some(open)
+            imagery.show(token, $0)
+        }
+    }
+
+    /// A group's row, as the web app names it.
+    private static func title(_ group: Listing.Group) -> LocalizedStringKey {
+        switch group {
+        case .geo: "GEO satellites"
+        case .leo: "LEO satellites"
+        }
+    }
+
+    /// A group's mark.
+    private static func icon(_ group: Listing.Group) -> String {
+        switch group {
+        case .geo: "globe.europe.africa"
+        case .leo: "circle.dashed"
         }
     }
 }

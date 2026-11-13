@@ -3,6 +3,8 @@
 // globe can draw. Nothing here is fetched. Cesium-free: node-env vitest and the parity
 // generator read it.
 
+import type { OrbitClass } from "./orbitClass";
+
 /** Worker `SatelliteImagery` (worker/src/gp/types.ts): one layer that shows one instrument. */
 export interface SatelliteImagery {
   /** The CEOS short name of the instrument it shows, one of the record's `instruments`. */
@@ -251,44 +253,45 @@ export function readImageryList(imagery: unknown): ImageryEntry[] {
   return (Array.isArray(imagery) ? (imagery as unknown[]) : []).flatMap((entry) => readImagery(entry) ?? []);
 }
 
-/** One layer of one satellite, as the Map panel lists it. */
-export interface ImageryLayer extends Pick<ImageryEntry, "instrument" | "label" | "detail" | "viewer" | "href"> {
+/** One layer of one satellite the globe can draw, as the Map panel lists it. */
+export interface ImageryLayer extends Pick<ImageryEntry, "instrument" | "label" | "detail"> {
   /** Satnum, provider and layer: unique in the list. */
   key: string;
   /** The satellite's name. */
   satellite: string;
-  /** Where the globe draws it, its token there; a layer without one is a link alone. */
-  token: string | undefined;
+  /** Its token on the globe. */
+  token: string;
   group: ImageryGroup;
 }
 
 /**
- * The Map panel's groups of imagery, in its order. A layer's group is by how often it has
- * frames, which today tells the geostationary weather imagers from the polar orbiters' daily
- * mosaics; then the layers that stopped, and those the globe cannot draw.
+ * The Map panel's groups of imagery, in its order: by the satellite's orbit class, GEO, and
+ * LEO for the rest, as no MEO or HEO satellite has a layer.
  */
-export const IMAGERY_GROUPS = ["weather", "polar", "ended", "viewer"] as const;
+export const IMAGERY_GROUPS = ["geo", "leo"] as const;
 /** One of IMAGERY_GROUPS. */
 export type ImageryGroup = (typeof IMAGERY_GROUPS)[number];
 
-/** Every layer the records carry, once per satellite, provider and layer, by satellite name. */
-export function imageryLayers(entries: readonly { name: string; satnum: string; metadata: { imagery?: unknown } }[]): ImageryLayer[] {
+/**
+ * Every layer the records carry that the globe can draw and that has not stopped, once per
+ * satellite, provider and layer, by satellite name. A viewer link alone, or a layer that
+ * stopped, is the satellite's Imagery tab's to offer.
+ */
+export function imageryLayers(entries: readonly { name: string; satnum: string; orbitClass: OrbitClass; metadata: { imagery?: unknown } }[]): ImageryLayer[] {
   const layers = new Map<string, ImageryLayer>();
-  for (const { name, satnum, metadata } of entries) {
+  for (const { name, satnum, orbitClass, metadata } of entries) {
     for (const entry of readImageryList(metadata.imagery)) {
       const key = `${satnum}:${entry.provider}:${entry.layer}`;
-      if (layers.has(key)) continue;
       const token = entry.drawn?.token;
+      if (token === undefined || entry.end !== undefined || layers.has(key)) continue;
       layers.set(key, {
         key,
         satellite: name,
         instrument: entry.instrument,
         label: entry.label,
         detail: entry.detail,
-        viewer: entry.viewer,
-        href: entry.href,
         token,
-        group: token === undefined ? "viewer" : entry.end !== undefined ? "ended" : entry.period?.startsWith("PT") ? "weather" : "polar",
+        group: orbitClass === "GEO" ? "geo" : "leo",
       });
     }
   }

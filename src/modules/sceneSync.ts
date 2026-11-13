@@ -55,7 +55,7 @@ const COMPONENT_BUDGETS: Record<string, ComponentBudget> = {
 /** The part of `CesiumController` this file uses, so a test can stand in without WebGL. */
 export interface SceneTarget {
   imageryLayers: string[];
-  instrumentImagery: DrawnImagery[];
+  instrumentImagery: readonly DrawnImagery[];
   terrainProvider: string;
   cameraMode: string;
   pixelRatio: string;

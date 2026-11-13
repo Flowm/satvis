@@ -20,7 +20,8 @@ import Testing
             SceneState(
                 activation: Activation(enabledTags: ["GNSS", "Weather"], enabledSatellites: ["ISS (ZARYA)"], disabledSatellites: ["GOES 19"]),
                 components: [.point, .orbit, .model], stations: [munich, field], tracked: "ISS (ZARYA)", overpassMode: .swath, layers: ["VIIRS"],
-                terrain: true, starMap: .deepStar2K, unseen: .hide, cameraFrame: .inertial, pixelRatio: "1.5", time: time,
+                imagery: ["gibs:GOES-East_ABI_GeoColor", "eumetview:mtg_fd:rgb_geocolour"], terrain: true, starMap: .deepStar2K, unseen: .hide, cameraFrame: .inertial,
+                pixelRatio: "1.5", time: time,
                 foreign: SceneState.Foreign(LinkQuery(parsing: "embed&surface=OsmBuildings&framems=16"))),
             SceneState(activation: Activation(enabledTags: []), components: [], stations: [munich], sky: true, observer: munich),
         ]
@@ -38,6 +39,14 @@ import Testing
         let (scene, _) = SceneState.read(query, presetDefaults: [:])
         #expect(scene.foreign.query.string == "embed&surface=OsmBuildings&utm_source=x+y&fps=false")
         #expect(written(scene) == "embed&surface=OsmBuildings&utm_source=x+y&fps=false&tags=GNSS")
+    }
+
+    // The instrument imagery a link draws, which the app read as foreign before it drew any (ADR 0020).
+    @Test func readsAndWritesTheInstrumentImagery() {
+        let (scene, _) = SceneState.read(LinkQuery(parsing: "imagery=gibs:MODIS_Terra_CorrectedReflectance_TrueColor,eumetview:mtg_fd:rgb_geocolour"), presetDefaults: [:])
+        #expect(scene.imagery == ["gibs:MODIS_Terra_CorrectedReflectance_TrueColor", "eumetview:mtg_fd:rgb_geocolour"])
+        #expect(scene.foreign.query.items.isEmpty)
+        #expect(written(scene) == "imagery=gibs:MODIS_Terra_CorrectedReflectance_TrueColor,eumetview:mtg_fd:rgb_geocolour")
     }
 
     // The app draws two of the web app's three star maps, and a link keeps the one it named.

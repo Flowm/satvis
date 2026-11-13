@@ -58,7 +58,7 @@ export function eumetViewFrames(options: EumetViewOptions): FrameSource<WebMapSe
         }
         const capabilities = parseCapabilities(await response.text());
         bounds = capabilities.bounds ?? bounds;
-        return capabilities.ranges.length > 0 ? capabilities.ranges : undefined;
+        return capabilities.ranges.length > 0 ? { ranges: capabilities.ranges } : undefined;
       } catch {
         return undefined;
       }

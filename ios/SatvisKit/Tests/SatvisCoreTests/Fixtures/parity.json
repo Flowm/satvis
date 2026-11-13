@@ -2657,6 +2657,446 @@
       }
     }
   ],
+  "imageryPreviews": [
+    {
+      "preview": {
+        "provider": "gibs",
+        "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+        "format": "jpeg",
+        "daily": true
+      },
+      "centre": {
+        "latitude": 10,
+        "longitude": 20
+      },
+      "halfWidthDeg": 32,
+      "nowMs": 1794452400000,
+      "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=MODIS_Terra_CorrectedReflectance_TrueColor&WIDTH=480&HEIGHT=270&BBOX=-12.00%2C-8.00%2C52.00%2C28.00&FORMAT=image%2Fjpeg&TIME=2026-11-11"
+    },
+    {
+      "preview": {
+        "provider": "gibs",
+        "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+        "format": "jpeg",
+        "daily": true,
+        "end": "2022-10-10"
+      },
+      "centre": {
+        "latitude": 0,
+        "longitude": 0
+      },
+      "halfWidthDeg": 32,
+      "nowMs": 1794452400000,
+      "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=MODIS_Terra_CorrectedReflectance_TrueColor&WIDTH=480&HEIGHT=270&BBOX=-32.00%2C-18.00%2C32.00%2C18.00&FORMAT=image%2Fjpeg&TIME=2022-10-10"
+    },
+    {
+      "preview": {
+        "provider": "gibs",
+        "layer": "GOES-East_ABI_GeoColor",
+        "format": "png",
+        "daily": false
+      },
+      "centre": {
+        "latitude": 0.02,
+        "longitude": -75.2
+      },
+      "halfWidthDeg": 72,
+      "nowMs": 1794452400000,
+      "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=GOES-East_ABI_GeoColor&WIDTH=480&HEIGHT=270&BBOX=-147.20%2C-40.48%2C-3.20%2C40.52&FORMAT=image%2Fpng"
+    },
+    {
+      "preview": {
+        "provider": "gibs",
+        "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+        "format": "jpeg",
+        "daily": true
+      },
+      "centre": {
+        "latitude": -85,
+        "longitude": 179.5
+      },
+      "halfWidthDeg": 32,
+      "nowMs": 1794452400000,
+      "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=MODIS_Terra_CorrectedReflectance_TrueColor&WIDTH=480&HEIGHT=270&BBOX=147.50%2C-68.00%2C211.50%2C-32.00&FORMAT=image%2Fjpeg&TIME=2026-11-11"
+    },
+    {
+      "preview": {
+        "provider": "gibs",
+        "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+        "format": "jpeg",
+        "daily": true
+      },
+      "centre": {
+        "latitude": 63.4,
+        "longitude": -3
+      },
+      "halfWidthDeg": 32,
+      "nowMs": 1794452400000,
+      "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=MODIS_Terra_CorrectedReflectance_TrueColor&WIDTH=480&HEIGHT=270&BBOX=-35.00%2C32.00%2C29.00%2C68.00&FORMAT=image%2Fjpeg&TIME=2026-11-11"
+    },
+    {
+      "preview": {
+        "provider": "gibs",
+        "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+        "format": "jpeg",
+        "daily": true
+      },
+      "centre": {
+        "latitude": 18.125,
+        "longitude": 32.125
+      },
+      "halfWidthDeg": 32,
+      "nowMs": 1794452400000,
+      "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=MODIS_Terra_CorrectedReflectance_TrueColor&WIDTH=480&HEIGHT=270&BBOX=0.13%2C0.13%2C64.13%2C36.13&FORMAT=image%2Fjpeg&TIME=2026-11-11"
+    },
+    {
+      "preview": {
+        "provider": "gibs",
+        "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+        "format": "jpeg",
+        "daily": true
+      },
+      "centre": {
+        "latitude": -18.125,
+        "longitude": -32.125
+      },
+      "halfWidthDeg": 32,
+      "nowMs": 1794452400000,
+      "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=MODIS_Terra_CorrectedReflectance_TrueColor&WIDTH=480&HEIGHT=270&BBOX=-64.13%2C-36.13%2C-0.13%2C-0.13&FORMAT=image%2Fjpeg&TIME=2026-11-11"
+    },
+    {
+      "preview": {
+        "provider": "gibs",
+        "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+        "format": "jpeg",
+        "daily": true
+      },
+      "centre": {
+        "latitude": 0,
+        "longitude": -32.001
+      },
+      "halfWidthDeg": 32,
+      "nowMs": 1767225600500,
+      "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=MODIS_Terra_CorrectedReflectance_TrueColor&WIDTH=480&HEIGHT=270&BBOX=-64.00%2C-18.00%2C-0.00%2C18.00&FORMAT=image%2Fjpeg&TIME=2025-12-31"
+    },
+    {
+      "preview": {
+        "provider": "eumetview",
+        "layer": "mtg_fd:rgb_geocolour",
+        "format": "png",
+        "daily": false
+      },
+      "centre": {
+        "latitude": 0,
+        "longitude": 0
+      },
+      "halfWidthDeg": 72,
+      "nowMs": 1794452400000,
+      "url": "https://view.eumetsat.int/geoserver/ows?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=mtg_fd%3Argb_geocolour&WIDTH=480&HEIGHT=270&BBOX=-72.00%2C-40.50%2C72.00%2C40.50&FORMAT=image%2Fpng&TRANSPARENT=TRUE"
+    },
+    {
+      "preview": {
+        "provider": "eumetview",
+        "layer": "eps:m03_rgb_natural_fog",
+        "format": "png",
+        "daily": false,
+        "end": "2026-01-01"
+      },
+      "centre": {
+        "latitude": 40,
+        "longitude": 10
+      },
+      "halfWidthDeg": 32,
+      "nowMs": 1794452400000,
+      "url": "https://view.eumetsat.int/geoserver/ows?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=eps%3Am03_rgb_natural_fog&WIDTH=480&HEIGHT=270&BBOX=-22.00%2C22.00%2C42.00%2C58.00&FORMAT=image%2Fpng&TRANSPARENT=TRUE"
+    },
+    {
+      "preview": {
+        "provider": "gibs",
+        "layer": "a b/c&d+é",
+        "format": "png",
+        "daily": true
+      },
+      "centre": {
+        "latitude": 0,
+        "longitude": 0
+      },
+      "halfWidthDeg": 32,
+      "nowMs": 1794452400000,
+      "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=a+b%2Fc%26d%2B%C3%A9&WIDTH=480&HEIGHT=270&BBOX=-32.00%2C-18.00%2C32.00%2C18.00&FORMAT=image%2Fpng&TIME=2026-11-11"
+    }
+  ],
+  "wavebandStrips": [
+    {
+      "bands": [
+        "UV",
+        "VIS",
+        "NIR",
+        "SWIR"
+      ],
+      "cells": [
+        "#b388ff",
+        "#7fd2ea",
+        "#fff176",
+        "#ffb74d",
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [],
+      "cells": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "VIS",
+        "NIR"
+      ],
+      "cells": [
+        null,
+        "#7fd2ea",
+        "#fff176",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "TIR"
+      ],
+      "cells": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        "#e53935",
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "NIR"
+      ],
+      "cells": [
+        null,
+        null,
+        "#fff176",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "SWIR"
+      ],
+      "cells": [
+        null,
+        null,
+        null,
+        "#ffb74d",
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "MW"
+      ],
+      "cells": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "#81c784",
+        null
+      ]
+    },
+    {
+      "bands": [
+        "Ku-Band"
+      ],
+      "cells": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "#4db6ac"
+      ]
+    },
+    {
+      "bands": [
+        "MW",
+        "C-Band"
+      ],
+      "cells": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "#81c784",
+        "#4db6ac"
+      ]
+    },
+    {
+      "bands": [
+        "VIS",
+        "NIR",
+        "SWIR",
+        "MWIR",
+        "TIR"
+      ],
+      "cells": [
+        null,
+        "#7fd2ea",
+        "#fff176",
+        "#ffb74d",
+        "#ff8a65",
+        "#e53935",
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "UV",
+        "VIS",
+        "NIR"
+      ],
+      "cells": [
+        "#b388ff",
+        "#7fd2ea",
+        "#fff176",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "MWIR",
+        "TIR"
+      ],
+      "cells": [
+        null,
+        null,
+        null,
+        null,
+        "#ff8a65",
+        "#e53935",
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "VIS"
+      ],
+      "cells": [
+        null,
+        "#7fd2ea",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "UV"
+      ],
+      "cells": [
+        "#b388ff",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "bands": [
+        "MW",
+        "Ku-Band",
+        "C-Band"
+      ],
+      "cells": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "#81c784",
+        "#4db6ac"
+      ]
+    },
+    {
+      "bands": [
+        "THz",
+        "VIS"
+      ],
+      "cells": [
+        null,
+        "#7fd2ea",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    }
+  ],
   "stations": [
     {
       "name": "Munich",

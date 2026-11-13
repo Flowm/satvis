@@ -67,6 +67,14 @@ public struct WebTables: Sendable, Decodable {
         }
     }
 
+    /// A column of the Instruments tab's band strip (src/config/wavebands.ts).
+    public struct WavebandColumn: Sendable, Decodable, Hashable {
+        /// CEOS's abbreviation, or "Radar" for the column every radar band shares.
+        public var label: String
+        /// "#rrggbb".
+        public var colour: String
+    }
+
     /// The url parameters the web app's stores own, which a bookmark keeps.
     public struct BookmarkTables: Sendable, Decodable {
         public var ownedParams: [String]
@@ -77,7 +85,16 @@ public struct WebTables: Sendable, Decodable {
     public var externalLinks: [Link]
     /// By the name a record's `imagery` entry carries.
     public var imageryProviders: [String: ImageryProvider]
+    /// CEOS's waveband classes, shortest wavelength first, then microwave and radar.
+    public var wavebandColumns: [WavebandColumn]
     public var bookmarks: BookmarkTables
+
+    /// A colour per column, where `bands` fill it, the web app's `wavebandCells`: every
+    /// radar band ("Ku-Band") fills the one Radar column, and a class CEOS adds later none.
+    public func wavebandCells(_ bands: [String]) -> [String?] {
+        let filled = Set(bands.map { $0.hasSuffix("-Band") ? "Radar" : $0 })
+        return wavebandColumns.map { filled.contains($0.label) ? $0.colour : nil }
+    }
 
     public static let shared: WebTables = {
         let url = Bundle.module.url(forResource: "web-tables", withExtension: "json", subdirectory: "Shared")!
@@ -160,6 +177,42 @@ public enum SatelliteDetails {
         /// The provider's viewer, which the link opens: "NASA Worldview".
         public var viewer: String
         public var href: String
+        /// What a picture of it needs, for a layer whose provider answers for one.
+        public var preview: ImageryPreview?
+    }
+
+    /// A layer the globe draws, the web app's `DrawnImagery` (ADR 0020), and what the
+    /// Imagery tab needs to ask the provider for a picture of it, its `ImageryPreview`.
+    public struct ImageryPreview: Sendable, Hashable {
+        /// The providers that answer for a picture, by their keys in the imagery manifest.
+        public enum Provider: String, Sendable {
+            case gibs, eumetview
+        }
+
+        /// What a provider's tiles are, by the manifest's `format`.
+        public enum Format: String, Sendable {
+            case png, jpeg
+        }
+
+        public var provider: Provider
+        public var layer: String
+        /// The deepest level worth asking for, in 256-pixel Web Mercator tiles.
+        public var maxLevel: Int
+        public var format: Format
+        /// A GIBS layer with a frame a day, which GIBS names by its date.
+        public var isDaily: Bool
+        /// The last frame's date, of a layer that stopped.
+        public var end: String?
+
+        /// The layer as a link and the drawn list name it, `gibs:GOES-East_ABI_GeoColor`:
+        /// the layer's, not an instrument's, so a layer two satellites share is one.
+        public var token: String { "\(provider.rawValue):\(layer)" }
+    }
+
+    /// The layers of a record the globe can draw, those with a `preview`, in the
+    /// record's order.
+    public static func drawableImagery(_ record: GPRecord, tables: WebTables = .shared) -> [Imagery] {
+        (record.metadata["imagery"]?.array ?? []).compactMap { imagery($0, tables: tables)?.imagery }.filter { $0.preview != nil }
     }
 
     /// One instrument in the Instruments tab, the web app's `InstrumentInfo`.
@@ -171,6 +224,8 @@ public enum SatelliteDetails {
         public var isRetired: Bool
         /// Kind, Bands, Resolution and Nominal swath, those CEOS gives.
         public var rows: [(String, String)]
+        /// CEOS's waveband classes, as the Bands row names them, for the band strip.
+        public var bands: [String]
         /// The layers that show it, its default first, of the providers this app knows. Empty for most.
         public var imagery: [Imagery]
     }
@@ -188,7 +243,8 @@ public enum SatelliteDetails {
             if let kind = fields["kind"]?.string {
                 rows.append(("Kind", kind))
             }
-            if let bands = fields["bands"]?.array?.compactMap(\.string), !bands.isEmpty {
+            let bands = fields["bands"]?.array?.compactMap(\.string) ?? []
+            if !bands.isEmpty {
                 rows.append(("Bands", bands.joined(separator: " · ")))
             }
             if let metres = fields["resolutionM"]?.number {
@@ -198,20 +254,137 @@ public enum SatelliteDetails {
                 rows.append(("Nominal swath", "\(Formats.number(swath)) km"))
             }
             return Instrument(
-                name: name, fullName: fields["fullName"]?.string, isRetired: fields["retired"] == .bool(true), rows: rows,
+                name: name, fullName: fields["fullName"]?.string, isRetired: fields["retired"] == .bool(true), rows: rows, bands: bands,
                 imagery: imagery.filter { $0.instrument == name }.map(\.imagery))
         }
     }
 
     /// Nil for an entry without the fields a link needs, or of a provider this app does not know.
-    private static func imagery(_ entry: JSONValue, tables: WebTables) -> (instrument: String, imagery: Imagery)? {
+    private static func imagery(_ entry: JSONValue, tables: WebTables) -> (instrument: String, imagery: Imagery, layer: String, period: String?)? {
         guard case .object(let fields) = entry, let instrument = fields["instrument"]?.string, let provider = fields["provider"]?.string,
             let layer = fields["layer"]?.string, let label = fields["label"]?.string, let known = tables.imageryProviders[provider]
         else {
             return nil
         }
         let end = fields["end"]?.string
-        return (instrument, Imagery(label: label, detail: imageryDetail(fields), viewer: known.viewer, href: known.href(layer: layer, end: end)))
+        return (
+            instrument,
+            Imagery(
+                label: label, detail: imageryDetail(fields), viewer: known.viewer, href: known.href(layer: layer, end: end),
+                preview: preview(fields, provider: provider, layer: layer, end: end)
+            ),
+            "\(provider):\(layer)", fields["period"]?.string
+        )
+    }
+
+    /// A layer of a satellite the globe can draw, as the Map panel lists it (ADR 0021):
+    /// the web app's `ImageryLayer`.
+    public struct ImageryListing: Sendable, Hashable {
+        /// The Map panel's groups, in its order: by the satellite's orbit class, GEO, and
+        /// LEO for the rest, as no MEO or HEO satellite has a layer.
+        public enum Group: String, CaseIterable, Sendable {
+            case geo, leo
+        }
+
+        /// Catalog number, provider and layer: unique in the list.
+        public var key: String
+        public var satellite: String
+        public var instrument: String
+        public var imagery: Imagery
+        /// Its token on the globe.
+        public var token: String
+        public var group: Group
+    }
+
+    /// Every layer `records` carry that the globe can draw and that has not stopped, once
+    /// per satellite, provider and layer, by satellite name, then label: the web app's
+    /// `imageryLayers`. A viewer link alone, or a layer that stopped, is the satellite's
+    /// Imagery tab's to offer.
+    public static func imageryListings(_ records: some Sequence<GPRecord>, tables: WebTables = .shared) -> [ImageryListing] {
+        var listings: [String: ImageryListing] = [:]
+        for record in records {
+            for entry in record.metadata["imagery"]?.array ?? [] {
+                guard let found = imagery(entry, tables: tables), let preview = found.imagery.preview, preview.end == nil else {
+                    continue
+                }
+                let key = "\(record.satnum):\(found.layer)"
+                guard listings[key] == nil else {
+                    continue
+                }
+                listings[key] = ImageryListing(
+                    key: key, satellite: record.name, instrument: found.instrument, imagery: found.imagery, token: preview.token,
+                    group: record.orbitClass == .geo ? .geo : .leo)
+            }
+        }
+        return listings.values.sorted {
+            switch $0.satellite.localizedStandardCompare($1.satellite) {
+            case .orderedAscending: true
+            case .orderedDescending: false
+            case .orderedSame: $0.imagery.label.localizedStandardCompare($1.imagery.label) == .orderedAscending
+            }
+        }
+    }
+
+    /// The web app's `drawnImagery`, as a preview: nil for another provider's layer, one
+    /// without `maxLevel` and `format`, or a GIBS layer whose period does not say how its
+    /// frames are named.
+    private static func preview(_ fields: [String: JSONValue], provider: String, layer: String, end: String?) -> ImageryPreview? {
+        guard let provider = ImageryPreview.Provider(rawValue: provider), let maxLevel = fields["maxLevel"]?.number, maxLevel.isFinite,
+            maxLevel.rounded() == maxLevel, let format = fields["format"]?.string.flatMap(ImageryPreview.Format.init)
+        else {
+            return nil
+        }
+        let period = fields["period"]?.string
+        let isDaily = period == "P1D"
+        if provider == .gibs, !isDaily, period?.hasPrefix("PT") != true {
+            return nil
+        }
+        return ImageryPreview(provider: provider, layer: layer, maxLevel: Int(maxLevel), format: format, isDaily: isDaily, end: end)
+    }
+
+    /// Pixels; twice the web card's size, for a Retina screen.
+    private static let previewWidth = 480.0
+    private static let previewHeight = 270.0
+
+    /// A layer's latest frame, `halfWidthDeg` either side of the centre, as one WMS
+    /// picture, the web app's `imageryPreviewUrl`. A stopped layer shows its last frame,
+    /// a daily GIBS one yesterday's, as today's is still filling in. The centre stays
+    /// within 50° of the equator, where a polar orbiter's would show only ice and the
+    /// map's edge. `now` is the wall clock, in milliseconds since 1970.
+    public static func imageryPreviewUrl(_ preview: ImageryPreview, latitude: Double, longitude: Double, halfWidthDeg: Double, now: Double) -> String {
+        let halfHeight = (halfWidthDeg * previewHeight) / previewWidth
+        let latitude = max(-50, min(50, latitude))
+        let bbox = [longitude - halfWidthDeg, latitude - halfHeight, longitude + halfWidthDeg, latitude + halfHeight].map { toFixed($0, 2) }.joined(separator: ",")
+        var query: [(String, String)] = [
+            ("SERVICE", "WMS"), ("REQUEST", "GetMap"), ("VERSION", "1.1.1"), ("SRS", "EPSG:4326"), ("STYLES", ""), ("LAYERS", preview.layer),
+            ("WIDTH", String(Int(previewWidth))), ("HEIGHT", String(Int(previewHeight))), ("BBOX", bbox),
+        ]
+        if preview.provider == .eumetview {
+            // Transparent, or the night side of a true colour disc comes back white.
+            query += [("FORMAT", "image/png"), ("TRANSPARENT", "TRUE")]
+            return "https://view.eumetsat.int/geoserver/ows?\(formEncoded(query))"
+        }
+        query.append(("FORMAT", "image/\(preview.format.rawValue)"))
+        if let time = preview.end ?? (preview.isDaily ? isoDate(epochMilliseconds: now - msPerDay) : nil) {
+            query.append(("TIME", time))
+        }
+        return "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?\(formEncoded(query))"
+    }
+
+    /// What `URLSearchParams` leaves as it is.
+    private static let formUnreserved = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789*-._ ")
+
+    /// A query as `URLSearchParams` writes it: a space as "+", the rest of what is not
+    /// `formUnreserved` percent-encoded.
+    private static func formEncoded(_ query: [(String, String)]) -> String {
+        let encode = { (text: String) in (text.addingPercentEncoding(withAllowedCharacters: formUnreserved) ?? text).replacingOccurrences(of: " ", with: "+") }
+        return query.map { "\(encode($0.0))=\(encode($0.1))" }.joined(separator: "&")
+    }
+
+    /// The UTC date of an instant, "2026-11-11", as `toISOString().slice(0, 10)`.
+    private static func isoDate(epochMilliseconds: Double) -> String {
+        let utc = civilDate(epochMilliseconds: epochMilliseconds)
+        return "\(utc.year)-\(two(utc.month))-\(two(utc.day))"
     }
 
     /// When a layer has frames, and of what, as the web app's `imageryDetail` words it:

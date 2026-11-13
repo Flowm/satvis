@@ -106,16 +106,27 @@ nonisolated class SatvisUITests: XCTestCase {
         }
     }
 
-    // The Instruments tab heads each instrument CEOS lists with its names, Retired
-    // between them once its mission is over, above its facts as rows and, under the
-    // last, the credit CC BY asks for.
+    // The Instruments tab is a table, a line an instrument CEOS lists: its name, Retired
+    // once its mission is over, its finest resolution or a dash, and its bands, which a
+    // press unfolds into its kind and facts; under the table, the credit CC BY asks for.
     @MainActor
     func testListsTheInstruments() {
         let app = search("INSAT-3D")
         app.buttons["Details of INSAT-3D"].tap()
         XCTAssert(app.navigationBars["INSAT-3D"].waitForExistence(timeout: 10))
         app.buttons["Instruments"].tap()
-        for label in ["Imager (INSAT 3D), Retired, Very High Resolution Radiometer", "Resolution, 1 km", "CEOS MIM Database, CC BY 4.0"] {
+        // The full names beside the short ones where the panel has room for them, as on the web.
+        let roomy = isRoomy(app)
+        let imager = app.buttons["Imager (INSAT 3D), \(roomy ? "Very High Resolution Radiometer, " : "")Retired, 1 km, Bands: VIS, SWIR, MWIR, TIR"]
+        XCTAssert(imager.waitForExistence(timeout: 5))
+        XCTAssert(app.buttons["Sounder (INSAT), \(roomy ? "IR Sounder, " : "")Retired, Bands: VIS, MWIR, TIR"].exists)
+        let kind = app.descendants(matching: .any)["Kind, Multi-purpose imaging Vis/IR radiometer"]
+        XCTAssertFalse(kind.exists)
+        // No layer shows any of INSAT-3D's instruments, and each has figures for the table.
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Imagery'")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["Also carries"].exists)
+        imager.tap()
+        for label in ["Very High Resolution Radiometer", "Kind, Multi-purpose imaging Vis/IR radiometer", "Resolution, 1 km", "CEOS MIM Database, CC BY 4.0"] {
             let row = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
             // Under a phone's half-height sheet, in a lazy list.
             for _ in 0..<4 where !row.waitForExistence(timeout: 2) {
@@ -125,24 +136,160 @@ nonisolated class SatvisUITests: XCTestCase {
         }
     }
 
-    // An instrument's imagery is one row under its facts, naming the default layer and
-    // how many stand behind it, which opens a menu of them, each a link to its provider's viewer.
+    // An instrument CEOS gives no bands, resolution or imagery for is a chip under the
+    // table, which unfolds its facts as a line does.
     @MainActor
-    func testOpensAnInstrumentsImageryFromAMenu() {
+    func testFoldsTheInstrumentsWithoutFiguresIntoChips() {
+        let app = search("GOES 19")
+        app.buttons["Details of GOES 19"].tap()
+        XCTAssert(app.navigationBars["GOES 19"].waitForExistence(timeout: 10))
+        app.buttons["Instruments"].tap()
+        let exis = app.buttons["EXIS"]
+        // Under a phone's half-height sheet, in a lazy list.
+        for _ in 0..<4 where !exis.waitForExistence(timeout: 2) {
+            app.collectionViews.firstMatch.swipeUp()
+        }
+        XCTAssert(app.staticTexts["Also carries"].exists)
+        for chip in ["Magnetometer (GOES)", "SEISS", "DCS (GOES)"] {
+            XCTAssert(app.buttons[chip].exists, chip)
+        }
+        // CCOR-1 has a band, so a line.
+        XCTAssertFalse(app.buttons["CCOR-1"].exists)
+        XCTAssert(app.buttons["CCOR-1, \(isRoomy(app) ? "Compact Coronagraph - 1, " : "")Bands: VIS"].exists)
+        exis.tap()
+        let kind = app.descendants(matching: .any)["Kind, Solar irradiance monitor"]
+        for _ in 0..<3 where !kind.waitForExistence(timeout: 2) {
+            app.collectionViews.firstMatch.swipeUp()
+        }
+        XCTAssert(kind.exists)
+    }
+
+    // An instrument with imagery has a button on its line that opens the Imagery tab,
+    // a card a layer: the picture under the instrument's name, what the layer is, and a
+    // link to it in its provider's viewer. A card's Show switch draws its layer on the
+    // globe, and a press elsewhere on the card does what the switch does; the Map panel
+    // opens on the group it is in, to take it off there.
+    @MainActor
+    func testShowsAnInstrumentsImageryFromItsLine() {
         let app = search("METEOSAT-12 (MTG-I1)")
         app.buttons["Details of METEOSAT-12 (MTG-I1)"].tap()
         XCTAssert(app.navigationBars["METEOSAT-12 (MTG-I1)"].waitForExistence(timeout: 10))
         app.buttons["Instruments"].tap()
-        let imagery = app.buttons["Imagery"]
-        // Under a phone's half-height sheet, in a lazy list.
-        for _ in 0..<3 where !imagery.waitForExistence(timeout: 2) {
+        let button = app.buttons["Imagery of FCI"]
+        XCTAssert(button.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Imagery of LI"].exists)
+        button.tap()
+        XCTAssert(app.buttons["Imagery (2)"].waitForExistence(timeout: 5))
+        XCTAssert(app.buttons["Imagery (2)"].isSelected)
+        let show = app.switches["Show GeoColour on the globe"]
+        XCTAssert(show.waitForExistence(timeout: 5))
+        XCTAssertEqual(show.value as? String, "0")
+        flip(app, "Show GeoColour on the globe")
+        XCTAssert(waitForValue(show, "1"))
+        let card = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'GeoColour, '")).firstMatch
+        card.tap()
+        XCTAssert(waitForValue(show, "0"))
+        card.tap()
+        XCTAssert(waitForValue(show, "1"))
+        for layer in ["GeoColour", "True colour"] {
+            let picture = app.images["FCI, \(layer)"]
+            // Under a phone's half-height sheet, in a lazy list.
+            for _ in 0..<3 where !picture.waitForExistence(timeout: 2) {
+                app.collectionViews.firstMatch.swipeUp()
+            }
+            XCTAssert(picture.exists, layer)
+        }
+        let detail = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'True colour, every 10 min since 2024'")).firstMatch
+        for _ in 0..<3 where !detail.waitForExistence(timeout: 2) {
             app.collectionViews.firstMatch.swipeUp()
         }
-        XCTAssertEqual(imagery.value as? String, "GeoColour + 1")
-        imagery.tap()
-        for layer in ["GeoColour", "True colour"] {
-            XCTAssert(app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", layer)).firstMatch.waitForExistence(timeout: 5), layer)
+        XCTAssert(detail.exists)
+        let link = app.links["Open in EUMETView"].firstMatch
+        for _ in 0..<3 where !link.waitForExistence(timeout: 2) {
+            app.collectionViews.firstMatch.swipeUp()
         }
+        XCTAssert(link.exists)
+        app.navigationBars.buttons["Close"].firstMatch.tap()
+        openMenu(app)
+        app.buttons["Map"].tap()
+        let listed = app.switches["METEOSAT-12 · GeoColour"]
+        XCTAssert(listed.waitForExistence(timeout: 10))
+        XCTAssertEqual(listed.value as? String, "1")
+        XCTAssertEqual(app.buttons["GEO satellites"].value as? String, "1 on")
+        flip(app, "METEOSAT-12 · GeoColour")
+        XCTAssert(waitForValue(listed, "0"))
+    }
+
+    // The Map panel lists every layer the records carry, in groups by the satellite's
+    // orbit, one open at a time (ADR 0021), and draws one from there.
+    @MainActor
+    func testDrawsALayerFromTheMapPanel() {
+        let app = launch()
+        openMenu(app)
+        app.buttons["Map"].tap()
+        let leo = app.buttons["LEO satellites"]
+        XCTAssert(leo.waitForExistence(timeout: 10))
+        // Closed until one is opened, with no layer on.
+        XCTAssertFalse(app.switches["TERRA · True colour"].exists)
+        leo.tap()
+        flip(app, "TERRA · True colour")
+        XCTAssert(waitForValue(app.switches["TERRA · True colour"], "1"))
+        XCTAssertEqual(leo.value as? String, "1 on")
+        app.buttons["GEO satellites"].tap()
+        XCTAssert(app.switches["GOES 19 · GeoColor"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.switches["TERRA · True colour"].exists)
+    }
+
+    // A link's `imagery` draws its layers once a loaded record carries them (ADR 0020).
+    @MainActor
+    func testDrawsTheImageryALinkNames() {
+        let app = launch(link: "/?imagery=eumetview:mtg_fd:rgb_geocolour")
+        openMenu(app)
+        app.buttons["Map"].tap()
+        let listed = app.switches["METEOSAT-12 · GeoColour"]
+        XCTAssert(listed.waitForExistence(timeout: 10))
+        XCTAssertEqual(listed.value as? String, "1")
+    }
+
+    // A layer that stopped is not in the groups; one a link draws is switched off above
+    // them, by its label as the web names it.
+    @MainActor
+    func testNamesAStoppedLayerALinkDraws() {
+        let app = launch(link: "/?imagery=gibs:MISR_AM1_Ellipsoid_Radiance_RGB_AN")
+        openMenu(app)
+        app.buttons["Map"].tap()
+        let listed = app.switches["True colour, nadir camera"]
+        XCTAssert(listed.waitForExistence(timeout: 10))
+        XCTAssertEqual(listed.value as? String, "1")
+    }
+
+    // An instrument's imagery button opens the Imagery tab at that instrument's first
+    // card, here the second; the tab opened from the tab row starts at the top.
+    @MainActor
+    func testOpensTheImageryTabAtTheInstrumentsCard() {
+        let app = search("TERRA")
+        app.buttons["Details of TERRA"].tap()
+        XCTAssert(app.navigationBars["TERRA"].waitForExistence(timeout: 10))
+        app.buttons["Instruments"].tap()
+        let button = app.buttons["Imagery of MODIS"]
+        XCTAssert(button.waitForExistence(timeout: 5))
+        button.tap()
+        let tabs = app.buttons["Imagery (2)"]
+        XCTAssert(tabs.waitForExistence(timeout: 5))
+        let modis = app.images["MODIS, True colour"]
+        XCTAssert(modis.waitForExistence(timeout: 5))
+        // Whole, and under the pinned tab row, once the scroll has settled.
+        let list = app.collectionViews.firstMatch
+        let shown = NSPredicate { _, _ in modis.frame.minY >= tabs.frame.maxY && modis.frame.maxY <= list.frame.maxY }
+        wait(for: [XCTNSPredicateExpectation(predicate: shown, object: nil)], timeout: 5)
+        // Another tab, then back: the focus is forgotten, and the first card on top.
+        app.buttons["Instruments"].tap()
+        XCTAssert(button.waitForExistence(timeout: 5))
+        tabs.tap()
+        let misr = app.images["MISR, True colour, nadir camera, Ended 2022-10-12"]
+        XCTAssert(misr.waitForExistence(timeout: 5))
+        XCTAssertGreaterThanOrEqual(misr.frame.minY, tabs.frame.maxY)
+        XCTAssertLessThan(misr.frame.minY, tabs.frame.maxY + 60)
     }
 
     // The Graphics panel's Hide UI hides the menu column, the clock deck and the
@@ -757,6 +904,13 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(row.waitForExistence(timeout: 5))
         let control = row.switches.firstMatch
         (control.exists ? control : row).tap()
+    }
+
+    /// Whether `element`'s value is `value` within five seconds.
+    @MainActor
+    private func waitForValue(_ element: XCUIElement, _ value: String) -> Bool {
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value), object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
     }
 
     /// Unfolds the menu column, unless it is open already, as on an iPad.

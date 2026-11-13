@@ -1,4 +1,5 @@
 import Foundation
+import SatvisCore
 
 /// A tile in a quadtree over the globe. Row 0 is the northernmost. In the
 /// geographic scheme, level 0 is two tiles side by side, west and east; in Web
@@ -98,6 +99,8 @@ struct ImagerySource: Sendable {
     /// Whether its tiles are kept for good once fetched rather than cached
     /// (`TileRequest.keeps`): only for a pyramid small enough to keep whole.
     var keeps = false
+    /// Whether it is a dated frame, which never changes (`TileRequest.isDated`).
+    var isDated = false
     var url: @Sendable (TileKey) -> URL?
 
     /// The source level whose texels best match a surface tile's at `level`: a
@@ -163,7 +166,7 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
             // GIBS's daily true colour from NOAA-20 since 2018, as the web app's
             // GibsImagery asks for it: Web Mercator WMTS, 256-pixel tiles to level 9,
             // a frame a day. A composite of swaths, so the gaps near the equator are black.
-            ImagerySource(projection: .webMercator, tileSize: 256, maximumLevel: 9, contentType: "image/") { key in
+            ImagerySource(projection: .webMercator, tileSize: 256, maximumLevel: 9, contentType: "image/", isDated: frame.map(GIBS.isWhole) ?? false) { key in
                 URL(
                     string:
                         "\(GIBS.wmts)/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/\(frame ?? "default")/GoogleMapsCompatible_Level9/\(key.level)/\(key.y)/\(key.x).jpg")
@@ -175,6 +178,18 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
 /// NASA's Global Imagery Browse Services, for the daily layers' frames.
 public enum GIBS {
     static let wmts = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best"
+
+    /// Whether a frame no longer changes: one to the minute, or a day two days after it
+    /// began, once its last swaths have arrived; not `default`, the latest.
+    static func isWhole(_ frame: String) -> Bool {
+        guard frame.count == 10 else {
+            return frame != "default"
+        }
+        guard let day = try? Date("\(frame)T00:00:00Z", strategy: .iso8601) else {
+            return false
+        }
+        return Date().timeIntervalSince(day) >= 2 * 86_400
+    }
 
     /// Where VIIRS's frames are listed: the capabilities the web app's
     /// GibsImagery reads its domain from.
@@ -257,6 +272,73 @@ enum Bake {
             let v = (projection.row(latitude: latitude, level: 0) - top) / (bottom - top)
             let y = Float(1 - 2 * t)
             return [BakeVertex(position: SIMD2(-1, y), source: SIMD2(Float(u0), Float(v))), BakeVertex(position: SIMD2(1, y), source: SIMD2(Float(u1), Float(v)))]
+        }
+    }
+}
+
+/// An instrument's layer laid over the base map (ADR 0020), at one of its frames.
+public struct ImageryOverlay: Sendable, Equatable {
+    public var layer: SatelliteDetails.ImageryPreview
+    /// The frame, as the service names it in a request; nil for the service's latest.
+    public var frame: String?
+    /// West, south, east and north in degrees, where the service says the layer ends;
+    /// no tile outside them is asked for.
+    public var bounds: [Double]?
+
+    public init(layer: SatelliteDetails.ImageryPreview, frame: String?, bounds: [Double]?) {
+        self.layer = layer
+        self.frame = frame
+        self.bounds = bounds
+    }
+
+    static let eumetView = "https://view.eumetsat.int/geoserver/ows"
+
+    /// Where its tiles come from, as the web app's `gibsFrames` and `eumetViewFrames` ask
+    /// for them: GIBS's Web Mercator WMTS set, `GoogleMapsCompatible_Level<maxLevel>`;
+    /// EUMETView's WMS in 512-pixel geographic tiles, which have the detail of a
+    /// 256-pixel Web Mercator one two levels down.
+    var source: ImagerySource {
+        let layer = layer
+        let frame = frame
+        switch layer.provider {
+        case .gibs:
+            return ImagerySource(
+                projection: .webMercator, tileSize: 256, maximumLevel: layer.maxLevel, contentType: "image/", isDated: frame.map(GIBS.isWhole) ?? false
+            ) { key in
+                URL(
+                    string:
+                        "\(GIBS.wmts)/\(layer.layer)/default/\(frame ?? "default")/GoogleMapsCompatible_Level\(layer.maxLevel)/\(key.level)/\(key.y)/\(key.x).\(layer.format.rawValue)"
+                )
+            }
+        case .eumetview:
+            return ImagerySource(projection: .geographic, tileSize: 512, maximumLevel: max(0, layer.maxLevel - 2), contentType: "image/", isDated: frame != nil) { key in
+                let b = Projection.geographic.bounds(key)
+                var components = URLComponents(string: Self.eumetView)
+                components?.queryItems =
+                    [
+                        URLQueryItem(name: "service", value: "WMS"), URLQueryItem(name: "version", value: "1.1.1"), URLQueryItem(name: "request", value: "GetMap"),
+                        URLQueryItem(name: "layers", value: layer.layer), URLQueryItem(name: "styles", value: ""),
+                        URLQueryItem(name: "format", value: "image/\(layer.format.rawValue)"), URLQueryItem(name: "transparent", value: "true"),
+                        URLQueryItem(name: "srs", value: "EPSG:4326"), URLQueryItem(name: "bbox", value: "\(b.west),\(b.south),\(b.east),\(b.north)"),
+                        URLQueryItem(name: "width", value: "512"), URLQueryItem(name: "height", value: "512"),
+                    ] + (frame.map { [URLQueryItem(name: "time", value: $0)] } ?? [])
+                return components?.url
+            }
+        }
+    }
+
+    /// Where its frames are listed: GIBS's WMTS domain for the layer, over `covering`
+    /// (epoch milliseconds) or all of it, or the layer's own WMS capabilities, which
+    /// list all of EUMETView's and give its bounds too.
+    public func framesURL(covering: ClosedRange<Double>? = nil) -> URL? {
+        switch layer.provider {
+        case .gibs:
+            let name = { (time: Double) in Date(timeIntervalSince1970: time / 1000).formatted(.iso8601) }
+            let range = covering.map { "\(name($0.lowerBound))--\(name($0.upperBound))" } ?? "all"
+            return URL(string: "\(GIBS.wmts)/1.0.0/\(layer.layer)/default/GoogleMapsCompatible_Level\(layer.maxLevel)/all/\(range).xml")
+        case .eumetview:
+            return URL(
+                string: "https://view.eumetsat.int/geoserver/\(layer.layer.replacingOccurrences(of: ":", with: "/"))/ows?service=WMS&version=1.3.0&request=GetCapabilities")
         }
     }
 }

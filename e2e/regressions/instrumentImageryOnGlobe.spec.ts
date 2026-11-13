@@ -20,7 +20,7 @@ test("an instrument's imagery is shown on the globe from its tab, follows the cl
         previews.push(url.searchParams.get("LAYERS")!);
         return route.fulfill({ contentType: "image/png", body: PIXEL });
       }
-      if (path.endsWith("/all.xml")) {
+      if (path.endsWith(".xml")) {
         return route.fulfill({
           contentType: "text/xml",
           body: "<Domains><DimensionDomain><Domain>2026-10-01T00:00:00Z/2026-10-05T23:50:00Z/PT10M</Domain></DimensionDomain></Domains>",
@@ -76,7 +76,7 @@ test("an instrument's imagery is shown on the globe from its tab, follows the cl
 test("the Map panel lists every layer in groups, one open at a time, and shows one on the globe", async ({ page }) => {
   const stubGibs = async () => {
     await page.route("https://gibs.earthdata.nasa.gov/**", (route) =>
-      new URL(route.request().url()).pathname.endsWith("/all.xml")
+      new URL(route.request().url()).pathname.endsWith(".xml")
         ? route.fulfill({ contentType: "text/xml", body: "<Domains><DimensionDomain><Domain>2026-10-01T00:00:00Z/2026-10-05T23:50:00Z/PT10M</Domain></DimensionDomain></Domains>" })
         : route.fulfill({ contentType: "image/png", body: PIXEL }),
     );
@@ -84,15 +84,15 @@ test("the Map panel lists every layer in groups, one open at a time, and shows o
   await openApp(page, "time=2026-10-03T15:07Z", { setup: stubGibs });
   await openMenu(page, "Map");
 
-  const weather = page.getByRole("button", { name: /Weather satellites/ });
-  await expect(weather).toHaveAttribute("aria-expanded", "false");
-  await weather.click();
+  const geo = page.getByRole("button", { name: /GEO satellites/ });
+  await expect(geo).toHaveAttribute("aria-expanded", "false");
+  await geo.click();
   await expect(menuSwitch(page, "METEOSAT-12 · True colour")).toBeVisible();
   await menuSwitch(page, "GOES 19 · GeoColor").click();
   await expect.poll(() => new URL(page.url()).searchParams.get("imagery")).toBe(`gibs:${LAYER}`);
-  await expect(weather).toContainText("1 on");
+  await expect(geo).toContainText("1 on");
 
-  await weather.click();
+  await geo.click();
   await expect(menuSwitch(page, "GOES 19 · GeoColor")).toBeHidden();
 });
 
@@ -102,7 +102,7 @@ test("a link's instrument imagery is drawn once its satellite has loaded", async
   const stubGibs = async () => {
     await page.route("https://gibs.earthdata.nasa.gov/**", (route) => {
       const path = new URL(route.request().url()).pathname;
-      if (path.endsWith("/all.xml")) {
+      if (path.endsWith(".xml")) {
         return route.fulfill({
           contentType: "text/xml",
           body: "<Domains><DimensionDomain><Domain>2026-10-01T00:00:00Z/2026-10-05T23:50:00Z/PT10M</Domain></DimensionDomain></Domains>",
@@ -167,7 +167,7 @@ test("instrument imagery lies over a basemap that arrives after it, and under th
   const stubGibs = async () => {
     await page.route("https://gibs.earthdata.nasa.gov/**", async (route) => {
       const path = new URL(route.request().url()).pathname;
-      if (!path.endsWith("/all.xml")) {
+      if (!path.endsWith(".xml")) {
         return route.fulfill({ contentType: "image/png", body: PIXEL });
       }
       const daily = path.includes(VIIRS);
@@ -198,7 +198,7 @@ test("showing another layer, or another basemap, asks nothing again of a layer a
   const asked = { gibsLists: 0, gibsTiles: 0, eumetViewLists: 0 };
   const stub = async () => {
     await page.route("https://gibs.earthdata.nasa.gov/**", (route) => {
-      if (!new URL(route.request().url()).pathname.endsWith("/all.xml")) {
+      if (!new URL(route.request().url()).pathname.endsWith(".xml")) {
         asked.gibsTiles += 1;
         return route.fulfill({ contentType: "image/png", body: PIXEL });
       }

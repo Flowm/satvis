@@ -707,6 +707,7 @@ struct ContentView: View {
             if let entry = session.catalog.catalog.entries[id] {
                 InfoPanel(
                     entry: entry, clock: session.clock, passes: session.passes, alerts: session.alerts, closeUp: session.closeUpContext,
+                    instrumentImagery: session.instrumentImagery,
                     isTracked: session.tracked == .satellite(id), onTrack: session.observer != nil ? nil : { track(.satellite(id), on: $0) },
                     onClose: { session.select(nil) }
                 )
