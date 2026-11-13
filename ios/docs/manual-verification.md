@@ -735,7 +735,11 @@ globe draws it, the group's count reads "1 on" in cyan and the group stays open.
 Switch it off: the group stays open too. Open Weather satellites: Polar orbiters
 closes. Launch on a link with `imagery=`: the group with that layer opens on its own.
 A Viewer links row opens the provider's viewer. Turn the network off before the first
-open of the panel for "Loading the imagery list…" until the catalog arrives.
+open of the panel for "Loading the imagery list…" until the catalog arrives. With a
+layer on, zoom far out and back in, then switch it off: the globe shows the base map
+alone. On METEOSAT-12's GeoColour over Black Marble, pinch in three times and out
+again: the tiles in view arrive without waiting on those of the levels passed, and
+no stretch of the base map shows on the way out.
 
 **Result, 2026-11-13.** iPhone 18 Pro and iPad Air 13-inch (M4) simulators, iOS 27.2,
 on the test catalog with the network on, shot by a UI test not kept. On the iPhone the
@@ -746,3 +750,15 @@ and showed the same. `testDrawsALayerFromTheMapPanel`, `testDrawsTheImageryALink
 `testShowsALayerOnTheGlobeFromItsCard` hold the switches, the counts, the group a link
 opens and one group open at a time. The viewer links, the loading text and the Mac
 were not looked at.
+
+**Result, 2026-11-13, tile loading.** iPhone 18 Pro simulator, iOS 27.2, on the test
+catalog with the network on, shot by UI tests not kept, with the overlay tiles logged
+by a build not kept. Before the fix, the zoom on GeoColour left 47 tiles loading at
+the deepest level, and by the last pinch out a tile waited 67 s at the median; the way
+out showed the base map in stair-stepped patches; and GeoColour switched off after
+zooming out stayed on the globe at the 8 s shot. After it, 64 tiles of the levels
+passed were cancelled, the deepest level had nothing left loading 12 s after its
+pinch, the way out showed blurred GeoColour sharpening, and the switch left Natural
+Earth alone. MODIS's last tile of the first pinch came after 7.5 s instead of 13.5 s.
+A step back on the timeline kept GeoColour on the globe in each shot a second apart
+until the new frame came.

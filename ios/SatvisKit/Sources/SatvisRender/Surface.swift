@@ -57,8 +57,9 @@ final class Surface {
         /// Baked from all it asked for, or waiting on sources still loading or
         /// failed.
         var isComplete = false
-        /// The base map its texture was baked from, as `sourceGeneration` counts
-        /// them: a child must not stand in another map's.
+        /// The maps its texture was baked from, as `generation` counts them: a
+        /// parent must not stand in under another base map, or an overlay since
+        /// switched off.
         var generation = -1
         var needsBake = true
         var lastUsed = 0
@@ -92,17 +93,42 @@ final class Surface {
         case failed(at: Date)
     }
 
+    /// The source tiles of one map as they load: the base map's, or an overlay's at
+    /// its frame. A tile asked for before the map changed is dropped when it arrives,
+    /// as one cancelled is.
+    private final class SourceTiles {
+        var source: ImagerySource
+        /// Names the map in the log.
+        var name: String
+        var tiles: [TileKey: Source] = [:]
+        /// Whether its stand-ins are kept past the budget (`isStandIn`): an overlay's.
+        let keepsStandIns: Bool
+
+        init(_ source: ImagerySource, name: String, keepsStandIns: Bool) {
+            self.source = source
+            self.name = name
+            self.keepsStandIns = keepsStandIns
+        }
+
+        /// Cancels what is on its way and forgets every tile.
+        func clear() {
+            for case .loading(let work) in tiles.values {
+                work.cancel()
+            }
+            tiles = [:]
+        }
+    }
+
     /// Fetches a tile's bytes: the app's tile fetcher, nil when it has none.
     var loader: (@Sendable (TileRequest) async -> Data?)?
     private(set) var layer = BaseLayer.naturalEarth
     /// A daily layer's day.
     private(set) var day: String?
-    /// Counts the changes of base map or day: a tile asked for under another is
-    /// dropped when it arrives.
-    private var sourceGeneration = 0
+    /// Counts the changes of base map, day or overlays, for `Tile.generation`.
+    private var generation = 0
     /// Whether the surface follows Re:Earth's terrain or the ellipsoid.
     private(set) var terrainEnabled = false
-    private var source: ImagerySource
+    private let baseMap: SourceTiles
     private var site: URL
 
     private let device: MTLDevice
@@ -114,7 +140,6 @@ final class Surface {
     private var tiles: [TileKey: Tile] = [:]
     /// The tiles past the roots that hold a texture.
     private var texturedTiles = 0
-    private var sources: [TileKey: Source] = [:]
     /// The instrument imagery over the base map, the last on top.
     private var overlays: [Overlay] = []
     private var terrainTiles: [TileKey: TerrainTile] = [:]
@@ -135,14 +160,14 @@ final class Surface {
         var verticalFieldOfView: Double
         var pixelsPerPoint: Double
         var revision: Int
-        var sourceGeneration: Int
+        var generation: Int
         var terrainEnabled: Bool
     }
 
     init(device: MTLDevice, library: MTLLibrary, site: URL) throws {
         self.device = device
         self.site = site
-        source = BaseLayer.naturalEarth.source(site: site)
+        baseMap = SourceTiles(BaseLayer.naturalEarth.source(site: site), name: BaseLayer.naturalEarth.rawValue, keepsStandIns: false)
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.vertexFunction = library.makeFunction(name: "bakeVertex")
         descriptor.fragmentFunction = library.makeFunction(name: "bakeFragment")
@@ -168,13 +193,10 @@ final class Surface {
         self.layer = layer
         self.site = site
         day = frame
-        sourceGeneration += 1
-        source = layer.source(site: site, frame: frame)
-        // The old map's tiles still on their way would only be dropped on arrival.
-        for case .loading(let work) in sources.values {
-            work.cancel()
-        }
-        sources = [:]
+        generation += 1
+        baseMap.clear()
+        baseMap.source = layer.source(site: site, frame: frame)
+        baseMap.name = layer.rawValue
         for tile in tiles.values {
             tile.needsBake = true
             tile.isComplete = false
@@ -184,17 +206,14 @@ final class Surface {
     /// An instrument's layer over the base map, and the tiles of its frame.
     private final class Overlay {
         var imagery: ImageryOverlay
-        var source: ImagerySource
-        var sources: [TileKey: Source] = [:]
+        let sources: SourceTiles
         /// The last frame's tiles, drawn where this frame's have not come yet, so that
         /// a frame change does not show the base map meanwhile.
         var previous: [TileKey: MTLTexture] = [:]
-        /// Counts its frames: a tile asked for under another is dropped when it arrives.
-        var generation = 0
 
         init(_ imagery: ImageryOverlay) {
             self.imagery = imagery
-            source = imagery.source
+            sources = SourceTiles(imagery.source, name: imagery.layer.token, keepsStandIns: true)
         }
 
         var limits: Bounds? {
@@ -214,26 +233,23 @@ final class Surface {
                 return Overlay(wanted)
             }
             if overlay.imagery != wanted {
-                for case .loading(let work) in overlay.sources.values {
-                    work.cancel()
-                }
-                for case (let key, .ready(let texture, _)) in overlay.sources {
+                for case (let key, .ready(let texture, _)) in overlay.sources.tiles {
                     overlay.previous[key] = texture
                 }
                 // The tiles of the frames before last: what is left of them is coarse.
                 if overlay.previous.count > Self.maximumSources {
-                    overlay.previous = overlay.previous.filter { key, _ in overlay.sources[key] != nil }
+                    overlay.previous = overlay.previous.filter { key, _ in overlay.sources.tiles[key] != nil }
                 }
-                overlay.sources = [:]
-                overlay.generation += 1
+                overlay.sources.clear()
+                overlay.sources.source = wanted.source
                 overlay.imagery = wanted
-                overlay.source = wanted.source
             }
             return overlay
         }
-        for case .loading(let work) in kept.values.filter({ old in !imagery.contains { $0.layer.token == old.imagery.layer.token } }).flatMap(\.sources.values) {
-            work.cancel()
+        for old in kept.values where !overlays.contains(where: { $0 === old }) {
+            old.sources.clear()
         }
+        generation += 1
         for tile in tiles.values {
             tile.needsBake = true
             tile.isComplete = false
@@ -257,7 +273,7 @@ final class Surface {
 
     /// The finest level the imagery is refined to.
     private var imageryMaximumLevel: Int {
-        ([source] + overlays.map(\.source)).map { $0.maximumLevel + ($0.tileSize == 512 && $0.projection == .geographic ? 1 : 0) }.max().map { max($0, 6) } ?? 6
+        allSources.map { $0.source.maximumLevel + ($0.source.tileSize == 512 && $0.source.projection == .geographic ? 1 : 0) }.reduce(6, max)
     }
 
     /// The tiles to draw this frame, each with a texture. A tile is refined only
@@ -270,7 +286,7 @@ final class Surface {
     ) {
         let inputs = SelectionInputs(
             eye: eye, viewProjection: viewProjection, viewportHeightPixels: viewportHeightPixels, verticalFieldOfView: verticalFieldOfView,
-            pixelsPerPoint: pixelsPerPoint, revision: revision, sourceGeneration: sourceGeneration, terrainEnabled: terrainEnabled)
+            pixelsPerPoint: pixelsPerPoint, revision: revision, generation: generation, terrainEnabled: terrainEnabled)
         // Without a new frame: the tiles chosen last stay in use for `evict`.
         if let lastSelection, lastSelection.inputs == inputs {
             return (lastSelection.draw, [])
@@ -334,7 +350,7 @@ final class Surface {
         let aspectRatio = viewportPixels.x / viewportPixels.y
         let inputs = SelectionInputs(
             eye: SIMD3(map.longitude, map.latitude, map.span), viewProjection: map.viewProjection(aspectRatio: aspectRatio),
-            viewportHeightPixels: viewportPixels.y, verticalFieldOfView: -1, pixelsPerPoint: 0, revision: revision, sourceGeneration: sourceGeneration,
+            viewportHeightPixels: viewportPixels.y, verticalFieldOfView: -1, pixelsPerPoint: 0, revision: revision, generation: generation,
             terrainEnabled: false)
         if let lastSelection, lastSelection.inputs == inputs {
             return (lastSelection.draw, [])
@@ -581,153 +597,70 @@ final class Surface {
         // never shows less. The sky view's hundreds of tiles evict the source
         // ancestors, which left a tile with a sharp parent flat green, Natural
         // Earth's level 2, until its own source came.
-        let parent = tile.key.parent.flatMap { tiles[$0] }
-        if let parent, let texture = parent.texture, parent.generation == sourceGeneration {
+        let parent = tile.key.parent.flatMap { tiles[$0] }.flatMap { $0.generation == generation ? $0 : nil }
+        if let parent, let texture = parent.texture {
             draw(texture, bounds: parent.bounds, projection: .geographic)
         }
         var complete = true
-        let level = source.level(forSurface: tile.key.level)
-        // Natural Earth's shipped level is 2: nothing below 3 to fetch.
-        if layer != .naturalEarth || level > 2 {
-            for key in source.projection.covering(tile.bounds, level: level) {
-                if case .ready(let texture, _) = sources[key] {
-                    sources[key] = .ready(texture, lastUsed: frame)
-                    draw(texture, bounds: source.projection.bounds(key), projection: source.projection)
+        let level = baseMap.source.level(forSurface: tile.key.level)
+        // Natural Earth's shipped level is 2: nothing below 3 to fetch. A complete
+        // parent is as sharp as any ancestor.
+        if layer != .naturalEarth || level > 2, !lay(baseMap, over: tile.bounds, level: level, standIns: parent?.isComplete != true, draw: draw) {
+            complete = false
+        }
+        for overlay in overlays {
+            var area = tile.bounds
+            if let limits = overlay.limits {
+                area = Bounds(
+                    west: max(area.west, limits.west), south: max(area.south, limits.south), east: min(area.east, limits.east), north: min(area.north, limits.north))
+                guard area.west < area.east, area.south < area.north else {
                     continue
-                }
-                request(key)
-                switch sources[key] {
-                case .loading, .failed: complete = false
-                default: break
-                }
-                // A complete parent is as sharp as any ancestor.
-                if parent?.isComplete == true {
-                    continue
-                }
-                // Meanwhile the nearest ancestor that has loaded, if any.
-                var ancestor = key.parent
-                while let candidate = ancestor {
-                    if case .ready(let texture, _) = sources[candidate] {
-                        // In use, as a stand-in: evicted, the tile baked again
-                        // while its own source is still missing would have none.
-                        sources[candidate] = .ready(texture, lastUsed: frame)
-                        draw(texture, bounds: source.projection.bounds(candidate), projection: source.projection)
-                        break
-                    }
-                    ancestor = candidate.parent
                 }
             }
-        }
-        for overlay in overlays where !lay(overlay, over: tile, draw: draw) {
-            complete = false
+            if !lay(overlay.sources, over: area, level: overlay.sources.source.level(forSurface: tile.key.level), previous: overlay.previous, draw: draw) {
+                complete = false
+            }
         }
         encoder.endEncoding()
         tile.needsBake = false
         tile.isComplete = complete
-        tile.generation = sourceGeneration
+        tile.generation = generation
     }
 
-    /// Starts loading a source tile, unless it is loading, loaded, or failed in the
-    /// last minute.
-    private func request(_ key: TileKey) {
-        switch sources[key] {
-        case .loading, .ready: return
-        case .failed(let at) where Date().timeIntervalSince(at) < Self.retryInterval: return
-        default: break
-        }
-        guard let loader, let url = source.url(key) else {
-            sources[key] = .failed(at: Date())
-            return
-        }
-        let contentType = source.contentType
-        let keeps = source.keeps
-        let layer = layer
-        let generation = sourceGeneration
-        let device = device
-        let work = Task.detached(priority: .utility) { () -> DecodedTile? in
-            guard let data = await loader(TileRequest(url: url, contentType: contentType, headers: [:], keeps: keeps)) else {
-                return nil
-            }
-            return Self.decode(data, device: device).map(DecodedTile.init)
-        }
-        sources[key] = .loading(work)
-        Task {
-            let texture = await work.value?.texture
-            // A tile of a base map no longer shown, or cancelled as flown past, is dropped.
-            guard generation == sourceGeneration, case .loading(let current) = sources[key], current == work else {
-                return
-            }
-            if texture == nil {
-                log.error("Tile \(key, privacy: .public) of \(layer.rawValue, privacy: .public) unavailable")
-            }
-            sources[key] = texture.map { .ready($0, lastUsed: frame) } ?? .failed(at: Date())
-            revision += 1
-            if texture != nil {
-                markForBake(covering: key)
-            } else {
-                // Asked for again once the retry interval is up, by baking again
-                // the tiles still missing it: nothing else would, and they would
-                // keep their stand-ins after the network came back.
-                Task {
-                    try? await Task.sleep(for: .seconds(Self.retryInterval))
-                    guard generation == sourceGeneration, case .failed = sources[key] else {
-                        return
-                    }
-                    markForBake(covering: key)
-                    revision += 1
-                }
-            }
-        }
-    }
-
-    /// Tiles that wanted a source tile, or would draw it or one of its descendants.
-    private func markForBake(covering key: TileKey) {
-        markForBake(covering: source.projection.bounds(key))
-    }
-
-    private func markForBake(covering bounds: Bounds) {
-        for tile in tiles.values where !tile.isComplete && overlaps(tile.bounds, bounds) {
-            tile.needsBake = true
-        }
-    }
-
-    /// Draws `overlay`'s tiles over `tile` with `draw`, asking for those it lacks and
-    /// drawing meanwhile the last frame's, or else the nearest ancestor that has
-    /// loaded. False while any is missing.
-    private func lay(_ overlay: Overlay, over tile: Tile, draw: (MTLTexture, Bounds, Projection) -> Void) -> Bool {
-        var area = tile.bounds
-        if let limits = overlay.limits {
-            area = Bounds(
-                west: max(area.west, limits.west), south: max(area.south, limits.south), east: min(area.east, limits.east), north: min(area.north, limits.north))
-            guard area.west < area.east, area.south < area.north else {
-                return true
-            }
-        }
-        let projection = overlay.source.projection
+    /// Draws `sources`' tiles at `level` over `area` with `draw`, asking for those it
+    /// lacks and drawing meanwhile `previous`'s, or else the nearest ancestor that
+    /// has loaded, unless told no `standIns`. False while any is missing.
+    private func lay(
+        _ sources: SourceTiles, over area: Bounds, level: Int, previous: [TileKey: MTLTexture] = [:], standIns: Bool = true,
+        draw: (MTLTexture, Bounds, Projection) -> Void
+    ) -> Bool {
+        let projection = sources.source.projection
         var complete = true
-        for key in projection.covering(area, level: overlay.source.level(forSurface: tile.key.level)) {
-            if case .ready(let texture, _) = overlay.sources[key] {
-                overlay.sources[key] = .ready(texture, lastUsed: frame)
+        for key in projection.covering(area, level: level) {
+            if case .ready(let texture, _) = sources.tiles[key] {
+                sources.tiles[key] = .ready(texture, lastUsed: frame)
                 draw(texture, projection.bounds(key), projection)
                 continue
             }
-            request(key, of: overlay)
-            if case .ready = overlay.sources[key] {
-            } else {
-                complete = false
+            request(key, of: sources)
+            complete = false
+            guard standIns else {
+                continue
             }
-            if let texture = overlay.previous[key] {
+            if let texture = previous[key] {
                 draw(texture, projection.bounds(key), projection)
                 continue
             }
             var ancestor = key.parent
             while let candidate = ancestor {
-                if case .ready(let texture, _) = overlay.sources[candidate] {
-                    overlay.sources[candidate] = .ready(texture, lastUsed: frame)
+                if case .ready(let texture, _) = sources.tiles[candidate] {
+                    // In use, as a stand-in: evicted, the tile baked again while its
+                    // own source is still missing would have none.
+                    sources.tiles[candidate] = .ready(texture, lastUsed: frame)
                     draw(texture, projection.bounds(candidate), projection)
                     break
                 }
-                if let texture = overlay.previous[candidate] {
+                if let texture = previous[candidate] {
                     draw(texture, projection.bounds(candidate), projection)
                     break
                 }
@@ -737,50 +670,59 @@ final class Surface {
         return complete
     }
 
-    /// Starts loading a tile of `overlay`'s frame, unless it is loading, loaded, or
-    /// failed in the last minute.
-    private func request(_ key: TileKey, of overlay: Overlay) {
-        switch overlay.sources[key] {
+    /// Starts loading a source tile, unless it is loading, loaded, or failed in the
+    /// last minute.
+    private func request(_ key: TileKey, of sources: SourceTiles) {
+        switch sources.tiles[key] {
         case .loading, .ready: return
         case .failed(let at) where Date().timeIntervalSince(at) < Self.retryInterval: return
         default: break
         }
-        guard let loader, let url = overlay.source.url(key) else {
-            overlay.sources[key] = .failed(at: Date())
+        guard let loader, let url = sources.source.url(key) else {
+            sources.tiles[key] = .failed(at: Date())
             return
         }
-        let contentType = overlay.source.contentType
-        let generation = overlay.generation
+        let request = TileRequest(url: url, contentType: sources.source.contentType, headers: [:], keeps: sources.source.keeps)
         let device = device
         let work = Task.detached(priority: .utility) { () -> DecodedTile? in
-            guard let data = await loader(TileRequest(url: url, contentType: contentType, headers: [:])) else {
+            guard let data = await loader(request) else {
                 return nil
             }
             return Self.decode(data, device: device).map(DecodedTile.init)
         }
-        overlay.sources[key] = .loading(work)
+        sources.tiles[key] = .loading(work)
+        let bounds = sources.source.projection.bounds(key)
         Task {
             let texture = await work.value?.texture
-            guard generation == overlay.generation, case .loading(let current) = overlay.sources[key], current == work else {
+            // Dropped once cancelled, as flown past or of a map no longer shown.
+            guard case .loading(let current) = sources.tiles[key], current == work else {
                 return
             }
             if texture == nil {
-                log.error("Tile \(key, privacy: .public) of \(overlay.imagery.layer.token, privacy: .public) unavailable")
+                log.error("Tile \(key, privacy: .public) of \(sources.name, privacy: .public) unavailable")
             }
-            overlay.sources[key] = texture.map { .ready($0, lastUsed: frame) } ?? .failed(at: Date())
+            sources.tiles[key] = texture.map { .ready($0, lastUsed: frame) } ?? .failed(at: Date())
             revision += 1
-            let bounds = overlay.source.projection.bounds(key)
             markForBake(covering: bounds)
             guard texture == nil else {
                 return
             }
-            // Asked for again once the retry interval is up, as a base map's tile is.
+            // Asked for again once the retry interval is up, by baking again the
+            // tiles still missing it: nothing else would, and they would keep their
+            // stand-ins after the network came back.
             try? await Task.sleep(for: .seconds(Self.retryInterval))
-            guard generation == overlay.generation, case .failed = overlay.sources[key] else {
+            guard case .failed = sources.tiles[key] else {
                 return
             }
             markForBake(covering: bounds)
             revision += 1
+        }
+    }
+
+    /// Tiles that wanted a source tile, or would draw it or one of its descendants.
+    private func markForBake(covering bounds: Bounds) {
+        for tile in tiles.values where !tile.isComplete && overlaps(tile.bounds, bounds) {
+            tile.needsBake = true
         }
     }
 
@@ -874,27 +816,22 @@ final class Surface {
                 tiles[tile.key] = nil
             }
         }
-        let ready = sources.compactMap { key, state -> (TileKey, Int)? in
-            if case .ready(_, let used) = state { (key, used) } else { nil }
-        }
-        if ready.count > Self.maximumSources {
-            for (key, _) in ready.sorted(by: { $0.1 < $1.1 }).prefix(ready.count - Self.maximumSources) {
-                sources[key] = nil
-            }
-        }
-        for overlay in overlays {
-            let ready = overlay.sources.compactMap { key, state -> (TileKey, Int)? in
-                if case .ready(_, let used) = state, !Self.isStandIn(key, of: overlay.source) { (key, used) } else { nil }
+        for sources in allSources {
+            let ready = sources.tiles.compactMap { key, state -> (TileKey, Int)? in
+                if case .ready(_, let used) = state, !(sources.keepsStandIns && Self.isStandIn(key, of: sources.source)) { (key, used) } else { nil }
             }
             for (key, _) in ready.sorted(by: { $0.1 < $1.1 }).prefix(max(ready.count - Self.maximumSources, 0)) {
-                overlay.sources[key] = nil
+                sources.tiles[key] = nil
             }
-            // A frame is whole once nothing waits on the last one's tiles.
-            if !tiles.values.contains(where: { !$0.isComplete && $0.lastUsed >= frame - 60 }) {
+        }
+        let waiting = tiles.values.filter { !$0.isComplete && $0.lastWanted >= frame - 60 }.map(\.key)
+        // A frame is whole once nothing in view waits on the last one's tiles.
+        if waiting.isEmpty {
+            for overlay in overlays {
                 overlay.previous = [:]
             }
         }
-        evictSources()
+        evictSources(waiting: waiting)
         evictTerrain()
     }
 
@@ -907,13 +844,12 @@ final class Surface {
             }
             tiles[tile.key] = nil
         }
-        sources = sources.filter { _, state in
-            if case .ready = state { false } else { true }
-        }
-        for overlay in overlays {
-            overlay.sources = overlay.sources.filter { _, state in
+        for sources in allSources {
+            sources.tiles = sources.tiles.filter { _, state in
                 if case .ready = state { false } else { true }
             }
+        }
+        for overlay in overlays {
             overlay.previous = [:]
         }
         terrainTiles = terrainTiles.filter { key, state in
@@ -925,36 +861,29 @@ final class Surface {
     /// The tiles kept, textured or not.
     var tileCount: Int { tiles.count }
 
-    /// Cancels the source tiles nothing drawn in the last second is waiting for,
-    /// so that a fast pan or zoom does not leave hundreds of requests for tiles
-    /// flown past to be sent, as the terrain's are cancelled; and forgets the
-    /// failures past their retry interval, which are asked for again anyway.
-    private func evictSources() {
-        let waiting = tiles.values.filter { !$0.isComplete && $0.lastWanted >= frame - 60 }.map(\.key)
-        for overlay in overlays {
-            for case (let key, .loading(let work)) in overlay.sources {
-                let bounds = overlay.source.projection.bounds(key)
-                if !Self.isWanted(key, of: overlay.source, by: waiting) {
+    /// The base map's source tiles and each overlay's.
+    private var allSources: [SourceTiles] {
+        [baseMap] + overlays.map(\.sources)
+    }
+
+    /// Cancels the source tiles none of the tiles `waiting` in view asks for, so
+    /// that a fast pan or zoom does not leave hundreds of requests for tiles flown
+    /// past to be sent, as the terrain's are cancelled; and forgets the failures
+    /// past their retry interval, which are asked for again anyway.
+    private func evictSources(waiting: [TileKey]) {
+        for sources in allSources {
+            for (key, state) in sources.tiles {
+                switch state {
+                case .loading(let work) where !Self.isWanted(key, of: sources.source, by: waiting):
                     work.cancel()
-                    overlay.sources[key] = nil
-                    markForBake(covering: bounds)
+                    sources.tiles[key] = nil
+                case .failed(let at) where Date().timeIntervalSince(at) >= Self.retryInterval:
+                    sources.tiles[key] = nil
+                default:
+                    continue
                 }
-            }
-        }
-        for (key, state) in sources {
-            switch state {
-            case .loading(let work):
-                if !Self.isWanted(key, of: source, by: waiting) {
-                    work.cancel()
-                    sources[key] = nil
-                    // Baked again when next drawn, which asks for it again.
-                    markForBake(covering: key)
-                }
-            case .failed(let at) where Date().timeIntervalSince(at) >= Self.retryInterval:
-                sources[key] = nil
-                markForBake(covering: key)
-            default:
-                break
+                // Baked again when next drawn, which asks for it again.
+                markForBake(covering: sources.source.projection.bounds(key))
             }
         }
     }
