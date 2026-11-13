@@ -53,16 +53,18 @@ for a link alone. Most rows are empty, so it sits at the end rather than parting
 from the orbit. It sorts the satellites with imagery first, and a press on a mark selects the
 satellite at its Imagery tab, as the Instruments tab's imagery button does.
 
-**The Map panel lists every layer, in groups, one open at a time.** Under the overlays,
-"Satellite imagery" holds four groups: weather satellites (a frame every few minutes),
-polar orbiters (daily), ended missions, and viewer links, which open the provider's viewer.
-Until the user opens or closes one, the open group is the first with a layer on, so a layer
+**The Map panel lists every layer the globe can draw, in groups, one open at a time.**
+Under the overlays, "Satellite imagery" holds three groups: weather satellites (a frame
+every few minutes), polar orbiters (daily) and ended missions. Until the user opens or
+closes one, the open group is the first with a layer on, so a layer
 shown from the Imagery tab or a link can be taken off where it is listed. A group's row
 says how many of its layers are on.
 
 - The group is chosen by the entry's period (`imageryLayers` in
   `src/config/instrumentImagery.ts`): today that tells the geostationary imagers from the
   polar orbiters' mosaics. A layer that stopped is ended whatever its period.
+- An entry with a viewer link alone is not listed: the satellite's Imagery tab has it, and
+  a fourth group of links was a second place for it in a panel of what the map draws.
 - A row names the satellite first, "GOES 19 · GeoColor", so a narrow panel cuts the picture's
   name, not the satellite's.
 - The list is read off the records, so opening the Map panel loads every group, as opening

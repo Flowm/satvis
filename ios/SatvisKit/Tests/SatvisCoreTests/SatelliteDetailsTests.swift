@@ -179,9 +179,8 @@ import Testing
             record("TERRA", [.object(daily), .object(ended)]), record("GOES 19", [.object(geoColor)]), record("SENTINEL-2A", [.object(scenes)]),
         ])
         #expect(
-            listings.map { [$0.satellite, $0.imagery.label, $0.group.rawValue, $0.token ?? "-"] } == [
+            listings.map { [$0.satellite, $0.imagery.label, $0.group.rawValue, $0.token] } == [
                 ["GOES 19", "GeoColor", "weather", "gibs:GOES-East_ABI_GeoColor"],
-                ["SENTINEL-2A", "True colour scenes", "viewer", "-"],
                 ["TERRA", "True colour", "polar", "gibs:MODIS_Terra_CorrectedReflectance_TrueColor"],
                 ["TERRA", "True colour, nadir camera", "ended", "gibs:MISR_AM1_Ellipsoid_Radiance_RGB_AN"],
             ])

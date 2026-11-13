@@ -522,10 +522,10 @@ private struct SatelliteImagerySection: View {
 
     var body: some View {
         let listings = SatelliteDetails.imageryListings(catalog.catalog.entries.values.map(\.record))
-        let listed = Set(listings.compactMap(\.token))
+        let listed = Set(listings.map(\.token))
         let groups = Listing.Group.allCases.compactMap { key -> (key: Listing.Group, layers: [Listing], shown: Int)? in
             let layers = listings.filter { $0.group == key }
-            return layers.isEmpty ? nil : (key, layers, layers.filter { $0.token.map(imagery.isShown) ?? false }.count)
+            return layers.isEmpty ? nil : (key, layers, layers.filter { imagery.isShown($0.token) }.count)
         }
         let open = chosen ?? groups.first { $0.shown > 0 }?.key
         // Before the list arrives, or while its record has not loaded, so that a layer on
@@ -591,25 +591,10 @@ private struct SatelliteImagerySection: View {
         }
     }
 
-    /// A layer the globe draws as a switch, any other as a link to its viewer, named
-    /// satellite first, "GOES 19 · GeoColor", so that a narrow panel cuts the picture's
-    /// name; "METEOSAT-12", not "METEOSAT-12 (MTG-I1)".
-    @ViewBuilder private func row(_ layer: Listing, open: Listing.Group?) -> some View {
-        let name = "\(layer.satellite.replacing(/\s*\(.*\)$/, with: "")) · \(layer.imagery.label)"
-        if let token = layer.token {
-            Toggle(name, isOn: shown(token, open: open))
-        } else if let href = URL(string: layer.imagery.href) {
-            Link(destination: href) {
-                PanelRow {
-                    Image(systemName: "arrow.up.right.square")
-                        .foregroundStyle(.secondary)
-                } title: {
-                    Text(name).foregroundStyle(.secondary)
-                }
-            }
-            .buttonStyle(PanelRowStyle())
-            .accessibilityHint("Opens it in \(layer.imagery.viewer)")
-        }
+    /// A layer's switch, named satellite first, "GOES 19 · GeoColor", so that a narrow
+    /// panel cuts the picture's name; "METEOSAT-12", not "METEOSAT-12 (MTG-I1)".
+    private func row(_ layer: Listing, open: Listing.Group?) -> some View {
+        Toggle("\(layer.satellite.replacing(/\s*\(.*\)$/, with: "")) · \(layer.imagery.label)", isOn: shown(layer.token, open: open))
     }
 
     /// Whether the layer `token` names is on the globe, and a switch's way to set it,
@@ -630,7 +615,6 @@ private struct SatelliteImagerySection: View {
         case .weather: "Weather satellites"
         case .polar: "Polar orbiters"
         case .ended: "Ended missions"
-        case .viewer: "Viewer links"
         }
     }
 
@@ -641,7 +625,6 @@ private struct SatelliteImagerySection: View {
         case .weather: "dot.radiowaves.left.and.right"
         case .polar: "calendar"
         case .ended: "archivebox"
-        case .viewer: "arrow.up.right.square"
         }
     }
 }

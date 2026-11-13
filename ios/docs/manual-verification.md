@@ -727,14 +727,14 @@ instrument with imagery.
 ## Native app: the Map panel's satellite imagery
 
 **Procedure.** Open the Map panel on an iPhone and an iPad, with no layer on. Check
-that "Satellite imagery" lists Weather satellites, Polar orbiters, Ended missions and
-Viewer links, each with its icon and its count of layers, all closed, and that the
+that "Satellite imagery" lists Weather satellites, Polar orbiters and Ended missions,
+each with its icon and its count of layers, all closed, and no viewer link, and that the
 names fit, "Weather satellites" on two lines. Open Polar orbiters: its layers list
 under it, "TERRA · True colour" with the satellite's name first. Switch one on: the
 globe draws it, the group's count reads "1 on" in cyan and the group stays open.
 Switch it off: the group stays open too. Open Weather satellites: Polar orbiters
 closes. Launch on a link with `imagery=`: the group with that layer opens on its own.
-A Viewer links row opens the provider's viewer. Turn the network off before the first
+Turn the network off before the first
 open of the panel for "Loading the imagery list…" until the catalog arrives. With a
 layer on, zoom far out and back in, then switch it off: the globe shows the base map
 alone. On METEOSAT-12's GeoColour over Black Marble, pinch in three times and out

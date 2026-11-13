@@ -17,16 +17,10 @@
       <UIcon :name="openGroup === group.key ? 'lucide:chevron-up' : 'lucide:chevron-down'" class="imageryGroup__chevron" />
     </button>
     <template v-if="openGroup === group.key">
-      <template v-for="layer in group.layers" :key="layer.key">
-        <label v-if="layer.token" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert }" :title="titleOf(layer)">
-          <input type="checkbox" :checked="isShown(layer)" @change="cesiumStore.toggleInstrumentImagery(layer.token, ($event.target as HTMLInputElement).checked)" />
-          {{ shortName(layer.satellite) }} · {{ layer.label }}
-        </label>
-        <a v-else class="toolbarPlace imageryGroup__link" :href="layer.href" target="_blank" rel="noopener" :title="titleOf(layer)">
-          <UIcon name="lucide:external-link" class="toolbarPlace__icon" />
-          <span class="toolbarPlace__label">{{ shortName(layer.satellite) }} · {{ layer.label }}</span>
-        </a>
-      </template>
+      <label v-for="layer in group.layers" :key="layer.key" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert }" :title="titleOf(layer)">
+        <input type="checkbox" :checked="isShown(layer)" @change="cesiumStore.toggleInstrumentImagery(layer.token, ($event.target as HTMLInputElement).checked)" />
+        {{ shortName(layer.satellite) }} · {{ layer.label }}
+      </label>
     </template>
   </template>
 </template>
@@ -52,14 +46,12 @@ const GROUP_TITLE: Record<ImageryGroup, string> = {
   weather: "Weather satellites",
   polar: "Polar orbiters",
   ended: "Ended missions",
-  viewer: "Viewer links",
 };
 /** Weather satellites have a frame every few minutes, polar orbiters one a day. */
 const GROUP_ICON: Record<ImageryGroup, string> = {
   weather: "lucide:radio",
   polar: "lucide:calendar-days",
   ended: "lucide:archive",
-  viewer: "lucide:external-link",
 };
 
 const { sats } = useController();
@@ -86,11 +78,11 @@ watch(
 );
 
 /** It is on the globe. */
-const isShown = (layer: ImageryLayer) => layer.token !== undefined && cesiumStore.instrumentImagery.includes(layer.token);
+const isShown = (layer: ImageryLayer) => cesiumStore.instrumentImagery.includes(layer.token);
 /** "METEOSAT-12", not "METEOSAT-12 (MTG-I1)": the row is narrow, its title has the whole name. */
 const shortName = (name: string) => name.replace(/\s*\(.*\)$/, "");
-/** The row's tooltip: the whole satellite name, the instrument, when it has frames, and its viewer. */
-const titleOf = (layer: ImageryLayer) => [[layer.satellite, layer.instrument].filter(Boolean).join(" "), layer.label, layer.detail, layer.viewer].filter(Boolean).join(" · ");
+/** The row's tooltip: the whole satellite name, the instrument and when it has frames. */
+const titleOf = (layer: ImageryLayer) => [[layer.satellite, layer.instrument].filter(Boolean).join(" "), layer.label, layer.detail].filter(Boolean).join(" · ");
 
 /** The groups that have a layer, each with how many of its layers are on. */
 const groups = computed(() =>
@@ -123,10 +115,6 @@ function toggleGroup(key: ImageryGroup): void {
 
 .imageryGroup__chevron {
   flex: none;
-  color: var(--panel-muted);
-}
-
-.imageryGroup__link {
   color: var(--panel-muted);
 }
 
