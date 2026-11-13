@@ -274,6 +274,7 @@ const {
   pickedPassMs,
   pickPass,
   preferredTab,
+  infoCollapsed: collapsed,
   groundStationAvailable,
   elements,
   staleNotice,
@@ -357,9 +358,6 @@ const tabs = computed(() => {
  * and an uncontrolled UTabs keeps a tab the new selection lacks (a ground station has no Orbit).
  */
 const resolvedTab = computed<InfoTab>(() => (tabs.value.some((item) => item.value === preferredTab.value) ? preferredTab.value : (tabs.value[0]?.value ?? "passes")));
-
-/** Pressing the active tab folds the body away; the selection stays. */
-const collapsed = ref(false);
 
 // The panel is not remounted between entities, so a new selection unfolds it here.
 watch(selection, () => {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { drawnImagery, imageryDetail, imageryPreviewUrl } from "./instrumentImagery";
+import { drawnImagery, imageryDetail, imageryLayers, imageryPreviewUrl } from "./instrumentImagery";
 
 describe("imageryDetail", () => {
   test.each([
@@ -91,5 +91,49 @@ describe("imageryPreviewUrl", () => {
     const url = imageryPreviewUrl({ provider: "eumetview", layer: "mtg_fd:rgb_geocolour", format: "png", daily: false }, { latitude: 0, longitude: 0 }, 72, now);
     expect(url.startsWith("https://view.eumetsat.int/geoserver/ows?")).toBe(true);
     expect(params(url)).toMatchObject({ LAYERS: "mtg_fd:rgb_geocolour", FORMAT: "image/png", TRANSPARENT: "TRUE" });
+  });
+});
+
+describe("imageryLayers", () => {
+  const geoColor = { instrument: "ABI", provider: "gibs", layer: "GOES-East_ABI_GeoColor", label: "GeoColor", kind: "rgb", period: "PT10M", maxLevel: 7, format: "png" };
+  const daily = {
+    instrument: "MODIS",
+    provider: "gibs",
+    layer: "MODIS_Terra_CorrectedReflectance_TrueColor",
+    label: "True colour",
+    kind: "rgb",
+    period: "P1D",
+    maxLevel: 9,
+    format: "jpeg",
+  };
+  const ended = { ...daily, layer: "MISR_AM1_Ellipsoid_Radiance_RGB_AN", instrument: "MISR", label: "True colour, nadir camera", end: "2022-10-12" };
+  const scenes = { instrument: "MSI", provider: "copernicus-browser", layer: "S2_L2A", label: "True colour scenes", kind: "rgb" };
+
+  test("groups the layers by how often they have frames, the links apart, by satellite name", () => {
+    const layers = imageryLayers([
+      { name: "TERRA", satnum: "25994", metadata: { imagery: [daily, ended] } },
+      { name: "GOES 19", satnum: "60133", metadata: { imagery: [geoColor] } },
+      { name: "SENTINEL-2A", satnum: "40697", metadata: { imagery: [scenes] } },
+    ]);
+    expect(layers.map((layer) => [layer.satellite, layer.label, layer.group, layer.token])).toEqual([
+      ["GOES 19", "GeoColor", "weather", "gibs:GOES-East_ABI_GeoColor"],
+      ["SENTINEL-2A", "True colour scenes", "viewer", undefined],
+      ["TERRA", "True colour", "polar", "gibs:MODIS_Terra_CorrectedReflectance_TrueColor"],
+      ["TERRA", "True colour, nadir camera", "ended", "gibs:MISR_AM1_Ellipsoid_Radiance_RGB_AN"],
+    ]);
+    expect(layers[0]).toMatchObject({ detail: "every 10 min", viewer: "NASA Worldview", href: "https://worldview.earthdata.nasa.gov/?l=GOES-East_ABI_GeoColor" });
+  });
+
+  test("lists a satellite's layer once, however many groups carry it, and leaves out an entry the Imagery tab would", () => {
+    const layers = imageryLayers([
+      { name: "GOES 19", satnum: "60133", metadata: { imagery: [geoColor] } },
+      {
+        name: "GOES 19",
+        satnum: "60133",
+        metadata: { imagery: [geoColor, { ...geoColor, provider: "elsewhere" }, { ...geoColor, layer: 7 }, { ...geoColor, layer: "No_Instrument", instrument: undefined }, null] },
+      },
+      { name: "NO IMAGERY", satnum: "1", metadata: {} },
+    ]);
+    expect(layers.map((layer) => layer.key)).toEqual(["60133:gibs:GOES-East_ABI_GeoColor"]);
   });
 });

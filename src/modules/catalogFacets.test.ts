@@ -4,6 +4,7 @@ import type { SatelliteMetadata } from "@/config/satelliteMetadata";
 import type { GpRecord } from "@/modules/util/gp";
 
 import {
+  AVAILABILITY,
   type CatalogFilter,
   type CatalogRow,
   catalogRows,
@@ -15,6 +16,7 @@ import {
   facetItems,
   filterChips,
   formatLocalTime,
+  kindFamilyOf,
   leavesByParent,
   NO_PROGRAM,
   parseOrbitLeaf,
@@ -49,6 +51,29 @@ function record(name: string, satnum: number, elements: { meanMotion?: number; i
   };
 }
 
+/** An optical imager and a spectro-radiometer, both linked at the Copernicus Browser, and an instrument of no stated kind. */
+const IMAGER_INSTRUMENTS: SatelliteMetadata = {
+  instruments: [
+    { name: "MSI", kind: "High resolution optical imager", bands: ["VIS", "NIR", "SWIR"] },
+    { name: "OLCI", kind: "Medium-resolution spectro-radiometer", bands: ["VIS", "NIR"] },
+    { name: "NEW", kind: "TBD" },
+  ],
+  imagery: [{ instrument: "MSI", provider: "copernicus-browser", layer: "S2_L2A", label: "True colour scenes", kind: "rgb" }],
+};
+
+/** A weather imager the globe draws, also linked elsewhere, and a lightning imager, on a satellite with a 3D model. */
+const GEOSAT_INSTRUMENTS: SatelliteMetadata = {
+  instruments: [
+    { name: "ABI", kind: "Multi-purpose imaging Vis/IR radiometer", bands: ["VIS", "NIR", "MWIR", "TIR"] },
+    { name: "GLM", kind: "Lightning imager", bands: ["NIR"] },
+  ],
+  imagery: [
+    { instrument: "ABI", provider: "gibs", layer: "GOES-East_ABI_GeoColor", label: "GeoColor", kind: "rgb", period: "PT10M", maxLevel: 7, format: "png" },
+    { instrument: "ABI", provider: "copernicus-browser", layer: "GOES_SCENES", label: "Scenes", kind: "rgb" },
+  ],
+  model: { file: "goes.glb" },
+};
+
 /** Four LEO satellites (two Starlink shells, an SSO imager, one GCAT lacks) and a GEO. */
 function rows(): CatalogRow[] {
   const catalog = new SatelliteCatalog();
@@ -60,14 +85,14 @@ function rows(): CatalogRow[] {
         "IMAGER",
         3,
         { inclination: 97.4, epoch: "2026-09-01T00:00:00.000000" },
-        { opOrbit: "LEO/S", program: "Sentinel", category: "IMG", country: "ESA", launchDate: "2019-01-01", massKg: 1200 },
+        { opOrbit: "LEO/S", program: "Sentinel", category: "IMG", country: "ESA", launchDate: "2019-01-01", massKg: 1200, ...IMAGER_INSTRUMENTS },
       ),
       record("NEWBIE", 4, { inclination: 97.6, node: 150 }, {}),
     ],
     ["Active"],
   );
   catalog.addRecords(
-    [record("GEOSAT", 5, { meanMotion: 1.0027, inclination: 0.05 }, { opOrbit: "GEO/S", category: "COM", country: "USA", launchDate: "2019-05-01" })],
+    [record("GEOSAT", 5, { meanMotion: 1.0027, inclination: 0.05 }, { opOrbit: "GEO/S", category: "COM", country: "USA", launchDate: "2019-05-01", ...GEOSAT_INSTRUMENTS })],
     ["Active", "GEO"],
   );
   return catalogRows(catalog.entries, new Set(), NOW);
@@ -113,6 +138,29 @@ describe("catalogRows", () => {
       ["MY COPY", [CUSTOM_TAG]],
       ["REAL NAME", ["Weather"]],
     ]);
+  });
+
+  test("reads the bands, kinds and data availability off the instruments and imagery", () => {
+    const [starlink, , imager, , geo] = rows();
+    expect(starlink).toMatchObject({ bands: [], kinds: [], availability: [], imagery: undefined });
+    expect(imager).toMatchObject({
+      bands: ["VIS", "NIR", "SWIR"],
+      kinds: ["Optical imagers|High resolution optical imager", "Optical imagers|Medium-resolution spectro-radiometer", "Other|Not stated"],
+      availability: [AVAILABILITY.imagery, AVAILABILITY.linkOnly, AVAILABILITY.instruments],
+      imagery: "link",
+    });
+    expect(geo).toMatchObject({ availability: [AVAILABILITY.imagery, AVAILABILITY.mapLayer, AVAILABILITY.instruments, AVAILABILITY.model], imagery: "layer" });
+  });
+
+  test("reads no imagery off entries the Imagery tab leaves out, and skips an instrument that is not an object", () => {
+    const catalog = new SatelliteCatalog();
+    const metadata = {
+      instruments: [null, { name: "MSI", kind: "Lightning imager" }],
+      imagery: [null, { provider: "gibs", layer: "X", label: "X", kind: "rgb" }],
+    } as unknown as SatelliteMetadata;
+    catalog.addRecords([record("ODD", 9, {}, metadata)], ["Weather"]);
+    const [row] = catalogRows(catalog.entries, new Set(), NOW);
+    expect(row).toMatchObject({ kinds: ["Lightning|Lightning imager"], availability: [AVAILABILITY.instruments], imagery: undefined });
   });
 
   test("measures altitude from the semi-major axis", () => {
@@ -208,7 +256,45 @@ describe("crossfilter", () => {
   });
 });
 
+describe("data availability", () => {
+  test("needs every pick, and counts what adding a value leaves", () => {
+    const all = rows();
+    const imagery = crossfilter(all, filter({ facets: { availability: new Set([AVAILABILITY.imagery]) } }), new Set());
+    expect(imagery.matched.map((row) => row.name)).toEqual(["IMAGER", "GEOSAT"]);
+    expect(imagery.counts.availability.get(AVAILABILITY.model)).toBe(1);
+    expect(imagery.counts.availability.get(AVAILABILITY.imagery)).toBe(2);
+    const withModel = crossfilter(all, filter({ facets: { availability: new Set([AVAILABILITY.imagery, AVAILABILITY.model]) } }), new Set());
+    expect(withModel.matched.map((row) => row.name)).toEqual(["GEOSAT"]);
+  });
+
+  test("counts under the other filters, as every facet does", () => {
+    const { counts } = crossfilter(rows(), filter({ facets: { band: new Set(["SWIR"]) } }), new Set());
+    expect(counts.availability.get(AVAILABILITY.imagery)).toBe(1);
+  });
+});
+
 describe("tree facets", () => {
+  test("counts a satellite once under a kind family, however many of its kinds the family has", () => {
+    const { counts, parentCounts } = crossfilter(rows(), filter(), new Set());
+    const kinds = facetBranches(FACET_BY_KEY.kind, facetItems(FACET_BY_KEY.kind, counts.kind, undefined), parentCounts.kind);
+    expect(kinds.map((branch) => [branch.parent, branch.count, branch.leaves.length])).toEqual([
+      ["Optical imagers", 2, 3],
+      ["Lightning", 1, 1],
+      ["Other", 1, 1],
+    ]);
+  });
+
+  test.each([
+    ["Imaging radar (SAR)", "Radar"],
+    ["Lidar altimeter", "Lidar"],
+    ["Absorption-band MW radiometer/spectrometer", "Microwave radiometers"],
+    ["Limb-scanning MW spectrometer", "Spectrometers and sounders"],
+    ["GNSS radio-occultation receiver", "Positioning and gravity"],
+    ["Something new", "Other"],
+  ])("files the CEOS kind %j under %j", (kind, family) => {
+    expect(kindFamilyOf(kind)).toBe(family);
+  });
+
   test("folds programmes under their constellation, and orbit kinds under their class by inclination", () => {
     const all = rows();
     const { counts } = crossfilter(all, filter(), new Set());

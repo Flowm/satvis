@@ -50,8 +50,8 @@ after Instruments, has a card for each entry: the instrument, a picture of the l
 when it has frames, a Show switch where the globe can draw it, and the link. A press
 anywhere else on such a card does what the switch does. An
 instrument with imagery has a button in the Instruments tab that opens the tab at its
-cards. The Map panel lists what is drawn under its overlays, by label and satellite,
-"GeoColor · GOES 19", so a layer can be taken off without finding its satellite again.
+cards. The Map panel lists every layer under its overlays, in groups, the one with a layer on
+opened first, so a layer can be taken off without finding its satellite again (ADR 0021).
 
 **The picture is one WMS GetMap of the latest frame**, around where the satellite was
 when it was selected, so it does not reload as the satellite moves: yesterday's for a

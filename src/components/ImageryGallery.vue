@@ -27,7 +27,7 @@
             :model-value="isShown(imagery)"
             label="Show"
             size="sm"
-            :aria-label="`Show ${imagery.label} on the globe`"
+            :aria-label="`Show ${imagery.label} as a map layer`"
             @update:model-value="cesiumStore.toggleInstrumentImagery(imagery.token, $event)"
             @click.stop
           />

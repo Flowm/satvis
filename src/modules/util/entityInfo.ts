@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { gcatCategoryLabel, gcatClassLabel } from "@/config/gcatCodes";
-import { drawnImagery, IMAGERY_PROVIDERS, imageryDetail, imageryLink, type ImageryPreview, type SatelliteImagery } from "@/config/instrumentImagery";
+import { type ImageryEntry, type ImageryPreview, readImageryList } from "@/config/instrumentImagery";
 import type { OrbitClass } from "@/config/orbitClass";
 import { satcatLabel, SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, SATCAT_ORBIT_TYPE } from "@/config/satcatCodes";
 import { swathExtentsOf, type SatelliteInstrument, type SatelliteMetadata } from "@/config/satelliteMetadata";
@@ -96,7 +96,7 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
   const status = metadata.opsStatus === undefined ? undefined : satcatLabel(SATCAT_OPS_STATUS, metadata.opsStatus);
   const unusualStatus = metadata.opsStatus !== undefined && UNREMARKABLE_STATUS.has(metadata.opsStatus) ? undefined : status;
   const chips = [regime, metadata.country, unusualStatus].filter((chip): chip is string => chip !== undefined);
-  const imagery = (Array.isArray(metadata.imagery) ? (metadata.imagery as unknown[]) : []).flatMap((entry) => instrumentImagery(entry) ?? []);
+  const imagery = readImageryList(metadata.imagery).map(instrumentImagery);
   return {
     orbitClass,
     chips,
@@ -107,37 +107,13 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
   };
 }
 
-/**
- * Undefined for an entry without the fields a link needs, or of a provider this app
- * does not know. Read as the native app's `SatelliteDetails.imagery` reads it.
- */
-function instrumentImagery(entry: unknown): InstrumentImagery | undefined {
-  if (typeof entry !== "object" || entry === null) {
-    return undefined;
-  }
-  const { instrument, provider, layer, label, ...rest } = entry as Record<keyof SatelliteImagery, unknown>;
-  if (typeof instrument !== "string" || typeof provider !== "string" || typeof layer !== "string" || typeof label !== "string" || !Object.hasOwn(IMAGERY_PROVIDERS, provider)) {
-    return undefined;
-  }
-  const text = (value: unknown) => (typeof value === "string" ? value : undefined);
-  const end = text(rest.end);
-  const detail = imageryDetail({
-    period: text(rest.period),
-    start: text(rest.start),
-    end,
-    window: text(rest.window),
-    ...(rest.merged === true && { merged: true }),
-  });
-  const known = IMAGERY_PROVIDERS[provider]!;
-  const drawn = drawnImagery(entry);
+/** What the Imagery tab shows of an entry, under its instrument. */
+function instrumentImagery({ instrument, label, detail, viewer, href, drawn, end }: ImageryEntry): InstrumentImagery {
   const drawing =
     drawn === undefined
       ? {}
       : { token: drawn.token, preview: { provider: drawn.provider, layer: drawn.layer, format: drawn.format, daily: drawn.daily, ...(end !== undefined && { end }) } };
-  return {
-    instrument,
-    imagery: { label, ...(detail !== undefined && { detail }), viewer: known.viewer, href: imageryLink(known, layer, end), ...drawing },
-  };
+  return { instrument, imagery: { label, ...(detail !== undefined && { detail }), viewer, href, ...drawing } };
 }
 
 /**

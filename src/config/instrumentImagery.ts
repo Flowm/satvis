@@ -192,3 +192,105 @@ export function imageryPreviewUrl(preview: ImageryPreview, centre: PreviewCentre
   }
   return `${GIBS_WMS}?${query}`;
 }
+
+/**
+ * A record's `imagery` entry, read as the native app's `SatelliteDetails.imagery` reads it:
+ * what the catalog, the Map panel and the Imagery tab each take of it.
+ */
+export interface ImageryEntry {
+  instrument: string;
+  /** A key of IMAGERY_PROVIDERS. */
+  provider: string;
+  layer: string;
+  label: string;
+  period?: string;
+  end?: string;
+  /** When it has frames, in words (imageryDetail). */
+  detail?: string;
+  /** The provider's viewer, which `href` opens. */
+  viewer: string;
+  href: string;
+  /** What the globe needs to draw it, where it can. */
+  drawn?: DrawnImagery;
+}
+
+/**
+ * Undefined for an entry without the fields a link needs, or of a provider this app does
+ * not know: a curated row can give any shape.
+ */
+export function readImagery(entry: unknown): ImageryEntry | undefined {
+  if (typeof entry !== "object" || entry === null) {
+    return undefined;
+  }
+  const { instrument, provider, layer, label, ...rest } = entry as Record<keyof SatelliteImagery, unknown>;
+  if (typeof instrument !== "string" || typeof provider !== "string" || typeof layer !== "string" || typeof label !== "string" || !Object.hasOwn(IMAGERY_PROVIDERS, provider)) {
+    return undefined;
+  }
+  const text = (value: unknown) => (typeof value === "string" ? value : undefined);
+  const period = text(rest.period);
+  const end = text(rest.end);
+  const detail = imageryDetail({ period, start: text(rest.start), end, window: text(rest.window), ...(rest.merged === true && { merged: true }) });
+  const known = IMAGERY_PROVIDERS[provider]!;
+  const drawn = drawnImagery(entry);
+  return {
+    instrument,
+    provider,
+    layer,
+    label,
+    ...(period !== undefined && { period }),
+    ...(end !== undefined && { end }),
+    ...(detail !== undefined && { detail }),
+    viewer: known.viewer,
+    href: imageryLink(known, layer, end),
+    ...(drawn !== undefined && { drawn }),
+  };
+}
+
+/** Every entry of a record's `imagery` that reads. */
+export function readImageryList(imagery: unknown): ImageryEntry[] {
+  return (Array.isArray(imagery) ? (imagery as unknown[]) : []).flatMap((entry) => readImagery(entry) ?? []);
+}
+
+/** One layer of one satellite, as the Map panel lists it. */
+export interface ImageryLayer extends Pick<ImageryEntry, "instrument" | "label" | "detail" | "viewer" | "href"> {
+  /** Satnum, provider and layer: unique in the list. */
+  key: string;
+  /** The satellite's name. */
+  satellite: string;
+  /** Where the globe draws it, its token there; a layer without one is a link alone. */
+  token: string | undefined;
+  group: ImageryGroup;
+}
+
+/**
+ * The Map panel's groups of imagery, in its order. A layer's group is by how often it has
+ * frames, which today tells the geostationary weather imagers from the polar orbiters' daily
+ * mosaics; then the layers that stopped, and those the globe cannot draw.
+ */
+export const IMAGERY_GROUPS = ["weather", "polar", "ended", "viewer"] as const;
+/** One of IMAGERY_GROUPS. */
+export type ImageryGroup = (typeof IMAGERY_GROUPS)[number];
+
+/** Every layer the records carry, once per satellite, provider and layer, by satellite name. */
+export function imageryLayers(entries: readonly { name: string; satnum: string; metadata: { imagery?: unknown } }[]): ImageryLayer[] {
+  const layers = new Map<string, ImageryLayer>();
+  for (const { name, satnum, metadata } of entries) {
+    for (const entry of readImageryList(metadata.imagery)) {
+      const key = `${satnum}:${entry.provider}:${entry.layer}`;
+      if (layers.has(key)) continue;
+      const token = entry.drawn?.token;
+      layers.set(key, {
+        key,
+        satellite: name,
+        instrument: entry.instrument,
+        label: entry.label,
+        detail: entry.detail,
+        viewer: entry.viewer,
+        href: entry.href,
+        token,
+        group: token === undefined ? "viewer" : entry.end !== undefined ? "ended" : entry.period?.startsWith("PT") ? "weather" : "polar",
+      });
+    }
+  }
+  return [...layers.values()].toSorted((a, b) => a.satellite.localeCompare(b.satellite, undefined, { numeric: true }) || a.label.localeCompare(b.label));
+}

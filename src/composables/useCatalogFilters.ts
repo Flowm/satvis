@@ -13,6 +13,7 @@ import {
   crossfilter,
   FACET_BY_KEY,
   FACETS,
+  IMAGERY_LEVELS,
   type FacetKey,
   type FilterChip,
   filterChips,
@@ -30,7 +31,7 @@ import { useSatelliteBrowser } from "./useSatelliteBrowser";
 export const SHOW_CAP = 500;
 
 /** The list's sort keys. */
-export type SortKey = "name" | "satnum" | "orbit" | "country" | "launchDate" | "altitudeKm" | "inclinationDeg";
+export type SortKey = "name" | "satnum" | "orbit" | "country" | "launchDate" | "altitudeKm" | "inclinationDeg" | "imagery";
 
 /** Picked values per facet. */
 const pickedFacets = reactive(Object.fromEntries(FACETS.map((def) => [def.key, new Set<string>()])) as Record<FacetKey, Set<string>>);
@@ -68,7 +69,9 @@ const orbitRank = (row: CatalogRow): number => FACET_BY_KEY.orbit.order!.indexOf
 
 /** A row's value for a sort key; undefined sorts last. */
 function sortValue(row: CatalogRow, key: SortKey): string | number | undefined {
-  return key === "orbit" ? orbitRank(row) : row[key];
+  if (key === "orbit") return orbitRank(row);
+  if (key === "imagery") return row.imagery === undefined ? undefined : IMAGERY_LEVELS[row.imagery].rank;
+  return row[key];
 }
 
 /** The catalog sheet's filters, matches and globe actions. */

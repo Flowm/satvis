@@ -43,7 +43,7 @@ test("an instrument's imagery is shown on the globe from its tab, follows the cl
   await panel.getByRole("tab", { name: "Imagery" }).click();
   await expect.poll(() => previews).toEqual([LAYER]);
   const card = panel.getByRole("article", { name: "ABI GeoColor" });
-  const show = card.getByRole("switch", { name: "Show GeoColor on the globe" });
+  const show = card.getByRole("switch", { name: "Show GeoColor as a map layer" });
   await expect(show).not.toBeChecked();
   // The switch sits in the card, which toggles too: a press on it counts once.
   await show.click();
@@ -59,7 +59,7 @@ test("an instrument's imagery is shown on the globe from its tab, follows the cl
   await expect.poll(() => [...new Set(times)]).toEqual(["2026-10-03T16:00:00Z"]);
 
   await openMenu(page, "Map");
-  await menuSwitch(page, "GeoColor · GOES 19").click();
+  await menuSwitch(page, "GOES 19 · GeoColor").click();
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.imageryLayers.length)).toBe(1);
   expect(new URL(page.url()).searchParams.get("imagery")).toBeNull();
   await expect(show).not.toBeChecked();
@@ -70,6 +70,30 @@ test("an instrument's imagery is shown on the globe from its tab, follows the cl
   await expect(show).toBeChecked();
   await card.getByText("every 10 min").click();
   await expect(show).not.toBeChecked();
+});
+
+// Opening the Map panel loads every group, so GOES 19 is listed though the default route leaves it out.
+test("the Map panel lists every layer in groups, one open at a time, and shows one on the globe", async ({ page }) => {
+  const stubGibs = async () => {
+    await page.route("https://gibs.earthdata.nasa.gov/**", (route) =>
+      new URL(route.request().url()).pathname.endsWith("/all.xml")
+        ? route.fulfill({ contentType: "text/xml", body: "<Domains><DimensionDomain><Domain>2026-10-01T00:00:00Z/2026-10-05T23:50:00Z/PT10M</Domain></DimensionDomain></Domains>" })
+        : route.fulfill({ contentType: "image/png", body: PIXEL }),
+    );
+  };
+  await openApp(page, "time=2026-10-03T15:07Z", { setup: stubGibs });
+  await openMenu(page, "Map");
+
+  const weather = page.getByRole("button", { name: /Weather satellites/ });
+  await expect(weather).toHaveAttribute("aria-expanded", "false");
+  await weather.click();
+  await expect(menuSwitch(page, "METEOSAT-12 · True colour")).toBeVisible();
+  await menuSwitch(page, "GOES 19 · GeoColor").click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("imagery")).toBe(`gibs:${LAYER}`);
+  await expect(weather).toContainText("1 on");
+
+  await weather.click();
+  await expect(menuSwitch(page, "GOES 19 · GeoColor")).toBeHidden();
 });
 
 // GOES 19 is in no group the default route loads.
@@ -92,7 +116,7 @@ test("a link's instrument imagery is drawn once its satellite has loaded", async
 
   await expect.poll(() => [...layers]).toEqual([LAYER]);
   await openMenu(page, "Map");
-  await expect(menuSwitch(page, "GeoColor · GOES 19")).toBeChecked();
+  await expect(menuSwitch(page, "GOES 19 · GeoColor")).toBeChecked();
 });
 
 test("a EUMETView layer is drawn by its WMS, at the frame for the clock", async ({ page }) => {
@@ -132,7 +156,7 @@ test("a EUMETView layer is drawn by its WMS, at the frame for the clock", async 
   await expect.poll(() => asked("time")).toEqual(["2026-10-03T16:00:00Z"]);
 
   await openMenu(page, "Map");
-  await expect(menuSwitch(page, "GeoColour · METEOSAT-12 (MTG-I1)")).toBeChecked();
+  await expect(menuSwitch(page, "METEOSAT-12 · GeoColour")).toBeChecked();
 });
 
 // A layer that follows the clock is on the globe only once its service has listed its frames.
@@ -208,7 +232,7 @@ test("showing another layer, or another basemap, asks nothing again of a layer a
   await showInfo(page, "METEOSAT-12 (MTG-I1)");
   const panel = page.locator(".entity-info-panel");
   await panel.getByRole("tab", { name: "Imagery" }).click();
-  await panel.getByRole("switch", { name: "Show GeoColour on the globe" }).click();
+  await panel.getByRole("switch", { name: "Show GeoColour as a map layer" }).click();
   await expect.poll(layerCount).toBe(3);
   await expect.poll(() => asked.eumetViewLists).toBe(1);
 

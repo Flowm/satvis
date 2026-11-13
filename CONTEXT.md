@@ -83,6 +83,11 @@ discussion; sharpen them here when they drift.
   named for a service ("GOES-East") is the imagery of whichever satellite provides it
   now, from the day it took over. Not a
   **basemap** or an **overlay**, which the Map panel draws on the globe.
+- **Data availability**: what satvis has for a satellite: instrument imagery (as a map
+  layer the globe draws, or as a viewer link only), CEOS instruments, a 3D model. A
+  catalog facet whose picks are all-of (`docs/adr/0021-finding-imagery.md`).
+- **Kind family**: one of ten groups of CEOS's instrument **kinds** ("Optical imagers",
+  "Radar"), the instrument kind tree's parents in the catalog sheet. Satvis's, not CEOS's.
 - **Imagery provider**: a service that holds instrument imagery and has its own viewer
   for it (`gibs`, `eumetview`, `copernicus-browser`). A record names it; each app has a
   table of the ones it knows (`src/config/instrumentImagery.ts`). Not
