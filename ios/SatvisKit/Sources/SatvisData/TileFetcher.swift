@@ -24,6 +24,7 @@ public actor TileFetcher {
     private let transport: Transport
     /// Where a dated frame's tiles are stored: the transport's own cache.
     private let cache: URLCache?
+    /// Requests sent to a host at once.
     private let requestsPerHost: Int
     /// Requests sent to each host and not yet answered.
     private var running: [String: Int] = [:]

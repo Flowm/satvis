@@ -748,8 +748,13 @@ TERRA's switch drew the MODIS swaths and showed "1 on". The iPad's panel is as n
 and showed the same. `testDrawsALayerFromTheMapPanel`, `testDrawsTheImageryALinkNames` and
 `testShowsALayerOnTheGlobeFromItsCard` hold the switches, the counts, the group a link
 opens and one group open at a time. The viewer links, the loading text and the Mac
-were not looked at. The groups were then Weather satellites, Polar orbiters and Ended
-missions; the GEO and LEO groups have not been looked at on a screen.
+were not looked at.
+
+**Result, 2026-11-13, GEO and LEO groups.** iPhone 18 Pro simulator, iOS 27.2, test
+catalog, shot by a UI test not kept: GEO satellites with 3 layers (GOES 19, METEOSAT-12's
+two) and LEO satellites with 2, TERRA's stopped MISR layer left out, the names on one
+line. `testNamesAStoppedLayerALinkDraws` holds that a link's stopped layer is switched off
+above the groups by its label. The iPad was not looked at.
 
 **Result, 2026-11-13, tile loading.** iPhone 18 Pro simulator, iOS 27.2, on the test
 catalog with the network on, shot by UI tests not kept, with the overlay tiles logged
@@ -762,3 +767,25 @@ pinch, the way out showed blurred GeoColour sharpening, and the switch left Natu
 Earth alone. MODIS's last tile of the first pinch came after 7.5 s instead of 13.5 s.
 A step back on the timeline kept GeoColour on the globe in each shot a second apart
 until the new frame came.
+
+## Native app: instrument imagery's tile loading
+
+**Procedure.** On the simulator with the network on and an empty app cache, log each tile
+request with its host, whether the cache answered and how long it took (temporary logging
+in `TileFetcher.tile`). Draw METEOSAT-12's GeoColour over Black Marble, 8 hours back, and
+play at 600×: the frames follow the clock, skipping some, rather than holding the first.
+Draw GOES 19's GeoColor: its frames are listed a day either side of the clock, in well under
+a second, and its tiles start once that list arrives. Pinch in three times and out three
+times on METEOSAT-12, then on TERRA's MODIS: tiles are asked for once each pinch settles,
+none for the levels passed through; the base map's tiles arrive while EUMETView's take their
+seconds; a zoom out back to tiles seen before takes them from the cache.
+
+**Result, 2026-11-13.** iPhone 18 Pro simulator, iOS 27.2, Debug, test catalog, live GIBS
+and EUMETView, through UI tests not kept. At 600× METEOSAT-12 moved through the frames from
+09:46 to 16:42, where before it held 08:30 for 40 s (153 of 160 requests cancelled). GOES's
+frame list came in 0.3 s (476 bytes; the whole one is 1 MB, 4.7 s) and its first tiles a
+second after. Per pinch in, MODIS asked for 49, 23 and 12 tiles (126, 76 and 56 before;
+the web asks 39, 21 and 8) and METEOSAT-12 for 19 and 10 (66 and 28 before), with Black
+Marble's tiles answered in a median 0.8 s meanwhile. On the last zoom out 16 MODIS tiles
+came from the cache; the earlier ones settled at levels not loaded on the way in. The 20 s
+limit on a frame that does not finish, and the iPad, were not looked at.

@@ -111,9 +111,11 @@ final class Surface {
     /// its frame. A tile asked for before the map changed is dropped when it arrives,
     /// as one cancelled is.
     private final class SourceTiles {
+        /// Where its tiles come from.
         var source: ImagerySource
         /// Names the map in the log.
         var name: String
+        /// Each tile asked for, loading, loaded or failed.
         var tiles: [TileKey: Source] = [:]
         /// Whether its stand-ins are kept past the budget (`isStandIn`): an overlay's.
         let keepsStandIns: Bool
@@ -234,6 +236,7 @@ final class Surface {
             sources = SourceTiles(imagery.source, name: imagery.layer.token, keepsStandIns: true)
         }
 
+        /// Where the service says the layer ends.
         var limits: Bounds? {
             imagery.bounds.flatMap { $0.count == 4 ? Bounds(west: $0[0], south: $0[1], east: $0[2], north: $0[3]) : nil }
         }

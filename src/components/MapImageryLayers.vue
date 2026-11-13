@@ -1,4 +1,4 @@
-<!-- The Map panel's instrument imagery (ADR 0021): every layer in groups, one group open at a time. -->
+<!-- The Map panel's instrument imagery (ADR 0021): the layers that have not stopped, by orbit, one group open at a time. -->
 <template>
   <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert }">Satellite imagery</div>
   <!-- Shown before the list arrives, or while its record has not loaded, so a layer on the globe can be taken off. -->
@@ -46,6 +46,7 @@ const GROUP_TITLE: Record<ImageryGroup, string> = {
   geo: "GEO satellites",
   leo: "LEO satellites",
 };
+/** A group's mark. */
 const GROUP_ICON: Record<ImageryGroup, string> = {
   geo: "lucide:earth",
   leo: "lucide:orbit",

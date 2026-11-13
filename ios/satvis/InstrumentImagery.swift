@@ -41,6 +41,7 @@ final class InstrumentImagery {
 
     /// A day, in milliseconds.
     private static let day = 86_400_000.0
+    /// An hour, in milliseconds.
     private static let hour = 3_600_000.0
     /// How long after it began a listed day may still be filling in: the day itself,
     /// and the swaths that arrive hours behind.
@@ -48,6 +49,7 @@ final class InstrumentImagery {
     /// How soon a service that could not list its frames is asked again.
     private static let retry: TimeInterval = 60
 
+    /// Whether the layer `token` names is drawn.
     func isShown(_ token: String) -> Bool {
         tokens.contains(token)
     }

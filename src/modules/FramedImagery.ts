@@ -31,7 +31,9 @@ export interface FrameLayers<Layer> {
 
 /** A service's frames, and the times its list covers when it is not all of them. */
 export interface FrameList {
+  /** The frames, sorted. */
   ranges: TimeRange[];
+  /** Epoch milliseconds. */
   covers?: { start: number; end: number };
 }
 
@@ -127,7 +129,7 @@ export function showFramedImagery<Layer>(
 ): FramedImagery<Layer> {
   type Shown = Frame<Layer> & { frame: number | undefined };
   let listing: FrameList | undefined;
-  /** Whether the last ask answered with a list. */
+  // Whether the last ask answered with a list.
   let listed = false;
   let asking = false;
   let shown: Shown | undefined;
