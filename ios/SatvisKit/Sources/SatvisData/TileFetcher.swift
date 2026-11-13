@@ -7,7 +7,9 @@ import Foundation
 /// changes rarely and a stale tile beats a missing one offline; a dated frame's
 /// tile is cached even when its service says not to, as GIBS says of every tile,
 /// for it never changes. A few requests
-/// run at once, newest first, and a request nobody waits for any more is dropped
+/// run at once to each host, newest first, so that a slow one (EUMETView draws a
+/// tile in 4 to 5 s) does not hold up the base map, as a browser's limit per host
+/// keeps it from doing on the web. A request nobody waits for any more is dropped
 /// before it is sent. A host that answers 429 or 503 is left alone for as long as
 /// it asks, 30 s when it does not say: the free tile servers rate-limit the
 /// clients that dominate their traffic.
@@ -22,17 +24,18 @@ public actor TileFetcher {
     private let transport: Transport
     /// Where a dated frame's tiles are stored: the transport's own cache.
     private let cache: URLCache?
-    private let maximumRequests: Int
-    private var running = 0
-    /// Requests waiting their turn, newest last: taken from the end.
-    private var waiting: [CheckedContinuation<Void, Never>] = []
+    private let requestsPerHost: Int
+    /// Requests sent to each host and not yet answered.
+    private var running: [String: Int] = [:]
+    /// Requests waiting their turn, by host, newest last: taken from the end.
+    private var waiting: [String: [CheckedContinuation<Void, Never>]] = [:]
     /// Hosts that asked to be left alone, and until when.
     private var paused: [String: Date] = [:]
 
-    public init(transport: @escaping Transport, cache: URLCache? = nil, maximumRequests: Int = 8) {
+    public init(transport: @escaping Transport, cache: URLCache? = nil, requestsPerHost: Int = 8) {
         self.transport = transport
         self.cache = cache
-        self.maximumRequests = maximumRequests
+        self.requestsPerHost = requestsPerHost
     }
 
     /// The fetcher the app uses: its own URLSession with a disk cache in Caches.
@@ -49,10 +52,10 @@ public actor TileFetcher {
     /// e.g. a host's index.html, and when cancelled while waiting its turn. One
     /// `isDated` is of a frame that never changes.
     public func tile(_ url: URL, contentType: String, headers: [String: String] = [:], isDated: Bool = false) async throws -> Data {
-        try await turn()
-        defer { finished() }
-        try Task.checkCancellation()
         let host = url.host() ?? ""
+        await turn(host)
+        defer { finished(host) }
+        try Task.checkCancellation()
         if let until = paused[host], until > Date() {
             throw WorkerError.status(429, url.path())
         }
@@ -85,19 +88,21 @@ public actor TileFetcher {
         return data
     }
 
-    private func turn() async throws {
-        if running < maximumRequests {
-            running += 1
+    /// Waits for a slot of `host`'s.
+    private func turn(_ host: String) async {
+        if running[host, default: 0] < requestsPerHost {
+            running[host, default: 0] += 1
             return
         }
-        await withCheckedContinuation { waiting.append($0) }
+        await withCheckedContinuation { waiting[host, default: []].append($0) }
     }
 
-    private func finished() {
-        if let next = waiting.popLast() {
+    /// Hands `host`'s slot to the newest request waiting for one.
+    private func finished(_ host: String) {
+        if let next = waiting[host]?.popLast() {
             next.resume()
         } else {
-            running -= 1
+            running[host, default: 1] -= 1
         }
     }
 }

@@ -14,6 +14,26 @@ import Testing
         func leave() { running -= 1 }
     }
 
+    /// Holds requests back until opened.
+    private actor Gate {
+        private var isOpen = false
+        private var waiting: [CheckedContinuation<Void, Never>] = []
+
+        func wait() async {
+            if !isOpen {
+                await withCheckedContinuation { waiting.append($0) }
+            }
+        }
+
+        func open() {
+            isOpen = true
+            for continuation in waiting {
+                continuation.resume()
+            }
+            waiting = []
+        }
+    }
+
     private actor Counter {
         var count = 0
         func add() { count += 1 }
@@ -62,7 +82,7 @@ import Testing
                 try await Task.sleep(for: .milliseconds(20))
                 await gauge.leave()
                 return Self.answer(request, type: "image/png")
-            }, maximumRequests: 3)
+            }, requestsPerHost: 3)
         try await withThrowingTaskGroup(of: Data.self) { group in
             for index in 0..<12 {
                 group.addTask { try await fetcher.tile(URL(string: "https://example.org/\(index)")!, contentType: "image/") }
@@ -70,6 +90,29 @@ import Testing
             for try await _ in group {}
         }
         #expect(await gauge.most == 3)
+    }
+
+    // A host slow to answer holds up only its own requests: the base map's are sent
+    // while EUMETView's take their seconds.
+    @Test(.timeLimit(.minutes(1))) func givesEachHostItsOwnSlots() async throws {
+        let slow = Gate()
+        let fetcher = TileFetcher(
+            transport: { request in
+                if request.url!.host() == "slow.example.org" {
+                    await slow.wait()
+                }
+                return Self.answer(request, type: "image/png")
+            }, requestsPerHost: 2)
+        try await withThrowingTaskGroup(of: Data.self) { group in
+            for index in 0..<4 {
+                group.addTask { try await fetcher.tile(URL(string: "https://slow.example.org/\(index)")!, contentType: "image/") }
+            }
+            for index in 0..<4 {
+                _ = try await fetcher.tile(URL(string: "https://example.org/\(index)")!, contentType: "image/")
+            }
+            await slow.open()
+            for try await _ in group {}
+        }
     }
 
     // Asked to slow down, it sends that host nothing more until the time is up,
