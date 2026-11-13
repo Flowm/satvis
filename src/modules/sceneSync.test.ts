@@ -546,7 +546,7 @@ describe("startSceneSync", () => {
       catalog.entries = [goes19];
       calls.catalogChanged!();
       expect(target.instrumentImagery).toEqual([drawn]);
-      expect(store.instrumentImageryLabels).toEqual({ "gibs:GOES-East_ABI_GeoColor": "GeoColor · GOES 19" });
+      expect(store.instrumentImageryLabels).toEqual({ "gibs:GOES-East_ABI_GeoColor": "GOES 19 · GeoColor" });
 
       store.toggleInstrumentImagery("gibs:GOES-East_ABI_GeoColor", false);
       await nextTick();

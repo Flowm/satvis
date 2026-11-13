@@ -141,7 +141,7 @@ export const useCesiumStore = defineStore(
      * open vocabulary: a layer is drawn once a loaded record carries its entry.
      */
     const instrumentImagery = ref<string[]>([]);
-    /** What the Map panel calls each layer that is drawn: "GeoColor · GOES 19". Not URL-synced. */
+    /** What the Map panel calls each layer that is drawn, as it names a listed one: "GOES 19 · GeoColor". Not URL-synced. */
     const instrumentImageryLabels = ref<Record<string, string>>({});
 
     /** The last one shown goes over the others. */
