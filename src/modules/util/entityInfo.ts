@@ -32,13 +32,15 @@ export const STALE_ELEMENTS_DAYS = 10;
 
 /** One layer of an instrument's imagery, as the Imagery tab shows it. */
 export interface ImageryInfo {
+  /** `provider:layer`: unique among a satellite's layers. */
+  key: string;
   /** What the picture is: "True colour". */
   label: string;
   /** When it has frames and of what: "daily since 2018". Absent where the record says nothing. */
   detail?: string;
-  /** The provider's viewer, which the link opens: "NASA Worldview". */
-  viewer: string;
-  href: string;
+  /** The provider's viewer, which the link opens: "NASA Worldview". Both absent for a provider with none. */
+  viewer?: string;
+  href?: string;
   /** Names the layer to the globe, where it can draw it (ADR 0020). */
   token?: string;
   /** What a picture of it needs; with `token`, as the provider draws any layer the globe can. */
@@ -108,12 +110,15 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
 }
 
 /** What the Imagery tab shows of an entry, under its instrument. */
-function instrumentImagery({ instrument, label, detail, viewer, href, drawn, end }: ImageryEntry): InstrumentImagery {
+function instrumentImagery({ instrument, provider, layer, label, detail, viewer, href, drawn, end }: ImageryEntry): InstrumentImagery {
   const drawing =
     drawn === undefined
       ? {}
       : { token: drawn.token, preview: { provider: drawn.provider, layer: drawn.layer, format: drawn.format, daily: drawn.daily, ...(end !== undefined && { end }) } };
-  return { instrument, imagery: { label, ...(detail !== undefined && { detail }), viewer, href, ...drawing } };
+  return {
+    instrument,
+    imagery: { key: `${provider}:${layer}`, label, ...(detail !== undefined && { detail }), ...(href !== undefined && { viewer, href }), ...drawing },
+  };
 }
 
 /**

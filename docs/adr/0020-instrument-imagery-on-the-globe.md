@@ -81,7 +81,7 @@ nothing left to load. The globe's word alone would not do: it waits for the terr
 and every other layer, which never ends while the view keeps moving. After 20 seconds
 the new frame is shown as far as it got. A frame that is loading is finished before a
 newer one starts, so a clock that runs faster than frames load still shows frames,
-skipping some; it is given up only when the clock returns to the frame that is shown. The Map panel's `GeoMosaic` basemap follows the clock the same way
+skipping some; it is given up only when the clock returns to the frame that is shown. The georing mosaic, a composite of the `georing` provider, is drawn the same way
 (ADR 0022).
 
 ## Consequences

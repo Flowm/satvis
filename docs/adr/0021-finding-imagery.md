@@ -69,8 +69,21 @@ group's row says how many of its layers are on.
   can still be taken off.
 - An entry with a viewer link alone is not listed: the satellite's Imagery tab has it, and
   a third group of links was a second place for it in a panel of what the map draws.
-- A row names the satellite first, "GOES 19 · GeoColor", so a narrow panel cuts the picture's
-  name, not the satellite's.
+- A row names the satellite, its instrument and the picture, short: "PACE OCI True",
+  "METEOSAT-12 FCI GeoColour" (`shortImageryLabel`). The instrument tells two layers of one
+  satellite apart; the picture drops "colour" and any qualifier ("one swath per orbit",
+  "Europe"), which the row's tooltip keeps. The Map panel is 300px wide for it, where 260px
+  cut METEOSAT-10 to four letters; on a phone the instrument and picture go under the name.
+- A row's image button selects the satellite, turning it on if need be, at its Imagery tab,
+  as the catalog's imagery mark does. It sits inside the row's label, where a press on it
+  toggles nothing.
+- A composite (ADR 0019) is one row, first in its first satellite's group, not a row per
+  satellite all on or off together. It is named by its label's qualifier, "GEO ring", and
+  shows its cadence where a satellite's row shows the instrument: "GEO ring hourly Day +
+  night", "GEO ring 3-hourly Natural". Its tooltip names its satellites, and its frames
+  start with its earliest satellite's. Its image button opens a menu of its satellites,
+  each opening that satellite's Imagery tab. "Geostationary ring" left the name no room
+  beside the button.
 - The list is read off the records, so opening the Map panel loads every group, as opening
   the catalog sheet does. A layer on the globe whose record has not loaded yet is listed
   above the groups, so it can still be taken off.

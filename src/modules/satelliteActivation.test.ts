@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import type { GpRecord } from "@/modules/util/gp";
 
-import { activeTargetEntries, buildOrder, hideFromActivation, isEnabledByTag, toggledGroup, toggledSatellite } from "./satelliteActivation";
+import { activatedSatellite, activeTargetEntries, buildOrder, hideFromActivation, isEnabledByTag, toggledGroup, toggledSatellite } from "./satelliteActivation";
 import { CatalogEntry } from "./SatelliteCatalog";
 
 /** Minimal CatalogEntry factory — activeTargetEntries only reads key/name/tags. */
@@ -146,6 +146,18 @@ describe("toggledGroup", () => {
 
   test("never writes enabledSatellites", () => {
     expect(toggledGroup(listsWith({ enabledTags: ["Weather"], enabledSatellites: ["ALPHA"] }), "Weather", catalog)).not.toHaveProperty("enabledSatellites");
+  });
+});
+
+describe("activatedSatellite", () => {
+  test("leaves a satellite on, by its group or by name", () => {
+    expect(activatedSatellite(listsWith({ enabledTags: ["Weather"] }), "BETA", catalog)).toBeUndefined();
+    expect(activatedSatellite(listsWith({ enabledSatellites: ["GAMMA"] }), "GAMMA", catalog)).toBeUndefined();
+  });
+
+  test("brings an excluded member back, and turns on one outside the groups", () => {
+    expect(activatedSatellite(listsWith({ enabledTags: ["Weather"], disabledSatellites: ["BETA"] }), "BETA", catalog)).toEqual({ disabledSatellites: [] });
+    expect(activatedSatellite(listsWith({}), "GAMMA", catalog)).toEqual({ enabledSatellites: ["GAMMA"], disabledSatellites: [] });
   });
 });
 

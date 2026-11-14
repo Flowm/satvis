@@ -38,6 +38,8 @@ export const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAA
  * Serves `/api` from the fixture, and every model as `CUBE_MODEL`, and keeps every request on
  * localhost. A map tile from elsewhere (an image by its extension, as OSM's are) and an
  * `<img>` (an Imagery tab preview, a WMS GetMap) get a transparent pixel; anything else is aborted.
+ * The georing mosaic's bucket lists no Slot and names no file, so its preview and its layer
+ * give up with a warning, not a failed request.
  */
 export async function useFixtureNetwork(page: Page): Promise<void> {
   await page.route(
@@ -47,6 +49,10 @@ export async function useFixtureNetwork(page: Page): Promise<void> {
         ? route.fulfill({ contentType: "image/png", body: PIXEL })
         : route.abort("blockedbyclient"),
   );
+  await page.route("https://s.satvis.space/geo/**", (route) => {
+    const file = new URL(route.request().url()).pathname.split("/").pop();
+    return route.fulfill({ json: file === "latest.json" ? { item: "mosaic/none.json" } : file === "collection.json" ? { links: [] } : { assets: {} } });
+  });
   await page.route("**/data/models/*.glb", (route) => route.fulfill({ contentType: "model/gltf-binary", body: CUBE_MODEL }));
   await page.route("**/api/groups.json", (route) => route.fulfill({ json: fixtureIndex() }));
   await page.route("**/api/gp/*.json", (route) => {

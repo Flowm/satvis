@@ -5,6 +5,7 @@
 
 import { WebMapTileServiceImageryProvider, WebMercatorTilingScheme } from "@cesium/engine";
 
+import type { TileFormat } from "@/config/instrumentImagery";
 import { formatFrame, parseDomain, type TimeRange, withoutLatestFrame } from "@/modules/util/timeDomain";
 
 import type { FrameList, FrameSource } from "./FramedImagery";
@@ -15,7 +16,7 @@ export interface GibsOptions {
   layer: string;
   /** The layer's `GoogleMapsCompatible_LevelN` set; N is also the deepest level. */
   maximumLevel: number;
-  format: "png" | "jpeg";
+  format: TileFormat;
   /**
    * Daily layers name frames by date, the rest to the second. GIBS lists a day while
    * it is still imaging it, and serves what is missing as opaque black, so a daily

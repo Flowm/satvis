@@ -35,6 +35,7 @@ import { type ImageryProviderEntry, imageryProviders, type TerrainProviderEntry,
 import { BATCHED_COMPONENTS } from "./componentKinds";
 import { eumetViewFrames } from "./EumetViewImagery";
 import { type Frame, type FramedImagery, type FrameSource, type ImageryContext, showFramedImagery, trackRequests } from "./FramedImagery";
+import { geoMosaicFrames } from "./GeoMosaicImagery";
 import { gibsFrames } from "./GibsImagery";
 import { RenderPacer } from "./renderPacing";
 import { cesiumSceneMode } from "./satelliteGraphics";
@@ -62,15 +63,17 @@ type Instrument = Shown & { drawn: DrawnImagery; lifetime: AbortController };
 const FRAMES: Record<DrawnImagery["provider"], (imagery: DrawnImagery) => FrameSource<ImageryProvider>> = {
   gibs: ({ layer, maxLevel, format, daily }) => gibsFrames({ layer, maximumLevel: maxLevel, format, daily }),
   eumetview: ({ layer, maxLevel, format }) => eumetViewFrames({ layer, maximumLevel: maxLevel, format }),
+  // The georing mosaic has one layer, and its file says how deep it goes.
+  georing: () => geoMosaicFrames(),
 };
 
 /** A service's frames as Cesium layers that say when their tiles have arrived. */
-function layerFrames(source: FrameSource<ImageryProvider>, alpha?: number): FrameSource<Frame<ImageryLayer>> {
+function layerFrames(source: FrameSource<ImageryProvider>): FrameSource<Frame<ImageryLayer>> {
   return {
     ...source,
     show: (frame) => {
       const provider = source.show(frame);
-      return { layer: new ImageryLayer(provider, { alpha }), loaded: trackRequests(provider) };
+      return { layer: new ImageryLayer(provider), loaded: trackRequests(provider) };
     },
   };
 }
@@ -149,9 +152,6 @@ export class CesiumController {
   surface!: SurfaceModel;
 
   #removeCameraTrackEci: (() => void) | undefined;
-
-  /** Aborted when the Map panel's layers are replaced, detaching any that follow the clock. */
-  #imageryLifetime = new AbortController();
 
   // What is on the globe, bottom first: the Map panel's layers up to its last basemap,
   // the instrument imagery (ADR 0020), the Map panel's other layers.
@@ -295,9 +295,6 @@ export class CesiumController {
 
   /** The instrument imagery stays as it is, under the overlays and over the basemap. */
   set imageryLayers(newLayerNames: string[]) {
-    this.#imageryLifetime.abort();
-    this.#imageryLifetime = new AbortController();
-    // The abort took off those that follow the clock.
     for (const { top } of [...this.#basemaps, ...this.#overlays]) {
       if (top) {
         this.viewer.scene.imageryLayers.remove(top);
@@ -377,9 +374,6 @@ export class CesiumController {
     const { provider, alpha } = parseLayer(name)!;
     const entry = imageryProviders[provider] as ImageryProviderEntry;
     const layers = this.viewer.scene.imageryLayers;
-    if ("frames" in entry) {
-      return showFramedImagery(layerFrames(entry.frames(), alpha ?? entry.alpha), layers, position, this.#imageryContext(this.#imageryLifetime.signal));
-    }
     const top = ImageryLayer.fromProviderAsync(Promise.resolve(entry.create()), {});
     top.alpha = alpha ?? entry.alpha;
     layers.add(top, position());

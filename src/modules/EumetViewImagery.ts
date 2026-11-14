@@ -4,6 +4,7 @@
 import { Rectangle } from "@cesium/core";
 import { WebMapServiceImageryProvider } from "@cesium/engine";
 
+import type { TileFormat } from "@/config/instrumentImagery";
 import { formatFrame, parseDomain, type TimeRange } from "@/modules/util/timeDomain";
 
 import type { FrameSource } from "./FramedImagery";
@@ -24,7 +25,7 @@ export interface EumetViewOptions {
   layer: string;
   /** The deepest level worth asking for, in 256-pixel Web Mercator tiles, as the manifest gives it. */
   maximumLevel: number;
-  format: "png" | "jpeg";
+  format: TileFormat;
 }
 
 export interface EumetViewCapabilities {

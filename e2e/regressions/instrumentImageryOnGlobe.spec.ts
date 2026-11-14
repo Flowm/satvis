@@ -4,7 +4,7 @@
 
 import { openApp, PIXEL, setClock } from "../support/app";
 import { expect, test } from "../support/test";
-import { closeMenuPanel, menuSwitch, openMenu, showInfo } from "../support/ui";
+import { closeMenuPanel, imageryRow, menuSwitch, openMenu, showInfo } from "../support/ui";
 
 const LAYER = "GOES-East_ABI_GeoColor";
 
@@ -59,7 +59,7 @@ test("an instrument's imagery is shown on the globe from its tab, follows the cl
   await expect.poll(() => [...new Set(times)]).toEqual(["2026-10-03T16:00:00Z"]);
 
   await openMenu(page, "Map");
-  await menuSwitch(page, "GOES 19 · GeoColor").click();
+  await imageryRow(page, "GOES 19 ABI GeoColor").click();
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.imageryLayers.length)).toBe(1);
   expect(new URL(page.url()).searchParams.get("imagery")).toBeNull();
   await expect(show).not.toBeChecked();
@@ -87,13 +87,28 @@ test("the Map panel lists every layer in groups, one open at a time, and shows o
   const geo = page.getByRole("button", { name: /GEO satellites/ });
   await expect(geo).toHaveAttribute("aria-expanded", "false");
   await geo.click();
-  await expect(menuSwitch(page, "METEOSAT-12 · True colour")).toBeVisible();
-  await menuSwitch(page, "GOES 19 · GeoColor").click();
+  await expect(imageryRow(page, "METEOSAT-12 (MTG-I1) FCI True colour")).toBeVisible();
+  await imageryRow(page, "GOES 19 ABI GeoColor").click();
   await expect.poll(() => new URL(page.url()).searchParams.get("imagery")).toBe(`gibs:${LAYER}`);
   await expect(geo).toContainText("1 on");
+  // The geostationary mosaic, which two satellites carry, is one row, first.
+  await expect(imageryRow(page, "Day and night, GEO ring")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Map" }).locator("label.imageryRow").first()).toContainText("GEO ring");
 
   await geo.click();
-  await expect(menuSwitch(page, "GOES 19 · GeoColor")).toBeHidden();
+  await expect(imageryRow(page, "GOES 19 ABI GeoColor")).toBeHidden();
+
+  // A composite's image button lists its satellites, and leaves the row as it was; a satellite's
+  // opens it at its Imagery tab.
+  await geo.click();
+  await page.getByRole("button", { name: "Show the imagery of a satellite of the GEO ring" }).click();
+  await expect(page.getByRole("menuitem")).toHaveText(["GOES 19", "METEOSAT-12 (MTG-I1)"]);
+  // By its input: the open menu hides the panel from the accessibility tree.
+  await expect(page.locator("label.imageryRow input").first()).not.toBeChecked();
+  await page.getByRole("menuitem", { name: "METEOSAT-12 (MTG-I1)" }).click();
+  await expect(page.locator(".entity-info-panel").getByRole("tab", { name: /Imagery/ })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".entity-info-panel")).toContainText("METEOSAT-12");
+  await expect.poll(() => new URL(page.url()).searchParams.get("imagery")).toBe(`gibs:${LAYER}`);
 });
 
 // GOES 19 is in no group the default route loads.
@@ -116,7 +131,7 @@ test("a link's instrument imagery is drawn once its satellite has loaded", async
 
   await expect.poll(() => [...layers]).toEqual([LAYER]);
   await openMenu(page, "Map");
-  await expect(menuSwitch(page, "GOES 19 · GeoColor")).toBeChecked();
+  await expect(imageryRow(page, "GOES 19 ABI GeoColor")).toBeChecked();
 });
 
 test("a EUMETView layer is drawn by its WMS, at the frame for the clock", async ({ page }) => {
@@ -156,11 +171,11 @@ test("a EUMETView layer is drawn by its WMS, at the frame for the clock", async 
   await expect.poll(() => asked("time")).toEqual(["2026-10-03T16:00:00Z"]);
 
   await openMenu(page, "Map");
-  await expect(menuSwitch(page, "METEOSAT-12 · GeoColour")).toBeChecked();
+  await expect(imageryRow(page, "METEOSAT-12 (MTG-I1) FCI GeoColour")).toBeChecked();
 });
 
 // A layer that follows the clock is on the globe only once its service has listed its frames.
-test("instrument imagery lies over a basemap that arrives after it, and under the overlays", async ({ page }) => {
+test("instrument imagery keeps its order when a layer listed before it arrives after it, over the basemap and under the overlays", async ({ page }) => {
   let listMosaic!: () => void;
   const mosaicListed = new Promise<void>((resolve) => (listMosaic = resolve));
   const stub = async () => {
@@ -179,7 +194,7 @@ test("instrument imagery lies over a basemap that arrives after it, and under th
       return route.fulfill({ json: { assets: {} } });
     });
   };
-  await openApp(page, `time=2026-10-03T15:07Z&layers=GeoMosaic,Tiles&imagery=gibs:${LAYER}`, { setup: stub });
+  await openApp(page, `time=2026-10-03T15:07Z&layers=NaturalEarth,Tiles&imagery=georing:mosaic,gibs:${LAYER}`, { setup: stub });
 
   // The globe's layers bottom first: a GIBS layer by its id, any other by its provider's class. */
   const order = () =>
@@ -190,9 +205,9 @@ test("instrument imagery lies over a basemap that arrives after it, and under th
         return /best\/([^/]+)\//.exec(provider.url ?? "")?.[1] ?? provider.constructor.name;
       });
     });
-  await expect.poll(order).toEqual([LAYER, "TileCoordinatesImageryProvider"]);
+  await expect.poll(order).toEqual(["TileMapServiceImageryProvider", LAYER, "TileCoordinatesImageryProvider"]);
   listMosaic();
-  await expect.poll(order).toEqual(["CogImageryProvider", LAYER, "TileCoordinatesImageryProvider"]);
+  await expect.poll(order).toEqual(["TileMapServiceImageryProvider", "CogImageryProvider", LAYER, "TileCoordinatesImageryProvider"]);
 });
 
 test("showing another layer, or another basemap, asks nothing again of a layer already drawn", async ({ page }) => {

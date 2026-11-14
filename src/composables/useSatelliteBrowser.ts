@@ -257,9 +257,7 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
 
   /** Never turns a satellite off: opening its info needs it built. */
   function activateSat(name: string): void {
-    if (!activeSatNames.value.has(name)) {
-      toggleSat(name);
-    }
+    satStore.activateSatellite(name, catalog);
   }
 
   function toggleExpand(tag: string): void {

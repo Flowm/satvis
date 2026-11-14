@@ -1,6 +1,6 @@
 // The imagery manifest (ADR 0019), apart from generate-groups.mjs so the worker tests reach it.
 
-import type { ImageryEntry, SatelliteImagery } from "./types.ts";
+import type { ImageryEntry, SatelliteImagery, TileFormat } from "./types.ts";
 
 type Raw = Record<string, unknown>;
 
@@ -30,9 +30,12 @@ const OPTIONAL_FIELDS: readonly { key: "period" | "start" | "end" | "window"; is
   { key: "window", is: isDuration, expected: "an ISO 8601 duration" },
 ];
 
-const TILE_FORMATS: readonly string[] = ["png", "jpeg"];
+/** Every TileFormat. */
+const TILE_FORMATS: readonly string[] = ["png", "jpeg", "webp"] satisfies TileFormat[];
 
-const ENTRY_KEYS = new Set<string>(["provider", "layer", "label", "kind", ...OPTIONAL_FIELDS.map(({ key }) => key), "merged", "maxLevel", "format"]);
+const ENTRY_KEYS = new Set<string>(["provider", "layer", "label", "kind", ...OPTIONAL_FIELDS.map(({ key }) => key), "maxLevel", "format"]);
+const COMPOSITE_KEYS = new Set<string>([...ENTRY_KEYS, "satellites"]);
+const MEMBER_KEYS = new Set<string>(["noradId", "name", "instrument", "start", "end"]);
 
 function isObject(value: unknown): value is Raw {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -55,8 +58,11 @@ function imageryEntry(entry: unknown, where: string): ImageryEntry {
   if (!isObject(entry)) {
     throw new Error(`${where}: must be an object`);
   }
+  if (entry.merged !== undefined) {
+    throw new Error(`${where}: a layer that shows several satellites is a composite, listed once under "composites" with its satellites`);
+  }
   checkKeys(entry, ENTRY_KEYS, where);
-  const { provider, layer, label, kind, merged, maxLevel, format } = entry;
+  const { provider, layer, label, kind, maxLevel, format } = entry;
   if (typeof provider !== "string" || !PROVIDER_RE.test(provider)) {
     throw new Error(`${where}: "provider" must be a lower-case name (got ${JSON.stringify(provider)})`);
   }
@@ -83,9 +89,6 @@ function imageryEntry(entry: unknown, where: string): ImageryEntry {
   if (fields.window !== undefined && fields.start !== undefined) {
     throw new Error(`${where}: "window" and "start" exclude each other: a rolling history has no first frame`);
   }
-  if (merged !== undefined && merged !== true) {
-    throw new Error(`${where}: "merged" is true or absent`);
-  }
   if ((maxLevel === undefined) !== (format === undefined)) {
     throw new Error(`${where}: "maxLevel" and "format" go together: an app draws the layer from both`);
   }
@@ -95,28 +98,56 @@ function imageryEntry(entry: unknown, where: string): ImageryEntry {
   if (format !== undefined && (typeof format !== "string" || !TILE_FORMATS.includes(format))) {
     throw new Error(`${where}: "format" must be one of ${TILE_FORMATS.join(", ")} (got ${JSON.stringify(format)})`);
   }
-  const tiles = maxLevel === undefined ? undefined : { maxLevel: maxLevel as number, format: format as "png" | "jpeg" };
-  return { provider, layer, label, kind, ...fields, ...(merged === true && { merged }), ...tiles };
+  const tiles = maxLevel === undefined ? undefined : { maxLevel: maxLevel as number, format: format as ImageryEntry["format"] & string };
+  return { provider, layer, label, kind, ...fields, ...tiles };
 }
 
 /**
- * NORAD id -> its imagery, in manifest order, so an instrument's first entry is the
- * first one listed for it. `origin` is where the manifest is, for the errors.
+ * NORAD id -> its imagery, in manifest order: a satellite's own entries, so an
+ * instrument's first entry is the first one listed for it, then each composite's that
+ * names it, `merged`. `origin` is where the manifest is, for the errors.
  *
  * Fails, naming both places, on a provider's layer listed twice for one satellite's
- * instrument, as two models for one satellite do, and on one listed under several
- * satellites unless each says `merged`: a copied entry reads as a shared layer otherwise.
+ * instrument, as two models for one satellite do, and on one listed in two places: under
+ * two satellites, which is a composite, or as a composite and anywhere else.
  */
 export function imageryBySatellite(manifest: unknown, origin: string): Map<number, SatelliteImagery[]> {
   const bySatellite = new Map<number, SatelliteImagery[]>();
   const claimed = new Map<string, string>();
-  // provider and layer -> each place it is listed.
-  const listings = new Map<string, { noradId: number; merged: boolean; where: string }[]>();
+  // provider and layer -> where it is listed first: a satellite's entry, or a composite.
+  const listed = new Map<string, { noradId?: number; where: string }>();
 
   if (!isObject(manifest)) {
     throw new Error(`${origin}: expected "satellites" at the top level`);
   }
-  checkKeys(manifest, new Set(["satellites"]), origin);
+  checkKeys(manifest, new Set(["satellites", "composites"]), origin);
+
+  // Gives the satellite the entry, refusing one that already shows its instrument.
+  const add = (noradId: number, entry: SatelliteImagery, where: string) => {
+    const claim = JSON.stringify([noradId, entry.instrument, entry.provider, entry.layer]);
+    const previous = claimed.get(claim);
+    if (previous !== undefined) {
+      throw new Error(`${where}: ${entry.provider} ${entry.layer} already shows ${entry.instrument} of noradId ${noradId} in ${previous}`);
+    }
+    claimed.set(claim, where);
+    const entries = bySatellite.get(noradId);
+    if (entries === undefined) {
+      bySatellite.set(noradId, [entry]);
+    } else {
+      entries.push(entry);
+    }
+  };
+  // Records where the layer is listed, refusing a second place for it.
+  const placeLayer = (fields: ImageryEntry, place: { noradId?: number; where: string }) => {
+    const layer = JSON.stringify([fields.provider, fields.layer]);
+    const first = listed.get(layer);
+    if (first === undefined) {
+      listed.set(layer, place);
+    } else if (first.noradId === undefined || place.noradId === undefined || first.noradId !== place.noradId) {
+      throw new Error(`${place.where}: its layer is also listed in ${first.where}; a layer that shows several satellites is one composite, under "composites"`);
+    }
+  };
+
   const satellites = manifest.satellites ?? [];
   if (!Array.isArray(satellites)) {
     throw new Error(`${origin}: "satellites" must be a list`);
@@ -140,45 +171,38 @@ export function imageryBySatellite(manifest: unknown, origin: string): Map<numbe
       entries.forEach((raw: unknown, j) => {
         const here = `${at}[${j}]`;
         const fields = imageryEntry(raw, here);
-        const claim = JSON.stringify([noradId, instrument, fields.provider, fields.layer]);
-        const previous = claimed.get(claim);
-        if (previous !== undefined) {
-          throw new Error(`${here}: ${fields.provider} ${fields.layer} already shows ${instrument} of noradId ${noradId} in ${previous}`);
-        }
-        claimed.set(claim, here);
-
-        const layer = JSON.stringify([fields.provider, fields.layer]);
-        const listing = { noradId, merged: fields.merged === true, where: here };
-        const others = listings.get(layer);
-        if (others === undefined) {
-          listings.set(layer, [listing]);
-        } else {
-          others.push(listing);
-        }
-
-        const entry: SatelliteImagery = { instrument, ...fields };
-        const list = bySatellite.get(noradId);
-        if (list === undefined) {
-          bySatellite.set(noradId, [entry]);
-        } else {
-          list.push(entry);
-        }
+        placeLayer(fields, { noradId, where: here });
+        add(noradId, { instrument, ...fields }, here);
       });
     }
   });
 
-  for (const places of listings.values()) {
-    const first = places[0]!;
-    const elsewhere = places.find(({ noradId }) => noradId !== first.noradId);
-    const unmarked = places.find(({ merged }) => !merged);
-    if (elsewhere !== undefined && unmarked !== undefined) {
-      const other = unmarked === first ? elsewhere : first;
-      throw new Error(`${unmarked.where}: its layer is also listed in ${other.where}; a layer that shows several satellites says "merged: true" under each`);
-    }
-    const marked = places.find(({ merged }) => merged);
-    if (elsewhere === undefined && marked !== undefined) {
-      throw new Error(`${marked.where}: "merged" is for a layer listed under several satellites`);
-    }
+  const composites = manifest.composites ?? [];
+  if (!Array.isArray(composites)) {
+    throw new Error(`${origin}: "composites" must be a list`);
   }
+  composites.forEach((composite: unknown, i) => {
+    const where = `${origin} composites[${i}]`;
+    if (!isObject(composite)) {
+      throw new Error(`${where}: must be an object`);
+    }
+    checkKeys(composite, COMPOSITE_KEYS, where);
+    const { satellites: members, ...shared } = composite;
+    if (!Array.isArray(members) || members.length < 2) {
+      throw new Error(`${where}: "satellites" must list the two or more satellites it shows`);
+    }
+    placeLayer(imageryEntry(shared, where), { where });
+    members.forEach((member: unknown, j) => {
+      const here = `${where} satellites[${j}]`;
+      if (!isObject(member) || !Number.isInteger(member.noradId) || !isText(member.instrument)) {
+        throw new Error(`${here}: needs a numeric "noradId" and the "instrument" it shows`);
+      }
+      checkKeys(member, MEMBER_KEYS, here);
+      const { noradId, instrument, start, end } = member as { noradId: number; instrument: string; start?: unknown; end?: unknown };
+      // The satellite's own dates take the composite's place, as the frames that are its own.
+      const fields = imageryEntry({ ...shared, ...(start !== undefined && { start }), ...(end !== undefined && { end }) }, here);
+      add(noradId, { instrument, ...fields, merged: true }, here);
+    });
+  });
   return bySatellite;
 }

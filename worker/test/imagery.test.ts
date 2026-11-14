@@ -30,30 +30,62 @@ describe("imageryBySatellite", () => {
     ]);
   });
 
-  it("takes a layer under several satellites when each says it is merged", () => {
-    const scenes = { provider: "copernicus-browser", layer: "CDAS_L8_L9_LOTL1", label: "True colour scenes", kind: "rgb", merged: true };
-    const imagery = imageryBySatellite({ satellites: [satellite(39084, { OLI: [scenes] }), satellite(49260, { "OLI-2": [scenes] })] }, "core");
+  it("gives each satellite of a composite its entry, merged, after its own, with its own dates", () => {
+    const ring = { provider: "eumetview", layer: "mumi:ring", label: "Natural colour", kind: "rgb", period: "PT3H", maxLevel: 6, format: "png" };
+    const imagery = imageryBySatellite(
+      {
+        satellites: [satellite(60133, { ABI: [trueColour] })],
+        composites: [
+          {
+            ...ring,
+            satellites: [
+              { noradId: 60133, name: "GOES 19", instrument: "ABI", start: "2025-04-07" },
+              { noradId: 41836, instrument: "AHI" },
+            ],
+          },
+        ],
+      },
+      "core",
+    );
 
-    expect(imagery.get(39084)).toEqual([{ instrument: "OLI", ...scenes }]);
-    expect(imagery.get(49260)).toEqual([{ instrument: "OLI-2", ...scenes }]);
+    expect(imagery.get(60133)).toEqual([
+      { instrument: "ABI", ...trueColour },
+      { instrument: "ABI", ...ring, start: "2025-04-07", merged: true },
+    ]);
+    expect(imagery.get(41836)).toEqual([{ instrument: "AHI", ...ring, merged: true }]);
   });
 
-  it("fails on a layer under several satellites that does not say so everywhere, and on a merged one under one", () => {
-    const merged = { ...trueColour, merged: true };
+  it("fails on a layer listed in two places, and on a composite of fewer than two satellites", () => {
+    const composite = {
+      ...trueColour,
+      satellites: [
+        { noradId: 25994, instrument: "MODIS" },
+        { noradId: 27424, instrument: "MODIS" },
+      ],
+    };
 
     expect(() => imageryBySatellite({ satellites: [satellite(25994, { MODIS: [trueColour] }), satellite(27424, { MODIS: [trueColour] })] }, "core")).toThrow(
-      'core satellites[0] "MODIS"[0]: its layer is also listed in core satellites[1] "MODIS"[0]; a layer that shows several satellites says "merged: true" under each',
+      'core satellites[1] "MODIS"[0]: its layer is also listed in core satellites[0] "MODIS"[0]; a layer that shows several satellites is one composite, under "composites"',
     );
-    // One satellite lists it under two instruments, and only once as merged.
-    expect(() => imageryBySatellite({ satellites: [satellite(25994, { MODIS: [merged], MISR: [trueColour] }), satellite(27424, { MODIS: [merged] })] }, "core")).toThrow(
-      'core satellites[0] "MISR"[0]: its layer is also listed in core satellites[0] "MODIS"[0]',
+    expect(() => imageryBySatellite({ satellites: [satellite(25994, { MISR: [trueColour] })], composites: [composite] }, "core")).toThrow(
+      'core composites[0]: its layer is also listed in core satellites[0] "MISR"[0]',
     );
-    expect(() => imageryBySatellite({ satellites: [satellite(25994, { MODIS: [merged] })] }, "core")).toThrow(
-      'core satellites[0] "MODIS"[0]: "merged" is for a layer listed under several satellites',
+    expect(() => imageryBySatellite({ composites: [composite, composite] }, "core")).toThrow("core composites[1]: its layer is also listed in core composites[0]");
+    expect(() => imageryBySatellite({ composites: [{ ...composite, satellites: composite.satellites.slice(0, 1) }] }, "core")).toThrow(
+      'core composites[0]: "satellites" must list the two or more satellites it shows',
     );
-    expect(() => imageryBySatellite({ satellites: [satellite(25994, { MODIS: [trueColour], MISR: [merged] })] }, "core")).toThrow(
-      'core satellites[0] "MISR"[0]: "merged" is for a layer listed under several satellites',
+    expect(() => imageryBySatellite({ composites: [{ ...composite, satellites: [{ noradId: 25994 }, { noradId: 27424, instrument: "MODIS" }] }] }, "core")).toThrow(
+      'core composites[0] satellites[0]: needs a numeric "noradId" and the "instrument" it shows',
     );
+    expect(() => imageryBySatellite({ composites: [{ ...composite, satellites: [...composite.satellites, { noradId: 25994, instrument: "MODIS" }] }] }, "core")).toThrow(
+      "core composites[0] satellites[2]: gibs TrueColor already shows MODIS of noradId 25994 in core composites[0] satellites[0]",
+    );
+  });
+
+  it("takes one satellite's layer under two of its instruments", () => {
+    const imagery = imageryBySatellite({ satellites: [satellite(25994, { MODIS: [trueColour], MISR: [trueColour] })] }, "core");
+
+    expect(imagery.get(25994)?.map(({ instrument }) => instrument)).toEqual(["MODIS", "MISR"]);
   });
 
   it("fails on one layer listed twice for one instrument, naming both places", () => {
@@ -76,10 +108,10 @@ describe("imageryBySatellite", () => {
     [{ ...trueColour, url: "https://example.org" }, 'unknown key "url"'],
     [{ ...trueColour, label: undefined }, '"label" must say what the picture is'],
     [{ ...trueColour, provider: "NASA GIBS" }, '"provider" must be a lower-case name'],
-    [{ ...trueColour, merged: "yes" }, '"merged" is true or absent'],
+    [{ ...trueColour, merged: true }, 'is a composite, listed once under "composites"'],
     [{ ...trueColour, maxLevel: 9 }, '"maxLevel" and "format" go together'],
     [{ ...trueColour, maxLevel: 9.5, format: "jpeg" }, '"maxLevel" must be a tile level'],
-    [{ ...trueColour, maxLevel: 9, format: "webp" }, '"format" must be one of png, jpeg'],
+    [{ ...trueColour, maxLevel: 9, format: "gif" }, '"format" must be one of png, jpeg, webp'],
     ["TrueColor", "must be an object"],
   ])("fails on an entry it cannot read: %#", (entry, message) => {
     expect(() => imageryBySatellite({ satellites: [satellite(43013, { VIIRS: [entry] })] }, "core")).toThrow(message);

@@ -299,6 +299,12 @@ body {
   visibility: hidden;
 }
 
+/* As wide as the Satellites panel, less its counts: a satellite imagery row holds the
+   satellite, its instrument and the picture side by side, and 260px cut METEOSAT-10 to "METE…". */
+.toolbarPanel--map {
+  --panel-width: 300px;
+}
+
 /* A phone (`PHONE_WIDTH`, src/config/layout.ts): labels fold beside a panel, by the right padding only so the icons stay put.
    A card stops short of the top-right buttons, as the iOS app's; the wide panels, sheets there, cover them, and they
    hide rather than show through. */
