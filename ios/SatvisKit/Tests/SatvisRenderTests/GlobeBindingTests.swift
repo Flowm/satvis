@@ -35,7 +35,12 @@ private final class RecordingGlobe: Globe {
     var passthrough: CameraLens? {
         didSet { calls.append("passthrough \(passthrough.map { "\($0.tanHalfLongSide)" } ?? "-")") }
     }
-    func setImagery(_ layer: BaseLayer, site: URL, frame: String?) { calls.append("imagery \(layer.rawValue) \(frame ?? "-")") }
+    func setImagery(_ layer: BaseLayer, site: URL) { calls.append("imagery \(layer.rawValue)") }
+    func setMosaic(_ frame: MosaicFrame?) {
+        if let frame {
+            calls.append("mosaic \(frame.url.lastPathComponent)")
+        }
+    }
     func setInstrumentImagery(_ overlays: [ImageryOverlay]) {
         if !overlays.isEmpty {
             calls.append("instrument imagery \(overlays.map(\.layer.token))")
@@ -95,7 +100,7 @@ private final class RecordingGlobe: Globe {
         binding.setProjection(.twoD, animated: true)
         binding.unseen = .hide
         binding.terrain = true
-        binding.setImagery(.viirs, site: Self.site, frame: "2026-10-18")
+        binding.setImagery(.blackMarble, site: Self.site)
         #expect(!drawn)
 
         let globe = RecordingGlobe()
@@ -103,12 +108,12 @@ private final class RecordingGlobe: Globe {
         await Self.waitFor("satellites 1", on: globe)
         #expect(
             Set(globe.calls) == [
-                "clock", "tileLoader", "modelLoader", "imagery VIIRS 2026-10-18", "terrain true", "unseen hide",
+                "clock", "tileLoader", "modelLoader", "imagery BlackMarble", "terrain true", "unseen hide",
                 "cameraFrame Inertial", "projection 2D false", "stations [\"a\"]", "onGPUFault", "track 25544 false", "passthrough 0.5", "links [\"25544\"]",
                 "components \(SatelliteComponents.point.rawValue)", "starMap 6", "prepare 1", "satellites 1",
             ])
         #expect(Set(globe.calls).count == globe.calls.count)
-        #expect(Self.told("tileLoader", before: "imagery VIIRS 2026-10-18", on: globe))
+        #expect(Self.told("tileLoader", before: "imagery BlackMarble", on: globe))
         #expect(Self.told("modelLoader", before: "satellites 1", on: globe))
         #expect(Self.told("stations [\"a\"]", before: "track 25544 false", on: globe))
         // The camera is placed in the projection it is drawn in.

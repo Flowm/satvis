@@ -13,7 +13,7 @@ import {
 } from "@cesium/engine";
 
 import type { FrameSource } from "./FramedImagery";
-import { gibsFrames } from "./GibsImagery";
+import { geoMosaicFrames } from "./GeoMosaicImagery";
 
 /**
  * Always present (see data/imagery/.gitignore). Its depth is `__IMAGERY_MAX_LEVEL__` in vite.config.ts.
@@ -102,12 +102,12 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
     base: true,
   },
   /**
-   * Daily true colour since 2018. A composite of swaths, so the gaps near the equator are
-   * black. NOAA-20 rather than Suomi NPP, whose recent days miss more swaths.
+   * Hourly colour of the geostationary ring, day and night, for the last week. Nothing
+   * poleward of about 81°, where no geostationary satellite sees.
    */
-  VIIRS: {
-    label: "Daily (VIIRS)",
-    frames: () => gibsFrames({ layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", maximumLevel: 9, format: "jpeg", daily: true }),
+  GeoMosaic: {
+    label: "Hourly (geostationary)",
+    frames: geoMosaicFrames,
     alpha: 1,
     base: true,
   },

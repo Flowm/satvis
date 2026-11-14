@@ -356,16 +356,22 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         models.keep(only: Set(prepared.modelled.flatMap { prepared.satellites[$0].model?.files ?? [] }))
     }
 
-    /// The base map, the site the shipped one's finer levels come from, and a
-    /// daily one's day (`GIBS.frame`).
-    public func setImagery(_ layer: BaseLayer, site: URL, frame: String? = nil) {
-        surface.setLayer(layer, site: site, frame: frame)
+    /// The base map, and the site the shipped one's finer levels come from.
+    public func setImagery(_ layer: BaseLayer, site: URL) {
+        surface.setLayer(layer, site: site)
         pacer.needsDraw = true
     }
 
     /// The instrument imagery over the base map, the last on top (ADR 0020).
     public func setInstrumentImagery(_ overlays: [ImageryOverlay]) {
         surface.setOverlays(overlays)
+        pacer.needsDraw = true
+    }
+
+    /// The geostationary mosaic's frame, under the instrument imagery (ADR 0022); nil
+    /// takes it off.
+    public func setMosaic(_ frame: MosaicFrame?) {
+        surface.setMosaic(frame)
         pacer.needsDraw = true
     }
 

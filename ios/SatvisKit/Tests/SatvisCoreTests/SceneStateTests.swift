@@ -19,7 +19,7 @@ import Testing
             SceneState(),
             SceneState(
                 activation: Activation(enabledTags: ["GNSS", "Weather"], enabledSatellites: ["ISS (ZARYA)"], disabledSatellites: ["GOES 19"]),
-                components: [.point, .orbit, .model], stations: [munich, field], tracked: "ISS (ZARYA)", overpassMode: .swath, layers: ["VIIRS"],
+                components: [.point, .orbit, .model], stations: [munich, field], tracked: "ISS (ZARYA)", overpassMode: .swath, layers: ["BlackMarble"],
                 imagery: ["gibs:GOES-East_ABI_GeoColor", "eumetview:mtg_fd:rgb_geocolour"], terrain: true, starMap: .deepStar2K, unseen: .hide, cameraFrame: .inertial,
                 pixelRatio: "1.5", time: time,
                 foreign: SceneState.Foreign(LinkQuery(parsing: "embed&surface=OsmBuildings&framems=16"))),

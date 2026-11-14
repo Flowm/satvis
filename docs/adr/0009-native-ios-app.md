@@ -51,15 +51,14 @@ SwiftUI draws all the controls over the `MTKView`.
   and are kept once fetched, 17 MB for the whole pyramid, so that a place seen
   once shows offline. Bundling them was rejected: the same bytes, but every
   install pays for all of them.
-- VersaTiles satellite, NASA Black Marble and VIIRS stream as the user zooms. The
+- VersaTiles satellite and NASA Black Marble stream as the user zooms. The
   surface is a quadtree of geographic tiles, as CesiumJS's, and each tile's
-  texture is baked from the base map's tiles: VersaTiles's and VIIRS's Web
-  Mercator ones reprojected on the way, Black Marble's (GIBS's geographic WMS, as
-  the web app asks it) and Natural Earth's copied. VIIRS is GIBS's daily true
-  colour from NOAA-20: the clock's day within the days GIBS lists, short of the
-  newest, which is still being imaged, as the web app's
-  `GibsImagery` shows it, the map baked again when the day changes. A tile still loading is stood in for by the nearest
-  ancestor that has loaded, so the globe never waits on the network.
+  texture is baked from the base map's tiles: VersaTiles's Web Mercator ones
+  reprojected on the way, Black Marble's (GIBS's geographic WMS, as the web app
+  asks it) and Natural Earth's copied. A tile still loading is stood in for by the
+  nearest ancestor that has loaded, so the globe never waits on the network.
+- The geostationary mosaic (ADR 0022) streams the same way, its tiles byte ranges
+  of the clock's hourly COG.
 - Re:Earth terrain (quantized-mesh, geographic grid, levels 0–14, CC BY 4.0) is a
   toggle and is off by default, as on the web. The sky view turns it on, for the
   horizon and the eye height. The surface is refined by device pixels, for sharp

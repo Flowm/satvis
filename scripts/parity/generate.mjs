@@ -385,7 +385,7 @@ try {
   const { STAR_MAPS } = await runner.import("/src/config/starMaps.ts");
   const vocabulary = {
     components: ["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model", "Ground station link"],
-    layers: ["NaturalEarth", "VersaTiles", "BlackMarble", "VIIRS"],
+    layers: ["NaturalEarth", "VersaTiles", "BlackMarble", "GeoMosaic"],
     terrain: ["None", "ReEarth"],
     // Whole, Tycho1K included: the app draws it as DeepStar1K, and a link keeps it.
     stars: [...STAR_MAPS],

@@ -9962,7 +9962,7 @@
         "NaturalEarth",
         "VersaTiles",
         "BlackMarble",
-        "VIIRS"
+        "GeoMosaic"
       ],
       "terrain": [
         "None",

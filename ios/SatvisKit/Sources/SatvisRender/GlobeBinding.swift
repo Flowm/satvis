@@ -16,8 +16,9 @@ public protocol Globe: AnyObject {
     var cameraFrame: CameraFrame { get set }
     var components: SatelliteComponents { get set }
     var passthrough: CameraLens? { get set }
-    func setImagery(_ layer: BaseLayer, site: URL, frame: String?)
+    func setImagery(_ layer: BaseLayer, site: URL)
     func setInstrumentImagery(_ overlays: [ImageryOverlay])
+    func setMosaic(_ frame: MosaicFrame?)
     func setTerrain(_ enabled: Bool)
     func setStations(_ stations: [StationMarker])
     func setLinks(_ links: [StationLink])
@@ -68,12 +69,15 @@ public final class GlobeBinding {
     public var modelLoader: (@Sendable (String) async -> Data?)? {
         didSet { globe?.modelLoader = modelLoader }
     }
-    /// The base map, the site its finer levels come from, and a daily one's day;
-    /// nil leaves the globe's own.
-    public private(set) var imagery: (layer: BaseLayer, site: URL, frame: String?)?
+    /// The base map, and the site its finer levels come from; nil leaves the globe's own.
+    public private(set) var imagery: (layer: BaseLayer, site: URL)?
     /// The instrument imagery over the base map (`GlobeRenderer.setInstrumentImagery`).
     public var instrumentImagery: [ImageryOverlay] = [] {
         didSet { globe?.setInstrumentImagery(instrumentImagery) }
+    }
+    /// The geostationary mosaic's frame under it (`GlobeRenderer.setMosaic`).
+    public var mosaic: MosaicFrame? {
+        didSet { globe?.setMosaic(mosaic) }
     }
     /// Whether the globe follows the terrain.
     public var terrain = false {
@@ -142,9 +146,10 @@ public final class GlobeBinding {
         globe.tileLoader = tileLoader
         globe.modelLoader = modelLoader
         if let imagery {
-            globe.setImagery(imagery.layer, site: imagery.site, frame: imagery.frame)
+            globe.setImagery(imagery.layer, site: imagery.site)
         }
         globe.setInstrumentImagery(instrumentImagery)
+        globe.setMosaic(mosaic)
         globe.setTerrain(terrain)
         globe.unseen = unseen
         globe.cameraFrame = cameraFrame
@@ -177,11 +182,10 @@ public final class GlobeBinding {
         await withCheckedContinuation { waiting.append($0) }
     }
 
-    /// The base map, the site its finer levels come from, and a daily one's day
-    /// (`GlobeRenderer.setImagery`).
-    public func setImagery(_ layer: BaseLayer, site: URL, frame: String?) {
-        imagery = (layer, site, frame)
-        globe?.setImagery(layer, site: site, frame: frame)
+    /// The base map, and the site its finer levels come from (`GlobeRenderer.setImagery`).
+    public func setImagery(_ layer: BaseLayer, site: URL) {
+        imagery = (layer, site)
+        globe?.setImagery(layer, site: site)
     }
 
     /// The satellites to draw, packed off the main thread first, and the

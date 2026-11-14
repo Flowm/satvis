@@ -38,6 +38,14 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   the service skips frames, as on the web. `InstrumentImagery` in the app target
   finds each drawn layer among the loaded records and, once its service has
   listed its frames, moves it to the clock's frame once a second.
+- The geostationary mosaic (ADR 0022) is a base map drawn as the first overlay,
+  over the shipped Natural Earth alone, so a new hour keeps the last one's tiles
+  as an instrument's frame does. `Mosaic.swift` reads a frame's COG header and
+  tile indexes in one or two ranged requests, and each tile is a byte range of the file
+  (`ImagerySource.range`), one the file leaves out drawing nothing. `TileFetcher`
+  takes a ranged answer only as 206, and caches it under the url with the range
+  as its fragment, as URLCache keys by url alone. `GeoMosaic` in the app target
+  follows the clock through the STAC collection's Slots while it is the base map.
 
 ## Rendering
 

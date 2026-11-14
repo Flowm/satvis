@@ -161,37 +161,38 @@ test("a EUMETView layer is drawn by its WMS, at the frame for the clock", async 
 
 // A layer that follows the clock is on the globe only once its service has listed its frames.
 test("instrument imagery lies over a basemap that arrives after it, and under the overlays", async ({ page }) => {
-  const VIIRS = "VIIRS_NOAA20_CorrectedReflectance_TrueColor";
-  let listViirs!: () => void;
-  const viirsListed = new Promise<void>((resolve) => (listViirs = resolve));
-  const stubGibs = async () => {
-    await page.route("https://gibs.earthdata.nasa.gov/**", async (route) => {
-      const path = new URL(route.request().url()).pathname;
-      if (!path.endsWith(".xml")) {
-        return route.fulfill({ contentType: "image/png", body: PIXEL });
+  let listMosaic!: () => void;
+  const mosaicListed = new Promise<void>((resolve) => (listMosaic = resolve));
+  const stub = async () => {
+    await page.route("https://gibs.earthdata.nasa.gov/**", (route) =>
+      new URL(route.request().url()).pathname.endsWith(".xml")
+        ? route.fulfill({ contentType: "text/xml", body: "<Domains><DimensionDomain><Domain>2026-10-01T00:00:00Z/2026-10-05T23:50:00Z/PT10M</Domain></DimensionDomain></Domains>" })
+        : route.fulfill({ contentType: "image/png", body: PIXEL }),
+    );
+    // The geostationary mosaic's collection answers late. Its item names no COG, so the
+    // layer draws nothing, with a warning and no failed request.
+    await page.route("https://s.satvis.space/geo/**", async (route) => {
+      if (new URL(route.request().url()).pathname.endsWith("/collection.json")) {
+        await mosaicListed;
+        return route.fulfill({ json: { links: [{ rel: "item", href: "./2026/10/03/georing_mosaic_20261003T1500Z.json", datetime: "2026-10-03T15:00:00Z" }] } });
       }
-      const daily = path.includes(VIIRS);
-      if (daily) {
-        await viirsListed;
-      }
-      const domain = daily ? "2026-09-01/2026-10-05/P1D" : "2026-10-01T00:00:00Z/2026-10-05T23:50:00Z/PT10M";
-      return route.fulfill({ contentType: "text/xml", body: `<Domains><DimensionDomain><Domain>${domain}</Domain></DimensionDomain></Domains>` });
+      return route.fulfill({ json: { assets: {} } });
     });
   };
-  await openApp(page, `time=2026-10-03T15:07Z&layers=VIIRS,Tiles&imagery=gibs:${LAYER}`, { setup: stubGibs });
+  await openApp(page, `time=2026-10-03T15:07Z&layers=GeoMosaic,Tiles&imagery=gibs:${LAYER}`, { setup: stub });
 
-  /** The globe's layers bottom first, by GIBS layer; "grid" for the tile grid, which has no address. */
+  // The globe's layers bottom first: a GIBS layer by its id, any other by its provider's class. */
   const order = () =>
     page.evaluate(() => {
       const layers = window.cc!.viewer.imageryLayers;
       return Array.from({ length: layers.length }, (_, index) => {
-        const provider = layers.get(index).imageryProvider as { url?: string } | undefined;
-        return /best\/([^/]+)\//.exec(provider?.url ?? "")?.[1] ?? "grid";
+        const provider = layers.get(index).imageryProvider as { url?: string; constructor: { name: string } };
+        return /best\/([^/]+)\//.exec(provider.url ?? "")?.[1] ?? provider.constructor.name;
       });
     });
-  await expect.poll(order).toEqual([LAYER, "grid"]);
-  listViirs();
-  await expect.poll(order).toEqual([VIIRS, LAYER, "grid"]);
+  await expect.poll(order).toEqual([LAYER, "TileCoordinatesImageryProvider"]);
+  listMosaic();
+  await expect.poll(order).toEqual(["CogImageryProvider", LAYER, "TileCoordinatesImageryProvider"]);
 });
 
 test("showing another layer, or another basemap, asks nothing again of a layer already drawn", async ({ page }) => {

@@ -81,8 +81,8 @@ nothing left to load. The globe's word alone would not do: it waits for the terr
 and every other layer, which never ends while the view keeps moving. After 20 seconds
 the new frame is shown as far as it got. A frame that is loading is finished before a
 newer one starts, so a clock that runs faster than frames load still shows frames,
-skipping some; it is given up only when the clock returns to the frame that is shown. The Map panel's `VIIRS` basemap follows the clock the same way,
-from the same GIBS frame source.
+skipping some; it is given up only when the clock returns to the frame that is shown. The Map panel's `GeoMosaic` basemap follows the clock the same way
+(ADR 0022).
 
 ## Consequences
 
@@ -118,8 +118,8 @@ from the same GIBS frame source.
 - **The Map panel's `GOES-IR` overlay is gone.** It was one infrared band of
   GOES-East, with the fault above every 10 minutes; GOES-East's GeoColor entry shows
   the same disc by day and night. A link that names it loses it, as it would any
-  unknown layer. `VIIRS` stays, from the registry: the layer of NOAA-20's entry,
-  drawn as a basemap.
+  unknown layer. **So is its `VIIRS` basemap**, later, in both apps: NOAA-20's entry
+  drawn as a basemap, which the entry now draws over one as instrument imagery.
 
 ## Alternatives rejected
 

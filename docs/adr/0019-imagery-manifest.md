@@ -118,7 +118,7 @@ the whole constellation's.
   `imageryPreviewUrl`. The rest of what an entry can say is held by unit tests
   written twice, one case for one.
 - **`imageryProviders` in `CesiumLayerProviders.ts` is another thing**: the Map
-  panel's basemaps and overlays. Its `VIIRS` basemap is NOAA-20's entry here.
+  panel's basemaps and overlays.
 
 ## Alternatives rejected
 

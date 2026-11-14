@@ -789,3 +789,18 @@ the web asks 39, 21 and 8) and METEOSAT-12 for 19 and 10 (66 and 28 before), wit
 Marble's tiles answered in a median 0.8 s meanwhile. On the last zoom out 16 MODIS tiles
 came from the cache; the earlier ones settled at levels not loaded on the way in. The 20 s
 limit on a frame that does not finish, and the iPad, were not looked at.
+
+## Native app: the geostationary mosaic
+
+**Procedure.** On the simulator, set the base map to `GeoMosaic` with
+`simctl spawn <udid> defaults write org.frcy.app.satvis baseLayer GeoMosaic` and launch
+with `SATVIS_TIME` at the half hour after a Slot the collection lists: the globe shows
+that Slot's mosaic over the shipped Natural Earth, north up, Natural Earth only poleward
+of the ring's reach. Launch again at another Slot's half hour: the day and night follow
+the clock.
+
+**Result, 2026-11-13.** iPad Air 13-inch (M4) simulator, iOS 27.2, Debug, live bucket,
+collection listing 15:00 to 19:00 UTC. At 19:30 the 19:00 Slot drew Europe and Africa at
+night with the cities lit; at 15:30 the 15:00 Slot drew the terminator over Africa. The
+COG's header and indexes came in two reads (16 KB, then 175 KB for the eight levels).
+The Map panel's list, the credits and a frame change while the app runs were not looked at.
