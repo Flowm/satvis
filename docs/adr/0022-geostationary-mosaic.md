@@ -24,8 +24,8 @@ basemap of the Map panel at first, `GeoMosaic`, which no satellite knew of; it w
 retired before it shipped, and drawn with the instrument imagery a LEO swath lies over it.
 
 **Its Imagery tab card pictures the newest Slot** (`geoMosaicPreview`), as the other
-cards picture a provider's WMS answer, in the same plate carrée box: `latest.json`'s item,
-the blocks of the coarsest level with a pixel for each of the card's (four or six at
+cards picture a provider's WMS answer, in the same plate carrée box: the collection's
+newest item, the blocks of the coarsest level with a pixel for each of the card's (four or six at
 level 2), resampled to the nearest pixel in the browser. About 50 kB and under a second.
 
 **The browser reads the COG itself, one range request a tile** (`CogImageryProvider.ts`,
@@ -47,7 +47,9 @@ read while the clock is past the newest Slot.
 **The frame on the globe reads its own item**: the COG is the item's cloud-optimized
 asset, and the credit its `georing:attribution` lines, which name only the satellites
 that took part. One small request a frame, before its header. Where the collection
-cannot be read, `latest.json` names the item to show.
+cannot be read, nothing is drawn and no card is pictured until it can be: the bucket's
+`latest.json` is not read, so that the globe, the previews and the native app have one
+source for which Slots there are.
 
 ## Consequences
 
@@ -61,12 +63,12 @@ cannot be read, `latest.json` names the item to show.
   seam leaves a gap, part of the Indian Ocean. The basemap shows there.
 - **A Slot rebuilt after a late Disk** keeps its name; a frame already drawn keeps the
   first build until the clock leaves it.
-- **The native app reads it the same way**, still as a base map until it is ported (`ios/SatvisKit/Sources/SatvisRender/Mosaic.swift`),
+- **The native app reads it the same way**, as instrument imagery with its own card
+  picture (`ios/SatvisKit/Sources/SatvisRender/Mosaic.swift`, `ios/satvis/GeoMosaic.swift`),
   with a TIFF reader of its own, as no system framework reads a COG by ranges. With no
   CORS to answer, the bucket's policy does not reach it. Over its own Natural Earth,
   which it draws under every base map, the polar caps show that rather than the
-  globe's colour; and with no `latest.json` fallback, a collection that cannot be
-  read is asked again a minute later, Natural Earth showing meanwhile.
+  globe's colour.
 
 ## Alternatives rejected
 

@@ -70,17 +70,14 @@ export async function itemFile(itemUrl: string): Promise<CogFile> {
   return { url: new URL(asset.href!, itemUrl).href, credits: item.properties?.["georing:attribution"] ?? [] };
 }
 
-/** The newest complete Slot's item, which `latest.json` names: for when the collection cannot be read. */
-async function latestFile(): Promise<CogFile> {
-  const latest = await fetchJson<{ item: string }>(`${BUCKET}/latest.json`);
-  return itemFile(new URL(latest.item, `${BUCKET}/`).href);
-}
-
 /** The newest Slot the collection lists, as the globe would show it with the clock past it. */
 async function newestFile(): Promise<CogFile> {
-  const items = await fetchItems().catch(() => undefined);
-  const newest = items?.size ? Math.max(...items.keys()) : undefined;
-  return newest === undefined ? latestFile() : itemFile(items!.get(newest)!);
+  const items = await fetchItems();
+  const newest = items.get(Math.max(...items.keys()));
+  if (newest === undefined) {
+    throw new Error(`${COLLECTION}: no Slot`);
+  }
+  return itemFile(newest);
 }
 
 /** The newest Slot's file as last opened, and until when it is the newest. */
@@ -114,19 +111,16 @@ export function geoMosaicFrames(): FrameSource<CogImageryProvider> {
       items = listed;
       return { ranges: [...items.keys()].toSorted((a, b) => a - b).map((slot) => ({ start: slot, end: slot, step: 0 })) };
     },
-    show: (frame) => {
-      const item = frame === undefined ? undefined : items.get(frame);
-      return new CogImageryProvider({
-        file: item ? itemFile(item) : latestFile(),
-        tileSize: TILE_SIZE,
-        maximumLevel: MAXIMUM_LEVEL,
-      });
-    },
+    // As the previews, it reads only the collection, not the bucket's latest.json.
+    listedOnly: true,
+    // Always a frame of the list `items` is.
+    show: (frame) => new CogImageryProvider({ file: itemFile(items.get(frame!)!), tileSize: TILE_SIZE, maximumLevel: MAXIMUM_LEVEL }),
   };
 }
 
-// Web Mercator pixel coordinates in an image `size` pixels square.
+/** A longitude's Web Mercator pixel column in an image `size` pixels square. */
 const mercatorX = (longitude: number, size: number) => ((longitude + 180) / 360) * size;
+/** A latitude's Web Mercator pixel row in an image `size` pixels square. */
 const mercatorY = (latitude: number, size: number) => ((1 - Math.log(Math.tan(Math.PI / 4 + (latitude * Math.PI) / 360)) / Math.PI) / 2) * size;
 
 /**

@@ -51,7 +51,7 @@ export async function useFixtureNetwork(page: Page): Promise<void> {
   );
   await page.route("https://s.satvis.space/geo/**", (route) => {
     const file = new URL(route.request().url()).pathname.split("/").pop();
-    return route.fulfill({ json: file === "latest.json" ? { item: "mosaic/none.json" } : file === "collection.json" ? { links: [] } : { assets: {} } });
+    return route.fulfill({ json: file === "collection.json" ? { links: [] } : { assets: {} } });
   });
   await page.route("**/data/models/*.glb", (route) => route.fulfill({ contentType: "model/gltf-binary", body: CUBE_MODEL }));
   await page.route("**/api/groups.json", (route) => route.fulfill({ json: fixtureIndex() }));
