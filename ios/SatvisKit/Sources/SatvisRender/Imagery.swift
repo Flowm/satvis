@@ -102,6 +102,9 @@ struct ImagerySource: Sendable {
     /// Whether it is a dated frame, which never changes (`TileRequest.isDated`).
     var isDated = false
     var url: @Sendable (TileKey) -> URL?
+    /// The bytes of `url` that hold a tile, where it is one of a file's (`Mosaic`); nil
+    /// for a tile the file leaves out, which draws nothing.
+    var range: (@Sendable (TileKey) -> ClosedRange<Int>?)? = nil
 
     /// The source level whose texels best match a surface tile's at `level`: a
     /// surface tile is 256 texels across a geographic tile.
@@ -117,6 +120,9 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
     case naturalEarth = "NaturalEarth"
     case versaTiles = "VersaTiles"
     case blackMarble = "BlackMarble"
+    /// Hourly, from the geostationary ring (`Mosaic`): laid as an overlay at the
+    /// clock's frame, over the shipped Natural Earth where it has no tile.
+    case geoMosaic = "GeoMosaic"
 
     /// The Map panel's name for it, the web app's (`CesiumLayerProviders.ts`).
     public var title: String {
@@ -124,14 +130,18 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
         case .naturalEarth: "Natural Earth"
         case .versaTiles: "Satellite (VersaTiles)"
         case .blackMarble: "Night (Black Marble)"
+        case .geoMosaic: "Hourly (geostationary)"
         }
     }
 
     /// Where its tiles come from. Natural Earth is the site's own, levels 3 to 5:
     /// the app ships level 2 and draws everything over it, and keeps each finer
     /// tile once fetched, 17 MB for the lot, so that a place seen once shows offline.
-    func source(site: URL) -> ImagerySource {
+    /// None for the mosaic, an overlay with the shipped level alone under it.
+    func source(site: URL) -> ImagerySource? {
         switch self {
+        case .geoMosaic:
+            nil
         case .naturalEarth:
             ImagerySource(projection: .geographic, tileSize: 256, maximumLevel: 5, contentType: "image/", keeps: true) { key in
                 // A TMS pyramid: rows counted from the south.

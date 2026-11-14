@@ -167,7 +167,7 @@ public enum LinkCodec {
     /// What the app can show of each closed vocabulary. A link naming anything
     /// else loses that member, as a link from another build does on the web.
     public static let components = SatelliteComponents.named.map(\.0)
-    public static let layers = ["NaturalEarth", "VersaTiles", "BlackMarble"]
+    public static let layers = ["NaturalEarth", "VersaTiles", "BlackMarble", "GeoMosaic"]
     public static let terrains = ["None", "ReEarth"]
     public static let overpassModes = ["elevation", "swath"]
     public static let scenes = ["3D", "2D", "Sky"]

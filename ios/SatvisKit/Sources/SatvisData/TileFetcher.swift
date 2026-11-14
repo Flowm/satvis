@@ -9,7 +9,9 @@ import Foundation
 /// for it never changes. A few requests
 /// run at once to each host, newest first, so that a slow one (EUMETView draws a
 /// tile in 4 to 5 s) does not hold up the base map, as a browser's limit per host
-/// keeps it from doing on the web. A request nobody waits for any more is dropped
+/// keeps it from doing on the web. A ranged request reads part of a file, which its
+/// host must answer with 206; its answer is cached, dated, under a key of its own,
+/// as URLCache keys by url alone and stores no partial answer. A request nobody waits for any more is dropped
 /// before it is sent. A host that answers 429 or 503 is left alone for as long as
 /// it asks, 30 s when it does not say: the free tile servers rate-limit the
 /// clients that dominate their traffic.
@@ -50,9 +52,16 @@ public actor TileFetcher {
     }
 
     /// A tile's bytes. Throws when the answer is not a tile of the type asked for,
-    /// e.g. a host's index.html, and when cancelled while waiting its turn. One
-    /// `isDated` is of a frame that never changes.
-    public func tile(_ url: URL, contentType: String, headers: [String: String] = [:], isDated: Bool = false) async throws -> Data {
+    /// e.g. a host's index.html, and when cancelled while waiting its turn. With
+    /// `bytes`, that span of the file alone, which must come back as one. One `isDated`
+    /// is of a frame that never changes.
+    public func tile(_ url: URL, contentType: String, headers: [String: String] = [:], bytes: ClosedRange<Int>? = nil, isDated: Bool = false) async throws -> Data {
+        let range = bytes.map { "bytes=\($0.lowerBound)-\($0.upperBound)" }
+        // Never sent: a fragment.
+        let rangeKey = range.flatMap { URL(string: "\(url.absoluteString)#\($0)") }.map { URLRequest(url: $0) }
+        if let rangeKey, let cached = cache?.cachedResponse(for: rangeKey) {
+            return cached.data
+        }
         let host = url.host() ?? ""
         await turn(host)
         defer { finished(host) }
@@ -61,15 +70,16 @@ public actor TileFetcher {
             throw WorkerError.status(429, url.path())
         }
         var request = URLRequest(url: url)
-        request.cachePolicy = .returnCacheDataElseLoad
+        request.cachePolicy = range == nil ? .returnCacheDataElseLoad : .reloadIgnoringLocalCacheData
         for (field, value) in headers {
             request.setValue(value, forHTTPHeaderField: field)
         }
+        request.setValue(range, forHTTPHeaderField: "Range")
         let (data, response) = try await transport(request)
         guard let http = response as? HTTPURLResponse else {
             throw WorkerError.notHTTP
         }
-        guard http.statusCode == 200 else {
+        guard http.statusCode == (range == nil ? 200 : 206) else {
             if http.statusCode == 429 || http.statusCode == 503 {
                 let wait = http.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init) ?? Self.defaultPause
                 paused[host] = max(paused[host] ?? .distantPast, Date() + min(max(wait, 1), 600))
@@ -79,11 +89,12 @@ public actor TileFetcher {
         guard http.value(forHTTPHeaderField: "Content-Type")?.contains(contentType) == true else {
             throw WorkerError.unexpectedContent(url.path())
         }
-        if isDated, let cache, http.value(forHTTPHeaderField: "Cache-Control") != Self.immutable {
+        if isDated, let cache, rangeKey != nil || http.value(forHTTPHeaderField: "Cache-Control") != Self.immutable {
+            let key = rangeKey ?? request
             var fields = (http.allHeaderFields as? [String: String] ?? [:]).filter { !["cache-control", "pragma", "expires"].contains($0.key.lowercased()) }
             fields["Cache-Control"] = Self.immutable
-            if let stored = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: fields) {
-                cache.storeCachedResponse(CachedURLResponse(response: stored, data: data), for: request)
+            if let stored = HTTPURLResponse(url: key.url ?? url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: fields) {
+                cache.storeCachedResponse(CachedURLResponse(response: stored, data: data), for: key)
             }
         }
         return data

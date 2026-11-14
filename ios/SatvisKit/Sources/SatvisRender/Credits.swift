@@ -14,11 +14,15 @@ public struct Credit: Hashable, Sendable {
 
     /// What the map is drawn from now: the shipped Natural Earth, which is under
     /// every base map, the base map, and the terrain where it is on, with the
-    /// sources its `layer.json` credits.
-    public static func map(baseLayer: BaseLayer, terrain: Bool, instrumentImagery: [SatelliteDetails.ImageryPreview.Provider] = []) -> [Credit] {
+    /// sources its `layer.json` credits. `mosaic` is the attribution the geostationary
+    /// mosaic's drawn frame asks for, a line a satellite.
+    public static func map(baseLayer: BaseLayer, terrain: Bool, instrumentImagery: [SatelliteDetails.ImageryPreview.Provider] = [], mosaic: [String] = []) -> [Credit] {
         var credits = [Credit("Imagery courtesy Natural Earth", link: "https://www.naturalearthdata.com")]
         if baseLayer == .versaTiles {
             credits.append(Credit("VersaTiles sources", link: "https://versatiles.org/sources/"))
+        }
+        if baseLayer == .geoMosaic {
+            credits += mosaic.map { Credit($0) }
         }
         // The base map's or the instrument imagery's, once, as the web app's layers credit them.
         if baseLayer == .blackMarble || instrumentImagery.contains(.gibs) {

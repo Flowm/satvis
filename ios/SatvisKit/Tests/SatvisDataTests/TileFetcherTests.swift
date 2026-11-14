@@ -67,6 +67,34 @@ import Testing
         #expect(cache.cachedResponse(for: URLRequest(url: latest)) == nil)
     }
 
+    // The mosaic's tiles are ranges of one file: each is cached on its own, and a
+    // host that ignores the range and sends the whole file is refused.
+    @Test func readsAndCachesEachRangeOfAFile() async throws {
+        let cache = URLCache(memoryCapacity: 1024 * 1024, diskCapacity: 0)
+        let sent = Counter()
+        let fetcher = TileFetcher(
+            transport: { request in
+                await sent.add()
+                let range = request.value(forHTTPHeaderField: "Range")
+                let response = HTTPURLResponse(url: request.url!, statusCode: range == nil ? 200 : 206, httpVersion: nil, headerFields: ["Content-Type": "image/tiff"])!
+                return (Data((range ?? "whole").utf8), response)
+            }, cache: cache)
+        let file = URL(string: "https://example.org/mosaic.tif")!
+        let first = try await fetcher.tile(file, contentType: "image/tiff", bytes: 0...9, isDated: true)
+        let second = try await fetcher.tile(file, contentType: "image/tiff", bytes: 10...19, isDated: true)
+        let again = try await fetcher.tile(file, contentType: "image/tiff", bytes: 0...9, isDated: true)
+        #expect(String(decoding: first, as: UTF8.self) == "bytes=0-9")
+        #expect(String(decoding: second, as: UTF8.self) == "bytes=10-19")
+        #expect(again == first)
+        #expect(await sent.count == 2)
+        #expect(cache.cachedResponse(for: URLRequest(url: file)) == nil)
+
+        let whole = TileFetcher { Self.answer($0, type: "image/tiff") }
+        await #expect(throws: WorkerError.status(200, "/mosaic.tif")) {
+            try await whole.tile(file, contentType: "image/tiff", bytes: 0...9)
+        }
+    }
+
     @Test func refusesAMissingTile() async {
         let fetcher = TileFetcher { Self.answer($0, type: "image/webp", status: 404) }
         await #expect(throws: WorkerError.status(404, "/tile")) {

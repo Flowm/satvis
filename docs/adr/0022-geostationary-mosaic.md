@@ -51,9 +51,12 @@ cannot be read, `latest.json` names the item to show.
   and overlay"), so the globe's own colour shows there.
 - **A Slot rebuilt after a late Disk** keeps its name; a frame already drawn keeps the
   first build until the clock leaves it.
-- **The native app does not draw it**, and drops `GeoMosaic` from a link as it does any
-  layer it lacks. The georing plan lists what it would need: a TIFF header parser, tile
-  sources that yield a byte range, a fetcher that accepts 206 and hourly time handling.
+- **The native app reads it the same way** (`ios/SatvisKit/Sources/SatvisRender/Mosaic.swift`),
+  with a TIFF reader of its own, as no system framework reads a COG by ranges. With no
+  CORS to answer, the bucket's policy does not reach it. Over its own Natural Earth,
+  which it draws under every base map, the polar caps show that rather than the
+  globe's colour; and with no `latest.json` fallback, a collection that cannot be
+  read is asked again a minute later, Natural Earth showing meanwhile.
 
 ## Alternatives rejected
 

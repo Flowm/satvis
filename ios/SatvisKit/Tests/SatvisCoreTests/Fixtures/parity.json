@@ -9961,7 +9961,8 @@
       "layers": [
         "NaturalEarth",
         "VersaTiles",
-        "BlackMarble"
+        "BlackMarble",
+        "GeoMosaic"
       ],
       "terrain": [
         "None",

@@ -368,6 +368,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         pacer.needsDraw = true
     }
 
+    /// The geostationary mosaic's frame, under the instrument imagery (ADR 0022); nil
+    /// takes it off.
+    public func setMosaic(_ frame: MosaicFrame?) {
+        surface.setMosaic(frame)
+        pacer.needsDraw = true
+    }
+
     /// Whether the globe follows Re:Earth's terrain, the sky view's ground too.
     /// Off by default, as on the web.
     public func setTerrain(_ enabled: Bool) {

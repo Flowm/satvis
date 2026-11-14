@@ -142,7 +142,8 @@ final class Surface {
     private var generation = 0
     /// Whether the surface follows Re:Earth's terrain or the ellipsoid.
     private(set) var terrainEnabled = false
-    private let baseMap: SourceTiles
+    /// None where the base layer has no tiles of its own.
+    private var baseMap: SourceTiles?
     private var site: URL
 
     private let device: MTLDevice
@@ -154,8 +155,11 @@ final class Surface {
     private var tiles: [TileKey: Tile] = [:]
     /// The tiles past the roots that hold a texture.
     private var texturedTiles = 0
-    /// The instrument imagery over the base map, the last on top.
+    /// The mosaic and the instrument imagery over the base map, the last on top.
     private var overlays: [Overlay] = []
+    // The geostationary mosaic's frame, laid first, and the instrument imagery.
+    private var mosaic: MosaicFrame?
+    private var instrumentImagery: [ImageryOverlay] = []
     private var terrainTiles: [TileKey: TerrainTile] = [:]
     /// When each terrain tile was last wanted, by frame.
     private var terrainUsed: [TileKey: Int] = [:]
@@ -181,7 +185,7 @@ final class Surface {
     init(device: MTLDevice, library: MTLLibrary, site: URL) throws {
         self.device = device
         self.site = site
-        baseMap = SourceTiles(BaseLayer.naturalEarth.source(site: site), name: BaseLayer.naturalEarth.rawValue, keepsStandIns: false)
+        baseMap = BaseLayer.naturalEarth.source(site: site).map { SourceTiles($0, name: BaseLayer.naturalEarth.rawValue, keepsStandIns: false) }
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.vertexFunction = library.makeFunction(name: "bakeVertex")
         descriptor.fragmentFunction = library.makeFunction(name: "bakeFragment")
@@ -206,35 +210,59 @@ final class Surface {
         self.layer = layer
         self.site = site
         generation += 1
-        baseMap.clear()
-        baseMap.source = layer.source(site: site)
-        baseMap.name = layer.rawValue
+        baseMap?.clear()
+        baseMap = layer.source(site: site).map { SourceTiles($0, name: layer.rawValue, keepsStandIns: false) }
         for tile in tiles.values {
             tile.needsBake = true
             tile.isComplete = false
         }
     }
 
-    /// An instrument's layer over the base map, and the tiles of its frame.
+    /// A layer over the base map, and the tiles of its frame.
     private final class Overlay {
-        var imagery: ImageryOverlay
+        /// What it lays at one of its frames: the mosaic or an instrument's layer.
+        enum Frame: Equatable {
+            case mosaic(MosaicFrame)
+            case instrument(ImageryOverlay)
+
+            /// Names the layer, whatever its frame.
+            var token: String {
+                switch self {
+                case .mosaic: BaseLayer.geoMosaic.rawValue
+                case .instrument(let imagery): imagery.layer.token
+                }
+            }
+
+            /// Where its tiles come from.
+            var source: ImagerySource {
+                switch self {
+                case .mosaic(let frame): frame.source
+                case .instrument(let imagery): imagery.source
+                }
+            }
+
+            /// Where the service says the layer ends.
+            var limits: Bounds? {
+                guard case .instrument(let imagery) = self else {
+                    return nil
+                }
+                return imagery.bounds.flatMap { $0.count == 4 ? Bounds(west: $0[0], south: $0[1], east: $0[2], north: $0[3]) : nil }
+            }
+        }
+
+        var imagery: Frame
         let sources: SourceTiles
         /// The last frame's tiles, drawn where this frame's have not come yet, so that
         /// a frame change does not show the base map meanwhile.
         var previous: [TileKey: MTLTexture] = [:]
         /// The frame asked for while this one was loading, shown once it has.
-        var next: ImageryOverlay?
+        var next: Frame?
         /// When this frame was first shown.
         var since = Date()
 
-        init(_ imagery: ImageryOverlay) {
+        init(_ imagery: Frame) {
             self.imagery = imagery
-            sources = SourceTiles(imagery.source, name: imagery.layer.token, keepsStandIns: true)
-        }
-
-        /// Where the service says the layer ends.
-        var limits: Bounds? {
-            imagery.bounds.flatMap { $0.count == 4 ? Bounds(west: $0[0], south: $0[1], east: $0[2], north: $0[3]) : nil }
+            sources = SourceTiles(imagery.source, name: imagery.token, keepsStandIns: true)
         }
 
         /// Whether any of this frame's tiles is on its way.
@@ -268,13 +296,26 @@ final class Surface {
     /// a clock faster than the service skips frames, as on the web, rather than
     /// cancelling each before it arrives.
     func setOverlays(_ imagery: [ImageryOverlay]) {
+        instrumentImagery = imagery
+        layOverlays()
+    }
+
+    /// Lays the mosaic's `frame` under the instrument imagery, as `setOverlays` lays
+    /// those; nil takes it off.
+    func setMosaic(_ frame: MosaicFrame?) {
+        mosaic = frame
+        layOverlays()
+    }
+
+    private func layOverlays() {
+        let imagery = (mosaic.map { [Overlay.Frame.mosaic($0)] } ?? []) + instrumentImagery.map(Overlay.Frame.instrument)
         guard imagery != overlays.map({ $0.next ?? $0.imagery }) else {
             return
         }
-        let layersChanged = imagery.map(\.layer.token) != overlays.map(\.imagery.layer.token)
-        let kept = Dictionary(overlays.map { ($0.imagery.layer.token, $0) }) { first, _ in first }
+        let layersChanged = imagery.map(\.token) != overlays.map(\.imagery.token)
+        let kept = Dictionary(overlays.map { ($0.imagery.token, $0) }) { first, _ in first }
         overlays = imagery.map { wanted in
-            guard let overlay = kept[wanted.layer.token] else {
+            guard let overlay = kept[wanted.token] else {
                 return Overlay(wanted)
             }
             overlay.next = wanted == overlay.imagery ? nil : wanted
@@ -684,15 +725,17 @@ final class Surface {
             draw(texture, bounds: parent.bounds, projection: .geographic)
         }
         var complete = true
-        let level = baseMap.source.level(forSurface: tile.key.level)
-        // Natural Earth's shipped level is 2: nothing below 3 to fetch. A complete
-        // parent is as sharp as any ancestor.
-        if layer != .naturalEarth || level > 2, !lay(baseMap, over: tile.bounds, level: level, standIns: parent?.isComplete != true, draw: draw) {
-            complete = false
+        if let baseMap {
+            let level = baseMap.source.level(forSurface: tile.key.level)
+            // Natural Earth's shipped level is 2: nothing below 3 to fetch. A complete
+            // parent is as sharp as any ancestor.
+            if layer != .naturalEarth || level > 2, !lay(baseMap, over: tile.bounds, level: level, standIns: parent?.isComplete != true, draw: draw) {
+                complete = false
+            }
         }
         for overlay in overlays {
             var area = tile.bounds
-            if let limits = overlay.limits {
+            if let limits = overlay.imagery.limits {
                 area = Bounds(
                     west: max(area.west, limits.west), south: max(area.south, limits.south), east: min(area.east, limits.east), north: min(area.north, limits.north))
                 guard area.west < area.east, area.south < area.north else {
@@ -719,6 +762,10 @@ final class Surface {
         let projection = sources.source.projection
         var complete = true
         for key in projection.covering(area, level: level) {
+            // Left out of the file: nothing to draw, and nothing to stand in for it.
+            if let range = sources.source.range, range(key) == nil {
+                continue
+            }
             if case .ready(let texture, _) = sources.tiles[key] {
                 sources.tiles[key] = .ready(texture, lastUsed: frame)
                 draw(texture, projection.bounds(key), projection)
@@ -768,7 +815,8 @@ final class Surface {
             sources.tiles[key] = .failed(at: Date())
             return
         }
-        let request = TileRequest(url: url, contentType: sources.source.contentType, headers: [:], keeps: sources.source.keeps, isDated: sources.source.isDated)
+        let request = TileRequest(
+            url: url, contentType: sources.source.contentType, bytes: sources.source.range?(key), keeps: sources.source.keeps, isDated: sources.source.isDated)
         let device = device
         let work = Task.detached(priority: .utility) { () -> DecodedTile? in
             guard let data = await loader(request) else {
@@ -954,12 +1002,14 @@ final class Surface {
     /// The tiles kept, textured or not.
     var tileCount: Int { tiles.count }
 
-    /// The frame each overlay shows.
-    var overlayFrames: [String?] { overlays.map(\.imagery.frame) }
+    /// The frame each instrument's overlay shows.
+    var overlayFrames: [String?] {
+        overlays.compactMap { if case .instrument(let imagery) = $0.imagery { imagery.frame } else { nil } }
+    }
 
     /// The base map's source tiles and each overlay's.
     private var allSources: [SourceTiles] {
-        [baseMap] + overlays.map(\.sources)
+        (baseMap.map { [$0] } ?? []) + overlays.map(\.sources)
     }
 
     /// Cancels the source tiles none of the tiles `waiting` in view asks for, so
@@ -1044,7 +1094,9 @@ public struct TileRequest: Sendable {
     public var url: URL
     /// What the answer's Content-Type must start with.
     public var contentType: String
-    public var headers: [String: String]
+    public var headers: [String: String] = [:]
+    /// The span of the file it is, where it is one.
+    public var bytes: ClosedRange<Int>?
     /// Kept for good once fetched, rather than in a cache the system may purge.
     public var keeps = false
     /// A dated frame's, which never changes: cached though its service says not to.
