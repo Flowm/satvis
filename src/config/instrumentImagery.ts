@@ -310,10 +310,10 @@ export function shortImageryLabel(label: string): string {
   return short === "" ? label : short;
 }
 
-/** A composite's Map panel row stands for no one satellite: it is named by its label's qualifier, "GEO ring", or this. */
+/** A composite's Map panel row stands for no one satellite: it is named by its label's qualifier, "Geostationary Ring", or this. */
 export const COMPOSITE = "Composite";
 
-/** "Natural colour, GEO ring" is "GEO ring". */
+/** "Natural colour, Geostationary Ring" is "Geostationary Ring". */
 function compositeName(label: string): string {
   const qualifier = label.split(",").slice(1).join(",").trim();
   return qualifier === "" ? COMPOSITE : qualifier[0]!.toUpperCase() + qualifier.slice(1);
@@ -347,7 +347,7 @@ export interface SatelliteImageryLayer extends ImageryLayerRow, Pick<ImageryEntr
 /** A composite, as the Map panel lists it: once, for all its satellites. */
 export interface CompositeImageryLayer extends ImageryLayerRow {
   kind: "composite";
-  /** Its label's qualifier, "GEO ring", or COMPOSITE. */
+  /** Its label's qualifier, "Geostationary Ring", or COMPOSITE. */
   name: string;
   /** Its satellites by name, sorted. */
   satellites: string[];
@@ -390,7 +390,7 @@ export function imageryLayers(entries: readonly { name: string; satnum: string; 
     }
   }
   const byName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
-  const rings = [...composites].map(([token, { entry, group, satellites, start }]): CompositeImageryLayer => {
+  const compositeLayers = [...composites].map(([token, { entry, group, satellites, start }]): CompositeImageryLayer => {
     const { label, period, window } = entry;
     return {
       kind: "composite",
@@ -406,7 +406,7 @@ export function imageryLayers(entries: readonly { name: string; satnum: string; 
     };
   });
   return [
-    ...rings.toSorted((a, b) => byName(a.name, b.name) || a.label.localeCompare(b.label)),
+    ...compositeLayers.toSorted((a, b) => byName(a.name, b.name) || a.label.localeCompare(b.label)),
     ...[...layers.values()].toSorted((a, b) => byName(a.satellite, b.satellite) || a.label.localeCompare(b.label)),
   ];
 }

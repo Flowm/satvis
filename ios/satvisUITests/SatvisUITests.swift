@@ -251,11 +251,11 @@ nonisolated class SatvisUITests: XCTestCase {
         let geo = app.buttons["GEO satellites"]
         XCTAssert(geo.waitForExistence(timeout: 10))
         geo.tap()
-        let ring = app.switches["Day and night, GEO ring"]
+        let ring = app.switches["Day/Night, Geostationary Ring"]
         XCTAssert(ring.waitForExistence(timeout: 5))
         XCTAssertEqual(ring.value as? String, "0")
         XCTAssertLessThan(ring.frame.minY, app.switches["GOES 19 ABI GeoColor"].frame.minY)
-        app.buttons["Show the imagery of a satellite of the GEO ring"].tap()
+        app.buttons["Show the imagery of a satellite of the Geostationary Ring"].tap()
         XCTAssert(app.buttons["GOES 19"].waitForExistence(timeout: 5))
         let meteosat = app.buttons["METEOSAT-12 (MTG-I1)"]
         XCTAssert(meteosat.exists)
@@ -264,7 +264,7 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Imagery (3)"].waitForExistence(timeout: 5))
         XCTAssert(app.buttons["Imagery (3)"].isSelected)
         // The third card, under a phone's half-height sheet, in a lazy list.
-        let mosaic = app.images["FCI, Day and night, GEO ring"]
+        let mosaic = app.images["FCI, Day/Night, Geostationary Ring"]
         for _ in 0..<3 where !mosaic.waitForExistence(timeout: 2) {
             app.collectionViews.firstMatch.swipeUp()
         }

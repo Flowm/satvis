@@ -222,11 +222,11 @@ import Testing
             return record
         }
         let ring: [String: JSONValue] = [
-            "provider": .string("eumetview"), "layer": .string("mumi:wideareacoverage_rgb_natural"), "label": .string("Natural colour, GEO ring"),
+            "provider": .string("eumetview"), "layer": .string("mumi:wideareacoverage_rgb_natural"), "label": .string("Natural colour, Geostationary Ring"),
             "kind": .string("rgb"), "period": .string("PT3H"), "maxLevel": .number(6), "format": .string("png"), "merged": .bool(true),
         ]
         let mosaic: [String: JSONValue] = [
-            "provider": .string("georing"), "layer": .string("mosaic"), "label": .string("Day and night, GEO ring"), "kind": .string("rgb"),
+            "provider": .string("georing"), "layer": .string("mosaic"), "label": .string("Day/Night, Geostationary Ring"), "kind": .string("rgb"),
             "period": .string("PT1H"), "window": .string("P7D"), "maxLevel": .number(8), "format": .string("webp"), "merged": .bool(true),
         ]
         let goes: [String: JSONValue] = [
@@ -239,10 +239,10 @@ import Testing
         let listings = SatelliteDetails.imageryListings([goes19, meteosat, goes19])
         let satellite = { (record: GPRecord) in SatelliteDetails.ImageryListing.Satellite(id: Catalog.id(of: record), name: record.name) }
         #expect(listings.map(\.key) == ["georing:mosaic", "eumetview:mumi:wideareacoverage_rgb_natural", "60133:gibs:GOES-East_ABI_GeoColor"])
-        #expect(listings.map(\.product) == ["Day + night", "Natural", "GeoColor"])
+        #expect(listings.map(\.product) == ["Day/Night", "Natural", "GeoColor"])
         #expect(listings.map(\.imagery.detail) == ["hourly, last 7 days", "every 3 h since 2022", "every 10 min, last 90 days"])
-        #expect(listings[0].kind == .composite(name: "GEO ring", satellites: [satellite(goes19)], cadence: "hourly"))
-        #expect(listings[1].kind == .composite(name: "GEO ring", satellites: [satellite(goes19), satellite(meteosat)], cadence: "3-hourly"))
+        #expect(listings[0].kind == .composite(name: "Geostationary Ring", satellites: [satellite(goes19)], cadence: "hourly"))
+        #expect(listings[1].kind == .composite(name: "Geostationary Ring", satellites: [satellite(goes19), satellite(meteosat)], cadence: "3-hourly"))
         // No viewer, but drawn.
         #expect(listings[0].imagery.href == nil && listings[0].imagery.viewer == nil)
 

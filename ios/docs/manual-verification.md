@@ -731,7 +731,7 @@ that "Satellite imagery" lists GEO satellites and LEO satellites, each with its 
 and its count of layers, all closed, with no viewer link and no layer that stopped, and
 that the names fit. Open LEO satellites: its layers list under it, TERRA with "MODIS"
 after its name and a "True" pill at the row's end, and a picture button that opens
-TERRA's Imagery tab. Open GEO satellites: the GEO ring's two composites come first,
+TERRA's Imagery tab. Open GEO satellites: the Geostationary Ring's two composites come first,
 with their cadence in the instrument's place, and each one's button opens a menu of
 its satellites, one of which opens that satellite's Imagery tab. Switch one on: the globe draws it, the group's count
 reads "1 on" in cyan and the group stays open. Switch it off: the group stays open too.
@@ -760,8 +760,9 @@ line. `testNamesAStoppedLayerALinkDraws` holds that a link's stopped layer is sw
 above the groups by its label. The iPad was not looked at.
 
 **Result, 2026-11-14, rows, buttons and composites.** iPhone 18 Pro simulator, iOS 27.2,
-test catalog with the network on, shot by a UI test not kept. GEO satellites listed "GEO
-ring" first, "hourly" and a "Day + night" pill under it, then GOES 19 "ABI GeoColor" and
+test catalog with the network on, shot by a UI test not kept. GEO satellites listed the
+ring first, "hourly" and its pill under it (then named "GEO ring" and "Day + night", now
+"Geostationary Ring" and "Day/Night"), then GOES 19 "ABI GeoColor" and
 METEOSAT-12's two, each on two lines, as the phone's panel is too narrow for one; TERRA
 "MODIS True" fit on one. The ring's button opened a menu of GOES 19 and METEOSAT-12
 (MTG-I1), and METEOSAT-12 opened its Imagery tab, whose mosaic card had a picture made
@@ -805,12 +806,15 @@ limit on a frame that does not finish, and the iPad, were not looked at.
 
 ## Native app: the geostationary mosaic
 
-**Procedure.** On the simulator, set the base map to `GeoMosaic` with
-`simctl spawn <udid> defaults write org.frcy.app.satvis baseLayer GeoMosaic` and launch
-with `SATVIS_TIME` at the half hour after a Slot the collection lists: the globe shows
-that Slot's mosaic over the shipped Natural Earth, north up, Natural Earth only poleward
-of the ring's reach. Launch again at another Slot's half hour: the day and night follow
-the clock.
+**Procedure.** On the simulator, launch with `SATVIS_TIME` at the half hour after a Slot
+the collection lists, and in the Map panel's GEO satellites turn on "Geostationary Ring" with its
+Day/Night pill: the globe shows that Slot's mosaic over the base map, north up, the base
+map only poleward of the ring's reach. Launch again at another Slot's half hour: the day
+and night follow the clock. GOES 19's Imagery tab pictures the newest Slot on its Geostationary Ring
+card.
+
+The result below is from before the mosaic moved from the base maps to the instrument
+imagery, when `baseLayer GeoMosaic` turned it on.
 
 **Result, 2026-11-13.** iPad Air 13-inch (M4) simulator, iOS 27.2, Debug, live bucket,
 collection listing 15:00 to 19:00 UTC. At 19:30 the 19:00 Slot drew Europe and Africa at

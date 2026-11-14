@@ -327,7 +327,7 @@ composites:
   # each frame's credit names those that took part.
   - provider: georing
     layer: mosaic
-    label: Day and night, GEO ring
+    label: Day/Night, Geostationary Ring
     kind: rgb
     maxLevel: 8
     format: webp
@@ -343,7 +343,7 @@ composites:
   # hours (Data Store EO:EUM:DAT:0336). Its pixels are about 0.025°.
   - provider: eumetview
     layer: mumi:wideareacoverage_rgb_natural
-    label: Natural colour, GEO ring
+    label: Natural colour, Geostationary Ring
     kind: rgb
     maxLevel: 6
     format: png

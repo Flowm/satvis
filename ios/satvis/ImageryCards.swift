@@ -56,8 +56,8 @@ struct ImageryCards: View {
             if preview.provider == .georing {
                 previews[layer] = .mosaic(SatelliteDetails.previewBounds(latitude: centre.latitude, longitude: centre.longitude, halfWidthDeg: halfWidthDeg))
             } else {
-                previews[layer] = SatelliteDetails.imageryPreviewUrl(preview, latitude: centre.latitude, longitude: centre.longitude, halfWidthDeg: halfWidthDeg, now: now)
-                    .flatMap(URL.init(string:)).map(ImageryPreviewSource.url)
+                let url = SatelliteDetails.imageryPreviewUrl(preview, latitude: centre.latitude, longitude: centre.longitude, halfWidthDeg: halfWidthDeg, now: now)
+                previews[layer] = URL(string: url).map(ImageryPreviewSource.url)
             }
         }
     }

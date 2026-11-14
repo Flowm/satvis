@@ -74,7 +74,7 @@ const failed = reactive(new Set<string>());
 const bounds = computed(() => (props.centre ? previewBounds(props.centre, props.geostationary ? 72 : 32) : undefined));
 
 /** The georing mosaic has no WMS: its picture is made here from its file. */
-const isMadeHere = (imagery: ImageryInfo) => imagery.preview?.provider === "georing";
+const isGeoring = (imagery: ImageryInfo) => imagery.preview?.provider === "georing";
 
 /** The pictures made here, by card: object urls. */
 const madePreviews = reactive(new Map<string, string>());
@@ -91,7 +91,7 @@ watch(
     const reading = new AbortController();
     onCleanup(() => reading.abort());
     if (where === undefined) return;
-    for (const { imagery } of layers.filter((layer) => isMadeHere(layer.imagery))) {
+    for (const { imagery } of layers.filter((layer) => isGeoring(layer.imagery))) {
       geoMosaicPreview(where, PREVIEW_WIDTH, PREVIEW_HEIGHT, reading.signal)
         .then((blob) => {
           if (!reading.signal.aborted) madePreviews.set(imagery.key, URL.createObjectURL(blob));
@@ -115,7 +115,7 @@ const previews = computed(() => {
   return new Map(
     props.layers.flatMap(({ imagery }) => {
       if (!imagery.preview || where === undefined) return [];
-      const url = isMadeHere(imagery) ? madePreviews.get(imagery.key) : imageryPreviewUrl(imagery.preview, where, now);
+      const url = isGeoring(imagery) ? madePreviews.get(imagery.key) : imageryPreviewUrl(imagery.preview, where, now);
       return url === undefined ? [] : [[imagery.key, url] as const];
     }),
   );

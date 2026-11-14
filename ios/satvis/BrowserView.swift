@@ -189,9 +189,7 @@ private struct BrowserList: View {
     }
 
     private func show(_ entry: CatalogEntry) {
-        if !catalog.activation.isActive(entry) {
-            catalog.setSatellite(entry, enabled: true)
-        }
+        catalog.activate(entry)
         onShow(entry)
     }
 

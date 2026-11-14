@@ -92,8 +92,8 @@ test("the Map panel lists every layer in groups, one open at a time, and shows o
   await expect.poll(() => new URL(page.url()).searchParams.get("imagery")).toBe(`gibs:${LAYER}`);
   await expect(geo).toContainText("1 on");
   // The geostationary mosaic, which two satellites carry, is one row, first.
-  await expect(imageryRow(page, "Day and night, GEO ring")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Map" }).locator("label.imageryRow").first()).toContainText("GEO ring");
+  await expect(imageryRow(page, "Day/Night, Geostationary Ring")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Map" }).locator("label.imageryRow").first()).toContainText("Geostationary Ring");
 
   await geo.click();
   await expect(imageryRow(page, "GOES 19 ABI GeoColor")).toBeHidden();
@@ -101,7 +101,7 @@ test("the Map panel lists every layer in groups, one open at a time, and shows o
   // A composite's image button lists its satellites, and leaves the row as it was; a satellite's
   // opens it at its Imagery tab.
   await geo.click();
-  await page.getByRole("button", { name: "Show the imagery of a satellite of the GEO ring" }).click();
+  await page.getByRole("button", { name: "Show the imagery of a satellite of the Geostationary Ring" }).click();
   await expect(page.getByRole("menuitem")).toHaveText(["GOES 19", "METEOSAT-12 (MTG-I1)"]);
   // By its input: the open menu hides the panel from the accessibility tree.
   await expect(page.locator("label.imageryRow input").first()).not.toBeChecked();

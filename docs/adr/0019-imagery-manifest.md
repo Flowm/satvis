@@ -60,7 +60,7 @@ file and not where models are served:
   the layer needs them as much as the panel does.
 - `merged` on a record's entry where it shows other satellites too: a composite's. A
   layer that covers less than the instrument sees says so in its label: "Natural colour,
-  Europe"; a composite's label names what it covers: "Natural colour, GEO ring".
+  Europe"; a composite's label names what it covers: "Natural colour, Geostationary Ring".
 - An instrument's first entry is its default.
 - `maxLevel` and `format` came later, with drawing the layer (ADR 0020).
 

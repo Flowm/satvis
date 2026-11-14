@@ -14,10 +14,13 @@ nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category:
 @MainActor
 @Observable
 final class GeoMosaic {
+    /// What fetches a span of a file.
+    typealias Read = @Sendable (URL, ClosedRange<Int>) async throws -> Data
+
     /// The frame last handed to the globe, nil while none is.
     private(set) var drawn: MosaicFrame?
     /// Fetches a span of a file.
-    @ObservationIgnored private let read: @Sendable (URL, ClosedRange<Int>) async throws -> Data
+    @ObservationIgnored private let read: Read
     /// Each Slot, epoch milliseconds, to its item; nil until the collection is read.
     @ObservationIgnored private var slots: [Double: URL]?
     @ObservationIgnored private var listed = Date.distantPast
@@ -42,7 +45,7 @@ final class GeoMosaic {
     /// Frames kept opened, for a clock going back and forth.
     private static let kept = 6
 
-    init(read: @escaping @Sendable (URL, ClosedRange<Int>) async throws -> Data) {
+    init(read: @escaping Read) {
         self.read = read
     }
 
@@ -174,7 +177,7 @@ final class GeoMosaic {
     }
 
     /// The file an item names, its header and tile index read.
-    nonisolated private static func open(item: URL, read: @escaping @Sendable (URL, ClosedRange<Int>) async throws -> Data) async throws -> MosaicFrame {
+    nonisolated private static func open(item: URL, read: @escaping Read) async throws -> MosaicFrame {
         let (data, response) = try await URLSession.shared.data(from: item)
         guard (response as? HTTPURLResponse)?.statusCode == 200, let file = Mosaic.file(item: data, at: item) else {
             throw URLError(.cannotParseResponse)
@@ -183,7 +186,7 @@ final class GeoMosaic {
     }
 
     /// The newest Slot the collection lists, opened.
-    nonisolated private static func openNewest(read: @escaping @Sendable (URL, ClosedRange<Int>) async throws -> Data) async throws -> MosaicFrame {
+    nonisolated private static func openNewest(read: @escaping Read) async throws -> MosaicFrame {
         guard let slots = await list(), let newest = slots.max(by: { $0.key < $1.key }) else {
             throw URLError(.cannotParseResponse)
         }

@@ -46,34 +46,22 @@ import { computed, ref } from "vue";
 
 import { useController } from "@/composables/useController";
 import { type BrowserRow, useSatelliteBrowser } from "@/composables/useSatelliteBrowser";
+import { useSelectedEntity } from "@/composables/useSelectedEntity";
 import { formatInteger } from "@/modules/util/formats";
 
 const ROW_HEIGHT = 28;
 
-const { sats } = useController();
+const controller = useController();
+const { sats } = controller;
+const { showSatellite } = useSelectedEntity(controller);
 
-const {
-  searchQuery,
-  loadingAll,
-  setSearchQuery,
-  clearSearch,
-  rows,
-  activeSatCount,
-  groupCount,
-  hasActiveSelection,
-  isLoading,
-  toggleGroup,
-  toggleSat,
-  activateSat,
-  toggleExpand,
-  clearAll,
-} = useSatelliteBrowser(sats.catalog);
+const { searchQuery, loadingAll, setSearchQuery, clearSearch, rows, activeSatCount, groupCount, hasActiveSelection, isLoading, toggleGroup, toggleSat, toggleExpand, clearAll } =
+  useSatelliteBrowser(sats.catalog);
 
 const emit = defineEmits<{ "show-info": [name: string]; browse: [] }>();
 
 function showInfo(name: string): void {
-  activateSat(name);
-  sats.select(name);
+  showSatellite(name);
   emit("show-info", name);
 }
 

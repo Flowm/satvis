@@ -201,7 +201,7 @@ extension MosaicFrame {
             CGContext(data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: space, bitmapInfo: info)?.makeImage()
         }
         guard let image else {
-            throw MosaicError.noLevels
+            throw MosaicError.noPicture
         }
         return image
     }
@@ -213,6 +213,8 @@ enum MosaicError: Error {
     case outside(Int)
     case notTheWorld
     case noLevels
+    /// Core Graphics made no image of a preview's pixels.
+    case noPicture
 }
 
 /// The spans of a TIFF read so far, and what its directories say, classic or BigTIFF,

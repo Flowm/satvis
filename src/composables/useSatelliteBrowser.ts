@@ -255,11 +255,6 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     satStore.setActivation(toggledSatellite(satStore, name, catalog));
   }
 
-  /** Never turns a satellite off: opening its info needs it built. */
-  function activateSat(name: string): void {
-    satStore.activateSatellite(name, catalog);
-  }
-
   function toggleExpand(tag: string): void {
     const next = new Set(expandedGroups.value);
     if (next.has(tag)) {
@@ -297,7 +292,6 @@ export function useSatelliteBrowser(catalog: SatelliteCatalog) {
     isLoading,
     toggleGroup,
     toggleSat,
-    activateSat,
     toggleExpand,
     clearAll,
   };

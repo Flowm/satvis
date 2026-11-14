@@ -307,7 +307,7 @@ public enum SatelliteDetails {
         /// Whose layer it is.
         public enum Kind: Sendable, Hashable {
             case satellite(Satellite, instrument: String)
-            /// Named by its label's qualifier, "GEO ring", or `compositeName`'s fallback;
+            /// Named by its label's qualifier, "Geostationary Ring", or `compositeName`'s fallback;
             /// its satellites sorted by name, and its cadence, short, which its row shows
             /// where another names the instrument.
             case composite(name: String, satellites: [Satellite], cadence: String?)
@@ -375,7 +375,7 @@ public enum SatelliteDetails {
             }
         }
         let byName = { (a: String, b: String) in a.localizedStandardCompare(b) }
-        let rings = compositeOrder.compactMap { token -> ImageryListing? in
+        let compositeListings = compositeOrder.compactMap { token -> ImageryListing? in
             guard let composite = composites[token] else {
                 return nil
             }
@@ -398,13 +398,13 @@ public enum SatelliteDetails {
             case .orderedSame: byName(a.imagery.label, b.imagery.label) == .orderedAscending
             }
         }
-        return rings.sorted { ordered($0, $1, \.name) } + listings.values.sorted { ordered($0, $1, \.name) }
+        return compositeListings.sorted { ordered($0, $1, \.name) } + listings.values.sorted { ordered($0, $1, \.name) }
     }
 
     /// The name a Map panel row gives a composite where its label has no qualifier.
     public static let composite = "Composite"
 
-    /// "Natural colour, GEO ring" is "GEO ring": a composite's Map panel row stands for no
+    /// "Natural colour, Geostationary Ring" is "Geostationary Ring": a composite's Map panel row stands for no
     /// one satellite.
     static func compositeName(_ label: String) -> String {
         let qualifier = label.split(separator: ",", omittingEmptySubsequences: false).dropFirst().joined(separator: ",").trimmingCharacters(in: .whitespaces)
@@ -470,12 +470,9 @@ public enum SatelliteDetails {
     /// A layer's latest frame in `previewBounds`, as one WMS picture, the web app's
     /// `imageryPreviewUrl`. A stopped layer shows its last frame, a daily GIBS one
     /// yesterday's, as today's is still filling in. `now` is the wall clock, in
-    /// milliseconds since 1970. Nil for the geostationary mosaic, which has no WMS: its
+    /// milliseconds since 1970. Not for the geostationary mosaic, which has no WMS: its
     /// picture is made from its file.
-    public static func imageryPreviewUrl(_ preview: ImageryPreview, latitude: Double, longitude: Double, halfWidthDeg: Double, now: Double) -> String? {
-        guard preview.provider != .georing else {
-            return nil
-        }
+    public static func imageryPreviewUrl(_ preview: ImageryPreview, latitude: Double, longitude: Double, halfWidthDeg: Double, now: Double) -> String {
         let bounds = previewBounds(latitude: latitude, longitude: longitude, halfWidthDeg: halfWidthDeg)
         let bbox = [bounds.west, bounds.south, bounds.east, bounds.north].map { toFixed($0, 2) }.joined(separator: ",")
         var query: [(String, String)] = [

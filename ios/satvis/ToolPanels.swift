@@ -540,9 +540,7 @@ private struct SatelliteImagerySection: View {
         guard let entry = catalog.catalog.entry(orSuccessorOf: satellite.id) else {
             return
         }
-        if !catalog.activation.isActive(entry) {
-            catalog.setSatellite(entry, enabled: true)
-        }
+        catalog.activate(entry)
         tab = .imagery
         onShow(entry)
     }

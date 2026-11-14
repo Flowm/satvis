@@ -241,6 +241,5 @@ export function useCatalogFilters(catalog: SatelliteCatalog) {
     clearGlobe: browser.clearAll,
     toggleSat: browser.toggleSat,
     /** Never turns a satellite off: opening its info needs it built. */
-    activateSat: browser.activateSat,
   };
 }

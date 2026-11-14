@@ -30,7 +30,6 @@ const OPTIONAL_FIELDS: readonly { key: "period" | "start" | "end" | "window"; is
   { key: "window", is: isDuration, expected: "an ISO 8601 duration" },
 ];
 
-/** Every TileFormat. */
 const TILE_FORMATS: readonly string[] = ["png", "jpeg", "webp"] satisfies TileFormat[];
 
 const ENTRY_KEYS = new Set<string>(["provider", "layer", "label", "kind", ...OPTIONAL_FIELDS.map(({ key }) => key), "maxLevel", "format"]);

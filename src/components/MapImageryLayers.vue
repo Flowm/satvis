@@ -18,15 +18,16 @@
     </button>
     <template v-if="openGroup === group.key">
       <!-- A press on the button, interactive content inside the label, does not toggle the checkbox.
-           A composite's is no one satellite's: it opens a menu of its satellites. -->
-      <label v-for="layer in group.layers" :key="layer.key" class="toolbarSwitch imageryRow" :class="{ 'toolbarSwitch--inert': inert }" :title="titleOf(layer)">
+           A composite's is no one satellite's: it opens a menu of its satellites. The tooltip is the
+           text's, so that the button's own shows over it. -->
+      <label v-for="layer in group.layers" :key="layer.key" class="toolbarSwitch imageryRow" :class="{ 'toolbarSwitch--inert': inert }">
         <input
           type="checkbox"
           :checked="isShown(layer)"
           :aria-label="layer.kind === 'composite' ? layer.label : `${layer.satellite} ${layer.instrument} ${layer.label}`"
           @change="cesiumStore.toggleInstrumentImagery(layer.token, ($event.target as HTMLInputElement).checked)"
         />
-        <span class="imageryRow__text">
+        <span class="imageryRow__text" :title="titleOf(layer)">
           <template v-if="layer.kind === 'composite'">
             <span class="imageryRow__name">{{ layer.name }}</span> <span class="imageryRow__instrument">{{ layer.cadence }}</span>
           </template>
@@ -96,10 +97,9 @@ const GROUP_ICON: Record<ImageryGroup, string> = {
 
 const controller = useController();
 const { sats } = controller;
-const { openTab } = useSelectedEntity(controller);
+const { showSatellite } = useSelectedEntity(controller);
 const cesiumStore = useCesiumStore();
-const satStore = useSatStore();
-const { catalogRevision } = storeToRefs(satStore);
+const { catalogRevision } = storeToRefs(useSatStore());
 
 /** Every layer of the records loaded so far. */
 const layers = computed(() => {
@@ -130,9 +130,7 @@ const titleOf = (layer: ImageryLayer) =>
 
 /** Selects the satellite, turning it on if need be, at its info panel's Imagery tab. */
 function showImagery(name: string): void {
-  satStore.activateSatellite(name, sats.catalog);
-  openTab("imagery");
-  sats.select(name);
+  showSatellite(name, "imagery");
   emit("show-info", name);
 }
 
@@ -180,23 +178,29 @@ function toggleGroup(key: ImageryGroup): void {
   color: var(--panel-faint);
 }
 
-/* The satellite, its instrument and the picture, then the button that opens the satellite's Imagery tab. */
+/* The satellite, its instrument and the picture, then the button that opens the satellite's Imagery tab.
+   One line, 32px as the other switches, or two where the name leaves the rest no room. */
 .imageryRow {
   display: flex;
+  height: auto;
+  min-height: var(--toolbar-row);
   align-items: center;
+  padding-block: 6px;
   padding-right: 0;
+  line-height: 20px;
 }
 
 .imageryRow__text {
   display: flex;
   flex: 1;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 5px;
+  gap: 0 5px;
   min-width: 0;
   padding-right: 4px;
 }
 
-/* The name gives way first; the instrument and the picture tell two rows of one satellite apart. */
+/* Alone on its line, the name gives way; the instrument and the picture tell two rows of one satellite apart. */
 .imageryRow__name {
   min-width: 0;
   overflow: hidden;
@@ -221,16 +225,6 @@ function toggleGroup(key: ImageryGroup): void {
 
 /* A phone's panel is too narrow for one line (PHONE_WIDTH, src/config/layout.ts): the instrument and the picture go under the name. */
 @media (max-width: 639px) {
-  .imageryRow:has(.imageryRow__info) {
-    height: auto;
-    padding-block: 5px;
-    line-height: 20px;
-  }
-
-  .imageryRow__text {
-    flex-wrap: wrap;
-  }
-
   .imageryRow__name {
     flex-basis: 100%;
   }
@@ -240,11 +234,13 @@ function toggleGroup(key: ImageryGroup): void {
   }
 }
 
+/* The row's whole height, through its padding. */
 .imageryRow__info {
   display: grid;
   flex: none;
+  align-self: stretch;
   width: 32px;
-  height: var(--toolbar-row);
+  margin-block: -6px;
   margin-right: 2px;
   place-items: center;
   padding: 0;
